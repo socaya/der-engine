@@ -1,0 +1,20 @@
+node_modules/
+dist/
+target/
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+*.log
+.DS_Store
+coverage/
+
+# Exclude AI-assistant working files from distributable repository
+# (per DER-ENG-001 §0: no CLAUDE.md, prompt files or AI-generated badges in the repo).
+.claude/
+CLAUDE.md
+*CLAUDE*
+*Claude*
+*claude*
+

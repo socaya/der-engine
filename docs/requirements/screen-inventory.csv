@@ -1,0 +1,55 @@
+screen_id,application,screen_name,implementation
+DC-01,client,Sign in,planned
+DC-02,client,Session details,planned
+DC-03,client,App launcher,planned
+DC-04,client,Recent work,planned
+DC-05,client,Aggregate selection,planned
+DC-06,client,Aggregate entry,planned
+DC-07,client,Aggregate review,planned
+DC-08,client,Event list,planned
+DC-09,client,Event entry,planned
+DC-10,client,Event details,planned
+DC-11,client,Tracker search,planned
+DC-12,client,Tracker registration,planned
+DC-13,client,Tracker profile,planned
+DC-14,client,Enrolment details,planned
+DC-15,client,Program-stage entry,planned
+DC-16,client,Concurrent edit warning,planned
+DC-17,client,Record sync status,planned
+DC-18,client,Edge connection error,planned
+EA-01,admin-ui,Setup welcome,planned
+EA-02,admin-ui,Edge identity,planned
+EA-03,admin-ui,Central endpoint,planned
+EA-04,admin-ui,Organisation scope,planned
+EA-05,admin-ui,Metadata bootstrap,planned
+EA-06,admin-ui,Provisioning validation,planned
+EA-07,admin-ui,Activation,planned
+EA-08,admin-ui,Overview,planned
+EA-09,admin-ui,Service health,planned
+EA-10,admin-ui,Connectivity,planned
+EA-11,admin-ui,Storage,planned
+EA-12,admin-ui,Deployment details,planned
+EA-13,admin-ui,Sync overview,planned
+EA-14,admin-ui,Pending operations,planned
+EA-15,admin-ui,Operation details,planned
+EA-16,admin-ui,Exchange history,planned
+EA-17,admin-ui,Import responses,planned
+EA-18,admin-ui,Retry controls,planned
+EA-19,admin-ui,Checkpoints,planned
+EA-20,admin-ui,Conflict queue,planned
+EA-21,admin-ui,Conflict details,planned
+EA-22,admin-ui,Version comparison,planned
+EA-23,admin-ui,Resolution,planned
+EA-24,admin-ui,Resolution history,planned
+EA-25,admin-ui,Metadata versions,planned
+EA-26,admin-ui,Metadata drift,planned
+EA-27,admin-ui,Edge users,planned
+EA-28,admin-ui,Permission policies,planned
+EA-29,admin-ui,Audit trail,planned
+EA-30,admin-ui,Backup catalogue,planned
+EA-31,admin-ui,Restore,planned
+EA-32,admin-ui,Failure diagnostics,planned
+EA-33,admin-ui,Metrics,planned
+EA-34,admin-ui,Test scenarios,planned
+EA-35,admin-ui,Test results,planned
+EA-36,admin-ui,Settings,planned

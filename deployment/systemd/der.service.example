@@ -1,0 +1,18 @@
+[Unit]
+Description=DER coordination service
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+User=der
+Group=der
+WorkingDirectory=/opt/der
+ExecStart=/usr/bin/java -jar /opt/der/der-server.jar
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/der /var/log/der
+[Install]
+WantedBy=multi-user.target

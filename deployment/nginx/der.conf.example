@@ -1,0 +1,8 @@
+# Set up TLS separately before enabling outside a development network.
+server {
+    listen 8080;
+    server_name _;
+    location /edge-api/ { proxy_pass http://127.0.0.1:8085; proxy_set_header Host $host; }
+    location /admin/ { alias /opt/der/admin-ui/; try_files $uri $uri/ /admin/index.html; }
+    location / { root /opt/der/client; try_files $uri /index.html; }
+}
