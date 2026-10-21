@@ -1,0 +1,15 @@
+  [PASS] INFO           GET /api/system/info                                             -> status=200 error=None (95ms)
+  [PASS] ME             GET /api/me                                                      -> status=200 error=None (87ms)
+  [PASS] DATA_ELEMENTS  GET /api/dataElements?fields=id&pageSize=1                       -> status=200 error=None (67ms)
+  [PASS] ORG_UNITS      GET /api/organisationUnits?fields=id&pageSize=1                  -> status=200 error=None (67ms)
+  [PASS] PROGRAMS       GET /api/programs?fields=id&pageSize=1                           -> status=200 error=None (68ms)
+  [PASS] METADATA       GET /api/metadata?dataElements=true&fields=id                    -> status=200 error=None (86ms)
+  [PASS] TRACKER_TET    GET /api/trackedEntityTypes?fields=id&pageSize=1                 -> status=200 error=None (136ms)
+  [PASS] NOT_FOUND      GET /api/system/doesNotExist                                     -> status=404 error=None (89ms)
+  [PASS] TRACKER_EVENTS_NEEDS_PARAMS GET /api/tracker/events?pageSize=1                               -> status=400 error=None (65ms)
+  [PASS] UNAUTH_INFO    GET /api/system/info                                             -> status=200 error=None (5ms)
+  [PASS] TRACKER_SEARCH_NEEDS_PARAMS GET /api/tracker/trackedEntities?pageSize=1                      -> status=400 error=None (62ms)
+  [PASS] pinned-version   expected prefix='2.44-SNAPSHOT' observed='2.44-SNAPSHOT'
+
+Evidence: docs/evaluation/evidence/phase-01/a011591/compatibility/20261021T202708Z-live-probe.json
+PASS: all Phase 01 contracts met; observed DHIS2 version = 2.44-SNAPSHOT

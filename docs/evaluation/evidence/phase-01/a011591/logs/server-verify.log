@@ -1,0 +1,64 @@
+23:27:02.449 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [ug.ac.mak.der.web.Dhis2CompatibilityControllerTest]: Dhis2CompatibilityControllerTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+23:27:02.531 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration ug.ac.mak.der.DerApplication for test class ug.ac.mak.der.web.Dhis2CompatibilityControllerTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.8)
+
+2026-10-21T23:27:02.769+03:00  INFO 89898 --- [der-server] [           main] a.m.d.w.Dhis2CompatibilityControllerTest : Starting Dhis2CompatibilityControllerTest using Java 21.0.10 with PID 89898 (started by stephocay in /Users/stephocay/projects/msdcse-project/der/server)
+2026-10-21T23:27:02.770+03:00  INFO 89898 --- [der-server] [           main] a.m.d.w.Dhis2CompatibilityControllerTest : No active profile set, falling back to 1 default profile: "default"
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (/Users/stephocay/.m2/repository/net/bytebuddy/byte-buddy-agent/1.14.19/byte-buddy-agent-1.14.19.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+2026-10-21T23:27:03.918+03:00  INFO 89898 --- [der-server] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-21T23:27:03.918+03:00  INFO 89898 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-21T23:27:03.920+03:00  INFO 89898 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 1 ms
+2026-10-21T23:27:03.938+03:00  INFO 89898 --- [der-server] [           main] a.m.d.w.Dhis2CompatibilityControllerTest : Started Dhis2CompatibilityControllerTest in 1.368 seconds (process running for 1.994)
+2026-10-21T23:27:04.001+03:00  WARN 89898 --- [der-server] [           main] u.a.m.d.w.Dhis2CompatibilityController   : DHIS2 unreachable on diagnostic endpoint: central down
+2026-10-21T23:27:04.076+03:00  WARN 89898 --- [der-server] [           main] u.a.m.d.w.Dhis2CompatibilityController   : DHIS2 version mismatch surfaced on diagnostic endpoint: DHIS2 version '2.43.1' does not match pinned prefix '2.44-SNAPSHOT'
+2026-10-21T23:27:04.092+03:00  WARN 89898 --- [der-server] [           main] u.a.m.d.w.Dhis2CompatibilityController   : DHIS2 responded with unexpected payload: malformed
+2026-10-21T23:27:04.103+03:00  INFO 89898 --- [der-server] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ug.ac.mak.der.DerApplication for test class ug.ac.mak.der.web.SystemControllerTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.8)
+
+2026-10-21T23:27:04.120+03:00  INFO 89898 --- [der-server] [           main] ug.ac.mak.der.web.SystemControllerTest   : Starting SystemControllerTest using Java 21.0.10 with PID 89898 (started by stephocay in /Users/stephocay/projects/msdcse-project/der/server)
+2026-10-21T23:27:04.120+03:00  INFO 89898 --- [der-server] [           main] ug.ac.mak.der.web.SystemControllerTest   : No active profile set, falling back to 1 default profile: "default"
+2026-10-21T23:27:04.249+03:00  INFO 89898 --- [der-server] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-21T23:27:04.249+03:00  INFO 89898 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-21T23:27:04.249+03:00  INFO 89898 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-10-21T23:27:04.252+03:00  INFO 89898 --- [der-server] [           main] ug.ac.mak.der.web.SystemControllerTest   : Started SystemControllerTest in 0.147 seconds (process running for 2.308)
+2026-10-21T23:27:04.448+03:00  INFO 89898 --- [der-server] [           main] u.a.m.der.dhis2.Dhis2CompatibilityGuard  : Phase 01 guard: der.dhis2.central.base-url not configured; status=NOT_CONFIGURED
+2026-10-21T23:27:04.450+03:00  INFO 89898 --- [der-server] [           main] u.a.m.der.dhis2.Dhis2CompatibilityGuard  : Phase 01 guard: der.dhis2.central.base-url not configured; status=NOT_CONFIGURED
+2026-10-21T23:27:04.451+03:00  WARN 89898 --- [der-server] [           main] u.a.m.der.dhis2.Dhis2CompatibilityGuard  : Phase 01 guard: DHIS2 version '2.43.1' does NOT match pin '2.44-SNAPSHOT' but der.dhis2.compatibility.allow-mismatch=true (dev override).
+2026-10-21T23:27:04.451+03:00  INFO 89898 --- [der-server] [           main] u.a.m.der.dhis2.Dhis2CompatibilityGuard  : Phase 01 guard: DHIS2 version '2.44-SNAPSHOT-build-xyz' matches pin '2.44-SNAPSHOT' (revision=null, buildTime=null)
+2026-10-21T23:27:04.452+03:00  INFO 89898 --- [der-server] [           main] u.a.m.der.dhis2.Dhis2CompatibilityGuard  : Phase 01 guard: DHIS2 version '2.44-SNAPSHOT' matches pin '2.44-SNAPSHOT' (revision=abc, buildTime=2026)
+2026-10-21T23:27:04.459+03:00  INFO 89898 --- [der-server] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ug.ac.mak.der.DerApplicationTests]: DerApplicationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-10-21T23:27:04.461+03:00  INFO 89898 --- [der-server] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ug.ac.mak.der.DerApplication for test class ug.ac.mak.der.DerApplicationTests
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.8)
+
+2026-10-21T23:27:04.473+03:00  INFO 89898 --- [der-server] [           main] ug.ac.mak.der.DerApplicationTests        : Starting DerApplicationTests using Java 21.0.10 with PID 89898 (started by stephocay in /Users/stephocay/projects/msdcse-project/der/server)
+2026-10-21T23:27:04.473+03:00  INFO 89898 --- [der-server] [           main] ug.ac.mak.der.DerApplicationTests        : No active profile set, falling back to 1 default profile: "default"
+2026-10-21T23:27:05.065+03:00  INFO 89898 --- [der-server] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 2 endpoints beneath base path '/actuator'
+2026-10-21T23:27:05.082+03:00  INFO 89898 --- [der-server] [           main] ug.ac.mak.der.DerApplicationTests        : Started DerApplicationTests in 0.619 seconds (process running for 3.138)
