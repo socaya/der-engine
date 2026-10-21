@@ -1,0 +1,6 @@
+  [OK] VERSION: 0.2.0-SNAPSHOT
+  [OK] server/pom.xml: 0.2.0-SNAPSHOT
+  [OK] admin-ui/package.json: 0.2.0-SNAPSHOT
+  [OK] client/package.json: 0.2.0-SNAPSHOT
+
+PASS: all 4 version manifests report 0.2.0-SNAPSHOT

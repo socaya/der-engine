@@ -21,7 +21,23 @@ COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-${COMMIT}"
 
-OUT_DIR="docs/evaluation/evidence/phase-00/${COMMIT}"
+# Phase label is derived from the current VERSION. 0.1.x -> phase-00, 0.2.x -> phase-01, etc.
+# Documented deviation OK as long as this stays in sync with docs/releases/.
+VERSION_FILE="$(cat VERSION | tr -d '[:space:]')"
+case "$VERSION_FILE" in
+  0.1.*) PHASE="phase-00" ;;
+  0.2.*) PHASE="phase-01" ;;
+  0.3.*) PHASE="phase-02" ;;
+  0.4.*) PHASE="phase-03" ;;
+  0.5.*) PHASE="phase-04" ;;
+  0.6.*) PHASE="phase-05" ;;
+  0.7.*) PHASE="phase-06" ;;
+  0.8.*) PHASE="phase-07" ;;
+  0.9.*) PHASE="phase-08" ;;
+  1.*)   PHASE="phase-09" ;;
+  *)     PHASE="phase-unknown" ;;
+esac
+OUT_DIR="docs/evaluation/evidence/${PHASE}/${COMMIT}"
 LOG_DIR="${OUT_DIR}/logs"
 TEST_DIR="${OUT_DIR}/test-results"
 COV_DIR="${OUT_DIR}/coverage"
@@ -122,6 +138,13 @@ if [[ -d server/target/surefire-reports ]]; then
   cp -R server/target/surefire-reports "${TEST_DIR}/server-surefire"
 fi
 
+# Phase 01+ live DHIS2 compatibility probe.
+if [[ -n "${DER_DHIS2_CENTRAL_URL:-}" ]]; then
+  run_step "dhis2-live-probe" python3 scripts/verify_dhis2_reference.py
+else
+  skip_step "dhis2-live-probe" "DER_DHIS2_CENTRAL_URL not set"
+fi
+
 # Optional: OWASP dependency-check — opt-in because it needs network for NVD data.
 if [[ "${DER_RUN_DEPENDENCY_CHECK:-false}" == "true" ]]; then
   run_step "server-dependency-check" bash -c "cd server && ./mvnw -q org.owasp:dependency-check-maven:check"
@@ -173,15 +196,15 @@ else
 fi
 
 {
-  echo "# Phase 00 gate report"
+  echo "# ${PHASE/-/ } gate report"
   echo
   echo "- **Run id:** \`${RUN_ID}\`"
   echo "- **Commit:** \`${COMMIT}\`"
   echo "- **Started:** ${STARTED_AT}"
   echo "- **Finished:** ${FINISHED_AT}"
-  echo "- **Pinned DHIS2 reference:** \`unknown\` (ADR-0002 PROPOSED — Phase 01 decision)"
+  echo "- **Pinned DHIS2 reference:** \`$(grep -o 'pinned-version:.*' server/src/main/resources/application.yml | head -1 | sed 's/.*: *//')\`"
   echo "- **Evidence source:** local only; no CI claim per repository decision"
-  echo "- **Approver:** _unsigned — reviewer must counter-sign before Phase 01 starts_"
+  echo "- **Approver:** _unsigned — reviewer must counter-sign before the next phase starts_"
   echo
   echo "## Decision: **${DECISION}**"
   echo

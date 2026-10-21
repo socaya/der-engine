@@ -6,4 +6,5 @@ template and process are specified in [ADR-0001](0001-record-architecture-decisi
 | # | Title | Status |
 |---|---|---|
 | 0001 | Record architecture decisions | ACCEPTED |
-| 0002 | Pin a single DHIS2 2.43.x patch for the DER baseline | PROPOSED |
+| 0002 | Pin a single DHIS2 patch for the DER baseline | ACCEPTED (with documented deviation) |
+| 0003 | Architecture — Option A, full local DHIS2 instance | ACCEPTED |

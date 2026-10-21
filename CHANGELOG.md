@@ -13,7 +13,32 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Phase 00 work in progress (see `docs/releases/der-0.1.0.md`).
+- Phase 02 work not yet started.
+
+## [0.2.0] — unreleased
+
+Phase 01 — DHIS2 compatibility and architecture (see `docs/releases/der-0.2.0.md`).
+
+- Added: ADR-0003 (Option A — full local DHIS2 instance), ACCEPTED. ADR-0002
+  (DHIS2 version pin) moved from PROPOSED to ACCEPTED with a documented
+  deviation to `2.44-SNAPSHOT`.
+- Added: `ug.ac.mak.der.dhis2` package — `Dhis2Version`, `Dhis2Properties`,
+  `Dhis2ReferenceClient`, `Dhis2CompatibilityGuard` and Spring glue, with a
+  fail-closed version admission policy.
+- Added: `GET /edge-api/v1/dhis2/compatibility` diagnostic endpoint.
+- Added: `docs/verification/compatibility/supported-matrix.csv` listing the
+  DHIS2 Web API routes DER depends on, with Phase mapping and expected
+  status contracts.
+- Added: `scripts/verify_dhis2_reference.py` — live probe that walks the
+  matrix and writes `docs/evaluation/evidence/phase-01/<commit>/compatibility/*.json`.
+- Added: `deployment/dhis2/README.md` and `deployment/postgresql/der-db-bootstrap.sql`
+  for the Option A install path (Postgres 17 + Tomcat 10 + DHIS2 2.44-SNAPSHOT).
+- Changed: `VERSION`, `pom.xml`, both `package.json` → `0.2.0-SNAPSHOT`;
+  Maven `dhis2.reference.version` property set to `2.44-SNAPSHOT`.
+- Changed: traceability-matrix status flipped to `in-progress` for FR-04-04,
+  FR-04-10, FR-12-04, NFR-22, NFR-35.
+
+[0.2.0]: https://github.com/socaya/der-engine/releases/tag/der-0.2.0
 
 ## [0.1.0] — unreleased
 

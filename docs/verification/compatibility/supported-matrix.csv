@@ -1,0 +1,12 @@
+route_id,method,path,requires_auth,expected_min_status,expected_max_status,der_phase,notes
+INFO,GET,/api/system/info,true,200,200,01,"System identity probe. Must return JSON with 'version' field matching the pinned prefix."
+ME,GET,/api/me,true,200,200,01,"Current session user; also used by Phase 02 identity provisioning."
+DATA_ELEMENTS,GET,/api/dataElements?fields=id&pageSize=1,true,200,200,01,"Aggregate metadata reachability."
+ORG_UNITS,GET,/api/organisationUnits?fields=id&pageSize=1,true,200,200,01,"Scope resolution used from Phase 02 onwards."
+PROGRAMS,GET,/api/programs?fields=id&pageSize=1,true,200,200,01,"Tracker metadata reachability."
+METADATA,GET,/api/metadata?dataElements=true&fields=id,true,200,200,01,"Metadata snapshot primitive used by Phase 03 bootstrap."
+TRACKER_TET,GET,/api/trackedEntityTypes?fields=id&pageSize=1,true,200,200,01,"Tracker metadata reachability (type listing)."
+NOT_FOUND,GET,/api/system/doesNotExist,true,404,404,01,"Negative: unknown Web API path is 404 (not 500)."
+TRACKER_EVENTS_NEEDS_PARAMS,GET,/api/tracker/events?pageSize=1,true,400,400,01,"Negative: /api/tracker/events exists on 2.44 but demands orgUnit (400 E1xxx). 400 proves reachability + param validation; 404/500 would be a compatibility break."
+UNAUTH_INFO,GET,/api/system/info,false,200,401,02,"Observed behaviour on 2.44-SNAPSHOT-2026.05: anonymous access is permitted (200). Phase 02 must enforce the DER edge auth policy; this row is reclassified to Phase 02 and the range is widened to capture both configurations."
+TRACKER_SEARCH_NEEDS_PARAMS,GET,/api/tracker/trackedEntities?pageSize=1,true,400,400,03,"Negative: endpoint reachable but requires program/trackedEntityType (E1003) and orgUnit. Full positive assertion deferred to Phase 03 with real fixture IDs."

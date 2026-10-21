@@ -1,0 +1,22 @@
+run-id:    20261021T202600Z-cdf8428
+commit:    cdf8428
+started:   2026-10-21T20:26:00Z
+host:      Darwin Stephens-MacBook-Pro.local 25.2.0 arm64
+cwd:       /Users/stephocay/projects/msdcse-project/der
+
+java:
+  openjdk version "21.0.10" 2026-01-20
+  OpenJDK Runtime Environment Homebrew (build 21.0.10)
+  OpenJDK 64-Bit Server VM Homebrew (build 21.0.10, mixed mode, sharing)
+
+maven:
+  Apache Maven 3.9.9 (8e8579a9e76f7d015ee5ec7bfcdc97d260186937)
+  Maven home: /Users/stephocay/.m2/wrapper/dists/apache-maven-3.9.9/3477a4f1
+  Java version: 21.0.10, vendor: Homebrew, runtime: /opt/homebrew/Cellar/openjdk@21/21.0.10/libexec/openjdk.jdk/Contents/Home
+  Default locale: en_US, platform encoding: UTF-8
+  OS name: "mac os x", version: "26.2", arch: "aarch64", family: "mac"
+
+node:   v20.19.6
+npm:    10.8.2
+python: Python 3.11.9
+docker: not available

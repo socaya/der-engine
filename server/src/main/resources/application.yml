@@ -1,10 +1,9 @@
-# DER coordination service — Phase 00 defaults.
+# DER coordination service — Phase 01 defaults.
 #
-# Phase 00 ships without a live PostgreSQL dependency: Flyway and the JDBC
-# starter are on the classpath so Phase 02 migrations drop in without churn,
-# but auto-configuration is disabled at this phase to keep the boot path
-# honest (no mysterious database connections before provisioning is designed).
-# Phase 02 removes these exclusions and introduces proper datasource config.
+# Phase 01 wires up the DHIS2 adapter and version guard but still ships without
+# a live PostgreSQL dependency: Flyway and the JDBC starter remain on the
+# classpath so Phase 02 migrations drop in without churn, but autoconfiguration
+# is disabled at this phase so the boot path stays honest.
 server:
   port: ${DER_PORT:8085}
 spring:
@@ -23,3 +22,18 @@ management:
   endpoint:
     health:
       show-details: never
+
+# DHIS2 adapter — Phase 01 (ADR-0002, ADR-0003).
+# The pinned version MUST match /api/system/info.version prefix on the central.
+# `allow-mismatch=true` is a development override and MUST NOT be set in a
+# released configuration.
+der:
+  dhis2:
+    central:
+      base-url: ${DER_DHIS2_CENTRAL_URL:}
+      username: ${DER_DHIS2_USER:}
+      password: ${DER_DHIS2_PASSWORD:}
+      connect-timeout-millis: 10000
+    compatibility:
+      pinned-version: 2.44-SNAPSHOT
+      allow-mismatch: false
