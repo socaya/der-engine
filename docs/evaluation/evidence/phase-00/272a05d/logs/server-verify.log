@@ -1,0 +1,38 @@
+22:15:35.538 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration ug.ac.mak.der.DerApplication for test class ug.ac.mak.der.web.SystemControllerTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.8)
+
+2026-10-21T22:15:35.778+03:00  INFO 72525 --- [der-server] [           main] ug.ac.mak.der.web.SystemControllerTest   : Starting SystemControllerTest using Java 21.0.10 with PID 72525 (started by stephocay in /Users/stephocay/projects/msdcse-project/der/server)
+2026-10-21T22:15:35.779+03:00  INFO 72525 --- [der-server] [           main] ug.ac.mak.der.web.SystemControllerTest   : No active profile set, falling back to 1 default profile: "default"
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (/Users/stephocay/.m2/repository/net/bytebuddy/byte-buddy-agent/1.14.19/byte-buddy-agent-1.14.19.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+2026-10-21T22:15:36.968+03:00  INFO 72525 --- [der-server] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-21T22:15:36.968+03:00  INFO 72525 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-21T22:15:36.969+03:00  INFO 72525 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-10-21T22:15:36.987+03:00  INFO 72525 --- [der-server] [           main] ug.ac.mak.der.web.SystemControllerTest   : Started SystemControllerTest in 1.408 seconds (process running for 2.078)
+2026-10-21T22:15:37.247+03:00  INFO 72525 --- [der-server] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ug.ac.mak.der.DerApplicationTests]: DerApplicationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-10-21T22:15:37.251+03:00  INFO 72525 --- [der-server] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ug.ac.mak.der.DerApplication for test class ug.ac.mak.der.DerApplicationTests
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.8)
+
+2026-10-21T22:15:37.269+03:00  INFO 72525 --- [der-server] [           main] ug.ac.mak.der.DerApplicationTests        : Starting DerApplicationTests using Java 21.0.10 with PID 72525 (started by stephocay in /Users/stephocay/projects/msdcse-project/der/server)
+2026-10-21T22:15:37.270+03:00  INFO 72525 --- [der-server] [           main] ug.ac.mak.der.DerApplicationTests        : No active profile set, falling back to 1 default profile: "default"
+2026-10-21T22:15:37.738+03:00  INFO 72525 --- [der-server] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 2 endpoints beneath base path '/actuator'
+2026-10-21T22:15:37.762+03:00  INFO 72525 --- [der-server] [           main] ug.ac.mak.der.DerApplicationTests        : Started DerApplicationTests in 0.508 seconds (process running for 2.852)

@@ -1,4 +1,32 @@
-const navigation = ["Application launcher", "Aggregate reporting", "Event capture", "Tracker", "Recent records", "Connection status"];
-export default function App() {
-  return <div className="shell"><aside><div className="brand">DER Client</div><nav aria-label="Main navigation">{navigation.map(item => <div className="nav-item" key={item}>{item}</div>)}</nav></aside><main><header><h1>DER Client</h1><p>DHIS2 Edge Runtime • starter workspace</p></header><section className="notice"><h2>Implementation status</h2><p>This is a runnable interface shell. DHIS2 workflow, user identity, central sync and data persistence integration have not been implemented.</p><p>Develop the verified interfaces against a pinned DHIS2 version before marking capabilities complete.</p></section></main></div>;
+import { AppShell, type ShellProps } from './AppShell';
+
+/**
+ * DER device-client application — Phase 00 scaffold.
+ *
+ * Navigation entries correspond to the DC-* screens in
+ * `docs/ui/02-screen-inventory.md`. Real DHIS2 workflow execution is a Phase 03
+ * deliverable; this shell exists so acceptance tests can bind to stable DOM.
+ */
+
+const navigation: readonly string[] = [
+  'Application launcher',
+  'Aggregate reporting',
+  'Event capture',
+  'Tracker',
+  'Recent records',
+  'Connection status',
+] as const;
+
+const props: ShellProps = {
+  app: 'client',
+  brand: 'DER Client',
+  heading: 'DER Client',
+  subheading: 'DHIS2 Edge Runtime • local workflow shell',
+  navigation,
+  version: __DER_VERSION__,
+  dhis2ReferenceVersion: 'unknown',
+};
+
+export default function App(): JSX.Element {
+  return <AppShell {...props} />;
 }

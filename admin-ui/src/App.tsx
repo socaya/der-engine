@@ -1,4 +1,36 @@
-const navigation = ["Overview", "Provisioning", "Synchronisation", "Conflicts", "Metadata", "Security", "Recovery", "Evaluation", "Settings"];
-export default function App() {
-  return <div className="shell"><aside><div className="brand">DER Administration</div><nav aria-label="Main navigation">{navigation.map(item => <div className="nav-item" key={item}>{item}</div>)}</nav></aside><main><header><h1>DER Administration</h1><p>DHIS2 Edge Runtime • starter workspace</p></header><section className="notice"><h2>Implementation status</h2><p>This is a runnable interface shell. DHIS2 workflow, user identity, central sync and data persistence integration have not been implemented.</p><p>Develop the verified interfaces against a pinned DHIS2 version before marking capabilities complete.</p></section></main></div>;
+import { AppShell, type ShellProps } from './AppShell';
+
+/**
+ * DER administration console — Phase 00 scaffold.
+ *
+ * Navigation entries map 1:1 to the EA-* screen domains in
+ * `docs/ui/02-screen-inventory.md`. No navigation entry performs real work in
+ * this phase; each is a placeholder visual target rendered through {@link AppShell}
+ * so acceptance tests have stable semantics to assert against.
+ */
+
+const navigation: readonly string[] = [
+  'Overview',
+  'Provisioning',
+  'Synchronisation',
+  'Conflicts',
+  'Metadata',
+  'Security',
+  'Recovery',
+  'Evaluation',
+  'Settings',
+] as const;
+
+const props: ShellProps = {
+  app: 'admin-ui',
+  brand: 'DER Administration',
+  heading: 'DER Administration',
+  subheading: 'DHIS2 Edge Runtime • administrator console',
+  navigation,
+  version: __DER_VERSION__,
+  dhis2ReferenceVersion: 'unknown',
+};
+
+export default function App(): JSX.Element {
+  return <AppShell {...props} />;
 }

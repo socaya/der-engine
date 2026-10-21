@@ -1,5 +1,25 @@
+# DER coordination service — Phase 00 defaults.
+#
+# Phase 00 ships without a live PostgreSQL dependency: Flyway and the JDBC
+# starter are on the classpath so Phase 02 migrations drop in without churn,
+# but auto-configuration is disabled at this phase to keep the boot path
+# honest (no mysterious database connections before provisioning is designed).
+# Phase 02 removes these exclusions and introduces proper datasource config.
 server:
   port: ${DER_PORT:8085}
 spring:
   application:
     name: der-server
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

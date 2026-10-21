@@ -1,0 +1,36 @@
+Requirement ID,Priority,Attribute,Acceptance or verification criterion,Test
+NFR-01,P0,Availability,"During a WAN-only partition with operational edge and LAN, all declared supported local workflows remain available.",T15
+NFR-02,P0,Durability,No acknowledged local commit is lost in tested application/worker restart cases; durable outbox remains consistent.,T09
+NFR-03,P0,Atomicity,A business change and corresponding pending journal intent are committed atomically or both rolled back.,T09
+NFR-04,P0,Consistency,Zero unexpected invalid references or silent lost updates in predefined integrity cases.,T10
+NFR-05,P0,Authorisation,100% of predefined forbidden access attempts are rejected across UI and direct API paths.,T03
+NFR-06,P0,Confidentiality,"Protect transport, credentials, privileged logs and stored backups in accordance with selected policies.",T03
+NFR-07,P0,Local visibility,Every acknowledged local commit is retrievable by a second authorised client without central access.,T08
+NFR-08,P0,API parity,"For declared deterministic equivalent operations, edge and reference responses/record effects match defined oracles.",T20
+NFR-09,P0,Validation parity,100% agreement for the pinned set of reference comparison fixtures; report unsupported semantics separately.,T20
+NFR-10,P0,Conflict precision,100% of integrity-critical known conflicts detected in seeded tests; report overall precision and recall.,T11
+NFR-11,P0,Retry safety,Zero unintended duplicate business objects in the defined repeat/lost-acknowledgement tests.,T12
+NFR-12,P0,Accounting,"Each eligible journal operation has a traceable pending, accepted, rejected, uncertain or review-required outcome.",T13
+NFR-13,P0,Recoverability,Application/sync restart yields no missing committed operations and restores consistent processing state.,T17
+NFR-14,P0,Security freshness,Offline privilege and credential freshness decisions follow documented deny/expiry policy.,T02
+NFR-15,P1,Performance latency,"Measure p50/p95 latency at fixed 5/10/20-user workloads; candidate p95 under 2 s for selected simple requests, pending feasibility.",T19
+NFR-16,P1,Throughput,Report sustained successful writes/s and reads/s for configured workloads and reference hardware.,T19
+NFR-17,P0,Backlog recovery,Measure time to stable central outcomes after restoration for backlog sizes 100/1000 and report unresolved items.,T16
+NFR-18,P1,Resource budget,"Measure and publish CPU, memory and disk storage growth under each workload; limits set before acceptance.",T19
+NFR-19,P1,Scalability,Test increasing local client concurrency at 1/5/10/20 sessions and report saturation and errors.,T19
+NFR-20,P1,Observability,"Provide operator-visible health, last successful sync, queue depth, rejection and conflict metrics.",T17
+NFR-21,P0,Auditability,"Every conflict decision and privilege-changing operation includes accountable actor, time and outcome.",T11
+NFR-22,P0,Interoperability,All integrations use documented pinned-version DHIS2 APIs or supported reuse mechanisms; exceptions logged.,T20
+NFR-23,P1,Maintainability,"Implementation separated into tested local execution, persistence, journal, sync and administrative components.",T20
+NFR-24,P1,Portability,Reproduce prototype in documented reference Linux/server environment using versioned deployment steps.,T01
+NFR-25,P1,Usability,Users can distinguish locally committed from centrally accepted records; errors are actionable.,T07
+NFR-26,P2,Accessibility,"Use semantic forms, keyboard navigation and readable states in any new administration interfaces.",T20
+NFR-27,P0,Test reproducibility,"Repeat test scenarios with fixed seed, reset conditions, version record and uniquely identified runs.",T19
+NFR-28,P1,Time correctness,Document time source/time zone and detect unsafe clock drift in test setup.,T14
+NFR-29,P1,Backup integrity,A verified restoration retains committed records and their pending/accepted reconciliation history.,T18
+NFR-30,P0,Graceful degradation,"When disk, DB or credentials prevent durable acceptance, reject explicitly; never report false success.",T18
+NFR-31,P0,Data minimisation,Synthetic data only for planned university experiments; collect only necessary audit details.,T20
+NFR-32,P0,No central coupling,A successful supported local operation makes no blocking central API call on its critical path.,T15
+NFR-33,P0,Metadata safety,An incompatible metadata change does not silently reinterpret unacknowledged local operations.,T14
+NFR-34,P0,Failure isolation,Sync worker failures do not crash or block supported local application execution.,T17
+NFR-35,P0,Deployment transparency,"Report exact DHIS2 version, metadata fixture, software dependencies, hardware and unsupported cases.",T01

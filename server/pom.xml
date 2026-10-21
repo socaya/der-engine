@@ -1,11 +1,327 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion><groupId>ug.ac.mak.der</groupId><artifactId>der-server</artifactId><version>0.1.0-SNAPSHOT</version>
-  <parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>3.3.8</version><relativePath/></parent>
-  <properties><java.version>21</java.version></properties>
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DER coordination service — Phase 00 baseline pom.
+
+  Scope at this version:
+    * Java 21, Spring Boot 3.3.x, pinned.
+    * Real quality gates: JaCoCo (100% line+branch on changed modules via includes
+      list), SpotBugs, Checkstyle, OWASP dependency-check.
+    * Flyway + PostgreSQL driver + Testcontainers-Postgres on test classpath only.
+      No live DHIS2 integration is wired up; that is a Phase 01+ job.
+    * No business logic beyond the health endpoint. Coverage includes are deliberately
+      narrow so we do not falsely claim 100% over the whole package.
+
+  See DER-ENG-001 §5.2 and docs/delivery/02-release-and-versioning.md.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.3.8</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>ug.ac.mak.der</groupId>
+  <artifactId>der-server</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+  <name>DER coordination server</name>
+  <description>DHIS2 Edge Runtime coordination service (Phase 00 baseline)</description>
+
+  <properties>
+    <java.version>21</java.version>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+    <!-- Pinned plugin versions. -->
+    <jacoco.version>0.8.12</jacoco.version>
+    <spotbugs.plugin.version>4.8.6.6</spotbugs.plugin.version>
+    <checkstyle.plugin.version>3.5.0</checkstyle.plugin.version>
+    <dependency-check.version>10.0.4</dependency-check.version>
+    <testcontainers.version>1.20.4</testcontainers.version>
+    <failsafe.version>3.5.1</failsafe.version>
+    <surefire.version>3.5.1</surefire.version>
+
+    <!-- Toggle to skip the dependency-check offline-sensitive goal. -->
+    <der.dependency-check.skip>false</der.dependency-check.skip>
+  </properties>
+
   <dependencies>
-    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
-    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>
-    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <!-- Persistence stack: wired now so Phase 02 migrations plug in without churn. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-jdbc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- Tests. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
-  <build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>build-info</id>
+            <goals><goal>build-info</goal></goals>
+            <configuration>
+              <additionalProperties>
+                <der.release>${project.version}</der.release>
+                <dhis2.reference.version>unknown</dhis2.reference.version>
+              </additionalProperties>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Record the git commit SHA in build-info.properties so the health endpoint
+           can report the exact source commit without shelling out at runtime. -->
+      <plugin>
+        <groupId>io.github.git-commit-id</groupId>
+        <artifactId>git-commit-id-maven-plugin</artifactId>
+        <version>9.0.1</version>
+        <executions>
+          <execution>
+            <id>get-the-git-infos</id>
+            <phase>initialize</phase>
+            <goals><goal>revision</goal></goals>
+          </execution>
+        </executions>
+        <configuration>
+          <generateGitPropertiesFile>true</generateGitPropertiesFile>
+          <failOnNoGitDirectory>false</failOnNoGitDirectory>
+          <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+          <includeOnlyProperties>
+            <includeOnlyProperty>git.commit.id.abbrev</includeOnlyProperty>
+            <includeOnlyProperty>git.commit.id.full</includeOnlyProperty>
+            <includeOnlyProperty>git.branch</includeOnlyProperty>
+            <includeOnlyProperty>git.dirty</includeOnlyProperty>
+          </includeOnlyProperties>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${surefire.version}</version>
+        <configuration>
+          <includes>
+            <include>**/*Test.java</include>
+            <include>**/*Tests.java</include>
+          </includes>
+          <excludes>
+            <exclude>**/*IT.java</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+
+      <!-- Integration tests. Testcontainers-based ITs require Docker; opt in with
+           `-Dder.integration-tests=true`. Default stance: declare + compile, skip
+           execution so Phase 00 does not falsely claim central integration passes. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>${failsafe.version}</version>
+        <configuration>
+          <skip>${der.integration-tests.skip}</skip>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- JaCoCo: 100% line + branch on DER-owned production logic actually shipped
+           in this phase. Includes list is deliberately narrow; new packages added
+           in later phases must be added here (or declared as exclusions in the
+           gate report) at that time. -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco.version}</version>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals><goal>prepare-agent</goal></goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals><goal>report</goal></goals>
+          </execution>
+          <execution>
+            <id>check</id>
+            <phase>verify</phase>
+            <goals><goal>check</goal></goals>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>CLASS</element>
+                  <includes>
+                    <include>ug.ac.mak.der.web.*</include>
+                    <include>ug.ac.mak.der.build.*</include>
+                  </includes>
+                  <excludes>
+                    <exclude>ug.ac.mak.der.DerApplication</exclude>
+                  </excludes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>1.00</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>1.00</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+              <haltOnFailure>true</haltOnFailure>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>${spotbugs.plugin.version}</version>
+        <configuration>
+          <effort>Max</effort>
+          <threshold>Low</threshold>
+          <failOnError>true</failOnError>
+          <excludeFilterFile>${project.basedir}/quality/spotbugs-exclude.xml</excludeFilterFile>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>verify</phase>
+            <goals><goal>check</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>${checkstyle.plugin.version}</version>
+        <configuration>
+          <configLocation>${project.basedir}/quality/checkstyle.xml</configLocation>
+          <failOnViolation>true</failOnViolation>
+          <consoleOutput>true</consoleOutput>
+          <includeTestSourceDirectory>false</includeTestSourceDirectory>
+        </configuration>
+        <executions>
+          <execution>
+            <id>validate</id>
+            <phase>validate</phase>
+            <goals><goal>check</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.owasp</groupId>
+        <artifactId>dependency-check-maven</artifactId>
+        <version>${dependency-check.version}</version>
+        <configuration>
+          <skip>${der.dependency-check.skip}</skip>
+          <failBuildOnCVSS>11</failBuildOnCVSS>
+          <suppressionFiles>
+            <suppressionFile>${project.basedir}/quality/dependency-check-suppressions.xml</suppressionFile>
+          </suppressionFiles>
+          <formats>
+            <format>HTML</format>
+            <format>JSON</format>
+          </formats>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>integration-tests</id>
+      <activation>
+        <property>
+          <name>der.integration-tests</name>
+          <value>true</value>
+        </property>
+      </activation>
+      <properties>
+        <der.integration-tests.skip>false</der.integration-tests.skip>
+      </properties>
+    </profile>
+    <profile>
+      <id>no-integration-tests</id>
+      <activation>
+        <property>
+          <name>!der.integration-tests</name>
+        </property>
+      </activation>
+      <properties>
+        <der.integration-tests.skip>true</der.integration-tests.skip>
+      </properties>
+    </profile>
+  </profiles>
 </project>

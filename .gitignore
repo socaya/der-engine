@@ -7,8 +7,17 @@ target/
 .idea/
 .vscode/
 *.log
+# Keep evidence bundles under version control even though they contain .log files.
+!docs/evaluation/evidence/**/*.log
 .DS_Store
 coverage/
+
+# TypeScript incremental build output
+*.tsbuildinfo
+
+# Playwright run artefacts
+playwright-report/
+test-results/
 
 # Exclude AI-assistant working files from distributable repository
 # (per DER-ENG-001 §0: no CLAUDE.md, prompt files or AI-generated badges in the repo).
@@ -17,4 +26,3 @@ CLAUDE.md
 *CLAUDE*
 *Claude*
 *claude*
-

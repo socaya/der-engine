@@ -1,0 +1,177 @@
+Requirement ID,Priority,Module,Feature,Requirement
+FR-01-01,P0,Provisioning and site configuration,Site registration,"Create stable edge-node identity, site name, organisation-unit scope and central-system registration."
+FR-01-02,P0,Provisioning and site configuration,Central connection setup,"Configure verified central endpoint, supported DHIS2 version, secure trust configuration and network routes."
+FR-01-03,P0,Provisioning and site configuration,Provisioning credentials,Enrol the edge with scoped central integration credentials without exposing secrets.
+FR-01-04,P0,Provisioning and site configuration,Initial readiness checks,"Verify time, DNS, certificates, storage, database, network and dependencies before activation."
+FR-01-05,P0,Provisioning and site configuration,Bootstrap metadata,Import the authorised complete dependency set for selected workflows and retain its fingerprint.
+FR-01-06,P0,Provisioning and site configuration,Bootstrap records,Seed authorised working records using scoped retrieval and checkpoints.
+FR-01-07,P1,Provisioning and site configuration,Site configuration,"Manage configurable connectivity policies, limits, local URL and time-zone settings."
+FR-01-08,P1,Provisioning and site configuration,Reproducible deployment,Install or redeploy the selected architecture using versioned scripts and configuration.
+FR-01-09,P1,Provisioning and site configuration,Controlled upgrade,Check compatibility and provide rollback strategy before local runtime upgrades.
+FR-01-10,P1,Provisioning and site configuration,Decommissioning,"Revoke credentials, preserve audit/export evidence and securely retire the site."
+FR-02-01,P0,Local identity and authentication,Offline login,Authenticate previously provisioned and authorised users without central availability.
+FR-02-02,P0,Local identity and authentication,Identity provisioning,Synchronise permitted user identity and credential material using an approved secure mechanism.
+FR-02-03,P0,Local identity and authentication,Session management,"Issue, refresh and expire local sessions independently of WAN reachability."
+FR-02-04,P0,Local identity and authentication,Login protection,"Apply rate limits, failed-attempt control and relevant account lock policies."
+FR-02-05,P0,Local identity and authentication,Credential protection,Store only permitted password verifiers or keys; never persist plaintext secrets.
+FR-02-06,P0,Local identity and authentication,Expiry policy,"Enforce local offline login age, credential expiry and revalidation policy."
+FR-02-07,P0,Local identity and authentication,Unprovisioned users,Deny first-time offline authentication unless a specifically approved provisioning method exists.
+FR-02-08,P0,Local identity and authentication,User lifecycle,Update or disable locally provisioned users upon central change and record effective scope.
+FR-02-09,P0,Local identity and authentication,Break-glass access,"Support a formally configured, audited emergency-access policy only if approved."
+FR-02-10,P0,Local identity and authentication,Clock and token safety,Handle clock skew and token expiry with explicit fail-safe decisions.
+FR-03-01,P0,Authorisation and data isolation,Role permissions,"Enforce applicable local read, create, edit, delete and approval permissions."
+FR-03-02,P0,Authorisation and data isolation,Organisation scope,Restrict all application and API operations to assigned organisation units and descendants.
+FR-03-03,P0,Authorisation and data isolation,Program and data-set scope,"Restrict access to permitted DHIS2 programs, stages, data sets and data elements."
+FR-03-04,P0,Authorisation and data isolation,Record filtering,Filter local searches and listings to records authorised for the acting user.
+FR-03-05,P0,Authorisation and data isolation,Server-side enforcement,Enforce permissions in local APIs irrespective of frontend state.
+FR-03-06,P0,Authorisation and data isolation,Permission snapshots,Version and timestamp imported permissions and track stale authorisations.
+FR-03-07,P0,Authorisation and data isolation,Privileged-operation policy,Block operations requiring unavailable current central authority.
+FR-03-08,P0,Authorisation and data isolation,Revocation reconciliation,Apply central revocations after restoration and review operations performed under stale grants.
+FR-03-09,P0,Authorisation and data isolation,Service isolation,Ensure synchronisation service credentials cannot be used for general user activity.
+FR-03-10,P0,Authorisation and data isolation,Security event audit,"Record denied access, permission changes and sensitive administration operations."
+FR-04-01,P0,Local application/API execution,Local primary endpoint,Direct all participating LAN clients to the edge for supported workflows in every connectivity mode.
+FR-04-02,P0,Local application/API execution,Application availability,Serve supported DHIS2 application resources without central live dependencies.
+FR-04-03,P0,Local application/API execution,Dependency resolution,Resolve the documented subset of required frontend requests against local services.
+FR-04-04,P0,Local application/API execution,API compatibility,Return version-appropriate response structures and HTTP outcomes for declared supported routes.
+FR-04-05,P0,Local application/API execution,Local validations,Run applicable server and client validation for supported operations while disconnected.
+FR-04-06,P0,Local application/API execution,Error semantics,Communicate unsupported operations distinctly from temporary failures and invalid input.
+FR-04-07,P0,Local application/API execution,Cross-client refresh,"Expose newly committed records to other authorised clients, through refresh/poll or optional notifications."
+FR-04-08,P0,Local application/API execution,Local search,"Support search, pagination and retrieval for declared aggregate, event and Tracker records."
+FR-04-09,P0,Local application/API execution,Date/time handling,"Apply consistent locale, date, time-zone and period semantics."
+FR-04-10,P0,Local application/API execution,Compatibility manifest,"Publish supported DHIS2 release, workflows, operations and known deviations."
+FR-05-01,P0,Metadata and rules,Dependency closure,Identify and cache all metadata dependencies of selected workflows.
+FR-05-02,P0,Metadata and rules,Data elements and categories,"Manage supported data elements, category combinations and category options."
+FR-05-03,P0,Metadata and rules,Data sets,"Manage data sets, periods, sections and permitted organisation units."
+FR-05-04,P0,Metadata and rules,Tracker metadata,"Manage tracked entity types, attributes, programs, enrolments and stages."
+FR-05-05,P0,Metadata and rules,Options and translations,"Manage relevant option sets, option groups and displayed names."
+FR-05-06,P0,Metadata and rules,Program rules,Execute defined supported program-rule actions and expressions locally.
+FR-05-07,P0,Metadata and rules,Validation rules,"Apply supported mandatory, range, uniqueness and cross-field validations."
+FR-05-08,P0,Metadata and rules,Metadata versions,"Store source versions, retrieval time and fingerprints for dependent objects."
+FR-05-09,P0,Metadata and rules,Safe metadata refresh,Validate references before activating new metadata packages.
+FR-05-10,P0,Metadata and rules,Metadata drift impact,Identify pending operations made against changed or incompatible definitions.
+FR-05-11,P0,Metadata and rules,Quarantine incompatible work,Prevent silent reinterpretation of affected pending changes.
+FR-05-12,P0,Metadata and rules,Metadata diagnostics,"Present missing dependencies, mismatches and effective local configuration."
+FR-06-01,P0,Aggregate reporting,Data set selection,Open locally available authorised data sets by org unit and reporting period.
+FR-06-02,P0,Aggregate reporting,Aggregate data entry,Create and modify selected aggregate data values with complete compound keys.
+FR-06-03,P0,Aggregate reporting,Category and period validation,"Apply category combination, period and value-type rules."
+FR-06-04,P0,Aggregate reporting,Shared aggregate visibility,Show committed values to a second authorised client during WAN outage.
+FR-06-05,P0,Aggregate reporting,Concurrent key updates,Detect stale or competing writes to identical aggregate-value keys.
+FR-06-06,P0,Aggregate reporting,Report completion,Support configured save/completeness states within supported scope.
+FR-06-07,P0,Aggregate reporting,Aggregate exchange,Prepare supported dataValueSets and interpret central acceptance/rejection.
+FR-06-08,P0,Aggregate reporting,Aggregate reconciliation,Resolve independently changed central aggregate values according to policy.
+FR-07-01,P0,Event capture,Event creation,Create permitted standalone events using stable supported identities.
+FR-07-02,P0,Event capture,Event editing,Update permitted event data with expected-version checks.
+FR-07-03,P0,Event capture,Event retrieval,Search and view events from the local persistent store.
+FR-07-04,P0,Event capture,Event validation,"Apply stage, program, option, type and required-value checks."
+FR-07-05,P0,Event capture,Org-unit and user rules,Enforce applicable ownership and organisation permissions.
+FR-07-06,P0,Event capture,Event history,Track local changes and sync status without losing prior evidence.
+FR-07-07,P0,Event capture,Event import,Exchange events via target-version supported Tracker/event API methods.
+FR-07-08,P0,Event capture,Event conflicts,"Identify central divergence, deletion and duplicate event identity."
+FR-08-01,P0,Tracker and dependent workflows,Tracked entity creation,Create and persist tracked entities with required attributes and stable identities.
+FR-08-02,P0,Tracker and dependent workflows,Tracker search,Find permitted tracked entities locally using indexed authorised fields.
+FR-08-03,P0,Tracker and dependent workflows,Tracker updates,Update tracked entity attributes with version checks.
+FR-08-04,P0,Tracker and dependent workflows,Enrolment lifecycle,Create and maintain permitted enrolments and statuses.
+FR-08-05,P0,Tracker and dependent workflows,Program-stage events,Create and edit enrolment-linked events by configured stage.
+FR-08-06,P0,Tracker and dependent workflows,Relationships,Preserve permitted tracked-entity and event relationships with referential integrity.
+FR-08-07,P0,Tracker and dependent workflows,Dependent workflow continuity,Permit one authorised user to continue workflow steps from another user’s committed changes.
+FR-08-08,P0,Tracker and dependent workflows,Uniqueness checks,Apply locally evaluable unique-attribute constraints and flag central collisions.
+FR-08-09,P0,Tracker and dependent workflows,Rules and transitions,"Enforce supported program rules, mandatory fields and guarded state changes."
+FR-08-10,P0,Tracker and dependent workflows,Tracker graph reconciliation,"Synchronise entity, enrolment, event and relationship dependencies in safe order."
+FR-08-11,P0,Tracker and dependent workflows,Central import findings,"Interpret per-object import errors, accepted results and conflicts."
+FR-08-12,P0,Tracker and dependent workflows,Tracker audit,"Retain actor, operation identity and locally committed workflow history."
+FR-09-01,P0,Shared data and transaction integrity,ACID local commits,Use transactional persistence for supported records and invariant checks.
+FR-09-02,P0,Shared data and transaction integrity,Atomic outbox creation,Persist accepted business change and its synchronisation journal entry atomically.
+FR-09-03,P0,Shared data and transaction integrity,Stable operation identity,Assign globally unique operation identifiers and maintain source identities.
+FR-09-04,P0,Shared data and transaction integrity,Local sequence,"Maintain an ordered, durable per-edge commit sequence or equivalent cursor."
+FR-09-05,P0,Shared data and transaction integrity,Reference integrity,"Protect entity, enrolment, event and metadata relationships."
+FR-09-06,P0,Shared data and transaction integrity,Optimistic concurrency,Reject or classify changes with unexpected record version.
+FR-09-07,P0,Shared data and transaction integrity,Duplicate local submission,Identify repeated client requests without creating unintended business effects.
+FR-09-08,P0,Shared data and transaction integrity,Read-after-write,Make committed changes visible across authorised sessions after successful commit.
+FR-09-09,P0,Shared data and transaction integrity,Query performance,Index required local lookup and workflow fields.
+FR-09-10,P0,Shared data and transaction integrity,Retention and purge,Retain unresolved operations; purge only by approved retention policy.
+FR-10-01,P0,Conflict detection and resolution,Local write collision,Detect simultaneous incompatible modifications within the edge.
+FR-10-02,P0,Conflict detection and resolution,Central divergence,Detect conflicts when central state changed independently during separation.
+FR-10-03,P0,Conflict detection and resolution,Conflict taxonomy,"Classify stale-version, uniqueness, delete/update, permission, metadata and relationship conflicts."
+FR-10-04,P0,Conflict detection and resolution,Safe automatic merge,Only merge explicitly approved compatible operations under preserved invariants.
+FR-10-05,P0,Conflict detection and resolution,No blind last-write-wins,Never silently overwrite meaningful changes solely by latest timestamp.
+FR-10-06,P0,Conflict detection and resolution,Review cases,"Create durable review cases preserving source, actor, payload and competing values."
+FR-10-07,P0,Conflict detection and resolution,Human review,Provide authorised accept/reject/rework decision operations.
+FR-10-08,P0,Conflict detection and resolution,Resolution auditing,"Record reviewer, rationale, timestamp and effects of every resolution."
+FR-10-09,P0,Conflict detection and resolution,Retry after resolution,Return a resolved operation to eligible processing when appropriate.
+FR-10-10,P0,Conflict detection and resolution,Conflict metrics,"Report true-positive, false-positive and false-negative cases in experiments."
+FR-11-01,P0,Durable journal and sync state,Journal schema,"Persist operation identity, entity scope, event type, metadata version, dependency and payload reference."
+FR-11-02,P0,Durable journal and sync state,State machine,"Support locally committed, pending, leased, uncertain, centrally accepted, rejected and review-required states."
+FR-11-03,P0,Durable journal and sync state,Attempt history,"Persist requests, attempt numbers, timings, results and central correlation IDs."
+FR-11-04,P0,Durable journal and sync state,Crash-safe leases,Reclaim abandoned in-progress work without losing the operation.
+FR-11-05,P0,Durable journal and sync state,Explicit acknowledgement,Require defensible central acceptance evidence before final accepted status.
+FR-11-06,P0,Durable journal and sync state,Replay protection,Associate retries with stable identities and inspect central effects where supported.
+FR-11-07,P0,Durable journal and sync state,Dead-letter handling,Retain permanently rejected or malformed operations with diagnostics.
+FR-11-08,P0,Durable journal and sync state,Journal queries,Allow scoped inspection and export of journal status for administration and tests.
+FR-11-09,P0,Durable journal and sync state,Checkpoint management,Persist sync cursors only after associated effects are durably acknowledged.
+FR-11-10,P0,Durable journal and sync state,Ordering constraints,Protect object dependencies and sequence-sensitive changes.
+FR-12-01,P0,Edge-to-central synchronisation,WAN detection,Detect central reachability independently of local service availability.
+FR-12-02,P0,Edge-to-central synchronisation,Asynchronous scheduling,Submit eligible operations without blocking local request completion.
+FR-12-03,P0,Edge-to-central synchronisation,Batch selection,"Choose eligible changes by dependency, scope and configured batch limits."
+FR-12-04,P0,Edge-to-central synchronisation,Target-specific adapters,Use verified API contracts for the pinned DHIS2 target version.
+FR-12-05,P0,Edge-to-central synchronisation,Transport security,Authenticate and encrypt central transmissions.
+FR-12-06,P0,Edge-to-central synchronisation,Import inspection,"Interpret overall and per-object import success, ignored items, conflicts and errors."
+FR-12-07,P0,Edge-to-central synchronisation,Retry policy,"Use bounded exponential backoff, jitter and retry classifications."
+FR-12-08,P0,Edge-to-central synchronisation,Lost-response recovery,Resolve uncertain central effects without claiming exactly-once delivery.
+FR-12-09,P0,Edge-to-central synchronisation,Rate control,Limit sync concurrency and impact on local workflow processing.
+FR-12-10,P0,Edge-to-central synchronisation,Pause and resume,"Allow safe worker pause, resume and graceful stop."
+FR-12-11,P0,Edge-to-central synchronisation,Backlog reporting,"Measure queued, attempted, accepted, rejected and unresolved work."
+FR-12-12,P0,Edge-to-central synchronisation,Continuous operation,Continue local workflows throughout backlog draining and reconciliation.
+FR-13-01,P0,Central-to-edge refresh,Remote change retrieval,Retrieve centrally modified permitted records using supported version-specific mechanisms.
+FR-13-02,P0,Central-to-edge refresh,Scope filtering,Limit pulled records to authorised local data scope.
+FR-13-03,P0,Central-to-edge refresh,Remote cursor,Persist the point of confirmed remote import where supported.
+FR-13-04,P0,Central-to-edge refresh,Apply central changes,Apply compatible remote changes transactionally to local state.
+FR-13-05,P0,Central-to-edge refresh,Divergence check,Do not overwrite locally pending changes with an unreviewed central version.
+FR-13-06,P0,Central-to-edge refresh,Metadata refresh pipeline,"Stage, verify and activate central metadata updates safely."
+FR-13-07,P0,Central-to-edge refresh,Permission refresh,Incorporate relevant central identity and authorisation changes.
+FR-13-08,P0,Central-to-edge refresh,Remote deletion handling,Handle remote removal/unavailability according to defined retention and reconciliation policies.
+FR-13-09,P0,Central-to-edge refresh,Restartable refresh,Resume interrupted remote pulls without duplicate side effects.
+FR-13-10,P0,Central-to-edge refresh,Freshness reporting,Display last confirmed refresh and stale scope status.
+FR-14-01,P0,Connectivity and resilience,Connected mode,Keep local execution primary when central WAN is available.
+FR-14-02,P0,Connectivity and resilience,Disconnected mode,Preserve supported workflows with no live central requests.
+FR-14-03,P0,Connectivity and resilience,Recovery mode,Resume reconciliation without taking the local application offline.
+FR-14-04,P0,Connectivity and resilience,Worker restart,Resume journal processing after sync process crashes/restarts.
+FR-14-05,P0,Connectivity and resilience,Application restart,Recover all previously acknowledged local commits after runtime restart.
+FR-14-06,P0,Connectivity and resilience,Database recovery,Use storage recovery procedure with integrity verification.
+FR-14-07,P0,Connectivity and resilience,Backup,"Create consistent backups covering local working state, metadata and pending journal."
+FR-14-08,P0,Connectivity and resilience,Restore,Restore tested snapshots and re-establish a safe reconciliation checkpoint.
+FR-14-09,P0,Connectivity and resilience,Storage alarms,Warn or safely reject new operations when durable storage cannot be assured.
+FR-14-10,P0,Connectivity and resilience,Clock skew,"Detect material drift affecting operation ordering, expiry and observability."
+FR-14-11,P0,Connectivity and resilience,Graceful shutdown,Drain or release leases and finish/rollback in-flight local transactions safely.
+FR-14-12,P0,Connectivity and resilience,Failure boundary,"Explicitly state no operation guarantee during complete LAN, edge host or power failure."
+FR-15-01,P0,Operational administration,Site dashboard,"Show edge identity, location scope, software version and health."
+FR-15-02,P0,Operational administration,Connectivity panel,"Show central reachability, last successful exchange and offline duration."
+FR-15-03,P0,Operational administration,Sync dashboard,"Display queue totals, sync outcomes, processing rates and backlog age."
+FR-15-04,P0,Operational administration,Conflict workspace,Allow authorised review and explanation of unresolved conflicts.
+FR-15-05,P0,Operational administration,Metadata inspector,Show current metadata version and compatibility warnings.
+FR-15-06,P1,Operational administration,User scope viewer,Inspect provisioned users and effective permission age.
+FR-15-07,P1,Operational administration,Backup tools,Schedule and verify backup/restore procedures.
+FR-15-08,P1,Operational administration,Configuration editor,Change approved settings with validation and audit records.
+FR-15-09,P1,Operational administration,Support bundle,"Export sanitised logs, configuration and evidence for diagnosis."
+FR-15-10,P1,Operational administration,Operational reporting,Generate local operational summaries without falsely claiming central acceptance.
+FR-16-01,P0,Security and audit,TLS on LAN,Use authenticated encrypted client-to-edge transport.
+FR-16-02,P0,Security and audit,TLS to central,Validate central certificates and protect outbound exchanges.
+FR-16-03,P0,Security and audit,Secret isolation,Store service credentials in protected configuration or secret storage.
+FR-16-04,P0,Security and audit,Least privilege,"Separate end-user, administrator, reviewer and sync-worker authorities."
+FR-16-05,P0,Security and audit,Audit trail,Log security-sensitive changes and resolution decisions with correlation IDs.
+FR-16-06,P0,Security and audit,Log sanitisation,"Exclude passwords, access tokens and unnecessary sensitive payloads from logs."
+FR-16-07,P0,Security and audit,Data at rest,Apply documented appropriate database/filesystem protection and backup encryption.
+FR-16-08,P0,Security and audit,Tenant/site boundaries,Deny cross-site record access beyond explicitly assigned scope.
+FR-16-09,P0,Security and audit,Session fixation protection,Use secure session cookie/token semantics and logout invalidation.
+FR-16-10,P0,Security and audit,Stale-permission handling,Apply fail-safe permissions when central access changes while offline.
+FR-16-11,P0,Security and audit,Import validation,Validate and constrain central payload and metadata ingestion.
+FR-16-12,P0,Security and audit,Administrative accountability,"Require authenticated authorisation for backup, import and conflict overrides."
+FR-17-01,P0,Testability and evidence,Synthetic fixtures,Generate seeded aggregate/event/Tracker inputs without personal data.
+FR-17-02,P0,Testability and evidence,WAN fault injection,Deterministically disconnect and restore only the WAN while keeping LAN alive.
+FR-17-03,P0,Testability and evidence,Concurrent workload driver,Run defined simultaneous client updates and dependent workflow steps.
+FR-17-04,P0,Testability and evidence,Compatibility oracle,"Compare selected inputs, validation responses and resulting records with reference DHIS2."
+FR-17-05,P0,Testability and evidence,Conflict oracle,Define expected conflict classes and compute precision and recall.
+FR-17-06,P0,Testability and evidence,Durability verification,Confirm committed data/journal survive defined restarts.
+FR-17-07,P0,Testability and evidence,Sync reconciliation oracle,Compare central and local intended effects after recovery.
+FR-17-08,P1,Testability and evidence,Resource measurements,"Capture CPU, RAM, disk, latency and throughput."
+FR-17-09,P1,Testability and evidence,Result export,"Export experiment configuration, inputs, failures and measured outputs."
+FR-17-10,P1,Testability and evidence,Regression suite,Run automated integration tests for all declared supported workflows.
