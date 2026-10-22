@@ -4,13 +4,19 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-/** One step within a {@link CaptureWorkflow}. ADR-0018. */
+/**
+ * One step within a {@link CaptureWorkflow}. ADR-0018; the optional
+ * {@code ownerDeviceId} was added by ADR-0022 (slice B) to bind a step
+ * to a specific {@link ug.ac.mak.der.device.EdgeDevice}. Null means the
+ * step is role-only.
+ */
 public record CaptureWorkflowStep(
         UUID stepId,
         UUID workflowId,
         int ordinal,
         String displayName,
         OwnerRole ownerRole,
+        UUID ownerDeviceId,
         StepKind stepKind,
         List<CaptureWorkflowField> fields
 ) {

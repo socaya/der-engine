@@ -644,6 +644,51 @@ describe('EA-CWF-02 CaptureWorkflowDesigner', () => {
     await waitFor(() => expect(screen.getByTestId('cwf02-error')).toBeInTheDocument());
   });
 
+  it('renders device reference panel when listDevices returns rows (ADR-0022)', async () => {
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: vi.fn(),
+      listDevices: vi.fn().mockResolvedValue({ devices: [{
+        deviceId: 'dvc-1', assignedUserId: null,
+        enrolledAt: '2026-10-22T00:00:00Z', approvedBy: null, approvedAt: null,
+        lastSeenAt: null, userAgent: 'Chrome', firmwareVersion: null,
+        status: 'APPROVED',
+      }] }),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('cwf02-devices')).toBeInTheDocument());
+    expect(screen.getByTestId('cwf02-device-dvc-1')).toHaveTextContent('Chrome');
+  });
+
+  it('device panel hidden when listDevices returns empty', async () => {
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: vi.fn(),
+      listDevices: vi.fn().mockResolvedValue({ devices: [] }),
+    } as never} />);
+    expect(screen.queryByTestId('cwf02-devices')).not.toBeInTheDocument();
+  });
+
+  it('device panel falls back to deviceId slice when userAgent is null', async () => {
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: vi.fn(),
+      listDevices: vi.fn().mockResolvedValue({ devices: [{
+        deviceId: '12345678-aaaa-bbbb-cccc-dddddddddddd', assignedUserId: null,
+        enrolledAt: '2026-10-22T00:00:00Z', approvedBy: null, approvedAt: null,
+        lastSeenAt: null, userAgent: null, firmwareVersion: null,
+        status: 'PENDING',
+      }] }),
+    } as never} />);
+    const row = await screen.findByTestId(
+      'cwf02-device-12345678-aaaa-bbbb-cccc-dddddddddddd');
+    expect(row).toHaveTextContent('12345678');
+  });
+
+  it('listDevices null response treated as empty', async () => {
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: vi.fn(),
+      listDevices: vi.fn().mockResolvedValue({ devices: null }),
+    } as never} />);
+    expect(screen.queryByTestId('cwf02-devices')).not.toBeInTheDocument();
+  });
+
   it('toggles enabled checkbox', async () => {
     renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
       getWorkflow: vi.fn(), saveWorkflow: vi.fn(),

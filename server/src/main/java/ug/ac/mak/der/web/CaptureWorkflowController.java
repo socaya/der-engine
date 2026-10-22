@@ -112,6 +112,7 @@ public class CaptureWorkflowController {
                     steps.add(new CaptureWorkflowStep(stepId, id, s.ordinal(), s.displayName(),
                             CaptureWorkflowStep.OwnerRole.valueOf(
                                     s.ownerRole().toUpperCase(java.util.Locale.ROOT)),
+                            s.ownerDeviceId(),
                             CaptureWorkflowStep.StepKind.valueOf(
                                     s.stepKind().toUpperCase(java.util.Locale.ROOT)),
                             fields));
@@ -156,6 +157,7 @@ public class CaptureWorkflowController {
         m.put("ordinal", s.ordinal());
         m.put("displayName", s.displayName());
         m.put("ownerRole", s.ownerRole().name());
+        m.put("ownerDeviceId", s.ownerDeviceId() == null ? null : s.ownerDeviceId().toString());
         m.put("stepKind", s.stepKind().name());
         m.put("fields", s.fields().stream().map(f -> Map.of(
                 "fieldRef", f.fieldRef(), "requirement", f.requirement().name())).toList());
@@ -193,6 +195,7 @@ public class CaptureWorkflowController {
             @JsonProperty("ordinal") int ordinal,
             @JsonProperty("displayName") String displayName,
             @JsonProperty("ownerRole") String ownerRole,
+            @JsonProperty("ownerDeviceId") UUID ownerDeviceId,
             @JsonProperty("stepKind") String stepKind,
             @JsonProperty("fields") List<FieldRequest> fields) { }
 

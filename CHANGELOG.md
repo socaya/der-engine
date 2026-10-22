@@ -15,6 +15,18 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.3.0-alpha.1] — unreleased
+
+Initiative 10 slice B kickoff — device-owner config (ADR-0022).
+
+- Added: V018 schema — nullable `owner_device_id` FK on `capture_workflow_step` (`ON DELETE SET NULL`), partial index on non-null values.
+- Added: `CaptureWorkflowStep.ownerDeviceId` + repository + controller round-trip; API accepts/returns the new JSON field.
+- Added: admin UI designer gains an "Enrolled devices" reference panel with copy-friendly UUIDs so admins can bind steps via the JSON textarea.
+- Added: ADR-0022 (nullable column, role-as-fallback, config-only in alpha.1 with enforcement in alpha.2+, JSON-textarea authoring with a device reference panel).
+- Added: 1 server test + 4 admin-ui screen tests.
+
+[1.3.0-alpha.1]: https://github.com/socaya/der-engine/releases/tag/der-1.3.0-alpha.1
+
 ## [1.2.0] — 2026-10-22
 
 First stable release. Bundles alphas 1.2.0-alpha.1 through 1.2.0-alpha.5 under a single tag; no code change versus 1.2.0-alpha.5.

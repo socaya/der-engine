@@ -22,7 +22,7 @@ class CaptureWorkflowServiceTest {
         final java.util.List<CaptureWorkflowStep> steps = new java.util.ArrayList<>();
         for (int i = 0; i < stepCount; i++) {
             steps.add(new CaptureWorkflowStep(UUID.randomUUID(), id, i, "s" + i,
-                    CaptureWorkflowStep.OwnerRole.OPERATOR,
+                    CaptureWorkflowStep.OwnerRole.OPERATOR, null,
                     CaptureWorkflowStep.StepKind.CAPTURE, List.of()));
         }
         return new CaptureWorkflow(id, "wf", CaptureWorkflow.BindingKind.DATA_SET, "ds1",
@@ -85,7 +85,7 @@ class CaptureWorkflowServiceTest {
         final CaptureWorkflow b = new CaptureWorkflow(id, "wf",
                 CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 2, NOW, NOW, null,
                 List.of(new CaptureWorkflowStep(a.steps().get(0).stepId(), id, 0, "s0",
-                        CaptureWorkflowStep.OwnerRole.OPERATOR,
+                        CaptureWorkflowStep.OwnerRole.OPERATOR, null,
                         CaptureWorkflowStep.StepKind.APPROVE, List.of())),
                 List.of());
         when(repo.findById(id)).thenReturn(Optional.of(a));
@@ -174,7 +174,7 @@ class CaptureWorkflowServiceTest {
         final CaptureWorkflow b = new CaptureWorkflow(id, "wf",
                 CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 1, NOW, NOW, null,
                 List.of(new CaptureWorkflowStep(a.steps().get(0).stepId(), id, 0, "s0",
-                        CaptureWorkflowStep.OwnerRole.REVIEWER,
+                        CaptureWorkflowStep.OwnerRole.REVIEWER, null,
                         CaptureWorkflowStep.StepKind.CAPTURE, List.of())),
                 List.of());
         assertThat(CaptureWorkflowService.shapeChanged(a, b)).isTrue();

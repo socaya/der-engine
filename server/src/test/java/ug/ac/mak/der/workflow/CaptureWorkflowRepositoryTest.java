@@ -105,18 +105,40 @@ class CaptureWorkflowRepositoryTest {
                 CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 1, NOW, NOW, null,
                 List.of(
                         new CaptureWorkflowStep(stepId, id, 0, "s0",
-                                CaptureWorkflowStep.OwnerRole.OPERATOR,
+                                CaptureWorkflowStep.OwnerRole.OPERATOR, null,
                                 CaptureWorkflowStep.StepKind.CAPTURE,
                                 List.of(new CaptureWorkflowField(stepId, "de.coc",
                                         CaptureWorkflowField.Requirement.REQUIRED))),
                         new CaptureWorkflowStep(stepId2, id, 1, "s1",
-                                CaptureWorkflowStep.OwnerRole.REVIEWER,
+                                CaptureWorkflowStep.OwnerRole.REVIEWER, null,
                                 CaptureWorkflowStep.StepKind.REVIEW, List.of())),
                 List.of(new CaptureWorkflowDependency(stepId2, stepId,
                         CaptureWorkflowDependency.Kind.COMPLETES_BEFORE)));
         assertThat(new CaptureWorkflowRepository(jdbc).upsert(w)).isSameAs(w);
         verify(jdbc).update(org.mockito.ArgumentMatchers.contains("DELETE FROM der.capture_workflow_step"),
                 eq(id));
+    }
+
+    @Test
+    void upsertPersistsOwnerDeviceId() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.update(anyString(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any())).thenReturn(1);
+        when(jdbc.update(anyString(), any(), any())).thenReturn(1);
+        final UUID id = UUID.randomUUID();
+        final UUID stepId = UUID.randomUUID();
+        final UUID deviceId = UUID.randomUUID();
+        final CaptureWorkflow w = new CaptureWorkflow(id, "wf",
+                CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 1, NOW, NOW, null,
+                List.of(new CaptureWorkflowStep(stepId, id, 0, "s0",
+                        CaptureWorkflowStep.OwnerRole.OPERATOR, deviceId,
+                        CaptureWorkflowStep.StepKind.CAPTURE, List.of())),
+                List.of());
+        new CaptureWorkflowRepository(jdbc).upsert(w);
+        verify(jdbc).update(
+                org.mockito.ArgumentMatchers.contains("owner_device_id"),
+                eq(stepId), eq(id), eq(0), eq("s0"), eq("OPERATOR"),
+                eq(deviceId), eq("CAPTURE"));
     }
 
     @Test

@@ -51,7 +51,7 @@ class CaptureWorkflowRecordsTest {
     void stepRejectsBlankDisplayName() {
         assertThatThrownBy(() -> new CaptureWorkflowStep(UUID.randomUUID(),
                 UUID.randomUUID(), 0, " ",
-                CaptureWorkflowStep.OwnerRole.OPERATOR,
+                CaptureWorkflowStep.OwnerRole.OPERATOR, null,
                 CaptureWorkflowStep.StepKind.CAPTURE, List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
@@ -60,7 +60,7 @@ class CaptureWorkflowRecordsTest {
     void stepRejectsNegativeOrdinal() {
         assertThatThrownBy(() -> new CaptureWorkflowStep(UUID.randomUUID(),
                 UUID.randomUUID(), -1, "x",
-                CaptureWorkflowStep.OwnerRole.OPERATOR,
+                CaptureWorkflowStep.OwnerRole.OPERATOR, null,
                 CaptureWorkflowStep.StepKind.CAPTURE, List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
@@ -69,7 +69,7 @@ class CaptureWorkflowRecordsTest {
     void stepFieldsAreCopiedDefensively() {
         final CaptureWorkflowStep s = new CaptureWorkflowStep(UUID.randomUUID(),
                 UUID.randomUUID(), 0, "x",
-                CaptureWorkflowStep.OwnerRole.OPERATOR,
+                CaptureWorkflowStep.OwnerRole.OPERATOR, null,
                 CaptureWorkflowStep.StepKind.CAPTURE, null);
         assertThat(s.fields()).isNotNull();
     }

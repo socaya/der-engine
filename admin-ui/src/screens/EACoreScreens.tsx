@@ -724,7 +724,7 @@ export function EACaptureWorkflowList({ api = edgeApi }:
 
 // EA-CWF-02 Designer -----------------------------------------------
 export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
-    { api?: Pick<typeof edgeApi, 'getWorkflow' | 'saveWorkflow'>;
+    { api?: Pick<typeof edgeApi, 'getWorkflow' | 'saveWorkflow' | 'listDevices'>;
       workflowId?: string } = {}): JSX.Element {
   const [existing, setExisting] = useState<edgeApi.CaptureWorkflowSummary | null>(null);
   const [displayName, setDisplayName] = useState('');
@@ -732,13 +732,13 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
   const [enabled, setEnabled] = useState(true);
   const [stepsJson, setStepsJson] = useState('[]');
   const [depsJson, setDepsJson] = useState('[]');
+  const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   useEffect(() => {
-    if (!workflowId || workflowId === 'new') return;
     (async () => {
-      try {
+      if (workflowId && workflowId !== 'new') {
         const w = await api.getWorkflow(workflowId);
         setExisting(w);
         setDisplayName(w.displayName);
@@ -746,10 +746,14 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
         setEnabled(w.enabled);
         setStepsJson(JSON.stringify(w.steps, null, 2));
         setDepsJson(JSON.stringify(w.dependencies, null, 2));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
       }
-    })().catch(() => undefined);
+      if (api.listDevices) {
+        const d = await api.listDevices();
+        setDevices(d.devices ?? []);
+      }
+    })().catch((err) => {
+      setError(err instanceof Error ? err.message : String(err));
+    });
   }, [api, workflowId]);
 
   async function doSave(): Promise<void> {
@@ -793,6 +797,21 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
           onChange={(e) => { setEnabled(e.target.checked); }} />
         Enabled
       </label>
+      {devices.length > 0 && (
+        <details className="ea-cwf-device-ref" data-test="cwf02-devices">
+          <summary>Enrolled devices ({devices.length}) — paste UUID into
+            a step's <code>ownerDeviceId</code> to bind it (ADR-0022)</summary>
+          <ul>
+            {devices.map((d) => (
+              <li key={d.deviceId} data-test={`cwf02-device-${d.deviceId}`}>
+                <code>{d.deviceId}</code>{' '}
+                <small>{d.userAgent ?? d.deviceId.slice(0, 8)}</small>{' '}
+                <span>({d.status})</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <label>
         <span>Steps (JSON array; slice A ships a simple editor)</span>
         <textarea data-test="cwf02-steps" rows={10} value={stepsJson}

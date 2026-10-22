@@ -104,10 +104,11 @@ public class CaptureWorkflowRepository {
         for (final CaptureWorkflowStep s : w.steps()) {
             jdbc.update(
                     "INSERT INTO der.capture_workflow_step "
-                            + "(step_id, workflow_id, ordinal, display_name, owner_role, step_kind) "
-                            + "VALUES (?, ?, ?, ?, ?, ?)",
+                            + "(step_id, workflow_id, ordinal, display_name, owner_role, "
+                            + " owner_device_id, step_kind) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?)",
                     s.stepId(), w.workflowId(), s.ordinal(), s.displayName(),
-                    s.ownerRole().name(), s.stepKind().name());
+                    s.ownerRole().name(), s.ownerDeviceId(), s.stepKind().name());
             for (final CaptureWorkflowField f : s.fields()) {
                 jdbc.update("INSERT INTO der.capture_workflow_field "
                                 + "(step_id, field_ref, requirement) VALUES (?, ?, ?)",
@@ -182,7 +183,8 @@ public class CaptureWorkflowRepository {
 
     private CaptureWorkflow hydrate(final HeaderRow h) {
         final List<CaptureWorkflowStep> steps = jdbc.query(
-                "SELECT step_id, workflow_id, ordinal, display_name, owner_role, step_kind "
+                "SELECT step_id, workflow_id, ordinal, display_name, owner_role, "
+                        + " owner_device_id, step_kind "
                         + "FROM der.capture_workflow_step WHERE workflow_id = ? "
                         + "ORDER BY ordinal ASC",
                 (ResultSet rs, int row) -> {
@@ -202,6 +204,7 @@ public class CaptureWorkflowRepository {
                             rs.getInt("ordinal"),
                             rs.getString("display_name"),
                             CaptureWorkflowStep.OwnerRole.valueOf(rs.getString("owner_role")),
+                            (UUID) rs.getObject("owner_device_id"),
                             CaptureWorkflowStep.StepKind.valueOf(rs.getString("step_kind")),
                             fields);
                 }, h.workflowId);
