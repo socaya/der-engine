@@ -811,3 +811,99 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
     </div>
   );
 }
+
+// EA-DVC-01 Device fleet (ADR-0019) -------------------------------
+export function EADeviceFleet({ api = edgeApi }:
+    { api?: Pick<typeof edgeApi, 'listDevices' | 'approveDevice'
+      | 'suspendDevice' | 'revokeDevice' | 'deleteDevice'> } = {}): JSX.Element {
+  const [rows, setRows] = useState<edgeApi.EdgeDeviceRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function reload(): Promise<void> {
+    try {
+      const resp = await api.listDevices();
+      setRows(resp.devices);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, [api]);
+
+  async function act(id: string,
+                      fn: (id: string) => Promise<unknown>): Promise<void> {
+    setBusy(id);
+    try {
+      await fn(id);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (error) return <ErrorBlock title="Device fleet error" testId="dvc01-error">{error}</ErrorBlock>;
+  if (rows === null) return <LoadingBlock testId="dvc01-loading" />;
+  return (
+    <div className="ea-screen">
+      <h1 data-test="dvc01-heading">Device fleet</h1>
+      {rows.length === 0 ? (
+        <EmptyBlock title="No devices enrolled" testId="dvc01-empty">
+          Devices appear here when their client calls <code>POST /devices/enroll</code>.
+        </EmptyBlock>
+      ) : (
+        <table className="ea-devices">
+          <thead>
+            <tr>
+              <th>Device</th><th>Status</th><th>Last seen</th>
+              <th>User agent</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((d) => (
+              <tr key={d.deviceId} data-test={`dvc01-row-${d.deviceId}`}>
+                <td><code>{d.deviceId.slice(0, 8)}</code></td>
+                <td data-test={`dvc01-status-${d.deviceId}`}>{d.status}</td>
+                <td>{d.lastSeenAt ?? '—'}</td>
+                <td title={d.userAgent ?? ''}>
+                  {(d.userAgent ?? '').slice(0, 40)}
+                </td>
+                <td>
+                  {d.status !== 'APPROVED' && d.status !== 'REVOKED' && (
+                    <button type="button" data-test={`dvc01-approve-${d.deviceId}`}
+                      disabled={busy === d.deviceId}
+                      onClick={() => { act(d.deviceId, api.approveDevice).catch(() => undefined); }}>
+                      Approve
+                    </button>
+                  )}
+                  {d.status === 'APPROVED' && (
+                    <button type="button" data-test={`dvc01-suspend-${d.deviceId}`}
+                      disabled={busy === d.deviceId}
+                      onClick={() => { act(d.deviceId, api.suspendDevice).catch(() => undefined); }}>
+                      Suspend
+                    </button>
+                  )}
+                  {d.status !== 'REVOKED' && (
+                    <button type="button" data-test={`dvc01-revoke-${d.deviceId}`}
+                      disabled={busy === d.deviceId}
+                      onClick={() => { act(d.deviceId, api.revokeDevice).catch(() => undefined); }}>
+                      Revoke
+                    </button>
+                  )}
+                  {d.status === 'REVOKED' && (
+                    <button type="button" data-test={`dvc01-delete-${d.deviceId}`}
+                      disabled={busy === d.deviceId}
+                      onClick={() => { act(d.deviceId, api.deleteDevice).catch(() => undefined); }}>
+                      Delete
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

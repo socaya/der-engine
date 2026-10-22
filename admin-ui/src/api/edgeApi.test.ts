@@ -132,6 +132,11 @@ describe('edgeApi route coverage', () => {
     }],
     ['deleteWorkflow',    () => api.deleteWorkflow('wf-1'),      '/edge-api/v1/workflows/wf-1',         'DELETE', undefined],
     ['listWorkflowRuns',  () => api.listWorkflowRuns('wf-1'),    '/edge-api/v1/workflows/wf-1/runs',    'GET',    undefined],
+    ['listDevices',       () => api.listDevices(),               '/edge-api/v1/devices',                'GET',    undefined],
+    ['approveDevice',     () => api.approveDevice('dvc'),        '/edge-api/v1/devices/dvc/approve',    'POST',   undefined],
+    ['suspendDevice',     () => api.suspendDevice('dvc'),        '/edge-api/v1/devices/dvc/suspend',    'POST',   undefined],
+    ['revokeDevice',      () => api.revokeDevice('dvc'),         '/edge-api/v1/devices/dvc/revoke',     'POST',   undefined],
+    ['deleteDevice',      () => api.deleteDevice('dvc'),         '/edge-api/v1/devices/dvc',            'DELETE', undefined],
   ])('%s hits the expected URL + method', async (_name, call, path, method, expectedBody) => {
     fetchMock.mockResolvedValue(respond(200, okJson));
     await call();

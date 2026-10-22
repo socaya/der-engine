@@ -15,6 +15,19 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.2.0-alpha.2] — unreleased
+
+Initiative 1 — edge device-client management (ADR-0019).
+
+- Added: V015 schema — `edge_device` + `edge_device_dependency`.
+- Added: `ug.ac.mak.der.device` package — `EdgeDevice`, `EdgeDeviceDependency`, `EdgeDeviceRepository` (`upsertEnrol`, status transitions), `DeviceService` (enrol with Argon2id token hash, approve/suspend/revoke/heartbeat with outcome enums).
+- Added: `DeviceController` at `/edge-api/v1/devices/**` — self-enrol + heartbeat any-authenticated-user; approve/suspend/revoke/delete + list ADMIN-gated.
+- Added: admin UI `EADeviceFleet` (EA-DVC-01) at `/devices`, Devices nav link, 6 new edgeApi helpers.
+- Added: 48 server tests + 13 admin-ui tests + 1 Playwright spec + 6 edgeApi table rows.
+- Added: ADR-0019 (installation-UUID identity, manual admin approval, generic dependency_kind enum ready for Initiative 3 + Initiative 10 slice B).
+
+[1.2.0-alpha.2]: https://github.com/socaya/der-engine/releases/tag/der-1.2.0-alpha.2
+
 ## [1.2.0-alpha.1] — unreleased
 
 Initiative 10 slice A — DER capture-workflow configuration (ADR-0018).

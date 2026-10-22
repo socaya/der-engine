@@ -2,11 +2,12 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
+import * as edgeApi from '../api/edgeApi';
 import {
   EASetupWelcome, EAUsersList, EAUserCreate, EACompatInspector, EACompatHistory,
   EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
   EAWorkerHealth, EAMetadataOverview, EAApprovalQueue, EACaptureWorkflowList,
-  EACaptureWorkflowDesigner,
+  EACaptureWorkflowDesigner, EADeviceFleet,
 } from './EACoreScreens';
 
 afterEach(() => vi.restoreAllMocks());
@@ -650,5 +651,96 @@ describe('EA-CWF-02 CaptureWorkflowDesigner', () => {
     expect(cb.checked).toBe(true);
     await userEvent.click(cb);
     expect(cb.checked).toBe(false);
+  });
+});
+
+describe('EA-DVC-01 DeviceFleet', () => {
+  const device = (status: edgeApi.DeviceStatus = 'PENDING') => ({
+    deviceId: '33333333-3333-3333-3333-333333333333',
+    assignedUserId: null,
+    enrolledAt: '2026-10-22T00:00:00Z',
+    approvedBy: null, approvedAt: null, lastSeenAt: null,
+    userAgent: 'chrome', firmwareVersion: null,
+    status,
+  });
+
+  it('renders empty', async () => {
+    renderWithProviders(<EADeviceFleet api={{
+      listDevices: vi.fn().mockResolvedValue({ devices: [] }),
+      approveDevice: vi.fn(), suspendDevice: vi.fn(),
+      revokeDevice: vi.fn(), deleteDevice: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('dvc01-empty')).toBeInTheDocument());
+  });
+
+  it('renders a row with Approve + Revoke buttons when PENDING', async () => {
+    renderWithProviders(<EADeviceFleet api={{
+      listDevices: vi.fn().mockResolvedValue({ devices: [device('PENDING')] }),
+      approveDevice: vi.fn(), suspendDevice: vi.fn(),
+      revokeDevice: vi.fn(), deleteDevice: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('dvc01-row-33333333-3333-3333-3333-333333333333'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('dvc01-approve-33333333-3333-3333-3333-333333333333'))
+      .toBeInTheDocument();
+    expect(screen.getByTestId('dvc01-revoke-33333333-3333-3333-3333-333333333333'))
+      .toBeInTheDocument();
+  });
+
+  it('approved row shows Suspend', async () => {
+    renderWithProviders(<EADeviceFleet api={{
+      listDevices: vi.fn().mockResolvedValue({ devices: [device('APPROVED')] }),
+      approveDevice: vi.fn(), suspendDevice: vi.fn(),
+      revokeDevice: vi.fn(), deleteDevice: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('dvc01-suspend-33333333-3333-3333-3333-333333333333'))
+      .toBeInTheDocument());
+  });
+
+  it('revoked row shows Delete', async () => {
+    renderWithProviders(<EADeviceFleet api={{
+      listDevices: vi.fn().mockResolvedValue({ devices: [device('REVOKED')] }),
+      approveDevice: vi.fn(), suspendDevice: vi.fn(),
+      revokeDevice: vi.fn(), deleteDevice: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('dvc01-delete-33333333-3333-3333-3333-333333333333'))
+      .toBeInTheDocument());
+  });
+
+  it('approve action calls api and reloads', async () => {
+    const list = vi.fn().mockResolvedValueOnce({ devices: [device('PENDING')] })
+                        .mockResolvedValue({ devices: [device('APPROVED')] });
+    const approve = vi.fn().mockResolvedValue({ outcome: 'OK' });
+    renderWithProviders(<EADeviceFleet api={{
+      listDevices: list, approveDevice: approve, suspendDevice: vi.fn(),
+      revokeDevice: vi.fn(), deleteDevice: vi.fn(),
+    } as never} />);
+    await userEvent.click(await screen.findByTestId(
+      'dvc01-approve-33333333-3333-3333-3333-333333333333'));
+    await waitFor(() => expect(approve).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId('dvc01-status-33333333-3333-3333-3333-333333333333'))
+      .toHaveTextContent('APPROVED'));
+  });
+
+  it('revoke action error surfaces', async () => {
+    const list = vi.fn().mockResolvedValue({ devices: [device('APPROVED')] });
+    renderWithProviders(<EADeviceFleet api={{
+      listDevices: list, approveDevice: vi.fn(),
+      suspendDevice: vi.fn(),
+      revokeDevice: vi.fn().mockRejectedValue(new Error('fail')),
+      deleteDevice: vi.fn(),
+    } as never} />);
+    await userEvent.click(await screen.findByTestId(
+      'dvc01-revoke-33333333-3333-3333-3333-333333333333'));
+    await waitFor(() => expect(screen.getByTestId('dvc01-error')).toBeInTheDocument());
+  });
+
+  it('list error surfaces', async () => {
+    renderWithProviders(<EADeviceFleet api={{
+      listDevices: vi.fn().mockRejectedValue('x'),
+      approveDevice: vi.fn(), suspendDevice: vi.fn(),
+      revokeDevice: vi.fn(), deleteDevice: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('dvc01-error')).toBeInTheDocument());
   });
 });

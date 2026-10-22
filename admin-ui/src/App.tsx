@@ -5,7 +5,7 @@ import {
   EASetupWelcome, EAUsersList, EAUserCreate, EACompatInspector, EACompatHistory,
   EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
   EAWorkerHealth, EAMetadataOverview, EAApprovalQueue, EACaptureWorkflowList,
-  EACaptureWorkflowDesigner,
+  EACaptureWorkflowDesigner, EADeviceFleet,
 } from './screens/EACoreScreens';
 import {
   EARecoveryTools, EABackupList, EARestoreList, EAEvaluationReports,
@@ -43,6 +43,7 @@ export default function App(): JSX.Element {
             <Link to="/journal/worker" data-test="nav-worker">Worker</Link>
             <Link to="/approvals" data-test="nav-approvals">Approvals</Link>
             <Link to="/workflows" data-test="nav-workflows">Workflows</Link>
+            <Link to="/devices" data-test="nav-devices">Devices</Link>
             <Link to="/metadata" data-test="nav-metadata">Metadata</Link>
           </nav>
         </header>
@@ -72,6 +73,8 @@ export default function App(): JSX.Element {
                    element={<RequireAuth><EACaptureWorkflowList /></RequireAuth>} />
             <Route path="/workflows/:id"
                    element={<RequireAuth><WorkflowDesignerRoute /></RequireAuth>} />
+            <Route path="/devices"
+                   element={<RequireAuth><EADeviceFleet /></RequireAuth>} />
             <Route path="/metadata"
                    element={<RequireAuth><EAMetadataOverview /></RequireAuth>} />
             {/* Phase 06 Release 3 — EA-19..36 */}

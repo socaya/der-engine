@@ -82,6 +82,13 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/workflows/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.PUT, "/edge-api/v1/workflows/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/workflows/**").hasRole("ADMIN")
+                        // ADR-0019 device management:
+                        //   enrol + heartbeat are self-service for any authenticated user
+                        //   approve/suspend/revoke/delete + list are ADMIN
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/approve").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/suspend").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/revoke").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/devices/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/apps/**").authenticated()
                         .requestMatchers("/edge-api/v1/**").authenticated()
                         // ADR-0004: DER emulates the DHIS2 Web API at /api/**.

@@ -537,3 +537,39 @@ export function listWorkflowRuns(id: string): Promise<{ runs: CaptureWorkflowRun
   return request<{ runs: CaptureWorkflowRun[] }>('GET',
     `/edge-api/v1/workflows/${id}/runs`);
 }
+
+// ---- der-1.2.0-alpha.2 Initiative 1: device management (ADR-0019) ----
+
+export type DeviceStatus = 'PENDING' | 'APPROVED' | 'SUSPENDED' | 'REVOKED';
+
+export interface EdgeDeviceRow {
+  deviceId: string;
+  assignedUserId: string | null;
+  enrolledAt: string;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  lastSeenAt: string | null;
+  userAgent: string | null;
+  firmwareVersion: string | null;
+  status: DeviceStatus;
+}
+
+export function listDevices(): Promise<{ devices: EdgeDeviceRow[] }> {
+  return request<{ devices: EdgeDeviceRow[] }>('GET', '/edge-api/v1/devices');
+}
+
+export function approveDevice(id: string): Promise<{ outcome: string }> {
+  return request('POST', `/edge-api/v1/devices/${id}/approve`);
+}
+
+export function suspendDevice(id: string): Promise<{ outcome: string }> {
+  return request('POST', `/edge-api/v1/devices/${id}/suspend`);
+}
+
+export function revokeDevice(id: string): Promise<{ outcome: string }> {
+  return request('POST', `/edge-api/v1/devices/${id}/revoke`);
+}
+
+export function deleteDevice(id: string): Promise<void> {
+  return request<void>('DELETE', `/edge-api/v1/devices/${id}`);
+}
