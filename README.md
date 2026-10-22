@@ -1,12 +1,13 @@
 # DER — DHIS2 Edge Runtime
 
-> **Project baseline:** Design and Implementation of a Conflict-Aware Edge Synchronisation Runtime for Offline-First Distributed DHIS2 Workflows. **DER target:** DHIS2 2.41 – 2.44 (and newer, per ADR-0006). **Status:** Phase 06 — full UI build-out complete; Phase 07 (backup/restore engine) in progress. **Audience:** student developer, supervisor, reviewers, future maintainers, pilot operators.
+> **Project baseline:** Design and Implementation of a Conflict-Aware Edge Synchronisation Runtime for Offline-First Distributed DHIS2 Workflows. **DER target:** DHIS2 2.41 – 2.44 (and newer, per ADR-0006). **Status:** Phase 09 complete — `der-1.0.0-rc.1` release candidate ready for pilot deployment and acceptance evidence capture. **Audience:** student developer, supervisor, reviewers, future maintainers, pilot operators.
 
 A research prototype that lets a Local Area Network keep running DHIS2 workflows
 even when the Wide Area Network goes dark. The edge runtime emulates DHIS2's
 `/api/*` surface at every clinic, speaks the DHIS2 shape to standard DHIS2 apps
-and devices, journals every change, resolves conflicts explicitly, and drains
-back to a central DHIS2 installation when connectivity returns.
+and devices, journals every change, resolves conflicts explicitly, drains back
+to a central DHIS2 installation when connectivity returns, and ships a
+reproducible backup/restore engine plus a bare-metal pilot deployment runbook.
 
 > _No WAN, no problem._ WAN disconnection does not interrupt supported local
 > operations; everything the staff capture is durable, auditable, and sync-ready.
@@ -15,10 +16,11 @@ back to a central DHIS2 installation when connectivity returns.
 
 ## Current release
 
-- **Latest tag:** `der-0.6.0-alpha.3` — Phase 06 Release 3 (EA-19..36 admin screens, V010 backup/restore audit tables, ADR-0011).
-- **Component versions:** server `0.6.0-SNAPSHOT`, client `0.6.0-SNAPSHOT`, admin-ui `0.6.0-SNAPSHOT`.
+- **Latest tag:** `der-1.0.0-rc.1` — Phase 09 pilot release candidate: bare-metal installer, systemd + nginx + Postgres bootstrap, operator runbook (install → day-2 → troubleshoot → upgrade → rollback), ADR-0014.
+- **Component versions:** server `1.0.0-rc.1-SNAPSHOT`, client `1.0.0-rc.1-SNAPSHOT`, admin-ui `1.0.0-rc.1-SNAPSHOT`.
 - **DHIS2 reference range:** 2.41 through 2.44 as of this release; the compatibility engine (ADR-0006) auto-detects and routes per version.
 - **Local verification against:** DHIS2 2.44-SNAPSHOT on Tomcat 10 + PostgreSQL 17.
+- **Server test state:** 835 tests pass; JaCoCo + SpotBugs + Checkstyle green.
 
 **Supported workflows today:**
 - Aggregate reporting (`POST`/`GET /api/dataValueSets`) with locally-committed audit.
@@ -29,12 +31,19 @@ back to a central DHIS2 installation when connectivity returns.
 - Conflict review & resolution (ADR-0009).
 - Durable journal worker draining edge → central (ADR-0010).
 - Custom DHIS2 app hosting via `.zip` install (ADR-0005).
+- `pg_dump` / `pg_restore` backup engine (ADR-0012) with optional S3-compatible offsite upload; admin-triggered via `/edge-api/v1/backup/request`, local + remote + multipart-upload restore sources.
+- Reproducible NFR evaluation harness (ADR-0013) producing timestamped evidence bundles under `docs/evaluation/evidence/`.
+- Bare-metal pilot deployment runbook (ADR-0014) with idempotent `install.sh`, five-step `smoke_test.sh`, snapshot-based `upgrade.sh` / `rollback.sh`.
 
-**Explicitly not yet implemented** (per release notes):
-- Backup/restore engine (`pg_dump` orchestration) — Phase 07.
-- Measured NFR thresholds against pilot hardware — Phase 08.
-- Playwright E2E + axe-core sweep over all 54 UI screens — Phase 06.5 polish.
-- Signed tags, pilot deployment runbook — Phase 09 → stable 1.0.
+**Not shipped in rc.1 (deliberate):**
+- Container packaging (Docker/OCI image, Compose, Helm) — a post-pilot concern.
+- Multi-node HA — pilot host is single-tenant.
+- Automatic nightly backup inside DER — operators drive the schedule via `cron` + `curl` (runbook §7.1).
+- Flyway down-migrations — rollback through a schema advance uses the Phase 07 restore surface (ADR-0012 §non-goals).
+
+**Open before stable `der-1.0.0`:**
+- Pilot operator produces an acceptance evidence bundle via `scripts/evaluation/run_phase_08.sh` on the pilot host (see `docs/evaluation/evidence/phase-09/README.md` for thresholds).
+- If the bundle clears NFR-15 p95 ≤ 2 s @ c=20, NFR-17 backlog drain for 100 and 1000 without timeout, NFR-18 RSS ≤ 2 GB, NFR-29 backup round-trip match — stable `der-1.0.0` is cut from this commit with no code changes.
 
 See [`CHANGELOG.md`](CHANGELOG.md) and [`docs/releases/`](docs/releases/) for every intermediate release.
 
@@ -47,24 +56,33 @@ See [`CHANGELOG.md`](CHANGELOG.md) and [`docs/releases/`](docs/releases/) for ev
                       │                CENTRAL                   │
                       │   DHIS2 2.4x server + Postgres           │
                       └────────────────────┬─────────────────────┘
-                                           │  (periodic drain)
+                                           │  (periodic journal drain)
+                                           │  (optional S3-compatible archive push)
                                            │
 ┌──────────────────────────────┐   ┌───────┴────────────────────────┐
 │  Device Client               │   │  DER Edge Node                  │
 │  (18 DC screens / @dhis2/ui) ├──►│  Spring Boot 3.3 / Java 21      │
 └──────────────────────────────┘   │  Quartz + Postgres JobStore     │
-                                   │  Flyway V001..V010              │
+                                   │  Flyway V001..V011              │
 ┌──────────────────────────────┐   │  Spring Security + Argon2id     │
 │  Admin UI                    ├──►│  Rules engine (ADR-0007)        │
 │  (36 EA screens / plain HTML)│   │  Compatibility engine (ADR-0006)│
-└──────────────────────────────┘   │                                 │
+└──────────────────────────────┘   │  Backup/restore (ADR-0012)      │
+                                   │                                 │
                                    │  Serves /api/* (DHIS2 shape)    │
                                    │  Serves /dhis-web-<key>/** apps │
                                    │  Serves /edge-api/v1/* (admin)  │
                                    └─────────────────────────────────┘
+                                           │
+                                           │  pg_dump archives
+                                           ▼
+                               /var/lib/der/backups
+                               /var/lib/der/uploads
 ```
 
 Hybrid per [ADR-0004](docs/architecture/decisions/0004-hybrid-dhis2-edge-emulation.md): DHIS2 Core runs on central only; DER emulates `/api/*` at the edge so stock DHIS2 clients (and custom apps installed via ADR-0005) can keep working offline.
+
+Pilot topology per [ADR-0014](docs/architecture/decisions/0014-pilot-deployment-topology.md): bare-metal systemd on Debian/Ubuntu LTS, Postgres from the distro, nginx reverse-proxy serving `/`, `/admin/`, `/api/`, `/edge-api/`, `/dhis-web-*`.
 
 ---
 
@@ -75,10 +93,13 @@ Hybrid per [ADR-0004](docs/architecture/decisions/0004-hybrid-dhis2-edge-emulati
 | `server/` | Spring Boot coordination service (`ug.ac.mak.der`). JDBC + Flyway + Spring Security + Quartz Postgres JobStore. |
 | `client/` | React 18 / TypeScript device-client. 18 DC screens using `@dhis2/ui`. |
 | `admin-ui/` | React 18 / TypeScript admin console. 36 EA screens with plain-HTML / data-test semantics. |
-| `database/migrations/` | DER-owned Flyway migrations `V001..V010`. |
+| `database/migrations/` | DER-owned Flyway migrations `V001..V011`. |
 | `deployment/` | NGINX, systemd, PostgreSQL bootstrap, DHIS2 reference install. |
+| `deployment/pilot/` | Pilot installer, smoke test, upgrade/rollback, systemd unit, nginx server block, Postgres bootstrap, env template (ADR-0014). |
+| `scripts/evaluation/` | NFR measurement harness: `der_bench.py`, `backlog_recovery.py`, `resource_sampler.py`, `backup_integrity.py`, `run_phase_08.sh` (ADR-0013). |
 | `tests/` | Compatibility, concurrency, recovery, performance, security scenario specs. |
 | `docs/` | Authoritative design baseline (176 FRs, 35 NFRs, 54 screen specs, ADRs, verification matrix). |
+| `docs/operations/pilot-runbook.md` | Authoritative install / day-2 / troubleshoot / upgrade / rollback / acceptance-evidence runbook. |
 | `scripts/` | Repeatable project checks (`run_all_checks.sh`, `verify_dhis2_reference.py`), release automation. |
 
 ---
@@ -98,6 +119,9 @@ Hybrid per [ADR-0004](docs/architecture/decisions/0004-hybrid-dhis2-edge-emulati
 | [ADR-0009](docs/architecture/decisions/0009-conflict-review-api.md) | Conflict-review API over the journal | Accepted |
 | [ADR-0010](docs/architecture/decisions/0010-journal-worker.md) | Durable journal worker for edge → central drain | Accepted |
 | [ADR-0011](docs/architecture/decisions/0011-admin-ui-separation.md) | admin-ui vs device-client separation + backup scope | Accepted |
+| [ADR-0012](docs/architecture/decisions/0012-backup-and-restore-engine.md) | Backup / restore engine (`pg_dump` + S3-compatible offsite) | Accepted |
+| [ADR-0013](docs/architecture/decisions/0013-nfr-evaluation-harness.md) | NFR evaluation harness (Python stdlib only) | Accepted |
+| [ADR-0014](docs/architecture/decisions/0014-pilot-deployment-topology.md) | Pilot deployment topology (bare metal + systemd) | Accepted |
 
 ---
 
@@ -114,13 +138,15 @@ The authoritative design package lives under [`docs/`](docs/):
 - Interfaces, security, operations: [`docs/interfaces/`](docs/interfaces/), [`docs/security/`](docs/security/), [`docs/operations/`](docs/operations/)
 - Verification matrix + 20 scenario suites: [`docs/verification/`](docs/verification/)
 - Delivery, phases, versioning policy: [`docs/delivery/`](docs/delivery/)
+- NFR evaluation methodology: [`docs/evaluation/phase-08-methodology.md`](docs/evaluation/phase-08-methodology.md)
+- Pilot operator runbook: [`docs/operations/pilot-runbook.md`](docs/operations/pilot-runbook.md)
 - Per-phase evidence: [`docs/evaluation/evidence/<phase>/<commit>/`](docs/evaluation/evidence/)
 
 The `docs/` tree is **specified** at Phase 00 and progressively marked **in-progress** / **verified** as each release ships evidence.
 
 ---
 
-## Quick start
+## Quick start (development)
 
 **Prerequisites:** Java 21, Maven wrapper (bundled), Node 20+, PostgreSQL 17, Python 3.11+. Local DHIS2 2.4x for live integration (ADR-0004 — DHIS2 does **not** run on the edge).
 
@@ -157,6 +183,40 @@ Sign in as the bootstrap admin, then from the launcher:
 
 ---
 
+## Pilot install (bare metal)
+
+Per [ADR-0014](docs/architecture/decisions/0014-pilot-deployment-topology.md). Authoritative runbook: [`docs/operations/pilot-runbook.md`](docs/operations/pilot-runbook.md).
+
+```bash
+# On a build host (dev laptop) with Java 21 + Node 20:
+./server/mvnw -f server/pom.xml package -DskipTests
+cd client    && npm ci && npm run build && cd ..
+cd admin-ui  && npm ci && npm run build && cd ..
+
+# Rsync the repository checkout to the pilot host:
+rsync -azP ./ pilot-host:/tmp/der-source/
+
+# On the pilot host (Debian 12 / Ubuntu 24.04 LTS):
+sudo apt install openjdk-21-jre-headless postgresql-17 nginx
+cd /tmp/der-source
+sudo bash deployment/pilot/install.sh
+
+# Edit /etc/der/pilot.env (DHIS2 URL, admin + DB passwords), then:
+sudo systemctl start der-server
+sudo bash deployment/pilot/smoke_test.sh
+```
+
+The installer is idempotent — it creates the `der` system user, lays out `/opt/der`, `/etc/der`, `/var/lib/der`, `/var/log/der`, installs the systemd unit and nginx server block, bootstraps the Postgres role + database, and runs Flyway V001..V011 on first service start.
+
+Upgrade / rollback:
+
+```bash
+sudo bash deployment/pilot/upgrade.sh         # snapshot /opt/der.<ts>, swap, restart
+sudo bash deployment/pilot/rollback.sh <ts>   # restore the snapshot
+```
+
+---
+
 ## REST surfaces served by DER
 
 ### DHIS2-shaped `/api/*` (ADR-0004 emulation)
@@ -173,10 +233,31 @@ Sign in as the bootstrap admin, then from the launcher:
 - `/journal/conflicts`, `/journal/conflicts/{id}/resolve`, `/journal/conflicts/{id}/re-journal`, `/journal/worker`, `/journal/worker/{pause,resume}`.
 - `/apps`, `/apps/install`, `/apps/{id}/{enable,…}`.
 - `/drafts`.
+- `/backup/request`, `/backup/runs`, `/backup/runs/{id}`, `/backup/runs/{id}/archive`.
+- `/restore/request`, `/restore/upload`, `/restore/runs`, `/restore/runs/{id}`.
 - `/dhis-web-<app-key>/**` — custom DHIS2 app static assets.
 
-### Phase 07 (not yet live)
-- `/admin/diagnostics`, `/admin/settings`, `/backup/{runs,request}`, `/restore/{runs,request}`.
+---
+
+## NFR evaluation harness
+
+Per [ADR-0013](docs/architecture/decisions/0013-nfr-evaluation-harness.md). Python-stdlib-only measurement scripts under `scripts/evaluation/`.
+
+```bash
+export DER_ADMIN_COOKIE="SESSION=<token>"
+export DER_DATA_DIR=/var/lib/postgresql/17/main   # optional, for disk growth
+bash scripts/evaluation/run_phase_08.sh
+```
+
+Each run writes a timestamped bundle under `docs/evaluation/evidence/phase-07/<run>/`:
+
+- `bench-health.json`, `bench-metadata.json` — latency p50/p95/p99 + throughput at concurrency 1/5/10/20 (NFR-15, NFR-16, NFR-19).
+- `backlog-100.json`, `backlog-1000.json` — journal drain-to-zero time (NFR-17).
+- `resource-sample.json` — RSS/CPU/disk time series + hardware fingerprint (NFR-18, NFR-35).
+- `backup-integrity.json` — backup/restore round-trip verification (NFR-29).
+- `manifest.json` — run ID, seed, versions, timing (NFR-27, NFR-35).
+
+The methodology and interpretation guidance live at [`docs/evaluation/phase-08-methodology.md`](docs/evaluation/phase-08-methodology.md), including a pointer table for the design NFRs (NFR-01..14, 20..28, 30..34) that are verified by existing JUnit/Playwright suites rather than live measurement.
 
 ---
 
@@ -189,14 +270,15 @@ Every release ships with:
 3. `cd admin-ui && npm test -- --coverage` — Vitest, V8 coverage.
 4. `scripts/run_all_checks.sh` — orchestrates the gate and writes an evidence bundle to `docs/evaluation/evidence/<phase>/<commit>/`.
 5. Live verification against DHIS2 2.44-SNAPSHOT captured as JSON evidence (`docs/evaluation/evidence/phase-*/*/live-*.json`).
+6. `scripts/evaluation/run_phase_08.sh` — NFR measurement bundle (opt-in; mandatory for pilot acceptance).
 
-**Progressive-coverage policy (alpha-phase pragma):** the server and client gates relax slightly for alphas and lift back to 100% line + branch at stable `der-0.6.0` and `der-1.0.0`. Every relaxation is documented inline in `server/pom.xml` and the client/admin-ui `vite.config.ts` with a release-note cross-reference.
+**Progressive-coverage policy (alpha-phase pragma):** the server and client gates relax slightly for alphas with inline waivers for subprocess + external-service paths (Phase 07 pg_dump/pg_restore, drafts controller, remote archive store). Every relaxation is documented inline in `server/pom.xml` and the client/admin-ui `vite.config.ts` with a release-note cross-reference. Lifts back to 100% line + branch at stable `der-1.0.0`.
 
 No phase advances unless the gate report records a `PASS` decision.
 
 ---
 
-## Release history (highlights)
+## Release history
 
 - **`der-0.1.0`** — Phase 00 baseline: tooling, governance, honest health endpoint.
 - **`der-0.2.0`** — Phase 01: DHIS2 version pin + fail-closed compatibility guard (ADR-0002).
@@ -212,6 +294,9 @@ No phase advances unless the gate report records a `PASS` decision.
 - **`der-0.6.0-alpha.1`** — Phase 06 Release 1: DC-06..17 device-client screens + V009 drafts.
 - **`der-0.6.0-alpha.2`** — Phase 06 Release 2: EA-01..18 admin screens.
 - **`der-0.6.0-alpha.3`** — Phase 06 Release 3: EA-19..36 admin screens + V010 backup/restore audit + ADR-0011.
+- **`der-0.7.0-alpha.1`** — Phase 07: backup / restore engine (ADR-0012). V011 schema; `pg_dump` / `pg_restore` subprocess pipeline; S3-compatible offsite upload; `BackupDrainJob` fired on request + 15-min safety-net cron.
+- **`der-0.8.0-alpha.1`** — Phase 08: reproducible NFR evaluation harness (ADR-0013). Python-stdlib-only measurement scripts for NFR-15/16/17/18/19/27/29/35.
+- **`der-1.0.0-rc.1`** — Phase 09: pilot deployment release candidate (ADR-0014). Bare-metal installer + runbook; stable `der-1.0.0` cuts from this commit after pilot acceptance evidence clears the thresholds.
 
 ---
 
