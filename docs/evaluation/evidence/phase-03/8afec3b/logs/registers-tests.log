@@ -1,0 +1,7 @@
+  [OK] live_repo_passes
+  [OK] fail_when_fr_count_wrong
+  [OK] fail_when_screen_spec_missing
+  [OK] fail_when_nfr_priority_invalid
+  [OK] fail_when_orphan_in_traceability
+
+5/5 tests passed
