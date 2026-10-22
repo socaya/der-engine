@@ -15,6 +15,19 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.2.0-alpha.1] — unreleased
+
+Initiative 10 slice A — DER capture-workflow configuration (ADR-0018).
+
+- Added: V014 schema — `capture_workflow`, `capture_workflow_step`, `capture_workflow_field`, `capture_workflow_dependency`, `capture_workflow_run`.
+- Added: `ug.ac.mak.der.workflow` package — 5 record types, `CaptureWorkflowRepository` (@Transactional upsert), `CaptureWorkflowService` (list / get / save with version-bump-on-shape-change / resolveForDataSet / startRun).
+- Added: `CaptureWorkflowController` at `/edge-api/v1/workflows/**` (ADMIN-gated writes); SecurityConfig matcher added.
+- Added: admin UI `EACaptureWorkflowList` + `EACaptureWorkflowDesigner`, Workflows nav link, 5 new edgeApi helpers.
+- Added: 37 server tests + 20 admin-ui tests + 2 Playwright specs.
+- Added: ADR-0018 (slice A: DATA_SET bindings only, ADMIN authoring, version bump on shape change, no reconciler yet).
+
+[1.2.0-alpha.1]: https://github.com/socaya/der-engine/releases/tag/der-1.2.0-alpha.1
+
 ## [1.1.0-alpha.4] — unreleased
 
 Initiative 9 cleanup + pilot runbook §6.

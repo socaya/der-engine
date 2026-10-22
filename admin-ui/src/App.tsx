@@ -4,7 +4,8 @@ import { RequireAuth } from './components/RequireAuth';
 import {
   EASetupWelcome, EAUsersList, EAUserCreate, EACompatInspector, EACompatHistory,
   EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
-  EAWorkerHealth, EAMetadataOverview, EAApprovalQueue,
+  EAWorkerHealth, EAMetadataOverview, EAApprovalQueue, EACaptureWorkflowList,
+  EACaptureWorkflowDesigner,
 } from './screens/EACoreScreens';
 import {
   EARecoveryTools, EABackupList, EARestoreList, EAEvaluationReports,
@@ -14,6 +15,11 @@ import {
 function ConflictResolveRoute(): JSX.Element {
   const { id = '' } = useParams();
   return <EAConflictResolve operationId={id} />;
+}
+
+function WorkflowDesignerRoute(): JSX.Element {
+  const { id = '' } = useParams();
+  return <EACaptureWorkflowDesigner workflowId={id} />;
 }
 
 /**
@@ -36,6 +42,7 @@ export default function App(): JSX.Element {
             <Link to="/journal/conflicts" data-test="nav-conflicts">Conflicts</Link>
             <Link to="/journal/worker" data-test="nav-worker">Worker</Link>
             <Link to="/approvals" data-test="nav-approvals">Approvals</Link>
+            <Link to="/workflows" data-test="nav-workflows">Workflows</Link>
             <Link to="/metadata" data-test="nav-metadata">Metadata</Link>
           </nav>
         </header>
@@ -61,6 +68,10 @@ export default function App(): JSX.Element {
                    element={<RequireAuth><EAWorkerHealth /></RequireAuth>} />
             <Route path="/approvals"
                    element={<RequireAuth><EAApprovalQueue /></RequireAuth>} />
+            <Route path="/workflows"
+                   element={<RequireAuth><EACaptureWorkflowList /></RequireAuth>} />
+            <Route path="/workflows/:id"
+                   element={<RequireAuth><WorkflowDesignerRoute /></RequireAuth>} />
             <Route path="/metadata"
                    element={<RequireAuth><EAMetadataOverview /></RequireAuth>} />
             {/* Phase 06 Release 3 — EA-19..36 */}

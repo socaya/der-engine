@@ -116,6 +116,22 @@ describe('edgeApi route coverage', () => {
     ['listPendingApprovals custom',        () => api.listPendingApprovals(25), '/edge-api/v1/approvals/pending?limit=25', 'GET', undefined],
     ['approveOperation',  () => api.approveOperation('op1'),     '/edge-api/v1/approvals/op1/approve',  'POST',   undefined],
     ['rejectOperation',   () => api.rejectOperation('op1', 'bad'), '/edge-api/v1/approvals/op1/reject', 'POST',   { reason: 'bad' }],
+    ['listWorkflows',     () => api.listWorkflows(),             '/edge-api/v1/workflows',              'GET',    undefined],
+    ['getWorkflow',       () => api.getWorkflow('wf-1'),         '/edge-api/v1/workflows/wf-1',         'GET',    undefined],
+    ['saveWorkflow new',  () => api.saveWorkflow({
+      displayName: 'wf', boundMetadataId: 'ds1', enabled: true,
+      steps: [], dependencies: [],
+    }), '/edge-api/v1/workflows', 'POST', {
+      displayName: 'wf', boundMetadataId: 'ds1', enabled: true,
+      steps: [], dependencies: [],
+    }],
+    ['saveWorkflow update',  () => api.saveWorkflow({
+      workflowId: 'wf-7', displayName: 'wf', boundMetadataId: 'ds1', enabled: true,
+    }), '/edge-api/v1/workflows/wf-7', 'PUT', {
+      workflowId: 'wf-7', displayName: 'wf', boundMetadataId: 'ds1', enabled: true,
+    }],
+    ['deleteWorkflow',    () => api.deleteWorkflow('wf-1'),      '/edge-api/v1/workflows/wf-1',         'DELETE', undefined],
+    ['listWorkflowRuns',  () => api.listWorkflowRuns('wf-1'),    '/edge-api/v1/workflows/wf-1/runs',    'GET',    undefined],
   ])('%s hits the expected URL + method', async (_name, call, path, method, expectedBody) => {
     fetchMock.mockResolvedValue(respond(200, okJson));
     await call();

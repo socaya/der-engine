@@ -33,6 +33,9 @@ vi.mock('./screens/EACoreScreens', () => ({
   EAWorkerHealth:      () => <div data-test="s-worker">worker</div>,
   EAMetadataOverview:  () => <div data-test="s-metadata">metadata</div>,
   EAApprovalQueue:     () => <div data-test="s-approvals">approvals</div>,
+  EACaptureWorkflowList: () => <div data-test="s-workflows">workflows</div>,
+  EACaptureWorkflowDesigner: ({ workflowId }: { workflowId?: string }) =>
+    <div data-test="s-workflow-designer">designer-{workflowId}</div>,
 }));
 
 vi.mock('./screens/EARemainderScreens', () => ({
@@ -78,6 +81,7 @@ describe('App routing', () => {
     ['/journal/conflicts',       's-conflicts'],
     ['/journal/worker',          's-worker'],
     ['/approvals',               's-approvals'],
+    ['/workflows',               's-workflows'],
     ['/metadata',                's-metadata'],
     ['/recovery',                's-recovery'],
     ['/backup',                  's-backup'],
@@ -95,5 +99,11 @@ describe('App routing', () => {
     await renderAt('/conflicts/op-xyz');
     await waitFor(() => expect(screen.getByTestId('s-conflict-resolve').textContent)
       .toBe('resolve-op-xyz'));
+  });
+
+  it('/workflows/:id passes the id into the designer', async () => {
+    await renderAt('/workflows/wf-abc');
+    await waitFor(() => expect(screen.getByTestId('s-workflow-designer').textContent)
+      .toBe('designer-wf-abc'));
   });
 });

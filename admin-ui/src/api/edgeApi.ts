@@ -460,3 +460,80 @@ export function approveOperation(operationId: string): Promise<{ outcome: string
 export function rejectOperation(operationId: string, reason: string): Promise<{ outcome: string }> {
   return request('POST', `/edge-api/v1/approvals/${operationId}/reject`, { reason });
 }
+
+// ---- der-1.2.0-alpha.1 Initiative 10 slice A: capture-workflow config (ADR-0018) ----
+
+export type OwnerRole = 'ADMIN' | 'OPERATOR' | 'REVIEWER';
+export type StepKind = 'CAPTURE' | 'REVIEW' | 'APPROVE' | 'DISPATCH';
+export type FieldRequirement = 'REQUIRED' | 'OPTIONAL' | 'READONLY' | 'HIDDEN';
+
+export interface CaptureWorkflowField {
+  fieldRef: string;
+  requirement: FieldRequirement;
+}
+
+export interface CaptureWorkflowStep {
+  stepId?: string;
+  ordinal: number;
+  displayName: string;
+  ownerRole: OwnerRole;
+  stepKind: StepKind;
+  fields: readonly CaptureWorkflowField[];
+}
+
+export interface CaptureWorkflowDependency {
+  stepId: string;
+  dependsOnStepId: string;
+  kind: 'COMPLETES_BEFORE';
+}
+
+export interface CaptureWorkflowSummary {
+  workflowId: string;
+  displayName: string;
+  boundMetadataKind: 'DATA_SET';
+  boundMetadataId: string;
+  enabled: boolean;
+  version: number;
+  createdAt?: string;
+  updatedAt?: string;
+  steps: readonly CaptureWorkflowStep[];
+  dependencies: readonly CaptureWorkflowDependency[];
+}
+
+export interface CaptureWorkflowRun {
+  runId: string;
+  workflowVersion: number;
+  businessKey: string;
+  currentStepId: string | null;
+  state: 'OPEN' | 'AWAITING' | 'COMPLETED' | 'REJECTED';
+  createdAt: string;
+}
+
+export function listWorkflows(): Promise<{ workflows: CaptureWorkflowSummary[] }> {
+  return request<{ workflows: CaptureWorkflowSummary[] }>('GET', '/edge-api/v1/workflows');
+}
+
+export function getWorkflow(id: string): Promise<CaptureWorkflowSummary> {
+  return request<CaptureWorkflowSummary>('GET', `/edge-api/v1/workflows/${id}`);
+}
+
+export function saveWorkflow(w: Partial<CaptureWorkflowSummary> & {
+  displayName: string;
+  boundMetadataId: string;
+  enabled: boolean;
+}): Promise<CaptureWorkflowSummary> {
+  if (w.workflowId) {
+    return request<CaptureWorkflowSummary>('PUT',
+      `/edge-api/v1/workflows/${w.workflowId}`, w);
+  }
+  return request<CaptureWorkflowSummary>('POST', '/edge-api/v1/workflows', w);
+}
+
+export function deleteWorkflow(id: string): Promise<void> {
+  return request<void>('DELETE', `/edge-api/v1/workflows/${id}`);
+}
+
+export function listWorkflowRuns(id: string): Promise<{ runs: CaptureWorkflowRun[] }> {
+  return request<{ runs: CaptureWorkflowRun[] }>('GET',
+    `/edge-api/v1/workflows/${id}/runs`);
+}

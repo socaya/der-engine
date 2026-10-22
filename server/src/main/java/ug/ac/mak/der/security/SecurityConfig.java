@@ -79,6 +79,9 @@ public class SecurityConfig {
                         .requestMatchers("/edge-api/v1/restore/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/system/org-unit").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/approvals/**").hasAnyRole("REVIEWER", "ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/workflows/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/edge-api/v1/workflows/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/workflows/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/apps/**").authenticated()
                         .requestMatchers("/edge-api/v1/**").authenticated()
                         // ADR-0004: DER emulates the DHIS2 Web API at /api/**.

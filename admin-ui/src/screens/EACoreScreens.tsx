@@ -642,3 +642,172 @@ export function EAApprovalQueue({ api = edgeApi }:
     </div>
   );
 }
+
+// EA-CWF-01 Capture-workflow catalogue (ADR-0018 slice A) ----------
+export function EACaptureWorkflowList({ api = edgeApi }:
+    { api?: Pick<typeof edgeApi, 'listWorkflows' | 'deleteWorkflow'> } = {}): JSX.Element {
+  const [workflows, setWorkflows] = useState<edgeApi.CaptureWorkflowSummary[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function reload(): Promise<void> {
+    try {
+      const resp = await api.listWorkflows();
+      setWorkflows(resp.workflows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, [api]);
+
+  async function remove(id: string): Promise<void> {
+    try {
+      await api.deleteWorkflow(id);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  if (error) return <ErrorBlock title="Workflow catalogue error" testId="cwf01-error">{error}</ErrorBlock>;
+  if (workflows === null) return <LoadingBlock testId="cwf01-loading" />;
+  return (
+    <div className="ea-screen">
+      <h1 data-test="cwf01-heading">Capture workflows</h1>
+      <p>
+        Compose multi-step capture flows over your DHIS2 datasets.
+        Slice A supports dataSet bindings only; event / tracker bindings
+        land in <code>der-1.3.0</code>.
+      </p>
+      <Link to="/workflows/new" data-test="cwf01-new">New workflow</Link>
+      {workflows.length === 0 ? (
+        <EmptyBlock title="No workflows yet" testId="cwf01-empty">
+          Click <strong>New workflow</strong> to configure the first one.
+        </EmptyBlock>
+      ) : (
+        <table className="ea-workflows">
+          <thead>
+            <tr>
+              <th>Name</th><th>Binding</th><th>Version</th>
+              <th>Enabled</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {workflows.map((w) => (
+              <tr key={w.workflowId} data-test={`cwf01-row-${w.workflowId}`}>
+                <td>
+                  <Link to={`/workflows/${w.workflowId}`}
+                    data-test={`cwf01-open-${w.workflowId}`}>
+                    {w.displayName}
+                  </Link>
+                </td>
+                <td>{w.boundMetadataKind}:{w.boundMetadataId}</td>
+                <td>v{w.version}</td>
+                <td data-test={`cwf01-enabled-${w.workflowId}`}>
+                  {w.enabled ? 'yes' : 'no'}
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    data-test={`cwf01-delete-${w.workflowId}`}
+                    onClick={() => { remove(w.workflowId).catch(() => undefined); }}>
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+// EA-CWF-02 Designer -----------------------------------------------
+export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
+    { api?: Pick<typeof edgeApi, 'getWorkflow' | 'saveWorkflow'>;
+      workflowId?: string } = {}): JSX.Element {
+  const [existing, setExisting] = useState<edgeApi.CaptureWorkflowSummary | null>(null);
+  const [displayName, setDisplayName] = useState('');
+  const [boundMetadataId, setBoundMetadataId] = useState('');
+  const [enabled, setEnabled] = useState(true);
+  const [stepsJson, setStepsJson] = useState('[]');
+  const [depsJson, setDepsJson] = useState('[]');
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  useEffect(() => {
+    if (!workflowId || workflowId === 'new') return;
+    (async () => {
+      try {
+        const w = await api.getWorkflow(workflowId);
+        setExisting(w);
+        setDisplayName(w.displayName);
+        setBoundMetadataId(w.boundMetadataId);
+        setEnabled(w.enabled);
+        setStepsJson(JSON.stringify(w.steps, null, 2));
+        setDepsJson(JSON.stringify(w.dependencies, null, 2));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    })().catch(() => undefined);
+  }, [api, workflowId]);
+
+  async function doSave(): Promise<void> {
+    setStatus('saving');
+    setError(null);
+    try {
+      const steps = JSON.parse(stepsJson) as edgeApi.CaptureWorkflowStep[];
+      const dependencies = JSON.parse(depsJson) as edgeApi.CaptureWorkflowDependency[];
+      await api.saveWorkflow({
+        workflowId: existing?.workflowId,
+        displayName, boundMetadataId, enabled, steps, dependencies,
+      });
+      setStatus('saved');
+    } catch (err) {
+      setStatus('idle');
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  return (
+    <div className="ea-screen">
+      <h1 data-test="cwf02-heading">
+        {existing ? `Edit workflow: ${existing.displayName}` : 'New workflow'}
+      </h1>
+      {error && <ErrorBlock title="Save failed" testId="cwf02-error">{error}</ErrorBlock>}
+      {status === 'saved' && (
+        <p className="ea-ok" data-test="cwf02-saved">Saved.</p>
+      )}
+      <label>
+        <span>Display name</span>
+        <input type="text" data-test="cwf02-name" value={displayName}
+          onChange={(e) => { setDisplayName(e.target.value); }} />
+      </label>
+      <label>
+        <span>Bound dataSet UID</span>
+        <input type="text" data-test="cwf02-binding" value={boundMetadataId}
+          onChange={(e) => { setBoundMetadataId(e.target.value); }} />
+      </label>
+      <label>
+        <input type="checkbox" data-test="cwf02-enabled" checked={enabled}
+          onChange={(e) => { setEnabled(e.target.checked); }} />
+        Enabled
+      </label>
+      <label>
+        <span>Steps (JSON array; slice A ships a simple editor)</span>
+        <textarea data-test="cwf02-steps" rows={10} value={stepsJson}
+          onChange={(e) => { setStepsJson(e.target.value); }} />
+      </label>
+      <label>
+        <span>Dependencies (JSON array)</span>
+        <textarea data-test="cwf02-deps" rows={6} value={depsJson}
+          onChange={(e) => { setDepsJson(e.target.value); }} />
+      </label>
+      <button type="button" data-test="cwf02-save"
+        disabled={status === 'saving' || !displayName || !boundMetadataId}
+        onClick={() => { doSave().catch(() => undefined); }}>
+        {status === 'saving' ? 'Saving…' : 'Save workflow'}
+      </button>
+    </div>
+  );
+}

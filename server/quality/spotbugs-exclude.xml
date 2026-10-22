@@ -112,6 +112,34 @@
     </Or>
   </Match>
 
+  <!-- ADR-0018 slice A capture-workflow DTOs are Jackson-serialised
+       request records; Jackson never mutates return values and the
+       lists are deserialised into immutable copies downstream.
+       Reviewed 2026-10-22. -->
+  <Match>
+    <Or>
+      <Class name="ug.ac.mak.der.web.CaptureWorkflowController$WorkflowRequest"/>
+      <Class name="ug.ac.mak.der.web.CaptureWorkflowController$StepRequest"/>
+    </Or>
+    <Or>
+      <Bug pattern="EI_EXPOSE_REP"/>
+      <Bug pattern="EI_EXPOSE_REP2"/>
+    </Or>
+  </Match>
+
+  <!-- CaptureWorkflowRepository.findById/findEnabledForBinding:
+       queryForObject returns non-null on a successful match; the
+       Objects.requireNonNull wraps the JdbcTemplate contract.
+       Reviewed 2026-10-22. -->
+  <Match>
+    <Class name="ug.ac.mak.der.workflow.CaptureWorkflowRepository"/>
+    <Or>
+      <Method name="findById"/>
+      <Method name="findEnabledForBinding"/>
+    </Or>
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+  </Match>
+
   <!-- Phase 03.6b (ADR-0007) record DTOs are Jackson-serialised; the engine
        mutates assignedValues deliberately. Reviewed 2026-10-22. -->
   <Match>

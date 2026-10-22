@@ -84,6 +84,17 @@ test.describe('EA family', () => {
     await expect(page.getByTestId('apr-heading')).toBeVisible();
   });
 
+  test('EA-CWF-01 CaptureWorkflowList at /workflows', async ({ page }) => {
+    await mock(page, '**/edge-api/v1/workflows', { workflows: [] });
+    await page.goto('/workflows');
+    await expect(page.getByTestId('cwf01-heading')).toBeVisible();
+  });
+
+  test('EA-CWF-02 CaptureWorkflowDesigner at /workflows/new', async ({ page }) => {
+    await page.goto('/workflows/new');
+    await expect(page.getByTestId('cwf02-heading')).toBeVisible();
+  });
+
   test('EA-18 MetadataOverview at /metadata', async ({ page }) => {
     await mock(page, '**/api/**', { items: [] });
     await page.goto('/metadata');

@@ -5,7 +5,8 @@ import { renderWithProviders } from '../test/renderWithProviders';
 import {
   EASetupWelcome, EAUsersList, EAUserCreate, EACompatInspector, EACompatHistory,
   EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
-  EAWorkerHealth, EAMetadataOverview, EAApprovalQueue,
+  EAWorkerHealth, EAMetadataOverview, EAApprovalQueue, EACaptureWorkflowList,
+  EACaptureWorkflowDesigner,
 } from './EACoreScreens';
 
 afterEach(() => vi.restoreAllMocks());
@@ -504,5 +505,150 @@ describe('EA-APR-01 ApprovalQueue', () => {
     } as never} />);
     await userEvent.click(await screen.findByTestId(`apr-reject-${row.operationId}`));
     await waitFor(() => expect(screen.getByTestId('apr-error')).toBeInTheDocument());
+  });
+});
+
+describe('EA-CWF-01 CaptureWorkflowList', () => {
+  const sample = {
+    workflowId: '11111111-1111-1111-1111-111111111111',
+    displayName: 'Weekly',
+    boundMetadataKind: 'DATA_SET' as const,
+    boundMetadataId: 'ds1',
+    enabled: true,
+    version: 1,
+    steps: [],
+    dependencies: [],
+  };
+
+  it('renders empty state when no workflows configured', async () => {
+    renderWithProviders(<EACaptureWorkflowList api={{
+      listWorkflows: vi.fn().mockResolvedValue({ workflows: [] }),
+      deleteWorkflow: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('cwf01-empty')).toBeInTheDocument());
+  });
+
+  it('renders a workflow row with the enabled flag', async () => {
+    renderWithProviders(<EACaptureWorkflowList api={{
+      listWorkflows: vi.fn().mockResolvedValue({ workflows: [sample] }),
+      deleteWorkflow: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId(`cwf01-row-${sample.workflowId}`))
+      .toBeInTheDocument());
+    expect(screen.getByTestId(`cwf01-enabled-${sample.workflowId}`)).toHaveTextContent('yes');
+  });
+
+  it('delete calls the api and reloads', async () => {
+    const list = vi.fn().mockResolvedValueOnce({ workflows: [sample] })
+                        .mockResolvedValue({ workflows: [] });
+    const del = vi.fn().mockResolvedValue(undefined);
+    renderWithProviders(<EACaptureWorkflowList api={{
+      listWorkflows: list, deleteWorkflow: del,
+    } as never} />);
+    await userEvent.click(await screen.findByTestId(`cwf01-delete-${sample.workflowId}`));
+    await waitFor(() => expect(del).toHaveBeenCalledWith(sample.workflowId));
+    await waitFor(() => expect(screen.getByTestId('cwf01-empty')).toBeInTheDocument());
+  });
+
+  it('error from list surfaces', async () => {
+    renderWithProviders(<EACaptureWorkflowList api={{
+      listWorkflows: vi.fn().mockRejectedValue('x'),
+      deleteWorkflow: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('cwf01-error')).toBeInTheDocument());
+  });
+
+  it('error from delete surfaces', async () => {
+    renderWithProviders(<EACaptureWorkflowList api={{
+      listWorkflows: vi.fn().mockResolvedValue({ workflows: [sample] }),
+      deleteWorkflow: vi.fn().mockRejectedValue(new Error('nope')),
+    } as never} />);
+    await userEvent.click(await screen.findByTestId(`cwf01-delete-${sample.workflowId}`));
+    await waitFor(() => expect(screen.getByTestId('cwf01-error')).toBeInTheDocument());
+  });
+});
+
+describe('EA-CWF-02 CaptureWorkflowDesigner', () => {
+  const loaded = {
+    workflowId: '22222222-2222-2222-2222-222222222222',
+    displayName: 'Monthly',
+    boundMetadataKind: 'DATA_SET' as const,
+    boundMetadataId: 'ds2',
+    enabled: true,
+    version: 2,
+    steps: [{ stepId: 's1', ordinal: 0, displayName: 'cap', ownerRole: 'OPERATOR' as const,
+      stepKind: 'CAPTURE' as const, fields: [] }],
+    dependencies: [],
+  };
+
+  it('new workflow renders empty form', () => {
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: vi.fn(),
+    } as never} />);
+    expect(screen.getByTestId('cwf02-heading')).toHaveTextContent('New workflow');
+  });
+
+  it('existing workflow loads into the form', async () => {
+    const get = vi.fn().mockResolvedValue(loaded);
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId={loaded.workflowId} api={{
+      getWorkflow: get, saveWorkflow: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('cwf02-heading'))
+      .toHaveTextContent(/Monthly/));
+    expect((screen.getByTestId('cwf02-name') as HTMLInputElement).value).toBe('Monthly');
+  });
+
+  it('save sends the payload and shows saved indicator', async () => {
+    const save = vi.fn().mockResolvedValue(loaded);
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: save,
+    } as never} />);
+    await userEvent.type(screen.getByTestId('cwf02-name'), 'New wf');
+    await userEvent.type(screen.getByTestId('cwf02-binding'), 'ds-new');
+    await userEvent.click(screen.getByTestId('cwf02-save'));
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId('cwf02-saved')).toBeInTheDocument());
+  });
+
+  it('save error surfaces', async () => {
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(),
+      saveWorkflow: vi.fn().mockRejectedValue(new Error('bad')),
+    } as never} />);
+    await userEvent.type(screen.getByTestId('cwf02-name'), 'x');
+    await userEvent.type(screen.getByTestId('cwf02-binding'), 'ds');
+    await userEvent.click(screen.getByTestId('cwf02-save'));
+    await waitFor(() => expect(screen.getByTestId('cwf02-error')).toBeInTheDocument());
+  });
+
+  it('invalid JSON in steps surfaces error', async () => {
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: vi.fn(),
+    } as never} />);
+    await userEvent.type(screen.getByTestId('cwf02-name'), 'x');
+    await userEvent.type(screen.getByTestId('cwf02-binding'), 'ds');
+    await userEvent.clear(screen.getByTestId('cwf02-steps'));
+    // userEvent treats "{" as a key descriptor start; "{{" produces a literal "{".
+    await userEvent.type(screen.getByTestId('cwf02-steps'), '{{');
+    await userEvent.click(screen.getByTestId('cwf02-save'));
+    await waitFor(() => expect(screen.getByTestId('cwf02-error')).toBeInTheDocument());
+  });
+
+  it('existing-workflow fetch error surfaces', async () => {
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="abc" api={{
+      getWorkflow: vi.fn().mockRejectedValue('fail'),
+      saveWorkflow: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('cwf02-error')).toBeInTheDocument());
+  });
+
+  it('toggles enabled checkbox', async () => {
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: vi.fn(),
+    } as never} />);
+    const cb = screen.getByTestId('cwf02-enabled') as HTMLInputElement;
+    expect(cb.checked).toBe(true);
+    await userEvent.click(cb);
+    expect(cb.checked).toBe(false);
   });
 });
