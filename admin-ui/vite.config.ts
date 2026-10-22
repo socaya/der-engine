@@ -39,15 +39,22 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/**/*.{test,spec}.{ts,tsx}',
       ],
-      // Phase 06 Release 2 (0.6.0-alpha.2) lands 18 EA admin screens.
-      // EA screens are at ~100% / 89% branch; shared helpers (edgeApi,
-      // AuthContext, RequireAuth, App) await Playwright coverage. Stable
-      // der-0.6.0 raises all thresholds back to 100%.
+      // 1.0.0 gap G4 pass: lifted from 75/70/55/75 to 100/91/99/100 by
+      // adding full test suites for edgeApi (51 cases, every endpoint),
+      // AuthContext (8 cases including default-api fallback), RequireAuth
+      // (4 cases — INITIAL/ANONYMOUS/EDGE_DOWN/AUTHENTICATED), and App
+      // routing (20 cases exercising every route including the
+      // :id-param ConflictResolveRoute). The remaining ~9% branch gap
+      // sits in the EA screen bundles on the same defensive-coding
+      // pattern as client (err instanceof Error else branches whose only
+      // throws are EdgeApiError subclasses). Playwright per-screen
+      // (roadmap Initiative 9) in der-1.1.0 covers those from a real
+      // browser.
       thresholds: {
-        lines: 75,
-        branches: 70,
-        functions: 55,
-        statements: 75,
+        lines: 100,
+        branches: 91,
+        functions: 99,
+        statements: 100,
       },
     },
   },
