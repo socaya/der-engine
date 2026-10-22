@@ -4,20 +4,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Mock AuthContext so AuthProvider doesn't do its real session probe —
 // RequireAuth sees AUTHENTICATED immediately.
-vi.mock('./auth/AuthContext', async () => {
-  const React = await import('react');
-  return {
-    AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-    useAuth: () => ({
-      state: { status: 'AUTHENTICATED', user: {
-        userId: 'u', username: 'a', displayName: 'A', roles: ['ADMIN'], expiresAt: 'x',
-      } },
-      signIn: vi.fn(),
-      signOut: vi.fn(),
-      refresh: vi.fn(),
-    }),
-  };
-});
+vi.mock('./auth/AuthContext', () => ({
+  AuthProvider: ({ children }: { children: import('react').ReactNode }) => <>{children}</>,
+  useAuth: () => ({
+    state: { status: 'AUTHENTICATED', user: {
+      userId: 'u', username: 'a', displayName: 'A', roles: ['ADMIN'], expiresAt: 'x',
+    } },
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
 
 // Stub every EA screen with a <div data-test> so the route table is
 // what we're testing — not the screens themselves.
@@ -49,7 +46,7 @@ vi.mock('./screens/EARemainderScreens', () => ({
 
 // RequireAuth passes through unconditionally thanks to the mocked useAuth.
 vi.mock('./components/RequireAuth', () => ({
-  RequireAuth: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  RequireAuth: ({ children }: { children: import('react').ReactNode }) => <>{children}</>,
 }));
 
 async function renderAt(route: string): Promise<void> {

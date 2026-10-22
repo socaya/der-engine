@@ -15,6 +15,18 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.0.0-rc.2] — unreleased
+
+Addresses roadmap gaps G2/G3/G4/G5. Only G1 (pilot evidence) remains before stable.
+
+- Added: full test suites for admin-ui `edgeApi.ts` (51 cases), `AuthContext`, `RequireAuth`, `App` (20 route cases). admin-ui Vitest coverage lifted 75/70/55/75 → 100/91/99/100.
+- Added: `edgeApi.ts` coverage lifts in client (every endpoint) + Drafts alternate error-type branches + SignIn redirect-state. Client Vitest coverage lifted 97/85/84/97 → 99/94/95/99.
+- Added: `DraftTest` / `DraftRepositoryTest` / `DraftControllerTest` plus branch coverage additions for `BackupWorker`, `RestoreWorker`, `RemoteArchiveStore`, `BackupController`, `RestoreController`. Server JaCoCo exclusions reduced from seven to one (`BackupWorker` only, awaiting Testcontainers-Postgres in der-1.1.0).
+- Added: Playwright per-screen E2E — `client/e2e/dc-screens.spec.ts` (18 DC screens) and `admin-ui/e2e/ea-screens.spec.ts` (19 shipped EA components). Shared `_fixtures.ts` mocks baseline + per-screen endpoints via `page.route()`.
+- Added: `docs/releases/der-1.0.0-rc.2.md` release note aggregating the above.
+
+[1.0.0-rc.2]: https://github.com/socaya/der-engine/releases/tag/der-1.0.0-rc.2
+
 ## [1.0.0-rc.1] — unreleased
 
 Phase 09 — pilot deployment release candidate (ADR-0014).
