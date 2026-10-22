@@ -1,0 +1,47 @@
+# DER coordination service — pilot systemd unit.
+#
+# Drop into /etc/systemd/system/der-server.service, then:
+#   systemctl daemon-reload
+#   systemctl enable --now der-server
+#
+# Reads environment from /etc/der/pilot.env (see deployment/pilot/env.pilot.example).
+
+[Unit]
+Description=DER coordination service
+Documentation=https://github.com/socaya/der-engine
+Requires=postgresql.service
+After=postgresql.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=der
+Group=der
+WorkingDirectory=/opt/der
+EnvironmentFile=/etc/der/pilot.env
+ExecStart=/usr/bin/java -jar /opt/der/der-server.jar
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+StandardOutput=append:/var/log/der/server.log
+StandardError=append:/var/log/der/server.err
+
+# Hardening (compatible with pg_dump/pg_restore subprocess + Flyway + Quartz)
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+ReadWritePaths=/var/lib/der /var/log/der
+
+# Pilot hardware budget (NFR-18). Lift these if the pilot sees GC pressure.
+MemoryMax=2G
+TasksMax=512
+
+[Install]
+WantedBy=multi-user.target

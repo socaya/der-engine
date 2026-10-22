@@ -13,7 +13,17 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Phase 09 (pilot deployment runbook) not yet started.
+- Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
+
+## [1.0.0-rc.1] — unreleased
+
+Phase 09 — pilot deployment release candidate (ADR-0014).
+
+- Added: `deployment/pilot/` — install.sh / smoke_test.sh / upgrade.sh / rollback.sh / env.pilot.example / systemd / nginx / postgres bootstrap.
+- Added: `docs/operations/pilot-runbook.md` — authoritative install → day-2 → troubleshoot → upgrade → rollback runbook with TLS/certbot and RPM-family adaptation.
+- Added: ADR-0014 Pilot deployment topology (systemd + bare metal; no containers in rc.1).
+
+[1.0.0-rc.1]: https://github.com/socaya/der-engine/releases/tag/der-1.0.0-rc.1
 
 ## [0.8.0-alpha.1] — unreleased
 
