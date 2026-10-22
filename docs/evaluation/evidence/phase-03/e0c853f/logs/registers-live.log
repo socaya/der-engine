@@ -1,0 +1,29 @@
+  [OK]   functional register has 176 rows (found 176)
+  [OK]   functional register has unique Requirement IDs
+  [OK]   all FR IDs match FR-xx-yy (0 malformed)
+  [OK]   all FR priorities in P0|P1|P2 (0 violations)
+  [OK]   no FR has empty 'Requirement' text (0 violations)
+  [OK]   non-functional register has 35 rows (found 35)
+  [OK]   non-functional register has unique Requirement IDs
+  [OK]   all NFR IDs match NFR-xx (0 malformed)
+  [OK]   all NFR priorities in P0|P1|P2 (0 violations)
+  [OK]   every NFR has a Test id (0 missing)
+  [OK]   screen inventory has 54 rows (found 54)
+  [OK]   screen inventory has unique IDs
+  [OK]   all screen IDs match (DC|EA)-xx (0 malformed)
+  [OK]   18 client (DC) screens (found 18)
+  [OK]   36 admin-ui (EA) screens (found 36)
+  [OK]   every screen has a spec file (0 missing: [])
+  [OK]   traceability-matrix has 176 FR rows (found 176)
+  [OK]   traceability-matrix has 35 NFR rows (found 35)
+  [OK]   every FR is in traceability (0 missing)
+  [OK]   no orphan FR in traceability (0 orphans)
+  [OK]   every NFR is in traceability (0 missing)
+  [OK]   no orphan NFR in traceability (0 orphans)
+  [OK]   FR priorities match register (0 mismatches)
+  [OK]   NFR priorities match register (0 mismatches)
+  [OK]   screen-traceability has 54 rows (found 54)
+  [OK]   screen-traceability covers exactly the inventory IDs
+  [OK]   every screen-traceability spec path exists (0 missing)
+
+PASS: all 27 checks passed.
