@@ -1,4 +1,5 @@
-import type { Page, Route } from '@playwright/test';
+import { expect, type Page, type Route } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 
 /**
  * Shared Playwright mock helpers for the DC screen specs.
@@ -50,6 +51,18 @@ export async function stubBaseline(page: Page): Promise<void> {
 /** Convenience: fulfils `path` globs with the given JSON body. */
 export function mock(page: Page, path: string, body: unknown, status = 200): Promise<void> {
   return page.route(path, (r) => json(r, body, status));
+}
+
+/**
+ * Runs an axe-core scan on the current page and fails the spec if any
+ * WCAG 2 A/AA violations are found. Call after the screen has rendered.
+ */
+export async function assertNoAxeViolations(page: Page): Promise<void> {
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze();
+  expect(results.violations,
+    JSON.stringify(results.violations, null, 2)).toEqual([]);
 }
 
 export const mockDataSets = {

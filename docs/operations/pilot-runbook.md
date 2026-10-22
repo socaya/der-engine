@@ -103,6 +103,47 @@ sudo certbot --nginx -d edge.pilot.example.org
 Certbot rewrites the server block to listen on 443. Nothing in DER
 changes.
 
+### 6.0 TLS enforcement at the server (ADR-0017)
+
+`der-1.1.0-alpha.3` added `der.security.require-tls`. When
+enabled, DER rejects plain HTTP with HTTP 426 UPGRADE_REQUIRED;
+loopback is exempt so the smoke test still works. Pilot operators
+set this in `/etc/der/pilot.env`:
+
+```
+DER_SECURITY_REQUIRE_TLS=true
+```
+
+### 6.1 Backup-archive at-rest encryption (ADR-0017)
+
+Encryption is **opt-in** and uses a 0400 keyfile on disk. DER never
+generates or rotates this key — operators own it. **Lose the key
+and encrypted archives are irrecoverable.**
+
+Generate the key once per site:
+
+```bash
+sudo openssl rand -base64 32 | sudo tee /etc/der/backup.key >/dev/null
+sudo chown root:der /etc/der/backup.key
+sudo chmod 0400 /etc/der/backup.key
+```
+
+Enable in `/etc/der/pilot.env`:
+
+```
+DER_BACKUP_ENCRYPTION_ENABLED=true
+DER_BACKUP_ENCRYPTION_KEY_FILE=/etc/der/backup.key
+```
+
+Verify `openssl` is on PATH (it is on Debian/Ubuntu LTS by default).
+After `systemctl restart der-server`, new backup archives land with
+a `.enc` suffix; restores detect the suffix and decrypt first.
+
+**Key rotation.** Not supported in `der-1.1.0`. Rotation strategy
+needs KMS integration (`der-1.3.0+`). Operators who want to rotate
+early must restore every encrypted archive, generate a new key, and
+re-run backup. Document this in the site runbook.
+
 ## 7. Day-2 operations
 
 ### 7.1 Backups

@@ -1,4 +1,5 @@
-import type { Page, Route } from '@playwright/test';
+import { expect, type Page, type Route } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 
 /** Shared Playwright mock helpers for the EA admin-ui screen specs. */
 
@@ -32,4 +33,13 @@ export async function stubBaseline(page: Page): Promise<void> {
 
 export function mock(page: Page, path: string, body: unknown, status = 200): Promise<void> {
   return page.route(path, (r) => json(r, body, status));
+}
+
+/** Fails the spec on any WCAG 2 A/AA axe-core violation. */
+export async function assertNoAxeViolations(page: Page): Promise<void> {
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze();
+  expect(results.violations,
+    JSON.stringify(results.violations, null, 2)).toEqual([]);
 }

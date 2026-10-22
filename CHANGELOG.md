@@ -15,6 +15,16 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.1.0-alpha.4] — unreleased
+
+Initiative 9 cleanup + pilot runbook §6.
+
+- Added: `client/e2e/axe.spec.ts` (7 WCAG 2 A/AA scans) + `admin-ui/e2e/axe.spec.ts` (9 scans). Shared `assertNoAxeViolations(page)` helper in `_fixtures.ts` on both sides.
+- Added: `DER_RUN_E2E=mandatory` tier in `scripts/run_all_checks.sh` — pilot cuts fail when the Playwright CLI is unavailable; dev mode (`true`) still records NOT RUN gracefully.
+- Added: pilot runbook §6.0 (TLS enforcement toggle) + §6.1 (backup-encryption key provisioning, 0400 keyfile, "lose the key = irrecoverable" warning, rotation deferred to der-1.3.0+).
+
+[1.1.0-alpha.4]: https://github.com/socaya/der-engine/releases/tag/der-1.1.0-alpha.4
+
 ## [1.1.0-alpha.3] — unreleased
 
 Initiative 8 part 1 — security hardening (ADR-0017).

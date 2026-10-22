@@ -168,13 +168,27 @@ for app in admin-ui client; do
 
   [[ -d "${app}/coverage" ]] && cp -R "${app}/coverage" "${COV_DIR}/${app}/vitest"
 
-  # Playwright is opt-in — browsers must be installed first.
-  if [[ "${DER_RUN_E2E:-false}" == "true" ]]; then
-    run_step "${app}-e2e" bash -c "cd ${app} && npm run --silent test:e2e"
-    [[ -d "${app}/playwright-report" ]] && cp -R "${app}/playwright-report" "${TEST_DIR}/${app}-playwright"
-  else
-    skip_step "${app}-e2e" "DER_RUN_E2E not set to true (requires 'npm run test:e2e:install')"
-  fi
+  # Playwright. der-1.1.0-alpha.4: three modes via DER_RUN_E2E:
+  #   true      — run it; graceful NOT RUN if browsers missing
+  #   mandatory — pilot-cut mode; browsers missing becomes FAIL
+  #   anything else (default) — skip + record NOT RUN
+  case "${DER_RUN_E2E:-false}" in
+    true)
+      run_step "${app}-e2e" bash -c "cd ${app} && npm run --silent test:e2e"
+      [[ -d "${app}/playwright-report" ]] && cp -R "${app}/playwright-report" "${TEST_DIR}/${app}-playwright"
+      ;;
+    mandatory)
+      if ! bash -c "cd ${app} && npx playwright --version" >/dev/null 2>&1; then
+        run_step "${app}-e2e" bash -c "echo 'Playwright CLI not available; mandatory mode requires npm run test:e2e:install'; exit 1"
+      else
+        run_step "${app}-e2e" bash -c "cd ${app} && npm run --silent test:e2e"
+        [[ -d "${app}/playwright-report" ]] && cp -R "${app}/playwright-report" "${TEST_DIR}/${app}-playwright"
+      fi
+      ;;
+    *)
+      skip_step "${app}-e2e" "DER_RUN_E2E not set (dev-time). Set 'true' to run, 'mandatory' to fail if browsers absent."
+      ;;
+  esac
 done
 
 # ----- gate decision -------------------------------------------------------
