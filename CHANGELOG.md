@@ -15,6 +15,19 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.1.0-alpha.3] — unreleased
+
+Initiative 8 part 1 — security hardening (ADR-0017).
+
+- Added: `TlsEnforcementFilter` — rejects HTTP with 426 UPGRADE_REQUIRED when `der.security.require-tls=true`; honours `X-Forwarded-Proto`; loopback exempt by default.
+- Added: `PiiMasking` static helper (maskUsername / maskEmail / maskDisplayName). Applied at `BootstrapAdminProvisioner`.
+- Added: `BackupEncryption` pipes `pg_dump` output through `openssl enc -aes-256-cbc -pbkdf2`; `BackupWorker` + `RestoreWorker` take it as a dependency; archives gain `.enc` suffix when encryption is on. Key material lives in a 0400 keyfile.
+- Added: `der.security.require-tls`, `der.security.tls.loopback-exempt`, `der.backup.encryption.*` config properties.
+- Added: 23 new tests covering mask semantics, enforcement paths, encrypt/decrypt round-trip via a fake-openssl shell script, config validation.
+- Added: ADR-0017 (TLS hard-fail in prod profile, 0400 keyfile strategy, KMS deferred to der-1.3.0+).
+
+[1.1.0-alpha.3]: https://github.com/socaya/der-engine/releases/tag/der-1.1.0-alpha.3
+
 ## [1.1.0-alpha.2] — unreleased
 
 Initiative 4 — local approval workflows (ADR-0016).

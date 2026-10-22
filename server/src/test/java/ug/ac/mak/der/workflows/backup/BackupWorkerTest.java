@@ -22,7 +22,7 @@ class BackupWorkerTest {
 
     private BackupWorker worker(final BackupRepository repo, final RemoteArchiveStore remote,
                                  final Path root, final boolean enabled) {
-        return new BackupWorker(repo, remote, root.toString(), "/no/such/pg_dump",
+        return new BackupWorker(repo, remote, new ug.ac.mak.der.workflows.backup.BackupEncryption(false, "openssl", "", 60), root.toString(), "/no/such/pg_dump",
                 "jdbc:postgresql://localhost:5432/der", "u", "p", enabled, 50, 60);
     }
 
@@ -62,7 +62,9 @@ class BackupWorkerTest {
     @Test
     void jdbcToPgArgPassesThroughNonJdbc(@TempDir final Path root) {
         final BackupWorker w = new BackupWorker(mock(BackupRepository.class),
-                mock(RemoteArchiveStore.class), root.toString(), "pg_dump", "mysql://x", "u", "p",
+                mock(RemoteArchiveStore.class),
+                new BackupEncryption(false, "openssl", "", 60),
+                root.toString(), "pg_dump", "mysql://x", "u", "p",
                 true, 1, 60);
         assertThat(w.jdbcToPgArg()).isEqualTo("mysql://x");
     }
@@ -90,7 +92,7 @@ class BackupWorkerTest {
                 null, null, null);
         when(repo.findByStatus(BackupRun.Status.REQUESTED, 10)).thenReturn(List.of(pending));
         when(remote.upload(any(Path.class))).thenReturn("remote-key");
-        final BackupWorker w = new BackupWorker(repo, remote, root.toString(),
+        final BackupWorker w = new BackupWorker(repo, remote, new ug.ac.mak.der.workflows.backup.BackupEncryption(false, "openssl", "", 60), root.toString(),
                 bin.toString(), "jdbc:postgresql://localhost:5432/der", "u", "p",
                 true, 50, 60);
         assertThat(w.drain()).isOne();
@@ -107,7 +109,7 @@ class BackupWorkerTest {
                 BackupRun.Kind.FULL, BackupRun.Status.REQUESTED, null, null, null, null,
                 null, null, null);
         when(repo.findByStatus(BackupRun.Status.REQUESTED, 10)).thenReturn(List.of(pending));
-        final BackupWorker w = new BackupWorker(repo, mock(RemoteArchiveStore.class),
+        final BackupWorker w = new BackupWorker(repo, mock(RemoteArchiveStore.class), new ug.ac.mak.der.workflows.backup.BackupEncryption(false, "openssl", "", 60),
                 root.toString(), bin.toString(),
                 "jdbc:postgresql://localhost:5432/der", "", null,
                 true, 50, 60);
@@ -118,7 +120,9 @@ class BackupWorkerTest {
     @Test
     void nullDatabaseUrlReturnsEmptyPgArg(@TempDir final Path root) {
         final BackupWorker w = new BackupWorker(mock(BackupRepository.class),
-                mock(RemoteArchiveStore.class), root.toString(), "pg_dump",
+                mock(RemoteArchiveStore.class),
+                new BackupEncryption(false, "openssl", "", 60),
+                root.toString(), "pg_dump",
                 null, "u", "p", true, 50, 60);
         assertThat(w.jdbcToPgArg()).isEmpty();
     }
@@ -127,7 +131,9 @@ class BackupWorkerTest {
     void nullDatabasePasswordDefaultsEmpty(@TempDir final Path root) {
         // ctor branch where databasePassword == null → ""
         final BackupWorker w = new BackupWorker(mock(BackupRepository.class),
-                mock(RemoteArchiveStore.class), root.toString(), "pg_dump",
+                mock(RemoteArchiveStore.class),
+                new BackupEncryption(false, "openssl", "", 60),
+                root.toString(), "pg_dump",
                 "jdbc:postgresql://x/d", "u", null, true, 50, 60);
         assertThat(w.jdbcToPgArg()).isEqualTo("postgresql://x/d");
     }
@@ -144,7 +150,7 @@ class BackupWorkerTest {
         Files.writeString(root.resolve("20250101T000002Z-full.dump"), "y");
         final BackupRepository repo = mock(BackupRepository.class);
         when(repo.findByStatus(BackupRun.Status.REQUESTED, 10)).thenReturn(List.of());
-        final BackupWorker w = new BackupWorker(repo, mock(RemoteArchiveStore.class),
+        final BackupWorker w = new BackupWorker(repo, mock(RemoteArchiveStore.class), new ug.ac.mak.der.workflows.backup.BackupEncryption(false, "openssl", "", 60),
                 root.toString(), "pg_dump",
                 "jdbc:postgresql://localhost/der", "u", "p", true, 1, 60);
         // Should run drain → pruneLocal → attempt to delete the oldest entry (the dir)
@@ -159,7 +165,7 @@ class BackupWorkerTest {
         }
         final BackupRepository repo = mock(BackupRepository.class);
         when(repo.findByStatus(BackupRun.Status.REQUESTED, 10)).thenReturn(List.of());
-        final BackupWorker w = new BackupWorker(repo, mock(RemoteArchiveStore.class),
+        final BackupWorker w = new BackupWorker(repo, mock(RemoteArchiveStore.class), new ug.ac.mak.der.workflows.backup.BackupEncryption(false, "openssl", "", 60),
                 root.toString(), "pg_dump",
                 "jdbc:postgresql://localhost/der", "u", "p", true, 2, 60);
         w.drain();

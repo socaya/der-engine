@@ -33,12 +33,14 @@ public class BackupWorker {
     private final String databaseUser;
     private final String databasePassword;
     private final RemoteArchiveStore remote;
+    private final BackupEncryption encryption;
     private final boolean enabled;
     private final int maxArchives;
     private final long perRunTimeoutSeconds;
 
     public BackupWorker(final BackupRepository repo,
                          final RemoteArchiveStore remote,
+                         final BackupEncryption encryption,
                          @Value("${der.backup.local.root:${user.home}/.der/backups}")
                          final String rootPath,
                          @Value("${der.backup.pg-dump:pg_dump}") final String pgDumpBinary,
@@ -51,6 +53,7 @@ public class BackupWorker {
                          final long perRunTimeoutSeconds) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.remote = Objects.requireNonNull(remote, "remote");
+        this.encryption = Objects.requireNonNull(encryption, "encryption");
         this.localRoot = Paths.get(rootPath).toAbsolutePath().normalize();
         this.pgDumpBinary = pgDumpBinary;
         this.databaseUrl = databaseUrl;
@@ -109,10 +112,12 @@ public class BackupWorker {
                 throw new IOException("pg_dump exit "
                         + process.exitValue() + ": " + out.strip());
             }
-            final long bytes = Files.size(archive);
-            final String remoteKey = remote.upload(archive);
-            repo.markSuccess(run.runId(), archive.toString(), bytes, remoteKey);
-            LOG.info("backup run {} completed, {} bytes, remote={}", run.runId(), bytes,
+            final Path finalArchive = encryption.encrypt(archive);
+            final long bytes = Files.size(finalArchive);
+            final String remoteKey = remote.upload(finalArchive);
+            repo.markSuccess(run.runId(), finalArchive.toString(), bytes, remoteKey);
+            LOG.info("backup run {} completed, {} bytes, encrypted={}, remote={}",
+                    run.runId(), bytes, encryption.isEnabled(),
                     remoteKey == null ? "n/a" : remoteKey);
         } catch (IOException | InterruptedException ex) {
             if (ex instanceof InterruptedException) {

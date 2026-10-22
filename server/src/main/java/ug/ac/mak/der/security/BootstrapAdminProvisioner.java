@@ -82,6 +82,7 @@ public class BootstrapAdminProvisioner implements ApplicationRunner {
                 Map.of("username", username)
         ), now);
         LOG.warn("Bootstrap administrator '{}' provisioned. Clear DER_BOOTSTRAP_ADMIN_* "
-                + "from the environment and restart to prevent repeated audit noise.", username);
+                + "from the environment and restart to prevent repeated audit noise.",
+                PiiMasking.maskUsername(username));
     }
 }

@@ -157,6 +157,7 @@
   <Match>
     <Or>
       <Class name="ug.ac.mak.der.workflows.backup.BackupWorker"/>
+      <Class name="ug.ac.mak.der.workflows.backup.BackupEncryption"/>
       <Class name="ug.ac.mak.der.workflows.backup.RemoteArchiveStore"/>
     </Or>
     <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>

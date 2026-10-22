@@ -29,9 +29,11 @@ public class RestoreWorker {
     private final String databasePassword;
     private final long perRunTimeoutSeconds;
     private final boolean enabled;
+    private final BackupEncryption encryption;
 
     public RestoreWorker(final RestoreRepository repo,
                           final RemoteArchiveStore remote,
+                          final BackupEncryption encryption,
                           @Value("${der.backup.local.root:${user.home}/.der/backups}")
                           final String rootPath,
                           @Value("${der.backup.upload.root:${user.home}/.der/uploads}")
@@ -46,6 +48,7 @@ public class RestoreWorker {
                           @Value("${der.backup.enabled:true}") final boolean enabled) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.remote = Objects.requireNonNull(remote, "remote");
+        this.encryption = Objects.requireNonNull(encryption, "encryption");
         this.localRoot = Paths.get(rootPath).toAbsolutePath().normalize();
         this.uploadRoot = Paths.get(uploadPath).toAbsolutePath().normalize();
         this.pgRestoreBinary = pgRestoreBinary;
@@ -76,7 +79,8 @@ public class RestoreWorker {
     private void runOne(final RestoreRun run) {
         final Path archive;
         try {
-            archive = materialise(run);
+            final Path materialised = materialise(run);
+            archive = encryption.decrypt(materialised);
             repo.markStarted(run.runId(), archive.toString());
         } catch (IOException ex) {
             repo.markFailed(run.runId(), ex.getMessage());

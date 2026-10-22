@@ -22,7 +22,9 @@ class RestoreWorkerTest {
 
     private RestoreWorker worker(final RestoreRepository repo, final RemoteArchiveStore remote,
                                    final Path root, final Path uploads, final boolean enabled) {
-        return new RestoreWorker(repo, remote, root.toString(), uploads.toString(),
+        return new RestoreWorker(repo, remote,
+                new BackupEncryption(false, "openssl", "", 60),
+                root.toString(), uploads.toString(),
                 "/no/such/pg_restore", "jdbc:postgresql://localhost:5432/der",
                 "u", "p", 60, enabled);
     }
@@ -129,6 +131,7 @@ class RestoreWorkerTest {
                 null, null, null, null, RestoreRun.Kind.LOCAL);
         when(repo.findByStatus(RestoreRun.Status.REQUESTED, 10)).thenReturn(List.of(pending));
         final RestoreWorker w = new RestoreWorker(repo, mock(RemoteArchiveStore.class),
+                new BackupEncryption(false, "openssl", "", 60),
                 root.toString(), uploads.toString(), bin.toString(),
                 "jdbc:postgresql://localhost:5432/der", "u", "p", 60, true);
         w.drain();
@@ -147,6 +150,7 @@ class RestoreWorkerTest {
                 null, null, null, null, RestoreRun.Kind.LOCAL);
         when(repo.findByStatus(RestoreRun.Status.REQUESTED, 10)).thenReturn(List.of(pending));
         final RestoreWorker w = new RestoreWorker(repo, mock(RemoteArchiveStore.class),
+                new BackupEncryption(false, "openssl", "", 60),
                 root.toString(), uploads.toString(), bin.toString(),
                 "jdbc:postgresql://localhost:5432/der", "", "", 60, true);
         w.drain();
@@ -199,7 +203,9 @@ class RestoreWorkerTest {
     void nullDatabaseUrlReturnsEmptyPgArg(@TempDir final Path root,
                                             @TempDir final Path uploads) {
         final RestoreWorker w = new RestoreWorker(mock(RestoreRepository.class),
-                mock(RemoteArchiveStore.class), root.toString(), uploads.toString(),
+                mock(RemoteArchiveStore.class),
+                new BackupEncryption(false, "openssl", "", 60),
+                root.toString(), uploads.toString(),
                 "pg_restore", null, "u", "p", 60, true);
         // internals: reflection-free check via invoking a run that gets as far as building the ProcessBuilder.
         // simplest observable: nullDatabaseUrl means jdbcToPgArg() returns "" — not exposed, so skip assertion.
@@ -210,7 +216,9 @@ class RestoreWorkerTest {
     void nullDatabasePasswordDefaultsEmpty(@TempDir final Path root,
                                              @TempDir final Path uploads) {
         final RestoreWorker w = new RestoreWorker(mock(RestoreRepository.class),
-                mock(RemoteArchiveStore.class), root.toString(), uploads.toString(),
+                mock(RemoteArchiveStore.class),
+                new BackupEncryption(false, "openssl", "", 60),
+                root.toString(), uploads.toString(),
                 "pg_restore", "jdbc:postgresql://x/d", "u", null, 60, true);
         assertThat(w.uploadRoot()).isEqualTo(uploads.toAbsolutePath().normalize());
     }

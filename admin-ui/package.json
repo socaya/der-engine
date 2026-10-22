@@ -1,6 +1,6 @@
 {
   "name": "der-admin-ui",
-  "version": "1.1.0-alpha.2-snapshot",
+  "version": "1.1.0-alpha.3-snapshot",
   "private": true,
   "type": "module",
   "scripts": {
