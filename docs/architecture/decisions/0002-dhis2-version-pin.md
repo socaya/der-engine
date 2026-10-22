@@ -1,6 +1,7 @@
 # ADR-0002: Pin a single DHIS2 patch for the DER baseline
 
-- Status: **ACCEPTED (with documented deviation)**
+- Status: **SUPERSEDED BY ADR-0006 (dynamic compatibility engine) on 2026-10-22**
+- Original status: ACCEPTED (with documented deviation)
 - Date decided: 2026-10-21
 - Deciders: socaya
 - Related requirements: FR-04-04, FR-04-10, FR-05-08, FR-12-04, NFR-22, NFR-35

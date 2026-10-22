@@ -256,6 +256,8 @@
                     <include>ug.ac.mak.der.web.*</include>
                     <include>ug.ac.mak.der.build.*</include>
                     <include>ug.ac.mak.der.dhis2.*</include>
+                    <include>ug.ac.mak.der.dhis2.compatibility.*</include>
+                    <include>ug.ac.mak.der.dhis2.compatibility.profiles.*</include>
                     <include>ug.ac.mak.der.dhis2emulator.*</include>
                     <include>ug.ac.mak.der.metadata.*</include>
                     <include>ug.ac.mak.der.security.*</include>
@@ -266,6 +268,7 @@
                     <exclude>ug.ac.mak.der.DerApplication</exclude>
                     <exclude>ug.ac.mak.der.ClockConfig</exclude>
                     <exclude>ug.ac.mak.der.dhis2.Dhis2Config</exclude>
+                    <exclude>ug.ac.mak.der.dhis2.compatibility.CompatibilityStartup</exclude>
                     <!-- Spring Security config is boot-time plumbing; verified by
                          the integration tests (SignInIT) rather than unit tests. -->
                     <exclude>ug.ac.mak.der.security.SecurityConfig</exclude>

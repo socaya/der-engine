@@ -13,7 +13,39 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Phase 03.6 (event + tracker writes) and Phase 04 (journal worker) not yet started.
+- Phase 03.6b (event + tracker writes, read-backs, full program-rule engine, period/COC validation) and Phase 04 (journal worker) not yet started.
+
+## [0.4.0-alpha.3] — unreleased
+
+Phase 03.6a — intelligent DHIS2 compatibility engine
+(see `docs/releases/der-0.4.0-alpha.3.md`).
+
+- Added: ADR-0006 — dynamic compatibility engine with cached capability snapshot;
+  SUPERSEDES ADR-0002 (fixed pin).
+- Added: V004 migration — `dhis2_capability_snapshot` with full probe report +
+  resolved capability JSON + trigger (`STARTUP`, `ADMIN_REFRESH`, `SCHEDULED`, `TEST`).
+- Added: `ug.ac.mak.der.dhis2.compatibility.*` — `Dhis2SemanticVersion` parser,
+  `CapabilityFlags` with per-endpoint `EndpointPolicy` map, `Dhis2CapabilityProbe`
+  (10-endpoint battery), `Dhis2ProfileRegistry`, four `V2_4x` profiles encoding
+  real DHIS2 release-note differences (tracker API, ImportSummary vs
+  TrackerImportReport, audit vs changelog surface, tracker-program split
+  per 2.43.2, legacy endpoint removal on 2.44).
+- Added: admin REST — `GET /edge-api/v1/compat`, `POST /edge-api/v1/compat/refresh`
+  (ADMIN), `GET /edge-api/v1/compat/history`.
+- Added: `docs/verification/compatibility/version-endpoint-matrix.csv` — the full
+  per-endpoint × per-minor status matrix driving the profiles.
+- Added: `CompatibilityStartup` fires on `ApplicationReadyEvent`; probe outcomes
+  are persisted even when central is unreachable and a cached snapshot exists.
+- Changed: `SystemInfoController` reflects the engine's observed version;
+  `Dhis2Properties.Compatibility` records the ADR-0006 config shape with a
+  `legacy(pinned, allowMismatch)` factory for the Phase 01 call sites.
+- Live-verified: boot → probe → snapshot 1 → refresh → snapshot 2 → history
+  returns both; endpoint matrix on 2.44-SNAPSHOT correctly reports legacy TEI /
+  events / audits as REMOVED and changelog endpoints as PRESENT.
+- Server tests: 400/400 PASS, JaCoCo 100% line + branch, SpotBugs clean.
+- Client unchanged.
+
+[0.4.0-alpha.3]: https://github.com/socaya/der-engine/releases/tag/der-0.4.0-alpha.3
 
 ## [0.4.0-alpha.2] — unreleased
 

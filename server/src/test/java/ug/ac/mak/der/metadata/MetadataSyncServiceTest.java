@@ -35,7 +35,7 @@ class MetadataSyncServiceTest {
     private Dhis2Properties props() {
         return new Dhis2Properties(
                 new Dhis2Properties.Central("http://central/dhis", "u", "p", 5000),
-                new Dhis2Properties.Compatibility("2.44-SNAPSHOT", false));
+                Dhis2Properties.Compatibility.legacy("2.44-SNAPSHOT", false));
     }
 
     private JsonNode tree(final String s) throws Exception {

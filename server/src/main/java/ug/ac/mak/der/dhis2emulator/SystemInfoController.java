@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.build.BuildInfoProvider;
 import ug.ac.mak.der.dhis2.Dhis2Properties;
+import ug.ac.mak.der.dhis2.compatibility.Dhis2CompatibilityEngine;
+import ug.ac.mak.der.dhis2.compatibility.Dhis2CompatibilityUnavailableException;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 
 /**
@@ -32,13 +34,16 @@ public class SystemInfoController {
 
     private final BuildInfoProvider build;
     private final Dhis2Properties props;
+    private final Dhis2CompatibilityEngine engine;
     private final Clock clock;
 
     public SystemInfoController(final BuildInfoProvider build,
                                  final Dhis2Properties props,
+                                 final Dhis2CompatibilityEngine engine,
                                  final Clock clock) {
         this.build = build;
         this.props = props;
+        this.engine = engine;
         this.clock = clock;
     }
 
@@ -49,7 +54,15 @@ public class SystemInfoController {
         }
         final var info = build.buildInfo();
         final Map<String, Object> body = new LinkedHashMap<>();
-        body.put("version", props.compatibility().pinnedVersion());
+        String observedVersion = props.compatibility().pinnedVersion();
+        try {
+            observedVersion = engine.current().centralVersion();
+        } catch (Dhis2CompatibilityUnavailableException ignored) {
+            // Engine not initialised yet; fall back to the configured
+            // pinned value. The compat admin endpoint reports the real
+            // state to operators.
+        }
+        body.put("version", observedVersion);
         body.put("revision", info.commit());
         body.put("buildTime", info.buildTime().toString());
         body.put("serverDate", Instant.now(clock).toString());

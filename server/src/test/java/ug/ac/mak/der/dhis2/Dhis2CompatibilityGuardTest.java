@@ -15,7 +15,7 @@ class Dhis2CompatibilityGuardTest {
         when(client.fetchVersion()).thenReturn(new Dhis2Version("2.44-SNAPSHOT", "abc", "2026"));
         final Dhis2Properties props = new Dhis2Properties(
                 new Dhis2Properties.Central("http://h", "u", "p", 5000),
-                new Dhis2Properties.Compatibility("2.44-SNAPSHOT", false));
+                Dhis2Properties.Compatibility.legacy("2.44-SNAPSHOT", false));
         final Dhis2CompatibilityGuard.Result result = new Dhis2CompatibilityGuard(client, props).check();
         assertThat(result.status()).isEqualTo(Dhis2CompatibilityGuard.Status.OK);
         assertThat(result.observed().version()).isEqualTo("2.44-SNAPSHOT");
@@ -28,7 +28,7 @@ class Dhis2CompatibilityGuardTest {
         when(client.fetchVersion()).thenReturn(Dhis2Version.of("2.44-SNAPSHOT-build-xyz"));
         final Dhis2Properties props = new Dhis2Properties(
                 new Dhis2Properties.Central("http://h", null, null, 5000),
-                new Dhis2Properties.Compatibility("2.44-SNAPSHOT", false));
+                Dhis2Properties.Compatibility.legacy("2.44-SNAPSHOT", false));
         final Dhis2CompatibilityGuard.Result result = new Dhis2CompatibilityGuard(client, props).check();
         assertThat(result.status()).isEqualTo(Dhis2CompatibilityGuard.Status.OK);
     }
@@ -39,7 +39,7 @@ class Dhis2CompatibilityGuardTest {
         when(client.fetchVersion()).thenReturn(Dhis2Version.of("2.43.1"));
         final Dhis2Properties props = new Dhis2Properties(
                 new Dhis2Properties.Central("http://h", null, null, 5000),
-                new Dhis2Properties.Compatibility("2.44-SNAPSHOT", false));
+                Dhis2Properties.Compatibility.legacy("2.44-SNAPSHOT", false));
         assertThatThrownBy(() -> new Dhis2CompatibilityGuard(client, props).check())
                 .isInstanceOf(Dhis2CompatibilityGuard.Dhis2VersionMismatchException.class)
                 .hasMessageContaining("2.43.1")
@@ -52,7 +52,7 @@ class Dhis2CompatibilityGuardTest {
         when(client.fetchVersion()).thenReturn(Dhis2Version.of("2.43.1"));
         final Dhis2Properties props = new Dhis2Properties(
                 new Dhis2Properties.Central("http://h", null, null, 5000),
-                new Dhis2Properties.Compatibility("2.44-SNAPSHOT", true));
+                Dhis2Properties.Compatibility.legacy("2.44-SNAPSHOT", true));
         final Dhis2CompatibilityGuard.Result result = new Dhis2CompatibilityGuard(client, props).check();
         assertThat(result.status()).isEqualTo(Dhis2CompatibilityGuard.Status.MISMATCH_ALLOWED);
         assertThat(result.observed().version()).isEqualTo("2.43.1");
@@ -64,7 +64,7 @@ class Dhis2CompatibilityGuardTest {
         final Dhis2ReferenceClient client = mock(Dhis2ReferenceClient.class);
         final Dhis2Properties props = new Dhis2Properties(
                 new Dhis2Properties.Central("", null, null, 5000),
-                new Dhis2Properties.Compatibility("2.44-SNAPSHOT", false));
+                Dhis2Properties.Compatibility.legacy("2.44-SNAPSHOT", false));
         final Dhis2CompatibilityGuard.Result result = new Dhis2CompatibilityGuard(client, props).check();
         assertThat(result.status()).isEqualTo(Dhis2CompatibilityGuard.Status.NOT_CONFIGURED);
         assertThat(result.observed()).isNull();
@@ -75,7 +75,7 @@ class Dhis2CompatibilityGuardTest {
         final Dhis2ReferenceClient client = mock(Dhis2ReferenceClient.class);
         final Dhis2Properties props = new Dhis2Properties(
                 new Dhis2Properties.Central(null, null, null, 5000),
-                new Dhis2Properties.Compatibility("2.44-SNAPSHOT", false));
+                Dhis2Properties.Compatibility.legacy("2.44-SNAPSHOT", false));
         final Dhis2CompatibilityGuard.Result result = new Dhis2CompatibilityGuard(client, props).check();
         assertThat(result.status()).isEqualTo(Dhis2CompatibilityGuard.Status.NOT_CONFIGURED);
     }
@@ -86,7 +86,7 @@ class Dhis2CompatibilityGuardTest {
         when(client.fetchVersion()).thenThrow(new Dhis2ReferenceClient.Dhis2UnreachableException("down", null));
         final Dhis2Properties props = new Dhis2Properties(
                 new Dhis2Properties.Central("http://h", null, null, 5000),
-                new Dhis2Properties.Compatibility("2.44-SNAPSHOT", false));
+                Dhis2Properties.Compatibility.legacy("2.44-SNAPSHOT", false));
         assertThatThrownBy(() -> new Dhis2CompatibilityGuard(client, props).check())
                 .isInstanceOf(Dhis2ReferenceClient.Dhis2UnreachableException.class);
     }
@@ -97,7 +97,7 @@ class Dhis2CompatibilityGuardTest {
         when(client.fetchVersion()).thenThrow(new Dhis2ReferenceClient.Dhis2ResponseException("bad", null));
         final Dhis2Properties props = new Dhis2Properties(
                 new Dhis2Properties.Central("http://h", null, null, 5000),
-                new Dhis2Properties.Compatibility("2.44-SNAPSHOT", false));
+                Dhis2Properties.Compatibility.legacy("2.44-SNAPSHOT", false));
         assertThatThrownBy(() -> new Dhis2CompatibilityGuard(client, props).check())
                 .isInstanceOf(Dhis2ReferenceClient.Dhis2ResponseException.class);
     }

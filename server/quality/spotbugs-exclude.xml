@@ -67,4 +67,46 @@
     <Method name="upsert"/>
     <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
   </Match>
+
+  <!-- ADR-0006 compatibility engine: the capability JSONB column can carry
+       any shape DER has written in prior releases, so JSON parsing is
+       deliberately broad-catch-and-wrap into SQLException. Reviewed 2026-10-22. -->
+  <Match>
+    <Class name="ug.ac.mak.der.dhis2.compatibility.CapabilitySnapshotRepository"/>
+    <Or>
+      <Method name="readCapabilities"/>
+      <Method name="readProbe"/>
+    </Or>
+    <Bug pattern="REC_CATCH_EXCEPTION"/>
+  </Match>
+
+  <!-- Fail-closed registry construction: throw rather than build an
+       unusable registry. Not a concern for subclassing (final-equivalent
+       state). Reviewed 2026-10-22. -->
+  <Match>
+    <Class name="ug.ac.mak.der.dhis2.compatibility.Dhis2ProfileRegistry"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+  </Match>
+
+  <!-- ProbeReport is an immutable record; outcomes list is already wrapped
+       in Collections.unmodifiableList in the compact constructor, so
+       getter exposure is safe. Reviewed 2026-10-22. -->
+  <Match>
+    <Class name="ug.ac.mak.der.dhis2.compatibility.ProbeReport"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+
+  <!-- ADR-0006 admin DTOs are Jackson-serialised records; see the Phase 02
+       entry above for the same rationale. Reviewed 2026-10-22. -->
+  <Match>
+    <Or>
+      <Class name="ug.ac.mak.der.web.CompatibilityController$CompatSnapshotView"/>
+      <Class name="ug.ac.mak.der.web.CompatibilityController$HistoryView"/>
+    </Or>
+    <Or>
+      <Bug pattern="EI_EXPOSE_REP"/>
+      <Bug pattern="EI_EXPOSE_REP2"/>
+    </Or>
+  </Match>
 </FindBugsFilter>

@@ -109,10 +109,10 @@ FR-11-07,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To b
 FR-11-08,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-11-09,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-11-10,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
-FR-12-01,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
-FR-12-02,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
-FR-12-03,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
-FR-12-04,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,server:ug.ac.mak.der.dhis2.Dhis2ReferenceClient;server:ug.ac.mak.der.dhis2.Dhis2CompatibilityGuard,T20,in-progress,docs/evaluation/evidence/phase-01/<commit>/compatibility/*.json,Phase 01: version adapter + fail-closed guard scaffolded.
+FR-12-01,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,server:ug.ac.mak.der.dhis2.compatibility.*;docs/verification/compatibility/version-endpoint-matrix.csv,T20,in-progress,docs/evaluation/evidence/phase-03/<commit>/compat/*.json,ADR-0006 compat engine ships observed-version + endpoint policies to admin surface.
+FR-12-02,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,server:ug.ac.mak.der.dhis2.compatibility.*;server:ug.ac.mak.der.web.CompatibilityController,T20,in-progress,docs/evaluation/evidence/phase-03/<commit>/compat/*.json,ADR-0006 compat engine resolves per-minor profile + persists capability snapshot.
+FR-12-03,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,server:ug.ac.mak.der.dhis2.compatibility.Dhis2CapabilityProbe;server:ug.ac.mak.der.dhis2.compatibility.CompatibilityStartup,T20,in-progress,docs/evaluation/evidence/phase-03/<commit>/compat/*.json,ADR-0006 probe battery runs on boot + admin-triggered refresh.
+FR-12-04,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,server:ug.ac.mak.der.dhis2.Dhis2ReferenceClient;server:ug.ac.mak.der.dhis2.compatibility.Dhis2CompatibilityEngine,T20,in-progress,docs/evaluation/evidence/phase-03/<commit>/compat/*.json,ADR-0006 replaces Phase 01 fail-closed prefix pin with dynamic probe + cached snapshot fallback.
 FR-12-05,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-12-06,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-12-07,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
@@ -196,7 +196,7 @@ NFR-18,P1,Resource budget,OBJ-4,To be assigned,T19,specified,,
 NFR-19,P1,Scalability,OBJ-4,To be assigned,T19,specified,,
 NFR-20,P1,Observability,OBJ-4,To be assigned,T17,specified,,
 NFR-21,P0,Auditability,OBJ-4,To be assigned,T11,specified,,
-NFR-22,P0,Interoperability,OBJ-4,server:ug.ac.mak.der.dhis2.*;docs/verification/compatibility/supported-matrix.csv,T20,in-progress,docs/evaluation/evidence/phase-01/<commit>/compatibility/*.json,Phase 01: pinned 2.44-SNAPSHOT contract tests PASS.
+NFR-22,P0,Interoperability,OBJ-4,server:ug.ac.mak.der.dhis2.compatibility.*;docs/verification/compatibility/version-endpoint-matrix.csv;docs/verification/compatibility/supported-matrix.csv,T20,in-progress,docs/evaluation/evidence/phase-03/<commit>/compat/*.json,Compat engine ships profiles for 2.41-2.44; endpoint matrix captures release-note-driven deltas.
 NFR-23,P1,Maintainability,OBJ-4,To be assigned,T20,specified,,
 NFR-24,P1,Portability,OBJ-4,To be assigned,T01,specified,,
 NFR-25,P1,Usability,OBJ-4,To be assigned,T07,specified,,
@@ -209,4 +209,4 @@ NFR-31,P0,Data minimisation,OBJ-4,To be assigned,T20,specified,,
 NFR-32,P0,No central coupling,OBJ-4,To be assigned,T15,specified,,
 NFR-33,P0,Metadata safety,OBJ-4,To be assigned,T14,specified,,
 NFR-34,P0,Failure isolation,OBJ-4,To be assigned,T17,specified,,
-NFR-35,P0,Deployment transparency,OBJ-4,deployment/dhis2/README.md;server:ug.ac.mak.der.build.BuildInfoProvider;server:ug.ac.mak.der.web.SystemController,T01,in-progress,docs/evaluation/evidence/phase-01/<commit>/gate-report.md,Phase 01: deployment steps + runtime version report shipped.
+NFR-35,P0,Deployment transparency,OBJ-4,deployment/dhis2/README.md;server:ug.ac.mak.der.build.BuildInfoProvider;server:ug.ac.mak.der.web.SystemController;server:ug.ac.mak.der.web.CompatibilityController,T01,in-progress,docs/evaluation/evidence/phase-03/<commit>/compat/*.json,Deployment transparency now includes resolved compat snapshot via /edge-api/v1/compat.
