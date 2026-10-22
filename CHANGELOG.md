@@ -15,6 +15,19 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.3.0-alpha.4] — unreleased
+
+Initiative 10 slice B — reconciler scaffolding (ADR-0025).
+
+- Added: V020 `capture_workflow_step_contribution` table with `UNIQUE (run_id, step_id)` so re-POSTs overwrite idempotently.
+- Added: `CaptureWorkflowContribution` record + `CaptureWorkflowContributionRepository` (upsert + findByRun).
+- Added: `CaptureWorkflowContributionIngest` MVC afterCompletion handler on `/api/dataValueSets` — buffers the body when `X-DER-Workflow-Run` + `X-DER-Workflow-Step` headers are present and the payload maps to an enabled workflow + step ordinal. Fail-open on any error.
+- Added: `GET /edge-api/v1/workflows/runs/{runId}/contributions` + `edgeApi.listWorkflowContributions` helper.
+- Added: ADR-0025 (overwrite semantics, ordinal-via-header step selection, write-through ingest, no drain-time recomposition yet).
+- Added: 18 server tests + 1 edgeApi table row.
+
+[1.3.0-alpha.4]: https://github.com/socaya/der-engine/releases/tag/der-1.3.0-alpha.4
+
 ## [1.3.0-alpha.3] — unreleased
 
 Initiative 10 slice B — program-binding + workflow import/export (ADR-0024).

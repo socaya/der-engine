@@ -157,6 +157,8 @@ describe('edgeApi route coverage', () => {
       schemaVersion: 1, displayName: 'y', boundMetadataKind: 'PROGRAM',
       boundMetadataId: 'p1', enabled: true, steps: [], dependencies: [],
     }],
+    ['listWorkflowContributions', () => api.listWorkflowContributions('run-9'),
+      '/edge-api/v1/workflows/runs/run-9/contributions', 'GET', undefined],
   ])('%s hits the expected URL + method', async (_name, call, path, method, expectedBody) => {
     fetchMock.mockResolvedValue(respond(200, okJson));
     await call();

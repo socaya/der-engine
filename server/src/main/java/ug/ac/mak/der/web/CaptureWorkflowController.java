@@ -23,6 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.CaptureWorkflow;
+import ug.ac.mak.der.workflow.CaptureWorkflowContribution;
+import ug.ac.mak.der.workflow.CaptureWorkflowContributionRepository;
 import ug.ac.mak.der.workflow.CaptureWorkflowDependency;
 import ug.ac.mak.der.workflow.CaptureWorkflowField;
 import ug.ac.mak.der.workflow.CaptureWorkflowImportService;
@@ -37,11 +39,14 @@ public class CaptureWorkflowController {
 
     private final CaptureWorkflowService svc;
     private final CaptureWorkflowImportService importer;
+    private final CaptureWorkflowContributionRepository contributions;
 
     public CaptureWorkflowController(final CaptureWorkflowService svc,
-                                       final CaptureWorkflowImportService importer) {
+                                       final CaptureWorkflowImportService importer,
+                                       final CaptureWorkflowContributionRepository contributions) {
         this.svc = Objects.requireNonNull(svc, "svc");
         this.importer = Objects.requireNonNull(importer, "importer");
+        this.contributions = Objects.requireNonNull(contributions, "contributions");
     }
 
     @GetMapping
@@ -80,6 +85,26 @@ public class CaptureWorkflowController {
     public ResponseEntity<Map<String, Object>> runs(@PathVariable("id") final UUID id) {
         return ResponseEntity.ok(Map.of("runs",
                 svc.runs(id).stream().map(CaptureWorkflowController::runToJson).toList()));
+    }
+
+    @GetMapping("/runs/{runId}/contributions")
+    public ResponseEntity<Map<String, Object>> contributionsForRun(
+            @PathVariable("runId") final UUID runId) {
+        final List<Map<String, Object>> rows = contributions.findByRun(runId).stream()
+                .map(CaptureWorkflowController::contributionJson).toList();
+        return ResponseEntity.ok(Map.of("contributions", rows));
+    }
+
+    private static Map<String, Object> contributionJson(final CaptureWorkflowContribution c) {
+        final Map<String, Object> m = new LinkedHashMap<>();
+        m.put("contributionId", c.contributionId().toString());
+        m.put("runId", c.runId().toString());
+        m.put("stepId", c.stepId().toString());
+        m.put("submittedBy", c.submittedBy() == null ? null : c.submittedBy().toString());
+        m.put("submittedDeviceId", c.submittedDeviceId() == null
+                ? null : c.submittedDeviceId().toString());
+        m.put("submittedAt", c.submittedAt().toString());
+        return m;
     }
 
     @GetMapping("/{id}/export")

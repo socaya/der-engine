@@ -42,6 +42,7 @@ class CaptureWorkflowControllerTest {
     @Autowired MockMvc mockMvc;
     @MockBean CaptureWorkflowService svc;
     @MockBean ug.ac.mak.der.workflow.CaptureWorkflowImportService importer;
+    @MockBean ug.ac.mak.der.workflow.CaptureWorkflowContributionRepository contributions;
 
     private final Instant NOW = Instant.parse("2026-10-22T00:00:00Z");
 
@@ -255,6 +256,19 @@ class CaptureWorkflowControllerTest {
                         .content("{\"schemaVersion\":99}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("WORKFLOW_IMPORT_INVALID"));
+    }
+
+    @Test
+    void contributionsForRun() throws Exception {
+        final UUID runId = UUID.randomUUID();
+        when(contributions.findByRun(runId)).thenReturn(List.of(
+                new ug.ac.mak.der.workflow.CaptureWorkflowContribution(
+                        UUID.randomUUID(), runId, UUID.randomUUID(), "{}",
+                        null, null, NOW)));
+        mockMvc.perform(get("/edge-api/v1/workflows/runs/" + runId + "/contributions")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contributions[0].runId").value(runId.toString()));
     }
 
     @Test

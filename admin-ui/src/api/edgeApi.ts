@@ -573,6 +573,22 @@ export function importWorkflow(body: CanonicalWorkflow, dryRun = false):
     `/edge-api/v1/workflows/import?dryRun=${dryRun}`, body);
 }
 
+// ---- der-1.3.0-alpha.4 Initiative 10 slice B (ADR-0025): contributions ----
+
+export interface CaptureWorkflowContributionRow {
+  contributionId: string;
+  runId: string;
+  stepId: string;
+  submittedBy: string | null;
+  submittedDeviceId: string | null;
+  submittedAt: string;
+}
+
+export function listWorkflowContributions(runId: string):
+    Promise<{ contributions: CaptureWorkflowContributionRow[] }> {
+  return request('GET', `/edge-api/v1/workflows/runs/${runId}/contributions`);
+}
+
 // ---- der-1.2.0-alpha.2 Initiative 1: device management (ADR-0019) ----
 
 export type DeviceStatus = 'PENDING' | 'APPROVED' | 'SUSPENDED' | 'REVOKED';
