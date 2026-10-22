@@ -13,7 +13,28 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Phase 03.5 (write paths) not yet started.
+- Phase 03.6 (event + tracker writes) and Phase 04 (journal worker) not yet started.
+
+## [0.4.0-alpha.2] — unreleased
+
+Phase 03.5 — aggregate dataValueSets write path + durable journal rows
+(see `docs/releases/der-0.4.0-alpha.2.md`).
+
+- Added: V003 migration — `aggregate_data_value` (compound-key unique, optimistic
+  `value_version`) + `operation_journal` (full state machine, Phase 03.5 only
+  writes PENDING).
+- Added: `ug.ac.mak.der.workflows.aggregate` package — `AggregateDataValue`,
+  `OperationJournalEntry`, repositories, `AggregateDataValueService` (atomic
+  value + journal write under `@Transactional`).
+- Added: `POST /api/dataValueSets` emulator with DHIS2 2.44 `ImportSummary` shape.
+- Changed: `SyncStatusService` returns real `LOCALLY_COMMITTED` for persisted
+  aggregate rows; placeholder `UNKNOWN` for everything else.
+- Live-verified: upsert bumps `value_version`, type-mismatch rejection returns
+  DHIS2-shape conflicts, journal rows accumulate as PENDING.
+- Server tests: 291/291 PASS, JaCoCo 100% line + branch, SpotBugs clean.
+- Client unchanged (branch threshold stays 90% until stable 0.4.0).
+
+[0.4.0-alpha.2]: https://github.com/socaya/der-engine/releases/tag/der-0.4.0-alpha.2
 
 ## [0.4.0-alpha.1] — unreleased
 

@@ -1,0 +1,69 @@
+{
+  "evidence": "Phase 03.5 live aggregate write + journal + sync-status probe",
+  "generated": "2026-10-22T06:11:00Z",
+  "sequence": [
+    {
+      "step": "sign-in",
+      "endpoint": "POST /edge-api/v1/auth/sign-in",
+      "status": 200,
+      "principal": {"username": "der-admin", "roles": ["ADMIN"]}
+    },
+    {
+      "step": "pick-de-ou-from-mirror",
+      "dataElement": {"id": "i9bp4zvtlir", "valueType": "INTEGER_ZERO_OR_POSITIVE"},
+      "orgUnit": {"id": "HL2zXaIULBe"}
+    },
+    {
+      "step": "first-submit",
+      "endpoint": "POST /api/dataValueSets",
+      "body_summary": {"dataValues": 1, "value": "42"},
+      "response": {"status": "SUCCESS", "imported": 1, "ignored": 0, "conflicts": []}
+    },
+    {
+      "step": "resubmit-same-key",
+      "endpoint": "POST /api/dataValueSets",
+      "response": {"status": "SUCCESS", "imported": 1},
+      "note": "upsert bumps value_version to 2"
+    },
+    {
+      "step": "reject-bad-type",
+      "endpoint": "POST /api/dataValueSets",
+      "body_summary": {"value": "not-numeric-at-all"},
+      "response": {
+        "status": "WARNING",
+        "imported": 0,
+        "ignored": 1,
+        "conflicts": [
+          {"object": "i9bp4zvtlir|HL2zXaIULBe|2026Q1|HllvX50cXC0|HllvX50cXC0",
+           "value": "value 'not-numeric-at-all' is not an integer"}
+        ]
+      }
+    },
+    {
+      "step": "db-state",
+      "aggregate_data_value_rows": 1,
+      "value_version": 2,
+      "operation_journal_rows": 2,
+      "operation_journal_state": "PENDING",
+      "entity_type": "AGGREGATE_DATA_VALUE"
+    },
+    {
+      "step": "sync-status-known",
+      "endpoint": "GET /edge-api/v1/records/aggregate_data_value/{value_id}/sync-status",
+      "response": {"status": "LOCALLY_COMMITTED"}
+    },
+    {
+      "step": "sync-status-unknown",
+      "endpoint": "GET /edge-api/v1/records/aggregate_data_value/{random}/sync-status",
+      "response": {"status": "UNKNOWN"}
+    }
+  ],
+  "test_summary": {
+    "server_unit_tests_total": 291,
+    "server_unit_tests_passed": 291,
+    "jacoco_line_coverage": "100%",
+    "jacoco_branch_coverage": "100%",
+    "spotbugs_bugs": 0,
+    "checkstyle_violations": 0
+  }
+}

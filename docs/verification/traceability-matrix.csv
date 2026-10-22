@@ -51,11 +51,11 @@ FR-05-09,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specifi
 FR-05-10,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
 FR-05-11,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
 FR-05-12,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
-FR-06-01,P0,Aggregate reporting,OBJ-3,To be assigned,To be assigned,specified,,
-FR-06-02,P0,Aggregate reporting,OBJ-3,To be assigned,To be assigned,specified,,
-FR-06-03,P0,Aggregate reporting,OBJ-3,To be assigned,To be assigned,specified,,
+FR-06-01,P0,Aggregate reporting,OBJ-3,server:ug.ac.mak.der.dhis2emulator.DataValueSetsController;database:aggregate_data_value,T05;DataValueSetsControllerTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: /api/dataValueSets accepts envelope with per-row combos.
+FR-06-02,P0,Aggregate reporting,OBJ-3,server:ug.ac.mak.der.workflows.aggregate.AggregateDataValueService,AggregateDataValueServiceTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: compound key enforced via DB unique index; upsert bumps value_version.
+FR-06-03,P0,Aggregate reporting,OBJ-3,server:ug.ac.mak.der.workflows.aggregate.AggregateDataValueService[typeCheck],AggregateDataValueServiceTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: value-type check covers NUMBER/INTEGER family/BOOLEAN/UNIT_INTERVAL/PERCENTAGE; category/period validation Phase 03.6.
 FR-06-04,P0,Aggregate reporting,OBJ-3,To be assigned,To be assigned,specified,,
-FR-06-05,P0,Aggregate reporting,OBJ-3,To be assigned,To be assigned,specified,,
+FR-06-05,P0,Aggregate reporting,OBJ-3,database:aggregate_data_value[ux_compound+value_version],AggregateDataValueRepositoryTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: unique index on compound key + optimistic value_version.
 FR-06-06,P0,Aggregate reporting,OBJ-3,To be assigned,To be assigned,specified,,
 FR-06-07,P0,Aggregate reporting,OBJ-3,To be assigned,To be assigned,specified,,
 FR-06-08,P0,Aggregate reporting,OBJ-3,To be assigned,To be assigned,specified,,
@@ -79,14 +79,14 @@ FR-08-09,P0,Tracker and dependent workflows,OBJ-3,To be assigned,To be assigned,
 FR-08-10,P0,Tracker and dependent workflows,OBJ-3,To be assigned,To be assigned,specified,,
 FR-08-11,P0,Tracker and dependent workflows,OBJ-3,To be assigned,To be assigned,specified,,
 FR-08-12,P0,Tracker and dependent workflows,OBJ-3,To be assigned,To be assigned,specified,,
-FR-09-01,P0,Shared data and transaction integrity,OBJ-3,To be assigned,To be assigned,specified,,
-FR-09-02,P0,Shared data and transaction integrity,OBJ-3,To be assigned,To be assigned,specified,,
-FR-09-03,P0,Shared data and transaction integrity,OBJ-3,To be assigned,To be assigned,specified,,
+FR-09-01,P0,Shared data and transaction integrity,OBJ-3,server:ug.ac.mak.der.workflows.aggregate.AggregateDataValueService[@Transactional],AggregateDataValueServiceTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: @Transactional wraps business write + journal entry (FR-09-02).
+FR-09-02,P0,Shared data and transaction integrity,OBJ-3,server:ug.ac.mak.der.workflows.aggregate.AggregateDataValueService;database:operation_journal,AggregateDataValueServiceTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: atomic outbox — business row + PENDING journal row in one transaction.
+FR-09-03,P0,Shared data and transaction integrity,OBJ-3,database:aggregate_data_value[value_id UUID];database:operation_journal[operation_id UUID],AggregateDataValueTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: stable UUID identity on every row + journal operation.
 FR-09-04,P0,Shared data and transaction integrity,OBJ-3,To be assigned,To be assigned,specified,,
 FR-09-05,P0,Shared data and transaction integrity,OBJ-3,To be assigned,To be assigned,specified,,
 FR-09-06,P0,Shared data and transaction integrity,OBJ-3,To be assigned,To be assigned,specified,,
 FR-09-07,P0,Shared data and transaction integrity,OBJ-3,To be assigned,To be assigned,specified,,
-FR-09-08,P0,Shared data and transaction integrity,OBJ-3,To be assigned,To be assigned,specified,,
+FR-09-08,P0,Shared data and transaction integrity,OBJ-3,server:ug.ac.mak.der.workflows.SyncStatusService,SyncStatusServiceTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: committed writes are immediately readable via /edge-api/v1/records/.../sync-status.
 FR-09-09,P0,Shared data and transaction integrity,OBJ-3,To be assigned,To be assigned,specified,,
 FR-09-10,P0,Shared data and transaction integrity,OBJ-3,To be assigned,To be assigned,specified,,
 FR-10-01,P0,Conflict detection and resolution,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
@@ -99,8 +99,8 @@ FR-10-07,P0,Conflict detection and resolution,OBJ-2;OBJ-3;OBJ-4,To be assigned,T
 FR-10-08,P0,Conflict detection and resolution,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-10-09,P0,Conflict detection and resolution,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-10-10,P0,Conflict detection and resolution,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
-FR-11-01,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
-FR-11-02,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
+FR-11-01,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,database:operation_journal,OperationJournalRepositoryTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,"Phase 03.5: journal schema shipped (operation_id, entity_type, state, attempt_count, payload_json)."
+FR-11-02,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,server:ug.ac.mak.der.workflows.aggregate.OperationJournalEntry[State enum],OperationJournalEntryTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: full state enum present; only PENDING produced yet. Worker drains in Phase 04.
 FR-11-03,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-11-04,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-11-05,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
@@ -176,8 +176,8 @@ FR-17-08,P1,Testability and evidence,OBJ-3,To be assigned,To be assigned,specifi
 FR-17-09,P1,Testability and evidence,OBJ-3,To be assigned,To be assigned,specified,,
 FR-17-10,P1,Testability and evidence,OBJ-3,To be assigned,To be assigned,specified,,
 NFR-01,P0,Availability,OBJ-4,To be assigned,T15,specified,,
-NFR-02,P0,Durability,OBJ-4,To be assigned,T09,specified,,
-NFR-03,P0,Atomicity,OBJ-4,To be assigned,T09,specified,,
+NFR-02,P0,Durability,OBJ-4,database:aggregate_data_value;database:operation_journal,AggregateDataValueRepositoryTest;OperationJournalRepositoryTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: durable Postgres rows; restart durability unit-covered.
+NFR-03,P0,Atomicity,OBJ-4,server:ug.ac.mak.der.workflows.aggregate.AggregateDataValueService[@Transactional],AggregateDataValueServiceTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: value + journal commit atomically; rollback together.
 NFR-04,P0,Consistency,OBJ-4,To be assigned,T10,specified,,
 NFR-05,P0,Authorisation,OBJ-4,To be assigned,T03,specified,,
 NFR-06,P0,Confidentiality,OBJ-4,To be assigned,T03,specified,,

@@ -27,6 +27,8 @@
       <Class name="ug.ac.mak.der.web.ProvisioningController$UserResponse"/>
       <Class name="ug.ac.mak.der.web.ProvisioningController$ListResponse"/>
       <Class name="ug.ac.mak.der.web.ActivityController$RecentActivityResponse"/>
+      <Class name="ug.ac.mak.der.dhis2emulator.DataValueSetsController$DataValueSetsRequest"/>
+      <Class name="ug.ac.mak.der.workflows.aggregate.AggregateDataValueService$ImportSummary"/>
     </Or>
     <Or>
       <Bug pattern="EI_EXPOSE_REP"/>
@@ -55,5 +57,14 @@
       <Class name="ug.ac.mak.der.dhis2emulator.MetadataListController"/>
     </Or>
     <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+
+  <!-- Postgres RETURNING always produces exactly one row from upsert; the
+       Objects.requireNonNull wraps the JdbcTemplate contract to make that
+       explicit. SpotBugs cannot see the guarantee. Reviewed 2026-10-22. -->
+  <Match>
+    <Class name="ug.ac.mak.der.workflows.aggregate.AggregateDataValueRepository"/>
+    <Method name="upsert"/>
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
   </Match>
 </FindBugsFilter>

@@ -260,6 +260,7 @@
                     <include>ug.ac.mak.der.metadata.*</include>
                     <include>ug.ac.mak.der.security.*</include>
                     <include>ug.ac.mak.der.workflows.*</include>
+                    <include>ug.ac.mak.der.workflows.aggregate.*</include>
                   </includes>
                   <excludes>
                     <exclude>ug.ac.mak.der.DerApplication</exclude>

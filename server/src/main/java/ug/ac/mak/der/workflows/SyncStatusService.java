@@ -1,33 +1,55 @@
 package ug.ac.mak.der.workflows;
 
+import java.util.Objects;
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 
+import ug.ac.mak.der.workflows.aggregate.AggregateDataValueRepository;
+
 /**
- * Phase 03 placeholder for the per-record sync status.
+ * Per-record sync status probe.
  *
- * <p>At Phase 03 DER has no journal yet, so there is only ever one honest
- * answer: {@link SyncStatus#LOCALLY_COMMITTED} if the client just saved it,
- * and {@link SyncStatus#UNKNOWN} otherwise. Phase 04 wires in the real
- * journal and this service starts returning {@code PENDING_CENTRAL},
- * {@code CENTRAL_ACCEPTED}, {@code CONFLICT_REVIEW}, etc.</p>
- *
- * <p>This exists at Phase 03 so the client's status chrome has a stable
- * endpoint shape; FR-04-06 "unsupported operations distinct from temporary
- * failures" is satisfied by {@link SyncStatus#UNKNOWN} being explicit
- * rather than inferred from a 404.</p>
+ * <p>Phase 03.5 extends the Phase 03 placeholder: when
+ * {@code entityType=aggregate_data_value} and the id resolves to a row in
+ * {@code aggregate_data_value}, DER returns
+ * {@link SyncStatus#LOCALLY_COMMITTED}; otherwise {@link SyncStatus#UNKNOWN}.
+ * Phase 04 extends this to {@code PENDING_CENTRAL}, {@code CENTRAL_ACCEPTED},
+ * {@code CONFLICT_REVIEW} as the journal worker makes progress.</p>
  */
 @Service
 public class SyncStatusService {
 
+    static final String TYPE_AGGREGATE = "aggregate_data_value";
+
+    private final AggregateDataValueRepository aggregates;
+
+    public SyncStatusService(final AggregateDataValueRepository aggregates) {
+        this.aggregates = Objects.requireNonNull(aggregates, "aggregates");
+    }
+
     public SyncStatusResponse statusFor(final String entityType, final String entityId) {
-        // Entity-type/ID are kept in the signature so Phase 04 can key its
-        // journal lookup without a controller signature change. For now they
-        // are only validated and reflected back.
         if (entityType == null || entityType.isBlank() || entityId == null || entityId.isBlank()) {
             throw new IllegalArgumentException("entityType and entityId must not be blank");
         }
+        if (TYPE_AGGREGATE.equals(entityType)) {
+            final UUID id = tryParseUuid(entityId);
+            if (id != null && aggregates.existsById(id)) {
+                return new SyncStatusResponse(entityType, entityId, SyncStatus.LOCALLY_COMMITTED,
+                        "Local write recorded. Phase 04 journal worker will push and transition this to "
+                                + "PENDING_CENTRAL / CENTRAL_ACCEPTED.");
+            }
+        }
         return new SyncStatusResponse(entityType, entityId, SyncStatus.UNKNOWN,
-                "Phase 03 does not yet track per-record sync state. Phase 04 journal fills this in.");
+                "No local record and no journal match. Trigger a submission or wait for Phase 04 journal integration.");
+    }
+
+    private static UUID tryParseUuid(final String s) {
+        try {
+            return UUID.fromString(s);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     public enum SyncStatus {

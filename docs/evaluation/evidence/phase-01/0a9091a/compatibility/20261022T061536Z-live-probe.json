@@ -1,0 +1,221 @@
+{
+  "base_url": "http://localhost:8080/dhis",
+  "commit": "0a9091a",
+  "generated": "2026-10-22T06:15:36.501+00:00",
+  "non_phase01_failures": 0,
+  "observed_version": "2.44-SNAPSHOT",
+  "phase01_failures": 0,
+  "pin_matches": true,
+  "pinned_version": "2.44-SNAPSHOT",
+  "results": [
+    {
+      "body_bytes": 2302,
+      "body_sha256": "a3236865f7d5cb6a859217bb8d36f2d4d1417a09490959729d9459d7b1153326",
+      "der_phase": "01",
+      "elapsed_ms": 205,
+      "error": null,
+      "expected_status_range": [
+        200,
+        200
+      ],
+      "finished": "2026-10-22T06:15:35.746+00:00",
+      "method": "GET",
+      "passed": true,
+      "requires_auth": true,
+      "route_id": "INFO",
+      "started": "2026-10-22T06:15:35.541+00:00",
+      "status": 200,
+      "url": "http://localhost:8080/dhis/api/system/info"
+    },
+    {
+      "body_bytes": 2518,
+      "body_sha256": "d0c5ff6565b8da41da9e79574c2863562a7d152d37aba65b8f010e1db114971d",
+      "der_phase": "01",
+      "elapsed_ms": 88,
+      "error": null,
+      "expected_status_range": [
+        200,
+        200
+      ],
+      "finished": "2026-10-22T06:15:35.835+00:00",
+      "method": "GET",
+      "passed": true,
+      "requires_auth": true,
+      "route_id": "ME",
+      "started": "2026-10-22T06:15:35.747+00:00",
+      "status": 200,
+      "url": "http://localhost:8080/dhis/api/me"
+    },
+    {
+      "body_bytes": 196,
+      "body_sha256": "c08c8f1ed7f56ca7e208fa141de45b7fccc491269c9706489f4d497120937007",
+      "der_phase": "01",
+      "elapsed_ms": 86,
+      "error": null,
+      "expected_status_range": [
+        200,
+        200
+      ],
+      "finished": "2026-10-22T06:15:35.922+00:00",
+      "method": "GET",
+      "passed": true,
+      "requires_auth": true,
+      "route_id": "DATA_ELEMENTS",
+      "started": "2026-10-22T06:15:35.835+00:00",
+      "status": 200,
+      "url": "http://localhost:8080/dhis/api/dataElements?fields=id&pageSize=1"
+    },
+    {
+      "body_bytes": 206,
+      "body_sha256": "64e3fd15ee6a8a08de6779a950d1da9dc229c4bbcec74149fd52c4294f899e85",
+      "der_phase": "01",
+      "elapsed_ms": 69,
+      "error": null,
+      "expected_status_range": [
+        200,
+        200
+      ],
+      "finished": "2026-10-22T06:15:35.992+00:00",
+      "method": "GET",
+      "passed": true,
+      "requires_auth": true,
+      "route_id": "ORG_UNITS",
+      "started": "2026-10-22T06:15:35.922+00:00",
+      "status": 200,
+      "url": "http://localhost:8080/dhis/api/organisationUnits?fields=id&pageSize=1"
+    },
+    {
+      "body_bytes": 186,
+      "body_sha256": "fb8eedfb9370c3e577d80732a4abd5dc803f6568778bb3f9a9aee36eec40c9d1",
+      "der_phase": "01",
+      "elapsed_ms": 73,
+      "error": null,
+      "expected_status_range": [
+        200,
+        200
+      ],
+      "finished": "2026-10-22T06:15:36.065+00:00",
+      "method": "GET",
+      "passed": true,
+      "requires_auth": true,
+      "route_id": "PROGRAMS",
+      "started": "2026-10-22T06:15:35.992+00:00",
+      "status": 200,
+      "url": "http://localhost:8080/dhis/api/programs?fields=id&pageSize=1"
+    },
+    {
+      "body_bytes": 7671,
+      "body_sha256": "c34c79254fbdef35febfd59b11312c7809708a61e482eedc6417b338beed5a3a",
+      "der_phase": "01",
+      "elapsed_ms": 87,
+      "error": null,
+      "expected_status_range": [
+        200,
+        200
+      ],
+      "finished": "2026-10-22T06:15:36.153+00:00",
+      "method": "GET",
+      "passed": true,
+      "requires_auth": true,
+      "route_id": "METADATA",
+      "started": "2026-10-22T06:15:36.065+00:00",
+      "status": 200,
+      "url": "http://localhost:8080/dhis/api/metadata?dataElements=true&fields=id"
+    },
+    {
+      "body_bytes": 113,
+      "body_sha256": "7699e9292c3c316280e3fcbf954edbedab5eb1fa1ab2eac38ad12a316fdb521b",
+      "der_phase": "01",
+      "elapsed_ms": 76,
+      "error": null,
+      "expected_status_range": [
+        200,
+        200
+      ],
+      "finished": "2026-10-22T06:15:36.230+00:00",
+      "method": "GET",
+      "passed": true,
+      "requires_auth": true,
+      "route_id": "TRACKER_TET",
+      "started": "2026-10-22T06:15:36.153+00:00",
+      "status": 200,
+      "url": "http://localhost:8080/dhis/api/trackedEntityTypes?fields=id&pageSize=1"
+    },
+    {
+      "body_bytes": 756,
+      "body_sha256": "d1d92be941cbd5ebb2f0ff63325faec96580b3e355ce4d990197c67d9d5ed2f5",
+      "der_phase": "01",
+      "elapsed_ms": 66,
+      "error": null,
+      "expected_status_range": [
+        404,
+        404
+      ],
+      "finished": "2026-10-22T06:15:36.296+00:00",
+      "method": "GET",
+      "passed": true,
+      "requires_auth": true,
+      "route_id": "NOT_FOUND",
+      "started": "2026-10-22T06:15:36.230+00:00",
+      "status": 404,
+      "url": "http://localhost:8080/dhis/api/system/doesNotExist"
+    },
+    {
+      "body_bytes": 837,
+      "body_sha256": "49ad5b6fffaf9d330ab4621765c55b7ef8e0aa182b989bb4e58c1f5605a7dcf0",
+      "der_phase": "01",
+      "elapsed_ms": 66,
+      "error": null,
+      "expected_status_range": [
+        400,
+        400
+      ],
+      "finished": "2026-10-22T06:15:36.363+00:00",
+      "method": "GET",
+      "passed": true,
+      "requires_auth": true,
+      "route_id": "TRACKER_EVENTS_NEEDS_PARAMS",
+      "started": "2026-10-22T06:15:36.296+00:00",
+      "status": 400,
+      "url": "http://localhost:8080/dhis/api/tracker/events?pageSize=1"
+    },
+    {
+      "body_bytes": 2157,
+      "body_sha256": "3898fc97dea15765a079b71649e5aa0f16667f7ea3367aebb184e9cbaf3bb823",
+      "der_phase": "02",
+      "elapsed_ms": 6,
+      "error": null,
+      "expected_status_range": [
+        200,
+        401
+      ],
+      "finished": "2026-10-22T06:15:36.369+00:00",
+      "method": "GET",
+      "passed": true,
+      "requires_auth": false,
+      "route_id": "UNAUTH_INFO",
+      "started": "2026-10-22T06:15:36.363+00:00",
+      "status": 200,
+      "url": "http://localhost:8080/dhis/api/system/info"
+    },
+    {
+      "body_bytes": 177,
+      "body_sha256": "6512b21619954dca3ea10ed92dd260044101a702bcd02a763721d89cb3ada9bf",
+      "der_phase": "03",
+      "elapsed_ms": 67,
+      "error": null,
+      "expected_status_range": [
+        400,
+        400
+      ],
+      "finished": "2026-10-22T06:15:36.436+00:00",
+      "method": "GET",
+      "passed": true,
+      "requires_auth": true,
+      "route_id": "TRACKER_SEARCH_NEEDS_PARAMS",
+      "started": "2026-10-22T06:15:36.369+00:00",
+      "status": 400,
+      "url": "http://localhost:8080/dhis/api/tracker/trackedEntities?pageSize=1"
+    }
+  ]
+}
