@@ -1,0 +1,20 @@
+
+ RUN  v2.1.9 /Users/stephocay/projects/msdcse-project/der/admin-ui
+      Coverage enabled with v8
+
+ ✓ src/App.test.tsx (4 tests) 73ms
+ ✓ src/AppShell.test.tsx (8 tests) 83ms
+
+ Test Files  2 passed (2)
+      Tests  12 passed (12)
+   Start at  09:18:13
+   Duration  873ms (transform 52ms, setup 201ms, collect 65ms, tests 156ms, environment 684ms, prepare 97ms)
+
+ % Coverage report from v8
+--------------|---------|----------|---------|---------|-------------------
+File          | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+--------------|---------|----------|---------|---------|-------------------
+All files     |     100 |      100 |     100 |     100 |                   
+ App.tsx      |     100 |      100 |     100 |     100 |                   
+ AppShell.tsx |     100 |      100 |     100 |     100 |                   
+--------------|---------|----------|---------|---------|-------------------

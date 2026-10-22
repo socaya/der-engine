@@ -1,0 +1,128 @@
+
+ RUN  v2.1.9 /Users/stephocay/projects/msdcse-project/der/client
+      Coverage enabled with v8
+
+ ✓ src/api/edgeApi.test.ts (15 tests) 5ms
+ ✓ src/auth/AuthContext.test.tsx (7 tests) 99ms
+stderr | src/screens/Launcher.test.tsx > Launcher > renders the tile grid
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+stderr | src/components/RequireAuth.test.tsx > RequireAuth > renders children when AUTHENTICATED
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+stderr | src/screens/SessionDetails.test.tsx > SessionDetails > renders the signed-in session rows
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+stderr | src/screens/MetadataBrowser.test.tsx > MetadataBrowser > renders rows from the DER mirror
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+stderr | src/screens/SignIn.test.tsx > SignIn > renders the DER-specific sign-in copy
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ ✓ src/components/SyncStatusPill.test.tsx (7 tests) 57ms
+stderr | src/screens/EdgeConnectionError.test.tsx > EdgeConnectionError > renders the explanation + retry button
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+stderr | src/screens/MetadataBrowser.test.tsx > MetadataBrowser > renders rows from the DER mirror
+The query should be static, don't create it within the render loop!
+
+stderr | src/screens/MetadataBrowser.test.tsx > MetadataBrowser > renders the empty-state row when the server returns no items
+The query should be static, don't create it within the render loop!
+
+stderr | src/App.test.tsx > App > redirects / to /sign-in when the session probe fails
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+Error: No data provided for resource type systemSettings/applicationTitle!
+    at CustomDataLink.executeResourceQuery (/Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/data-engine/build/es/links/CustomDataLink.js:23:15)
+    at /Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/data-engine/build/es/DataEngine.js:38:24
+    at Array.map (<anonymous>)
+    at DataEngine.query (/Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/data-engine/build/es/DataEngine.js:37:32)
+    at Object.queryFn (/Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/app-service-data/build/es/react/hooks/useDataQuery.js:65:32)
+    at Object.fn (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/query.ts:400:27)
+    at run (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/retryer.ts:147:31)
+    at createRetryer (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/retryer.ts:204:5)
+    at Query.fetch (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/query.ts:458:20)
+    at QueryObserver.executeFetch (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/queryObserver.ts:350:70)
+
+stderr | src/App.test.tsx > App > redirects / to /edge-error when the session probe reports edge-down
+Error: No data provided for resource type systemSettings/applicationTitle!
+    at CustomDataLink.executeResourceQuery (/Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/data-engine/build/es/links/CustomDataLink.js:23:15)
+    at /Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/data-engine/build/es/DataEngine.js:38:24
+    at Array.map (<anonymous>)
+    at DataEngine.query (/Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/data-engine/build/es/DataEngine.js:37:32)
+    at Object.queryFn (/Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/app-service-data/build/es/react/hooks/useDataQuery.js:65:32)
+    at Object.fn (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/query.ts:400:27)
+    at run (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/retryer.ts:147:31)
+    at createRetryer (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/retryer.ts:204:5)
+    at Query.fetch (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/query.ts:458:20)
+    at QueryObserver.executeFetch (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/queryObserver.ts:350:70)
+
+stderr | src/App.test.tsx > App > renders the launcher at / when authenticated
+Error: No data provided for resource type systemSettings/applicationTitle!
+    at CustomDataLink.executeResourceQuery (/Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/data-engine/build/es/links/CustomDataLink.js:23:15)
+    at /Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/data-engine/build/es/DataEngine.js:38:24
+    at Array.map (<anonymous>)
+    at DataEngine.query (/Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/data-engine/build/es/DataEngine.js:37:32)
+    at Object.queryFn (/Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/app-service-data/build/es/react/hooks/useDataQuery.js:65:32)
+    at Object.fn (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/query.ts:400:27)
+    at run (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/retryer.ts:147:31)
+    at createRetryer (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/retryer.ts:204:5)
+    at Query.fetch (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/query.ts:458:20)
+    at QueryObserver.executeFetch (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/queryObserver.ts:350:70)
+
+stderr | src/screens/MetadataBrowser.test.tsx > MetadataBrowser > renders an error when the Data Engine rejects
+Error: data engine exploded
+    at programs (/Users/stephocay/projects/msdcse-project/der/client/src/screens/MetadataBrowser.test.tsx:46:19)
+    at CustomDataLink.executeResourceQuery (/Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/data-engine/build/es/links/CustomDataLink.js:35:32)
+    at /Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/data-engine/build/es/DataEngine.js:38:24
+    at Array.map (<anonymous>)
+    at DataEngine.query (/Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/data-engine/build/es/DataEngine.js:37:32)
+    at Object.queryFn (/Users/stephocay/projects/msdcse-project/der/client/node_modules/@dhis2/app-service-data/build/es/react/hooks/useDataQuery.js:65:32)
+    at Object.fn (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/query.ts:400:27)
+    at run (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/retryer.ts:147:31)
+    at createRetryer (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/retryer.ts:204:5)
+    at Query.fetch (file:///Users/stephocay/projects/msdcse-project/der/client/node_modules/@tanstack/query-core/src/query.ts:458:20)
+The query should be static, don't create it within the render loop!
+
+ ✓ src/components/RequireAuth.test.tsx (4 tests) 75ms
+ ✓ src/screens/SessionDetails.test.tsx (2 tests) 73ms
+ ✓ src/screens/RecentWork.test.tsx (4 tests) 90ms
+ ✓ src/App.test.tsx (3 tests) 156ms
+ ✓ src/screens/MetadataBrowser.test.tsx (3 tests) 161ms
+ ✓ src/screens/EdgeConnectionError.test.tsx (2 tests) 219ms
+ ✓ src/screens/Launcher.test.tsx (5 tests) 315ms
+ ✓ src/screens/SignIn.test.tsx (7 tests) 646ms
+
+ Test Files  11 passed (11)
+      Tests  59 passed (59)
+   Start at  09:18:20
+   Duration  3.95s (transform 1.33s, setup 2.60s, collect 19.98s, tests 1.89s, environment 5.36s, prepare 975ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |     100 |    92.25 |     100 |     100 |                   
+ src               |     100 |      100 |     100 |     100 |                   
+  App.tsx          |     100 |      100 |     100 |     100 |                   
+ src/api           |     100 |      100 |     100 |     100 |                   
+  edgeApi.ts       |     100 |      100 |     100 |     100 |                   
+ src/auth          |     100 |    94.11 |     100 |     100 |                   
+  AuthContext.tsx  |     100 |    94.11 |     100 |     100 | 65                
+ src/components    |     100 |      100 |     100 |     100 |                   
+  RequireAuth.tsx  |     100 |      100 |     100 |     100 |                   
+  ...tatusPill.tsx |     100 |      100 |     100 |     100 |                   
+ src/screens       |     100 |    87.17 |     100 |     100 |                   
+  ...tionError.tsx |     100 |      100 |     100 |     100 |                   
+  Launcher.tsx     |     100 |    92.85 |     100 |     100 | 35                
+  ...taBrowser.tsx |     100 |    66.66 |     100 |     100 | 65-67,97-98,104   
+  RecentWork.tsx   |     100 |      100 |     100 |     100 |                   
+  ...onDetails.tsx |     100 |      100 |     100 |     100 |                   
+  SignIn.tsx       |     100 |       88 |     100 |     100 | 31,78,87          
+-------------------|---------|----------|---------|---------|-------------------
