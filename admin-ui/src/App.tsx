@@ -6,6 +6,10 @@ import {
   EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
   EAWorkerHealth, EAMetadataOverview,
 } from './screens/EACoreScreens';
+import {
+  EARecoveryTools, EABackupList, EARestoreList, EAEvaluationReports,
+  EAAppsList, EADiagnostics, EASettings,
+} from './screens/EARemainderScreens';
 
 function ConflictResolveRoute(): JSX.Element {
   const { id = '' } = useParams();
@@ -56,6 +60,15 @@ export default function App(): JSX.Element {
                    element={<RequireAuth><EAWorkerHealth /></RequireAuth>} />
             <Route path="/metadata"
                    element={<RequireAuth><EAMetadataOverview /></RequireAuth>} />
+            {/* Phase 06 Release 3 — EA-19..36 */}
+            <Route path="/recovery" element={<RequireAuth><EARecoveryTools /></RequireAuth>} />
+            <Route path="/backup" element={<RequireAuth><EABackupList /></RequireAuth>} />
+            <Route path="/restore" element={<RequireAuth><EARestoreList /></RequireAuth>} />
+            <Route path="/evaluation"
+                   element={<RequireAuth><EAEvaluationReports /></RequireAuth>} />
+            <Route path="/apps" element={<RequireAuth><EAAppsList /></RequireAuth>} />
+            <Route path="/diagnostics" element={<RequireAuth><EADiagnostics /></RequireAuth>} />
+            <Route path="/settings" element={<RequireAuth><EASettings /></RequireAuth>} />
           </Routes>
         </main>
       </div>

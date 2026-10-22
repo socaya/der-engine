@@ -1,7 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../test/renderWithProviders';
 import {
   EASetupWelcome, EAUsersList, EAUserCreate, EACompatInspector, EACompatHistory,

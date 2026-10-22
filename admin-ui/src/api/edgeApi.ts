@@ -325,3 +325,83 @@ export function createUser(body: { username: string; displayName: string; passwo
   roles: string[]; }): Promise<ProvisionedUser> {
   return request<ProvisionedUser>('POST', '/edge-api/v1/provisioning/users', body);
 }
+
+// ---- Admin-ui additions for EA-19..36 ----
+
+export interface InstalledAppRow {
+  appId: string;
+  appKey: string;
+  version: string;
+  displayName: string;
+  enabled: boolean;
+  installedAt: string;
+}
+
+export function listApps(): Promise<InstalledAppRow[]> {
+  return request<InstalledAppRow[]>('GET', '/edge-api/v1/apps');
+}
+
+export function setAppEnabled(id: string, enabled: boolean): Promise<unknown> {
+  return request('POST', `/edge-api/v1/apps/${id}/enable?enabled=${enabled}`);
+}
+
+export function uninstallApp(id: string): Promise<void> {
+  return request<void>('DELETE', `/edge-api/v1/apps/${id}`);
+}
+
+export interface BackupRow {
+  runId: number;
+  requestedAt: string;
+  kind: 'AUDIT' | 'FULL';
+  status: 'REQUESTED' | 'QUEUED' | 'SUCCESS' | 'FAILED';
+  message?: string;
+}
+
+export function listBackups(): Promise<BackupRow[]> {
+  return request<BackupRow[]>('GET', '/edge-api/v1/backup/runs');
+}
+
+export function requestBackup(kind: 'AUDIT' | 'FULL'): Promise<BackupRow> {
+  return request<BackupRow>('POST', '/edge-api/v1/backup/request', { kind });
+}
+
+export interface RestoreRow {
+  runId: number;
+  requestedAt: string;
+  source: string;
+  status: 'REQUESTED' | 'QUEUED' | 'SUCCESS' | 'FAILED';
+  message?: string;
+}
+
+export function listRestores(): Promise<RestoreRow[]> {
+  return request<RestoreRow[]>('GET', '/edge-api/v1/restore/runs');
+}
+
+export function requestRestore(source: string): Promise<RestoreRow> {
+  return request<RestoreRow>('POST', '/edge-api/v1/restore/request', { source });
+}
+
+export interface Diagnostics {
+  memoryMb: number;
+  uptimeSeconds: number;
+  schedulerBacklog: number;
+  journalBacklog: Record<string, number>;
+}
+
+export function diagnostics(): Promise<Diagnostics> {
+  return request<Diagnostics>('GET', '/edge-api/v1/admin/diagnostics');
+}
+
+export interface SettingsPayload {
+  cron: Record<string, string>;
+  featureFlags: Record<string, boolean>;
+  roles: readonly string[];
+}
+
+export function readSettings(): Promise<SettingsPayload> {
+  return request<SettingsPayload>('GET', '/edge-api/v1/admin/settings');
+}
+
+export function saveSettings(body: SettingsPayload): Promise<SettingsPayload> {
+  return request<SettingsPayload>('POST', '/edge-api/v1/admin/settings', body);
+}
