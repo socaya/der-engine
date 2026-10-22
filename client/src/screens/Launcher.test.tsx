@@ -87,3 +87,4 @@ describe('Launcher', () => {
     await waitFor(() => expect(screen.getByTestId('sync-error')).toBeInTheDocument());
   });
 });
+

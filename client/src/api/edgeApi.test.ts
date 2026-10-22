@@ -135,3 +135,103 @@ describe('EdgeApiError', () => {
     expect(err.name).toBe('EdgeApiError');
   });
 });
+
+describe('edgeApi.metadataList', () => {
+  it('reads from /api/<resource>', async () => {
+    fetchMock.mockResolvedValue(respond(200, { dataSets: [{ id: 'x', displayName: 'X' }] }));
+    const r = await api.metadataList('dataSets');
+    expect(fetchMock.mock.calls[0]![0]).toBe('/api/dataSets?fields=id,displayName&paging=false');
+    expect(r).toHaveProperty('dataSets');
+  });
+});
+
+describe('edgeApi.readAggregateValues', () => {
+  it('issues the orgUnit+period query', async () => {
+    fetchMock.mockResolvedValue(respond(200, { dataValues: [] }));
+    await api.readAggregateValues('ou-1', '202604');
+    const url = fetchMock.mock.calls[0]![0] as string;
+    expect(url).toContain('orgUnit=ou-1');
+    expect(url).toContain('period=202604');
+    expect(url).toContain('limit=500');
+  });
+});
+
+describe('edgeApi.submitAggregate', () => {
+  it('POSTs dataValueSets', async () => {
+    fetchMock.mockResolvedValue(respond(200, { status: 'OK' }));
+    const summary = await api.submitAggregate({ dataValues: [] });
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/api/dataValueSets');
+    expect(init.method).toBe('POST');
+    expect(summary.status).toBe('OK');
+  });
+});
+
+describe('edgeApi.listEvents', () => {
+  it('issues /api/events with program+orgUnit', async () => {
+    fetchMock.mockResolvedValue(respond(200, { events: [], total: 0 }));
+    await api.listEvents('prg', 'ou');
+    const url = fetchMock.mock.calls[0]![0] as string;
+    expect(url).toContain('program=prg');
+    expect(url).toContain('orgUnit=ou');
+    expect(url).toContain('pageSize=100');
+  });
+});
+
+describe('edgeApi.listTrackerEvents', () => {
+  it('issues /api/tracker/events with program+orgUnit', async () => {
+    fetchMock.mockResolvedValue(respond(200, { instances: [], total: 0 }));
+    await api.listTrackerEvents('prg', 'ou', 50);
+    const url = fetchMock.mock.calls[0]![0] as string;
+    expect(url).toContain('/api/tracker/events?');
+    expect(url).toContain('pageSize=50');
+  });
+});
+
+describe('edgeApi drafts', () => {
+  it('listDrafts GETs /edge-api/v1/drafts', async () => {
+    fetchMock.mockResolvedValue(respond(200, { drafts: [] }));
+    await api.listDrafts();
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/drafts');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('GET');
+  });
+
+  it('saveDraft POSTs with body', async () => {
+    fetchMock.mockResolvedValue(respond(200, { draftId: 'd', kind: 'K', title: 'T', payload: {}, updatedAt: '' }));
+    await api.saveDraft({ kind: 'K', title: 'T', payload: {} });
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/edge-api/v1/drafts');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toMatchObject({ kind: 'K', title: 'T' });
+  });
+
+  it('deleteDraft DELETEs by id', async () => {
+    fetchMock.mockResolvedValue(respond(204));
+    await api.deleteDraft('abc');
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/edge-api/v1/drafts/abc');
+    expect(init.method).toBe('DELETE');
+  });
+});
+
+describe('edgeApi request error paths', () => {
+  it('wraps network failures as EDGE_UNREACHABLE', async () => {
+    fetchMock.mockRejectedValue(new Error('offline'));
+    await expect(api.health()).rejects.toMatchObject({ code: 'EDGE_UNREACHABLE', status: 0 });
+  });
+
+  it('maps 4xx (other than 401/429) to UNKNOWN', async () => {
+    fetchMock.mockResolvedValue(respond(418));
+    await expect(api.signIn('a', 'b')).rejects.toMatchObject({ code: 'UNKNOWN', status: 418 });
+  });
+
+  it('maps 500+ to EDGE_UNREACHABLE', async () => {
+    fetchMock.mockResolvedValue(respond(500));
+    await expect(api.health()).rejects.toMatchObject({ code: 'EDGE_UNREACHABLE', status: 500 });
+  });
+
+  it('returns undefined on ok empty-body', async () => {
+    fetchMock.mockResolvedValue(respond(200, undefined, ''));
+    await expect(api.deleteDraft('x')).resolves.toBeUndefined();
+  });
+});

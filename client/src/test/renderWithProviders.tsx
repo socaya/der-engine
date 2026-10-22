@@ -7,6 +7,7 @@ import type * as edgeApi from '../api/edgeApi';
 
 export interface RenderOptions {
   readonly route?: string;
+  readonly locationState?: unknown;
   readonly dataProviderData?: Record<string, unknown>;
   readonly authApi?: Pick<typeof edgeApi, 'session' | 'signIn' | 'signOut'>;
 }
@@ -21,8 +22,11 @@ export function renderWithProviders(
 ): RenderResult {
   const data = options.dataProviderData ?? {};
   const route = options.route ?? '/';
+  const entry = options.locationState === undefined
+    ? route
+    : { pathname: route, state: options.locationState };
   const wrapper = ({ children }: { children: ReactNode }): JSX.Element => (
-    <MemoryRouter initialEntries={[route]}>
+    <MemoryRouter initialEntries={[entry as never]}>
       {/* CustomDataProvider typing requires CustomData which is more
           specific than Record<string,unknown>; the cast is safe because
           test fixtures supply the shape the runtime expects. */}

@@ -44,15 +44,20 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/**/*.{test,spec}.{ts,tsx}',
       ],
-      // Phase 06 Release 1 (der-0.6.0-alpha.1) ships the 12 remaining DC
-      // screens with progressive coverage. Stable der-0.6.0 lifts all four
-      // thresholds back to 100%. Alpha waiver documented in
-      // docs/releases/der-0.6.0-alpha.1.md.
+      // 1.0.0 gap G3 pass: lifted from 97/85/84/97 to 99/94/95/99 with new
+      // tests covering every edgeApi helper, EventNew's default-fetch impl,
+      // MetadataBrowser null-fallbacks, Drafts both error-type branches,
+      // SignIn location.state redirect, and the AuthContext default-api
+      // path. The remaining ~5% branch gap is defensive onChange-value-undefined
+      // and `err instanceof Error ? ... : String(err)` else branches whose
+      // only realistic trigger lives in the browser (@dhis2/ui InputField's
+      // typing allows value: undefined; unit tests can only send strings).
+      // Playwright per-screen (Initiative 9) in der-1.1.0 covers those.
       thresholds: {
-        lines: 97,
-        branches: 85,
-        functions: 84,
-        statements: 97,
+        lines: 99,
+        branches: 94,
+        functions: 95,
+        statements: 99,
       },
     },
   },

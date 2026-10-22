@@ -109,3 +109,21 @@ describe('AuthContext', () => {
     await waitFor(() => expect(screen.getByTestId('username').textContent).toBe('b'));
   });
 });
+
+describe('AuthContext — default api fallback', () => {
+  it('uses the real edgeApi module when no api prop is passed', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => '',
+    });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      render(<AuthProvider><Probe /></AuthProvider>);
+      await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('ANONYMOUS'));
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});

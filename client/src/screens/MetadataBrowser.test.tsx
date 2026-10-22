@@ -51,3 +51,38 @@ describe('MetadataBrowser', () => {
     await waitFor(() => expect(screen.getByTestId('browser-error')).toBeInTheDocument());
   });
 });
+
+describe('MetadataBrowser null-fallback branches', () => {
+  it('handles row with no id and no name', async () => {
+    renderWithProviders(
+      <MetadataBrowser
+        resource="dataSets"
+        title="Data sets"
+        extraColumns={[{ header: 'Level', field: 'level' }]}
+      />,
+      {
+        dataProviderData: {
+          // Row with no id, no displayName, no name, no level — all null fallbacks fire.
+          dataSets: () => ({
+            pager: { page: 1, pageSize: 25, total: 1, pageCount: 1 },
+            dataSets: [{}],
+          }),
+        },
+      },
+    );
+    await waitFor(() => expect(screen.getByTestId('browser-dataSets-heading')).toBeInTheDocument());
+  });
+
+  it('handles empty envelope with no pager at all', async () => {
+    renderWithProviders(
+      <MetadataBrowser resource="programs" title="Programs" />,
+      {
+        dataProviderData: {
+          // No pager + no items → both ?? branches fire.
+          programs: () => ({}),
+        },
+      },
+    );
+    await waitFor(() => expect(screen.getByText(/No rows\./)).toBeInTheDocument());
+  });
+});

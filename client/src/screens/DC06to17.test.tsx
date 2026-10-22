@@ -302,3 +302,79 @@ describe('Drafts DC-17', () => {
     await waitFor(() => expect(screen.getByTestId('drafts-empty')).toBeInTheDocument());
   });
 });
+
+describe('EventNew — default submit implementation', () => {
+  it('uses global fetch when no submit prop is given — success', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'OK' }) });
+    const original = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      renderWithProviders(<EventNew api={{
+        health: vi.fn().mockResolvedValue(h()),
+        listEvents: vi.fn(),
+      } as never} />, { route: '/programs/P/events/new' });
+      await userEvent.type(screen.getByTestId("event-new-orgunit"), 'OU');
+      await userEvent.type(screen.getByTestId("event-new-stage"), 'PS');
+      await userEvent.click(screen.getByTestId('event-new-submit'));
+      await waitFor(() => expect(screen.getByTestId('event-new-saved')).toBeInTheDocument());
+      expect(fetchMock).toHaveBeenCalledWith('/api/events', expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+      }));
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it('rejects when the default fetch returns non-OK', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+    const original = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      renderWithProviders(<EventNew api={{
+        health: vi.fn().mockResolvedValue(h()),
+        listEvents: vi.fn(),
+      } as never} />, { route: '/programs/P/events/new' });
+      await userEvent.type(screen.getByTestId("event-new-orgunit"), 'OU');
+      await userEvent.type(screen.getByTestId("event-new-stage"), 'PS');
+      await userEvent.click(screen.getByTestId('event-new-submit'));
+      await waitFor(() => expect(screen.getByTestId('event-new-error')).toBeInTheDocument());
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+});
+
+describe('EventList — empty response falls back', () => {
+  it('neither events nor instances returns empty after Load', async () => {
+    renderWithProviders(<EventList api={{
+      health: vi.fn().mockResolvedValue(h()),
+      listEvents: vi.fn().mockResolvedValue({ total: 0 } as never),
+      listTrackerEvents: vi.fn(),
+    } as never} />, { route: '/programs/P/events' });
+    await userEvent.type(screen.getByTestId('events-orgunit'), 'OU');
+    await userEvent.click(screen.getByTestId('events-load'));
+    await waitFor(() => expect(screen.getByTestId('events-empty')).toBeInTheDocument());
+  });
+});
+
+describe('Drafts — alternate error-type branches', () => {
+  it('listDrafts rejecting a non-Error renders the stringified error', async () => {
+    const api = {
+      listDrafts: vi.fn().mockRejectedValue('plain-string-reject'),
+      deleteDraft: vi.fn(),
+    };
+    renderWithProviders(<Drafts api={api as never} />);
+    await waitFor(() => expect(screen.getByTestId('drafts-error')).toBeInTheDocument());
+  });
+  it('deleteDraft rejecting an Error renders Error.message', async () => {
+    const api = {
+      listDrafts: vi.fn().mockResolvedValue({ drafts: [{ draftId: 'd1', kind: 'E',
+        title: 't', payload: {}, updatedAt: 'now' }] }),
+      deleteDraft: vi.fn().mockRejectedValue(new Error('cant delete')),
+    };
+    renderWithProviders(<Drafts api={api as never} />);
+    await userEvent.click(await screen.findByTestId('draft-delete-d1'));
+    await waitFor(() => expect(screen.getByText('cant delete')).toBeInTheDocument());
+  });
+});

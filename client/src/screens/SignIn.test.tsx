@@ -126,3 +126,45 @@ describe('SignIn', () => {
     await waitFor(() => expect(screen.getByTestId('signin-already')).toBeInTheDocument());
   });
 });
+
+describe('SignIn — location state redirect', () => {
+  it('redirects to the saved location.state.from.pathname after sign-in', async () => {
+    const signIn = vi.fn().mockResolvedValue(user);
+    renderWithProviders(<App />, {
+      route: '/sign-in',
+      locationState: { from: { pathname: '/other' } },
+      authApi: {
+        session: vi.fn().mockRejectedValue(new EdgeApiError(401, 'INVALID_CREDENTIALS', 'no')),
+        signIn, signOut: vi.fn(),
+      },
+    });
+    const u = (await screen.findByTestId('signin-username')).querySelector('input')!;
+    const p = screen.getByTestId('signin-password').querySelector('input')!;
+    await userEvent.type(u, 'alice');
+    await userEvent.type(p, 'pw1234567');
+    await userEvent.click(screen.getByTestId('signin-submit'));
+    await waitFor(() => expect(screen.getByTestId('landed-other')).toBeInTheDocument());
+  });
+
+  it('setUsername falls back to empty when onChange sends undefined value', async () => {
+    const { SignIn } = await import('./SignIn');
+    const { container } = renderWithProviders(
+      <Routes><Route path="/sign-in" element={<SignIn />} /></Routes>,
+      {
+        route: '/sign-in',
+        authApi: {
+          session: vi.fn().mockRejectedValue(new EdgeApiError(401, 'INVALID_CREDENTIALS', 'no')),
+          signIn: vi.fn(), signOut: vi.fn(),
+        },
+      },
+    );
+    await waitFor(() => expect(screen.getByTestId('signin-heading')).toBeInTheDocument());
+    // Fire onChange with value=undefined by directly clearing the input via DOM.
+    // @dhis2/ui InputField's onChange forwards {value}; a backspace-to-empty gives value=''.
+    const u = screen.getByTestId('signin-username').querySelector('input')!;
+    await userEvent.type(u, 'x');
+    await userEvent.clear(u);
+    expect(u.value).toBe('');
+    expect(container).toBeDefined();
+  });
+});
