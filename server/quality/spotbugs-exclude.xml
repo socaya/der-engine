@@ -169,4 +169,15 @@
     </Or>
     <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
   </Match>
+
+  <!-- ADR-0010 journal worker: shared AtomicBoolean "enabled" flag is the
+       design — admin pause/resume must be observable by the Quartz job
+       without a Spring restart. Reviewed 2026-10-22. -->
+  <Match>
+    <Class name="ug.ac.mak.der.workflows.journal.JournalWorkerConfig$JournalWorkerSettings"/>
+    <Or>
+      <Bug pattern="EI_EXPOSE_REP"/>
+      <Bug pattern="EI_EXPOSE_REP2"/>
+    </Or>
+  </Match>
 </FindBugsFilter>

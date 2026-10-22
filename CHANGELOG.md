@@ -13,7 +13,18 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Phase 04 journal worker drain (der-0.5.0-alpha.1) not yet started.
+- Phase 06 (54-screen UI buildout + drift/conflict UIs) and Phase 08 (NFR evaluation) not yet started.
+
+## [0.5.0-alpha.1] — unreleased
+
+Phase 04 — durable journal worker drains edge → central (ADR-0010).
+
+- Added: V008 schema — operation_journal.{idempotency_key,next_attempt_at,last_response}.
+- Added: JournalWorker + JournalPublisher + ResponseClassifier.
+- Added: JournalDrainJob Quartz job + SchedulerConfig trigger.
+- Added: JournalWorkerController (health, pause, resume).
+
+[0.5.0-alpha.1]: https://github.com/socaya/der-engine/releases/tag/der-0.5.0-alpha.1
 
 ## [0.4.0-alpha.6] — unreleased
 

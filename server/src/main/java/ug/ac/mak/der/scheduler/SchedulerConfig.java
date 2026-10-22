@@ -79,4 +79,24 @@ public class SchedulerConfig {
                 .withSchedule(CronScheduleBuilder.cronSchedule(cron))
                 .build();
     }
+
+    @Bean
+    public JobDetail journalDrainJobDetail() {
+        return JobBuilder.newJob(JournalDrainJob.class)
+                .withIdentity(JournalDrainJob.JOB_NAME)
+                .storeDurably()
+                .requestRecovery()
+                .build();
+    }
+
+    @Bean
+    public Trigger journalDrainTrigger(final JobDetail journalDrainJobDetail,
+                                         @Value("${der.journal.drain.cron:0 * * * * ?}")
+                                         final String cron) {
+        return TriggerBuilder.newTrigger()
+                .forJob(journalDrainJobDetail)
+                .withIdentity(JournalDrainJob.JOB_NAME + "_TRIGGER")
+                .withSchedule(CronScheduleBuilder.cronSchedule(cron))
+                .build();
+    }
 }
