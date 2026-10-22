@@ -54,21 +54,21 @@ FR-05-12,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specifi
 FR-06-01,P0,Aggregate reporting,OBJ-3,server:ug.ac.mak.der.dhis2emulator.DataValueSetsController;database:aggregate_data_value,T05;DataValueSetsControllerTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: /api/dataValueSets accepts envelope with per-row combos.
 FR-06-02,P0,Aggregate reporting,OBJ-3,server:ug.ac.mak.der.workflows.aggregate.AggregateDataValueService,AggregateDataValueServiceTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: compound key enforced via DB unique index; upsert bumps value_version.
 FR-06-03,P0,Aggregate reporting,OBJ-3,server:ug.ac.mak.der.workflows.aggregate.AggregateDataValueService[typeCheck],AggregateDataValueServiceTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: value-type check covers NUMBER/INTEGER family/BOOLEAN/UNIT_INTERVAL/PERCENTAGE; category/period validation Phase 03.6.
-FR-06-04,P0,Aggregate reporting,OBJ-3,To be assigned,To be assigned,specified,,
+FR-06-04,P0,Aggregate reporting,OBJ-3,server:ug.ac.mak.der.workflows.coc.*;server:ug.ac.mak.der.workflows.periods.*,T20,in-progress,docs/evaluation/evidence/phase-03/alpha-4/*.json,alpha.4 ships period + COC validators; mirror integration deferred to Phase 05.
 FR-06-05,P0,Aggregate reporting,OBJ-3,database:aggregate_data_value[ux_compound+value_version],AggregateDataValueRepositoryTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: unique index on compound key + optimistic value_version.
-FR-06-06,P0,Aggregate reporting,OBJ-3,To be assigned,To be assigned,specified,,
+FR-06-06,P0,Aggregate reporting,OBJ-3,server:ug.ac.mak.der.workflows.periods.PeriodParser,T20,in-progress,docs/evaluation/evidence/phase-03/alpha-4/*.json,Capability-driven period parsing per profile.
 FR-06-07,P0,Aggregate reporting,OBJ-3,To be assigned,To be assigned,specified,,
 FR-06-08,P0,Aggregate reporting,OBJ-3,To be assigned,To be assigned,specified,,
-FR-07-01,P0,Event capture,OBJ-3,To be assigned,To be assigned,specified,,
-FR-07-02,P0,Event capture,OBJ-3,To be assigned,To be assigned,specified,,
+FR-07-01,P0,Event capture,OBJ-3,server:ug.ac.mak.der.workflows.events.EventService;server:ug.ac.mak.der.rules.*,T20,in-progress,docs/evaluation/evidence/phase-03/alpha-4/*.json,alpha.4 event write path + rules engine code-complete; full live E2E in Phase 05.
+FR-07-02,P0,Event capture,OBJ-3,server:ug.ac.mak.der.dhis2emulator.EventsController,T20,in-progress,docs/evaluation/evidence/phase-03/alpha-4/*.json,POST /api/events + POST /api/tracker scaffolded.
 FR-07-03,P0,Event capture,OBJ-3,To be assigned,To be assigned,specified,,
 FR-07-04,P0,Event capture,OBJ-3,To be assigned,To be assigned,specified,,
 FR-07-05,P0,Event capture,OBJ-3,To be assigned,To be assigned,specified,,
 FR-07-06,P0,Event capture,OBJ-3,To be assigned,To be assigned,specified,,
 FR-07-07,P0,Event capture,OBJ-3,To be assigned,To be assigned,specified,,
 FR-07-08,P0,Event capture,OBJ-3,To be assigned,To be assigned,specified,,
-FR-08-01,P0,Tracker and dependent workflows,OBJ-3,To be assigned,To be assigned,specified,,
-FR-08-02,P0,Tracker and dependent workflows,OBJ-3,To be assigned,To be assigned,specified,,
+FR-08-01,P0,Tracker and dependent workflows,OBJ-3,server:ug.ac.mak.der.rules.RuleEngine,T20,in-progress,docs/evaluation/evidence/phase-03/alpha-4/*.json,ADR-0007 server-impacting actions executed in Java.
+FR-08-02,P0,Tracker and dependent workflows,OBJ-3,server:ug.ac.mak.der.rules.D2Functions,T20,in-progress,docs/evaluation/evidence/phase-03/alpha-4/*.json,25 d2: functions implemented; coverage register docs/verification/rules/d2-function-coverage.csv (TBD).
 FR-08-03,P0,Tracker and dependent workflows,OBJ-3,To be assigned,To be assigned,specified,,
 FR-08-04,P0,Tracker and dependent workflows,OBJ-3,To be assigned,To be assigned,specified,,
 FR-08-05,P0,Tracker and dependent workflows,OBJ-3,To be assigned,To be assigned,specified,,
@@ -101,7 +101,7 @@ FR-10-09,P0,Conflict detection and resolution,OBJ-2;OBJ-3;OBJ-4,To be assigned,T
 FR-10-10,P0,Conflict detection and resolution,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-11-01,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,database:operation_journal,OperationJournalRepositoryTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,"Phase 03.5: journal schema shipped (operation_id, entity_type, state, attempt_count, payload_json)."
 FR-11-02,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,server:ug.ac.mak.der.workflows.aggregate.OperationJournalEntry[State enum],OperationJournalEntryTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-aggregate.json,Phase 03.5: full state enum present; only PENDING produced yet. Worker drains in Phase 04.
-FR-11-03,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
+FR-11-03,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,server:ug.ac.mak.der.workflows.events.EventService;server:ug.ac.mak.der.workflows.aggregate.OperationJournalRepository,T20,in-progress,docs/evaluation/evidence/phase-03/alpha-4/*.json,Atomic outbox extended to event writes.
 FR-11-04,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-11-05,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-11-06,P0,Durable journal and sync state,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,

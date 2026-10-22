@@ -13,7 +13,44 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Phase 03.6b (event + tracker writes, read-backs, full program-rule engine, period/COC validation) and Phase 04 (journal worker) not yet started.
+- Phase 05 (scheduled metadata resync + drift detection + custom DHIS2 app hosting) and Phase 04 (journal worker drain) not yet started.
+
+## [0.4.0-alpha.4] — unreleased
+
+Phase 03.6b — event/tracker writes + readbacks + full edge program-rule engine
+(see `docs/releases/der-0.4.0-alpha.4.md`).
+
+- Added: ADR-0007 — server-impacting program-rule actions execute in a lean
+  Java engine inside DER (ASSIGN, SHOWERROR, SHOWWARNING, WARNINGONCOMPLETE,
+  ERRORONCOMPLETE, SETMANDATORYFIELD); UI-only actions deferred to the
+  device-client via `@dhis2/rules-engine`.
+- Added: V005 migration — mirror additions (COC, program stage, program-stage
+  data elements, tracked-entity attributes, program rules + actions) and
+  edge write tables (TEI, enrollment, event, event-data-value). Default
+  COC `HllvX50cXC0` seeded automatically.
+- Added: `ug.ac.mak.der.rules.*` — hand-written lexer + parser + evaluator
+  for DHIS2 program-rule expressions; sealed AST hierarchy; `D2Functions`
+  with 25 functions covering hasValue/zing/oizp/zpvc/dates/strings/counts.
+- Added: `PeriodParser` — capability-driven DHIS2 period code parser
+  (strict ISO `uuuuMMdd` for DAILY). Supports every DHIS2 2.x period type.
+- Added: `CategoryOptionComboValidator` — mirror-backed with default-COC fallback.
+- Added: `EventService` + `EventRepository` + `EventsController` + `EventsReadController`
+  — accepts both `POST /api/events` and `POST /api/tracker` envelopes;
+  response shape driven by `capabilities().importSummaryShape()`.
+- Added: `GET /api/dataValueSets` branch on `DataValueSetsController` for
+  aggregate read-back.
+- Added: `ExtendedMirrorRepository` for Phase 03.6b entity types.
+- Changed: tracker-program-vs-event-program split per 2.43.2 reflected in
+  `CapabilityFlags.supportedProgramTypes()` + validated by `EventService`.
+- Live-verified: aggregate GET returns alpha.2 writes with full DHIS2 shape;
+  event GET returns empty shape before mirror population; metadata sync
+  continues to work (874 rows).
+- Server tests: 470 pass; JaCoCo at 100% for prior-release packages;
+  Phase 03.6b packages carry a documented alpha coverage waiver (raised
+  back to 100% at stable `der-0.4.0`).
+- SpotBugs clean (25 reviewed suppressions).
+
+[0.4.0-alpha.4]: https://github.com/socaya/der-engine/releases/tag/der-0.4.0-alpha.4
 
 ## [0.4.0-alpha.3] — unreleased
 

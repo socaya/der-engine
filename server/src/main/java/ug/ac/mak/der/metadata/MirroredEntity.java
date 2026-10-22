@@ -15,7 +15,12 @@ public sealed interface MirroredEntity permits
         MirroredDataElement,
         MirroredDataSet,
         MirroredProgram,
-        MirroredTrackedEntityType {
+        MirroredTrackedEntityType,
+        MirroredCategoryOptionCombo,
+        MirroredProgramStage,
+        MirroredTrackedEntityAttribute,
+        MirroredProgramRule,
+        MirroredProgramRuleAction {
 
     String dhis2Uid();
 

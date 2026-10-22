@@ -109,4 +109,31 @@ class AggregateDataValueRepositoryTest {
         verify(jdbc).query(anyString(), any(RowMapper.class), any(UUID.class), cap.capture());
         assertThat(cap.getValue()).isEqualTo(1);
     }
+
+    @Test
+    void findByFilterWithOrgUnitAndPeriod() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of());
+        new AggregateDataValueRepository(jdbc).findByFilter("ou1", "2026Q1", 50);
+        verify(jdbc).query(anyString(), any(RowMapper.class), any(Object[].class));
+    }
+
+    @Test
+    void findByFilterWithoutFilters() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of());
+        new AggregateDataValueRepository(jdbc).findByFilter(null, null, 10_000);
+        verify(jdbc).query(anyString(), any(RowMapper.class), any(Object[].class));
+    }
+
+    @Test
+    void findByFilterWithBlankFilters() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of());
+        new AggregateDataValueRepository(jdbc).findByFilter("", "", 0);
+        verify(jdbc).query(anyString(), any(RowMapper.class), any(Object[].class));
+    }
 }

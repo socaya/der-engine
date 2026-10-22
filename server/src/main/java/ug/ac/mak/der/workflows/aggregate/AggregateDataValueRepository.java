@@ -92,6 +92,32 @@ public class AggregateDataValueRepository {
         return n != null && n > 0;
     }
 
+    /**
+     * Filter by orgUnit and/or period. Any {@code null} parameter is a wildcard.
+     * Returns results stable-ordered by submitted-time desc.
+     */
+    public List<AggregateDataValue> findByFilter(final String orgUnitUid, final String periodIso,
+                                                  final int limit) {
+        final int capped = Math.max(1, Math.min(limit, 500));
+        final StringBuilder sql = new StringBuilder(
+                "SELECT value_id, data_element_uid, org_unit_uid, period_iso, "
+                        + "category_option_combo_uid, attribute_option_combo_uid, "
+                        + "value_text, comment, submitted_by, submitted_at, value_version "
+                        + "FROM der.aggregate_data_value WHERE 1=1");
+        final List<Object> args = new java.util.ArrayList<>();
+        if (orgUnitUid != null && !orgUnitUid.isBlank()) {
+            sql.append(" AND org_unit_uid = ?");
+            args.add(orgUnitUid);
+        }
+        if (periodIso != null && !periodIso.isBlank()) {
+            sql.append(" AND period_iso = ?");
+            args.add(periodIso);
+        }
+        sql.append(" ORDER BY submitted_at DESC LIMIT ?");
+        args.add(capped);
+        return jdbc.query(sql.toString(), rowMapper(), args.toArray());
+    }
+
     public List<AggregateDataValue> findRecentByUser(final UUID userId, final int limit) {
         final int capped = Math.max(1, Math.min(limit, 100));
         return jdbc.query(

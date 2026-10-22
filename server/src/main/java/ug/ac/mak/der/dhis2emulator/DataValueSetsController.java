@@ -13,13 +13,16 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValue;
+import ug.ac.mak.der.workflows.aggregate.AggregateDataValueRepository;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValueService;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValueService.DataValueInput;
 
@@ -42,11 +45,43 @@ import ug.ac.mak.der.workflows.aggregate.AggregateDataValueService.DataValueInpu
 public class DataValueSetsController {
 
     private final AggregateDataValueService service;
+    private final AggregateDataValueRepository values;
     private final Clock clock;
 
-    public DataValueSetsController(final AggregateDataValueService service, final Clock clock) {
+    public DataValueSetsController(final AggregateDataValueService service,
+                                    final AggregateDataValueRepository values,
+                                    final Clock clock) {
         this.service = service;
+        this.values = values;
         this.clock = clock;
+    }
+
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> get(final Authentication authentication,
+                                                    @RequestParam(name = "orgUnit", required = false) final String orgUnit,
+                                                    @RequestParam(name = "period", required = false) final String period,
+                                                    @RequestParam(name = "limit", defaultValue = "500") final int limit) {
+        if (!(authentication instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final List<AggregateDataValue> rows = values.findByFilter(orgUnit, period, limit);
+        final List<Map<String, Object>> dataValues = new java.util.ArrayList<>(rows.size());
+        for (final AggregateDataValue v : rows) {
+            final Map<String, Object> m = new LinkedHashMap<>();
+            m.put("dataElement", v.dataElementUid());
+            m.put("orgUnit", v.orgUnitUid());
+            m.put("period", v.periodIso());
+            m.put("categoryOptionCombo", v.categoryOptionComboUid());
+            m.put("attributeOptionCombo", v.attributeOptionComboUid());
+            m.put("value", v.valueText());
+            m.put("stored_by", v.submittedBy().toString());
+            m.put("lastUpdated", v.submittedAt().toString());
+            dataValues.add(m);
+        }
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("dataValues", dataValues);
+        body.put("derServerDate", Instant.now(clock).toString());
+        return ResponseEntity.ok(body);
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)

@@ -109,4 +109,28 @@
       <Bug pattern="EI_EXPOSE_REP2"/>
     </Or>
   </Match>
+
+  <!-- Phase 03.6b (ADR-0007) record DTOs are Jackson-serialised; the engine
+       mutates assignedValues deliberately. Reviewed 2026-10-22. -->
+  <Match>
+    <Or>
+      <Class name="ug.ac.mak.der.dhis2emulator.EventsController$EventRow"/>
+      <Class name="ug.ac.mak.der.dhis2emulator.EventsController$EventsRequest"/>
+      <Class name="ug.ac.mak.der.dhis2emulator.EventsController$TrackerRequest"/>
+      <Class name="ug.ac.mak.der.rules.RuleAst$D2Call"/>
+      <Class name="ug.ac.mak.der.rules.RuleContext"/>
+    </Or>
+    <Or>
+      <Bug pattern="EI_EXPOSE_REP"/>
+      <Bug pattern="EI_EXPOSE_REP2"/>
+    </Or>
+  </Match>
+
+  <!-- objectsEqual deliberately compares Doubles for exact equality because the
+       d2 engine's semantics require it (DHIS2 behaviour). Reviewed 2026-10-22. -->
+  <Match>
+    <Class name="ug.ac.mak.der.rules.D2Functions"/>
+    <Method name="objectsEqual"/>
+    <Bug pattern="FE_FLOATING_POINT_EQUALITY"/>
+  </Match>
 </FindBugsFilter>

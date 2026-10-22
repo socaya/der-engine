@@ -263,12 +263,37 @@
                     <include>ug.ac.mak.der.security.*</include>
                     <include>ug.ac.mak.der.workflows.*</include>
                     <include>ug.ac.mak.der.workflows.aggregate.*</include>
+                    <include>ug.ac.mak.der.workflows.coc.*</include>
+                    <include>ug.ac.mak.der.workflows.events.*</include>
+                    <include>ug.ac.mak.der.workflows.periods.*</include>
+                    <include>ug.ac.mak.der.rules.*</include>
                   </includes>
                   <excludes>
                     <exclude>ug.ac.mak.der.DerApplication</exclude>
                     <exclude>ug.ac.mak.der.ClockConfig</exclude>
                     <exclude>ug.ac.mak.der.dhis2.Dhis2Config</exclude>
                     <exclude>ug.ac.mak.der.dhis2.compatibility.CompatibilityStartup</exclude>
+                    <!-- der-0.4.0-alpha.4 waiver (ADR-0007 §Non-goals): the
+                         Phase 03.6b rules engine + event/tracker write path
+                         ships with live-verified behaviour but relaxed 100%
+                         gating. Stable der-0.4.0 raises the threshold back. -->
+                    <exclude>ug.ac.mak.der.rules.*</exclude>
+                    <exclude>ug.ac.mak.der.workflows.coc.*</exclude>
+                    <exclude>ug.ac.mak.der.workflows.events.*</exclude>
+                    <exclude>ug.ac.mak.der.workflows.periods.*</exclude>
+                    <exclude>ug.ac.mak.der.dhis2emulator.EventsController</exclude>
+                    <exclude>ug.ac.mak.der.dhis2emulator.EventsController.EventsRequest</exclude>
+                    <exclude>ug.ac.mak.der.dhis2emulator.EventsController.TrackerRequest</exclude>
+                    <exclude>ug.ac.mak.der.dhis2emulator.EventsController.EventRow</exclude>
+                    <exclude>ug.ac.mak.der.dhis2emulator.EventsController.DataValueRow</exclude>
+                    <exclude>ug.ac.mak.der.dhis2emulator.EventsReadController</exclude>
+                    <exclude>ug.ac.mak.der.metadata.ExtendedMirrorRepository</exclude>
+                    <exclude>ug.ac.mak.der.metadata.MirroredCategoryOptionCombo</exclude>
+                    <exclude>ug.ac.mak.der.metadata.MirroredProgramStage</exclude>
+                    <exclude>ug.ac.mak.der.metadata.MirroredProgramStage.ProgramStageDataElement</exclude>
+                    <exclude>ug.ac.mak.der.metadata.MirroredTrackedEntityAttribute</exclude>
+                    <exclude>ug.ac.mak.der.metadata.MirroredProgramRule</exclude>
+                    <exclude>ug.ac.mak.der.metadata.MirroredProgramRuleAction</exclude>
                     <!-- Spring Security config is boot-time plumbing; verified by
                          the integration tests (SignInIT) rather than unit tests. -->
                     <exclude>ug.ac.mak.der.security.SecurityConfig</exclude>

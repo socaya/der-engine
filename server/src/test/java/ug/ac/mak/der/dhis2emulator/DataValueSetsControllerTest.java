@@ -33,6 +33,7 @@ import ug.ac.mak.der.security.EdgeSession;
 import ug.ac.mak.der.security.EdgeUser;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.web.TestSecurityConfig;
+import ug.ac.mak.der.workflows.aggregate.AggregateDataValueRepository;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValueService;
 
 @WebMvcTest(DataValueSetsController.class)
@@ -42,6 +43,7 @@ class DataValueSetsControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean AggregateDataValueService service;
+    @MockBean AggregateDataValueRepository values;
 
     @org.springframework.boot.test.context.TestConfiguration
     static class Config {
@@ -172,5 +174,25 @@ class DataValueSetsControllerTest {
         final var input = cap.getValue().get(0);
         org.assertj.core.api.Assertions.assertThat(input.categoryOptionComboUid()).isEqualTo("coc-default");
         org.assertj.core.api.Assertions.assertThat(input.attributeOptionComboUid()).isEqualTo("aoc-default");
+    }
+
+    @Test
+    void getReturnsStoredValues() throws Exception {
+        when(values.findByFilter(anyString(), anyString(), any(Integer.class)))
+                .thenReturn(List.of(new ug.ac.mak.der.workflows.aggregate.AggregateDataValue(
+                        UUID.randomUUID(), "de1", "ou1", "2026Q1", "HllvX50cXC0", "HllvX50cXC0",
+                        "42", null, UUID.randomUUID(), Instant.parse("2026-10-22T12:00:00Z"), 1)));
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/dataValueSets?orgUnit=ou1&period=2026Q1&limit=100").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dataValues[0].dataElement").value("de1"))
+                .andExpect(jsonPath("$.dataValues[0].value").value("42"));
+    }
+
+    @Test
+    void getIs401WithoutAuth() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/dataValueSets"))
+                .andExpect(status().isUnauthorized());
     }
 }
