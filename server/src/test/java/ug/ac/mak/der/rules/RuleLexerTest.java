@@ -148,4 +148,36 @@ class RuleLexerTest {
         assertThatThrownBy(() -> tok("d2:("))
                 .isInstanceOf(RuleParseException.class);
     }
+
+    @Test
+    void refPrefixCharactersAsIdentifiers() {
+        // 'A', '#', 'C', 'V', 'd' as first character without the specific
+        // follow-up tokens must fall through to the identifier/operator branches.
+        final List<RuleToken> aIdent = tok("A1");
+        assertThat(aIdent.get(0).type()).isEqualTo(RuleTokenType.IDENT);
+        final List<RuleToken> cIdent = tok("C1");
+        assertThat(cIdent.get(0).type()).isEqualTo(RuleTokenType.IDENT);
+        final List<RuleToken> vIdent = tok("Vxyz");
+        assertThat(vIdent.get(0).type()).isEqualTo(RuleTokenType.IDENT);
+        final List<RuleToken> dIdent = tok("date");
+        assertThat(dIdent.get(0).type()).isEqualTo(RuleTokenType.IDENT);
+        final List<RuleToken> dColon = tok("d1");
+        assertThat(dColon.get(0).type()).isEqualTo(RuleTokenType.IDENT);
+        final List<RuleToken> underscore = tok("_foo");
+        assertThat(underscore.get(0).type()).isEqualTo(RuleTokenType.IDENT);
+    }
+
+    @Test
+    void hashWithoutBraceIsUnexpected() {
+        assertThatThrownBy(() -> tok("#x"))
+                .isInstanceOf(RuleParseException.class);
+    }
+
+    @Test
+    void peekAtEndReturnsNullChar() {
+        // When the source ends on a reference-prefix char, the lexer falls through
+        // to identOrKeyword; `A` becomes a plain IDENT.
+        final List<RuleToken> t = tok("A");
+        assertThat(t.get(0).type()).isEqualTo(RuleTokenType.IDENT);
+    }
 }
