@@ -70,6 +70,36 @@ public class OperationJournalRepository {
         return findByState(OperationJournalEntry.State.PENDING, limit);
     }
 
+    /**
+     * Returns {@code state=PENDING} rows that are ready to be drained —
+     * i.e. either do not require approval, or have been approved. Rows
+     * that have been rejected locally are excluded. ADR-0016.
+     */
+    public List<OperationJournalEntry> findPendingReadyToDrain(final int limit) {
+        final int capped = Math.max(1, Math.min(limit, 500));
+        return jdbc.query(
+                "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
+                        + "attempt_count, last_error, submitted_by, created_at, updated_at "
+                        + "FROM der.operation_journal "
+                        + "WHERE state = 'PENDING' "
+                        + "  AND (requires_approval = FALSE OR approved_at IS NOT NULL) "
+                        + "  AND rejected_at IS NULL "
+                        + "ORDER BY created_at ASC LIMIT ?",
+                rowMapper(), capped);
+    }
+
+    /**
+     * Phase 10 (ADR-0016): mark a brand-new journal row as requiring
+     * approval before the worker is allowed to drain it. Call once right
+     * after {@link #insert} when the write service decides approval
+     * is required.
+     */
+    public int markRequiresApproval(final UUID operationId) {
+        return jdbc.update(
+                "UPDATE der.operation_journal SET requires_approval = TRUE "
+                        + "WHERE operation_id = ?", operationId);
+    }
+
     public List<OperationJournalEntry> findByState(final OperationJournalEntry.State state,
                                                     final int limit) {
         final int capped = Math.max(1, Math.min(limit, 500));

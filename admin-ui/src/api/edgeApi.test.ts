@@ -112,6 +112,10 @@ describe('edgeApi route coverage', () => {
     ['bindOrgUnit',       () => api.bindOrgUnit('ou-1'),         '/edge-api/v1/system/org-unit',        'POST',   { orgUnitId: 'ou-1', confirm: false }],
     ['bindOrgUnit confirm', () => api.bindOrgUnit('ou-2', true), '/edge-api/v1/system/org-unit',        'POST',   { orgUnitId: 'ou-2', confirm: true }],
     ['listOrgUnits',      () => api.listOrgUnits(),              '/api/organisationUnits?fields=id,displayName,path,level&paging=false', 'GET', undefined],
+    ['listPendingApprovals default limit', () => api.listPendingApprovals(), '/edge-api/v1/approvals/pending?limit=100', 'GET', undefined],
+    ['listPendingApprovals custom',        () => api.listPendingApprovals(25), '/edge-api/v1/approvals/pending?limit=25', 'GET', undefined],
+    ['approveOperation',  () => api.approveOperation('op1'),     '/edge-api/v1/approvals/op1/approve',  'POST',   undefined],
+    ['rejectOperation',   () => api.rejectOperation('op1', 'bad'), '/edge-api/v1/approvals/op1/reject', 'POST',   { reason: 'bad' }],
   ])('%s hits the expected URL + method', async (_name, call, path, method, expectedBody) => {
     fetchMock.mockResolvedValue(respond(200, okJson));
     await call();

@@ -5,7 +5,7 @@ import { renderWithProviders } from '../test/renderWithProviders';
 import {
   EASetupWelcome, EAUsersList, EAUserCreate, EACompatInspector, EACompatHistory,
   EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
-  EAWorkerHealth, EAMetadataOverview,
+  EAWorkerHealth, EAMetadataOverview, EAApprovalQueue,
 } from './EACoreScreens';
 
 afterEach(() => vi.restoreAllMocks());
@@ -426,5 +426,83 @@ describe('EA-18 MetadataOverview', () => {
       metadataList: vi.fn().mockRejectedValue('x'),
     } as never} />);
     await waitFor(() => expect(screen.getByTestId('ea18-error')).toBeInTheDocument());
+  });
+});
+
+describe('EA-APR-01 ApprovalQueue', () => {
+  const row = {
+    operationId: '11111111-1111-1111-1111-111111111111',
+    entityType: 'AGGREGATE_DATA_VALUE',
+    entityRef: 'de/ou/2026Q1',
+    submittedBy: 'u1',
+    createdAt: '2026-10-22T00:00:00Z',
+  };
+
+  it('renders empty when nothing is pending', async () => {
+    renderWithProviders(<EAApprovalQueue api={{
+      listPendingApprovals: vi.fn().mockResolvedValue({ rows: [] }),
+      approveOperation: vi.fn(), rejectOperation: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('apr-empty')).toBeInTheDocument());
+  });
+
+  it('renders rows', async () => {
+    renderWithProviders(<EAApprovalQueue api={{
+      listPendingApprovals: vi.fn().mockResolvedValue({ rows: [row] }),
+      approveOperation: vi.fn(), rejectOperation: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId(`apr-row-${row.operationId}`)).toBeInTheDocument());
+  });
+
+  it('approve calls the api and reloads', async () => {
+    const approve = vi.fn().mockResolvedValue({ outcome: 'APPROVED' });
+    const list = vi.fn().mockResolvedValueOnce({ rows: [row] })
+                        .mockResolvedValue({ rows: [] });
+    renderWithProviders(<EAApprovalQueue api={{
+      listPendingApprovals: list, approveOperation: approve, rejectOperation: vi.fn(),
+    } as never} />);
+    await userEvent.click(await screen.findByTestId(`apr-approve-${row.operationId}`));
+    await waitFor(() => expect(approve).toHaveBeenCalledWith(row.operationId));
+    await waitFor(() => expect(screen.getByTestId('apr-empty')).toBeInTheDocument());
+  });
+
+  it('reject sends reason and reloads', async () => {
+    const reject = vi.fn().mockResolvedValue({ outcome: 'REJECTED' });
+    const list = vi.fn().mockResolvedValueOnce({ rows: [row] })
+                        .mockResolvedValue({ rows: [] });
+    renderWithProviders(<EAApprovalQueue api={{
+      listPendingApprovals: list, approveOperation: vi.fn(), rejectOperation: reject,
+    } as never} />);
+    await userEvent.type(await screen.findByTestId(`apr-reason-${row.operationId}`), 'bad');
+    await userEvent.click(screen.getByTestId(`apr-reject-${row.operationId}`));
+    await waitFor(() => expect(reject).toHaveBeenCalledWith(row.operationId, 'bad'));
+  });
+
+  it('error from list surfaces in ErrorBlock', async () => {
+    renderWithProviders(<EAApprovalQueue api={{
+      listPendingApprovals: vi.fn().mockRejectedValue('x'),
+      approveOperation: vi.fn(), rejectOperation: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('apr-error')).toBeInTheDocument());
+  });
+
+  it('error from approve surfaces in ErrorBlock', async () => {
+    const approve = vi.fn().mockRejectedValue(new Error('nope'));
+    renderWithProviders(<EAApprovalQueue api={{
+      listPendingApprovals: vi.fn().mockResolvedValue({ rows: [row] }),
+      approveOperation: approve, rejectOperation: vi.fn(),
+    } as never} />);
+    await userEvent.click(await screen.findByTestId(`apr-approve-${row.operationId}`));
+    await waitFor(() => expect(screen.getByTestId('apr-error')).toBeInTheDocument());
+  });
+
+  it('error from reject surfaces in ErrorBlock', async () => {
+    const reject = vi.fn().mockRejectedValue('fail');
+    renderWithProviders(<EAApprovalQueue api={{
+      listPendingApprovals: vi.fn().mockResolvedValue({ rows: [row] }),
+      approveOperation: vi.fn(), rejectOperation: reject,
+    } as never} />);
+    await userEvent.click(await screen.findByTestId(`apr-reject-${row.operationId}`));
+    await waitFor(() => expect(screen.getByTestId('apr-error')).toBeInTheDocument());
   });
 });

@@ -53,7 +53,7 @@ class EventServiceTest {
                 new RuleEngineResult(Map.of(), List.of(), List.of()));
         when(events.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
         when(events.findForEnrollment(any())).thenReturn(List.of());
-        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock);
+        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock, new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false));
         final var out = service.submit(List.of(newInput(Event.Status.ACTIVE)),
                 UUID.randomUUID(), "127.0.0.1", "ua");
         assertThat(out.imported()).hasSize(1);
@@ -69,7 +69,7 @@ class EventServiceTest {
         final ExtendedMirrorRepository mirror = mock(ExtendedMirrorRepository.class);
         final RuleEngine rules = mock(RuleEngine.class);
         final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
-        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock);
+        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock, new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false));
         final var out = service.submit(java.util.Arrays.asList((EventService.EventInput) null),
                 UUID.randomUUID(), "ip", "ua");
         assertThat(out.conflicts()).hasSize(1);
@@ -83,7 +83,7 @@ class EventServiceTest {
         final RuleEngine rules = mock(RuleEngine.class);
         final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
         when(mirror.findProgramStage("ps")).thenReturn(Optional.empty());
-        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock);
+        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock, new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false));
         final var out = service.submit(List.of(newInput(Event.Status.ACTIVE)),
                 UUID.randomUUID(), "ip", "ua");
         assertThat(out.conflicts()).hasSize(1);
@@ -99,7 +99,7 @@ class EventServiceTest {
         final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
         when(mirror.findProgramStage("ps")).thenReturn(Optional.of(new MirroredProgramStage(
                 "ps", "OTHER", "d", false, List.of(), mapper.createObjectNode())));
-        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock);
+        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock, new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false));
         final var out = service.submit(List.of(newInput(Event.Status.ACTIVE)),
                 UUID.randomUUID(), "ip", "ua");
         assertThat(out.conflicts().get(0).reason()).contains("does not belong");
@@ -118,7 +118,7 @@ class EventServiceTest {
                 new RuleEngineResult(Map.of(),
                         List.of(new RuleEngineResult.RuleMessage("r1", "de", "boom")),
                         List.of()));
-        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock);
+        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock, new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false));
         final var out = service.submit(List.of(newInput(Event.Status.COMPLETED)),
                 UUID.randomUUID(), "ip", "ua");
         assertThat(out.conflicts()).hasSize(1);
@@ -139,7 +139,7 @@ class EventServiceTest {
                 new RuleEngineResult(Map.of(),
                         List.of(),
                         List.of(new RuleEngineResult.RuleMessage("r1", "de", "near"))));
-        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock);
+        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock, new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false));
         final var out = service.submit(List.of(newInput(Event.Status.ACTIVE)),
                 UUID.randomUUID(), "ip", "ua");
         assertThat(out.imported()).hasSize(1);
@@ -160,7 +160,7 @@ class EventServiceTest {
         assigned.put("deBlank", null);
         when(rules.evaluate(any(), any(), any(Boolean.class), any())).thenReturn(
                 new RuleEngineResult(assigned, List.of(), List.of()));
-        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock);
+        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock, new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false));
         final var out = service.submit(List.of(newInput(Event.Status.ACTIVE)),
                 UUID.randomUUID(), "ip", "ua");
         assertThat(out.imported()).hasSize(1);
@@ -183,7 +183,7 @@ class EventServiceTest {
         when(events.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
         when(rules.evaluate(any(), any(), any(Boolean.class), any())).thenReturn(
                 new RuleEngineResult(Map.of(), List.of(), List.of()));
-        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock);
+        final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock, new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false));
         service.submit(List.of(newInput(Event.Status.ACTIVE)),
                 UUID.randomUUID(), "ip", "ua");
         verify(rules).evaluate(any(), any(RuleContext.class), any(Boolean.class), any());

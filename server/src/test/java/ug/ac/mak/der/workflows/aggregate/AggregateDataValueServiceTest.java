@@ -45,7 +45,8 @@ class AggregateDataValueServiceTest {
                                                 final OperationJournalRepository journal,
                                                 final MetadataMirrorRepository metadata,
                                                 final SecurityAuditRepository audit) {
-        return new AggregateDataValueService(values, journal, metadata, audit, mapper, CLOCK);
+        return new AggregateDataValueService(values, journal, metadata, audit, mapper, CLOCK,
+                new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false));
     }
 
     private AggregateDataValueService.DataValueInput validInput(final String value) {
@@ -206,23 +207,41 @@ class AggregateDataValueServiceTest {
         final var j = mock(OperationJournalRepository.class);
         final var m = mock(MetadataMirrorRepository.class);
         final var a = mock(SecurityAuditRepository.class);
+        final var approvals = new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(null, j, m, a, mapper, CLOCK))
+                new AggregateDataValueService(null, j, m, a, mapper, CLOCK, approvals))
                 .isInstanceOf(NullPointerException.class);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(v, null, m, a, mapper, CLOCK))
+                new AggregateDataValueService(v, null, m, a, mapper, CLOCK, approvals))
                 .isInstanceOf(NullPointerException.class);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(v, j, null, a, mapper, CLOCK))
+                new AggregateDataValueService(v, j, null, a, mapper, CLOCK, approvals))
                 .isInstanceOf(NullPointerException.class);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(v, j, m, null, mapper, CLOCK))
+                new AggregateDataValueService(v, j, m, null, mapper, CLOCK, approvals))
                 .isInstanceOf(NullPointerException.class);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(v, j, m, a, null, CLOCK))
+                new AggregateDataValueService(v, j, m, a, null, CLOCK, approvals))
                 .isInstanceOf(NullPointerException.class);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(v, j, m, a, mapper, null))
+                new AggregateDataValueService(v, j, m, a, mapper, null, approvals))
                 .isInstanceOf(NullPointerException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                new AggregateDataValueService(v, j, m, a, mapper, CLOCK, null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void marksRequiresApprovalWhenConfigured() {
+        final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final MetadataMirrorRepository metadata = metadataWith("INTEGER");
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        when(values.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+        final AggregateDataValueService svc = new AggregateDataValueService(
+                values, journal, metadata, audit, mapper, CLOCK,
+                new ug.ac.mak.der.approval.ApprovalRequirements(true, false, false));
+        svc.submit(java.util.List.of(validInput("1")), java.util.UUID.randomUUID(), "ip", "ua");
+        verify(journal).markRequiresApproval(any(java.util.UUID.class));
     }
 }

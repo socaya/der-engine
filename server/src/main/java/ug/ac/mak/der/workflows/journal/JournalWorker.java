@@ -45,7 +45,8 @@ public class JournalWorker {
             lastBatchSize = 0;
             return new DrainOutcome(0, 0, 0, 0, 0, "disabled");
         }
-        final List<OperationJournalEntry> pending = journal.findPending(settings.batchSize());
+        final List<OperationJournalEntry> pending =
+                journal.findPendingReadyToDrain(settings.batchSize());
         lastBatchSize = pending.size();
         int accepted = 0;
         int rejected = 0;

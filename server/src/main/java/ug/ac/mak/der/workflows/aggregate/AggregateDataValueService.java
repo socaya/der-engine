@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import ug.ac.mak.der.approval.ApprovalRequirements;
 import ug.ac.mak.der.metadata.MetadataMirrorRepository;
 import ug.ac.mak.der.metadata.MirroredDataElement;
 import ug.ac.mak.der.metadata.MirroredOrganisationUnit;
@@ -46,19 +47,22 @@ public class AggregateDataValueService {
     private final SecurityAuditRepository audit;
     private final ObjectMapper mapper;
     private final Clock clock;
+    private final ApprovalRequirements approvals;
 
     public AggregateDataValueService(final AggregateDataValueRepository values,
                                       final OperationJournalRepository journal,
                                       final MetadataMirrorRepository metadata,
                                       final SecurityAuditRepository audit,
                                       final ObjectMapper mapper,
-                                      final Clock clock) {
+                                      final Clock clock,
+                                      final ApprovalRequirements approvals) {
         this.values = Objects.requireNonNull(values, "values");
         this.journal = Objects.requireNonNull(journal, "journal");
         this.metadata = Objects.requireNonNull(metadata, "metadata");
         this.audit = Objects.requireNonNull(audit, "audit");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.approvals = Objects.requireNonNull(approvals, "approvals");
     }
 
     @Transactional
@@ -98,7 +102,7 @@ public class AggregateDataValueService {
                     1
             );
             final AggregateDataValue stored = values.upsert(toStore);
-            journal.insert(new OperationJournalEntry(
+            final OperationJournalEntry entry = new OperationJournalEntry(
                     UUID.randomUUID(),
                     OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE,
                     stored.compoundKey(),
@@ -119,7 +123,11 @@ public class AggregateDataValueService {
                     actingUser,
                     now,
                     now
-            ));
+            );
+            journal.insert(entry);
+            if (approvals.requiresApproval(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)) {
+                journal.markRequiresApproval(entry.operationId());
+            }
             audit.append(new AuditEvent(
                     "AGGREGATE_WRITE_SUCCESS",
                     AuditEvent.Outcome.SUCCESS,

@@ -15,6 +15,21 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.1.0-alpha.2] — unreleased
+
+Initiative 4 — local approval workflows (ADR-0016).
+
+- Added: V013 schema — `operation_journal.{requires_approval,approved_by/at,rejected_by/at,rejection_reason}` + XOR check + partial index.
+- Added: `ug.ac.mak.der.approval` package — ApprovalRequirements, ApprovalRecord, ApprovalRepository, ApprovalService (outcome enum: APPROVED / REJECTED / NOT_FOUND / NOT_REQUIRED / ALREADY_DECIDED).
+- Added: `OperationJournalRepository.findPendingReadyToDrain(limit)` + `markRequiresApproval(opId)`; `JournalWorker` migrates to the new query.
+- Added: `AggregateDataValueService` + `EventService` mark journal rows requiring approval when the respective config flag is on.
+- Added: `ApprovalController` at `/edge-api/v1/approvals/**` (REVIEWER + ADMIN for mutations).
+- Added: admin UI `EAApprovalQueue` bundled into EACoreScreens.tsx, routed at `/approvals`, nav link added.
+- Added: 45 server tests + 10 admin tests + 1 Playwright spec.
+- Added: ADR-0016.
+
+[1.1.0-alpha.2]: https://github.com/socaya/der-engine/releases/tag/der-1.1.0-alpha.2
+
 ## [1.1.0-alpha.1] — unreleased
 
 Initiative 5 — edge-to-orgUnit binding (ADR-0015).

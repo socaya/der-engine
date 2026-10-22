@@ -78,6 +78,12 @@ test.describe('EA family', () => {
     await expect(page.getByTestId('ea14-heading')).toBeVisible();
   });
 
+  test('EA-APR-01 ApprovalQueue at /approvals', async ({ page }) => {
+    await mock(page, '**/edge-api/v1/approvals/pending**', { rows: [] });
+    await page.goto('/approvals');
+    await expect(page.getByTestId('apr-heading')).toBeVisible();
+  });
+
   test('EA-18 MetadataOverview at /metadata', async ({ page }) => {
     await mock(page, '**/api/**', { items: [] });
     await page.goto('/metadata');

@@ -23,6 +23,7 @@ import ug.ac.mak.der.rules.RuleEngine;
 import ug.ac.mak.der.rules.RuleEngineResult;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.SecurityAuditRepository;
+import ug.ac.mak.der.approval.ApprovalRequirements;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 
@@ -55,6 +56,7 @@ public class EventService {
     private final SecurityAuditRepository audit;
     private final ObjectMapper mapper;
     private final Clock clock;
+    private final ApprovalRequirements approvals;
 
     public EventService(final EventRepository events,
                         final OperationJournalRepository journal,
@@ -62,7 +64,8 @@ public class EventService {
                         final RuleEngine ruleEngine,
                         final SecurityAuditRepository audit,
                         final ObjectMapper mapper,
-                        final Clock clock) {
+                        final Clock clock,
+                        final ApprovalRequirements approvals) {
         this.events = Objects.requireNonNull(events, "events");
         this.journal = Objects.requireNonNull(journal, "journal");
         this.mirror = Objects.requireNonNull(mirror, "mirror");
@@ -70,6 +73,7 @@ public class EventService {
         this.audit = Objects.requireNonNull(audit, "audit");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.approvals = Objects.requireNonNull(approvals, "approvals");
     }
 
     @Transactional
@@ -131,10 +135,14 @@ public class EventService {
                 submittedBy, 1, values);
         final Event stored = events.upsert(event);
         final JsonNode payload = toJson(stored);
-        journal.insert(new OperationJournalEntry(UUID.randomUUID(),
+        final OperationJournalEntry entry = new OperationJournalEntry(UUID.randomUUID(),
                 OperationJournalEntry.EntityType.EVENT, stored.eventId().toString(),
                 payload, OperationJournalEntry.State.PENDING, 0, null, submittedBy,
-                Instant.now(clock), Instant.now(clock)));
+                Instant.now(clock), Instant.now(clock));
+        journal.insert(entry);
+        if (approvals.requiresApproval(OperationJournalEntry.EntityType.EVENT)) {
+            journal.markRequiresApproval(entry.operationId());
+        }
         audit.append(new AuditEvent(
                 "EVENT_WRITE_SUCCESS", AuditEvent.Outcome.SUCCESS,
                 submittedBy, null, ip, userAgent,

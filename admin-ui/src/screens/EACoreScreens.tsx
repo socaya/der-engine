@@ -539,3 +539,106 @@ export function EAMetadataOverview({ api = edgeApi }:
     </div>
   );
 }
+
+// EA-APR-01 Approval queue (ADR-0016) -------------------------------
+export function EAApprovalQueue({ api = edgeApi }:
+    { api?: Pick<typeof edgeApi, 'listPendingApprovals' | 'approveOperation'
+      | 'rejectOperation'> } = {}): JSX.Element {
+  const [rows, setRows] = useState<edgeApi.PendingApprovalRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyOp, setBusyOp] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
+
+  async function reload(): Promise<void> {
+    try {
+      const resp = await api.listPendingApprovals();
+      setRows(resp.rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, [api]);
+
+  async function doApprove(opId: string): Promise<void> {
+    setBusyOp(opId);
+    try {
+      await api.approveOperation(opId);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusyOp(null);
+    }
+  }
+
+  async function doReject(opId: string): Promise<void> {
+    setBusyOp(opId);
+    try {
+      await api.rejectOperation(opId, rejectReason[opId] ?? '');
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusyOp(null);
+    }
+  }
+
+  if (error) return <ErrorBlock title="Approval queue error" testId="apr-error">{error}</ErrorBlock>;
+  if (rows === null) return <LoadingBlock testId="apr-loading" />;
+  return (
+    <div className="ea-screen">
+      <h1 data-test="apr-heading">Pending approvals</h1>
+      {rows.length === 0 ? (
+        <EmptyBlock title="No pending approvals" testId="apr-empty">
+          Nothing is waiting for a reviewer. Writes that do not need approval
+          drain straight through.
+        </EmptyBlock>
+      ) : (
+        <table className="ea-approvals">
+          <thead>
+            <tr>
+              <th>Operation</th><th>Type</th><th>Entity</th>
+              <th>Submitted at</th><th>Reason (reject)</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.operationId} data-test={`apr-row-${r.operationId}`}>
+                <td><code data-test={`apr-op-${r.operationId}`}>{r.operationId.slice(0, 8)}</code></td>
+                <td>{r.entityType}</td>
+                <td>{r.entityRef}</td>
+                <td>{r.createdAt}</td>
+                <td>
+                  <input
+                    type="text"
+                    data-test={`apr-reason-${r.operationId}`}
+                    value={rejectReason[r.operationId] ?? ''}
+                    onChange={(e) => {
+                      setRejectReason({ ...rejectReason, [r.operationId]: e.target.value });
+                    }}
+                  />
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    data-test={`apr-approve-${r.operationId}`}
+                    disabled={busyOp === r.operationId}
+                    onClick={() => { doApprove(r.operationId).catch(() => undefined); }}>
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    data-test={`apr-reject-${r.operationId}`}
+                    disabled={busyOp === r.operationId}
+                    onClick={() => { doReject(r.operationId).catch(() => undefined); }}>
+                    Reject
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

@@ -4,7 +4,7 @@ import { RequireAuth } from './components/RequireAuth';
 import {
   EASetupWelcome, EAUsersList, EAUserCreate, EACompatInspector, EACompatHistory,
   EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
-  EAWorkerHealth, EAMetadataOverview,
+  EAWorkerHealth, EAMetadataOverview, EAApprovalQueue,
 } from './screens/EACoreScreens';
 import {
   EARecoveryTools, EABackupList, EARestoreList, EAEvaluationReports,
@@ -35,6 +35,7 @@ export default function App(): JSX.Element {
             <Link to="/sync/drift" data-test="nav-drift">Drift</Link>
             <Link to="/journal/conflicts" data-test="nav-conflicts">Conflicts</Link>
             <Link to="/journal/worker" data-test="nav-worker">Worker</Link>
+            <Link to="/approvals" data-test="nav-approvals">Approvals</Link>
             <Link to="/metadata" data-test="nav-metadata">Metadata</Link>
           </nav>
         </header>
@@ -58,6 +59,8 @@ export default function App(): JSX.Element {
                    element={<RequireAuth><ConflictResolveRoute /></RequireAuth>} />
             <Route path="/journal/worker"
                    element={<RequireAuth><EAWorkerHealth /></RequireAuth>} />
+            <Route path="/approvals"
+                   element={<RequireAuth><EAApprovalQueue /></RequireAuth>} />
             <Route path="/metadata"
                    element={<RequireAuth><EAMetadataOverview /></RequireAuth>} />
             {/* Phase 06 Release 3 — EA-19..36 */}

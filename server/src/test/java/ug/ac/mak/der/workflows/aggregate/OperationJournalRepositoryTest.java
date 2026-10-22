@@ -142,4 +142,38 @@ class OperationJournalRepositoryTest {
         assertThat(repo.countByState(OperationJournalEntry.State.PENDING)).isZero();
         assertThat(repo.countByState(OperationJournalEntry.State.PENDING)).isEqualTo(7);
     }
+
+    @Test
+    void findPendingReadyToDrainDelegatesToQuery() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.query(anyString(), any(org.springframework.jdbc.core.RowMapper.class), eq(10)))
+                .thenReturn(List.of());
+        new OperationJournalRepository(jdbc, json).findPendingReadyToDrain(10);
+        verify(jdbc).query(anyString(),
+                any(org.springframework.jdbc.core.RowMapper.class), eq(10));
+    }
+
+    @Test
+    void findPendingReadyToDrainCapsLimits() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.query(anyString(), any(org.springframework.jdbc.core.RowMapper.class), eq(500)))
+                .thenReturn(List.of());
+        when(jdbc.query(anyString(), any(org.springframework.jdbc.core.RowMapper.class), eq(1)))
+                .thenReturn(List.of());
+        new OperationJournalRepository(jdbc, json).findPendingReadyToDrain(99_999);
+        new OperationJournalRepository(jdbc, json).findPendingReadyToDrain(-1);
+        verify(jdbc).query(anyString(),
+                any(org.springframework.jdbc.core.RowMapper.class), eq(500));
+        verify(jdbc).query(anyString(),
+                any(org.springframework.jdbc.core.RowMapper.class), eq(1));
+    }
+
+    @Test
+    void markRequiresApprovalDelegates() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final UUID op = UUID.randomUUID();
+        when(jdbc.update(anyString(), eq(op))).thenReturn(1);
+        assertThat(new OperationJournalRepository(jdbc, json).markRequiresApproval(op))
+                .isEqualTo(1);
+    }
 }

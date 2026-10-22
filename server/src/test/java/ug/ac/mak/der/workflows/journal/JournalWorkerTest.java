@@ -60,7 +60,7 @@ class JournalWorkerTest {
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);
         final JournalPublisher pub = mock(JournalPublisher.class);
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        when(journal.findPending(anyInt())).thenReturn(
+        when(journal.findPendingReadyToDrain(anyInt())).thenReturn(
                 List.of(entry(OperationJournalEntry.State.PENDING)));
         when(pub.publish(any())).thenReturn(new JournalPublisher.PublishResult(200, "ok",
                 JournalPublisher.TerminalState.ACCEPTED));
@@ -72,7 +72,7 @@ class JournalWorkerTest {
     void rejectedTransitions() {
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);
         final JournalPublisher pub = mock(JournalPublisher.class);
-        when(journal.findPending(anyInt())).thenReturn(
+        when(journal.findPendingReadyToDrain(anyInt())).thenReturn(
                 List.of(entry(OperationJournalEntry.State.PENDING)));
         when(pub.publish(any())).thenReturn(new JournalPublisher.PublishResult(400, "bad",
                 JournalPublisher.TerminalState.REJECTED));
@@ -85,7 +85,7 @@ class JournalWorkerTest {
     void conflictTransitions() {
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);
         final JournalPublisher pub = mock(JournalPublisher.class);
-        when(journal.findPending(anyInt())).thenReturn(
+        when(journal.findPendingReadyToDrain(anyInt())).thenReturn(
                 List.of(entry(OperationJournalEntry.State.PENDING)));
         when(pub.publish(any())).thenReturn(new JournalPublisher.PublishResult(409, "c",
                 JournalPublisher.TerminalState.CONFLICT));
@@ -98,7 +98,7 @@ class JournalWorkerTest {
     void retryableBumpsAttempt() {
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);
         final JournalPublisher pub = mock(JournalPublisher.class);
-        when(journal.findPending(anyInt())).thenReturn(
+        when(journal.findPendingReadyToDrain(anyInt())).thenReturn(
                 List.of(entry(OperationJournalEntry.State.PENDING)));
         when(pub.publish(any())).thenReturn(new JournalPublisher.PublishResult(500, "server err",
                 JournalPublisher.TerminalState.RETRYABLE));
@@ -110,7 +110,7 @@ class JournalWorkerTest {
     @Test
     void skipsNonPendingRows() {
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);
-        when(journal.findPending(anyInt())).thenReturn(
+        when(journal.findPendingReadyToDrain(anyInt())).thenReturn(
                 List.of(entry(OperationJournalEntry.State.IN_FLIGHT)));
         final var out = new JournalWorker(journal, mock(JournalPublisher.class),
                 mock(JdbcTemplate.class), settings(true)).drainBatch();
@@ -130,7 +130,7 @@ class JournalWorkerTest {
     @Test
     void lastTickAndBatchSizeExposed() {
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);
-        when(journal.findPending(anyInt())).thenReturn(List.of());
+        when(journal.findPendingReadyToDrain(anyInt())).thenReturn(List.of());
         final JournalWorker worker = new JournalWorker(journal, mock(JournalPublisher.class),
                 mock(JdbcTemplate.class), settings(true));
         worker.drainBatch();

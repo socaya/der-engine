@@ -437,3 +437,26 @@ export function listOrgUnits(): Promise<{ organisationUnits: OrgUnitRow[] }> {
   return request<{ organisationUnits: OrgUnitRow[] }>('GET',
     '/api/organisationUnits?fields=id,displayName,path,level&paging=false');
 }
+
+// ---- der-1.1.0-alpha.2 Initiative 4: approval (ADR-0016) ----
+
+export interface PendingApprovalRow {
+  operationId: string;
+  entityType: string;
+  entityRef: string;
+  submittedBy: string | null;
+  createdAt: string;
+}
+
+export function listPendingApprovals(limit = 100): Promise<{ rows: PendingApprovalRow[] }> {
+  return request<{ rows: PendingApprovalRow[] }>(
+    'GET', `/edge-api/v1/approvals/pending?limit=${limit}`);
+}
+
+export function approveOperation(operationId: string): Promise<{ outcome: string }> {
+  return request('POST', `/edge-api/v1/approvals/${operationId}/approve`);
+}
+
+export function rejectOperation(operationId: string, reason: string): Promise<{ outcome: string }> {
+  return request('POST', `/edge-api/v1/approvals/${operationId}/reject`, { reason });
+}

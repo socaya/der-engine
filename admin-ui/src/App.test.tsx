@@ -32,6 +32,7 @@ vi.mock('./screens/EACoreScreens', () => ({
     <div data-test="s-conflict-resolve">resolve-{operationId}</div>,
   EAWorkerHealth:      () => <div data-test="s-worker">worker</div>,
   EAMetadataOverview:  () => <div data-test="s-metadata">metadata</div>,
+  EAApprovalQueue:     () => <div data-test="s-approvals">approvals</div>,
 }));
 
 vi.mock('./screens/EARemainderScreens', () => ({
@@ -76,6 +77,7 @@ describe('App routing', () => {
     ['/sync/drift',              's-drift'],
     ['/journal/conflicts',       's-conflicts'],
     ['/journal/worker',          's-worker'],
+    ['/approvals',               's-approvals'],
     ['/metadata',                's-metadata'],
     ['/recovery',                's-recovery'],
     ['/backup',                  's-backup'],
