@@ -1,8 +1,62 @@
-# Set up TLS separately before enabling outside a development network.
+# DER NGINX reverse-proxy — ADR-0004 (hybrid) reference configuration.
+#
+# ADR-0004 selects the hybrid architecture: DHIS2 Core runs ONLY on the
+# central server (remote); the DER edge runtime emulates DHIS2's Web API
+# locally at /api/* and serves the DER device-client (a DHIS2 Application
+# Platform-compatible SPA) at /. NGINX stitches both under one origin:
+#
+#   /                — DER device-client SPA (@dhis2/ui + @dhis2/app-runtime)
+#   /admin/          — DER administrator console
+#   /api/            — DER DHIS2-Web-API emulator (same baseURL contract as
+#                      a real DHIS2 would use)
+#   /edge-api/v1/    — DER coordination service (auth, provisioning, sync)
+#
+# There is NO /dhis/* route — no DHIS2 Core runs on this host. The central
+# DHIS2 is contacted outbound by the DER server over HTTPS using the
+# DER_DHIS2_CENTRAL_URL env var.
+
+upstream der_server { server 127.0.0.1:8085; keepalive 32; }
+
 server {
     listen 8080;
     server_name _;
-    location /edge-api/ { proxy_pass http://127.0.0.1:8085; proxy_set_header Host $host; }
-    location /admin/ { alias /opt/der/admin-ui/; try_files $uri $uri/ /admin/index.html; }
-    location / { root /opt/der/client; try_files $uri /index.html; }
+
+    client_max_body_size 64m;
+
+    # DER DHIS2-Web-API emulator — authenticated via the DER_SESSION cookie,
+    # same contract as the /edge-api/v1/** namespace.
+    location /api/ {
+        proxy_pass http://der_server;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
+    # DER coordination service.
+    location /edge-api/ {
+        proxy_pass http://der_server;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
+    # Administrator console (admin-ui).
+    location /admin/ {
+        alias /opt/der/admin-ui/dist/;
+        try_files $uri $uri/ /admin/index.html;
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+
+    # Device client (DHIS2 Application Platform-compatible SPA).
+    location / {
+        root /opt/der/client/dist;
+        try_files $uri /index.html;
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
 }

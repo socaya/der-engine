@@ -26,6 +26,7 @@
       <Class name="ug.ac.mak.der.web.ProvisioningController$CreateUserRequest"/>
       <Class name="ug.ac.mak.der.web.ProvisioningController$UserResponse"/>
       <Class name="ug.ac.mak.der.web.ProvisioningController$ListResponse"/>
+      <Class name="ug.ac.mak.der.web.ActivityController$RecentActivityResponse"/>
     </Or>
     <Or>
       <Bug pattern="EI_EXPOSE_REP"/>

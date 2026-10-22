@@ -1,11 +1,21 @@
 # ADR-0003: Architecture — Option A, full local DHIS2 instance
 
-- Status: **ACCEPTED**
-- Date: 2026-10-21
+- Status: **SUPERSEDED by [ADR-0004](0004-hybrid-dhis2-edge-emulation.md) on 2026-10-22**
+- Date (original): 2026-10-21
 - Deciders: socaya
 - Related requirements: FR-04-01, FR-04-02, FR-04-03, FR-05-01, FR-08-07, NFR-01, NFR-07, NFR-32
-- Related ADRs: ADR-0002 (DHIS2 version pin), supersedes the three-way option
-  outlined in `docs/architecture/01-system-architecture.md`.
+- Related ADRs: ADR-0002 (DHIS2 version pin). ADR-0003 was accepted without the
+  A/B/C comparison the project proposal §3.3 mandates. ADR-0004 completes that
+  comparison and selects the hybrid architecture instead.
+
+**Why superseded:** The user clarified on 2026-10-22 that the project intent is
+not for DHIS2 Core to be installed on the edge host; the "EDGE Runtime works
+AS IF a full DHIS2 is installed." That matches the proposal's "hybrid" option,
+not Option A. ADR-0004 records the comparison and the new selection.
+
+The historical text below is preserved for audit.
+
+---
 
 ## Context
 
