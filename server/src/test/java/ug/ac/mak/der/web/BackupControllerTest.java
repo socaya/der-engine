@@ -184,4 +184,45 @@ class BackupControllerTest {
                 ctl.download(5L);
         org.assertj.core.api.Assertions.assertThat(resp.getStatusCode().value()).isEqualTo(200);
     }
+
+    @Test
+    void downloadReturnsNotFoundWhenArchivePathSetButFileMissing(@TempDir final Path root)
+            throws Exception {
+        final Path archive = root.resolve("gone.dump");
+        final BackupRun row = new BackupRun(5L, Instant.now(), UUID.randomUUID(),
+                BackupRun.Kind.FULL, BackupRun.Status.SUCCESS, null,
+                archive.toString(), 1L, null, null, null, null);
+        when(repo.findById(5L)).thenReturn(Optional.of(row));
+        final BackupController ctl = new BackupController(repo, null, root.toString());
+        org.assertj.core.api.Assertions.assertThat(ctl.download(5L).getStatusCode().value())
+                .isEqualTo(404);
+    }
+
+    @Test
+    void requestWorksWithoutSchedulerBean() throws Exception {
+        when(repo.insert(any())).thenReturn(sample(BackupRun.Status.REQUESTED));
+        final BackupController ctl = new BackupController(repo, null, "/tmp");
+        final org.springframework.http.ResponseEntity<java.util.Map<String, Object>> resp =
+                ctl.request(new EdgeUserPrincipal(
+                        new EdgeUser(UUID.randomUUID(), "op", "O",
+                                EdgeUser.Origin.BOOTSTRAP, null, false,
+                                EnumSet.of(EdgeRole.ADMIN), Instant.now(), Instant.now()),
+                        new EdgeSession(UUID.randomUUID(), UUID.randomUUID(), "h",
+                                Instant.now(), Instant.now(),
+                                Instant.now().plusSeconds(60), null, null, null)),
+                        new BackupController.BackupRequest("FULL"));
+        org.assertj.core.api.Assertions.assertThat(resp.getStatusCode().value()).isEqualTo(202);
+    }
+
+    @Test
+    void toJsonHandlesNullTimestamps() throws Exception {
+        final BackupRun row = new BackupRun(5L, Instant.now(), UUID.randomUUID(),
+                BackupRun.Kind.FULL, BackupRun.Status.REQUESTED, null,
+                null, null, null, null, null, null);
+        when(repo.findById(5L)).thenReturn(Optional.of(row));
+        mockMvc.perform(get("/edge-api/v1/backup/runs/5").with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.startedAt").doesNotExist())
+                .andExpect(jsonPath("$.finishedAt").doesNotExist());
+    }
 }

@@ -1,7 +1,7 @@
 # DER post-1.0 roadmap
 
 > **Status:** Planning document. No ADRs are accepted here — this file
-> scopes eight new initiatives, surfaces the architectural decisions
+> scopes **nine** new initiatives, surfaces the architectural decisions
 > each one forces, and proposes a release sequence. Each initiative
 > becomes a real ADR + phase plan when the maintainer approves its
 > scope.
@@ -15,11 +15,19 @@ acceptance evidence bundle (Phase 09, §11 of the pilot runbook) is the
 sole remaining gate for stable `der-1.0.0`. Everything on this page
 sits **after** that cut.
 
-The eight initiatives on this page push past the hub-and-spoke edge
+The nine initiatives on this page push past the hub-and-spoke edge
 topology that ADR-0004 established. Three of them (peer-to-peer chains,
 Android client, DHIS2 broadcast agent) are large enough to deserve
-their own major-version bump; the other five fit into one or two
+their own major-version bump; the others fit into one or two
 minor-version releases on top of 1.0.
+
+Initiative 10 — DER-defined capture workflow configuration — is the
+largest conceptual addition. It lets edge admins compose capture
+workflows that **DHIS2 does not natively model** (section-level
+owners, cross-form dependencies, local-only approval chains) and
+re-aligns the captured data to DHIS2's native shape at drain time.
+This is the core enabler for the "distributed DHIS2 workflows"
+narrative in the project proposal.
 
 ---
 
@@ -367,6 +375,132 @@ documented runbook.
 
 ---
 
+## Initiative 10 — DER capture-workflow configuration management
+
+**Current state.** DER mirrors DHIS2 metadata (datasets, programs,
+sections, program stages, categoryOptionCombos) via ADR-0006/0008 and
+executes program rules at the edge via ADR-0007. The capture surface
+is one-to-one with DHIS2's: a dataset is a form, a program stage is a
+set of events, a section is a visual grouping.
+
+**Gap, per your ask.** DHIS2 does not model *distributed capture
+workflows* — the common clinic reality where one person captures the
+dataset's "antenatal" section, hands it to a second person who
+captures "laboratory", who passes to a third for "pharmacy", with
+cross-section field dependencies and a sign-off step that doesn't
+exist upstream. The project proposal frames this as the core
+"distributed DHIS2 workflow" problem. DER needs an edge-only
+configuration layer that composes DHIS2 metadata into these
+workflows and transparently re-aligns the data at drain time so the
+central DHIS2 sees exactly the shape it expects.
+
+**Proposed shape.**
+
+- Flyway `V015__phase11_capture_workflow_config.sql`:
+  - `capture_workflow(workflow_id UUID PK, display_name, bound_metadata_kind TEXT CHECK IN ('DATA_SET','PROGRAM','PROGRAM_STAGE'), bound_metadata_id TEXT, enabled BOOL, created_at, updated_at)` — one workflow per DHIS2 metadata object the admin chooses to augment.
+  - `capture_workflow_step(step_id UUID PK, workflow_id FK, ordinal INT, display_name, owner_role TEXT, owner_device_id FK?, section_filter JSONB, step_kind TEXT CHECK IN ('CAPTURE','REVIEW','APPROVE','DISPATCH'))` — ordered steps per workflow, each scoped to a subset of fields/sections.
+  - `capture_workflow_field(step_id FK, field_ref TEXT, requirement TEXT CHECK IN ('REQUIRED','OPTIONAL','READONLY','HIDDEN'))` — per-step overrides on top of the DHIS2 metadata.
+  - `capture_workflow_dependency(step_id FK, depends_on_step_id FK, dependency_kind TEXT CHECK IN ('COMPLETES_BEFORE','VALUE_EQ','VALUE_GT','ANY_VALUE'))` — cross-step predicates that gate advancement.
+  - `capture_workflow_run(run_id UUID PK, workflow_id FK, business_key TEXT, current_step_id FK, state TEXT CHECK IN ('OPEN','AWAITING','COMPLETED','REJECTED'), created_at, updated_at)` — one row per in-flight workflow instance (one dataValueSet / event / enrollment).
+- `CaptureWorkflowService` — resolves the applicable workflow for an
+  incoming write; routes the write to the correct step; blocks drain
+  until the final step reaches `COMPLETED`.
+- `CaptureWorkflowReconciler` — the drain-time re-alignment layer.
+  Takes an `OPERATION_JOURNAL` row that originated inside a workflow
+  and projects it onto DHIS2's native shape (collapses per-step field
+  partitions back into a single dataValueSet / event payload). Writes
+  the reconciled version to the journal publisher; the pre-reconciled
+  version stays local only.
+- Admin screens (bundled into `EACoreScreens.tsx`):
+  - `EA-CWF-01` — Workflow catalogue (list, enable/disable).
+  - `EA-CWF-02` — Workflow designer (pick DHIS2 metadata binding, add
+    steps, assign owners, draw dependencies).
+  - `EA-CWF-03` — In-flight workflow runs (operational monitor).
+- Device-client (`client/src/screens/`):
+  - `DC-CWF-01` — My step (shows only the fields the current step
+    covers; blocks until predecessors complete).
+  - `DC-CWF-02` — Hand-off (dispatches a workflow run to the next
+    owner — pairs with Initiative 1 device management and Initiative 3
+    peer-to-peer chains).
+
+### Why this interacts with existing initiatives
+
+- **Initiative 1 (device management)** — owner_device_id on a
+  workflow step uses the device identity Initiative 1 introduces.
+  Workflows are therefore a hard prerequisite for the full
+  device-oriented workflow experience; a reduced form of workflows
+  that uses only `owner_role` ships first.
+- **Initiative 3 (peer-to-peer chains)** — the A → B → C → D → E
+  chain is a workflow with four `DISPATCH` steps. Initiative 10
+  defines the model; Initiative 3 provides the transport.
+- **Initiative 4 (data approval)** — an `APPROVE` step is the same
+  construct as the approval queue in Initiative 4. Unify by making
+  Initiative 4's approval queue the UI for workflows that contain
+  exactly one `APPROVE` step.
+
+### Why re-alignment matters
+
+The project proposal's distributed-workflow story only works if the
+upstream DHIS2 server doesn't need any changes. The reconciler's job
+is to make every acknowledged edge commit indistinguishable from a
+single-user commit to central. Specifically:
+
+- Multiple capture steps compose into a single dataValueSet with the
+  union of all step contributions.
+- A step that marks a field `HIDDEN` writes DHIS2's "no value"
+  encoding (empty-string + comment) rather than a null-vs-missing
+  distinction that DHIS2 doesn't model.
+- Local-only `REVIEW` / `APPROVE` steps produce no payload — they
+  only gate the drain.
+
+### Decisions needed
+
+1. **Workflow binding granularity.** Bind workflows to a dataset,
+   dataset section, program, program stage, or any of them? The DB
+   schema above supports all four; the UI complexity doubles if we
+   expose every combination.
+2. **Section flexibility.** You wrote "could dataset sections, etc.,
+   BE very flexible across all DHIS2 Metadata." Confirm the intent is
+   that one DER workflow can span **multiple** DHIS2 objects (e.g.
+   capture an aggregate section + a related program event in the
+   same workflow), or stay within one metadata root?
+3. **Workflow authoring role.** Any `ADMIN` can define a workflow, or
+   introduce a dedicated `WORKFLOW_DESIGNER` role so facility
+   operators can author without full admin rights?
+4. **Reconciler failure semantics.** If the reconciler cannot project
+   a workflow run onto DHIS2's shape (e.g. a workflow allowed values
+   DHIS2 would reject), does the run (a) stay OPEN and surface in
+   EA-14-style conflict review, (b) auto-rollback locally, or (c)
+   drain with a loss-of-fidelity note?
+5. **Workflow versioning.** If the admin edits a workflow mid-flight,
+   do in-flight runs keep the old definition or migrate to the new
+   one? Mid-flight migration is a non-trivial reconciliation problem.
+6. **Workflow export/import.** Should workflows be portable between
+   edges (ship a JSON definition that another edge imports), or stay
+   edge-local? Portability enables fleet-wide standardisation but
+   needs schema stability guarantees.
+7. **Workflow priority when DHIS2 metadata changes.** If a dataset
+   section is removed centrally mid-flight, does the workflow still
+   use it (grace period) or abort the run? Interacts with ADR-0006
+   compat engine's drift surface.
+
+### Effort
+
+Phase 11 (first slice) and Phase 12 (full) — one major release:
+- **`der-1.2.0-alpha.1`** — schema + CaptureWorkflowService (role-based
+  owners only; no device-level owners); workflow designer EA-CWF-01/02;
+  single-metadata-root bindings only; reconciler for aggregate
+  dataValueSets.
+- **`der-1.2.0-alpha.2`** — device-level owners (post-Initiative 1);
+  cross-metadata bindings; reconciler for events + tracker; workflow
+  export/import.
+
+This is a **larger** initiative than any single prior phase — on
+the order of Phase 05 (scheduler + drift + conflict review combined).
+Breaking it into two alpha slices keeps the review surface tractable.
+
+---
+
 ## Initiative 9 — Playwright per-screen E2E suite (de-blocked from 1.0.0)
 
 Playwright is currently a smoke-only sentinel. The Phase 06 plan called
@@ -394,13 +528,17 @@ der-1.1.0        ← Initiative 5 (orgUnit binding),
                    Initiative 9 part 1 (Playwright DC side)
     │
     ▼
-der-1.2.0        ← Initiative 1 (device management),
+der-1.2.0        ← Initiative 10 slice A (capture workflow config,
+                     role-owners, aggregate reconciler),
+                   Initiative 1 (device management),
                    Initiative 7 (analytics),
                    Initiative 8 part 2 (hash-chain audit, S3 GPG),
                    Initiative 9 part 2 (Playwright EA side)
     │
     ▼
-der-1.3.0        ← Initiative 2 part 1 (DHIS2 Edge Agent server plugin),
+der-1.3.0        ← Initiative 10 slice B (device-owners, event/tracker
+                     reconciler, workflow import/export),
+                   Initiative 2 part 1 (DHIS2 Edge Agent server plugin),
                    Initiative 3 option A (chain-via-hub referral),
                    Initiative 8 part 3 (MFA)
     │
@@ -431,6 +569,13 @@ of these are the kind of judgement call that only you can make.
 | D10 | P2P topology: A (chain-via-hub) / B (direct mTLS) / C (MQTT broker)? | Initiative 3 |
 | D11 | Android: Capacitor wrap first, native later? Confirm. | Initiative 6 |
 | D12 | KMS strategy: env-var / 0400 keyfile / Vault / AWS KMS? | Initiative 8 part 1 |
+| D13 | Workflow binding granularity: dataset / section / program / stage / any? | Initiative 10 |
+| D14 | One workflow spans multiple DHIS2 metadata roots, or stays within one? | Initiative 10 |
+| D15 | Dedicated `WORKFLOW_DESIGNER` role or reuse `ADMIN`? | Initiative 10 |
+| D16 | Reconciler failure semantics (conflict / rollback / lossy drain)? | Initiative 10 |
+| D17 | Workflow versioning (grandfather in-flight runs or migrate)? | Initiative 10 |
+| D18 | Workflow export/import across edges? | Initiative 10 |
+| D19 | Workflow handling when DHIS2 metadata changes under the workflow? | Initiative 10 |
 
 ---
 

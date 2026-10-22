@@ -281,28 +281,18 @@
                     <!-- Spring Security config is boot-time plumbing; verified by
                          the integration tests (SignInIT) rather than unit tests. -->
                     <exclude>ug.ac.mak.der.security.SecurityConfig</exclude>
-                    <!-- der-0.7.0-alpha.1 waiver: Phase 07 backup/restore engine
-                         exercises subprocess + external S3 paths that cannot be
-                         fully branch-covered without a live Postgres + MinIO
-                         fixture. Subprocess success paths covered by the
-                         Phase 07 live-E2E runbook; stable der-0.7.0 lifts
-                         back into the gate once those IT fixtures land. -->
+                    <!-- der-1.0.0-rc.1 narrowed waiver: BackupWorker's remaining
+                         gap is the pg_dump subprocess timeout + InterruptedException
+                         + detectVersion-unknown paths. They require either a
+                         deliberately hanging shell script (slow tests) or an
+                         external interrupt during process.waitFor() (racy). All
+                         success + non-zero-exit + binary-missing + prune
+                         branches are covered. Current measured: 90% line /
+                         80% branch. Lifts back to 1.00 at der-1.1.0 when
+                         Testcontainers-Postgres fixtures replace the subprocess
+                         fakes and let us exercise the real pg_dump timeout
+                         behaviour. See docs/project/post-1.0-roadmap.md G2. -->
                     <exclude>ug.ac.mak.der.workflows.backup.BackupWorker</exclude>
-                    <exclude>ug.ac.mak.der.workflows.backup.RestoreWorker</exclude>
-                    <exclude>ug.ac.mak.der.workflows.backup.RemoteArchiveStore</exclude>
-                    <!-- der-0.6.0-alpha.1 waiver carried through: DC-17 draft
-                         surface shipped UI-first; server tests land in
-                         der-0.6.0-alpha.4-fix (post-Phase-07). -->
-                    <exclude>ug.ac.mak.der.workflows.drafts.Draft</exclude>
-                    <exclude>ug.ac.mak.der.workflows.drafts.DraftRepository</exclude>
-                    <exclude>ug.ac.mak.der.web.DraftController</exclude>
-                    <exclude>ug.ac.mak.der.web.DraftController.SaveRequest</exclude>
-                    <!-- der-0.7.0-alpha.1 waiver: RestoreController's badRequest
-                         branches for kind/source validation are covered; the
-                         remaining 2% branch gap is Spring MockMvc's internal
-                         request-body deserialisation path. Lifts back to 1.00
-                         at stable der-0.7.0. -->
-                    <exclude>ug.ac.mak.der.web.RestoreController</exclude>
                   </excludes>
                   <limits>
                     <!-- der-0.4.0-alpha.4-fix: Phase 03.6b packages pulled into

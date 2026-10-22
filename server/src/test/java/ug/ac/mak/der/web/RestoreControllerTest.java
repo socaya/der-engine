@@ -159,4 +159,34 @@ class RestoreControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SUCCESS"));
     }
+
+    @Test
+    void toJsonHandlesNullKind() throws Exception {
+        final RestoreRun row = new RestoreRun(9L, Instant.parse("2026-10-22T00:00:00Z"),
+                UUID.randomUUID(), "s", RestoreRun.Status.REQUESTED,
+                null, null, null, null, null);
+        when(repo.findById(9L)).thenReturn(Optional.of(row));
+        mockMvc.perform(get("/edge-api/v1/restore/runs/9").with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kind").doesNotExist())
+                .andExpect(jsonPath("$.startedAt").doesNotExist())
+                .andExpect(jsonPath("$.finishedAt").doesNotExist());
+    }
+
+    @Test
+    void requestWorksWithoutSchedulerBean() throws Exception {
+        when(repo.insert(any())).thenReturn(sample(RestoreRun.Status.REQUESTED));
+        final ug.ac.mak.der.web.RestoreController ctl =
+                new ug.ac.mak.der.web.RestoreController(repo, null, "/tmp");
+        final org.springframework.http.ResponseEntity<java.util.Map<String, Object>> resp =
+                ctl.request(new ug.ac.mak.der.security.EdgeUserPrincipal(
+                        new ug.ac.mak.der.security.EdgeUser(UUID.randomUUID(), "op", "O",
+                                ug.ac.mak.der.security.EdgeUser.Origin.BOOTSTRAP, null, false,
+                                EnumSet.of(EdgeRole.ADMIN), Instant.now(), Instant.now()),
+                        new ug.ac.mak.der.security.EdgeSession(UUID.randomUUID(),
+                                UUID.randomUUID(), "h", Instant.now(), Instant.now(),
+                                Instant.now().plusSeconds(60), null, null, null)),
+                        new ug.ac.mak.der.web.RestoreController.RestoreRequest("LOCAL", "src.dump"));
+        org.assertj.core.api.Assertions.assertThat(resp.getStatusCode().value()).isEqualTo(202);
+    }
 }

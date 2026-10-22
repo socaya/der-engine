@@ -87,6 +87,106 @@ class RemoteArchiveStoreTest {
     }
 
     @Test
+    void uploadWithTrailingSlashBaseUrl(@TempDir final Path dir) throws IOException {
+        final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            exchange.sendResponseHeaders(204, -1);
+        });
+        server.start();
+        try {
+            final String base = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
+            final RemoteArchiveStore store = new RemoteArchiveStore(base, "", 10);
+            final Path src = dir.resolve("a.dump");
+            Files.writeString(src, "x");
+            // Trailing-slash branch: endsWith('/') true path.
+            assertThat(store.upload(src)).isEqualTo("a.dump");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void uploadWrapsInterruption(@TempDir final Path dir) throws IOException {
+        // Use a server that never responds; then interrupt the current thread so
+        // HttpClient.send bails with InterruptedException. The store wraps it as IOException.
+        final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            try { Thread.sleep(5000); } catch (InterruptedException ignored) { /* exit */ }
+            exchange.sendResponseHeaders(204, -1);
+        });
+        server.start();
+        try {
+            final String base = "http://127.0.0.1:" + server.getAddress().getPort();
+            final RemoteArchiveStore store = new RemoteArchiveStore(base, "", 10);
+            final Path src = dir.resolve("a.dump");
+            Files.writeString(src, "x");
+            Thread.currentThread().interrupt();
+            try {
+                assertThatThrownBy(() -> store.upload(src))
+                        .isInstanceOf(IOException.class)
+                        .hasMessageContaining("interrupted");
+            } finally {
+                Thread.interrupted();  // clear the flag
+            }
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void downloadWrapsInterruption(@TempDir final Path dir) throws IOException {
+        final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            try { Thread.sleep(5000); } catch (InterruptedException ignored) { /* exit */ }
+            exchange.sendResponseHeaders(200, -1);
+        });
+        server.start();
+        try {
+            final String base = "http://127.0.0.1:" + server.getAddress().getPort();
+            final RemoteArchiveStore store = new RemoteArchiveStore(base, "", 10);
+            Thread.currentThread().interrupt();
+            try {
+                assertThatThrownBy(() -> store.download("x.dump", dir.resolve("t.dump")))
+                        .isInstanceOf(IOException.class)
+                        .hasMessageContaining("interrupted");
+            } finally {
+                Thread.interrupted();
+            }
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void downloadWithTrailingSlashBaseUrl(@TempDir final Path dir) throws IOException {
+        final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            final byte[] out = "DATA".getBytes();
+            exchange.sendResponseHeaders(200, out.length);
+            try (OutputStream os = exchange.getResponseBody()) { os.write(out); }
+        });
+        server.start();
+        try {
+            final String base = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
+            final RemoteArchiveStore store = new RemoteArchiveStore(base, "", 10);
+            store.download("k.dump", dir.resolve("got.dump"));
+            assertThat(Files.readString(dir.resolve("got.dump"))).isEqualTo("DATA");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void nullBaseUrlAndBearerDefaultEmpty(@TempDir final Path dir) throws IOException {
+        // Explicit null values exercise the two ternary branches in the constructor.
+        final RemoteArchiveStore store = new RemoteArchiveStore(null, null, 10);
+        assertThat(store.isConfigured()).isFalse();
+        final Path src = dir.resolve("a.dump");
+        Files.writeString(src, "x");
+        assertThat(store.upload(src)).isNull();
+    }
+
+    @Test
     void downloadNon2xxThrows(@TempDir final Path dir) throws IOException {
         final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> exchange.sendResponseHeaders(404, -1));
