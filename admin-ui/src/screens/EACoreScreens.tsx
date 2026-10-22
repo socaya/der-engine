@@ -907,3 +907,111 @@ export function EADeviceFleet({ api = edgeApi }:
     </div>
   );
 }
+
+// EA-ANA-01 Facility analytics (ADR-0020) -------------------------
+export function EAFacilityAnalytics({ api = edgeApi }:
+    { api?: Pick<typeof edgeApi, 'analyticsSummary' | 'analyticsRejections'
+      | 'analyticsRefresh'> } = {}): JSX.Element {
+  const [resp, setResp] = useState<edgeApi.FacilitySummaryResponse | null>(null);
+  const [rejections, setRejections] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function reload(): Promise<void> {
+    try {
+      const [s, r] = await Promise.all([
+        api.analyticsSummary(),
+        api.analyticsRejections(),
+      ]);
+      setResp(s);
+      setRejections(r.count);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, [api]);
+
+  async function doRefresh(): Promise<void> {
+    setRefreshing(true);
+    setError(null);
+    try {
+      await api.analyticsRefresh();
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  if (error) return <ErrorBlock title="Analytics error" testId="ana01-error">{error}</ErrorBlock>;
+  if (resp === null) return <LoadingBlock testId="ana01-loading" />;
+
+  const aggregate = resp.rows.filter((r) => r.kind === 'AGGREGATE');
+  const events = resp.rows.filter((r) => r.kind === 'EVENT');
+  const aggregateTotal = aggregate.reduce((n, r) => n + r.n, 0);
+  const eventTotal = events.reduce((n, r) => n + r.n, 0);
+
+  return (
+    <div className="ea-screen">
+      <h1 data-test="ana01-heading">Facility analytics</h1>
+      <p className="ea-ana-refreshed">
+        Last refreshed:{' '}
+        <span data-test="ana01-last-refreshed">
+          {resp.lastRefreshedAt ?? 'never'}
+        </span>{' '}
+        <button type="button" data-test="ana01-refresh"
+          disabled={refreshing}
+          onClick={() => { doRefresh().catch(() => undefined); }}>
+          {refreshing ? 'Refreshing…' : 'Refresh now'}
+        </button>
+      </p>
+      <section className="ea-ana-cards">
+        <div className="ea-ana-card" data-test="ana01-card-aggregate">
+          <strong>Aggregate submissions</strong>
+          <div className="ea-ana-count"
+            data-test="ana01-count-aggregate">{aggregateTotal}</div>
+          <small>{aggregate.length} period/OU buckets</small>
+        </div>
+        <div className="ea-ana-card" data-test="ana01-card-event">
+          <strong>Events captured</strong>
+          <div className="ea-ana-count"
+            data-test="ana01-count-event">{eventTotal}</div>
+          <small>{events.length} day/OU buckets</small>
+        </div>
+        <div className="ea-ana-card" data-test="ana01-card-rejections">
+          <strong>Recent rejections</strong>
+          <div className="ea-ana-count"
+            data-test="ana01-count-rejections">
+            {rejections ?? '—'}
+          </div>
+          <small>last 500 security_audit rows</small>
+        </div>
+      </section>
+      {resp.rows.length === 0 ? (
+        <EmptyBlock title="No analytics data yet" testId="ana01-empty">
+          Capture some aggregate values or events, then refresh.
+        </EmptyBlock>
+      ) : (
+        <table className="ea-ana-table">
+          <thead>
+            <tr>
+              <th>OrgUnit</th><th>Period</th><th>Kind</th><th>n</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resp.rows.map((r) => (
+              <tr key={`${r.orgUnitId}:${r.period}:${r.kind}`}
+                data-test={`ana01-row-${r.orgUnitId}-${r.period}-${r.kind}`}>
+                <td><code>{r.orgUnitId}</code></td>
+                <td>{r.period}</td>
+                <td>{r.kind}</td>
+                <td>{r.n}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

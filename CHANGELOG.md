@@ -15,6 +15,20 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.2.0-alpha.4] — unreleased
+
+Initiative 7 slice A — site-level analytics (ADR-0020).
+
+- Added: V016 schema — `analytics_facility_summary` materialised view (aggregate + event rollups per OU/period/kind) with unique index for concurrent refresh.
+- Added: `ug.ac.mak.der.analytics` package — `FacilitySummaryRow` record, `AnalyticsRepository` (summary + recent rejections + last-refresh + `REFRESH MATERIALIZED VIEW CONCURRENTLY`), `AnalyticsService` thin delegate.
+- Added: `AnalyticsRefreshJob` Quartz job (`@DisallowConcurrentExecution`) on `der.analytics.refresh.cron` (default every 5 min); logs outcome into `scheduled_job_run`.
+- Added: `AnalyticsController` at `/edge-api/v1/analytics/**` — `GET /summary` + `GET /rejections` any-auth; `POST /refresh` ADMIN-only with structured 500 (`ANALYTICS_REFRESH_FAILED`).
+- Added: admin UI `EAFacilityAnalytics` (EA-ANA-01) at `/analytics`, Analytics nav link, 3 new edgeApi helpers.
+- Added: ADR-0020 (single matview, 5-min cron, no charts in slice A).
+- Added: 24 server tests + 6 admin-ui tests + 1 Playwright spec + 4 edgeApi table rows.
+
+[1.2.0-alpha.4]: https://github.com/socaya/der-engine/releases/tag/der-1.2.0-alpha.4
+
 ## [1.2.0-alpha.3] — unreleased
 
 Initiative 1 client half — device-client enrollment hook (ADR-0019 slice A).

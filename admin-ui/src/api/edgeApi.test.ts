@@ -137,6 +137,10 @@ describe('edgeApi route coverage', () => {
     ['suspendDevice',     () => api.suspendDevice('dvc'),        '/edge-api/v1/devices/dvc/suspend',    'POST',   undefined],
     ['revokeDevice',      () => api.revokeDevice('dvc'),         '/edge-api/v1/devices/dvc/revoke',     'POST',   undefined],
     ['deleteDevice',      () => api.deleteDevice('dvc'),         '/edge-api/v1/devices/dvc',            'DELETE', undefined],
+    ['analyticsSummary no args', () => api.analyticsSummary(),   '/edge-api/v1/analytics/summary',      'GET',    undefined],
+    ['analyticsSummary filtered', () => api.analyticsSummary('ou-1', 'AGGREGATE'), '/edge-api/v1/analytics/summary?orgUnit=ou-1&kind=AGGREGATE', 'GET', undefined],
+    ['analyticsRejections', () => api.analyticsRejections(100),   '/edge-api/v1/analytics/rejections?limit=100', 'GET', undefined],
+    ['analyticsRefresh',  () => api.analyticsRefresh(),          '/edge-api/v1/analytics/refresh',      'POST',   undefined],
   ])('%s hits the expected URL + method', async (_name, call, path, method, expectedBody) => {
     fetchMock.mockResolvedValue(respond(200, okJson));
     await call();

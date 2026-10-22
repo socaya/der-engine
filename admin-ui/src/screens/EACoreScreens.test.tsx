@@ -2,12 +2,12 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
-import * as edgeApi from '../api/edgeApi';
+import type * as edgeApi from '../api/edgeApi';
 import {
   EASetupWelcome, EAUsersList, EAUserCreate, EACompatInspector, EACompatHistory,
   EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
   EAWorkerHealth, EAMetadataOverview, EAApprovalQueue, EACaptureWorkflowList,
-  EACaptureWorkflowDesigner, EADeviceFleet,
+  EACaptureWorkflowDesigner, EADeviceFleet, EAFacilityAnalytics,
 } from './EACoreScreens';
 
 afterEach(() => vi.restoreAllMocks());
@@ -742,5 +742,85 @@ describe('EA-DVC-01 DeviceFleet', () => {
       revokeDevice: vi.fn(), deleteDevice: vi.fn(),
     } as never} />);
     await waitFor(() => expect(screen.getByTestId('dvc01-error')).toBeInTheDocument());
+  });
+});
+
+describe('EA-ANA-01 FacilityAnalytics', () => {
+  const row = (kind: edgeApi.AnalyticsKind, period: string, n: number) => ({
+    orgUnitId: 'ou1', period, kind, n, refreshedAt: '2026-10-22T00:00:00Z',
+  });
+
+  it('renders empty state when the view is empty', async () => {
+    renderWithProviders(<EAFacilityAnalytics api={{
+      analyticsSummary: vi.fn().mockResolvedValue({ rows: [], lastRefreshedAt: null }),
+      analyticsRejections: vi.fn().mockResolvedValue({ count: 0 }),
+      analyticsRefresh: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('ana01-empty')).toBeInTheDocument());
+  });
+
+  it('renders totals and table', async () => {
+    renderWithProviders(<EAFacilityAnalytics api={{
+      analyticsSummary: vi.fn().mockResolvedValue({
+        rows: [row('AGGREGATE', '202604', 10), row('EVENT', '2026-10-22', 3)],
+        lastRefreshedAt: '2026-10-22T00:00:00Z',
+      }),
+      analyticsRejections: vi.fn().mockResolvedValue({ count: 2 }),
+      analyticsRefresh: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('ana01-count-aggregate'))
+      .toHaveTextContent('10'));
+    expect(screen.getByTestId('ana01-count-event')).toHaveTextContent('3');
+    expect(screen.getByTestId('ana01-count-rejections')).toHaveTextContent('2');
+  });
+
+  it('refresh calls api and reloads', async () => {
+    const list = vi.fn().mockResolvedValueOnce({ rows: [], lastRefreshedAt: null })
+                        .mockResolvedValue({
+                          rows: [row('AGGREGATE', '202604', 1)],
+                          lastRefreshedAt: '2026-10-22T00:00:00Z',
+                        });
+    const refresh = vi.fn().mockResolvedValue({ outcome: 'OK' });
+    renderWithProviders(<EAFacilityAnalytics api={{
+      analyticsSummary: list,
+      analyticsRejections: vi.fn().mockResolvedValue({ count: 0 }),
+      analyticsRefresh: refresh,
+    } as never} />);
+    await userEvent.click(await screen.findByTestId('ana01-refresh'));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId('ana01-count-aggregate'))
+      .toHaveTextContent('1'));
+  });
+
+  it('error from summary surfaces', async () => {
+    renderWithProviders(<EAFacilityAnalytics api={{
+      analyticsSummary: vi.fn().mockRejectedValue('x'),
+      analyticsRejections: vi.fn(),
+      analyticsRefresh: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('ana01-error')).toBeInTheDocument());
+  });
+
+  it('error from refresh surfaces', async () => {
+    renderWithProviders(<EAFacilityAnalytics api={{
+      analyticsSummary: vi.fn().mockResolvedValue({ rows: [], lastRefreshedAt: null }),
+      analyticsRejections: vi.fn().mockResolvedValue({ count: 0 }),
+      analyticsRefresh: vi.fn().mockRejectedValue(new Error('boom')),
+    } as never} />);
+    await userEvent.click(await screen.findByTestId('ana01-refresh'));
+    await waitFor(() => expect(screen.getByTestId('ana01-error')).toBeInTheDocument());
+  });
+
+  it('shows last-refreshed value when present', async () => {
+    renderWithProviders(<EAFacilityAnalytics api={{
+      analyticsSummary: vi.fn().mockResolvedValue({
+        rows: [row('AGGREGATE', '202604', 1)],
+        lastRefreshedAt: '2026-10-22T00:00:00Z',
+      }),
+      analyticsRejections: vi.fn().mockResolvedValue({ count: 0 }),
+      analyticsRefresh: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('ana01-last-refreshed'))
+      .toHaveTextContent('2026-10-22T00:00:00Z'));
   });
 });

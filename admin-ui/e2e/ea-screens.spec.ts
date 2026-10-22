@@ -101,6 +101,15 @@ test.describe('EA family', () => {
     await expect(page.getByTestId('dvc01-heading')).toBeVisible();
   });
 
+  test('EA-ANA-01 FacilityAnalytics at /analytics', async ({ page }) => {
+    await mock(page, '**/edge-api/v1/analytics/summary**', {
+      rows: [], lastRefreshedAt: null,
+    });
+    await mock(page, '**/edge-api/v1/analytics/rejections**', { count: 0 });
+    await page.goto('/analytics');
+    await expect(page.getByTestId('ana01-heading')).toBeVisible();
+  });
+
   test('EA-18 MetadataOverview at /metadata', async ({ page }) => {
     await mock(page, '**/api/**', { items: [] });
     await page.goto('/metadata');

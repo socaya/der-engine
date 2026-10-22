@@ -573,3 +573,38 @@ export function revokeDevice(id: string): Promise<{ outcome: string }> {
 export function deleteDevice(id: string): Promise<void> {
   return request<void>('DELETE', `/edge-api/v1/devices/${id}`);
 }
+
+// ---- der-1.2.0-alpha.4 Initiative 7: analytics (ADR-0020) ----
+
+export type AnalyticsKind = 'AGGREGATE' | 'EVENT';
+
+export interface FacilitySummaryRow {
+  orgUnitId: string;
+  period: string;
+  kind: AnalyticsKind;
+  n: number;
+  refreshedAt: string;
+}
+
+export interface FacilitySummaryResponse {
+  rows: FacilitySummaryRow[];
+  lastRefreshedAt: string | null;
+}
+
+export function analyticsSummary(orgUnit?: string, kind?: AnalyticsKind):
+    Promise<FacilitySummaryResponse> {
+  const q = new URLSearchParams();
+  if (orgUnit) q.set('orgUnit', orgUnit);
+  if (kind) q.set('kind', kind);
+  const qs = q.toString();
+  return request('GET', '/edge-api/v1/analytics/summary'
+    + (qs ? '?' + qs : ''));
+}
+
+export function analyticsRejections(limit = 500): Promise<{ count: number }> {
+  return request('GET', `/edge-api/v1/analytics/rejections?limit=${limit}`);
+}
+
+export function analyticsRefresh(): Promise<{ outcome: string; lastRefreshedAt?: string }> {
+  return request('POST', '/edge-api/v1/analytics/refresh');
+}
