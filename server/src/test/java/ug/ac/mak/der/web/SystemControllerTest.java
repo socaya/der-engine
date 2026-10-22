@@ -14,6 +14,7 @@ import java.time.ZoneOffset;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -24,6 +25,7 @@ import ug.ac.mak.der.build.BuildInfo;
 import ug.ac.mak.der.build.BuildInfoProvider;
 
 @WebMvcTest(SystemController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @Import(SystemControllerTest.FixedClockConfig.class)
 class SystemControllerTest {
 

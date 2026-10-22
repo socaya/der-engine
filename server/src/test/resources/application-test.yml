@@ -1,0 +1,20 @@
+# Test-profile overrides.
+#
+# Pure-unit tests do not need a datasource or Flyway. Integration tests that
+# DO need Postgres (`*IT.java`) run on the `integration` profile instead.
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+der:
+  security:
+    session:
+      secret: dev-only-test-secret-not-a-real-value-must-be-48-bytes-base64
+      ttl: PT1H
+    bootstrap:
+      admin-username: ""
+      admin-password: ""

@@ -1,0 +1,83 @@
+package ug.ac.mak.der.security;
+
+import java.time.Clock;
+
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+
+/**
+ * Phase 02 Spring Security configuration.
+ *
+ * <p>Rules:</p>
+ * <ul>
+ *   <li>No HTTP session; DER manages its own via {@link EdgeSession}.</li>
+ *   <li>CSRF is off because the API accepts only cookie-authenticated POSTs
+ *       and does not render HTML forms. The cookie is {@code SameSite=Strict};
+ *       Phase 06 revisits this when cross-origin admin tooling lands.</li>
+ *   <li>{@code /edge-api/v1/system/health} and {@code /edge-api/v1/auth/sign-in}
+ *       are open; everything else requires an {@link EdgeUserPrincipal}.</li>
+ *   <li>{@code /edge-api/v1/dhis2/**} and {@code /edge-api/v1/provisioning/**}
+ *       require the {@code ADMIN} role.</li>
+ *   <li>Anonymous access to a guarded endpoint returns {@code 401}, not {@code 403}.</li>
+ * </ul>
+ */
+@Configuration
+@EnableConfigurationProperties(SecurityProperties.class)
+@Profile("!test")
+public class SecurityConfig {
+
+    @Bean
+    public PasswordHasher passwordHasher() {
+        return new PasswordHasher();
+    }
+
+    @Bean
+    public SessionIssuer sessionIssuer() {
+        return new SessionIssuer();
+    }
+
+    @Bean
+    public RateLimiter rateLimiter(final Clock clock) {
+        return new RateLimiter(clock);
+    }
+
+    @Bean
+    public SessionCookieAuthenticationFilter sessionCookieAuthenticationFilter(
+            final SessionValidationService validator, final SecurityProperties props) {
+        return new SessionCookieAuthenticationFilter(validator, props);
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(final HttpSecurity http,
+                                                   final SessionCookieAuthenticationFilter cookieFilter)
+            throws Exception {
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(eh -> eh.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/edge-api/v1/system/health").permitAll()
+                        .requestMatchers("/edge-api/v1/auth/sign-in").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/edge-api/v1/dhis2/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/provisioning/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/**").authenticated()
+                        .anyRequest().denyAll()
+                )
+                .addFilterBefore(cookieFilter, BasicAuthenticationFilter.class);
+        return http.build();
+    }
+}

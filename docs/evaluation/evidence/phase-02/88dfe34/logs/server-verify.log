@@ -1,0 +1,102 @@
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (/Users/stephocay/.m2/repository/net/bytebuddy/byte-buddy-agent/1.14.19/byte-buddy-agent-1.14.19.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+05:21:08.458 [main] WARN ug.ac.mak.der.security.BootstrapAdminProvisioner -- No ADMIN exists AND DER_BOOTSTRAP_ADMIN_USERNAME/PASSWORD are unset. Set them and restart, OR provision via SQL. All /edge-api/v1/provisioning/** endpoints will be unreachable until an ADMIN is seeded.
+05:21:08.469 [main] WARN ug.ac.mak.der.security.BootstrapAdminProvisioner -- Bootstrap administrator 'der-admin' provisioned. Clear DER_BOOTSTRAP_ADMIN_* from the environment and restart to prevent repeated audit noise.
+05:21:09.349 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [ug.ac.mak.der.web.Dhis2CompatibilityControllerTest]: Dhis2CompatibilityControllerTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+05:21:09.445 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration ug.ac.mak.der.DerApplication for test class ug.ac.mak.der.web.Dhis2CompatibilityControllerTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.8)
+
+2026-10-22T05:21:09.690+03:00  INFO 18335 --- [der-server] [           main] a.m.d.w.Dhis2CompatibilityControllerTest : Starting Dhis2CompatibilityControllerTest using Java 21.0.10 with PID 18335 (started by stephocay in /Users/stephocay/projects/msdcse-project/der/server)
+2026-10-22T05:21:09.691+03:00  INFO 18335 --- [der-server] [           main] a.m.d.w.Dhis2CompatibilityControllerTest : No active profile set, falling back to 1 default profile: "default"
+2026-10-22T05:21:10.185+03:00  WARN 18335 --- [der-server] [           main] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 37dc25f8-fb23-4a18-80a7-708dad9944c1
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-10-22T05:21:10.197+03:00  INFO 18335 --- [der-server] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-10-22T05:21:10.267+03:00  INFO 18335 --- [der-server] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-22T05:21:10.267+03:00  INFO 18335 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-22T05:21:10.268+03:00  INFO 18335 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 1 ms
+2026-10-22T05:21:10.275+03:00  INFO 18335 --- [der-server] [           main] a.m.d.w.Dhis2CompatibilityControllerTest : Started Dhis2CompatibilityControllerTest in 0.792 seconds (process running for 4.443)
+2026-10-22T05:21:10.298+03:00  WARN 18335 --- [der-server] [           main] u.a.m.d.w.Dhis2CompatibilityController   : DHIS2 unreachable on diagnostic endpoint: central down
+2026-10-22T05:21:10.347+03:00  WARN 18335 --- [der-server] [           main] u.a.m.d.w.Dhis2CompatibilityController   : DHIS2 version mismatch surfaced on diagnostic endpoint: DHIS2 version '2.43.1' does not match pinned prefix '2.44-SNAPSHOT'
+2026-10-22T05:21:10.358+03:00  WARN 18335 --- [der-server] [           main] u.a.m.d.w.Dhis2CompatibilityController   : DHIS2 responded with unexpected payload: malformed
+2026-10-22T05:21:10.366+03:00  INFO 18335 --- [der-server] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ug.ac.mak.der.DerApplication for test class ug.ac.mak.der.web.SystemControllerTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.8)
+
+2026-10-22T05:21:10.378+03:00  INFO 18335 --- [der-server] [           main] ug.ac.mak.der.web.SystemControllerTest   : Starting SystemControllerTest using Java 21.0.10 with PID 18335 (started by stephocay in /Users/stephocay/projects/msdcse-project/der/server)
+2026-10-22T05:21:10.378+03:00  INFO 18335 --- [der-server] [           main] ug.ac.mak.der.web.SystemControllerTest   : No active profile set, falling back to 1 default profile: "default"
+2026-10-22T05:21:10.500+03:00  WARN 18335 --- [der-server] [           main] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 71f37f5e-33e4-44b5-85be-80da41a1aaf4
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-10-22T05:21:10.501+03:00  INFO 18335 --- [der-server] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-10-22T05:21:10.506+03:00  INFO 18335 --- [der-server] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-22T05:21:10.506+03:00  INFO 18335 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-22T05:21:10.506+03:00  INFO 18335 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-10-22T05:21:10.509+03:00  INFO 18335 --- [der-server] [           main] ug.ac.mak.der.web.SystemControllerTest   : Started SystemControllerTest in 0.142 seconds (process running for 4.677)
+2026-10-22T05:21:10.536+03:00  INFO 18335 --- [der-server] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ug.ac.mak.der.DerApplication for test class ug.ac.mak.der.web.ProvisioningControllerTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.8)
+
+2026-10-22T05:21:10.550+03:00  INFO 18335 --- [der-server] [           main] u.a.m.d.web.ProvisioningControllerTest   : Starting ProvisioningControllerTest using Java 21.0.10 with PID 18335 (started by stephocay in /Users/stephocay/projects/msdcse-project/der/server)
+2026-10-22T05:21:10.551+03:00  INFO 18335 --- [der-server] [           main] u.a.m.d.web.ProvisioningControllerTest   : The following 1 profile is active: "test"
+2026-10-22T05:21:10.657+03:00  INFO 18335 --- [der-server] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-22T05:21:10.657+03:00  INFO 18335 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-22T05:21:10.657+03:00  INFO 18335 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-10-22T05:21:10.660+03:00  INFO 18335 --- [der-server] [           main] u.a.m.d.web.ProvisioningControllerTest   : Started ProvisioningControllerTest in 0.123 seconds (process running for 4.828)
+2026-10-22T05:21:10.764+03:00  WARN 18335 --- [der-server] [           main] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.bind.MethodArgumentNotValidException: Validation failed for argument [0] in public org.springframework.http.ResponseEntity<ug.ac.mak.der.web.ProvisioningController$UserResponse> ug.ac.mak.der.web.ProvisioningController.createUser(ug.ac.mak.der.web.ProvisioningController$CreateUserRequest,org.springframework.security.core.Authentication,jakarta.servlet.http.HttpServletRequest): [Field error in object 'createUserRequest' on field 'roles[0]': rejected value [GALAXY_BRAIN]; codes [Pattern.createUserRequest.roles[0],Pattern.createUserRequest.roles,Pattern.roles[0],Pattern.roles,Pattern.java.lang.String,Pattern]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [createUserRequest.roles[0],roles[0]]; arguments []; default message [roles[0]],[Ljakarta.validation.constraints.Pattern$Flag;@30374f99,ADMIN|OPERATOR|REVIEWER|SYNC_WORKER]; default message [must match "ADMIN|OPERATOR|REVIEWER|SYNC_WORKER"]] ]
+2026-10-22T05:21:10.768+03:00  WARN 18335 --- [der-server] [           main] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.bind.MethodArgumentNotValidException: Validation failed for argument [0] in public org.springframework.http.ResponseEntity<ug.ac.mak.der.web.ProvisioningController$UserResponse> ug.ac.mak.der.web.ProvisioningController.createUser(ug.ac.mak.der.web.ProvisioningController$CreateUserRequest,org.springframework.security.core.Authentication,jakarta.servlet.http.HttpServletRequest): [Field error in object 'createUserRequest' on field 'password': rejected value [short]; codes [Size.createUserRequest.password,Size.password,Size.java.lang.String,Size]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [createUserRequest.password,password]; arguments []; default message [password],1024,12]; default message [size must be between 12 and 1024]] ]
+2026-10-22T05:21:10.770+03:00  INFO 18335 --- [der-server] [           main] u.ac.mak.der.web.ProvisioningController  : admin admin provisioned user alice with roles [OPERATOR]
+2026-10-22T05:21:10.779+03:00  INFO 18335 --- [der-server] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ug.ac.mak.der.DerApplication for test class ug.ac.mak.der.web.AuthControllerTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.8)
+
+2026-10-22T05:21:10.790+03:00  INFO 18335 --- [der-server] [           main] ug.ac.mak.der.web.AuthControllerTest     : Starting AuthControllerTest using Java 21.0.10 with PID 18335 (started by stephocay in /Users/stephocay/projects/msdcse-project/der/server)
+2026-10-22T05:21:10.790+03:00  INFO 18335 --- [der-server] [           main] ug.ac.mak.der.web.AuthControllerTest     : The following 1 profile is active: "test"
+2026-10-22T05:21:10.889+03:00  INFO 18335 --- [der-server] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-22T05:21:10.889+03:00  INFO 18335 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-22T05:21:10.889+03:00  INFO 18335 --- [der-server] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-10-22T05:21:10.891+03:00  INFO 18335 --- [der-server] [           main] ug.ac.mak.der.web.AuthControllerTest     : Started AuthControllerTest in 0.11 seconds (process running for 5.059)
+2026-10-22T05:21:10.917+03:00  WARN 18335 --- [der-server] [           main] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.bind.MethodArgumentNotValidException: Validation failed for argument [0] in public org.springframework.http.ResponseEntity<ug.ac.mak.der.web.AuthController$SignInResponse> ug.ac.mak.der.web.AuthController.signIn(ug.ac.mak.der.web.AuthController$SignInRequest,jakarta.servlet.http.HttpServletRequest) with 2 errors: [Field error in object 'signInRequest' on field 'password': rejected value []; codes [NotBlank.signInRequest.password,NotBlank.password,NotBlank.java.lang.String,NotBlank]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [signInRequest.password,password]; arguments []; default message [password]]; default message [must not be blank]] [Field error in object 'signInRequest' on field 'username': rejected value []; codes [NotBlank.signInRequest.username,NotBlank.username,NotBlank.java.lang.String,NotBlank]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [signInRequest.username,username]; arguments []; default message [username]]; default message [must not be blank]] ]
+2026-10-22T05:21:11.007+03:00  INFO 18335 --- [der-server] [           main] u.a.m.der.dhis2.Dhis2CompatibilityGuard  : Phase 01 guard: der.dhis2.central.base-url not configured; status=NOT_CONFIGURED
+2026-10-22T05:21:11.009+03:00  INFO 18335 --- [der-server] [           main] u.a.m.der.dhis2.Dhis2CompatibilityGuard  : Phase 01 guard: der.dhis2.central.base-url not configured; status=NOT_CONFIGURED
+2026-10-22T05:21:11.009+03:00  WARN 18335 --- [der-server] [           main] u.a.m.der.dhis2.Dhis2CompatibilityGuard  : Phase 01 guard: DHIS2 version '2.43.1' does NOT match pin '2.44-SNAPSHOT' but der.dhis2.compatibility.allow-mismatch=true (dev override).
+2026-10-22T05:21:11.010+03:00  INFO 18335 --- [der-server] [           main] u.a.m.der.dhis2.Dhis2CompatibilityGuard  : Phase 01 guard: DHIS2 version '2.44-SNAPSHOT-build-xyz' matches pin '2.44-SNAPSHOT' (revision=null, buildTime=null)
+2026-10-22T05:21:11.010+03:00  INFO 18335 --- [der-server] [           main] u.a.m.der.dhis2.Dhis2CompatibilityGuard  : Phase 01 guard: DHIS2 version '2.44-SNAPSHOT' matches pin '2.44-SNAPSHOT' (revision=abc, buildTime=2026)

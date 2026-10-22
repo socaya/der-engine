@@ -1,19 +1,35 @@
-# DER coordination service — Phase 01 defaults.
+# DER coordination service — Phase 02 defaults.
 #
-# Phase 01 wires up the DHIS2 adapter and version guard but still ships without
-# a live PostgreSQL dependency: Flyway and the JDBC starter remain on the
-# classpath so Phase 02 migrations drop in without churn, but autoconfiguration
-# is disabled at this phase so the boot path stays honest.
+# Datasource and Flyway are now active. All sensitive values come from the
+# environment (see .env.local.example at the repo root). Running without
+# DER_DB_URL is still supported for pure-unit test contexts because the
+# datasource bean is only required when any security component is wired
+# (which happens in production and @SpringBootTest).
 server:
   port: ${DER_PORT:8085}
 spring:
   application:
     name: der-server
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
-      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+
+  datasource:
+    url: ${DER_DB_URL:}
+    username: ${DER_DB_USERNAME:}
+    password: ${DER_DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DER_DB_POOL_MAX:10}
+      pool-name: der-primary
+
+  flyway:
+    enabled: ${DER_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    schemas: der
+    default-schema: der
+
+  # Spring Security starter is active. Phase 02 configures a custom
+  # SecurityFilterChain in ug.ac.mak.der.security.SecurityConfig.
+
 management:
   endpoints:
     web:
@@ -24,16 +40,28 @@ management:
       show-details: never
 
 # DHIS2 adapter — Phase 01 (ADR-0002, ADR-0003).
-# The pinned version MUST match /api/system/info.version prefix on the central.
-# `allow-mismatch=true` is a development override and MUST NOT be set in a
-# released configuration.
 der:
   dhis2:
     central:
       base-url: ${DER_DHIS2_CENTRAL_URL:}
       username: ${DER_DHIS2_USER:}
       password: ${DER_DHIS2_PASSWORD:}
-      connect-timeout-millis: 10000
+      connect-timeout-millis: ${DER_DHIS2_TIMEOUT_MILLIS:10000}
     compatibility:
-      pinned-version: 2.44-SNAPSHOT
-      allow-mismatch: false
+      pinned-version: ${DER_DHIS2_PINNED_VERSION:2.44-SNAPSHOT}
+      allow-mismatch: ${DER_DHIS2_ALLOW_MISMATCH:false}
+
+  # Phase 02 security + session configuration.
+  security:
+    session:
+      ttl: ${DER_SESSION_TTL:PT4H}
+      cookie-name: ${DER_SESSION_COOKIE_NAME:DER_SESSION}
+      cookie-secure: ${DER_SESSION_COOKIE_SECURE:false}
+      cookie-same-site: ${DER_SESSION_COOKIE_SAMESITE:Strict}
+      secret: ${DER_SESSION_SECRET:}
+    sign-in:
+      rate-limit-per-ip-per-minute: ${DER_SIGN_IN_LIMIT_IP:30}
+      rate-limit-per-user-per-minute: ${DER_SIGN_IN_LIMIT_USER:10}
+    bootstrap:
+      admin-username: ${DER_BOOTSTRAP_ADMIN_USERNAME:}
+      admin-password: ${DER_BOOTSTRAP_ADMIN_PASSWORD:}

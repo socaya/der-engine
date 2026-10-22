@@ -1,34 +1,34 @@
 requirement_id,priority,domain,objective,implementation_component,verification_suite,status,evidence_path,remarks
-FR-01-01,P0,Provisioning and site configuration,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
+FR-01-01,P0,Provisioning and site configuration,OBJ-1;OBJ-3,database/migrations/V001__phase02_identity.sql[edge_node],T01,in-progress,docs/evaluation/evidence/phase-02/<commit>/gate-report.md,Phase 02: edge_node table schema shipped; provisioning flow in admin-ui is Phase 07.
 FR-01-02,P0,Provisioning and site configuration,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
-FR-01-03,P0,Provisioning and site configuration,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
-FR-01-04,P0,Provisioning and site configuration,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
+FR-01-03,P0,Provisioning and site configuration,OBJ-1;OBJ-3,server:ug.ac.mak.der.security.BootstrapAdminProvisioner;database:edge_credential,T02,in-progress,docs/evaluation/evidence/phase-02/<commit>/gate-report.md,Phase 02: bootstrap admin from env; DHIS2 user reconciliation deferred to Phase 05.
+FR-01-04,P0,Provisioning and site configuration,OBJ-1;OBJ-3,server:ug.ac.mak.der.dhis2.Dhis2CompatibilityGuard;server:ug.ac.mak.der.web.SystemController,T01,in-progress,docs/evaluation/evidence/phase-02/<commit>/compatibility/*.json,Phase 02: DHIS2 pin + DB connectivity confirmed via Flyway migration + health endpoint.
 FR-01-05,P0,Provisioning and site configuration,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
 FR-01-06,P0,Provisioning and site configuration,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
 FR-01-07,P1,Provisioning and site configuration,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
 FR-01-08,P1,Provisioning and site configuration,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
 FR-01-09,P1,Provisioning and site configuration,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
 FR-01-10,P1,Provisioning and site configuration,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
-FR-02-01,P0,Local identity and authentication,OBJ-3,To be assigned,To be assigned,specified,,
-FR-02-02,P0,Local identity and authentication,OBJ-3,To be assigned,To be assigned,specified,,
-FR-02-03,P0,Local identity and authentication,OBJ-3,To be assigned,To be assigned,specified,,
-FR-02-04,P0,Local identity and authentication,OBJ-3,To be assigned,To be assigned,specified,,
-FR-02-05,P0,Local identity and authentication,OBJ-3,To be assigned,To be assigned,specified,,
-FR-02-06,P0,Local identity and authentication,OBJ-3,To be assigned,To be assigned,specified,,
-FR-02-07,P0,Local identity and authentication,OBJ-3,To be assigned,To be assigned,specified,,
+FR-02-01,P0,Local identity and authentication,OBJ-3,server:ug.ac.mak.der.security.AuthenticationService;database:edge_credential;database:edge_session,T02;AuthControllerTest;AuthenticationServiceTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,Phase 02: Argon2id verifier + opaque session; local sign-in makes no DHIS2 call.
+FR-02-02,P0,Local identity and authentication,OBJ-3,server:ug.ac.mak.der.web.ProvisioningController,ProvisioningControllerTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,Phase 02: admin-created users; DHIS2 pull is Phase 05.
+FR-02-03,P0,Local identity and authentication,OBJ-3,server:ug.ac.mak.der.security.SessionIssuer;server:ug.ac.mak.der.security.SessionValidationService;server:ug.ac.mak.der.security.EdgeSessionRepository,SessionValidationServiceTest;SessionIssuerTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,Phase 02: opaque tokens hashed before persistence; TTL + revoke supported.
+FR-02-04,P0,Local identity and authentication,OBJ-3,server:ug.ac.mak.der.security.RateLimiter;server:ug.ac.mak.der.security.AuthenticationService,RateLimiterTest;AuthenticationServiceTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,Phase 02: per-IP + per-user sliding-window limiter in front of password verification.
+FR-02-05,P0,Local identity and authentication,OBJ-3,server:ug.ac.mak.der.security.PasswordHasher;database:edge_credential,PasswordHasherTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,"Phase 02: Argon2id (M=64MiB,T=3,P=1) scheme-encoded verifier; no plaintext storage."
+FR-02-06,P0,Local identity and authentication,OBJ-3,server:ug.ac.mak.der.security.SessionValidationService;database:edge_session[expires_at],SessionValidationServiceTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,Phase 02: expiry enforced on resolve; credential expiry column exists for Phase 06 rotation.
+FR-02-07,P0,Local identity and authentication,OBJ-3,server:ug.ac.mak.der.security.AuthenticationService,AuthenticationServiceTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,Phase 02: unknown username forced through dummy Argon2 verifier; always 401.
 FR-02-08,P0,Local identity and authentication,OBJ-3,To be assigned,To be assigned,specified,,
 FR-02-09,P0,Local identity and authentication,OBJ-3,To be assigned,To be assigned,specified,,
 FR-02-10,P0,Local identity and authentication,OBJ-3,To be assigned,To be assigned,specified,,
-FR-03-01,P0,Authorisation and data isolation,OBJ-3,To be assigned,To be assigned,specified,,
+FR-03-01,P0,Authorisation and data isolation,OBJ-3,server:ug.ac.mak.der.security.EdgeRole;server:ug.ac.mak.der.security.SecurityConfig,ProvisioningControllerTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,Phase 02: ADMIN/OPERATOR/REVIEWER/SYNC_WORKER roles enforced on /provisioning/**.
 FR-03-02,P0,Authorisation and data isolation,OBJ-3,To be assigned,To be assigned,specified,,
 FR-03-03,P0,Authorisation and data isolation,OBJ-3,To be assigned,To be assigned,specified,,
 FR-03-04,P0,Authorisation and data isolation,OBJ-3,To be assigned,To be assigned,specified,,
-FR-03-05,P0,Authorisation and data isolation,OBJ-3,To be assigned,To be assigned,specified,,
+FR-03-05,P0,Authorisation and data isolation,OBJ-3,server:ug.ac.mak.der.security.SecurityConfig,AuthControllerTest;ProvisioningControllerTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,Phase 02: Spring Security filter chain + session cookie filter block anonymous access.
 FR-03-06,P0,Authorisation and data isolation,OBJ-3,To be assigned,To be assigned,specified,,
 FR-03-07,P0,Authorisation and data isolation,OBJ-3,To be assigned,To be assigned,specified,,
 FR-03-08,P0,Authorisation and data isolation,OBJ-3,To be assigned,To be assigned,specified,,
 FR-03-09,P0,Authorisation and data isolation,OBJ-3,To be assigned,To be assigned,specified,,
-FR-03-10,P0,Authorisation and data isolation,OBJ-3,To be assigned,To be assigned,specified,,
+FR-03-10,P0,Authorisation and data isolation,OBJ-3,server:ug.ac.mak.der.security.SecurityAuditRepository;database:security_audit,SecurityAuditRepositoryTest;AuthenticationServiceTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,"Phase 02: append-only audit for sign-in success/failure/rate-limit, provisioning, bootstrap."
 FR-04-01,P0,Local application/API execution,OBJ-3,To be assigned,To be assigned,specified,,
 FR-04-02,P0,Local application/API execution,OBJ-3,To be assigned,To be assigned,specified,,
 FR-04-03,P0,Local application/API execution,OBJ-3,To be assigned,To be assigned,specified,,
@@ -155,13 +155,13 @@ FR-15-09,P1,Operational administration,OBJ-3,To be assigned,To be assigned,speci
 FR-15-10,P1,Operational administration,OBJ-3,To be assigned,To be assigned,specified,,
 FR-16-01,P0,Security and audit,OBJ-3,To be assigned,To be assigned,specified,,
 FR-16-02,P0,Security and audit,OBJ-3,To be assigned,To be assigned,specified,,
-FR-16-03,P0,Security and audit,OBJ-3,To be assigned,To be assigned,specified,,
+FR-16-03,P0,Security and audit,OBJ-3,.env.local.example;deployment/dhis2/README.md;deployment/tls/README.md,T03,in-progress,docs/evaluation/evidence/phase-02/<commit>/gate-report.md,"Phase 02: env-driven secrets, .env.local gitignored; keystore guidance in deployment/tls."
 FR-16-04,P0,Security and audit,OBJ-3,To be assigned,To be assigned,specified,,
-FR-16-05,P0,Security and audit,OBJ-3,To be assigned,To be assigned,specified,,
-FR-16-06,P0,Security and audit,OBJ-3,To be assigned,To be assigned,specified,,
+FR-16-05,P0,Security and audit,OBJ-3,server:ug.ac.mak.der.security.SecurityAuditRepository,SecurityAuditRepositoryTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,Phase 02: security_audit append-only writer with structured JSONB payload.
+FR-16-06,P0,Security and audit,OBJ-3,server:ug.ac.mak.der.security.EdgeUserPrincipal[getCredentials=REDACTED];server:ug.ac.mak.der.web.AuthController,EdgeUserPrincipalTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,Phase 02: credentials masked in principal; password never logged by controllers.
 FR-16-07,P0,Security and audit,OBJ-3,To be assigned,To be assigned,specified,,
 FR-16-08,P0,Security and audit,OBJ-3,To be assigned,To be assigned,specified,,
-FR-16-09,P0,Security and audit,OBJ-3,To be assigned,To be assigned,specified,,
+FR-16-09,P0,Security and audit,OBJ-3,server:ug.ac.mak.der.security.AuthenticationService[rotates on every sign-in];server:ug.ac.mak.der.web.AuthController,AuthControllerTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,Phase 02: fresh opaque token issued per sign-in; sign-out revokes server-side.
 FR-16-10,P0,Security and audit,OBJ-3,To be assigned,To be assigned,specified,,
 FR-16-11,P0,Security and audit,OBJ-3,To be assigned,To be assigned,specified,,
 FR-16-12,P0,Security and audit,OBJ-3,To be assigned,To be assigned,specified,,

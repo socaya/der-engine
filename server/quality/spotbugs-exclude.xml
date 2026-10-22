@@ -12,4 +12,43 @@
     <Class name="ug.ac.mak.der.DerApplication"/>
     <Bug pattern="DM_EXIT"/>
   </Match>
+
+  <!-- Phase 02 records expose their collection components by design: Jackson
+       drives serialisation and never mutates return values; controllers that
+       accept CreateUserRequest copy into an EnumSet before use. The underlying
+       lists are either List.copyOf (immutable from Jackson 2.14+) or
+       EnumSet-backed; SpotBugs cannot see Jackson's intent, so EI_EXPOSE_REP /
+       EI_EXPOSE_REP2 are suppressed on these records only. Reviewed 2026-10-22. -->
+  <Match>
+    <Or>
+      <Class name="ug.ac.mak.der.security.EdgeUser"/>
+      <Class name="ug.ac.mak.der.web.AuthController$SignInResponse"/>
+      <Class name="ug.ac.mak.der.web.ProvisioningController$CreateUserRequest"/>
+      <Class name="ug.ac.mak.der.web.ProvisioningController$UserResponse"/>
+      <Class name="ug.ac.mak.der.web.ProvisioningController$ListResponse"/>
+    </Or>
+    <Or>
+      <Bug pattern="EI_EXPOSE_REP"/>
+      <Bug pattern="EI_EXPOSE_REP2"/>
+    </Or>
+  </Match>
+
+  <!-- EdgeUserPrincipal implements Serializable (per Spring Security's
+       AbstractAuthenticationToken) but DER sessions are never serialised to
+       disk; the opaque token on the client is independent of Java
+       serialisation. transient-not-restored is therefore an intentional
+       design choice. Reviewed 2026-10-22. -->
+  <Match>
+    <Class name="ug.ac.mak.der.security.EdgeUserPrincipal"/>
+    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+  </Match>
+
+  <!-- ProvisioningController receives SecurityAuditRepository, which is a
+       stateful Spring bean managed by the container. The 'externally
+       mutable' pattern does not apply — the field is the single-instance
+       managed bean the controller is wired against. Reviewed 2026-10-22. -->
+  <Match>
+    <Class name="ug.ac.mak.der.web.ProvisioningController"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
 </FindBugsFilter>

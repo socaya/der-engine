@@ -26,7 +26,7 @@
   </parent>
 
   <groupId>ug.ac.mak.der</groupId>
-  <artifactId>der-server</artifactId><version>0.2.0-SNAPSHOT</version>
+  <artifactId>der-server</artifactId><version>0.3.0-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>DER coordination server</name>
   <description>DHIS2 Edge Runtime coordination service (Phase 00 baseline)</description>
@@ -64,6 +64,17 @@
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
 
+    <!-- Phase 02: Spring Security + Argon2 password hashing. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>1.78.1</version>
+    </dependency>
+
     <!-- Persistence stack: wired now so Phase 02 migrations plug in without churn. -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -90,6 +101,11 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers</artifactId>
       <version>${testcontainers.version}</version>
@@ -110,6 +126,24 @@
   </dependencies>
 
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+      </resource>
+      <!-- Phase 02: Flyway reads its migrations from classpath:db/migration/.
+           The authoritative files live at repo-root `database/migrations/` per
+           repo layout; copy them into the server classpath at build time so a
+           packaged JAR carries them without a filesystem path dependency. -->
+      <resource>
+        <directory>${project.basedir}/../database/migrations</directory>
+        <targetPath>db/migration</targetPath>
+        <filtering>false</filtering>
+        <includes>
+          <include>**/*.sql</include>
+        </includes>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
@@ -222,11 +256,15 @@
                     <include>ug.ac.mak.der.web.*</include>
                     <include>ug.ac.mak.der.build.*</include>
                     <include>ug.ac.mak.der.dhis2.*</include>
+                    <include>ug.ac.mak.der.security.*</include>
                   </includes>
                   <excludes>
                     <exclude>ug.ac.mak.der.DerApplication</exclude>
                     <exclude>ug.ac.mak.der.ClockConfig</exclude>
                     <exclude>ug.ac.mak.der.dhis2.Dhis2Config</exclude>
+                    <!-- Spring Security config is boot-time plumbing; verified by
+                         the integration tests (SignInIT) rather than unit tests. -->
+                    <exclude>ug.ac.mak.der.security.SecurityConfig</exclude>
                   </excludes>
                   <limits>
                     <limit>

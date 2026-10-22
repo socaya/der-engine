@@ -13,7 +13,30 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Phase 02 work not yet started.
+- Phase 03 work not yet started.
+
+## [0.3.0] — unreleased
+
+Phase 02 — edge identity, offline sessions, authorisation (see `docs/releases/der-0.3.0.md`).
+
+- Added: `database/migrations/V001__phase02_identity.sql` with `edge_node`,
+  `edge_configuration`, `edge_user`, `edge_role`, `edge_credential`,
+  `edge_session`, `scope_assignment`, `security_audit`. Flyway now runs on boot.
+- Added: `ug.ac.mak.der.security` package — `EdgeUser`, `EdgeSession`,
+  `EdgeRole`, `PasswordHasher` (Argon2id), `SessionIssuer`, `RateLimiter`,
+  `AuthenticationService`, `SessionValidationService`, `BootstrapAdminProvisioner`,
+  `SessionCookieAuthenticationFilter`, `SecurityConfig`.
+- Added: `AuthController` and `ProvisioningController` endpoints at
+  `/edge-api/v1/auth/*` and `/edge-api/v1/provisioning/*`.
+- Added: `security_audit` append-only logger; writes on every sign-in, provisioning
+  and bootstrap event.
+- Added: `deployment/tls/README.md` self-signed-cert runbook (not enforced at Phase 02).
+- Added: `.env.local.example` template; `.env.local` gitignored.
+- Changed: `VERSION`, `pom.xml`, both `package.json` → `0.3.0-SNAPSHOT`.
+- Changed: `application.yml` reads datasource + Flyway + security config from
+  the environment; test profile excludes DB autoconfig.
+
+[0.3.0]: https://github.com/socaya/der-engine/releases/tag/der-0.3.0
 
 ## [0.2.0] — unreleased
 
