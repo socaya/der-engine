@@ -13,7 +13,19 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Phase 08 (NFR evaluation on pilot hardware) and Phase 09 (pilot deployment runbook) not yet started.
+- Phase 09 (pilot deployment runbook) not yet started.
+
+## [0.8.0-alpha.1] — unreleased
+
+Phase 08 — NFR evaluation harness (ADR-0013).
+
+- Added: `scripts/evaluation/` Python-stdlib-only harness (der_bench, backlog_recovery, resource_sampler, backup_integrity + run_phase_08.sh orchestrator).
+- Added: `docs/evaluation/phase-08-methodology.md` operator runbook with interpretation guidance for NFR-15..19, 27, 29, 35 plus a pointer table for the design NFRs.
+- Added: `docs/evaluation/evidence/phase-08/README.md` explaining the pilot bundle layout; dev-laptop numbers deliberately uncommitted.
+- Added: ADR-0013 NFR evaluation harness.
+- Added: 7 Python unit tests covering the measurement scripts via in-process ThreadingHTTPServer.
+
+[0.8.0-alpha.1]: https://github.com/socaya/der-engine/releases/tag/der-0.8.0-alpha.1
 
 ## [0.7.0-alpha.1] — unreleased
 
