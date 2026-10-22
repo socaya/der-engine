@@ -13,24 +13,51 @@ import { EmptyBlock, ErrorBlock, LoadingBlock, OfflineBanner } from '../componen
 
 // EA-01 Setup welcome / home ------------------------------------------
 export function EASetupWelcome({ api = edgeApi }:
-    { api?: Pick<typeof edgeApi, 'health' | 'compat'> } = {}): JSX.Element {
+    { api?: Pick<typeof edgeApi, 'health' | 'compat' | 'getOrgUnitBinding'
+      | 'bindOrgUnit' | 'listOrgUnits'> } = {}): JSX.Element {
   const [h, setH] = useState<edgeApi.HealthResponse | null>(null);
   const [c, setC] = useState<edgeApi.CompatSnapshot | null>(null);
+  const [binding, setBinding] = useState<edgeApi.OrgUnitBinding | null>(null);
+  const [orgUnits, setOrgUnits] = useState<edgeApi.OrgUnitRow[]>([]);
+  const [selected, setSelected] = useState('');
+  const [confirmRebind, setConfirmRebind] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [hr, cr] = await Promise.all([api.health(), api.compat()]);
-        if (!cancelled) { setH(hr); setC(cr); }
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+
+  async function reload(): Promise<void> {
+    try {
+      const [hr, cr, br] = await Promise.all([
+        api.health(), api.compat(), api.getOrgUnitBinding(),
+      ]);
+      setH(hr); setC(cr); setBinding(br);
+      if (!br.bound) {
+        const ous = await api.listOrgUnits();
+        setOrgUnits(ous.organisationUnits);
       }
-    })().catch(() => undefined);
-    return () => { cancelled = true; };
-  }, [api]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, [api]);
+
+  async function doBind(): Promise<void> {
+    if (!selected) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api.bindOrgUnit(selected, confirmRebind);
+      await reload();
+      setSelected('');
+      setConfirmRebind(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (error) return <ErrorBlock title="Setup probe failed" testId="ea01-error">{error}</ErrorBlock>;
-  if (!h || !c) return <LoadingBlock testId="ea01-loading" />;
+  if (!h || !c || !binding) return <LoadingBlock testId="ea01-loading" />;
   return (
     <div className="ea-screen">
       <h1 data-test="ea01-heading">Setup overview</h1>
@@ -40,7 +67,68 @@ export function EASetupWelcome({ api = edgeApi }:
         <dt>DHIS2 central version</dt>
         <dd data-test="ea01-central">{c.centralVersion ?? 'unknown'}</dd>
         <dt>Compat profile</dt><dd data-test="ea01-profile">{c.profileName ?? '—'}</dd>
+        <dt>Bound orgUnit</dt>
+        <dd data-test="ea01-orgunit">
+          {binding.bound
+            ? `${binding.orgUnitDisplayName} (${binding.orgUnitPath})`
+            : <span data-test="ea01-orgunit-unbound">— not bound; writes are rejected until an admin picks an orgUnit.</span>}
+        </dd>
       </dl>
+      {!binding.bound && (
+        <section className="ea-ou-picker" data-test="ea01-orgunit-picker">
+          <h2>Bind this edge to an orgUnit</h2>
+          {orgUnits.length === 0
+            ? <EmptyBlock title="No orgUnits in local mirror" testId="ea01-orgunit-empty">
+                Run metadata sync first (Jobs tab) so the orgUnit tree is available locally.
+              </EmptyBlock>
+            : (
+              <>
+                <label>
+                  <span>Select orgUnit</span>
+                  <select data-test="ea01-orgunit-select"
+                    value={selected} onChange={(e) => { setSelected(e.target.value); }}>
+                    <option value="">— choose —</option>
+                    {orgUnits.map((ou) => (
+                      <option key={ou.id} value={ou.id} data-test={`ea01-orgunit-opt-${ou.id}`}>
+                        {ou.displayName}{ou.path ? ` (${ou.path})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button type="button" data-test="ea01-orgunit-bind"
+                  disabled={!selected || saving}
+                  onClick={() => { doBind().catch(() => undefined); }}>
+                  {saving ? 'Binding…' : 'Bind'}
+                </button>
+              </>
+            )}
+        </section>
+      )}
+      {binding.bound && (
+        <section className="ea-ou-rebind" data-test="ea01-orgunit-rebind">
+          <details>
+            <summary>Rebind to a different orgUnit…</summary>
+            <p>Rebinding does not purge local data; previous-OU rows are
+               retained for admin triage.</p>
+            <label>
+              <span>New orgUnit id</span>
+              <input type="text" data-test="ea01-orgunit-rebind-id"
+                value={selected} onChange={(e) => { setSelected(e.target.value); }} />
+            </label>
+            <label>
+              <input type="checkbox" data-test="ea01-orgunit-rebind-confirm"
+                checked={confirmRebind}
+                onChange={(e) => { setConfirmRebind(e.target.checked); }} />
+              I confirm this rebind.
+            </label>
+            <button type="button" data-test="ea01-orgunit-rebind-submit"
+              disabled={!selected || !confirmRebind || saving}
+              onClick={() => { doBind().catch(() => undefined); }}>
+              Rebind
+            </button>
+          </details>
+        </section>
+      )}
       <nav><Link to="/provisioning/users" data-test="ea01-provisioning">Provisioning</Link></nav>
     </div>
   );

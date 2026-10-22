@@ -405,3 +405,35 @@ export function readSettings(): Promise<SettingsPayload> {
 export function saveSettings(body: SettingsPayload): Promise<SettingsPayload> {
   return request<SettingsPayload>('POST', '/edge-api/v1/admin/settings', body);
 }
+
+// ---- der-1.1.0 Initiative 5: orgUnit binding (ADR-0015) ----
+
+export interface OrgUnitBinding {
+  bound: boolean;
+  orgUnitId: string | null;
+  orgUnitDisplayName: string | null;
+  orgUnitPath: string | null;
+  boundAt: string | null;
+  boundBy: string | null;
+}
+
+export interface OrgUnitRow {
+  id: string;
+  displayName: string;
+  path?: string;
+  level?: number;
+}
+
+export function getOrgUnitBinding(): Promise<OrgUnitBinding> {
+  return request<OrgUnitBinding>('GET', '/edge-api/v1/system/org-unit');
+}
+
+export function bindOrgUnit(orgUnitId: string, confirm = false): Promise<OrgUnitBinding> {
+  return request<OrgUnitBinding>('POST', '/edge-api/v1/system/org-unit',
+    { orgUnitId, confirm });
+}
+
+export function listOrgUnits(): Promise<{ organisationUnits: OrgUnitRow[] }> {
+  return request<{ organisationUnits: OrgUnitRow[] }>('GET',
+    '/api/organisationUnits?fields=id,displayName,path,level&paging=false');
+}

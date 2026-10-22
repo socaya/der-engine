@@ -108,6 +108,10 @@ describe('edgeApi route coverage', () => {
     ['diagnostics',       () => api.diagnostics(),               '/edge-api/v1/admin/diagnostics',      'GET',    undefined],
     ['readSettings',      () => api.readSettings(),              '/edge-api/v1/admin/settings',         'GET',    undefined],
     ['saveSettings',      () => api.saveSettings({ cron: { x: '0' }, featureFlags: {}, roles: [] }), '/edge-api/v1/admin/settings', 'POST', { cron: { x: '0' }, featureFlags: {}, roles: [] }],
+    ['getOrgUnitBinding', () => api.getOrgUnitBinding(),         '/edge-api/v1/system/org-unit',        'GET',    undefined],
+    ['bindOrgUnit',       () => api.bindOrgUnit('ou-1'),         '/edge-api/v1/system/org-unit',        'POST',   { orgUnitId: 'ou-1', confirm: false }],
+    ['bindOrgUnit confirm', () => api.bindOrgUnit('ou-2', true), '/edge-api/v1/system/org-unit',        'POST',   { orgUnitId: 'ou-2', confirm: true }],
+    ['listOrgUnits',      () => api.listOrgUnits(),              '/api/organisationUnits?fields=id,displayName,path,level&paging=false', 'GET', undefined],
   ])('%s hits the expected URL + method', async (_name, call, path, method, expectedBody) => {
     fetchMock.mockResolvedValue(respond(200, okJson));
     await call();

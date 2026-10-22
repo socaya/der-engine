@@ -20,26 +20,123 @@ const compatSnap = {
   capabilities: {},
 };
 
+const unboundBinding = {
+  bound: false, orgUnitId: null, orgUnitDisplayName: null, orgUnitPath: null,
+  boundAt: null, boundBy: null,
+};
+const boundBinding = {
+  bound: true, orgUnitId: 'ou-1', orgUnitDisplayName: 'Clinic',
+  orgUnitPath: '/root/ou-1', boundAt: '2026-10-22T00:00:00Z',
+  boundBy: 'u1',
+};
+
 describe('EA-01 SetupWelcome', () => {
-  it('renders', async () => {
-    const api = { health: vi.fn().mockResolvedValue(health()),
-                  compat: vi.fn().mockResolvedValue(compatSnap) };
+  it('renders bound state', async () => {
+    const api = {
+      health: vi.fn().mockResolvedValue(health()),
+      compat: vi.fn().mockResolvedValue(compatSnap),
+      getOrgUnitBinding: vi.fn().mockResolvedValue(boundBinding),
+      bindOrgUnit: vi.fn(),
+      listOrgUnits: vi.fn(),
+    };
     renderWithProviders(<EASetupWelcome api={api as never} />);
     await waitFor(() => expect(screen.getByTestId('ea01-heading')).toBeInTheDocument());
     expect(screen.getByTestId('ea01-profile')).toHaveTextContent('V2_44');
+    expect(screen.getByTestId('ea01-orgunit')).toHaveTextContent('Clinic');
   });
   it('offline banner', async () => {
     renderWithProviders(<EASetupWelcome api={{
       health: vi.fn().mockResolvedValue(health(false)),
       compat: vi.fn().mockResolvedValue(compatSnap),
+      getOrgUnitBinding: vi.fn().mockResolvedValue(boundBinding),
+      bindOrgUnit: vi.fn(),
+      listOrgUnits: vi.fn(),
     } as never} />);
     await waitFor(() => expect(screen.getByTestId('ea01-offline')).toBeInTheDocument());
   });
   it('error', async () => {
     renderWithProviders(<EASetupWelcome api={{
       health: vi.fn().mockRejectedValue('x'), compat: vi.fn(),
+      getOrgUnitBinding: vi.fn(), bindOrgUnit: vi.fn(), listOrgUnits: vi.fn(),
     } as never} />);
     await waitFor(() => expect(screen.getByTestId('ea01-error')).toBeInTheDocument());
+  });
+  it('shows orgUnit picker when unbound and lists OUs', async () => {
+    const api = {
+      health: vi.fn().mockResolvedValue(health()),
+      compat: vi.fn().mockResolvedValue(compatSnap),
+      getOrgUnitBinding: vi.fn().mockResolvedValueOnce(unboundBinding)
+                                 .mockResolvedValue(boundBinding),
+      bindOrgUnit: vi.fn().mockResolvedValue(boundBinding),
+      listOrgUnits: vi.fn().mockResolvedValue({
+        organisationUnits: [{ id: 'ou-1', displayName: 'Clinic', path: '/root/ou-1' }],
+      }),
+    };
+    renderWithProviders(<EASetupWelcome api={api as never} />);
+    await waitFor(() => expect(screen.getByTestId('ea01-orgunit-picker')).toBeInTheDocument());
+    expect(screen.getByTestId('ea01-orgunit-opt-ou-1')).toBeInTheDocument();
+  });
+  it('bind path happy', async () => {
+    const api = {
+      health: vi.fn().mockResolvedValue(health()),
+      compat: vi.fn().mockResolvedValue(compatSnap),
+      getOrgUnitBinding: vi.fn().mockResolvedValueOnce(unboundBinding)
+                                 .mockResolvedValue(boundBinding),
+      bindOrgUnit: vi.fn().mockResolvedValue(boundBinding),
+      listOrgUnits: vi.fn().mockResolvedValue({
+        organisationUnits: [{ id: 'ou-1', displayName: 'Clinic', path: '/root/ou-1' }],
+      }),
+    };
+    renderWithProviders(<EASetupWelcome api={api as never} />);
+    await waitFor(() => expect(screen.getByTestId('ea01-orgunit-picker')).toBeInTheDocument());
+    const sel = screen.getByTestId('ea01-orgunit-select') as HTMLSelectElement;
+    sel.value = 'ou-1';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    await userEvent.click(screen.getByTestId('ea01-orgunit-bind'));
+    await waitFor(() => expect(api.bindOrgUnit).toHaveBeenCalledWith('ou-1', false));
+  });
+  it('bind error path', async () => {
+    const api = {
+      health: vi.fn().mockResolvedValue(health()),
+      compat: vi.fn().mockResolvedValue(compatSnap),
+      getOrgUnitBinding: vi.fn().mockResolvedValue(unboundBinding),
+      bindOrgUnit: vi.fn().mockRejectedValue(new Error('OU_NOT_IN_MIRROR')),
+      listOrgUnits: vi.fn().mockResolvedValue({
+        organisationUnits: [{ id: 'ou-1', displayName: 'Clinic', path: '/root/ou-1' }],
+      }),
+    };
+    renderWithProviders(<EASetupWelcome api={api as never} />);
+    await waitFor(() => expect(screen.getByTestId('ea01-orgunit-picker')).toBeInTheDocument());
+    const sel = screen.getByTestId('ea01-orgunit-select') as HTMLSelectElement;
+    sel.value = 'ou-1';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    await userEvent.click(screen.getByTestId('ea01-orgunit-bind'));
+    await waitFor(() => expect(screen.getByTestId('ea01-error')).toBeInTheDocument());
+  });
+  it('empty orgUnit list shows empty-block', async () => {
+    renderWithProviders(<EASetupWelcome api={{
+      health: vi.fn().mockResolvedValue(health()),
+      compat: vi.fn().mockResolvedValue(compatSnap),
+      getOrgUnitBinding: vi.fn().mockResolvedValue(unboundBinding),
+      bindOrgUnit: vi.fn(),
+      listOrgUnits: vi.fn().mockResolvedValue({ organisationUnits: [] }),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('ea01-orgunit-empty')).toBeInTheDocument());
+  });
+  it('rebind UI accepts id + confirm', async () => {
+    const api = {
+      health: vi.fn().mockResolvedValue(health()),
+      compat: vi.fn().mockResolvedValue(compatSnap),
+      getOrgUnitBinding: vi.fn().mockResolvedValue(boundBinding),
+      bindOrgUnit: vi.fn().mockResolvedValue(boundBinding),
+      listOrgUnits: vi.fn(),
+    };
+    renderWithProviders(<EASetupWelcome api={api as never} />);
+    await waitFor(() => expect(screen.getByTestId('ea01-orgunit-rebind')).toBeInTheDocument());
+    await userEvent.type(screen.getByTestId('ea01-orgunit-rebind-id'), 'ou-2');
+    await userEvent.click(screen.getByTestId('ea01-orgunit-rebind-confirm'));
+    await userEvent.click(screen.getByTestId('ea01-orgunit-rebind-submit'));
+    await waitFor(() => expect(api.bindOrgUnit).toHaveBeenCalledWith('ou-2', true));
   });
 });
 

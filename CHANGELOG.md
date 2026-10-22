@@ -15,6 +15,19 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.1.0-alpha.1] — unreleased
+
+Initiative 5 — edge-to-orgUnit binding (ADR-0015).
+
+- Added: V012 schema — `edge_node.org_unit_id/display_name/path/bound_at/bound_by` + consistency check.
+- Added: `ug.ac.mak.der.orgunit` package — `EdgeOrgUnitBinding`, `EdgeOrgUnitBindingRepository`, `OrgUnitBindingService`, `OrgUnitScopeInterceptor`, `OrgUnitBodyCachingFilter`, `OrgUnitWebConfig`.
+- Added: `OrgUnitBindingController` — `GET`/`POST /edge-api/v1/system/org-unit` (ADMIN-gated for writes; `confirm=true` required for rebind).
+- Added: EA-01 admin screen now surfaces the bound OU, offers an OU picker when unbound, and a rebind dialog when bound.
+- Added: ADR-0015 (sub-tree binding, interceptor-level enforcement, no auto-purge, default max_depth=3).
+- Added: 45 server tests covering the record, repository, service, interceptor, body-caching filter, and controller.
+
+[1.1.0-alpha.1]: https://github.com/socaya/der-engine/releases/tag/der-1.1.0-alpha.1
+
 ## [1.0.0-rc.2] — unreleased
 
 Addresses roadmap gaps G2/G3/G4/G5. Only G1 (pilot evidence) remains before stable.
