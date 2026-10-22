@@ -1,6 +1,8 @@
 package ug.ac.mak.der.web;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -32,6 +34,8 @@ import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeSession;
 import ug.ac.mak.der.security.EdgeUser;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
+import org.quartz.Scheduler;
+
 import ug.ac.mak.der.workflows.backup.BackupRepository;
 import ug.ac.mak.der.workflows.backup.BackupRun;
 
@@ -43,6 +47,7 @@ class BackupControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean BackupRepository repo;
+    @MockBean Scheduler scheduler;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -74,6 +79,19 @@ class BackupControllerTest {
                         .content("{\"kind\":\"FULL\"}"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.runId").value(5));
+        verify(scheduler).triggerJob(any(org.quartz.JobKey.class));
+    }
+
+    @Test
+    void requestSwallowsSchedulerException() throws Exception {
+        when(repo.insert(any())).thenReturn(sample(BackupRun.Status.REQUESTED));
+        doThrow(new org.quartz.SchedulerException("boom"))
+                .when(scheduler).triggerJob(any(org.quartz.JobKey.class));
+        mockMvc.perform(post("/edge-api/v1/backup/request")
+                        .with(as(EdgeRole.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"kind\":\"FULL\"}"))
+                .andExpect(status().isAccepted());
     }
 
     @Test
@@ -161,7 +179,7 @@ class BackupControllerTest {
                 BackupRun.Kind.FULL, BackupRun.Status.SUCCESS, null,
                 archive.toString(), 4L, null, null, null, null);
         when(repo.findById(5L)).thenReturn(Optional.of(row));
-        final BackupController ctl = new BackupController(repo, root.toString());
+        final BackupController ctl = new BackupController(repo, null, root.toString());
         final org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> resp =
                 ctl.download(5L);
         org.assertj.core.api.Assertions.assertThat(resp.getStatusCode().value()).isEqualTo(200);

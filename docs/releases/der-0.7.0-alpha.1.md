@@ -27,8 +27,12 @@
   - `RemoteArchiveStore` — plain `HttpClient` PUT/GET against an
     S3-compatible endpoint. Keeps DER free of the AWS SDK; operators
     needing SigV4 override the bean in a profile.
-- `BackupDrainJob` — new Quartz job drains both worklists; triggered
-  every 2 min (`der.backup.drain.cron`).
+- `BackupDrainJob` — new Quartz job drains both worklists. Backup/restore
+  is admin-initiated, not continuous, so the cron is only a safety net
+  at **every 15 min** (`der.backup.drain.cron`). The controllers call
+  `Scheduler.triggerJob()` immediately after inserting a REQUESTED row,
+  so admin clicks start work in milliseconds — the cron just catches
+  rows that slipped through (crash, pause/resume, missed trigger).
 - `BackupController` (`/edge-api/v1/backup/**`) — `POST /request`,
   `GET /runs`, `GET /runs/{id}`, `GET /runs/{id}/archive` (streams the
   file, path validated against local root).
@@ -48,7 +52,7 @@
 | `der.backup.pg-dump` | `pg_dump` | Binary path override. |
 | `der.backup.pg-restore` | `pg_restore` | Binary path override. |
 | `der.backup.timeout-seconds` | `900` | Per-run subprocess timeout. |
-| `der.backup.drain.cron` | `0 */2 * * * ?` | Quartz schedule. |
+| `der.backup.drain.cron` | `0 */15 * * * ?` | Quartz safety-net; drains fire immediately on admin request. |
 | `der.backup.remote.url` | *(blank)* | S3-compatible base URL (optional). |
 | `der.backup.remote.bearer` | *(blank)* | Bearer token for the remote. |
 | `der.backup.remote.timeout-seconds` | `300` | HTTP timeout. |

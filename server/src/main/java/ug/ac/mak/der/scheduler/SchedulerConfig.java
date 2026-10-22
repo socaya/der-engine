@@ -111,7 +111,7 @@ public class SchedulerConfig {
 
     @Bean
     public Trigger backupDrainTrigger(final JobDetail backupDrainJobDetail,
-                                       @Value("${der.backup.drain.cron:0 */2 * * * ?}")
+                                       @Value("${der.backup.drain.cron:0 */15 * * * ?}")
                                        final String cron) {
         return TriggerBuilder.newTrigger()
                 .forJob(backupDrainJobDetail)

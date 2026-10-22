@@ -15,6 +15,11 @@ import java.util.Objects;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.quartz.JobKey;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import ug.ac.mak.der.scheduler.BackupDrainJob;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflows.backup.RestoreRepository;
 import ug.ac.mak.der.workflows.backup.RestoreRun;
@@ -37,13 +43,18 @@ import ug.ac.mak.der.workflows.backup.RestoreRun;
 @RequestMapping(path = "/edge-api/v1/restore", produces = MediaType.APPLICATION_JSON_VALUE)
 public class RestoreController {
 
+    private static final Logger LOG = LoggerFactory.getLogger(RestoreController.class);
+
     private final RestoreRepository repo;
     private final Path uploadRoot;
+    private final Scheduler scheduler;
 
     public RestoreController(final RestoreRepository repo,
+                              final Scheduler scheduler,
                               @Value("${der.backup.upload.root:${user.home}/.der/uploads}")
                               final String uploadRoot) {
         this.repo = Objects.requireNonNull(repo, "repo");
+        this.scheduler = scheduler;
         this.uploadRoot = Paths.get(uploadRoot).toAbsolutePath().normalize();
     }
 
@@ -66,7 +77,19 @@ public class RestoreController {
         final RestoreRun created = repo.insert(new RestoreRun(null, Instant.now(),
                 principal.userId(), body.source(), RestoreRun.Status.REQUESTED,
                 null, null, null, null, kind));
+        kickDrain();
         return ResponseEntity.accepted().body(toJson(created));
+    }
+
+    private void kickDrain() {
+        if (scheduler == null) {
+            return;
+        }
+        try {
+            scheduler.triggerJob(JobKey.jobKey(BackupDrainJob.JOB_NAME));
+        } catch (SchedulerException ex) {
+            LOG.warn("could not kick BackupDrainJob: {}", ex.getMessage());
+        }
     }
 
     @PostMapping(path = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

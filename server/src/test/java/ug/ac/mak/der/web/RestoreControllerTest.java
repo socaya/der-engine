@@ -1,6 +1,8 @@
 package ug.ac.mak.der.web;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -31,6 +33,8 @@ import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeSession;
 import ug.ac.mak.der.security.EdgeUser;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
+import org.quartz.Scheduler;
+
 import ug.ac.mak.der.workflows.backup.RestoreRepository;
 import ug.ac.mak.der.workflows.backup.RestoreRun;
 
@@ -42,6 +46,7 @@ class RestoreControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean RestoreRepository repo;
+    @MockBean Scheduler scheduler;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -92,6 +97,19 @@ class RestoreControllerTest {
                         .content("{\"kind\":\"LOCAL\",\"source\":\"src.dump\"}"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.kind").value("LOCAL"));
+        verify(scheduler).triggerJob(any(org.quartz.JobKey.class));
+    }
+
+    @Test
+    void requestSwallowsSchedulerException() throws Exception {
+        when(repo.insert(any())).thenReturn(sample(RestoreRun.Status.REQUESTED));
+        doThrow(new org.quartz.SchedulerException("boom"))
+                .when(scheduler).triggerJob(any(org.quartz.JobKey.class));
+        mockMvc.perform(post("/edge-api/v1/restore/request")
+                        .with(as(EdgeRole.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"kind\":\"LOCAL\",\"source\":\"src.dump\"}"))
+                .andExpect(status().isAccepted());
     }
 
     @Test

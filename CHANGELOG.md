@@ -22,7 +22,7 @@ Phase 07 — backup / restore engine (ADR-0012).
 - Added: V011 schema — backup_run.{archive_path, archive_bytes, remote_key, started_at, finished_at, pg_dump_version}, restore_run.{started_at, finished_at, archive_path, kind}.
 - Added: BackupWorker + RestoreWorker subprocess pipeline (pg_dump / pg_restore).
 - Added: RemoteArchiveStore — plain-HttpClient S3-compatible push/pull.
-- Added: BackupDrainJob Quartz job on `der.backup.drain.cron` (default 2 min).
+- Added: BackupDrainJob Quartz job as a 15-minute safety-net on `der.backup.drain.cron`; controllers call `Scheduler.triggerJob()` on insert so admin requests run immediately rather than waiting for the next cron tick.
 - Added: BackupController + RestoreController REST surfaces (ADMIN role).
 - Added: multipart upload staging for RESTORE_KIND=UPLOAD.
 - Added: ADR-0012 Backup and restore engine.

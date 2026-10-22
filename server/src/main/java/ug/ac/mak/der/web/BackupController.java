@@ -12,6 +12,11 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.quartz.JobKey;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -27,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import ug.ac.mak.der.scheduler.BackupDrainJob;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflows.backup.BackupRepository;
 import ug.ac.mak.der.workflows.backup.BackupRun;
@@ -36,13 +42,18 @@ import ug.ac.mak.der.workflows.backup.BackupRun;
 @RequestMapping(path = "/edge-api/v1/backup", produces = MediaType.APPLICATION_JSON_VALUE)
 public class BackupController {
 
+    private static final Logger LOG = LoggerFactory.getLogger(BackupController.class);
+
     private final BackupRepository repo;
     private final Path localRoot;
+    private final Scheduler scheduler;
 
     public BackupController(final BackupRepository repo,
+                             final Scheduler scheduler,
                              @Value("${der.backup.local.root:${user.home}/.der/backups}")
                              final String localRoot) {
         this.repo = Objects.requireNonNull(repo, "repo");
+        this.scheduler = scheduler;
         this.localRoot = Paths.get(localRoot).toAbsolutePath().normalize();
     }
 
@@ -57,7 +68,19 @@ public class BackupController {
         final BackupRun created = repo.insert(new BackupRun(null, Instant.now(),
                 principal.userId(), kind, BackupRun.Status.REQUESTED, null,
                 null, null, null, null, null, null));
+        kickDrain();
         return ResponseEntity.accepted().body(toJson(created));
+    }
+
+    private void kickDrain() {
+        if (scheduler == null) {
+            return;
+        }
+        try {
+            scheduler.triggerJob(JobKey.jobKey(BackupDrainJob.JOB_NAME));
+        } catch (SchedulerException ex) {
+            LOG.warn("could not kick BackupDrainJob: {}", ex.getMessage());
+        }
     }
 
     @GetMapping("/runs")

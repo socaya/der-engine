@@ -54,6 +54,8 @@
     <Or>
       <Class name="ug.ac.mak.der.web.ProvisioningController"/>
       <Class name="ug.ac.mak.der.web.MetadataSyncController"/>
+      <Class name="ug.ac.mak.der.web.BackupController"/>
+      <Class name="ug.ac.mak.der.web.RestoreController"/>
       <Class name="ug.ac.mak.der.dhis2emulator.MetadataListController"/>
     </Or>
     <Bug pattern="EI_EXPOSE_REP2"/>
