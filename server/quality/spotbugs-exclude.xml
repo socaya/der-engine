@@ -44,12 +44,16 @@
     <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
   </Match>
 
-  <!-- ProvisioningController receives SecurityAuditRepository, which is a
-       stateful Spring bean managed by the container. The 'externally
-       mutable' pattern does not apply — the field is the single-instance
-       managed bean the controller is wired against. Reviewed 2026-10-22. -->
+  <!-- Controllers receive stateful Spring beans managed by the container.
+       The 'externally mutable' pattern does not apply — the fields are the
+       single-instance managed beans the controller is wired against.
+       Reviewed 2026-10-22. -->
   <Match>
-    <Class name="ug.ac.mak.der.web.ProvisioningController"/>
+    <Or>
+      <Class name="ug.ac.mak.der.web.ProvisioningController"/>
+      <Class name="ug.ac.mak.der.web.MetadataSyncController"/>
+      <Class name="ug.ac.mak.der.dhis2emulator.MetadataListController"/>
+    </Or>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
 </FindBugsFilter>

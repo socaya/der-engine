@@ -238,6 +238,38 @@ class Dhis2ReferenceClientTest {
     }
 
     @Test
+    void fetchJsonRejectsBlankOrNonAbsolutePath() {
+        final Dhis2ReferenceClient client = new Dhis2ReferenceClient(mock(HttpClient.class), mapper,
+                new Dhis2Properties.Central("http://h/dhis", null, null, 5000));
+        assertThatThrownBy(() -> client.fetchJson(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client.fetchJson(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client.fetchJson("relative"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void fetchJsonHitsRequestedPath() throws Exception {
+        final HttpClient http = mock(HttpClient.class);
+        @SuppressWarnings("unchecked")
+        final HttpResponse<String> ok = mock(HttpResponse.class);
+        when(ok.statusCode()).thenReturn(200);
+        when(ok.body()).thenReturn("{\"organisationUnits\":[]}");
+        when(http.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(ok);
+
+        final Dhis2ReferenceClient client = new Dhis2ReferenceClient(http, mapper,
+                new Dhis2Properties.Central("http://host/dhis", null, null, 5000));
+        final var body = client.fetchJson("/api/organisationUnits?fields=:all&paging=false");
+        assertThat(body.get("organisationUnits").isArray()).isTrue();
+
+        final ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(http).send(req.capture(), any());
+        assertThat(req.getValue().uri())
+                .isEqualTo(URI.create("http://host/dhis/api/organisationUnits?fields=:all&paging=false"));
+    }
+
+    @Test
     void respectsConfiguredTimeoutLowerBound() throws Exception {
         // 100 ms is below the 1000 ms floor the client enforces; it should still
         // issue the request with a request.timeout() of at least 1 second.

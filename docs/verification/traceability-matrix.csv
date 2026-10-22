@@ -30,23 +30,23 @@ FR-03-08,P0,Authorisation and data isolation,OBJ-3,To be assigned,To be assigned
 FR-03-09,P0,Authorisation and data isolation,OBJ-3,To be assigned,To be assigned,specified,,
 FR-03-10,P0,Authorisation and data isolation,OBJ-3,server:ug.ac.mak.der.security.SecurityAuditRepository;database:security_audit,SecurityAuditRepositoryTest;AuthenticationServiceTest,in-progress,docs/evaluation/evidence/phase-02/<commit>/test-results/,"Phase 02: append-only audit for sign-in success/failure/rate-limit, provisioning, bootstrap."
 FR-04-01,P0,Local application/API execution,OBJ-3,To be assigned,To be assigned,specified,,
-FR-04-02,P0,Local application/API execution,OBJ-3,To be assigned,To be assigned,specified,,
-FR-04-03,P0,Local application/API execution,OBJ-3,To be assigned,To be assigned,specified,,
-FR-04-04,P0,Local application/API execution,OBJ-3,server:ug.ac.mak.der.dhis2.*;server:ug.ac.mak.der.web.Dhis2CompatibilityController,T20;scripts/verify_dhis2_reference.py,in-progress,docs/evaluation/evidence/phase-01/<commit>/compatibility/*.json,Phase 01: adapter + live probe shipped against pin 2.44-SNAPSHOT (ADR-0002).
+FR-04-02,P0,Local application/API execution,OBJ-3,server:ug.ac.mak.der.dhis2emulator.*;server:ug.ac.mak.der.metadata.*,T04;T20;MetadataListControllerTest;MetadataSyncServiceTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-sync.json,Phase 03b: DER /api/* serves metadata from local mirror; no central round-trip at read time.
+FR-04-03,P0,Local application/API execution,OBJ-3,server:ug.ac.mak.der.metadata.MetadataMirrorRepository,T04;MetadataMirrorRepositoryTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-sync.json,Phase 03b: five metadata entity types mirrored locally.
+FR-04-04,P0,Local application/API execution,OBJ-3,server:ug.ac.mak.der.dhis2emulator.*;server:ug.ac.mak.der.dhis2.Dhis2ReferenceClient,T20;live /api/* probe,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-sync.json,Phase 03b: DER /api/* responses carry DHIS2 2.44 pager + resource keys; byte-shape compatible for the read subset.
 FR-04-05,P0,Local application/API execution,OBJ-3,To be assigned,To be assigned,specified,,
-FR-04-06,P0,Local application/API execution,OBJ-3,To be assigned,To be assigned,specified,,
+FR-04-06,P0,Local application/API execution,OBJ-3,server:ug.ac.mak.der.web.MetadataSyncController;server:ug.ac.mak.der.workflows.SyncStatusService,MetadataSyncControllerTest;SyncStatusServiceTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/,"Phase 03b: 503 UNREACHABLE, 502 BAD_RESPONSE distinct from 2xx; SyncStatus returns explicit UNKNOWN."
 FR-04-07,P0,Local application/API execution,OBJ-3,To be assigned,To be assigned,specified,,
 FR-04-08,P0,Local application/API execution,OBJ-3,To be assigned,To be assigned,specified,,
 FR-04-09,P0,Local application/API execution,OBJ-3,To be assigned,To be assigned,specified,,
 FR-04-10,P0,Local application/API execution,OBJ-3,docs/verification/compatibility/supported-matrix.csv;server:ug.ac.mak.der.web.SystemController,T20;scripts/verify_dhis2_reference.py,in-progress,docs/evaluation/evidence/phase-01/<commit>/compatibility/*.json,Phase 01: manifest exists; health endpoint reports dhis2Reference.version.
-FR-05-01,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
-FR-05-02,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
-FR-05-03,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
-FR-05-04,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
+FR-05-01,P0,Metadata and rules,OBJ-1;OBJ-3,database:V002__phase03_metadata_mirror.sql;server:ug.ac.mak.der.metadata.MetadataSyncService,T04;MetadataSyncServiceTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-sync.json,Phase 03b: closure captured for OU/DE/DS/P/TET via /api/{...}?fields=:all.
+FR-05-02,P0,Metadata and rules,OBJ-1;OBJ-3,database:metadata_data_element;server:ug.ac.mak.der.metadata.MirroredDataElement,MetadataRecordsTest;MetadataMirrorRepositoryTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-sync.json,Phase 03b: data elements mirrored with valueType + domainType.
+FR-05-03,P0,Metadata and rules,OBJ-1;OBJ-3,database:metadata_data_set;server:ug.ac.mak.der.metadata.MirroredDataSet,MetadataRecordsTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-sync.json,Phase 03b: dataSets mirrored; the reference central ships 0 data sets so count=0 is honest.
+FR-05-04,P0,Metadata and rules,OBJ-1;OBJ-3,database:metadata_program;database:metadata_tracked_entity_type,MetadataSyncServiceTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-sync.json,Phase 03b: programs and tracked entity types mirrored; Phase 03.5 adds enrolments/stages.
 FR-05-05,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
 FR-05-06,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
 FR-05-07,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
-FR-05-08,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
+FR-05-08,P0,Metadata and rules,OBJ-1;OBJ-3,database:metadata_snapshot;server:ug.ac.mak.der.metadata.MetadataSnapshotRepository,MetadataSnapshotRepositoryTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-sync.json,Phase 03b: every sync writes a metadata_snapshot with central version + revision + fingerprint.
 FR-05-09,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
 FR-05-10,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
 FR-05-11,P0,Metadata and rules,OBJ-1;OBJ-3,To be assigned,To be assigned,specified,,
@@ -121,7 +121,7 @@ FR-12-09,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,To be assigned,To 
 FR-12-10,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-12-11,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
 FR-12-12,P0,Edge-to-central synchronisation,OBJ-2;OBJ-3;OBJ-4,To be assigned,To be assigned,specified,,
-FR-13-01,P0,Central-to-edge refresh,OBJ-3,To be assigned,To be assigned,specified,,
+FR-13-01,P0,Central-to-edge refresh,OBJ-3,server:ug.ac.mak.der.metadata.MetadataSyncService;server:ug.ac.mak.der.dhis2.Dhis2ReferenceClient,MetadataSyncServiceTest;Dhis2ReferenceClientTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-sync.json,Phase 03b: on-demand pull from central via Dhis2ReferenceClient.fetchJson; scheduler Phase 05.
 FR-13-02,P0,Central-to-edge refresh,OBJ-3,To be assigned,To be assigned,specified,,
 FR-13-03,P0,Central-to-edge refresh,OBJ-3,To be assigned,To be assigned,specified,,
 FR-13-04,P0,Central-to-edge refresh,OBJ-3,To be assigned,To be assigned,specified,,
@@ -130,7 +130,7 @@ FR-13-06,P0,Central-to-edge refresh,OBJ-3,To be assigned,To be assigned,specifie
 FR-13-07,P0,Central-to-edge refresh,OBJ-3,To be assigned,To be assigned,specified,,
 FR-13-08,P0,Central-to-edge refresh,OBJ-3,To be assigned,To be assigned,specified,,
 FR-13-09,P0,Central-to-edge refresh,OBJ-3,To be assigned,To be assigned,specified,,
-FR-13-10,P0,Central-to-edge refresh,OBJ-3,To be assigned,To be assigned,specified,,
+FR-13-10,P0,Central-to-edge refresh,OBJ-3,database:metadata_snapshot[imported_at];server:ug.ac.mak.der.web.MetadataSyncController,MetadataSyncControllerTest,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-sync.json,Phase 03b: imported_at on every snapshot; SyncStatus endpoint exposes staleness.
 FR-14-01,P0,Connectivity and resilience,OBJ-3,To be assigned,To be assigned,specified,,
 FR-14-02,P0,Connectivity and resilience,OBJ-3,To be assigned,To be assigned,specified,,
 FR-14-03,P0,Connectivity and resilience,OBJ-3,To be assigned,To be assigned,specified,,
@@ -182,7 +182,7 @@ NFR-04,P0,Consistency,OBJ-4,To be assigned,T10,specified,,
 NFR-05,P0,Authorisation,OBJ-4,To be assigned,T03,specified,,
 NFR-06,P0,Confidentiality,OBJ-4,To be assigned,T03,specified,,
 NFR-07,P0,Local visibility,OBJ-4,To be assigned,T08,specified,,
-NFR-08,P0,API parity,OBJ-4,To be assigned,T20,specified,,
+NFR-08,P0,API parity,OBJ-4,server:ug.ac.mak.der.dhis2emulator.*,T20,in-progress,docs/evaluation/evidence/phase-03/<commit>/live-sync.json,Phase 03b: DHIS2-shape read parity for 5 metadata entity types; writes + full field-filter deferred.
 NFR-09,P0,Validation parity,OBJ-4,To be assigned,T20,specified,,
 NFR-10,P0,Conflict precision,OBJ-4,To be assigned,T11,specified,,
 NFR-11,P0,Retry safety,OBJ-4,To be assigned,T12,specified,,

@@ -1,0 +1,78 @@
+{
+  "evidence": "Phase 03b live metadata sync + /api/* probes",
+  "generated": "2026-10-22T05:01:04Z",
+  "central": {
+    "base_url": "http://localhost:8080/dhis",
+    "pinned_version": "2.44-SNAPSHOT",
+    "observed_version": "2.44-SNAPSHOT",
+    "observed_revision": "59b9127",
+    "build_time": "2026-08-19T23:39:17.000"
+  },
+  "sync": {
+    "trigger": "POST /edge-api/v1/sync/metadata",
+    "actor": "der-admin (bootstrap)",
+    "status": "OK",
+    "snapshot_id": 1,
+    "elapsed_seconds": 3.14,
+    "counts": {
+      "organisationUnits": 484,
+      "dataElements": 358,
+      "dataSets": 0,
+      "programs": 31,
+      "trackedEntityTypes": 1,
+      "total": 874
+    },
+    "fingerprint": "8052ad453242c64bca995af52392f8f2dff297a826b2f2d74bda0e82905c3972"
+  },
+  "emulator_probes": [
+    {
+      "route": "GET /api/system/info",
+      "status": 200,
+      "sample_fields": {
+        "version": "2.44-SNAPSHOT",
+        "revision": "31923ff",
+        "systemName": "DER Edge Runtime 0.4.0-SNAPSHOT",
+        "derRelease": "0.4.0-SNAPSHOT",
+        "derServedAt": "edge"
+      }
+    },
+    {
+      "route": "GET /api/me",
+      "status": 200,
+      "sample_fields": {
+        "username": "der-admin",
+        "displayName": "Bootstrap administrator",
+        "authorities": ["DER_ADMIN"],
+        "derOrigin": "BOOTSTRAP"
+      }
+    },
+    {
+      "route": "GET /api/organisationUnits?pageSize=3",
+      "status": 200,
+      "pager": {"page": 1, "pageSize": 3, "total": 484, "pageCount": 162},
+      "first_three_display_names": [
+        "A&A Medcare Medical Centre/Clinic",
+        "Active Health Care Mauritius Private Clinic",
+        "Aegle Clinic Private Clinic"
+      ]
+    },
+    {
+      "route": "GET /api/programs?pageSize=3",
+      "status": 200,
+      "pager": {"page": 1, "pageSize": 3, "total": 31, "pageCount": 11},
+      "first_three_program_types": [
+        "WITH_REGISTRATION",
+        "WITH_REGISTRATION",
+        "WITHOUT_REGISTRATION"
+      ]
+    }
+  ],
+  "test_summary": {
+    "server_unit_tests_total": 247,
+    "server_unit_tests_passed": 247,
+    "jacoco_line_coverage": "100%",
+    "jacoco_branch_coverage": "100%",
+    "spotbugs_bugs": 0,
+    "checkstyle_violations": 0
+  }
+}

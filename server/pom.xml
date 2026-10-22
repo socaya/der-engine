@@ -256,6 +256,8 @@
                     <include>ug.ac.mak.der.web.*</include>
                     <include>ug.ac.mak.der.build.*</include>
                     <include>ug.ac.mak.der.dhis2.*</include>
+                    <include>ug.ac.mak.der.dhis2emulator.*</include>
+                    <include>ug.ac.mak.der.metadata.*</include>
                     <include>ug.ac.mak.der.security.*</include>
                     <include>ug.ac.mak.der.workflows.*</include>
                   </includes>

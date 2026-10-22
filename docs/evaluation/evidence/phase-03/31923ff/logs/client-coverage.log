@@ -1,0 +1,20 @@
+
+ RUN  v2.1.9 /Users/stephocay/projects/msdcse-project/der/client
+      Coverage enabled with v8
+
+ ✓ src/App.test.tsx (4 tests) 61ms
+ ✓ src/AppShell.test.tsx (8 tests) 72ms
+
+ Test Files  2 passed (2)
+      Tests  12 passed (12)
+   Start at  08:05:40
+   Duration  837ms (transform 37ms, setup 200ms, collect 51ms, tests 133ms, environment 757ms, prepare 82ms)
+
+ % Coverage report from v8
+--------------|---------|----------|---------|---------|-------------------
+File          | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+--------------|---------|----------|---------|---------|-------------------
+All files     |     100 |      100 |     100 |     100 |                   
+ App.tsx      |     100 |      100 |     100 |     100 |                   
+ AppShell.tsx |     100 |      100 |     100 |     100 |                   
+--------------|---------|----------|---------|---------|-------------------

@@ -44,10 +44,32 @@ public class Dhis2ReferenceClient {
      * {@code version}.
      */
     public Dhis2Version fetchVersion() throws Dhis2UnreachableException, Dhis2ResponseException {
+        final JsonNode body = fetchJson(INFO_PATH);
+        final JsonNode versionNode = body.get("version");
+        if (versionNode == null || !versionNode.isTextual() || versionNode.asText().isBlank()) {
+            throw new Dhis2ResponseException("Response is missing a non-blank 'version' field", null);
+        }
+        final String revision = textOrNull(body.get("revision"));
+        final String buildTime = textOrNull(body.get("buildTime"));
+        return new Dhis2Version(versionNode.asText(), revision, buildTime);
+    }
+
+    /**
+     * Generic authenticated GET of a DHIS2 Web API JSON resource. Path must
+     * include the leading slash and may include query parameters; the client
+     * prepends the configured base URL.
+     *
+     * @throws Dhis2UnreachableException the central cannot be reached or returns non-2xx
+     * @throws Dhis2ResponseException    the body is not valid JSON
+     */
+    public JsonNode fetchJson(final String path) throws Dhis2UnreachableException, Dhis2ResponseException {
         if (central.baseUrl() == null || central.baseUrl().isBlank()) {
             throw new Dhis2UnreachableException("der.dhis2.central.base-url is not configured", null);
         }
-        final URI uri = URI.create(central.baseUrl() + INFO_PATH);
+        if (path == null || path.isBlank() || !path.startsWith("/")) {
+            throw new IllegalArgumentException("path must be a non-blank absolute path, got: " + path);
+        }
+        final URI uri = URI.create(central.baseUrl() + path);
         final HttpRequest.Builder req = HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofMillis(Math.max(1_000, central.connectTimeoutMillis())))
                 .header("Accept", "application/json")
@@ -68,22 +90,13 @@ public class Dhis2ReferenceClient {
             throw new Dhis2UnreachableException("Interrupted contacting " + uri, ex);
         }
         if (resp.statusCode() / 100 != 2) {
-            throw new Dhis2UnreachableException("DHIS2 " + INFO_PATH + " returned HTTP " + resp.statusCode(), null);
+            throw new Dhis2UnreachableException("DHIS2 " + path + " returned HTTP " + resp.statusCode(), null);
         }
-
-        final JsonNode body;
         try {
-            body = mapper.readTree(resp.body());
+            return mapper.readTree(resp.body());
         } catch (IOException ex) {
             throw new Dhis2ResponseException("Response body is not valid JSON", ex);
         }
-        final JsonNode versionNode = body.get("version");
-        if (versionNode == null || !versionNode.isTextual() || versionNode.asText().isBlank()) {
-            throw new Dhis2ResponseException("Response is missing a non-blank 'version' field", null);
-        }
-        final String revision = textOrNull(body.get("revision"));
-        final String buildTime = textOrNull(body.get("buildTime"));
-        return new Dhis2Version(versionNode.asText(), revision, buildTime);
     }
 
     private static String textOrNull(final JsonNode node) {

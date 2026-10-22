@@ -13,7 +13,26 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Phase 03 work not yet started.
+- Phase 03c (DER-platform client with @dhis2/ui) and Phase 03.5 (write paths) not yet started.
+
+## [0.4.0-alpha.0] — unreleased
+
+Phase 03b — DHIS2 Web API emulator (read-only) + metadata mirror
+(see `docs/releases/der-0.4.0-alpha.0.md`).
+
+- Added: ADR-0004 — hybrid architecture; supersedes ADR-0003.
+- Added: V002 migration — metadata_snapshot + five mirror tables.
+- Added: `ug.ac.mak.der.metadata` package — records + repositories + `MetadataSyncService`.
+- Added: `ug.ac.mak.der.dhis2emulator` package — `SystemInfoController`,
+  `MeController`, `MetadataListController` serving DHIS2-shape read endpoints.
+- Added: `POST /edge-api/v1/sync/metadata` admin endpoint.
+- Added: `Dhis2ReferenceClient.fetchJson(path)` generic authenticated GET helper.
+- Removed: Option-A artefacts (`deployment/dhis2/`, `WorkflowAppsController`, `Dhis2AppCatalogue`).
+- Verified live: 874 metadata records pulled from DHIS2 2.44-SNAPSHOT and
+  served from DER's `/api/*` to the DER session cookie.
+- Server tests: **247/247 pass**; JaCoCo **100% line + branch**.
+
+[0.4.0-alpha.0]: https://github.com/socaya/der-engine/releases/tag/der-0.4.0-alpha.0
 
 ## [0.3.0] — unreleased
 
