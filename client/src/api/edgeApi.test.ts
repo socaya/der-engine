@@ -235,3 +235,29 @@ describe('edgeApi request error paths', () => {
     await expect(api.deleteDraft('x')).resolves.toBeUndefined();
   });
 });
+
+describe('edgeApi device helpers', () => {
+  it('enrollDevice POSTs deviceId + userAgent', async () => {
+    fetchMock.mockResolvedValue(respond(201, {
+      deviceId: 'd1', assignedUserId: null, enrolledAt: 'x',
+      lastSeenAt: null, userAgent: 'ua', status: 'PENDING',
+    }));
+    const r = await api.enrollDevice('d1', 'chrome');
+    expect(r.deviceId).toBe('d1');
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/edge-api/v1/devices/enroll');
+    expect(JSON.parse(init.body as string)).toEqual({ deviceId: 'd1', userAgent: 'chrome' });
+  });
+
+  it('heartbeatDevice POSTs /{id}/heartbeat', async () => {
+    fetchMock.mockResolvedValue(respond(200, { outcome: 'OK' }));
+    await api.heartbeatDevice('d1');
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/devices/d1/heartbeat');
+  });
+
+  it('fetchDevice GETs /{id}', async () => {
+    fetchMock.mockResolvedValue(respond(200, { deviceId: 'd1', status: 'APPROVED' }));
+    await api.fetchDevice('d1');
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/devices/d1');
+  });
+});

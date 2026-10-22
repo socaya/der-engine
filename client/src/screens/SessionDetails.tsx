@@ -1,9 +1,12 @@
 import { Card, Tag } from '@dhis2/ui';
 import { useAuth } from '../auth/AuthContext';
+import { getStoredDeviceId, getStoredDeviceStatus } from '../device/DeviceEnrollment';
 
 /** DC-02 Session details. Phase 03c read-only projection of the current session. */
 export function SessionDetails(): JSX.Element {
   const { state } = useAuth();
+  const deviceId = getStoredDeviceId();
+  const deviceStatus = getStoredDeviceStatus();
   if (state.status !== 'AUTHENTICATED') {
     // RequireAuth guards the route; this branch should not be reachable
     // but we render a defensive placeholder for safety.
@@ -29,6 +32,20 @@ export function SessionDetails(): JSX.Element {
           </dd>
           <dt>Expires at</dt>
           <dd data-test="session-expires">{user.expiresAt}</dd>
+          <dt>Device</dt>
+          <dd data-test="session-device">
+            {deviceId
+              ? <>
+                  <code>{deviceId.slice(0, 8)}</code>
+                  {' '}
+                  <Tag className="der-device-tag" data-test="session-device-status">
+                    {deviceStatus ?? 'UNKNOWN'}
+                  </Tag>
+                </>
+              : <span data-test="session-device-missing">
+                  not enrolled yet (see Launcher)
+                </span>}
+          </dd>
         </dl>
       </Card>
     </div>

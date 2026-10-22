@@ -212,3 +212,31 @@ export function saveDraft(draft: Omit<DraftRow, 'draftId' | 'updatedAt'>): Promi
 export function deleteDraft(draftId: string): Promise<void> {
   return request<void>('DELETE', `/edge-api/v1/drafts/${draftId}`);
 }
+
+// ---- der-1.2.0-alpha.3 Initiative 1 client half (ADR-0019) ----
+
+export type DeviceStatus = 'PENDING' | 'APPROVED' | 'SUSPENDED' | 'REVOKED';
+
+export interface EnrolledDevice {
+  deviceId: string;
+  assignedUserId: string | null;
+  enrolledAt: string;
+  lastSeenAt: string | null;
+  userAgent: string | null;
+  status: DeviceStatus;
+  /** One-shot token; only returned on the enrol response. */
+  enrolmentToken?: string;
+}
+
+export function enrollDevice(deviceId: string, userAgent: string): Promise<EnrolledDevice> {
+  return request<EnrolledDevice>('POST', '/edge-api/v1/devices/enroll',
+    { deviceId, userAgent });
+}
+
+export function heartbeatDevice(deviceId: string): Promise<{ outcome: string }> {
+  return request('POST', `/edge-api/v1/devices/${deviceId}/heartbeat`);
+}
+
+export function fetchDevice(deviceId: string): Promise<EnrolledDevice> {
+  return request<EnrolledDevice>('GET', `/edge-api/v1/devices/${deviceId}`);
+}

@@ -15,6 +15,17 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.2.0-alpha.3] — unreleased
+
+Initiative 1 client half — device-client enrollment hook (ADR-0019 slice A).
+
+- Added: `client/src/device/` package — `DeviceEnrollment.ts` (installation-UUID storage + `enrolOrRefresh` + `heartbeat`), `useDeviceEnrollment.ts` (hook with `setInterval` heartbeat), `DeviceBoot.tsx` (non-blocking status banner mounted inside AuthProvider).
+- Added: `SessionDetails` now shows enrolled device id + status.
+- Added: 3 new client `edgeApi` helpers (`enrollDevice`, `heartbeatDevice`, `fetchDevice`).
+- Added: 26 new client tests (storage + hook + banner + edgeApi).
+
+[1.2.0-alpha.3]: https://github.com/socaya/der-engine/releases/tag/der-1.2.0-alpha.3
+
 ## [1.2.0-alpha.2] — unreleased
 
 Initiative 1 — edge device-client management (ADR-0019).
