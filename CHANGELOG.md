@@ -13,7 +13,21 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Custom DHIS2 app hosting (ADR-0005 finalized → alpha.6) and Phase 04 journal worker drain (der-0.5.0-alpha.1) not yet started.
+- Phase 04 journal worker drain (der-0.5.0-alpha.1) not yet started.
+
+## [0.4.0-alpha.6] — unreleased
+
+Phase 05 part B — custom DHIS2 app hosting (ADR-0005 FINALIZED).
+
+- Added: V007 `installed_app` table.
+- Added: `ug.ac.mak.der.apps.*` — AppInstaller, InstalledAppRepository,
+  AppStaticHandler.
+- Added: AppsController (install / list / enable / uninstall) with
+  ADMIN gate for mutations.
+- Added: `/dhis-web-<key>/**` static handler + SecurityConfig matcher.
+- ADR-0005 moved from PROPOSED to ACCEPTED.
+
+[0.4.0-alpha.6]: https://github.com/socaya/der-engine/releases/tag/der-0.4.0-alpha.6
 
 ## [0.4.0-alpha.5] — unreleased
 

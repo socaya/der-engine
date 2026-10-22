@@ -1,8 +1,8 @@
 # ADR-0005: Hosting custom DHIS2 apps on the DER edge
 
-- Status: **PROPOSED** (decision deferred until Phase 05 implementation starts)
-- Date: 2026-10-22
-- Deciders: socaya (concept raised in-session on 2026-10-22)
+- Status: **ACCEPTED (finalized in alpha.6)**
+- Date: 2026-10-22 (proposed); 2026-10-22 (accepted alpha.6)
+- Deciders: socaya
 - Related: [ADR-0004](0004-hybrid-dhis2-edge-emulation.md)
 - Related requirements: FR-04-02, FR-04-04, FR-05-01, FR-05-05, FR-13-01, FR-13-06, NFR-01, NFR-22
 - Related work: Phase 05 metadata/data refresh and the DER metadata mirror introduced in ADR-0004 / Phase 03b

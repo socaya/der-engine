@@ -157,4 +157,16 @@
       <Bug pattern="EI_EXPOSE_REP2"/>
     </Or>
   </Match>
+
+  <!-- ADR-0005 AppInstaller uses Files.createDirectories / Path.resolve
+       which return non-null by API contract; SpotBugs can't see the
+       guarantee. Reviewed 2026-10-22. -->
+  <Match>
+    <Class name="ug.ac.mak.der.apps.AppInstaller"/>
+    <Or>
+      <Method name="install"/>
+      <Method name="extractInto"/>
+    </Or>
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+  </Match>
 </FindBugsFilter>

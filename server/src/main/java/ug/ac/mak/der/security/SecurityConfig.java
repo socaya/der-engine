@@ -75,11 +75,14 @@ public class SecurityConfig {
                         .requestMatchers("/edge-api/v1/dhis2/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/provisioning/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/sync/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/apps/**").authenticated()
                         .requestMatchers("/edge-api/v1/**").authenticated()
                         // ADR-0004: DER emulates the DHIS2 Web API at /api/**.
                         // Same cookie session as /edge-api/v1/**; any authenticated
                         // user may read metadata. Writes are added in Phase 03.5.
                         .requestMatchers("/api/**").authenticated()
+                        // ADR-0005: custom DHIS2 apps served at /dhis-web-<key>/**.
+                        .requestMatchers("/dhis-web-**/**").authenticated()
                         .anyRequest().denyAll()
                 )
                 .addFilterBefore(cookieFilter, BasicAuthenticationFilter.class);
