@@ -115,20 +115,22 @@ class OperationJournalRepositoryTest {
     @Test
     void findPendingCapsLimit() {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        when(jdbc.query(anyString(), any(RowMapper.class), anyInt())).thenReturn(List.of());
+        when(jdbc.query(anyString(), any(RowMapper.class), anyString(), anyInt()))
+                .thenReturn(List.of());
         new OperationJournalRepository(jdbc, json).findPending(100_000);
         final ArgumentCaptor<Integer> cap = ArgumentCaptor.forClass(Integer.class);
-        verify(jdbc).query(anyString(), any(RowMapper.class), cap.capture());
+        verify(jdbc).query(anyString(), any(RowMapper.class), anyString(), cap.capture());
         assertThat(cap.getValue()).isEqualTo(500);
     }
 
     @Test
     void findPendingFloorsAtOne() {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        when(jdbc.query(anyString(), any(RowMapper.class), anyInt())).thenReturn(List.of());
+        when(jdbc.query(anyString(), any(RowMapper.class), anyString(), anyInt()))
+                .thenReturn(List.of());
         new OperationJournalRepository(jdbc, json).findPending(0);
         final ArgumentCaptor<Integer> cap = ArgumentCaptor.forClass(Integer.class);
-        verify(jdbc).query(anyString(), any(RowMapper.class), cap.capture());
+        verify(jdbc).query(anyString(), any(RowMapper.class), anyString(), cap.capture());
         assertThat(cap.getValue()).isEqualTo(1);
     }
 

@@ -13,7 +13,35 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Phase 05 (scheduled metadata resync + drift detection + custom DHIS2 app hosting) and Phase 04 (journal worker drain) not yet started.
+- Custom DHIS2 app hosting (ADR-0005 finalized → alpha.6) and Phase 04 journal worker drain (der-0.5.0-alpha.1) not yet started.
+
+## [0.4.0-alpha.5] — unreleased
+
+Phase 05 — scheduled sync + drift detection + conflict-review API
+(see `docs/releases/der-0.4.0-alpha.5.md`).
+
+- Added: ADR-0008 — Quartz Postgres JobStore drives three durable jobs
+  (METADATA_SYNC_FULL / COMPAT_PROBE_REFRESH / DRIFT_SNAPSHOT) with
+  configurable cron + `scheduled_job_run` sidecar.
+- Added: ADR-0009 — conflict-review admin REST surface over the
+  operation journal (list / resolve / re-journal) with ADMIN role gate.
+- Added: V006 migration — scheduled_job_run, drift_snapshot, journal
+  supersedes + resolved_* columns.
+- Added: `ug.ac.mak.der.scheduler.*` — SchedulerConfig + three Jobs +
+  ScheduledJobRepository.
+- Added: `ug.ac.mak.der.sync.drift.*` — DriftDetectionService +
+  DriftSnapshotRepository.
+- Added: `ug.ac.mak.der.workflows.journal.ConflictReviewService`.
+- Added: Admin REST — SyncJobsController, DriftController,
+  ConflictReviewController.
+- Changed: `MetadataSyncService` now also pulls COC + program-stages
+  (+ PSDE) + tracked-entity-attributes + program-rules (+ actions);
+  constructor gains `ExtendedMirrorRepository` dependency.
+- Changed: `OperationJournalRepository` adds `findByState(...)`;
+  `findPending(...)` delegates.
+- Server tests: 681 pass. SpotBugs clean (28 reviewed suppressions).
+
+[0.4.0-alpha.5]: https://github.com/socaya/der-engine/releases/tag/der-0.4.0-alpha.5
 
 ## [0.4.0-alpha.4] — unreleased
 

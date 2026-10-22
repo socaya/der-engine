@@ -30,6 +30,28 @@ spring:
   # Spring Security starter is active. Phase 02 configures a custom
   # SecurityFilterChain in ug.ac.mak.der.security.SecurityConfig.
 
+  # Phase 05 (ADR-0008) Quartz Postgres JobStore. Quartz auto-creates its
+  # qrtz_* tables under the der schema on first boot.
+  quartz:
+    job-store-type: ${DER_QUARTZ_STORE:jdbc}
+    jdbc:
+      initialize-schema: ${DER_QUARTZ_SCHEMA_INIT:always}
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: DerScheduler
+            instanceId: AUTO
+          jobStore:
+            class: org.springframework.scheduling.quartz.LocalDataSourceJobStore
+            driverDelegateClass: org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+            tablePrefix: der.qrtz_
+            isClustered: false
+            useProperties: false
+          threadPool:
+            class: org.quartz.simpl.SimpleThreadPool
+            threadCount: 4
+
 management:
   endpoints:
     web:
@@ -65,3 +87,13 @@ der:
     bootstrap:
       admin-username: ${DER_BOOTSTRAP_ADMIN_USERNAME:}
       admin-password: ${DER_BOOTSTRAP_ADMIN_PASSWORD:}
+
+  # Phase 05 (ADR-0008) scheduler cadences.
+  sync:
+    metadata:
+      cron: ${DER_SYNC_METADATA_CRON:0 0 */4 * * ?}
+    compat:
+      cron: ${DER_SYNC_COMPAT_CRON:0 0 3 * * ?}
+    drift:
+      cron: ${DER_SYNC_DRIFT_CRON:0 10 */4 * * ?}
+    enabled: ${DER_SYNC_ENABLED:true}

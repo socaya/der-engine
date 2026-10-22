@@ -67,13 +67,19 @@ public class OperationJournalRepository {
     }
 
     public List<OperationJournalEntry> findPending(final int limit) {
+        return findByState(OperationJournalEntry.State.PENDING, limit);
+    }
+
+    public List<OperationJournalEntry> findByState(final OperationJournalEntry.State state,
+                                                    final int limit) {
         final int capped = Math.max(1, Math.min(limit, 500));
         return jdbc.query(
                 "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
                         + "attempt_count, last_error, submitted_by, created_at, updated_at "
-                        + "FROM der.operation_journal "
-                        + "WHERE state = 'PENDING' ORDER BY created_at ASC LIMIT ?",
+                        + "FROM der.operation_journal WHERE state = ? "
+                        + "ORDER BY created_at ASC LIMIT ?",
                 rowMapper(),
+                state.name(),
                 capped
         );
     }

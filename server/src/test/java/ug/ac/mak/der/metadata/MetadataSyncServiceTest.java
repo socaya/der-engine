@@ -65,6 +65,14 @@ class MetadataSyncServiceTest {
                         + "\"trackedEntityType\":{\"id\":\"tet1\"}}]}"));
         when(dhis2.fetchJson(MetadataSyncService.TRACKED_ENTITY_TYPE_PATH)).thenReturn(tree(
                 "{\"trackedEntityTypes\":[{\"id\":\"tet1\",\"displayName\":\"TET1\"}]}"));
+        when(dhis2.fetchJson(MetadataSyncService.CATEGORY_OPTION_COMBO_PATH)).thenReturn(tree(
+                "{\"categoryOptionCombos\":[]}"));
+        when(dhis2.fetchJson(MetadataSyncService.PROGRAM_STAGE_PATH)).thenReturn(tree(
+                "{\"programStages\":[]}"));
+        when(dhis2.fetchJson(MetadataSyncService.TRACKED_ENTITY_ATTRIBUTE_PATH)).thenReturn(tree(
+                "{\"trackedEntityAttributes\":[]}"));
+        when(dhis2.fetchJson(MetadataSyncService.PROGRAM_RULE_PATH)).thenReturn(tree(
+                "{\"programRules\":[]}"));
         when(snapshots.insert(any())).thenAnswer(inv -> {
             final MetadataSnapshot in = inv.getArgument(0);
             return new MetadataSnapshot(99L, in.importedFrom(), in.importedBy(), in.importedAt(),
@@ -72,7 +80,7 @@ class MetadataSyncServiceTest {
         });
 
         final UUID actor = UUID.randomUUID();
-        final MetadataSnapshot result = new MetadataSyncService(dhis2, props(), mirror, snapshots, CLOCK)
+        final MetadataSnapshot result = new MetadataSyncService(dhis2, props(), mirror, mock(ExtendedMirrorRepository.class), snapshots, CLOCK)
                 .syncAll(actor);
 
         assertThat(result.snapshotId()).isEqualTo(99L);
@@ -102,8 +110,7 @@ class MetadataSyncServiceTest {
         when(dhis2.fetchVersion()).thenReturn(new Dhis2Version("2.44-SNAPSHOT", null, null));
         when(dhis2.fetchJson(anyString()))
                 .thenThrow(new Dhis2ReferenceClient.Dhis2UnreachableException("down", null));
-        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props(),
-                mock(MetadataMirrorRepository.class), mock(MetadataSnapshotRepository.class), CLOCK)
+        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props(), mock(MetadataMirrorRepository.class), mock(ExtendedMirrorRepository.class), mock(MetadataSnapshotRepository.class), CLOCK)
                 .syncAll(null))
                 .isInstanceOf(Dhis2ReferenceClient.Dhis2UnreachableException.class);
     }
@@ -114,8 +121,7 @@ class MetadataSyncServiceTest {
         when(dhis2.fetchVersion()).thenReturn(new Dhis2Version("2.44-SNAPSHOT", null, null));
         when(dhis2.fetchJson(MetadataSyncService.ORG_UNIT_PATH)).thenReturn(tree(
                 "{\"organisationUnits\":[{\"displayName\":\"OU-no-id\"}]}"));
-        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props(),
-                mock(MetadataMirrorRepository.class), mock(MetadataSnapshotRepository.class), CLOCK)
+        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props(), mock(MetadataMirrorRepository.class), mock(ExtendedMirrorRepository.class), mock(MetadataSnapshotRepository.class), CLOCK)
                 .syncAll(null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Missing required field");
@@ -152,8 +158,7 @@ class MetadataSyncServiceTest {
             return new MetadataSnapshot(1L, in.importedFrom(), in.importedBy(), in.importedAt(),
                     in.counts(), in.centralVersion(), in.centralRevision(), in.fingerprint());
         });
-        final MetadataSnapshot result = new MetadataSyncService(dhis2, props(),
-                mock(MetadataMirrorRepository.class), snapshots, CLOCK).syncAll(null);
+        final MetadataSnapshot result = new MetadataSyncService(dhis2, props(), mock(MetadataMirrorRepository.class), mock(ExtendedMirrorRepository.class), snapshots, CLOCK).syncAll(null);
         assertThat(result.counts().total()).isZero();
     }
 
@@ -163,8 +168,7 @@ class MetadataSyncServiceTest {
         when(dhis2.fetchVersion()).thenReturn(new Dhis2Version("2.44-SNAPSHOT", null, null));
         when(dhis2.fetchJson(anyString()))
                 .thenThrow(new Dhis2ReferenceClient.Dhis2ResponseException("bad", null));
-        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props(),
-                mock(MetadataMirrorRepository.class), mock(MetadataSnapshotRepository.class), CLOCK)
+        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props(), mock(MetadataMirrorRepository.class), mock(ExtendedMirrorRepository.class), mock(MetadataSnapshotRepository.class), CLOCK)
                 .syncAll(null))
                 .isInstanceOf(Dhis2ReferenceClient.Dhis2ResponseException.class);
     }
@@ -175,15 +179,15 @@ class MetadataSyncServiceTest {
         final var mirror = mock(MetadataMirrorRepository.class);
         final var snapshots = mock(MetadataSnapshotRepository.class);
         final var dhis2 = mock(Dhis2ReferenceClient.class);
-        assertThatThrownBy(() -> new MetadataSyncService(null, props, mirror, snapshots, CLOCK))
+        assertThatThrownBy(() -> new MetadataSyncService(null, props, mirror, mock(ExtendedMirrorRepository.class), snapshots, CLOCK))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new MetadataSyncService(dhis2, null, mirror, snapshots, CLOCK))
+        assertThatThrownBy(() -> new MetadataSyncService(dhis2, null, mirror, mock(ExtendedMirrorRepository.class), snapshots, CLOCK))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props, null, snapshots, CLOCK))
+        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props, null, mock(ExtendedMirrorRepository.class), snapshots, CLOCK))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props, mirror, null, CLOCK))
+        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props, mirror, mock(ExtendedMirrorRepository.class), null, CLOCK))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props, mirror, snapshots, null))
+        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props, mirror, mock(ExtendedMirrorRepository.class), snapshots, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -217,8 +221,7 @@ class MetadataSyncServiceTest {
             return new MetadataSnapshot(1L, in.importedFrom(), in.importedBy(), in.importedAt(),
                     in.counts(), in.centralVersion(), in.centralRevision(), in.fingerprint());
         });
-        new MetadataSyncService(dhis2, props(),
-                mock(MetadataMirrorRepository.class), snapshots, CLOCK).syncAll(null);
+        new MetadataSyncService(dhis2, props(), mock(MetadataMirrorRepository.class), mock(ExtendedMirrorRepository.class), snapshots, CLOCK).syncAll(null);
     }
 
     @Test
@@ -227,8 +230,7 @@ class MetadataSyncServiceTest {
         when(dhis2.fetchVersion()).thenReturn(new Dhis2Version("2.44-SNAPSHOT", null, null));
         when(dhis2.fetchJson(MetadataSyncService.ORG_UNIT_PATH)).thenReturn(tree(
                 "{\"organisationUnits\":[{\"id\":\"\",\"displayName\":\"X\"}]}"));
-        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props(),
-                mock(MetadataMirrorRepository.class), mock(MetadataSnapshotRepository.class), CLOCK)
+        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props(), mock(MetadataMirrorRepository.class), mock(ExtendedMirrorRepository.class), mock(MetadataSnapshotRepository.class), CLOCK)
                 .syncAll(null)).isInstanceOf(IllegalStateException.class);
     }
 
@@ -254,8 +256,7 @@ class MetadataSyncServiceTest {
             return new MetadataSnapshot(1L, in.importedFrom(), in.importedBy(), in.importedAt(),
                     in.counts(), in.centralVersion(), in.centralRevision(), in.fingerprint());
         });
-        new MetadataSyncService(dhis2, props(),
-                mock(MetadataMirrorRepository.class), snapshots, CLOCK).syncAll(null);
+        new MetadataSyncService(dhis2, props(), mock(MetadataMirrorRepository.class), mock(ExtendedMirrorRepository.class), snapshots, CLOCK).syncAll(null);
     }
 
     @Test
@@ -264,8 +265,7 @@ class MetadataSyncServiceTest {
         when(dhis2.fetchVersion()).thenReturn(new Dhis2Version("2.44-SNAPSHOT", null, null));
         when(dhis2.fetchJson(MetadataSyncService.ORG_UNIT_PATH)).thenReturn(tree(
                 "{\"organisationUnits\":[{\"id\":123,\"displayName\":\"X\"}]}"));
-        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props(),
-                mock(MetadataMirrorRepository.class), mock(MetadataSnapshotRepository.class), CLOCK)
+        assertThatThrownBy(() -> new MetadataSyncService(dhis2, props(), mock(MetadataMirrorRepository.class), mock(ExtendedMirrorRepository.class), mock(MetadataSnapshotRepository.class), CLOCK)
                 .syncAll(null)).isInstanceOf(IllegalStateException.class);
     }
 }

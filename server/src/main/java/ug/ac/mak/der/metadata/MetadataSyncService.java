@@ -48,21 +48,28 @@ public class MetadataSyncService {
     static final String DATA_SET_PATH = "/api/dataSets" + FIELDS_ALL;
     static final String PROGRAM_PATH = "/api/programs" + FIELDS_ALL;
     static final String TRACKED_ENTITY_TYPE_PATH = "/api/trackedEntityTypes" + FIELDS_ALL;
+    static final String CATEGORY_OPTION_COMBO_PATH = "/api/categoryOptionCombos" + FIELDS_ALL;
+    static final String PROGRAM_STAGE_PATH = "/api/programStages" + FIELDS_ALL;
+    static final String TRACKED_ENTITY_ATTRIBUTE_PATH = "/api/trackedEntityAttributes" + FIELDS_ALL;
+    static final String PROGRAM_RULE_PATH = "/api/programRules" + FIELDS_ALL;
 
     private final Dhis2ReferenceClient dhis2;
     private final Dhis2Properties props;
     private final MetadataMirrorRepository mirror;
+    private final ExtendedMirrorRepository extended;
     private final MetadataSnapshotRepository snapshots;
     private final Clock clock;
 
     public MetadataSyncService(final Dhis2ReferenceClient dhis2,
                                 final Dhis2Properties props,
                                 final MetadataMirrorRepository mirror,
+                                final ExtendedMirrorRepository extended,
                                 final MetadataSnapshotRepository snapshots,
                                 final Clock clock) {
         this.dhis2 = Objects.requireNonNull(dhis2, "dhis2");
         this.props = Objects.requireNonNull(props, "props");
         this.mirror = Objects.requireNonNull(mirror, "mirror");
+        this.extended = Objects.requireNonNull(extended, "extended");
         this.snapshots = Objects.requireNonNull(snapshots, "snapshots");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
@@ -90,8 +97,12 @@ public class MetadataSyncService {
         final List<MirroredDataSet> dss = readDataSets();
         final List<MirroredProgram> prgs = readPrograms();
         final List<MirroredTrackedEntityType> tets = readTrackedEntityTypes();
+        final List<MirroredCategoryOptionCombo> cocs = readCategoryOptionCombos();
+        final List<MirroredProgramStage> pss = readProgramStages();
+        final List<MirroredTrackedEntityAttribute> teas = readTrackedEntityAttributes();
+        final List<MirroredProgramRule> rules = readProgramRules();
 
-        final String fingerprint = fingerprintOf(ous, des, dss, prgs, tets);
+        final String fingerprint = fingerprintOf(ous, des, dss, prgs, tets, cocs, pss, teas, rules);
         final MetadataSnapshot pending = new MetadataSnapshot(
                 0L,
                 props.central().baseUrl(),
@@ -109,10 +120,124 @@ public class MetadataSyncService {
         mirror.upsertDataSets(dss, persisted.snapshotId());
         mirror.upsertPrograms(prgs, persisted.snapshotId());
         mirror.upsertTrackedEntityTypes(tets, persisted.snapshotId());
+        extended.upsertCategoryOptionCombos(cocs, persisted.snapshotId());
+        extended.upsertProgramStages(pss, persisted.snapshotId());
+        extended.upsertTrackedEntityAttributes(teas, persisted.snapshotId());
+        extended.upsertProgramRules(rules, persisted.snapshotId());
 
-        LOG.info("Phase 03 metadata sync complete, snapshot={} total={}",
-                persisted.snapshotId(), persisted.counts().total());
+        LOG.info("Phase 03/05 metadata sync complete, snapshot={} total={} coc={} ps={} tea={} rules={}",
+                persisted.snapshotId(), persisted.counts().total(),
+                cocs.size(), pss.size(), teas.size(), rules.size());
         return persisted;
+    }
+
+    List<MirroredCategoryOptionCombo> readCategoryOptionCombos()
+            throws Dhis2ReferenceClient.Dhis2UnreachableException,
+                   Dhis2ReferenceClient.Dhis2ResponseException {
+        final JsonNode body = dhis2.fetchJson(CATEGORY_OPTION_COMBO_PATH);
+        final List<MirroredCategoryOptionCombo> out = new ArrayList<>();
+        if (body == null) {
+            return out;
+        }
+        for (final JsonNode node : body.withArray("categoryOptionCombos")) {
+            out.add(new MirroredCategoryOptionCombo(
+                    requireText(node, "id"),
+                    textOr(node, "displayName", textOr(node, "name", "")),
+                    nestedIdOrNull(node, "categoryCombo"),
+                    node));
+        }
+        return out;
+    }
+
+    List<MirroredProgramStage> readProgramStages()
+            throws Dhis2ReferenceClient.Dhis2UnreachableException,
+                   Dhis2ReferenceClient.Dhis2ResponseException {
+        final JsonNode body = dhis2.fetchJson(PROGRAM_STAGE_PATH);
+        final List<MirroredProgramStage> out = new ArrayList<>();
+        if (body == null) {
+            return out;
+        }
+        for (final JsonNode node : body.withArray("programStages")) {
+            final List<MirroredProgramStage.ProgramStageDataElement> psdes = new ArrayList<>();
+            final JsonNode psdeNode = node.get("programStageDataElements");
+            if (psdeNode != null && psdeNode.isArray()) {
+                for (final JsonNode psde : psdeNode) {
+                    final String deId = nestedIdOrNull(psde, "dataElement");
+                    if (deId == null) {
+                        continue;
+                    }
+                    psdes.add(new MirroredProgramStage.ProgramStageDataElement(
+                            deId,
+                            psde.has("compulsory") && psde.get("compulsory").asBoolean(false),
+                            intOrNull(psde, "sortOrder")));
+                }
+            }
+            out.add(new MirroredProgramStage(
+                    requireText(node, "id"),
+                    nestedIdOrNull(node, "program") == null
+                            ? requireText(node, "program") : nestedIdOrNull(node, "program"),
+                    textOr(node, "displayName", textOr(node, "name", "")),
+                    node.has("repeatable") && node.get("repeatable").asBoolean(false),
+                    psdes,
+                    node));
+        }
+        return out;
+    }
+
+    List<MirroredTrackedEntityAttribute> readTrackedEntityAttributes()
+            throws Dhis2ReferenceClient.Dhis2UnreachableException,
+                   Dhis2ReferenceClient.Dhis2ResponseException {
+        final JsonNode body = dhis2.fetchJson(TRACKED_ENTITY_ATTRIBUTE_PATH);
+        final List<MirroredTrackedEntityAttribute> out = new ArrayList<>();
+        if (body == null) {
+            return out;
+        }
+        for (final JsonNode node : body.withArray("trackedEntityAttributes")) {
+            out.add(new MirroredTrackedEntityAttribute(
+                    requireText(node, "id"),
+                    textOr(node, "displayName", textOr(node, "name", "")),
+                    textOr(node, "valueType", "TEXT"),
+                    node.has("unique") && node.get("unique").asBoolean(false),
+                    node));
+        }
+        return out;
+    }
+
+    List<MirroredProgramRule> readProgramRules()
+            throws Dhis2ReferenceClient.Dhis2UnreachableException,
+                   Dhis2ReferenceClient.Dhis2ResponseException {
+        final JsonNode body = dhis2.fetchJson(PROGRAM_RULE_PATH);
+        final List<MirroredProgramRule> out = new ArrayList<>();
+        if (body == null) {
+            return out;
+        }
+        for (final JsonNode node : body.withArray("programRules")) {
+            final String ruleId = requireText(node, "id");
+            final List<MirroredProgramRuleAction> actions = new ArrayList<>();
+            final JsonNode actionsNode = node.get("programRuleActions");
+            if (actionsNode != null && actionsNode.isArray()) {
+                for (final JsonNode a : actionsNode) {
+                    actions.add(new MirroredProgramRuleAction(
+                            requireText(a, "id"),
+                            ruleId,
+                            textOr(a, "programRuleActionType", "UNKNOWN"),
+                            nestedIdOrNull(a, "dataElement"),
+                            nestedIdOrNull(a, "trackedEntityAttribute"),
+                            textOrNull(a, "data"),
+                            textOrNull(a, "content"),
+                            a));
+                }
+            }
+            out.add(new MirroredProgramRule(
+                    ruleId,
+                    nestedIdOrNull(node, "program") == null ? "" : nestedIdOrNull(node, "program"),
+                    textOr(node, "displayName", textOr(node, "name", "")),
+                    intOrNull(node, "priority"),
+                    textOr(node, "condition", "false"),
+                    actions,
+                    node));
+        }
+        return out;
     }
 
     // ---- fetchers -----------------------------------------------------------

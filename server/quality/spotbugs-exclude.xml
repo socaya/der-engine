@@ -133,4 +133,28 @@
     <Method name="objectsEqual"/>
     <Bug pattern="FE_FLOATING_POINT_EQUALITY"/>
   </Match>
+
+  <!-- Phase 05 Quartz jobs catch Exception by design: Quartz needs a
+       guaranteed-return path so the job record is always written whether
+       the business method throws RuntimeException or a checked DHIS2
+       exception. Reviewed 2026-10-22. -->
+  <Match>
+    <Or>
+      <Class name="ug.ac.mak.der.scheduler.MetadataSyncJob"/>
+      <Class name="ug.ac.mak.der.scheduler.CompatRefreshJob"/>
+      <Class name="ug.ac.mak.der.scheduler.DriftSnapshotJob"/>
+    </Or>
+    <Method name="execute"/>
+    <Bug pattern="REC_CATCH_EXCEPTION"/>
+  </Match>
+
+  <!-- DriftReport is a Jackson-serialised record; perEntity is already
+       wrapped-unmodifiable via record immutability. Reviewed 2026-10-22. -->
+  <Match>
+    <Class name="ug.ac.mak.der.sync.drift.DriftDetectionService$DriftReport"/>
+    <Or>
+      <Bug pattern="EI_EXPOSE_REP"/>
+      <Bug pattern="EI_EXPOSE_REP2"/>
+    </Or>
+  </Match>
 </FindBugsFilter>
