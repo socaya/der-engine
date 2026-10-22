@@ -8,6 +8,17 @@ import { SessionDetails } from './screens/SessionDetails';
 import { RecentWork } from './screens/RecentWork';
 import { MetadataBrowser } from './screens/MetadataBrowser';
 import { EdgeConnectionError } from './screens/EdgeConnectionError';
+import { AggregateDatasetPicker } from './screens/AggregateDatasetPicker';
+import { AggregateEntry } from './screens/AggregateEntry';
+import { ProgramPicker } from './screens/ProgramPicker';
+import { EventList } from './screens/EventList';
+import { EventNew } from './screens/EventNew';
+import { TrackerSearch } from './screens/TrackerSearch';
+import { TrackerDashboard } from './screens/TrackerDashboard';
+import { EnrollmentCreate } from './screens/EnrollmentCreate';
+import { ScheduledEvents } from './screens/ScheduledEvents';
+import { SubmittedReview } from './screens/SubmittedReview';
+import { Drafts } from './screens/Drafts';
 
 /**
  * DER device-client router. Routes correspond to screen IDs in
@@ -129,6 +140,43 @@ export default function App(): JSX.Element {
               </RequireAuth>
             }
           />
+          {/* Phase 06 Release 1 — DC-06..17 */}
+          <Route path="/aggregate/datasets" element={
+            <RequireAuth><AggregateDatasetPicker /></RequireAuth>
+          } />
+          <Route path="/aggregate/entry" element={
+            <RequireAuth><AggregateEntry /></RequireAuth>
+          } />
+          <Route path="/programs" element={
+            <RequireAuth><ProgramPicker /></RequireAuth>
+          } />
+          <Route path="/programs/:program/events" element={
+            <RequireAuth><EventList /></RequireAuth>
+          } />
+          <Route path="/programs/:program/events/new" element={
+            <RequireAuth><EventNew /></RequireAuth>
+          } />
+          <Route path="/tracker/:program/search" element={
+            <RequireAuth><TrackerSearch /></RequireAuth>
+          } />
+          <Route path="/tracker/:program/tei/:tei" element={
+            <RequireAuth><TrackerDashboard /></RequireAuth>
+          } />
+          <Route path="/tracker/:program/enroll" element={
+            <RequireAuth><EnrollmentCreate /></RequireAuth>
+          } />
+          <Route path="/tracker/:program/stage/:stage/new" element={
+            <RequireAuth><EventNew /></RequireAuth>
+          } />
+          <Route path="/scheduled" element={
+            <RequireAuth><ScheduledEvents /></RequireAuth>
+          } />
+          <Route path="/review" element={
+            <RequireAuth><SubmittedReview /></RequireAuth>
+          } />
+          <Route path="/drafts" element={
+            <RequireAuth><Drafts /></RequireAuth>
+          } />
         </Routes>
       </main>
     </AuthProvider>
