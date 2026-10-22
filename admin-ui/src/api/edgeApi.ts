@@ -608,3 +608,15 @@ export function analyticsRejections(limit = 500): Promise<{ count: number }> {
 export function analyticsRefresh(): Promise<{ outcome: string; lastRefreshedAt?: string }> {
   return request('POST', '/edge-api/v1/analytics/refresh');
 }
+
+// EA-AUD-01 — ADR-0021 hash-chain verify.
+export type AuditChainBreakReason = 'PREV_HASH_MISMATCH' | 'ROW_HASH_MISMATCH';
+export interface AuditChainVerifyResponse {
+  ok: boolean;
+  totalRows: number;
+  firstBreakAuditId: number | null;
+  firstBreakReason: AuditChainBreakReason | null;
+}
+export function verifyAuditChain(): Promise<AuditChainVerifyResponse> {
+  return request('GET', '/edge-api/v1/security/audit/verify');
+}

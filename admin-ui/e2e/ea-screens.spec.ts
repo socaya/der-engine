@@ -110,6 +110,14 @@ test.describe('EA family', () => {
     await expect(page.getByTestId('ana01-heading')).toBeVisible();
   });
 
+  test('EA-AUD-01 AuditVerify at /audit/verify', async ({ page }) => {
+    await mock(page, '**/edge-api/v1/security/audit/verify', {
+      ok: true, totalRows: 0, firstBreakAuditId: null, firstBreakReason: null,
+    });
+    await page.goto('/audit/verify');
+    await expect(page.getByTestId('aud01-heading')).toBeVisible();
+  });
+
   test('EA-18 MetadataOverview at /metadata', async ({ page }) => {
     await mock(page, '**/api/**', { items: [] });
     await page.goto('/metadata');

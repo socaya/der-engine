@@ -8,6 +8,7 @@ import {
   EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
   EAWorkerHealth, EAMetadataOverview, EAApprovalQueue, EACaptureWorkflowList,
   EACaptureWorkflowDesigner, EADeviceFleet, EAFacilityAnalytics,
+  EAAuditVerify,
 } from './EACoreScreens';
 
 afterEach(() => vi.restoreAllMocks());
@@ -822,5 +823,55 @@ describe('EA-ANA-01 FacilityAnalytics', () => {
     } as never} />);
     await waitFor(() => expect(screen.getByTestId('ana01-last-refreshed'))
       .toHaveTextContent('2026-10-22T00:00:00Z'));
+  });
+});
+
+describe('EA-AUD-01 AuditVerify', () => {
+  it('renders heading before run', () => {
+    renderWithProviders(<EAAuditVerify api={{ verifyAuditChain: vi.fn() } as never} />);
+    expect(screen.getByTestId('aud01-heading')).toBeInTheDocument();
+  });
+
+  it('reports OK result', async () => {
+    renderWithProviders(<EAAuditVerify api={{
+      verifyAuditChain: vi.fn().mockResolvedValue({
+        ok: true, totalRows: 10, firstBreakAuditId: null, firstBreakReason: null,
+      }),
+    } as never} />);
+    await userEvent.click(screen.getByTestId('aud01-run'));
+    await waitFor(() => expect(screen.getByTestId('aud01-status'))
+      .toHaveTextContent('OK'));
+    expect(screen.getByTestId('aud01-total')).toHaveTextContent('10');
+  });
+
+  it('reports a break', async () => {
+    renderWithProviders(<EAAuditVerify api={{
+      verifyAuditChain: vi.fn().mockResolvedValue({
+        ok: false, totalRows: 50,
+        firstBreakAuditId: 7, firstBreakReason: 'ROW_HASH_MISMATCH',
+      }),
+    } as never} />);
+    await userEvent.click(screen.getByTestId('aud01-run'));
+    await waitFor(() => expect(screen.getByTestId('aud01-status'))
+      .toHaveTextContent('BROKEN'));
+    expect(screen.getByTestId('aud01-break-id')).toHaveTextContent('7');
+    expect(screen.getByTestId('aud01-break-reason'))
+      .toHaveTextContent('ROW_HASH_MISMATCH');
+  });
+
+  it('shows error on failure', async () => {
+    renderWithProviders(<EAAuditVerify api={{
+      verifyAuditChain: vi.fn().mockRejectedValue(new Error('boom')),
+    } as never} />);
+    await userEvent.click(screen.getByTestId('aud01-run'));
+    await waitFor(() => expect(screen.getByTestId('aud01-error')).toBeInTheDocument());
+  });
+
+  it('non-Error rejection stringifies', async () => {
+    renderWithProviders(<EAAuditVerify api={{
+      verifyAuditChain: vi.fn().mockRejectedValue('x'),
+    } as never} />);
+    await userEvent.click(screen.getByTestId('aud01-run'));
+    await waitFor(() => expect(screen.getByTestId('aud01-error')).toBeInTheDocument());
   });
 });

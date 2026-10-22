@@ -15,6 +15,21 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.2.0-alpha.5] — unreleased
+
+Initiative 8 part 2 — hash-chain audit + CMS-wrapped uploads (ADR-0021).
+
+- Added: V017 schema — `prev_hash` + `row_hash` columns on `security_audit`, `pgcrypto` extension, BEFORE INSERT trigger that chains rows under a transaction-scoped advisory lock, backfill DO block.
+- Added: `SecurityAuditVerifier` — CTE-based chain walk capped at 500 000 rows, first-break reporting (`PREV_HASH_MISMATCH` / `ROW_HASH_MISMATCH`).
+- Added: `SecurityAuditController` at `/edge-api/v1/security/audit/verify` (ADMIN only).
+- Added: `RemoteArchiveEncryption` — wraps the pre-upload archive with `openssl smime -encrypt -aes-256-cbc` against a recipient certificate; server never holds the private key. Independent of local-disk encryption.
+- Added: `BackupWorker` now routes `local → remoteWrap → upload`.
+- Added: admin UI `EAAuditVerify` (EA-AUD-01) at `/audit/verify`, Audit nav link, `verifyAuditChain` edgeApi helper.
+- Added: ADR-0021 (SHA-256 hash chain, trigger-based, 500 000-row verify cap; asymmetric CMS envelope reusing openssl).
+- Added: 15 server tests + 5 admin-ui tests + 1 Playwright spec + 1 edgeApi table row.
+
+[1.2.0-alpha.5]: https://github.com/socaya/der-engine/releases/tag/der-1.2.0-alpha.5
+
 ## [1.2.0-alpha.4] — unreleased
 
 Initiative 7 slice A — site-level analytics (ADR-0020).

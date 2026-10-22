@@ -9,7 +9,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-/** Append-only writer for {@code security_audit}. Reads happen in Phase 06. */
+/**
+ * Append-only writer for {@code security_audit}. The row's hash chain
+ * ({@code prev_hash}, {@code row_hash}) is populated by the Postgres
+ * BEFORE INSERT trigger installed by V017 (ADR-0021) — the Java path
+ * only writes the business columns.
+ */
 @Repository
 public class SecurityAuditRepository {
 

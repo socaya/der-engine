@@ -1015,3 +1015,59 @@ export function EAFacilityAnalytics({ api = edgeApi }:
     </div>
   );
 }
+
+// EA-AUD-01 Hash-chain verifier (ADR-0021) ------------------------
+export function EAAuditVerify({ api = edgeApi }:
+    { api?: Pick<typeof edgeApi, 'verifyAuditChain'> } = {}): JSX.Element {
+  const [resp, setResp] = useState<edgeApi.AuditChainVerifyResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function run(): Promise<void> {
+    setBusy(true);
+    setError(null);
+    try {
+      setResp(await api.verifyAuditChain());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="ea-screen">
+      <h1 data-test="aud01-heading">Verify audit chain</h1>
+      <p>Walks every row of <code>security_audit</code> and reports the
+        first hash-chain break (if any). ADMIN only.</p>
+      <button type="button" data-test="aud01-run"
+        disabled={busy}
+        onClick={() => { run().catch(() => undefined); }}>
+        {busy ? 'Verifying…' : 'Run verification'}
+      </button>
+      {error && (
+        <ErrorBlock title="Verify failed" testId="aud01-error">{error}</ErrorBlock>
+      )}
+      {resp && (
+        <section className="ea-aud-result" data-test="aud01-result">
+          <dl>
+            <dt>Result</dt>
+            <dd data-test="aud01-status">
+              {resp.ok ? 'OK — chain intact' : 'BROKEN'}
+            </dd>
+            <dt>Rows checked</dt>
+            <dd data-test="aud01-total">{resp.totalRows}</dd>
+            {!resp.ok && (
+              <>
+                <dt>First broken audit_id</dt>
+                <dd data-test="aud01-break-id">{resp.firstBreakAuditId}</dd>
+                <dt>Reason</dt>
+                <dd data-test="aud01-break-reason">{resp.firstBreakReason}</dd>
+              </>
+            )}
+          </dl>
+        </section>
+      )}
+    </div>
+  );
+}

@@ -141,6 +141,7 @@ describe('edgeApi route coverage', () => {
     ['analyticsSummary filtered', () => api.analyticsSummary('ou-1', 'AGGREGATE'), '/edge-api/v1/analytics/summary?orgUnit=ou-1&kind=AGGREGATE', 'GET', undefined],
     ['analyticsRejections', () => api.analyticsRejections(100),   '/edge-api/v1/analytics/rejections?limit=100', 'GET', undefined],
     ['analyticsRefresh',  () => api.analyticsRefresh(),          '/edge-api/v1/analytics/refresh',      'POST',   undefined],
+    ['verifyAuditChain',  () => api.verifyAuditChain(),          '/edge-api/v1/security/audit/verify',  'GET',    undefined],
   ])('%s hits the expected URL + method', async (_name, call, path, method, expectedBody) => {
     fetchMock.mockResolvedValue(respond(200, okJson));
     await call();

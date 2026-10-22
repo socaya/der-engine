@@ -6,6 +6,7 @@ import {
   EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
   EAWorkerHealth, EAMetadataOverview, EAApprovalQueue, EACaptureWorkflowList,
   EACaptureWorkflowDesigner, EADeviceFleet, EAFacilityAnalytics,
+  EAAuditVerify,
 } from './screens/EACoreScreens';
 import {
   EARecoveryTools, EABackupList, EARestoreList, EAEvaluationReports,
@@ -45,6 +46,7 @@ export default function App(): JSX.Element {
             <Link to="/workflows" data-test="nav-workflows">Workflows</Link>
             <Link to="/devices" data-test="nav-devices">Devices</Link>
             <Link to="/analytics" data-test="nav-analytics">Analytics</Link>
+            <Link to="/audit/verify" data-test="nav-audit">Audit</Link>
             <Link to="/metadata" data-test="nav-metadata">Metadata</Link>
           </nav>
         </header>
@@ -78,6 +80,8 @@ export default function App(): JSX.Element {
                    element={<RequireAuth><EADeviceFleet /></RequireAuth>} />
             <Route path="/analytics"
                    element={<RequireAuth><EAFacilityAnalytics /></RequireAuth>} />
+            <Route path="/audit/verify"
+                   element={<RequireAuth><EAAuditVerify /></RequireAuth>} />
             <Route path="/metadata"
                    element={<RequireAuth><EAMetadataOverview /></RequireAuth>} />
             {/* Phase 06 Release 3 — EA-19..36 */}

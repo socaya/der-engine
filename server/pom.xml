@@ -26,7 +26,7 @@
   </parent>
 
   <groupId>ug.ac.mak.der</groupId>
-  <artifactId>der-server</artifactId><version>1.2.0-alpha.4-SNAPSHOT</version>
+  <artifactId>der-server</artifactId><version>1.2.0-alpha.5-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>DER coordination server</name>
   <description>DHIS2 Edge Runtime coordination service (Phase 00 baseline)</description>
@@ -300,6 +300,14 @@
                          Lift at der-1.1.0 Testcontainers work alongside
                          BackupWorker. -->
                     <exclude>ug.ac.mak.der.workflows.backup.BackupEncryption</exclude>
+                    <!-- der-1.2.0-alpha.5: RemoteArchiveEncryption mirrors
+                         BackupEncryption's openssl subprocess shape (interrupt
+                         + timeout branches require a hanging binary).
+                         Success + non-zero-exit + verify-recipient-missing +
+                         verify-recipient-oversize + wrap-noop + wrap-success
+                         branches are covered. Lift alongside BackupEncryption
+                         when Testcontainers replaces the subprocess fakes. -->
+                    <exclude>ug.ac.mak.der.workflows.backup.RemoteArchiveEncryption</exclude>
                   </excludes>
                   <limits>
                     <!-- der-0.4.0-alpha.4-fix: Phase 03.6b packages pulled into

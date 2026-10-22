@@ -38,6 +38,7 @@ vi.mock('./screens/EACoreScreens', () => ({
     <div data-test="s-workflow-designer">designer-{workflowId}</div>,
   EADeviceFleet:       () => <div data-test="s-devices">devices</div>,
   EAFacilityAnalytics: () => <div data-test="s-analytics">analytics</div>,
+  EAAuditVerify:       () => <div data-test="s-audit">audit</div>,
 }));
 
 vi.mock('./screens/EARemainderScreens', () => ({
@@ -86,6 +87,7 @@ describe('App routing', () => {
     ['/workflows',               's-workflows'],
     ['/devices',                 's-devices'],
     ['/analytics',               's-analytics'],
+    ['/audit/verify',            's-audit'],
     ['/metadata',                's-metadata'],
     ['/recovery',                's-recovery'],
     ['/backup',                  's-backup'],
