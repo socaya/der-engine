@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/evaluation/run_phase_08.sh — Phase 08 NFR evaluation runner.
 #
-# Produces an evidence bundle under docs/evaluation/evidence/phase-07/<run>/
+# Produces an evidence bundle under docs/evaluation/evidence/${DER_EVIDENCE_PHASE:-phase-07}/<run>/
 # containing:
 #   - manifest.json         — hardware, versions, timings (NFR-27, NFR-35)
 #   - bench-health.json     — latency / throughput for /system/health (NFR-15/16/19)
@@ -34,7 +34,7 @@ DER_INSECURE="${DER_INSECURE:-}"
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-${COMMIT}"
-OUT_DIR="docs/evaluation/evidence/phase-07/${RUN_ID}"
+OUT_DIR="docs/evaluation/evidence/${DER_EVIDENCE_PHASE:-phase-07}/${RUN_ID}"
 mkdir -p "${OUT_DIR}"
 LOG="${OUT_DIR}/run.log"
 

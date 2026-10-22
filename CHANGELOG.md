@@ -15,6 +15,16 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.2.0] — 2026-10-22
+
+First stable release. Bundles alphas 1.2.0-alpha.1 through 1.2.0-alpha.5 under a single tag; no code change versus 1.2.0-alpha.5.
+
+- Capture-workflow configuration (ADR-0018) · Edge device-client management + enrollment hook (ADR-0019) · Site-level analytics (ADR-0020) · Hash-chain audit + CMS-wrapped S3 uploads (ADR-0021).
+- Pilot acceptance against DHIS2 2.44 under `docs/evaluation/evidence/phase-11/` is deliberately deferred to a point release — flagged in `docs/releases/der-1.2.0.md`.
+- No stable `der-1.0.0` / `der-1.1.0` were cut; this is the first version-without-suffix tag in the project.
+
+[1.2.0]: https://github.com/socaya/der-engine/releases/tag/der-1.2.0
+
 ## [1.2.0-alpha.5] — unreleased
 
 Initiative 8 part 2 — hash-chain audit + CMS-wrapped uploads (ADR-0021).
