@@ -1,34 +1,55 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { CustomDataProvider } from '@dhis2/app-runtime';
+import { render } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import App from './App';
+import * as edgeApiModule from './api/edgeApi';
+import { EdgeApiError, type SignInResponse } from './api/edgeApi';
 
-describe('client App', () => {
-  it('mounts without crashing and shows the client heading', () => {
-    render(<App />);
-    expect(screen.getByTestId('heading')).toHaveTextContent('DER Client');
+const user: SignInResponse = {
+  userId: 'u', username: 'alice', displayName: 'Alice', roles: ['OPERATOR'], expiresAt: '2026-10-22',
+};
+
+/*
+ * App.tsx composes AuthProvider internally (so the tests cannot inject the
+ * auth API dependency). We instead stub the module-level edgeApi.session so
+ * the real AuthProvider resolves to a deterministic state at mount.
+ */
+
+describe('App', () => {
+  function renderAt(path: string): void {
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <CustomDataProvider data={{}}>
+          <App />
+        </CustomDataProvider>
+      </MemoryRouter>,
+    );
+  }
+
+  it('redirects / to /sign-in when the session probe fails', async () => {
+    vi.spyOn(edgeApiModule, 'session').mockRejectedValue(
+      new EdgeApiError(401, 'INVALID_CREDENTIALS', 'no'),
+    );
+    renderAt('/');
+    await waitFor(() => expect(screen.getByTestId('signin-heading')).toBeInTheDocument());
+    vi.restoreAllMocks();
   });
 
-  it('renders every documented navigation entry', () => {
-    render(<App />);
-    for (const label of [
-      'Application launcher',
-      'Aggregate reporting',
-      'Event capture',
-      'Tracker',
-      'Recent records',
-      'Connection status',
-    ]) {
-      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
-    }
+  it('redirects / to /edge-error when the session probe reports edge-down', async () => {
+    vi.spyOn(edgeApiModule, 'session').mockRejectedValue(
+      new EdgeApiError(503, 'EDGE_UNREACHABLE', 'down'),
+    );
+    renderAt('/');
+    await waitFor(() => expect(screen.getByTestId('edge-error-notice')).toBeInTheDocument());
+    vi.restoreAllMocks();
   });
 
-  it('reports the DER version from the build-time constant', () => {
-    render(<App />);
-    expect(screen.getByTestId('der-version')).toHaveTextContent(/^\d+\.\d+\.\d+/);
-  });
-
-  it('reports the DHIS2 reference version as "unknown" until Phase 01 pins it', () => {
-    render(<App />);
-    expect(screen.getByTestId('dhis2-reference')).toHaveTextContent('unknown');
+  it('renders the launcher at / when authenticated', async () => {
+    vi.spyOn(edgeApiModule, 'session').mockResolvedValue(user);
+    renderAt('/');
+    await waitFor(() => expect(screen.getByTestId('launcher-heading')).toBeInTheDocument());
+    vi.restoreAllMocks();
   });
 });

@@ -1,1 +1,64 @@
-*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#24272c;background:#fff}.shell{display:flex;min-height:100vh}aside{width:238px;border-right:1px solid #e5e7eb;padding:24px 16px;background:#f9fafb}.brand{font-size:16px;font-weight:700;margin:4px 8px 24px}.nav-item{font-size:14px;padding:10px 12px;color:#4b5563}main{flex:1;padding:36px;max-width:1000px}h1{font-size:26px;margin:0 0 8px}header p{color:#6b7280;margin:0 0 32px}.notice{max-width:680px;border:1px solid #e5e7eb;border-radius:8px;padding:24px}h2{font-size:18px;margin-top:0}.notice p{line-height:1.6}@media(max-width:700px){.shell{display:block}aside{width:100%;border-right:0;border-bottom:1px solid #e5e7eb}.nav-item{display:inline-block}main{padding:24px}}
+/* DER device-client — layout styling layered on top of @dhis2/ui. */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+}
+
+.der-main {
+    padding: 24px 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.der-centered {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+}
+
+.der-signin-card,
+.der-edge-error-card {
+    width: 420px;
+    padding: 24px;
+}
+
+.der-signin-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.der-tile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.der-tile-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+.der-sync-card {
+    margin-top: 24px;
+    padding: 16px;
+}
+
+.der-role-tag {
+    margin-right: 6px;
+}
+
+.der-metadata-browser,
+.der-recent-work,
+.der-session-details {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}

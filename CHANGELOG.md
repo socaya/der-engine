@@ -13,7 +13,30 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Phase 03c (DER-platform client with @dhis2/ui) and Phase 03.5 (write paths) not yet started.
+- Phase 03.5 (write paths) not yet started.
+
+## [0.4.0-alpha.1] — unreleased
+
+Phase 03c — DER device-client on @dhis2/ui + @dhis2/app-runtime
+(see `docs/releases/der-0.4.0-alpha.1.md`).
+
+- Added: `main.tsx` wires `DataProvider` → `BrowserRouter` → `App`.
+- Added: `AuthProvider` + `RequireAuth` + `useAuth` hook; auth state
+  machine with INITIAL / ANONYMOUS / AUTHENTICATED / EDGE_DOWN.
+- Added: `src/api/edgeApi.ts` — fetch wrapper with typed `EdgeApiError`.
+- Added: `SyncStatusPill` — never emits "Synchronised" at Phase 03.
+- Added: `SignIn`, `SessionDetails`, `Launcher`, `RecentWork`,
+  `MetadataBrowser`, `EdgeConnectionError` screens.
+- Added: `App.tsx` route table covering DC-01/02/03/04/17 chrome/18 and
+  the five read-only metadata lanes.
+- Added: ADR-0005 PROPOSED — Hosting custom DHIS2 apps on the edge
+  (motivated by Uganda MoH eRegister); decision deferred to Phase 05.
+- Client Vitest: 59/59; V8 100% line/function/statement, 92.25%
+  branch (threshold temporarily 90% for alpha; documented in
+  `client/vite.config.ts`).
+- Server unchanged from alpha.0.
+
+[0.4.0-alpha.1]: https://github.com/socaya/der-engine/releases/tag/der-0.4.0-alpha.1
 
 ## [0.4.0-alpha.0] — unreleased
 

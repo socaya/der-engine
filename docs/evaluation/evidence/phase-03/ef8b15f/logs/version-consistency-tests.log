@@ -1,0 +1,8 @@
+  [OK] pass_matching_versions
+  [OK] pass_version_before_parent
+  [OK] fail_pom_mismatch
+  [OK] fail_admin_mismatch
+  [OK] fail_invalid_semver_in_version_file
+  [OK] root_repository_consistency
+
+6/6 tests passed
