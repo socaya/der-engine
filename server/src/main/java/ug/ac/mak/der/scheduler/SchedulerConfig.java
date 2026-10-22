@@ -99,4 +99,24 @@ public class SchedulerConfig {
                 .withSchedule(CronScheduleBuilder.cronSchedule(cron))
                 .build();
     }
+
+    @Bean
+    public JobDetail backupDrainJobDetail() {
+        return JobBuilder.newJob(BackupDrainJob.class)
+                .withIdentity(BackupDrainJob.JOB_NAME)
+                .storeDurably()
+                .requestRecovery()
+                .build();
+    }
+
+    @Bean
+    public Trigger backupDrainTrigger(final JobDetail backupDrainJobDetail,
+                                       @Value("${der.backup.drain.cron:0 */2 * * * ?}")
+                                       final String cron) {
+        return TriggerBuilder.newTrigger()
+                .forJob(backupDrainJobDetail)
+                .withIdentity(BackupDrainJob.JOB_NAME + "_TRIGGER")
+                .withSchedule(CronScheduleBuilder.cronSchedule(cron))
+                .build();
+    }
 }

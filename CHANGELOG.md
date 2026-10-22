@@ -13,7 +13,21 @@ is recorded separately per release in `docs/releases/`.
 
 ### Added
 
-- Phase 06 (54-screen UI buildout + drift/conflict UIs) and Phase 08 (NFR evaluation) not yet started.
+- Phase 08 (NFR evaluation on pilot hardware) and Phase 09 (pilot deployment runbook) not yet started.
+
+## [0.7.0-alpha.1] — unreleased
+
+Phase 07 — backup / restore engine (ADR-0012).
+
+- Added: V011 schema — backup_run.{archive_path, archive_bytes, remote_key, started_at, finished_at, pg_dump_version}, restore_run.{started_at, finished_at, archive_path, kind}.
+- Added: BackupWorker + RestoreWorker subprocess pipeline (pg_dump / pg_restore).
+- Added: RemoteArchiveStore — plain-HttpClient S3-compatible push/pull.
+- Added: BackupDrainJob Quartz job on `der.backup.drain.cron` (default 2 min).
+- Added: BackupController + RestoreController REST surfaces (ADMIN role).
+- Added: multipart upload staging for RESTORE_KIND=UPLOAD.
+- Added: ADR-0012 Backup and restore engine.
+
+[0.7.0-alpha.1]: https://github.com/socaya/der-engine/releases/tag/der-0.7.0-alpha.1
 
 ## [0.5.0-alpha.1] — unreleased
 

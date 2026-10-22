@@ -143,9 +143,35 @@
       <Class name="ug.ac.mak.der.scheduler.MetadataSyncJob"/>
       <Class name="ug.ac.mak.der.scheduler.CompatRefreshJob"/>
       <Class name="ug.ac.mak.der.scheduler.DriftSnapshotJob"/>
+      <Class name="ug.ac.mak.der.scheduler.BackupDrainJob"/>
     </Or>
     <Method name="execute"/>
     <Bug pattern="REC_CATCH_EXCEPTION"/>
+  </Match>
+
+  <!-- Phase 07 (ADR-0012) subprocess + remote classes: Files.list/getFileName
+       and Path.resolve/getFileName return non-null by API contract; SpotBugs
+       cannot see the guarantee. Reviewed 2026-10-22. -->
+  <Match>
+    <Or>
+      <Class name="ug.ac.mak.der.workflows.backup.BackupWorker"/>
+      <Class name="ug.ac.mak.der.workflows.backup.RemoteArchiveStore"/>
+    </Or>
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+  </Match>
+
+  <!-- Phase 07 (ADR-0012) backup/restore records are Jackson-serialised;
+       Instant/Long fields are immutable and the records never leak mutable
+       state. Reviewed 2026-10-22. -->
+  <Match>
+    <Or>
+      <Class name="ug.ac.mak.der.workflows.backup.BackupRun"/>
+      <Class name="ug.ac.mak.der.workflows.backup.RestoreRun"/>
+    </Or>
+    <Or>
+      <Bug pattern="EI_EXPOSE_REP"/>
+      <Bug pattern="EI_EXPOSE_REP2"/>
+    </Or>
   </Match>
 
   <!-- DriftReport is a Jackson-serialised record; perEntity is already

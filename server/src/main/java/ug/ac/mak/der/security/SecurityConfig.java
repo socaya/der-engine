@@ -75,6 +75,8 @@ public class SecurityConfig {
                         .requestMatchers("/edge-api/v1/dhis2/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/provisioning/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/sync/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/backup/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/restore/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/apps/**").authenticated()
                         .requestMatchers("/edge-api/v1/**").authenticated()
                         // ADR-0004: DER emulates the DHIS2 Web API at /api/**.
