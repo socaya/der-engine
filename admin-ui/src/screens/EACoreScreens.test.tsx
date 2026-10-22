@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
@@ -687,6 +687,104 @@ describe('EA-CWF-02 CaptureWorkflowDesigner', () => {
       listDevices: vi.fn().mockResolvedValue({ devices: null }),
     } as never} />);
     expect(screen.queryByTestId('cwf02-devices')).not.toBeInTheDocument();
+  });
+
+  it('binding-kind select switches to PROGRAM (ADR-0024)', async () => {
+    const save = vi.fn().mockResolvedValue(loaded);
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: save,
+    } as never} />);
+    await userEvent.type(screen.getByTestId('cwf02-name'), 'wf');
+    await userEvent.type(screen.getByTestId('cwf02-binding'), 'p1');
+    await userEvent.selectOptions(screen.getByTestId('cwf02-binding-kind'), 'PROGRAM');
+    await userEvent.click(screen.getByTestId('cwf02-save'));
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    expect(save.mock.calls[0][0]).toMatchObject({ boundMetadataKind: 'PROGRAM' });
+  });
+
+  it('export button shows only when loaded + populates textarea', async () => {
+    const exportFn = vi.fn().mockResolvedValue({
+      schemaVersion: 1, displayName: 'Monthly', boundMetadataKind: 'DATA_SET',
+      boundMetadataId: 'ds2', enabled: true, steps: [], dependencies: [],
+    });
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId={loaded.workflowId} api={{
+      getWorkflow: vi.fn().mockResolvedValue(loaded),
+      saveWorkflow: vi.fn(),
+      exportWorkflow: exportFn,
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('cwf02-export')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('cwf02-export'));
+    await waitFor(() => expect(screen.getByTestId('cwf02-export-output'))
+      .toBeInTheDocument());
+    expect(exportFn).toHaveBeenCalledWith(loaded.workflowId);
+  });
+
+  it('export section hidden on new workflow', () => {
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: vi.fn(),
+    } as never} />);
+    expect(screen.queryByTestId('cwf02-export-section')).not.toBeInTheDocument();
+  });
+
+  it('export error surfaces', async () => {
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId={loaded.workflowId} api={{
+      getWorkflow: vi.fn().mockResolvedValue(loaded),
+      saveWorkflow: vi.fn(),
+      exportWorkflow: vi.fn().mockRejectedValue(new Error('nope')),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('cwf02-export')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('cwf02-export'));
+    await waitFor(() => expect(screen.getByTestId('cwf02-error')).toBeInTheDocument());
+  });
+
+  it('import dry-run surfaces warnings', async () => {
+    const imp = vi.fn().mockResolvedValue({
+      dryRun: true, warnings: ['w1'],
+      workflow: { ...loaded, workflowId: 'new-id' },
+    });
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: vi.fn(),
+      importWorkflow: imp,
+    } as never} />);
+    const payload = JSON.stringify({
+      schemaVersion: 1, displayName: 'x', boundMetadataKind: 'DATA_SET',
+      boundMetadataId: 'ds', enabled: true, steps: [], dependencies: [],
+    });
+    const area = screen.getByTestId('cwf02-import-input') as HTMLTextAreaElement;
+    fireEvent.change(area, { target: { value: payload } });
+    area.dispatchEvent(new Event('input', { bubbles: true }));
+    await userEvent.click(screen.getByTestId('cwf02-import-dry'));
+    await waitFor(() => expect(screen.getByTestId('cwf02-import-warnings'))
+      .toHaveTextContent('w1'));
+    expect(imp).toHaveBeenCalledWith(expect.any(Object), true);
+  });
+
+  it('import apply flips status to saved', async () => {
+    const imp = vi.fn().mockResolvedValue({
+      dryRun: false, warnings: [], workflow: loaded,
+    });
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: vi.fn(),
+      importWorkflow: imp,
+    } as never} />);
+    const area = screen.getByTestId('cwf02-import-input') as HTMLTextAreaElement;
+    fireEvent.change(area, { target: { value: '{"ok":true}' } });
+    area.dispatchEvent(new Event('input', { bubbles: true }));
+    await userEvent.click(screen.getByTestId('cwf02-import-apply'));
+    await waitFor(() => expect(screen.getByTestId('cwf02-saved')).toBeInTheDocument());
+    expect(imp).toHaveBeenCalledWith(expect.any(Object), false);
+  });
+
+  it('import JSON parse error surfaces', async () => {
+    renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
+      getWorkflow: vi.fn(), saveWorkflow: vi.fn(),
+      importWorkflow: vi.fn(),
+    } as never} />);
+    const area = screen.getByTestId('cwf02-import-input') as HTMLTextAreaElement;
+    fireEvent.change(area, { target: { value: 'not json' } });
+    area.dispatchEvent(new Event('input', { bubbles: true }));
+    await userEvent.click(screen.getByTestId('cwf02-import-dry'));
+    await waitFor(() => expect(screen.getByTestId('cwf02-error')).toBeInTheDocument());
   });
 
   it('toggles enabled checkbox', async () => {

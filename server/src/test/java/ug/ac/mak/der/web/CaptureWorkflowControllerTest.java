@@ -41,6 +41,7 @@ class CaptureWorkflowControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean CaptureWorkflowService svc;
+    @MockBean ug.ac.mak.der.workflow.CaptureWorkflowImportService importer;
 
     private final Instant NOW = Instant.parse("2026-10-22T00:00:00Z");
 
@@ -118,10 +119,25 @@ class CaptureWorkflowControllerTest {
     void createBadEnum() throws Exception {
         mockMvc.perform(post("/edge-api/v1/workflows").with(as(EdgeRole.ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"displayName\":\"wf\",\"boundMetadataKind\":\"PROGRAM\","
+                        .content("{\"displayName\":\"wf\",\"boundMetadataKind\":\"BAD_KIND\","
                                 + "\"boundMetadataId\":\"ds1\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("WORKFLOW_INVALID"));
+    }
+
+    @Test
+    void createAcceptsProgramBinding() throws Exception {
+        when(svc.save(any(CaptureWorkflow.class), any(UUID.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        mockMvc.perform(post("/edge-api/v1/workflows").with(as(EdgeRole.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"displayName\":\"wf\",\"boundMetadataKind\":\"PROGRAM\","
+                                + "\"boundMetadataId\":\"p1\",\"enabled\":true,"
+                                + "\"steps\":[{\"ordinal\":0,\"displayName\":\"s\","
+                                + "\"ownerRole\":\"OPERATOR\",\"stepKind\":\"CAPTURE\","
+                                + "\"fields\":[]}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.boundMetadataKind").value("PROGRAM"));
     }
 
     @Test
@@ -189,6 +205,56 @@ class CaptureWorkflowControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"displayName\":\"wf\",\"boundMetadataId\":\" \"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void exportCanonical() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(svc.get(id)).thenReturn(Optional.of(workflow(id)));
+        mockMvc.perform(get("/edge-api/v1/workflows/" + id + "/export")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.schemaVersion").value(1))
+                .andExpect(jsonPath("$.displayName").value("wf"))
+                .andExpect(jsonPath("$.workflowId").doesNotExist());
+    }
+
+    @Test
+    void exportNotFound() throws Exception {
+        when(svc.get(any(UUID.class))).thenReturn(Optional.empty());
+        mockMvc.perform(get("/edge-api/v1/workflows/" + UUID.randomUUID() + "/export")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void importOk() throws Exception {
+        when(importer.importWorkflow(any(), org.mockito.ArgumentMatchers.anyBoolean(),
+                any(UUID.class))).thenReturn(
+                new ug.ac.mak.der.workflow.CaptureWorkflowImportService.ImportResult(
+                        workflow(UUID.randomUUID()), List.of("warn-1"), false));
+        mockMvc.perform(post("/edge-api/v1/workflows/import").with(as(EdgeRole.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"schemaVersion\":1,\"displayName\":\"x\","
+                                + "\"boundMetadataKind\":\"DATA_SET\","
+                                + "\"boundMetadataId\":\"ds1\",\"enabled\":true,"
+                                + "\"steps\":[{\"ordinal\":0,\"displayName\":\"s\","
+                                + "\"ownerRole\":\"OPERATOR\",\"stepKind\":\"CAPTURE\","
+                                + "\"fields\":[]}],\"dependencies\":[]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dryRun").value(false))
+                .andExpect(jsonPath("$.warnings[0]").value("warn-1"));
+    }
+
+    @Test
+    void importRejectsBadSchema() throws Exception {
+        when(importer.importWorkflow(any(), org.mockito.ArgumentMatchers.anyBoolean(),
+                any(UUID.class))).thenThrow(new IllegalArgumentException("schemaVersion"));
+        mockMvc.perform(post("/edge-api/v1/workflows/import").with(as(EdgeRole.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"schemaVersion\":99}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("WORKFLOW_IMPORT_INVALID"));
     }
 
     @Test

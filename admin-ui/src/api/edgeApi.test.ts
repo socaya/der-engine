@@ -142,6 +142,21 @@ describe('edgeApi route coverage', () => {
     ['analyticsRejections', () => api.analyticsRejections(100),   '/edge-api/v1/analytics/rejections?limit=100', 'GET', undefined],
     ['analyticsRefresh',  () => api.analyticsRefresh(),          '/edge-api/v1/analytics/refresh',      'POST',   undefined],
     ['verifyAuditChain',  () => api.verifyAuditChain(),          '/edge-api/v1/security/audit/verify',  'GET',    undefined],
+    ['exportWorkflow',    () => api.exportWorkflow('wf-7'),      '/edge-api/v1/workflows/wf-7/export',  'GET',    undefined],
+    ['importWorkflow dry',() => api.importWorkflow({
+      schemaVersion: 1, displayName: 'x', boundMetadataKind: 'DATA_SET',
+      boundMetadataId: 'ds', enabled: true, steps: [], dependencies: [],
+    }, true), '/edge-api/v1/workflows/import?dryRun=true', 'POST', {
+      schemaVersion: 1, displayName: 'x', boundMetadataKind: 'DATA_SET',
+      boundMetadataId: 'ds', enabled: true, steps: [], dependencies: [],
+    }],
+    ['importWorkflow apply',() => api.importWorkflow({
+      schemaVersion: 1, displayName: 'y', boundMetadataKind: 'PROGRAM',
+      boundMetadataId: 'p1', enabled: true, steps: [], dependencies: [],
+    }), '/edge-api/v1/workflows/import?dryRun=false', 'POST', {
+      schemaVersion: 1, displayName: 'y', boundMetadataKind: 'PROGRAM',
+      boundMetadataId: 'p1', enabled: true, steps: [], dependencies: [],
+    }],
   ])('%s hits the expected URL + method', async (_name, call, path, method, expectedBody) => {
     fetchMock.mockResolvedValue(respond(200, okJson));
     await call();

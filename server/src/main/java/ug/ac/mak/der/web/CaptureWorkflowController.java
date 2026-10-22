@@ -25,6 +25,7 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.CaptureWorkflow;
 import ug.ac.mak.der.workflow.CaptureWorkflowDependency;
 import ug.ac.mak.der.workflow.CaptureWorkflowField;
+import ug.ac.mak.der.workflow.CaptureWorkflowImportService;
 import ug.ac.mak.der.workflow.CaptureWorkflowRun;
 import ug.ac.mak.der.workflow.CaptureWorkflowService;
 import ug.ac.mak.der.workflow.CaptureWorkflowStep;
@@ -35,9 +36,12 @@ import ug.ac.mak.der.workflow.CaptureWorkflowStep;
 public class CaptureWorkflowController {
 
     private final CaptureWorkflowService svc;
+    private final CaptureWorkflowImportService importer;
 
-    public CaptureWorkflowController(final CaptureWorkflowService svc) {
+    public CaptureWorkflowController(final CaptureWorkflowService svc,
+                                       final CaptureWorkflowImportService importer) {
         this.svc = Objects.requireNonNull(svc, "svc");
+        this.importer = Objects.requireNonNull(importer, "importer");
     }
 
     @GetMapping
@@ -76,6 +80,81 @@ public class CaptureWorkflowController {
     public ResponseEntity<Map<String, Object>> runs(@PathVariable("id") final UUID id) {
         return ResponseEntity.ok(Map.of("runs",
                 svc.runs(id).stream().map(CaptureWorkflowController::runToJson).toList()));
+    }
+
+    @GetMapping("/{id}/export")
+    public ResponseEntity<Map<String, Object>> export(@PathVariable("id") final UUID id) {
+        return svc.get(id)
+                .<ResponseEntity<Map<String, Object>>>map(w -> ResponseEntity.ok(toCanonicalJson(w)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping(path = "/import", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> importWorkflow(
+            final Authentication authentication,
+            @org.springframework.web.bind.annotation.RequestParam(
+                    name = "dryRun", defaultValue = "false") final boolean dryRun,
+            @RequestBody final CaptureWorkflowImportService.CanonicalWorkflow body) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        try {
+            final CaptureWorkflowImportService.ImportResult result =
+                    importer.importWorkflow(body, dryRun, principal.userId());
+            final Map<String, Object> out = new LinkedHashMap<>();
+            out.put("dryRun", result.dryRun());
+            out.put("warnings", result.warnings());
+            out.put("workflow", toJson(result.workflow()));
+            return ResponseEntity.ok(out);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "WORKFLOW_IMPORT_INVALID", "message", ex.getMessage()));
+        }
+    }
+
+    private static Map<String, Object> toCanonicalJson(final CaptureWorkflow w) {
+        final Map<String, Object> m = new LinkedHashMap<>();
+        m.put("schemaVersion", 1);
+        m.put("displayName", w.displayName());
+        m.put("boundMetadataKind", w.boundMetadataKind().name());
+        m.put("boundMetadataId", w.boundMetadataId());
+        m.put("enabled", w.enabled());
+        m.put("steps", w.steps().stream().map(CaptureWorkflowController::stepCanonical).toList());
+        final List<Map<String, Object>> deps = new ArrayList<>();
+        for (final CaptureWorkflowDependency d : w.dependencies()) {
+            final Integer from = ordinalFor(w, d.stepId());
+            final Integer to = ordinalFor(w, d.dependsOnStepId());
+            if (from == null || to == null) {
+                continue;
+            }
+            final Map<String, Object> dj = new LinkedHashMap<>();
+            dj.put("fromOrdinal", from);
+            dj.put("toOrdinal", to);
+            dj.put("kind", d.kind().name());
+            deps.add(dj);
+        }
+        m.put("dependencies", deps);
+        return m;
+    }
+
+    private static Map<String, Object> stepCanonical(final CaptureWorkflowStep s) {
+        final Map<String, Object> m = new LinkedHashMap<>();
+        m.put("ordinal", s.ordinal());
+        m.put("displayName", s.displayName());
+        m.put("ownerRole", s.ownerRole().name());
+        m.put("ownerDeviceId", s.ownerDeviceId() == null ? null : s.ownerDeviceId().toString());
+        m.put("stepKind", s.stepKind().name());
+        m.put("fields", s.fields().stream().map(f -> Map.of(
+                "fieldRef", f.fieldRef(), "requirement", f.requirement().name())).toList());
+        return m;
+    }
+
+    private static Integer ordinalFor(final CaptureWorkflow w, final UUID stepId) {
+        return w.steps().stream()
+                .filter(s -> s.stepId().equals(stepId))
+                .map(CaptureWorkflowStep::ordinal)
+                .findFirst()
+                .orElse(null);
     }
 
     private ResponseEntity<Map<String, Object>> save(final Authentication authentication,

@@ -73,6 +73,15 @@ public class CaptureWorkflowService {
         return repo.findEnabledForBinding(CaptureWorkflow.BindingKind.DATA_SET, dataSetId);
     }
 
+    public Optional<CaptureWorkflow> resolveForProgram(final String programId) {
+        return repo.findEnabledForBinding(CaptureWorkflow.BindingKind.PROGRAM, programId);
+    }
+
+    public Optional<CaptureWorkflow> resolveForProgramStage(final String programStageId) {
+        return repo.findEnabledForBinding(
+                CaptureWorkflow.BindingKind.PROGRAM_STAGE, programStageId);
+    }
+
     /**
      * Starts (or returns the existing) run for this
      * {@code workflowId}/{@code businessKey}. Idempotent — repeated

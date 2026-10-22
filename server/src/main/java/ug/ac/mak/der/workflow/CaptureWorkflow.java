@@ -38,6 +38,6 @@ public record CaptureWorkflow(
         dependencies = dependencies == null ? List.of() : List.copyOf(dependencies);
     }
 
-    /** Slice A ships only DATA_SET; slice B adds the rest. */
-    public enum BindingKind { DATA_SET }
+    /** Slice A shipped only DATA_SET; slice B (ADR-0024) adds PROGRAM + PROGRAM_STAGE. */
+    public enum BindingKind { DATA_SET, PROGRAM, PROGRAM_STAGE }
 }

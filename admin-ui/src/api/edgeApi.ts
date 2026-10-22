@@ -490,7 +490,7 @@ export interface CaptureWorkflowDependency {
 export interface CaptureWorkflowSummary {
   workflowId: string;
   displayName: string;
-  boundMetadataKind: 'DATA_SET';
+  boundMetadataKind: 'DATA_SET' | 'PROGRAM' | 'PROGRAM_STAGE';
   boundMetadataId: string;
   enabled: boolean;
   version: number;
@@ -536,6 +536,41 @@ export function deleteWorkflow(id: string): Promise<void> {
 export function listWorkflowRuns(id: string): Promise<{ runs: CaptureWorkflowRun[] }> {
   return request<{ runs: CaptureWorkflowRun[] }>('GET',
     `/edge-api/v1/workflows/${id}/runs`);
+}
+
+// ---- der-1.3.0-alpha.3 Initiative 10 slice B (ADR-0024): import/export ----
+
+export interface CanonicalWorkflow {
+  schemaVersion: number;
+  displayName: string;
+  boundMetadataKind: 'DATA_SET' | 'PROGRAM' | 'PROGRAM_STAGE';
+  boundMetadataId: string;
+  enabled: boolean;
+  steps: Array<{
+    ordinal: number;
+    displayName: string;
+    ownerRole: 'ADMIN' | 'OPERATOR' | 'REVIEWER';
+    ownerDeviceId: string | null;
+    stepKind: 'CAPTURE' | 'REVIEW' | 'APPROVE' | 'DISPATCH';
+    fields: Array<{ fieldRef: string; requirement: 'REQUIRED' | 'OPTIONAL' | 'READONLY' | 'HIDDEN' }>;
+  }>;
+  dependencies: Array<{ fromOrdinal: number; toOrdinal: number; kind: 'COMPLETES_BEFORE' }>;
+}
+
+export interface WorkflowImportResponse {
+  dryRun: boolean;
+  warnings: string[];
+  workflow: CaptureWorkflowSummary;
+}
+
+export function exportWorkflow(id: string): Promise<CanonicalWorkflow> {
+  return request<CanonicalWorkflow>('GET', `/edge-api/v1/workflows/${id}/export`);
+}
+
+export function importWorkflow(body: CanonicalWorkflow, dryRun = false):
+    Promise<WorkflowImportResponse> {
+  return request<WorkflowImportResponse>('POST',
+    `/edge-api/v1/workflows/import?dryRun=${dryRun}`, body);
 }
 
 // ---- der-1.2.0-alpha.2 Initiative 1: device management (ADR-0019) ----

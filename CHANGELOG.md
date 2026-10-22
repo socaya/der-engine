@@ -15,6 +15,21 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.3.0-alpha.3] — unreleased
+
+Initiative 10 slice B — program-binding + workflow import/export (ADR-0024).
+
+- Added: V019 relaxes `capture_workflow.bound_metadata_kind` CHECK to `('DATA_SET','PROGRAM','PROGRAM_STAGE')`.
+- Added: `CaptureWorkflow.BindingKind` extended + `CaptureWorkflowService.resolveForProgram`/`resolveForProgramStage` helpers.
+- Added: `DeviceOwnerEnforcementInterceptor` guards `/api/events`, `/api/tracker/events`, `/api/tracker/enrollments`; sniff order PROGRAM_STAGE → PROGRAM → DATA_SET.
+- Added: `GET /edge-api/v1/workflows/{id}/export` returns canonical JSON (schemaVersion 1, ordinals in dependencies, no server-generated ids/timestamps).
+- Added: `POST /edge-api/v1/workflows/import?dryRun=` (ADMIN) with validation + unknown-device scrubbing.
+- Added: admin UI designer gets a binding-kind dropdown + Export/Import sections with dry-run + apply flow.
+- Added: ADR-0024 (canonical shape, schemaVersion 1, device-id scrub, no bundled import).
+- Added: 19 server tests + 11 admin-ui screen tests + 3 edgeApi table rows.
+
+[1.3.0-alpha.3]: https://github.com/socaya/der-engine/releases/tag/der-1.3.0-alpha.3
+
 ## [1.3.0-alpha.2] — unreleased
 
 Initiative 10 slice B — device-owner enforcement (ADR-0023).

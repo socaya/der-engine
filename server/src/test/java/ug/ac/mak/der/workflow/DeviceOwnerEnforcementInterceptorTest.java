@@ -190,6 +190,39 @@ class DeviceOwnerEnforcementInterceptorTest {
     }
 
     @Test
+    void sniffsProgramStageBeforeProgram() throws Exception {
+        final UUID owner = UUID.randomUUID();
+        final CaptureWorkflowService svc = mock(CaptureWorkflowService.class);
+        when(svc.resolveForProgramStage("ps1")).thenReturn(Optional.of(workflow(owner)));
+        final DeviceOwnerEnforcementInterceptor i = newInterceptor(svc,
+                mock(SecurityAuditRepository.class));
+        assertThat(i.preHandle(req("/api/events", "POST",
+                "{\"programStage\":\"ps1\",\"program\":\"p1\"}", owner.toString()),
+                mock(HttpServletResponse.class), new Object())).isTrue();
+    }
+
+    @Test
+    void sniffsProgramWhenNoStageMatches() throws Exception {
+        final UUID owner = UUID.randomUUID();
+        final CaptureWorkflowService svc = mock(CaptureWorkflowService.class);
+        when(svc.resolveForProgramStage("ps1")).thenReturn(Optional.empty());
+        when(svc.resolveForProgram("p1")).thenReturn(Optional.of(workflow(owner)));
+        final DeviceOwnerEnforcementInterceptor i = newInterceptor(svc,
+                mock(SecurityAuditRepository.class));
+        assertThat(i.preHandle(req("/api/events", "POST",
+                "{\"programStage\":\"ps1\",\"program\":\"p1\"}", owner.toString()),
+                mock(HttpServletResponse.class), new Object())).isTrue();
+    }
+
+    @Test
+    void guardsTrackerEvents() {
+        assertThat(DeviceOwnerEnforcementInterceptor.shouldGuard("/api/tracker/events")).isTrue();
+        assertThat(DeviceOwnerEnforcementInterceptor.shouldGuard("/api/tracker/enrollments"))
+                .isTrue();
+        assertThat(DeviceOwnerEnforcementInterceptor.shouldGuard("/api/events")).isTrue();
+    }
+
+    @Test
     void malformedBodyIsNoOp() throws Exception {
         final CaptureWorkflowService svc = mock(CaptureWorkflowService.class);
         final DeviceOwnerEnforcementInterceptor i = newInterceptor(svc,

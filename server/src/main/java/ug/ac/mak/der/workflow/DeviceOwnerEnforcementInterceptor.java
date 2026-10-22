@@ -67,18 +67,7 @@ public class DeviceOwnerEnforcementInterceptor implements HandlerInterceptor {
         if (!shouldGuard(request.getRequestURI())) {
             return true;
         }
-        final String dataSetId = sniffDataSetId(request);
-        if (dataSetId == null) {
-            return true;
-        }
-        final Optional<CaptureWorkflow> workflow;
-        try {
-            workflow = workflows.resolveForDataSet(dataSetId);
-        } catch (RuntimeException ex) {
-            LOG.warn("workflow lookup failed; failing open (ADR-0023 D-DOE-4): {}",
-                    ex.getMessage());
-            return true;
-        }
+        final Optional<CaptureWorkflow> workflow = resolveWorkflow(request);
         if (workflow.isEmpty()) {
             return true;
         }
@@ -116,23 +105,54 @@ public class DeviceOwnerEnforcementInterceptor implements HandlerInterceptor {
         if (path == null) {
             return false;
         }
-        return path.equals("/api/dataValueSets");
+        return path.equals("/api/dataValueSets")
+                || path.equals("/api/events")
+                || path.equals("/api/tracker/events")
+                || path.equals("/api/tracker/enrollments");
     }
 
-    private String sniffDataSetId(final HttpServletRequest request) {
+    private Optional<CaptureWorkflow> resolveWorkflow(final HttpServletRequest request) {
+        final JsonNode root;
         try {
-            final JsonNode root = mapper.readTree(request.getReader());
-            if (root == null || root.isMissingNode()) {
-                return null;
-            }
-            if (root.has("dataSet") && root.get("dataSet").isTextual()) {
-                return root.get("dataSet").asText();
-            }
-            return null;
+            root = mapper.readTree(request.getReader());
         } catch (IOException ex) {
-            LOG.debug("could not sniff dataSet from body: {}", ex.getMessage());
-            return null;
+            LOG.debug("could not read request body: {}", ex.getMessage());
+            return Optional.empty();
         }
+        if (root == null || root.isMissingNode()) {
+            return Optional.empty();
+        }
+        try {
+            // Program-stage shadows program; program shadows dataSet (D-WIX-3).
+            final String programStage = textOrNull(root, "programStage");
+            if (programStage != null) {
+                final Optional<CaptureWorkflow> ps = workflows.resolveForProgramStage(programStage);
+                if (ps.isPresent()) {
+                    return ps;
+                }
+            }
+            final String program = textOrNull(root, "program");
+            if (program != null) {
+                final Optional<CaptureWorkflow> p = workflows.resolveForProgram(program);
+                if (p.isPresent()) {
+                    return p;
+                }
+            }
+            final String dataSet = textOrNull(root, "dataSet");
+            if (dataSet != null) {
+                return workflows.resolveForDataSet(dataSet);
+            }
+            return Optional.empty();
+        } catch (RuntimeException ex) {
+            LOG.warn("workflow lookup failed; failing open (ADR-0023 D-DOE-4): {}",
+                    ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private static String textOrNull(final JsonNode root, final String field) {
+        final JsonNode node = root.get(field);
+        return node != null && node.isTextual() ? node.asText() : null;
     }
 
     private boolean reject(final HttpServletResponse response, final CaptureWorkflow w,

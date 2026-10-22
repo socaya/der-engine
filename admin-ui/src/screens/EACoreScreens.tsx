@@ -724,10 +724,13 @@ export function EACaptureWorkflowList({ api = edgeApi }:
 
 // EA-CWF-02 Designer -----------------------------------------------
 export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
-    { api?: Pick<typeof edgeApi, 'getWorkflow' | 'saveWorkflow' | 'listDevices'>;
+    { api?: Pick<typeof edgeApi, 'getWorkflow' | 'saveWorkflow' | 'listDevices'
+      | 'exportWorkflow' | 'importWorkflow'>;
       workflowId?: string } = {}): JSX.Element {
   const [existing, setExisting] = useState<edgeApi.CaptureWorkflowSummary | null>(null);
   const [displayName, setDisplayName] = useState('');
+  const [boundMetadataKind, setBoundMetadataKind] =
+    useState<edgeApi.CanonicalWorkflow['boundMetadataKind']>('DATA_SET');
   const [boundMetadataId, setBoundMetadataId] = useState('');
   const [enabled, setEnabled] = useState(true);
   const [stepsJson, setStepsJson] = useState('[]');
@@ -735,6 +738,9 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
   const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [importText, setImportText] = useState('');
+  const [importWarnings, setImportWarnings] = useState<string[] | null>(null);
+  const [exportJson, setExportJson] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -742,6 +748,7 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
         const w = await api.getWorkflow(workflowId);
         setExisting(w);
         setDisplayName(w.displayName);
+        setBoundMetadataKind(w.boundMetadataKind);
         setBoundMetadataId(w.boundMetadataId);
         setEnabled(w.enabled);
         setStepsJson(JSON.stringify(w.steps, null, 2));
@@ -764,11 +771,36 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
       const dependencies = JSON.parse(depsJson) as edgeApi.CaptureWorkflowDependency[];
       await api.saveWorkflow({
         workflowId: existing?.workflowId,
-        displayName, boundMetadataId, enabled, steps, dependencies,
+        displayName, boundMetadataKind, boundMetadataId, enabled, steps, dependencies,
       });
       setStatus('saved');
     } catch (err) {
       setStatus('idle');
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function doExport(): Promise<void> {
+    if (!existing || !api.exportWorkflow) return;
+    try {
+      const canonical = await api.exportWorkflow(existing.workflowId);
+      setExportJson(JSON.stringify(canonical, null, 2));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function doImport(dryRun: boolean): Promise<void> {
+    if (!api.importWorkflow) return;
+    setError(null);
+    try {
+      const body = JSON.parse(importText) as edgeApi.CanonicalWorkflow;
+      const resp = await api.importWorkflow(body, dryRun);
+      setImportWarnings(resp.warnings);
+      if (!dryRun) {
+        setStatus('saved');
+      }
+    } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
   }
@@ -788,7 +820,17 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
           onChange={(e) => { setDisplayName(e.target.value); }} />
       </label>
       <label>
-        <span>Bound dataSet UID</span>
+        <span>Binding kind</span>
+        <select data-test="cwf02-binding-kind" value={boundMetadataKind}
+          onChange={(e) => { setBoundMetadataKind(
+            e.target.value as edgeApi.CanonicalWorkflow['boundMetadataKind']); }}>
+          <option value="DATA_SET">Dataset</option>
+          <option value="PROGRAM">Program (event-only)</option>
+          <option value="PROGRAM_STAGE">Program stage (tracker)</option>
+        </select>
+      </label>
+      <label>
+        <span>Bound metadata UID</span>
         <input type="text" data-test="cwf02-binding" value={boundMetadataId}
           onChange={(e) => { setBoundMetadataId(e.target.value); }} />
       </label>
@@ -827,6 +869,40 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
         onClick={() => { doSave().catch(() => undefined); }}>
         {status === 'saving' ? 'Saving…' : 'Save workflow'}
       </button>
+      {existing && (
+        <section className="ea-cwf-export" data-test="cwf02-export-section">
+          <h2>Export (ADR-0024)</h2>
+          <button type="button" data-test="cwf02-export"
+            onClick={() => { doExport().catch(() => undefined); }}>
+            Export as canonical JSON
+          </button>
+          {exportJson && (
+            <textarea readOnly data-test="cwf02-export-output" rows={10}
+              value={exportJson} />
+          )}
+        </section>
+      )}
+      <section className="ea-cwf-import" data-test="cwf02-import-section">
+        <h2>Import</h2>
+        <textarea data-test="cwf02-import-input" rows={6} value={importText}
+          placeholder='{"schemaVersion":1,…}'
+          onChange={(e) => { setImportText(e.target.value); }} />
+        <button type="button" data-test="cwf02-import-dry"
+          disabled={!importText}
+          onClick={() => { doImport(true).catch(() => undefined); }}>
+          Validate (dry-run)
+        </button>
+        <button type="button" data-test="cwf02-import-apply"
+          disabled={!importText}
+          onClick={() => { doImport(false).catch(() => undefined); }}>
+          Apply import
+        </button>
+        {importWarnings && (
+          <ul data-test="cwf02-import-warnings">
+            {importWarnings.map((w) => <li key={w}>{w}</li>)}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
