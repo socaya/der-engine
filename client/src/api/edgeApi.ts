@@ -28,16 +28,33 @@ export class EdgeApiError extends Error {
   }
 }
 
+/**
+ * ADR-0023 D-DOE-5. Reads the installation UUID from localStorage so
+ * every write carries X-DER-Device-Id. Returns null when no device is
+ * enrolled yet or localStorage is unavailable (private-mode / tests).
+ */
+function readDeviceHeader(): string | null {
+  try {
+    return window.localStorage.getItem('der_device_id');
+  } catch {
+    return null;
+  }
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let response: Response;
   try {
+    const headers: Record<string, string> = body == null
+      ? { Accept: 'application/json' }
+      : { Accept: 'application/json', 'Content-Type': 'application/json' };
+    const device = readDeviceHeader();
+    if (device) {
+      headers['X-DER-Device-Id'] = device;
+    }
     response = await fetch(path, {
       method,
       credentials: 'include',
-      headers: body == null ? { Accept: 'application/json' } : {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: body == null ? undefined : JSON.stringify(body),
     });
   } catch (err) {

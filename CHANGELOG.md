@@ -15,6 +15,17 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.3.0-alpha.2] — unreleased
+
+Initiative 10 slice B — device-owner enforcement (ADR-0023).
+
+- Added: `DeviceOwnerEnforcementInterceptor` guarding `/api/dataValueSets`; rejects workflow-bound writes from non-owner devices with 403 + chained `DEVICE_OWNER_MISMATCH` audit event. Fail-open on lookup errors (ADR-0023 D-DOE-4).
+- Added: `X-DER-Device-Id` request header. Client `edgeApi` attaches it automatically when a device id is persisted in localStorage.
+- Added: ADR-0023 (rule, interceptor placement, fail-open behaviour, client-side header injection).
+- Added: 13 server tests + 3 client tests.
+
+[1.3.0-alpha.2]: https://github.com/socaya/der-engine/releases/tag/der-1.3.0-alpha.2
+
 ## [1.3.0-alpha.1] — unreleased
 
 Initiative 10 slice B kickoff — device-owner config (ADR-0022).

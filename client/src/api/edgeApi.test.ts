@@ -261,3 +261,34 @@ describe('edgeApi device helpers', () => {
     expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/devices/d1');
   });
 });
+
+describe('edgeApi device header (ADR-0023)', () => {
+  it('attaches X-DER-Device-Id when a device is enrolled', async () => {
+    window.localStorage.setItem('der_device_id', 'dvc-1');
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.heartbeatDevice('dvc-1');
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers['X-DER-Device-Id']).toBe('dvc-1');
+    window.localStorage.removeItem('der_device_id');
+  });
+
+  it('skips the header when no device is enrolled', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.heartbeatDevice('dvc-1');
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers['X-DER-Device-Id']).toBeUndefined();
+  });
+
+  it('silently skips when localStorage throws', async () => {
+    const spy = vi.spyOn(window.localStorage.__proto__, 'getItem')
+      .mockImplementation(() => { throw new Error('nope'); });
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.heartbeatDevice('dvc-1');
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers['X-DER-Device-Id']).toBeUndefined();
+    spy.mockRestore();
+  });
+});
