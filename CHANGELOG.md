@@ -15,6 +15,15 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [2.0.1-alpha.1] — unreleased
+
+Honest status catalog + verified CSV refresh.
+
+- Added: `docs/implementation_status.md` — single source of truth for all 211 FR / NFR with verified status.
+- Changed: `docs/verification/traceability-matrix.csv` status column — 5 verified `done`, 23 verified `pending`, 183 remain `in-progress` pending per-FR verification.
+
+[2.0.1-alpha.1]: https://github.com/socaya/der-engine/releases/tag/der-2.0.1-alpha.1
+
 ## [2.0.0] — 2026-10-23
 
 Fourth stable release. Post-1.0 roadmap is now closed — every initiative is shipped, scaffolded, or formally decided. Bundles 2.0.0-alpha.1 (Android Capacitor wrap scaffold, ADR-0030) and 2.0.0-alpha.2 (Initiative 3 B/C design spike, ADR-0031). No code change versus alpha.2.
