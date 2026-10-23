@@ -15,6 +15,16 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [2.0.1] — 2026-10-23
+
+Fifth stable release. Honest FR/NFR implementation sweep. Bundles alphas 2.0.1-alpha.1..3; no code change versus alpha.3.
+
+- 158/211 (75%) requirements verified DONE; 53 remain `in-progress` with specific per-item gaps catalogued in `docs/implementation_status.md`.
+- None of the 53 is scoped to a new feature — operator-side evidence runs, narrow extensions to existing shipped code, or policy/UX extensions.
+- No pending items. No speculative DONE flips.
+
+[2.0.1]: https://github.com/socaya/der-engine/releases/tag/der-2.0.1
+
 ## [2.0.1-alpha.3] — unreleased
 
 Close NFR gaps + strict code-sweep DONE promotions.
