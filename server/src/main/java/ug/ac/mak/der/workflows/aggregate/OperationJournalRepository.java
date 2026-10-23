@@ -112,6 +112,21 @@ public class OperationJournalRepository {
     }
 
     /**
+     * FR-05-10/11: move a drift-affected entry to CONFLICT_REVIEW so
+     * the drain worker does not re-attempt it. Caller supplies the
+     * drift summary; it is persisted on {@code last_error} so operators
+     * can see the specific missing refs via the admin API.
+     */
+    public int quarantine(final UUID operationId, final String reason) {
+        Objects.requireNonNull(operationId, "operationId");
+        return jdbc.update(
+                "UPDATE der.operation_journal SET state = 'CONFLICT_REVIEW', "
+                        + "last_error = ?, updated_at = now() "
+                        + "WHERE operation_id = ?",
+                reason, operationId);
+    }
+
+    /**
      * FR-09-10 journal retention. Deletes rows in a terminal state
      * (CENTRAL_ACCEPTED, CENTRAL_REJECTED) older than the cutoff.
      * Returns the number of rows purged. Operator-driven via

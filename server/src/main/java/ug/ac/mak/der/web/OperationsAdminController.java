@@ -6,6 +6,8 @@ import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
+
+import org.springframework.web.bind.annotation.PathVariable;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -298,6 +300,36 @@ public class OperationsAdminController {
                         "rowsPurged", String.valueOf(purged))),
                 Instant.now(clock));
         return ResponseEntity.ok(Map.of("rowsPurged", purged, "cutoff", cutoff.toString()));
+    }
+
+    /**
+     * FR-05-10/11: move a drift-affected journal entry to
+     * {@code CONFLICT_REVIEW} so the drain worker does not retry
+     * against stale metadata definitions.
+     */
+    @PostMapping(path = "/journal/{opId}/quarantine")
+    public ResponseEntity<Map<String, Object>> quarantineOperation(
+            final Authentication authentication,
+            @PathVariable("opId") final java.util.UUID opId,
+            @RequestParam(value = "reason", defaultValue = "METADATA_DRIFT") final String reason) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final OperationJournalRepository jr = journal.getIfAvailable();
+        if (jr == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "code", "JOURNAL_UNAVAILABLE", "message", "journal not wired"));
+        }
+        final int n = jr.quarantine(opId, reason);
+        if (n == 0) {
+            return ResponseEntity.notFound().build();
+        }
+        audit.append(new AuditEvent("JOURNAL_QUARANTINE",
+                AuditEvent.Outcome.SUCCESS, principal.userId(), null, null, null,
+                Map.of("opId", opId.toString(), "reason", reason)),
+                Instant.now(clock));
+        return ResponseEntity.ok(Map.of("operationId", opId.toString(),
+                "state", "CONFLICT_REVIEW", "reason", reason));
     }
 
     /**

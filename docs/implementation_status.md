@@ -5,7 +5,7 @@
 > column in `docs/verification/traceability-matrix.csv` (which was
 > never updated as alphas landed).
 
-**Last updated:** 2026-10-23 · prepared for `der-2.0.3-alpha.1`.
+**Last updated:** 2026-10-23 · prepared for `der-2.0.3-alpha.2`.
 **Scope:** All 211 requirements (176 FR + 35 NFR) from
 `docs/requirements/source-functional-register.csv` and
 `source-nonfunctional-register.csv`.
@@ -36,8 +36,8 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 
 | Status | Count | % | CSV status |
 |---|---:|---:|---|
-| ✅ DONE (verified) | 171 | 81% | `done` |
-| 🟡 PARTIAL (specific gap documented) | 40 | 19% | `in-progress` |
+| ✅ DONE (verified) | 174 | 82% | `done` |
+| 🟡 PARTIAL (specific gap documented) | 37 | 18% | `in-progress` |
 | ❌ PENDING | 0 | 0% | `pending` |
 
 ### Combined scorecard
@@ -45,8 +45,8 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 | Dimension | DONE | Total | % |
 |---|---:|---:|---:|
 | UI screens | 54 | 54 | 100% |
-| FR / NFR | 171 | 211 | 81% |
-| **All requirements** | **225** | **265** | **85%** |
+| FR / NFR | 174 | 211 | 82% |
+| **All requirements** | **228** | **265** | **86%** |
 
 ## Alpha.1 of der-2.0.3 — tracker lifecycle
 
@@ -79,6 +79,31 @@ DHIS2 2.44-SNAPSHOT:
 Live-verified: TEI → enrollment → event → relationship chain
 succeeds; orphan enrollment rejected with `TEI_NOT_FOUND`; storedBy
 populated from mapping engine.
+
+## Alpha.2 of der-2.0.3 — metadata drift surface
+
+New `MetadataDriftDetector` service inspects pending journal entries
+for references to metadata UIDs that no longer resolve in the local
+mirror. Three FRs flip to DONE:
+
+- **FR-05-10 Identify pending operations made against changed or
+  incompatible definitions.** `evaluate()` returns a `DriftReport`
+  with per-ref `{kind, field, uid}`. Operator reads via
+  `GET /edge-api/v1/metadata/drift/pending`.
+- **FR-05-11 Prevent silent reinterpretation of affected pending
+  changes.** `POST /edge-api/v1/admin/ops/journal/{opId}/quarantine`
+  moves drifted entries to `CONFLICT_REVIEW` with reason persisted
+  on `last_error`; drain worker already skips that state so no
+  silent retry.
+- **FR-05-12 Present missing dependencies, mismatches and effective
+  local configuration.** `GET /edge-api/v1/metadata/diagnostics`
+  single-call summary of per-kind mirror row counts + current
+  drift totals.
+
+Live-verified against local DHIS2 2.44-SNAPSHOT Sierra Leone demo:
+484 orgUnits, 358 dataElements, 31 programs, 1 TET mirrored; 0
+pending-journal drift at probe time. Evidence:
+`docs/evaluation/evidence/alpha.6-metadata-drift/`.
 
 ## Alpha.2 (this release — der-2.0.2-alpha.2)
 
