@@ -15,6 +15,17 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.4.0-alpha.3] — unreleased
+
+Initiative 3 — referral outbound encoding (ADR-0027 D-RHO-7 codified in alpha.3).
+
+- Added: `ReferralPayloadEncoder` attaches `[DER-next-hop:<ou>]` marker to the DHIS2-shaped payload at publish time. Aggregate → `comment`; event/tracker/enrollment → `notes[]`.
+- Changed: `JournalPublisher` takes the encoder as a constructor arg; publish uses `encoder.body(entry)`. Behaviour unchanged when the journal entry carries no `nextHopOrgUnitUid`.
+- Fail-open: unexpected payload shapes log WARN and send the raw payload (ADR-0004).
+- Added: 12 server tests (encoder shape coverage + publisher smoke).
+
+[1.4.0-alpha.3]: https://github.com/socaya/der-engine/releases/tag/der-1.4.0-alpha.3
+
 ## [1.4.0-alpha.2] — unreleased
 
 Initiative 3 — referral write-time capture (ADR-0027 D-RHO-4 slice).

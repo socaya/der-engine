@@ -33,12 +33,15 @@ public class JournalPublisher {
     private final HttpClient http;
     private final Dhis2Properties props;
     private final Dhis2CompatibilityEngine engine;
+    private final ReferralPayloadEncoder referralEncoder;
 
     public JournalPublisher(final HttpClient http, final Dhis2Properties props,
-                             final Dhis2CompatibilityEngine engine) {
+                             final Dhis2CompatibilityEngine engine,
+                             final ReferralPayloadEncoder referralEncoder) {
         this.http = Objects.requireNonNull(http, "http");
         this.props = Objects.requireNonNull(props, "props");
         this.engine = Objects.requireNonNull(engine, "engine");
+        this.referralEncoder = Objects.requireNonNull(referralEncoder, "referralEncoder");
     }
 
     public PublishResult publish(final OperationJournalEntry entry) {
@@ -53,7 +56,7 @@ public class JournalPublisher {
         }
         try {
             final URI uri = URI.create(props.central().baseUrl() + path);
-            final String body = entry.payload() == null ? "{}" : entry.payload().toString();
+            final String body = referralEncoder.body(entry);
             final HttpRequest.Builder req = HttpRequest.newBuilder(uri)
                     .timeout(Duration.ofMillis(Math.max(1_000, props.central().connectTimeoutMillis())))
                     .header("Accept", "application/json")

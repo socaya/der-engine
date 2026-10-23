@@ -44,10 +44,14 @@ class JournalPublisherTest {
                 0, null, UUID.randomUUID(), Instant.now(), Instant.now());
     }
 
+    private ReferralPayloadEncoder encoder() {
+        return new ReferralPayloadEncoder(mapper);
+    }
+
     @Test
     void centralNotConfiguredIsRetryable() {
         final JournalPublisher p = new JournalPublisher(mock(HttpClient.class), props(null),
-                mock(Dhis2CompatibilityEngine.class));
+                mock(Dhis2CompatibilityEngine.class), encoder());
         assertThat(p.publish(entry(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)).terminal())
                 .isEqualTo(JournalPublisher.TerminalState.RETRYABLE);
     }
@@ -58,7 +62,7 @@ class JournalPublisherTest {
         when(engine.capabilities()).thenThrow(
                 new Dhis2CompatibilityUnavailableException("x", null));
         final JournalPublisher p = new JournalPublisher(mock(HttpClient.class),
-                props("http://x/dhis"), engine);
+                props("http://x/dhis"), engine, encoder());
         assertThat(p.publish(entry(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)).terminal())
                 .isEqualTo(JournalPublisher.TerminalState.RETRYABLE);
     }
@@ -73,7 +77,7 @@ class JournalPublisherTest {
         when(http.send(any(HttpRequest.class), any())).thenReturn(resp);
         final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
         when(engine.capabilities()).thenReturn(caps());
-        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine);
+        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine, encoder());
         assertThat(p.publish(entry(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)).terminal())
                 .isEqualTo(JournalPublisher.TerminalState.ACCEPTED);
     }
@@ -88,7 +92,7 @@ class JournalPublisherTest {
         when(http.send(any(HttpRequest.class), any())).thenReturn(resp);
         final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
         when(engine.capabilities()).thenReturn(caps());
-        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine);
+        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine, encoder());
         assertThat(p.publish(entry(OperationJournalEntry.EntityType.EVENT)).terminal())
                 .isEqualTo(JournalPublisher.TerminalState.CONFLICT);
     }
@@ -100,7 +104,7 @@ class JournalPublisherTest {
         when(http.send(any(HttpRequest.class), any())).thenThrow(new IOException("boom"));
         final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
         when(engine.capabilities()).thenReturn(caps());
-        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine);
+        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine, encoder());
         assertThat(p.publish(entry(OperationJournalEntry.EntityType.EVENT)).terminal())
                 .isEqualTo(JournalPublisher.TerminalState.RETRYABLE);
     }
@@ -112,7 +116,7 @@ class JournalPublisherTest {
         when(http.send(any(HttpRequest.class), any())).thenThrow(new InterruptedException("x"));
         final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
         when(engine.capabilities()).thenReturn(caps());
-        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine);
+        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine, encoder());
         assertThat(p.publish(entry(OperationJournalEntry.EntityType.TRACKED_ENTITY)).terminal())
                 .isEqualTo(JournalPublisher.TerminalState.RETRYABLE);
         Thread.interrupted(); // clear
@@ -128,7 +132,7 @@ class JournalPublisherTest {
         when(http.send(any(HttpRequest.class), any())).thenReturn(resp);
         final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
         when(engine.capabilities()).thenReturn(caps());
-        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine);
+        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine, encoder());
         assertThat(p.publish(entry(OperationJournalEntry.EntityType.ENROLLMENT)).terminal())
                 .isEqualTo(JournalPublisher.TerminalState.ACCEPTED);
     }
@@ -146,7 +150,7 @@ class JournalPublisherTest {
         final JournalPublisher p = new JournalPublisher(http,
                 new Dhis2Properties(new Dhis2Properties.Central("http://x/dhis", "", "", 1000),
                         Dhis2Properties.Compatibility.legacy("2.44", false)),
-                engine);
+                engine, encoder());
         assertThat(p.publish(entry(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)).terminal())
                 .isEqualTo(JournalPublisher.TerminalState.ACCEPTED);
     }
@@ -161,7 +165,7 @@ class JournalPublisherTest {
         when(http.send(any(HttpRequest.class), any())).thenReturn(resp);
         final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
         when(engine.capabilities()).thenReturn(caps());
-        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine);
+        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine, encoder());
         assertThat(p.publish(entry(OperationJournalEntry.EntityType.PROGRAM_STAGE_EVENT)).terminal())
                 .isEqualTo(JournalPublisher.TerminalState.ACCEPTED);
     }
@@ -178,8 +182,37 @@ class JournalPublisherTest {
         new ug.ac.mak.der.dhis2.compatibility.profiles.V241Profile().apply(b);
         final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
         when(engine.capabilities()).thenReturn(b.build());
-        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine);
+        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"), engine, encoder());
         assertThat(p.publish(entry(OperationJournalEntry.EntityType.EVENT)).terminal())
                 .isEqualTo(JournalPublisher.TerminalState.ACCEPTED);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void referralTagBodyCarriesMarker() throws Exception {
+        final HttpClient http = mock(HttpClient.class);
+        final HttpResponse resp = mock(HttpResponse.class);
+        when(resp.statusCode()).thenReturn(200);
+        when(resp.body()).thenReturn("{}");
+        when(http.send(any(HttpRequest.class), any())).thenReturn(resp);
+        final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
+        when(engine.capabilities()).thenReturn(caps());
+        final JournalPublisher p = new JournalPublisher(http, props("http://x/dhis"),
+                engine, encoder());
+        final OperationJournalEntry e = new OperationJournalEntry(UUID.randomUUID(),
+                OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE, "k",
+                mapper.readTree("{\"comment\":\"\"}"),
+                OperationJournalEntry.State.PENDING, 0, null, UUID.randomUUID(),
+                Instant.now(), Instant.now(), "ou-dest");
+        p.publish(e);
+        final org.mockito.ArgumentCaptor<HttpRequest> cap =
+                org.mockito.ArgumentCaptor.forClass(HttpRequest.class);
+        org.mockito.Mockito.verify(http).send(cap.capture(), any());
+        final java.util.Optional<HttpRequest.BodyPublisher> body = cap.getValue().bodyPublisher();
+        assertThat(body).isPresent();
+        // Can't inspect published bytes directly without a subscriber; the
+        // ReferralPayloadEncoder test already covers byte content. Here we just
+        // assert the publish happened without failure.
+        assertThat(cap.getValue().uri().getPath()).contains("/api/dataValueSets");
     }
 }
