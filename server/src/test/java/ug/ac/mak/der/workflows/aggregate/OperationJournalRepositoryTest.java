@@ -176,4 +176,33 @@ class OperationJournalRepositoryTest {
         assertThat(new OperationJournalRepository(jdbc, json).markRequiresApproval(op))
                 .isEqualTo(1);
     }
+
+    @Test
+    void markNextHopDelegates() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final UUID op = UUID.randomUUID();
+        when(jdbc.update(anyString(), eq("ou-dest"), eq(op))).thenReturn(1);
+        assertThat(new OperationJournalRepository(jdbc, json).markNextHop(op, "ou-dest"))
+                .isEqualTo(1);
+        verify(jdbc).update(
+                org.mockito.ArgumentMatchers.contains("next_hop_org_unit_uid"),
+                eq("ou-dest"), eq(op));
+    }
+
+    @Test
+    void markNextHopRejectsNullOperationId() {
+        assertThatThrownBy(() -> new OperationJournalRepository(mock(JdbcTemplate.class), json)
+                .markNextHop(null, "ou"))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void entryConvenienceConstructorNullsNextHop() {
+        final OperationJournalEntry e = new OperationJournalEntry(
+                UUID.randomUUID(),
+                OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE,
+                "k", json.createObjectNode(),
+                OperationJournalEntry.State.PENDING, 0, null, null, NOW, NOW);
+        assertThat(e.nextHopOrgUnitUid()).isNull();
+    }
 }

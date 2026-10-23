@@ -287,6 +287,19 @@ export function resolveConflict(id: string, outcome: 'ACCEPTED' | 'REJECTED', ra
   return request('POST', `/edge-api/v1/journal/conflicts/${id}/resolve`, { outcome, rationale });
 }
 
+// ---- der-1.4.0-alpha.1 Initiative 3 (ADR-0027): chain-via-hub referral ----
+
+export interface JournalNextHopResponse {
+  operationId: string;
+  nextHopOrgUnitUid: string;
+}
+
+export function setJournalNextHop(operationId: string, orgUnitUid: string):
+    Promise<JournalNextHopResponse> {
+  return request<JournalNextHopResponse>('POST',
+    `/edge-api/v1/journal/${operationId}/next-hop`, { orgUnitUid });
+}
+
 export function reJournalConflict(id: string): Promise<unknown> {
   return request('POST', `/edge-api/v1/journal/conflicts/${id}/re-journal`);
 }

@@ -79,7 +79,8 @@ public class OperationJournalRepository {
         final int capped = Math.max(1, Math.min(limit, 500));
         return jdbc.query(
                 "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
-                        + "attempt_count, last_error, submitted_by, created_at, updated_at "
+                        + "attempt_count, last_error, submitted_by, created_at, updated_at, "
+                        + "next_hop_org_unit_uid "
                         + "FROM der.operation_journal "
                         + "WHERE state = 'PENDING' "
                         + "  AND (requires_approval = FALSE OR approved_at IS NOT NULL) "
@@ -105,7 +106,8 @@ public class OperationJournalRepository {
         final int capped = Math.max(1, Math.min(limit, 500));
         return jdbc.query(
                 "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
-                        + "attempt_count, last_error, submitted_by, created_at, updated_at "
+                        + "attempt_count, last_error, submitted_by, created_at, updated_at, "
+                        + "next_hop_org_unit_uid "
                         + "FROM der.operation_journal WHERE state = ? "
                         + "ORDER BY created_at ASC LIMIT ?",
                 rowMapper(),
@@ -139,6 +141,14 @@ public class OperationJournalRepository {
         }
     }
 
+    public int markNextHop(final UUID operationId, final String nextHopOrgUnitUid) {
+        Objects.requireNonNull(operationId, "operationId");
+        return jdbc.update(
+                "UPDATE der.operation_journal SET next_hop_org_unit_uid = ?, updated_at = now() "
+                        + "WHERE operation_id = ?",
+                nextHopOrgUnitUid, operationId);
+    }
+
     private RowMapper<OperationJournalEntry> rowMapper() {
         return (ResultSet rs, int rowNum) -> new OperationJournalEntry(
                 rs.getObject("operation_id", UUID.class),
@@ -150,7 +160,8 @@ public class OperationJournalRepository {
                 rs.getString("last_error"),
                 rs.getObject("submitted_by", UUID.class),
                 rs.getTimestamp("created_at").toInstant(),
-                rs.getTimestamp("updated_at").toInstant()
+                rs.getTimestamp("updated_at").toInstant(),
+                rs.getString("next_hop_org_unit_uid")
         );
     }
 }

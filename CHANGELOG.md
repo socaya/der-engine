@@ -15,6 +15,20 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.4.0-alpha.1] — unreleased
+
+Initiative 3 option A kickoff — chain-via-hub referral schema (ADR-0027).
+
+- Added: V021 `next_hop_org_unit_uid TEXT` on `operation_journal` (nullable, partial index on non-null values, no FK to org_unit_mirror per D-RHO-3).
+- Added: `OperationJournalEntry.nextHopOrgUnitUid` field with a 10-arg convenience constructor so all existing call-sites compile unchanged.
+- Added: `OperationJournalRepository.markNextHop` + the `rowMapper` reads the new column.
+- Added: `POST /edge-api/v1/journal/{operationId}/next-hop` (ADMIN) tags a journal entry; emits `JOURNAL_NEXT_HOP_SET` audit event through the hash chain.
+- Added: `edgeApi.setJournalNextHop` admin-UI helper.
+- Added: ADR-0027 (option A, journal column, advisory validation, slice-by-slice rollout).
+- Added: 8 server tests + 1 edgeApi table row.
+
+[1.4.0-alpha.1]: https://github.com/socaya/der-engine/releases/tag/der-1.4.0-alpha.1
+
 ## [1.3.0] — 2026-10-23
 
 Second stable release. Bundles alphas 1.3.0-alpha.1 through 1.3.0-alpha.5 under a single tag; no code change versus 1.3.0-alpha.5.

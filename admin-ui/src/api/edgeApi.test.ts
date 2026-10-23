@@ -159,6 +159,8 @@ describe('edgeApi route coverage', () => {
     }],
     ['listWorkflowContributions', () => api.listWorkflowContributions('run-9'),
       '/edge-api/v1/workflows/runs/run-9/contributions', 'GET', undefined],
+    ['setJournalNextHop', () => api.setJournalNextHop('op-7', 'ou-dest'),
+      '/edge-api/v1/journal/op-7/next-hop', 'POST', { orgUnitUid: 'ou-dest' }],
   ])('%s hits the expected URL + method', async (_name, call, path, method, expectedBody) => {
     fetchMock.mockResolvedValue(respond(200, okJson));
     await call();
