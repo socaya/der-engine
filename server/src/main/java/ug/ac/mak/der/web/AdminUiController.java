@@ -1,6 +1,7 @@
 package ug.ac.mak.der.web;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URLConnection;
 import java.nio.file.Files;
@@ -10,6 +11,7 @@ import java.util.Objects;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -57,13 +59,6 @@ public class AdminUiController {
 
     @GetMapping("/admin/**")
     public ResponseEntity<byte[]> serve(final HttpServletRequest request) throws IOException {
-        if (!Files.isDirectory(distRoot)) {
-            return ResponseEntity.status(503).contentType(MediaType.APPLICATION_JSON)
-                    .body(("{\"code\":\"ADMIN_UI_NOT_BUILT\",\"message\":"
-                            + "\"admin-ui dist not found at " + distRoot
-                            + "; run `cd admin-ui && npm run build` first.\"}")
-                            .getBytes());
-        }
         final String uri = request.getRequestURI();
         String relative = uri.length() > "/admin/".length()
                 ? uri.substring("/admin/".length())
@@ -71,36 +66,79 @@ public class AdminUiController {
         if (relative.isEmpty()) {
             relative = "index.html";
         }
-        final Path target = distRoot.resolve(relative).toAbsolutePath().normalize();
-        if (!target.startsWith(distRoot)) {
-            return ResponseEntity.notFound().build();
+
+        // Filesystem first (dev + ops override via der.admin-ui.dist).
+        if (Files.isDirectory(distRoot)) {
+            final Path target = distRoot.resolve(relative).toAbsolutePath().normalize();
+            if (!target.startsWith(distRoot)) {
+                return ResponseEntity.notFound().build();
+            }
+            if (Files.isRegularFile(target)) {
+                return serveFileFromPath(target, relative);
+            }
+            if (relative.startsWith("assets/")) {
+                return ResponseEntity.notFound().build();
+            }
+            final Path index = distRoot.resolve("index.html");
+            if (Files.isRegularFile(index)) {
+                return serveFileFromPath(index, "index.html");
+            }
         }
-        if (Files.isRegularFile(target)) {
-            return serveFile(target);
+
+        // D4: packaged dist on the classpath (Maven resource step copies
+        // admin-ui/dist/ into static/admin/).
+        final ResponseEntity<byte[]> cp = serveFromClasspath(relative);
+        if (cp != null) {
+            return cp;
         }
-        // SPA fallback: unmatched deep link → index.html so react-router
-        // takes over. Guard against path escaping and never fall through
-        // for /admin/assets/* (those are explicit files only).
-        if (relative.startsWith("assets/")) {
-            return ResponseEntity.notFound().build();
+        if (!relative.startsWith("assets/")) {
+            final ResponseEntity<byte[]> cpIndex = serveFromClasspath("index.html");
+            if (cpIndex != null) {
+                return cpIndex;
+            }
         }
-        final Path index = distRoot.resolve("index.html");
-        if (!Files.isRegularFile(index)) {
-            return ResponseEntity.notFound().build();
-        }
-        return serveFile(index);
+
+        return ResponseEntity.status(503).contentType(MediaType.APPLICATION_JSON)
+                .body(("{\"code\":\"ADMIN_UI_NOT_BUILT\",\"message\":"
+                        + "\"admin-ui dist not found at " + distRoot
+                        + " and not packaged on the classpath; run "
+                        + "`cd admin-ui && DER_ADMIN_UI_BASE=/admin/ npm run build` "
+                        + "then rebuild the server JAR.\"}")
+                        .getBytes());
     }
 
-    private ResponseEntity<byte[]> serveFile(final Path file) throws IOException {
+    private ResponseEntity<byte[]> serveFromClasspath(final String relative) throws IOException {
+        if (relative.contains("..")) {
+            return null;
+        }
+        final ClassPathResource r = new ClassPathResource("static/admin/" + relative);
+        if (!r.exists() || !r.isReadable()) {
+            return null;
+        }
+        try (InputStream in = r.getInputStream()) {
+            final byte[] body = in.readAllBytes();
+            final HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(guessContentTypeByName(relative)));
+            headers.setCacheControl(cacheHeaderForName(relative));
+            return ResponseEntity.ok().headers(headers).body(body);
+        }
+    }
+
+    private ResponseEntity<byte[]> serveFileFromPath(final Path file, final String rel) throws IOException {
         final byte[] body = Files.readAllBytes(file);
         final HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(guessContentType(file)));
-        headers.setCacheControl(cacheHeaderFor(file));
+        headers.setContentType(MediaType.parseMediaType(guessContentTypeByName(rel)));
+        headers.setCacheControl(cacheHeaderForName(rel));
         return ResponseEntity.ok().headers(headers).body(body);
     }
 
     static String guessContentType(final Path file) {
-        final String name = file.getFileName().toString();
+        return guessContentTypeByName(file.getFileName().toString());
+    }
+
+    static String guessContentTypeByName(final String relative) {
+        final int slash = relative.lastIndexOf('/');
+        final String name = slash < 0 ? relative : relative.substring(slash + 1);
         final String guessed = URLConnection.guessContentTypeFromName(name);
         if (guessed != null) {
             return guessed;
@@ -129,14 +167,12 @@ public class AdminUiController {
         return "application/octet-stream";
     }
 
-    private static CacheControl cacheHeaderFor(final Path file) {
-        final String name = file.getFileName().toString();
-        if (name.endsWith(".html")) {
+    private static CacheControl cacheHeaderForName(final String relative) {
+        if (relative.endsWith(".html")) {
             return CacheControl.noCache();
         }
-        if (file.toString().contains("/assets/")) {
-            return CacheControl.maxAge(java.time.Duration.ofDays(365)).cachePublic()
-                    .immutable();
+        if (relative.contains("assets/")) {
+            return CacheControl.maxAge(java.time.Duration.ofDays(365)).cachePublic().immutable();
         }
         return CacheControl.maxAge(java.time.Duration.ofHours(1)).cachePublic();
     }

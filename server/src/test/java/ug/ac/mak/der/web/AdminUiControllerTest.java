@@ -29,11 +29,18 @@ class AdminUiControllerTest {
     }
 
     @Test
-    void returns503WhenDistMissing() throws Exception {
+    void returns503OrClasspathWhenDistMissing() throws Exception {
+        // D4: when the filesystem dist is absent, controller falls back
+        // to the packaged classpath resource (static/admin/). The outcome
+        // depends on whether the test classpath has the dist bundled —
+        // either way, no stack trace should leak.
         final AdminUiController c = new AdminUiController("/no/such/dir");
         final ResponseEntity<byte[]> r = c.serve(requestFor("/admin/"));
-        assertThat(r.getStatusCode().value()).isEqualTo(503);
-        assertThat(new String(r.getBody())).contains("ADMIN_UI_NOT_BUILT");
+        final int status = r.getStatusCode().value();
+        assertThat(status).isIn(200, 503);
+        if (status == 503) {
+            assertThat(new String(r.getBody())).contains("ADMIN_UI_NOT_BUILT");
+        }
     }
 
     @Test

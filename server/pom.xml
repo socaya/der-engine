@@ -148,6 +148,19 @@
           <include>**/*.sql</include>
         </includes>
       </resource>
+      <!-- D4: package the admin UI dist (built with
+           DER_ADMIN_UI_BASE=/admin/ npm run build) into the server
+           JAR under static/admin/ so a single artifact runs end-to-end.
+           AdminUiController falls back to classpath when the filesystem
+           dir in der.admin-ui.dist is empty or missing. -->
+      <resource>
+        <directory>${project.basedir}/../admin-ui/dist</directory>
+        <targetPath>static/admin</targetPath>
+        <filtering>false</filtering>
+        <includes>
+          <include>**/*</include>
+        </includes>
+      </resource>
     </resources>
     <plugins>
       <plugin>
