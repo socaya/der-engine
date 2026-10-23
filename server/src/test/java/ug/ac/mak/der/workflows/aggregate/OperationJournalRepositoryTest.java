@@ -48,7 +48,8 @@ class OperationJournalRepositoryTest {
         verify(jdbc).update(org.mockito.ArgumentMatchers.contains("INSERT INTO der.operation_journal"),
                 eq(e.operationId()), eq("AGGREGATE_DATA_VALUE"), eq("k"),
                 anyString(), eq("PENDING"), eq(0), eq((Object) null),
-                eq(e.submittedBy()), any(Timestamp.class), any(Timestamp.class));
+                eq(e.submittedBy()), any(Timestamp.class), any(Timestamp.class),
+                eq((Object) null));
     }
 
     @Test

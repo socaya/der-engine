@@ -81,13 +81,24 @@ public class EventService {
                                      final UUID submittedBy,
                                      final String ip,
                                      final String userAgent) {
+        return submit(inputs, submittedBy, ip, userAgent, null);
+    }
+
+    /** ADR-0027 D-RHO-4: optional referral tag threaded onto the journal entry. */
+    @Transactional
+    public EventImportResult submit(final List<EventInput> inputs,
+                                     final UUID submittedBy,
+                                     final String ip,
+                                     final String userAgent,
+                                     final String nextHopOrgUnitUid) {
         Objects.requireNonNull(inputs, "inputs");
         Objects.requireNonNull(submittedBy, "submittedBy");
         final List<Event> imported = new ArrayList<>();
         final List<Conflict> conflicts = new ArrayList<>();
         for (final EventInput input : inputs) {
             try {
-                final Event stored = handleOne(input, submittedBy, ip, userAgent);
+                final Event stored = handleOne(input, submittedBy, ip, userAgent,
+                        nextHopOrgUnitUid);
                 imported.add(stored);
             } catch (EventRejectedException ex) {
                 conflicts.add(new Conflict(input == null ? "(null)" : input.eventId().toString(),
@@ -104,7 +115,8 @@ public class EventService {
     }
 
     private Event handleOne(final EventInput input, final UUID submittedBy,
-                             final String ip, final String userAgent) {
+                             final String ip, final String userAgent,
+                             final String nextHopOrgUnitUid) {
         if (input == null) {
             throw new EventRejectedException("event payload is null");
         }
@@ -138,7 +150,9 @@ public class EventService {
         final OperationJournalEntry entry = new OperationJournalEntry(UUID.randomUUID(),
                 OperationJournalEntry.EntityType.EVENT, stored.eventId().toString(),
                 payload, OperationJournalEntry.State.PENDING, 0, null, submittedBy,
-                Instant.now(clock), Instant.now(clock));
+                Instant.now(clock), Instant.now(clock),
+                nextHopOrgUnitUid == null || nextHopOrgUnitUid.isBlank()
+                        ? null : nextHopOrgUnitUid.trim());
         journal.insert(entry);
         if (approvals.requiresApproval(OperationJournalEntry.EntityType.EVENT)) {
             journal.markRequiresApproval(entry.operationId());

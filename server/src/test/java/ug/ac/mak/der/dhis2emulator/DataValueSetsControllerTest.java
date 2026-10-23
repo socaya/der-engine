@@ -64,7 +64,7 @@ class DataValueSetsControllerTest {
 
     @Test
     void successfulSubmitReturnsImportSummary() throws Exception {
-        when(service.submit(any(), any(), anyString(), any())).thenReturn(
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new AggregateDataValueService.ImportSummary(2, 0, List.of()));
         final String body = "{\"orgUnit\":\"ou-default\",\"period\":\"2026Q1\","
                 + "\"dataValues\":["
@@ -83,7 +83,7 @@ class DataValueSetsControllerTest {
         @SuppressWarnings("unchecked")
         final ArgumentCaptor<List<AggregateDataValueService.DataValueInput>> cap =
                 ArgumentCaptor.forClass(List.class);
-        org.mockito.Mockito.verify(service).submit(cap.capture(), any(), anyString(), any());
+        org.mockito.Mockito.verify(service).submit(cap.capture(), any(), anyString(), any(), any());
         final List<AggregateDataValueService.DataValueInput> inputs = cap.getValue();
         org.assertj.core.api.Assertions.assertThat(inputs).hasSize(2);
         org.assertj.core.api.Assertions.assertThat(inputs.get(0).orgUnitUid()).isEqualTo("ou-default");
@@ -91,8 +91,25 @@ class DataValueSetsControllerTest {
     }
 
     @Test
+    void referralHeaderThreadsIntoService() throws Exception {
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
+                new AggregateDataValueService.ImportSummary(1, 0, List.of()));
+        mockMvc.perform(post("/api/dataValueSets").with(as())
+                        .header("X-DER-Referral-Next-Hop", "ou-dest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"orgUnit\":\"ou-src\",\"period\":\"2026Q1\","
+                                + "\"dataValues\":[{\"dataElement\":\"de1\",\"value\":\"1\"}]}"))
+                .andExpect(status().isOk());
+        final org.mockito.ArgumentCaptor<String> next =
+                org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(service).submit(any(), any(), anyString(), any(),
+                next.capture());
+        org.assertj.core.api.Assertions.assertThat(next.getValue()).isEqualTo("ou-dest");
+    }
+
+    @Test
     void mixedBatchReportsWarningStatusAndConflicts() throws Exception {
-        when(service.submit(any(), any(), anyString(), any())).thenReturn(
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new AggregateDataValueService.ImportSummary(
                         1, 1,
                         List.of(new AggregateDataValueService.Conflict("de|ou|2026Q1|def|def", "value is required"))));
@@ -135,7 +152,7 @@ class DataValueSetsControllerTest {
 
     @Test
     void perRowCombosOverrideEnvelope() throws Exception {
-        when(service.submit(any(), any(), anyString(), any())).thenReturn(
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new AggregateDataValueService.ImportSummary(1, 0, List.of()));
         final String body = "{\"orgUnit\":\"ou\",\"period\":\"2026Q1\","
                 + "\"categoryOptionCombo\":\"coc-default\","
@@ -149,7 +166,7 @@ class DataValueSetsControllerTest {
         @SuppressWarnings("unchecked")
         final ArgumentCaptor<List<AggregateDataValueService.DataValueInput>> cap =
                 ArgumentCaptor.forClass(List.class);
-        org.mockito.Mockito.verify(service).submit(cap.capture(), any(), anyString(), any());
+        org.mockito.Mockito.verify(service).submit(cap.capture(), any(), anyString(), any(), any());
         final var input = cap.getValue().get(0);
         org.assertj.core.api.Assertions.assertThat(input.categoryOptionComboUid()).isEqualTo("coc-row");
         org.assertj.core.api.Assertions.assertThat(input.attributeOptionComboUid()).isEqualTo("aoc-row");
@@ -157,7 +174,7 @@ class DataValueSetsControllerTest {
 
     @Test
     void perRowDefaultsFromEnvelopeArePassedThrough() throws Exception {
-        when(service.submit(any(), any(), anyString(), any())).thenReturn(
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new AggregateDataValueService.ImportSummary(1, 0, List.of()));
         final String body = "{\"orgUnit\":\"ou-default\",\"period\":\"2026Q1\","
                 + "\"categoryOptionCombo\":\"coc-default\","
@@ -170,7 +187,7 @@ class DataValueSetsControllerTest {
         @SuppressWarnings("unchecked")
         final ArgumentCaptor<List<AggregateDataValueService.DataValueInput>> cap =
                 ArgumentCaptor.forClass(List.class);
-        org.mockito.Mockito.verify(service).submit(cap.capture(), any(), anyString(), any());
+        org.mockito.Mockito.verify(service).submit(cap.capture(), any(), anyString(), any(), any());
         final var input = cap.getValue().get(0);
         org.assertj.core.api.Assertions.assertThat(input.categoryOptionComboUid()).isEqualTo("coc-default");
         org.assertj.core.api.Assertions.assertThat(input.attributeOptionComboUid()).isEqualTo("aoc-default");

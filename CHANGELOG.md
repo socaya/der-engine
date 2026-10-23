@@ -15,6 +15,19 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.4.0-alpha.2] — unreleased
+
+Initiative 3 — referral write-time capture (ADR-0027 D-RHO-4 slice).
+
+- Added: `OperationJournalRepository.insert` persists `next_hop_org_unit_uid` from the record.
+- Added: 5-arg overloads on `AggregateDataValueService.submit` and `EventService.submit` thread `nextHopOrgUnitUid` through to the journal entry at insert time.
+- Added: `DataValueSetsController` and `EventsController` read `X-DER-Referral-Next-Hop` from the request and pass it to the service. Blank/absent → `null`.
+- Changed: existing 4-arg callers continue to work — the extra parameter is additive.
+- Added: 7 server tests.
+- Non-goal (deferred to alpha.3): outbound encoding into DHIS2 (dataValue `comment` / event `notes`).
+
+[1.4.0-alpha.2]: https://github.com/socaya/der-engine/releases/tag/der-1.4.0-alpha.2
+
 ## [1.4.0-alpha.1] — unreleased
 
 Initiative 3 option A kickoff — chain-via-hub referral schema (ADR-0027).

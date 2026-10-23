@@ -73,6 +73,34 @@ class AggregateDataValueServiceTest {
     }
 
     @Test
+    void referralTagStoredOnJournalEntry() {
+        final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        when(values.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+        final AggregateDataValueService svc = service(values, journal, metadataWith("NUMBER"), audit);
+        svc.submit(List.of(validInput("1")), UUID.randomUUID(), null, null, "  ou-dest  ");
+        final org.mockito.ArgumentCaptor<OperationJournalEntry> cap =
+                org.mockito.ArgumentCaptor.forClass(OperationJournalEntry.class);
+        verify(journal).insert(cap.capture());
+        assertThat(cap.getValue().nextHopOrgUnitUid()).isEqualTo("ou-dest");
+    }
+
+    @Test
+    void referralTagNullWhenBlank() {
+        final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        when(values.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+        final AggregateDataValueService svc = service(values, journal, metadataWith("NUMBER"), audit);
+        svc.submit(List.of(validInput("1")), UUID.randomUUID(), null, null, "   ");
+        final org.mockito.ArgumentCaptor<OperationJournalEntry> cap =
+                org.mockito.ArgumentCaptor.forClass(OperationJournalEntry.class);
+        verify(journal).insert(cap.capture());
+        assertThat(cap.getValue().nextHopOrgUnitUid()).isNull();
+    }
+
+    @Test
     void rejectsMissingFields() {
         final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);

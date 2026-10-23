@@ -71,8 +71,27 @@ class EventsControllerTest {
     }
 
     @Test
+    void referralHeaderThreadsToService() throws Exception {
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
+                new EventService.EventImportResult(List.of(sampleEvent()), List.of()));
+        mockMvc.perform(post("/api/events").with(as())
+                        .header("X-DER-Referral-Next-Hop", "ou-dest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"events\":[{\"event\":\"" + UUID.randomUUID()
+                                + "\",\"program\":\"p\",\"programStage\":\"ps\","
+                                + "\"orgUnit\":\"ou\",\"occurredAt\":\"2026-10-22T10:00:00Z\","
+                                + "\"status\":\"ACTIVE\"}]}"))
+                .andExpect(status().isOk());
+        final org.mockito.ArgumentCaptor<String> next =
+                org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(service).submit(any(), any(), anyString(), any(),
+                next.capture());
+        org.assertj.core.api.Assertions.assertThat(next.getValue()).isEqualTo("ou-dest");
+    }
+
+    @Test
     void postEventsSuccess() throws Exception {
-        when(service.submit(any(), any(), anyString(), any())).thenReturn(
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new EventService.EventImportResult(
                         List.of(sampleEvent()), List.of()));
         final String body = "{\"events\":[{"
@@ -89,7 +108,7 @@ class EventsControllerTest {
 
     @Test
     void postTrackerUsesTrackerShape() throws Exception {
-        when(service.submit(any(), any(), anyString(), any())).thenReturn(
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new EventService.EventImportResult(List.of(sampleEvent()), List.of()));
         when(engine.capabilities()).thenReturn(caps());
         final String body = "{\"events\":[{"
@@ -103,7 +122,7 @@ class EventsControllerTest {
 
     @Test
     void postTrackerFallsBackWhenEngineUnavailable() throws Exception {
-        when(service.submit(any(), any(), anyString(), any())).thenReturn(
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new EventService.EventImportResult(List.of(sampleEvent()), List.of()));
         when(engine.capabilities()).thenThrow(
                 new Dhis2CompatibilityUnavailableException("x", null));
@@ -132,7 +151,7 @@ class EventsControllerTest {
 
     @Test
     void conflictsAreReported() throws Exception {
-        when(service.submit(any(), any(), anyString(), any())).thenReturn(
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new EventService.EventImportResult(List.of(),
                         List.of(new EventService.Conflict("ref", "boom"))));
         final String body = "{\"events\":[{"
@@ -147,7 +166,7 @@ class EventsControllerTest {
 
     @Test
     void malformedUuidsTolerated() throws Exception {
-        when(service.submit(any(), any(), anyString(), any())).thenReturn(
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new EventService.EventImportResult(List.of(sampleEvent()), List.of()));
         final String body = "{\"events\":[{"
                 + "\"event\":\"not-a-uuid\","
@@ -161,7 +180,7 @@ class EventsControllerTest {
 
     @Test
     void nullOccurredAtDefaultsToClock() throws Exception {
-        when(service.submit(any(), any(), anyString(), any())).thenReturn(
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new EventService.EventImportResult(List.of(sampleEvent()), List.of()));
         final String body = "{\"events\":[{"
                 + "\"program\":\"p\",\"programStage\":\"ps\",\"orgUnit\":\"ou\","
@@ -173,7 +192,7 @@ class EventsControllerTest {
 
     @Test
     void dataValueWithNullDataElementIgnored() throws Exception {
-        when(service.submit(any(), any(), anyString(), any())).thenReturn(
+        when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new EventService.EventImportResult(List.of(sampleEvent()), List.of()));
         final String body = "{\"events\":[{"
                 + "\"program\":\"p\",\"programStage\":\"ps\",\"orgUnit\":\"ou\","

@@ -68,6 +68,19 @@ public class AggregateDataValueService {
     @Transactional
     public ImportSummary submit(final List<DataValueInput> inputs, final UUID actingUser,
                                  final String clientIp, final String userAgent) {
+        return submit(inputs, actingUser, clientIp, userAgent, null);
+    }
+
+    /**
+     * ADR-0027 D-RHO-4: write-time referral tag. Passing a non-null
+     * {@code nextHopOrgUnitUid} stamps every journal entry produced by
+     * this call with the referral destination. Blank/null means "not a
+     * referral", matching alpha.1 semantics.
+     */
+    @Transactional
+    public ImportSummary submit(final List<DataValueInput> inputs, final UUID actingUser,
+                                 final String clientIp, final String userAgent,
+                                 final String nextHopOrgUnitUid) {
         final Instant now = Instant.now(clock);
         int imported = 0;
         int ignored = 0;
@@ -122,7 +135,9 @@ public class AggregateDataValueService {
                     null,
                     actingUser,
                     now,
-                    now
+                    now,
+                    nextHopOrgUnitUid == null || nextHopOrgUnitUid.isBlank()
+                            ? null : nextHopOrgUnitUid.trim()
             );
             journal.insert(entry);
             if (approvals.requiresApproval(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)) {

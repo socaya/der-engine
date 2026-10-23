@@ -91,7 +91,8 @@ public class EventsController {
             inputs.add(toInput(row));
         }
         final EventService.EventImportResult result = service.submit(inputs, principal.userId(),
-                http.getRemoteAddr(), http.getHeader(HttpHeaders.USER_AGENT));
+                http.getRemoteAddr(), http.getHeader(HttpHeaders.USER_AGENT),
+                http.getHeader("X-DER-Referral-Next-Hop"));
         final List<Map<String, Object>> conflicts = new ArrayList<>();
         for (final EventService.Conflict c : result.conflicts()) {
             final Map<String, Object> m = new LinkedHashMap<>();

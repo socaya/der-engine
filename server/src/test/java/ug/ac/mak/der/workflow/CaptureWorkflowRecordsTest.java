@@ -108,7 +108,9 @@ class CaptureWorkflowRecordsTest {
     @Test
     void enumValuesSurface() {
         assertThat(CaptureWorkflow.BindingKind.values())
-                .containsExactly(CaptureWorkflow.BindingKind.DATA_SET);
+                .containsExactly(CaptureWorkflow.BindingKind.DATA_SET,
+                        CaptureWorkflow.BindingKind.PROGRAM,
+                        CaptureWorkflow.BindingKind.PROGRAM_STAGE);
         assertThat(CaptureWorkflowStep.OwnerRole.values()).hasSize(3);
         assertThat(CaptureWorkflowStep.StepKind.values()).hasSize(4);
         assertThat(CaptureWorkflowField.Requirement.values()).hasSize(4);

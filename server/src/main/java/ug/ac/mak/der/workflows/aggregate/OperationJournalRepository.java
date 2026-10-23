@@ -36,8 +36,9 @@ public class OperationJournalRepository {
         jdbc.update(
                 "INSERT INTO der.operation_journal "
                         + "(operation_id, entity_type, entity_ref, payload_json, state, "
-                        + " attempt_count, last_error, submitted_by, created_at, updated_at) "
-                        + "VALUES (?, ?, ?, CAST(? AS jsonb), ?, ?, ?, ?, ?, ?)",
+                        + " attempt_count, last_error, submitted_by, created_at, updated_at, "
+                        + " next_hop_org_unit_uid) "
+                        + "VALUES (?, ?, ?, CAST(? AS jsonb), ?, ?, ?, ?, ?, ?, ?)",
                 entry.operationId(),
                 entry.entityType().name(),
                 entry.entityRef(),
@@ -47,7 +48,8 @@ public class OperationJournalRepository {
                 entry.lastError(),
                 entry.submittedBy(),
                 Timestamp.from(entry.createdAt()),
-                Timestamp.from(entry.updatedAt())
+                Timestamp.from(entry.updatedAt()),
+                entry.nextHopOrgUnitUid()
         );
         return entry;
     }

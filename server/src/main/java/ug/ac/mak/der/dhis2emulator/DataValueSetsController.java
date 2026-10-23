@@ -115,7 +115,8 @@ public class DataValueSetsController {
         }
         final AggregateDataValueService.ImportSummary result = service.submit(
                 inputs, principal.userId(),
-                http.getRemoteAddr(), http.getHeader(HttpHeaders.USER_AGENT)
+                http.getRemoteAddr(), http.getHeader(HttpHeaders.USER_AGENT),
+                http.getHeader("X-DER-Referral-Next-Hop")
         );
 
         final Instant now = Instant.now(clock);

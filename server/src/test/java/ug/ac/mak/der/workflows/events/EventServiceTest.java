@@ -63,6 +63,29 @@ class EventServiceTest {
     }
 
     @Test
+    void referralTagThreadedOntoJournalEntry() {
+        final EventRepository events = mock(EventRepository.class);
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final ExtendedMirrorRepository mirror = mock(ExtendedMirrorRepository.class);
+        final RuleEngine rules = mock(RuleEngine.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        when(mirror.findProgramStage("ps")).thenReturn(Optional.of(ps()));
+        when(rules.evaluate(any(), any(), any(Boolean.class), any())).thenReturn(
+                new RuleEngineResult(Map.of(), List.of(), List.of()));
+        when(events.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(events.findForEnrollment(any())).thenReturn(List.of());
+        final var service = new EventService(events, journal, mirror, rules, audit, mapper,
+                clock, new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false));
+        service.submit(List.of(newInput(Event.Status.ACTIVE)),
+                UUID.randomUUID(), "127.0.0.1", "ua", "ou-dest");
+        final org.mockito.ArgumentCaptor<ug.ac.mak.der.workflows.aggregate.OperationJournalEntry> cap =
+                org.mockito.ArgumentCaptor.forClass(
+                        ug.ac.mak.der.workflows.aggregate.OperationJournalEntry.class);
+        verify(journal).insert(cap.capture());
+        assertThat(cap.getValue().nextHopOrgUnitUid()).isEqualTo("ou-dest");
+    }
+
+    @Test
     void nullInputRejected() {
         final EventRepository events = mock(EventRepository.class);
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);
