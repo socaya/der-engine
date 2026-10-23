@@ -1,0 +1,13 @@
+# ADR-0029 Edge Agent config template.
+# Operators fill `agent.dhis2.base-url` + credentials + the list of
+# edges to notify.
+server:
+  port: 8090
+
+agent:
+  dhis2:
+    base-url: http://localhost:8080/dhis
+    username: admin
+    password: district
+    poll-interval-seconds: 60
+  edges: []   # list of https://edge/edge-api/v1/sync/notify URLs

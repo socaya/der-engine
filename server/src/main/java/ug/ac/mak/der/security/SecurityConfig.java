@@ -74,6 +74,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/edge-api/v1/dhis2/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/provisioning/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/sync/notify").authenticated()
                         .requestMatchers("/edge-api/v1/sync/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/backup/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/restore/**").hasRole("ADMIN")

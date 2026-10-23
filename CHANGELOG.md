@@ -15,6 +15,18 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.4.0-alpha.9] — unreleased
+
+Initiative 2 scaffold — Edge Agent + /sync/notify receiver (ADR-0029).
+
+- Added: `agents/dhis2-edge-agent/` Maven module (Spring Boot shell, config template, README).
+- Added: `SyncNotifyController` at POST `/edge-api/v1/sync/notify` — any authenticated user; schedules an immediate `MetadataSyncService.syncAll`.
+- Changed: `SecurityConfig` relaxes `/sync/notify` to `authenticated()` (rest of `/sync/**` remains ADMIN).
+- Added: ADR-0029.
+- Added: 3 server tests.
+
+[1.4.0-alpha.9]: https://github.com/socaya/der-engine/releases/tag/der-1.4.0-alpha.9
+
 ## [1.4.0-alpha.8] — unreleased
 
 Initiative 8 part 3 — TOTP MFA (ADR-0028 alpha.8 slice).
