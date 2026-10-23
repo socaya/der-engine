@@ -3,6 +3,7 @@ package ug.ac.mak.der.workflows.aggregate;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -108,6 +109,21 @@ public class OperationJournalRepository {
         return jdbc.update(
                 "UPDATE der.operation_journal SET requires_approval = TRUE "
                         + "WHERE operation_id = ?", operationId);
+    }
+
+    /**
+     * FR-09-10 journal retention. Deletes rows in a terminal state
+     * (CENTRAL_ACCEPTED, CENTRAL_REJECTED) older than the cutoff.
+     * Returns the number of rows purged. Operator-driven via
+     * `/edge-api/v1/admin/ops/journal/purge?olderThanDays=`.
+     */
+    public int purgeTerminalBefore(final Instant cutoff) {
+        Objects.requireNonNull(cutoff, "cutoff");
+        return jdbc.update(
+                "DELETE FROM der.operation_journal "
+                        + "WHERE state IN ('CENTRAL_ACCEPTED','CENTRAL_REJECTED') "
+                        + "  AND updated_at < ?",
+                Timestamp.from(cutoff));
     }
 
     public List<OperationJournalEntry> findByState(final OperationJournalEntry.State state,

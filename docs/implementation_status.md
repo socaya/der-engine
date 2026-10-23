@@ -20,15 +20,47 @@
 | 📋 **DESIGN-ONLY** | ADR exists, no code. |
 | ❌ **PENDING** | Source-register entry with no code and no ADR. |
 
-## Summary (verified against actual code at 2.0.1-alpha.3)
+## Summary (verified against actual code at 2.0.2-alpha.1)
+
+### UI screens (`docs/verification/screen-traceability.csv`)
+
+| Status | Count |
+|---|---:|
+| ✅ DONE | 54 / 54 |
+
+All 54 UI screens shipped — 37 as standalone routed components with
+tests, 17 as bundled sub-states of siblings per the Phase 06 1.0.0
+gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
+
+### FR / NFR requirements (`docs/verification/traceability-matrix.csv`)
 
 | Status | Count | % | CSV status |
 |---|---:|---:|---|
-| ✅ DONE (verified) | 158 | 75% | `done` |
-| 🟡 PARTIAL (specific gap documented) | 53 | 25% | `in-progress` |
+| ✅ DONE (verified) | 160 | 76% | `done` |
+| 🟡 PARTIAL (specific gap documented) | 51 | 24% | `in-progress` |
 | ❌ PENDING | 0 | 0% | `pending` |
 
-## Alpha.3 (this release)
+### Combined scorecard
+
+| Dimension | DONE | Total | % |
+|---|---:|---:|---:|
+| UI screens | 54 | 54 | 100% |
+| FR / NFR | 160 | 211 | 76% |
+| **All requirements** | **214** | **265** | **81%** |
+
+## Alpha.1 (this release — der-2.0.2-alpha.1)
+
+- Flipped all 54 UI screens in `screen-traceability.csv` to `done`
+  with evidence pointers (37 standalone components + 17
+  bundled-sibling screens per Phase 06 G5).
+- Added `GET /edge-api/v1/admin/metrics/clock` — FR-14-10 / NFR-28
+  clock-drift probe.
+- Added `POST /edge-api/v1/admin/ops/journal/purge?olderThanDays=` +
+  `OperationJournalRepository.purgeTerminalBefore` — FR-09-10
+  retention knob.
+- 2 narrow extensions promoted to DONE: FR-09-10, FR-14-10.
+
+## Alpha.3 (prior release)
 
 - **NFR cluster (7 items DONE):** NFR-15 p50/p95 + NFR-16 throughput +
   NFR-18 resource budget + NFR-19 concurrency harness via

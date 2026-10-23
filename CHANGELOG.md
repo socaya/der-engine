@@ -15,6 +15,18 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [2.0.2-alpha.1] — unreleased
+
+UI matrix flip + narrow extensions.
+
+- Added: `GET /edge-api/v1/admin/metrics/clock` — clock-drift probe (FR-14-10 / NFR-28).
+- Added: `POST /edge-api/v1/admin/ops/journal/purge?olderThanDays=` + `OperationJournalRepository.purgeTerminalBefore` (FR-09-10).
+- Changed: `screen-traceability.csv` — all 54 UI screens flipped to `done` (37 standalone + 17 bundled-siblings per Phase 06 G5).
+- Changed: `traceability-matrix.csv` — 160 total done (FR-09-10 + FR-14-10 flipped). Combined scorecard 214/265 (81%).
+- Changed: `docs/implementation_status.md` restructured with combined UI + FR/NFR scorecard.
+
+[2.0.2-alpha.1]: https://github.com/socaya/der-engine/releases/tag/der-2.0.2-alpha.1
+
 ## [2.0.1] — 2026-10-23
 
 Fifth stable release. Honest FR/NFR implementation sweep. Bundles alphas 2.0.1-alpha.1..3; no code change versus alpha.3.

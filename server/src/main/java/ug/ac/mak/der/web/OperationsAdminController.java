@@ -274,6 +274,33 @@ public class OperationsAdminController {
     }
 
     /**
+     * FR-09-10: journal retention. Purges terminal-state entries
+     * older than the given day cutoff (default 90).
+     */
+    @PostMapping(path = "/journal/purge")
+    public ResponseEntity<Map<String, Object>> purgeJournal(
+            final Authentication authentication,
+            @RequestParam(name = "olderThanDays", defaultValue = "90") final int days) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final OperationJournalRepository jr = journal.getIfAvailable();
+        if (jr == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "code", "JOURNAL_UNAVAILABLE", "message", "journal not wired"));
+        }
+        final int capped = Math.max(1, days);
+        final Instant cutoff = Instant.now(clock).minus(capped, java.time.temporal.ChronoUnit.DAYS);
+        final int purged = jr.purgeTerminalBefore(cutoff);
+        audit.append(new AuditEvent("JOURNAL_RETENTION_PURGE",
+                AuditEvent.Outcome.SUCCESS, principal.userId(), null, null, null,
+                Map.of("olderThanDays", String.valueOf(capped),
+                        "rowsPurged", String.valueOf(purged))),
+                Instant.now(clock));
+        return ResponseEntity.ok(Map.of("rowsPurged", purged, "cutoff", cutoff.toString()));
+    }
+
+    /**
      * FR-01-10: decommission — disable all other users, request a
      * final evidence-export backup, record a terminal audit event.
      * Body must carry {@code confirm=="CONFIRMED"}.

@@ -39,6 +39,20 @@ public class OperatorMetricsController {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
+    /**
+     * FR-14-10 / NFR-28: clock drift probe. Caller compares
+     * `serverEpochMillis` against its local clock.
+     */
+    @GetMapping("/clock")
+    public ResponseEntity<Map<String, Object>> clockProbe() {
+        final Instant now = Instant.now(clock);
+        return ResponseEntity.ok(Map.of(
+                "serverTime", now.toString(),
+                "serverEpochMillis", now.toEpochMilli(),
+                "note", "Caller computes drift = abs(serverEpochMillis - callerEpochMillis). "
+                        + "DER emits a WARN audit event when drift exceeds 60s."));
+    }
+
     @GetMapping
     public ResponseEntity<Map<String, Object>> metrics() {
         final Map<String, Object> body = new LinkedHashMap<>();
