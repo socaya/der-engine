@@ -15,6 +15,14 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [2.0.0-alpha.2] — unreleased
+
+Initiative 3 topology spike (ADR-0031). Docs-only.
+
+- Added: ADR-0031 — direct TLS mesh (option B) wins; MQTT (option C) shelved. Implementation lands in a 2.1.0 train.
+
+[2.0.0-alpha.2]: https://github.com/socaya/der-engine/releases/tag/der-2.0.0-alpha.2
+
 ## [2.0.0-alpha.1] — unreleased
 
 Initiative 6 — Android Capacitor wrap scaffold (ADR-0030).
