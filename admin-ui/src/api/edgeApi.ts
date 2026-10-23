@@ -445,15 +445,100 @@ export function requestRestore(source: string): Promise<RestoreRow> {
   return request<RestoreRow>('POST', '/edge-api/v1/restore/request', { source });
 }
 
-export interface Diagnostics {
-  memoryMb: number;
-  uptimeSeconds: number;
-  schedulerBacklog: number;
-  journalBacklog: Record<string, number>;
+export interface SystemInfoRuntime {
+  javaVersion?: string;
+  javaVendor?: string;
+  osName?: string;
+  osArch?: string;
+  hostname?: string;
+  uptimeMillis?: number;
+  heapMaxBytes?: number;
+  heapUsedBytes?: number;
+  heapFreeBytes?: number;
+  availableProcessors?: number;
+  jvmStartTimeMillis?: number;
+}
+
+export interface SystemInfoDhis2 {
+  centralBaseUrl?: string;
+  pinnedVersion?: string;
+  allowMismatch?: boolean;
+  probeReachable?: boolean;
+  centralVersion?: string;
+  profileName?: string;
+  probeDurationMs?: number;
+  capturedAt?: string;
+  reason?: string;
+}
+
+export interface SystemInfoDatabase {
+  product?: string;
+  flywayVersion?: string;
+  migrationCount?: number;
+  userCount?: number;
+  sessionCount?: number;
+  probeError?: string;
+  configured?: boolean;
+}
+
+export interface SystemInfoScheduler {
+  name?: string;
+  started?: boolean;
+  standbyMode?: boolean;
+  executingJobs?: number;
+  totalJobs?: number;
+  probeError?: string;
+  configured?: boolean;
+}
+
+export interface SystemInfoStorage {
+  root?: string;
+  status?: 'OK' | 'WARN' | 'REJECT';
+  usableBytes?: number;
+  totalBytes?: number;
+  warnBytes?: number;
+  rejectBytes?: number;
+  configured?: boolean;
+}
+
+export interface SystemInfoApps {
+  installed?: number;
+  enabled?: number;
+  items?: Array<{ key: string; name: string; version: string; enabled: boolean; launchUrl: string }>;
+  configured?: boolean;
+}
+
+export interface SystemInfo {
+  service: string;
+  timestamp: string;
+  build: {
+    version: string; commit: string; branch: string;
+    dirty: boolean; buildTime: string;
+  };
+  runtime: SystemInfoRuntime;
+  dhis2: SystemInfoDhis2;
+  database: SystemInfoDatabase;
+  scheduler: SystemInfoScheduler;
+  journal: Record<string, number>;
+  storage: SystemInfoStorage;
+  apps: SystemInfoApps;
+  attribution?: { mappedUsers?: number; configured?: boolean };
+}
+
+// Backward-compat for existing /diagnostics callers.
+export interface Diagnostics extends SystemInfo {
+  memoryMb?: number;
+  uptimeSeconds?: number;
+  schedulerBacklog?: number;
+  journalBacklog?: Record<string, number>;
 }
 
 export function diagnostics(): Promise<Diagnostics> {
   return request<Diagnostics>('GET', '/edge-api/v1/admin/diagnostics');
+}
+
+export function systemInfo(): Promise<SystemInfo> {
+  return request<SystemInfo>('GET', '/edge-api/v1/system/info');
 }
 
 export interface SettingsPayload {

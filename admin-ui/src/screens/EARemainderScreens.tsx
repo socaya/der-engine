@@ -288,7 +288,7 @@ export function EADiagnostics({ api = edgeApi }: {
         <dt>Quartz backlog</dt><dd data-test="ea35-scheduler">{d.schedulerBacklog}</dd>
       </dl>
       <ul data-test="ea35-journal">
-        {Object.entries(d.journalBacklog).map(([k, v]) => (
+        {Object.entries(d.journalBacklog ?? {}).map(([k, v]) => (
           <li key={k}>
             <span data-test={`ea35-journal-${k}`}>{k}: {v}</span>
           </li>

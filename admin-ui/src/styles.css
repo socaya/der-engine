@@ -270,6 +270,68 @@ dd{margin:0;color:var(--der-ink);font-size:13px;font-weight:500}
 .ea-ou-picker label span{display:block;margin-bottom:4px}
 .ea-ou-picker select{max-width:520px}
 
+/* ===== ScreenHeader ===== */
+.ea-screen-header{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+  margin:0 0 8px;flex-wrap:wrap;
+}
+.ea-screen-header-text{flex:1;min-width:200px}
+.ea-screen-header-text h1{margin:0}
+.ea-screen-header-sub{
+  margin:4px 0 0;color:var(--der-ink-muted);font-size:13px;
+}
+.ea-screen-header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ea-screen-header-stale{color:var(--der-ink-muted);font-size:12px}
+
+/* ===== Breadcrumbs ===== */
+.ea-breadcrumbs{
+  font-size:12px;color:var(--der-ink-muted);margin:0 0 12px;
+  display:flex;align-items:center;flex-wrap:wrap;gap:0;
+}
+.ea-breadcrumbs a{color:var(--der-ink-muted);text-decoration:none}
+.ea-breadcrumbs a:hover{color:var(--der-blue);text-decoration:underline}
+.ea-breadcrumbs-sep{margin:0 8px;color:var(--der-border-strong)}
+.ea-breadcrumbs-current{color:var(--der-ink-soft);font-weight:500}
+
+/* ===== Health cards (Overview B6) ===== */
+.ea-health-cards{
+  display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+  gap:16px;margin:0 0 20px;
+}
+.ea-health-card{
+  display:block;padding:16px;
+  background:var(--der-surface);
+  border:1px solid var(--der-border);
+  border-radius:var(--der-radius-lg);
+  box-shadow:var(--der-shadow-sm);
+  text-decoration:none;color:inherit;
+  transition:border-color 100ms ease, box-shadow 100ms ease;
+}
+.ea-health-card:hover{
+  border-color:var(--der-blue);
+  box-shadow:0 4px 10px rgba(25,118,210,0.1);
+  text-decoration:none;
+}
+.ea-health-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.ea-health-title{font-size:12px;text-transform:uppercase;letter-spacing:0.3px;color:var(--der-ink-muted);font-weight:600}
+.ea-health-pill{
+  display:inline-flex;align-items:center;
+  padding:2px 10px;border-radius:999px;
+  font-size:11px;font-weight:600;line-height:16px;letter-spacing:0.3px;
+}
+.ea-health-pill--ok{background:var(--der-success-soft);color:var(--der-success)}
+.ea-health-pill--warn{background:var(--der-warning-soft);color:var(--der-warning)}
+.ea-health-pill--danger{background:var(--der-danger-soft);color:var(--der-danger)}
+.ea-health-main{font-size:20px;font-weight:500;color:var(--der-ink);margin-bottom:4px}
+.ea-health-sub{font-size:12px;color:var(--der-ink-muted)}
+
+.ea-health-card--skeleton{min-height:92px}
+.ea-health-skel-line{
+  height:14px;background:var(--der-border-subtle);border-radius:3px;
+  margin-bottom:8px;max-width:60%;
+}
+.ea-health-skel-line--sm{max-width:40%;height:10px}
+
 /* ===== Chips / tags ===== */
 .ea-chip{
   display:inline-flex;align-items:center;gap:6px;

@@ -43,7 +43,7 @@ describe('EA-01 SetupWelcome', () => {
       listOrgUnits: vi.fn(),
     };
     renderWithProviders(<EASetupWelcome api={api as never} />);
-    await waitFor(() => expect(screen.getByTestId('ea01-heading')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('ea01-header')).toBeInTheDocument());
     expect(screen.getByTestId('ea01-profile')).toHaveTextContent('V2_44');
     expect(screen.getByTestId('ea01-orgunit')).toHaveTextContent('Clinic');
   });

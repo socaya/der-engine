@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock, OfflineBanner } from '../components/ScreenStates';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { HealthCards } from '../components/HealthCards';
 
 /**
  * Phase 06 Release 2 — EA-01..18 admin screens.
@@ -14,11 +16,13 @@ import { EmptyBlock, ErrorBlock, LoadingBlock, OfflineBanner } from '../componen
 // EA-01 Setup welcome / home ------------------------------------------
 export function EASetupWelcome({ api = edgeApi }:
     { api?: Pick<typeof edgeApi, 'health' | 'compat' | 'getOrgUnitBinding'
-      | 'bindOrgUnit' | 'listOrgUnits'> } = {}): JSX.Element {
+      | 'bindOrgUnit' | 'listOrgUnits' | 'systemInfo'> } = {}): JSX.Element {
   const [h, setH] = useState<edgeApi.HealthResponse | null>(null);
   const [c, setC] = useState<edgeApi.CompatSnapshot | null>(null);
   const [binding, setBinding] = useState<edgeApi.OrgUnitBinding | null>(null);
   const [orgUnits, setOrgUnits] = useState<edgeApi.OrgUnitRow[]>([]);
+  const [sysInfo, setSysInfo] = useState<edgeApi.SystemInfo | null>(null);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
   const [selected, setSelected] = useState('');
   const [confirmRebind, setConfirmRebind] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -26,10 +30,12 @@ export function EASetupWelcome({ api = edgeApi }:
 
   async function reload(): Promise<void> {
     try {
-      const [hr, cr, br] = await Promise.all([
+      const [hr, cr, br, si] = await Promise.all([
         api.health(), api.compat(), api.getOrgUnitBinding(),
+        api.systemInfo ? api.systemInfo().catch(() => null) : Promise.resolve(null),
       ]);
-      setH(hr); setC(cr); setBinding(br);
+      setH(hr); setC(cr); setBinding(br); setSysInfo(si);
+      setLastFetched(new Date());
       if (!br.bound) {
         const ous = await api.listOrgUnits();
         setOrgUnits(ous.organisationUnits);
@@ -60,7 +66,14 @@ export function EASetupWelcome({ api = edgeApi }:
   if (!h || !c || !binding) return <LoadingBlock testId="ea01-loading" />;
   return (
     <div className="ea-screen">
-      <h1 data-test="ea01-heading">Setup overview</h1>
+      <ScreenHeader
+        title="Setup overview"
+        subtitle="Edge health, DHIS2 reach, journal state, storage headroom."
+        lastFetched={lastFetched}
+        onRefresh={reload}
+        testId="ea01-header"
+      />
+      <HealthCards info={sysInfo} />
       {!h.dhis2Integrated && <OfflineBanner testId="ea01-offline" />}
       <dl>
         <dt>DER version</dt><dd data-test="ea01-version">{h.version}</dd>

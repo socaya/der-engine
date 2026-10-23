@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { Breadcrumbs } from './Breadcrumbs';
 
 /**
  * DHIS2-style administration shell: fixed header bar with brand +
@@ -104,7 +105,10 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
       )}
 
       <main className="ea-main" data-der-app="admin-ui">
-        <div className="ea-main-inner">{children}</div>
+        <div className="ea-main-inner">
+          {!onSignIn && <Breadcrumbs />}
+          {children}
+        </div>
       </main>
     </div>
   );
