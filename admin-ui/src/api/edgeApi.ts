@@ -300,6 +300,25 @@ export function setJournalNextHop(operationId: string, orgUnitUid: string):
     `/edge-api/v1/journal/${operationId}/next-hop`, { orgUnitUid });
 }
 
+// ---- der-1.4.0-alpha.4 Initiative 3 (ADR-0027): referral inbox ----
+
+export type ReferralInboxKind = 'AGGREGATE_DATA_VALUE' | 'EVENT'
+  | 'ENROLLMENT' | 'TRACKED_ENTITY';
+
+export interface ReferralInboxRow {
+  inboxId: string;
+  kind: ReferralInboxKind;
+  sourceRef: string;
+  boundOrgUnit: string;
+  discoveredAt: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DISMISSED';
+}
+
+export function listReferralInbox(limit = 100):
+    Promise<{ entries: ReferralInboxRow[] }> {
+  return request('GET', `/edge-api/v1/referral/inbox?limit=${limit}`);
+}
+
 export function reJournalConflict(id: string): Promise<unknown> {
   return request('POST', `/edge-api/v1/journal/conflicts/${id}/re-journal`);
 }

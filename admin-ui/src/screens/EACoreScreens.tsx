@@ -1166,3 +1166,56 @@ export function EAAuditVerify({ api = edgeApi }:
     </div>
   );
 }
+
+// EA-REF-01 Referral inbox (ADR-0027) ------------------------------
+export function EAReferralInbox({ api = edgeApi }:
+    { api?: Pick<typeof edgeApi, 'listReferralInbox'> } = {}): JSX.Element {
+  const [rows, setRows] = useState<edgeApi.ReferralInboxRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await api.listReferralInbox();
+        setRows(resp.entries);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    })().catch(() => undefined);
+  }, [api]);
+
+  if (error) return <ErrorBlock title="Inbox error" testId="ref01-error">{error}</ErrorBlock>;
+  if (rows === null) return <LoadingBlock testId="ref01-loading" />;
+
+  return (
+    <div className="ea-screen">
+      <h1 data-test="ref01-heading">Referral inbox</h1>
+      <p>Pending referrals discovered on central addressed to this
+        edge's bound organisation unit (ADR-0027).</p>
+      {rows.length === 0 ? (
+        <EmptyBlock title="No pending referrals" testId="ref01-empty">
+          The next inbox scan runs on <code>der.referral.inbox.cron</code>
+          (default every 10 minutes). Alpha.4 ships the schema; the real
+          central scan lands in alpha.5.
+        </EmptyBlock>
+      ) : (
+        <table className="ea-ref-table">
+          <thead>
+            <tr>
+              <th>Kind</th><th>Source ref</th><th>Discovered</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.inboxId} data-test={`ref01-row-${r.inboxId}`}>
+                <td>{r.kind}</td>
+                <td><code>{r.sourceRef}</code></td>
+                <td>{r.discoveredAt}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

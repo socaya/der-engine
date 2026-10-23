@@ -15,6 +15,20 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.4.0-alpha.4] — unreleased
+
+Initiative 3 — referral inbox scaffolding (ADR-0027 alpha.4 slice).
+
+- Added: V022 `referral_inbox` table with `UNIQUE (kind, source_ref)` for idempotent re-polls; partial index on pending status.
+- Added: `ReferralInboxEntry` + `ReferralInboxRepository` (insertIfAbsent / findPending / markResolved).
+- Added: `CentralReferralSearchClient` interface + `NoOpCentralReferralSearchClient` default (alpha.5 replaces it with an HTTP client).
+- Added: `ReferralInboxScanner` service — reads the bound OU, pulls candidates, upserts into inbox. Fail-open on failures.
+- Added: `ReferralInboxPollJob` Quartz job on `der.referral.inbox.cron:0 */10 * * * ?`.
+- Added: `GET /edge-api/v1/referral/inbox` (any-auth) + `edgeApi.listReferralInbox` + admin UI EA-REF-01 at `/referral/inbox`.
+- Added: 18 server tests + 4 admin-ui screen tests + 1 Playwright spec + 1 edgeApi table row.
+
+[1.4.0-alpha.4]: https://github.com/socaya/der-engine/releases/tag/der-1.4.0-alpha.4
+
 ## [1.4.0-alpha.3] — unreleased
 
 Initiative 3 — referral outbound encoding (ADR-0027 D-RHO-7 codified in alpha.3).

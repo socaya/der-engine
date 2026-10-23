@@ -118,6 +118,12 @@ test.describe('EA family', () => {
     await expect(page.getByTestId('aud01-heading')).toBeVisible();
   });
 
+  test('EA-REF-01 ReferralInbox at /referral/inbox', async ({ page }) => {
+    await mock(page, '**/edge-api/v1/referral/inbox**', { entries: [] });
+    await page.goto('/referral/inbox');
+    await expect(page.getByTestId('ref01-heading')).toBeVisible();
+  });
+
   test('EA-18 MetadataOverview at /metadata', async ({ page }) => {
     await mock(page, '**/api/**', { items: [] });
     await page.goto('/metadata');

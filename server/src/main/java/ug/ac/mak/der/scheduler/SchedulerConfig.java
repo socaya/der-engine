@@ -139,4 +139,24 @@ public class SchedulerConfig {
                 .withSchedule(CronScheduleBuilder.cronSchedule(cron))
                 .build();
     }
+
+    @Bean
+    public JobDetail referralInboxPollJobDetail() {
+        return JobBuilder.newJob(ReferralInboxPollJob.class)
+                .withIdentity(ReferralInboxPollJob.JOB_NAME)
+                .storeDurably()
+                .requestRecovery()
+                .build();
+    }
+
+    @Bean
+    public Trigger referralInboxPollTrigger(final JobDetail referralInboxPollJobDetail,
+                                              @Value("${der.referral.inbox.cron:0 */10 * * * ?}")
+                                              final String cron) {
+        return TriggerBuilder.newTrigger()
+                .forJob(referralInboxPollJobDetail)
+                .withIdentity(ReferralInboxPollJob.JOB_NAME + "_TRIGGER")
+                .withSchedule(CronScheduleBuilder.cronSchedule(cron))
+                .build();
+    }
 }

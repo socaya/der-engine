@@ -26,7 +26,7 @@
   </parent>
 
   <groupId>ug.ac.mak.der</groupId>
-  <artifactId>der-server</artifactId><version>1.4.0-alpha.3-SNAPSHOT</version>
+  <artifactId>der-server</artifactId><version>1.4.0-alpha.4-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>DER coordination server</name>
   <description>DHIS2 Edge Runtime coordination service (Phase 00 baseline)</description>

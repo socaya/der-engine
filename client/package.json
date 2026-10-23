@@ -1,6 +1,6 @@
 {
   "name": "der-client",
-  "version": "1.4.0-alpha.3-snapshot",
+  "version": "1.4.0-alpha.4-snapshot",
   "private": true,
   "type": "module",
   "scripts": {

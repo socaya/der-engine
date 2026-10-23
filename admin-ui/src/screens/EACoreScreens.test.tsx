@@ -8,7 +8,7 @@ import {
   EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
   EAWorkerHealth, EAMetadataOverview, EAApprovalQueue, EACaptureWorkflowList,
   EACaptureWorkflowDesigner, EADeviceFleet, EAFacilityAnalytics,
-  EAAuditVerify,
+  EAAuditVerify, EAReferralInbox,
 } from './EACoreScreens';
 
 afterEach(() => vi.restoreAllMocks());
@@ -1016,5 +1016,39 @@ describe('EA-AUD-01 AuditVerify', () => {
     } as never} />);
     await userEvent.click(screen.getByTestId('aud01-run'));
     await waitFor(() => expect(screen.getByTestId('aud01-error')).toBeInTheDocument());
+  });
+});
+
+describe('EA-REF-01 ReferralInbox', () => {
+  it('empty state', async () => {
+    renderWithProviders(<EAReferralInbox api={{
+      listReferralInbox: vi.fn().mockResolvedValue({ entries: [] }),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('ref01-empty')).toBeInTheDocument());
+  });
+
+  it('renders pending referrals', async () => {
+    renderWithProviders(<EAReferralInbox api={{
+      listReferralInbox: vi.fn().mockResolvedValue({ entries: [{
+        inboxId: 'ib-1', kind: 'AGGREGATE_DATA_VALUE', sourceRef: 'de|ou|2026Q1',
+        boundOrgUnit: 'ou-dest', discoveredAt: '2026-10-23T00:00:00Z',
+        status: 'PENDING',
+      }] }),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('ref01-row-ib-1')).toBeInTheDocument());
+  });
+
+  it('error surfaces', async () => {
+    renderWithProviders(<EAReferralInbox api={{
+      listReferralInbox: vi.fn().mockRejectedValue(new Error('boom')),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('ref01-error')).toBeInTheDocument());
+  });
+
+  it('non-Error rejection stringifies', async () => {
+    renderWithProviders(<EAReferralInbox api={{
+      listReferralInbox: vi.fn().mockRejectedValue('x'),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('ref01-error')).toBeInTheDocument());
   });
 });
