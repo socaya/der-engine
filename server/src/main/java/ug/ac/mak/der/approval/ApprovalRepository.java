@@ -7,7 +7,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -18,7 +17,6 @@ import org.springframework.stereotype.Repository;
  * (ADR-0016). The journal entry record proper stays slim.
  */
 @Repository
-@ConditionalOnBean(JdbcTemplate.class)
 public class ApprovalRepository {
 
     private final JdbcTemplate jdbc;

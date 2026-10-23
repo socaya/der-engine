@@ -6,14 +6,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 /** Reads the ADR-0020 facility summary + the recent rejection count. */
 @Repository
-@ConditionalOnBean(JdbcTemplate.class)
 public class AnalyticsRepository {
 
     private final JdbcTemplate jdbc;

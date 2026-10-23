@@ -9,7 +9,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -21,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
  * Reads + writes the full {@link CaptureWorkflow} graph.
  */
 @Repository
-@ConditionalOnBean(JdbcTemplate.class)
 public class CaptureWorkflowRepository {
 
     private final JdbcTemplate jdbc;

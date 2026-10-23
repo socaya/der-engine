@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -17,7 +16,6 @@ import org.springframework.stereotype.Repository;
  * matches DHIS2's re-POST semantics on dataValueSets.
  */
 @Repository
-@ConditionalOnBean(JdbcTemplate.class)
 public class CaptureWorkflowContributionRepository {
 
     private final JdbcTemplate jdbc;

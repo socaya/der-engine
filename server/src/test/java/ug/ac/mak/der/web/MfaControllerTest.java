@@ -30,6 +30,7 @@ import ug.ac.mak.der.security.EdgeSession;
 import ug.ac.mak.der.security.EdgeUser;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.security.EdgeUserRepository;
+import ug.ac.mak.der.security.SecretEnvelope;
 import ug.ac.mak.der.security.SecurityAuditRepository;
 import ug.ac.mak.der.security.TotpService;
 
@@ -48,6 +49,10 @@ class MfaControllerTest {
         @org.springframework.context.annotation.Bean
         Clock clock() {
             return Clock.fixed(Instant.parse("2026-10-23T00:00:00Z"), ZoneOffset.UTC);
+        }
+        @org.springframework.context.annotation.Bean
+        SecretEnvelope secretEnvelope() {
+            return new SecretEnvelope("");
         }
     }
 

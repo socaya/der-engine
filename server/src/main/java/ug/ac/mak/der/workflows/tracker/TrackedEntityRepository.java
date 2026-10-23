@@ -11,7 +11,6 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -19,7 +18,6 @@ import org.springframework.stereotype.Repository;
 
 /** FR-08-01 / FR-08-02 persistence. */
 @Repository
-@ConditionalOnBean(JdbcTemplate.class)
 public class TrackedEntityRepository {
 
     private final JdbcTemplate jdbc;

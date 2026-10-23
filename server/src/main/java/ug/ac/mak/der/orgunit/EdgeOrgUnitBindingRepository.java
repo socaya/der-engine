@@ -4,7 +4,6 @@ import java.sql.Timestamp;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -14,7 +13,6 @@ import org.springframework.stereotype.Repository;
  * orgUnit binding columns added in V012. ADR-0015.
  */
 @Repository
-@ConditionalOnBean(JdbcTemplate.class)
 public class EdgeOrgUnitBindingRepository {
 
     private final JdbcTemplate jdbc;

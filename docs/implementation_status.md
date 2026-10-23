@@ -5,7 +5,7 @@
 > column in `docs/verification/traceability-matrix.csv` (which was
 > never updated as alphas landed).
 
-**Last updated:** 2026-10-23 · prepared for `der-2.0.1-alpha.1`.
+**Last updated:** 2026-10-23 · prepared for `der-2.0.2-alpha.2`.
 **Scope:** All 211 requirements (176 FR + 35 NFR) from
 `docs/requirements/source-functional-register.csv` and
 `source-nonfunctional-register.csv`.
@@ -20,7 +20,7 @@
 | 📋 **DESIGN-ONLY** | ADR exists, no code. |
 | ❌ **PENDING** | Source-register entry with no code and no ADR. |
 
-## Summary (verified against actual code at 2.0.2-alpha.1)
+## Summary (verified against actual code at 2.0.2-alpha.2)
 
 ### UI screens (`docs/verification/screen-traceability.csv`)
 
@@ -36,8 +36,8 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 
 | Status | Count | % | CSV status |
 |---|---:|---:|---|
-| ✅ DONE (verified) | 160 | 76% | `done` |
-| 🟡 PARTIAL (specific gap documented) | 51 | 24% | `in-progress` |
+| ✅ DONE (verified) | 165 | 78% | `done` |
+| 🟡 PARTIAL (specific gap documented) | 46 | 22% | `in-progress` |
 | ❌ PENDING | 0 | 0% | `pending` |
 
 ### Combined scorecard
@@ -45,8 +45,49 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 | Dimension | DONE | Total | % |
 |---|---:|---:|---:|
 | UI screens | 54 | 54 | 100% |
-| FR / NFR | 160 | 211 | 76% |
-| **All requirements** | **214** | **265** | **81%** |
+| FR / NFR | 165 | 211 | 78% |
+| **All requirements** | **219** | **265** | **83%** |
+
+## Alpha.2 (this release — der-2.0.2-alpha.2)
+
+Closes 5 items to DONE:
+
+- **FR-16-07 TOTP at-rest encryption.** New `SecretEnvelope`
+  (AES-256-GCM) wraps TOTP secrets on enrol; `MfaController` opens on
+  verify. Operator-provided key via `der.security.secret-key`.
+  Backwards-compatible with existing plaintext secrets. 8 envelope
+  tests + 6 MFA controller tests green.
+- **FR-14-06 Database recovery.** `RestoreWorker` + SHA-256 manifest
+  verification + reconciliation checkpoint runbook documented in
+  `docs/operations/03-backup-and-recovery.md`.
+- **FR-14-07 Backup.** `BackupWorker` pg_dump captures journal +
+  metadata + working state in a single transactional snapshot;
+  SHA-256 recorded in `backup_run`.
+- **FR-14-08 Restore.** `pg_restore --clean --if-exists` +
+  `POST /edge-api/v1/admin/ops/journal/replay` re-anchors the sync
+  cursor to establish the reconciliation checkpoint.
+- **FR-14-09 Storage alarms.** New `StorageHealthProbe` +
+  `StorageAdmissionInterceptor` on `/edge-api/**`. Warn/reject
+  thresholds (`der.storage.warn-bytes`, `.reject-bytes`); writes return
+  HTTP 507 `STORAGE_FULL_REJECT` when below reject. New endpoint
+  `GET /edge-api/v1/system/storage` for operator readback. 12 tests
+  across probe + interceptor.
+
+Additional alpha.2 work:
+
+- **ADR-0032 + V026 — client-user attribution engine (foundation).**
+  New table `der.edge_user_dhis2_mapping` + `operation_journal`
+  column `captured_by_dhis2_uid`. Java surface:
+  `EdgeUserDhis2MappingRepository`, `CapturedByResolver`,
+  `UserAttributionController` under `/edge-api/v1/admin/users/`.
+  7 unit tests green. **Alpha.3** will wire `storedBy` stamping
+  into `JournalPublisher` + aggregate / tracker submission paths.
+- **Live-boot stabilization.** Removed `@ConditionalOnBean(JdbcTemplate.class)`
+  / `@ConditionalOnMissingBean(CentralReferralSearchClient.class)` from 10
+  repository + 1 fallback component (classic Spring Boot anti-pattern
+  that misfires on `@Component`-scanned beans). Server now boots in
+  1.8s against local Postgres 17 + DHIS2 2.44-SNAPSHOT. Evidence:
+  `docs/evaluation/evidence/alpha.2-live/`.
 
 ## Alpha.1 (this release — der-2.0.2-alpha.1)
 

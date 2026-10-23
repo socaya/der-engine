@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.security.EdgeUserRepository;
+import ug.ac.mak.der.security.SecretEnvelope;
 import ug.ac.mak.der.security.SecurityAuditRepository;
 import ug.ac.mak.der.security.TotpService;
 
@@ -29,13 +30,17 @@ public class MfaController {
     private final EdgeUserRepository users;
     private final TotpService totp;
     private final SecurityAuditRepository audit;
+    private final SecretEnvelope envelope;
     private final Clock clock;
 
     public MfaController(final EdgeUserRepository users, final TotpService totp,
-                          final SecurityAuditRepository audit, final Clock clock) {
+                          final SecurityAuditRepository audit,
+                          final SecretEnvelope envelope,
+                          final Clock clock) {
         this.users = Objects.requireNonNull(users, "users");
         this.totp = Objects.requireNonNull(totp, "totp");
         this.audit = Objects.requireNonNull(audit, "audit");
+        this.envelope = Objects.requireNonNull(envelope, "envelope");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -45,7 +50,9 @@ public class MfaController {
             return ResponseEntity.status(401).build();
         }
         final String secret = totp.generateSecret();
-        users.setTotpSecret(principal.userId(), secret, null);
+        // FR-16-07: persist encrypted at rest; return the plaintext
+        // once to the admin so they can configure their authenticator.
+        users.setTotpSecret(principal.userId(), envelope.seal(secret), null);
         final Map<String, Object> body = new LinkedHashMap<>();
         body.put("secret", secret);
         body.put("otpauth", totp.otpAuthUri("DER", principal.user().username(), secret));
@@ -72,7 +79,8 @@ public class MfaController {
             return ResponseEntity.status(409).body(Map.of(
                     "code", "MFA_NOT_ENROLLED", "message", "no secret for user"));
         }
-        if (!totp.verify(secret.get(), body.code())) {
+        final String plainSecret = envelope.open(secret.get());
+        if (!totp.verify(plainSecret, body.code())) {
             audit.append(new AuditEvent("MFA_VERIFY_FAILED",
                     AuditEvent.Outcome.DENIED, principal.userId(), null, null, null,
                     Map.of()), Instant.now(clock));

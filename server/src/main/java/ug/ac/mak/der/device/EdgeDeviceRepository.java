@@ -8,7 +8,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Repository;
 
 /** JDBC repository for {@code der.edge_device}. ADR-0019. */
 @Repository
-@ConditionalOnBean(JdbcTemplate.class)
 public class EdgeDeviceRepository {
 
     private final JdbcTemplate jdbc;

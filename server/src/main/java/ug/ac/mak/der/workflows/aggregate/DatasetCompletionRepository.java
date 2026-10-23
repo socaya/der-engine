@@ -8,7 +8,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Repository;
 
 /** FR-06-06: dataset completeness state. */
 @Repository
-@ConditionalOnBean(JdbcTemplate.class)
 public class DatasetCompletionRepository {
 
     public static final String DEFAULT_AOC = "HllvX50cXC0";
