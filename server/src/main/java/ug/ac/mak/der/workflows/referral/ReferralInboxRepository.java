@@ -41,6 +41,21 @@ public class ReferralInboxRepository {
                 e.resolvedAt() == null ? null : Timestamp.from(e.resolvedAt()));
     }
 
+    public java.util.Optional<ReferralInboxEntry> findById(final UUID inboxId) {
+        if (inboxId == null) {
+            return java.util.Optional.empty();
+        }
+        try {
+            return java.util.Optional.ofNullable(jdbc.queryForObject(
+                    "SELECT inbox_id, kind, source_ref, bound_org_unit, payload::text AS payload, "
+                            + "discovered_at, status, resolved_by, resolved_at "
+                            + "FROM der.referral_inbox WHERE inbox_id = ?",
+                    mapper(), inboxId));
+        } catch (org.springframework.dao.EmptyResultDataAccessException ex) {
+            return java.util.Optional.empty();
+        }
+    }
+
     public List<ReferralInboxEntry> findPending(final int limit) {
         final int capped = Math.max(1, Math.min(limit, 500));
         return jdbc.query(

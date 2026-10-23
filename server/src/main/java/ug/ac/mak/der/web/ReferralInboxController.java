@@ -18,20 +18,27 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.beans.factory.ObjectProvider;
+
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflows.referral.ReferralInboxEntry;
 import ug.ac.mak.der.workflows.referral.ReferralInboxRepository;
+import ug.ac.mak.der.workflows.referral.ReferralIngestService;
 
-/** ADR-0027 alpha.5 adds resolve actions (accept + dismiss). */
+/** ADR-0027 alpha.5 adds resolve actions; alpha.6 adds accept-ingest. */
 @RestController
 @RequestMapping(path = "/edge-api/v1/referral/inbox", produces = MediaType.APPLICATION_JSON_VALUE)
 public class ReferralInboxController {
 
     private final ReferralInboxRepository repo;
+    private final ObjectProvider<ReferralIngestService> ingest;
     private final Clock clock;
 
-    public ReferralInboxController(final ReferralInboxRepository repo, final Clock clock) {
+    public ReferralInboxController(final ReferralInboxRepository repo,
+                                     final ObjectProvider<ReferralIngestService> ingest,
+                                     final Clock clock) {
         this.repo = Objects.requireNonNull(repo, "repo");
+        this.ingest = Objects.requireNonNull(ingest, "ingest");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -45,8 +52,25 @@ public class ReferralInboxController {
 
     @PostMapping("/{inboxId}/accept")
     public ResponseEntity<Map<String, Object>> accept(final Authentication authentication,
-                                                        @PathVariable("inboxId") final UUID inboxId) {
-        return resolve(authentication, inboxId, ReferralInboxEntry.Status.ACCEPTED);
+                                                        @PathVariable("inboxId") final UUID inboxId,
+                                                        final jakarta.servlet.http.HttpServletRequest http) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final var entry = repo.findById(inboxId);
+        if (entry.isEmpty() || entry.get().status() != ReferralInboxEntry.Status.PENDING) {
+            return ResponseEntity.notFound().build();
+        }
+        final ReferralIngestService ing = ingest.getIfAvailable();
+        boolean ingested = false;
+        if (ing != null) {
+            ingested = ing.ingest(entry.get(), principal.userId(),
+                    http.getRemoteAddr(), http.getHeader("User-Agent"));
+        }
+        repo.markResolved(inboxId, ReferralInboxEntry.Status.ACCEPTED,
+                principal.userId(), Instant.now(clock));
+        return ResponseEntity.ok(Map.of("inboxId", inboxId.toString(),
+                "status", "ACCEPTED", "ingested", ingested));
     }
 
     @PostMapping("/{inboxId}/dismiss")

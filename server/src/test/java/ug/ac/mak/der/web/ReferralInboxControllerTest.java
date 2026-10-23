@@ -37,6 +37,7 @@ class ReferralInboxControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean ReferralInboxRepository repo;
+    @MockBean ug.ac.mak.der.workflows.referral.ReferralIngestService ingest;
 
     @org.springframework.boot.test.context.TestConfiguration
     static class Beans {
@@ -88,6 +89,9 @@ class ReferralInboxControllerTest {
     @Test
     void acceptMarksAccepted() throws Exception {
         final UUID id = UUID.randomUUID();
+        when(repo.findById(id)).thenReturn(java.util.Optional.of(new ReferralInboxEntry(
+                id, ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE, "r", "ou", "{}",
+                NOW, ReferralInboxEntry.Status.PENDING, null, null)));
         when(repo.markResolved(org.mockito.ArgumentMatchers.eq(id),
                 org.mockito.ArgumentMatchers.eq(ReferralInboxEntry.Status.ACCEPTED),
                 org.mockito.ArgumentMatchers.any(UUID.class),
@@ -96,7 +100,44 @@ class ReferralInboxControllerTest {
                         .post("/edge-api/v1/referral/inbox/" + id + "/accept")
                         .with(as(EdgeRole.ADMIN)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("ACCEPTED"));
+                .andExpect(jsonPath("$.status").value("ACCEPTED"))
+                .andExpect(jsonPath("$.ingested").value(false));
+    }
+
+    @Test
+    void acceptCallsIngestServiceAndReturnsIngestedFlag() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(repo.findById(id)).thenReturn(java.util.Optional.of(new ReferralInboxEntry(
+                id, ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE, "r", "ou", "{}",
+                NOW, ReferralInboxEntry.Status.PENDING, null, null)));
+        when(ingest.ingest(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(UUID.class),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(true);
+        when(repo.markResolved(org.mockito.ArgumentMatchers.eq(id),
+                org.mockito.ArgumentMatchers.eq(ReferralInboxEntry.Status.ACCEPTED),
+                org.mockito.ArgumentMatchers.any(UUID.class),
+                org.mockito.ArgumentMatchers.any(Instant.class))).thenReturn(1);
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/edge-api/v1/referral/inbox/" + id + "/accept")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ingested").value(true));
+        org.mockito.Mockito.verify(ingest).ingest(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(UUID.class),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void acceptNotFoundWhenRowAlreadyResolved() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(repo.findById(id)).thenReturn(java.util.Optional.of(new ReferralInboxEntry(
+                id, ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE, "r", "ou", "{}",
+                NOW, ReferralInboxEntry.Status.ACCEPTED, UUID.randomUUID(), NOW)));
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/edge-api/v1/referral/inbox/" + id + "/accept")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -115,10 +156,8 @@ class ReferralInboxControllerTest {
 
     @Test
     void acceptNotFoundWhenRowMissing() throws Exception {
-        when(repo.markResolved(org.mockito.ArgumentMatchers.any(UUID.class),
-                org.mockito.ArgumentMatchers.any(ReferralInboxEntry.Status.class),
-                org.mockito.ArgumentMatchers.any(UUID.class),
-                org.mockito.ArgumentMatchers.any(Instant.class))).thenReturn(0);
+        when(repo.findById(org.mockito.ArgumentMatchers.any(UUID.class)))
+                .thenReturn(java.util.Optional.empty());
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .post("/edge-api/v1/referral/inbox/" + UUID.randomUUID() + "/accept")
                         .with(as(EdgeRole.ADMIN)))

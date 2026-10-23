@@ -15,6 +15,19 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.4.0-alpha.6] — unreleased
+
+Initiative 3 — outbound OU rewrite + accept-ingest (ADR-0027 alpha.6 slice).
+
+- Changed: `ReferralPayloadEncoder` rewrites `orgUnit` on AGGREGATE_DATA_VALUE payloads when `nextHopOrgUnitUid` is set. Central stores the dataValue under the destination OU; receiving edge's bound-OU scan surfaces it.
+- Added: `ReferralIngestService` parses the stored payload and writes it to the local store via `AggregateDataValueService.submit`. The inbox entry's `bound_org_unit` overrides the payload orgUnit on ingest.
+- Added: `ReferralInboxRepository.findById` for the look-before-ingest flow.
+- Changed: `ReferralInboxController` accept now `findById` → ingest (via `ObjectProvider<ReferralIngestService>`) → `markResolved`; returns `{ inboxId, status, ingested }`.
+- Non-goal (deferred to alpha.7): events / tracker scan + ingest; payload drill-in; multi-hop.
+- Added: 8 server tests.
+
+[1.4.0-alpha.6]: https://github.com/socaya/der-engine/releases/tag/der-1.4.0-alpha.6
+
 ## [1.4.0-alpha.5] — unreleased
 
 Initiative 3 — HTTP referral search + resolve (ADR-0027 alpha.5 slice).

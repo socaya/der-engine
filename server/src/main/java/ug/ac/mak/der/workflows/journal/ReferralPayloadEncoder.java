@@ -57,7 +57,13 @@ public class ReferralPayloadEncoder {
             final JsonNode root = entry.payload().deepCopy();
             final String marker = MARKER_PREFIX + nextHop.trim() + MARKER_SUFFIX;
             switch (entry.entityType()) {
-                case AGGREGATE_DATA_VALUE -> appendToComment((ObjectNode) root, marker);
+                case AGGREGATE_DATA_VALUE -> {
+                    appendToComment((ObjectNode) root, marker);
+                    // ADR-0027 alpha.6: rewrite orgUnit so central stores the
+                    // dataValue under the destination OU. Receiving edge finds
+                    // it via its normal bound-OU scan.
+                    ((ObjectNode) root).put("orgUnit", nextHop.trim());
+                }
                 case EVENT, PROGRAM_STAGE_EVENT,
                      ENROLLMENT, TRACKED_ENTITY -> pushNote((ObjectNode) root, marker);
                 default -> {

@@ -70,6 +70,17 @@ class ReferralPayloadEncoderTest {
     }
 
     @Test
+    void aggregateRewritesOrgUnitToDestination() throws Exception {
+        final String body = encoder.body(entry(
+                OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE,
+                "{\"dataElement\":\"de\",\"orgUnit\":\"ou-src\",\"value\":\"5\"}",
+                "ou-dest"));
+        final JsonNode n = mapper.readTree(body);
+        assertThat(n.get("orgUnit").asText()).isEqualTo("ou-dest");
+        assertThat(n.get("comment").asText()).isEqualTo("[DER-next-hop:ou-dest]");
+    }
+
+    @Test
     void eventPushesNote() throws Exception {
         final String body = encoder.body(entry(
                 OperationJournalEntry.EntityType.EVENT,
