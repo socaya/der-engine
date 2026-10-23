@@ -4,6 +4,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -26,9 +28,50 @@ import org.springframework.stereotype.Service;
 public class CapturedByResolver {
 
     private final EdgeUserDhis2MappingRepository repo;
+    private final boolean strict;
+
+    @Autowired
+    public CapturedByResolver(final EdgeUserDhis2MappingRepository repo,
+                                @Value("${der.attribution.strict:false}") final boolean strict) {
+        this.repo = Objects.requireNonNull(repo, "repo");
+        this.strict = strict;
+    }
 
     public CapturedByResolver(final EdgeUserDhis2MappingRepository repo) {
-        this.repo = Objects.requireNonNull(repo, "repo");
+        this(repo, false);
+    }
+
+    /** ADR-0032: when strict, drains without a mapping must fail. */
+    public boolean isStrict() {
+        return strict;
+    }
+
+    /**
+     * Enforcement helper: throws {@link UserNotMappedException} when
+     * strict mode is on and no mapping exists; returns the username
+     * otherwise (empty when lenient and no mapping).
+     */
+    public Optional<String> enforcedStoredByFor(final UUID edgeUserId) {
+        final Optional<String> mapped = storedByFor(edgeUserId);
+        if (mapped.isEmpty() && strict && edgeUserId != null) {
+            throw new UserNotMappedException(edgeUserId);
+        }
+        return mapped;
+    }
+
+    public static final class UserNotMappedException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        private final UUID edgeUserId;
+
+        public UserNotMappedException(final UUID edgeUserId) {
+            super("USER_NOT_MAPPED: edge user " + edgeUserId
+                    + " has no DHIS2 mapping; strict attribution rejects drain");
+            this.edgeUserId = edgeUserId;
+        }
+
+        public UUID edgeUserId() {
+            return edgeUserId;
+        }
     }
 
     public Optional<String> storedByFor(final UUID edgeUserId) {

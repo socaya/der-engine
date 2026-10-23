@@ -5,7 +5,7 @@
 > column in `docs/verification/traceability-matrix.csv` (which was
 > never updated as alphas landed).
 
-**Last updated:** 2026-10-23 · prepared for `der-2.0.2-alpha.3`.
+**Last updated:** 2026-10-23 · prepared for `der-2.0.2-alpha.4`.
 **Scope:** All 211 requirements (176 FR + 35 NFR) from
 `docs/requirements/source-functional-register.csv` and
 `source-nonfunctional-register.csv`.
@@ -123,6 +123,39 @@ Additional alpha.2 work:
   counts) + scheduler (Quartz) + journal state counts + storage
   snapshot + installed apps + mapped user count. The anonymous
   `/system/health` stays minimal.
+
+## Alpha.4 (this release — der-2.0.2-alpha.4)
+
+Four alpha.4 bank items landed:
+
+- **DHIS2 `/api/**` passthrough proxy** (`Dhis2ApiProxyController`).
+  Opt-in via `der.dhis2.proxy.enabled=true`. Catch-all for `/api/**`
+  paths NOT handled by the emulator — stock DHIS2 apps that call
+  `/api/analytics`, `/api/dataStore`, `/api/me/*`, `/api/sqlViews`,
+  `/api/visualizations`, etc., reach central with Basic auth from
+  the configured DER service account. Reads only by default; writes
+  gated behind `allow-writes=true`. Allow-list of paths is operator
+  tunable (`der.dhis2.proxy.allow-paths`). 501 when disabled, 405
+  for unauthorized writes, 403 for off-list paths. 7 unit tests.
+- **CSP nonce injection** on custom-app `index.html`. Flag
+  `der.apps.csp.enabled=true` → per-request 128-bit nonce injected
+  into every `<script` and `<style`, matching header
+  `Content-Security-Policy: ...script-src 'self' 'nonce-<n>'...`.
+  Static assets untouched. 4 unit tests.
+- **App Hub install-by-URL.** `POST /edge-api/v1/apps/install-from-url`
+  with `{"url":"https://..."}`. HTTPS only, 60s fetch timeout,
+  delegates to existing `AppInstaller`.
+- **Strict-mode attribution flag.** `CapturedByResolver` reads
+  `der.attribution.strict`. New `enforcedStoredByFor(edgeUserId)`
+  throws `UserNotMappedException` when strict + unmapped — drains
+  reject with `USER_NOT_MAPPED` instead of falling back to the
+  service account. 6 unit tests.
+
+Live-verified: CSP header + nonce present on sample app, proxy
+returns 403 for off-list, 405 for writes, forwards allowed reads to
+real DHIS2.
+
+Evidence: `docs/evaluation/evidence/alpha.4-proxy-csp/`.
 
 ## Alpha.1 (this release — der-2.0.2-alpha.1)
 

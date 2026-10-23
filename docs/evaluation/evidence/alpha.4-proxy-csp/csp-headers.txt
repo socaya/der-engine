@@ -1,0 +1,10 @@
+HTTP/1.1 200 
+Cache-Control: no-cache
+Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-t67-9L7MGkMqhms752hzPQ'; style-src 'self' 'nonce-t67-9L7MGkMqhms752hzPQ' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; object-src 'none'; frame-ancestors 'self'
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 0
+X-Frame-Options: DENY
+Content-Type: text/html
+Content-Length: 248
+Date: Fri, 23 Oct 2026 09:48:36 GMT
+

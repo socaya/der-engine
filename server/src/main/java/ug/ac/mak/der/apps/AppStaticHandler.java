@@ -7,11 +7,16 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Objects;
 import java.util.Optional;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -35,9 +40,18 @@ import org.springframework.web.bind.annotation.PathVariable;
 public class AppStaticHandler {
 
     private final InstalledAppRepository repository;
+    private final boolean cspEnabled;
+    private final SecureRandom rand = new SecureRandom();
+
+    @Autowired
+    public AppStaticHandler(final InstalledAppRepository repository,
+                              @Value("${der.apps.csp.enabled:false}") final boolean cspEnabled) {
+        this.repository = Objects.requireNonNull(repository, "repository");
+        this.cspEnabled = cspEnabled;
+    }
 
     public AppStaticHandler(final InstalledAppRepository repository) {
-        this.repository = Objects.requireNonNull(repository, "repository");
+        this(repository, false);
     }
 
     @GetMapping("/dhis-web-{appKey}")
@@ -75,12 +89,39 @@ public class AppStaticHandler {
         if (!target.startsWith(root) || !Files.isRegularFile(target)) {
             return ResponseEntity.notFound().build();
         }
-        final byte[] body = Files.readAllBytes(target);
+        byte[] body = Files.readAllBytes(target);
         final String contentType = guessContentType(relative);
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType))
-                .cacheControl(cacheHeaderFor(relative))
-                .body(body);
+        final HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(contentType));
+        headers.setCacheControl(cacheHeaderFor(relative));
+        if (cspEnabled && contentType.startsWith("text/html")) {
+            final String nonce = nextNonce();
+            body = injectNonce(body, nonce);
+            headers.add("Content-Security-Policy",
+                    "default-src 'self'; "
+                            + "script-src 'self' 'nonce-" + nonce + "'; "
+                            + "style-src 'self' 'nonce-" + nonce + "' 'unsafe-inline'; "
+                            + "img-src 'self' data: blob:; "
+                            + "connect-src 'self'; "
+                            + "font-src 'self' data:; "
+                            + "object-src 'none'; "
+                            + "frame-ancestors 'self'");
+            headers.setCacheControl(CacheControl.noCache());
+        }
+        return ResponseEntity.ok().headers(headers).body(body);
+    }
+
+    private String nextNonce() {
+        final byte[] buf = new byte[16];
+        rand.nextBytes(buf);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(buf);
+    }
+
+    static byte[] injectNonce(final byte[] html, final String nonce) {
+        String s = new String(html, StandardCharsets.UTF_8);
+        s = s.replace("<script", "<script nonce=\"" + nonce + "\"");
+        s = s.replace("<style", "<style nonce=\"" + nonce + "\"");
+        return s.getBytes(StandardCharsets.UTF_8);
     }
 
     static String guessContentType(final String name) {

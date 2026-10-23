@@ -43,6 +43,7 @@ class AppsControllerTest {
     @Autowired MockMvc mockMvc;
     @MockBean AppInstaller installer;
     @MockBean InstalledAppRepository repository;
+    @MockBean java.net.http.HttpClient appsHttpClient;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
