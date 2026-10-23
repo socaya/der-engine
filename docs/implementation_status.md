@@ -5,7 +5,7 @@
 > column in `docs/verification/traceability-matrix.csv` (which was
 > never updated as alphas landed).
 
-**Last updated:** 2026-10-23 · prepared for `der-2.0.2-alpha.4`.
+**Last updated:** 2026-10-23 · prepared for `der-2.0.2` stable.
 **Scope:** All 211 requirements (176 FR + 35 NFR) from
 `docs/requirements/source-functional-register.csv` and
 `source-nonfunctional-register.csv`.
@@ -36,8 +36,8 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 
 | Status | Count | % | CSV status |
 |---|---:|---:|---|
-| ✅ DONE (verified) | 165 | 78% | `done` |
-| 🟡 PARTIAL (specific gap documented) | 46 | 22% | `in-progress` |
+| ✅ DONE (verified) | 168 | 80% | `done` |
+| 🟡 PARTIAL (specific gap documented) | 43 | 20% | `in-progress` |
 | ❌ PENDING | 0 | 0% | `pending` |
 
 ### Combined scorecard
@@ -45,8 +45,8 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 | Dimension | DONE | Total | % |
 |---|---:|---:|---:|
 | UI screens | 54 | 54 | 100% |
-| FR / NFR | 165 | 211 | 78% |
-| **All requirements** | **219** | **265** | **83%** |
+| FR / NFR | 168 | 211 | 80% |
+| **All requirements** | **222** | **265** | **84%** |
 
 ## Alpha.2 (this release — der-2.0.2-alpha.2)
 
@@ -164,6 +164,28 @@ Evidence: `docs/evaluation/evidence/alpha.4-proxy-csp/`.
   attribution mapping, custom app index/manifest/301. Opt-in via
   `DER_LIVE_SMOKE=true`. All 9 green against local pilot stack.
   Evidence: `docs/evaluation/evidence/alpha.4-playwright-smoke/`.
+
+## Stable der-2.0.2 — scorecard flips after alpha.3+4 verification
+
+Three more FRs flipped to DONE after live-verification against the
+local DHIS2 2.44-SNAPSHOT pilot stack:
+
+- **FR-04-02 Serve supported DHIS2 application resources without
+  central live dependencies.** `AppStaticHandler` + `AppsListController`:
+  custom apps installed on DER serve `index.html`, `manifest.webapp`
+  (from DB), static assets with correct MIME + cache; `/api/apps`
+  returns the DHIS2-compat listing. Zero central round-trip at read.
+- **FR-04-06 Communicate unsupported operations distinctly.** The
+  `/api/**` proxy taxonomy has six distinct status codes: 501 (feature
+  disabled offline), 403 (path not on allow-list), 405 (writes blocked
+  by policy), 502 (upstream I/O failure), 503 (central not configured),
+  504 (interrupted). Each with structured JSON.
+- **FR-11-10 Protect object dependencies and sequence-sensitive
+  changes.** `OperationJournalRepository.findPendingReadyToDrain()`
+  enforces the `supersedes` chain so an entry cannot drain until its
+  prerequisite is centrally acknowledged. ADR-0025/0026 formalises
+  the invariant; next-hop referrals (ADR-0027) preserve ordering
+  across edge-to-edge chains.
 
 ## Alpha.1 (this release — der-2.0.2-alpha.1)
 
