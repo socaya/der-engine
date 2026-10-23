@@ -131,6 +131,36 @@ public class EdgeUserRepository {
         }
     }
 
+    public int setTotpSecret(final UUID userId, final String secret, final java.time.Instant enrolledAt) {
+        return jdbc.update(
+                "UPDATE der.edge_user SET totp_secret = ?, totp_enrolled_at = ?, updated_at = now() "
+                        + "WHERE user_id = ?",
+                secret,
+                enrolledAt == null ? null : java.sql.Timestamp.from(enrolledAt),
+                userId);
+    }
+
+    public Optional<String> findTotpSecret(final UUID userId) {
+        try {
+            return Optional.ofNullable(jdbc.queryForObject(
+                    "SELECT totp_secret FROM der.edge_user WHERE user_id = ?",
+                    String.class, userId));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<java.time.Instant> findTotpEnrolledAt(final UUID userId) {
+        try {
+            final java.sql.Timestamp ts = jdbc.queryForObject(
+                    "SELECT totp_enrolled_at FROM der.edge_user WHERE user_id = ?",
+                    java.sql.Timestamp.class, userId);
+            return Optional.ofNullable(ts).map(java.sql.Timestamp::toInstant);
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
     public boolean anyUserHasRole(final EdgeRole role) {
         final Integer count = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM der.edge_role WHERE role = ?",

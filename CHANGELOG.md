@@ -15,6 +15,19 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.4.0-alpha.8] — unreleased
+
+Initiative 8 part 3 — TOTP MFA (ADR-0028 alpha.8 slice).
+
+- Added: V023 `totp_secret` + `totp_enrolled_at` columns on `edge_user`.
+- Added: `TotpService` (RFC 6238, SHA-1, 6-digit, 30s step, ±1 step drift) with no external dependency.
+- Added: `MfaController` at `/edge-api/v1/auth/mfa/{enrol,verify,disable}`. Audits chained via ADR-0021.
+- Added: ADR-0028.
+- Non-goal: sign-in challenge-response (deferred); encryption-at-rest for `totp_secret` (deferred); WebAuthn / backup codes (out of scope).
+- Added: 15 server tests.
+
+[1.4.0-alpha.8]: https://github.com/socaya/der-engine/releases/tag/der-1.4.0-alpha.8
+
 ## [1.4.0-alpha.7] — unreleased
 
 Initiative 3 closeout — events + tracker scan + ingest (ADR-0027 alpha.7 slice).
