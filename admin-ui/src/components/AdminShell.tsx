@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 /**
@@ -37,8 +37,14 @@ const PRIMARY: readonly NavItem[] = [
 export function AdminShell({ children }: AdminShellProps): JSX.Element {
   const { state, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const onSignIn = location.pathname === '/sign-in';
   const authed = state.status === 'AUTHENTICATED';
+
+  async function handleSignOut(): Promise<void> {
+    await signOut();
+    navigate('/sign-in', { replace: true });
+  }
 
   return (
     <div className="ea-shell">
@@ -66,7 +72,7 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
                   className="ea-headerbar-signout"
                   data-test="headerbar-signout"
                   onClick={() => {
-                    void signOut();
+                    void handleSignOut();
                   }}
                 >
                   Sign out

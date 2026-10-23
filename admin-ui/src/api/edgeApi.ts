@@ -28,8 +28,20 @@ export class EdgeApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+/**
+ * G2+A3: default 15 s request timeout. Prevents stuck spinners when
+ * the server never responds (missing endpoint, slow upstream, dropped
+ * connection). Override per-call via the optional {@code timeoutMs}
+ * argument on wrapper fns, if needed.
+ */
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+async function request<T>(
+  method: string, path: string, body?: unknown, timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<T> {
   let response: Response;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     response = await fetch(path, {
       method,
@@ -39,9 +51,19 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
         'Content-Type': 'application/json',
       },
       body: body == null ? undefined : JSON.stringify(body),
+      signal: ctrl.signal,
     });
   } catch (err) {
-    throw new EdgeApiError(0, 'EDGE_UNREACHABLE', `edge unreachable: ${String(err)}`);
+    const aborted = (err as { name?: string }).name === 'AbortError';
+    throw new EdgeApiError(
+      0,
+      'EDGE_UNREACHABLE',
+      aborted
+        ? `edge did not respond within ${Math.round(timeoutMs / 1000)}s`
+        : `edge unreachable: ${String(err)}`,
+    );
+  } finally {
+    clearTimeout(timer);
   }
   if (response.status === 204) {
     return undefined as T;
