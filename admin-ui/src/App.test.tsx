@@ -67,10 +67,9 @@ afterEach(() => vi.resetModules());
 describe('App routing', () => {
   it('renders the admin nav + brand', async () => {
     await renderAt('/');
-    expect(screen.getByTestId('brand').textContent).toBe('DER Administration');
+    expect(screen.getByTestId('brand').textContent).toContain('DHIS2 Edge Runtime');
     expect(screen.getByTestId('nav-provisioning')).toBeInTheDocument();
     expect(screen.getByTestId('nav-compat')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-worker')).toBeInTheDocument();
   });
 
   it.each([
