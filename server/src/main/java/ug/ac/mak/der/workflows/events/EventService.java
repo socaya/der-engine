@@ -120,6 +120,18 @@ public class EventService {
         if (input == null) {
             throw new EventRejectedException("event payload is null");
         }
+        // FR-07-02: expected-version check. When caller supplies
+        // expectedVersion, reject the write if the stored event has
+        // moved on. Null = legacy caller; version check skipped.
+        if (input.expectedVersion() != null) {
+            final var existing = events.findById(input.eventId());
+            if (existing.isPresent()
+                    && existing.get().eventVersion() != input.expectedVersion()) {
+                throw new EventRejectedException("event version "
+                        + existing.get().eventVersion() + " does not match expected "
+                        + input.expectedVersion());
+            }
+        }
         final MirroredProgramStage stage = mirror.findProgramStage(input.programStageUid())
                 .orElseThrow(() -> new EventRejectedException(
                         "program stage not in mirror: " + input.programStageUid()));
@@ -227,8 +239,19 @@ public class EventService {
             Instant occurredAt,
             Event.Status status,
             String attributeOptionComboUid,
-            Map<String, String> dataValues
+            Map<String, String> dataValues,
+            Integer expectedVersion
     ) {
+
+        /** Backwards-compat 9-arg ctor; expected-version check disabled. */
+        public EventInput(final UUID eventId, final UUID enrollmentId,
+                           final String programUid, final String programStageUid,
+                           final String orgUnitUid, final Instant occurredAt,
+                           final Event.Status status, final String attributeOptionComboUid,
+                           final Map<String, String> dataValues) {
+            this(eventId, enrollmentId, programUid, programStageUid, orgUnitUid,
+                    occurredAt, status, attributeOptionComboUid, dataValues, null);
+        }
 
         public EventInput {
             eventId = eventId == null ? UUID.randomUUID() : eventId;

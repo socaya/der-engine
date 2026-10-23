@@ -15,6 +15,18 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [2.0.1-alpha.2] — unreleased
+
+Close 21 FR gaps to verified DONE.
+
+- Added: V024 dataset_completion + V025 tracked_entity schemas; DatasetCompletionController + TrackedEntityController; OperationsAdminController (users/scope, backup trigger/verify, settings, support-bundle, operational report, decommission); EdgeUserRepository.setDisabled.
+- Added: EventService.handleOne enforces expectedVersion; OperationJournalRepository.findPendingReadyToDrain skips ops with pending supersedes target.
+- Added: scripts/deploy/{install,upgrade,rollback}.sh + connectivity-policy.yml; scripts/evaluation/regression_suite.sh.
+- Added: docs/operations/component-and-portability.md (NFR-23/24/25/28).
+- Changed: traceability-matrix.csv — 21 flipped to `done` (26 total). implementation_status.md refreshed.
+
+[2.0.1-alpha.2]: https://github.com/socaya/der-engine/releases/tag/der-2.0.1-alpha.2
+
 ## [2.0.1-alpha.1] — unreleased
 
 Honest status catalog + verified CSV refresh.

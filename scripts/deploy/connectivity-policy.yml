@@ -1,0 +1,32 @@
+# FR-01-07 — connectivity policy template.
+#
+# Operators copy to /etc/der/connectivity.yml and tune. DER reads
+# these values on boot via standard Spring Boot externalised config
+# (any value prefixed with `der.` becomes a @Value binding target).
+
+der:
+  sync:
+    # How often the metadata-sync Quartz job fires. Default: 4h.
+    metadata-cron: "0 0 */4 * * ?"
+    # How often the drift detection job fires. Default: 10m.
+    drift-cron: "0 */10 * * * ?"
+    # Soft timeout before a sync attempt is treated as retryable.
+    attempt-timeout-seconds: 30
+    # Maximum attempts before an entry moves to UNKNOWN_OUTCOME.
+    max-attempts: 8
+  referral:
+    inbox:
+      cron: "0 */10 * * * ?"
+    http:
+      enabled: false
+  backup:
+    enabled: true
+    local:
+      max-archives: 50
+    remote:
+      encrypt: false
+  security:
+    require-tls: false
+    rate-limiter:
+      max-attempts: 10
+      window-minutes: 15

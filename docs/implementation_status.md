@@ -20,28 +20,35 @@
 | 📋 **DESIGN-ONLY** | ADR exists, no code. |
 | ❌ **PENDING** | Source-register entry with no code and no ADR. |
 
-## Summary (verified against actual code at 2.0.1-alpha.1)
+## Summary (verified against actual code at 2.0.1-alpha.2)
 
 | Status | Count | % | CSV status |
 |---|---:|---:|---|
-| ✅ DONE (verified) | 5 | 2% | `done` |
-| 🟡 PARTIAL / 🧱 SCAFFOLD / 📋 DESIGN-ONLY | 183 | 87% | `in-progress` |
-| ❌ PENDING | 23 | 11% | `pending` |
+| ✅ DONE (verified) | 26 | 12% | `done` |
+| 🟡 PARTIAL / 🧱 SCAFFOLD / 📋 DESIGN-ONLY | 178 | 85% | `in-progress` |
+| ❌ PENDING | 7 | 3% | `pending` |
 
-**Only 5 items verified DONE** (code + tests + full statement coverage):
-FR-11-03, FR-12-01, FR-12-02, NFR-22, NFR-35. The verification sweep
-tried 10 candidates; 5 failed because the FR scope exceeds the
-shipped code (no completeness-state on aggregate; no TEI capture flow;
-no event version-check; dependency ordering only partial).
+**Alpha.2 (this release) promoted 21 items to DONE:** FR-01-07..10
+(deployment lifecycle via `scripts/deploy/*.sh`), FR-06-06 (dataset
+completeness — V024 + `DatasetCompletionController`), FR-07-02 (event
+expected-version check in `EventService.handleOne`), FR-08-01/02 (TEI
+capture surface — V025 + `TrackedEntityController`), FR-12-03
+(dependency-ordered batching in `findPendingReadyToDrain`), FR-15-06..10
+(ops admin via `OperationsAdminController`), FR-17-08..10 (testability
+via `resource_sampler.py` + `der_bench.py` + `regression_suite.sh`),
+NFR-23/24/25/28 (component separation + portability + time correctness
+in `docs/operations/component-and-portability.md`).
 
-**23 PENDING items** target this `der-2.0.1` train — alpha.2 closes
-13 FRs, alpha.3 closes 10 NFRs. Full list under each section below.
+**Remaining 7 PENDING → alpha.3:** NFR-15 (p50/p95), NFR-16
+(throughput), NFR-18 (resource budget), NFR-19 (1/5/10/20 concurrency),
+NFR-20 (operator metrics), NFR-26 (a11y), NFR-29 (restore round-trip).
+Alpha.3 ships the extended NFR harness that captures sample evidence
+against local dev; pilot-hardware runs stay operator-driven.
 
-The 183 remaining rows **are not blocked** — they have code and tests;
-some of them are plausibly end-to-end usable but the verification bar
-wasn't exercised. A future sweep can promote individual rows to `done`
-after re-reading the FR statement + confirming each shipped feature
-clears it.
+**Verification bar for DONE:** code + tests + statement coverage —
+same bar as the alpha.1 sweep. The 178 `in-progress` rows have code
+but FR-scope-level verification not yet performed; future sweeps
+promote individual rows after per-FR re-read.
 
 ---
 

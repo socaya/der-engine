@@ -170,6 +170,13 @@ public class EdgeUserRepository {
         return count != null && count > 0;
     }
 
+    /** FR-01-10 decommission + FR-02-08 central disable propagation. */
+    public int setDisabled(final UUID userId, final boolean disabled) {
+        return jdbc.update(
+                "UPDATE der.edge_user SET disabled = ?, updated_at = now() WHERE user_id = ?",
+                disabled, userId);
+    }
+
     private EdgeUser withRoles(final EdgeUser user) {
         final List<String> roleRows = jdbc.queryForList(
                 "SELECT role FROM der.edge_role WHERE user_id = ?",

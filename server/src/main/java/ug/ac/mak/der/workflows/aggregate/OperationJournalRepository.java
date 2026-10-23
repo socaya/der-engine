@@ -79,14 +79,21 @@ public class OperationJournalRepository {
      */
     public List<OperationJournalEntry> findPendingReadyToDrain(final int limit) {
         final int capped = Math.max(1, Math.min(limit, 500));
+        // FR-12-03 dependency-ordered batching: an op whose supersedes
+        // target is still PENDING (or IN_FLIGHT) must wait so central
+        // sees the ordering intended at commit time.
         return jdbc.query(
                 "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
                         + "attempt_count, last_error, submitted_by, created_at, updated_at, "
                         + "next_hop_org_unit_uid "
-                        + "FROM der.operation_journal "
+                        + "FROM der.operation_journal oj "
                         + "WHERE state = 'PENDING' "
                         + "  AND (requires_approval = FALSE OR approved_at IS NOT NULL) "
                         + "  AND rejected_at IS NULL "
+                        + "  AND (supersedes IS NULL OR NOT EXISTS ("
+                        + "        SELECT 1 FROM der.operation_journal p "
+                        + "         WHERE p.operation_id = oj.supersedes "
+                        + "           AND p.state IN ('PENDING', 'IN_FLIGHT', 'RETRYABLE', 'UNKNOWN_OUTCOME'))) "
                         + "ORDER BY created_at ASC LIMIT ?",
                 rowMapper(), capped);
     }
