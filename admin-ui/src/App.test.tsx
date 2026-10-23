@@ -39,6 +39,7 @@ vi.mock('./screens/EACoreScreens', () => ({
   EADeviceFleet:       () => <div data-test="s-devices">devices</div>,
   EAFacilityAnalytics: () => <div data-test="s-analytics">analytics</div>,
   EAAuditVerify:       () => <div data-test="s-audit">audit</div>,
+  EAAuditEvents:       () => <div data-test="s-audit-events">audit-events</div>,
   EAReferralInbox:     () => <div data-test="s-referral">referral</div>,
 }));
 

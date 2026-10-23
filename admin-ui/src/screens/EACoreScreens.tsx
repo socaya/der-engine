@@ -1527,3 +1527,103 @@ export function EAReferralInbox({ api = edgeApi }:
     </div>
   );
 }
+
+// C2: audit events timeline screen
+export function EAAuditEvents({ api = edgeApi }:
+    { api?: Pick<typeof edgeApi, 'listAuditEvents'> } = {}): JSX.Element {
+  const [rows, setRows] = useState<edgeApi.AuditEventRow[] | null>(null);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [eventTypeFilter, setEventTypeFilter] = useState('');
+  const [limit, setLimit] = useState(100);
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+
+  async function reload(): Promise<void> {
+    try {
+      const r = await api.listAuditEvents({
+        eventType: eventTypeFilter || undefined, limit });
+      setRows(r.events);
+      setLastFetched(new Date());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  useEffect(() => { reload().catch(() => undefined); },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [api, eventTypeFilter, limit]);
+
+  if (error) return <ErrorBlock title="Events failed" testId="auditev-error">{error}</ErrorBlock>;
+  if (rows === null) return <LoadingBlock testId="auditev-loading" />;
+  const uniqueTypes = Array.from(new Set(rows.map((r) => r.eventType))).sort();
+
+  return (
+    <div className="ea-screen">
+      <ScreenHeader
+        title="Audit events"
+        subtitle={`${rows.length} most-recent events${eventTypeFilter ? ` of type ${eventTypeFilter}` : ''}`}
+        lastFetched={lastFetched}
+        onRefresh={reload}
+        testId="auditev-header"
+      />
+      <section>
+        <div className="ea-toolbar">
+          <label>
+            <span>Event type</span>
+            <select data-test="auditev-filter-type"
+              value={eventTypeFilter}
+              onChange={(e) => setEventTypeFilter(e.target.value)}>
+              <option value="">All</option>
+              {uniqueTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Limit</span>
+            <select data-test="auditev-limit"
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={250}>250</option>
+              <option value={500}>500</option>
+            </select>
+          </label>
+        </div>
+        {rows.length === 0
+          ? <EmptyBlock title="No events" testId="auditev-empty">
+              Audit events will show up here as the system runs.</EmptyBlock>
+          : <table data-test="auditev-table">
+              <thead><tr>
+                <th>When</th><th>Event</th><th>Outcome</th><th>Actor</th><th>Detail</th>
+              </tr></thead>
+              <tbody>{rows.map((r, i) => (
+                <tr key={i} data-test={`auditev-row-${i}`}>
+                  <td>{r.observedAt}</td>
+                  <td>{r.eventType}</td>
+                  <td>
+                    <span className={`ea-chip ea-chip--${
+                      r.outcome === 'SUCCESS' ? 'success'
+                      : r.outcome === 'DENIED' ? 'danger'
+                      : 'info'}`}>{r.outcome}</span>
+                  </td>
+                  <td>{r.actorUserId ? r.actorUserId.slice(0, 8) : '—'}</td>
+                  <td>
+                    <button type="button"
+                      onClick={() => setExpanded((e) => ({ ...e, [i]: !e[i] }))}
+                      data-test={`auditev-toggle-${i}`}>
+                      {expanded[i] ? 'Hide' : 'Show'}
+                    </button>
+                    {expanded[i] && (
+                      <pre className="ea-audit-detail" data-test={`auditev-detail-${i}`}>
+                        {r.detail}
+                      </pre>
+                    )}
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table>}
+      </section>
+    </div>
+  );
+}

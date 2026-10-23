@@ -1,12 +1,16 @@
 package ug.ac.mak.der.security;
 
+import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -25,6 +29,43 @@ public class SecurityAuditRepository {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.json = Objects.requireNonNull(json, "json");
     }
+
+    /** C2: list audit events, optionally filtered by event type and/or actor. */
+    public List<Row> findRecent(final String eventType, final UUID actorUserId, final int limit) {
+        final int cap = Math.min(Math.max(1, limit), 500);
+        final StringBuilder sql = new StringBuilder(
+                "SELECT event_type, actor_user_id, subject_user_id, client_ip::text AS client_ip, "
+                        + "user_agent, outcome, detail::text AS detail, observed_at "
+                        + "FROM der.security_audit WHERE 1=1");
+        final java.util.List<Object> args = new java.util.ArrayList<>();
+        if (eventType != null && !eventType.isBlank()) {
+            sql.append(" AND event_type = ?");
+            args.add(eventType);
+        }
+        if (actorUserId != null) {
+            sql.append(" AND actor_user_id = ?");
+            args.add(actorUserId);
+        }
+        sql.append(" ORDER BY observed_at DESC LIMIT ?");
+        args.add(cap);
+        return jdbc.query(sql.toString(), rowMapper(), args.toArray());
+    }
+
+    private static RowMapper<Row> rowMapper() {
+        return (ResultSet rs, int n) -> new Row(
+                rs.getString("event_type"),
+                rs.getObject("actor_user_id", UUID.class),
+                rs.getObject("subject_user_id", UUID.class),
+                rs.getString("client_ip"),
+                rs.getString("user_agent"),
+                rs.getString("outcome"),
+                rs.getString("detail"),
+                rs.getTimestamp("observed_at").toInstant());
+    }
+
+    public record Row(String eventType, UUID actorUserId, UUID subjectUserId,
+                        String clientIp, String userAgent, String outcome,
+                        String detailJson, Instant observedAt) { }
 
     public void append(final AuditEvent event, final Instant observedAt) {
         final String detail;

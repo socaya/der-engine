@@ -2,12 +2,15 @@ import { Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { RequireAuth } from './components/RequireAuth';
 import { AdminShell } from './components/AdminShell';
+import { AlertProvider } from './components/AlertStack';
+import { KeyboardShortcuts } from './components/KeyboardShortcuts';
+import { ActiveJobsWatcher } from './components/ActiveJobsWatcher';
 import {
   EASetupWelcome, EAUsersList, EAUserCreate, EACompatInspector, EACompatHistory,
   EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
   EAWorkerHealth, EAMetadataOverview, EAApprovalQueue, EACaptureWorkflowList,
   EACaptureWorkflowDesigner, EADeviceFleet, EAFacilityAnalytics,
-  EAAuditVerify, EAReferralInbox,
+  EAAuditVerify, EAAuditEvents, EAReferralInbox,
 } from './screens/EACoreScreens';
 import {
   EARecoveryTools, EABackupList, EARestoreList, EAEvaluationReports,
@@ -35,8 +38,11 @@ function WorkflowDesignerRoute(): JSX.Element {
 export default function App(): JSX.Element {
   return (
     <AuthProvider>
-      <AdminShell>
-        <Routes>
+      <AlertProvider>
+        <KeyboardShortcuts />
+        <ActiveJobsWatcher />
+        <AdminShell>
+          <Routes>
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/" element={<RequireAuth><EASetupWelcome /></RequireAuth>} />
           <Route path="/provisioning/users"
@@ -68,6 +74,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EAFacilityAnalytics /></RequireAuth>} />
           <Route path="/audit/verify"
                  element={<RequireAuth><EAAuditVerify /></RequireAuth>} />
+          <Route path="/audit/events"
+                 element={<RequireAuth><EAAuditEvents /></RequireAuth>} />
           <Route path="/referral/inbox"
                  element={<RequireAuth><EAReferralInbox /></RequireAuth>} />
           <Route path="/metadata"
@@ -81,7 +89,8 @@ export default function App(): JSX.Element {
           <Route path="/diagnostics" element={<RequireAuth><EADiagnostics /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><EASettings /></RequireAuth>} />
         </Routes>
-      </AdminShell>
+        </AdminShell>
+      </AlertProvider>
     </AuthProvider>
   );
 }

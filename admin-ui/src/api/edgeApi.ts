@@ -824,3 +824,31 @@ export interface AuditChainVerifyResponse {
 export function verifyAuditChain(): Promise<AuditChainVerifyResponse> {
   return request('GET', '/edge-api/v1/security/audit/verify');
 }
+
+/** C2: audit event timeline. */
+export interface AuditEventRow {
+  eventType: string;
+  actorUserId: string | null;
+  subjectUserId: string | null;
+  clientIp: string | null;
+  userAgent: string | null;
+  outcome: string;
+  detail: string;
+  observedAt: string;
+}
+
+export interface AuditEventsResponse {
+  count: number;
+  events: AuditEventRow[];
+}
+
+export function listAuditEvents(opts: {
+  eventType?: string; actorUserId?: string; limit?: number;
+} = {}): Promise<AuditEventsResponse> {
+  const q = new URLSearchParams();
+  if (opts.eventType) q.set('eventType', opts.eventType);
+  if (opts.actorUserId) q.set('actorUserId', opts.actorUserId);
+  q.set('limit', String(opts.limit ?? 100));
+  return request<AuditEventsResponse>(
+    'GET', `/edge-api/v1/security/audit/events?${q.toString()}`);
+}
