@@ -15,6 +15,17 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.4.0] — 2026-10-23
+
+Third stable release. Bundles alphas 1.4.0-alpha.1 through 1.4.0-alpha.9; no code change versus alpha.9.
+
+- Initiative 3 option A — chain-via-hub referral is feature-complete for aggregate + event (ADR-0027).
+- Initiative 2 part 1 scaffolded as `agents/dhis2-edge-agent/`; edge-side `/sync/notify` receiver live (ADR-0029). Polling + webhook dispatch deferred.
+- Initiative 8 part 3 — TOTP MFA enrol/verify/disable (ADR-0028). Sign-in challenge-response flow deferred.
+- Open scope flagged in `docs/releases/der-1.4.0.md`: Agent polling, MFA sign-in flow, multi-hop referrals, pilot acceptance.
+
+[1.4.0]: https://github.com/socaya/der-engine/releases/tag/der-1.4.0
+
 ## [1.4.0-alpha.9] — unreleased
 
 Initiative 2 scaffold — Edge Agent + /sync/notify receiver (ADR-0029).
