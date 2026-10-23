@@ -165,12 +165,14 @@ describe('EA-02 UsersList', () => {
 });
 
 describe('EA-03 UserCreate', () => {
+  const STRONG = 'Password1234';
   it('submits', async () => {
     const api = { createUser: vi.fn().mockResolvedValue({ userId: 'u' } as never) };
     renderWithProviders(<EAUserCreate api={api as never} />);
     await userEvent.type(screen.getByTestId('ea03-username'), 'alice');
     await userEvent.type(screen.getByTestId('ea03-display'), 'Alice');
-    await userEvent.type(screen.getByTestId('ea03-password'), 'pw');
+    await userEvent.type(screen.getByTestId('ea03-password'), STRONG);
+    await userEvent.type(screen.getByTestId('ea03-confirm'), STRONG);
     await userEvent.selectOptions(screen.getByTestId('ea03-role'), 'ADMIN');
     await userEvent.click(screen.getByTestId('ea03-submit'));
     await waitFor(() => expect(screen.getByTestId('ea03-saved')).toBeInTheDocument());
@@ -180,9 +182,26 @@ describe('EA-03 UserCreate', () => {
       createUser: vi.fn().mockRejectedValue('nope'),
     } as never} />);
     await userEvent.type(screen.getByTestId('ea03-username'), 'alice');
-    await userEvent.type(screen.getByTestId('ea03-password'), 'pw');
+    await userEvent.type(screen.getByTestId('ea03-display'), 'Alice');
+    await userEvent.type(screen.getByTestId('ea03-password'), STRONG);
+    await userEvent.type(screen.getByTestId('ea03-confirm'), STRONG);
     await userEvent.click(screen.getByTestId('ea03-submit'));
     await waitFor(() => expect(screen.getByTestId('ea03-error')).toBeInTheDocument());
+  });
+  it('blocks submission when passwords mismatch', async () => {
+    renderWithProviders(<EAUserCreate api={{ createUser: vi.fn() } as never} />);
+    await userEvent.type(screen.getByTestId('ea03-username'), 'alice');
+    await userEvent.type(screen.getByTestId('ea03-display'), 'Alice');
+    await userEvent.type(screen.getByTestId('ea03-password'), STRONG);
+    await userEvent.type(screen.getByTestId('ea03-confirm'), 'Different1234');
+    expect(screen.getByTestId('ea03-submit')).toBeDisabled();
+  });
+  it('shows per-field validation errors on blur', async () => {
+    renderWithProviders(<EAUserCreate api={{ createUser: vi.fn() } as never} />);
+    await userEvent.type(screen.getByTestId('ea03-username'), 'a');
+    await userEvent.tab();
+    await waitFor(() =>
+      expect(screen.getByTestId('ea03-err-username')).toBeInTheDocument());
   });
 });
 

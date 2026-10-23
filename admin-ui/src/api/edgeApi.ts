@@ -244,6 +244,10 @@ export interface CompatSnapshot {
   probeReachable?: boolean;
   capabilities?: Record<string, unknown>;
   message?: string;
+  snapshotId?: number;
+  capturedAt?: string;
+  probeDurationMs?: number;
+  engineVersion?: string;
 }
 
 export function compat(): Promise<CompatSnapshot> {

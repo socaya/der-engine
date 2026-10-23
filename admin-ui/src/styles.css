@@ -270,6 +270,51 @@ dd{margin:0;color:var(--der-ink);font-size:13px;font-weight:500}
 .ea-ou-picker label span{display:block;margin-bottom:4px}
 .ea-ou-picker select{max-width:520px}
 
+/* ===== Toolbar + pagination (B1) ===== */
+.ea-toolbar{
+  display:flex;gap:16px;flex-wrap:wrap;margin:0 0 16px;align-items:flex-end;
+}
+.ea-toolbar label{display:flex;flex-direction:column;gap:4px;max-width:280px;flex:1}
+.ea-toolbar input, .ea-toolbar select{max-width:280px}
+
+.ea-pagination{
+  display:flex;align-items:center;gap:12px;margin-top:12px;
+  justify-content:flex-end;font-size:13px;color:var(--der-ink-soft);
+}
+
+/* Field-level validation errors (B3) */
+.ea-field-error{
+  display:block;color:var(--der-danger);font-size:12px;margin-top:4px;
+}
+.ea-main input[aria-invalid="true"], .ea-main select[aria-invalid="true"]{
+  border-color:var(--der-danger);
+  box-shadow:0 0 0 2px rgba(198,40,40,0.1);
+}
+.ea-saved{color:var(--der-success);font-weight:500;margin-top:8px}
+
+/* Table row-drill-in highlight (B2) */
+.ea-row-selected td{background:var(--der-blue-soft) !important}
+
+/* Side drawer (B2) */
+.ea-drawer{
+  background:var(--der-surface);
+  border:1px solid var(--der-border);
+  border-radius:var(--der-radius-lg);
+  box-shadow:var(--der-shadow-sm);
+  padding:20px 24px;margin-top:16px;
+}
+.ea-drawer-head{display:flex;align-items:center;justify-content:space-between}
+.ea-drawer-head h2{margin:0}
+.ea-drawer dl{background:var(--der-canvas-raised);box-shadow:none}
+.ea-drawer pre{max-height:360px}
+
+.ea-main thead th > button{
+  background:none;border:none;padding:0;
+  font-size:12px;font-weight:600;color:var(--der-ink-soft);
+  text-transform:uppercase;letter-spacing:0.2px;cursor:pointer;
+}
+.ea-main thead th > button:hover{color:var(--der-blue)}
+
 /* ===== ScreenHeader ===== */
 .ea-screen-header{
   display:flex;align-items:flex-start;justify-content:space-between;gap:16px;

@@ -181,40 +181,150 @@ export function EAUsersList({ api = edgeApi }:
 }
 
 // EA-03 User create ---------------------------------------------------
+interface UserCreateErrors {
+  username?: string;
+  displayName?: string;
+  password?: string;
+  confirm?: string;
+}
+
+function validateUserCreate(u: string, d: string, p: string, c: string): UserCreateErrors {
+  const errs: UserCreateErrors = {};
+  if (!u) errs.username = 'Username is required.';
+  else if (!/^[a-z][a-z0-9_.-]{2,31}$/i.test(u))
+    errs.username = 'Use 3–32 chars: letters, digits, dot, underscore, hyphen; must start with a letter.';
+  if (!d) errs.displayName = 'Display name is required.';
+  else if (d.length < 2) errs.displayName = 'At least 2 characters.';
+  if (!p) errs.password = 'Password is required.';
+  else if (p.length < 12) errs.password = 'At least 12 characters.';
+  else if (!/[A-Z]/.test(p) || !/[a-z]/.test(p) || !/[0-9]/.test(p))
+    errs.password = 'Mix upper, lower, and digit characters.';
+  if (p && c && p !== c) errs.confirm = 'Passwords do not match.';
+  return errs;
+}
+
 export function EAUserCreate({ api = edgeApi }:
     { api?: Pick<typeof edgeApi, 'createUser'> } = {}): JSX.Element {
   const [u, setU] = useState(''); const [d, setD] = useState('');
-  const [p, setP] = useState(''); const [role, setRole] = useState('OPERATOR');
+  const [p, setP] = useState(''); const [c, setC] = useState('');
+  const [role, setRole] = useState('OPERATOR');
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [status, setStatus] = useState<'idle'|'saving'|'saved'|'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+
+  const errs = validateUserCreate(u, d, p, c);
+  const canSubmit = Object.keys(errs).length === 0 && p === c && status !== 'saving';
+
   async function doSave(): Promise<void> {
     setStatus('saving'); setError(null);
-    try { await api.createUser({ username: u, displayName: d, password: p, roles: [role] });
+    try {
+      await api.createUser({ username: u, displayName: d, password: p, roles: [role] });
       setStatus('saved');
-    } catch (err) { setStatus('error');
-      setError(err instanceof Error ? err.message : String(err)); }
+    } catch (err) {
+      setStatus('error');
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/USER_EXISTS/i.test(msg)) setError('That username is already taken. Choose another.');
+      else if (/USERNAME_INVALID/i.test(msg)) setError('That username is rejected by the server. Try something simpler.');
+      else if (/PASSWORD_WEAK/i.test(msg)) setError('The server rejected the password as too weak.');
+      else setError(msg);
+    }
   }
+
+  function fieldError(name: keyof UserCreateErrors): string | null {
+    return touched[name] && errs[name] ? errs[name]! : null;
+  }
+
   return (
     <div className="ea-screen">
-      <h1 data-test="ea03-heading">Create user</h1>
-      <label><span>Username</span>
-        <input data-test="ea03-username" value={u} onChange={(e) => setU(e.target.value)} /></label>
-      <label><span>Display name</span>
-        <input data-test="ea03-display" value={d} onChange={(e) => setD(e.target.value)} /></label>
-      <label><span>Password</span>
-        <input data-test="ea03-password" type="password" value={p}
-               onChange={(e) => setP(e.target.value)} /></label>
-      <label><span>Role</span>
-        <select data-test="ea03-role" value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="OPERATOR">OPERATOR</option>
-          <option value="ADMIN">ADMIN</option>
-        </select></label>
-      <button type="button" data-test="ea03-submit" disabled={!u || !p || status === 'saving'}
-              onClick={() => { doSave().catch(() => undefined); }}>Create</button>
-      {status === 'saved' && <p data-test="ea03-saved">User created.</p>}
-      {status === 'error' && error && (
-        <ErrorBlock title="Create failed" testId="ea03-error">{error}</ErrorBlock>
-      )}
+      <ScreenHeader
+        title="Create user"
+        subtitle="Provision an operator or ADMIN account on this edge."
+        testId="ea03-header"
+      />
+      <section>
+        <form onSubmit={(e) => { e.preventDefault(); if (canSubmit) void doSave(); }}>
+          <label>
+            <span>Username</span>
+            <input
+              data-test="ea03-username"
+              value={u}
+              onChange={(e) => setU(e.target.value)}
+              onBlur={() => setTouched((t) => ({ ...t, username: true }))}
+              aria-invalid={!!fieldError('username')}
+              placeholder="e.g. nurse.alice"
+            />
+            {fieldError('username') && (
+              <span className="ea-field-error" data-test="ea03-err-username">
+                {fieldError('username')}
+              </span>
+            )}
+          </label>
+          <label>
+            <span>Display name</span>
+            <input
+              data-test="ea03-display"
+              value={d}
+              onChange={(e) => setD(e.target.value)}
+              onBlur={() => setTouched((t) => ({ ...t, displayName: true }))}
+              aria-invalid={!!fieldError('displayName')}
+              placeholder="Full name as it should appear"
+            />
+            {fieldError('displayName') && (
+              <span className="ea-field-error" data-test="ea03-err-display">
+                {fieldError('displayName')}
+              </span>
+            )}
+          </label>
+          <label>
+            <span>Password</span>
+            <input
+              data-test="ea03-password"
+              type="password"
+              value={p}
+              onChange={(e) => setP(e.target.value)}
+              onBlur={() => setTouched((t) => ({ ...t, password: true }))}
+              aria-invalid={!!fieldError('password')}
+            />
+            {fieldError('password') && (
+              <span className="ea-field-error" data-test="ea03-err-password">
+                {fieldError('password')}
+              </span>
+            )}
+          </label>
+          <label>
+            <span>Confirm password</span>
+            <input
+              data-test="ea03-confirm"
+              type="password"
+              value={c}
+              onChange={(e) => setC(e.target.value)}
+              onBlur={() => setTouched((t) => ({ ...t, confirm: true }))}
+              aria-invalid={!!fieldError('confirm')}
+            />
+            {fieldError('confirm') && (
+              <span className="ea-field-error" data-test="ea03-err-confirm">
+                {fieldError('confirm')}
+              </span>
+            )}
+          </label>
+          <label>
+            <span>Role</span>
+            <select data-test="ea03-role" value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="OPERATOR">OPERATOR — captures data on the device</option>
+              <option value="ADMIN">ADMIN — manages this edge</option>
+            </select>
+          </label>
+          <button type="submit" data-test="ea03-submit" disabled={!canSubmit}>
+            {status === 'saving' ? 'Creating…' : 'Create user'}
+          </button>
+        </form>
+        {status === 'saved' && (
+          <p data-test="ea03-saved" className="ea-saved">User created.</p>
+        )}
+        {status === 'error' && error && (
+          <ErrorBlock title="Create failed" testId="ea03-error">{error}</ErrorBlock>
+        )}
+      </section>
     </div>
   );
 }
@@ -260,32 +370,99 @@ export function EACompatInspector({ api = edgeApi }:
 export function EACompatHistory({ api = edgeApi }:
     { api?: Pick<typeof edgeApi, 'compatHistory'> } = {}): JSX.Element {
   const [rows, setRows] = useState<edgeApi.CompatSnapshot[] | null>(null);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    api.compatHistory(20)
-      .then((r) => { if (!cancelled) setRows(r.snapshots); })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      });
-    return () => { cancelled = true; };
-  }, [api]);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+
+  async function reload(): Promise<void> {
+    try {
+      const r = await api.compatHistory(50);
+      setRows(r.snapshots);
+      setLastFetched(new Date());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, [api]);
+
   if (error) return <ErrorBlock title="History failed" testId="ea05-error">{error}</ErrorBlock>;
   if (rows === null) return <LoadingBlock testId="ea05-loading" />;
+  const selected = selectedIdx !== null ? rows[selectedIdx] ?? null : null;
+
   return (
     <div className="ea-screen">
-      <h1 data-test="ea05-heading">Compat history</h1>
-      {rows.length === 0
-        ? <EmptyBlock title="No snapshots yet" testId="ea05-empty">
-            Trigger a probe refresh to populate history.</EmptyBlock>
-        : <table><thead><tr><th>Profile</th><th>Version</th><th>Reachable</th></tr></thead>
-            <tbody>{rows.map((r, i) => (
-              <tr key={i}>
-                <td data-test={`ea05-row-profile-${i}`}>{r.profileName}</td>
-                <td>{r.centralVersion}</td>
-                <td>{String(r.probeReachable)}</td>
-              </tr>
-            ))}</tbody></table>}
+      <ScreenHeader
+        title="Compat history"
+        subtitle={`${rows.length} snapshots. Click a row for details.`}
+        lastFetched={lastFetched}
+        onRefresh={reload}
+        testId="ea05-header"
+      />
+      <section>
+        {rows.length === 0
+          ? <EmptyBlock title="No snapshots yet" testId="ea05-empty">
+              Trigger a probe refresh to populate history.</EmptyBlock>
+          : <table data-test="ea05-table">
+              <thead><tr>
+                <th>Profile</th><th>Version</th><th>Probe (ms)</th>
+                <th>Captured</th><th>Reachable</th>
+              </tr></thead>
+              <tbody>{rows.map((r, i) => (
+                <tr key={i}
+                    onClick={() => setSelectedIdx(i)}
+                    className={selectedIdx === i ? 'ea-row-selected' : ''}
+                    style={{ cursor: 'pointer' }}
+                    data-test={`ea05-row-${i}`}>
+                  <td data-test={`ea05-row-profile-${i}`}>{r.profileName}</td>
+                  <td>{r.centralVersion}</td>
+                  <td>{r.probeDurationMs ?? '—'}</td>
+                  <td>{r.capturedAt ?? '—'}</td>
+                  <td>
+                    <span className={`ea-chip ea-chip--${r.probeReachable ? 'success' : 'danger'}`}>
+                      {r.probeReachable ? 'yes' : 'no'}
+                    </span>
+                  </td>
+                </tr>
+              ))}</tbody></table>}
+      </section>
+
+      {selected && (
+        <div className="ea-drawer" role="dialog" aria-label="Snapshot detail" data-test="ea05-drawer">
+          <div className="ea-drawer-head">
+            <h2>Snapshot detail</h2>
+            <button type="button"
+                    onClick={() => setSelectedIdx(null)}
+                    data-test="ea05-drawer-close">Close</button>
+          </div>
+          <dl>
+            <dt>Profile</dt><dd>{selected.profileName}</dd>
+            <dt>Central version</dt><dd>{selected.centralVersion ?? '—'}</dd>
+            <dt>Probe duration</dt><dd>{selected.probeDurationMs ?? '—'} ms</dd>
+            <dt>Captured at</dt><dd>{selected.capturedAt ?? '—'}</dd>
+            <dt>Reachable</dt>
+            <dd>
+              <span className={`ea-chip ea-chip--${selected.probeReachable ? 'success' : 'danger'}`}>
+                {selected.probeReachable ? 'yes' : 'no'}
+              </span>
+            </dd>
+            {selected.snapshotId !== undefined && (
+              <><dt>Snapshot id</dt><dd>{selected.snapshotId}</dd></>
+            )}
+            {selected.engineVersion && (
+              <><dt>Engine version</dt><dd>{selected.engineVersion}</dd></>
+            )}
+            <dt>Status</dt><dd>{selected.status ?? '—'}</dd>
+          </dl>
+          {selected.capabilities && (
+            <>
+              <h3>Capabilities</h3>
+              <pre data-test="ea05-drawer-capabilities">
+                {JSON.stringify(selected.capabilities, null, 2)}
+              </pre>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -294,32 +471,119 @@ export function EACompatHistory({ api = edgeApi }:
 export function EAJobsList({ api = edgeApi }:
     { api?: Pick<typeof edgeApi, 'listJobs'> } = {}): JSX.Element {
   const [rows, setRows] = useState<edgeApi.JobRun[] | null>(null);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    api.listJobs(50)
-      .then((r) => { if (!cancelled) setRows(r); })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      });
-    return () => { cancelled = true; };
-  }, [api]);
+  const [sortCol, setSortCol] = useState<'jobName' | 'startedAt' | 'outcome' | 'duration'>('startedAt');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [filterJob, setFilterJob] = useState('');
+  const [filterOutcome, setFilterOutcome] = useState<string>('ALL');
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
+  async function reload(): Promise<void> {
+    try {
+      const r = await api.listJobs(500);
+      setRows(r);
+      setLastFetched(new Date());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, [api]);
+
+  const toggleSort = (col: typeof sortCol): void => {
+    if (sortCol === col) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('desc'); }
+  };
+
   if (error) return <ErrorBlock title="Jobs failed" testId="ea06-error">{error}</ErrorBlock>;
   if (rows === null) return <LoadingBlock testId="ea06-loading" />;
+
+  const outcomes = Array.from(new Set(rows.map((r) => r.outcome)));
+  const filtered = rows.filter((r) => {
+    if (filterJob && !r.jobName.toLowerCase().includes(filterJob.toLowerCase())) return false;
+    if (filterOutcome !== 'ALL' && r.outcome !== filterOutcome) return false;
+    return true;
+  });
+  const sorted = [...filtered].sort((a, b) => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    if (sortCol === 'jobName') return dir * a.jobName.localeCompare(b.jobName);
+    if (sortCol === 'startedAt') return dir * a.startedAt.localeCompare(b.startedAt);
+    if (sortCol === 'outcome') return dir * a.outcome.localeCompare(b.outcome);
+    return dir * ((a.durationMs ?? 0) - (b.durationMs ?? 0));
+  });
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  function arrow(col: typeof sortCol): string {
+    if (sortCol !== col) return '';
+    return sortDir === 'asc' ? ' ↑' : ' ↓';
+  }
+
   return (
     <div className="ea-screen">
-      <h1 data-test="ea06-heading">Scheduled job runs</h1>
-      {rows.length === 0
-        ? <EmptyBlock title="No runs yet" testId="ea06-empty">Jobs start on cron.</EmptyBlock>
-        : <table><thead><tr><th>Job</th><th>Started</th><th>Outcome</th><th>Duration</th></tr></thead>
-            <tbody>{rows.map((r) => (
-              <tr key={r.runId}>
-                <td data-test={`ea06-row-job-${r.runId}`}>{r.jobName}</td>
-                <td>{r.startedAt}</td>
-                <td>{r.outcome}</td>
-                <td>{r.durationMs ?? '—'}</td>
-              </tr>
-            ))}</tbody></table>}
+      <ScreenHeader
+        title="Scheduled job runs"
+        subtitle={`${sorted.length} of ${rows.length} rows`}
+        lastFetched={lastFetched}
+        onRefresh={reload}
+        testId="ea06-header"
+      />
+      <section>
+        <div className="ea-toolbar" data-test="ea06-toolbar">
+          <label>
+            <span>Filter by job name</span>
+            <input
+              type="search"
+              value={filterJob}
+              onChange={(e) => { setFilterJob(e.target.value); setPage(1); }}
+              placeholder="e.g. JOURNAL_WORKER_DRAIN"
+              data-test="ea06-filter-job"
+            />
+          </label>
+          <label>
+            <span>Outcome</span>
+            <select
+              value={filterOutcome}
+              onChange={(e) => { setFilterOutcome(e.target.value); setPage(1); }}
+              data-test="ea06-filter-outcome"
+            >
+              <option value="ALL">All</option>
+              {outcomes.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {pageRows.length === 0
+          ? <EmptyBlock title="No runs match" testId="ea06-empty">Change the filter or clear it.</EmptyBlock>
+          : <table data-test="ea06-table">
+              <thead><tr>
+                <th><button type="button" onClick={() => toggleSort('jobName')} data-test="ea06-sort-job">Job{arrow('jobName')}</button></th>
+                <th><button type="button" onClick={() => toggleSort('startedAt')} data-test="ea06-sort-started">Started{arrow('startedAt')}</button></th>
+                <th><button type="button" onClick={() => toggleSort('outcome')} data-test="ea06-sort-outcome">Outcome{arrow('outcome')}</button></th>
+                <th><button type="button" onClick={() => toggleSort('duration')} data-test="ea06-sort-duration">Duration{arrow('duration')}</button></th>
+              </tr></thead>
+              <tbody>{pageRows.map((r) => (
+                <tr key={r.runId}>
+                  <td data-test={`ea06-row-job-${r.runId}`}>{r.jobName}</td>
+                  <td>{r.startedAt}</td>
+                  <td>
+                    <span className={`ea-chip ea-chip--${r.outcome === 'SUCCESS' ? 'success' : r.outcome === 'FAILED' ? 'danger' : 'info'}`}>
+                      {r.outcome}
+                    </span>
+                  </td>
+                  <td>{r.durationMs ?? '—'}</td>
+                </tr>
+              ))}</tbody>
+            </table>}
+        <div className="ea-pagination" data-test="ea06-pagination">
+          <button type="button" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)} data-test="ea06-prev">Prev</button>
+          <span>Page {safePage} of {totalPages}</span>
+          <button type="button" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)} data-test="ea06-next">Next</button>
+        </div>
+      </section>
     </div>
   );
 }
