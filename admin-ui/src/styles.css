@@ -1,1 +1,36 @@
-*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#24272c;background:#fff}.shell{display:flex;min-height:100vh}aside{width:238px;border-right:1px solid #e5e7eb;padding:24px 16px;background:#f9fafb}.brand{font-size:16px;font-weight:700;margin:4px 8px 24px}.nav-item{font-size:14px;padding:10px 12px;color:#4b5563}main{flex:1;padding:36px;max-width:1000px}h1{font-size:26px;margin:0 0 8px}header p{color:#6b7280;margin:0 0 32px}.notice{max-width:680px;border:1px solid #e5e7eb;border-radius:8px;padding:24px}h2{font-size:18px;margin-top:0}.notice p{line-height:1.6}@media(max-width:700px){.shell{display:block}aside{width:100%;border-right:0;border-bottom:1px solid #e5e7eb}.nav-item{display:inline-block}main{padding:24px}}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#24272c;background:#fff}
+.ea-shell{display:flex;flex-direction:column;min-height:100vh}
+.ea-shell>header{display:flex;align-items:center;gap:24px;padding:12px 24px;border-bottom:1px solid #e5e7eb;background:#f9fafb;flex-wrap:wrap}
+.ea-shell>header strong{font-size:16px}
+.ea-shell nav{display:flex;gap:16px;flex-wrap:wrap}
+.ea-shell nav a{font-size:14px;color:#2563eb;text-decoration:none}
+.ea-shell nav a:hover{text-decoration:underline}
+.ea-shell>main{flex:1;padding:36px;max-width:1100px;margin:0 auto;width:100%}
+h1{font-size:26px;margin:0 0 16px}
+.notice{max-width:680px;border:1px solid #e5e7eb;border-radius:8px;padding:24px;margin-bottom:16px}
+.notice h2{font-size:18px;margin-top:0}
+.notice p{line-height:1.6;color:#4b5563}
+.shell{display:flex;min-height:100vh}
+aside{width:238px;border-right:1px solid #e5e7eb;padding:24px 16px;background:#f9fafb}
+.brand{font-size:16px;font-weight:700;margin:4px 8px 24px}
+.nav-item{font-size:14px;padding:10px 12px;color:#4b5563}
+
+/* Sign-in form (ADR-0033 alpha.3+). */
+.ea-sign-in{max-width:360px;margin:48px auto;padding:32px;border:1px solid #e5e7eb;border-radius:8px}
+.ea-sign-in h1{font-size:20px;margin:0 0 16px}
+.ea-sign-in form{display:flex;flex-direction:column;gap:12px}
+.ea-sign-in label{font-size:14px;font-weight:600;color:#374151}
+.ea-sign-in input{padding:8px 12px;font-size:14px;border:1px solid #d1d5db;border-radius:6px}
+.ea-sign-in input:focus{outline:2px solid #2563eb;outline-offset:0;border-color:#2563eb}
+.ea-sign-in button{padding:10px 16px;font-size:14px;font-weight:600;background:#2563eb;color:#fff;border:0;border-radius:6px;cursor:pointer}
+.ea-sign-in button:disabled{opacity:.5;cursor:not-allowed}
+.ea-sign-in [role="alert"]{color:#b91c1c;font-size:14px;margin:0}
+
+@media(max-width:700px){
+  .ea-shell>header{padding:8px 12px}
+  .ea-shell>main{padding:16px}
+  .shell{display:block}
+  aside{width:100%;border-right:0;border-bottom:1px solid #e5e7eb}
+  .nav-item{display:inline-block}
+}

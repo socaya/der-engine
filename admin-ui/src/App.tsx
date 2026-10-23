@@ -12,6 +12,7 @@ import {
   EARecoveryTools, EABackupList, EARestoreList, EAEvaluationReports,
   EAAppsList, EADiagnostics, EASettings,
 } from './screens/EARemainderScreens';
+import { SignIn } from './screens/SignIn';
 
 function ConflictResolveRoute(): JSX.Element {
   const { id = '' } = useParams();
@@ -53,6 +54,7 @@ export default function App(): JSX.Element {
         </header>
         <main data-der-app="admin-ui">
           <Routes>
+            <Route path="/sign-in" element={<SignIn />} />
             <Route path="/" element={<RequireAuth><EASetupWelcome /></RequireAuth>} />
             <Route path="/provisioning/users"
                    element={<RequireAuth><EAUsersList /></RequireAuth>} />
