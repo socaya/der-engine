@@ -72,6 +72,12 @@ public class SecurityConfig {
                         .requestMatchers("/edge-api/v1/system/health").permitAll()
                         .requestMatchers("/edge-api/v1/auth/sign-in").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // ADR-0033: admin UI static shell is public so the
+                        // login screen renders; AuthContext inside the SPA
+                        // then calls /edge-api/v1/auth/sign-in. All data
+                        // calls remain session-gated by the matchers below.
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/admin", "/admin/", "/admin/**").permitAll()
                         .requestMatchers("/edge-api/v1/dhis2/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/provisioning/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/sync/notify").authenticated()

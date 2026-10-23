@@ -5,7 +5,7 @@
 > column in `docs/verification/traceability-matrix.csv` (which was
 > never updated as alphas landed).
 
-**Last updated:** 2026-10-23 · prepared for `der-2.0.3-alpha.2`.
+**Last updated:** 2026-10-23 · prepared for `der-2.0.3-alpha.3`.
 **Scope:** All 211 requirements (176 FR + 35 NFR) from
 `docs/requirements/source-functional-register.csv` and
 `source-nonfunctional-register.csv`.
@@ -104,6 +104,28 @@ Live-verified against local DHIS2 2.44-SNAPSHOT Sierra Leone demo:
 484 orgUnits, 358 dataElements, 31 programs, 1 TET mirrored; 0
 pending-journal drift at probe time. Evidence:
 `docs/evaluation/evidence/alpha.6-metadata-drift/`.
+
+## Alpha.3 of der-2.0.3 — admin UI served on port 8085
+
+ADR-0033: the admin UI SPA now runs same-origin as the DER API. One
+process, one port.
+
+- `AdminUiController` serves `/admin/**` from a configurable dist
+  directory (`der.admin-ui.dist`, default `admin-ui/dist`).
+- Vite build takes `DER_ADMIN_UI_BASE=/admin/` so asset URLs are
+  prefixed; dev server (`npm run dev` on 5173) stays unchanged.
+- SPA fallback: unmatched `/admin/<deep-link>` returns `index.html`
+  so react-router handles it.
+- Assets get `max-age=31536000, immutable` (Vite content hashes);
+  HTML stays `no-cache`.
+- `GET /admin/**` is `permitAll` in Spring Security so the login
+  screen renders; data calls remain session-gated. Non-GET on
+  `/admin/**` → 401 (static-only surface).
+- Missing dist → 503 `ADMIN_UI_NOT_BUILT` with a clear operator
+  message.
+- 8 `AdminUiControllerTest` cases + live-verified against the real
+  dist bundle.
+- Evidence: `docs/evaluation/evidence/alpha.7-admin-ui-served/`.
 
 ## Alpha.2 (this release — der-2.0.2-alpha.2)
 

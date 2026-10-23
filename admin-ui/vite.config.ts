@@ -10,7 +10,13 @@ const version = readFileSync(resolve(here, '..', 'VERSION'), 'utf-8').trim();
 
 const DER_SERVER = process.env.DER_SERVER_URL ?? 'http://127.0.0.1:8085';
 
+// ADR-0033: when served by DER server at /admin/, Vite needs the
+// base path baked into generated asset URLs. Dev server keeps `/`
+// so the proxy to :8085 for /edge-api works unchanged.
+const BASE = process.env.DER_ADMIN_UI_BASE ?? '/';
+
 export default defineConfig({
+  base: BASE,
   plugins: [react()],
   define: {
     __DER_VERSION__: JSON.stringify(version),
