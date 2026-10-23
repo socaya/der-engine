@@ -5,7 +5,7 @@
 > column in `docs/verification/traceability-matrix.csv` (which was
 > never updated as alphas landed).
 
-**Last updated:** 2026-10-23 · prepared for `der-2.0.2-alpha.2`.
+**Last updated:** 2026-10-23 · prepared for `der-2.0.2-alpha.3`.
 **Scope:** All 211 requirements (176 FR + 35 NFR) from
 `docs/requirements/source-functional-register.csv` and
 `source-nonfunctional-register.csv`.
@@ -88,6 +88,21 @@ Additional alpha.2 work:
   that misfires on `@Component`-scanned beans). Server now boots in
   1.8s against local Postgres 17 + DHIS2 2.44-SNAPSHOT. Evidence:
   `docs/evaluation/evidence/alpha.2-live/`.
+
+## Alpha.3 (this release — der-2.0.2-alpha.3)
+
+- **ADR-0032 completion — storedBy stamping in JournalPublisher.**
+  `ReferralPayloadEncoder` resolves the captured-by DHIS2 username via
+  `CapturedByResolver` and stamps `storedBy` on aggregate dataValueSets
+  (envelope + every `dataValues[]`), events, enrollments, and nested
+  enrollments/events under tracker entities. 6 attribution unit tests
+  green. Lenient fallback: when no mapping exists the payload is
+  untouched (service account's identity used by DHIS2). Evidence:
+  `docs/evaluation/evidence/alpha.3-attribution/`.
+- **FR-16-02 User traceability** → DONE (was PENDING).
+- **FR-16-03 Session binding** → DONE (was PARTIAL; session cookie
+  now cryptographically carries through to central's import summary
+  via `storedBy`).
 
 ## Alpha.1 (this release — der-2.0.2-alpha.1)
 

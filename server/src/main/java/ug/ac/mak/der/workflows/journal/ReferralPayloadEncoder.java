@@ -8,8 +8,11 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import ug.ac.mak.der.attribution.CapturedByResolver;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 
 /**
@@ -34,9 +37,37 @@ public class ReferralPayloadEncoder {
     static final String MARKER_SUFFIX = "]";
 
     private final ObjectMapper mapper;
+    private final ObjectProvider<CapturedByResolver> capturedBy;
 
-    public ReferralPayloadEncoder(final ObjectMapper mapper) {
+    @Autowired
+    public ReferralPayloadEncoder(final ObjectMapper mapper,
+                                    final ObjectProvider<CapturedByResolver> capturedBy) {
         this.mapper = Objects.requireNonNull(mapper, "mapper");
+        this.capturedBy = Objects.requireNonNull(capturedBy, "capturedBy");
+    }
+
+    /** Legacy constructor for pre-ADR-0032 call-sites and tests. */
+    public ReferralPayloadEncoder(final ObjectMapper mapper) {
+        this(mapper, new EmptyProvider<>());
+    }
+
+    private static final class EmptyProvider<T> implements ObjectProvider<T> {
+        @Override
+        public T getObject() {
+            throw new UnsupportedOperationException();
+        }
+        @Override
+        public T getObject(final Object... args) {
+            throw new UnsupportedOperationException();
+        }
+        @Override
+        public T getIfAvailable() {
+            return null;
+        }
+        @Override
+        public T getIfUnique() {
+            return null;
+        }
     }
 
     /**
@@ -49,37 +80,98 @@ public class ReferralPayloadEncoder {
         if (entry.payload() == null) {
             return "{}";
         }
+        final String storedBy = resolveStoredBy(entry);
         final String nextHop = entry.nextHopOrgUnitUid();
-        if (nextHop == null || nextHop.isBlank()) {
+        if ((nextHop == null || nextHop.isBlank()) && storedBy == null) {
             return entry.payload().toString();
         }
         try {
             final JsonNode root = entry.payload().deepCopy();
-            final String marker = MARKER_PREFIX + nextHop.trim() + MARKER_SUFFIX;
-            switch (entry.entityType()) {
-                case AGGREGATE_DATA_VALUE -> {
-                    appendToComment((ObjectNode) root, marker);
-                    // ADR-0027 alpha.6: rewrite orgUnit so central stores the
-                    // dataValue under the destination OU. Receiving edge finds
-                    // it via its normal bound-OU scan.
-                    ((ObjectNode) root).put("orgUnit", nextHop.trim());
+            if (root instanceof ObjectNode object) {
+                if (nextHop != null && !nextHop.isBlank()) {
+                    applyNextHop(object, entry, nextHop.trim());
                 }
-                case EVENT, PROGRAM_STAGE_EVENT,
-                     ENROLLMENT, TRACKED_ENTITY -> {
-                    pushNote((ObjectNode) root, marker);
-                    // ADR-0027 alpha.7: rewrite orgUnit for event + tracker
-                    // payloads too so central routes them to the destination.
-                    ((ObjectNode) root).put("orgUnit", nextHop.trim());
+                if (storedBy != null) {
+                    stampStoredBy(object, storedBy, entry);
                 }
-                default -> {
-                    // all enum constants handled; defensive.
-                }
+                return object.toString();
             }
             return root.toString();
         } catch (RuntimeException ex) {
-            LOG.warn("referral marker injection failed for {}: {}; publishing raw payload",
+            LOG.warn("payload rewrite failed for {}: {}; publishing raw payload",
                     entry.operationId(), ex.getMessage());
             return entry.payload().toString();
+        }
+    }
+
+    private String resolveStoredBy(final OperationJournalEntry entry) {
+        final CapturedByResolver resolver = capturedBy.getIfAvailable();
+        if (resolver == null || entry.submittedBy() == null) {
+            return null;
+        }
+        return resolver.storedByFor(entry.submittedBy()).orElse(null);
+    }
+
+    private void applyNextHop(final ObjectNode root,
+                                final OperationJournalEntry entry,
+                                final String nextHop) {
+        final String marker = MARKER_PREFIX + nextHop + MARKER_SUFFIX;
+        switch (entry.entityType()) {
+            case AGGREGATE_DATA_VALUE -> appendToComment(root, marker);
+            case EVENT, PROGRAM_STAGE_EVENT,
+                 ENROLLMENT, TRACKED_ENTITY -> pushNote(root, marker);
+            default -> { /* defensive */ }
+        }
+        root.put("orgUnit", nextHop);
+    }
+
+    /**
+     * ADR-0032: stamp the DHIS2 {@code storedBy} field so the captor
+     * identity propagates to central. Top-level value is set for the
+     * dataValueSet / event / enrollment envelope; nested
+     * {@code dataValues[]} get the same stamp when present.
+     */
+    private void stampStoredBy(final ObjectNode root, final String storedBy,
+                                 final OperationJournalEntry entry) {
+        switch (entry.entityType()) {
+            case AGGREGATE_DATA_VALUE -> {
+                root.put("storedBy", storedBy);
+                final JsonNode values = root.get("dataValues");
+                if (values instanceof ArrayNode arr) {
+                    for (final JsonNode dv : arr) {
+                        if (dv instanceof ObjectNode dvObj) {
+                            dvObj.put("storedBy", storedBy);
+                        }
+                    }
+                }
+            }
+            case EVENT, PROGRAM_STAGE_EVENT -> root.put("storedBy", storedBy);
+            case ENROLLMENT -> root.put("storedBy", storedBy);
+            case TRACKED_ENTITY -> {
+                // DHIS2 tracked entities themselves have no storedBy; their
+                // enrollments and events (nested) do. Stamp those when present.
+                stampTrackedEntityChildren(root, storedBy);
+            }
+            default -> { /* defensive */ }
+        }
+    }
+
+    private void stampTrackedEntityChildren(final ObjectNode root, final String storedBy) {
+        final JsonNode enrollments = root.get("enrollments");
+        if (enrollments instanceof ArrayNode arr) {
+            for (final JsonNode en : arr) {
+                if (en instanceof ObjectNode enObj) {
+                    enObj.put("storedBy", storedBy);
+                    final JsonNode events = enObj.get("events");
+                    if (events instanceof ArrayNode evArr) {
+                        for (final JsonNode ev : evArr) {
+                            if (ev instanceof ObjectNode evObj) {
+                                evObj.put("storedBy", storedBy);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
