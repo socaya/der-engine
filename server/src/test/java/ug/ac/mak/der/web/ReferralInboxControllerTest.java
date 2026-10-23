@@ -30,13 +30,22 @@ import ug.ac.mak.der.workflows.referral.ReferralInboxRepository;
 
 @WebMvcTest(ReferralInboxController.class)
 @ActiveProfiles("test")
-@Import(TestSecurityConfig.class)
+@Import({ TestSecurityConfig.class, ReferralInboxControllerTest.Beans.class })
 class ReferralInboxControllerTest {
 
     private final Instant NOW = Instant.parse("2026-10-23T00:00:00Z");
 
     @Autowired MockMvc mockMvc;
     @MockBean ReferralInboxRepository repo;
+
+    @org.springframework.boot.test.context.TestConfiguration
+    static class Beans {
+        @org.springframework.context.annotation.Bean
+        java.time.Clock clock() {
+            return java.time.Clock.fixed(Instant.parse("2026-10-23T00:00:00Z"),
+                    java.time.ZoneOffset.UTC);
+        }
+    }
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -74,5 +83,45 @@ class ReferralInboxControllerTest {
         mockMvc.perform(get("/edge-api/v1/referral/inbox?limit=5").with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isOk());
         org.mockito.Mockito.verify(repo).findPending(5);
+    }
+
+    @Test
+    void acceptMarksAccepted() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(repo.markResolved(org.mockito.ArgumentMatchers.eq(id),
+                org.mockito.ArgumentMatchers.eq(ReferralInboxEntry.Status.ACCEPTED),
+                org.mockito.ArgumentMatchers.any(UUID.class),
+                org.mockito.ArgumentMatchers.any(Instant.class))).thenReturn(1);
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/edge-api/v1/referral/inbox/" + id + "/accept")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACCEPTED"));
+    }
+
+    @Test
+    void dismissMarksDismissed() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(repo.markResolved(org.mockito.ArgumentMatchers.eq(id),
+                org.mockito.ArgumentMatchers.eq(ReferralInboxEntry.Status.DISMISSED),
+                org.mockito.ArgumentMatchers.any(UUID.class),
+                org.mockito.ArgumentMatchers.any(Instant.class))).thenReturn(1);
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/edge-api/v1/referral/inbox/" + id + "/dismiss")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DISMISSED"));
+    }
+
+    @Test
+    void acceptNotFoundWhenRowMissing() throws Exception {
+        when(repo.markResolved(org.mockito.ArgumentMatchers.any(UUID.class),
+                org.mockito.ArgumentMatchers.any(ReferralInboxEntry.Status.class),
+                org.mockito.ArgumentMatchers.any(UUID.class),
+                org.mockito.ArgumentMatchers.any(Instant.class))).thenReturn(0);
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/edge-api/v1/referral/inbox/" + UUID.randomUUID() + "/accept")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isNotFound());
     }
 }

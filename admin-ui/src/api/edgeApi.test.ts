@@ -163,6 +163,10 @@ describe('edgeApi route coverage', () => {
       '/edge-api/v1/journal/op-7/next-hop', 'POST', { orgUnitUid: 'ou-dest' }],
     ['listReferralInbox', () => api.listReferralInbox(50),
       '/edge-api/v1/referral/inbox?limit=50', 'GET', undefined],
+    ['acceptReferralInbox', () => api.acceptReferralInbox('ib-9'),
+      '/edge-api/v1/referral/inbox/ib-9/accept', 'POST', undefined],
+    ['dismissReferralInbox', () => api.dismissReferralInbox('ib-9'),
+      '/edge-api/v1/referral/inbox/ib-9/dismiss', 'POST', undefined],
   ])('%s hits the expected URL + method', async (_name, call, path, method, expectedBody) => {
     fetchMock.mockResolvedValue(respond(200, okJson));
     await call();

@@ -1169,20 +1169,36 @@ export function EAAuditVerify({ api = edgeApi }:
 
 // EA-REF-01 Referral inbox (ADR-0027) ------------------------------
 export function EAReferralInbox({ api = edgeApi }:
-    { api?: Pick<typeof edgeApi, 'listReferralInbox'> } = {}): JSX.Element {
+    { api?: Pick<typeof edgeApi, 'listReferralInbox'
+      | 'acceptReferralInbox' | 'dismissReferralInbox'> } = {}): JSX.Element {
   const [rows, setRows] = useState<edgeApi.ReferralInboxRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const resp = await api.listReferralInbox();
-        setRows(resp.entries);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-      }
-    })().catch(() => undefined);
-  }, [api]);
+  async function reload(): Promise<void> {
+    try {
+      const resp = await api.listReferralInbox();
+      setRows(resp.entries);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, [api]);
+
+  async function resolve(inboxId: string, action: 'accept' | 'dismiss'): Promise<void> {
+    if (!api.acceptReferralInbox || !api.dismissReferralInbox) return;
+    setBusy(inboxId);
+    setError(null);
+    try {
+      if (action === 'accept') await api.acceptReferralInbox(inboxId);
+      else await api.dismissReferralInbox(inboxId);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
 
   if (error) return <ErrorBlock title="Inbox error" testId="ref01-error">{error}</ErrorBlock>;
   if (rows === null) return <LoadingBlock testId="ref01-loading" />;
@@ -1195,14 +1211,14 @@ export function EAReferralInbox({ api = edgeApi }:
       {rows.length === 0 ? (
         <EmptyBlock title="No pending referrals" testId="ref01-empty">
           The next inbox scan runs on <code>der.referral.inbox.cron</code>
-          (default every 10 minutes). Alpha.4 ships the schema; the real
-          central scan lands in alpha.5.
+          (default every 10 minutes). Enable the HTTP scan with
+          <code> der.referral.http.enabled=true</code>.
         </EmptyBlock>
       ) : (
         <table className="ea-ref-table">
           <thead>
             <tr>
-              <th>Kind</th><th>Source ref</th><th>Discovered</th>
+              <th>Kind</th><th>Source ref</th><th>Discovered</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -1211,6 +1227,21 @@ export function EAReferralInbox({ api = edgeApi }:
                 <td>{r.kind}</td>
                 <td><code>{r.sourceRef}</code></td>
                 <td>{r.discoveredAt}</td>
+                <td>
+                  <button type="button"
+                    data-test={`ref01-accept-${r.inboxId}`}
+                    disabled={busy === r.inboxId}
+                    onClick={() => { resolve(r.inboxId, 'accept').catch(() => undefined); }}>
+                    Accept
+                  </button>
+                  {' '}
+                  <button type="button"
+                    data-test={`ref01-dismiss-${r.inboxId}`}
+                    disabled={busy === r.inboxId}
+                    onClick={() => { resolve(r.inboxId, 'dismiss').catch(() => undefined); }}>
+                    Dismiss
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

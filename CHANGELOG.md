@@ -15,6 +15,18 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.4.0-alpha.5] — unreleased
+
+Initiative 3 — HTTP referral search + resolve (ADR-0027 alpha.5 slice).
+
+- Added: `HttpCentralReferralSearchClient` queries central `/api/dataValueSets` and filters by `\[DER-next-hop:([A-Za-z0-9_-]+)\]` marker. `@Primary` + `@ConditionalOnProperty(der.referral.http.enabled=true)` so it displaces the no-op; fail-open on IO/HTTP failures.
+- Added: `POST /edge-api/v1/referral/inbox/{inboxId}/accept` + `/dismiss` (ADMIN) resolve endpoints.
+- Added: admin UI Accept/Dismiss buttons on EA-REF-01 + `edgeApi.acceptReferralInbox` + `dismissReferralInbox` helpers.
+- Non-goal (deferred to alpha.6): outbound orgUnit rewrite so central stores referrals under the destination OU; events/tracker HTTP scan; accept-ingest into local data store.
+- Added: 16 server tests + 5 admin-ui screen tests + 2 edgeApi table rows.
+
+[1.4.0-alpha.5]: https://github.com/socaya/der-engine/releases/tag/der-1.4.0-alpha.5
+
 ## [1.4.0-alpha.4] — unreleased
 
 Initiative 3 — referral inbox scaffolding (ADR-0027 alpha.4 slice).

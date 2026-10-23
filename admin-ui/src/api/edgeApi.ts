@@ -319,6 +319,16 @@ export function listReferralInbox(limit = 100):
   return request('GET', `/edge-api/v1/referral/inbox?limit=${limit}`);
 }
 
+export function acceptReferralInbox(inboxId: string):
+    Promise<{ inboxId: string; status: 'ACCEPTED' }> {
+  return request('POST', `/edge-api/v1/referral/inbox/${inboxId}/accept`);
+}
+
+export function dismissReferralInbox(inboxId: string):
+    Promise<{ inboxId: string; status: 'DISMISSED' }> {
+  return request('POST', `/edge-api/v1/referral/inbox/${inboxId}/dismiss`);
+}
+
 export function reJournalConflict(id: string): Promise<unknown> {
   return request('POST', `/edge-api/v1/journal/conflicts/${id}/re-journal`);
 }

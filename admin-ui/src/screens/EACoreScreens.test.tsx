@@ -1051,4 +1051,85 @@ describe('EA-REF-01 ReferralInbox', () => {
     } as never} />);
     await waitFor(() => expect(screen.getByTestId('ref01-error')).toBeInTheDocument());
   });
+
+  it('accept hits acceptReferralInbox + reloads', async () => {
+    const list = vi.fn()
+      .mockResolvedValueOnce({ entries: [{
+        inboxId: 'ib-1', kind: 'AGGREGATE_DATA_VALUE', sourceRef: 'r',
+        boundOrgUnit: 'ou', discoveredAt: '2026-10-23T00:00:00Z',
+        status: 'PENDING',
+      }] })
+      .mockResolvedValue({ entries: [] });
+    const accept = vi.fn().mockResolvedValue({ inboxId: 'ib-1', status: 'ACCEPTED' });
+    renderWithProviders(<EAReferralInbox api={{
+      listReferralInbox: list,
+      acceptReferralInbox: accept,
+      dismissReferralInbox: vi.fn(),
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('ref01-accept-ib-1')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('ref01-accept-ib-1'));
+    await waitFor(() => expect(accept).toHaveBeenCalledWith('ib-1'));
+    await waitFor(() => expect(screen.getByTestId('ref01-empty')).toBeInTheDocument());
+  });
+
+  it('dismiss hits dismissReferralInbox', async () => {
+    const list = vi.fn()
+      .mockResolvedValueOnce({ entries: [{
+        inboxId: 'ib-2', kind: 'EVENT', sourceRef: 'r',
+        boundOrgUnit: 'ou', discoveredAt: '2026-10-23T00:00:00Z',
+        status: 'PENDING',
+      }] })
+      .mockResolvedValue({ entries: [] });
+    const dismiss = vi.fn().mockResolvedValue({ inboxId: 'ib-2', status: 'DISMISSED' });
+    renderWithProviders(<EAReferralInbox api={{
+      listReferralInbox: list,
+      acceptReferralInbox: vi.fn(),
+      dismissReferralInbox: dismiss,
+    } as never} />);
+    await waitFor(() => expect(screen.getByTestId('ref01-dismiss-ib-2')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('ref01-dismiss-ib-2'));
+    await waitFor(() => expect(dismiss).toHaveBeenCalledWith('ib-2'));
+  });
+
+  it('resolve error surfaces', async () => {
+    renderWithProviders(<EAReferralInbox api={{
+      listReferralInbox: vi.fn().mockResolvedValue({ entries: [{
+        inboxId: 'ib-3', kind: 'AGGREGATE_DATA_VALUE', sourceRef: 'r',
+        boundOrgUnit: 'ou', discoveredAt: '2026-10-23T00:00:00Z',
+        status: 'PENDING',
+      }] }),
+      acceptReferralInbox: vi.fn().mockRejectedValue(new Error('nope')),
+      dismissReferralInbox: vi.fn(),
+    } as never} />);
+    await userEvent.click(await screen.findByTestId('ref01-accept-ib-3'));
+    await waitFor(() => expect(screen.getByTestId('ref01-error')).toBeInTheDocument());
+  });
+
+  it('non-Error resolve rejection stringifies', async () => {
+    renderWithProviders(<EAReferralInbox api={{
+      listReferralInbox: vi.fn().mockResolvedValue({ entries: [{
+        inboxId: 'ib-4', kind: 'EVENT', sourceRef: 'r',
+        boundOrgUnit: 'ou', discoveredAt: '2026-10-23T00:00:00Z',
+        status: 'PENDING',
+      }] }),
+      acceptReferralInbox: vi.fn(),
+      dismissReferralInbox: vi.fn().mockRejectedValue('x'),
+    } as never} />);
+    await userEvent.click(await screen.findByTestId('ref01-dismiss-ib-4'));
+    await waitFor(() => expect(screen.getByTestId('ref01-error')).toBeInTheDocument());
+  });
+
+  it('resolve no-ops when accept/dismiss missing from api', async () => {
+    renderWithProviders(<EAReferralInbox api={{
+      listReferralInbox: vi.fn().mockResolvedValue({ entries: [{
+        inboxId: 'ib-5', kind: 'EVENT', sourceRef: 'r',
+        boundOrgUnit: 'ou', discoveredAt: '2026-10-23T00:00:00Z',
+        status: 'PENDING',
+      }] }),
+    } as never} />);
+    const button = await screen.findByTestId('ref01-accept-ib-5');
+    await userEvent.click(button);
+    // No throw; buttons remain enabled.
+    expect(button).toBeEnabled();
+  });
 });
