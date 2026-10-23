@@ -21,6 +21,7 @@ export default defineConfig({
   define: {
     __DER_VERSION__: JSON.stringify(version),
     __DER_APP__: JSON.stringify('admin-ui'),
+    __DER_ADMIN_BASE__: JSON.stringify(BASE),
   },
   server: {
     port: 5173,

@@ -52,10 +52,50 @@ cd .. && java -jar server/target/der-server-2.0.3-alpha.3-SNAPSHOT.jar
 Dist location is configurable via `der.admin-ui.dist` (default
 `admin-ui/dist`); missing dist → 503 `ADMIN_UI_NOT_BUILT`.
 
+## Browser verification (alpha.3 follow-up)
+
+Live Playwright suite `client/e2e/admin-ui-live.spec.ts` — 9 tests, all
+green (opt in via `DER_LIVE_SMOKE=true`):
+
+- `/admin → 302 /admin/`
+- `/admin/` serves SPA shell with Vite-prefixed asset reference
+- `/admin/assets/<js>` loads with `immutable` cache
+- SPA deep link `/admin/scheduler` → index.html fallback
+- `/admin/` renders in Chromium without unexpected JS errors
+- Admin sign-in grants `DER_SESSION` cookie
+- Same-origin `/edge-api/v1/admin/users/dhis2-mappings` returns 200
+- `POST /admin/` denied (static-only surface, 401)
+- Missing `/admin/assets/...` returns 404 (does NOT fall through to
+  index.html — assets fail fast so loaders don't retry on HTML)
+
+### Screenshots
+
+- `admin-shell.png` — unauthenticated shell rendered at
+  `http://localhost:8085/admin/`: "DER Administration" brand +
+  nav to Overview/Provisioning/Compatibility/Jobs/Drift/Conflicts/
+  Worker/Approvals/Workflows/Devices/Analytics/Audit/Referral/
+  Metadata.
+- `admin-authenticated.png` — same shell with an active session.
+- `admin-jobs.png` — SPA deep link to `/admin/sync/jobs` works via
+  react-router basename.
+
+### Fix applied during this smoke
+
+The initial build raised a React Router "Cannot destructure
+'basename' of useContext(...) as it is null" because `App.tsx`
+used `<Link>` / `<Routes>` without a surrounding Router. Added:
+
+- `admin-ui/src/main.tsx`: wrap `<App />` in
+  `<BrowserRouter basename={__DER_ADMIN_BASE__}>`.
+- `admin-ui/vite.config.ts`: expose `__DER_ADMIN_BASE__` build
+  constant via `define`.
+- `admin-ui/src/env.d.ts`: declare the new global.
+
+`basename` reduces to `undefined` when running under dev server
+(base = `/`), and to `/admin` when the admin UI is bundled under
+`/admin/`. Tests continue to use `MemoryRouter` and are unaffected.
+
 ## Open items for alpha.4+
 
-- Admin UI's AuthContext may still call `/edge-api/v1/auth/me` or
-  similar — verify it hits the new SPA entry correctly from a real
-  browser (Playwright follow-up).
 - Package admin-ui/dist into the server JAR so deployment is a
   single artifact; alpha.4 can add a Maven resource plugin step.
