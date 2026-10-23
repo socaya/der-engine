@@ -15,6 +15,16 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [2.0.0] — 2026-10-23
+
+Fourth stable release. Post-1.0 roadmap is now closed — every initiative is shipped, scaffolded, or formally decided. Bundles 2.0.0-alpha.1 (Android Capacitor wrap scaffold, ADR-0030) and 2.0.0-alpha.2 (Initiative 3 B/C design spike, ADR-0031). No code change versus alpha.2.
+
+- Initiative 6 (Android) scaffolded at `android/`.
+- Initiative 3 option B/C design decision captured in ADR-0031 — option B picked, option C shelved; implementation lives in a 2.1.0 train.
+- Open scope + 2.1.0+ plan catalogued in `docs/releases/der-2.0.0.md`.
+
+[2.0.0]: https://github.com/socaya/der-engine/releases/tag/der-2.0.0
+
 ## [2.0.0-alpha.2] — unreleased
 
 Initiative 3 topology spike (ADR-0031). Docs-only.
