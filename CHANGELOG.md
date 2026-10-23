@@ -15,6 +15,15 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [2.0.0-alpha.1] — unreleased
+
+Initiative 6 — Android Capacitor wrap scaffold (ADR-0030).
+
+- Added: `android/` top-level module. `package.json`, `capacitor.config.ts`, README. Scaffold-only; native plugins + CI APK builds in later alphas.
+- Added: ADR-0030.
+
+[2.0.0-alpha.1]: https://github.com/socaya/der-engine/releases/tag/der-2.0.0-alpha.1
+
 ## [1.4.0] — 2026-10-23
 
 Third stable release. Bundles alphas 1.4.0-alpha.1 through 1.4.0-alpha.9; no code change versus alpha.9.
