@@ -65,7 +65,12 @@ public class ReferralPayloadEncoder {
                     ((ObjectNode) root).put("orgUnit", nextHop.trim());
                 }
                 case EVENT, PROGRAM_STAGE_EVENT,
-                     ENROLLMENT, TRACKED_ENTITY -> pushNote((ObjectNode) root, marker);
+                     ENROLLMENT, TRACKED_ENTITY -> {
+                    pushNote((ObjectNode) root, marker);
+                    // ADR-0027 alpha.7: rewrite orgUnit for event + tracker
+                    // payloads too so central routes them to the destination.
+                    ((ObjectNode) root).put("orgUnit", nextHop.trim());
+                }
                 default -> {
                     // all enum constants handled; defensive.
                 }

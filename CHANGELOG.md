@@ -15,6 +15,18 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.4.0-alpha.7] — unreleased
+
+Initiative 3 closeout — events + tracker scan + ingest (ADR-0027 alpha.7 slice).
+
+- Changed: `ReferralPayloadEncoder` now rewrites `orgUnit` on EVENT / PROGRAM_STAGE_EVENT / ENROLLMENT / TRACKED_ENTITY payloads (mirrors aggregate).
+- Changed: `HttpCentralReferralSearchClient.findReferrals` now runs two queries per tick — aggregate + events. Events parse looks for the marker in `notes[].value`.
+- Added: `ReferralIngestService` EVENT path reconstructs an `EventService.EventInput` from the stored payload and submits.
+- Non-goal: ENROLLMENT / TRACKED_ENTITY ingest remains a stub (`false`); multi-hop and signed referrals are post-1.4.0.
+- Added: 9 server tests.
+
+[1.4.0-alpha.7]: https://github.com/socaya/der-engine/releases/tag/der-1.4.0-alpha.7
+
 ## [1.4.0-alpha.6] — unreleased
 
 Initiative 3 — outbound OU rewrite + accept-ingest (ADR-0027 alpha.6 slice).

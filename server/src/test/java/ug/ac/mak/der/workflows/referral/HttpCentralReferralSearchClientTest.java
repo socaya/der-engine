@@ -125,4 +125,33 @@ class HttpCentralReferralSearchClientTest {
         assertThat(out).hasSize(1);
         assertThat(out.get(0).sourceRef()).isEqualTo("-|-|-|-");
     }
+
+    @Test
+    void parseEventsFindsMarkerInNotes() {
+        final List<CentralReferralSearchClient.Candidate> out = newClient(
+                mock(HttpClient.class), "http://x").parseEvents(
+                "{\"events\":[{\"event\":\"e1\",\"notes\":["
+                        + "{\"value\":\"first\"},"
+                        + "{\"value\":\"[DER-next-hop:ou-dest]\"}]}]}", "ou-dest");
+        assertThat(out).hasSize(1);
+        assertThat(out.get(0).kind()).isEqualTo(ReferralInboxEntry.Kind.EVENT);
+        assertThat(out.get(0).sourceRef()).isEqualTo("e1");
+    }
+
+    @Test
+    void parseEventsSkipsNonMatchingOrMalformed() {
+        assertThat(newClient(mock(HttpClient.class), "http://x")
+                .parseEvents("", "ou")).isEmpty();
+        assertThat(newClient(mock(HttpClient.class), "http://x")
+                .parseEvents("not json", "ou")).isEmpty();
+        assertThat(newClient(mock(HttpClient.class), "http://x")
+                .parseEvents("{\"events\":\"not array\"}", "ou")).isEmpty();
+        assertThat(newClient(mock(HttpClient.class), "http://x")
+                .parseEvents("{\"events\":[{\"event\":\"e1\"}]}", "ou")).isEmpty();
+        assertThat(newClient(mock(HttpClient.class), "http://x")
+                .parseEvents("{\"events\":[{\"event\":\"e1\",\"notes\":[{}]}]}", "ou")).isEmpty();
+        assertThat(newClient(mock(HttpClient.class), "http://x")
+                .parseEvents("{\"events\":[{\"event\":\"e1\",\"notes\":"
+                        + "[{\"value\":\"[DER-next-hop:other]\"}]}]}", "ou")).isEmpty();
+    }
 }

@@ -68,10 +68,29 @@ public class HttpCentralReferralSearchClient implements CentralReferralSearchCli
             LOG.debug("central base-url unset; referral search skipped");
             return List.of();
         }
+        final List<Candidate> out = new ArrayList<>();
+        out.addAll(scanAggregate(boundOrgUnitUid, since));
+        out.addAll(scanEvents(boundOrgUnitUid, since));
+        return out;
+    }
+
+    private List<Candidate> scanAggregate(final String boundOrgUnitUid, final Instant since) {
         final String url = props.central().baseUrl()
                 + "/api/dataValueSets?orgUnit=" + encode(boundOrgUnitUid)
                 + "&children=true&lastUpdated=" + encode(since.toString());
-        final HttpResponse<String> resp;
+        final String body = fetch(url);
+        return body == null ? List.of() : parse(body, boundOrgUnitUid);
+    }
+
+    private List<Candidate> scanEvents(final String boundOrgUnitUid, final Instant since) {
+        final String url = props.central().baseUrl()
+                + "/api/events?orgUnit=" + encode(boundOrgUnitUid)
+                + "&ouMode=DESCENDANTS&lastUpdated=" + encode(since.toString());
+        final String body = fetch(url);
+        return body == null ? List.of() : parseEvents(body, boundOrgUnitUid);
+    }
+
+    private String fetch(final String url) {
         try {
             final HttpRequest.Builder req = HttpRequest.newBuilder(URI.create(url))
                     .timeout(Duration.ofMillis(Math.max(1_000,
@@ -84,20 +103,21 @@ public class HttpCentralReferralSearchClient implements CentralReferralSearchCli
                 req.header("Authorization", "Basic "
                         + Base64.getEncoder().encodeToString(token.getBytes(StandardCharsets.UTF_8)));
             }
-            resp = http.send(req.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            final HttpResponse<String> resp = http.send(req.build(),
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (resp.statusCode() / 100 != 2) {
+                LOG.warn("referral HTTP search ({}) returned {}; body={}", url,
+                        resp.statusCode(), truncate(resp.body()));
+                return null;
+            }
+            return resp.body();
         } catch (IOException ex) {
-            LOG.warn("referral HTTP search failed ({}); will retry next tick", ex.getMessage());
-            return List.of();
+            LOG.warn("referral HTTP search ({}) failed: {}", url, ex.getMessage());
+            return null;
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return List.of();
+            return null;
         }
-        if (resp.statusCode() / 100 != 2) {
-            LOG.warn("referral HTTP search returned HTTP {}; body={}", resp.statusCode(),
-                    truncate(resp.body()));
-            return List.of();
-        }
-        return parse(resp.body(), boundOrgUnitUid);
     }
 
     List<Candidate> parse(final String body, final String boundOrgUnitUid) {
@@ -131,6 +151,49 @@ public class HttpCentralReferralSearchClient implements CentralReferralSearchCli
             final String ref = extractRef(dv);
             out.add(new Candidate(
                     ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE, ref, dv.toString()));
+        }
+        return out;
+    }
+
+    List<Candidate> parseEvents(final String body, final String boundOrgUnitUid) {
+        if (body == null || body.isBlank()) {
+            return List.of();
+        }
+        final JsonNode root;
+        try {
+            root = mapper.readTree(body);
+        } catch (IOException ex) {
+            LOG.warn("referral events parse failed: {}", ex.getMessage());
+            return List.of();
+        }
+        final JsonNode events = root.get("events");
+        if (events == null || !events.isArray()) {
+            return List.of();
+        }
+        final List<Candidate> out = new ArrayList<>();
+        for (final JsonNode ev : events) {
+            final JsonNode notes = ev.get("notes");
+            if (notes == null || !notes.isArray()) {
+                continue;
+            }
+            boolean matched = false;
+            for (final JsonNode note : notes) {
+                final JsonNode value = note.get("value");
+                if (value == null || !value.isTextual()) {
+                    continue;
+                }
+                final Matcher m = MARKER.matcher(value.asText());
+                if (m.find() && boundOrgUnitUid.equals(m.group(1))) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                continue;
+            }
+            final String ref = textOrDash(ev.get("event"));
+            out.add(new Candidate(
+                    ReferralInboxEntry.Kind.EVENT, ref, ev.toString()));
         }
         return out;
     }
