@@ -17,13 +17,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
+import ug.ac.mak.der.security.SecurityAuditRepository;
 
 /**
- * ADR-0025 post-handler. When the request carries workflow headers
- * and the handler returned 2xx, buffers the body as a step
- * contribution. Fail-open on any error (ADR-0004 — capture is always
- * available).
+ * ADR-0025 post-handler widened by ADR-0026 D-RST-4 to cover
+ * event + tracker ingest. Buffers the body as a step contribution
+ * when the request carries workflow headers and the handler returned
+ * 2xx, then advances run state. Fail-open on any error (ADR-0004).
  */
 @Component
 @ConditionalOnBean(CaptureWorkflowService.class)
@@ -37,15 +39,18 @@ public class CaptureWorkflowContributionIngest implements HandlerInterceptor {
 
     private final CaptureWorkflowService workflows;
     private final CaptureWorkflowContributionRepository contributions;
+    private final SecurityAuditRepository audit;
     private final ObjectMapper mapper;
     private final Clock clock;
 
     public CaptureWorkflowContributionIngest(final CaptureWorkflowService workflows,
                                                final CaptureWorkflowContributionRepository contributions,
+                                               final SecurityAuditRepository audit,
                                                final ObjectMapper mapper,
                                                final Clock clock) {
         this.workflows = Objects.requireNonNull(workflows, "workflows");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
+        this.audit = Objects.requireNonNull(audit, "audit");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
@@ -79,11 +84,10 @@ public class CaptureWorkflowContributionIngest implements HandlerInterceptor {
                 return;
             }
             final JsonNode root = readRoot(request);
-            if (root == null || !root.has("dataSet") || !root.get("dataSet").isTextual()) {
+            if (root == null) {
                 return;
             }
-            final String dataSetId = root.get("dataSet").asText();
-            final Optional<CaptureWorkflow> workflow = workflows.resolveForDataSet(dataSetId);
+            final Optional<CaptureWorkflow> workflow = resolveWorkflow(root);
             if (workflow.isEmpty()) {
                 return;
             }
@@ -102,9 +106,49 @@ public class CaptureWorkflowContributionIngest implements HandlerInterceptor {
                     root.toString(), actor,
                     parseDeviceHeader(request.getHeader(DEVICE_HEADER)),
                     Instant.now(clock)));
+            final boolean completed = workflows.advanceRunState(run.runId());
+            if (completed) {
+                emitCompletion(request, w, run);
+            }
         } catch (RuntimeException unexpected) {
             LOG.warn("contribution ingest failed; dropping (ADR-0025 D-REC-7): {}",
                     unexpected.getMessage());
+        }
+    }
+
+    private Optional<CaptureWorkflow> resolveWorkflow(final JsonNode root) {
+        if (root.has("dataSet") && root.get("dataSet").isTextual()) {
+            return workflows.resolveForDataSet(root.get("dataSet").asText());
+        }
+        if (root.has("programStage") && root.get("programStage").isTextual()) {
+            final Optional<CaptureWorkflow> ps =
+                    workflows.resolveForProgramStage(root.get("programStage").asText());
+            if (ps.isPresent()) {
+                return ps;
+            }
+        }
+        if (root.has("program") && root.get("program").isTextual()) {
+            return workflows.resolveForProgram(root.get("program").asText());
+        }
+        return Optional.empty();
+    }
+
+    private void emitCompletion(final HttpServletRequest request, final CaptureWorkflow w,
+                                  final CaptureWorkflowRun run) {
+        try {
+            audit.append(new AuditEvent(
+                    "WORKFLOW_RUN_COMPLETED",
+                    AuditEvent.Outcome.SUCCESS,
+                    principalId(request), null,
+                    request.getRemoteAddr(),
+                    request.getHeader("User-Agent"),
+                    java.util.Map.of(
+                            "workflowId", w.workflowId().toString(),
+                            "runId", run.runId().toString(),
+                            "businessKey", run.businessKey())),
+                    Instant.now(clock));
+        } catch (RuntimeException ex) {
+            LOG.warn("audit append for WORKFLOW_RUN_COMPLETED failed: {}", ex.getMessage());
         }
     }
 
@@ -115,7 +159,10 @@ public class CaptureWorkflowContributionIngest implements HandlerInterceptor {
         if (!"POST".equals(method) && !"PUT".equals(method) && !"PATCH".equals(method)) {
             return false;
         }
-        return "/api/dataValueSets".equals(path);
+        return "/api/dataValueSets".equals(path)
+                || "/api/events".equals(path)
+                || "/api/tracker/events".equals(path)
+                || "/api/tracker/enrollments".equals(path);
     }
 
     private JsonNode readRoot(final HttpServletRequest request) {

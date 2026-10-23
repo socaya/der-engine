@@ -15,6 +15,18 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.3.0-alpha.5] — unreleased
+
+Initiative 10 slice B closeout — run-state transitions + event/tracker ingest (ADR-0026). Slice B is feature-complete.
+
+- Added: `CaptureWorkflowService.advanceRunState` + repository helpers (`findRun`, `updateRunState`, `countContributions`). State machine OPEN → AWAITING → COMPLETED driven by contribution count; idempotent on terminal states.
+- Added: `WORKFLOW_RUN_COMPLETED` audit event emitted once per run on completion, participating in the ADR-0021 hash chain.
+- Added: `CaptureWorkflowContributionIngest` extended to `/api/events`, `/api/tracker/events`, `/api/tracker/enrollments`. Workflow resolution sniffs programStage → program → dataSet.
+- Added: ADR-0026 (state machine, event/tracker ingest, rationale for no drain-time Java merger — central DHIS2 upserts already produce the single-user-commit shape).
+- Added: 20 server tests (repo + service + ingest).
+
+[1.3.0-alpha.5]: https://github.com/socaya/der-engine/releases/tag/der-1.3.0-alpha.5
+
 ## [1.3.0-alpha.4] — unreleased
 
 Initiative 10 slice B — reconciler scaffolding (ADR-0025).

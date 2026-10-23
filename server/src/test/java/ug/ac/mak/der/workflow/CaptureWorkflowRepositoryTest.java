@@ -202,4 +202,55 @@ class CaptureWorkflowRepositoryTest {
         assertThat(runs).hasSize(1);
         assertThat(runs.get(0).runId()).isEqualTo(runId);
     }
+
+    @Test
+    void findRunNullReturnsEmpty() {
+        assertThat(new CaptureWorkflowRepository(mock(JdbcTemplate.class)).findRun(null))
+                .isEmpty();
+    }
+
+    @Test
+    void findRunEmptyWhenMissing() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), any(RowMapper.class), any(UUID.class)))
+                .thenThrow(new org.springframework.dao.EmptyResultDataAccessException(1));
+        assertThat(new CaptureWorkflowRepository(jdbc).findRun(UUID.randomUUID()))
+                .isEmpty();
+    }
+
+    @Test
+    void updateRunStateHitsSql() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.update(anyString(), anyString(), any(Timestamp.class), any(UUID.class)))
+                .thenReturn(1);
+        final UUID runId = UUID.randomUUID();
+        assertThat(new CaptureWorkflowRepository(jdbc)
+                .updateRunState(runId, CaptureWorkflowRun.State.COMPLETED, NOW)).isEqualTo(1);
+        verify(jdbc).update(org.mockito.ArgumentMatchers.contains("UPDATE der.capture_workflow_run"),
+                eq("COMPLETED"), any(Timestamp.class), eq(runId));
+    }
+
+    @Test
+    void countContributionsNullReturnsZero() {
+        assertThat(new CaptureWorkflowRepository(mock(JdbcTemplate.class))
+                .countContributions(null)).isZero();
+    }
+
+    @Test
+    void countContributionsNullResultTreatedAsZero() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), any(UUID.class)))
+                .thenReturn(null);
+        assertThat(new CaptureWorkflowRepository(jdbc)
+                .countContributions(UUID.randomUUID())).isZero();
+    }
+
+    @Test
+    void countContributionsReturnsValue() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), any(UUID.class)))
+                .thenReturn(3);
+        assertThat(new CaptureWorkflowRepository(jdbc)
+                .countContributions(UUID.randomUUID())).isEqualTo(3);
+    }
 }

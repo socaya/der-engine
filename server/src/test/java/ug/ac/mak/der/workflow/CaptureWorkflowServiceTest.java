@@ -3,6 +3,7 @@ package ug.ac.mak.der.workflow;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -158,6 +159,91 @@ class CaptureWorkflowServiceTest {
         final CaptureWorkflowRun run = new CaptureWorkflowService(repo)
                 .startRun(id, "key", UUID.randomUUID());
         assertThat(run.currentStepId()).isNull();
+    }
+
+    @Test
+    void advanceRunStateCompletesWhenAllStepsContributed() {
+        final CaptureWorkflowRepository repo = mock(CaptureWorkflowRepository.class);
+        final UUID wfId = UUID.randomUUID();
+        final UUID runId = UUID.randomUUID();
+        when(repo.findRun(runId)).thenReturn(Optional.of(new CaptureWorkflowRun(
+                runId, wfId, 1, "k", null, CaptureWorkflowRun.State.AWAITING,
+                NOW, NOW, null)));
+        when(repo.findById(wfId)).thenReturn(Optional.of(sample(wfId, 1, 2)));
+        when(repo.countContributions(runId)).thenReturn(2);
+        assertThat(new CaptureWorkflowService(repo).advanceRunState(runId)).isTrue();
+        verify(repo).updateRunState(eq(runId),
+                eq(CaptureWorkflowRun.State.COMPLETED), any());
+    }
+
+    @Test
+    void advanceRunStateMovesOpenToAwaitingOnFirstContribution() {
+        final CaptureWorkflowRepository repo = mock(CaptureWorkflowRepository.class);
+        final UUID wfId = UUID.randomUUID();
+        final UUID runId = UUID.randomUUID();
+        when(repo.findRun(runId)).thenReturn(Optional.of(new CaptureWorkflowRun(
+                runId, wfId, 1, "k", null, CaptureWorkflowRun.State.OPEN,
+                NOW, NOW, null)));
+        when(repo.findById(wfId)).thenReturn(Optional.of(sample(wfId, 1, 2)));
+        when(repo.countContributions(runId)).thenReturn(1);
+        assertThat(new CaptureWorkflowService(repo).advanceRunState(runId)).isFalse();
+        verify(repo).updateRunState(eq(runId),
+                eq(CaptureWorkflowRun.State.AWAITING), any());
+    }
+
+    @Test
+    void advanceRunStateIsIdempotentOnCompleted() {
+        final CaptureWorkflowRepository repo = mock(CaptureWorkflowRepository.class);
+        final UUID runId = UUID.randomUUID();
+        when(repo.findRun(runId)).thenReturn(Optional.of(new CaptureWorkflowRun(
+                runId, UUID.randomUUID(), 1, "k", null,
+                CaptureWorkflowRun.State.COMPLETED, NOW, NOW, null)));
+        assertThat(new CaptureWorkflowService(repo).advanceRunState(runId)).isFalse();
+        verify(repo, org.mockito.Mockito.never()).updateRunState(any(), any(), any());
+    }
+
+    @Test
+    void advanceRunStateIsIdempotentOnRejected() {
+        final CaptureWorkflowRepository repo = mock(CaptureWorkflowRepository.class);
+        final UUID runId = UUID.randomUUID();
+        when(repo.findRun(runId)).thenReturn(Optional.of(new CaptureWorkflowRun(
+                runId, UUID.randomUUID(), 1, "k", null,
+                CaptureWorkflowRun.State.REJECTED, NOW, NOW, null)));
+        assertThat(new CaptureWorkflowService(repo).advanceRunState(runId)).isFalse();
+        verify(repo, org.mockito.Mockito.never()).updateRunState(any(), any(), any());
+    }
+
+    @Test
+    void advanceRunStateMissingRunReturnsFalse() {
+        final CaptureWorkflowRepository repo = mock(CaptureWorkflowRepository.class);
+        when(repo.findRun(any())).thenReturn(Optional.empty());
+        assertThat(new CaptureWorkflowService(repo).advanceRunState(UUID.randomUUID()))
+                .isFalse();
+    }
+
+    @Test
+    void advanceRunStateMissingWorkflowReturnsFalse() {
+        final CaptureWorkflowRepository repo = mock(CaptureWorkflowRepository.class);
+        final UUID runId = UUID.randomUUID();
+        when(repo.findRun(runId)).thenReturn(Optional.of(new CaptureWorkflowRun(
+                runId, UUID.randomUUID(), 1, "k", null, CaptureWorkflowRun.State.OPEN,
+                NOW, NOW, null)));
+        when(repo.findById(any())).thenReturn(Optional.empty());
+        assertThat(new CaptureWorkflowService(repo).advanceRunState(runId)).isFalse();
+    }
+
+    @Test
+    void advanceRunStateNoOpWhenNoContributions() {
+        final CaptureWorkflowRepository repo = mock(CaptureWorkflowRepository.class);
+        final UUID wfId = UUID.randomUUID();
+        final UUID runId = UUID.randomUUID();
+        when(repo.findRun(runId)).thenReturn(Optional.of(new CaptureWorkflowRun(
+                runId, wfId, 1, "k", null, CaptureWorkflowRun.State.OPEN,
+                NOW, NOW, null)));
+        when(repo.findById(wfId)).thenReturn(Optional.of(sample(wfId, 1, 2)));
+        when(repo.countContributions(runId)).thenReturn(0);
+        assertThat(new CaptureWorkflowService(repo).advanceRunState(runId)).isFalse();
+        verify(repo, org.mockito.Mockito.never()).updateRunState(any(), any(), any());
     }
 
     @Test

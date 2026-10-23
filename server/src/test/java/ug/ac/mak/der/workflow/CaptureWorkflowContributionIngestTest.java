@@ -22,6 +22,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
 
+import ug.ac.mak.der.security.SecurityAuditRepository;
+
 class CaptureWorkflowContributionIngestTest {
 
     private static final Instant NOW = Instant.parse("2026-10-22T00:00:00Z");
@@ -29,8 +31,17 @@ class CaptureWorkflowContributionIngestTest {
     private CaptureWorkflowContributionIngest newIngest(
             final CaptureWorkflowService svc,
             final CaptureWorkflowContributionRepository repo) {
-        return new CaptureWorkflowContributionIngest(svc, repo, new ObjectMapper(),
-                Clock.fixed(NOW, ZoneOffset.UTC));
+        return new CaptureWorkflowContributionIngest(svc, repo,
+                mock(SecurityAuditRepository.class),
+                new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    private CaptureWorkflowContributionIngest newIngest(
+            final CaptureWorkflowService svc,
+            final CaptureWorkflowContributionRepository repo,
+            final SecurityAuditRepository audit) {
+        return new CaptureWorkflowContributionIngest(svc, repo, audit,
+                new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private HttpServletRequest req(final String path, final String method, final String body,
@@ -242,6 +253,108 @@ class CaptureWorkflowContributionIngestTest {
         assertThat(CaptureWorkflowContributionIngest.shouldIngest("/api/dataValueSets", "POST"))
                 .isTrue();
         assertThat(CaptureWorkflowContributionIngest.shouldIngest("/api/events", "POST"))
-                .isFalse();
+                .isTrue();
+        assertThat(CaptureWorkflowContributionIngest.shouldIngest("/api/tracker/events", "PUT"))
+                .isTrue();
+        assertThat(CaptureWorkflowContributionIngest.shouldIngest(
+                "/api/tracker/enrollments", "PATCH")).isTrue();
+    }
+
+    @Test
+    void persistsAndAuditsOnWorkflowCompletion() throws Exception {
+        final CaptureWorkflow w = workflow();
+        final CaptureWorkflowService svc = mock(CaptureWorkflowService.class);
+        when(svc.resolveForDataSet("ds1")).thenReturn(Optional.of(w));
+        when(svc.startRun(any(UUID.class), any(String.class), any()))
+                .thenReturn(new CaptureWorkflowRun(UUID.randomUUID(), w.workflowId(), 1,
+                        "run-1", w.steps().get(0).stepId(),
+                        CaptureWorkflowRun.State.OPEN, NOW, NOW, null));
+        when(svc.advanceRunState(any(UUID.class))).thenReturn(true);
+        final CaptureWorkflowContributionRepository repo =
+                mock(CaptureWorkflowContributionRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        newIngest(svc, repo, audit).afterCompletion(
+                req("/api/dataValueSets", "POST", "{\"dataSet\":\"ds1\"}",
+                        "run-1", "0", null),
+                resp(200), new Object(), null);
+        verify(repo).upsert(any());
+        verify(audit).append(any(), any(Instant.class));
+    }
+
+    @Test
+    void persistsNoAuditWhenRunNotCompleted() throws Exception {
+        final CaptureWorkflow w = workflow();
+        final CaptureWorkflowService svc = mock(CaptureWorkflowService.class);
+        when(svc.resolveForDataSet("ds1")).thenReturn(Optional.of(w));
+        when(svc.startRun(any(UUID.class), any(String.class), any()))
+                .thenReturn(new CaptureWorkflowRun(UUID.randomUUID(), w.workflowId(), 1,
+                        "run-1", w.steps().get(0).stepId(),
+                        CaptureWorkflowRun.State.AWAITING, NOW, NOW, null));
+        when(svc.advanceRunState(any(UUID.class))).thenReturn(false);
+        final CaptureWorkflowContributionRepository repo =
+                mock(CaptureWorkflowContributionRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        newIngest(svc, repo, audit).afterCompletion(
+                req("/api/dataValueSets", "POST", "{\"dataSet\":\"ds1\"}",
+                        "run-1", "0", null),
+                resp(200), new Object(), null);
+        verify(repo).upsert(any());
+        verify(audit, never()).append(any(), any());
+    }
+
+    @Test
+    void persistsForEventsByProgram() throws Exception {
+        final CaptureWorkflow w = workflow();
+        final CaptureWorkflowService svc = mock(CaptureWorkflowService.class);
+        when(svc.resolveForProgram("p1")).thenReturn(Optional.of(w));
+        when(svc.startRun(any(UUID.class), any(String.class), any()))
+                .thenReturn(new CaptureWorkflowRun(UUID.randomUUID(), w.workflowId(), 1,
+                        "run-1", w.steps().get(0).stepId(),
+                        CaptureWorkflowRun.State.OPEN, NOW, NOW, null));
+        final CaptureWorkflowContributionRepository repo =
+                mock(CaptureWorkflowContributionRepository.class);
+        newIngest(svc, repo).afterCompletion(
+                req("/api/events", "POST", "{\"program\":\"p1\"}", "run-1", "0", null),
+                resp(200), new Object(), null);
+        verify(repo).upsert(any());
+    }
+
+    @Test
+    void persistsForTrackerEventsByProgramStage() throws Exception {
+        final CaptureWorkflow w = workflow();
+        final CaptureWorkflowService svc = mock(CaptureWorkflowService.class);
+        when(svc.resolveForProgramStage("ps1")).thenReturn(Optional.of(w));
+        when(svc.startRun(any(UUID.class), any(String.class), any()))
+                .thenReturn(new CaptureWorkflowRun(UUID.randomUUID(), w.workflowId(), 1,
+                        "run-1", w.steps().get(0).stepId(),
+                        CaptureWorkflowRun.State.OPEN, NOW, NOW, null));
+        final CaptureWorkflowContributionRepository repo =
+                mock(CaptureWorkflowContributionRepository.class);
+        newIngest(svc, repo).afterCompletion(
+                req("/api/tracker/events", "POST",
+                        "{\"programStage\":\"ps1\",\"program\":\"p1\"}",
+                        "run-1", "0", null),
+                resp(200), new Object(), null);
+        verify(repo).upsert(any());
+    }
+
+    @Test
+    void completionAuditFailureDoesNotPropagate() throws Exception {
+        final CaptureWorkflow w = workflow();
+        final CaptureWorkflowService svc = mock(CaptureWorkflowService.class);
+        when(svc.resolveForDataSet("ds1")).thenReturn(Optional.of(w));
+        when(svc.startRun(any(UUID.class), any(String.class), any()))
+                .thenReturn(new CaptureWorkflowRun(UUID.randomUUID(), w.workflowId(), 1,
+                        "run-1", w.steps().get(0).stepId(),
+                        CaptureWorkflowRun.State.OPEN, NOW, NOW, null));
+        when(svc.advanceRunState(any(UUID.class))).thenReturn(true);
+        final CaptureWorkflowContributionRepository repo =
+                mock(CaptureWorkflowContributionRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        doThrow(new RuntimeException("audit down")).when(audit).append(any(), any());
+        newIngest(svc, repo, audit).afterCompletion(
+                req("/api/dataValueSets", "POST", "{\"dataSet\":\"ds1\"}",
+                        "run-1", "0", null),
+                resp(200), new Object(), null);
     }
 }

@@ -108,6 +108,41 @@ public class CaptureWorkflowService {
         return repo.findRuns(workflowId);
     }
 
+    /**
+     * ADR-0026 D-RST-1/2. Advances the run's state based on
+     * contribution count. Called from the ingest hook after each
+     * upsert. Idempotent: COMPLETED runs stay COMPLETED. Returns
+     * {@code true} iff the state transitioned to {@code COMPLETED}
+     * this call (so the caller can audit the completion exactly
+     * once — D-RST-3).
+     */
+    public boolean advanceRunState(final UUID runId) {
+        final Optional<CaptureWorkflowRun> maybeRun = repo.findRun(runId);
+        if (maybeRun.isEmpty()) {
+            return false;
+        }
+        final CaptureWorkflowRun run = maybeRun.get();
+        if (run.state() == CaptureWorkflowRun.State.COMPLETED
+                || run.state() == CaptureWorkflowRun.State.REJECTED) {
+            return false;
+        }
+        final Optional<CaptureWorkflow> maybeWorkflow = repo.findById(run.workflowId());
+        if (maybeWorkflow.isEmpty()) {
+            return false;
+        }
+        final int steps = maybeWorkflow.get().steps().size();
+        final int contributions = repo.countContributions(runId);
+        final Instant now = Instant.now();
+        if (steps > 0 && contributions >= steps) {
+            repo.updateRunState(runId, CaptureWorkflowRun.State.COMPLETED, now);
+            return true;
+        }
+        if (contributions > 0 && run.state() == CaptureWorkflowRun.State.OPEN) {
+            repo.updateRunState(runId, CaptureWorkflowRun.State.AWAITING, now);
+        }
+        return false;
+    }
+
     static boolean shapeChanged(final CaptureWorkflow a, final CaptureWorkflow b) {
         if (a.steps().size() != b.steps().size()) {
             return true;

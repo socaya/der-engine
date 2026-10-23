@@ -150,6 +150,41 @@ public class CaptureWorkflowRepository {
         return run;
     }
 
+    public int updateRunState(final UUID runId, final CaptureWorkflowRun.State state,
+                                 final Instant updatedAt) {
+        Objects.requireNonNull(runId, "runId");
+        Objects.requireNonNull(state, "state");
+        return jdbc.update(
+                "UPDATE der.capture_workflow_run SET state = ?, updated_at = ? "
+                        + "WHERE run_id = ?",
+                state.name(), Timestamp.from(updatedAt), runId);
+    }
+
+    public Optional<CaptureWorkflowRun> findRun(final UUID runId) {
+        if (runId == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.ofNullable(jdbc.queryForObject(
+                    "SELECT run_id, workflow_id, workflow_version, business_key, "
+                            + "current_step_id, state, created_at, updated_at, created_by "
+                            + "FROM der.capture_workflow_run WHERE run_id = ?",
+                    runMapper(), runId));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    public int countContributions(final UUID runId) {
+        if (runId == null) {
+            return 0;
+        }
+        final Integer n = jdbc.queryForObject(
+                "SELECT count(*) FROM der.capture_workflow_step_contribution WHERE run_id = ?",
+                Integer.class, runId);
+        return n == null ? 0 : n;
+    }
+
     public List<CaptureWorkflowRun> findRuns(final UUID workflowId) {
         if (workflowId == null) {
             return List.of();
