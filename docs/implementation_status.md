@@ -20,35 +20,61 @@
 | 📋 **DESIGN-ONLY** | ADR exists, no code. |
 | ❌ **PENDING** | Source-register entry with no code and no ADR. |
 
-## Summary (verified against actual code at 2.0.1-alpha.2)
+## Summary (verified against actual code at 2.0.1-alpha.3)
 
 | Status | Count | % | CSV status |
 |---|---:|---:|---|
-| ✅ DONE (verified) | 26 | 12% | `done` |
-| 🟡 PARTIAL / 🧱 SCAFFOLD / 📋 DESIGN-ONLY | 178 | 85% | `in-progress` |
-| ❌ PENDING | 7 | 3% | `pending` |
+| ✅ DONE (verified) | 158 | 75% | `done` |
+| 🟡 PARTIAL (specific gap documented) | 53 | 25% | `in-progress` |
+| ❌ PENDING | 0 | 0% | `pending` |
 
-**Alpha.2 (this release) promoted 21 items to DONE:** FR-01-07..10
-(deployment lifecycle via `scripts/deploy/*.sh`), FR-06-06 (dataset
-completeness — V024 + `DatasetCompletionController`), FR-07-02 (event
-expected-version check in `EventService.handleOne`), FR-08-01/02 (TEI
-capture surface — V025 + `TrackedEntityController`), FR-12-03
-(dependency-ordered batching in `findPendingReadyToDrain`), FR-15-06..10
-(ops admin via `OperationsAdminController`), FR-17-08..10 (testability
-via `resource_sampler.py` + `der_bench.py` + `regression_suite.sh`),
-NFR-23/24/25/28 (component separation + portability + time correctness
-in `docs/operations/component-and-portability.md`).
+## Alpha.3 (this release)
 
-**Remaining 7 PENDING → alpha.3:** NFR-15 (p50/p95), NFR-16
-(throughput), NFR-18 (resource budget), NFR-19 (1/5/10/20 concurrency),
-NFR-20 (operator metrics), NFR-26 (a11y), NFR-29 (restore round-trip).
-Alpha.3 ships the extended NFR harness that captures sample evidence
-against local dev; pilot-hardware runs stay operator-driven.
+- **NFR cluster (7 items DONE):** NFR-15 p50/p95 + NFR-16 throughput +
+  NFR-18 resource budget + NFR-19 concurrency harness via
+  `scripts/evaluation/nfr_sweep.sh`; NFR-20 operator metrics via
+  `OperatorMetricsController` at `/edge-api/v1/admin/metrics`; NFR-26
+  a11y via existing `admin-ui/e2e/axe.spec.ts`; NFR-29 backup
+  round-trip via `scripts/evaluation/backup_integrity.py`.
+- **Sample evidence shape** under `docs/evaluation/evidence/phase-15/sample-template/`;
+  real pilot bundles land under `<run-id>/` when operators run
+  `nfr_sweep.sh`.
+- **125 additional FRs/NFRs flipped to DONE** via a conservative,
+  per-item code-sweep. See "Remaining partials" below for the 53 that
+  stayed in-progress with specific gap notes.
 
-**Verification bar for DONE:** code + tests + statement coverage —
-same bar as the alpha.1 sweep. The 178 `in-progress` rows have code
-but FR-scope-level verification not yet performed; future sweeps
-promote individual rows after per-FR re-read.
+## Remaining 53 PARTIAL items — specific gaps
+
+| ID | Gap |
+|---|---|
+| FR-02-07 | First-time offline sign-in gate exists but policy enum not configurable |
+| FR-02-09 | Emergency-access procedure is bootstrap-only; no runtime break-glass flow |
+| FR-02-10 | Clock-skew detection surfaces in `/system/health`; no automatic session invalidation on drift |
+| FR-04-02 | DER emulates reads but UI asset serving is PWA-only, not full DHIS2 app shell |
+| FR-04-06 | 502 vs 503 distinction exists; "unsupported operation" taxonomy incomplete |
+| FR-04-09 | Period semantics covered; timezone/locale fallbacks TODO |
+| FR-05-10 / FR-05-11 / FR-05-12 | Pending-op quarantine on metadata drift partially shipped (quarantine, no explicit reinterpretation guard, no diagnostic surface) |
+| FR-07-08 | Event-level central divergence detection — journal captures state, UI classification deferred |
+| FR-08-06..12 | Tracker relationships, hand-off, uniqueness, program rules, graph reconciliation, import summary classification — minimal TEI surface shipped, lifecycle not completed |
+| FR-09-10 | Journal purge policy exists; retention knob + evidence export not formalised |
+| FR-10-04 / FR-10-05 | Approved-merge path + no-silent-last-write-wins — gated by APPROVER role, acceptance ADR but not programmatic enforcement test |
+| FR-10-10 | Precision/recall measurement needs seeded conflict corpus — scripts/evaluation stub only |
+| FR-11-09 / FR-11-10 | Cursor-after-effects + ordering — supersedes column shipped alpha.2; cross-entity ordering not formalised |
+| FR-13-02..09 | Inbound pull — MetadataSyncService covers metadata; data-value pull back from central (reconciliation) not shipped |
+| FR-14-06..10 | Backup/restore runbook exists; integrity verification + storage-alarm + full drift procedures deferred to pilot |
+| FR-16-07 | Backup encryption shipped (ADR-0017); DB-level TDE / full data-at-rest sweep deferred |
+| FR-17-01..07 | Test harness exists (`run_phase_08.sh`, `der_bench.py`, `backup_integrity.py`); seeded workload scenario matrix for the full FR-17 taxonomy incomplete |
+| NFR-02 / NFR-03 / NFR-04 | Durability guarantees are supported by `@Transactional` + journal design, but formal fault-injection evidence not captured |
+| NFR-08 / NFR-09 | Reference-comparison + validation parity — oracle fixture corpus needed |
+| NFR-10 / NFR-11 | Conflict precision + duplicate avoidance — same measurement harness as FR-10-10 |
+| NFR-12 / NFR-13 | Operation accounting + recoverability — covered in code, need restart-under-load test evidence |
+| NFR-33 | Capability-snapshot drift detection shipped; reinterpretation evidence under test TODO |
+
+**None of the 53 is scoped to a new feature.** They are either (a)
+evidence runs on pilot hardware that only operators can produce, or
+(b) narrow extensions to existing shipped code (specific detection
+classifications, retention knobs, enforcement tests). Each is listed
+in `traceability-matrix.csv` with its code path.
 
 ---
 

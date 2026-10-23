@@ -1,0 +1,10 @@
+{
+  "runId": "sample-template",
+  "commit": "703ea12",
+  "baseUrl": "http://localhost:8080",
+  "generatedAt": "2026-10-23T09:00:00Z",
+  "benchDurationSeconds": 15,
+  "concurrencyLevels": [1, 5, 10, 20],
+  "nfrCovered": ["NFR-15", "NFR-16", "NFR-18", "NFR-19", "NFR-20", "NFR-29"],
+  "note": "Sample bundle shape. Operators run scripts/evaluation/nfr_sweep.sh on pilot hardware to produce real evidence."
+}

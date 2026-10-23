@@ -94,6 +94,8 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/edge-api/v1/security/audit/verify").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/journal/*/next-hop").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/admin/ops/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/admin/metrics").authenticated()
+                        .requestMatchers("/edge-api/v1/tracked-entities", "/edge-api/v1/tracked-entities/**").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/aggregate/completion").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/accept").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/dismiss").hasRole("ADMIN")

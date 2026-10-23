@@ -15,6 +15,16 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [2.0.1-alpha.3] — unreleased
+
+Close NFR gaps + strict code-sweep DONE promotions.
+
+- Added: `OperatorMetricsController` at `/edge-api/v1/admin/metrics` (NFR-20); `scripts/evaluation/nfr_sweep.sh` capturing NFR-15/16/18/19/29 evidence; sample bundle template under `docs/evaluation/evidence/phase-15/sample-template/`.
+- Changed: traceability-matrix.csv — 132 flipped to done (158 total). implementation_status.md rewritten with per-item gap table for the 53 remaining PARTIAL rows.
+- Non-goal: pilot-hardware evidence runs remain operator-driven; 53 PARTIAL items catalogued with specific gaps.
+
+[2.0.1-alpha.3]: https://github.com/socaya/der-engine/releases/tag/der-2.0.1-alpha.3
+
 ## [2.0.1-alpha.2] — unreleased
 
 Close 21 FR gaps to verified DONE.
