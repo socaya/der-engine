@@ -1,0 +1,1 @@
+{"name": "DER Sample App", "icons": {"48": "icon.png"}, "appType": "APP", "version": "1.0.0", "developer": {"url": "https://der.local", "name": "DER"}, "description": "A minimal DHIS2 custom app bundled for DER smoke testing.", "launch_path": "index.html"}

@@ -103,6 +103,26 @@ Additional alpha.2 work:
 - **FR-16-03 Session binding** → DONE (was PARTIAL; session cookie
   now cryptographically carries through to central's import summary
   via `storedBy`).
+- **Custom app engine upgrades (ADR-0005 completion).**
+  * `/dhis-web-<key>` (no slash) → 301 to `/`.
+  * `/dhis-web-<key>/` → serves `index.html`.
+  * `/dhis-web-<key>/manifest.webapp` served from DB-stored manifest JSON.
+  * Disabled apps return 404.
+  * Correct MIME for `.svg`, `.woff2`, `.woff`, `.mjs`.
+  * HTML stays no-cache; static assets get `max-age=3600, public`.
+  * New `GET /api/apps` returns DHIS2-compat array so stock
+    `@dhis2/app-runtime` clients discover DER-hosted apps the same
+    way as central-hosted ones.
+  * 7 new tests + 7 existing all green.
+  * Live-verified: zip install → listed → trailing-slash serves
+    index.html → manifest.webapp from DB → app.js fetches
+    `/api/system/info` and renders.
+- **Rich `/edge-api/v1/system/info` (admin-only).** New endpoint
+  reports build + runtime (java, host, uptime, heap) + dhis2 compat
+  snapshot + database (postgres product, flyway, user + session
+  counts) + scheduler (Quartz) + journal state counts + storage
+  snapshot + installed apps + mapped user count. The anonymous
+  `/system/health` stays minimal.
 
 ## Alpha.1 (this release — der-2.0.2-alpha.1)
 
