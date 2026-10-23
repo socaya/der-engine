@@ -1,23 +1,35 @@
 /*
  * DER Administration shell styles. @dhis2/ui provides most primitives
- * (Button, InputField, NoticeBox, Card). This file wires the shell
- * chrome (header bar, nav, main) in a DHIS2-flavoured palette so the
- * admin UI feels consistent with DHIS2 2.44 Core apps.
+ * (Button, InputField, NoticeBox, Card, CircularLoader). This file wires
+ * the shell chrome AND polishes the raw HTML the EA-* screens still
+ * emit (button, select, input, table, form, dl) so the whole admin
+ * surface renders in a consistent DHIS2 2.44 Core-app visual language.
  */
 
 :root{
   --der-blue:#1976d2;
   --der-blue-dark:#0d47a1;
+  --der-blue-soft:#e3f2fd;
   --der-ink:#212934;
   --der-ink-soft:#4a5768;
   --der-ink-muted:#6b7a90;
   --der-border:#d5dde5;
+  --der-border-strong:#b7c2cf;
   --der-border-subtle:#e8edf2;
   --der-surface:#ffffff;
   --der-canvas:#f4f6f8;
   --der-canvas-raised:#fafbfc;
   --der-active-bg:#e3f2fd;
+  --der-success:#2e7d32;
+  --der-success-soft:#e8f5e9;
+  --der-warning:#ef6c00;
+  --der-warning-soft:#fff3e0;
+  --der-danger:#c62828;
+  --der-danger-soft:#ffebee;
   --der-radius:4px;
+  --der-radius-lg:8px;
+  --der-shadow-sm:0 1px 2px rgba(33,41,52,0.06);
+  --der-shadow-md:0 2px 4px rgba(33,41,52,0.08);
 }
 
 *,
@@ -36,13 +48,13 @@ body{
   -webkit-font-smoothing:antialiased;
 }
 
-/* Shell layout */
+/* ===== Shell ===== */
 .ea-shell{min-height:100vh;display:flex;flex-direction:column}
 
 .ea-headerbar{
   background:var(--der-blue);
   color:#fff;
-  box-shadow:0 2px 4px rgba(0,0,0,0.12);
+  box-shadow:var(--der-shadow-md);
   position:sticky;top:0;z-index:10;
 }
 .ea-headerbar-inner{
@@ -68,10 +80,7 @@ body{
 .ea-headerbar-signout:hover{background:rgba(255,255,255,0.15)}
 
 /* Primary nav */
-.ea-nav{
-  background:var(--der-surface);
-  border-bottom:1px solid var(--der-border);
-}
+.ea-nav{background:var(--der-surface);border-bottom:1px solid var(--der-border)}
 .ea-nav-inner{
   display:flex;gap:0;padding:0 24px;max-width:1400px;margin:0 auto;
   overflow-x:auto;scrollbar-width:thin;
@@ -87,41 +96,194 @@ body{
 .ea-nav-item:hover{color:var(--der-blue);background:var(--der-canvas-raised)}
 .ea-nav-item-active{color:var(--der-blue);border-bottom-color:var(--der-blue)}
 
-/* Main area */
 .ea-main{flex:1}
-.ea-main-inner{
-  max-width:1400px;margin:0 auto;
-  padding:24px;
-}
+.ea-main-inner{max-width:1400px;margin:0 auto;padding:24px}
 
-/* Headings + typography */
-h1{font-size:24px;font-weight:400;margin:0 0 16px;color:var(--der-ink)}
+/* ===== Typography ===== */
+h1{font-size:24px;font-weight:400;margin:0 0 16px;color:var(--der-ink);letter-spacing:0}
 h2{font-size:18px;font-weight:500;margin:24px 0 12px;color:var(--der-ink)}
 h3{font-size:15px;font-weight:600;margin:16px 0 8px;color:var(--der-ink)}
+h4{font-size:14px;font-weight:600;margin:12px 0 6px;color:var(--der-ink-soft)}
 p{margin:0 0 12px;color:var(--der-ink-soft)}
+a{color:var(--der-blue);text-decoration:none}
+a:hover{text-decoration:underline}
 code{
   background:var(--der-canvas-raised);
   border:1px solid var(--der-border-subtle);
   border-radius:3px;padding:1px 6px;
-  font-family:'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size:12.5px;
+  font-family:'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+  font-size:12.5px;color:var(--der-ink);
+}
+pre{
+  background:var(--der-canvas-raised);
+  border:1px solid var(--der-border-subtle);
+  border-radius:var(--der-radius);
+  padding:12px 16px;overflow:auto;
+  font-family:'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+  font-size:12.5px;color:var(--der-ink);
 }
 
-/* Legacy .notice blocks still used by some EA screens */
-.notice{
-  max-width:680px;background:var(--der-surface);
-  border:1px solid var(--der-border);border-radius:var(--der-radius);
-  padding:16px 20px;margin-bottom:16px;
+/* ===== Screen container ===== */
+.ea-screen{display:flex;flex-direction:column;gap:16px}
+.ea-screen > section{
+  background:var(--der-surface);
+  border:1px solid var(--der-border);
+  border-radius:var(--der-radius-lg);
+  box-shadow:var(--der-shadow-sm);
+  padding:20px 24px;
 }
-.notice h2{margin-top:0}
-.notice p{line-height:1.6;color:var(--der-ink-soft)}
+.ea-screen > section > h2:first-child,
+.ea-screen > section > h3:first-child{margin-top:0}
 
-/* dl pairs (used by the Setup overview) */
-dl{display:grid;grid-template-columns:auto 1fr;gap:8px 24px;margin:0 0 16px}
+/* ===== Definition list (used across EA screens) ===== */
+dl{
+  display:grid;grid-template-columns:minmax(160px, max-content) 1fr;
+  gap:10px 24px;margin:0 0 16px;
+  background:var(--der-surface);
+  border:1px solid var(--der-border);
+  border-radius:var(--der-radius);
+  padding:16px 20px;
+}
 dt{color:var(--der-ink-muted);font-size:13px}
-dd{margin:0;color:var(--der-ink);font-size:13px}
+dd{margin:0;color:var(--der-ink);font-size:13px;font-weight:500}
 
-/* Sign-in page */
+/* ===== Buttons (raw <button> in EA screens) ===== */
+.ea-main button:not(.ea-headerbar-signout){
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 14px;
+  font-family:inherit;font-size:14px;font-weight:500;line-height:20px;
+  color:var(--der-ink);background:var(--der-surface);
+  border:1px solid var(--der-border-strong);
+  border-radius:var(--der-radius);cursor:pointer;
+  transition:background 100ms ease, border-color 100ms ease, color 100ms ease;
+}
+.ea-main button:not(.ea-headerbar-signout):hover{
+  background:var(--der-canvas-raised);border-color:var(--der-ink-muted);
+}
+.ea-main button:not(.ea-headerbar-signout):focus-visible{
+  outline:2px solid var(--der-blue);outline-offset:1px;
+}
+.ea-main button:not(.ea-headerbar-signout):disabled{
+  color:var(--der-ink-muted);background:var(--der-canvas-raised);
+  border-color:var(--der-border);cursor:not-allowed;
+}
+.ea-main button[type="submit"]:not(.ea-headerbar-signout),
+.ea-main button.primary:not(.ea-headerbar-signout){
+  color:#fff;background:var(--der-blue);border-color:var(--der-blue);
+}
+.ea-main button[type="submit"]:not(.ea-headerbar-signout):hover,
+.ea-main button.primary:not(.ea-headerbar-signout):hover{
+  background:var(--der-blue-dark);border-color:var(--der-blue-dark);
+}
+
+/* ===== Form controls (raw HTML in EA screens) ===== */
+.ea-main label{
+  display:block;font-size:13px;font-weight:500;
+  color:var(--der-ink-soft);margin-bottom:4px;
+}
+.ea-main label > span:first-child{display:block;margin-bottom:4px}
+.ea-main input[type="text"], .ea-main input[type="email"],
+.ea-main input[type="url"], .ea-main input[type="search"],
+.ea-main input[type="password"], .ea-main input[type="number"],
+.ea-main input[type="date"], .ea-main input[type="tel"],
+.ea-main select, .ea-main textarea{
+  width:100%;max-width:420px;
+  padding:6px 10px;
+  font-family:inherit;font-size:14px;line-height:20px;
+  color:var(--der-ink);background:var(--der-surface);
+  border:1px solid var(--der-border-strong);
+  border-radius:var(--der-radius);
+  transition:border-color 100ms ease, box-shadow 100ms ease;
+}
+.ea-main input:focus, .ea-main select:focus, .ea-main textarea:focus{
+  outline:none;border-color:var(--der-blue);
+  box-shadow:0 0 0 2px rgba(25,118,210,0.15);
+}
+.ea-main input:disabled, .ea-main select:disabled, .ea-main textarea:disabled{
+  background:var(--der-canvas-raised);color:var(--der-ink-muted);
+}
+.ea-main select{appearance:menulist}
+.ea-main textarea{min-height:72px;resize:vertical;max-width:720px}
+
+.ea-main form{display:flex;flex-direction:column;gap:12px}
+.ea-main form > label{display:flex;flex-direction:column;gap:4px;max-width:420px}
+.ea-main form button{align-self:flex-start}
+
+/* Keep ad-hoc buttons compact even outside a form */
+.ea-main section > button,
+.ea-main div > button:not(.ea-headerbar-signout){
+  width:auto;align-self:flex-start;
+}
+
+/* ===== Tables ===== */
+.ea-main table{
+  width:100%;border-collapse:separate;border-spacing:0;
+  background:var(--der-surface);
+  border:1px solid var(--der-border);
+  border-radius:var(--der-radius-lg);
+  overflow:hidden;
+  font-size:13px;
+}
+.ea-main thead th{
+  background:var(--der-canvas-raised);
+  color:var(--der-ink-soft);
+  font-weight:600;font-size:12px;
+  text-align:left;letter-spacing:0.2px;text-transform:uppercase;
+  padding:10px 12px;
+  border-bottom:1px solid var(--der-border);
+}
+.ea-main tbody td{
+  padding:10px 12px;color:var(--der-ink);
+  border-bottom:1px solid var(--der-border-subtle);vertical-align:top;
+}
+.ea-main tbody tr:last-child td{border-bottom:none}
+.ea-main tbody tr:hover td{background:var(--der-canvas-raised)}
+
+/* ===== Legacy .notice / .ea-notice helpers (still used by some screens) ===== */
+.notice,
+.ea-notice{
+  max-width:720px;background:var(--der-surface);
+  border:1px solid var(--der-border);border-radius:var(--der-radius-lg);
+  padding:16px 20px;margin-bottom:16px;
+  box-shadow:var(--der-shadow-sm);
+}
+.notice h2, .ea-notice h2, .ea-notice h3{margin-top:0}
+.ea-notice--error{
+  border-left:4px solid var(--der-danger);
+  background:var(--der-danger-soft);
+}
+.ea-notice--warning{
+  border-left:4px solid var(--der-warning);
+  background:var(--der-warning-soft);
+}
+.ea-notice-wrap{max-width:720px;margin:0 0 16px}
+
+/* ScreenStates helpers (DHIS2-styled) */
+.ea-centered{
+  display:flex;align-items:center;gap:12px;
+  padding:24px;color:var(--der-ink-muted);font-size:13px;
+}
+.ea-centered-text{display:inline-block}
+
+/* ===== OU picker / common screen clusters ===== */
+.ea-ou-picker{display:flex;flex-direction:column;gap:12px}
+.ea-ou-picker label span{display:block;margin-bottom:4px}
+.ea-ou-picker select{max-width:520px}
+
+/* ===== Chips / tags ===== */
+.ea-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:2px 10px;border-radius:999px;
+  font-size:12px;font-weight:500;line-height:18px;
+  background:var(--der-canvas-raised);color:var(--der-ink-soft);
+  border:1px solid var(--der-border);
+}
+.ea-chip--success{background:var(--der-success-soft);color:var(--der-success);border-color:transparent}
+.ea-chip--warning{background:var(--der-warning-soft);color:var(--der-warning);border-color:transparent}
+.ea-chip--danger{background:var(--der-danger-soft);color:var(--der-danger);border-color:transparent}
+.ea-chip--info{background:var(--der-blue-soft);color:var(--der-blue-dark);border-color:transparent}
+
+/* ===== Sign-in page ===== */
 .ea-sign-in{
   display:flex;align-items:center;justify-content:center;
   padding:48px 16px;min-height:calc(100vh - 48px);
@@ -145,15 +307,42 @@ dd{margin:0;color:var(--der-ink);font-size:13px}
 }
 .ea-sign-in-alert{margin:0 0 16px}
 .ea-sign-in-spacer{height:12px}
+.ea-sign-in-dev-hint{margin:0 0 20px}
+.ea-sign-in-dev-hint-row{
+  display:flex;align-items:center;gap:10px;
+  font-size:12px;color:var(--der-ink-soft);
+  margin:4px 0;flex-wrap:wrap;
+}
+.ea-sign-in-dev-hint-row > span:first-child{
+  min-width:70px;color:var(--der-ink-muted);
+  font-size:11px;letter-spacing:0.3px;text-transform:uppercase;
+}
+.ea-sign-in-dev-hint-row code{
+  font-size:12px;padding:2px 8px;background:rgba(255,255,255,0.6);
+  border:1px solid var(--der-border-subtle);word-break:break-all;
+}
+.ea-sign-in-dev-fill{
+  background:var(--der-blue);color:#fff;border:0;
+  padding:3px 10px;border-radius:3px;font-size:11px;font-weight:600;
+  cursor:pointer;letter-spacing:0.3px;
+}
+.ea-sign-in-dev-fill:hover{background:var(--der-blue-dark)}
+.ea-sign-in-dev-hint-note{
+  margin:8px 0 0;font-size:11px;color:var(--der-ink-muted);
+}
 .ea-sign-in-footnote{
   text-align:center;color:var(--der-ink-muted);
   font-size:11px;letter-spacing:0.4px;margin:20px 0 0;
 }
 
-/* Responsive */
+/* ===== Responsive ===== */
 @media(max-width:900px){
   .ea-headerbar-inner{padding:0 12px}
   .ea-main-inner{padding:16px}
   .ea-brand-text{display:none}
   .ea-nav-inner{padding:0 12px}
+  .ea-main table{font-size:12px}
+  .ea-main thead th, .ea-main tbody td{padding:8px 10px}
+  dl{grid-template-columns:1fr;gap:4px 0}
+  dt{margin-top:8px}
 }

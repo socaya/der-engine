@@ -1,36 +1,48 @@
 import type { ReactNode } from 'react';
+import { CircularLoader, NoticeBox } from '@dhis2/ui';
 
-/** Admin-ui equivalents of the client ScreenStates helpers (plain HTML). */
+/**
+ * Admin-ui standard screen-state primitives, styled with @dhis2/ui so
+ * every EA screen renders consistent loading/empty/error/offline
+ * cards without bespoke CSS.
+ */
 
 export function LoadingBlock({ testId }: { testId: string }): JSX.Element {
-  return <div className="ea-centered" data-test={testId} role="status">Loading…</div>;
+  return (
+    <div className="ea-centered" data-test={testId} role="status">
+      <CircularLoader small />
+      <span className="ea-centered-text">Loading…</span>
+    </div>
+  );
 }
 
 export function ErrorBlock({ title, testId, children }:
     { title: string; testId: string; children: ReactNode }): JSX.Element {
   return (
-    <section className="ea-notice ea-notice--error" data-test={testId} role="alert">
-      <h3>{title}</h3>
-      <p>{children}</p>
-    </section>
+    <div className="ea-notice-wrap" data-test={testId}>
+      <NoticeBox error title={title}>
+        {children}
+      </NoticeBox>
+    </div>
   );
 }
 
 export function EmptyBlock({ title, testId, children }:
     { title: string; testId: string; children: ReactNode }): JSX.Element {
   return (
-    <section className="ea-notice" data-test={testId}>
-      <h3>{title}</h3>
-      <p>{children}</p>
-    </section>
+    <div className="ea-notice-wrap" data-test={testId}>
+      <NoticeBox title={title}>{children}</NoticeBox>
+    </div>
   );
 }
 
 export function OfflineBanner({ testId }: { testId: string }): JSX.Element {
   return (
-    <section className="ea-notice ea-notice--warning" data-test={testId}>
-      DHIS2 central not reachable; actions here write to the local edge store
-      and will reconcile when WAN returns.
-    </section>
+    <div className="ea-notice-wrap" data-test={testId}>
+      <NoticeBox warning title="DHIS2 central unreachable">
+        DHIS2 central is not reachable. Actions here write to the local edge
+        store and reconcile when WAN returns.
+      </NoticeBox>
+    </div>
   );
 }

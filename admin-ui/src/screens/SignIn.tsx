@@ -92,6 +92,32 @@ export function SignIn(): JSX.Element {
             </div>
           )}
 
+          <div className="ea-sign-in-dev-hint" data-test="sign-in-dev-hint">
+            <NoticeBox title="Test credentials (dev build only)">
+              <div className="ea-sign-in-dev-hint-row">
+                <span>Username</span>
+                <code>der-admin</code>
+                <button
+                  type="button"
+                  className="ea-sign-in-dev-fill"
+                  onClick={() => {
+                    setUsername('der-admin');
+                    setPassword('OY2/uIass26KcwqwMIc+UjqlBDNDU4ER');
+                  }}
+                >
+                  Autofill
+                </button>
+              </div>
+              <div className="ea-sign-in-dev-hint-row">
+                <span>Password</span>
+                <code>OY2/uIass26KcwqwMIc+UjqlBDNDU4ER</code>
+              </div>
+              <p className="ea-sign-in-dev-hint-note">
+                Rotate before any shared or production use. See{' '}
+                <code>docs/evaluation/TEST_CREDENTIALS.md</code>.
+              </p>
+            </NoticeBox>
+          </div>
           <form onSubmit={onSubmit} data-test="sign-in-form">
             <div data-test="sign-in-username-field">
               <InputField
