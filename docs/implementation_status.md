@@ -157,6 +157,14 @@ real DHIS2.
 
 Evidence: `docs/evaluation/evidence/alpha.4-proxy-csp/`.
 
+- **Playwright DC live smoke suite** (`client/e2e/live-dc-smoke.spec.ts`).
+  9 tests exercising a real DER server (`localhost:8085`) + DHIS2
+  2.44-SNAPSHOT (`localhost:8080`): unauth health, admin sign-in,
+  rich `/system/info`, `/api/apps` DHIS2-compat, proxy allow-list,
+  attribution mapping, custom app index/manifest/301. Opt-in via
+  `DER_LIVE_SMOKE=true`. All 9 green against local pilot stack.
+  Evidence: `docs/evaluation/evidence/alpha.4-playwright-smoke/`.
+
 ## Alpha.1 (this release — der-2.0.2-alpha.1)
 
 - Flipped all 54 UI screens in `screen-traceability.csv` to `done`

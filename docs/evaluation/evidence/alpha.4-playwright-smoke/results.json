@@ -1,0 +1,627 @@
+{
+  "config": {
+    "argv": [
+      "/Users/stephocay/.nvm/versions/node/v20.19.6/bin/node",
+      "/Users/stephocay/projects/msdcse-project/der/client/node_modules/.bin/playwright",
+      "test",
+      "live-dc-smoke",
+      "--project",
+      "chromium-desktop",
+      "--reporter",
+      "json"
+    ],
+    "configFile": "/Users/stephocay/projects/msdcse-project/der/client/playwright.config.ts",
+    "rootDir": "/Users/stephocay/projects/msdcse-project/der/client/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/stephocay/projects/msdcse-project/der/client/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium-desktop",
+        "name": "chromium-desktop",
+        "testDir": "/Users/stephocay/projects/msdcse-project/der/client/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/stephocay/projects/msdcse-project/der/client/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium-mobile",
+        "name": "chromium-mobile",
+        "testDir": "/Users/stephocay/projects/msdcse-project/der/client/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/Users/stephocay/projects/msdcse-project/der/client/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "chromium-desktop",
+        "testDir": "/Users/stephocay/projects/msdcse-project/der/client/e2e",
+        "snapshotDir": "/Users/stephocay/projects/msdcse-project/der/client/e2e",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 30000,
+        "use": {
+          "baseURL": "http://localhost:5174",
+          "trace": "retain-on-failure",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Safari/537.36",
+          "viewport": {
+            "width": 1280,
+            "height": 720
+          },
+          "screen": {
+            "width": 1920,
+            "height": 1080
+          },
+          "deviceScaleFactor": 1,
+          "isMobile": false,
+          "hasTouch": false,
+          "defaultBrowserType": "chromium"
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "chromium-desktop"
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.1",
+    "workers": 6,
+    "webServer": {
+      "command": "npm run build && npm run preview -- --host 127.0.0.1 --port 5174",
+      "url": "http://localhost:5174",
+      "reuseExistingServer": false,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "live-dc-smoke.spec.ts",
+      "file": "live-dc-smoke.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "DER live DC smoke",
+          "file": "live-dc-smoke.spec.ts",
+          "line": 29,
+          "column": 6,
+          "specs": [
+            {
+              "title": "unauth /system/health returns 200",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-desktop",
+                  "projectName": "chromium-desktop",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 32,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-23T09:59:57.185Z",
+                      "annotations": [
+                        {
+                          "type": "serial",
+                          "location": {
+                            "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                            "line": 0,
+                            "column": 0
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af0b52d8f7a656a07c70-fc6c4ba652ea1bcef768",
+              "file": "live-dc-smoke.spec.ts",
+              "line": 33,
+              "column": 3
+            },
+            {
+              "title": "admin sign-in issues a session cookie",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-desktop",
+                  "projectName": "chromium-desktop",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 390,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-23T09:59:57.232Z",
+                      "annotations": [
+                        {
+                          "type": "serial",
+                          "location": {
+                            "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                            "line": 0,
+                            "column": 0
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af0b52d8f7a656a07c70-99d4cda33f6dd9053b91",
+              "file": "live-dc-smoke.spec.ts",
+              "line": 41,
+              "column": 3
+            },
+            {
+              "title": "authed /system/info returns rich snapshot",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-desktop",
+                  "projectName": "chromium-desktop",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 363,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-23T09:59:57.627Z",
+                      "annotations": [
+                        {
+                          "type": "serial",
+                          "location": {
+                            "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                            "line": 0,
+                            "column": 0
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af0b52d8f7a656a07c70-612bb65576128b64a4a9",
+              "file": "live-dc-smoke.spec.ts",
+              "line": 50,
+              "column": 3
+            },
+            {
+              "title": "DHIS2-compat /api/apps lists enabled apps",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-desktop",
+                  "projectName": "chromium-desktop",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 324,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-23T09:59:57.995Z",
+                      "annotations": [
+                        {
+                          "type": "serial",
+                          "location": {
+                            "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                            "line": 0,
+                            "column": 0
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af0b52d8f7a656a07c70-34d3e374e363b3187c30",
+              "file": "live-dc-smoke.spec.ts",
+              "line": 66,
+              "column": 3
+            },
+            {
+              "title": "proxy denies off-list /api/users",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-desktop",
+                  "projectName": "chromium-desktop",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 308,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-23T09:59:58.323Z",
+                      "annotations": [
+                        {
+                          "type": "serial",
+                          "location": {
+                            "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                            "line": 0,
+                            "column": 0
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af0b52d8f7a656a07c70-2434ce11ea4a19e38f25",
+              "file": "live-dc-smoke.spec.ts",
+              "line": 84,
+              "column": 3
+            },
+            {
+              "title": "attribution mapping endpoint reachable",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-desktop",
+                  "projectName": "chromium-desktop",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 319,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-23T09:59:58.635Z",
+                      "annotations": [
+                        {
+                          "type": "serial",
+                          "location": {
+                            "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                            "line": 0,
+                            "column": 0
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af0b52d8f7a656a07c70-4779d2bece4b7d901d51",
+              "file": "live-dc-smoke.spec.ts",
+              "line": 95,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "DER live custom-app smoke",
+          "file": "live-dc-smoke.spec.ts",
+          "line": 110,
+          "column": 6,
+          "specs": [
+            {
+              "title": "/dhis-web-der-sample-app serves index + CSP header",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-desktop",
+                  "projectName": "chromium-desktop",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 300,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-23T09:59:58.957Z",
+                      "annotations": [
+                        {
+                          "type": "serial",
+                          "location": {
+                            "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                            "line": 0,
+                            "column": 0
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af0b52d8f7a656a07c70-915a3af5e4700e91f3b7",
+              "file": "live-dc-smoke.spec.ts",
+              "line": 120,
+              "column": 3
+            },
+            {
+              "title": "/dhis-web-der-sample-app/manifest.webapp served from DB",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-desktop",
+                  "projectName": "chromium-desktop",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 321,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-23T09:59:59.261Z",
+                      "annotations": [
+                        {
+                          "type": "serial",
+                          "location": {
+                            "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                            "line": 0,
+                            "column": 0
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af0b52d8f7a656a07c70-510532212680490872f9",
+              "file": "live-dc-smoke.spec.ts",
+              "line": 136,
+              "column": 3
+            },
+            {
+              "title": "/dhis-web-foo (no slash) returns 301 to slash",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-desktop",
+                  "projectName": "chromium-desktop",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 305,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-23T09:59:59.585Z",
+                      "annotations": [
+                        {
+                          "type": "serial",
+                          "location": {
+                            "file": "/Users/stephocay/projects/msdcse-project/der/client/e2e/live-dc-smoke.spec.ts",
+                            "line": 0,
+                            "column": 0
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af0b52d8f7a656a07c70-b98c44506c8d89da7358",
+              "file": "live-dc-smoke.spec.ts",
+              "line": 149,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-23T09:59:53.044Z",
+    "duration": 6863.744000000001,
+    "expected": 9,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
