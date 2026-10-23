@@ -15,6 +15,16 @@ is recorded separately per release in `docs/releases/`.
 
 - Pilot acceptance evidence bundle under `docs/evaluation/evidence/phase-09/<run>/`; stable `der-1.0.0` cut when the pilot run passes NFR-15/17/18/29 thresholds.
 
+## [1.3.0] — 2026-10-23
+
+Second stable release. Bundles alphas 1.3.0-alpha.1 through 1.3.0-alpha.5 under a single tag; no code change versus 1.3.0-alpha.5.
+
+- Initiative 10 slice B is feature-complete: device-owner config (ADR-0022) + enforcement (ADR-0023) + program-binding + import/export (ADR-0024) + reconciler scaffolding (ADR-0025) + state transitions + event/tracker ingest (ADR-0026).
+- Three roadmap items deferred to point releases: Initiative 2 part 1 (DHIS2 Edge Agent server plugin), Initiative 3 option A (chain-via-hub referral), Initiative 8 part 3 (MFA). Flagged in `docs/releases/der-1.3.0.md`.
+- Pilot acceptance under `docs/evaluation/evidence/phase-12/` remains open per the same policy as `der-1.2.0`.
+
+[1.3.0]: https://github.com/socaya/der-engine/releases/tag/der-1.3.0
+
 ## [1.3.0-alpha.5] — unreleased
 
 Initiative 10 slice B closeout — run-state transitions + event/tracker ingest (ADR-0026). Slice B is feature-complete.
