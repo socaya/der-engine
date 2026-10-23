@@ -5,7 +5,7 @@
 > column in `docs/verification/traceability-matrix.csv` (which was
 > never updated as alphas landed).
 
-**Last updated:** 2026-10-23 · prepared for `der-2.0.2` stable.
+**Last updated:** 2026-10-23 · prepared for `der-2.0.3-alpha.1`.
 **Scope:** All 211 requirements (176 FR + 35 NFR) from
 `docs/requirements/source-functional-register.csv` and
 `source-nonfunctional-register.csv`.
@@ -36,8 +36,8 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 
 | Status | Count | % | CSV status |
 |---|---:|---:|---|
-| ✅ DONE (verified) | 168 | 80% | `done` |
-| 🟡 PARTIAL (specific gap documented) | 43 | 20% | `in-progress` |
+| ✅ DONE (verified) | 171 | 81% | `done` |
+| 🟡 PARTIAL (specific gap documented) | 40 | 19% | `in-progress` |
 | ❌ PENDING | 0 | 0% | `pending` |
 
 ### Combined scorecard
@@ -45,8 +45,40 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 | Dimension | DONE | Total | % |
 |---|---:|---:|---:|
 | UI screens | 54 | 54 | 100% |
-| FR / NFR | 168 | 211 | 80% |
-| **All requirements** | **222** | **265** | **84%** |
+| FR / NFR | 171 | 211 | 81% |
+| **All requirements** | **225** | **265** | **85%** |
+
+## Alpha.1 of der-2.0.3 — tracker lifecycle
+
+V027 migration + three new JDBC repositories + three new REST
+controllers extend the TEI-only tracker surface (shipped in 2.0.1)
+to the full lifecycle:
+
+- `der.edge_enrollment` — FK to V025 `tracked_entity`.
+- `der.edge_tracker_event` — FK to `edge_enrollment`, nested
+  `dataValues` JSONB, status machine.
+- `der.edge_tracker_relationship` — endpoint-existence validated
+  at the controller for TEIs, enrollments, events (bidirectional
+  flag supported).
+- All three persist `created_by` + `stored_by_dhis2_uid` (ADR-0032
+  attribution engine) + `version` monotonic counter.
+- Controllers reject orphan creations with 400 + typed error codes.
+
+**Three FRs flip to DONE** after live-verification against local
+DHIS2 2.44-SNAPSHOT:
+
+- **FR-08-06 Preserve permitted TEI/event relationships with
+  referential integrity.** `edge_tracker_relationship` + endpoint
+  validation.
+- **FR-08-10 Synchronise entity/enrolment/event/relationship
+  dependencies in safe order.** FK CASCADE + controller orphan
+  rejection + by-enrollment/by-tei queries preserve the graph.
+- **FR-08-12 Retain actor, operation identity and locally committed
+  workflow history.** Full audit trail across all three tables.
+
+Live-verified: TEI → enrollment → event → relationship chain
+succeeds; orphan enrollment rejected with `TEI_NOT_FOUND`; storedBy
+populated from mapping engine.
 
 ## Alpha.2 (this release — der-2.0.2-alpha.2)
 
