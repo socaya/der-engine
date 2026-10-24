@@ -60,16 +60,18 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     id: 'integration',
     label: 'DHIS2',
-    primaryId: 'compat',
+    primaryId: 'dhis2-overview',
     icon: 'plug',
     items: [
-      { id: 'compat', label: 'Compatibility', to: '/compat', status: 'implemented' },
+      { id: 'dhis2-overview', label: 'Overview', to: '/integration', status: 'implemented' },
       { id: 'central-conn', label: 'Connection', to: '/integration/connection', status: 'implemented' },
       { id: 'ou-binding', label: 'Organisation unit', to: '/integration/organisation-unit', status: 'implemented' },
+      { id: 'compat', label: 'Compatibility', to: '/compat', status: 'implemented' },
       { id: 'compat-history', label: 'Compat history', to: '/compat/history', status: 'implemented' },
       { id: 'metadata-mirror', label: 'Metadata mirror', to: '/metadata', status: 'implemented' },
       { id: 'drift', label: 'Metadata drift', to: '/sync/drift', status: 'implemented' },
       { id: 'program-rules', label: 'Program rules', to: '/integration/program-rules', status: 'implemented' },
+      { id: 'metadata-sync', label: 'Metadata sync', to: '/sync/metadata', status: 'implemented' },
     ],
   },
   {

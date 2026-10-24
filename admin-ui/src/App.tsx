@@ -36,6 +36,7 @@ import { MockupDataManagement } from './screens/mockups/DataManagement';
 import { MockupDataQueues } from './screens/mockups/DataQueues';
 import { MockupSyncHistory } from './screens/mockups/SyncHistory';
 import { MockupUsersDashboard } from './screens/mockups/UsersDashboard';
+import { MockupDhis2Overview } from './screens/mockups/Dhis2Overview';
 import {
   MockupJobsList, MockupDriftInspector, MockupConflictList, MockupWorkerHealth,
   MockupDeviceFleet, MockupApprovalQueue, MockupReferralInbox,
@@ -141,6 +142,7 @@ export default function App(): JSX.Element {
               existing /edge-api/v1 endpoints. */}
           <Route path="/dashboard" element={<RequireAuth><MockupDashboard /></RequireAuth>} />
           <Route path="/system/information" element={<RequireAuth><CapSystemInformation /></RequireAuth>} />
+          <Route path="/integration" element={<RequireAuth><MockupDhis2Overview /></RequireAuth>} />
           <Route path="/integration/connection" element={<RequireAuth><CapCentralConnection /></RequireAuth>} />
           <Route path="/integration/organisation-unit" element={<RequireAuth><CapOrgUnitBinding /></RequireAuth>} />
           <Route path="/integration/program-rules" element={<RequireAuth><CapProgramRules /></RequireAuth>} />

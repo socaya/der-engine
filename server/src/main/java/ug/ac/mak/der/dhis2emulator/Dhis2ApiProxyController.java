@@ -63,7 +63,8 @@ public class Dhis2ApiProxyController {
             "/api/me", "/api/userDataStore", "/api/dataStore",
             "/api/sqlViews", "/api/visualizations", "/api/eventReports",
             "/api/maps", "/api/charts", "/api/reports", "/api/indicators",
-            "/api/organisationUnitLevels", "/api/categoryOptions",
+            "/api/organisationUnitLevels", "/api/organisationUnitGroups",
+            "/api/organisationUnitGroupSets", "/api/categoryOptions",
             "/api/categoryOptionCombos", "/api/categoryCombos");
 
     private final HttpClient http;
@@ -73,7 +74,7 @@ public class Dhis2ApiProxyController {
     private final Set<String> allowPrefixes;
 
     public Dhis2ApiProxyController(final HttpClient http, final Dhis2Properties props,
-                                     @Value("${der.dhis2.proxy.enabled:false}") final boolean enabled,
+                                     @Value("${der.dhis2.proxy.enabled:true}") final boolean enabled,
                                      @Value("${der.dhis2.proxy.allow-writes:false}") final boolean allowWrites,
                                      @Value("${der.dhis2.proxy.allow-paths:}") final String allowPaths) {
         this.http = Objects.requireNonNull(http, "http");

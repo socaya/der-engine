@@ -225,37 +225,76 @@ export function CapSystemInformation(): JSX.Element {
 export function CapCentralConnection(): JSX.Element {
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
   const [c, setC] = useState<edgeApi.CompatSnapshot | null>(null);
+  const [cfg, setCfg] = useState<edgeApi.Dhis2ConnectionPayload | null>(null);
+  const [draft, setDraft] = useState<Partial<edgeApi.Dhis2ConnectionPayload>>({});
   const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   async function reload(): Promise<void> {
-    const [a, b] = await Promise.allSettled([edgeApi.systemInfo(), edgeApi.compat()]);
+    const [a, b, d] = await Promise.allSettled([
+      edgeApi.systemInfo(), edgeApi.compat(), edgeApi.readDhis2Connection(),
+    ]);
     if (a.status === 'fulfilled') setSi(a.value);
     if (b.status === 'fulfilled') setC(b.value);
+    if (d.status === 'fulfilled') { setCfg(d.value); setDraft(d.value); }
     if (a.status === 'rejected') setErr(a.reason instanceof Error ? a.reason.message : String(a.reason));
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
+
   async function refresh(): Promise<void> {
     setRefreshing(true);
     try { setC(await edgeApi.refreshCompat()); } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally { setRefreshing(false); }
   }
+
+  function set<K extends keyof edgeApi.Dhis2ConnectionPayload>(
+      k: K, v: edgeApi.Dhis2ConnectionPayload[K] | string | boolean | number | null): void {
+    setDraft((d) => ({ ...d, [k]: v as edgeApi.Dhis2ConnectionPayload[K] }));
+  }
+
+  async function save(): Promise<void> {
+    setSaving(true); setErr(null); setMsg(null);
+    try {
+      const payload: Partial<edgeApi.Dhis2ConnectionPayload> = { ...draft };
+      // Don't send masked secret placeholders back
+      if (payload.password === '***') delete (payload as Record<string, unknown>).password;
+      if (payload.patToken === '***') delete (payload as Record<string, unknown>).patToken;
+      const saved = await edgeApi.writeDhis2Connection(payload);
+      setCfg(saved); setDraft(saved);
+      setMsg('Connection settings saved. Changes take effect on next sync / probe.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally { setSaving(false); }
+  }
+
   if (err && !si) return <ErrorBlock title="Connection probe failed" testId="err-connection-probe-failed">{err}</ErrorBlock>;
-  if (!si || !c) return <LoadingBlock testId="loading" />;
+  if (!si || !c || !cfg) return <LoadingBlock testId="loading" />;
   const reach = c.probeReachable;
+
   return (
     <div className="ea-screen" data-test="cap-connection">
       <HeroHeader
         title="Central connection"
-        subtitle="Upstream DHIS2 instance and reachability from this edge."
+        subtitle="Edit the DHIS2 central-connection and compatibility policy for this edge. ADMIN only."
         actions={
-          <button type="button" className="ea-btn ea-btn--primary"
-                  disabled={refreshing}
-                  onClick={() => { refresh().catch(() => undefined); }}>
-            {refreshing ? 'Probing…' : 'Probe now'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="ea-btn ea-btn--ghost"
+                    disabled={refreshing}
+                    onClick={() => { refresh().catch(() => undefined); }}>
+              {refreshing ? 'Probing…' : 'Probe now'}
+            </button>
+            <button type="button" className="ea-btn ea-btn--primary"
+                    disabled={saving}
+                    onClick={() => { save().catch(() => undefined); }}>
+              {saving ? 'Saving…' : 'Save connection'}
+            </button>
+          </div>
         }
       />
+
       <div className="ea-stat-strip">
         <Stat label="Reachable" value={reach ? 'yes' : 'no'}
               tone={reach ? 'success' : 'danger'} />
@@ -264,10 +303,154 @@ export function CapCentralConnection(): JSX.Element {
         <Stat label="Probe RTT"
               value={si.dhis2.probeDurationMs != null ? `${si.dhis2.probeDurationMs} ms` : '—'} />
       </div>
-      <DefinitionCard title="Connection" rows={[
-        ['Base URL', <span key="u" className="ea-mono">{si.dhis2.centralBaseUrl ?? '—'}</span>],
-        ['Pinned version', si.dhis2.pinnedVersion ?? '—'],
-        ['Allow mismatch', si.dhis2.allowMismatch ? 'yes' : 'no'],
+
+      {msg && <p className="ea-saved">{msg}</p>}
+      {err && <ErrorBlock title="Save failed" testId="err-conn-save">{err}</ErrorBlock>}
+
+      <section className="ea-card ea-form-card">
+        <div className="ea-form-section">
+          <div className="ea-form-section-head">
+            <h2>Connection</h2>
+            <p>Base URL + optional service-account authentication to the central DHIS2.</p>
+          </div>
+          <div className="ea-form-grid">
+            <label className="ea-field">
+              <span className="ea-field-label">Base URL</span>
+              <input className="ea-input ea-mono" type="url"
+                     placeholder="https://dhis.example.org/dhis"
+                     value={draft.baseUrl ?? ''}
+                     onChange={(e) => set('baseUrl', e.target.value)} />
+              <span className="ea-field-hint">
+                No trailing slash. Current compiled default: {si.dhis2.centralBaseUrl ?? '—'}
+              </span>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Service account username</span>
+              <input className="ea-input" type="text" autoComplete="off"
+                     value={draft.username ?? ''}
+                     onChange={(e) => set('username', e.target.value)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Service account password</span>
+              <input className="ea-input" type="password" autoComplete="new-password"
+                     placeholder={cfg.passwordSet ? 'leave blank to keep ***' : 'password'}
+                     value={draft.password === '***' ? '' : (draft.password ?? '')}
+                     onChange={(e) => set('password', e.target.value)} />
+              <span className="ea-field-hint">
+                {cfg.passwordSet
+                  ? 'A password is already set. Leave blank to keep it unchanged.'
+                  : 'Stored encrypted (AES-256-GCM via SecretEnvelope) when der.security.secret-key is configured.'}
+              </span>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Personal access token (PAT)</span>
+              <input className="ea-input ea-mono" type="password" autoComplete="new-password"
+                     placeholder={cfg.patTokenSet ? 'leave blank to keep ***' : 'd2pat_xxx…'}
+                     value={draft.patToken === '***' ? '' : (draft.patToken ?? '')}
+                     onChange={(e) => set('patToken', e.target.value)} />
+              <span className="ea-field-hint">
+                If set, DER prefers the PAT (Bearer) over username/password Basic auth.
+              </span>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Connect timeout (ms)</span>
+              <input className="ea-input ea-mono" type="number" min={1000} max={120000}
+                     value={draft.connectTimeoutMillis ?? ''}
+                     onChange={(e) => set('connectTimeoutMillis', e.target.value ? Number(e.target.value) : null)} />
+            </label>
+          </div>
+        </div>
+
+        <div className="ea-form-section">
+          <div className="ea-form-section-head">
+            <h2>Compatibility</h2>
+            <p>ADR-0006 compatibility policy — hard floor, max tested version and probe strictness.</p>
+          </div>
+          <div className="ea-form-grid">
+            <label className="ea-field">
+              <span className="ea-field-label">Minimum supported DHIS2 version</span>
+              <input className="ea-input ea-mono" placeholder="2.41"
+                     value={draft.minSupportedVersion ?? ''}
+                     onChange={(e) => set('minSupportedVersion', e.target.value)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Maximum tested version</span>
+              <input className="ea-input ea-mono" placeholder="2.44"
+                     value={draft.maxTestedVersion ?? ''}
+                     onChange={(e) => set('maxTestedVersion', e.target.value)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Pinned version (legacy)</span>
+              <input className="ea-input ea-mono" placeholder="2.44"
+                     value={draft.pinnedVersion ?? ''}
+                     onChange={(e) => set('pinnedVersion', e.target.value)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Probe mode</span>
+              <select className="ea-input" value={draft.compatMode ?? 'strict'}
+                      onChange={(e) => set('compatMode', e.target.value)}>
+                <option value="strict">strict — fail closed on probe exceptions</option>
+                <option value="permissive">permissive — warn, keep running</option>
+              </select>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Snapshot TTL (hours)</span>
+              <input className="ea-input ea-mono" type="number" min={1} max={720}
+                     value={draft.snapshotTtlHours ?? ''}
+                     onChange={(e) => set('snapshotTtlHours', e.target.value ? Number(e.target.value) : null)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Allow version mismatch</span>
+              <label className="ea-flag-row">
+                <input type="checkbox" className="ea-switch"
+                       checked={!!draft.allowMismatch}
+                       onChange={(e) => set('allowMismatch', e.target.checked)} />
+                <span className="ea-flag-name">
+                  Boot even when the central version is outside min / max
+                </span>
+              </label>
+            </label>
+          </div>
+        </div>
+
+        <div className="ea-form-section">
+          <div className="ea-form-section-head">
+            <h2>DHIS2 /api/** proxy</h2>
+            <p>Opt-in passthrough so custom DHIS2 apps running on DER can call analytics / dataStore / etc. straight through to central.</p>
+          </div>
+          <div className="ea-form-grid">
+            <label className="ea-field">
+              <span className="ea-field-label">Enabled</span>
+              <label className="ea-flag-row">
+                <input type="checkbox" className="ea-switch"
+                       checked={!!draft.proxyEnabled}
+                       onChange={(e) => set('proxyEnabled', e.target.checked)} />
+                <span className="ea-flag-name">Pass /api/** through to central (read-side only by default)</span>
+              </label>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Allow writes</span>
+              <label className="ea-flag-row">
+                <input type="checkbox" className="ea-switch"
+                       checked={!!draft.proxyAllowWrites}
+                       onChange={(e) => set('proxyAllowWrites', e.target.checked)} />
+                <span className="ea-flag-name">Also pass POST / PUT / DELETE / PATCH through (bypasses the journal)</span>
+              </label>
+            </label>
+            <label className="ea-field" style={{ gridColumn: '1 / -1' }}>
+              <span className="ea-field-label">Allow-path prefixes (CSV, blank = defaults)</span>
+              <input className="ea-input ea-mono"
+                     placeholder="/api/analytics,/api/dataStore,…"
+                     value={draft.proxyAllowPaths ?? ''}
+                     onChange={(e) => set('proxyAllowPaths', e.target.value)} />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <DefinitionCard title="Probe details (read-only)" rows={[
+        ['Compiled default URL', <span key="u" className="ea-mono">{si.dhis2.centralBaseUrl ?? '—'}</span>],
+        ['Observed version', si.dhis2.centralVersion ?? '—'],
         ['Captured at', si.dhis2.capturedAt ?? '—'],
         ['Reason', si.dhis2.reason ?? '—'],
       ]} />
@@ -280,6 +463,7 @@ export function CapOrgUnitBinding(): JSX.Element {
   const [ous, setOus] = useState<edgeApi.OrgUnitRow[]>([]);
   const [groups, setGroups] = useState<edgeApi.OrgUnitGroupRow[]>([]);
   const [groupSets, setGroupSets] = useState<edgeApi.OrgUnitGroupSetRow[]>([]);
+  const [ouLevels, setOuLevels] = useState<edgeApi.OrgUnitLevelRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [sel, setSel] = useState('');
   const [confirmRebind, setConfirmRebind] = useState(false);
@@ -297,12 +481,15 @@ export function CapOrgUnitBinding(): JSX.Element {
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
   async function loadFilters(): Promise<void> {
-    const [g, gs] = await Promise.allSettled([
+    const [g, gs, lv] = await Promise.allSettled([
       edgeApi.listOrgUnitGroups(),
       edgeApi.listOrgUnitGroupSets(),
+      edgeApi.listOrgUnitLevels(),
     ]);
     if (g.status === 'fulfilled') setGroups(g.value.organisationUnitGroups);
     if (gs.status === 'fulfilled') setGroupSets(gs.value.organisationUnitGroupSets);
+    if (lv.status === 'fulfilled') setOuLevels(
+      [...lv.value.organisationUnitLevels].sort((a, b) => a.level - b.level));
   }
   async function loadOus(): Promise<void> {
     setLoadingOus(true);
@@ -351,7 +538,9 @@ export function CapOrgUnitBinding(): JSX.Element {
   }
   if (!b) return <LoadingBlock testId="loading" />;
 
-  const levels = Array.from({ length: 7 }, (_, i) => i + 1);
+  const levels: Array<{ level: number; label: string }> = ouLevels.length
+    ? ouLevels.map((l) => ({ level: l.level, label: `Level ${l.level} · ${l.displayName}` }))
+    : Array.from({ length: 7 }, (_, i) => ({ level: i + 1, label: `Level ${i + 1}` }));
 
   return (
     <div className="ea-screen" data-test="cap-ou">
@@ -398,7 +587,7 @@ export function CapOrgUnitBinding(): JSX.Element {
                       onChange={(e) => setFilterLevel(e.target.value ? Number(e.target.value) : '')}>
                 <option value="">Any level</option>
                 {levels.map((l) => (
-                  <option key={l} value={l}>Level {l}</option>
+                  <option key={l.level} value={l.level}>{l.label}</option>
                 ))}
               </select>
             </label>
@@ -425,17 +614,14 @@ export function CapOrgUnitBinding(): JSX.Element {
               <span className="ea-field-label">
                 Organisation unit {loadingOus ? '· loading…' : `· ${ous.length} match${ous.length === 1 ? '' : 'es'}`}
               </span>
-              <select className="ea-input" size={10}
+              <select className="ea-input"
                       value={sel} onChange={(e) => setSel(e.target.value)}
                       data-test="ou-list">
-                {ous.length === 0 && (
-                  <option value="" disabled>— No matches —</option>
-                )}
+                <option value="">— Select an organisation unit —</option>
                 {ous.map((o) => (
                   <option key={o.id} value={o.id}>
-                    {'  '.repeat(Math.max(0, (o.level ?? 1) - 1))}
                     {o.displayName}
-                    {o.level ? ` · L${o.level}` : ''}
+                    {o.level ? ` · Level ${o.level}` : ''}
                     {o.code ? ` · ${o.code}` : ''}
                   </option>
                 ))}

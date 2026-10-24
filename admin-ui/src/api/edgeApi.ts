@@ -599,6 +599,42 @@ export function listOrgUnitGroupSets(): Promise<{ organisationUnitGroupSets: Org
   return request('GET', '/api/organisationUnitGroupSets?fields=id,displayName,organisationUnitGroups[id,displayName]&paging=false');
 }
 
+export interface OrgUnitLevelRow {
+  id: string;
+  level: number;
+  displayName: string;
+}
+export function listOrgUnitLevels(): Promise<{ organisationUnitLevels: OrgUnitLevelRow[] }> {
+  return request('GET', '/api/organisationUnitLevels?fields=id,level,displayName&paging=false');
+}
+
+export interface Dhis2ConnectionPayload {
+  baseUrl: string | null;
+  username: string | null;
+  password: string | null;
+  patToken: string | null;
+  passwordSet: boolean;
+  patTokenSet: boolean;
+  allowMismatch: boolean;
+  pinnedVersion: string | null;
+  minSupportedVersion: string | null;
+  maxTestedVersion: string | null;
+  compatMode: string | null;
+  snapshotTtlHours: number | null;
+  connectTimeoutMillis: number | null;
+  proxyEnabled: boolean | null;
+  proxyAllowWrites: boolean | null;
+  proxyAllowPaths: string | null;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+export function readDhis2Connection(): Promise<Dhis2ConnectionPayload> {
+  return request('GET', '/edge-api/v1/admin/dhis2-connection');
+}
+export function writeDhis2Connection(body: Partial<Dhis2ConnectionPayload>): Promise<Dhis2ConnectionPayload> {
+  return request('PUT', '/edge-api/v1/admin/dhis2-connection', body);
+}
+
 export function getOrgUnitBinding(): Promise<OrgUnitBinding> {
   return request<OrgUnitBinding>('GET', '/edge-api/v1/system/org-unit');
 }
