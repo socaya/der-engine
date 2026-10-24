@@ -498,7 +498,7 @@ export function CapOrgUnitBinding(): JSX.Element {
         level: typeof filterLevel === 'number' ? filterLevel : undefined,
         groupId: filterGroup || undefined,
         query: query || undefined,
-        pageSize: 200,
+        pageSize: 1000,
       });
       setOus(r.organisationUnits);
     } catch (e) {
@@ -512,7 +512,7 @@ export function CapOrgUnitBinding(): JSX.Element {
   useEffect(() => {
     const h = setTimeout(() => { loadOus().catch(() => undefined); }, 250);
     return () => clearTimeout(h);
-  }, [query, filterLevel, filterGroup]);
+  }, [query, filterLevel, filterGroup, filterGroupSet]);
 
   // Available groups narrowed to the selected group set
   const availableGroups: edgeApi.OrgUnitGroupRow[] = (() => {

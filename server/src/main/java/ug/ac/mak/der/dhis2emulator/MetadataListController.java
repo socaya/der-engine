@@ -51,11 +51,111 @@ public class MetadataListController {
     public ResponseEntity<Map<String, Object>> organisationUnits(
             final Authentication auth,
             @RequestParam(name = "pageSize", defaultValue = "50") final int pageSize,
-            @RequestParam(name = "page", defaultValue = "1") final int page) {
+            @RequestParam(name = "page", defaultValue = "1") final int page,
+            @RequestParam(name = "filter", required = false) final List<String> filters) {
         if (!(auth instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(buildList("organisationUnits", mirror.findAllOrganisationUnits(), page, pageSize));
+        final List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> all = mirror.findAllOrganisationUnits();
+        final List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> filtered =
+                applyOrgUnitFilters(all, filters);
+        return ResponseEntity.ok(buildList("organisationUnits", filtered, page, pageSize));
+    }
+
+    /**
+     * Minimal DHIS2-web-api-style filter engine for the mirrored OU list.
+     * Supports {@code field:op:value} tokens with AND semantics across
+     * repeated {@code filter=} parameters. Recognised fields:
+     * {@code level}, {@code displayName}, {@code parent.id},
+     * {@code organisationUnitGroups.id}. Operators {@code eq}, {@code ilike}
+     * (substring, case-insensitive). Unknown tokens are ignored silently so
+     * clients get a response rather than a 400 for a typo.
+     */
+    static List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> applyOrgUnitFilters(
+            final List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> rows,
+            final List<String> filters) {
+        if (filters == null || filters.isEmpty()) {
+            return rows;
+        }
+        final List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> out = new java.util.ArrayList<>(rows.size());
+        for (final var ou : rows) {
+            boolean keep = true;
+            for (final String f : filters) {
+                if (f == null || f.isBlank()) {
+                    continue;
+                }
+                final String[] parts = f.split(":", 3);
+                if (parts.length < 3) {
+                    continue;
+                }
+                final String field = parts[0].trim();
+                final String op = parts[1].trim();
+                final String value = parts[2].trim();
+                if (!matchOrgUnit(ou, field, op, value)) {
+                    keep = false;
+                    break;
+                }
+            }
+            if (keep) {
+                out.add(ou);
+            }
+        }
+        return out;
+    }
+
+    private static boolean matchOrgUnit(final ug.ac.mak.der.metadata.MirroredOrganisationUnit ou,
+                                         final String field, final String op, final String value) {
+        if ("level".equals(field)) {
+            final Integer lvl = ou.level();
+            if (lvl == null) {
+                return false;
+            }
+            if ("eq".equals(op)) {
+                try {
+                    return lvl.equals(Integer.valueOf(value));
+                } catch (NumberFormatException ex) {
+                    return false;
+                }
+            }
+            return false;
+        }
+        if ("displayName".equals(field)) {
+            final String name = ou.displayName();
+            if (name == null) {
+                return false;
+            }
+            if ("ilike".equals(op) || "like".equals(op)) {
+                return name.toLowerCase().contains(value.toLowerCase());
+            }
+            if ("eq".equals(op)) {
+                return name.equalsIgnoreCase(value);
+            }
+            return false;
+        }
+        if ("parent.id".equals(field)) {
+            return "eq".equals(op) && value.equals(ou.parentUid());
+        }
+        if ("organisationUnitGroups.id".equals(field)) {
+            if (!"eq".equals(op)) {
+                return false;
+            }
+            final JsonNode p = ou.payload();
+            if (p == null) {
+                return false;
+            }
+            final JsonNode groups = p.get("organisationUnitGroups");
+            if (groups == null || !groups.isArray()) {
+                return false;
+            }
+            for (final JsonNode g : groups) {
+                final JsonNode gid = g.get("id");
+                if (gid != null && value.equals(gid.asText())) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return true;
     }
 
     @GetMapping("/organisationUnits/{uid}")
