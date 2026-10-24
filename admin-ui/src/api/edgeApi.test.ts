@@ -111,7 +111,7 @@ describe('edgeApi route coverage', () => {
     ['getOrgUnitBinding', () => api.getOrgUnitBinding(),         '/edge-api/v1/system/org-unit',        'GET',    undefined],
     ['bindOrgUnit',       () => api.bindOrgUnit('ou-1'),         '/edge-api/v1/system/org-unit',        'POST',   { orgUnitId: 'ou-1', confirm: false }],
     ['bindOrgUnit confirm', () => api.bindOrgUnit('ou-2', true), '/edge-api/v1/system/org-unit',        'POST',   { orgUnitId: 'ou-2', confirm: true }],
-    ['listOrgUnits',      () => api.listOrgUnits(),              '/api/organisationUnits?fields=id,displayName,path,level&paging=false', 'GET', undefined],
+    ['listOrgUnits',      () => api.listOrgUnits(),              '/api/organisationUnits?fields=id%2CdisplayName%2Ccode%2Cpath%2Clevel%2Cparent%5Bid%2CdisplayName%5D%2CorganisationUnitGroups%5Bid%2CdisplayName%5D&paging=false', 'GET', undefined],
     ['listPendingApprovals default limit', () => api.listPendingApprovals(), '/edge-api/v1/approvals/pending?limit=100', 'GET', undefined],
     ['listPendingApprovals custom',        () => api.listPendingApprovals(25), '/edge-api/v1/approvals/pending?limit=25', 'GET', undefined],
     ['approveOperation',  () => api.approveOperation('op1'),     '/edge-api/v1/approvals/op1/approve',  'POST',   undefined],

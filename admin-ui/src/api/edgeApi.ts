@@ -575,8 +575,28 @@ export interface OrgUnitBinding {
 export interface OrgUnitRow {
   id: string;
   displayName: string;
+  code?: string;
   path?: string;
   level?: number;
+  parent?: { id: string; displayName?: string };
+  organisationUnitGroups?: Array<{ id: string; displayName?: string }>;
+}
+
+export interface OrgUnitGroupRow {
+  id: string;
+  displayName: string;
+}
+export interface OrgUnitGroupSetRow {
+  id: string;
+  displayName: string;
+  organisationUnitGroups?: Array<{ id: string; displayName: string }>;
+}
+
+export function listOrgUnitGroups(): Promise<{ organisationUnitGroups: OrgUnitGroupRow[] }> {
+  return request('GET', '/api/organisationUnitGroups?fields=id,displayName&paging=false');
+}
+export function listOrgUnitGroupSets(): Promise<{ organisationUnitGroupSets: OrgUnitGroupSetRow[] }> {
+  return request('GET', '/api/organisationUnitGroupSets?fields=id,displayName,organisationUnitGroups[id,displayName]&paging=false');
 }
 
 export function getOrgUnitBinding(): Promise<OrgUnitBinding> {
@@ -588,9 +608,29 @@ export function bindOrgUnit(orgUnitId: string, confirm = false): Promise<OrgUnit
     { orgUnitId, confirm });
 }
 
-export function listOrgUnits(): Promise<{ organisationUnits: OrgUnitRow[] }> {
-  return request<{ organisationUnits: OrgUnitRow[] }>('GET',
-    '/api/organisationUnits?fields=id,displayName,path,level&paging=false');
+export function listOrgUnits(opts: {
+  level?: number;
+  groupId?: string;
+  parentId?: string;
+  query?: string;
+  page?: number;
+  pageSize?: number;
+} = {}): Promise<{ organisationUnits: OrgUnitRow[]; pager?: { page: number; pageSize: number; total: number; pageCount: number } }> {
+  const params = new URLSearchParams();
+  params.set('fields', 'id,displayName,code,path,level,parent[id,displayName],organisationUnitGroups[id,displayName]');
+  const filters: string[] = [];
+  if (opts.level) filters.push(`level:eq:${opts.level}`);
+  if (opts.groupId) filters.push(`organisationUnitGroups.id:eq:${opts.groupId}`);
+  if (opts.parentId) filters.push(`parent.id:eq:${opts.parentId}`);
+  if (opts.query) filters.push(`displayName:ilike:${opts.query}`);
+  for (const f of filters) params.append('filter', f);
+  if (opts.pageSize != null) {
+    params.set('pageSize', String(opts.pageSize));
+    params.set('page', String(opts.page ?? 1));
+  } else {
+    params.set('paging', 'false');
+  }
+  return request('GET', '/api/organisationUnits?' + params.toString());
 }
 
 // ---- der-1.1.0-alpha.2 Initiative 4: approval (ADR-0016) ----

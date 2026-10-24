@@ -278,29 +278,81 @@ export function CapCentralConnection(): JSX.Element {
 export function CapOrgUnitBinding(): JSX.Element {
   const [b, setB] = useState<edgeApi.OrgUnitBinding | null>(null);
   const [ous, setOus] = useState<edgeApi.OrgUnitRow[]>([]);
+  const [groups, setGroups] = useState<edgeApi.OrgUnitGroupRow[]>([]);
+  const [groupSets, setGroupSets] = useState<edgeApi.OrgUnitGroupSetRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [sel, setSel] = useState('');
   const [confirmRebind, setConfirmRebind] = useState(false);
   const [saving, setSaving] = useState(false);
-  async function reload(): Promise<void> {
+
+  // Filters
+  const [query, setQuery] = useState('');
+  const [filterLevel, setFilterLevel] = useState<number | ''>('');
+  const [filterGroupSet, setFilterGroupSet] = useState<string>('');
+  const [filterGroup, setFilterGroup] = useState<string>('');
+  const [loadingOus, setLoadingOus] = useState(false);
+
+  async function loadBinding(): Promise<void> {
+    try { setB(await edgeApi.getOrgUnitBinding()); }
+    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+  }
+  async function loadFilters(): Promise<void> {
+    const [g, gs] = await Promise.allSettled([
+      edgeApi.listOrgUnitGroups(),
+      edgeApi.listOrgUnitGroupSets(),
+    ]);
+    if (g.status === 'fulfilled') setGroups(g.value.organisationUnitGroups);
+    if (gs.status === 'fulfilled') setGroupSets(gs.value.organisationUnitGroupSets);
+  }
+  async function loadOus(): Promise<void> {
+    setLoadingOus(true);
     try {
-      const br = await edgeApi.getOrgUnitBinding();
-      setB(br);
-      const r = await edgeApi.listOrgUnits();
+      const r = await edgeApi.listOrgUnits({
+        level: typeof filterLevel === 'number' ? filterLevel : undefined,
+        groupId: filterGroup || undefined,
+        query: query || undefined,
+        pageSize: 200,
+      });
       setOus(r.organisationUnits);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoadingOus(false);
     }
   }
-  useEffect(() => { reload().catch(() => undefined); }, []);
+
+  useEffect(() => { loadBinding().catch(() => undefined); loadFilters().catch(() => undefined); }, []);
+  useEffect(() => {
+    const h = setTimeout(() => { loadOus().catch(() => undefined); }, 250);
+    return () => clearTimeout(h);
+  }, [query, filterLevel, filterGroup]);
+
+  // Available groups narrowed to the selected group set
+  const availableGroups: edgeApi.OrgUnitGroupRow[] = (() => {
+    if (!filterGroupSet) return groups;
+    const gs = groupSets.find((x) => x.id === filterGroupSet);
+    return gs?.organisationUnitGroups ?? groups;
+  })();
+
   async function doBind(): Promise<void> {
     if (!sel) return;
     setSaving(true);
-    try { await edgeApi.bindOrgUnit(sel, confirmRebind); await reload(); setSel(''); setConfirmRebind(false); }
-    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
-    finally { setSaving(false); }
+    setErr(null);
+    try {
+      const updated = await edgeApi.bindOrgUnit(sel, confirmRebind);
+      setB(updated);
+      setSel('');
+      setConfirmRebind(false);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
   }
   if (!b) return <LoadingBlock testId="loading" />;
+
+  const levels = Array.from({ length: 7 }, (_, i) => i + 1);
+
   return (
     <div className="ea-screen" data-test="cap-ou">
       <HeroHeader
@@ -323,21 +375,69 @@ export function CapOrgUnitBinding(): JSX.Element {
           Pick an organisation unit from DHIS2 to bind this edge.
         </EmptyBlock>
       )}
+
       <section className="ea-card ea-form-card">
         <div className="ea-form-section">
           <div className="ea-form-section-head">
             <h2>{b.bound ? 'Rebind' : 'Bind now'}</h2>
             <p>{b.bound
               ? 'Rebinding clears mirrored metadata and journal state. Confirm before applying.'
-              : 'Select the facility this device should capture data against.'}</p>
+              : 'Narrow the list of organisation units by level and group, then pick the facility this device should capture data against.'}</p>
           </div>
+
           <div className="ea-form-grid">
             <label className="ea-field">
-              <span className="ea-field-label">Organisation unit</span>
-              <select className="ea-input" value={sel} onChange={(e) => setSel(e.target.value)}>
-                <option value="">— Select —</option>
+              <span className="ea-field-label">Search</span>
+              <input className="ea-input" type="search"
+                     placeholder="Type to filter by name"
+                     value={query} onChange={(e) => setQuery(e.target.value)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Level</span>
+              <select className="ea-input" value={filterLevel}
+                      onChange={(e) => setFilterLevel(e.target.value ? Number(e.target.value) : '')}>
+                <option value="">Any level</option>
+                {levels.map((l) => (
+                  <option key={l} value={l}>Level {l}</option>
+                ))}
+              </select>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Group set</span>
+              <select className="ea-input" value={filterGroupSet}
+                      onChange={(e) => { setFilterGroupSet(e.target.value); setFilterGroup(''); }}>
+                <option value="">Any group set</option>
+                {groupSets.map((g) => <option key={g.id} value={g.id}>{g.displayName}</option>)}
+              </select>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Group</span>
+              <select className="ea-input" value={filterGroup}
+                      onChange={(e) => setFilterGroup(e.target.value)}>
+                <option value="">Any group</option>
+                {availableGroups.map((g) => <option key={g.id} value={g.id}>{g.displayName}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="ea-form-grid" style={{ marginTop: 12 }}>
+            <label className="ea-field" style={{ gridColumn: '1 / -1' }}>
+              <span className="ea-field-label">
+                Organisation unit {loadingOus ? '· loading…' : `· ${ous.length} match${ous.length === 1 ? '' : 'es'}`}
+              </span>
+              <select className="ea-input" size={10}
+                      value={sel} onChange={(e) => setSel(e.target.value)}
+                      data-test="ou-list">
+                {ous.length === 0 && (
+                  <option value="" disabled>— No matches —</option>
+                )}
                 {ous.map((o) => (
-                  <option key={o.id} value={o.id}>{o.displayName}</option>
+                  <option key={o.id} value={o.id}>
+                    {'  '.repeat(Math.max(0, (o.level ?? 1) - 1))}
+                    {o.displayName}
+                    {o.level ? ` · L${o.level}` : ''}
+                    {o.code ? ` · ${o.code}` : ''}
+                  </option>
                 ))}
               </select>
             </label>
@@ -355,6 +455,10 @@ export function CapOrgUnitBinding(): JSX.Element {
           </div>
         </div>
         <div className="ea-form-actions">
+          <button type="button" className="ea-btn ea-btn--ghost"
+                  onClick={() => { setQuery(''); setFilterLevel(''); setFilterGroupSet(''); setFilterGroup(''); setSel(''); }}>
+            Reset filters
+          </button>
           <button type="button" className="ea-btn ea-btn--primary"
                   disabled={!sel || saving || (b.bound && !confirmRebind)}
                   onClick={() => { doBind().catch(() => undefined); }}>

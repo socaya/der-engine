@@ -44,9 +44,28 @@ public class EdgeOrgUnitBindingRepository {
     }
 
     public int write(final EdgeOrgUnitBinding binding) {
-        return jdbc.update(
+        final int rows = jdbc.update(
                 "UPDATE der.edge_node SET org_unit_id = ?, org_unit_display_name = ?, "
                         + "org_unit_path = ?, org_unit_bound_at = ?, org_unit_bound_by = ?",
+                binding.orgUnitId(),
+                binding.orgUnitDisplayName(),
+                binding.orgUnitPath(),
+                binding.boundAt() == null ? null : Timestamp.from(binding.boundAt()),
+                binding.boundBy());
+        if (rows > 0) {
+            return rows;
+        }
+        // Singleton row has never been provisioned. Create it now so the
+        // bind actually persists — otherwise the UPDATE above silently
+        // affects 0 rows and the next read() sees an empty binding.
+        return jdbc.update(
+                "INSERT INTO der.edge_node (edge_id, singleton, display_name, site_name, "
+                        + "org_unit_id, org_unit_display_name, org_unit_path, "
+                        + "org_unit_bound_at, org_unit_bound_by) "
+                        + "VALUES (?, true, ?, ?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID(),
+                "DER edge node",
+                "DER edge node",
                 binding.orgUnitId(),
                 binding.orgUnitDisplayName(),
                 binding.orgUnitPath(),
