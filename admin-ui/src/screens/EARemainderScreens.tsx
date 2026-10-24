@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates';
+import { HeroHeader } from '../components/HeroHeader';
 
 /**
  * Phase 06 Release 3 — EA-19..36 admin screens.
@@ -231,33 +232,90 @@ export function EAAppsList({ api = edgeApi }: {
   }
   if (error) return <ErrorBlock title="Apps failed" testId="ea31-error">{error}</ErrorBlock>;
   if (rows === null) return <LoadingBlock testId="ea31-loading" />;
+  const enabled = rows.filter((r) => r.enabled).length;
+  const disabled = rows.length - enabled;
   return (
     <div className="ea-screen">
-      <h1 data-test="ea31-heading">Installed apps</h1>
+      <HeroHeader
+        title="Apps"
+        subtitle="Custom DHIS2 apps installed on this edge."
+        actions={
+          <span className="ea-btn ea-btn--primary ea-btn--muted" aria-disabled="true" title="Install dialog — not yet available">
+            + Install app
+          </span>
+        }
+      />
+      <h1 data-test="ea31-heading" className="ea-visually-hidden">Installed apps</h1>
+
+      <div className="ea-stat-strip" role="group" aria-label="App summary">
+        <AppStat label="Installed" value={rows.length} tone="primary" />
+        <AppStat label="Enabled" value={enabled} tone="teal" />
+        <AppStat label="Disabled" value={disabled} tone="neutral" />
+      </div>
+
       {rows.length === 0 ? (
         <EmptyBlock title="No installed apps" testId="ea31-empty">
           Install a custom DHIS2 app via the install dialog.
         </EmptyBlock>
       ) : (
-        <table><thead><tr><th>App</th><th>Version</th><th>State</th><th>Actions</th></tr></thead>
-          <tbody>{rows.map((r) => (
-            <tr key={r.appId}>
-              <td data-test={`ea31-app-${r.appId}`}>{r.displayName} ({r.appKey})</td>
-              <td>{r.version}</td>
-              <td data-test={`ea31-state-${r.appId}`}>{r.enabled ? 'enabled' : 'disabled'}</td>
-              <td>
-                <button type="button" data-test={`ea31-toggle-${r.appId}`}
-                        onClick={() => { toggle(r).catch(() => undefined); }}>
+        <div className="ea-app-grid">
+          {rows.map((r) => (
+            <article key={r.appId} className="ea-app-card">
+              <div className="ea-app-card-head">
+                <div className="ea-app-icon" aria-hidden="true">
+                  {r.displayName.slice(0, 1).toUpperCase()}
+                </div>
+                <div className="ea-app-ident">
+                  <div className="ea-app-title" data-test={`ea31-app-${r.appId}`}>
+                    {r.displayName}
+                  </div>
+                  <div className="ea-app-key ea-mono">{r.appKey}</div>
+                </div>
+                <span
+                  className={'ea-chip ea-chip--' + (r.enabled ? 'success' : 'neutral')}
+                  data-test={`ea31-state-${r.appId}`}
+                >
+                  {r.enabled ? 'enabled' : 'disabled'}
+                </span>
+              </div>
+              <dl className="ea-app-meta">
+                <dt>Version</dt><dd className="ea-mono">{r.version}</dd>
+                <dt>Installed</dt><dd>{r.installedAt?.slice(0, 10) ?? '—'}</dd>
+              </dl>
+              <div className="ea-app-actions">
+                <button
+                  type="button"
+                  className="ea-btn ea-btn--ghost"
+                  data-test={`ea31-toggle-${r.appId}`}
+                  onClick={() => { toggle(r).catch(() => undefined); }}
+                >
                   {r.enabled ? 'Disable' : 'Enable'}
                 </button>
-                <button type="button" data-test={`ea31-delete-${r.appId}`}
-                        onClick={() => { remove(r).catch(() => undefined); }}>
+                <button
+                  type="button"
+                  className="ea-btn ea-btn--ghost ea-btn--danger"
+                  data-test={`ea31-delete-${r.appId}`}
+                  onClick={() => { remove(r).catch(() => undefined); }}
+                >
                   Uninstall
                 </button>
-              </td>
-            </tr>
-          ))}</tbody></table>
+              </div>
+            </article>
+          ))}
+        </div>
       )}
+    </div>
+  );
+}
+
+function AppStat(
+  { label, value, tone }: { label: string; value: number; tone: 'primary' | 'teal' | 'neutral' },
+): JSX.Element {
+  const map = { primary: 'info', teal: 'success', neutral: 'muted' } as const;
+  return (
+    <div className={`ea-stat ea-stat--${map[tone]}`}>
+      <div className="ea-stat-value">{value.toLocaleString()}</div>
+      <div className="ea-stat-label">{label}</div>
     </div>
   );
 }
@@ -324,42 +382,92 @@ export function EASettings({ api = edgeApi }: {
   }
   if (error && !s) return <ErrorBlock title="Settings failed" testId="ea36-error">{error}</ErrorBlock>;
   if (!s) return <LoadingBlock testId="ea36-loading" />;
+  const cronEntries = Object.entries(s.cron ?? {});
+  const flagEntries = Object.entries(s.featureFlags ?? {});
   return (
     <div className="ea-screen">
-      <h1 data-test="ea36-heading">Settings</h1>
-      <section>
-        <h2>Cron overrides</h2>
-        <ul>
-          {Object.entries(s.cron).map(([k, v]) => (
-            <li key={k}>
-              <label><span>{k}</span>
-                <input data-test={`ea36-cron-${k}`} value={v}
-                       onChange={(e) => setS({
-                         ...s, cron: { ...s.cron, [k]: e.target.value },
-                       })} /></label>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section>
-        <h2>Feature flags</h2>
-        <ul>
-          {Object.entries(s.featureFlags).map(([k, v]) => (
-            <li key={k}>
-              <label><input type="checkbox" data-test={`ea36-flag-${k}`} checked={v}
-                            onChange={(e) => setS({
-                              ...s, featureFlags: { ...s.featureFlags, [k]: e.target.checked },
-                            })} /> {k}</label>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <button type="button" data-test="ea36-save" disabled={status === 'saving'}
-              onClick={() => { doSave().catch(() => undefined); }}>Save</button>
-      {status === 'saved' && <p data-test="ea36-saved">Settings saved.</p>}
+      <HeroHeader
+        title="Settings"
+        subtitle="Scheduler overrides and feature toggles for this edge."
+        actions={
+          <button
+            type="button"
+            className="ea-btn ea-btn--primary"
+            data-test="ea36-save"
+            disabled={status === 'saving'}
+            onClick={() => { doSave().catch(() => undefined); }}
+          >
+            {status === 'saving' ? 'Saving…' : 'Save changes'}
+          </button>
+        }
+      />
+      <h1 data-test="ea36-heading" className="ea-visually-hidden">Settings</h1>
+
+      {status === 'saved' && (
+        <p data-test="ea36-saved" className="ea-saved">Settings saved.</p>
+      )}
       {status === 'error' && error && (
         <ErrorBlock title="Save failed" testId="ea36-save-error">{error}</ErrorBlock>
       )}
+
+      <section className="ea-card ea-form-card">
+        <div className="ea-form-section">
+          <div className="ea-form-section-head">
+            <h2>Cron overrides</h2>
+            <p>Override the default schedule for background workers. Use
+              standard Quartz cron syntax. Leave blank to use defaults.</p>
+          </div>
+          <div className="ea-form-grid">
+            {cronEntries.length === 0 && (
+              <div className="ea-field-hint">No cron overrides defined.</div>
+            )}
+            {cronEntries.map(([k, v]) => (
+              <label key={k} className="ea-field">
+                <span className="ea-field-label">{k}</span>
+                <input
+                  className="ea-input ea-mono"
+                  data-test={`ea36-cron-${k}`}
+                  value={v}
+                  onChange={(e) => setS({
+                    ...s, cron: { ...s.cron, [k]: e.target.value },
+                  })}
+                  placeholder="0 */5 * * * ?"
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="ea-form-section">
+          <div className="ea-form-section-head">
+            <h2>Feature flags</h2>
+            <p>Experimental surfaces hidden by default. Enable only in
+              development or pilot environments.</p>
+          </div>
+          <div className="ea-flag-list">
+            {flagEntries.length === 0 && (
+              <div className="ea-field-hint">No feature flags defined.</div>
+            )}
+            {flagEntries.map(([k, v]) => (
+              <label key={k} className="ea-flag-row">
+                <input
+                  type="checkbox"
+                  className="ea-switch"
+                  data-test={`ea36-flag-${k}`}
+                  checked={v}
+                  onChange={(e) => setS({
+                    ...s, featureFlags: { ...s.featureFlags, [k]: e.target.checked },
+                  })}
+                />
+                <span className="ea-flag-name">{k}</span>
+                <span className={'ea-chip ea-chip--' + (v ? 'success' : 'neutral')}>
+                  {v ? 'on' : 'off'}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

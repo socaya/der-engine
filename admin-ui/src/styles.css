@@ -1092,3 +1092,81 @@ kbd{
   .ea-form-actions{padding:var(--sp-3);flex-direction:column-reverse;align-items:stretch}
   .ea-form-actions .ea-btn{width:100%}
 }
+
+/* ============ M4 Apps module ============ */
+.ea-btn--muted{opacity:0.65;cursor:not-allowed}
+.ea-btn--danger{color:var(--der-danger-ink)}
+.ea-btn--danger:hover{
+  background:var(--der-danger-soft);border-color:var(--der-danger);
+  color:var(--der-danger-ink);
+}
+
+.ea-app-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  gap:var(--sp-3);
+}
+.ea-app-card{
+  display:flex;flex-direction:column;gap:var(--sp-3);
+  padding:var(--sp-4);
+  background:var(--der-surface);
+  border:1px solid var(--der-border-subtle);
+  border-radius:var(--r-xl);
+  box-shadow:var(--el-1);
+  transition:box-shadow var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
+}
+.ea-app-card:hover{border-color:var(--der-border-strong);box-shadow:var(--el-2);transform:translateY(-1px)}
+.ea-app-card-head{display:flex;align-items:flex-start;gap:var(--sp-3)}
+.ea-app-icon{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:40px;height:40px;border-radius:var(--r-md);
+  background:var(--der-navy-soft);color:var(--der-navy-700);
+  font-weight:700;font-size:var(--fs-lg);
+  flex-shrink:0;
+}
+.ea-app-ident{flex:1 1 auto;min-width:0}
+.ea-app-title{color:var(--der-ink-900);font-weight:600;font-size:var(--fs-md);line-height:1.3}
+.ea-app-key{color:var(--der-ink-400);font-size:var(--fs-xs);margin-top:2px}
+.ea-app-card-head > .ea-chip{flex-shrink:0}
+.ea-app-meta{
+  display:grid;grid-template-columns:auto 1fr;gap:4px var(--sp-3);
+  margin:0;padding:var(--sp-2) 0;border-top:1px solid var(--der-border-subtle);
+  border-bottom:1px solid var(--der-border-subtle);font-size:var(--fs-sm);
+}
+.ea-app-meta dt{color:var(--der-ink-400);font-weight:500;margin:0}
+.ea-app-meta dd{color:var(--der-ink-700);margin:0}
+.ea-app-actions{display:flex;gap:var(--sp-2);justify-content:flex-end;flex-wrap:wrap}
+.ea-main .ea-app-actions > .ea-btn{align-self:auto}
+
+/* ============ M5 Settings module ============ */
+.ea-flag-list{display:flex;flex-direction:column;gap:var(--sp-1)}
+.ea-flag-row{
+  display:flex;align-items:center;gap:var(--sp-3);
+  padding:var(--sp-3);
+  background:var(--der-raised);
+  border:1px solid var(--der-border-subtle);
+  border-radius:var(--r-md);
+  cursor:pointer;
+  transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
+}
+.ea-flag-row:hover{background:var(--der-surface);border-color:var(--der-border-strong)}
+.ea-flag-name{flex:1 1 auto;font-weight:500;color:var(--der-ink-900);font-family:var(--font-mono,ui-monospace,monospace);font-size:var(--fs-sm)}
+
+/* Switch (styled checkbox) */
+.ea-main .ea-switch{
+  appearance:none;-webkit-appearance:none;
+  width:36px;height:20px;border-radius:999px;
+  background:var(--der-border-strong);
+  position:relative;cursor:pointer;flex-shrink:0;
+  transition:background var(--t-fast) var(--ease);
+  margin:0;
+}
+.ea-main .ea-switch::after{
+  content:'';position:absolute;top:2px;left:2px;
+  width:16px;height:16px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 2px rgba(0,0,0,0.2);
+  transition:transform var(--t-fast) var(--ease);
+}
+.ea-main .ea-switch:checked{background:var(--der-primary)}
+.ea-main .ea-switch:checked::after{transform:translateX(16px)}
+.ea-main .ea-switch:focus-visible{box-shadow:0 0 0 3px var(--der-primary-ring)}
