@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Button,
-  Card,
+
   InputField,
   NoticeBox,
 } from '@dhis2/ui';
@@ -66,7 +66,7 @@ export function SignIn(): JSX.Element {
 
   return (
     <div className="ea-sign-in" data-test="sign-in">
-      <Card>
+      <div className="ea-sign-in-card">
         <div className="ea-sign-in-pad">
           <div className="ea-sign-in-brand" aria-hidden="true">
             <span className="ea-sign-in-logo">DER</span>
@@ -160,7 +160,7 @@ export function SignIn(): JSX.Element {
             DER&nbsp;{__DER_VERSION__}
           </p>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
