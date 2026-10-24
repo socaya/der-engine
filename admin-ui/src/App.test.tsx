@@ -69,7 +69,7 @@ describe('App routing', () => {
   it('renders the admin nav + brand', async () => {
     await renderAt('/');
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-provisioning')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-users')).toBeInTheDocument();
     expect(screen.getByTestId('nav-compat')).toBeInTheDocument();
   });
 

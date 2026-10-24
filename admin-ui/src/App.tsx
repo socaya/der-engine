@@ -17,6 +17,7 @@ import {
   EAAppsList, EADiagnostics, EASettings,
 } from './screens/EARemainderScreens';
 import { SignIn } from './screens/SignIn';
+import { CapabilityGap } from './screens/CapabilityGap';
 
 function ConflictResolveRoute(): JSX.Element {
   const { id = '' } = useParams();
@@ -88,6 +89,42 @@ export default function App(): JSX.Element {
           <Route path="/apps" element={<RequireAuth><EAAppsList /></RequireAuth>} />
           <Route path="/diagnostics" element={<RequireAuth><EADiagnostics /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><EASettings /></RequireAuth>} />
+          {/* Capability-gap routes per nav spec §2 — real server
+              implementations not yet shipped; render honest placeholder. */}
+          <Route path="/dashboard" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/system/information" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/integration/connection" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/integration/organisation-unit" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/integration/program-rules" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/sync" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/sync/history" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/sync/queues" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/sync/metadata" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/sync/data" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/sync/schedule" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/workflows/runs" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/workflows/assignments" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/referral/history" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/data" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/data/aggregate" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/data/events" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/data/tracker" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/data/drafts" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/data/maintenance" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/access/mappings" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/access/roles" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/access/sessions" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/access/credentials" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/devices/enrolment" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/devices/ownership" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/devices/connections" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/devices/diagnostics" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/monitoring/metrics" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/monitoring/health" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/monitoring/storage" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/setup" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/settings/releases" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
+          <Route path="/settings/network" element={<RequireAuth><CapabilityGap /></RequireAuth>} />
         </Routes>
         </AdminShell>
       </AlertProvider>
