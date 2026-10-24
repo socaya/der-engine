@@ -4,6 +4,10 @@ import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock, OfflineBanner } from '../components/ScreenStates';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { HealthCards } from '../components/HealthCards';
+import { HeroHeader } from '../components/HeroHeader';
+import { SystemComponents } from '../components/SystemComponents';
+import { QuickActions } from '../components/QuickActions';
+import { RecentActivity } from '../components/RecentActivity';
 
 /**
  * Phase 06 Release 2 — EA-01..18 admin screens.
@@ -64,32 +68,42 @@ export function EASetupWelcome({ api = edgeApi }:
 
   if (error) return <ErrorBlock title="Setup probe failed" testId="ea01-error">{error}</ErrorBlock>;
   if (!h || !c || !binding) return <LoadingBlock testId="ea01-loading" />;
+  const orgLabel = binding.bound ? (binding.orgUnitDisplayName ?? '—') : undefined;
   return (
-    <div className="ea-screen">
-      <ScreenHeader
+    <div className="ea-screen ea-overview">
+      <HeroHeader
         title="Setup overview"
-        subtitle="Edge health, DHIS2 reach, journal state, storage headroom."
+        subtitle="Monitor the health, status and performance of your DER environment."
+        version={h.version}
+        centralVersion={c.centralVersion ?? undefined}
         lastFetched={lastFetched}
-        onRefresh={reload}
-        testId="ea01-header"
+        orgUnitBound={binding.bound}
+        orgUnitLabel={orgLabel}
+        actions={
+          <button
+            type="button"
+            className="primary"
+            onClick={() => { reload().catch(() => undefined); }}
+          >
+            Refresh
+          </button>
+        }
       />
-      <HealthCards info={sysInfo} />
       {!h.dhis2Integrated && <OfflineBanner testId="ea01-offline" />}
-      <dl>
-        <dt>DER version</dt><dd data-test="ea01-version">{h.version}</dd>
-        <dt>DHIS2 central version</dt>
-        <dd data-test="ea01-central">{c.centralVersion ?? 'unknown'}</dd>
-        <dt>Compat profile</dt><dd data-test="ea01-profile">{c.profileName ?? '—'}</dd>
-        <dt>Bound orgUnit</dt>
-        <dd data-test="ea01-orgunit">
-          {binding.bound
-            ? `${binding.orgUnitDisplayName} (${binding.orgUnitPath})`
-            : <span data-test="ea01-orgunit-unbound">— not bound; writes are rejected until an admin picks an orgUnit.</span>}
-        </dd>
-      </dl>
+      <HealthCards info={sysInfo} />
+
+      <div className="ea-overview-grid">
+        <SystemComponents info={sysInfo} />
+        <RecentActivity />
+      </div>
+
       {!binding.bound && (
         <section className="ea-ou-picker" data-test="ea01-orgunit-picker">
           <h2>Bind this edge to an orgUnit</h2>
+          <p>
+            This edge isn't bound yet. Writes are rejected until an admin
+            picks the orgUnit this device will capture against.
+          </p>
           {orgUnits.length === 0
             ? <EmptyBlock title="No orgUnits in local mirror" testId="ea01-orgunit-empty">
                 Run metadata sync first (Jobs tab) so the orgUnit tree is available locally.
@@ -108,10 +122,10 @@ export function EASetupWelcome({ api = edgeApi }:
                     ))}
                   </select>
                 </label>
-                <button type="button" data-test="ea01-orgunit-bind"
+                <button type="button" data-test="ea01-orgunit-bind" className="primary"
                   disabled={!selected || saving}
                   onClick={() => { doBind().catch(() => undefined); }}>
-                  {saving ? 'Binding…' : 'Bind'}
+                  {saving ? 'Binding…' : 'Bind orgUnit'}
                 </button>
               </>
             )}
@@ -119,6 +133,11 @@ export function EASetupWelcome({ api = edgeApi }:
       )}
       {binding.bound && (
         <section className="ea-ou-rebind" data-test="ea01-orgunit-rebind">
+          <h2>orgUnit binding</h2>
+          <dl>
+            <dt>Bound to</dt>
+            <dd>{binding.orgUnitDisplayName} ({binding.orgUnitPath})</dd>
+          </dl>
           <details>
             <summary>Rebind to a different orgUnit…</summary>
             <p>Rebinding does not purge local data; previous-OU rows are
@@ -142,7 +161,8 @@ export function EASetupWelcome({ api = edgeApi }:
           </details>
         </section>
       )}
-      <nav><Link to="/provisioning/users" data-test="ea01-provisioning">Provisioning</Link></nav>
+
+      <QuickActions />
     </div>
   );
 }

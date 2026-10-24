@@ -532,6 +532,147 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
 .ea-health-skel-line{height:10px;background:var(--der-border-subtle);border-radius:3px;margin-bottom:var(--sp-2);max-width:60%}
 .ea-health-skel-line--sm{max-width:40%;height:8px}
 
+/* ============ Overview — M1 ============ */
+.ea-overview{display:flex;flex-direction:column;gap:var(--sp-5)}
+
+/* Hero header */
+.ea-hero{
+  background:linear-gradient(135deg,#0d2e5c 0%,#143d75 50%,#1b7d8a 100%);
+  color:#fff;border-radius:var(--r-2xl);
+  padding:var(--sp-6) var(--sp-7);
+  display:flex;align-items:center;justify-content:space-between;gap:var(--sp-6);
+  box-shadow:var(--el-2);position:relative;overflow:hidden;flex-wrap:wrap;
+}
+.ea-hero::before{
+  content:'';position:absolute;top:-80px;right:-120px;
+  width:400px;height:400px;border-radius:50%;
+  background:radial-gradient(circle,rgba(43,158,172,0.3) 0%,transparent 70%);
+  pointer-events:none;
+}
+.ea-hero-body{position:relative;flex:1;min-width:280px}
+.ea-hero-side{position:relative;display:flex;flex-direction:column;align-items:flex-end;gap:var(--sp-3)}
+.ea-hero-eyebrow{
+  font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:0.8px;
+  color:rgba(255,255,255,0.75);font-weight:600;margin-bottom:var(--sp-2);
+}
+.ea-hero-title{
+  color:#fff;font-size:var(--fs-4xl);font-weight:700;
+  margin:0 0 var(--sp-2);letter-spacing:-0.025em;line-height:1.1;
+}
+.ea-hero-sub{color:rgba(255,255,255,0.85);font-size:var(--fs-md);margin:0 0 var(--sp-4);max-width:620px}
+.ea-hero-badges{display:flex;gap:var(--sp-2);flex-wrap:wrap}
+.ea-hero-badge{
+  display:inline-flex;align-items:stretch;
+  border-radius:var(--r-pill);overflow:hidden;
+  font-size:var(--fs-xs);font-weight:600;
+  background:rgba(255,255,255,0.1);
+}
+.ea-hero-badge-k{
+  background:rgba(255,255,255,0.15);color:#fff;
+  padding:3px 8px;letter-spacing:0.4px;text-transform:uppercase;
+}
+.ea-hero-badge-v{color:#fff;padding:3px 10px}
+.ea-hero-date{text-align:right;color:#fff}
+.ea-hero-date-label{
+  font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:0.6px;
+  color:rgba(255,255,255,0.7);font-weight:600;
+}
+.ea-hero-date-value{font-size:var(--fs-lg);font-weight:600;margin-top:2px}
+.ea-hero-stale{font-size:var(--fs-sm);color:rgba(255,255,255,0.7);margin-top:4px}
+.ea-hero-actions{display:flex;gap:var(--sp-2)}
+.ea-hero-actions button.primary{
+  background:#fff !important;color:var(--der-navy) !important;border:0 !important;
+  box-shadow:0 2px 8px rgba(0,0,0,0.2) !important;
+}
+.ea-hero-actions button.primary:hover{background:var(--der-raised) !important;color:var(--der-navy-ink) !important}
+
+/* Health cards (richer) */
+.ea-health-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-3)}
+.ea-health-icon{
+  width:36px;height:36px;border-radius:var(--r-lg);
+  display:inline-flex;align-items:center;justify-content:center;
+  color:#fff;flex-shrink:0;
+}
+.ea-health-icon--primary{background:linear-gradient(135deg,var(--der-navy-500) 0%,var(--der-navy-700) 100%)}
+.ea-health-icon--teal{background:linear-gradient(135deg,var(--der-teal) 0%,var(--der-teal-ink) 100%)}
+.ea-health-icon--amber{background:linear-gradient(135deg,#f0a93a 0%,#d6830d 100%)}
+.ea-health-icon--green{background:linear-gradient(135deg,#30c56a 0%,var(--der-success-ink) 100%)}
+
+/* Overview grid */
+.ea-overview-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:var(--sp-4)}
+
+/* System components panel */
+.ea-syscomp{background:var(--der-surface);border-radius:var(--r-xl);box-shadow:var(--el-1);padding:var(--sp-5)}
+.ea-syscomp h2{margin:0 0 var(--sp-4);font-size:var(--fs-lg);font-weight:600}
+.ea-syscomp-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.ea-syscomp-row{
+  display:grid;grid-template-columns:14px 1fr auto;gap:var(--sp-3);align-items:center;
+  padding:var(--sp-3) 0;border-bottom:1px solid var(--der-border-subtle);font-size:var(--fs-md);
+}
+.ea-syscomp-row:last-child{border-bottom:0}
+.ea-syscomp-row--muted{color:var(--der-ink-400);justify-content:center;text-align:center;grid-template-columns:1fr}
+.ea-syscomp-dot{
+  width:10px;height:10px;border-radius:50%;background:var(--der-ink-200);
+  box-shadow:0 0 0 3px var(--der-border-subtle);
+}
+.ea-syscomp-dot--ok{background:var(--der-success);box-shadow:0 0 0 3px var(--der-success-soft)}
+.ea-syscomp-dot--warn{background:var(--der-warning);box-shadow:0 0 0 3px var(--der-warning-soft)}
+.ea-syscomp-dot--danger{background:var(--der-danger);box-shadow:0 0 0 3px var(--der-danger-soft)}
+.ea-syscomp-dot--muted{background:var(--der-ink-300);box-shadow:0 0 0 3px var(--der-raised)}
+.ea-syscomp-label{color:var(--der-ink-900);font-weight:500}
+.ea-syscomp-value{color:var(--der-ink-500);font-size:var(--fs-sm);text-align:right}
+
+/* Recent activity */
+.ea-activity{background:var(--der-surface);border-radius:var(--r-xl);box-shadow:var(--el-1);padding:var(--sp-5)}
+.ea-activity-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-4)}
+.ea-activity-head h2{margin:0;font-size:var(--fs-lg);font-weight:600}
+.ea-activity-more{font-size:var(--fs-sm);font-weight:500;color:var(--der-primary)}
+.ea-activity-empty{padding:var(--sp-5);text-align:center;color:var(--der-ink-400);font-size:var(--fs-md);background:var(--der-raised);border-radius:var(--r-md)}
+.ea-activity-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--sp-3)}
+.ea-activity-row{display:flex;align-items:flex-start;gap:var(--sp-3)}
+.ea-activity-dot{width:10px;height:10px;border-radius:50%;margin-top:5px;flex-shrink:0;background:var(--der-ink-200);box-shadow:0 0 0 3px var(--der-border-subtle)}
+.ea-activity-dot--ok{background:var(--der-success);box-shadow:0 0 0 3px var(--der-success-soft)}
+.ea-activity-dot--warn{background:var(--der-warning);box-shadow:0 0 0 3px var(--der-warning-soft)}
+.ea-activity-dot--danger{background:var(--der-danger);box-shadow:0 0 0 3px var(--der-danger-soft)}
+.ea-activity-body{flex:1;min-width:0}
+.ea-activity-event{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
+.ea-activity-event-name{color:var(--der-ink-900);font-weight:500;font-size:var(--fs-md)}
+.ea-activity-meta{color:var(--der-ink-400);font-size:var(--fs-sm);margin-top:2px}
+
+/* Quick actions */
+.ea-quick{background:var(--der-surface);border-radius:var(--r-xl);box-shadow:var(--el-1);padding:var(--sp-5)}
+.ea-quick h2{margin:0 0 var(--sp-4);font-size:var(--fs-lg);font-weight:600}
+.ea-quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:var(--sp-3)}
+.ea-quick-card{
+  display:flex;align-items:center;gap:var(--sp-3);
+  padding:var(--sp-3) var(--sp-4);
+  background:var(--der-raised);border:1px solid var(--der-border-subtle);
+  border-radius:var(--r-lg);text-decoration:none;color:inherit;
+  transition:all var(--t-fast) var(--ease);
+}
+.ea-quick-card:hover{background:var(--der-surface);border-color:var(--der-primary);box-shadow:var(--el-2);transform:translateY(-1px);text-decoration:none}
+.ea-quick-icon{width:36px;height:36px;border-radius:var(--r-md);display:inline-flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+.ea-quick-card--primary .ea-quick-icon{background:linear-gradient(135deg,var(--der-navy-500) 0%,var(--der-navy-700) 100%)}
+.ea-quick-card--teal .ea-quick-icon{background:linear-gradient(135deg,var(--der-teal) 0%,var(--der-teal-ink) 100%)}
+.ea-quick-card--amber .ea-quick-icon{background:linear-gradient(135deg,#f0a93a 0%,#d6830d 100%)}
+.ea-quick-card--green .ea-quick-icon{background:linear-gradient(135deg,#30c56a 0%,var(--der-success-ink) 100%)}
+.ea-quick-title{font-size:var(--fs-md);font-weight:600;color:var(--der-ink-900);line-height:1.2}
+.ea-quick-desc{font-size:var(--fs-sm);color:var(--der-ink-400);margin-top:2px}
+
+/* OU picker refresh */
+.ea-ou-picker,.ea-ou-rebind{background:var(--der-surface);border-radius:var(--r-xl);box-shadow:var(--el-1);padding:var(--sp-5)}
+.ea-ou-picker h2,.ea-ou-rebind h2{margin:0 0 var(--sp-2);font-size:var(--fs-lg);font-weight:600}
+.ea-ou-rebind details summary{cursor:pointer;color:var(--der-primary);font-weight:500;padding:var(--sp-2) 0}
+
+/* Overview responsive */
+@media(max-width:1100px){.ea-overview-grid{grid-template-columns:1fr}}
+@media(max-width:768px){
+  .ea-hero{padding:var(--sp-5)}
+  .ea-hero-title{font-size:var(--fs-3xl)}
+  .ea-hero-side{align-items:flex-start}
+  .ea-hero-date{text-align:left}
+}
+
 /* ============ Chips ============ */
 .ea-chip{
   display:inline-flex;align-items:center;gap:var(--sp-1);

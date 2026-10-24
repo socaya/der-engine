@@ -44,8 +44,8 @@ describe('EA-01 SetupWelcome', () => {
     };
     renderWithProviders(<EASetupWelcome api={api as never} />);
     await waitFor(() => expect(screen.getByTestId('ea01-header')).toBeInTheDocument());
-    expect(screen.getByTestId('ea01-profile')).toHaveTextContent('V2_44');
-    expect(screen.getByTestId('ea01-orgunit')).toHaveTextContent('Clinic');
+    expect(screen.getByTestId('hero-central')).toBeInTheDocument();
+    expect(screen.getByTestId('hero-ou')).toHaveTextContent(/Clinic/);
   });
   it('offline banner', async () => {
     renderWithProviders(<EASetupWelcome api={{
