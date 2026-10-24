@@ -168,14 +168,35 @@ export function EASetupWelcome({ api = edgeApi }:
 }
 
 // EA-02 Users list ----------------------------------------------------
+function userInitials(nameOrUsername: string): string {
+  const parts = nameOrUsername.trim().split(/[\s._-]+/).filter(Boolean);
+  if (parts.length === 0) return 'U';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function roleTone(role: string): 'primary' | 'teal' | 'neutral' {
+  const r = role.toUpperCase();
+  if (r === 'ADMIN') return 'primary';
+  if (r === 'OPERATOR') return 'teal';
+  return 'neutral';
+}
+
 export function EAUsersList({ api = edgeApi }:
     { api?: Pick<typeof edgeApi, 'listUsers'> } = {}): JSX.Element {
   const [users, setUsers] = useState<edgeApi.ProvisionedUser[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  const [query, setQuery] = useState('');
   useEffect(() => {
     let cancelled = false;
     api.listUsers()
-      .then((r) => { if (!cancelled) setUsers(r.users); })
+      .then((r) => {
+        if (!cancelled) {
+          setUsers(r.users);
+          setLastFetched(new Date());
+        }
+      })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       });
@@ -183,19 +204,106 @@ export function EAUsersList({ api = edgeApi }:
   }, [api]);
   if (error) return <ErrorBlock title="Users failed" testId="ea02-error">{error}</ErrorBlock>;
   if (users === null) return <LoadingBlock testId="ea02-loading" />;
+  const total = users.length;
+  const admins = users.filter((u) => u.roles.some((r) => r.toUpperCase() === 'ADMIN')).length;
+  const operators = users.filter((u) => u.roles.some((r) => r.toUpperCase() === 'OPERATOR')).length;
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? users.filter((u) =>
+        u.username.toLowerCase().includes(q)
+        || u.displayName.toLowerCase().includes(q)
+        || u.roles.some((r) => r.toLowerCase().includes(q)))
+    : users;
   return (
     <div className="ea-screen">
-      <h1 data-test="ea02-heading">Provisioned users</h1>
-      <Link to="/provisioning/users/new" data-test="ea02-new">Add user</Link>
-      {users.length === 0
-        ? <EmptyBlock title="No users yet" testId="ea02-empty">Bootstrap an admin via env first.</EmptyBlock>
-        : <ul>{users.map((u) => (
-            <li key={u.userId}>
-              <span data-test={`ea02-user-${u.userId}`}>{u.displayName} ({u.username})</span>
-              {' — '}
-              <span data-test={`ea02-roles-${u.userId}`}>{u.roles.join(', ')}</span>
-            </li>
-          ))}</ul>}
+      <HeroHeader
+        title="Users"
+        subtitle="Operators and administrators provisioned on this edge."
+        lastFetched={lastFetched}
+        actions={
+          <Link to="/provisioning/users/new" className="ea-btn ea-btn--primary" data-test="ea02-new">
+            + Add user
+          </Link>
+        }
+      />
+      <h1 data-test="ea02-heading" className="ea-visually-hidden">Provisioned users</h1>
+
+      <div className="ea-stat-strip" role="group" aria-label="User summary">
+        <StatCard label="Total users" value={total} tone="info" />
+        <StatCard label="Administrators" value={admins} tone="success" />
+        <StatCard label="Operators" value={operators} tone="muted" />
+      </div>
+
+      {users.length === 0 ? (
+        <EmptyBlock title="No users yet" testId="ea02-empty">
+          Bootstrap an ADMIN account via the environment variable, then add
+          operators here.
+        </EmptyBlock>
+      ) : (
+        <section className="ea-card">
+          <div className="ea-card-toolbar">
+            <div className="ea-filter-search">
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
+                <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M20 20l-3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              </svg>
+              <input
+                type="search"
+                placeholder="Search by name, username or role"
+                aria-label="Search users"
+                data-test="ea02-search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            <span className="ea-card-count">{filtered.length} of {total}</span>
+          </div>
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--users">
+              <thead>
+                <tr>
+                  <th scope="col">User</th>
+                  <th scope="col">Username</th>
+                  <th scope="col">Roles</th>
+                  <th scope="col" aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((u) => (
+                  <tr key={u.userId}>
+                    <td>
+                      <div className="ea-user-cell">
+                        <span className="ea-user-cell-avatar" aria-hidden="true">
+                          {userInitials(u.displayName || u.username)}
+                        </span>
+                        <span
+                          className="ea-user-cell-name"
+                          data-test={`ea02-user-${u.userId}`}
+                        >
+                          {u.displayName} ({u.username})
+                        </span>
+                      </div>
+                    </td>
+                    <td className="ea-mono">{u.username}</td>
+                    <td data-test={`ea02-roles-${u.userId}`}>
+                      <span className="ea-role-chips">
+                        {u.roles.map((r) => (
+                          <span key={r} className={`ea-chip ea-chip--${roleTone(r)}`}>{r}</span>
+                        ))}
+                      </span>
+                    </td>
+                    <td className="ea-table-actions">
+                      <span className="ea-link-btn ea-link-btn--muted" aria-disabled="true" title="Edit — not yet available">
+                        Edit
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -256,94 +364,168 @@ export function EAUserCreate({ api = edgeApi }:
 
   return (
     <div className="ea-screen">
-      <ScreenHeader
-        title="Create user"
-        subtitle="Provision an operator or ADMIN account on this edge."
-        testId="ea03-header"
+      <HeroHeader
+        title="Add user"
+        subtitle="Provision an operator or administrator account on this edge."
+        actions={
+          <Link to="/provisioning/users" className="ea-btn ea-btn--ghost">← Back to users</Link>
+        }
       />
-      <section>
-        <form onSubmit={(e) => { e.preventDefault(); if (canSubmit) void doSave(); }}>
-          <label>
-            <span>Username</span>
-            <input
-              data-test="ea03-username"
-              value={u}
-              onChange={(e) => setU(e.target.value)}
-              onBlur={() => setTouched((t) => ({ ...t, username: true }))}
-              aria-invalid={!!fieldError('username')}
-              placeholder="e.g. nurse.alice"
-            />
-            {fieldError('username') && (
-              <span className="ea-field-error" data-test="ea03-err-username">
-                {fieldError('username')}
-              </span>
-            )}
-          </label>
-          <label>
-            <span>Display name</span>
-            <input
-              data-test="ea03-display"
-              value={d}
-              onChange={(e) => setD(e.target.value)}
-              onBlur={() => setTouched((t) => ({ ...t, displayName: true }))}
-              aria-invalid={!!fieldError('displayName')}
-              placeholder="Full name as it should appear"
-            />
-            {fieldError('displayName') && (
-              <span className="ea-field-error" data-test="ea03-err-display">
-                {fieldError('displayName')}
-              </span>
-            )}
-          </label>
-          <label>
-            <span>Password</span>
-            <input
-              data-test="ea03-password"
-              type="password"
-              value={p}
-              onChange={(e) => setP(e.target.value)}
-              onBlur={() => setTouched((t) => ({ ...t, password: true }))}
-              aria-invalid={!!fieldError('password')}
-            />
-            {fieldError('password') && (
-              <span className="ea-field-error" data-test="ea03-err-password">
-                {fieldError('password')}
-              </span>
-            )}
-          </label>
-          <label>
-            <span>Confirm password</span>
-            <input
-              data-test="ea03-confirm"
-              type="password"
-              value={c}
-              onChange={(e) => setC(e.target.value)}
-              onBlur={() => setTouched((t) => ({ ...t, confirm: true }))}
-              aria-invalid={!!fieldError('confirm')}
-            />
-            {fieldError('confirm') && (
-              <span className="ea-field-error" data-test="ea03-err-confirm">
-                {fieldError('confirm')}
-              </span>
-            )}
-          </label>
-          <label>
-            <span>Role</span>
-            <select data-test="ea03-role" value={role} onChange={(e) => setRole(e.target.value)}>
-              <option value="OPERATOR">OPERATOR — captures data on the device</option>
-              <option value="ADMIN">ADMIN — manages this edge</option>
-            </select>
-          </label>
-          <button type="submit" data-test="ea03-submit" disabled={!canSubmit}>
-            {status === 'saving' ? 'Creating…' : 'Create user'}
-          </button>
+      <div data-test="ea03-header" hidden />
+
+      <section className="ea-card ea-form-card">
+        <form
+          className="ea-form"
+          onSubmit={(e) => { e.preventDefault(); if (canSubmit) void doSave(); }}
+        >
+          <div className="ea-form-section">
+            <div className="ea-form-section-head">
+              <h2>Account</h2>
+              <p>Identity shown on captured records and audit entries.</p>
+            </div>
+            <div className="ea-form-grid">
+              <label className="ea-field">
+                <span className="ea-field-label">Username</span>
+                <input
+                  className="ea-input"
+                  data-test="ea03-username"
+                  value={u}
+                  onChange={(e) => setU(e.target.value)}
+                  onBlur={() => setTouched((t) => ({ ...t, username: true }))}
+                  aria-invalid={!!fieldError('username')}
+                  placeholder="e.g. nurse.alice"
+                />
+                <span className="ea-field-hint">3–32 chars. Letters, digits, dot, underscore, hyphen.</span>
+                {fieldError('username') && (
+                  <span className="ea-field-error" data-test="ea03-err-username">
+                    {fieldError('username')}
+                  </span>
+                )}
+              </label>
+              <label className="ea-field">
+                <span className="ea-field-label">Display name</span>
+                <input
+                  className="ea-input"
+                  data-test="ea03-display"
+                  value={d}
+                  onChange={(e) => setD(e.target.value)}
+                  onBlur={() => setTouched((t) => ({ ...t, displayName: true }))}
+                  aria-invalid={!!fieldError('displayName')}
+                  placeholder="Full name as it should appear"
+                />
+                {fieldError('displayName') && (
+                  <span className="ea-field-error" data-test="ea03-err-display">
+                    {fieldError('displayName')}
+                  </span>
+                )}
+              </label>
+            </div>
+          </div>
+
+          <div className="ea-form-section">
+            <div className="ea-form-section-head">
+              <h2>Credentials</h2>
+              <p>Minimum 12 characters mixing upper, lower, and digits.</p>
+            </div>
+            <div className="ea-form-grid">
+              <label className="ea-field">
+                <span className="ea-field-label">Password</span>
+                <input
+                  className="ea-input"
+                  data-test="ea03-password"
+                  type="password"
+                  value={p}
+                  onChange={(e) => setP(e.target.value)}
+                  onBlur={() => setTouched((t) => ({ ...t, password: true }))}
+                  aria-invalid={!!fieldError('password')}
+                  autoComplete="new-password"
+                />
+                {fieldError('password') && (
+                  <span className="ea-field-error" data-test="ea03-err-password">
+                    {fieldError('password')}
+                  </span>
+                )}
+              </label>
+              <label className="ea-field">
+                <span className="ea-field-label">Confirm password</span>
+                <input
+                  className="ea-input"
+                  data-test="ea03-confirm"
+                  type="password"
+                  value={c}
+                  onChange={(e) => setC(e.target.value)}
+                  onBlur={() => setTouched((t) => ({ ...t, confirm: true }))}
+                  aria-invalid={!!fieldError('confirm')}
+                  autoComplete="new-password"
+                />
+                {fieldError('confirm') && (
+                  <span className="ea-field-error" data-test="ea03-err-confirm">
+                    {fieldError('confirm')}
+                  </span>
+                )}
+              </label>
+            </div>
+          </div>
+
+          <div className="ea-form-section">
+            <div className="ea-form-section-head">
+              <h2>Access</h2>
+              <p>What this user can do on the edge once signed in.</p>
+            </div>
+            <div className="ea-role-picker" role="radiogroup" aria-label="Role">
+              <select
+                className="ea-input ea-visually-hidden"
+                data-test="ea03-role"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              >
+                <option value="OPERATOR">OPERATOR — captures data on the device</option>
+                <option value="ADMIN">ADMIN — manages this edge</option>
+              </select>
+              <button
+                type="button"
+                className={'ea-role-card' + (role === 'OPERATOR' ? ' ea-role-card--active' : '')}
+                onClick={() => setRole('OPERATOR')}
+                aria-pressed={role === 'OPERATOR'}
+              >
+                <span className="ea-chip ea-chip--teal">OPERATOR</span>
+                <span className="ea-role-card-desc">Captures aggregate / event / tracker data on this device.</span>
+              </button>
+              <button
+                type="button"
+                className={'ea-role-card' + (role === 'ADMIN' ? ' ea-role-card--active' : '')}
+                onClick={() => setRole('ADMIN')}
+                aria-pressed={role === 'ADMIN'}
+              >
+                <span className="ea-chip ea-chip--primary">ADMIN</span>
+                <span className="ea-role-card-desc">Manages users, sync, apps and settings on this edge.</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="ea-form-actions">
+            <Link to="/provisioning/users" className="ea-btn ea-btn--ghost">Cancel</Link>
+            <button
+              type="submit"
+              className="ea-btn ea-btn--primary"
+              data-test="ea03-submit"
+              disabled={!canSubmit}
+            >
+              {status === 'saving' ? 'Creating…' : 'Create user'}
+            </button>
+          </div>
+
+          {status === 'saved' && (
+            <p data-test="ea03-saved" className="ea-saved">
+              User created. They can now sign in with the credentials you provided.
+            </p>
+          )}
+          {status === 'error' && error && (
+            <div className="ea-form-error">
+              <ErrorBlock title="Create failed" testId="ea03-error">{error}</ErrorBlock>
+            </div>
+          )}
         </form>
-        {status === 'saved' && (
-          <p data-test="ea03-saved" className="ea-saved">User created.</p>
-        )}
-        {status === 'error' && error && (
-          <ErrorBlock title="Create failed" testId="ea03-error">{error}</ErrorBlock>
-        )}
       </section>
     </div>
   );

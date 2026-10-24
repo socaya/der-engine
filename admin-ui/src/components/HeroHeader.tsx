@@ -11,7 +11,7 @@ export interface HeroHeaderProps {
   readonly version?: string;
   readonly centralVersion?: string;
   readonly lastFetched?: Date | null;
-  readonly orgUnitBound: boolean;
+  readonly orgUnitBound?: boolean;
   readonly orgUnitLabel?: string;
   readonly actions?: ReactNode;
 }
