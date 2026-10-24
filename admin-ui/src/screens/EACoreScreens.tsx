@@ -497,8 +497,9 @@ export function EAJobsList({ api = edgeApi }:
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [filterJob, setFilterJob] = useState('');
   const [filterOutcome, setFilterOutcome] = useState<string>('ALL');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
-  const pageSize = 20;
+  const pageSize = 15;
 
   async function reload(): Promise<void> {
     try {
@@ -519,6 +520,12 @@ export function EAJobsList({ api = edgeApi }:
   if (error) return <ErrorBlock title="Jobs failed" testId="ea06-error">{error}</ErrorBlock>;
   if (rows === null) return <LoadingBlock testId="ea06-loading" />;
 
+  // Outcome counts for status strip
+  const total = rows.length;
+  const nSuccess = rows.filter((r) => r.outcome === 'SUCCESS').length;
+  const nFailed = rows.filter((r) => r.outcome === 'FAILED' || r.outcome === 'ERROR').length;
+  const nOther = total - nSuccess - nFailed;
+
   const outcomes = Array.from(new Set(rows.map((r) => r.outcome)));
   const filtered = rows.filter((r) => {
     if (filterJob && !r.jobName.toLowerCase().includes(filterJob.toLowerCase())) return false;
@@ -535,80 +542,174 @@ export function EAJobsList({ api = edgeApi }:
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const pageRows = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const selected = selectedId !== null ? rows.find((r) => r.runId === selectedId) ?? null : null;
 
   function arrow(col: typeof sortCol): string {
     if (sortCol !== col) return '';
     return sortDir === 'asc' ? ' ↑' : ' ↓';
   }
+  function fmtDate(iso: string): string {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+  function fmtDuration(ms?: number): string {
+    if (!ms) return '—';
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+    return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
+  }
+  function outcomeChipCls(o: string): string {
+    if (o === 'SUCCESS') return 'ea-chip ea-chip--success';
+    if (o === 'FAILED' || o === 'ERROR') return 'ea-chip ea-chip--danger';
+    if (o === 'RUNNING') return 'ea-chip ea-chip--info';
+    return 'ea-chip ea-chip--warning';
+  }
 
   return (
     <div className="ea-screen">
-      <ScreenHeader
-        title="Scheduled job runs"
-        subtitle={`${sorted.length} of ${rows.length} rows`}
+      <HeroHeader
+        title="Synchronisation jobs"
+        subtitle="Scheduled Quartz runs across metadata, journal drain, backup, analytics and referral polling."
         lastFetched={lastFetched}
-        onRefresh={reload}
-        testId="ea06-header"
+        orgUnitBound
+        actions={
+          <>
+            <button type="button" onClick={() => { reload().catch(() => undefined); }} data-test="ea06-refresh">
+              Refresh
+            </button>
+            <Link to="/sync/jobs/trigger" className="ea-link-btn" data-test="ea06-trigger-link">
+              Trigger a job
+            </Link>
+          </>
+        }
       />
+
+      <div className="ea-stat-strip" data-test="ea06-strip">
+        <StatCard label="Total runs" value={total} tone="info" />
+        <StatCard label="Succeeded" value={nSuccess} tone="success" />
+        <StatCard label="Failed" value={nFailed} tone="danger" />
+        <StatCard label="Other" value={nOther} tone="muted" />
+      </div>
+
       <section>
-        <div className="ea-toolbar" data-test="ea06-toolbar">
-          <label>
-            <span>Filter by job name</span>
+        <div className="ea-filter-chips" data-test="ea06-chips">
+          <span className="ea-filter-chips-label">Outcome</span>
+          {['ALL', ...outcomes].map((o) => (
+            <button
+              key={o}
+              type="button"
+              className={`ea-filter-chip${filterOutcome === o ? ' ea-filter-chip--active' : ''}`}
+              onClick={() => { setFilterOutcome(o); setPage(1); }}
+              data-test={`ea06-chip-${o}`}
+            >
+              {o}
+            </button>
+          ))}
+          <label className="ea-filter-chips-search">
+            <span className="sr-only">Search job name</span>
             <input
               type="search"
               value={filterJob}
               onChange={(e) => { setFilterJob(e.target.value); setPage(1); }}
-              placeholder="e.g. JOURNAL_WORKER_DRAIN"
+              placeholder="Search job name…"
               data-test="ea06-filter-job"
             />
           </label>
-          <label>
-            <span>Outcome</span>
-            <select
-              value={filterOutcome}
-              onChange={(e) => { setFilterOutcome(e.target.value); setPage(1); }}
-              data-test="ea06-filter-outcome"
-            >
-              <option value="ALL">All</option>
-              {outcomes.map((o) => (
-                <option key={o} value={o}>{o}</option>
-              ))}
-            </select>
-          </label>
         </div>
+
         {pageRows.length === 0
           ? <EmptyBlock title="No runs match" testId="ea06-empty">Change the filter or clear it.</EmptyBlock>
-          : <table data-test="ea06-table">
-              <thead><tr>
-                <th><button type="button" onClick={() => toggleSort('jobName')} data-test="ea06-sort-job">Job{arrow('jobName')}</button></th>
-                <th><button type="button" onClick={() => toggleSort('startedAt')} data-test="ea06-sort-started">Started{arrow('startedAt')}</button></th>
-                <th><button type="button" onClick={() => toggleSort('outcome')} data-test="ea06-sort-outcome">Outcome{arrow('outcome')}</button></th>
-                <th><button type="button" onClick={() => toggleSort('duration')} data-test="ea06-sort-duration">Duration{arrow('duration')}</button></th>
-              </tr></thead>
-              <tbody>{pageRows.map((r) => (
-                <tr key={r.runId}>
-                  <td data-test={`ea06-row-job-${r.runId}`}>{r.jobName}</td>
-                  <td>{r.startedAt}</td>
-                  <td>
-                    <span className={`ea-chip ea-chip--${r.outcome === 'SUCCESS' ? 'success' : r.outcome === 'FAILED' ? 'danger' : 'info'}`}>
-                      {r.outcome}
-                    </span>
-                  </td>
-                  <td>{r.durationMs ?? '—'}</td>
-                </tr>
-              ))}</tbody>
-            </table>}
-        <div className="ea-pagination" data-test="ea06-pagination">
-          <button type="button" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)} data-test="ea06-prev">Prev</button>
-          <span>Page {safePage} of {totalPages}</span>
-          <button type="button" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)} data-test="ea06-next">Next</button>
-        </div>
+          : <>
+              <div className="ea-table-wrap">
+                <table data-test="ea06-table">
+                  <thead><tr>
+                    <th><button type="button" onClick={() => toggleSort('jobName')} data-test="ea06-sort-job">Job{arrow('jobName')}</button></th>
+                    <th><button type="button" onClick={() => toggleSort('startedAt')} data-test="ea06-sort-started">Started{arrow('startedAt')}</button></th>
+                    <th><button type="button" onClick={() => toggleSort('outcome')} data-test="ea06-sort-outcome">Outcome{arrow('outcome')}</button></th>
+                    <th><button type="button" onClick={() => toggleSort('duration')} data-test="ea06-sort-duration">Duration{arrow('duration')}</button></th>
+                    <th></th>
+                  </tr></thead>
+                  <tbody>{pageRows.map((r) => (
+                    <tr
+                      key={r.runId}
+                      className={selectedId === r.runId ? 'ea-row-selected' : ''}
+                      onClick={() => setSelectedId(r.runId)}
+                      style={{ cursor: 'pointer' }}
+                      data-test={`ea06-row-${r.runId}`}
+                    >
+                      <td data-test={`ea06-row-job-${r.runId}`}>
+                        <div className="ea-cell-two">
+                          <div className="ea-cell-primary">{r.jobName}</div>
+                          <div className="ea-cell-secondary">run {r.runId}</div>
+                        </div>
+                      </td>
+                      <td>{fmtDate(r.startedAt)}</td>
+                      <td><span className={outcomeChipCls(r.outcome)}>{r.outcome}</span></td>
+                      <td>{fmtDuration(r.durationMs ?? undefined)}</td>
+                      <td className="ea-cell-right">
+                        <span className="ea-row-arrow" aria-hidden="true">›</span>
+                      </td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+              <div className="ea-pagination" data-test="ea06-pagination">
+                <span className="ea-pagination-info">
+                  {sorted.length === 0 ? 0 : (safePage - 1) * pageSize + 1}
+                  –{Math.min(safePage * pageSize, sorted.length)} of {sorted.length}
+                </span>
+                <button type="button" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)} data-test="ea06-prev">Prev</button>
+                <span>Page {safePage} of {totalPages}</span>
+                <button type="button" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)} data-test="ea06-next">Next</button>
+              </div>
+            </>}
       </section>
+
+      {selected && (
+        <div className="ea-drawer" role="dialog" aria-label="Job run detail" data-test="ea06-drawer">
+          <div className="ea-drawer-head">
+            <h2>Job run detail</h2>
+            <button type="button"
+                    onClick={() => setSelectedId(null)}
+                    data-test="ea06-drawer-close">Close</button>
+          </div>
+          <dl>
+            <dt>Job</dt><dd>{selected.jobName}</dd>
+            <dt>Run id</dt><dd>{selected.runId}</dd>
+            <dt>Started</dt><dd>{selected.startedAt}</dd>
+            <dt>Finished</dt><dd>{selected.finishedAt ?? '—'}</dd>
+            <dt>Outcome</dt><dd><span className={outcomeChipCls(selected.outcome)}>{selected.outcome}</span></dd>
+            <dt>Duration</dt><dd>{fmtDuration(selected.durationMs ?? undefined)}</dd>
+          </dl>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard(
+  { label, value, tone }: { label: string; value: number; tone: 'info' | 'success' | 'danger' | 'muted' },
+): JSX.Element {
+  return (
+    <div className={`ea-stat ea-stat--${tone}`} data-test={`stat-${label.replace(/\s+/g, '-').toLowerCase()}`}>
+      <div className="ea-stat-value">{value.toLocaleString()}</div>
+      <div className="ea-stat-label">{label}</div>
     </div>
   );
 }
 
 // EA-07 Job trigger -------------------------------------------------
+const JOB_CATALOG: readonly { name: string; label: string; desc: string }[] = [
+  { name: 'METADATA_SYNC_FULL', label: 'Metadata sync (full)',
+    desc: 'Fetch the full metadata snapshot (OUs, dataElements, programs, …) from DHIS2 central and overwrite the local mirror.' },
+  { name: 'COMPAT_PROBE_REFRESH', label: 'Compatibility probe refresh',
+    desc: 'Re-run the DHIS2 compatibility probe against the configured central and persist a new snapshot.' },
+  { name: 'DRIFT_SNAPSHOT', label: 'Drift snapshot',
+    desc: 'Compute a fingerprint of the current mirror vs the last snapshot to detect metadata drift.' },
+  { name: 'JOURNAL_WORKER_DRAIN', label: 'Journal worker drain',
+    desc: 'Drain the pending journal — attempt to deliver outgoing data value sets, events and trackers to central.' },
+];
+
 export function EAJobTrigger({ api = edgeApi }:
     { api?: Pick<typeof edgeApi, 'triggerJob'> } = {}): JSX.Element {
   const [name, setName] = useState('METADATA_SYNC_FULL');
@@ -623,19 +724,44 @@ export function EAJobTrigger({ api = edgeApi }:
     } catch (err) { setStatus('error');
       setError(err instanceof Error ? err.message : String(err)); }
   }
+  const current = JOB_CATALOG.find((j) => j.name === name) ?? JOB_CATALOG[0];
   return (
     <div className="ea-screen">
-      <h1 data-test="ea07-heading">Trigger a job</h1>
-      <label><span>Job name</span>
-        <select data-test="ea07-name" value={name} onChange={(e) => setName(e.target.value)}>
-          <option>METADATA_SYNC_FULL</option>
-          <option>COMPAT_PROBE_REFRESH</option>
-          <option>DRIFT_SNAPSHOT</option>
-          <option>JOURNAL_WORKER_DRAIN</option>
-        </select></label>
-      <button type="button" data-test="ea07-fire" disabled={status === 'triggering'}
-              onClick={() => { doTrigger().catch(() => undefined); }}>Fire now</button>
-      {status === 'ok' && <p data-test="ea07-ok">Triggered.</p>}
+      <HeroHeader
+        title="Trigger a job"
+        subtitle="Fire a scheduled sync job now instead of waiting for its cron window."
+        orgUnitBound
+      />
+      <section className="ea-trigger-card" data-test="ea07-card">
+        <div className="ea-trigger-pick">
+          <label htmlFor="ea07-name"><span>Job</span></label>
+          <select
+            id="ea07-name"
+            data-test="ea07-name"
+            value={name}
+            onChange={(e) => { setName(e.target.value); setStatus('idle'); setError(null); }}
+          >
+            {JOB_CATALOG.map((j) => (
+              <option key={j.name} value={j.name}>{j.label}</option>
+            ))}
+          </select>
+          <div className="ea-trigger-code"><code>{current.name}</code></div>
+          <p className="ea-trigger-desc">{current.desc}</p>
+        </div>
+        <div className="ea-trigger-cta">
+          <button
+            type="submit"
+            data-test="ea07-fire"
+            disabled={status === 'triggering'}
+            onClick={() => { doTrigger().catch(() => undefined); }}
+          >
+            {status === 'triggering' ? 'Firing…' : 'Fire now'}
+          </button>
+          {status === 'ok' && (
+            <p className="ea-saved" data-test="ea07-ok">Triggered. Check Jobs for the run outcome.</p>
+          )}
+        </div>
+      </section>
       {status === 'error' && error && (
         <ErrorBlock title="Trigger failed" testId="ea07-error">{error}</ErrorBlock>
       )}
@@ -659,23 +785,53 @@ export function EADriftInspector({ api = edgeApi }:
   if (error) return <ErrorBlock title="Drift failed" testId="ea08-error">{error}</ErrorBlock>;
   if (!data) return <LoadingBlock testId="ea08-loading" />;
   if (data.status === 'NO_SNAPSHOT') {
-    return <EmptyBlock title="No drift snapshot" testId="ea08-empty">
-      Trigger a metadata sync first.</EmptyBlock>;
+    return (
+      <div className="ea-screen">
+        <HeroHeader title="Metadata drift" subtitle="No snapshot yet." orgUnitBound />
+        <EmptyBlock title="No drift snapshot" testId="ea08-empty">
+          Trigger a metadata sync first.
+        </EmptyBlock>
+      </div>
+    );
   }
+  const same = data.fingerprintFrom === data.fingerprintTo;
   return (
     <div className="ea-screen">
-      <h1 data-test="ea08-heading">Metadata drift</h1>
-      <p data-test="ea08-pair">
-        from {data.snapshotFrom} to {data.snapshotTo}
-      </p>
-      <p data-test="ea08-same">
-        Fingerprint {data.fingerprintFrom === data.fingerprintTo ? 'equal' : 'different'}
-      </p>
-      <button type="button" data-test="ea08-refresh" disabled={refreshing}
-              onClick={() => { setRefreshing(true);
-                load(true).finally(() => setRefreshing(false)); }}>
-        {refreshing ? 'Running…' : 'Re-run drift'}
-      </button>
+      <HeroHeader
+        title="Metadata drift"
+        subtitle="Fingerprint comparison between the latest two metadata snapshots."
+        orgUnitBound
+        actions={
+          <button type="button" data-test="ea08-refresh" disabled={refreshing}
+                  onClick={() => { setRefreshing(true);
+                    load(true).finally(() => setRefreshing(false)); }}>
+            {refreshing ? 'Running…' : 'Re-run drift'}
+          </button>
+        }
+      />
+      <div className="ea-drift" data-test="ea08-pair">
+        <div className="ea-drift-col">
+          <div className="ea-drift-label">From snapshot</div>
+          <div className="ea-drift-value">{data.snapshotFrom}</div>
+          <code className="ea-drift-fp">{data.fingerprintFrom?.slice(0, 24) ?? '—'}</code>
+        </div>
+        <div className={`ea-drift-sep ea-drift-sep--${same ? 'ok' : 'warn'}`}>
+          <div className="ea-drift-sep-icon" aria-hidden="true">
+            {same
+              ? <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12l5 5L20 7"/></svg>
+              : <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M4 7h4m8 10h4M8 7l8 10M16 7l-8 10"/></svg>
+            }
+          </div>
+          <div className="ea-drift-sep-label" data-test="ea08-same">
+            Fingerprint {same ? 'equal' : 'different'}
+          </div>
+        </div>
+        <div className="ea-drift-col">
+          <div className="ea-drift-label">To snapshot</div>
+          <div className="ea-drift-value">{data.snapshotTo}</div>
+          <code className="ea-drift-fp">{data.fingerprintTo?.slice(0, 24) ?? '—'}</code>
+        </div>
+      </div>
     </div>
   );
 }
@@ -684,31 +840,64 @@ export function EADriftInspector({ api = edgeApi }:
 export function EAConflictList({ api = edgeApi }:
     { api?: Pick<typeof edgeApi, 'listConflicts'> } = {}): JSX.Element {
   const [rows, setRows] = useState<edgeApi.ConflictRow[] | null>(null);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    api.listConflicts()
-      .then((r) => { if (!cancelled) setRows(r); })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      });
-    return () => { cancelled = true; };
-  }, [api]);
+  async function reload(): Promise<void> {
+    try {
+      const r = await api.listConflicts();
+      setRows(r); setLastFetched(new Date());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, [api]);
   if (error) return <ErrorBlock title="Conflicts failed" testId="ea10-error">{error}</ErrorBlock>;
   if (rows === null) return <LoadingBlock testId="ea10-loading" />;
   return (
     <div className="ea-screen">
-      <h1 data-test="ea10-heading">Conflicts to review</h1>
-      {rows.length === 0
-        ? <EmptyBlock title="No conflicts" testId="ea10-empty">
-            Nothing in CONFLICT_REVIEW state.</EmptyBlock>
-        : <ul>{rows.map((r) => (
-            <li key={r.operationId}>
-              <Link to={`/conflicts/${r.operationId}`} data-test={`ea10-row-${r.operationId}`}>
-                {r.entityType} {r.entityRef}
-              </Link>
-            </li>
-          ))}</ul>}
+      <HeroHeader
+        title="Conflicts to review"
+        subtitle="Journal entries that need an authorised reviewer before they can drain to central."
+        lastFetched={lastFetched}
+        orgUnitBound
+        actions={
+          <button type="button" onClick={() => { reload().catch(() => undefined); }} data-test="ea10-refresh">
+            Refresh
+          </button>
+        }
+      />
+      <section>
+        {rows.length === 0
+          ? <EmptyBlock title="No conflicts" testId="ea10-empty">
+              Nothing in CONFLICT_REVIEW state right now.
+            </EmptyBlock>
+          : (
+            <div className="ea-table-wrap">
+              <table data-test="ea10-table">
+                <thead><tr>
+                  <th>Entity</th>
+                  <th>Reference</th>
+                  <th>Operation id</th>
+                  <th></th>
+                </tr></thead>
+                <tbody>{rows.map((r) => (
+                  <tr key={r.operationId} data-test={`ea10-row-${r.operationId}`}>
+                    <td>
+                      <span className="ea-chip ea-chip--warning">{r.entityType}</span>
+                    </td>
+                    <td className="ea-mono">{r.entityRef}</td>
+                    <td className="ea-mono ea-ink-muted">{r.operationId.slice(0, 8)}…</td>
+                    <td className="ea-cell-right">
+                      <Link to={`/conflicts/${r.operationId}`} className="ea-link-btn">
+                        Review →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+      </section>
     </div>
   );
 }
@@ -762,9 +951,13 @@ export function EAWorkerHealth({ api = edgeApi }:
     { api?: Pick<typeof edgeApi, 'workerHealth' | 'pauseWorker' | 'resumeWorker'> } = {}):
     JSX.Element {
   const [h, setH] = useState<edgeApi.WorkerHealth | null>(null);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   async function load(): Promise<void> {
-    try { setH(await api.workerHealth()); } catch (err) {
+    try {
+      setH(await api.workerHealth());
+      setLastFetched(new Date());
+    } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
   }
@@ -778,23 +971,66 @@ export function EAWorkerHealth({ api = edgeApi }:
   }
   if (error) return <ErrorBlock title="Worker health failed" testId="ea14-error">{error}</ErrorBlock>;
   if (!h) return <LoadingBlock testId="ea14-loading" />;
+  const toneFor = (state: string): 'info' | 'success' | 'danger' | 'muted' => {
+    if (state === 'CENTRAL_ACCEPTED') return 'success';
+    if (state === 'CENTRAL_REJECTED' || state === 'CONFLICT_REVIEW') return 'danger';
+    if (state === 'PENDING' || state === 'IN_FLIGHT' || state === 'RETRYABLE') return 'info';
+    return 'muted';
+  };
   return (
     <div className="ea-screen">
-      <h1 data-test="ea14-heading">Journal worker</h1>
-      <p>Status: <span data-test="ea14-enabled">{h.enabled ? 'running' : 'paused'}</span></p>
-      <p>Last tick: <span data-test="ea14-tick">{h.lastTick ?? '—'}</span></p>
-      <p>Last batch: <span data-test="ea14-batch">{h.lastBatchSize}</span></p>
-      <ul data-test="ea14-backlog">
+      <HeroHeader
+        title="Journal worker"
+        subtitle="Pulls pending operations out of the journal and attempts to deliver them to DHIS2 central."
+        lastFetched={lastFetched}
+        orgUnitBound
+        actions={
+          <>
+            <button type="button" onClick={() => { load().catch(() => undefined); }} data-test="ea14-refresh">
+              Refresh
+            </button>
+            <button type="button" className="primary" data-test="ea14-toggle"
+                    onClick={() => { toggle().catch(() => undefined); }}>
+              {h.enabled ? 'Pause worker' : 'Resume worker'}
+            </button>
+          </>
+        }
+      />
+      <section className="ea-worker-status" data-test="ea14-status">
+        <div className="ea-worker-status-row">
+          <div>
+            <div className="ea-worker-status-label">Status</div>
+            <div className="ea-worker-status-value">
+              <span
+                className={`ea-chip ea-chip--${h.enabled ? 'success' : 'warning'}`}
+                data-test="ea14-enabled"
+              >
+                {h.enabled ? 'RUNNING' : 'PAUSED'}
+              </span>
+            </div>
+          </div>
+          <div>
+            <div className="ea-worker-status-label">Last tick</div>
+            <div className="ea-worker-status-value" data-test="ea14-tick">{h.lastTick ?? '—'}</div>
+          </div>
+          <div>
+            <div className="ea-worker-status-label">Last batch size</div>
+            <div className="ea-worker-status-value" data-test="ea14-batch">{h.lastBatchSize}</div>
+          </div>
+        </div>
+      </section>
+      <div className="ea-stat-strip ea-stat-strip--wrap" data-test="ea14-backlog">
         {Object.entries(h.backlog).map(([state, n]) => (
-          <li key={state}>
-            <span data-test={`ea14-backlog-${state}`}>{state}: {n}</span>
-          </li>
+          <div
+            key={state}
+            className={`ea-stat ea-stat--${toneFor(state)}`}
+            data-test={`ea14-backlog-${state}`}
+          >
+            <div className="ea-stat-value">{n}</div>
+            <div className="ea-stat-label">{state.replace(/_/g, ' ')}</div>
+          </div>
         ))}
-      </ul>
-      <button type="button" data-test="ea14-toggle"
-              onClick={() => { toggle().catch(() => undefined); }}>
-        {h.enabled ? 'Pause' : 'Resume'}
-      </button>
+      </div>
     </div>
   );
 }

@@ -389,10 +389,10 @@ describe('EA-14 WorkerHealth', () => {
       resumeWorker: vi.fn(),
     };
     renderWithProviders(<EAWorkerHealth api={api as never} />);
-    await waitFor(() => expect(screen.getByTestId('ea14-enabled')).toHaveTextContent('running'));
-    expect(screen.getByTestId('ea14-backlog-PENDING')).toHaveTextContent('PENDING: 2');
+    await waitFor(() => expect(screen.getByTestId('ea14-enabled')).toHaveTextContent('RUNNING'));
+    expect(screen.getByTestId('ea14-backlog-PENDING')).toHaveTextContent(/PENDING/i);
     await userEvent.click(screen.getByTestId('ea14-toggle'));
-    await waitFor(() => expect(screen.getByTestId('ea14-enabled')).toHaveTextContent('paused'));
+    await waitFor(() => expect(screen.getByTestId('ea14-enabled')).toHaveTextContent('PAUSED'));
   });
   it('paused + resume', async () => {
     const api = {
@@ -403,9 +403,9 @@ describe('EA-14 WorkerHealth', () => {
       resumeWorker: vi.fn().mockResolvedValue({ enabled: true }),
     };
     renderWithProviders(<EAWorkerHealth api={api as never} />);
-    await waitFor(() => expect(screen.getByTestId('ea14-enabled')).toHaveTextContent('paused'));
+    await waitFor(() => expect(screen.getByTestId('ea14-enabled')).toHaveTextContent('PAUSED'));
     await userEvent.click(screen.getByTestId('ea14-toggle'));
-    await waitFor(() => expect(screen.getByTestId('ea14-enabled')).toHaveTextContent('running'));
+    await waitFor(() => expect(screen.getByTestId('ea14-enabled')).toHaveTextContent('RUNNING'));
   });
   it('error', async () => {
     renderWithProviders(<EAWorkerHealth api={{
