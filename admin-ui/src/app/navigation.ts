@@ -54,6 +54,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       { id: 'workspace', label: 'Workspace', to: '/', status: 'implemented' },
       { id: 'system-info', label: 'System info', to: '/system/information', status: 'implemented' },
+      { id: 'admin-tasks', label: 'Admin tasks', to: '/admin-tasks', status: 'implemented' },
     ],
   },
   {

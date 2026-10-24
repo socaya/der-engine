@@ -635,6 +635,38 @@ export function writeDhis2Connection(body: Partial<Dhis2ConnectionPayload>): Pro
   return request('PUT', '/edge-api/v1/admin/dhis2-connection', body);
 }
 
+export interface LifecycleAck {
+  status: string;
+  requestedBy?: string;
+  requestedAt?: string;
+  sessionsRevoked?: number;
+  note?: string;
+  flagFile?: string;
+}
+export function adminShutdown(): Promise<LifecycleAck> {
+  return request('POST', '/edge-api/v1/admin/lifecycle/shutdown');
+}
+export function adminRestart(): Promise<LifecycleAck> {
+  return request('POST', '/edge-api/v1/admin/lifecycle/restart');
+}
+export function adminClearSessions(): Promise<LifecycleAck> {
+  return request('POST', '/edge-api/v1/admin/lifecycle/clear-sessions');
+}
+export function adminReloadDhis2Config(): Promise<LifecycleAck> {
+  return request('POST', '/edge-api/v1/admin/lifecycle/reload-dhis2-config');
+}
+export interface LifecycleLogs {
+  status: string;
+  path: string;
+  totalLines?: number;
+  linesRequested: number;
+  entries: string[];
+  error?: string;
+}
+export function adminLogs(lines = 200): Promise<LifecycleLogs> {
+  return request('GET', `/edge-api/v1/admin/lifecycle/logs?lines=${lines}`);
+}
+
 export function getOrgUnitBinding(): Promise<OrgUnitBinding> {
   return request<OrgUnitBinding>('GET', '/edge-api/v1/system/org-unit');
 }

@@ -38,6 +38,7 @@ import { MockupSyncHistory } from './screens/mockups/SyncHistory';
 import { MockupUsersDashboard } from './screens/mockups/UsersDashboard';
 import { MockupDhis2Overview } from './screens/mockups/Dhis2Overview';
 import { MockupWorkspace } from './screens/mockups/Workspace';
+import { MockupAdminTasks } from './screens/mockups/AdminTasks';
 import {
   MockupJobsList, MockupDriftInspector, MockupConflictList, MockupWorkerHealth,
   MockupDeviceFleet, MockupApprovalQueue, MockupReferralInbox,
@@ -143,6 +144,7 @@ export default function App(): JSX.Element {
           {/* Previously capability-gap screens — now implemented against
               existing /edge-api/v1 endpoints. */}
           <Route path="/dashboard" element={<RequireAuth><MockupWorkspace /></RequireAuth>} />
+          <Route path="/admin-tasks" element={<RequireAuth><MockupAdminTasks /></RequireAuth>} />
           <Route path="/dashboard-legacy" element={<RequireAuth><MockupDashboard /></RequireAuth>} />
           <Route path="/system/information" element={<RequireAuth><CapSystemInformation /></RequireAuth>} />
           <Route path="/integration" element={<RequireAuth><MockupDhis2Overview /></RequireAuth>} />

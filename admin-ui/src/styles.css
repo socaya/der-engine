@@ -1333,6 +1333,15 @@ kbd{
 .ea-dash-hero-topology-mini{color:var(--der-navy-700);flex-shrink:0;opacity:0.75}
 .ea-topo-node--highlight{border-color:var(--der-primary);background:var(--der-navy-soft)}
 .ea-topo-node--highlight .ea-topo-label{color:var(--der-navy-700)}
+
+/* Server log tail */
+.ea-log-tail{
+  margin:0;padding:12px;background:#0d1b2a;color:#c7d2e3;
+  font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  font-size:11px;line-height:1.5;
+  border-radius:var(--r-md);overflow:auto;
+  max-height:420px;white-space:pre-wrap;word-break:break-word;
+}
 .ea-table-footer{padding:var(--sp-3) var(--sp-4);border-top:1px solid var(--der-border-subtle);font-size:var(--fs-sm);display:flex;justify-content:space-between;align-items:center}
 .ea-main .ea-panel-action input.ea-input,
 .ea-main .ea-panel-action select.ea-input{padding:4px 8px;font-size:var(--fs-sm);max-width:200px}
