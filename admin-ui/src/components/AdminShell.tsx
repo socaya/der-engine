@@ -2,7 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Breadcrumbs } from './Breadcrumbs';
-import { NAV_GROUPS, type NavItem } from '../app/navigation';
+import { NAV_GROUPS, groupForRoute, type NavGroup } from '../app/navigation';
+import { NavIcon } from './NavIcon';
+import { SectionTabs } from './SectionTabs';
 
 /**
  * DER admin shell per
@@ -34,33 +36,27 @@ function initials(nameOrUsername: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-function NavEntry({ item }: { item: NavItem }): JSX.Element | null {
-  if (item.status === 'contextual') return null;
-  const disabled = item.status === 'capability-gap';
-  if (disabled) {
-    return (
-      <span
-        className="ea-sidebar-item ea-sidebar-item--disabled"
-        data-test={`nav-${item.id}`}
-        title="Not yet available — capability gap"
-      >
-        <span className="ea-sidebar-dot" aria-hidden="true" />
-        <span className="ea-sidebar-label">{item.label}</span>
-        <span className="ea-sidebar-badge">n/a</span>
-      </span>
-    );
-  }
+function SidebarPrimary({ grp, activeGroupId }: {
+  grp: NavGroup; activeGroupId: string | null;
+}): JSX.Element | null {
+  const primary = grp.items.find((it) => it.id === grp.primaryId);
+  if (!primary) return null;
+  const isActive = activeGroupId === grp.id;
   return (
     <NavLink
-      to={item.to}
-      end={item.to === '/'}
-      data-test={`nav-${item.id}`}
-      className={({ isActive }) =>
-        'ea-sidebar-item' + (isActive ? ' ea-sidebar-item-active' : '')
+      to={primary.to}
+      end={primary.to === '/'}
+      data-test={`nav-${grp.id}`}
+      className={({ isActive: linkActive }) =>
+        'ea-sidebar-item'
+          + (linkActive || isActive ? ' ea-sidebar-item-active' : '')
       }
+      title={grp.label}
     >
-      <span className="ea-sidebar-dot" aria-hidden="true" />
-      <span className="ea-sidebar-label">{item.label}</span>
+      <span className="ea-sidebar-icon" aria-hidden="true">
+        <NavIcon icon={grp.icon} />
+      </span>
+      <span className="ea-sidebar-label">{grp.label}</span>
     </NavLink>
   );
 }
@@ -109,12 +105,8 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
           </div>
           <nav className="ea-sidebar-nav" aria-label="Primary">
             {NAV_GROUPS.map((grp) => (
-              <div key={grp.id} className="ea-sidebar-group">
-                <div className="ea-sidebar-section-title">{grp.label}</div>
-                {grp.items.map((item) => (
-                  <NavEntry key={item.id} item={item} />
-                ))}
-              </div>
+              <SidebarPrimary key={grp.id} grp={grp}
+                              activeGroupId={groupForRoute(location.pathname)?.id ?? null} />
             ))}
           </nav>
           <div className="ea-sidebar-footer">
@@ -212,6 +204,7 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
       <main className="ea-main" data-der-app="admin-ui">
         <div className="ea-main-inner">
           {!onSignIn && <Breadcrumbs />}
+          {!onSignIn && <SectionTabs />}
           {children}
         </div>
       </main>

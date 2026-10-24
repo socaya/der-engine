@@ -426,7 +426,8 @@ export interface BackupRow {
 }
 
 export function listBackups(): Promise<BackupRow[]> {
-  return request<BackupRow[]>('GET', '/edge-api/v1/backup/runs');
+  return request<{ runs: BackupRow[] }>('GET', '/edge-api/v1/backup/runs')
+    .then((r) => r.runs ?? []);
 }
 
 export function requestBackup(kind: 'AUDIT' | 'FULL'): Promise<BackupRow> {
@@ -442,7 +443,8 @@ export interface RestoreRow {
 }
 
 export function listRestores(): Promise<RestoreRow[]> {
-  return request<RestoreRow[]>('GET', '/edge-api/v1/restore/runs');
+  return request<{ runs: RestoreRow[] }>('GET', '/edge-api/v1/restore/runs')
+    .then((r) => r.runs ?? []);
 }
 
 export function requestRestore(source: string): Promise<RestoreRow> {
