@@ -18,17 +18,24 @@ import {
 } from './screens/EARemainderScreens';
 import { SignIn } from './screens/SignIn';
 import {
-  CapDashboard, CapSystemInformation,
+  CapSystemInformation,
   CapCentralConnection, CapOrgUnitBinding, CapProgramRules,
-  CapSyncOverview, CapSyncHistory, CapDataQueues,
   CapMetadataSync, CapDataExchange, CapSyncSchedule,
   CapWorkflowRuns, CapStepAssignments, CapReferralHistory,
-  CapDataOverview, CapAggregate, CapEvents, CapTracker, CapDrafts, CapMaintenance,
+  CapAggregate, CapEvents, CapTracker, CapDrafts, CapMaintenance,
   CapUserMappings, CapRoles, CapSessions, CapCredentials,
   CapDeviceEnrolment, CapOwnership, CapConnections, CapDeviceDiagnostics,
   CapOperatorMetrics, CapServiceHealth, CapStorage,
   CapProvisioningSetup, CapReleases, CapNetwork,
 } from './screens/CapabilityScreens';
+import { MockupDashboard } from './screens/mockups/Dashboard';
+import { MockupSystemOverview } from './screens/mockups/SystemOverview';
+import { MockupSyncOverview } from './screens/mockups/SyncOverview';
+import { MockupMetadata } from './screens/mockups/Metadata';
+import { MockupDataManagement } from './screens/mockups/DataManagement';
+import { MockupDataQueues } from './screens/mockups/DataQueues';
+import { MockupSyncHistory } from './screens/mockups/SyncHistory';
+import { MockupUsersDashboard } from './screens/mockups/UsersDashboard';
 
 function ConflictResolveRoute(): JSX.Element {
   const { id = '' } = useParams();
@@ -56,8 +63,11 @@ export default function App(): JSX.Element {
         <AdminShell>
           <Routes>
           <Route path="/sign-in" element={<SignIn />} />
-          <Route path="/" element={<RequireAuth><EASetupWelcome /></RequireAuth>} />
+          <Route path="/" element={<RequireAuth><MockupSystemOverview /></RequireAuth>} />
+          <Route path="/overview-legacy" element={<RequireAuth><EASetupWelcome /></RequireAuth>} />
           <Route path="/provisioning/users"
+                 element={<RequireAuth><MockupUsersDashboard /></RequireAuth>} />
+          <Route path="/provisioning/users-legacy"
                  element={<RequireAuth><EAUsersList /></RequireAuth>} />
           <Route path="/provisioning/users/new"
                  element={<RequireAuth><EAUserCreate /></RequireAuth>} />
@@ -91,6 +101,8 @@ export default function App(): JSX.Element {
           <Route path="/referral/inbox"
                  element={<RequireAuth><EAReferralInbox /></RequireAuth>} />
           <Route path="/metadata"
+                 element={<RequireAuth><MockupMetadata /></RequireAuth>} />
+          <Route path="/metadata-legacy"
                  element={<RequireAuth><EAMetadataOverview /></RequireAuth>} />
           <Route path="/recovery" element={<RequireAuth><EARecoveryTools /></RequireAuth>} />
           <Route path="/backup" element={<RequireAuth><EABackupList /></RequireAuth>} />
@@ -102,21 +114,21 @@ export default function App(): JSX.Element {
           <Route path="/settings" element={<RequireAuth><EASettings /></RequireAuth>} />
           {/* Previously capability-gap screens — now implemented against
               existing /edge-api/v1 endpoints. */}
-          <Route path="/dashboard" element={<RequireAuth><CapDashboard /></RequireAuth>} />
+          <Route path="/dashboard" element={<RequireAuth><MockupDashboard /></RequireAuth>} />
           <Route path="/system/information" element={<RequireAuth><CapSystemInformation /></RequireAuth>} />
           <Route path="/integration/connection" element={<RequireAuth><CapCentralConnection /></RequireAuth>} />
           <Route path="/integration/organisation-unit" element={<RequireAuth><CapOrgUnitBinding /></RequireAuth>} />
           <Route path="/integration/program-rules" element={<RequireAuth><CapProgramRules /></RequireAuth>} />
-          <Route path="/sync" element={<RequireAuth><CapSyncOverview /></RequireAuth>} />
-          <Route path="/sync/history" element={<RequireAuth><CapSyncHistory /></RequireAuth>} />
-          <Route path="/sync/queues" element={<RequireAuth><CapDataQueues /></RequireAuth>} />
+          <Route path="/sync" element={<RequireAuth><MockupSyncOverview /></RequireAuth>} />
+          <Route path="/sync/history" element={<RequireAuth><MockupSyncHistory /></RequireAuth>} />
+          <Route path="/sync/queues" element={<RequireAuth><MockupDataQueues /></RequireAuth>} />
           <Route path="/sync/metadata" element={<RequireAuth><CapMetadataSync /></RequireAuth>} />
           <Route path="/sync/data" element={<RequireAuth><CapDataExchange /></RequireAuth>} />
           <Route path="/sync/schedule" element={<RequireAuth><CapSyncSchedule /></RequireAuth>} />
           <Route path="/workflows/runs" element={<RequireAuth><CapWorkflowRuns /></RequireAuth>} />
           <Route path="/workflows/assignments" element={<RequireAuth><CapStepAssignments /></RequireAuth>} />
           <Route path="/referral/history" element={<RequireAuth><CapReferralHistory /></RequireAuth>} />
-          <Route path="/data" element={<RequireAuth><CapDataOverview /></RequireAuth>} />
+          <Route path="/data" element={<RequireAuth><MockupDataManagement /></RequireAuth>} />
           <Route path="/data/aggregate" element={<RequireAuth><CapAggregate /></RequireAuth>} />
           <Route path="/data/events" element={<RequireAuth><CapEvents /></RequireAuth>} />
           <Route path="/data/tracker" element={<RequireAuth><CapTracker /></RequireAuth>} />

@@ -74,8 +74,8 @@ describe('App routing', () => {
   });
 
   it.each([
-    ['/',                        's-setup'],
-    ['/provisioning/users',      's-users'],
+    ['/overview-legacy',         's-setup'],
+    ['/provisioning/users-legacy', 's-users'],
     ['/provisioning/users/new',  's-usernew'],
     ['/compat',                  's-compat'],
     ['/compat/history',          's-compat-history'],
@@ -90,7 +90,7 @@ describe('App routing', () => {
     ['/analytics',               's-analytics'],
     ['/audit/verify',            's-audit'],
     ['/referral/inbox',          's-referral'],
-    ['/metadata',                's-metadata'],
+    ['/metadata-legacy',         's-metadata'],
     ['/recovery',                's-recovery'],
     ['/backup',                  's-backup'],
     ['/restore',                 's-restore'],
