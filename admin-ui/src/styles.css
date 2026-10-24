@@ -1322,6 +1322,17 @@ kbd{
 .ea-sync-progress-row:last-child{border-bottom:0}
 .ea-sync-progress-row span{color:var(--der-ink-400)}
 .ea-sync-progress-row strong{color:var(--der-ink-900);font-weight:600}
+
+/* Workspace 2-col / 3-col grids */
+.ea-ws-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);margin-bottom:var(--sp-3)}
+.ea-ws-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-3);margin-bottom:var(--sp-3)}
+.ea-ws-grid-2 > .ea-panel,.ea-ws-grid-3 > .ea-panel{margin-bottom:0}
+@media(max-width:1200px){.ea-ws-grid-2,.ea-ws-grid-3{grid-template-columns:1fr}}
+
+/* Hero mini topology */
+.ea-dash-hero-topology-mini{color:var(--der-navy-700);flex-shrink:0;opacity:0.75}
+.ea-topo-node--highlight{border-color:var(--der-primary);background:var(--der-navy-soft)}
+.ea-topo-node--highlight .ea-topo-label{color:var(--der-navy-700)}
 .ea-table-footer{padding:var(--sp-3) var(--sp-4);border-top:1px solid var(--der-border-subtle);font-size:var(--fs-sm);display:flex;justify-content:space-between;align-items:center}
 .ea-main .ea-panel-action input.ea-input,
 .ea-main .ea-panel-action select.ea-input{padding:4px 8px;font-size:var(--fs-sm);max-width:200px}

@@ -49,11 +49,10 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     id: 'workspace',
     label: 'Workspace',
-    primaryId: 'system-overview',
+    primaryId: 'workspace',
     icon: 'grid',
     items: [
-      { id: 'system-overview', label: 'Overview', to: '/', status: 'implemented' },
-      { id: 'dashboard', label: 'Dashboard', to: '/dashboard', status: 'implemented' },
+      { id: 'workspace', label: 'Workspace', to: '/', status: 'implemented' },
       { id: 'system-info', label: 'System info', to: '/system/information', status: 'implemented' },
     ],
   },

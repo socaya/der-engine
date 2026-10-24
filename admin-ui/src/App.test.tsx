@@ -74,7 +74,7 @@ describe('App routing', () => {
   });
 
   it.each([
-    ['/overview-legacy',         's-setup'],
+    ['/setup-welcome-legacy',    's-setup'],
     ['/provisioning/users-legacy', 's-users'],
     ['/provisioning/users/new',  's-usernew'],
     ['/compat-legacy',           's-compat'],

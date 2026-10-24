@@ -37,6 +37,7 @@ import { MockupDataQueues } from './screens/mockups/DataQueues';
 import { MockupSyncHistory } from './screens/mockups/SyncHistory';
 import { MockupUsersDashboard } from './screens/mockups/UsersDashboard';
 import { MockupDhis2Overview } from './screens/mockups/Dhis2Overview';
+import { MockupWorkspace } from './screens/mockups/Workspace';
 import {
   MockupJobsList, MockupDriftInspector, MockupConflictList, MockupWorkerHealth,
   MockupDeviceFleet, MockupApprovalQueue, MockupReferralInbox,
@@ -70,8 +71,9 @@ export default function App(): JSX.Element {
         <AdminShell>
           <Routes>
           <Route path="/sign-in" element={<SignIn />} />
-          <Route path="/" element={<RequireAuth><MockupSystemOverview /></RequireAuth>} />
-          <Route path="/overview-legacy" element={<RequireAuth><EASetupWelcome /></RequireAuth>} />
+          <Route path="/" element={<RequireAuth><MockupWorkspace /></RequireAuth>} />
+          <Route path="/overview-legacy" element={<RequireAuth><MockupSystemOverview /></RequireAuth>} />
+          <Route path="/setup-welcome-legacy" element={<RequireAuth><EASetupWelcome /></RequireAuth>} />
           <Route path="/provisioning/users"
                  element={<RequireAuth><MockupUsersDashboard /></RequireAuth>} />
           <Route path="/provisioning/users-legacy"
@@ -140,7 +142,8 @@ export default function App(): JSX.Element {
           <Route path="/settings" element={<RequireAuth><EASettings /></RequireAuth>} />
           {/* Previously capability-gap screens — now implemented against
               existing /edge-api/v1 endpoints. */}
-          <Route path="/dashboard" element={<RequireAuth><MockupDashboard /></RequireAuth>} />
+          <Route path="/dashboard" element={<RequireAuth><MockupWorkspace /></RequireAuth>} />
+          <Route path="/dashboard-legacy" element={<RequireAuth><MockupDashboard /></RequireAuth>} />
           <Route path="/system/information" element={<RequireAuth><CapSystemInformation /></RequireAuth>} />
           <Route path="/integration" element={<RequireAuth><MockupDhis2Overview /></RequireAuth>} />
           <Route path="/integration/connection" element={<RequireAuth><CapCentralConnection /></RequireAuth>} />
