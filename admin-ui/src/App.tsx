@@ -36,6 +36,12 @@ import { MockupDataManagement } from './screens/mockups/DataManagement';
 import { MockupDataQueues } from './screens/mockups/DataQueues';
 import { MockupSyncHistory } from './screens/mockups/SyncHistory';
 import { MockupUsersDashboard } from './screens/mockups/UsersDashboard';
+import {
+  MockupJobsList, MockupDriftInspector, MockupConflictList, MockupWorkerHealth,
+  MockupDeviceFleet, MockupApprovalQueue, MockupReferralInbox,
+  MockupBackupList, MockupRestoreList, MockupCompatInspector,
+  MockupAuditEvents, MockupFacilityAnalytics,
+} from './screens/mockups/MoreScreens';
 
 function ConflictResolveRoute(): JSX.Element {
   const { id = '' } = useParams();
@@ -71,42 +77,61 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EAUsersList /></RequireAuth>} />
           <Route path="/provisioning/users/new"
                  element={<RequireAuth><EAUserCreate /></RequireAuth>} />
-          <Route path="/compat" element={<RequireAuth><EACompatInspector /></RequireAuth>} />
+          <Route path="/compat" element={<RequireAuth><MockupCompatInspector /></RequireAuth>} />
+          <Route path="/compat-legacy" element={<RequireAuth><EACompatInspector /></RequireAuth>} />
           <Route path="/compat/history"
                  element={<RequireAuth><EACompatHistory /></RequireAuth>} />
-          <Route path="/sync/jobs" element={<RequireAuth><EAJobsList /></RequireAuth>} />
+          <Route path="/sync/jobs" element={<RequireAuth><MockupJobsList /></RequireAuth>} />
+          <Route path="/sync/jobs-legacy" element={<RequireAuth><EAJobsList /></RequireAuth>} />
           <Route path="/sync/jobs/trigger"
                  element={<RequireAuth><EAJobTrigger /></RequireAuth>} />
-          <Route path="/sync/drift" element={<RequireAuth><EADriftInspector /></RequireAuth>} />
+          <Route path="/sync/drift" element={<RequireAuth><MockupDriftInspector /></RequireAuth>} />
+          <Route path="/sync/drift-legacy" element={<RequireAuth><EADriftInspector /></RequireAuth>} />
           <Route path="/journal/conflicts"
+                 element={<RequireAuth><MockupConflictList /></RequireAuth>} />
+          <Route path="/journal/conflicts-legacy"
                  element={<RequireAuth><EAConflictList /></RequireAuth>} />
           <Route path="/conflicts/:id"
                  element={<RequireAuth><ConflictResolveRoute /></RequireAuth>} />
           <Route path="/journal/worker"
+                 element={<RequireAuth><MockupWorkerHealth /></RequireAuth>} />
+          <Route path="/journal/worker-legacy"
                  element={<RequireAuth><EAWorkerHealth /></RequireAuth>} />
           <Route path="/approvals"
+                 element={<RequireAuth><MockupApprovalQueue /></RequireAuth>} />
+          <Route path="/approvals-legacy"
                  element={<RequireAuth><EAApprovalQueue /></RequireAuth>} />
           <Route path="/workflows"
                  element={<RequireAuth><EACaptureWorkflowList /></RequireAuth>} />
           <Route path="/workflows/:id"
                  element={<RequireAuth><WorkflowDesignerRoute /></RequireAuth>} />
           <Route path="/devices"
+                 element={<RequireAuth><MockupDeviceFleet /></RequireAuth>} />
+          <Route path="/devices-legacy"
                  element={<RequireAuth><EADeviceFleet /></RequireAuth>} />
           <Route path="/analytics"
+                 element={<RequireAuth><MockupFacilityAnalytics /></RequireAuth>} />
+          <Route path="/analytics-legacy"
                  element={<RequireAuth><EAFacilityAnalytics /></RequireAuth>} />
           <Route path="/audit/verify"
                  element={<RequireAuth><EAAuditVerify /></RequireAuth>} />
           <Route path="/audit/events"
+                 element={<RequireAuth><MockupAuditEvents /></RequireAuth>} />
+          <Route path="/audit/events-legacy"
                  element={<RequireAuth><EAAuditEvents /></RequireAuth>} />
           <Route path="/referral/inbox"
+                 element={<RequireAuth><MockupReferralInbox /></RequireAuth>} />
+          <Route path="/referral/inbox-legacy"
                  element={<RequireAuth><EAReferralInbox /></RequireAuth>} />
           <Route path="/metadata"
                  element={<RequireAuth><MockupMetadata /></RequireAuth>} />
           <Route path="/metadata-legacy"
                  element={<RequireAuth><EAMetadataOverview /></RequireAuth>} />
           <Route path="/recovery" element={<RequireAuth><EARecoveryTools /></RequireAuth>} />
-          <Route path="/backup" element={<RequireAuth><EABackupList /></RequireAuth>} />
-          <Route path="/restore" element={<RequireAuth><EARestoreList /></RequireAuth>} />
+          <Route path="/backup" element={<RequireAuth><MockupBackupList /></RequireAuth>} />
+          <Route path="/backup-legacy" element={<RequireAuth><EABackupList /></RequireAuth>} />
+          <Route path="/restore" element={<RequireAuth><MockupRestoreList /></RequireAuth>} />
+          <Route path="/restore-legacy" element={<RequireAuth><EARestoreList /></RequireAuth>} />
           <Route path="/evaluation"
                  element={<RequireAuth><EAEvaluationReports /></RequireAuth>} />
           <Route path="/apps" element={<RequireAuth><EAAppsList /></RequireAuth>} />
