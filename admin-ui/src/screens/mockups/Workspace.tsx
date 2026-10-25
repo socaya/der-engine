@@ -172,15 +172,15 @@ export function MockupWorkspace(): JSX.Element {
       <div className="ea-ws-grid-2">
         <Panel title="System topology">
           <div className="ea-topology">
-            <TopoNode icon={<IconCloud />} label="DHIS2 Central"
+            <TopoNode label="DHIS2 Central"
                       sub={c?.centralVersion ?? '—'}
                       tone={dhis2Up ? 'success' : 'danger'} />
             <TopoArrow />
-            <TopoNode icon={<IconServer />} label="DER Server"
+            <TopoNode label="DER Server"
                       sub={`v${si.build.version}`}
                       tone={h.status === 'UP' ? 'success' : 'danger'} highlight />
             <TopoArrow />
-            <TopoNode icon={<IconDevices />} label="Clients"
+            <TopoNode label="Clients"
                       sub={`${activeDevices} / ${totalDevices}`}
                       tone={activeDevices > 0 ? 'success' : 'muted'} />
           </div>
@@ -188,9 +188,9 @@ export function MockupWorkspace(): JSX.Element {
 
         <Panel title="Resource usage">
           <div className="ea-dash-gauges">
-            <div className="ea-dash-gauge"><Ring percent={cpuPct} label="Scheduler" color="var(--der-primary)" /></div>
-            <div className="ea-dash-gauge"><Ring percent={heapPct} label="Memory" color="var(--der-teal)" /></div>
-            <div className="ea-dash-gauge"><Ring percent={storagePct} label="Storage" color="var(--der-warning)" /></div>
+            <div className="ea-dash-gauge"><Ring percent={cpuPct} label="Scheduler" size={72} color="var(--der-primary)" /></div>
+            <div className="ea-dash-gauge"><Ring percent={heapPct} label="Memory" size={72} color="var(--der-teal)" /></div>
+            <div className="ea-dash-gauge"><Ring percent={storagePct} label="Storage" size={72} color="var(--der-warning)" /></div>
           </div>
         </Panel>
       </div>
@@ -345,13 +345,12 @@ function ComponentRow({ name, version, status, meta }: {
   );
 }
 
-function TopoNode({ icon, label, sub, tone, highlight }: {
-  icon: JSX.Element; label: string; sub: string;
+function TopoNode({ label, sub, tone, highlight }: {
+  label: string; sub: string;
   tone: 'success' | 'warning' | 'danger' | 'muted'; highlight?: boolean;
 }): JSX.Element {
   return (
     <div className={'ea-topo-node' + (highlight ? ' ea-topo-node--highlight' : '')}>
-      <div className="ea-topo-icon">{icon}</div>
       <div className="ea-topo-label">{label}</div>
       <div className="ea-topo-sub">{sub}</div>
       <Dot tone={tone} />
@@ -373,6 +372,3 @@ function IconPlug(): JSX.Element { return (<svg width="20" height="20" viewBox="
 function IconDatabase(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" /></svg>); }
 function IconSync(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12a8 8 0 0113-6.3L20 8" /><path d="M20 4v4h-4" /><path d="M20 12a8 8 0 01-13 6.3L4 16" /><path d="M4 20v-4h4" /></svg>); }
 function IconDevice(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5" /><path d="M11 18h2" /></svg>); }
-function IconCloud(): JSX.Element { return (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M18 18H7a4 4 0 010-8 6 6 0 0111.3-.5A4.5 4.5 0 0118 18z" /></svg>); }
-function IconServer(): JSX.Element { return (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5" /><rect x="3" y="13" width="18" height="7" rx="1.5" /><path d="M7 7h.01M7 16h.01" /></svg>); }
-function IconDevices(): JSX.Element { return (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5" /><path d="M11 18h2" /></svg>); }
