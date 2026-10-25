@@ -232,7 +232,54 @@ public class EdgeSystemInfoController {
         m.put("totalBytes", s.totalBytes());
         m.put("warnBytes", s.warnBytes());
         m.put("rejectBytes", s.rejectBytes());
+        // der-2.0.17: distinguish DER's real footprint from whole-volume
+        // utilisation. derDataRootBytes = sum of files under
+        // {der.storage.root}; derDbSchemaBytes = pg_total_relation_size
+        // over der.* so the Workspace storage ring can report what the
+        // edge is actually consuming instead of 'host disk is 99 % full'.
+        m.put("derDataRootBytes", measureDirBytes(s.root()));
+        m.put("derDbSchemaBytes", measureDerSchemaBytes());
         return m;
+    }
+
+    private long measureDirBytes(final String root) {
+        if (root == null || root.isBlank()) {
+            return 0L;
+        }
+        final java.nio.file.Path p = java.nio.file.Path.of(root);
+        if (!java.nio.file.Files.isDirectory(p)) {
+            return 0L;
+        }
+        try (var stream = java.nio.file.Files.walk(p)) {
+            return stream.filter(java.nio.file.Files::isRegularFile)
+                    .mapToLong(f -> {
+                        try {
+                            return java.nio.file.Files.size(f);
+                        } catch (java.io.IOException ex) {
+                            return 0L;
+                        }
+                    })
+                    .sum();
+        } catch (java.io.IOException ex) {
+            return 0L;
+        }
+    }
+
+    private long measureDerSchemaBytes() {
+        final JdbcTemplate jt = jdbc.getIfAvailable();
+        if (jt == null) {
+            return 0L;
+        }
+        try {
+            final Long bytes = jt.queryForObject(
+                    "SELECT COALESCE(SUM(pg_total_relation_size(c.oid)), 0) "
+                            + "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+                            + "WHERE n.nspname = 'der' AND c.relkind IN ('r','m','i')",
+                    Long.class);
+            return bytes == null ? 0L : bytes;
+        } catch (RuntimeException ex) {
+            return 0L;
+        }
     }
 
     private Map<String, Object> appsMap() {

@@ -1292,6 +1292,19 @@ kbd{
 .ea-components-meta{color:var(--der-ink-400);font-size:12px;line-height:1.4}
 .ea-components-version{color:var(--der-ink-500);font-size:13px;white-space:nowrap}
 
+/* Workspace: 2-col grid variant for System components so 7 rows
+   fit in roughly half the vertical space */
+.ea-components-list--grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:0 var(--sp-4);
+}
+.ea-components-list--grid > li{border-bottom:1px solid var(--der-border-subtle);padding:6px 0}
+.ea-components-list--grid > li:nth-last-child(-n+2){border-bottom:0}
+@media(max-width:900px){
+  .ea-components-list--grid{grid-template-columns:1fr}
+  .ea-components-list--grid > li{border-bottom:1px solid var(--der-border-subtle)}
+  .ea-components-list--grid > li:last-child{border-bottom:0}
+}
+
 .ea-dash-sync-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--der-border-subtle)}
 .ea-dash-sync-stats > div{display:flex;flex-direction:column;align-items:center;gap:4px}
 .ea-dash-sync-stats strong{font-size:18px;color:var(--der-ink-900);font-weight:700;line-height:1.1}

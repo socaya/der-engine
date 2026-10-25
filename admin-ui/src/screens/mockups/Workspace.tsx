@@ -94,10 +94,13 @@ export function MockupWorkspace(): JSX.Element {
   const med = (conflicts ?? []).filter((x) => x.attemptCount >= 2 && x.attemptCount < 5).length;
   const low = (conflicts ?? []).filter((x) => x.attemptCount < 2).length;
 
-  // Resource rings
-  const used = (si.storage.totalBytes ?? 0) - (si.storage.usableBytes ?? 0);
+  // Resource rings — DER actual footprint (data root + Postgres der.*)
+  // against the volume total so operators see DER's cost, not host-OS
+  // utilisation.
+  const derFootprint = (si.storage.derDataRootBytes ?? 0)
+      + (si.storage.derDbSchemaBytes ?? 0);
   const storagePct = si.storage.totalBytes
-    ? Math.round((100 * used) / si.storage.totalBytes) : 0;
+    ? Math.max(1, Math.round((100 * derFootprint) / si.storage.totalBytes)) : 0;
   const heapPct = si.runtime.heapMaxBytes
     ? Math.round((100 * (si.runtime.heapUsedBytes ?? 0)) / si.runtime.heapMaxBytes) : 0;
   const cpuPct = Math.min(100, Math.round(
@@ -190,7 +193,7 @@ export function MockupWorkspace(): JSX.Element {
           <div className="ea-dash-gauges">
             <div className="ea-dash-gauge"><Ring percent={cpuPct} label="Scheduler" size={72} color="var(--der-primary)" /></div>
             <div className="ea-dash-gauge"><Ring percent={heapPct} label="Memory" size={72} color="var(--der-teal)" /></div>
-            <div className="ea-dash-gauge"><Ring percent={storagePct} label="Storage" size={72} color="var(--der-warning)" /></div>
+            <div className="ea-dash-gauge"><Ring percent={storagePct} label="DER footprint" size={72} color="var(--der-warning)" /></div>
           </div>
         </Panel>
       </div>
@@ -219,15 +222,14 @@ export function MockupWorkspace(): JSX.Element {
       <div className="ea-ws-grid-2">
         <Panel title="System components"
                action={<Link to="/system/information" className="ea-link-btn">Details</Link>}>
-          <ul className="ea-components-list">
-            <ComponentRow name="DER Server" version={`v${si.build.version}`} status="OK" meta={fmtDur(si.runtime.uptimeMillis) + ' uptime'} />
-            <ComponentRow name="DHIS2 central" version={si.dhis2.pinnedVersion ?? '—'} status={dhis2Up ? 'OK' : 'FAIL'} meta={si.dhis2.centralVersion ? 'live ' + si.dhis2.centralVersion : '—'} />
+          <ul className="ea-components-list ea-components-list--grid">
+            <ComponentRow name="DER Server" version={`v${si.build.version}`} status="OK" meta={fmtDur(si.runtime.uptimeMillis)} />
+            <ComponentRow name="DHIS2 central" version={si.dhis2.centralVersion ?? '—'} status={dhis2Up ? 'OK' : 'FAIL'} meta={dhis2Up ? 'reachable' : 'unreachable'} />
             <ComponentRow name="PostgreSQL" version={(si.database.product ?? '').split(' ')[1] ?? '—'} status={dbUp ? 'OK' : 'FAIL'} meta={`${si.database.migrationCount ?? 0} migrations`} />
-            <ComponentRow name="Scheduler (Quartz)" version="—" status={schedUp ? 'OK' : 'WARN'} meta={`${si.scheduler.totalJobs ?? 0} jobs · ${si.scheduler.executingJobs ?? 0} running`} />
-            <ComponentRow name="Compat engine" version={c?.engineVersion ?? '—'} status={c?.probeReachable ? 'OK' : 'FAIL'} meta={c?.profileName ?? '—'} />
-            <ComponentRow name="Journal worker" version="—" status={w?.enabled ? 'OK' : 'WARN'} meta={`${backlog} queued`} />
-            <ComponentRow name="Storage" version={si.storage.root ?? '—'} status={si.storage.status === 'OK' ? 'OK' : 'WARN'} meta={`${fmtBytes(si.storage.usableBytes)} free`} />
-            <ComponentRow name="Custom apps" version={`${si.apps.installed ?? 0}`} status="OK" meta={`${si.apps.enabled ?? 0} enabled`} />
+            <ComponentRow name="Scheduler" version={`${si.scheduler.totalJobs ?? 0} jobs`} status={schedUp ? 'OK' : 'WARN'} meta={`${si.scheduler.executingJobs ?? 0} running`} />
+            <ComponentRow name="Compat engine" version={c?.profileName ?? '—'} status={c?.probeReachable ? 'OK' : 'FAIL'} meta={c?.engineVersion ?? '—'} />
+            <ComponentRow name="Journal worker" version={w?.enabled ? 'running' : 'paused'} status={w?.enabled ? 'OK' : 'WARN'} meta={`${backlog} queued`} />
+            <ComponentRow name="Custom apps" version={`${si.apps.installed ?? 0} installed`} status="OK" meta={`${si.apps.enabled ?? 0} enabled`} />
           </ul>
         </Panel>
 
@@ -237,12 +239,18 @@ export function MockupWorkspace(): JSX.Element {
             <p className="ea-text-muted" style={{ margin: 0 }}>No activity recorded yet.</p>
           ) : (
             <ul className="ea-dash-activity-list">
-              {(activity ?? []).slice(0, 8).map((a) => (
-                <li key={a.auditId}>
-                  <Dot tone={a.outcome === 'SUCCESS' ? 'success' : a.outcome === 'FAILURE' ? 'danger' : 'muted'} />
+              {dedupeActivity(activity ?? []).slice(0, 5).map((a) => (
+                <li key={`${a.first.auditId}-${a.count}`}>
+                  <Dot tone={a.first.outcome === 'SUCCESS' ? 'success' : a.first.outcome === 'FAILURE' ? 'danger' : 'muted'} />
                   <div>
-                    <div className="ea-dash-activity-type">{a.eventType}</div>
-                    <div className="ea-dash-activity-meta">{a.outcome} · {fmtAgo(a.observedAt)}</div>
+                    <div className="ea-dash-activity-type">
+                      {a.first.eventType}
+                      {a.count > 1 && <span className="ea-text-muted" style={{ marginLeft: 6 }}>· ×{a.count}</span>}
+                    </div>
+                    <div className="ea-dash-activity-meta">
+                      {a.first.outcome} · {fmtAgo(a.last.observedAt)}
+                      {a.count > 1 && <> → {fmtAgo(a.first.observedAt)}</>}
+                    </div>
                   </div>
                 </li>
               ))}
@@ -323,6 +331,25 @@ export function MockupWorkspace(): JSX.Element {
       </div>
     </div>
   );
+}
+
+interface ActivityGroup {
+  first: edgeApi.ActivityEntry;
+  last: edgeApi.ActivityEntry;
+  count: number;
+}
+function dedupeActivity(items: ReadonlyArray<edgeApi.ActivityEntry>): ActivityGroup[] {
+  const out: ActivityGroup[] = [];
+  for (const it of items) {
+    const prev = out[out.length - 1];
+    if (prev && prev.first.eventType === it.eventType && prev.first.outcome === it.outcome) {
+      prev.last = it;
+      prev.count += 1;
+    } else {
+      out.push({ first: it, last: it, count: 1 });
+    }
+  }
+  return out;
 }
 
 function PriorityBreakdown({ total, high, medium, low }: {

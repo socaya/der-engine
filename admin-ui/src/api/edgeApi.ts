@@ -505,6 +505,10 @@ export interface SystemInfoStorage {
   warnBytes?: number;
   rejectBytes?: number;
   configured?: boolean;
+  /** der-2.0.17: actual bytes written under the DER data root. */
+  derDataRootBytes?: number;
+  /** der-2.0.17: pg_total_relation_size sum over the `der` schema. */
+  derDbSchemaBytes?: number;
 }
 
 export interface SystemInfoApps {

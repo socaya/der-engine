@@ -52,11 +52,16 @@ public class MetadataSyncService {
     static final String PROGRAM_STAGE_PATH = "/api/programStages" + FIELDS_ALL;
     static final String TRACKED_ENTITY_ATTRIBUTE_PATH = "/api/trackedEntityAttributes" + FIELDS_ALL;
     static final String PROGRAM_RULE_PATH = "/api/programRules" + FIELDS_ALL;
+    static final String OPTION_SET_PATH = "/api/optionSets" + FIELDS_ALL;
+    static final String INDICATOR_PATH = "/api/indicators" + FIELDS_ALL;
+    static final String VALIDATION_RULE_PATH = "/api/validationRules" + FIELDS_ALL;
+    static final String CATEGORY_COMBO_PATH = "/api/categoryCombos" + FIELDS_ALL;
 
     private final Dhis2ReferenceClient dhis2;
     private final Dhis2Properties props;
     private final MetadataMirrorRepository mirror;
     private final ExtendedMirrorRepository extended;
+    private final MetadataCatalogRepository catalog;
     private final MetadataSnapshotRepository snapshots;
     private final Clock clock;
 
@@ -64,12 +69,14 @@ public class MetadataSyncService {
                                 final Dhis2Properties props,
                                 final MetadataMirrorRepository mirror,
                                 final ExtendedMirrorRepository extended,
+                                final MetadataCatalogRepository catalog,
                                 final MetadataSnapshotRepository snapshots,
                                 final Clock clock) {
         this.dhis2 = Objects.requireNonNull(dhis2, "dhis2");
         this.props = Objects.requireNonNull(props, "props");
         this.mirror = Objects.requireNonNull(mirror, "mirror");
         this.extended = Objects.requireNonNull(extended, "extended");
+        this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.snapshots = Objects.requireNonNull(snapshots, "snapshots");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
@@ -125,10 +132,46 @@ public class MetadataSyncService {
         extended.upsertTrackedEntityAttributes(teas, persisted.snapshotId());
         extended.upsertProgramRules(rules, persisted.snapshotId());
 
-        LOG.info("Phase 03/05 metadata sync complete, snapshot={} total={} coc={} ps={} tea={} rules={}",
+        // der-2.0.17: fetch + mirror the long-tail of metadata that the
+        // facility needs for offline capture + reporting. Best-effort —
+        // if a particular endpoint 404s on an older DHIS2 we just log
+        // and skip rather than fail the whole sync.
+        final int opts = fetchCatalog("optionSets", OPTION_SET_PATH, persisted.snapshotId());
+        final int inds = fetchCatalog("indicators", INDICATOR_PATH, persisted.snapshotId());
+        final int vrs  = fetchCatalog("validationRules", VALIDATION_RULE_PATH, persisted.snapshotId());
+        final int ccs  = fetchCatalog("categoryCombos", CATEGORY_COMBO_PATH, persisted.snapshotId());
+
+        LOG.info("Phase 03/05 metadata sync complete, snapshot={} total={} coc={} ps={} tea={} rules={} "
+                        + "optionSets={} indicators={} validationRules={} categoryCombos={}",
                 persisted.snapshotId(), persisted.counts().total(),
-                cocs.size(), pss.size(), teas.size(), rules.size());
+                cocs.size(), pss.size(), teas.size(), rules.size(),
+                opts, inds, vrs, ccs);
         return persisted;
+    }
+
+    private int fetchCatalog(final String resource, final String path, final long snapshotId) {
+        try {
+            final JsonNode body = dhis2.fetchJson(path);
+            if (body == null) {
+                return 0;
+            }
+            final List<MetadataCatalogRepository.CatalogItem> rows = new ArrayList<>();
+            for (final JsonNode node : body.withArray(resource)) {
+                final String uid = node.has("id") ? node.get("id").asText(null) : null;
+                if (uid == null || uid.isBlank()) {
+                    continue;
+                }
+                final String display = node.has("displayName") && !node.get("displayName").isNull()
+                        ? node.get("displayName").asText()
+                        : (node.has("name") ? node.get("name").asText("") : "");
+                rows.add(new MetadataCatalogRepository.CatalogItem(uid, display, node));
+            }
+            return catalog.upsert(resource, rows, snapshotId);
+        } catch (Dhis2ReferenceClient.Dhis2UnreachableException
+                | Dhis2ReferenceClient.Dhis2ResponseException ex) {
+            LOG.warn("catalog fetch failed for {}: {}", resource, ex.toString());
+            return 0;
+        }
     }
 
     List<MirroredCategoryOptionCombo> readCategoryOptionCombos()

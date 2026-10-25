@@ -35,6 +35,7 @@ class MetadataSyncServiceExtendedTest {
     private MetadataSyncService service(final Dhis2ReferenceClient client) {
         return new MetadataSyncService(client, props(),
                 mock(MetadataMirrorRepository.class), mock(ExtendedMirrorRepository.class),
+                mock(MetadataCatalogRepository.class),
                 mock(MetadataSnapshotRepository.class), CLOCK);
     }
 
