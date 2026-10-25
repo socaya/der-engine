@@ -184,7 +184,10 @@ public class MetadataSyncService {
             // Access + attribution
             "userGroups", "userRoles",
             // Metadata attributes machinery
-            "attributes", "documents"
+            "attributes", "documents",
+            // Reporting + ad-hoc data access metadata (DHIS2 2.41+)
+            "sqlViews", "dashboards", "visualizations", "reports", "maps",
+            "eventReports", "eventCharts", "dataEntryForms"
     );
 
     private int fetchCatalog(final String resource, final String path, final long snapshotId) {

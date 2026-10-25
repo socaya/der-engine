@@ -26,6 +26,7 @@ const RESOURCES: readonly Resource[] = [
   { key: 'dataElementGroups',          label: 'Data element groups',       typeLabel: 'Data element group' },
   { key: 'dataElementGroupSets',       label: 'Data element group sets',   typeLabel: 'Data element group set' },
   { key: 'programs',                   label: 'Programs',                  typeLabel: 'Program' },
+  { key: 'programStages',              label: 'Program stages',            typeLabel: 'Program stage' },
   { key: 'programRules',               label: 'Program rules',             typeLabel: 'Program rule' },
   { key: 'programRuleActions',         label: 'Program rule actions',      typeLabel: 'Program rule action' },
   { key: 'programRuleVariables',       label: 'Program rule variables',    typeLabel: 'Program rule variable' },
@@ -33,6 +34,7 @@ const RESOURCES: readonly Resource[] = [
   { key: 'programStageSections',       label: 'Program stage sections',    typeLabel: 'Program stage section' },
   { key: 'programNotificationTemplates', label: 'Program notifications',   typeLabel: 'Program notification template' },
   { key: 'trackedEntityTypes',         label: 'Tracked entity types',      typeLabel: 'Tracked entity type' },
+  { key: 'trackedEntityAttributes',    label: 'Tracked entity attributes', typeLabel: 'Tracked entity attribute' },
   { key: 'relationshipTypes',          label: 'Relationship types',        typeLabel: 'Relationship type' },
   { key: 'organisationUnits',          label: 'Organisation units',        typeLabel: 'Organisation unit' },
   { key: 'organisationUnitGroups',     label: 'OU groups',                 typeLabel: 'Organisation unit group' },
@@ -42,6 +44,7 @@ const RESOURCES: readonly Resource[] = [
   { key: 'optionGroups',               label: 'Option groups',             typeLabel: 'Option group' },
   { key: 'categoryCombos',             label: 'Category combos',           typeLabel: 'Category combo' },
   { key: 'categoryOptions',            label: 'Category options',          typeLabel: 'Category option' },
+  { key: 'categoryOptionCombos',       label: 'Category option combos',    typeLabel: 'Category option combo' },
   { key: 'categoryOptionGroups',       label: 'Category option groups',    typeLabel: 'Category option group' },
   { key: 'indicators',                 label: 'Indicators',                typeLabel: 'Indicator' },
   { key: 'indicatorTypes',             label: 'Indicator types',           typeLabel: 'Indicator type' },
@@ -55,6 +58,14 @@ const RESOURCES: readonly Resource[] = [
   { key: 'userGroups',                 label: 'User groups',               typeLabel: 'User group' },
   { key: 'userRoles',                  label: 'User roles',                typeLabel: 'User role' },
   { key: 'documents',                  label: 'Documents',                 typeLabel: 'Document' },
+  { key: 'sqlViews',                   label: 'SQL views',                 typeLabel: 'SQL view' },
+  { key: 'dashboards',                 label: 'Dashboards',                typeLabel: 'Dashboard' },
+  { key: 'visualizations',             label: 'Visualizations',            typeLabel: 'Visualization' },
+  { key: 'eventReports',               label: 'Event reports',             typeLabel: 'Event report' },
+  { key: 'eventCharts',                label: 'Event charts',              typeLabel: 'Event chart' },
+  { key: 'reports',                    label: 'Reports',                   typeLabel: 'Report' },
+  { key: 'maps',                       label: 'Maps',                      typeLabel: 'Map' },
+  { key: 'dataEntryForms',             label: 'Data entry forms',          typeLabel: 'Data entry form' },
 ];
 
 interface MetaRow {

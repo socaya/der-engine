@@ -265,7 +265,11 @@ public class MetadataListController {
 
     // ─── Dedicated-table resources served through the catalog shape ──
 
-    @GetMapping({"/programRules", "/programRuleActions"})
+    @GetMapping({
+            "/programRules", "/programRuleActions",
+            "/trackedEntityAttributes", "/programStages",
+            "/categoryOptionCombos"
+    })
     public ResponseEntity<Map<String, Object>> dedicatedList(
             final Authentication auth,
             final HttpServletRequest request,
@@ -276,9 +280,14 @@ public class MetadataListController {
         }
         final String uri = request.getRequestURI();
         final String resource = uri.substring(uri.lastIndexOf('/') + 1);
-        final String table = "programRules".equals(resource)
-                ? "der.metadata_program_rule"
-                : "der.metadata_program_rule_action";
+        final String table = switch (resource) {
+            case "programRules" -> "der.metadata_program_rule";
+            case "programRuleActions" -> "der.metadata_program_rule_action";
+            case "trackedEntityAttributes" -> "der.metadata_tracked_entity_attribute";
+            case "programStages" -> "der.metadata_program_stage";
+            case "categoryOptionCombos" -> "der.metadata_category_option_combo";
+            default -> throw new IllegalStateException("no dedicated table for " + resource);
+        };
         return ResponseEntity.ok(dedicatedBody(table, resource, page, pageSize));
     }
 
@@ -330,7 +339,9 @@ public class MetadataListController {
             "/validationRules", "/validationRuleGroups", "/validationNotificationTemplates",
             "/organisationUnitGroups", "/organisationUnitGroupSets", "/organisationUnitLevels",
             "/userGroups", "/userRoles",
-            "/attributes", "/documents"
+            "/attributes", "/documents",
+            "/sqlViews", "/dashboards", "/visualizations", "/reports", "/maps",
+            "/eventReports", "/eventCharts", "/dataEntryForms"
     })
     public ResponseEntity<Map<String, Object>> catalogList(
             final Authentication auth,
@@ -362,7 +373,10 @@ public class MetadataListController {
             "/organisationUnitGroups/{uid}", "/organisationUnitGroupSets/{uid}",
             "/organisationUnitLevels/{uid}",
             "/userGroups/{uid}", "/userRoles/{uid}",
-            "/attributes/{uid}", "/documents/{uid}"
+            "/attributes/{uid}", "/documents/{uid}",
+            "/sqlViews/{uid}", "/dashboards/{uid}", "/visualizations/{uid}",
+            "/reports/{uid}", "/maps/{uid}",
+            "/eventReports/{uid}", "/eventCharts/{uid}", "/dataEntryForms/{uid}"
     })
     public ResponseEntity<JsonNode> catalogItem(final Authentication auth,
                                                  final HttpServletRequest request,
