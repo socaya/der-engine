@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { Breadcrumbs } from './Breadcrumbs';
 import { NAV_GROUPS, groupForRoute, type NavGroup } from '../app/navigation';
 import { NavIcon } from './NavIcon';
 import { SectionTabs } from './SectionTabs';
+import { useOrgUnit } from './OrgUnitContext';
 
 /**
  * DER admin shell per
@@ -66,6 +66,7 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { binding: ou } = useOrgUnit();
   const onSignIn = location.pathname === '/sign-in';
   const authed = state.status === 'AUTHENTICATED';
 
@@ -160,10 +161,25 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
         <div className="ea-topbar-right">
           {authed && !onSignIn && (
             <>
-              <div className="ea-topbar-ou" aria-label="Bound organisation unit" data-test="topbar-ou">
+              <Link
+                to="/integration/organisation-unit"
+                className={'ea-topbar-ou'
+                    + (ou?.bound ? ' ea-topbar-ou--bound' : ' ea-topbar-ou--unbound')}
+                aria-label={ou?.bound
+                    ? `Bound organisation unit: ${ou.orgUnitDisplayName ?? ou.orgUnitId}`
+                    : 'No organisation unit bound — click to bind'}
+                title={ou?.bound
+                    ? `Bound to ${ou.orgUnitDisplayName ?? ou.orgUnitId}`
+                    : 'No organisation unit bound — click to bind'}
+                data-test="topbar-ou"
+              >
                 <span className="ea-topbar-ou-label">OU</span>
-                <span className="ea-topbar-ou-value">—</span>
-              </div>
+                <span className="ea-topbar-ou-value">
+                  {ou == null ? '…'
+                      : ou.bound ? (ou.orgUnitDisplayName ?? ou.orgUnitId ?? '—')
+                      : 'Not bound'}
+                </span>
+              </Link>
               <button
                 type="button"
                 className="ea-topbar-icon-btn"
@@ -203,7 +219,6 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
 
       <main className="ea-main" data-der-app="admin-ui">
         <div className="ea-main-inner">
-          {!onSignIn && <Breadcrumbs />}
           {!onSignIn && <SectionTabs />}
           {children}
         </div>

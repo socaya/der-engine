@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
+import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
 
 /**
@@ -459,6 +460,7 @@ export function CapCentralConnection(): JSX.Element {
 }
 
 export function CapOrgUnitBinding(): JSX.Element {
+  const { refresh: refreshGlobalOu } = useOrgUnit();
   const [b, setB] = useState<edgeApi.OrgUnitBinding | null>(null);
   const [ous, setOus] = useState<edgeApi.OrgUnitRow[]>([]);
   const [groups, setGroups] = useState<edgeApi.OrgUnitGroupRow[]>([]);
@@ -530,6 +532,8 @@ export function CapOrgUnitBinding(): JSX.Element {
       setB(updated);
       setSel('');
       setConfirmRebind(false);
+      // Keep the topbar OU chip + every mockup page in sync.
+      await refreshGlobalOu();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {

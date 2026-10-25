@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { RequireAuth } from './components/RequireAuth';
 import { AdminShell } from './components/AdminShell';
 import { AlertProvider } from './components/AlertStack';
+import { OrgUnitProvider } from './components/OrgUnitContext';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { ActiveJobsWatcher } from './components/ActiveJobsWatcher';
 import {
@@ -68,6 +69,7 @@ export default function App(): JSX.Element {
   return (
     <AuthProvider>
       <AlertProvider>
+      <OrgUnitProvider>
         <KeyboardShortcuts />
         <ActiveJobsWatcher />
         <AdminShell>
@@ -184,6 +186,7 @@ export default function App(): JSX.Element {
           <Route path="/settings/network" element={<RequireAuth><CapNetwork /></RequireAuth>} />
         </Routes>
         </AdminShell>
+      </OrgUnitProvider>
       </AlertProvider>
     </AuthProvider>
   );

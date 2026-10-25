@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import * as edgeApi from '../../api/edgeApi';
+import { useOrgUnit } from '../../components/OrgUnitContext';
 
 /**
  * Mockup-matched helpers used across the Dashboard, Overview, Sync,
@@ -32,10 +33,18 @@ export function readOuContext(b: edgeApi.OrgUnitBinding | null): OuContext {
 }
 
 export function useOuContext(): [OuContext, edgeApi.OrgUnitBinding | null] {
-  const [b, setB] = useState<edgeApi.OrgUnitBinding | null>(null);
+  // Prefer the app-wide OrgUnit context so bind/rebind events on the
+  // Organisation unit page propagate everywhere (topbar chip, hero
+  // banners, OU breadcrumbs on data pages, etc.). Falls back to a
+  // local fetch if the provider isn't mounted (test harnesses).
+  const { binding } = useOrgUnit();
+  const [local, setLocal] = useState<edgeApi.OrgUnitBinding | null>(null);
   useEffect(() => {
-    edgeApi.getOrgUnitBinding().then(setB).catch(() => undefined);
-  }, []);
+    if (binding == null) {
+      edgeApi.getOrgUnitBinding().then(setLocal).catch(() => undefined);
+    }
+  }, [binding]);
+  const b = binding ?? local;
   return [readOuContext(b), b];
 }
 

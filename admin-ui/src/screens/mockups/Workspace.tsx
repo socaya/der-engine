@@ -210,12 +210,8 @@ export function MockupWorkspace(): JSX.Element {
 
         <Panel title="Conflict review"
                action={<Link to="/journal/conflicts" className="ea-link-btn">View all</Link>}>
-          <div className="ea-dash-conflict-total">{(conflicts ?? []).length}</div>
-          <ul className="ea-dash-priority-list">
-            <li><Dot tone="danger" /><span>High priority</span><strong>{high}</strong></li>
-            <li><Dot tone="warning" /><span>Medium priority</span><strong>{med}</strong></li>
-            <li><Dot tone="muted" /><span>Low priority</span><strong>{low}</strong></li>
-          </ul>
+          <PriorityBreakdown total={(conflicts ?? []).length}
+                             high={high} medium={med} low={low} />
         </Panel>
       </div>
 
@@ -325,6 +321,33 @@ export function MockupWorkspace(): JSX.Element {
           </ul>
         </Panel>
       </div>
+    </div>
+  );
+}
+
+function PriorityBreakdown({ total, high, medium, low }: {
+  total: number; high: number; medium: number; low: number;
+}): JSX.Element {
+  const safeTotal = Math.max(1, total);
+  const hp = (100 * high) / safeTotal;
+  const mp = (100 * medium) / safeTotal;
+  const lp = (100 * low) / safeTotal;
+  return (
+    <div className="ea-prio">
+      <div className="ea-prio-head">
+        <strong>{total.toLocaleString()}</strong>
+        <span className="ea-prio-head-label">pending conflicts</span>
+      </div>
+      <div className="ea-prio-track" aria-hidden="true">
+        <div className="ea-prio-seg ea-prio-seg--high"   style={{ width: `${hp}%` }} />
+        <div className="ea-prio-seg ea-prio-seg--medium" style={{ width: `${mp}%` }} />
+        <div className="ea-prio-seg ea-prio-seg--low"    style={{ width: `${lp}%` }} />
+      </div>
+      <ul className="ea-prio-legend">
+        <li><span className="ea-prio-dot ea-prio-dot--high"   /> High priority <strong>{high}</strong></li>
+        <li><span className="ea-prio-dot ea-prio-dot--medium" /> Medium priority <strong>{medium}</strong></li>
+        <li><span className="ea-prio-dot ea-prio-dot--low"    /> Low priority <strong>{low}</strong></li>
+      </ul>
     </div>
   );
 }
