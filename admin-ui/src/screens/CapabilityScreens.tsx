@@ -468,9 +468,11 @@ export function CapOrgUnitBinding(): JSX.Element {
   const [groupSets, setGroupSets] = useState<edgeApi.OrgUnitGroupSetRow[]>([]);
   const [ouLevels, setOuLevels] = useState<edgeApi.OrgUnitLevelRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
   const [sel, setSel] = useState('');
   const [confirmRebind, setConfirmRebind] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [rebindOpen, setRebindOpen] = useState(false);
 
   // Filters
   const [query, setQuery] = useState('');
@@ -527,13 +529,14 @@ export function CapOrgUnitBinding(): JSX.Element {
   async function doBind(): Promise<void> {
     if (!sel) return;
     setSaving(true);
-    setErr(null);
+    setErr(null); setMsg(null);
     try {
       const updated = await edgeApi.bindOrgUnit(sel, confirmRebind);
       setB(updated);
       setSel('');
       setConfirmRebind(false);
-      // Keep the topbar OU chip + every mockup page in sync.
+      setRebindOpen(false);
+      setMsg(`Bound to ${updated.orgUnitDisplayName ?? updated.orgUnitId}.`);
       await refreshGlobalOu();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -541,40 +544,133 @@ export function CapOrgUnitBinding(): JSX.Element {
       setSaving(false);
     }
   }
+
+  async function copy(text: string | null | undefined, what: string): Promise<void> {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setMsg(`${what} copied to clipboard`);
+      setTimeout(() => setMsg((m) => m === `${what} copied to clipboard` ? null : m), 2000);
+    } catch { /* ignore */ }
+  }
+
   if (!b) return <LoadingBlock testId="loading" />;
 
   const levels: Array<{ level: number; label: string }> = ouLevels.length
     ? ouLevels.map((l) => ({ level: l.level, label: `Level ${l.level} · ${l.displayName}` }))
     : Array.from({ length: 7 }, (_, i) => ({ level: i + 1, label: `Level ${i + 1}` }));
 
+  const pathParts = (b.orgUnitPath ?? '').split('/').filter(Boolean);
+  const level = pathParts.length;
+  // When not bound, auto-open the rebind form so the user can bind directly.
+  const showRebindForm = rebindOpen || !b.bound;
+
   return (
     <div className="ea-screen" data-test="cap-ou">
-      <HeroHeader
-        title="Organisation unit"
-        subtitle="This edge serves a single DHIS2 organisation unit. Change only when relocating the device."
-      />
+      <section className="ea-dash-hero">
+        <div className="ea-dash-hero-left">
+          <h1 className="ea-dash-hero-title">Organisation unit</h1>
+        </div>
+        {b.bound && !rebindOpen && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="ea-btn ea-btn--primary"
+                    data-test="ou-change"
+                    onClick={() => setRebindOpen(true)}>
+              Change organisation unit
+            </button>
+          </div>
+        )}
+      </section>
+
       {err && <ErrorBlock title="Binding failed" testId="err-binding-failed">{err}</ErrorBlock>}
-      {b.bound ? (
-        <DefinitionCard title="Current binding" rows={[
-          ['Org unit', b.orgUnitDisplayName ?? '—'],
-          ['Org unit ID', <span key="id" className="ea-mono">{b.orgUnitId ?? '—'}</span>],
-          ['Path', <span key="p" className="ea-mono">{b.orgUnitPath ?? '—'}</span>],
-          ['Bound at', b.boundAt ?? '—'],
-          ['Bound by', b.boundBy ?? '—'],
-        ]} />
-      ) : (
+      {msg && <p className="ea-saved" data-test="ou-msg">{msg}</p>}
+
+      {b.bound && (
+        <section className="ea-card" data-test="ou-binding-card">
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap',
+                        padding: '2px 0 8px', borderBottom: '1px solid var(--der-border-subtle)' }}>
+            <div style={{ flex: '1 1 auto', minWidth: 240 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em' }}>
+                  {b.orgUnitDisplayName ?? '—'}
+                </h2>
+                <span className="ea-chip ea-chip--success">bound</span>
+                {level > 0 && <span className="ea-chip ea-chip--info">Level {level}</span>}
+              </div>
+              {pathParts.length > 0 && (
+                <nav aria-label="OU path"
+                     style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
+                              marginTop: 6, fontSize: 12, color: 'var(--der-ink-500)' }}>
+                  {pathParts.map((p, i) => (
+                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <span className="ea-mono">{p}</span>
+                      {i < pathParts.length - 1 && <span style={{ opacity: 0.5 }}>›</span>}
+                    </span>
+                  ))}
+                </nav>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                      data-test="ou-copy-uid"
+                      onClick={() => { copy(b.orgUnitId, 'UID').catch(() => undefined); }}>
+                Copy UID
+              </button>
+              <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                      data-test="ou-copy-path"
+                      onClick={() => { copy(b.orgUnitPath, 'Path').catch(() => undefined); }}>
+                Copy path
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))',
+                        gap: 12, padding: '10px 0 0' }}>
+            <div className="ea-stat ea-stat--info">
+              <div className="ea-stat-value ea-mono" style={{ fontSize: 13 }}>{b.orgUnitId ?? '—'}</div>
+              <div className="ea-stat-label">DHIS2 UID</div>
+            </div>
+            <div className="ea-stat ea-stat--info">
+              <div className="ea-stat-value" style={{ fontSize: 13 }}>Level {level || '—'}</div>
+              <div className="ea-stat-label">Hierarchy depth</div>
+            </div>
+            <div className="ea-stat ea-stat--muted">
+              <div className="ea-stat-value" style={{ fontSize: 13 }}>{b.boundAt ? fmtBindAt(b.boundAt) : '—'}</div>
+              <div className="ea-stat-label">Bound at</div>
+            </div>
+            <div className="ea-stat ea-stat--muted">
+              <div className="ea-stat-value" style={{ fontSize: 13 }}>{b.boundBy ?? '—'}</div>
+              <div className="ea-stat-label">Bound by</div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!b.bound && !rebindOpen && (
         <EmptyBlock title="Not bound yet" testId="empty-not-bound-yet">
           Pick an organisation unit from DHIS2 to bind this edge.
         </EmptyBlock>
       )}
 
-      <section className="ea-card ea-form-card">
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>{b.bound ? 'Rebind' : 'Bind now'}</h2>
-            <p>{b.bound
-              ? 'Rebinding clears mirrored metadata and journal state. Confirm before applying.'
-              : 'Narrow the list of organisation units by level and group, then pick the facility this device should capture data against.'}</p>
+      {showRebindForm && (
+        <section className="ea-card" data-test="ou-rebind-form">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '0 0 6px', marginBottom: 10,
+                        borderBottom: '1px solid var(--der-border-subtle)' }}>
+            <h2 style={{ margin: 0, fontSize: 12, fontWeight: 600, letterSpacing: '0.02em',
+                         textTransform: 'uppercase' }}>
+              {b.bound ? 'Change organisation unit' : 'Bind organisation unit'}
+            </h2>
+            {b.bound && (
+              <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                      data-test="ou-rebind-cancel"
+                      onClick={() => {
+                        setRebindOpen(false); setSel(''); setConfirmRebind(false);
+                        setQuery(''); setFilterLevel(''); setFilterGroupSet(''); setFilterGroup('');
+                      }}>
+                Cancel
+              </button>
+            )}
           </div>
 
           <div className="ea-form-grid">
@@ -637,26 +733,38 @@ export function CapOrgUnitBinding(): JSX.Element {
                   <input type="checkbox" className="ea-switch"
                          checked={confirmRebind}
                          onChange={(e) => setConfirmRebind(e.target.checked)} />
-                  <span className="ea-flag-name">I understand this clears mirrored state</span>
+                  <span className="ea-flag-name">
+                    I understand this clears mirrored metadata and journal state
+                  </span>
                 </label>
               </label>
             )}
           </div>
-        </div>
-        <div className="ea-form-actions">
-          <button type="button" className="ea-btn ea-btn--ghost"
-                  onClick={() => { setQuery(''); setFilterLevel(''); setFilterGroupSet(''); setFilterGroup(''); setSel(''); }}>
-            Reset filters
-          </button>
-          <button type="button" className="ea-btn ea-btn--primary"
-                  disabled={!sel || saving || (b.bound && !confirmRebind)}
-                  onClick={() => { doBind().catch(() => undefined); }}>
-            {saving ? 'Applying…' : b.bound ? 'Rebind' : 'Bind'}
-          </button>
-        </div>
-      </section>
+
+          <div className="ea-form-actions" style={{ marginTop: 12 }}>
+            <button type="button" className="ea-btn ea-btn--ghost"
+                    onClick={() => { setQuery(''); setFilterLevel(''); setFilterGroupSet(''); setFilterGroup(''); setSel(''); }}>
+              Reset filters
+            </button>
+            <button type="button" className="ea-btn ea-btn--primary"
+                    data-test="ou-rebind-apply"
+                    disabled={!sel || saving || (b.bound && !confirmRebind)}
+                    onClick={() => { doBind().catch(() => undefined); }}>
+              {saving ? 'Applying…' : b.bound ? 'Apply rebind' : 'Bind'}
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
+}
+
+function fmtBindAt(s: string): string {
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+  return d.toLocaleString(undefined, {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
 }
 
 export function CapProgramRules(): JSX.Element {
