@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
   OuPicker, useOuContext, Panel, SplitWithDrawer, Dot, fmtDate,
@@ -157,11 +158,20 @@ export function MockupMetadata(): JSX.Element {
       <section className="ea-dash-hero">
         <div className="ea-dash-hero-left">
           <div className="ea-dash-hero-eyebrow">DHIS2</div>
-          <h1 className="ea-dash-hero-title">Metadata browser</h1>
+          <h1 className="ea-dash-hero-title">Metadata</h1>
           <p className="ea-dash-hero-sub">
-            Every DHIS2 metadata resource mirrored on this edge — core
-            and long-tail catalog. Switch tabs to drill in. {totalMirror.toLocaleString()} items across {RESOURCES.length} resources.
+            Read-only mirror of every DHIS2 metadata resource on this
+            edge. Metadata is authored in DHIS2 — DER does not create,
+            update or delete it. The actions below cover the edge-side
+            activities DER performs against the mirror.
+            {' '}{totalMirror.toLocaleString()} items across {RESOURCES.length} resources.
           </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Link to="/dhis2/metadata-sync" className="ea-btn ea-btn--primary"
+                data-test="metadata-action-sync">Metadata sync</Link>
+          <Link to="/dhis2/metadata-drift" className="ea-btn"
+                data-test="metadata-action-drift">Metadata drift</Link>
         </div>
       </section>
 
