@@ -69,7 +69,6 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'compat', label: 'Compatibility', to: '/dhis2/compat', status: 'implemented' },
       { id: 'metadata-mirror', label: 'Metadata browser', to: '/dhis2/metadata', status: 'implemented' },
       { id: 'drift', label: 'Metadata drift', to: '/dhis2/metadata-drift', status: 'implemented' },
-      { id: 'program-rules', label: 'Program rules', to: '/dhis2/program-rules', status: 'implemented' },
       { id: 'metadata-sync', label: 'Metadata sync', to: '/dhis2/metadata-sync', status: 'implemented' },
     ],
   },

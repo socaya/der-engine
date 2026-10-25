@@ -263,6 +263,58 @@ public class MetadataListController {
         return body;
     }
 
+    // ─── Dedicated-table resources served through the catalog shape ──
+
+    @GetMapping({"/programRules", "/programRuleActions"})
+    public ResponseEntity<Map<String, Object>> dedicatedList(
+            final Authentication auth,
+            final HttpServletRequest request,
+            @RequestParam(name = "pageSize", defaultValue = "50") final int pageSize,
+            @RequestParam(name = "page", defaultValue = "1") final int page) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final String uri = request.getRequestURI();
+        final String resource = uri.substring(uri.lastIndexOf('/') + 1);
+        final String table = "programRules".equals(resource)
+                ? "der.metadata_program_rule"
+                : "der.metadata_program_rule_action";
+        return ResponseEntity.ok(dedicatedBody(table, resource, page, pageSize));
+    }
+
+    private Map<String, Object> dedicatedBody(final String table,
+                                               final String key,
+                                               final int page,
+                                               final int pageSize) {
+        final int safeSize = Math.max(1, Math.min(pageSize, 500));
+        final int safePage = Math.max(1, page);
+        final Integer totalBoxed = jdbc.queryForObject(
+                "SELECT count(*) FROM " + table, Integer.class);
+        final int total = totalBoxed == null ? 0 : totalBoxed;
+        // metadata_program_rule has display_name, metadata_program_rule_action
+        // does not — fall back to dhis2_uid for the actions table so the
+        // ORDER BY column always exists on the schema we're querying.
+        final String orderCol = "der.metadata_program_rule_action".equals(table)
+                ? "dhis2_uid" : "display_name";
+        final List<String> rows = jdbc.queryForList(
+                "SELECT payload::text FROM " + table
+                        + " ORDER BY " + orderCol + " LIMIT ? OFFSET ?",
+                String.class, safeSize, (safePage - 1) * safeSize);
+        final List<JsonNode> payloads = new ArrayList<>(rows.size());
+        for (final String r : rows) {
+            payloads.add(parseJson(r));
+        }
+        final Map<String, Object> pager = new LinkedHashMap<>();
+        pager.put("page", safePage);
+        pager.put("pageSize", safeSize);
+        pager.put("total", total);
+        pager.put("pageCount", (int) Math.ceil(total / (double) safeSize));
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("pager", pager);
+        body.put(key, payloads);
+        return body;
+    }
+
     // ─── Catalog-backed resources (V030 der-2.0.17) ──────────────────
 
     @GetMapping({

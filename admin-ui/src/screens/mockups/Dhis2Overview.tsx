@@ -185,14 +185,7 @@ export function MockupDhis2Overview(): JSX.Element {
               </div>
             </div>
           </Link>
-          <Link to="/integration/program-rules" className="ea-link-tile">
-            <div className="ea-link-tile-icon">λ</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Program rules</div>
-              <div className="ea-link-tile-desc">Mirrored rules + actions for capture-time validation.</div>
-            </div>
-          </Link>
-          <Link to="/sync/metadata" className="ea-link-tile">
+          <Link to="/dhis2/metadata-sync" className="ea-link-tile">
             <div className="ea-link-tile-icon">▶</div>
             <div className="ea-link-tile-body">
               <div className="ea-link-tile-title">Metadata sync</div>
