@@ -90,39 +90,40 @@ export function MockupCompatMatrix(): JSX.Element {
       </div>
 
       <Panel title="Supported DHIS2 version matrix">
-        <p className="ea-text-muted" style={{ marginTop: 0, marginBottom: 12 }}>
-          Compat profiles shipped with this DER build. Each profile encodes
-          the endpoints, period types, program types and capture surfaces
-          verified against that DHIS2 minor; the current probe resolves to
-          the matching profile.
-        </p>
-        <div className="ea-matrix">
-          {VERSION_MATRIX.map((row) => (
-            <div key={row.minor}
-                 className={'ea-matrix-card'
-                     + (row.profileKey === activeProfile ? ' ea-matrix-card--active' : '')
-                     + ' ea-matrix-card--' + row.tone}>
-              <div className="ea-matrix-head">
-                <div className="ea-matrix-version">
-                  DHIS2 {row.minor}
-                  {row.profileKey === activeProfile && (
-                    <span className="ea-chip ea-chip--success" style={{ marginLeft: 8 }}>live</span>
-                  )}
-                </div>
-                <div className="ea-matrix-sub">
-                  Profile {row.profileKey} · {row.supportLevel}
-                </div>
-              </div>
-              <ul className="ea-matrix-list">
-                {row.highlights.map((h) => (
-                  <li key={h.text}>
-                    <span className={'ea-matrix-dot ea-matrix-dot--' + h.tone} />
-                    {h.text}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense">
+            <thead><tr>
+              <th>DHIS2</th>
+              <th>Profile</th>
+              <th>Status</th>
+              <th>Tracker API</th>
+              <th>Audit surface</th>
+              <th>Metadata bulk</th>
+              <th>Program rules</th>
+            </tr></thead>
+            <tbody>
+              {VERSION_MATRIX.map((row) => (
+                <tr key={row.minor}
+                    className={row.profileKey === activeProfile ? 'ea-row--active' : ''}
+                    data-test={`matrix-row-${row.profileKey}`}>
+                  <td className="ea-mono" style={{ fontWeight: 600 }}>
+                    {row.minor}
+                    {row.profileKey === activeProfile && (
+                      <span className="ea-chip ea-chip--success" style={{ marginLeft: 6 }}>live</span>
+                    )}
+                  </td>
+                  <td className="ea-mono">{row.profileKey}</td>
+                  <td>
+                    <span className={'ea-chip ea-chip--' + row.statusTone}>{row.supportLevel}</span>
+                  </td>
+                  <td>{row.tracker}</td>
+                  <td>{row.audit}</td>
+                  <td>{row.metadataBulk}</td>
+                  <td>{row.programRules}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </Panel>
 
@@ -135,18 +136,15 @@ export function MockupCompatMatrix(): JSX.Element {
         ) : (
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense">
-              <thead><tr><th>Capability</th><th>Value</th></tr></thead>
+              <thead><tr><th style={{ width: '36%' }}>Capability</th><th>Value</th></tr></thead>
               <tbody>
                 {Object.entries(snap.capabilities).map(([k, v]) => (
                   <tr key={k}>
-                    <td className="ea-mono">{k}</td>
                     <td>
-                      {Array.isArray(v)
-                        ? (v as unknown[]).map((x) => (<span key={String(x)} className="ea-chip ea-chip--info" style={{ marginRight: 4 }}>{String(x)}</span>))
-                        : typeof v === 'boolean'
-                          ? <span className={'ea-chip ea-chip--' + (v ? 'success' : 'muted')}>{v ? 'yes' : 'no'}</span>
-                          : <span className="ea-mono">{String(v)}</span>}
+                      <div>{humaniseKey(k)}</div>
+                      <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{k}</div>
                     </td>
+                    <td>{renderCapability(v)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -206,9 +204,12 @@ export function MockupCompatMatrix(): JSX.Element {
 interface MatrixRow {
   minor: string;            // e.g. '2.41'
   profileKey: string;       // e.g. 'V2_41'
-  supportLevel: string;     // short caption shown under the version header
-  tone: 'legacy' | 'stable' | 'current' | 'preview';
-  highlights: ReadonlyArray<{ text: string; tone: 'ok' | 'warn' | 'danger' | 'info' }>;
+  supportLevel: string;     // short status label
+  statusTone: 'info' | 'success' | 'warning' | 'danger';
+  tracker: string;          // tracker-API posture for this version
+  audit: string;            // audit surface for this version
+  metadataBulk: string;     // metadata bulk-endpoint shape
+  programRules: string;     // program-rules endpoint posture
 }
 
 const VERSION_MATRIX: readonly MatrixRow[] = [
@@ -216,50 +217,85 @@ const VERSION_MATRIX: readonly MatrixRow[] = [
     minor: '2.41',
     profileKey: 'V2_41',
     supportLevel: 'Minimum supported',
-    tone: 'legacy',
-    highlights: [
-      { text: 'Legacy tracker endpoints (/api/trackedEntityInstances, /api/events, /api/enrollments) are primary.', tone: 'info' },
-      { text: '/api/tracker/* available but secondary.', tone: 'info' },
-      { text: 'Legacy audit API /api/audits/* is the only audit surface.', tone: 'info' },
-      { text: 'WITH_REGISTRATION + WITHOUT_REGISTRATION programs supported.', tone: 'ok' },
-      { text: 'Period types: YEARLY, QUARTERLY, MONTHLY, WEEKLY, DAILY.', tone: 'ok' },
-    ],
+    statusTone: 'warning',
+    tracker: 'Legacy primary · modern secondary',
+    audit: '/api/audits',
+    metadataBulk: 'DHIS2_2_41',
+    programRules: 'Supported',
   },
   {
     minor: '2.42',
     profileKey: 'V2_42',
     supportLevel: 'Supported',
-    tone: 'stable',
-    highlights: [
-      { text: 'Both legacy and modern tracker endpoints active.', tone: 'info' },
-      { text: 'Audit surface still rooted at /api/audits/*.', tone: 'info' },
-      { text: 'Program rules bulk endpoint stabilised.', tone: 'ok' },
-      { text: 'Period types + program types unchanged.', tone: 'ok' },
-    ],
+    statusTone: 'info',
+    tracker: 'Legacy + modern (both active)',
+    audit: '/api/audits',
+    metadataBulk: 'DHIS2_2_41',
+    programRules: 'Bulk endpoint stabilised',
   },
   {
     minor: '2.43',
     profileKey: 'V2_43',
     supportLevel: 'Supported',
-    tone: 'stable',
-    highlights: [
-      { text: 'Modern /api/tracker/* becomes primary; legacy tracker starts deprecation.', tone: 'warn' },
-      { text: 'Tracker changeLogs API appears alongside /api/audits.', tone: 'info' },
-      { text: 'Metadata bulk endpoint shape evolves (DHIS2_2_43 variant).', tone: 'info' },
-      { text: 'Period types + program types unchanged.', tone: 'ok' },
-    ],
+    statusTone: 'info',
+    tracker: 'Modern primary · legacy deprecating',
+    audit: '/api/audits + changeLogs',
+    metadataBulk: 'DHIS2_2_43',
+    programRules: 'Supported',
   },
   {
     minor: '2.44',
     profileKey: 'V2_44',
-    supportLevel: 'Maximum tested — current',
-    tone: 'current',
-    highlights: [
-      { text: 'Legacy tracker endpoints REMOVED. /api/tracker/* is the only write path.', tone: 'danger' },
-      { text: 'Legacy audit /api/audits/* REMOVED. Per-entity changeLogs only.', tone: 'danger' },
-      { text: 'WebMessage shape evolves to the 2.44 variant used by stock clients.', tone: 'warn' },
-      { text: 'Metadata bulk endpoint shape evolves (DHIS2_2_44 variant).', tone: 'info' },
-      { text: 'Full program-rules endpoint + categoryOptionCombos endpoint.', tone: 'ok' },
-    ],
+    supportLevel: 'Maximum tested',
+    statusTone: 'success',
+    tracker: 'Modern only — legacy REMOVED',
+    audit: 'changeLog API only',
+    metadataBulk: 'DHIS2_2_44',
+    programRules: 'Full endpoint + categoryOptionCombos',
   },
 ];
+
+// ────────────────────────────────────────────────────────────────────
+// Capability value renderer. Arrays → wrap-chip row, objects → JSON
+// code block, booleans → yes/no chip, scalars → monospace span.
+// ────────────────────────────────────────────────────────────────────
+
+function humaniseKey(k: string): string {
+  const spaced = k
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function renderCapability(v: unknown): JSX.Element {
+  if (Array.isArray(v)) {
+    if (v.length === 0) return <span className="ea-text-muted">(empty)</span>;
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        {(v as unknown[]).map((x, i) => (
+          <span key={i} className="ea-chip ea-chip--info">{String(x)}</span>
+        ))}
+      </div>
+    );
+  }
+  if (v === null || v === undefined) return <span className="ea-text-muted">—</span>;
+  if (typeof v === 'boolean') {
+    return (
+      <span className={'ea-chip ea-chip--' + (v ? 'success' : 'muted')}>
+        {v ? 'yes' : 'no'}
+      </span>
+    );
+  }
+  if (typeof v === 'object') {
+    return (
+      <pre style={{
+        margin: 0, padding: '6px 8px', fontSize: 11, lineHeight: 1.4,
+        background: 'var(--der-raised)', borderRadius: 4,
+        maxHeight: 240, overflow: 'auto', fontFamily: 'ui-monospace,SFMono-Regular,Menlo,monospace',
+      }}>
+        {JSON.stringify(v, null, 2)}
+      </pre>
+    );
+  }
+  return <span className="ea-mono">{String(v)}</span>;
+}
