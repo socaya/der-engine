@@ -39,6 +39,7 @@ import { MockupUsersDashboard } from './screens/mockups/UsersDashboard';
 import { MockupDhis2Overview } from './screens/mockups/Dhis2Overview';
 import { MockupWorkspace } from './screens/mockups/Workspace';
 import { MockupAdminTasks } from './screens/mockups/AdminTasks';
+import { MockupSystemInformation } from './screens/mockups/SystemInformation';
 import {
   MockupJobsList, MockupDriftInspector, MockupConflictList, MockupWorkerHealth,
   MockupDeviceFleet, MockupApprovalQueue, MockupReferralInbox,
@@ -146,7 +147,8 @@ export default function App(): JSX.Element {
           <Route path="/dashboard" element={<RequireAuth><MockupWorkspace /></RequireAuth>} />
           <Route path="/admin-tasks" element={<RequireAuth><MockupAdminTasks /></RequireAuth>} />
           <Route path="/dashboard-legacy" element={<RequireAuth><MockupDashboard /></RequireAuth>} />
-          <Route path="/system/information" element={<RequireAuth><CapSystemInformation /></RequireAuth>} />
+          <Route path="/system/information" element={<RequireAuth><MockupSystemInformation /></RequireAuth>} />
+          <Route path="/system/information-legacy" element={<RequireAuth><CapSystemInformation /></RequireAuth>} />
           <Route path="/integration" element={<RequireAuth><MockupDhis2Overview /></RequireAuth>} />
           <Route path="/integration/connection" element={<RequireAuth><CapCentralConnection /></RequireAuth>} />
           <Route path="/integration/organisation-unit" element={<RequireAuth><CapOrgUnitBinding /></RequireAuth>} />
