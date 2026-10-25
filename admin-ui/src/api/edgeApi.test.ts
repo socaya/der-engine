@@ -78,7 +78,7 @@ describe('edgeApi route coverage', () => {
     ['triggerMetadataSync', () => api.triggerMetadataSync(),     '/edge-api/v1/sync/metadata',          'POST',   undefined],
     ['health',            () => api.health(),                    '/edge-api/v1/system/health',          'GET',    undefined],
     ['recentActivity',    () => api.recentActivity(10),          '/edge-api/v1/activity/recent?limit=10', 'GET',  undefined],
-    ['metadataList',      () => api.metadataList('dataSets'),    '/api/dataSets?fields=id,displayName&paging=false', 'GET', undefined],
+    ['metadataList',      () => api.metadataList('dataSets'),    '/api/dataSets?fields=id%2CdisplayName%2CshortName%2Ccode%2ClastUpdated&paging=false', 'GET', undefined],
     ['submitAggregate',   () => api.submitAggregate({ dataValues: [] }), '/api/dataValueSets',          'POST',   { dataValues: [] }],
     ['listDrafts',        () => api.listDrafts(),                '/edge-api/v1/drafts',                 'GET',    undefined],
     ['saveDraft',         () => api.saveDraft({ kind: 'K', title: 'T', payload: {} }), '/edge-api/v1/drafts', 'POST', { kind: 'K', title: 'T', payload: {} }],

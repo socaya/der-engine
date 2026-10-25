@@ -1439,6 +1439,32 @@ kbd{
   height:100%;border-radius:4px;transition:width var(--t-base) var(--ease);
 }
 
+/* Metadata browser tabs */
+.ea-metadata-tabs{
+  display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px;
+}
+.ea-metadata-tab{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:6px 12px;border-radius:999px;
+  background:var(--der-surface);border:1px solid var(--der-border-subtle);
+  color:var(--der-ink-700);font-size:12px;font-weight:500;cursor:pointer;
+  line-height:1.3;transition:all var(--t-fast) var(--ease);
+  font-family:inherit;
+}
+.ea-metadata-tab:hover{border-color:var(--der-primary);color:var(--der-ink-900)}
+.ea-metadata-tab--active{
+  background:var(--der-navy-700,#1a3b6e);border-color:var(--der-navy-700,#1a3b6e);
+  color:#fff;
+}
+.ea-metadata-tab-count{
+  background:rgba(255,255,255,0.14);color:inherit;
+  padding:0 7px;border-radius:999px;font-size:11px;font-weight:600;
+  min-width:18px;text-align:center;
+}
+.ea-metadata-tab:not(.ea-metadata-tab--active) .ea-metadata-tab-count{
+  background:var(--der-raised);color:var(--der-ink-500);
+}
+
 /* Server log tail */
 .ea-log-tail{
   margin:0;padding:12px;background:#0d1b2a;color:#c7d2e3;

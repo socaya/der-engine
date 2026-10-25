@@ -132,22 +132,60 @@ public class MetadataSyncService {
         extended.upsertTrackedEntityAttributes(teas, persisted.snapshotId());
         extended.upsertProgramRules(rules, persisted.snapshotId());
 
-        // der-2.0.17: fetch + mirror the long-tail of metadata that the
-        // facility needs for offline capture + reporting. Best-effort —
-        // if a particular endpoint 404s on an older DHIS2 we just log
-        // and skip rather than fail the whole sync.
-        final int opts = fetchCatalog("optionSets", OPTION_SET_PATH, persisted.snapshotId());
-        final int inds = fetchCatalog("indicators", INDICATOR_PATH, persisted.snapshotId());
-        final int vrs  = fetchCatalog("validationRules", VALIDATION_RULE_PATH, persisted.snapshotId());
-        final int ccs  = fetchCatalog("categoryCombos", CATEGORY_COMBO_PATH, persisted.snapshotId());
+        // der-2.0.17: fetch + mirror the long-tail of metadata the
+        // facility needs for offline capture + reporting + access
+        // decisions. Covers every DHIS2 2.41+ metadata collection
+        // reachable through the standard web API. Best-effort — a
+        // 404 or 501 on an individual resource logs a WARN and
+        // skips rather than failing the whole sync.
+        final java.util.LinkedHashMap<String, Integer> cat = new java.util.LinkedHashMap<>();
+        for (final String resource : CATALOG_RESOURCES) {
+            cat.put(resource, fetchCatalog(resource,
+                    "/api/" + resource + FIELDS_ALL, persisted.snapshotId()));
+        }
 
         LOG.info("Phase 03/05 metadata sync complete, snapshot={} total={} coc={} ps={} tea={} rules={} "
-                        + "optionSets={} indicators={} validationRules={} categoryCombos={}",
+                        + "catalog={}",
                 persisted.snapshotId(), persisted.counts().total(),
-                cocs.size(), pss.size(), teas.size(), rules.size(),
-                opts, inds, vrs, ccs);
+                cocs.size(), pss.size(), teas.size(), rules.size(), cat);
         return persisted;
     }
+
+    /**
+     * Metadata collections mirrored into {@code der.metadata_catalog_item}.
+     * Covers everything a 2.41+ edge needs offline — capture metadata
+     * (option sets, program rule variables, program stage sections),
+     * validation metadata (validation rules + groups, program indicators,
+     * predictors), access metadata (user groups + roles), analytics
+     * metadata (indicators, indicator types) and the long-tail of DHIS2
+     * metadata attribute machinery. Older DHIS2 instances that lack any
+     * particular endpoint will log a WARN at sync time and move on.
+     */
+    static final List<String> CATALOG_RESOURCES = List.of(
+            // Capture & form metadata
+            "optionSets", "optionGroups", "optionGroupSets",
+            "categoryCombos", "categoryOptions", "categoryOptionGroups",
+            "categoryOptionGroupSets",
+            "programIndicators", "programRuleVariables",
+            "programStageSections", "programNotificationTemplates",
+            "relationshipTypes",
+            // Analytics & reporting
+            "indicators", "indicatorTypes", "indicatorGroups",
+            "indicatorGroupSets",
+            "legendSets", "constants", "predictors", "predictorGroups",
+            // Data definitions
+            "dataElementGroups", "dataElementGroupSets",
+            // Validation
+            "validationRules", "validationRuleGroups",
+            "validationNotificationTemplates",
+            // Organisation hierarchy
+            "organisationUnitGroups", "organisationUnitGroupSets",
+            "organisationUnitLevels",
+            // Access + attribution
+            "userGroups", "userRoles",
+            // Metadata attributes machinery
+            "attributes", "documents"
+    );
 
     private int fetchCatalog(final String resource, final String path, final long snapshotId) {
         try {

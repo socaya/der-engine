@@ -151,8 +151,20 @@ export interface MetadataListResponse {
   [key: string]: MetadataListItem[] | unknown;
 }
 
-export function metadataList(resource: string): Promise<MetadataListResponse> {
-  return request<MetadataListResponse>('GET', `/api/${resource}?fields=id,displayName&paging=false`);
+export function metadataList(resource: string,
+                              opts: { pageSize?: number; page?: number } = {})
+    : Promise<MetadataListResponse> {
+  const params = new URLSearchParams();
+  // Full payload — the Metadata browser needs code / shortName /
+  // lastUpdated / etc. without having to call back for details.
+  params.set('fields', 'id,displayName,shortName,code,lastUpdated');
+  if (opts.pageSize != null) {
+    params.set('pageSize', String(opts.pageSize));
+    params.set('page', String(opts.page ?? 1));
+  } else {
+    params.set('paging', 'false');
+  }
+  return request<MetadataListResponse>('GET', `/api/${resource}?` + params.toString());
 }
 
 export interface AggregateReadbackRow {

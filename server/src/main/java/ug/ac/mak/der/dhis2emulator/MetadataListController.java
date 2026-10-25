@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -42,9 +43,12 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 public class MetadataListController {
 
     private final MetadataMirrorRepository mirror;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
-    public MetadataListController(final MetadataMirrorRepository mirror) {
+    public MetadataListController(final MetadataMirrorRepository mirror,
+                                   final org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.mirror = mirror;
+        this.jdbc = jdbc;
     }
 
     @GetMapping("/organisationUnits")
@@ -257,5 +261,114 @@ public class MetadataListController {
         body.put("pager", pager);
         body.put(key, payloads);
         return body;
+    }
+
+    // ─── Catalog-backed resources (V030 der-2.0.17) ──────────────────
+
+    @GetMapping({
+            "/optionSets", "/optionGroups", "/optionGroupSets",
+            "/categoryCombos", "/categoryOptions", "/categoryOptionGroups",
+            "/categoryOptionGroupSets",
+            "/programIndicators", "/programRuleVariables",
+            "/programStageSections", "/programNotificationTemplates",
+            "/relationshipTypes",
+            "/indicators", "/indicatorTypes", "/indicatorGroups", "/indicatorGroupSets",
+            "/legendSets", "/constants", "/predictors", "/predictorGroups",
+            "/dataElementGroups", "/dataElementGroupSets",
+            "/validationRules", "/validationRuleGroups", "/validationNotificationTemplates",
+            "/organisationUnitGroups", "/organisationUnitGroupSets", "/organisationUnitLevels",
+            "/userGroups", "/userRoles",
+            "/attributes", "/documents"
+    })
+    public ResponseEntity<Map<String, Object>> catalogList(
+            final Authentication auth,
+            final HttpServletRequest request,
+            @RequestParam(name = "pageSize", defaultValue = "50") final int pageSize,
+            @RequestParam(name = "page", defaultValue = "1") final int page) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final String uri = request.getRequestURI();
+        final String resource = uri.substring(uri.lastIndexOf('/') + 1);
+        return ResponseEntity.ok(catalogBody(resource, page, pageSize));
+    }
+
+    @GetMapping({
+            "/optionSets/{uid}", "/optionGroups/{uid}", "/optionGroupSets/{uid}",
+            "/categoryCombos/{uid}", "/categoryOptions/{uid}", "/categoryOptionGroups/{uid}",
+            "/categoryOptionGroupSets/{uid}",
+            "/programIndicators/{uid}", "/programRuleVariables/{uid}",
+            "/programStageSections/{uid}", "/programNotificationTemplates/{uid}",
+            "/relationshipTypes/{uid}",
+            "/indicators/{uid}", "/indicatorTypes/{uid}",
+            "/indicatorGroups/{uid}", "/indicatorGroupSets/{uid}",
+            "/legendSets/{uid}", "/constants/{uid}",
+            "/predictors/{uid}", "/predictorGroups/{uid}",
+            "/dataElementGroups/{uid}", "/dataElementGroupSets/{uid}",
+            "/validationRules/{uid}", "/validationRuleGroups/{uid}",
+            "/validationNotificationTemplates/{uid}",
+            "/organisationUnitGroups/{uid}", "/organisationUnitGroupSets/{uid}",
+            "/organisationUnitLevels/{uid}",
+            "/userGroups/{uid}", "/userRoles/{uid}",
+            "/attributes/{uid}", "/documents/{uid}"
+    })
+    public ResponseEntity<JsonNode> catalogItem(final Authentication auth,
+                                                 final HttpServletRequest request,
+                                                 @PathVariable final String uid) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final String uri = request.getRequestURI();
+        final String withoutUid = uri.substring(0, uri.lastIndexOf('/'));
+        final String resource = withoutUid.substring(withoutUid.lastIndexOf('/') + 1);
+        try {
+            final String payload = jdbc.queryForObject(
+                    "SELECT payload::text FROM der.metadata_catalog_item "
+                            + "WHERE resource = ? AND dhis2_uid = ?",
+                    String.class, resource, uid);
+            if (payload == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(parseJson(payload));
+        } catch (org.springframework.dao.EmptyResultDataAccessException ex) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    private Map<String, Object> catalogBody(final String resource,
+                                             final int page,
+                                             final int pageSize) {
+        final int safeSize = Math.max(1, Math.min(pageSize, 500));
+        final int safePage = Math.max(1, page);
+        final Integer totalBoxed = jdbc.queryForObject(
+                "SELECT count(*) FROM der.metadata_catalog_item WHERE resource = ?",
+                Integer.class, resource);
+        final int total = totalBoxed == null ? 0 : totalBoxed;
+        final List<String> rows = jdbc.queryForList(
+                "SELECT payload::text FROM der.metadata_catalog_item "
+                        + "WHERE resource = ? ORDER BY display_name "
+                        + "LIMIT ? OFFSET ?",
+                String.class, resource, safeSize, (safePage - 1) * safeSize);
+        final List<JsonNode> payloads = new ArrayList<>(rows.size());
+        for (final String r : rows) {
+            payloads.add(parseJson(r));
+        }
+        final Map<String, Object> pager = new LinkedHashMap<>();
+        pager.put("page", safePage);
+        pager.put("pageSize", safeSize);
+        pager.put("total", total);
+        pager.put("pageCount", (int) Math.ceil(total / (double) safeSize));
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("pager", pager);
+        body.put(resource, payloads);
+        return body;
+    }
+
+    private static JsonNode parseJson(final String s) {
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().readTree(s);
+        } catch (java.io.IOException ex) {
+            throw new IllegalStateException("could not parse catalog payload", ex);
+        }
     }
 }

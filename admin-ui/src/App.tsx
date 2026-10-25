@@ -84,6 +84,20 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EAUsersList /></RequireAuth>} />
           <Route path="/provisioning/users/new"
                  element={<RequireAuth><EAUserCreate /></RequireAuth>} />
+          {/* der-2.0.17 — standard URL layout: /dhis2/* for every
+              DHIS2-integration surface. Legacy paths kept as
+              redirect-equivalent routes so bookmarks continue to work.
+              A single component mounts at both locations. */}
+          <Route path="/dhis2" element={<RequireAuth><MockupDhis2Overview /></RequireAuth>} />
+          <Route path="/dhis2/connection" element={<RequireAuth><CapCentralConnection /></RequireAuth>} />
+          <Route path="/dhis2/organisation-unit" element={<RequireAuth><CapOrgUnitBinding /></RequireAuth>} />
+          <Route path="/dhis2/program-rules" element={<RequireAuth><CapProgramRules /></RequireAuth>} />
+          <Route path="/dhis2/compat" element={<RequireAuth><MockupCompatInspector /></RequireAuth>} />
+          <Route path="/dhis2/compat-history" element={<RequireAuth><EACompatHistory /></RequireAuth>} />
+          <Route path="/dhis2/metadata" element={<RequireAuth><MockupMetadata /></RequireAuth>} />
+          <Route path="/dhis2/metadata-drift" element={<RequireAuth><MockupDriftInspector /></RequireAuth>} />
+          <Route path="/dhis2/metadata-sync" element={<RequireAuth><CapMetadataSync /></RequireAuth>} />
+          {/* Legacy aliases — kept so existing links / bookmarks still work. */}
           <Route path="/compat" element={<RequireAuth><MockupCompatInspector /></RequireAuth>} />
           <Route path="/compat-legacy" element={<RequireAuth><EACompatInspector /></RequireAuth>} />
           <Route path="/compat/history"
