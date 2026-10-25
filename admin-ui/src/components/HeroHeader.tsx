@@ -20,12 +20,11 @@ export interface HeroHeaderProps {
   readonly actions?: ReactNode;
 }
 
-export function HeroHeader({ title, subtitle, actions }: HeroHeaderProps): JSX.Element {
+export function HeroHeader({ title, actions }: HeroHeaderProps): JSX.Element {
   return (
     <header className="ea-hero" data-test="hero-header">
       <div className="ea-hero-body">
         <h1 className="ea-hero-title" data-test="ea01-header">{title}</h1>
-        <p className="ea-hero-sub">{subtitle}</p>
       </div>
       {actions && <div className="ea-hero-actions">{actions}</div>}
     </header>

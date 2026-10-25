@@ -194,9 +194,6 @@ export function MockupMetadata(): JSX.Element {
           <span className="ea-chip ea-chip--info">
             {counts[tabKey] ?? '…'} mirrored
           </span>
-          <span className="ea-text-muted" style={{ fontSize: 12 }}>
-            resource <span className="ea-mono">{tabKey}</span>
-          </span>
         </div>
       </section>
 

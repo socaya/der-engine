@@ -597,6 +597,9 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
 /* Legacy classes kept but neutralised — some screens still render these elements */
 .ea-hero-eyebrow,.ea-hero-badges,.ea-hero-badge,.ea-hero-badge-k,.ea-hero-badge-v,
 .ea-hero-side,.ea-hero-date,.ea-hero-date-label,.ea-hero-date-value,.ea-hero-stale{display:none}
+/* Per-screen subtitles and inline OU bars are redundant with the H1 and the
+   topbar OU chip respectively. Hide globally. */
+.ea-hero-sub,.ea-dash-hero-sub,.ea-ou-bar{display:none}
 
 /* Health cards — flat quiet chips per nav spec §3 */
 .ea-health-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-3)}
@@ -1095,13 +1098,8 @@ kbd{
 
 /* ============ Mockup primitives (docs/media/ui/*) ============ */
 
-/* OU breadcrumb bar */
-.ea-ou-bar{
-  display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);
-  padding:10px 14px;background:var(--der-surface);
-  border:1px solid var(--der-border-subtle);border-radius:var(--r-md);
-  margin:0 0 var(--sp-3);flex-wrap:wrap;
-}
+/* OU breadcrumb bar — hidden; topbar OU chip is the single source. */
+.ea-ou-bar{display:none}
 .ea-ou-bar-left{display:flex;flex-direction:column;gap:4px;min-width:0}
 .ea-ou-bar-label{font-size:var(--fs-xs);color:var(--der-ink-400);font-weight:600;letter-spacing:0.3px;text-transform:uppercase}
 .ea-ou-crumbs{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
