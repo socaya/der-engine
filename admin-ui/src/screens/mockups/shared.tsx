@@ -153,19 +153,21 @@ export function Ring({ percent, label, size = 92, color = 'var(--der-primary)' }
   const c = 2 * Math.PI * r;
   const dash = (Math.min(100, Math.max(0, percent)) / 100) * c;
   return (
-    <div className="ea-ring" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-                stroke="var(--der-border-subtle)" strokeWidth="8" />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-                stroke={color} strokeWidth="8" strokeLinecap="round"
-                strokeDasharray={`${dash} ${c}`}
-                transform={`rotate(-90 ${size / 2} ${size / 2})`} />
-      </svg>
-      <div className="ea-ring-text">
-        <strong>{Math.round(percent)}%</strong>
-        {label && <span>{label}</span>}
+    <div className="ea-ring-wrap">
+      <div className="ea-ring" style={{ width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+                  stroke="var(--der-border-subtle)" strokeWidth="8" />
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+                  stroke={color} strokeWidth="8" strokeLinecap="round"
+                  strokeDasharray={`${dash} ${c}`}
+                  transform={`rotate(-90 ${size / 2} ${size / 2})`} />
+        </svg>
+        <div className="ea-ring-text">
+          <strong>{Math.round(percent)}%</strong>
+        </div>
       </div>
+      {label && <div className="ea-ring-label">{label}</div>}
     </div>
   );
 }
