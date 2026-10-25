@@ -119,22 +119,26 @@ export function MockupSyncOverview(): JSX.Element {
       </div>
 
       <div className="ea-dash-middle">
-        <Panel title="Synchronisation progress">
-          <div className="ea-sync-flow">
-            <div className="ea-sync-node">
-              <strong>DER</strong>
-              <span>local database</span>
-            </div>
-            <div className="ea-sync-arrow">
-              <span>{w.enabled ? 'syncing' : 'paused'}</span>
-              <div className="ea-sync-arrow-line" />
-            </div>
-            <div className="ea-sync-node">
-              <strong>DHIS2</strong>
-              <span>central</span>
-            </div>
+        <Panel title="Synchronisation directions"
+               action={<span className="ea-text-muted" style={{ fontSize: 11 }}>
+                 metadata = one-way, data = two-way
+               </span>}>
+          <div data-test="sync-directions"
+               style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+            <SyncLane
+              kind="Metadata"
+              arrow="→"
+              detail="Central → DER (pull only)"
+              desc="DHIS2 is the source of truth. DER mirrors it locally so capture surfaces keep running when the WAN drops."
+              badge={<span className="ea-chip ea-chip--info">one-way</span>} />
+            <SyncLane
+              kind="Data"
+              arrow="↔"
+              detail="Central ↔ DER (push + pull)"
+              desc="Local captures journal up to central; central-held OU data syncs down so distributed workflows have the shared record."
+              badge={<span className="ea-chip ea-chip--success">two-way</span>} />
           </div>
-          <div className="ea-sync-progress-body">
+          <div className="ea-sync-progress-body" style={{ marginTop: 10 }}>
             <div className="ea-sync-progress-row">
               <span>Last batch</span>
               <strong>{w.lastBatchSize}</strong>
@@ -251,6 +255,30 @@ function Stat({ label, value, tone = 'info' }: {
     <div className={`ea-stat ea-stat--${tone}`}>
       <div className="ea-stat-value">{value}</div>
       <div className="ea-stat-label">{label}</div>
+    </div>
+  );
+}
+
+function SyncLane({ kind, arrow, detail, desc, badge }: {
+  kind: string; arrow: string; detail: string; desc: string; badge: ReactNode;
+}): JSX.Element {
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: '96px 1fr auto', gap: 10, alignItems: 'center',
+      padding: '8px 10px', border: '1px solid var(--der-border-subtle)', borderRadius: 6,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span className="ea-mono" style={{ fontSize: 15, color: 'var(--der-ink-900)' }}>Central</span>
+        <span style={{ fontSize: 18, color: 'var(--der-primary)', fontWeight: 700 }}>{arrow}</span>
+        <span className="ea-mono" style={{ fontSize: 15, color: 'var(--der-ink-900)' }}>DER</span>
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 600, color: 'var(--der-ink-900)', fontSize: 13 }}>
+          {kind} <span className="ea-text-muted" style={{ fontWeight: 400, fontSize: 12 }}>· {detail}</span>
+        </div>
+        <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.4 }}>{desc}</div>
+      </div>
+      {badge}
     </div>
   );
 }

@@ -129,6 +129,21 @@ export function MockupJobsList(): JSX.Element {
                 <div className="ea-def-row"><dt>Triggered by</dt><dd>{sel.triggeredBy}</dd></div>
                 {sel.detail && <div className="ea-def-row"><dt>Detail</dt><dd className="ea-mono" style={{ wordBreak: 'break-all' }}>{sel.detail}</dd></div>}
               </dl>
+              <h4 style={{ margin: '12px 0 4px', fontSize: 11, fontWeight: 600, letterSpacing: '0.02em',
+                           textTransform: 'uppercase', color: 'var(--der-ink-400)' }}>
+                Explore payload
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {relatedLinksFor(sel.jobName).map(([label, to, hint]) => (
+                  <Link key={to} to={to} className="ea-link-tile"
+                        style={{ padding: '6px 8px' }}>
+                    <div className="ea-link-tile-body">
+                      <div className="ea-link-tile-title" style={{ fontSize: 12 }}>{label}</div>
+                      <div className="ea-link-tile-desc" style={{ fontSize: 11 }}>{hint}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </>
           ) : (
             <p className="ea-text-muted" style={{ margin: 0 }}>Select a row to view details.</p>
@@ -137,6 +152,35 @@ export function MockupJobsList(): JSX.Element {
       />
     </div>
   );
+}
+
+/**
+ * Map a Quartz job name to the sub-screens where its payload lives,
+ * so an operator inspecting a run can jump straight to the data it
+ * processed instead of hunting through the sidebar.
+ */
+function relatedLinksFor(jobName: string): ReadonlyArray<readonly [string, string, string]> {
+  const name = jobName.toUpperCase();
+  if (name.includes('METADATA')) {
+    return [
+      ['Metadata browser', '/dhis2/metadata', 'Mirrored resources this run pulled from central.'],
+      ['Metadata drift', '/dhis2/metadata-drift', 'Fingerprint comparison vs. central.'],
+    ] as const;
+  }
+  if (name.includes('JOURNAL') || name.includes('DRAIN') || name.includes('PUSH')) {
+    return [
+      ['Queues', '/sync/queues', 'Journal items pushed up to DHIS2 central.'],
+      ['Conflicts', '/journal/conflicts', 'Operations that failed to drain.'],
+    ] as const;
+  }
+  if (name.includes('REFERRAL')) {
+    return [
+      ['Referral inbox', '/referral/inbox', 'Inbound referrals pulled from central.'],
+    ] as const;
+  }
+  return [
+    ['Sync history', '/sync/history', 'All synchronisation operations across every job.'],
+  ] as const;
 }
 
 /* ─── /sync/drift ────────────────────────────────────────────────── */
