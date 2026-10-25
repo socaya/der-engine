@@ -1,14 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { KpiTile, Panel, Dot, fmtAgo, fmtDate } from './shared';
-import { LoadingBlock } from '../../components/ScreenStates';
+import { fmtAgo, fmtDate } from './shared';
+import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
 /**
- * DHIS2 Overview — primary landing page for the DHIS2 sidebar entry.
- * Replaces Compatibility as the group's primary. Shows a dashboard of
- * every DHIS2-side surface this edge touches: connection, OU binding,
- * compatibility probe, metadata mirror, drift, and program rules.
+ * DHIS2 — single landing page that merges the old Overview and the
+ * Central-connection editor. One screen gives operators:
+ *
+ *   1. A live status strip (reachable, central version, profile,
+ *      probe RTT, auth kind, last probe) with a "Probe now" action.
+ *   2. The inline connection + compatibility + proxy editor,
+ *      saved from the same page.
+ *   3. Quick-access tiles for the rest of the DHIS2 group
+ *      (OU binding, compatibility, metadata, sync, drift).
+ *   4. Read-only probe snapshot details.
  */
 export function MockupDhis2Overview(): JSX.Element {
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
@@ -16,138 +22,235 @@ export function MockupDhis2Overview(): JSX.Element {
   const [b, setB] = useState<edgeApi.OrgUnitBinding | null>(null);
   const [d, setD] = useState<edgeApi.DriftResponse | null>(null);
   const [cfg, setCfg] = useState<edgeApi.Dhis2ConnectionPayload | null>(null);
+  const [draft, setDraft] = useState<Partial<edgeApi.Dhis2ConnectionPayload>>({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.allSettled([
+  async function reload(): Promise<void> {
+    const r = await Promise.allSettled([
       edgeApi.systemInfo(), edgeApi.compat(),
       edgeApi.getOrgUnitBinding(), edgeApi.drift(),
       edgeApi.readDhis2Connection(),
-    ]).then((r) => {
-      if (r[0].status === 'fulfilled') setSi(r[0].value);
-      if (r[1].status === 'fulfilled') setC(r[1].value);
-      if (r[2].status === 'fulfilled') setB(r[2].value);
-      if (r[3].status === 'fulfilled') setD(r[3].value);
-      if (r[4].status === 'fulfilled') setCfg(r[4].value);
-    });
-  }, []);
+    ]);
+    if (r[0].status === 'fulfilled') setSi(r[0].value);
+    if (r[1].status === 'fulfilled') setC(r[1].value);
+    if (r[2].status === 'fulfilled') setB(r[2].value);
+    if (r[3].status === 'fulfilled') setD(r[3].value);
+    if (r[4].status === 'fulfilled') { setCfg(r[4].value); setDraft(r[4].value); }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, []);
 
-  if (!si || !c) return <LoadingBlock testId="loading" />;
+  async function probeNow(): Promise<void> {
+    setRefreshing(true); setErr(null); setMsg(null);
+    try {
+      setC(await edgeApi.refreshCompat());
+      setSi(await edgeApi.systemInfo());
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setRefreshing(false); }
+  }
+
+  async function save(): Promise<void> {
+    setSaving(true); setErr(null); setMsg(null);
+    try {
+      const payload: Partial<edgeApi.Dhis2ConnectionPayload> = { ...draft };
+      if (payload.password === '***') delete (payload as Record<string, unknown>).password;
+      if (payload.patToken === '***') delete (payload as Record<string, unknown>).patToken;
+      const saved = await edgeApi.writeDhis2Connection(payload);
+      setCfg(saved); setDraft(saved);
+      setMsg('Connection settings saved. Changes take effect on next sync / probe.');
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setSaving(false); }
+  }
+  function set<K extends keyof edgeApi.Dhis2ConnectionPayload>(
+      k: K, v: edgeApi.Dhis2ConnectionPayload[K] | string | boolean | number | null): void {
+    setDraft((d) => ({ ...d, [k]: v as edgeApi.Dhis2ConnectionPayload[K] }));
+  }
+
+  if (!si || !c || !cfg) return <LoadingBlock testId="loading" />;
 
   const reach = c.probeReachable;
   const bound = b?.bound ?? false;
   const drift = d?.fingerprintFrom && d?.fingerprintTo && d.fingerprintFrom !== d.fingerprintTo;
-  const authKind = cfg?.patTokenSet ? 'PAT' : cfg?.passwordSet ? 'Basic' : 'none';
+  const authKind: 'PAT' | 'Basic' | 'none' = cfg.patTokenSet ? 'PAT' : cfg.passwordSet ? 'Basic' : 'none';
 
   return (
-    <div className="ea-screen">
+    <div className="ea-screen" data-test="cap-dhis2-hub">
       <section className="ea-dash-hero">
         <div className="ea-dash-hero-left">
-          <div className="ea-dash-hero-eyebrow">DHIS2 Integration</div>
-          <h1 className="ea-dash-hero-title">DHIS2 overview</h1>
-          <p className="ea-dash-hero-sub">
-            Health of the DER→DHIS2 integration: central reachability,
-            binding, compat profile, metadata mirror and drift.
-          </p>
-          <div className="ea-dash-hero-meta">
-            <span className={'ea-chip ea-chip--' + (reach ? 'success' : 'danger')}>
-              {reach ? 'Central reachable' : 'Central unreachable'}
-            </span>
-            <span className="ea-dash-hero-meta-item">{c.centralVersion ?? '—'}</span>
-            <span className="ea-dash-hero-meta-item">profile {c.profileName ?? '—'}</span>
-          </div>
+          <h1 className="ea-dash-hero-title">DHIS2</h1>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Link to="/integration/connection" className="ea-btn ea-btn--primary">Edit connection</Link>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" className="ea-btn ea-btn--ghost"
+                  disabled={refreshing}
+                  data-test="dhis2-probe-now"
+                  onClick={() => { probeNow().catch(() => undefined); }}>
+            {refreshing ? 'Probing…' : 'Probe now'}
+          </button>
+          <button type="button" className="ea-btn ea-btn--primary"
+                  disabled={saving}
+                  data-test="dhis2-save"
+                  onClick={() => { save().catch(() => undefined); }}>
+            {saving ? 'Saving…' : 'Save connection'}
+          </button>
         </div>
       </section>
 
-      <div className="ea-kpi-grid">
-        <KpiTile tone={reach ? 'success' : 'danger'} icon={<IconPlug />}
-                 label="Reachable" value={reach ? 'yes' : 'no'}
-                 caption={si.dhis2.probeDurationMs != null ? `${si.dhis2.probeDurationMs} ms` : '—'} />
-        <KpiTile tone={bound ? 'success' : 'warning'} icon={<IconPin />}
-                 label="Org unit" value={bound ? 'bound' : 'unbound'}
-                 caption={b?.orgUnitDisplayName ?? 'select a facility'} />
-        <KpiTile tone="info" icon={<IconProfile />}
-                 label="Compat profile" value={c.profileName ?? '—'}
-                 caption={`v${c.engineVersion ?? '—'}`} />
-        <KpiTile tone={drift ? 'warning' : 'success'} icon={<IconDiff />}
-                 label="Drift" value={drift ? 'detected' : 'in sync'} />
+      <div className="ea-stat-strip">
+        <Stat label="Reachable" tone={reach ? 'success' : 'danger'} value={reach ? 'yes' : 'no'} />
+        <Stat label="Central version" value={c.centralVersion ?? '—'} />
+        <Stat label="Profile" value={c.profileName ?? '—'} />
+        <Stat label="Probe RTT"
+              value={si.dhis2.probeDurationMs != null ? `${si.dhis2.probeDurationMs} ms` : '—'} />
+        <Stat label="Auth" tone={authKind === 'none' ? 'warning' : 'success'}
+              value={authKind === 'PAT' ? 'PAT (Bearer)' : authKind === 'Basic' ? 'Basic' : 'none'} />
+        <Stat label="Last probe" value={c.capturedAt ? fmtAgo(c.capturedAt) : '—'} />
       </div>
 
-      <div className="ea-dash-middle">
-        <Panel title="Connection"
-               action={<Link to="/integration/connection" className="ea-link-btn">Edit</Link>}>
-          <ul className="ea-components-list">
-            <li>
-              <Dot tone={reach ? 'success' : 'danger'} />
-              <div className="ea-components-main">
-                <div className="ea-components-name">Base URL</div>
-                <div className="ea-components-meta ea-mono">
-                  {cfg?.baseUrl || si.dhis2.centralBaseUrl || '—'}
-                </div>
-              </div>
-            </li>
-            <li>
-              <Dot tone={authKind === 'none' ? 'warning' : 'success'} />
-              <div className="ea-components-main">
-                <div className="ea-components-name">Authentication</div>
-                <div className="ea-components-meta">
-                  {authKind === 'PAT' ? 'Personal access token (Bearer)'
-                    : authKind === 'Basic' ? `Basic · ${cfg?.username ?? ''}`
-                      : 'Not configured'}
-                </div>
-              </div>
-            </li>
-            <li>
-              <Dot tone="muted" />
-              <div className="ea-components-main">
-                <div className="ea-components-name">Captured</div>
-                <div className="ea-components-meta ea-mono">{si.dhis2.capturedAt ? fmtDate(si.dhis2.capturedAt) : '—'}</div>
-              </div>
-            </li>
-          </ul>
-        </Panel>
+      {msg && <p className="ea-saved" data-test="dhis2-saved">{msg}</p>}
+      {err && <ErrorBlock title="Connection error" testId="err-dhis2-hub">{err}</ErrorBlock>}
 
-        <Panel title="Compatibility"
-               action={<Link to="/compat" className="ea-link-btn">Details</Link>}>
-          <ul className="ea-components-list">
-            <li>
-              <Dot tone={reach ? 'success' : 'danger'} />
-              <div className="ea-components-main">
-                <div className="ea-components-name">Central version</div>
-                <div className="ea-components-meta ea-mono">{c.centralVersion ?? '—'}</div>
-              </div>
-            </li>
-            <li>
-              <Dot tone="muted" />
-              <div className="ea-components-main">
-                <div className="ea-components-name">Pinned</div>
-                <div className="ea-components-meta ea-mono">{si.dhis2.pinnedVersion ?? '—'}</div>
-              </div>
-            </li>
-            <li>
-              <Dot tone={si.dhis2.allowMismatch ? 'warning' : 'success'} />
-              <div className="ea-components-main">
-                <div className="ea-components-name">Allow mismatch</div>
-                <div className="ea-components-meta">{si.dhis2.allowMismatch ? 'yes' : 'no'}</div>
-              </div>
-            </li>
-          </ul>
-        </Panel>
-      </div>
+      <section className="ea-card ea-form-card" data-test="dhis2-connection-form">
+        <div className="ea-form-section">
+          <div className="ea-form-section-head">
+            <h2>Connection</h2>
+            <p>Base URL + optional service-account authentication to the central DHIS2.</p>
+          </div>
+          <div className="ea-form-grid">
+            <label className="ea-field">
+              <span className="ea-field-label">Base URL</span>
+              <input className="ea-input ea-mono" type="url"
+                     placeholder="https://dhis.example.org/dhis"
+                     value={draft.baseUrl ?? ''}
+                     onChange={(e) => set('baseUrl', e.target.value)} />
+              <span className="ea-field-hint">
+                No trailing slash. Current compiled default: {si.dhis2.centralBaseUrl ?? '—'}
+              </span>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Service account username</span>
+              <input className="ea-input" type="text" autoComplete="off"
+                     value={draft.username ?? ''}
+                     onChange={(e) => set('username', e.target.value)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Service account password</span>
+              <input className="ea-input" type="password" autoComplete="new-password"
+                     placeholder={cfg.passwordSet ? 'leave blank to keep ***' : 'password'}
+                     value={draft.password === '***' ? '' : (draft.password ?? '')}
+                     onChange={(e) => set('password', e.target.value)} />
+              <span className="ea-field-hint">
+                {cfg.passwordSet
+                  ? 'A password is already set. Leave blank to keep it unchanged.'
+                  : 'Stored encrypted (AES-256-GCM via SecretEnvelope) when der.security.secret-key is configured.'}
+              </span>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Personal access token (PAT)</span>
+              <input className="ea-input ea-mono" type="password" autoComplete="new-password"
+                     placeholder={cfg.patTokenSet ? 'leave blank to keep ***' : 'd2pat_xxx…'}
+                     value={draft.patToken === '***' ? '' : (draft.patToken ?? '')}
+                     onChange={(e) => set('patToken', e.target.value)} />
+              <span className="ea-field-hint">
+                If set, DER prefers the PAT (Bearer) over username/password Basic auth.
+              </span>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Connect timeout (ms)</span>
+              <input className="ea-input ea-mono" type="number" min={1000} max={120000}
+                     value={draft.connectTimeoutMillis ?? ''}
+                     onChange={(e) => set('connectTimeoutMillis', e.target.value ? Number(e.target.value) : null)} />
+            </label>
+          </div>
+        </div>
 
-      <Panel title="DHIS2 sub-modules">
+        <div className="ea-form-section">
+          <div className="ea-form-section-head">
+            <h2>Compatibility</h2>
+            <p>ADR-0006 compatibility policy — hard floor, max tested version and probe strictness.</p>
+          </div>
+          <div className="ea-form-grid">
+            <label className="ea-field">
+              <span className="ea-field-label">Minimum supported DHIS2 version</span>
+              <input className="ea-input ea-mono" placeholder="2.41"
+                     value={draft.minSupportedVersion ?? ''}
+                     onChange={(e) => set('minSupportedVersion', e.target.value)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Maximum tested version</span>
+              <input className="ea-input ea-mono" placeholder="2.44"
+                     value={draft.maxTestedVersion ?? ''}
+                     onChange={(e) => set('maxTestedVersion', e.target.value)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Probe mode</span>
+              <select className="ea-input" value={draft.compatMode ?? 'strict'}
+                      onChange={(e) => set('compatMode', e.target.value)}>
+                <option value="strict">strict — fail closed on probe exceptions</option>
+                <option value="permissive">permissive — warn, keep running</option>
+              </select>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Snapshot TTL (hours)</span>
+              <input className="ea-input ea-mono" type="number" min={1} max={720}
+                     value={draft.snapshotTtlHours ?? ''}
+                     onChange={(e) => set('snapshotTtlHours', e.target.value ? Number(e.target.value) : null)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Allow version mismatch</span>
+              <label className="ea-flag-row">
+                <input type="checkbox" className="ea-switch"
+                       checked={!!draft.allowMismatch}
+                       onChange={(e) => set('allowMismatch', e.target.checked)} />
+                <span className="ea-flag-name">
+                  Boot even when the central version is outside min / max
+                </span>
+              </label>
+            </label>
+          </div>
+        </div>
+
+        <div className="ea-form-section">
+          <div className="ea-form-section-head">
+            <h2>DHIS2 /api/** proxy</h2>
+            <p>Opt-in passthrough so custom DHIS2 apps running on DER can call analytics / dataStore / etc. straight through to central.</p>
+          </div>
+          <div className="ea-form-grid">
+            <label className="ea-field">
+              <span className="ea-field-label">Enabled</span>
+              <label className="ea-flag-row">
+                <input type="checkbox" className="ea-switch"
+                       checked={!!draft.proxyEnabled}
+                       onChange={(e) => set('proxyEnabled', e.target.checked)} />
+                <span className="ea-flag-name">Pass /api/** through to central (read-side only by default)</span>
+              </label>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Allow writes</span>
+              <label className="ea-flag-row">
+                <input type="checkbox" className="ea-switch"
+                       checked={!!draft.proxyAllowWrites}
+                       onChange={(e) => set('proxyAllowWrites', e.target.checked)} />
+                <span className="ea-flag-name">Also pass POST / PUT / DELETE / PATCH through (bypasses the journal)</span>
+              </label>
+            </label>
+            <label className="ea-field" style={{ gridColumn: '1 / -1' }}>
+              <span className="ea-field-label">Allow-path prefixes (CSV, blank = defaults)</span>
+              <input className="ea-input ea-mono"
+                     placeholder="/api/analytics,/api/dataStore,…"
+                     value={draft.proxyAllowPaths ?? ''}
+                     onChange={(e) => set('proxyAllowPaths', e.target.value)} />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="ea-section-title">Related</div>
         <div className="ea-tile-grid">
-          <Link to="/integration/connection" className="ea-link-tile">
-            <div className="ea-link-tile-icon">⚙</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Central connection</div>
-              <div className="ea-link-tile-desc">Base URL, service account, PAT, timeouts, proxy.</div>
-            </div>
-          </Link>
-          <Link to="/integration/organisation-unit" className="ea-link-tile">
-            <div className="ea-link-tile-icon">⌖</div>
+          <Link to="/dhis2/organisation-unit" className="ea-link-tile">
+            <div className="ea-link-tile-icon" aria-hidden="true">⌖</div>
             <div className="ea-link-tile-body">
               <div className="ea-link-tile-title">Organisation unit</div>
               <div className="ea-link-tile-desc">
@@ -155,29 +258,31 @@ export function MockupDhis2Overview(): JSX.Element {
               </div>
             </div>
           </Link>
-          <Link to="/compat" className="ea-link-tile">
-            <div className="ea-link-tile-icon">✓</div>
+          <Link to="/dhis2/compat" className="ea-link-tile">
+            <div className="ea-link-tile-icon" aria-hidden="true">✓</div>
             <div className="ea-link-tile-body">
               <div className="ea-link-tile-title">Compatibility</div>
-              <div className="ea-link-tile-desc">Live probe + ADR-0006 policy.</div>
+              <div className="ea-link-tile-desc">
+                Live probe + ADR-0006 policy. Last probe {c.capturedAt ? fmtAgo(c.capturedAt) : '—'}.
+              </div>
             </div>
           </Link>
-          <Link to="/compat/history" className="ea-link-tile">
-            <div className="ea-link-tile-icon">⏱</div>
+          <Link to="/dhis2/metadata" className="ea-link-tile">
+            <div className="ea-link-tile-icon" aria-hidden="true">◱</div>
             <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Compat history</div>
-              <div className="ea-link-tile-desc">Past snapshots and engine versions.</div>
+              <div className="ea-link-tile-title">Metadata</div>
+              <div className="ea-link-tile-desc">Read-only mirror of every DHIS2 metadata resource.</div>
             </div>
           </Link>
-          <Link to="/metadata" className="ea-link-tile">
-            <div className="ea-link-tile-icon">◱</div>
+          <Link to="/dhis2/metadata-sync" className="ea-link-tile">
+            <div className="ea-link-tile-icon" aria-hidden="true">▶</div>
             <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Metadata mirror</div>
-              <div className="ea-link-tile-desc">Local copy of DHIS2 metadata for offline capture.</div>
+              <div className="ea-link-tile-title">Metadata sync</div>
+              <div className="ea-link-tile-desc">Trigger an immediate metadata pull from central.</div>
             </div>
           </Link>
-          <Link to="/sync/drift" className="ea-link-tile">
-            <div className="ea-link-tile-icon">≠</div>
+          <Link to="/dhis2/metadata-drift" className="ea-link-tile">
+            <div className="ea-link-tile-icon" aria-hidden="true">≠</div>
             <div className="ea-link-tile-body">
               <div className="ea-link-tile-title">Metadata drift</div>
               <div className="ea-link-tile-desc">
@@ -185,39 +290,33 @@ export function MockupDhis2Overview(): JSX.Element {
               </div>
             </div>
           </Link>
-          <Link to="/dhis2/metadata-sync" className="ea-link-tile">
-            <div className="ea-link-tile-icon">▶</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Metadata sync</div>
-              <div className="ea-link-tile-desc">Trigger an immediate metadata pull from central.</div>
-            </div>
-          </Link>
         </div>
-      </Panel>
+      </section>
 
-      <Panel title="Latest probe">
-        <ul className="ea-components-list">
-          <li>
-            <Dot tone="muted" />
-            <div className="ea-components-main">
-              <div className="ea-components-name">Last probe</div>
-              <div className="ea-components-meta">{fmtAgo(c.capturedAt)}</div>
-            </div>
-          </li>
-          <li>
-            <Dot tone="muted" />
-            <div className="ea-components-main">
-              <div className="ea-components-name">Reason</div>
-              <div className="ea-components-meta">{si.dhis2.reason ?? '—'}</div>
-            </div>
-          </li>
-        </ul>
-      </Panel>
+      <section>
+        <div className="ea-section-title">Probe details</div>
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>Compiled default URL</dt>
+            <dd className="ea-mono">{si.dhis2.centralBaseUrl ?? '—'}</dd></div>
+          <div className="ea-def-row"><dt>Observed version</dt>
+            <dd>{si.dhis2.centralVersion ?? '—'}</dd></div>
+          <div className="ea-def-row"><dt>Captured at</dt>
+            <dd className="ea-mono">{si.dhis2.capturedAt ? fmtDate(si.dhis2.capturedAt) : '—'}</dd></div>
+          <div className="ea-def-row"><dt>Reason</dt>
+            <dd>{si.dhis2.reason ?? '—'}</dd></div>
+        </dl>
+      </section>
     </div>
   );
 }
 
-function IconPlug(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 2v4M15 2v4" /><path d="M7 6h10v4a5 5 0 01-10 0V6z" /><path d="M12 15v7" /></svg>); }
-function IconPin(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a7 7 0 017 7c0 5-7 13-7 13S5 14 5 9a7 7 0 017-7z" /><circle cx="12" cy="9" r="2.5" /></svg>); }
-function IconProfile(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 10h8M8 14h5" /></svg>); }
-function IconDiff(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8h12M4 16h12M20 4l-4 4M20 20l-4-4" /></svg>); }
+function Stat({ label, value, tone = 'info' }: {
+  label: string; value: ReactNode; tone?: 'info' | 'success' | 'danger' | 'warning' | 'muted';
+}): JSX.Element {
+  return (
+    <div className={`ea-stat ea-stat--${tone}`}>
+      <div className="ea-stat-value">{value}</div>
+      <div className="ea-stat-label">{label}</div>
+    </div>
+  );
+}

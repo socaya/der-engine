@@ -64,7 +64,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     icon: 'plug',
     items: [
       { id: 'dhis2-overview', label: 'Overview', to: '/dhis2', status: 'implemented' },
-      { id: 'central-conn', label: 'Connection', to: '/dhis2/connection', status: 'implemented' },
+      { id: 'central-conn', label: 'Connection', to: '/dhis2/connection', status: 'contextual' },
       { id: 'ou-binding', label: 'Organisation unit', to: '/dhis2/organisation-unit', status: 'implemented' },
       { id: 'compat', label: 'Compatibility', to: '/dhis2/compat', status: 'implemented' },
       { id: 'metadata-mirror', label: 'Metadata', to: '/dhis2/metadata', status: 'implemented' },

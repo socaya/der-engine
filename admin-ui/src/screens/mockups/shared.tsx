@@ -114,14 +114,17 @@ export function KpiTile({ icon, label, value, caption, tone = 'default', right }
 // ────────────────────────────────────────────────────────────────────
 
 export function Panel({ title, action, children }: {
-  title: string; action?: ReactNode; children: ReactNode;
+  title?: string; action?: ReactNode; children: ReactNode;
 }): JSX.Element {
+  const hasHead = Boolean(title) || Boolean(action);
   return (
     <section className="ea-panel">
-      <header className="ea-panel-head">
-        <h2 className="ea-panel-title">{title}</h2>
-        {action && <div className="ea-panel-action">{action}</div>}
-      </header>
+      {hasHead && (
+        <header className="ea-panel-head">
+          {title ? <h2 className="ea-panel-title">{title}</h2> : <span />}
+          {action && <div className="ea-panel-action">{action}</div>}
+        </header>
+      )}
       <div className="ea-panel-body">{children}</div>
     </section>
   );
@@ -251,4 +254,59 @@ export function fmtDate(iso: string | null | undefined): string {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Shared pagination control for tables backed by a server pager
+// ({page, pageSize, total, pageCount}). Drop below a table.
+// ────────────────────────────────────────────────────────────────────
+
+export function TablePager({ page, pageCount, pageSize, total, onPage, onPageSize }: {
+  page: number; pageCount: number; pageSize: number; total: number;
+  onPage: (p: number) => void; onPageSize?: (n: number) => void;
+}): JSX.Element | null {
+  if (total === 0) return null;
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+  return (
+    <div className="ea-table-footer" data-test="table-pager">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span className="ea-text-muted" style={{ fontSize: 12 }}>
+          {from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()}
+        </span>
+        {onPageSize && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+            <span className="ea-text-muted">Rows:</span>
+            <select className="ea-input" style={{ height: 24, padding: '0 6px', fontSize: 12 }}
+                    value={pageSize}
+                    onChange={(e) => onPageSize(Number(e.target.value))}
+                    data-test="pager-size">
+              {[25, 50, 100, 200].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+        )}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                disabled={page <= 1}
+                data-test="pager-first"
+                onClick={() => onPage(1)}>« First</button>
+        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                disabled={page <= 1}
+                data-test="pager-prev"
+                onClick={() => onPage(page - 1)}>‹ Prev</button>
+        <span style={{ fontSize: 12, padding: '0 6px' }}>
+          Page {page} of {pageCount}
+        </span>
+        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                disabled={page >= pageCount}
+                data-test="pager-next"
+                onClick={() => onPage(page + 1)}>Next ›</button>
+        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                disabled={page >= pageCount}
+                data-test="pager-last"
+                onClick={() => onPage(pageCount)}>Last »</button>
+      </div>
+    </div>
+  );
 }

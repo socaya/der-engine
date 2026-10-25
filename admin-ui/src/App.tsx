@@ -1,4 +1,4 @@
-import { Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { RequireAuth } from './components/RequireAuth';
 import { AdminShell } from './components/AdminShell';
@@ -90,7 +90,8 @@ export default function App(): JSX.Element {
               redirect-equivalent routes so bookmarks continue to work.
               A single component mounts at both locations. */}
           <Route path="/dhis2" element={<RequireAuth><MockupDhis2Overview /></RequireAuth>} />
-          <Route path="/dhis2/connection" element={<RequireAuth><CapCentralConnection /></RequireAuth>} />
+          {/* /dhis2/connection is merged into the hub at /dhis2 (der-2.0.30). */}
+          <Route path="/dhis2/connection" element={<Navigate to="/dhis2" replace />} />
           <Route path="/dhis2/organisation-unit" element={<RequireAuth><CapOrgUnitBinding /></RequireAuth>} />
           <Route path="/dhis2/program-rules" element={<RequireAuth><CapProgramRules /></RequireAuth>} />
           <Route path="/dhis2/compat" element={<RequireAuth><MockupCompatMatrix /></RequireAuth>} />

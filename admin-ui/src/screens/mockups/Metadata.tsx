@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
-  OuPicker, useOuContext, Panel, SplitWithDrawer, Dot, fmtDate,
+  Panel, SplitWithDrawer, Dot, fmtDate, TablePager,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
@@ -81,24 +81,34 @@ interface MetaRow {
 }
 
 export function MockupMetadata(): JSX.Element {
-  const [ctx] = useOuContext();
   const [tabKey, setTabKey] = useState<string>(RESOURCES[0].key);
   const [rows, setRows] = useState<MetaRow[] | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [err, setErr] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [sel, setSel] = useState<MetaRow | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [pageTotal, setPageTotal] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
 
   const activeResource = RESOURCES.find((r) => r.key === tabKey) ?? RESOURCES[0];
 
-  // Load the active resource whenever the tab changes.
+  // Reset page when resource or page size changes.
+  useEffect(() => { setPage(1); }, [tabKey, pageSize]);
+
+  // Load the active resource page. Re-runs on resource / page / pageSize change.
   useEffect(() => {
     let cancelled = false;
     setRows(null); setErr(null); setSel(null);
-    edgeApi.metadataList(activeResource.key)
+    edgeApi.metadataList(activeResource.key, { page, pageSize })
       .then((r) => {
         if (cancelled) return;
         const items = (r[activeResource.key] ?? []) as edgeApi.MetadataListItem[];
+        const pager = (r as Record<string, unknown>).pager as
+          { total?: number; pageCount?: number } | undefined;
+        setPageTotal(pager?.total ?? items.length);
+        setPageCount(Math.max(1, pager?.pageCount ?? 1));
         const mapped = items.map((it) => ({
           id: it.id,
           name: it.displayName ?? '',
@@ -110,17 +120,13 @@ export function MockupMetadata(): JSX.Element {
           raw: it as Record<string, unknown>,
         }));
         setRows(mapped);
-        // Auto-focus the first row so the right drawer renders a real
-        // payload instead of the "select a row…" placeholder.
-        if (mapped.length > 0) {
-          setSel(mapped[0]);
-        }
+        if (mapped.length > 0) setSel(mapped[0]);
       })
       .catch((e: unknown) => {
         if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
       });
     return () => { cancelled = true; };
-  }, [tabKey, activeResource.key, activeResource.typeLabel]);
+  }, [tabKey, activeResource.key, activeResource.typeLabel, page, pageSize]);
 
   // Load counts for every resource up-front so the tab labels show totals.
   useEffect(() => {
@@ -150,7 +156,6 @@ export function MockupMetadata(): JSX.Element {
       || (r.code ?? '').toLowerCase().includes(q)) : base;
   }, [rows, query]);
 
-  const totalRows = rows?.length ?? 0;
   const totalMirror = Object.values(counts).reduce((a, b) => a + b, 0);
 
   return (
@@ -175,28 +180,6 @@ export function MockupMetadata(): JSX.Element {
         </div>
       </section>
 
-      <OuPicker ctx={ctx} />
-
-      <section className="ea-metadata-picker" aria-label="Metadata resource">
-        <label className="ea-field" style={{ maxWidth: 480 }}>
-          <span className="ea-field-label">Metadata resource</span>
-          <select className="ea-input" value={tabKey}
-                  onChange={(e) => setTabKey(e.target.value)}
-                  data-test="metadata-resource">
-            {RESOURCES.map((r) => (
-              <option key={r.key} value={r.key}>
-                {r.label} — {counts[r.key] ?? '…'} item{counts[r.key] === 1 ? '' : 's'}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="ea-metadata-picker-meta">
-          <span className="ea-chip ea-chip--info">
-            {counts[tabKey] ?? '…'} mirrored
-          </span>
-        </div>
-      </section>
-
       {err && <ErrorBlock title="Could not load metadata" testId="err-meta">{err}</ErrorBlock>}
       {!rows && !err && <LoadingBlock testId="loading" />}
 
@@ -204,26 +187,39 @@ export function MockupMetadata(): JSX.Element {
         <SplitWithDrawer
           drawerOpen={!!sel}
           main={
-            <Panel title={activeResource.label}
-                   action={
-                     <>
-                       <input className="ea-input" style={{ maxWidth: 240 }}
-                              type="search" placeholder="Search by name, ID or code"
-                              value={query} onChange={(e) => setQuery(e.target.value)} />
-                       <span className="ea-text-muted">
-                         {filtered.length === totalRows
-                           ? `${totalRows.toLocaleString()} items`
-                           : `${filtered.length.toLocaleString()} of ${totalRows.toLocaleString()}`}
-                       </span>
-                     </>
-                   }>
+            <Panel action={
+              <>
+                <select className="ea-input" style={{ maxWidth: 260 }}
+                        value={tabKey}
+                        onChange={(e) => setTabKey(e.target.value)}
+                        data-test="metadata-resource"
+                        aria-label="Metadata resource">
+                  {RESOURCES.map((r) => (
+                    <option key={r.key} value={r.key}>
+                      {r.label} — {counts[r.key] ?? '…'} item{counts[r.key] === 1 ? '' : 's'}
+                    </option>
+                  ))}
+                </select>
+                <span className="ea-chip ea-chip--info">
+                  {counts[tabKey] ?? '…'} mirrored
+                </span>
+                <input className="ea-input" style={{ maxWidth: 240 }}
+                       type="search" placeholder="Search by name, ID or code"
+                       value={query} onChange={(e) => setQuery(e.target.value)} />
+                <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                  {query
+                    ? `${filtered.length.toLocaleString()} match${filtered.length === 1 ? '' : 'es'} on this page`
+                    : `${pageTotal.toLocaleString()} items`}
+                </span>
+              </>
+            }>
               <div className="ea-table-wrap">
                 <table className="ea-table ea-table--dense ea-table--selectable">
                   <thead><tr>
                     <th>Name</th><th>Code</th><th>Short name</th><th>Last updated</th><th>Mirror</th>
                   </tr></thead>
                   <tbody>
-                    {filtered.slice(0, 500).map((r) => (
+                    {filtered.map((r) => (
                       <tr key={r.id} className={sel?.id === r.id ? 'ea-row--active' : ''}
                           onClick={() => setSel(r)}>
                         <td>{r.name || <span className="ea-text-muted">(unnamed)</span>}</td>
@@ -235,18 +231,15 @@ export function MockupMetadata(): JSX.Element {
                     ))}
                     {filtered.length === 0 && (
                       <tr><td colSpan={5} className="ea-text-muted" style={{ padding: 24, textAlign: 'center' }}>
-                        {query ? 'No metadata matches that search.' : 'No metadata mirrored for this resource.'}
+                        {query ? 'No metadata matches that search on this page.' : 'No metadata mirrored for this resource.'}
                       </td></tr>
                     )}
                   </tbody>
                 </table>
-                {filtered.length > 500 && (
-                  <div className="ea-table-footer">
-                    <span className="ea-text-muted">
-                      Showing first 500 of {filtered.length.toLocaleString()} rows. Use search to narrow further.
-                    </span>
-                  </div>
-                )}
+                <TablePager
+                  page={page} pageCount={pageCount} pageSize={pageSize} total={pageTotal}
+                  onPage={setPage} onPageSize={setPageSize}
+                />
               </div>
             </Panel>
           }
