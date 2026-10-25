@@ -551,8 +551,6 @@ export function CapOrgUnitBinding(): JSX.Element {
       <HeroHeader
         title="Organisation unit"
         subtitle="This edge serves a single DHIS2 organisation unit. Change only when relocating the device."
-        orgUnitBound={b.bound}
-        orgUnitLabel={b.orgUnitDisplayName ?? undefined}
       />
       {err && <ErrorBlock title="Binding failed" testId="err-binding-failed">{err}</ErrorBlock>}
       {b.bound ? (

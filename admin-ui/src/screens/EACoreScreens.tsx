@@ -68,7 +68,6 @@ export function EASetupWelcome({ api = edgeApi }:
 
   if (error) return <ErrorBlock title="Setup probe failed" testId="ea01-error">{error}</ErrorBlock>;
   if (!h || !c || !binding) return <LoadingBlock testId="ea01-loading" />;
-  const orgLabel = binding.bound ? (binding.orgUnitDisplayName ?? '—') : undefined;
   return (
     <div className="ea-screen ea-overview">
       <HeroHeader
@@ -77,8 +76,6 @@ export function EASetupWelcome({ api = edgeApi }:
         version={h.version}
         centralVersion={c.centralVersion ?? undefined}
         lastFetched={lastFetched}
-        orgUnitBound={binding.bound}
-        orgUnitLabel={orgLabel}
         actions={
           <button
             type="button"
@@ -753,7 +750,6 @@ export function EAJobsList({ api = edgeApi }:
         title="Synchronisation jobs"
         subtitle="Scheduled Quartz runs across metadata, journal drain, backup, analytics and referral polling."
         lastFetched={lastFetched}
-        orgUnitBound
         actions={
           <>
             <button type="button" onClick={() => { reload().catch(() => undefined); }} data-test="ea06-refresh">
@@ -912,7 +908,6 @@ export function EAJobTrigger({ api = edgeApi }:
       <HeroHeader
         title="Trigger a job"
         subtitle="Fire a scheduled sync job now instead of waiting for its cron window."
-        orgUnitBound
       />
       <section className="ea-trigger-card" data-test="ea07-card">
         <div className="ea-trigger-pick">
@@ -969,7 +964,7 @@ export function EADriftInspector({ api = edgeApi }:
   if (data.status === 'NO_SNAPSHOT') {
     return (
       <div className="ea-screen">
-        <HeroHeader title="Metadata drift" subtitle="No snapshot yet." orgUnitBound />
+        <HeroHeader title="Metadata drift" subtitle="No snapshot yet." />
         <EmptyBlock title="No drift snapshot" testId="ea08-empty">
           Trigger a metadata sync first.
         </EmptyBlock>
@@ -982,7 +977,6 @@ export function EADriftInspector({ api = edgeApi }:
       <HeroHeader
         title="Metadata drift"
         subtitle="Fingerprint comparison between the latest two metadata snapshots."
-        orgUnitBound
         actions={
           <button type="button" data-test="ea08-refresh" disabled={refreshing}
                   onClick={() => { setRefreshing(true);
@@ -1041,7 +1035,6 @@ export function EAConflictList({ api = edgeApi }:
         title="Conflicts to review"
         subtitle="Journal entries that need an authorised reviewer before they can drain to central."
         lastFetched={lastFetched}
-        orgUnitBound
         actions={
           <button type="button" onClick={() => { reload().catch(() => undefined); }} data-test="ea10-refresh">
             Refresh
@@ -1165,7 +1158,6 @@ export function EAWorkerHealth({ api = edgeApi }:
         title="Journal worker"
         subtitle="Pulls pending operations out of the journal and attempts to deliver them to DHIS2 central."
         lastFetched={lastFetched}
-        orgUnitBound
         actions={
           <>
             <button type="button" onClick={() => { load().catch(() => undefined); }} data-test="ea14-refresh">
