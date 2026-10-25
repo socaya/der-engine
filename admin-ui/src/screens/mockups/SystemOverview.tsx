@@ -6,6 +6,11 @@ import {
 } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
+/** DER /system/health reports `starter-ready` while live. Accept both. */
+function isDerUp(status: string | undefined | null): boolean {
+  return status === 'UP' || status === 'starter-ready' || status === 'ready';
+}
+
 /** DER System Overview — matches docs/media/ui/DER DHIS2 Edge Runtime System Overview.png */
 export function MockupSystemOverview(): JSX.Element {
   const [h, setH] = useState<edgeApi.HealthResponse | null>(null);
@@ -43,7 +48,8 @@ export function MockupSystemOverview(): JSX.Element {
   const activeDevices = (devices ?? []).filter((d) => d.status === 'APPROVED').length;
   const totalDevices = (devices ?? []).length;
   const activeWf = (wfs ?? []).filter((x) => x.enabled).length;
-  const allOps = h.status === 'UP' && c?.probeReachable;
+  const derUp = isDerUp(h.status);
+  const allOps = derUp && c?.probeReachable;
 
   // bars
   const now = Date.now();
@@ -87,9 +93,9 @@ export function MockupSystemOverview(): JSX.Element {
 
       {/* 5 KPI tiles */}
       <div className="ea-kpi-grid">
-        <KpiTile tone={h.status === 'UP' ? 'success' : 'danger'}
+        <KpiTile tone={derUp ? 'success' : 'danger'}
                  icon={<IconPulse />} label="Status"
-                 value={h.status === 'UP' ? 'Live' : h.status}
+                 value={derUp ? 'Live' : h.status}
                  caption="DER service" />
         <KpiTile tone="info" icon={<IconUsers />}
                  label="Connected Clients" value={`${activeDevices} of ${totalDevices}`}

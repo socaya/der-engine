@@ -6,6 +6,11 @@ import {
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
+/** DER /system/health reports `starter-ready` while live. Accept both. */
+function isDerUp(status: string | undefined | null): boolean {
+  return status === 'UP' || status === 'starter-ready' || status === 'ready';
+}
+
 /** DER Server Operations Dashboard — matches docs/media/ui/DER Server Operations Dashboard.png */
 export function MockupDashboard(): JSX.Element {
   const [h, setH] = useState<edgeApi.HealthResponse | null>(null);
@@ -98,8 +103,8 @@ export function MockupDashboard(): JSX.Element {
             DHIS2 Edge Runtime for resilient data capture, synchronisation and analytics.
           </p>
           <div className="ea-dash-hero-meta">
-            <span className={'ea-chip ea-chip--' + (h.status === 'UP' ? 'success' : 'danger')}>
-              {h.status === 'UP' ? 'Operational' : h.status}
+            <span className={'ea-chip ea-chip--' + (isDerUp(h.status) ? 'success' : 'danger')}>
+              {isDerUp(h.status) ? 'Operational' : h.status}
             </span>
             <span className="ea-dash-hero-meta-item">DER v{si.build.version}</span>
             <span className="ea-dash-hero-meta-item">{fmtDate(si.timestamp)}</span>

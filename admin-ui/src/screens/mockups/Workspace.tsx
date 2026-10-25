@@ -66,7 +66,10 @@ export function MockupWorkspace(): JSX.Element {
 
   // ── Derived state ──────────────────────────────────────────────
   const dhis2Up = c?.probeReachable === true;
-  const dbUp = si.database.configured && !si.database.probeError;
+  // The /system/info response reports product + migrationCount when the
+  // DB is live. The old `configured && !probeError` check referenced
+  // fields that aren't on the response and always failed closed.
+  const dbUp = Boolean(si.database.product) && (si.database.migrationCount ?? 0) > 0;
   const schedUp = si.scheduler.started === true;
   const totalDevices = devices?.length ?? 0;
   const activeDevices = (devices ?? []).filter((d) => d.status === 'APPROVED').length;
@@ -108,7 +111,12 @@ export function MockupWorkspace(): JSX.Element {
 
   const activeWf = (wfs ?? []).filter((x) => x.enabled).length;
 
-  const allOps = h.status === 'UP' && dhis2Up && dbUp && schedUp;
+  // DER's /system/health reports `starter-ready` when the service is live
+  // (see SystemHealthResponse). Keep `UP` as a synonym for forwards
+  // compatibility with legacy actuator snapshots.
+  const derUp = h.status === 'UP' || h.status === 'starter-ready' || h.status === 'ready';
+  const derStatusLabel = derUp ? 'Live' : h.status;
+  const allOps = derUp && dhis2Up && dbUp && schedUp;
 
   return (
     <div className="ea-screen">
@@ -122,9 +130,9 @@ export function MockupWorkspace(): JSX.Element {
             synchronisation and analytics.
           </p>
           <div className="ea-dash-hero-meta">
-            <span className={'ea-chip ea-chip--' + (allOps ? 'success' : h.status === 'UP' ? 'warning' : 'danger')}>
+            <span className={'ea-chip ea-chip--' + (allOps ? 'success' : derUp ? 'warning' : 'danger')}>
               {allOps ? 'All systems operational'
-                : h.status !== 'UP' ? h.status : 'Partial outage'}
+                : !derUp ? derStatusLabel : 'Partial outage'}
             </span>
             <span className="ea-dash-hero-meta-item">v{si.build.version}</span>
             <span className="ea-dash-hero-meta-item">{fmtDate(si.timestamp)}</span>
@@ -149,9 +157,9 @@ export function MockupWorkspace(): JSX.Element {
 
       {/* ─── 5 KPIs row ───────────────────────────────────────── */}
       <div className="ea-kpi-grid">
-        <KpiTile tone={h.status === 'UP' ? 'success' : 'danger'}
+        <KpiTile tone={derUp ? 'success' : 'danger'}
                  icon={<IconPulse />} label="DER status"
-                 value={h.status === 'UP' ? 'Live' : h.status}
+                 value={derStatusLabel}
                  caption={`uptime ${fmtDur(si.runtime.uptimeMillis)}`} />
         <KpiTile tone={dhis2Up ? 'success' : 'danger'}
                  icon={<IconPlug />} label="DHIS2"
@@ -181,7 +189,7 @@ export function MockupWorkspace(): JSX.Element {
             <TopoArrow />
             <TopoNode label="DER Server"
                       sub={`v${si.build.version}`}
-                      tone={h.status === 'UP' ? 'success' : 'danger'} highlight />
+                      tone={derUp ? 'success' : 'danger'} highlight />
             <TopoArrow />
             <TopoNode label="Clients"
                       sub={`${activeDevices} / ${totalDevices}`}

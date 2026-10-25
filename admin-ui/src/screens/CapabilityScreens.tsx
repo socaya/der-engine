@@ -83,6 +83,13 @@ function ExternalTile({ href, title, desc, icon }: {
   );
 }
 
+/** The DER /system/health endpoint reports `starter-ready` while the
+ *  service is live (see SystemHealthResponse). `UP` is kept as a synonym
+ *  for forwards compatibility with legacy actuator snapshots. */
+function isDerUp(status: string | undefined | null): boolean {
+  return status === 'UP' || status === 'starter-ready' || status === 'ready';
+}
+
 function pct(usable: number, total: number): string {
   if (!total) return '—';
   return `${Math.round(100 - (100 * usable) / total)}%`;
@@ -2002,7 +2009,7 @@ export function CapServiceHealth(): JSX.Element {
           </tr></thead><tbody>
             <tr>
               <td>DER service</td>
-              <td>{dot(h.status === 'UP')}</td>
+              <td>{dot(isDerUp(h.status))}</td>
               <td className="ea-mono">v{si.build.version}</td>
             </tr>
             <tr>
@@ -2092,7 +2099,7 @@ export function CapProvisioningSetup(): JSX.Element {
   }, []);
   if (!h || !c || !b) return <LoadingBlock testId="loading" />;
   const steps = [
-    { label: 'DER service running', done: h.status === 'UP' },
+    { label: 'DER service running', done: isDerUp(h.status) },
     { label: 'DHIS2 reachable', done: c.probeReachable },
     { label: 'Organisation unit bound', done: b.bound },
     { label: 'At least one ADMIN account', done: users.some((u) => u.roles.includes('ADMIN')) },
