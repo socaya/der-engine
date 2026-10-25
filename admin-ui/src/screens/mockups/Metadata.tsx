@@ -85,7 +85,7 @@ export function MockupMetadata(): JSX.Element {
       .then((r) => {
         if (cancelled) return;
         const items = (r[activeResource.key] ?? []) as edgeApi.MetadataListItem[];
-        setRows(items.map((it) => ({
+        const mapped = items.map((it) => ({
           id: it.id,
           name: it.displayName ?? '',
           shortName: (it as Record<string, unknown>).shortName as string | undefined,
@@ -94,7 +94,13 @@ export function MockupMetadata(): JSX.Element {
           lastUpdated: (it as Record<string, unknown>).lastUpdated as string | undefined,
           resource: activeResource.key,
           raw: it as Record<string, unknown>,
-        })));
+        }));
+        setRows(mapped);
+        // Auto-focus the first row so the right drawer renders a real
+        // payload instead of the "select a row…" placeholder.
+        if (mapped.length > 0) {
+          setSel(mapped[0]);
+        }
       })
       .catch((e: unknown) => {
         if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
@@ -148,16 +154,28 @@ export function MockupMetadata(): JSX.Element {
 
       <OuPicker ctx={ctx} />
 
-      <nav className="ea-metadata-tabs" aria-label="Metadata resource">
-        {RESOURCES.map((r) => (
-          <button key={r.key} type="button"
-                  className={'ea-metadata-tab' + (tabKey === r.key ? ' ea-metadata-tab--active' : '')}
-                  onClick={() => setTabKey(r.key)}>
-            {r.label}
-            <span className="ea-metadata-tab-count">{counts[r.key] ?? '…'}</span>
-          </button>
-        ))}
-      </nav>
+      <section className="ea-metadata-picker" aria-label="Metadata resource">
+        <label className="ea-field" style={{ maxWidth: 480 }}>
+          <span className="ea-field-label">Metadata resource</span>
+          <select className="ea-input" value={tabKey}
+                  onChange={(e) => setTabKey(e.target.value)}
+                  data-test="metadata-resource">
+            {RESOURCES.map((r) => (
+              <option key={r.key} value={r.key}>
+                {r.label} — {counts[r.key] ?? '…'} item{counts[r.key] === 1 ? '' : 's'}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="ea-metadata-picker-meta">
+          <span className="ea-chip ea-chip--info">
+            {counts[tabKey] ?? '…'} mirrored
+          </span>
+          <span className="ea-text-muted" style={{ fontSize: 12 }}>
+            resource <span className="ea-mono">{tabKey}</span>
+          </span>
+        </div>
+      </section>
 
       {err && <ErrorBlock title="Could not load metadata" testId="err-meta">{err}</ErrorBlock>}
       {!rows && !err && <LoadingBlock testId="loading" />}

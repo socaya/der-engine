@@ -1481,7 +1481,16 @@ kbd{
 .ea-matrix-dot--warn{background:var(--der-warning,#e68e29)}
 .ea-matrix-dot--danger{background:var(--der-danger)}
 
-/* Metadata browser tabs */
+/* Metadata browser resource picker (replaces the pill-tab strip) */
+.ea-metadata-picker{
+  display:flex;align-items:flex-end;gap:16px;margin:0 0 12px;flex-wrap:wrap;
+  padding:12px 16px;background:var(--der-surface);
+  border:1px solid var(--der-border-subtle);border-radius:var(--r-md);
+}
+.ea-metadata-picker-meta{display:flex;align-items:center;gap:12px}
+
+/* Metadata browser tabs (legacy — kept for backward compat; the
+   picker above is the current primary surface). */
 .ea-metadata-tabs{
   display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px;
 }
