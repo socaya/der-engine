@@ -151,17 +151,15 @@ body{
   overflow:hidden;
 }
 .ea-sidebar-logo-img{
-  /* Keep the logo fully visible inside the brand row — contain, not
-     cover, so no part is cropped. Height = topbar - 2 * 8px padding. */
-  max-height:calc(var(--topbar-h) - 16px);
-  width:auto;max-width:calc(100% - 8px);
+  max-height:calc(var(--topbar-h) - 8px);
+  max-width:calc(100% - 8px);
   object-fit:contain;object-position:center;
   display:block;
 }
 .ea-sidebar-logo-img-sm{
   display:none;
-  max-height:calc(var(--topbar-h) - 16px);
-  width:auto;
+  max-height:calc(var(--topbar-h) - 8px);
+  max-width:calc(100% - 8px);
   object-fit:contain;object-position:center;
 }
 
