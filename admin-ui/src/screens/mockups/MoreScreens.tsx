@@ -38,7 +38,7 @@ export function MockupJobsList(): JSX.Element {
   const [sel, setSel] = useState<edgeApi.JobRun | null>(null);
 
   async function reload(): Promise<void> {
-    try { setJobs(await edgeApi.listJobs(100)); }
+    try { setJobs(await edgeApi.listJobs(500)); }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
@@ -55,6 +55,7 @@ export function MockupJobsList(): JSX.Element {
       return true;
     });
   }, [jobs, filterStatus, query]);
+  const paged = usePaged(filtered, 50);
 
   if (err) return <ErrorBlock title="Jobs failed" testId="err-jobs">{err}</ErrorBlock>;
   if (!jobs) return <LoadingBlock testId="loading" />;
@@ -93,7 +94,7 @@ export function MockupJobsList(): JSX.Element {
               <table className="ea-table ea-table--dense ea-table--selectable">
                 <thead><tr><th>Job</th><th>Started</th><th>Outcome</th><th>Duration</th></tr></thead>
                 <tbody>
-                  {filtered.slice(0, 100).map((j) => (
+                  {paged.rows.map((j) => (
                     <tr key={j.runId} className={sel?.runId === j.runId ? 'ea-row--active' : ''}
                         onClick={() => setSel(j)}
                         data-test={`ea06-row-${j.runId}`}>
@@ -110,6 +111,7 @@ export function MockupJobsList(): JSX.Element {
                   ))}
                 </tbody>
               </table>
+              <TablePager {...paged.pagerProps} />
             </div>
           </Panel>
         }

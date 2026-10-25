@@ -1,23 +1,41 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { KpiTile, Panel, MiniBarChart, Dot, fmtDur, fmtAgo, fmtBytes } from './shared';
+import { Panel, MiniBarChart, Dot, fmtDur, fmtAgo, fmtBytes } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
-/** DHIS2 Synchronisation Overview — matches docs/media/ui/DHIS2 Synchronisation Dashboard Overview.png */
+/**
+ * Sync hub — one landing page for the whole `/sync` section.
+ *
+ *  1. Pause/Resume worker in the header.
+ *  2. Flat 6-stat strip: Worker state · Backlog · Last sync · Last duration ·
+ *     Reliability (24h) · Last tick.
+ *  3. Sync-flow diagram (DER → DHIS2) + 24h activity bar chart.
+ *  4. Data types mini table.
+ *  5. Related tile grid linking into every Sync-group sub-page
+ *     (Jobs · History · Queues · Conflicts · Worker health · Metadata
+ *     sync · Data exchange · Schedule · Drift).
+ *  6. Compact "Recent activity" preview with a link to the full
+ *     history.
+ */
 export function MockupSyncOverview(): JSX.Element {
   const [w, setW] = useState<edgeApi.WorkerHealth | null>(null);
   const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
+  const [d, setD] = useState<edgeApi.DriftResponse | null>(null);
+  const [c, setC] = useState<edgeApi.ConflictRow[] | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function reload(): Promise<void> {
-    const [a, b, c] = await Promise.allSettled([
+    const [a, b, cs, drf, conf] = await Promise.allSettled([
       edgeApi.workerHealth(), edgeApi.listJobs(100), edgeApi.systemInfo(),
+      edgeApi.drift(), edgeApi.listConflicts(100),
     ]);
     if (a.status === 'fulfilled') setW(a.value);
     if (b.status === 'fulfilled') setJobs(b.value);
-    if (c.status === 'fulfilled') setSi(c.value);
+    if (cs.status === 'fulfilled') setSi(cs.value);
+    if (drf.status === 'fulfilled') setD(drf.value);
+    if (conf.status === 'fulfilled') setC(conf.value);
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
 
@@ -48,68 +66,67 @@ export function MockupSyncOverview(): JSX.Element {
 
   const lastJob = (jobs ?? []).find((j) => j.outcome === 'SUCCEEDED');
   const backlog = Object.values(w.backlog).reduce((a, b) => a + b, 0);
-  const succeeded24 = (jobs ?? []).filter((j) => Date.now() - Date.parse(j.startedAt) < 86400_000 && j.outcome === 'SUCCEEDED').length;
-  const failed24 = (jobs ?? []).filter((j) => Date.now() - Date.parse(j.startedAt) < 86400_000 && j.outcome === 'FAILED').length;
-  const reliability = succeeded24 + failed24 ? Math.round((100 * succeeded24) / (succeeded24 + failed24)) : 100;
+  const succeeded24 = (jobs ?? []).filter((j) =>
+    Date.now() - Date.parse(j.startedAt) < 86400_000 && j.outcome === 'SUCCEEDED').length;
+  const failed24 = (jobs ?? []).filter((j) =>
+    Date.now() - Date.parse(j.startedAt) < 86400_000 && j.outcome === 'FAILED').length;
+  const reliability = succeeded24 + failed24
+    ? Math.round((100 * succeeded24) / (succeeded24 + failed24))
+    : 100;
 
   const dataTypes = [
-    { label: 'Data Elements', items: (si.journal?.AGGREGATE ?? 0) + (si.journal?.AGGREGATE_PUSH ?? 0) },
+    { label: 'Data elements', items: (si.journal?.AGGREGATE ?? 0) + (si.journal?.AGGREGATE_PUSH ?? 0) },
     { label: 'Events', items: (si.journal?.EVENT ?? 0) },
-    { label: 'Tracker Enrollments', items: (si.journal?.ENROLLMENT ?? 0) + (si.journal?.TRACKED_ENTITY ?? 0) },
-    { label: 'Organisation Units', items: (si.journal?.ORG_UNIT ?? 0) },
+    { label: 'Tracker enrollments', items: (si.journal?.ENROLLMENT ?? 0) + (si.journal?.TRACKED_ENTITY ?? 0) },
+    { label: 'Organisation units', items: (si.journal?.ORG_UNIT ?? 0) },
   ];
 
+  const driftDetected = Boolean(d?.fingerprintFrom && d?.fingerprintTo
+    && d.fingerprintFrom !== d.fingerprintTo);
+  const pendingConflicts = (c ?? []).filter((x) => x.state !== 'RESOLVED').length;
+
   return (
-    <div className="ea-screen">
+    <div className="ea-screen" data-test="sync-hub">
       <section className="ea-dash-hero">
         <div className="ea-dash-hero-left">
-          <div className="ea-dash-hero-eyebrow">Office &amp; Sync › Synchronisation</div>
-          <h1 className="ea-dash-hero-title">Synchronisation</h1>
-          <p className="ea-dash-hero-sub">
-            Manage data synchronisation between DER and DHIS2.
-          </p>
-          <div className="ea-dash-hero-meta">
-            <span className={'ea-chip ea-chip--' + (w.enabled ? 'success' : 'muted')}>
-              {w.enabled ? 'Running' : 'Paused'}
-            </span>
-          </div>
+          <h1 className="ea-dash-hero-title">Sync</h1>
         </div>
-        <div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Link to="/sync/jobs/trigger" className="ea-btn ea-btn--ghost"
+                data-test="sync-trigger">
+            Trigger a job
+          </Link>
           <button type="button" className="ea-btn ea-btn--primary" disabled={busy}
+                  data-test="sync-toggle"
                   onClick={() => { toggle().catch(() => undefined); }}>
-            {w.enabled ? 'Pause Sync' : 'Resume Sync'}
+            {busy ? '…' : w.enabled ? 'Pause sync' : 'Resume sync'}
           </button>
         </div>
       </section>
 
-      <div className="ea-kpi-grid">
-        <KpiTile tone={backlog > 0 ? 'warning' : 'success'}
-                 icon={<IconDocs />} label="Records to Sync"
-                 value={backlog.toLocaleString()}
-                 caption="pending in journal" />
-        <KpiTile tone="info" icon={<IconClock />}
-                 label="Last Sync"
-                 value={lastJob ? fmtAgo(lastJob.startedAt) : '—'}
-                 caption={lastJob?.jobName ?? '—'} />
-        <KpiTile tone="info" icon={<IconHourglass />}
-                 label="Last Duration"
-                 value={lastJob ? fmtDur(lastJob.durationMs) : '—'}
-                 caption={lastJob ? lastJob.outcome : '—'} />
-        <KpiTile tone="success" icon={<IconDisk />}
-                 label="Reliability (24h)"
-                 value={`${reliability}%`}
-                 caption={`${succeeded24} ok · ${failed24} failed`} />
+      <div className="ea-stat-strip">
+        <Stat label="Worker" tone={w.enabled ? 'success' : 'muted'}
+              value={w.enabled ? 'running' : 'paused'} />
+        <Stat label="Backlog" tone={backlog > 0 ? 'warning' : 'success'}
+              value={backlog.toLocaleString()} />
+        <Stat label="Last sync"
+              value={lastJob ? fmtAgo(lastJob.startedAt) : '—'} />
+        <Stat label="Last duration"
+              value={lastJob ? fmtDur(lastJob.durationMs) : '—'} />
+        <Stat label="Reliability (24h)" tone={reliability >= 95 ? 'success' : 'warning'}
+              value={`${reliability}%`} />
+        <Stat label="Last tick" value={fmtAgo(w.lastTick)} />
       </div>
 
       <div className="ea-dash-middle">
-        <Panel title="Synchronisation Progress">
+        <Panel title="Synchronisation progress">
           <div className="ea-sync-flow">
             <div className="ea-sync-node">
               <strong>DER</strong>
               <span>local database</span>
             </div>
             <div className="ea-sync-arrow">
-              <span>{w.enabled ? 'Syncing' : 'Paused'}</span>
+              <span>{w.enabled ? 'syncing' : 'paused'}</span>
               <div className="ea-sync-arrow-line" />
             </div>
             <div className="ea-sync-node">
@@ -133,7 +150,8 @@ export function MockupSyncOverview(): JSX.Element {
           </div>
         </Panel>
 
-        <Panel title="Synchronisation Activity" action={<span className="ea-text-muted">last 24h</span>}>
+        <Panel title="24h activity"
+               action={<Link to="/sync/history" className="ea-link-btn">View all</Link>}>
           <MiniBarChart bars={bars} />
           <div className="ea-dash-sync-stats">
             <div><strong>{succeeded24}</strong><span>Succeeded</span></div>
@@ -143,21 +161,21 @@ export function MockupSyncOverview(): JSX.Element {
         </Panel>
       </div>
 
-      <Panel title="Data Types" action={<Link to="/metadata" className="ea-link-btn">Configure</Link>}>
+      <Panel title="Journal by data type">
         <div className="ea-table-wrap">
-          <table className="ea-table">
+          <table className="ea-table ea-table--dense">
             <thead><tr>
-              <th>Type</th><th>Items</th><th>Last Sync</th><th>Status</th>
+              <th>Type</th><th>Items</th><th>Last sync</th><th>Status</th>
             </tr></thead>
             <tbody>
-              {dataTypes.map((d) => (
-                <tr key={d.label}>
-                  <td>{d.label}</td>
-                  <td className="ea-mono">{d.items.toLocaleString()}</td>
+              {dataTypes.map((dt) => (
+                <tr key={dt.label}>
+                  <td>{dt.label}</td>
+                  <td className="ea-mono">{dt.items.toLocaleString()}</td>
                   <td>{lastJob ? fmtAgo(lastJob.startedAt) : '—'}</td>
                   <td>
-                    <Dot tone={d.items === 0 ? 'muted' : w.enabled ? 'success' : 'warning'} />
-                    {d.items === 0 ? ' idle' : w.enabled ? ' syncing' : ' paused'}
+                    <Dot tone={dt.items === 0 ? 'muted' : w.enabled ? 'success' : 'warning'} />
+                    {dt.items === 0 ? ' idle' : w.enabled ? ' syncing' : ' paused'}
                   </td>
                 </tr>
               ))}
@@ -166,7 +184,38 @@ export function MockupSyncOverview(): JSX.Element {
         </div>
       </Panel>
 
-      <Panel title="Recent Synchronisation Activity" action={<Link to="/sync/history" className="ea-link-btn">View All</Link>}>
+      <section data-test="sync-related">
+        <div className="ea-section-title">Sync sub-modules</div>
+        <div className="ea-tile-grid">
+          <SyncTile to="/sync/jobs" icon="▶" title="Jobs"
+                    desc={`${(jobs ?? []).length} recent runs on the Quartz scheduler`} />
+          <SyncTile to="/sync/history" icon="⏱" title="History"
+                    desc="All synchronisation operations across every job." />
+          <SyncTile to="/sync/queues" icon="≡" title="Queues"
+                    desc={backlog > 0
+                      ? `${backlog.toLocaleString()} items pending in the journal`
+                      : 'No pending operations.'} />
+          <SyncTile to="/journal/conflicts" icon="⚠" title="Conflicts"
+                    desc={pendingConflicts > 0
+                      ? `${pendingConflicts} needing a reviewer decision`
+                      : 'No conflicts pending review.'} />
+          <SyncTile to="/journal/worker" icon="♥" title="Worker health"
+                    desc={w.enabled ? 'Worker running — tick heartbeats are healthy.'
+                                    : 'Worker paused — sync is stopped.'} />
+          <SyncTile to="/sync/metadata" icon="◱" title="Metadata sync"
+                    desc="Trigger an immediate metadata pull from central." />
+          <SyncTile to="/sync/data" icon="↕" title="Data exchange"
+                    desc="Push + pull coordination for aggregate / event / tracker." />
+          <SyncTile to="/sync/schedule" icon="🗓" title="Schedule"
+                    desc="Cron expressions driving the scheduler." />
+          <SyncTile to="/sync/drift" icon="≠" title="Metadata drift"
+                    desc={driftDetected ? 'Drift detected — review before next sync.'
+                                        : 'Fingerprints match central.'} />
+        </div>
+      </section>
+
+      <Panel title="Recent activity"
+             action={<Link to="/sync/history" className="ea-link-btn">View all</Link>}>
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense">
             <thead><tr>
@@ -177,8 +226,13 @@ export function MockupSyncOverview(): JSX.Element {
                 <tr key={j.runId}>
                   <td className="ea-mono">{fmtAgo(j.startedAt)}</td>
                   <td>{j.jobName}</td>
-                  <td><span className={'ea-chip ea-chip--' +
-                      (j.outcome === 'SUCCEEDED' ? 'success' : j.outcome === 'FAILED' ? 'danger' : 'info')}>{j.outcome}</span></td>
+                  <td>
+                    <span className={'ea-chip ea-chip--' +
+                        (j.outcome === 'SUCCEEDED' ? 'success'
+                        : j.outcome === 'FAILED' ? 'danger' : 'info')}>
+                      {j.outcome}
+                    </span>
+                  </td>
                   <td>{fmtDur(j.durationMs)}</td>
                 </tr>
               ))}
@@ -190,8 +244,29 @@ export function MockupSyncOverview(): JSX.Element {
   );
 }
 
-function IconDocs(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2h8l4 4v16H4V2h4z" /><path d="M8 2v6h8" /></svg>); }
-function IconClock(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>); }
-function IconHourglass(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2h12M6 22h12M6 2v4a6 6 0 0012 0V2M6 22v-4a6 6 0 0112 0v4" /></svg>); }
-function IconDisk(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3" /></svg>); }
+function Stat({ label, value, tone = 'info' }: {
+  label: string; value: ReactNode; tone?: 'info' | 'success' | 'danger' | 'warning' | 'muted';
+}): JSX.Element {
+  return (
+    <div className={`ea-stat ea-stat--${tone}`}>
+      <div className="ea-stat-value">{value}</div>
+      <div className="ea-stat-label">{label}</div>
+    </div>
+  );
+}
+
+function SyncTile({ to, icon, title, desc }: {
+  to: string; icon: string; title: string; desc: string;
+}): JSX.Element {
+  return (
+    <Link to={to} className="ea-link-tile">
+      <div className="ea-link-tile-icon" aria-hidden="true">{icon}</div>
+      <div className="ea-link-tile-body">
+        <div className="ea-link-tile-title">{title}</div>
+        <div className="ea-link-tile-desc">{desc}</div>
+      </div>
+    </Link>
+  );
+}
+
 export { fmtBytes };
