@@ -717,6 +717,18 @@ export function listOrgUnits(opts: {
   return request('GET', '/api/organisationUnits?' + params.toString());
 }
 
+/** Fetch one OU payload by UID. Returns `null` when not mirrored. */
+export async function getOrganisationUnit(uid: string)
+    : Promise<{ id: string; displayName?: string; path?: string } | null> {
+  try {
+    return await request<{ id: string; displayName?: string; path?: string }>(
+      'GET', `/api/organisationUnits/${encodeURIComponent(uid)}`);
+  } catch (e) {
+    if (e instanceof EdgeApiError && e.status === 404) return null;
+    throw e;
+  }
+}
+
 // ---- der-1.1.0-alpha.2 Initiative 4: approval (ADR-0016) ----
 
 export interface PendingApprovalRow {

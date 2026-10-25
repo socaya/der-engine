@@ -467,6 +467,7 @@ export function CapOrgUnitBinding(): JSX.Element {
   const [groups, setGroups] = useState<edgeApi.OrgUnitGroupRow[]>([]);
   const [groupSets, setGroupSets] = useState<edgeApi.OrgUnitGroupSetRow[]>([]);
   const [ouLevels, setOuLevels] = useState<edgeApi.OrgUnitLevelRow[]>([]);
+  const [pathNames, setPathNames] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [sel, setSel] = useState('');
@@ -518,6 +519,25 @@ export function CapOrgUnitBinding(): JSX.Element {
     const h = setTimeout(() => { loadOus().catch(() => undefined); }, 250);
     return () => clearTimeout(h);
   }, [query, filterLevel, filterGroup, filterGroupSet]);
+
+  // Resolve each UID in the binding path to a displayName so the breadcrumb
+  // reads as "Country › District › Facility" instead of raw UIDs.
+  useEffect(() => {
+    const uids = (b?.orgUnitPath ?? '').split('/').filter(Boolean);
+    if (uids.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const next: Record<string, string> = {};
+      await Promise.all(uids.map(async (uid) => {
+        try {
+          const ou = await edgeApi.getOrganisationUnit(uid);
+          if (ou?.displayName) next[uid] = ou.displayName;
+        } catch { /* ignore — fall back to UID */ }
+      }));
+      if (!cancelled) setPathNames((prev) => ({ ...prev, ...next }));
+    })();
+    return () => { cancelled = true; };
+  }, [b?.orgUnitPath]);
 
   // Available groups narrowed to the selected group set
   const availableGroups: edgeApi.OrgUnitGroupRow[] = (() => {
@@ -599,14 +619,22 @@ export function CapOrgUnitBinding(): JSX.Element {
               </div>
               {pathParts.length > 0 && (
                 <nav aria-label="OU path"
+                     data-test="ou-path"
                      style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
                               marginTop: 6, fontSize: 12, color: 'var(--der-ink-500)' }}>
-                  {pathParts.map((p, i) => (
-                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <span className="ea-mono">{p}</span>
-                      {i < pathParts.length - 1 && <span style={{ opacity: 0.5 }}>›</span>}
-                    </span>
-                  ))}
+                  {pathParts.map((uid, i) => {
+                    const name = pathNames[uid];
+                    const isLeaf = i === pathParts.length - 1;
+                    return (
+                      <span key={uid} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span title={uid} style={{ color: isLeaf ? 'var(--der-ink-700)' : undefined,
+                                                   fontWeight: isLeaf ? 500 : undefined }}>
+                          {name ?? <span className="ea-mono">{uid}</span>}
+                        </span>
+                        {!isLeaf && <span style={{ opacity: 0.5 }}>›</span>}
+                      </span>
+                    );
+                  })}
                 </nav>
               )}
             </div>
