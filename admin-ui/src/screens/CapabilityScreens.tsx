@@ -999,8 +999,17 @@ export function CapDataQueues(): JSX.Element {
   );
 }
 
-function TriggerPanel({ jobName, title, subtitle }: {
+interface SyncDirection {
+  readonly arrow: '→' | '↔';
+  readonly label: string;       // "Central → DER (pull only)"
+  readonly tone: 'info' | 'success';
+  readonly rationale: string;
+}
+
+function TriggerPanel({ jobName, title, subtitle, direction, relatedLinks = [] }: {
   jobName: string; title: string; subtitle: string;
+  direction?: SyncDirection;
+  relatedLinks?: ReadonlyArray<readonly [string, string, string]>;
 }): JSX.Element {
   const [state, setState] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
   const [msg, setMsg] = useState<string | null>(null);
@@ -1030,11 +1039,31 @@ function TriggerPanel({ jobName, title, subtitle }: {
         actions={
           <button type="button" className="ea-btn ea-btn--primary"
                   disabled={state === 'running'}
+                  data-test="trigger-run"
                   onClick={() => { run().catch(() => undefined); }}>
             {state === 'running' ? 'Triggering…' : 'Trigger now'}
           </button>
         }
       />
+      {direction && (
+        <section data-test="trigger-direction"
+                 style={{
+                   display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+                   padding: '8px 10px', margin: '0 0 var(--sp-3)',
+                   border: '1px solid var(--der-border-subtle)', borderRadius: 6,
+                 }}>
+          <span className="ea-mono" style={{ fontSize: 14, color: 'var(--der-ink-900)' }}>Central</span>
+          <span style={{ fontSize: 18, color: 'var(--der-primary)', fontWeight: 700 }}>{direction.arrow}</span>
+          <span className="ea-mono" style={{ fontSize: 14, color: 'var(--der-ink-900)' }}>DER</span>
+          <span className="ea-text-muted" style={{ fontSize: 12 }}>· {direction.label}</span>
+          <span style={{ marginLeft: 'auto' }} className={`ea-chip ea-chip--${direction.tone}`}>
+            {direction.arrow === '↔' ? 'two-way' : 'one-way'}
+          </span>
+          <div style={{ flexBasis: '100%', fontSize: 12, color: 'var(--der-ink-500)', lineHeight: 1.4 }}>
+            {direction.rationale}
+          </div>
+        </section>
+      )}
       <div className="ea-stat-strip">
         <Stat label="Job" value={<span className="ea-mono">{jobName}</span>} />
         <Stat label="Last outcome"
@@ -1067,18 +1096,64 @@ function TriggerPanel({ jobName, title, subtitle }: {
           </div>
         )}
       </section>
+
+      {relatedLinks.length > 0 && (
+        <section data-test="trigger-related">
+          <div className="ea-section-title">Explore payload</div>
+          <div className="ea-tile-grid">
+            {relatedLinks.map(([label, to, hint]) => (
+              <Link key={to} to={to} className="ea-link-tile">
+                <div className="ea-link-tile-icon" aria-hidden="true">→</div>
+                <div className="ea-link-tile-body">
+                  <div className="ea-link-tile-title">{label}</div>
+                  <div className="ea-link-tile-desc">{hint}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
 
 export function CapMetadataSync(): JSX.Element {
-  return <TriggerPanel jobName="METADATA_SYNC_FULL"
-    title="Metadata sync" subtitle="Pull fresh metadata from the central DHIS2." />;
+  return <TriggerPanel
+    jobName="METADATA_SYNC_FULL"
+    title="Metadata sync"
+    subtitle="Pull fresh metadata from the central DHIS2."
+    direction={{
+      arrow: '→',
+      label: 'Central → DER (pull only)',
+      tone: 'info',
+      rationale:
+        'DHIS2 is the source of truth for metadata. DER mirrors it locally so capture surfaces keep running when the WAN drops; no metadata is written back from DER.',
+    }}
+    relatedLinks={[
+      ['Metadata browser', '/dhis2/metadata', 'Browse the mirrored resources pulled by this job.'],
+      ['Metadata drift', '/dhis2/metadata-drift', 'Fingerprint comparison vs. central after the pull.'],
+    ]}
+  />;
 }
 
 export function CapDataExchange(): JSX.Element {
-  return <TriggerPanel jobName="AGGREGATE_DATA_PUSH"
-    title="Data exchange" subtitle="Push captured aggregate values back to the central DHIS2." />;
+  return <TriggerPanel
+    jobName="AGGREGATE_DATA_PUSH"
+    title="Data exchange"
+    subtitle="Push captured data to central and pull central-held OU data back down."
+    direction={{
+      arrow: '↔',
+      label: 'Central ↔ DER (push + pull)',
+      tone: 'success',
+      rationale:
+        'Local captures journal up to central. Central-held OU data also syncs down so distributed workflows share the same record.',
+    }}
+    relatedLinks={[
+      ['Queues', '/sync/queues', 'Journal items pending push to central.'],
+      ['Conflicts', '/journal/conflicts', 'Operations that failed to drain.'],
+      ['Sync history', '/sync/history', 'All synchronisation operations across every job.'],
+    ]}
+  />;
 }
 
 export function CapSyncSchedule(): JSX.Element {
