@@ -1439,6 +1439,48 @@ kbd{
   height:100%;border-radius:4px;transition:width var(--t-base) var(--ease);
 }
 
+/* Supported DHIS2 version matrix (CompatMatrix page) */
+.ea-matrix{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;
+}
+.ea-matrix-card{
+  background:var(--der-surface);border:1px solid var(--der-border-subtle);
+  border-radius:var(--r-md);padding:14px 16px;
+  display:flex;flex-direction:column;gap:10px;
+  position:relative;overflow:hidden;
+  transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.ea-matrix-card:hover{border-color:var(--der-border-strong);box-shadow:var(--el-1)}
+.ea-matrix-card::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--der-ink-300);
+}
+.ea-matrix-card--legacy::before{background:var(--der-ink-400)}
+.ea-matrix-card--stable::before{background:var(--der-navy-500,#2458a3)}
+.ea-matrix-card--current::before{background:var(--der-success)}
+.ea-matrix-card--preview::before{background:var(--der-warning,#e68e29)}
+.ea-matrix-card--active{
+  border-color:var(--der-success);
+  box-shadow:0 0 0 2px rgba(45,164,78,0.14);
+}
+.ea-matrix-head{display:flex;flex-direction:column;gap:2px}
+.ea-matrix-version{font-size:17px;font-weight:700;color:var(--der-ink-900);display:flex;align-items:center}
+.ea-matrix-sub{color:var(--der-ink-400);font-size:12px;font-weight:500;letter-spacing:0.2px}
+.ea-matrix-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.ea-matrix-list > li{
+  display:flex;gap:8px;align-items:flex-start;
+  font-size:12.5px;line-height:1.45;color:var(--der-ink-700);
+  padding-left:14px;position:relative;
+}
+.ea-matrix-dot{
+  position:absolute;left:0;top:7px;
+  width:7px;height:7px;border-radius:50%;flex-shrink:0;
+}
+.ea-matrix-dot--ok{background:var(--der-success)}
+.ea-matrix-dot--info{background:var(--der-navy-500,#2458a3)}
+.ea-matrix-dot--warn{background:var(--der-warning,#e68e29)}
+.ea-matrix-dot--danger{background:var(--der-danger)}
+
 /* Metadata browser tabs */
 .ea-metadata-tabs{
   display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px;

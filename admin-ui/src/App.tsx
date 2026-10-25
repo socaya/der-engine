@@ -41,6 +41,7 @@ import { MockupDhis2Overview } from './screens/mockups/Dhis2Overview';
 import { MockupWorkspace } from './screens/mockups/Workspace';
 import { MockupAdminTasks } from './screens/mockups/AdminTasks';
 import { MockupSystemInformation } from './screens/mockups/SystemInformation';
+import { MockupCompatMatrix } from './screens/mockups/CompatMatrix';
 import {
   MockupJobsList, MockupDriftInspector, MockupConflictList, MockupWorkerHealth,
   MockupDeviceFleet, MockupApprovalQueue, MockupReferralInbox,
@@ -92,7 +93,8 @@ export default function App(): JSX.Element {
           <Route path="/dhis2/connection" element={<RequireAuth><CapCentralConnection /></RequireAuth>} />
           <Route path="/dhis2/organisation-unit" element={<RequireAuth><CapOrgUnitBinding /></RequireAuth>} />
           <Route path="/dhis2/program-rules" element={<RequireAuth><CapProgramRules /></RequireAuth>} />
-          <Route path="/dhis2/compat" element={<RequireAuth><MockupCompatInspector /></RequireAuth>} />
+          <Route path="/dhis2/compat" element={<RequireAuth><MockupCompatMatrix /></RequireAuth>} />
+          <Route path="/dhis2/compat-legacy-inspector" element={<RequireAuth><MockupCompatInspector /></RequireAuth>} />
           <Route path="/dhis2/compat-history" element={<RequireAuth><EACompatHistory /></RequireAuth>} />
           <Route path="/dhis2/metadata" element={<RequireAuth><MockupMetadata /></RequireAuth>} />
           <Route path="/dhis2/metadata-drift" element={<RequireAuth><MockupDriftInspector /></RequireAuth>} />
