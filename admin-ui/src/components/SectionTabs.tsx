@@ -20,7 +20,7 @@ export function SectionTabs(): JSX.Element | null {
         <NavLink
           key={it.id}
           to={it.to}
-          end={it.to === '/'}
+          end
           className={({ isActive }) =>
             'ea-section-tab' + (isActive ? ' ea-section-tab--active' : '')
           }
