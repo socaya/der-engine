@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as edgeApi from '../../api/edgeApi';
-import { OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo } from './shared';
+import { OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, usePaged, TablePager } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /** DER Sync History — matches docs/media/ui/DER Sync History Dashboard (1).png */
@@ -33,6 +33,8 @@ export function MockupSyncHistory(): JSX.Element {
       return true;
     });
   }, [jobs, query, filterType, filterStatus, dateFrom, dateTo]);
+
+  const paged = usePaged(filtered, 50);
 
   if (!jobs) return <LoadingBlock testId="loading" />;
 
@@ -83,7 +85,7 @@ export function MockupSyncHistory(): JSX.Element {
                   <th>Start Time</th><th>Device / User</th><th>Resource</th><th>Operation</th><th>Duration</th><th>Status</th>
                 </tr></thead>
                 <tbody>
-                  {filtered.slice(0, 100).map((j) => (
+                  {paged.rows.map((j) => (
                     <tr key={j.runId} className={sel?.runId === j.runId ? 'ea-row--active' : ''}
                         onClick={() => setSel(j)}>
                       <td className="ea-mono">{fmtDate(j.startedAt)}</td>
@@ -104,6 +106,7 @@ export function MockupSyncHistory(): JSX.Element {
                   )}
                 </tbody>
               </table>
+              <TablePager {...paged.pagerProps} />
             </div>
           </Panel>
         }

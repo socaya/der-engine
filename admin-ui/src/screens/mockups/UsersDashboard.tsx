@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { KpiTile, Panel, SplitWithDrawer, Dot, fmtDate, useOuContext } from './shared';
+import { KpiTile, Panel, SplitWithDrawer, Dot, fmtDate, useOuContext, usePaged, TablePager } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /** DER Users Dashboard — matches docs/media/ui/DER Users Dashboard Overview.png */
@@ -21,6 +21,8 @@ export function MockupUsersDashboard(): JSX.Element {
     return q ? base.filter((u) => u.username.toLowerCase().includes(q)
       || u.displayName.toLowerCase().includes(q)) : base;
   }, [users, query]);
+
+  const paged = usePaged(filtered, 50);
 
   if (!users) return <LoadingBlock testId="loading" />;
 
@@ -84,7 +86,7 @@ export function MockupUsersDashboard(): JSX.Element {
                   <th>Mapping Status</th><th>Sync Status</th><th>Last Login</th>
                 </tr></thead>
                 <tbody>
-                  {filtered.map((u) => (
+                  {paged.rows.map((u) => (
                     <tr key={u.userId} className={sel?.userId === u.userId ? 'ea-row--active' : ''}
                         onClick={() => setSel(u)}>
                       <td>
@@ -111,6 +113,7 @@ export function MockupUsersDashboard(): JSX.Element {
                   )}
                 </tbody>
               </table>
+              <TablePager {...paged.pagerProps} />
             </div>
           </Panel>
         }

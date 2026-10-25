@@ -257,6 +257,41 @@ export function fmtDate(iso: string | null | undefined): string {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Client-side pagination hook — slices a fully-loaded array before
+// render. Pair with <TablePager {...paged.pagerProps} />.
+// ────────────────────────────────────────────────────────────────────
+
+export function usePaged<T>(rows: ReadonlyArray<T>, defaultPageSize = 50): {
+  rows: ReadonlyArray<T>;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  total: number;
+  pagerProps: {
+    page: number; pageSize: number; pageCount: number; total: number;
+    onPage: (p: number) => void; onPageSize: (n: number) => void;
+  };
+} {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultPageSize);
+  const total = rows.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  // Clamp page when the data shrinks (filter/search) so we don't
+  // get stuck on an empty page past the end.
+  const safePage = Math.min(page, pageCount);
+  const from = (safePage - 1) * pageSize;
+  const paged = rows.slice(from, from + pageSize);
+  return {
+    rows: paged, page: safePage, pageSize, pageCount, total,
+    pagerProps: {
+      page: safePage, pageSize, pageCount, total,
+      onPage: setPage,
+      onPageSize: (n: number) => { setPageSize(n); setPage(1); },
+    },
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Shared pagination control for tables backed by a server pager
 // ({page, pageSize, total, pageCount}). Drop below a table.
 // ────────────────────────────────────────────────────────────────────

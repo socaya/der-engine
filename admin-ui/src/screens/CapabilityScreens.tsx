@@ -4,6 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
+import { usePaged, TablePager } from './mockups/shared';
 
 /**
  * CapabilityScreens — the 29 nav items that previously showed the
@@ -662,13 +663,14 @@ export function CapProgramRules(): JSX.Element {
   const [rows, setRows] = useState<edgeApi.MetadataListItem[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
-    edgeApi.metadataList('programRules')
+    edgeApi.metadataList('programRules', { pageSize: 1000, page: 1 })
       .then((r) => {
         const items = (r.programRules ?? []) as edgeApi.MetadataListItem[];
         setRows(items);
       })
       .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
   }, []);
+  const paged = usePaged(rows ?? [], 50);
   return (
     <div className="ea-screen" data-test="cap-rules">
       <HeroHeader
@@ -691,13 +693,14 @@ export function CapProgramRules(): JSX.Element {
             <table className="ea-table"><thead><tr>
               <th>Name</th><th>ID</th>
             </tr></thead><tbody>
-              {rows.map((r) => (
+              {paged.rows.map((r) => (
                 <tr key={r.id}>
                   <td>{r.displayName ?? '—'}</td>
                   <td className="ea-mono">{r.id}</td>
                 </tr>
               ))}
             </tbody></table>
+            <TablePager {...paged.pagerProps} />
           </div>
         </section>
       )}

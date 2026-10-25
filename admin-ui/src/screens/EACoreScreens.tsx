@@ -8,6 +8,7 @@ import { HeroHeader } from '../components/HeroHeader';
 import { SystemComponents } from '../components/SystemComponents';
 import { QuickActions } from '../components/QuickActions';
 import { RecentActivity } from '../components/RecentActivity';
+import { usePaged, TablePager } from './mockups/shared';
 
 /**
  * Phase 06 Release 2 — EA-01..18 admin screens.
@@ -584,6 +585,7 @@ export function EACompatHistory({ api = edgeApi }:
   }
   useEffect(() => { reload().catch(() => undefined); }, [api]);
 
+  const paged = usePaged(rows ?? [], 50);
   if (error) return <ErrorBlock title="History failed" testId="ea05-error">{error}</ErrorBlock>;
   if (rows === null) return <LoadingBlock testId="ea05-loading" />;
   const selected = selectedIdx !== null ? rows[selectedIdx] ?? null : null;
@@ -601,28 +603,31 @@ export function EACompatHistory({ api = edgeApi }:
         {rows.length === 0
           ? <EmptyBlock title="No snapshots yet" testId="ea05-empty">
               Trigger a probe refresh to populate history.</EmptyBlock>
-          : <table data-test="ea05-table">
-              <thead><tr>
-                <th>Profile</th><th>Version</th><th>Probe (ms)</th>
-                <th>Captured</th><th>Reachable</th>
-              </tr></thead>
-              <tbody>{rows.map((r, i) => (
-                <tr key={i}
-                    onClick={() => setSelectedIdx(i)}
-                    className={selectedIdx === i ? 'ea-row-selected' : ''}
-                    style={{ cursor: 'pointer' }}
-                    data-test={`ea05-row-${i}`}>
-                  <td data-test={`ea05-row-profile-${i}`}>{r.profileName}</td>
-                  <td>{r.centralVersion}</td>
-                  <td>{r.probeDurationMs ?? '—'}</td>
-                  <td>{r.capturedAt ?? '—'}</td>
-                  <td>
-                    <span className={`ea-chip ea-chip--${r.probeReachable ? 'success' : 'danger'}`}>
-                      {r.probeReachable ? 'yes' : 'no'}
-                    </span>
-                  </td>
-                </tr>
-              ))}</tbody></table>}
+          : <>
+              <table data-test="ea05-table">
+                <thead><tr>
+                  <th>Profile</th><th>Version</th><th>Probe (ms)</th>
+                  <th>Captured</th><th>Reachable</th>
+                </tr></thead>
+                <tbody>{paged.rows.map((r, i) => (
+                  <tr key={i}
+                      onClick={() => setSelectedIdx((paged.page - 1) * paged.pageSize + i)}
+                      className={selectedIdx === (paged.page - 1) * paged.pageSize + i ? 'ea-row-selected' : ''}
+                      style={{ cursor: 'pointer' }}
+                      data-test={`ea05-row-${i}`}>
+                    <td data-test={`ea05-row-profile-${i}`}>{r.profileName}</td>
+                    <td>{r.centralVersion}</td>
+                    <td>{r.probeDurationMs ?? '—'}</td>
+                    <td>{r.capturedAt ?? '—'}</td>
+                    <td>
+                      <span className={`ea-chip ea-chip--${r.probeReachable ? 'success' : 'danger'}`}>
+                        {r.probeReachable ? 'yes' : 'no'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}</tbody></table>
+              <TablePager {...paged.pagerProps} />
+            </>}
       </section>
 
       {selected && (

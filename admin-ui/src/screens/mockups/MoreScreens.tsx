@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
   KpiTile, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, fmtBytes, useOuContext, OuPicker,
+  usePaged, TablePager,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
@@ -241,6 +242,8 @@ export function MockupConflictList(): JSX.Element {
     catch { /* ignore */ }
   }
 
+  const paged = usePaged(rows ?? [], 50);
+
   if (err) return <ErrorBlock title="Conflicts failed" testId="err-conflicts">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
 
@@ -273,7 +276,7 @@ export function MockupConflictList(): JSX.Element {
                 <table className="ea-table ea-table--dense ea-table--selectable">
                   <thead><tr><th>Operation</th><th>Entity</th><th>State</th><th>Attempts</th><th>Created</th></tr></thead>
                   <tbody>
-                    {rows.map((r) => (
+                    {paged.rows.map((r) => (
                       <tr key={r.operationId} className={sel?.operationId === r.operationId ? 'ea-row--active' : ''}
                           onClick={() => setSel(r)}
                           data-test={`ea13-row-${r.operationId}`}>
@@ -286,6 +289,7 @@ export function MockupConflictList(): JSX.Element {
                     ))}
                   </tbody>
                 </table>
+                <TablePager {...paged.pagerProps} />
               </div>
             )}
           </Panel>
@@ -859,10 +863,11 @@ export function MockupAuditEvents(): JSX.Element {
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
+  const q = query.trim().toLowerCase();
+  const filtered = q ? (rows ?? []).filter((r) => r.eventType.toLowerCase().includes(q)) : (rows ?? []);
+  const paged = usePaged(filtered, 50);
   if (err) return <ErrorBlock title="Audit load failed" testId="err-audit">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
-  const q = query.trim().toLowerCase();
-  const filtered = q ? rows.filter((r) => r.eventType.toLowerCase().includes(q)) : rows;
   const success = rows.filter((r) => r.outcome === 'SUCCESS').length;
   const failure = rows.filter((r) => r.outcome === 'FAILURE').length;
   return (
@@ -883,7 +888,7 @@ export function MockupAuditEvents(): JSX.Element {
           <table className="ea-table ea-table--dense">
             <thead><tr><th>Observed</th><th>Event</th><th>Outcome</th><th>User</th></tr></thead>
             <tbody>
-              {filtered.slice(0, 100).map((e) => (
+              {paged.rows.map((e) => (
                 <tr key={e.auditId}>
                   <td className="ea-mono">{fmtDate(e.observedAt)}</td>
                   <td>{e.eventType}</td>
@@ -894,6 +899,7 @@ export function MockupAuditEvents(): JSX.Element {
               ))}
             </tbody>
           </table>
+          <TablePager {...paged.pagerProps} />
         </div>
       </Panel>
     </div>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as edgeApi from '../../api/edgeApi';
 import {
-  OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtAgo,
+  OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtAgo, usePaged, TablePager,
 } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
@@ -84,6 +84,8 @@ export function MockupDataQueues(): JSX.Element {
     catch { /* ignore */ }
   }
 
+  const paged = usePaged(filtered, 50);
+
   if (!conflicts || !inbox) return <LoadingBlock testId="loading" />;
 
   return (
@@ -141,7 +143,7 @@ export function MockupDataQueues(): JSX.Element {
                   <th>Code</th><th>Created</th><th>Type</th><th>Description</th><th>Data Type</th><th>Status</th><th>Retry</th>
                 </tr></thead>
                 <tbody>
-                  {filtered.slice(0, 100).map((i) => (
+                  {paged.rows.map((i) => (
                     <tr key={i.code} className={sel?.code === i.code ? 'ea-row--active' : ''}
                         onClick={() => setSel(i)}>
                       <td className="ea-mono">{i.code}</td>
@@ -162,9 +164,7 @@ export function MockupDataQueues(): JSX.Element {
                   )}
                 </tbody>
               </table>
-            </div>
-            <div className="ea-table-footer">
-              <span className="ea-text-muted">Showing 1 to {Math.min(100, filtered.length)} of {filtered.length} records</span>
+              <TablePager {...paged.pagerProps} />
             </div>
           </Panel>
         }
