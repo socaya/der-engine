@@ -37,15 +37,16 @@ export function MockupSyncHistory(): JSX.Element {
 
   const paged = usePaged(filtered, 50);
 
-  if (!jobs) return <LoadingBlock testId="loading" />;
+  // Auto-focus the first row so the right drawer renders a real payload
+  // instead of the "Select a row" placeholder. Only triggers while no
+  // row has been clicked yet.
+  useEffect(() => {
+    if (!sel && paged.rows.length > 0) {
+      setSel(paged.rows[0]);
+    }
+  }, [paged.rows, sel]);
 
-  // Status KPIs across the full loaded set (not the filtered view) so they
-  // reflect what's really there — fetched 200 runs, so operators get a
-  // stable at-a-glance picture.
-  const totalRuns = jobs.length;
-  const okRuns = jobs.filter((j) => j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS').length;
-  const failedRuns = jobs.filter((j) => j.outcome === 'FAILED' || j.outcome === 'FAILURE' || j.outcome === 'ERROR').length;
-  const otherRuns = totalRuns - okRuns - failedRuns;
+  if (!jobs) return <LoadingBlock testId="loading" />;
 
   return (
     <div className="ea-screen">
@@ -58,25 +59,6 @@ export function MockupSyncHistory(): JSX.Element {
       </section>
 
       <OuPicker ctx={ctx} />
-
-      <div className="ea-stat-strip" data-test="history-stats">
-        <div className="ea-stat ea-stat--info">
-          <div className="ea-stat-value">{totalRuns.toLocaleString()}</div>
-          <div className="ea-stat-label">Total runs</div>
-        </div>
-        <div className="ea-stat ea-stat--success">
-          <div className="ea-stat-value">{okRuns.toLocaleString()}</div>
-          <div className="ea-stat-label">Succeeded</div>
-        </div>
-        <div className={`ea-stat ea-stat--${failedRuns > 0 ? 'danger' : 'muted'}`}>
-          <div className="ea-stat-value">{failedRuns.toLocaleString()}</div>
-          <div className="ea-stat-label">Failed</div>
-        </div>
-        <div className="ea-stat ea-stat--muted">
-          <div className="ea-stat-value">{otherRuns.toLocaleString()}</div>
-          <div className="ea-stat-label">Other</div>
-        </div>
-      </div>
 
       <SplitWithDrawer
         drawerOpen={!!sel}
