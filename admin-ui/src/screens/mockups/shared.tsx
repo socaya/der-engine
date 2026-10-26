@@ -345,3 +345,92 @@ export function TablePager({ page, pageCount, pageSize, total, onPage, onPageSiz
     </div>
   );
 }
+
+// ────────────────────────────────────────────────────────────────────
+// User-friendly labels for Quartz job identifiers and journal states.
+// Operators shouldn't need to decode `METADATA_SYNC_FULL` or `IN_FLIGHT`
+// — these helpers map internal constants to plain-English.
+// ────────────────────────────────────────────────────────────────────
+
+const JOB_LABELS: Readonly<Record<string, string>> = {
+  METADATA_SYNC_FULL: 'Pull latest metadata',
+  METADATA_SYNC_INCR: 'Pull metadata updates',
+  JOURNAL_WORKER_DRAIN: 'Push outgoing data',
+  AGGREGATE_DATA_PUSH: 'Push aggregate data',
+  AGGREGATE_DATA_PULL: 'Pull aggregate data',
+  TRACKER_DATA_PUSH: 'Push tracker records',
+  EVENT_DATA_PUSH: 'Push event data',
+  ANALYTICS_REFRESH: 'Rebuild analytics tables',
+  REFERRAL_INBOX_POLL: 'Check incoming referrals',
+  BACKUP_ROUTINE_DRAIN: 'Rotate backups',
+  COMPAT_REFRESH: 'Refresh DHIS2 compatibility',
+  DRIFT_SNAPSHOT: 'Snapshot metadata drift',
+};
+
+/** Humanise a Quartz job name like `METADATA_SYNC_FULL`. Falls back
+ *  to Title-Case of the raw constant when no mapping exists. */
+export function humaniseJob(name: string | undefined | null): string {
+  if (!name) return '—';
+  const mapped = JOB_LABELS[name];
+  if (mapped) return mapped;
+  return name
+    .toLowerCase()
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((w, i) => (i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
+const STATE_LABELS: Readonly<Record<string, string>> = {
+  PENDING: 'Waiting to send',
+  IN_FLIGHT: 'In transit',
+  CENTRAL_ACCEPTED: 'Accepted by DHIS2',
+  CENTRAL_REJECTED: 'Rejected by DHIS2',
+  RETRYABLE: 'Will retry',
+  UNKNOWN_OUTCOME: 'Unknown response',
+  CONFLICT_REVIEW: 'Needs review',
+  SUCCEEDED: 'Succeeded',
+  FAILED: 'Failed',
+  QUEUED: 'Queued',
+  RUNNING: 'Running',
+  PAUSED: 'Paused',
+  RESOLVED: 'Resolved',
+  SCHEDULED: 'Scheduled',
+};
+
+/** Humanise a journal / worker state like `IN_FLIGHT`. */
+export function humaniseState(state: string | undefined | null): string {
+  if (!state) return '—';
+  return STATE_LABELS[state]
+    ?? state.toLowerCase().split(/[_\s]+/).filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+/** Translate a Quartz-style cron expression into plain English.
+ *  Keeps the raw expression as a tooltip for operators who need the exact
+ *  syntax. Supports the common patterns we actually ship — anything
+ *  weirder falls back to "custom schedule". */
+export function describeCron(expr: string | undefined | null): string {
+  if (!expr) return 'Not scheduled';
+  const parts = expr.trim().split(/\s+/);
+  // Quartz: seconds minutes hours day-of-month month day-of-week [year]
+  if (parts.length < 6) return 'Custom schedule';
+  const [sec, min, hr, dom, mon, dow] = parts;
+  // Every N minutes:  "0 */5 * * * ?"
+  const everyMinMatch = min.match(/^\*\/(\d+)$/);
+  if (sec === '0' && everyMinMatch && hr === '*' && dom === '*' && mon === '*' && (dow === '?' || dow === '*')) {
+    const n = Number(everyMinMatch[1]);
+    return n === 1 ? 'Every minute' : `Every ${n} minutes`;
+  }
+  // Every N hours:  "0 0 */2 * * ?"
+  const everyHourMatch = hr.match(/^\*\/(\d+)$/);
+  if (sec === '0' && min === '0' && everyHourMatch && dom === '*' && mon === '*' && (dow === '?' || dow === '*')) {
+    const n = Number(everyHourMatch[1]);
+    return n === 1 ? 'Every hour' : `Every ${n} hours`;
+  }
+  // Every day at HH:MM:  "0 30 2 * * ?"
+  if (sec === '0' && /^\d+$/.test(min) && /^\d+$/.test(hr) && dom === '*' && mon === '*' && (dow === '?' || dow === '*')) {
+    return `Daily at ${hr.padStart(2, '0')}:${min.padStart(2, '0')}`;
+  }
+  return 'Custom schedule';
+}

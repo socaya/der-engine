@@ -4,7 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager } from './mockups/shared';
+import { usePaged, TablePager, describeCron } from './mockups/shared';
 
 /**
  * CapabilityScreens — the 29 nav items that previously showed the
@@ -1163,6 +1163,46 @@ export function CapDataExchange(): JSX.Element {
   />;
 }
 
+/** Plain-English title + description for each known scheduler key.
+ *  Falls back to the raw key when a new one shows up on a future build. */
+function scheduleKeyInfo(key: string): { title: string; desc: string } {
+  switch (key) {
+    case 'sync.metadata':
+      return {
+        title: 'Pull latest metadata',
+        desc: 'Mirror DHIS2 metadata (data elements, programs, OUs) down to DER so capture surfaces work offline.',
+      };
+    case 'sync.data':
+    case 'journal.drain':
+      return {
+        title: 'Push outgoing data',
+        desc: 'Drain locally captured data up to central DHIS2 as soon as the WAN comes back.',
+      };
+    case 'analytics.refresh':
+      return {
+        title: 'Rebuild analytics tables',
+        desc: 'Recompute aggregate / event analytics tables so dashboards reflect recent captures.',
+      };
+    case 'referral.inbox':
+      return {
+        title: 'Check for incoming referrals',
+        desc: 'Poll central for referrals addressed to this edge.',
+      };
+    case 'backup.rotate':
+      return {
+        title: 'Rotate backups',
+        desc: 'Prune old backup files and prepare the next rolling snapshot.',
+      };
+    case 'compat.refresh':
+      return {
+        title: 'Refresh DHIS2 compatibility',
+        desc: 'Re-probe central to confirm version + capability compatibility.',
+      };
+    default:
+      return { title: key, desc: 'Scheduled DER flow.' };
+  }
+}
+
 export function CapSyncSchedule(): JSX.Element {
   const [s, setS] = useState<edgeApi.SettingsPayload | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -1197,20 +1237,45 @@ export function CapSyncSchedule(): JSX.Element {
       <section className="ea-card ea-form-card">
         <div className="ea-form-section">
           <div className="ea-form-section-head">
-            <h2>Cron overrides</h2>
-            <p>Standard Quartz cron syntax. Leave empty to use the compiled default.</p>
+            <h2>Scheduled sync flows</h2>
+            <p>When each background flow runs. Plain-English summary first; the exact cron expression is editable below each row.</p>
           </div>
-          <div className="ea-form-grid">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {cron.length === 0 && (
-              <div className="ea-field-hint">No cron overrides defined on this build.</div>
+              <div className="ea-field-hint">No scheduled flows configured on this build.</div>
             )}
-            {cron.map(([k, v]) => (
-              <label key={k} className="ea-field">
-                <span className="ea-field-label">{k}</span>
-                <input className="ea-input ea-mono" value={v}
-                       onChange={(e) => setS({ ...s, cron: { ...s.cron, [k]: e.target.value } })} />
-              </label>
-            ))}
+            {cron.map(([k, v]) => {
+              const info = scheduleKeyInfo(k);
+              return (
+                <div key={k} data-test={`cron-row-${k}`}
+                     style={{
+                       display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, alignItems: 'start',
+                       padding: '8px 10px', border: '1px solid var(--der-border-subtle)', borderRadius: 6,
+                     }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--der-ink-900)' }}>
+                      {info.title}
+                    </div>
+                    <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.4 }}>
+                      {info.desc}
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
+                      <span className="ea-chip ea-chip--info">{describeCron(v)}</span>
+                    </div>
+                  </div>
+                  <label className="ea-field">
+                    <span className="ea-field-label" title={k}>Cron expression</span>
+                    <input className="ea-input ea-mono" value={v}
+                           data-test={`cron-input-${k}`}
+                           onChange={(e) => setS({ ...s, cron: { ...s.cron, [k]: e.target.value } })} />
+                    <span className="ea-field-hint">
+                      Quartz syntax: <code>seconds minutes hours day-of-month month day-of-week</code>.
+                      Leave blank to use the compiled default.
+                    </span>
+                  </label>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>

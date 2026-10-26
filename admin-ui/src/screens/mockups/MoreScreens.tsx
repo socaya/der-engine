@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
   KpiTile, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, fmtBytes, useOuContext, OuPicker,
-  usePaged, TablePager,
+  usePaged, TablePager, humaniseJob, humaniseState,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
@@ -98,12 +98,18 @@ export function MockupJobsList(): JSX.Element {
                     <tr key={j.runId} className={sel?.runId === j.runId ? 'ea-row--active' : ''}
                         onClick={() => setSel(j)}
                         data-test={`ea06-row-${j.runId}`}>
-                      <td>{j.jobName}<div className="ea-text-muted" style={{ fontSize: 11 }}>run {j.runId}</div></td>
+                      <td>
+                        {humaniseJob(j.jobName)}
+                        <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}
+                             title={j.jobName}>
+                          {j.jobName}
+                        </div>
+                      </td>
                       <td className="ea-mono">{fmtDate(j.startedAt)}</td>
                       <td>
                         <span className={'ea-chip ea-chip--' +
                             (j.outcome === 'SUCCEEDED' ? 'success' : j.outcome === 'FAILED' ? 'danger' : 'info')}>
-                          {j.outcome}
+                          {humaniseState(j.outcome)}
                         </span>
                       </td>
                       <td className="ea-mono">{fmtDur(j.durationMs)}</td>
@@ -121,12 +127,17 @@ export function MockupJobsList(): JSX.Element {
               <h3 style={{ margin: 0, fontSize: 16 }} data-test="ea06-detail">Run details</h3>
               <dl className="ea-def-list">
                 <div className="ea-def-row"><dt>Run ID</dt><dd className="ea-mono">{sel.runId}</dd></div>
-                <div className="ea-def-row"><dt>Job</dt><dd>{sel.jobName}</dd></div>
-                <div className="ea-def-row"><dt>Outcome</dt><dd>{sel.outcome}</dd></div>
+                <div className="ea-def-row"><dt>Job</dt>
+                  <dd>
+                    {humaniseJob(sel.jobName)}
+                    <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{sel.jobName}</div>
+                  </dd>
+                </div>
+                <div className="ea-def-row"><dt>Outcome</dt><dd>{humaniseState(sel.outcome)}</dd></div>
                 <div className="ea-def-row"><dt>Started</dt><dd className="ea-mono">{fmtDate(sel.startedAt)}</dd></div>
                 <div className="ea-def-row"><dt>Finished</dt><dd className="ea-mono">{sel.finishedAt ? fmtDate(sel.finishedAt) : '—'}</dd></div>
                 <div className="ea-def-row"><dt>Duration</dt><dd>{fmtDur(sel.durationMs)}</dd></div>
-                <div className="ea-def-row"><dt>Triggered by</dt><dd>{sel.triggeredBy}</dd></div>
+                <div className="ea-def-row"><dt>Triggered by</dt><dd>{humaniseState(sel.triggeredBy)}</dd></div>
                 {sel.detail && <div className="ea-def-row"><dt>Detail</dt><dd className="ea-mono" style={{ wordBreak: 'break-all' }}>{sel.detail}</dd></div>}
               </dl>
               <h4 style={{ margin: '12px 0 4px', fontSize: 11, fontWeight: 600, letterSpacing: '0.02em',
@@ -512,7 +523,17 @@ export function MockupWorkerHealth(): JSX.Element {
               <tbody>
                 {Object.entries(w.backlog).map(([k, v]) => (
                   <tr key={k} data-test={`ea14-backlog-${k}`}>
-                    <td><span className={'ea-chip ea-chip--' + (k === 'FAILED' ? 'danger' : k === 'PENDING' ? 'warning' : 'info')}>{k}</span></td>
+                    <td>
+                      <span className={'ea-chip ea-chip--'
+                          + (k === 'FAILED' || k === 'CENTRAL_REJECTED' ? 'danger'
+                            : k === 'PENDING' || k === 'RETRYABLE' || k === 'CONFLICT_REVIEW' ? 'warning'
+                            : k === 'CENTRAL_ACCEPTED' ? 'success'
+                            : 'info')}>
+                        {humaniseState(k)}
+                      </span>
+                      <span className="ea-text-muted ea-mono" style={{ fontSize: 10, marginLeft: 6 }}
+                            title={k}>{k}</span>
+                    </td>
                     <td className="ea-mono">{v as number}</td>
                   </tr>
                 ))}

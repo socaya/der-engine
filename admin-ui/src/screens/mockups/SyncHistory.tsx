@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as edgeApi from '../../api/edgeApi';
-import { OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, usePaged, TablePager } from './shared';
+import { OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, usePaged, TablePager, humaniseJob, humaniseState } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /** DER Sync History — matches docs/media/ui/DER Sync History Dashboard (1).png */
@@ -89,14 +89,20 @@ export function MockupSyncHistory(): JSX.Element {
                     <tr key={j.runId} className={sel?.runId === j.runId ? 'ea-row--active' : ''}
                         onClick={() => setSel(j)}>
                       <td className="ea-mono">{fmtDate(j.startedAt)}</td>
-                      <td>{j.triggeredBy}</td>
-                      <td>{j.jobName}</td>
-                      <td className="ea-text-muted">{j.detail ?? '—'}</td>
+                      <td>{humaniseState(j.triggeredBy)}</td>
+                      <td>
+                        {humaniseJob(j.jobName)}
+                        <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}
+                             title={j.jobName}>{j.jobName}</div>
+                      </td>
+                      <td className="ea-text-muted" style={{ fontSize: 11 }}>
+                        {summariseDetail(j.detail)}
+                      </td>
                       <td className="ea-mono">{fmtDur(j.durationMs)}</td>
                       <td>
                         <span className={'ea-chip ea-chip--' +
                             (j.outcome === 'SUCCEEDED' ? 'success' : j.outcome === 'FAILED' ? 'danger' : 'info')}>
-                          {j.outcome}
+                          {humaniseState(j.outcome)}
                         </span>
                       </td>
                     </tr>
@@ -116,16 +122,24 @@ export function MockupSyncHistory(): JSX.Element {
               <h3 style={{ margin: 0, fontSize: 16 }}>Sync Details</h3>
               <dl className="ea-def-list">
                 <div className="ea-def-row"><dt>Run ID</dt><dd className="ea-mono">{sel.runId}</dd></div>
-                <div className="ea-def-row"><dt>Job</dt><dd>{sel.jobName}</dd></div>
+                <div className="ea-def-row"><dt>Job</dt>
+                  <dd>
+                    {humaniseJob(sel.jobName)}
+                    <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{sel.jobName}</div>
+                  </dd>
+                </div>
                 <div className="ea-def-row"><dt>Status</dt>
-                  <dd><span className={'ea-chip ea-chip--' + (sel.outcome === 'SUCCEEDED' ? 'success' : sel.outcome === 'FAILED' ? 'danger' : 'info')}>{sel.outcome}</span></dd>
+                  <dd><span className={'ea-chip ea-chip--' + (sel.outcome === 'SUCCEEDED' ? 'success' : sel.outcome === 'FAILED' ? 'danger' : 'info')}>{humaniseState(sel.outcome)}</span></dd>
                 </div>
                 <div className="ea-def-row"><dt>Started</dt><dd className="ea-mono">{fmtDate(sel.startedAt)}</dd></div>
                 <div className="ea-def-row"><dt>Finished</dt><dd className="ea-mono">{sel.finishedAt ? fmtDate(sel.finishedAt) : '—'}</dd></div>
                 <div className="ea-def-row"><dt>Duration</dt><dd>{fmtDur(sel.durationMs)}</dd></div>
                 <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.startedAt)}</dd></div>
-                <div className="ea-def-row"><dt>Triggered by</dt><dd>{sel.triggeredBy}</dd></div>
-                {sel.detail && <div className="ea-def-row"><dt>Detail</dt><dd className="ea-mono" style={{ wordBreak: 'break-all' }}>{sel.detail}</dd></div>}
+                <div className="ea-def-row"><dt>Triggered by</dt><dd>{humaniseState(sel.triggeredBy)}</dd></div>
+                {sel.detail && <div className="ea-def-row"><dt>Outcome summary</dt>
+                  <dd>{summariseDetail(sel.detail)}</dd></div>}
+                {sel.detail && <div className="ea-def-row"><dt>Raw detail</dt>
+                  <dd className="ea-mono" style={{ fontSize: 10, wordBreak: 'break-all' }}>{sel.detail}</dd></div>}
               </dl>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button type="button" className="ea-btn ea-btn--ghost">Export this run</button>
@@ -138,4 +152,29 @@ export function MockupSyncHistory(): JSX.Element {
       />
     </div>
   );
+}
+
+/** Turn the structured `detail` JSON that jobs attach (e.g.
+ *  `{"picked":0,"accepted":2,"rejected":0,"conflicts":0,"retryable":0}`)
+ *  into a one-line human summary. Falls back to the raw string when the
+ *  payload isn't JSON or doesn't match a known shape. */
+function summariseDetail(detail: string | null | undefined): string {
+  if (!detail) return '—';
+  try {
+    const obj = JSON.parse(detail);
+    if (obj && typeof obj === 'object') {
+      const parts: string[] = [];
+      if (typeof obj.accepted === 'number') parts.push(`${obj.accepted} accepted`);
+      if (typeof obj.rejected === 'number' && obj.rejected > 0) parts.push(`${obj.rejected} rejected`);
+      if (typeof obj.conflicts === 'number' && obj.conflicts > 0) parts.push(`${obj.conflicts} conflicts`);
+      if (typeof obj.retryable === 'number' && obj.retryable > 0) parts.push(`${obj.retryable} to retry`);
+      if (typeof obj.picked === 'number' && parts.length === 0) {
+        parts.push(`${obj.picked} picked up`);
+      }
+      if (typeof obj.pulled === 'number') parts.push(`${obj.pulled} pulled`);
+      if (typeof obj.pushed === 'number') parts.push(`${obj.pushed} pushed`);
+      if (parts.length > 0) return parts.join(' · ');
+    }
+  } catch { /* not JSON — fall through */ }
+  return detail;
 }
