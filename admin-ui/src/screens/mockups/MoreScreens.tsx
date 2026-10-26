@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
@@ -196,38 +196,83 @@ export function MockupDriftInspector(): JSX.Element {
     finally { setRefreshing(false); }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
+
+  const perEntity = Object.entries(d?.perEntity ?? {});
+  const rowSummaries = perEntity.map(([k, v]) => ({
+    entity: k,
+    added: v.added.length,
+    removed: v.removed.length,
+    changed: v.changed.length,
+    net: v.added.length + v.removed.length + v.changed.length,
+  }));
+  const paged = usePaged(rowSummaries, 50);
+
   if (err) return <ErrorBlock title="Drift probe failed" testId="err-drift">{err}</ErrorBlock>;
   if (!d) return <LoadingBlock testId="loading" />;
 
   const equal = d.fingerprintFrom === d.fingerprintTo;
-  const perEntity = Object.entries(d.perEntity ?? {});
-  const totalChanged = perEntity.reduce((a, [, v]) => a + v.added.length + v.removed.length + v.changed.length, 0);
+  const totalAdded = rowSummaries.reduce((a, r) => a + r.added, 0);
+  const totalRemoved = rowSummaries.reduce((a, r) => a + r.removed, 0);
+  const totalModified = rowSummaries.reduce((a, r) => a + r.changed, 0);
+  const totalChanged = totalAdded + totalRemoved + totalModified;
 
   return (
-    <div className="ea-screen">
-      <Hero eyebrow="Office & Sync › Drift"
-            title="Metadata drift"
-            sub="Compare mirrored metadata against the central DHIS2 instance."
-            actions={
-              <button type="button" className="ea-btn ea-btn--primary"
-                      disabled={refreshing}
-                      onClick={() => { reload(true).catch(() => undefined); }}
-                      data-test="drift-refresh">
-                {refreshing ? 'Refreshing…' : 'Recompute drift'}
-              </button>
-            }
-            chip={<span className={'ea-chip ea-chip--' + (equal ? 'success' : 'warning')}>{equal ? 'In sync' : 'Drift detected'}</span>} />
+    <div className="ea-screen" data-test="drift-hub">
+      <section className="ea-dash-hero">
+        <div className="ea-dash-hero-left">
+          <h1 className="ea-dash-hero-title">Metadata drift</h1>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span className={'ea-chip ea-chip--' + (equal ? 'success' : 'warning')}
+                data-test="drift-status-chip">
+            {equal ? 'In sync' : 'Drift detected'}
+          </span>
+          <button type="button" className="ea-btn ea-btn--primary"
+                  disabled={refreshing}
+                  onClick={() => { reload(true).catch(() => undefined); }}
+                  data-test="drift-refresh">
+            {refreshing ? 'Refreshing…' : 'Recompute drift'}
+          </button>
+        </div>
+      </section>
 
-      <div className="ea-kpi-grid">
-        <KpiTile tone={equal ? 'success' : 'warning'} icon={<IconHash />}
-                 label="Status" value={equal ? 'identical' : 'different'} />
-        <KpiTile tone="info" icon={<IconChange />}
-                 label="Changed entities" value={totalChanged} />
-        <KpiTile tone="default" icon={<IconClock />}
-                 label="Snapshot from" value={d.snapshotFrom ?? '—'} />
-        <KpiTile tone="default" icon={<IconClock />}
-                 label="Snapshot to" value={d.snapshotTo ?? '—'} />
+      <div className="ea-stat-strip">
+        <Stat label="Status" tone={equal ? 'success' : 'warning'}
+              value={equal ? 'identical' : 'different'} />
+        <Stat label="Added"    value={totalAdded}    tone={totalAdded ? 'info' : 'muted'} />
+        <Stat label="Removed"  value={totalRemoved}  tone={totalRemoved ? 'danger' : 'muted'} />
+        <Stat label="Modified" value={totalModified} tone={totalModified ? 'warning' : 'muted'} />
+        <Stat label="Entities" value={rowSummaries.length} />
+        <Stat label="Snapshot to" value={d.snapshotTo ?? '—'} />
       </div>
+
+      <section data-test="drift-direction"
+               style={{
+                 display: 'grid', gridTemplateColumns: 'max-content 1fr max-content',
+                 columnGap: 14, rowGap: 4, alignItems: 'center',
+                 padding: '8px 10px', margin: '0 0 var(--sp-3)',
+                 border: '1px solid var(--der-border-subtle)', borderRadius: 6,
+               }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+          <span className="ea-mono" style={{ fontSize: 14 }}>Central</span>
+          <span style={{ fontSize: 18, color: 'var(--der-primary)', fontWeight: 700 }}>→</span>
+          <span className="ea-mono" style={{ fontSize: 14 }}>DER</span>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--der-ink-900)' }}>
+            Metadata mirror fidelity
+            <span className="ea-text-muted" style={{ fontWeight: 400, fontSize: 12 }}> · one-way comparison</span>
+          </div>
+          <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.4 }}>
+            DHIS2 is the source of truth. This probe hashes the mirrored
+            resources against central, so a mismatch means the next
+            metadata-sync pull will update DER — nothing is written back.
+          </div>
+        </div>
+        <div style={{ alignSelf: 'start', paddingTop: 2 }}>
+          <span className="ea-chip ea-chip--info">one-way</span>
+        </div>
+      </section>
 
       <Panel title="Fingerprints">
         <div className="ea-drift">
@@ -245,27 +290,73 @@ export function MockupDriftInspector(): JSX.Element {
         </div>
       </Panel>
 
-      <Panel title="Per-entity breakdown">
-        {perEntity.length === 0 ? (
+      <Panel title="Per-entity breakdown"
+             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+               {totalChanged.toLocaleString()} delta{totalChanged === 1 ? '' : 's'}
+             </span>}>
+        {rowSummaries.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0 }}>No per-entity drift recorded.</p>
         ) : (
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense">
-              <thead><tr><th>Entity</th><th>Added</th><th>Removed</th><th>Changed</th></tr></thead>
+              <thead><tr>
+                <th>Entity</th><th>Added</th><th>Removed</th><th>Changed</th><th>Net</th>
+              </tr></thead>
               <tbody>
-                {perEntity.map(([k, v]) => (
-                  <tr key={k}>
-                    <td>{k}</td>
-                    <td className="ea-mono">{v.added.length}</td>
-                    <td className="ea-mono">{v.removed.length}</td>
-                    <td className="ea-mono">{v.changed.length}</td>
+                {paged.rows.map((r) => (
+                  <tr key={r.entity}>
+                    <td>{r.entity}</td>
+                    <td className="ea-mono" style={{ color: r.added ? 'var(--der-success-ink)' : undefined }}>{r.added}</td>
+                    <td className="ea-mono" style={{ color: r.removed ? 'var(--der-danger-ink)' : undefined }}>{r.removed}</td>
+                    <td className="ea-mono" style={{ color: r.changed ? 'var(--der-warning-ink)' : undefined }}>{r.changed}</td>
+                    <td className="ea-mono">{r.net}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <TablePager {...paged.pagerProps} />
           </div>
         )}
       </Panel>
+
+      <section data-test="drift-related">
+        <div className="ea-section-title">Related</div>
+        <div className="ea-tile-grid">
+          <Link to="/dhis2/metadata" className="ea-link-tile">
+            <div className="ea-link-tile-icon" aria-hidden="true">◱</div>
+            <div className="ea-link-tile-body">
+              <div className="ea-link-tile-title">Metadata browser</div>
+              <div className="ea-link-tile-desc">Browse the mirrored resources this comparison is measured against.</div>
+            </div>
+          </Link>
+          <Link to="/sync/metadata" className="ea-link-tile">
+            <div className="ea-link-tile-icon" aria-hidden="true">▶</div>
+            <div className="ea-link-tile-body">
+              <div className="ea-link-tile-title">Metadata sync</div>
+              <div className="ea-link-tile-desc">Trigger a Central → DER pull to reconcile the delta.</div>
+            </div>
+          </Link>
+          <Link to="/sync/history" className="ea-link-tile">
+            <div className="ea-link-tile-icon" aria-hidden="true">⏱</div>
+            <div className="ea-link-tile-body">
+              <div className="ea-link-tile-title">Sync history</div>
+              <div className="ea-link-tile-desc">Prior metadata-sync runs that produced earlier snapshots.</div>
+            </div>
+          </Link>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Stat({ label, value, tone = 'info' }: {
+  label: string; value: ReactNode;
+  tone?: 'info' | 'success' | 'danger' | 'warning' | 'muted';
+}): JSX.Element {
+  return (
+    <div className={`ea-stat ea-stat--${tone}`}>
+      <div className="ea-stat-value">{value}</div>
+      <div className="ea-stat-label">{label}</div>
     </div>
   );
 }
@@ -1004,7 +1095,6 @@ function IconCheck(): JSX.Element { return sIcon('M5 12l4 4 10-10'); }
 function IconX(): JSX.Element { return sIcon('M6 6l12 12M6 18L18 6'); }
 function IconDots(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="18" cy="12" r="1.6" /></svg>); }
 function IconHash(): JSX.Element { return sIcon('M5 9h14M5 15h14M9 3L7 21M17 3l-2 18'); }
-function IconChange(): JSX.Element { return sIcon('M4 7h12l-3-3M20 17H8l3 3'); }
 function IconClock(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>); }
 function IconAlert(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l10 18H2z" /><path d="M12 10v5" /><circle cx="12" cy="18" r=".5" fill="currentColor" /></svg>); }
 function IconUp(): JSX.Element { return sIcon('M12 20V4M6 10l6-6 6 6'); }
