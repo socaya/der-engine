@@ -264,13 +264,14 @@ function SyncLane({ kind, arrow, detail, desc, badge }: {
 }): JSX.Element {
   return (
     <div style={{
-      display: 'grid', gridTemplateColumns: '96px 1fr auto', gap: 10, alignItems: 'center',
+      display: 'grid', gridTemplateColumns: 'max-content 1fr max-content',
+      columnGap: 14, rowGap: 4, alignItems: 'center',
       padding: '8px 10px', border: '1px solid var(--der-border-subtle)', borderRadius: 6,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span className="ea-mono" style={{ fontSize: 15, color: 'var(--der-ink-900)' }}>Central</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+        <span className="ea-mono" style={{ fontSize: 14, color: 'var(--der-ink-900)' }}>Central</span>
         <span style={{ fontSize: 18, color: 'var(--der-primary)', fontWeight: 700 }}>{arrow}</span>
-        <span className="ea-mono" style={{ fontSize: 15, color: 'var(--der-ink-900)' }}>DER</span>
+        <span className="ea-mono" style={{ fontSize: 14, color: 'var(--der-ink-900)' }}>DER</span>
       </div>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontWeight: 600, color: 'var(--der-ink-900)', fontSize: 13 }}>
@@ -278,7 +279,7 @@ function SyncLane({ kind, arrow, detail, desc, badge }: {
         </div>
         <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.4 }}>{desc}</div>
       </div>
-      {badge}
+      <div style={{ alignSelf: 'start', paddingTop: 2 }}>{badge}</div>
     </div>
   );
 }
