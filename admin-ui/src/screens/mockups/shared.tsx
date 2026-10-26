@@ -437,3 +437,29 @@ export function describeCron(expr: string | undefined | null): string {
   }
   return 'Custom schedule';
 }
+
+/** Map a Quartz job name to the sub-screens where its payload lives,
+ *  so an operator inspecting a run can jump straight to the data it
+ *  processed instead of hunting through the sidebar. Shared between
+ *  the Sync History drawer and anywhere else that drills into a run. */
+export function relatedLinksForJob(jobName: string): ReadonlyArray<readonly [string, string, string]> {
+  const name = (jobName ?? '').toUpperCase();
+  if (name.includes('METADATA')) {
+    return [
+      ['Metadata browser', '/dhis2/metadata', 'Mirrored resources this run pulled from central.'],
+      ['Metadata drift', '/dhis2/metadata-drift', 'Fingerprint comparison vs. central.'],
+    ] as const;
+  }
+  if (name.includes('JOURNAL') || name.includes('DRAIN') || name.includes('PUSH')) {
+    return [
+      ['Queues', '/sync/queues', 'Journal items pushed up to DHIS2 central.'],
+      ['Conflicts', '/journal/conflicts', 'Operations that failed to drain.'],
+    ] as const;
+  }
+  if (name.includes('REFERRAL')) {
+    return [
+      ['Referral inbox', '/referral/inbox', 'Inbound referrals pulled from central.'],
+    ] as const;
+  }
+  return [] as const;
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, usePaged, TablePager, humaniseJob, humaniseState } from './shared';
+import { OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, usePaged, TablePager, humaniseJob, humaniseState, relatedLinksForJob } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /** DER Sync History — matches docs/media/ui/DER Sync History Dashboard (1).png */
@@ -38,6 +39,14 @@ export function MockupSyncHistory(): JSX.Element {
 
   if (!jobs) return <LoadingBlock testId="loading" />;
 
+  // Status KPIs across the full loaded set (not the filtered view) so they
+  // reflect what's really there — fetched 200 runs, so operators get a
+  // stable at-a-glance picture.
+  const totalRuns = jobs.length;
+  const okRuns = jobs.filter((j) => j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS').length;
+  const failedRuns = jobs.filter((j) => j.outcome === 'FAILED' || j.outcome === 'FAILURE' || j.outcome === 'ERROR').length;
+  const otherRuns = totalRuns - okRuns - failedRuns;
+
   return (
     <div className="ea-screen">
       <section className="ea-dash-hero">
@@ -49,6 +58,25 @@ export function MockupSyncHistory(): JSX.Element {
       </section>
 
       <OuPicker ctx={ctx} />
+
+      <div className="ea-stat-strip" data-test="history-stats">
+        <div className="ea-stat ea-stat--info">
+          <div className="ea-stat-value">{totalRuns.toLocaleString()}</div>
+          <div className="ea-stat-label">Total runs</div>
+        </div>
+        <div className="ea-stat ea-stat--success">
+          <div className="ea-stat-value">{okRuns.toLocaleString()}</div>
+          <div className="ea-stat-label">Succeeded</div>
+        </div>
+        <div className={`ea-stat ea-stat--${failedRuns > 0 ? 'danger' : 'muted'}`}>
+          <div className="ea-stat-value">{failedRuns.toLocaleString()}</div>
+          <div className="ea-stat-label">Failed</div>
+        </div>
+        <div className="ea-stat ea-stat--muted">
+          <div className="ea-stat-value">{otherRuns.toLocaleString()}</div>
+          <div className="ea-stat-label">Other</div>
+        </div>
+      </div>
 
       <SplitWithDrawer
         drawerOpen={!!sel}
@@ -141,6 +169,26 @@ export function MockupSyncHistory(): JSX.Element {
                 {sel.detail && <div className="ea-def-row"><dt>Raw detail</dt>
                   <dd className="ea-mono" style={{ fontSize: 10, wordBreak: 'break-all' }}>{sel.detail}</dd></div>}
               </dl>
+              {relatedLinksForJob(sel.jobName).length > 0 && (
+                <>
+                  <h4 style={{ margin: '12px 0 4px', fontSize: 11, fontWeight: 600,
+                               letterSpacing: '0.02em', textTransform: 'uppercase',
+                               color: 'var(--der-ink-400)' }}>
+                    Explore payload
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {relatedLinksForJob(sel.jobName).map(([label, to, hint]) => (
+                      <Link key={to} to={to} className="ea-link-tile"
+                            style={{ padding: '6px 8px' }}>
+                        <div className="ea-link-tile-body">
+                          <div className="ea-link-tile-title" style={{ fontSize: 12 }}>{label}</div>
+                          <div className="ea-link-tile-desc" style={{ fontSize: 11 }}>{hint}</div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button type="button" className="ea-btn ea-btn--ghost">Export this run</button>
               </div>

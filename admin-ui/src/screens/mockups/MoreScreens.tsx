@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
-  KpiTile, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, fmtBytes, useOuContext, OuPicker,
-  usePaged, TablePager, humaniseJob, humaniseState,
+  KpiTile, Panel, SplitWithDrawer, fmtDate, fmtAgo, fmtBytes, useOuContext, OuPicker,
+  usePaged, TablePager, humaniseState,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
@@ -29,170 +29,7 @@ function Hero({ eyebrow, title, sub, actions, chip }: {
   );
 }
 
-/* ─── /sync/jobs ─────────────────────────────────────────────────── */
-export function MockupJobsList(): JSX.Element {
-  const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>('ALL');
-  const [query, setQuery] = useState('');
-  const [sel, setSel] = useState<edgeApi.JobRun | null>(null);
-
-  async function reload(): Promise<void> {
-    try { setJobs(await edgeApi.listJobs(500)); }
-    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
-  }
-  useEffect(() => { reload().catch(() => undefined); }, []);
-
-  const succeeded = (jobs ?? []).filter((j) => j.outcome === 'SUCCEEDED').length;
-  const failed = (jobs ?? []).filter((j) => j.outcome === 'FAILED').length;
-  const other = (jobs ?? []).filter((j) => j.outcome !== 'SUCCEEDED' && j.outcome !== 'FAILED').length;
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return (jobs ?? []).filter((j) => {
-      if (filterStatus !== 'ALL' && j.outcome !== filterStatus) return false;
-      if (q && !j.jobName.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [jobs, filterStatus, query]);
-  const paged = usePaged(filtered, 50);
-
-  if (err) return <ErrorBlock title="Jobs failed" testId="err-jobs">{err}</ErrorBlock>;
-  if (!jobs) return <LoadingBlock testId="loading" />;
-
-  return (
-    <div className="ea-screen">
-      <Hero eyebrow="Office & Sync › Jobs"
-            title="Synchronisation jobs"
-            sub="Scheduled Quartz runs across metadata, journal drain, backup, analytics and referral polling."
-            actions={<Link to="/sync/jobs/trigger" className="ea-btn ea-btn--primary">Trigger a job</Link>}
-            chip={<span className="ea-chip ea-chip--info">{jobs.length} runs loaded</span>} />
-      <div className="ea-kpi-grid">
-        <KpiTile tone="info" icon={<IconList />} label="Total runs" value={jobs.length} />
-        <KpiTile tone="success" icon={<IconCheck />} label="Succeeded" value={succeeded} />
-        <KpiTile tone={failed ? 'danger' : 'success'} icon={<IconX />} label="Failed" value={failed} />
-        <KpiTile tone="default" icon={<IconDots />} label="Other" value={other} />
-      </div>
-
-      <SplitWithDrawer
-        drawerOpen={!!sel}
-        main={
-          <Panel title="Recent runs" action={
-            <>
-              <input className="ea-input" style={{ maxWidth: 220 }} type="search"
-                     placeholder="Search job name"
-                     value={query} onChange={(e) => setQuery(e.target.value)} />
-              <select className="ea-input" style={{ maxWidth: 140 }} value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}>
-                <option value="ALL">All</option>
-                <option value="SUCCEEDED">Succeeded</option>
-                <option value="FAILED">Failed</option>
-              </select>
-            </>
-          }>
-            <div className="ea-table-wrap">
-              <table className="ea-table ea-table--dense ea-table--selectable">
-                <thead><tr><th>Job</th><th>Started</th><th>Outcome</th><th>Duration</th></tr></thead>
-                <tbody>
-                  {paged.rows.map((j) => (
-                    <tr key={j.runId} className={sel?.runId === j.runId ? 'ea-row--active' : ''}
-                        onClick={() => setSel(j)}
-                        data-test={`ea06-row-${j.runId}`}>
-                      <td>
-                        {humaniseJob(j.jobName)}
-                        <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}
-                             title={j.jobName}>
-                          {j.jobName}
-                        </div>
-                      </td>
-                      <td className="ea-mono">{fmtDate(j.startedAt)}</td>
-                      <td>
-                        <span className={'ea-chip ea-chip--' +
-                            (j.outcome === 'SUCCEEDED' ? 'success' : j.outcome === 'FAILED' ? 'danger' : 'info')}>
-                          {humaniseState(j.outcome)}
-                        </span>
-                      </td>
-                      <td className="ea-mono">{fmtDur(j.durationMs)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <TablePager {...paged.pagerProps} />
-            </div>
-          </Panel>
-        }
-        drawer={
-          sel ? (
-            <>
-              <h3 style={{ margin: 0, fontSize: 16 }} data-test="ea06-detail">Run details</h3>
-              <dl className="ea-def-list">
-                <div className="ea-def-row"><dt>Run ID</dt><dd className="ea-mono">{sel.runId}</dd></div>
-                <div className="ea-def-row"><dt>Job</dt>
-                  <dd>
-                    {humaniseJob(sel.jobName)}
-                    <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{sel.jobName}</div>
-                  </dd>
-                </div>
-                <div className="ea-def-row"><dt>Outcome</dt><dd>{humaniseState(sel.outcome)}</dd></div>
-                <div className="ea-def-row"><dt>Started</dt><dd className="ea-mono">{fmtDate(sel.startedAt)}</dd></div>
-                <div className="ea-def-row"><dt>Finished</dt><dd className="ea-mono">{sel.finishedAt ? fmtDate(sel.finishedAt) : '—'}</dd></div>
-                <div className="ea-def-row"><dt>Duration</dt><dd>{fmtDur(sel.durationMs)}</dd></div>
-                <div className="ea-def-row"><dt>Triggered by</dt><dd>{humaniseState(sel.triggeredBy)}</dd></div>
-                {sel.detail && <div className="ea-def-row"><dt>Detail</dt><dd className="ea-mono" style={{ wordBreak: 'break-all' }}>{sel.detail}</dd></div>}
-              </dl>
-              <h4 style={{ margin: '12px 0 4px', fontSize: 11, fontWeight: 600, letterSpacing: '0.02em',
-                           textTransform: 'uppercase', color: 'var(--der-ink-400)' }}>
-                Explore payload
-              </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {relatedLinksFor(sel.jobName).map(([label, to, hint]) => (
-                  <Link key={to} to={to} className="ea-link-tile"
-                        style={{ padding: '6px 8px' }}>
-                    <div className="ea-link-tile-body">
-                      <div className="ea-link-tile-title" style={{ fontSize: 12 }}>{label}</div>
-                      <div className="ea-link-tile-desc" style={{ fontSize: 11 }}>{hint}</div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="ea-text-muted" style={{ margin: 0 }}>Select a row to view details.</p>
-          )
-        }
-      />
-    </div>
-  );
-}
-
-/**
- * Map a Quartz job name to the sub-screens where its payload lives,
- * so an operator inspecting a run can jump straight to the data it
- * processed instead of hunting through the sidebar.
- */
-function relatedLinksFor(jobName: string): ReadonlyArray<readonly [string, string, string]> {
-  const name = jobName.toUpperCase();
-  if (name.includes('METADATA')) {
-    return [
-      ['Metadata browser', '/dhis2/metadata', 'Mirrored resources this run pulled from central.'],
-      ['Metadata drift', '/dhis2/metadata-drift', 'Fingerprint comparison vs. central.'],
-    ] as const;
-  }
-  if (name.includes('JOURNAL') || name.includes('DRAIN') || name.includes('PUSH')) {
-    return [
-      ['Queues', '/sync/queues', 'Journal items pushed up to DHIS2 central.'],
-      ['Conflicts', '/journal/conflicts', 'Operations that failed to drain.'],
-    ] as const;
-  }
-  if (name.includes('REFERRAL')) {
-    return [
-      ['Referral inbox', '/referral/inbox', 'Inbound referrals pulled from central.'],
-    ] as const;
-  }
-  return [
-    ['Sync history', '/sync/history', 'All synchronisation operations across every job.'],
-  ] as const;
-}
+/* /sync/jobs merged into /sync/history in der-2.1.36 — see MockupSyncHistory. */
 
 /* ─── /sync/drift ────────────────────────────────────────────────── */
 export function MockupDriftInspector(): JSX.Element {
@@ -1114,7 +951,6 @@ function sIcon(d: string): JSX.Element {
 function IconList(): JSX.Element { return sIcon('M4 6h16M4 12h16M4 18h16'); }
 function IconCheck(): JSX.Element { return sIcon('M5 12l4 4 10-10'); }
 function IconX(): JSX.Element { return sIcon('M6 6l12 12M6 18L18 6'); }
-function IconDots(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="18" cy="12" r="1.6" /></svg>); }
 function IconHash(): JSX.Element { return sIcon('M5 9h14M5 15h14M9 3L7 21M17 3l-2 18'); }
 function IconClock(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>); }
 function IconAlert(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l10 18H2z" /><path d="M12 10v5" /><circle cx="12" cy="18" r=".5" fill="currentColor" /></svg>); }

@@ -79,7 +79,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     icon: 'sync',
     items: [
       { id: 'sync-overview', label: 'Overview', to: '/sync', status: 'implemented' },
-      { id: 'sync-jobs', label: 'Jobs', to: '/sync/jobs', status: 'implemented' },
+      { id: 'sync-jobs', label: 'Jobs', to: '/sync/jobs', status: 'contextual' },
       { id: 'sync-history', label: 'History', to: '/sync/history', status: 'implemented' },
       { id: 'queues', label: 'Queues', to: '/sync/queues', status: 'implemented' },
       { id: 'conflicts', label: 'Conflicts', to: '/journal/conflicts', status: 'implemented' },

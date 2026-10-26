@@ -188,10 +188,8 @@ export function MockupSyncOverview(): JSX.Element {
       <section data-test="sync-related">
         <div className="ea-section-title">Sync sub-modules</div>
         <div className="ea-tile-grid">
-          <SyncTile to="/sync/jobs" icon="▶" title="Jobs"
-                    desc={`${(jobs ?? []).length} recent runs`} />
           <SyncTile to="/sync/history" icon="⏱" title="History"
-                    desc="Every sync run on this edge." />
+                    desc={`${(jobs ?? []).length} recent runs — every sync operation.`} />
           <SyncTile to="/sync/queues" icon="≡" title="Queues"
                     desc={backlog > 0
                       ? `${backlog.toLocaleString()} items waiting to send`

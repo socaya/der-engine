@@ -43,7 +43,7 @@ import { MockupAdminTasks } from './screens/mockups/AdminTasks';
 import { MockupSystemInformation } from './screens/mockups/SystemInformation';
 import { MockupCompatMatrix } from './screens/mockups/CompatMatrix';
 import {
-  MockupJobsList, MockupDriftInspector, MockupConflictList, MockupWorkerHealth,
+  MockupDriftInspector, MockupConflictList, MockupWorkerHealth,
   MockupDeviceFleet, MockupApprovalQueue, MockupReferralInbox,
   MockupBackupList, MockupRestoreList, MockupCompatInspector,
   MockupAuditEvents, MockupFacilityAnalytics,
@@ -105,7 +105,8 @@ export default function App(): JSX.Element {
           <Route path="/compat-legacy" element={<RequireAuth><EACompatInspector /></RequireAuth>} />
           <Route path="/compat/history"
                  element={<RequireAuth><EACompatHistory /></RequireAuth>} />
-          <Route path="/sync/jobs" element={<RequireAuth><MockupJobsList /></RequireAuth>} />
+          {/* /sync/jobs merged into /sync/history in der-2.1.36 — both read listJobs. */}
+          <Route path="/sync/jobs" element={<Navigate to="/sync/history" replace />} />
           <Route path="/sync/jobs-legacy" element={<RequireAuth><EAJobsList /></RequireAuth>} />
           <Route path="/sync/jobs/trigger"
                  element={<RequireAuth><EAJobTrigger /></RequireAuth>} />
