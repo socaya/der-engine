@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { Panel, MiniBarChart, Dot, fmtDur, fmtAgo, fmtBytes } from './shared';
+import { Panel, MiniBarChart, Dot, fmtDur, fmtAgo, fmtBytes, humaniseJob, humaniseState } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -119,10 +119,7 @@ export function MockupSyncOverview(): JSX.Element {
       </div>
 
       <div className="ea-dash-middle">
-        <Panel title="Synchronisation directions"
-               action={<span className="ea-text-muted" style={{ fontSize: 11 }}>
-                 metadata = one-way, data = two-way
-               </span>}>
+        <Panel title="Synchronisation directions">
           <div data-test="sync-directions"
                style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
             <SyncLane
@@ -192,29 +189,29 @@ export function MockupSyncOverview(): JSX.Element {
         <div className="ea-section-title">Sync sub-modules</div>
         <div className="ea-tile-grid">
           <SyncTile to="/sync/jobs" icon="▶" title="Jobs"
-                    desc={`${(jobs ?? []).length} recent runs on the Quartz scheduler`} />
+                    desc={`${(jobs ?? []).length} recent runs`} />
           <SyncTile to="/sync/history" icon="⏱" title="History"
-                    desc="All synchronisation operations across every job." />
+                    desc="Every sync run on this edge." />
           <SyncTile to="/sync/queues" icon="≡" title="Queues"
                     desc={backlog > 0
-                      ? `${backlog.toLocaleString()} items pending in the journal`
-                      : 'No pending operations.'} />
+                      ? `${backlog.toLocaleString()} items waiting to send`
+                      : 'Nothing waiting to send.'} />
           <SyncTile to="/journal/conflicts" icon="⚠" title="Conflicts"
                     desc={pendingConflicts > 0
-                      ? `${pendingConflicts} needing a reviewer decision`
-                      : 'No conflicts pending review.'} />
+                      ? `${pendingConflicts} need a reviewer decision`
+                      : 'No conflicts to review.'} />
           <SyncTile to="/journal/worker" icon="♥" title="Worker health"
-                    desc={w.enabled ? 'Worker running — tick heartbeats are healthy.'
-                                    : 'Worker paused — sync is stopped.'} />
+                    desc={w.enabled ? 'Running smoothly.'
+                                    : 'Paused — sync is stopped.'} />
           <SyncTile to="/sync/metadata" icon="◱" title="Metadata sync"
-                    desc="Trigger an immediate metadata pull from central." />
+                    desc="Pull the latest DHIS2 metadata now." />
           <SyncTile to="/sync/data" icon="↕" title="Data exchange"
-                    desc="Push + pull coordination for aggregate / event / tracker." />
+                    desc="Push + pull data between DER and DHIS2." />
           <SyncTile to="/sync/schedule" icon="🗓" title="Schedule"
-                    desc="Cron expressions driving the scheduler." />
+                    desc="When each background flow runs." />
           <SyncTile to="/sync/drift" icon="≠" title="Metadata drift"
                     desc={driftDetected ? 'Drift detected — review before next sync.'
-                                        : 'Fingerprints match central.'} />
+                                        : 'Mirror matches DHIS2.'} />
         </div>
       </section>
 
@@ -229,12 +226,16 @@ export function MockupSyncOverview(): JSX.Element {
               {(jobs ?? []).slice(0, 10).map((j) => (
                 <tr key={j.runId}>
                   <td className="ea-mono">{fmtAgo(j.startedAt)}</td>
-                  <td>{j.jobName}</td>
+                  <td>
+                    {humaniseJob(j.jobName)}
+                    <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}
+                         title={j.jobName}>{j.jobName}</div>
+                  </td>
                   <td>
                     <span className={'ea-chip ea-chip--' +
                         (j.outcome === 'SUCCEEDED' ? 'success'
                         : j.outcome === 'FAILED' ? 'danger' : 'info')}>
-                      {j.outcome}
+                      {humaniseState(j.outcome)}
                     </span>
                   </td>
                   <td>{fmtDur(j.durationMs)}</td>
@@ -263,23 +264,29 @@ function SyncLane({ kind, arrow, detail, desc, badge }: {
   kind: string; arrow: string; detail: string; desc: string; badge: ReactNode;
 }): JSX.Element {
   return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: 'max-content 1fr max-content',
-      columnGap: 14, rowGap: 4, alignItems: 'center',
-      padding: '8px 10px', border: '1px solid var(--der-border-subtle)', borderRadius: 6,
-    }}>
+    <div title={desc}
+         style={{
+           display: 'grid', gridTemplateColumns: 'max-content 1fr max-content max-content',
+           columnGap: 12, alignItems: 'center',
+           padding: '6px 10px', border: '1px solid var(--der-border-subtle)', borderRadius: 6,
+         }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
         <span className="ea-mono" style={{ fontSize: 14, color: 'var(--der-ink-900)' }}>Central</span>
         <span style={{ fontSize: 18, color: 'var(--der-primary)', fontWeight: 700 }}>{arrow}</span>
         <span className="ea-mono" style={{ fontSize: 14, color: 'var(--der-ink-900)' }}>DER</span>
       </div>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 600, color: 'var(--der-ink-900)', fontSize: 13 }}>
-          {kind} <span className="ea-text-muted" style={{ fontWeight: 400, fontSize: 12 }}>· {detail}</span>
-        </div>
-        <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.4 }}>{desc}</div>
+      <div style={{ minWidth: 0, fontSize: 13, color: 'var(--der-ink-900)' }}>
+        <span style={{ fontWeight: 600 }}>{kind}</span>
+        <span className="ea-text-muted" style={{ fontWeight: 400, fontSize: 12 }}> · {detail}</span>
       </div>
-      <div style={{ alignSelf: 'start', paddingTop: 2 }}>{badge}</div>
+      <span aria-hidden="true" title={desc}
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: 16, height: 16, borderRadius: '50%',
+              border: '1px solid var(--der-border)', color: 'var(--der-ink-400)',
+              fontSize: 11, lineHeight: 1, cursor: 'help', fontFamily: 'serif',
+            }}>i</span>
+      {badge}
     </div>
   );
 }
