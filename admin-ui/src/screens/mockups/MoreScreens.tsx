@@ -4,6 +4,7 @@ import * as edgeApi from '../../api/edgeApi';
 import {
   KpiTile, Panel, SplitWithDrawer, fmtDate, fmtAgo, fmtBytes, useOuContext, OuPicker,
   usePaged, TablePager, humaniseState, entityTypeIcon, entityTypeLabel,
+  SyncStatusBar,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
@@ -267,21 +268,15 @@ export function MockupConflictList(): JSX.Element {
 
   return (
     <div className="ea-screen">
-      <section style={{
-        padding: 14, marginBottom: 14, borderRadius: 8,
-        border: '1px solid var(--der-border-subtle)',
-        borderLeft: `4px solid ${rows.length === 0 ? 'var(--der-success, #16a34a)' : 'var(--der-warning, #d97706)'}`,
-        background: 'white',
-      }}>
-        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
-          {rows.length === 0
-            ? 'Nothing needs your attention'
-            : `${rows.length} record${rows.length === 1 ? '' : 's'} need${rows.length === 1 ? 's' : ''} your attention`}
-        </h1>
-        <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--der-ink-500)' }}>
-          Records that could not synchronise automatically and need you to decide what to do.
-        </p>
-      </section>
+      <SyncStatusBar
+        tone={rows.length === 0 ? 'success' : 'warning'}
+        title={rows.length === 0
+          ? 'Nothing needs your attention'
+          : `${rows.length} record${rows.length === 1 ? '' : 's'} need${rows.length === 1 ? 's' : ''} your attention`}
+        details={
+          <span>Records that could not synchronise automatically and need a decision.</span>
+        }
+      />
 
       <SplitWithDrawer
         drawerOpen={!!sel}
@@ -453,30 +448,21 @@ export function MockupWorkerHealth(): JSX.Element {
   const attention = (w.backlog.CONFLICT_REVIEW ?? 0) + (w.backlog.CENTRAL_REJECTED ?? 0);
   const total = Object.values(w.backlog).reduce((a, b) => a + b, 0);
 
-  const accent = w.enabled ? 'var(--der-success, #16a34a)' : 'var(--der-warning, #d97706)';
-  const headline = w.enabled ? 'The synchronisation worker is running' : 'The synchronisation worker is paused';
-  const icon = w.enabled ? '✓' : '⏸';
+  const title = w.enabled ? 'The synchronisation worker is running' : 'The synchronisation worker is paused';
 
   return (
     <div className="ea-screen">
-      <section style={{
-        display: 'grid', gridTemplateColumns: '64px 1fr auto', gap: 14, alignItems: 'center',
-        padding: 16, marginBottom: 14, borderRadius: 8,
-        border: '1px solid var(--der-border-subtle)',
-        borderLeft: `4px solid ${accent}`, background: 'white',
-      }}>
-        <div style={{ fontSize: 38, fontWeight: 700, color: accent,
-                       textAlign: 'center', lineHeight: 1 }} aria-hidden="true">{icon}</div>
-        <div>
-          <h1 style={{ margin: '0 0 2px', fontSize: 20, fontWeight: 700 }}
-              data-test="ea14-enabled">{headline}</h1>
-          <p style={{ margin: 0, fontSize: 13, color: 'var(--der-ink-500)' }}>
-            {total === 0
-              ? 'Nothing in the queue — the worker is idle.'
-              : `${total.toLocaleString()} item${total === 1 ? '' : 's'} in the queue · last activity ${fmtAgo(w.lastTick)}.`}
-          </p>
-          <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12,
-                        color: 'var(--der-ink-500)', flexWrap: 'wrap' }}>
+      <SyncStatusBar
+        tone={w.enabled ? 'success' : 'warning'}
+        title={title}
+        details={
+          <>
+            <span data-test="ea14-enabled" style={{ display: 'none' }}>{title}</span>
+            <span>
+              {total === 0
+                ? 'Nothing in the queue — the worker is idle.'
+                : `${total.toLocaleString()} item${total === 1 ? '' : 's'} in queue · last activity ${fmtAgo(w.lastTick)}`}
+            </span>
             <span><strong style={{ color: 'var(--der-ink-900)' }}>Waiting:</strong> {waiting.toLocaleString()}</span>
             <span><strong style={{ color: 'var(--der-ink-900)' }}>Retrying:</strong> {retrying.toLocaleString()}</span>
             {attention > 0 && (
@@ -488,16 +474,17 @@ export function MockupWorkerHealth(): JSX.Element {
               </span>
             )}
             <span><strong style={{ color: 'var(--der-ink-900)' }}>Last batch:</strong> {w.lastBatchSize}</span>
-          </div>
-        </div>
-        <button type="button" className="ea-btn ea-btn--primary"
-                style={{ fontSize: 14, padding: '10px 16px' }}
-                disabled={busy}
-                onClick={() => { toggle().catch(() => undefined); }}
-                data-test="ea14-toggle">
-          {busy ? '…' : w.enabled ? 'Pause' : 'Resume'}
-        </button>
-      </section>
+          </>
+        }
+        actions={
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  disabled={busy}
+                  onClick={() => { toggle().catch(() => undefined); }}
+                  data-test="ea14-toggle">
+            {busy ? '…' : w.enabled ? 'Pause' : 'Resume'}
+          </button>
+        }
+      />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
         <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"

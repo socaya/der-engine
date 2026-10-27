@@ -3,25 +3,25 @@ import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
   Panel, fmtAgo, syncActivityShape, operatorState, operatorStateTone,
+  SyncStatusBar, Spinner, useTriggerAndWatch, type SyncStatusTone,
 } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /**
  * `/admin/sync` — Overview per DER Sync requirements §5.
  *
- * Answers "Is synchronisation working?" with a hero status card, two
- * large primary actions (Pull Metadata Now · Push Data Now) and a short
- * recent-activity feed. No charts, no raw queue tables, no state
- * breakdowns — those live on the dedicated sub-pages.
+ * Compact status bar on top (no chunky hero card) with Pull-metadata +
+ * Push-data as inline toolbar actions that run the Quartz triggers and
+ * poll for completion. Recent activity feed below.
  */
 export function MockupSyncOverview(): JSX.Element {
   const [w, setW] = useState<edgeApi.WorkerHealth | null>(null);
   const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
   const [stats, setStats] = useState<edgeApi.JournalStatsByType | null>(null);
   const [sysInfo, setSysInfo] = useState<edgeApi.SystemInfo | null>(null);
-  const [pulling, setPulling] = useState(false);
-  const [pushing, setPushing] = useState(false);
-  const [flash, setFlash] = useState<string | null>(null);
+
+  const pull = useTriggerAndWatch();
+  const push = useTriggerAndWatch();
 
   async function reload(): Promise<void> {
     const [a, b, st, si] = await Promise.allSettled([
@@ -35,30 +35,21 @@ export function MockupSyncOverview(): JSX.Element {
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
 
-  async function pull(): Promise<void> {
-    setPulling(true); setFlash(null);
-    try {
-      await edgeApi.triggerJob('METADATA_SYNC_FULL');
-      setFlash('Metadata pull started.');
-      setTimeout(() => reload().catch(() => undefined), 1500);
-    } catch (e) {
-      setFlash(e instanceof Error ? e.message : String(e));
-    } finally { setPulling(false); }
-  }
-  async function push(): Promise<void> {
-    setPushing(true); setFlash(null);
-    try {
-      await edgeApi.triggerJob('JOURNAL_WORKER_DRAIN');
-      setFlash('Data push started.');
-      setTimeout(() => reload().catch(() => undefined), 1500);
-    } catch (e) {
-      setFlash(e instanceof Error ? e.message : String(e));
-    } finally { setPushing(false); }
-  }
+  // After a pull/push completes, reload all state so the activity
+  // feed + counts reflect the new run.
+  useEffect(() => {
+    if (pull.state === 'done' || pull.state === 'failed') {
+      reload().catch(() => undefined);
+    }
+  }, [pull.state]);
+  useEffect(() => {
+    if (push.state === 'done' || push.state === 'failed') {
+      reload().catch(() => undefined);
+    }
+  }, [push.state]);
 
   if (!w) return <LoadingBlock testId="loading" />;
 
-  // Operator-facing overall status.
   const centralReachable = sysInfo?.dhis2?.probeReachable ?? false;
   const attentionCount = stats
     ? Object.values(stats).reduce((a, b) =>
@@ -68,62 +59,37 @@ export function MockupSyncOverview(): JSX.Element {
     ? Object.values(stats).reduce((a, b) => a + (b.PENDING ?? 0) + (b.IN_FLIGHT ?? 0), 0)
     : 0;
 
-  type Status = 'working' | 'paused' | 'offline' | 'attention';
-  let status: Status;
-  let statusCopy: string;
+  let tone: SyncStatusTone;
+  let title: string;
   if (!w.enabled) {
-    status = 'paused';
-    statusCopy = 'Sync is paused. Captured records are being saved locally and will send once sync resumes.';
+    tone = 'muted'; title = 'Sync is paused';
   } else if (!centralReachable) {
-    status = 'offline';
-    statusCopy = 'Central DHIS2 is unreachable. Captured data is safe locally and will send automatically when the connection returns.';
+    tone = 'warning'; title = 'Central DHIS2 is unavailable';
   } else if (attentionCount > 0) {
-    status = 'attention';
-    statusCopy = `${attentionCount} record${attentionCount === 1 ? '' : 's'} ${attentionCount === 1 ? 'needs' : 'need'} your attention.`;
+    tone = 'danger';
+    title = `Sync needs attention · ${attentionCount} record${attentionCount === 1 ? '' : 's'}`;
+  } else if (waitingCount > 0) {
+    tone = 'info';
+    title = `Sync is working · ${waitingCount.toLocaleString()} record${waitingCount === 1 ? '' : 's'} waiting`;
   } else {
-    status = 'working';
-    statusCopy = waitingCount > 0
-      ? `Sync is working. ${waitingCount.toLocaleString()} record${waitingCount === 1 ? '' : 's'} waiting to send.`
-      : 'Sync is working. All local data has reached Central DHIS2.';
+    tone = 'success'; title = 'Sync is working · all local data has been sent';
   }
 
   const lastSuccess = (jobs ?? []).find((j) => j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS');
-  const statusHeadline = {
-    working: 'Sync is working',
-    paused: 'Sync is paused',
-    offline: 'Central DHIS2 is unavailable',
-    attention: 'Sync needs attention',
-  }[status];
-  const statusAccent = {
-    working: 'var(--der-success, #16a34a)',
-    paused: 'var(--der-ink-400, #94a3b8)',
-    offline: 'var(--der-warning, #d97706)',
-    attention: 'var(--der-danger, #dc2626)',
-  }[status];
-  const statusIcon = { working: '✓', paused: '⏸', offline: '⌁', attention: '!' }[status];
+
+  // Button labels + disable logic per spec §14.
+  const pullBusy = pull.state === 'triggering' || pull.state === 'running';
+  const pushBusy = push.state === 'triggering' || push.state === 'running';
+  const pullDisabled = pullBusy || !centralReachable;
+  const pushDisabled = pushBusy || !centralReachable || !w.enabled;
 
   return (
     <div className="ea-screen" data-test="sync-hub">
-      {flash && <p className="ea-saved" style={{ marginBottom: 10 }}>{flash}</p>}
-
-      <section data-test="sync-hero"
-               style={{
-                 display: 'grid', gridTemplateColumns: '72px 1fr auto', gap: 16,
-                 alignItems: 'center', padding: 16, marginBottom: 16,
-                 border: '1px solid var(--der-border-subtle)', borderRadius: 8,
-                 borderLeft: `4px solid ${statusAccent}`,
-                 background: 'white',
-               }}>
-        <div style={{ fontSize: 44, fontWeight: 700, color: statusAccent,
-                       textAlign: 'center', lineHeight: 1 }} aria-hidden="true">
-          {statusIcon}
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700 }}
-              data-test="sync-status-headline">{statusHeadline}</h1>
-          <p style={{ margin: 0, fontSize: 13, color: 'var(--der-ink-500)' }}>{statusCopy}</p>
-          <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12,
-                        color: 'var(--der-ink-500)', flexWrap: 'wrap' }}>
+      <SyncStatusBar
+        tone={tone}
+        title={title}
+        details={
+          <>
             <span>
               <strong style={{ color: 'var(--der-ink-900)' }}>Last successful sync:</strong>{' '}
               {lastSuccess ? fmtAgo(lastSuccess.startedAt) : 'None yet'}
@@ -140,41 +106,47 @@ export function MockupSyncOverview(): JSX.Element {
                 </Link>
               </span>
             )}
-          </div>
-        </div>
-      </section>
+          </>
+        }
+        actions={
+          <>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    data-test="sync-pull-metadata"
+                    disabled={pullDisabled}
+                    title={!centralReachable ? 'Central DHIS2 is unavailable' : undefined}
+                    onClick={() => { pull.trigger('METADATA_SYNC_FULL').catch(() => undefined); }}>
+              {pullBusy && <Spinner />} <span style={{ marginLeft: pullBusy ? 6 : 0 }}>
+                {pull.state === 'running' ? 'Pulling metadata…' : 'Pull metadata'}
+              </span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    data-test="sync-push-data"
+                    disabled={pushDisabled}
+                    title={!w.enabled ? 'Worker is paused — resume it on the Worker page'
+                      : !centralReachable ? 'Central DHIS2 is unavailable' : undefined}
+                    onClick={() => { push.trigger('JOURNAL_WORKER_DRAIN').catch(() => undefined); }}>
+              {pushBusy && <Spinner />} <span style={{ marginLeft: pushBusy ? 6 : 0 }}>
+                {push.state === 'running' ? 'Pushing data…' : 'Push data'}
+              </span>
+            </button>
+          </>
+        }
+      />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr',
-                    gap: 12, marginBottom: 16 }}>
-        <ActionCard
-          icon="📦"
-          title="Pull metadata now"
-          desc="Refresh programs, data elements, organisation units and other DHIS2 metadata."
-          button={pulling ? 'Pulling…' : 'Pull metadata now'}
-          onClick={() => { pull().catch(() => undefined); }}
-          disabled={pulling || !centralReachable}
-          hint={!centralReachable ? 'Central DHIS2 is unavailable.' : undefined}
-          testId="sync-pull-metadata"
-          detailLink={['View metadata details', '/sync/metadata']}
-        />
-        <ActionCard
-          icon="🩺"
-          title="Push data now"
-          desc="Send locally captured aggregate data, events and tracker records to Central DHIS2."
-          button={pushing ? 'Pushing…' : 'Push data now'}
-          onClick={() => { push().catch(() => undefined); }}
-          disabled={pushing || !centralReachable || !w.enabled}
-          hint={!w.enabled
-            ? 'Worker is paused — resume it on the Worker page.'
-            : !centralReachable
-            ? 'Central DHIS2 is unavailable.'
-            : waitingCount === 0
-            ? 'Nothing waiting to send.'
-            : undefined}
-          testId="sync-push-data"
-          detailLink={['View data details', '/sync/data']}
-        />
-      </div>
+      {(pull.state !== 'idle' || push.state !== 'idle') && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+          {pull.state !== 'idle' && (
+            <ProgressStrip label="Pull metadata" state={pull.state} message={pull.message}
+                           onDismiss={pull.state === 'done' || pull.state === 'failed' || pull.state === 'timeout'
+                             ? pull.reset : undefined} />
+          )}
+          {push.state !== 'idle' && (
+            <ProgressStrip label="Push data" state={push.state} message={push.message}
+                           onDismiss={push.state === 'done' || push.state === 'failed' || push.state === 'timeout'
+                             ? push.reset : undefined} />
+          )}
+        </div>
+      )}
 
       <Panel title="Recent activity"
              action={<Link to="/sync/history" className="ea-link-btn">View all history</Link>}>
@@ -223,48 +195,50 @@ export function MockupSyncOverview(): JSX.Element {
   );
 }
 
-function ActionCard({ icon, title, desc, button, onClick, disabled, hint, testId, detailLink }: {
-  icon: string;
-  title: string;
-  desc: string;
-  button: string;
-  onClick: () => void;
-  disabled?: boolean;
-  hint?: string;
-  testId?: string;
-  detailLink?: readonly [string, string];
+function ProgressStrip({ label, state, message, onDismiss }: {
+  label: string;
+  state: 'triggering' | 'running' | 'done' | 'failed' | 'timeout';
+  message: string;
+  onDismiss?: () => void;
 }): JSX.Element {
+  const tone = state === 'done' ? 'success'
+             : state === 'failed' ? 'danger'
+             : state === 'timeout' ? 'warning'
+             : 'info';
+  const accent = tone === 'success' ? 'var(--der-success, #16a34a)'
+               : tone === 'danger' ? 'var(--der-danger, #dc2626)'
+               : tone === 'warning' ? 'var(--der-warning, #d97706)'
+               : 'var(--der-primary)';
+  const busy = state === 'triggering' || state === 'running';
   return (
-    <section data-test={testId}
-             style={{
-               padding: 16, border: '1px solid var(--der-border-subtle)',
-               borderRadius: 8, background: 'white',
-               display: 'flex', flexDirection: 'column', gap: 10,
-             }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <div style={{ fontSize: 32, lineHeight: 1 }} aria-hidden="true">{icon}</div>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <h2 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 600 }}>{title}</h2>
-          <p style={{ margin: 0, fontSize: 12, color: 'var(--der-ink-500)', lineHeight: 1.4 }}>
-            {desc}
-          </p>
+    <div data-test={`progress-${label.toLowerCase().replace(' ', '-')}`}
+         style={{
+           display: 'flex', alignItems: 'center', gap: 10,
+           padding: '6px 12px', borderRadius: 4,
+           background: 'var(--der-ink-50)',
+           borderLeft: `3px solid ${accent}`,
+           fontSize: 12,
+         }}>
+      {busy ? <Spinner /> : <span style={{ fontSize: 13, color: accent }} aria-hidden="true">●</span>}
+      <strong style={{ color: 'var(--der-ink-900)' }}>{label}:</strong>
+      <span style={{ flex: 1, color: 'var(--der-ink-700)' }}>{message}</span>
+      {busy && (
+        <div style={{
+          height: 3, background: 'var(--der-ink-100)', borderRadius: 2,
+          overflow: 'hidden', width: 140, position: 'relative',
+        }}>
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: `linear-gradient(90deg, transparent, ${accent}, transparent)`,
+            animation: 'der-prog 1.4s linear infinite',
+          }} />
         </div>
-      </div>
-      <button type="button"
-              className="ea-btn ea-btn--primary"
-              style={{ fontSize: 14, padding: '10px 14px' }}
-              disabled={disabled}
-              onClick={onClick}>
-        {button}
-      </button>
-      {hint && (
-        <p className="ea-text-muted" style={{ margin: 0, fontSize: 11 }}>{hint}</p>
       )}
-      {detailLink && (
-        <Link to={detailLink[1]} className="ea-link-btn" style={{ fontSize: 12 }}>
-          {detailLink[0]} →
-        </Link>
+      {onDismiss && (
+        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                style={{ padding: '2px 8px', fontSize: 11 }}
+                onClick={onDismiss}>Dismiss</button>
       )}
-    </section>
+    </div>
   );
 }

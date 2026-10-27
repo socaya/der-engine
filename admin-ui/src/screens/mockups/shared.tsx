@@ -708,6 +708,171 @@ export function operatorStateTone(s: OperatorState): 'success' | 'warning' | 'da
   }
 }
 
+// ────────────────────────────────────────────────────────────────────
+// SyncStatusBar — compact one-liner replacement for the chunky
+// hero-style status cards. Status tone + text + optional actions on
+// a single row, no large icon slot.
+// ────────────────────────────────────────────────────────────────────
+
+export type SyncStatusTone = 'success' | 'warning' | 'danger' | 'info' | 'muted';
+
+const TONE_ACCENT: Readonly<Record<SyncStatusTone, string>> = {
+  success: 'var(--der-success, #16a34a)',
+  warning: 'var(--der-warning, #d97706)',
+  danger: 'var(--der-danger, #dc2626)',
+  info: 'var(--der-primary)',
+  muted: 'var(--der-ink-400, #94a3b8)',
+};
+
+export function SyncStatusBar({ tone, title, details, actions }: {
+  tone: SyncStatusTone;
+  title: string;
+  details?: ReactNode;
+  actions?: ReactNode;
+}): JSX.Element {
+  return (
+    <section data-test="sync-status-bar"
+             style={{
+               display: 'flex', alignItems: 'center', gap: 12,
+               padding: '10px 14px', marginBottom: 12,
+               borderRadius: 6, background: 'white',
+               border: '1px solid var(--der-border-subtle)',
+               borderLeft: `3px solid ${TONE_ACCENT[tone]}`,
+               flexWrap: 'wrap',
+             }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--der-ink-900)' }}
+             data-test="sync-status-title">
+          {title}
+        </div>
+        {details && (
+          <div style={{ display: 'flex', gap: 14, marginTop: 3, fontSize: 11,
+                        color: 'var(--der-ink-500)', flexWrap: 'wrap' }}>
+            {details}
+          </div>
+        )}
+      </div>
+      {actions && <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>{actions}</div>}
+    </section>
+  );
+}
+
+/** Inline spinner for in-progress sync actions. */
+export function Spinner({ size = 12 }: { size?: number }): JSX.Element {
+  return (
+    <span aria-hidden="true"
+          style={{
+            display: 'inline-block',
+            width: size, height: size,
+            border: `2px solid currentColor`,
+            borderTopColor: 'transparent',
+            borderRadius: '50%',
+            animation: 'der-spin 0.8s linear infinite',
+            verticalAlign: 'middle',
+          }} />
+  );
+}
+
+// Inject the spin keyframes once per page load.
+if (typeof document !== 'undefined' && !document.getElementById('der-spin-kf')) {
+  const s = document.createElement('style');
+  s.id = 'der-spin-kf';
+  s.textContent = '@keyframes der-spin { to { transform: rotate(360deg); } }'
+    + ' @keyframes der-prog { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }';
+  document.head.appendChild(s);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// useTriggerAndWatch — trigger a Quartz job and poll until a new run
+// for that job shows up with a terminal outcome. Returns a tuple of
+// `[state, run]` where state is 'idle' | 'triggering' | 'running' |
+// 'done' | 'failed' | 'timeout', and run is the matching JobRun once
+// detected. Used by /sync overview + /sync/metadata + /sync/data to
+// show progress on the Pull / Push actions.
+// ────────────────────────────────────────────────────────────────────
+
+export type TriggerState = 'idle' | 'triggering' | 'running' | 'done' | 'failed' | 'timeout';
+
+export function useTriggerAndWatch(): {
+  state: TriggerState;
+  message: string;
+  trigger: (jobName: string) => Promise<void>;
+  reset: () => void;
+} {
+  const [state, setState] = useState<TriggerState>('idle');
+  const [message, setMessage] = useState<string>('');
+
+  async function trigger(jobName: string): Promise<void> {
+    setState('triggering');
+    setMessage('Starting…');
+    let baseline: number;
+    try {
+      const before = await edgeApi.listJobs(10);
+      baseline = before
+        .filter((j) => j.jobName === jobName)
+        .map((j) => Date.parse(j.startedAt))
+        .reduce((a, b) => Math.max(a, b), 0);
+    } catch {
+      baseline = Date.now();
+    }
+    try {
+      const r = await edgeApi.triggerJob(jobName);
+      if (r.error) { setState('failed'); setMessage(r.error); return; }
+      setState('running');
+      setMessage('Running…');
+    } catch (e) {
+      setState('failed');
+      setMessage(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    // Poll for completion. 2s cadence, 60s cap.
+    const deadline = Date.now() + 60_000;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 2000));
+      try {
+        const now = await edgeApi.listJobs(20);
+        const fresh = now.find((j) =>
+          j.jobName === jobName && Date.parse(j.startedAt) > baseline);
+        if (fresh) {
+          const ok = fresh.outcome === 'SUCCEEDED' || fresh.outcome === 'SUCCESS';
+          const failed = fresh.outcome === 'FAILED' || fresh.outcome === 'FAILURE';
+          if (ok || failed) {
+            setState(ok ? 'done' : 'failed');
+            const summary = summariseJobDetail(fresh.detail);
+            setMessage(ok
+              ? (summary ? `Completed · ${summary}` : 'Completed.')
+              : (summary ? `Failed · ${summary}` : 'Failed.'));
+            return;
+          }
+          // Found a run but no outcome yet — keep polling.
+          setMessage('Running…');
+        }
+      } catch { /* keep polling */ }
+    }
+    setState('timeout');
+    setMessage('Still running in the background — check History for the result.');
+  }
+
+  function reset(): void {
+    setState('idle'); setMessage('');
+  }
+
+  return { state, message, trigger, reset };
+}
+
+function summariseJobDetail(detail: string | null | undefined): string {
+  const parsed = parseDetailObject(detail);
+  const parts: string[] = [];
+  if (typeof parsed.accepted === 'number' && parsed.accepted > 0) parts.push(`${parsed.accepted} accepted`);
+  if (typeof parsed.rejected === 'number' && parsed.rejected > 0) parts.push(`${parsed.rejected} rejected`);
+  if (typeof parsed.conflicts === 'number' && parsed.conflicts > 0) parts.push(`${parsed.conflicts} need review`);
+  if (typeof parsed.picked === 'number' && parsed.picked === 0 && parts.length === 0) {
+    return 'nothing to send';
+  }
+  if (typeof parsed.pulled === 'number') parts.push(`${parsed.pulled} updates`);
+  return parts.join(' · ');
+}
+
 /** Pull the operationIds list out of a detail JSON blob, if present. */
 export function parseOperationIds(detail: string | null | undefined): ReadonlyArray<string> {
   const parsed = parseDetailObject(detail);

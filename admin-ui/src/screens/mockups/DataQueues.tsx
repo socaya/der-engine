@@ -4,7 +4,8 @@ import * as edgeApi from '../../api/edgeApi';
 import {
   Panel, SplitWithDrawer, fmtDate, fmtAgo, usePaged, TablePager,
   entityTypeIcon, entityTypeLabel, operatorState, operatorStateTone,
-  DrawerTabs, JsonViewer, type OperatorState,
+  DrawerTabs, JsonViewer, SyncStatusBar, Spinner, useTriggerAndWatch,
+  type OperatorState, type SyncStatusTone,
 } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
@@ -26,8 +27,7 @@ export function MockupDataQueues(): JSX.Element {
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [sel, setSel] = useState<edgeApi.JournalOperation | null>(null);
   const [drawerTab, setDrawerTab] = useState<'overview' | 'payload'>('overview');
-  const [pushing, setPushing] = useState(false);
-  const [flash, setFlash] = useState<string | null>(null);
+  const push = useTriggerAndWatch();
 
   async function reload(): Promise<void> {
     const [a, b, c, d] = await Promise.allSettled([
@@ -43,22 +43,16 @@ export function MockupDataQueues(): JSX.Element {
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
   useEffect(() => { setDrawerTab('overview'); }, [sel?.operationId]);
-
-  async function push(): Promise<void> {
-    setPushing(true); setFlash(null);
-    try {
-      await edgeApi.triggerJob('JOURNAL_WORKER_DRAIN');
-      setFlash('Data push started.');
-      setTimeout(() => reload().catch(() => undefined), 1500);
-    } catch (e) {
-      setFlash(e instanceof Error ? e.message : String(e));
-    } finally { setPushing(false); }
-  }
+  useEffect(() => {
+    if (push.state === 'done' || push.state === 'failed') {
+      reload().catch(() => undefined);
+    }
+  }, [push.state]);
 
   async function retry(): Promise<void> {
     // No per-row retry endpoint today; triggering the drain picks the
     // row up on the next pass. Keep the UX honest.
-    await push();
+    await push.trigger('JOURNAL_WORKER_DRAIN');
   }
 
   const items = useMemo(() => (ops ?? []).map((o) => ({
@@ -95,58 +89,76 @@ export function MockupDataQueues(): JSX.Element {
   const unsent = stateCounts.Waiting + stateCounts.Sending + stateCounts.Retrying;
   const needsAttention = stateCounts['Needs attention'] + stateCounts.Rejected;
 
-  // Hero status headline per spec §7.
-  let headline: string;
-  let accent: string;
-  let icon: string;
+  let title: string;
+  let tone: SyncStatusTone;
   if (!workerEnabled) {
-    headline = 'Data push is paused';
-    accent = 'var(--der-ink-400, #94a3b8)'; icon = '⏸';
+    title = 'Data push is paused'; tone = 'muted';
   } else if (!centralReachable) {
-    headline = 'Central DHIS2 is unavailable';
-    accent = 'var(--der-warning, #d97706)'; icon = '⌁';
+    title = 'Central DHIS2 is unavailable'; tone = 'warning';
   } else if (needsAttention > 0) {
-    headline = `${needsAttention} record${needsAttention === 1 ? '' : 's'} need${needsAttention === 1 ? 's' : ''} attention`;
-    accent = 'var(--der-danger, #dc2626)'; icon = '!';
+    title = `${needsAttention} record${needsAttention === 1 ? '' : 's'} need${needsAttention === 1 ? 's' : ''} attention`;
+    tone = 'danger';
   } else if (unsent > 0) {
-    headline = `${unsent} record${unsent === 1 ? '' : 's'} waiting to be sent`;
-    accent = 'var(--der-primary)'; icon = '↑';
+    title = `${unsent} record${unsent === 1 ? '' : 's'} waiting to be sent`;
+    tone = 'info';
   } else {
-    headline = 'All local data has been sent';
-    accent = 'var(--der-success, #16a34a)'; icon = '✓';
+    title = 'All local data has been sent'; tone = 'success';
   }
 
   const lastPush = (jobs ?? []).find((j) => j.jobName === 'JOURNAL_WORKER_DRAIN'
     && (j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS'));
+  const pushing = push.state === 'triggering' || push.state === 'running';
 
   return (
     <div className="ea-screen" data-test="sync-data">
-      {flash && <p className="ea-saved" style={{ marginBottom: 10 }}>{flash}</p>}
+      <SyncStatusBar
+        tone={tone}
+        title={title}
+        details={
+          <>
+            <span>Locally captured data · DER → Central</span>
+            {lastPush && (
+              <span>
+                <strong style={{ color: 'var(--der-ink-900)' }}>Last successful push:</strong>{' '}
+                {fmtAgo(lastPush.startedAt)}
+              </span>
+            )}
+          </>
+        }
+        actions={
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  disabled={pushing || !centralReachable || !workerEnabled || unsent === 0}
+                  data-test="data-push"
+                  onClick={() => { push.trigger('JOURNAL_WORKER_DRAIN').catch(() => undefined); }}>
+            {pushing && <Spinner />} <span style={{ marginLeft: pushing ? 6 : 0 }}>
+              {push.state === 'running' ? 'Pushing…' : 'Push data'}
+            </span>
+          </button>
+        }
+      />
 
-      <section style={{
-        display: 'grid', gridTemplateColumns: '64px 1fr auto', gap: 14, alignItems: 'center',
-        padding: 16, marginBottom: 14, borderRadius: 8,
-        border: '1px solid var(--der-border-subtle)',
-        borderLeft: `4px solid ${accent}`, background: 'white',
-      }}>
-        <div style={{ fontSize: 38, fontWeight: 700, color: accent,
-                       textAlign: 'center', lineHeight: 1 }} aria-hidden="true">{icon}</div>
-        <div>
-          <h1 style={{ margin: '0 0 2px', fontSize: 20, fontWeight: 700 }}
-              data-test="data-status">{headline}</h1>
-          <p style={{ margin: 0, fontSize: 13, color: 'var(--der-ink-500)' }}>
-            Locally captured data queued for push to Central DHIS2.
-            {lastPush && <> Last successful push {fmtAgo(lastPush.startedAt)}.</>}
-          </p>
+      {push.state !== 'idle' && (
+        <div data-test="data-progress"
+             style={{
+               padding: '6px 12px', marginBottom: 10, borderRadius: 4,
+               background: 'var(--der-ink-50)',
+               borderLeft: `3px solid ${
+                 push.state === 'done' ? 'var(--der-success, #16a34a)'
+                   : push.state === 'failed' ? 'var(--der-danger, #dc2626)'
+                   : push.state === 'timeout' ? 'var(--der-warning, #d97706)'
+                   : 'var(--der-primary)'}`,
+               fontSize: 12, display: 'flex', alignItems: 'center', gap: 8,
+             }}>
+          {pushing && <Spinner />}
+          <strong>Push data:</strong>
+          <span style={{ flex: 1 }}>{push.message}</span>
+          {(push.state === 'done' || push.state === 'failed' || push.state === 'timeout') && (
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    style={{ padding: '2px 8px', fontSize: 11 }}
+                    onClick={push.reset}>Dismiss</button>
+          )}
         </div>
-        <button type="button" className="ea-btn ea-btn--primary"
-                style={{ fontSize: 14, padding: '10px 16px' }}
-                disabled={pushing || !centralReachable || !workerEnabled || unsent === 0}
-                data-test="data-push"
-                onClick={() => { push().catch(() => undefined); }}>
-          {pushing ? 'Pushing…' : 'Push data now'}
-        </button>
-      </section>
+      )}
 
       <div style={{ display: 'grid',
                     gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
@@ -323,8 +335,9 @@ export function MockupDataQueues(): JSX.Element {
                   ) : state === 'Waiting' ? (
                     <button type="button" className="ea-btn ea-btn--primary"
                             disabled={pushing || !centralReachable || !workerEnabled}
-                            onClick={() => { push().catch(() => undefined); }}>
-                      Push now
+                            onClick={() => { push.trigger('JOURNAL_WORKER_DRAIN').catch(() => undefined); }}>
+                      {pushing && <Spinner />}
+                      <span style={{ marginLeft: pushing ? 6 : 0 }}>Push now</span>
                     </button>
                   ) : null}
                 </div>

@@ -4,7 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager, describeCron, Panel, humaniseState } from './mockups/shared';
+import { usePaged, TablePager, describeCron, Panel, humaniseState, SyncStatusBar, Spinner, useTriggerAndWatch } from './mockups/shared';
 
 /**
  * CapabilityScreens — the 29 nav items that previously showed the
@@ -1011,8 +1011,7 @@ export function CapDataQueues(): JSX.Element {
 export function CapMetadataSync(): JSX.Element {
   const [history, setHistory] = useState<edgeApi.JobRun[] | null>(null);
   const [sysInfo, setSysInfo] = useState<edgeApi.SystemInfo | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [flash, setFlash] = useState<string | null>(null);
+  const pull = useTriggerAndWatch();
 
   async function reload(): Promise<void> {
     const [j, s] = await Promise.allSettled([edgeApi.listJobs(50), edgeApi.systemInfo()]);
@@ -1022,62 +1021,79 @@ export function CapMetadataSync(): JSX.Element {
     if (s.status === 'fulfilled') setSysInfo(s.value);
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
-  async function pull(): Promise<void> {
-    setBusy(true); setFlash(null);
-    try {
-      await edgeApi.triggerJob('METADATA_SYNC_FULL');
-      setFlash('Metadata pull started.');
-      setTimeout(() => reload().catch(() => undefined), 2000);
-    } catch (e) {
-      setFlash(e instanceof Error ? e.message : String(e));
-    } finally { setBusy(false); }
-  }
+  useEffect(() => {
+    if (pull.state === 'done' || pull.state === 'failed') {
+      reload().catch(() => undefined);
+    }
+  }, [pull.state]);
 
   const last = history?.[0];
   const lastSuccess = (history ?? []).find((r) => r.outcome === 'SUCCEEDED' || r.outcome === 'SUCCESS');
   const centralReachable = sysInfo?.dhis2?.probeReachable ?? false;
   const lastOk = last?.outcome === 'SUCCEEDED' || last?.outcome === 'SUCCESS';
-  const statusHeadline = !last
+  const title = !last
     ? 'Metadata has never been pulled'
-    : lastOk
-    ? 'Metadata is up to date'
-    : 'Last metadata pull failed';
-  const statusAccent = !last ? 'var(--der-ink-400, #94a3b8)'
-    : lastOk ? 'var(--der-success, #16a34a)'
-    : 'var(--der-danger, #dc2626)';
-  const statusIcon = !last ? '○' : lastOk ? '✓' : '!';
+    : lastOk ? 'Metadata is up to date' : 'Last metadata pull failed';
+  const tone = !last ? 'muted' : lastOk ? 'success' : 'danger';
+  const busy = pull.state === 'triggering' || pull.state === 'running';
 
   return (
     <div className="ea-screen" data-test="cap-metadata-sync">
-      {flash && <p className="ea-saved" style={{ marginBottom: 10 }}>{flash}</p>}
+      <SyncStatusBar
+        tone={tone}
+        title={title}
+        details={
+          <>
+            <span>Metadata is Central DHIS2 → DER (pull only).</span>
+            {lastSuccess && (
+              <span>
+                <strong style={{ color: 'var(--der-ink-900)' }}>Last successful pull:</strong>{' '}
+                {new Date(lastSuccess.startedAt).toLocaleString()}
+              </span>
+            )}
+            <span>
+              <strong style={{ color: 'var(--der-ink-900)' }}>Central DHIS2:</strong>{' '}
+              {centralReachable ? 'Reachable' : 'Unreachable'}
+            </span>
+          </>
+        }
+        actions={
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  disabled={busy || !centralReachable}
+                  data-test="trigger-run"
+                  onClick={() => { pull.trigger('METADATA_SYNC_FULL').catch(() => undefined); }}>
+            {busy && <Spinner />} <span style={{ marginLeft: busy ? 6 : 0 }}>
+              {pull.state === 'running' ? 'Pulling…' : 'Pull metadata'}
+            </span>
+          </button>
+        }
+      />
 
-      <section style={{
-        display: 'grid', gridTemplateColumns: '64px 1fr auto', gap: 14, alignItems: 'center',
-        padding: 16, marginBottom: 14, borderRadius: 8,
-        border: '1px solid var(--der-border-subtle)',
-        borderLeft: `4px solid ${statusAccent}`, background: 'white',
-      }}>
-        <div style={{ fontSize: 38, fontWeight: 700, color: statusAccent,
-                       textAlign: 'center', lineHeight: 1 }} aria-hidden="true">{statusIcon}</div>
-        <div>
-          <h1 style={{ margin: '0 0 2px', fontSize: 20, fontWeight: 700 }}
-              data-test="metadata-status">{statusHeadline}</h1>
-          <p style={{ margin: 0, fontSize: 13, color: 'var(--der-ink-500)' }}>
-            Metadata flows one way only: Central DHIS2 → DER. DER does not change
-            metadata.
-          </p>
+      {pull.state !== 'idle' && (
+        <div data-test="metadata-progress"
+             style={{
+               padding: '6px 12px', marginBottom: 10, borderRadius: 4,
+               background: 'var(--der-ink-50)',
+               borderLeft: `3px solid ${
+                 pull.state === 'done' ? 'var(--der-success, #16a34a)'
+                   : pull.state === 'failed' ? 'var(--der-danger, #dc2626)'
+                   : pull.state === 'timeout' ? 'var(--der-warning, #d97706)'
+                   : 'var(--der-primary)'}`,
+               fontSize: 12, display: 'flex', alignItems: 'center', gap: 8,
+             }}>
+          {busy && <Spinner />}
+          <strong>Pull metadata:</strong>
+          <span style={{ flex: 1 }}>{pull.message}</span>
+          {(pull.state === 'done' || pull.state === 'failed' || pull.state === 'timeout') && (
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    style={{ padding: '2px 8px', fontSize: 11 }}
+                    onClick={pull.reset}>Dismiss</button>
+          )}
         </div>
-        <button type="button" className="ea-btn ea-btn--primary"
-                style={{ fontSize: 14, padding: '10px 16px' }}
-                disabled={busy || !centralReachable}
-                data-test="trigger-run"
-                onClick={() => { pull().catch(() => undefined); }}>
-          {busy ? 'Pulling…' : 'Pull metadata now'}
-        </button>
-      </section>
+      )}
 
       {!centralReachable && (
-        <p className="ea-text-muted" style={{ margin: '-6px 0 10px', fontSize: 12 }}>
+        <p className="ea-text-muted" style={{ margin: '-4px 0 10px', fontSize: 12 }}>
           Central DHIS2 is unavailable right now. The next pull will run as soon as the connection returns.
         </p>
       )}
