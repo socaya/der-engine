@@ -355,6 +355,77 @@ export function journalStatsByType(): Promise<JournalStatsByType> {
   return request<JournalStatsByType>('GET', '/edge-api/v1/journal/stats/by-type');
 }
 
+/** Mirror counts for the Metadata run detail page. */
+export interface MetadataDiagnostics {
+  mirrorCounts: {
+    organisationUnits?: number;
+    dataElements?: number;
+    dataSets?: number;
+    programs?: number;
+    trackedEntityTypes?: number;
+    [k: string]: number | undefined;
+  };
+  drift?: unknown;
+}
+
+export function metadataDiagnostics(): Promise<MetadataDiagnostics> {
+  return request<MetadataDiagnostics>('GET', '/edge-api/v1/metadata/diagnostics');
+}
+
+/** Fetch all mirrored records across every supported metadata
+ *  collection. Used on the Metadata pull detail page so the operator
+ *  can inspect everything that was actually mirrored, not just counts.
+ *  Each bucket is null when the endpoint 404s / errors. */
+export interface MetadataInventory {
+  organisationUnits: unknown[] | null;
+  programs: unknown[] | null;
+  programStages: unknown[] | null;
+  dataElements: unknown[] | null;
+  dataSets: unknown[] | null;
+  trackedEntityTypes: unknown[] | null;
+  trackedEntityAttributes: unknown[] | null;
+  optionSets: unknown[] | null;
+  categoryCombos: unknown[] | null;
+  programRules: unknown[] | null;
+}
+
+export async function metadataInventory(limit = 1000): Promise<MetadataInventory> {
+  async function fetchAll(collection: string, key: string, fields = 'id,displayName,code,name'):
+      Promise<unknown[] | null> {
+    try {
+      const r = await request<Record<string, unknown>>('GET',
+        `/api/${collection}?fields=${encodeURIComponent(fields)}&pageSize=${limit}`);
+      const arr = r[key];
+      return Array.isArray(arr) ? arr : null;
+    } catch { return null; }
+  }
+  const [ous, programs, stages, des, dss, tets, teas, opts, catCombos, rules] = await Promise.all([
+    fetchAll('organisationUnits', 'organisationUnits', 'id,displayName,code,level,path'),
+    fetchAll('programs', 'programs'),
+    fetchAll('programStages', 'programStages'),
+    fetchAll('dataElements', 'dataElements', 'id,displayName,code,valueType,domainType'),
+    fetchAll('dataSets', 'dataSets'),
+    fetchAll('trackedEntityTypes', 'trackedEntityTypes'),
+    fetchAll('trackedEntityAttributes', 'trackedEntityAttributes',
+      'id,displayName,code,valueType'),
+    fetchAll('optionSets', 'optionSets'),
+    fetchAll('categoryCombos', 'categoryCombos'),
+    fetchAll('programRules', 'programRules'),
+  ]);
+  return {
+    organisationUnits: ous,
+    programs,
+    programStages: stages,
+    dataElements: des,
+    dataSets: dss,
+    trackedEntityTypes: tets,
+    trackedEntityAttributes: teas,
+    optionSets: opts,
+    categoryCombos: catCombos,
+    programRules: rules,
+  };
+}
+
 export function resolveConflict(id: string, outcome: 'ACCEPTED' | 'REJECTED', rationale?: string):
     Promise<unknown> {
   return request('POST', `/edge-api/v1/journal/conflicts/${id}/resolve`, { outcome, rationale });

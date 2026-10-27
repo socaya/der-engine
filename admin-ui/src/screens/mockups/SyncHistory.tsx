@@ -165,6 +165,23 @@ export function MockupSyncHistory(): JSX.Element {
   );
 }
 
+/** Humanise the camelCase keys returned by metadataDiagnostics. */
+function mirrorCountLabel(key: string): string {
+  const map: Record<string, string> = {
+    organisationUnits: 'Organisation units',
+    dataElements: 'Data elements',
+    dataSets: 'Data sets',
+    programs: 'Programs',
+    programStages: 'Program stages',
+    trackedEntityTypes: 'Tracked entity types',
+    trackedEntityAttributes: 'Tracked entity attributes',
+    optionSets: 'Option sets',
+    categoryCombos: 'Category combos',
+    categoryOptionCombos: 'Category option combos',
+  };
+  return map[key] ?? key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
+}
+
 /** `/admin/sync/history/:runId` — per-run details page. */
 export function MockupSyncHistoryDetail(): JSX.Element {
   const { runId } = useParams<{ runId: string }>();
@@ -173,6 +190,8 @@ export function MockupSyncHistoryDetail(): JSX.Element {
   const [ops, setOps] = useState<edgeApi.JournalOperation[] | null>(null);
   const [opsLoading, setOpsLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [metaDiag, setMetaDiag] = useState<edgeApi.MetadataDiagnostics | null>(null);
+  const [metaInv, setMetaInv] = useState<Awaited<ReturnType<typeof edgeApi.metadataInventory>> | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -194,6 +213,19 @@ export function MockupSyncHistoryDetail(): JSX.Element {
       .then((rows) => setOps(rows.filter((r): r is edgeApi.JournalOperation => r !== null)))
       .finally(() => setOpsLoading(false));
   }, [sel, tab]);
+
+  // For metadata runs, additionally pull the mirror inventory so the
+  // Payload tab can show what metadata is actually present on this edge
+  // (not just the pull summary).
+  const isMetadataRun = sel?.jobName?.toUpperCase().includes('METADATA');
+  useEffect(() => {
+    if (!sel || tab !== 'payload' || !isMetadataRun) return;
+    Promise.allSettled([edgeApi.metadataDiagnostics(), edgeApi.metadataInventory(1000)])
+      .then(([diag, inv]) => {
+        if (diag.status === 'fulfilled') setMetaDiag(diag.value);
+        if (inv.status === 'fulfilled') setMetaInv(inv.value);
+      });
+  }, [sel, tab, isMetadataRun]);
 
   if (err) return (
     <div className="ea-screen">
@@ -262,6 +294,83 @@ export function MockupSyncHistoryDetail(): JSX.Element {
 
       {tab === 'payload' && (
         <>
+          {isMetadataRun && metaDiag && (
+            <Panel title="Metadata inventory">
+              <p className="ea-text-muted" style={{ margin: '0 0 12px', fontSize: 12 }}>
+                Current snapshot of what metadata this edge holds after the pull.
+              </p>
+              <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
+                <thead><tr>
+                  <th>Metadata type</th>
+                  <th style={{ width: 120, textAlign: 'right' }}>Records</th>
+                </tr></thead>
+                <tbody>
+                  {Object.entries(metaDiag.mirrorCounts).map(([k, v]) => (
+                    <tr key={k}>
+                      <td style={{ fontWeight: 500 }}>{mirrorCountLabel(k)}</td>
+                      <td className="ea-mono" style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {(v ?? 0).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Panel>
+          )}
+
+          {isMetadataRun && metaInv && (
+            <Panel title="Records">
+              <p className="ea-text-muted" style={{ margin: '0 0 12px', fontSize: 12 }}>
+                All records across every metadata type DER mirrors. Click any
+                section to expand and inspect the full payload JSON.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {([
+                  ['organisationUnits', 'Organisation units'],
+                  ['programs', 'Programs'],
+                  ['programStages', 'Program stages'],
+                  ['dataElements', 'Data elements'],
+                  ['dataSets', 'Data sets'],
+                  ['trackedEntityTypes', 'Tracked entity types'],
+                  ['trackedEntityAttributes', 'Tracked entity attributes'],
+                  ['optionSets', 'Option sets'],
+                  ['categoryCombos', 'Category combos'],
+                  ['programRules', 'Program rules'],
+                ] as const).map(([key, label]) => {
+                  const arr = (metaInv as unknown as Record<string, unknown[] | null>)[key];
+                  if (!arr) return null;
+                  return (
+                    <details key={key}>
+                      <summary style={{
+                        cursor: 'pointer', padding: '10px 14px',
+                        background: 'var(--der-raised)',
+                        border: '1px solid var(--der-border-subtle)',
+                        fontSize: 13, fontWeight: 500,
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        listStyle: 'none',
+                      }}>
+                        <span>{label}</span>
+                        <span className="ea-mono ea-text-muted"
+                              style={{ fontSize: 11, marginLeft: 'auto' }}>
+                          {arr.length.toLocaleString()} record{arr.length === 1 ? '' : 's'}
+                        </span>
+                      </summary>
+                      <div style={{ marginTop: 10 }}>
+                        {arr.length === 0 ? (
+                          <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
+                            None mirrored.
+                          </p>
+                        ) : (
+                          <JsonViewer value={arr} label={`${label} (${arr.length})`} maxDepth={2} />
+                        )}
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            </Panel>
+          )}
+
           {parseByType(sel.detail).length > 0 && (
             <Panel title="Breakdown by data type">
               <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
