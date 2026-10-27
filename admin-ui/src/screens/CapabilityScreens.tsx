@@ -1964,33 +1964,50 @@ export function CapUserMappings(): JSX.Element {
   }, []);
   if (err) return <ErrorBlock title="Users load failed" testId="err-users-load-failed">{err}</ErrorBlock>;
   if (!users) return <LoadingBlock testId="loading" />;
+  const admins = users.filter((u) => u.roles.includes('ADMIN')).length;
   return (
     <div className="ea-screen" data-test="cap-mappings">
-      <HeroHeader title="DHIS2 user mapping"
-        subtitle="Edge accounts and their mapping to DHIS2 central users."
+      <SyncStatusBar
+        tone="muted"
+        title="DHIS2 user mapping"
+        statusLabel={`${users.length} edge user${users.length === 1 ? '' : 's'}`}
+        subtitle={
+          <>
+            <span>Edge accounts and their mapping to DHIS2 central users.</span>
+            {admins > 0 && (<>
+              <span>·</span>
+              <span>Admins <strong style={{ color: 'var(--der-ink-900)' }}>{admins}</strong></span>
+            </>)}
+          </>
+        }
       />
-      <div className="ea-stat-strip">
-        <Stat label="Edge users" value={users.length} />
-        <Stat label="Admins" value={users.filter((u) => u.roles.includes('ADMIN')).length}
-              tone="success" />
-      </div>
-      <section className="ea-card">
+      <Panel title="Edge users">
         <div className="ea-table-wrap">
-          <table className="ea-table"><thead><tr>
-            <th>Edge user</th><th>Roles</th><th>DHIS2 mapping</th>
+          <table className="ea-table ea-table--dense"><thead><tr>
+            <th>Edge user</th><th>Roles</th><th style={{ width: 160 }}>DHIS2 mapping</th>
           </tr></thead><tbody>
             {users.map((u) => (
               <tr key={u.userId}>
-                <td>{u.displayName} <span className="ea-mono ea-text-muted">({u.username})</span></td>
-                <td>{u.roles.map((r) => (<span key={r} className="ea-chip ea-chip--info">{r}</span>))}</td>
-                <td><span className="ea-chip ea-chip--neutral">unmapped</span></td>
+                <td>
+                  <div style={{ fontWeight: 500 }}>{u.displayName}</div>
+                  <div className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>{u.username}</div>
+                </td>
+                <td>
+                  {u.roles.map((r) => (
+                    <span key={r} className="ea-chip ea-chip--info"
+                          title={r} style={{ marginRight: 4 }}>
+                      {humaniseState(r)}
+                    </span>
+                  ))}
+                </td>
+                <td><span className="ea-chip ea-chip--neutral">Unmapped</span></td>
               </tr>
             ))}
           </tbody></table>
         </div>
-      </section>
-      <p className="ea-field-hint" style={{ padding: '12px 16px' }}>
-        Direct DHIS2 user mapping is applied by sync; it is not yet editable from this console.
+      </Panel>
+      <p className="ea-field-hint" style={{ padding: '12px 0', fontSize: 12 }}>
+        Direct DHIS2 user mapping is applied by sync and is not yet editable from this console.
       </p>
     </div>
   );
@@ -1998,36 +2015,42 @@ export function CapUserMappings(): JSX.Element {
 
 export function CapRoles(): JSX.Element {
   const ROLES = [
-    { id: 'ADMIN', label: 'ADMIN', desc: 'Full control: provisioning, sync, apps, settings, recovery.' },
-    { id: 'OPERATOR', label: 'OPERATOR', desc: 'Captures data on the device; reads own drafts and recent runs.' },
-    { id: 'REVIEWER', label: 'REVIEWER', desc: 'Reviews pending approvals and conflicts; cannot change settings.' },
+    { id: 'ADMIN', label: 'Admin',
+      desc: 'Full control: provisioning, sync, apps, settings, recovery.' },
+    { id: 'OPERATOR', label: 'Operator',
+      desc: 'Captures data on the device; reads own drafts and recent runs.' },
+    { id: 'REVIEWER', label: 'Reviewer',
+      desc: 'Reviews pending approvals and conflicts; cannot change settings.' },
   ];
   return (
     <div className="ea-screen" data-test="cap-roles">
-      <HeroHeader title="Roles & permissions"
-        subtitle="Fixed role set shipped with this DER build."
+      <SyncStatusBar
+        tone="muted"
+        title="Roles & permissions"
+        statusLabel="Fixed set"
+        subtitle={<span>The role set shipped with this DER build. Role editing is intentionally fixed.</span>}
       />
-      <section className="ea-card ea-form-card">
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>Roles</h2>
-            <p>The three roles recognised by DER today. Role editing is intentionally fixed.</p>
-          </div>
-          <div className="ea-tile-grid">
-            {ROLES.map((r) => (
-              <div key={r.id} className="ea-link-tile" style={{ cursor: 'default' }}>
-                <div className="ea-link-tile-icon" aria-hidden="true">⚙</div>
-                <div className="ea-link-tile-body">
-                  <div className="ea-link-tile-title">
-                    <span className="ea-chip ea-chip--primary">{r.label}</span>
-                  </div>
-                  <div className="ea-link-tile-desc">{r.desc}</div>
-                </div>
+      <Panel title="Roles">
+        <div style={{ display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                      gap: 10 }}>
+          {ROLES.map((r) => (
+            <div key={r.id}
+                 style={{
+                   padding: '12px 14px',
+                   border: '1px solid var(--der-border-subtle)',
+                   borderRadius: 6,
+                   background: 'white',
+                 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span className="ea-chip ea-chip--primary" title={r.id}>{r.label}</span>
+                <span className="ea-mono ea-text-muted" style={{ fontSize: 10 }}>{r.id}</span>
               </div>
-            ))}
-          </div>
+              <div style={{ fontSize: 13, color: 'var(--der-ink-700)', lineHeight: 1.5 }}>{r.desc}</div>
+            </div>
+          ))}
         </div>
-      </section>
+      </Panel>
     </div>
   );
 }
@@ -2047,19 +2070,28 @@ export function CapSessions(): JSX.Element {
   }, []);
   if (err) return <ErrorBlock title="Sessions load failed" testId="err-sessions-load-failed">{err}</ErrorBlock>;
   if (!si || !users) return <LoadingBlock testId="loading" />;
+  const sessions = si.database.sessionCount ?? 0;
   return (
     <div className="ea-screen" data-test="cap-sessions">
-      <HeroHeader title="User sessions"
-        subtitle="Live sign-in sessions on this edge. Sessions auto-expire with the DER_SESSION cookie."
+      <SyncStatusBar
+        tone={sessions > 0 ? 'success' : 'muted'}
+        title="User sessions"
+        statusLabel={sessions === 0 ? 'No active sessions' : `${sessions} active`}
+        subtitle={
+          <>
+            <span>Live sign-in sessions on this edge. Sessions auto-expire with the DER_SESSION cookie.</span>
+            <span>·</span>
+            <span>Known users <strong style={{ color: 'var(--der-ink-900)' }}>{users.length}</strong></span>
+          </>
+        }
       />
-      <div className="ea-stat-strip">
-        <Stat label="Active sessions" value={si.database.sessionCount ?? '—'} tone="success" />
-        <Stat label="Known users" value={users.length} />
-      </div>
-      <p className="ea-field-hint" style={{ padding: '12px 16px' }}>
-        Per-session details (device, IP, last seen) are not yet exposed on this edge.
-        Rotate the DER_SESSION secret via Settings to invalidate every session at once.
-      </p>
+      <Panel title="Session management">
+        <p className="ea-text-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
+          Per-session details (device, IP, last seen) are not yet exposed on this edge.
+          To invalidate every session at once, rotate the <code>DER_SESSION</code> secret
+          via Settings.
+        </p>
+      </Panel>
     </div>
   );
 }
@@ -2067,25 +2099,27 @@ export function CapSessions(): JSX.Element {
 export function CapCredentials(): JSX.Element {
   return (
     <div className="ea-screen" data-test="cap-creds">
-      <HeroHeader title="MFA & credentials"
-        subtitle="How users prove who they are on this edge."
+      <SyncStatusBar
+        tone="muted"
+        title="Credentials"
+        statusLabel="Password only"
+        subtitle={<span>How users prove who they are on this edge.</span>}
       />
-      <section className="ea-card ea-form-card">
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>Credential policy</h2>
-          </div>
-          <dl className="ea-def-list">
-            <div className="ea-def-row"><dt>Password minimum</dt><dd>12 characters, mixed upper, lower, digits</dd></div>
-            <div className="ea-def-row"><dt>Session storage</dt><dd className="ea-mono">DER_SESSION cookie (HttpOnly, SameSite)</dd></div>
-            <div className="ea-def-row"><dt>Multi-factor</dt><dd><span className="ea-chip ea-chip--neutral">not configured</span></dd></div>
-            <div className="ea-def-row"><dt>External SSO</dt><dd><span className="ea-chip ea-chip--neutral">not configured</span></dd></div>
-          </dl>
-        </div>
-      </section>
-      <p className="ea-field-hint" style={{ padding: '12px 16px' }}>
+      <Panel title="Credential policy">
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>Password minimum</dt>
+            <dd>12 characters, mixed upper, lower, digits</dd></div>
+          <div className="ea-def-row"><dt>Session storage</dt>
+            <dd className="ea-mono">DER_SESSION cookie (HttpOnly, SameSite)</dd></div>
+          <div className="ea-def-row"><dt>Multi-factor</dt>
+            <dd><span className="ea-chip ea-chip--neutral">Not configured</span></dd></div>
+          <div className="ea-def-row"><dt>External SSO</dt>
+            <dd><span className="ea-chip ea-chip--neutral">Not configured</span></dd></div>
+        </dl>
+      </Panel>
+      <p className="ea-field-hint" style={{ padding: '12px 0', fontSize: 12 }}>
         MFA and OIDC federation ship in a later DER release. Password resets today
-        require an ADMIN reprovision.
+        require an admin re-provision.
       </p>
     </div>
   );
