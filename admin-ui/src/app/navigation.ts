@@ -100,11 +100,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     icon: 'workflow',
     items: [
       { id: 'workflows', label: 'Workflows', to: '/workflows', status: 'implemented' },
-      { id: 'runs', label: 'Runs', to: '/workflows/runs', status: 'implemented' },
-      { id: 'assignments', label: 'Assignments', to: '/workflows/assignments', status: 'implemented' },
       { id: 'approvals', label: 'Approvals', to: '/approvals', status: 'implemented' },
       { id: 'referral-inbox', label: 'Referrals', to: '/referral/inbox', status: 'implemented' },
       { id: 'referral-history', label: 'Referral history', to: '/referral/history', status: 'implemented' },
+      // Reachable only from a workflow's detail page — not top-level.
+      { id: 'runs', label: 'Runs', to: '/workflows/runs', status: 'contextual' },
+      { id: 'assignments', label: 'Assignments', to: '/workflows/assignments', status: 'contextual' },
     ],
   },
   {

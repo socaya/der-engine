@@ -1495,6 +1495,14 @@ export function CapWorkflowRuns(): JSX.Element {
   const [wfs, setWfs] = useState<edgeApi.CaptureWorkflowSummary[] | null>(null);
   const [runs, setRuns] = useState<Array<edgeApi.CaptureWorkflowRun & { workflowName: string }>>([]);
   const [err, setErr] = useState<string | null>(null);
+
+  // Scope to a single workflow when ?workflow=<id> is supplied — this
+  // is how the Workflows catalogue drills into runs now that the
+  // Runs page is no longer in the sidebar.
+  const workflowFilter = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('workflow')
+    : null;
+
   useEffect(() => {
     (async () => {
       try {
@@ -1502,6 +1510,7 @@ export function CapWorkflowRuns(): JSX.Element {
         setWfs(w.workflows);
         const all: Array<edgeApi.CaptureWorkflowRun & { workflowName: string }> = [];
         for (const wf of w.workflows) {
+          if (workflowFilter && wf.workflowId !== workflowFilter) continue;
           try {
             const r = await edgeApi.listWorkflowRuns(wf.workflowId);
             r.runs.forEach((x) => all.push({ ...x, workflowName: wf.displayName }));
@@ -1512,26 +1521,37 @@ export function CapWorkflowRuns(): JSX.Element {
         setErr(e instanceof Error ? e.message : String(e));
       }
     })();
-  }, []);
+  }, [workflowFilter]);
   if (err && !wfs) return <ErrorBlock title="Runs load failed" testId="err-runs-load-failed">{err}</ErrorBlock>;
   if (!wfs) return <LoadingBlock testId="loading" />;
   const completed = runs.filter((r) => r.state === 'COMPLETED').length;
   const inFlight = runs.filter((r) => r.state !== 'COMPLETED' && r.state !== 'REJECTED').length;
+  const scopedWorkflow = workflowFilter
+    ? wfs.find((w) => w.workflowId === workflowFilter)
+    : null;
   return (
     <div className="ea-screen" data-test="cap-wf-runs">
       <SyncStatusBar
         tone={runs.length === 0 ? 'muted' : inFlight > 0 ? 'info' : 'success'}
-        title="Workflow runs"
+        title={scopedWorkflow ? `${scopedWorkflow.displayName} · Runs` : 'Workflow runs'}
         statusLabel={runs.length === 0 ? 'None yet'
           : inFlight > 0 ? `${inFlight} in flight`
           : `${runs.length} recorded`}
         subtitle={
-          <>
-            <span>Workflow runs across every workflow definition on this edge.</span>
-            <span>·</span>
-            <span>Workflows <strong style={{ color: 'var(--der-ink-900)' }}>{wfs.length}</strong></span>
-            {completed > 0 && (<><span>·</span><span>Completed <strong style={{ color: 'var(--der-ink-900)' }}>{completed}</strong></span></>)}
-          </>
+          scopedWorkflow ? (
+            <>
+              <Link to="/workflows">← Back to workflows</Link>
+              <span>·</span>
+              <span>Runs for <strong style={{ color: 'var(--der-ink-900)' }}>{scopedWorkflow.displayName}</strong></span>
+            </>
+          ) : (
+            <>
+              <span>Workflow runs across every workflow definition on this edge.</span>
+              <span>·</span>
+              <span>Workflows <strong style={{ color: 'var(--der-ink-900)' }}>{wfs.length}</strong></span>
+              {completed > 0 && (<><span>·</span><span>Completed <strong style={{ color: 'var(--der-ink-900)' }}>{completed}</strong></span></>)}
+            </>
+          )
         }
       />
       {runs.length === 0 ? (
@@ -1567,44 +1587,63 @@ export function CapWorkflowRuns(): JSX.Element {
 export function CapStepAssignments(): JSX.Element {
   const [wfs, setWfs] = useState<edgeApi.CaptureWorkflowSummary[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  const workflowFilter = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('workflow')
+    : null;
+
   useEffect(() => {
     edgeApi.listWorkflows().then((r) => setWfs(r.workflows))
       .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
   }, []);
   if (err) return <ErrorBlock title="Workflow load failed" testId="err-workflow-load-failed">{err}</ErrorBlock>;
   if (!wfs) return <LoadingBlock testId="loading" />;
-  const totalSteps = wfs.reduce((a, w) => a + (w.steps?.length ?? 0), 0);
+  const scopedWorkflow = workflowFilter
+    ? wfs.find((w) => w.workflowId === workflowFilter)
+    : null;
+  const displayed = scopedWorkflow ? [scopedWorkflow] : wfs;
+  const totalSteps = displayed.reduce((a, w) => a + (w.steps?.length ?? 0), 0);
   return (
     <div className="ea-screen" data-test="cap-assignments">
       <SyncStatusBar
         tone={totalSteps === 0 ? 'muted' : 'info'}
-        title="Step assignments"
+        title={scopedWorkflow ? `${scopedWorkflow.displayName} · Steps` : 'Step assignments'}
         statusLabel={totalSteps === 0 ? 'None' : `${totalSteps} step${totalSteps === 1 ? '' : 's'}`}
         subtitle={
-          <>
-            <span>Which role is responsible for each workflow step.</span>
-            <span>·</span>
-            <span>Workflows <strong style={{ color: 'var(--der-ink-900)' }}>{wfs.length}</strong></span>
-          </>
+          scopedWorkflow ? (
+            <>
+              <Link to="/workflows">← Back to workflows</Link>
+              <span>·</span>
+              <span>Role assignments for <strong style={{ color: 'var(--der-ink-900)' }}>{scopedWorkflow.displayName}</strong></span>
+            </>
+          ) : (
+            <>
+              <span>Which role is responsible for each workflow step.</span>
+              <span>·</span>
+              <span>Workflows <strong style={{ color: 'var(--der-ink-900)' }}>{wfs.length}</strong></span>
+            </>
+          )
         }
       />
-      {wfs.length === 0 ? (
-        <EmptyBlock title="No workflows defined" testId="empty-no-workflows-defined">
-          Define a workflow first to see step assignments.
+      {displayed.length === 0 || totalSteps === 0 ? (
+        <EmptyBlock title="No steps defined" testId="empty-no-workflows-defined">
+          {scopedWorkflow
+            ? 'This workflow has no steps yet. Open the designer to add them.'
+            : 'Define a workflow first to see step assignments.'}
         </EmptyBlock>
       ) : (
         <Panel title="Assignments">
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense"><thead><tr>
-              <th>Workflow</th>
+              {!scopedWorkflow && <th>Workflow</th>}
               <th style={{ width: 60 }}>Step</th>
               <th>Name</th>
               <th>Owner role</th>
               <th>Kind</th>
             </tr></thead><tbody>
-              {wfs.flatMap((w) => (w.steps ?? []).map((s) => (
+              {displayed.flatMap((w) => (w.steps ?? []).map((s) => (
                 <tr key={w.workflowId + '-' + s.ordinal}>
-                  <td style={{ fontWeight: 500 }}>{w.displayName}</td>
+                  {!scopedWorkflow && <td style={{ fontWeight: 500 }}>{w.displayName}</td>}
                   <td className="ea-mono">{s.ordinal}</td>
                   <td>{s.displayName}</td>
                   <td><span className="ea-chip ea-chip--info" title={s.ownerRole}>{humaniseState(s.ownerRole)}</span></td>

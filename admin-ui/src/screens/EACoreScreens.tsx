@@ -1358,14 +1358,25 @@ export function EAApprovalQueue({ api = edgeApi }:
 
 // EA-CWF-01 Capture-workflow catalogue (ADR-0018 slice A) ----------
 export function EACaptureWorkflowList({ api = edgeApi }:
-    { api?: Pick<typeof edgeApi, 'listWorkflows' | 'deleteWorkflow'> } = {}): JSX.Element {
+    { api?: Pick<typeof edgeApi, 'listWorkflows' | 'deleteWorkflow' | 'listWorkflowRuns'> } = {}): JSX.Element {
   const [workflows, setWorkflows] = useState<edgeApi.CaptureWorkflowSummary[] | null>(null);
+  const [runCounts, setRunCounts] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
 
   async function reload(): Promise<void> {
     try {
       const resp = await api.listWorkflows();
       setWorkflows(resp.workflows);
+      // Fetch run counts in parallel so the catalogue can show a
+      // per-workflow run tally without needing a global runs page.
+      const counts: Record<string, number> = {};
+      await Promise.all(resp.workflows.map(async (w) => {
+        try {
+          const r = await (api.listWorkflowRuns ?? edgeApi.listWorkflowRuns)(w.workflowId);
+          counts[w.workflowId] = r.runs.length;
+        } catch { counts[w.workflowId] = 0; }
+      }));
+      setRunCounts(counts);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -1418,6 +1429,8 @@ export function EACaptureWorkflowList({ api = edgeApi }:
                   <th>Name</th>
                   <th>Binding</th>
                   <th style={{ width: 70 }}>Version</th>
+                  <th style={{ width: 70 }}>Steps</th>
+                  <th style={{ width: 70 }}>Runs</th>
                   <th style={{ width: 90 }}>Enabled</th>
                   <th style={{ width: 90 }}>Action</th>
                 </tr>
@@ -1436,6 +1449,18 @@ export function EACaptureWorkflowList({ api = edgeApi }:
                       {w.boundMetadataKind}:{w.boundMetadataId}
                     </td>
                     <td className="ea-mono">v{w.version}</td>
+                    <td>
+                      <Link to={`/workflows/${w.workflowId}#assignments`}
+                            className="ea-link-btn" style={{ fontSize: 12 }}>
+                        {(w.steps?.length ?? 0).toLocaleString()}
+                      </Link>
+                    </td>
+                    <td>
+                      <Link to={`/workflows/runs?workflow=${w.workflowId}`}
+                            className="ea-link-btn" style={{ fontSize: 12 }}>
+                        {(runCounts[w.workflowId] ?? 0).toLocaleString()}
+                      </Link>
+                    </td>
                     <td data-test={`cwf01-enabled-${w.workflowId}`}>
                       <span className={'ea-chip ea-chip--' + (w.enabled ? 'success' : 'neutral')}>
                         {w.enabled ? 'Enabled' : 'Disabled'}
