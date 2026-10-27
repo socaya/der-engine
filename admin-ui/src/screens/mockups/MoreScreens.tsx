@@ -270,12 +270,9 @@ export function MockupConflictList(): JSX.Element {
     <div className="ea-screen">
       <SyncStatusBar
         tone={rows.length === 0 ? 'success' : 'warning'}
-        title={rows.length === 0
-          ? 'Nothing needs your attention'
-          : `${rows.length} record${rows.length === 1 ? '' : 's'} need${rows.length === 1 ? 's' : ''} your attention`}
-        details={
-          <span>Records that could not synchronise automatically and need a decision.</span>
-        }
+        title="Needs your attention"
+        statusLabel={rows.length === 0 ? 'All clear' : `${rows.length} item${rows.length === 1 ? '' : 's'}`}
+        subtitle={<span>Records that could not synchronise automatically and need a decision.</span>}
       />
 
       <SplitWithDrawer
@@ -448,32 +445,36 @@ export function MockupWorkerHealth(): JSX.Element {
   const attention = (w.backlog.CONFLICT_REVIEW ?? 0) + (w.backlog.CENTRAL_REJECTED ?? 0);
   const total = Object.values(w.backlog).reduce((a, b) => a + b, 0);
 
-  const title = w.enabled ? 'The synchronisation worker is running' : 'The synchronisation worker is paused';
-
   return (
     <div className="ea-screen">
       <SyncStatusBar
         tone={w.enabled ? 'success' : 'warning'}
-        title={title}
-        details={
+        title="Worker"
+        statusLabel={w.enabled ? 'Running' : 'Paused'}
+        subtitle={
           <>
-            <span data-test="ea14-enabled" style={{ display: 'none' }}>{title}</span>
+            <span data-test="ea14-enabled" style={{ display: 'none' }}>
+              {w.enabled ? 'Running' : 'Paused'}
+            </span>
             <span>
               {total === 0
                 ? 'Nothing in the queue — the worker is idle.'
                 : `${total.toLocaleString()} item${total === 1 ? '' : 's'} in queue · last activity ${fmtAgo(w.lastTick)}`}
             </span>
-            <span><strong style={{ color: 'var(--der-ink-900)' }}>Waiting:</strong> {waiting.toLocaleString()}</span>
-            <span><strong style={{ color: 'var(--der-ink-900)' }}>Retrying:</strong> {retrying.toLocaleString()}</span>
+            <span>·</span>
+            <span>Waiting <strong style={{ color: 'var(--der-ink-900)' }}>{waiting.toLocaleString()}</strong></span>
+            <span>·</span>
+            <span>Retrying <strong style={{ color: 'var(--der-ink-900)' }}>{retrying.toLocaleString()}</strong></span>
             {attention > 0 && (
-              <span>
-                <strong style={{ color: 'var(--der-ink-900)' }}>Needs attention:</strong>{' '}
-                <Link to="/sync/attention" style={{ color: 'var(--der-danger, #dc2626)' }}>
-                  {attention.toLocaleString()}
-                </Link>
-              </span>
+              <>
+                <span>·</span>
+                <span>Needs attention{' '}
+                  <Link to="/sync/attention">{attention.toLocaleString()}</Link>
+                </span>
+              </>
             )}
-            <span><strong style={{ color: 'var(--der-ink-900)' }}>Last batch:</strong> {w.lastBatchSize}</span>
+            <span>·</span>
+            <span>Last batch <strong style={{ color: 'var(--der-ink-900)' }}>{w.lastBatchSize}</strong></span>
           </>
         }
         actions={

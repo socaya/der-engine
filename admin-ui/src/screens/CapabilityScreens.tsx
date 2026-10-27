@@ -1031,29 +1031,36 @@ export function CapMetadataSync(): JSX.Element {
   const lastSuccess = (history ?? []).find((r) => r.outcome === 'SUCCEEDED' || r.outcome === 'SUCCESS');
   const centralReachable = sysInfo?.dhis2?.probeReachable ?? false;
   const lastOk = last?.outcome === 'SUCCEEDED' || last?.outcome === 'SUCCESS';
-  const title = !last
-    ? 'Metadata has never been pulled'
-    : lastOk ? 'Metadata is up to date' : 'Last metadata pull failed';
   const tone = !last ? 'muted' : lastOk ? 'success' : 'danger';
   const busy = pull.state === 'triggering' || pull.state === 'running';
+
+  const statusLabel = !last ? 'Never pulled'
+    : lastOk ? 'Up to date' : 'Last pull failed';
 
   return (
     <div className="ea-screen" data-test="cap-metadata-sync">
       <SyncStatusBar
         tone={tone}
-        title={title}
-        details={
+        title="Metadata"
+        statusLabel={statusLabel}
+        subtitle={
           <>
-            <span>Metadata is Central DHIS2 → DER (pull only).</span>
+            <span>Metadata · Central DHIS2 → DER (pull only)</span>
             {lastSuccess && (
-              <span>
-                <strong style={{ color: 'var(--der-ink-900)' }}>Last successful pull:</strong>{' '}
-                {new Date(lastSuccess.startedAt).toLocaleString()}
-              </span>
+              <>
+                <span>·</span>
+                <span>Last successful pull{' '}
+                  <strong style={{ color: 'var(--der-ink-900)' }}>
+                    {new Date(lastSuccess.startedAt).toLocaleString()}
+                  </strong>
+                </span>
+              </>
             )}
-            <span>
-              <strong style={{ color: 'var(--der-ink-900)' }}>Central DHIS2:</strong>{' '}
-              {centralReachable ? 'Reachable' : 'Unreachable'}
+            <span>·</span>
+            <span>Central DHIS2{' '}
+              <strong style={{ color: 'var(--der-ink-900)' }}>
+                {centralReachable ? 'reachable' : 'unreachable'}
+              </strong>
             </span>
           </>
         }
@@ -1062,9 +1069,8 @@ export function CapMetadataSync(): JSX.Element {
                   disabled={busy || !centralReachable}
                   data-test="trigger-run"
                   onClick={() => { pull.trigger('METADATA_SYNC_FULL').catch(() => undefined); }}>
-            {busy && <Spinner />} <span style={{ marginLeft: busy ? 6 : 0 }}>
-              {pull.state === 'running' ? 'Pulling…' : 'Pull metadata'}
-            </span>
+            {busy && <><Spinner /><span style={{ marginLeft: 6 }} /></>}
+            {pull.state === 'running' ? 'Pulling…' : 'Pull metadata'}
           </button>
         }
       />
@@ -1072,21 +1078,24 @@ export function CapMetadataSync(): JSX.Element {
       {pull.state !== 'idle' && (
         <div data-test="metadata-progress"
              style={{
-               padding: '6px 12px', marginBottom: 10, borderRadius: 4,
-               background: 'var(--der-ink-50)',
-               borderLeft: `3px solid ${
-                 pull.state === 'done' ? 'var(--der-success, #16a34a)'
-                   : pull.state === 'failed' ? 'var(--der-danger, #dc2626)'
-                   : pull.state === 'timeout' ? 'var(--der-warning, #d97706)'
-                   : 'var(--der-primary)'}`,
-               fontSize: 12, display: 'flex', alignItems: 'center', gap: 8,
+               display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
+               color: 'var(--der-ink-500)', marginBottom: 4,
              }}>
           {busy && <Spinner />}
-          <strong>Pull metadata:</strong>
+          <span className={'ea-chip ea-chip--'
+            + (pull.state === 'done' ? 'success'
+              : pull.state === 'failed' ? 'danger'
+              : pull.state === 'timeout' ? 'warning' : 'info')}>
+            {pull.state === 'triggering' ? 'Starting'
+              : pull.state === 'running' ? 'Running'
+              : pull.state === 'done' ? 'Completed'
+              : pull.state === 'failed' ? 'Failed' : 'Still running'}
+          </span>
+          <strong style={{ color: 'var(--der-ink-900)' }}>Pull metadata</strong>
           <span style={{ flex: 1 }}>{pull.message}</span>
           {(pull.state === 'done' || pull.state === 'failed' || pull.state === 'timeout') && (
-            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                    style={{ padding: '2px 8px', fontSize: 11 }}
+            <button type="button" className="ea-link-btn"
+                    style={{ fontSize: 11 }}
                     onClick={pull.reset}>Dismiss</button>
           )}
         </div>

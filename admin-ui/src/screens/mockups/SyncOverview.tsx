@@ -60,24 +60,21 @@ export function MockupSyncOverview(): JSX.Element {
     : 0;
 
   let tone: SyncStatusTone;
-  let title: string;
+  let statusLabel: string;
   if (!w.enabled) {
-    tone = 'muted'; title = 'Sync is paused';
+    tone = 'muted'; statusLabel = 'Paused';
   } else if (!centralReachable) {
-    tone = 'warning'; title = 'Central DHIS2 is unavailable';
+    tone = 'warning'; statusLabel = 'Central unavailable';
   } else if (attentionCount > 0) {
-    tone = 'danger';
-    title = `Sync needs attention · ${attentionCount} record${attentionCount === 1 ? '' : 's'}`;
+    tone = 'danger'; statusLabel = 'Needs attention';
   } else if (waitingCount > 0) {
-    tone = 'info';
-    title = `Sync is working · ${waitingCount.toLocaleString()} record${waitingCount === 1 ? '' : 's'} waiting`;
+    tone = 'info'; statusLabel = `${waitingCount.toLocaleString()} waiting`;
   } else {
-    tone = 'success'; title = 'Sync is working · all local data has been sent';
+    tone = 'success'; statusLabel = 'Up to date';
   }
 
   const lastSuccess = (jobs ?? []).find((j) => j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS');
 
-  // Button labels + disable logic per spec §14.
   const pullBusy = pull.state === 'triggering' || pull.state === 'running';
   const pushBusy = push.state === 'triggering' || push.state === 'running';
   const pullDisabled = pullBusy || !centralReachable;
@@ -87,24 +84,30 @@ export function MockupSyncOverview(): JSX.Element {
     <div className="ea-screen" data-test="sync-hub">
       <SyncStatusBar
         tone={tone}
-        title={title}
-        details={
+        title="Synchronisation"
+        statusLabel={statusLabel}
+        subtitle={
           <>
             <span>
-              <strong style={{ color: 'var(--der-ink-900)' }}>Last successful sync:</strong>{' '}
-              {lastSuccess ? fmtAgo(lastSuccess.startedAt) : 'None yet'}
+              Last successful sync{' '}
+              <strong style={{ color: 'var(--der-ink-900)' }}>
+                {lastSuccess ? fmtAgo(lastSuccess.startedAt) : 'never'}
+              </strong>
             </span>
+            <span>·</span>
             <span>
-              <strong style={{ color: 'var(--der-ink-900)' }}>Central DHIS2:</strong>{' '}
-              {centralReachable ? 'Reachable' : 'Unreachable'}
+              Central DHIS2{' '}
+              <strong style={{ color: 'var(--der-ink-900)' }}>
+                {centralReachable ? 'reachable' : 'unreachable'}
+              </strong>
             </span>
             {attentionCount > 0 && (
-              <span>
-                <strong style={{ color: 'var(--der-ink-900)' }}>Needs attention:</strong>{' '}
-                <Link to="/sync/attention" style={{ color: 'var(--der-danger, #dc2626)' }}>
-                  {attentionCount}
+              <>
+                <span>·</span>
+                <Link to="/sync/attention">
+                  {attentionCount} need{attentionCount === 1 ? 's' : ''} attention
                 </Link>
-              </span>
+              </>
             )}
           </>
         }
@@ -115,9 +118,8 @@ export function MockupSyncOverview(): JSX.Element {
                     disabled={pullDisabled}
                     title={!centralReachable ? 'Central DHIS2 is unavailable' : undefined}
                     onClick={() => { pull.trigger('METADATA_SYNC_FULL').catch(() => undefined); }}>
-              {pullBusy && <Spinner />} <span style={{ marginLeft: pullBusy ? 6 : 0 }}>
-                {pull.state === 'running' ? 'Pulling metadata…' : 'Pull metadata'}
-              </span>
+              {pullBusy && <><Spinner /><span style={{ marginLeft: 6 }} /></>}
+              {pull.state === 'running' ? 'Pulling metadata…' : 'Pull metadata'}
             </button>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                     data-test="sync-push-data"
@@ -125,25 +127,24 @@ export function MockupSyncOverview(): JSX.Element {
                     title={!w.enabled ? 'Worker is paused — resume it on the Worker page'
                       : !centralReachable ? 'Central DHIS2 is unavailable' : undefined}
                     onClick={() => { push.trigger('JOURNAL_WORKER_DRAIN').catch(() => undefined); }}>
-              {pushBusy && <Spinner />} <span style={{ marginLeft: pushBusy ? 6 : 0 }}>
-                {push.state === 'running' ? 'Pushing data…' : 'Push data'}
-              </span>
+              {pushBusy && <><Spinner /><span style={{ marginLeft: 6 }} /></>}
+              {push.state === 'running' ? 'Pushing data…' : 'Push data'}
             </button>
           </>
         }
       />
 
       {(pull.state !== 'idle' || push.state !== 'idle') && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
           {pull.state !== 'idle' && (
-            <ProgressStrip label="Pull metadata" state={pull.state} message={pull.message}
-                           onDismiss={pull.state === 'done' || pull.state === 'failed' || pull.state === 'timeout'
-                             ? pull.reset : undefined} />
+            <ProgressRow label="Pull metadata" state={pull.state} message={pull.message}
+                         onDismiss={pull.state !== 'triggering' && pull.state !== 'running'
+                           ? pull.reset : undefined} />
           )}
           {push.state !== 'idle' && (
-            <ProgressStrip label="Push data" state={push.state} message={push.message}
-                           onDismiss={push.state === 'done' || push.state === 'failed' || push.state === 'timeout'
-                             ? push.reset : undefined} />
+            <ProgressRow label="Push data" state={push.state} message={push.message}
+                         onDismiss={push.state !== 'triggering' && push.state !== 'running'
+                           ? push.reset : undefined} />
           )}
         </div>
       )}
@@ -195,48 +196,35 @@ export function MockupSyncOverview(): JSX.Element {
   );
 }
 
-function ProgressStrip({ label, state, message, onDismiss }: {
+function ProgressRow({ label, state, message, onDismiss }: {
   label: string;
   state: 'triggering' | 'running' | 'done' | 'failed' | 'timeout';
   message: string;
   onDismiss?: () => void;
 }): JSX.Element {
-  const tone = state === 'done' ? 'success'
-             : state === 'failed' ? 'danger'
-             : state === 'timeout' ? 'warning'
-             : 'info';
-  const accent = tone === 'success' ? 'var(--der-success, #16a34a)'
-               : tone === 'danger' ? 'var(--der-danger, #dc2626)'
-               : tone === 'warning' ? 'var(--der-warning, #d97706)'
-               : 'var(--der-primary)';
+  const chipClass = state === 'done' ? 'ea-chip ea-chip--success'
+                  : state === 'failed' ? 'ea-chip ea-chip--danger'
+                  : state === 'timeout' ? 'ea-chip ea-chip--warning'
+                  : 'ea-chip ea-chip--info';
   const busy = state === 'triggering' || state === 'running';
+  const chipLabel = state === 'triggering' ? 'Starting'
+                  : state === 'running' ? 'Running'
+                  : state === 'done' ? 'Completed'
+                  : state === 'failed' ? 'Failed'
+                  : 'Still running';
   return (
     <div data-test={`progress-${label.toLowerCase().replace(' ', '-')}`}
          style={{
-           display: 'flex', alignItems: 'center', gap: 10,
-           padding: '6px 12px', borderRadius: 4,
-           background: 'var(--der-ink-50)',
-           borderLeft: `3px solid ${accent}`,
-           fontSize: 12,
+           display: 'flex', alignItems: 'center', gap: 8,
+           fontSize: 12, color: 'var(--der-ink-500)',
          }}>
-      {busy ? <Spinner /> : <span style={{ fontSize: 13, color: accent }} aria-hidden="true">●</span>}
-      <strong style={{ color: 'var(--der-ink-900)' }}>{label}:</strong>
-      <span style={{ flex: 1, color: 'var(--der-ink-700)' }}>{message}</span>
-      {busy && (
-        <div style={{
-          height: 3, background: 'var(--der-ink-100)', borderRadius: 2,
-          overflow: 'hidden', width: 140, position: 'relative',
-        }}>
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: `linear-gradient(90deg, transparent, ${accent}, transparent)`,
-            animation: 'der-prog 1.4s linear infinite',
-          }} />
-        </div>
-      )}
+      {busy && <Spinner />}
+      <span className={chipClass}>{chipLabel}</span>
+      <strong style={{ color: 'var(--der-ink-900)' }}>{label}</strong>
+      <span style={{ flex: 1 }}>{message}</span>
       {onDismiss && (
-        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                style={{ padding: '2px 8px', fontSize: 11 }}
+        <button type="button" className="ea-link-btn"
+                style={{ fontSize: 11 }}
                 onClick={onDismiss}>Dismiss</button>
       )}
     </div>

@@ -89,20 +89,20 @@ export function MockupDataQueues(): JSX.Element {
   const unsent = stateCounts.Waiting + stateCounts.Sending + stateCounts.Retrying;
   const needsAttention = stateCounts['Needs attention'] + stateCounts.Rejected;
 
-  let title: string;
+  let statusLabel: string;
   let tone: SyncStatusTone;
   if (!workerEnabled) {
-    title = 'Data push is paused'; tone = 'muted';
+    statusLabel = 'Paused'; tone = 'muted';
   } else if (!centralReachable) {
-    title = 'Central DHIS2 is unavailable'; tone = 'warning';
+    statusLabel = 'Central unavailable'; tone = 'warning';
   } else if (needsAttention > 0) {
-    title = `${needsAttention} record${needsAttention === 1 ? '' : 's'} need${needsAttention === 1 ? 's' : ''} attention`;
+    statusLabel = `${needsAttention} need${needsAttention === 1 ? 's' : ''} attention`;
     tone = 'danger';
   } else if (unsent > 0) {
-    title = `${unsent} record${unsent === 1 ? '' : 's'} waiting to be sent`;
+    statusLabel = `${unsent} waiting`;
     tone = 'info';
   } else {
-    title = 'All local data has been sent'; tone = 'success';
+    statusLabel = 'All sent'; tone = 'success';
   }
 
   const lastPush = (jobs ?? []).find((j) => j.jobName === 'JOURNAL_WORKER_DRAIN'
@@ -113,15 +113,18 @@ export function MockupDataQueues(): JSX.Element {
     <div className="ea-screen" data-test="sync-data">
       <SyncStatusBar
         tone={tone}
-        title={title}
-        details={
+        title="Data"
+        statusLabel={statusLabel}
+        subtitle={
           <>
             <span>Locally captured data · DER → Central</span>
             {lastPush && (
-              <span>
-                <strong style={{ color: 'var(--der-ink-900)' }}>Last successful push:</strong>{' '}
-                {fmtAgo(lastPush.startedAt)}
-              </span>
+              <>
+                <span>·</span>
+                <span>Last successful push{' '}
+                  <strong style={{ color: 'var(--der-ink-900)' }}>{fmtAgo(lastPush.startedAt)}</strong>
+                </span>
+              </>
             )}
           </>
         }
@@ -130,9 +133,8 @@ export function MockupDataQueues(): JSX.Element {
                   disabled={pushing || !centralReachable || !workerEnabled || unsent === 0}
                   data-test="data-push"
                   onClick={() => { push.trigger('JOURNAL_WORKER_DRAIN').catch(() => undefined); }}>
-            {pushing && <Spinner />} <span style={{ marginLeft: pushing ? 6 : 0 }}>
-              {push.state === 'running' ? 'Pushing…' : 'Push data'}
-            </span>
+            {pushing && <><Spinner /><span style={{ marginLeft: 6 }} /></>}
+            {push.state === 'running' ? 'Pushing…' : 'Push data'}
           </button>
         }
       />
@@ -140,21 +142,24 @@ export function MockupDataQueues(): JSX.Element {
       {push.state !== 'idle' && (
         <div data-test="data-progress"
              style={{
-               padding: '6px 12px', marginBottom: 10, borderRadius: 4,
-               background: 'var(--der-ink-50)',
-               borderLeft: `3px solid ${
-                 push.state === 'done' ? 'var(--der-success, #16a34a)'
-                   : push.state === 'failed' ? 'var(--der-danger, #dc2626)'
-                   : push.state === 'timeout' ? 'var(--der-warning, #d97706)'
-                   : 'var(--der-primary)'}`,
-               fontSize: 12, display: 'flex', alignItems: 'center', gap: 8,
+               display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
+               color: 'var(--der-ink-500)', marginBottom: 4,
              }}>
           {pushing && <Spinner />}
-          <strong>Push data:</strong>
+          <span className={'ea-chip ea-chip--'
+            + (push.state === 'done' ? 'success'
+              : push.state === 'failed' ? 'danger'
+              : push.state === 'timeout' ? 'warning' : 'info')}>
+            {push.state === 'triggering' ? 'Starting'
+              : push.state === 'running' ? 'Running'
+              : push.state === 'done' ? 'Completed'
+              : push.state === 'failed' ? 'Failed' : 'Still running'}
+          </span>
+          <strong style={{ color: 'var(--der-ink-900)' }}>Push data</strong>
           <span style={{ flex: 1 }}>{push.message}</span>
           {(push.state === 'done' || push.state === 'failed' || push.state === 'timeout') && (
-            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                    style={{ padding: '2px 8px', fontSize: 11 }}
+            <button type="button" className="ea-link-btn"
+                    style={{ fontSize: 11 }}
                     onClick={push.reset}>Dismiss</button>
           )}
         </div>

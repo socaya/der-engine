@@ -716,44 +716,47 @@ export function operatorStateTone(s: OperatorState): 'success' | 'warning' | 'da
 
 export type SyncStatusTone = 'success' | 'warning' | 'danger' | 'info' | 'muted';
 
-const TONE_ACCENT: Readonly<Record<SyncStatusTone, string>> = {
-  success: 'var(--der-success, #16a34a)',
-  warning: 'var(--der-warning, #d97706)',
-  danger: 'var(--der-danger, #dc2626)',
-  info: 'var(--der-primary)',
-  muted: 'var(--der-ink-400, #94a3b8)',
+const TONE_CHIP_CLASS: Readonly<Record<SyncStatusTone, string>> = {
+  success: 'ea-chip ea-chip--success',
+  warning: 'ea-chip ea-chip--warning',
+  danger: 'ea-chip ea-chip--danger',
+  info: 'ea-chip ea-chip--info',
+  muted: 'ea-chip ea-chip--neutral',
 };
 
-export function SyncStatusBar({ tone, title, details, actions }: {
+/** Quiet page header: title + optional status chip inline with the h1,
+ *  short subtitle (details) beneath, and action buttons right-aligned.
+ *  No card background, no accent stripes — matches the standard
+ *  `.ea-screen-header` pattern used by the rest of the admin UI. */
+export function SyncStatusBar({ tone, title, statusLabel, details, subtitle, actions }: {
   tone: SyncStatusTone;
   title: string;
+  statusLabel?: string;
   details?: ReactNode;
+  subtitle?: ReactNode;
   actions?: ReactNode;
 }): JSX.Element {
+  const sub = subtitle ?? details;
   return (
-    <section data-test="sync-status-bar"
-             style={{
-               display: 'flex', alignItems: 'center', gap: 12,
-               padding: '10px 14px', marginBottom: 12,
-               borderRadius: 6, background: 'white',
-               border: '1px solid var(--der-border-subtle)',
-               borderLeft: `3px solid ${TONE_ACCENT[tone]}`,
-               flexWrap: 'wrap',
-             }}>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--der-ink-900)' }}
-             data-test="sync-status-title">
-          {title}
-        </div>
-        {details && (
-          <div style={{ display: 'flex', gap: 14, marginTop: 3, fontSize: 11,
-                        color: 'var(--der-ink-500)', flexWrap: 'wrap' }}>
-            {details}
+    <header className="ea-screen-header" data-test="sync-status-header">
+      <div className="ea-screen-header-text">
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600,
+                      display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span data-test="sync-status-title">{title}</span>
+          {statusLabel && (
+            <span className={TONE_CHIP_CLASS[tone]}>{statusLabel}</span>
+          )}
+        </h1>
+        {sub && (
+          <div className="ea-screen-header-sub"
+               style={{ fontSize: 12, display: 'flex', gap: 14, flexWrap: 'wrap',
+                        alignItems: 'center' }}>
+            {sub}
           </div>
         )}
       </div>
-      {actions && <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>{actions}</div>}
-    </section>
+      {actions && <div className="ea-screen-header-right">{actions}</div>}
+    </header>
   );
 }
 
