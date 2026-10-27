@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
   KpiTile, Panel, SplitWithDrawer, fmtDate, fmtAgo, fmtBytes, useOuContext, OuPicker,
-  usePaged, TablePager, humaniseState,
+  usePaged, TablePager, humaniseState, entityTypeIcon, entityTypeLabel,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
@@ -238,10 +238,6 @@ export function MockupConflictList(): JSX.Element {
 
   return (
     <div className="ea-screen">
-      <Hero eyebrow="Office & Sync › Conflicts"
-            title="Conflicts"
-            sub="Journal operations that could not drain cleanly and need a reviewer decision." />
-
       <div className="ea-kpi-grid">
         <KpiTile tone={rows.length ? 'warning' : 'success'} icon={<IconAlert />}
                  label="Total conflicts" value={rows.length} />
@@ -259,17 +255,42 @@ export function MockupConflictList(): JSX.Element {
             ) : (
               <div className="ea-table-wrap">
                 <table className="ea-table ea-table--dense ea-table--selectable">
-                  <thead><tr><th>Operation</th><th>Entity</th><th>State</th><th>Attempts</th><th>Created</th></tr></thead>
+                  <thead><tr>
+                    <th style={{ width: 32 }}></th>
+                    <th>Entity</th>
+                    <th style={{ width: 130 }}>Direction</th>
+                    <th style={{ width: 140 }}>State</th>
+                    <th style={{ width: 70 }}>Attempts</th>
+                    <th style={{ width: 110 }}>Created</th>
+                  </tr></thead>
                   <tbody>
                     {paged.rows.map((r) => (
                       <tr key={r.operationId} className={sel?.operationId === r.operationId ? 'ea-row--active' : ''}
                           onClick={() => setSel(r)}
                           data-test={`ea13-row-${r.operationId}`}>
-                        <td className="ea-mono">{r.operationId.slice(0, 10)}…</td>
-                        <td>{r.entityType}<div className="ea-text-muted" style={{ fontSize: 11 }}>{r.entityRef}</div></td>
-                        <td><span className="ea-chip ea-chip--warning">{r.state}</span></td>
+                        <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                            title={entityTypeLabel(r.entityType)}>
+                          {entityTypeIcon(r.entityType)}
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
+                            {entityTypeLabel(r.entityType)}
+                          </div>
+                          <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
+                            {r.entityRef}
+                          </div>
+                        </td>
+                        <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                          <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>DER</span>
+                          <span style={{ color: 'var(--der-primary)', margin: '0 6px', fontWeight: 700 }}>→</span>
+                          <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>Central</span>
+                        </td>
+                        <td>
+                          <span className="ea-chip ea-chip--warning">{humaniseState(r.state)}</span>
+                        </td>
                         <td className="ea-mono">{r.attemptCount}</td>
-                        <td className="ea-mono">{fmtDate(r.createdAt)}</td>
+                        <td className="ea-text-muted" style={{ fontSize: 12 }}
+                            title={fmtDate(r.createdAt)}>{fmtAgo(r.createdAt)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -282,12 +303,23 @@ export function MockupConflictList(): JSX.Element {
         drawer={
           sel ? (
             <>
-              <h3 style={{ margin: 0, fontSize: 16 }}>Conflict details</h3>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+                <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
+                  {entityTypeIcon(sel.entityType)}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>{entityTypeLabel(sel.entityType)}</h3>
+                  <div className="ea-text-muted ea-mono" style={{ fontSize: 12, marginTop: 2 }}>
+                    {sel.entityRef}
+                  </div>
+                  <div style={{ fontSize: 11, marginTop: 4 }}>
+                    <span className="ea-mono">DER → Central</span>
+                  </div>
+                </div>
+              </div>
               <dl className="ea-def-list">
                 <div className="ea-def-row"><dt>Operation</dt><dd className="ea-mono">{sel.operationId}</dd></div>
-                <div className="ea-def-row"><dt>Entity</dt><dd>{sel.entityType}</dd></div>
-                <div className="ea-def-row"><dt>Entity ref</dt><dd className="ea-mono">{sel.entityRef}</dd></div>
-                <div className="ea-def-row"><dt>State</dt><dd><span className="ea-chip ea-chip--warning">{sel.state}</span></dd></div>
+                <div className="ea-def-row"><dt>State</dt><dd><span className="ea-chip ea-chip--warning">{humaniseState(sel.state)}</span></dd></div>
                 <div className="ea-def-row"><dt>Attempts</dt><dd className="ea-mono">{sel.attemptCount}</dd></div>
                 <div className="ea-def-row"><dt>Created</dt><dd className="ea-mono">{fmtDate(sel.createdAt)}</dd></div>
               </dl>
@@ -328,20 +360,20 @@ export function MockupWorkerHealth(): JSX.Element {
   const total = Object.values(w.backlog).reduce((a, b) => a + b, 0);
   return (
     <div className="ea-screen">
-      <Hero eyebrow="Office & Sync › Worker health"
-            title="Journal worker"
-            sub="Drain loop that moves operations from the journal to the central DHIS2."
-            actions={
-              <button type="button" className="ea-btn ea-btn--primary"
-                      disabled={busy}
-                      onClick={() => { toggle().catch(() => undefined); }}
-                      data-test="ea14-toggle">
-                {w.enabled ? 'Pause' : 'Resume'}
-              </button>
-            }
-            chip={<span className={'ea-chip ea-chip--' + (w.enabled ? 'success' : 'muted')} data-test="ea14-enabled">{w.enabled ? 'RUNNING' : 'PAUSED'}</span>} />
-
-      <div className="ea-kpi-grid">
+      <div className="ea-kpi-grid"
+           style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <KpiTile tone={w.enabled ? 'success' : 'warning'}
+                 icon={<IconDot />}
+                 label="Journal worker"
+                 value={<span data-test="ea14-enabled">{w.enabled ? 'Running' : 'Paused'}</span>}
+                 right={
+                   <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                           disabled={busy}
+                           onClick={() => { toggle().catch(() => undefined); }}
+                           data-test="ea14-toggle">
+                     {w.enabled ? 'Pause' : 'Resume'}
+                   </button>
+                 } />
         <KpiTile tone={total ? 'warning' : 'success'} icon={<IconList />}
                  label="Total backlog" value={total} />
         <KpiTile tone="default" icon={<IconClock />}
@@ -365,11 +397,9 @@ export function MockupWorkerHealth(): JSX.Element {
                           + (k === 'FAILED' || k === 'CENTRAL_REJECTED' ? 'danger'
                             : k === 'PENDING' || k === 'RETRYABLE' || k === 'CONFLICT_REVIEW' ? 'warning'
                             : k === 'CENTRAL_ACCEPTED' ? 'success'
-                            : 'info')}>
+                            : 'info')} title={k}>
                         {humaniseState(k)}
                       </span>
-                      <span className="ea-text-muted ea-mono" style={{ fontSize: 10, marginLeft: 6 }}
-                            title={k}>{k}</span>
                     </td>
                     <td className="ea-mono">{v as number}</td>
                   </tr>

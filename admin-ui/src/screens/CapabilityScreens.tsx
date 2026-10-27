@@ -1013,7 +1013,7 @@ interface SyncDirection {
   readonly rationale: string;
 }
 
-function TriggerPanel({ jobName, title, subtitle, direction, relatedLinks = [] }: {
+function TriggerPanel({ jobName, direction, relatedLinks = [] }: {
   jobName: string; title: string; subtitle: string;
   direction?: SyncDirection;
   relatedLinks?: ReadonlyArray<readonly [string, string, string]>;
@@ -1042,16 +1042,14 @@ function TriggerPanel({ jobName, title, subtitle, direction, relatedLinks = [] }
   const last = history?.[0];
   return (
     <div className="ea-screen">
-      <HeroHeader title={title} subtitle={subtitle}
-        actions={
-          <button type="button" className="ea-btn ea-btn--primary"
-                  disabled={state === 'running'}
-                  data-test="trigger-run"
-                  onClick={() => { run().catch(() => undefined); }}>
-            {state === 'running' ? 'Triggering…' : 'Trigger now'}
-          </button>
-        }
-      />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button type="button" className="ea-btn ea-btn--primary"
+                disabled={state === 'running'}
+                data-test="trigger-run"
+                onClick={() => { run().catch(() => undefined); }}>
+          {state === 'running' ? 'Triggering…' : 'Trigger now'}
+        </button>
+      </div>
       {direction && (
         <section data-test="trigger-direction"
                  style={{
@@ -1222,16 +1220,13 @@ export function CapSyncSchedule(): JSX.Element {
   const cron = Object.entries(s.cron ?? {});
   return (
     <div className="ea-screen" data-test="cap-schedule">
-      <HeroHeader title="Sync schedule"
-        subtitle="Cron overrides for background sync workers."
-        actions={
-          <button type="button" className="ea-btn ea-btn--primary"
-                  disabled={status === 'saving'}
-                  onClick={() => { save().catch(() => undefined); }}>
-            {status === 'saving' ? 'Saving…' : 'Save schedule'}
-          </button>
-        }
-      />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button type="button" className="ea-btn ea-btn--primary"
+                disabled={status === 'saving'}
+                onClick={() => { save().catch(() => undefined); }}>
+          {status === 'saving' ? 'Saving…' : 'Save schedule'}
+        </button>
+      </div>
       {status === 'saved' && <p className="ea-saved">Schedule saved.</p>}
       {status === 'error' && err && <ErrorBlock title="Save failed" testId="err-save-failed">{err}</ErrorBlock>}
       <section className="ea-card ea-form-card">

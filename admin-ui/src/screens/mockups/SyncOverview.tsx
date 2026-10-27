@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { Panel, MiniBarChart, Dot, fmtDur, fmtAgo, fmtBytes, humaniseJob, humaniseState } from './shared';
+import { Panel, MiniBarChart, Dot, fmtDur, fmtAgo, fmtBytes, humaniseState, syncActivityShape } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -87,23 +87,6 @@ export function MockupSyncOverview(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="sync-hub">
-      <section className="ea-dash-hero">
-        <div className="ea-dash-hero-left">
-          <h1 className="ea-dash-hero-title">Sync</h1>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Link to="/sync/jobs/trigger" className="ea-btn ea-btn--ghost"
-                data-test="sync-trigger">
-            Trigger a job
-          </Link>
-          <button type="button" className="ea-btn ea-btn--primary" disabled={busy}
-                  data-test="sync-toggle"
-                  onClick={() => { toggle().catch(() => undefined); }}>
-            {busy ? '…' : w.enabled ? 'Pause sync' : 'Resume sync'}
-          </button>
-        </div>
-      </section>
-
       <div className="ea-stat-strip">
         <Stat label="Worker" tone={w.enabled ? 'success' : 'muted'}
               value={w.enabled ? 'running' : 'paused'} />
@@ -162,7 +145,20 @@ export function MockupSyncOverview(): JSX.Element {
         </Panel>
       </div>
 
-      <Panel title="Journal by data type">
+      <Panel title="Journal by data type"
+             action={
+               <>
+                 <Link to="/sync/jobs/trigger" className="ea-btn ea-btn--ghost ea-btn--sm"
+                       data-test="sync-trigger">
+                   Trigger a job
+                 </Link>
+                 <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" disabled={busy}
+                         data-test="sync-toggle"
+                         onClick={() => { toggle().catch(() => undefined); }}>
+                   {busy ? '…' : w.enabled ? 'Pause sync' : 'Resume sync'}
+                 </button>
+               </>
+             }>
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense">
             <thead><tr>
@@ -218,27 +214,58 @@ export function MockupSyncOverview(): JSX.Element {
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense">
             <thead><tr>
-              <th>Started</th><th>Job</th><th>Outcome</th><th>Duration</th>
+              <th style={{ width: 32 }}></th>
+              <th>What was synced</th>
+              <th style={{ width: 130 }}>Direction</th>
+              <th style={{ width: 90 }}>When</th>
+              <th style={{ width: 70 }}>Duration</th>
+              <th style={{ width: 110 }}>Status</th>
             </tr></thead>
             <tbody>
-              {(jobs ?? []).slice(0, 10).map((j) => (
-                <tr key={j.runId}>
-                  <td className="ea-mono">{fmtAgo(j.startedAt)}</td>
-                  <td>
-                    {humaniseJob(j.jobName)}
-                    <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}
-                         title={j.jobName}>{j.jobName}</div>
-                  </td>
-                  <td>
-                    <span className={'ea-chip ea-chip--' +
-                        (j.outcome === 'SUCCEEDED' ? 'success'
-                        : j.outcome === 'FAILED' ? 'danger' : 'info')}>
-                      {humaniseState(j.outcome)}
-                    </span>
-                  </td>
-                  <td>{fmtDur(j.durationMs)}</td>
-                </tr>
-              ))}
+              {(jobs ?? []).slice(0, 10).map((j) => {
+                const shape = syncActivityShape(j.jobName, j.detail);
+                return (
+                  <tr key={j.runId}>
+                    <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                        title={shape.category}>
+                      {shape.icon}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
+                        {shape.category}
+                      </div>
+                      <div className="ea-text-muted" style={{ fontSize: 11, marginTop: 1 }}>
+                        {shape.sentence}
+                      </div>
+                    </td>
+                    <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                      {shape.direction === 'local' ? (
+                        <span className="ea-text-muted">DER-local</span>
+                      ) : (
+                        <>
+                          <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>
+                            {shape.directionLabel.split(' → ')[0]}
+                          </span>
+                          <span style={{ color: 'var(--der-primary)', margin: '0 6px', fontWeight: 700 }}>→</span>
+                          <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>
+                            {shape.directionLabel.split(' → ')[1]}
+                          </span>
+                        </>
+                      )}
+                    </td>
+                    <td className="ea-text-muted" style={{ fontSize: 12 }}
+                        title={j.startedAt}>{fmtAgo(j.startedAt)}</td>
+                    <td className="ea-mono">{fmtDur(j.durationMs)}</td>
+                    <td>
+                      <span className={'ea-chip ea-chip--' +
+                          (j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS' ? 'success'
+                          : j.outcome === 'FAILED' || j.outcome === 'FAILURE' ? 'danger' : 'info')}>
+                        {humaniseState(j.outcome)}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
