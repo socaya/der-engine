@@ -4,7 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager, describeCron, Panel, humaniseState, SyncStatusBar, Spinner, useTriggerAndWatch } from './mockups/shared';
+import { usePaged, TablePager, describeCron, Panel, humaniseState, SyncStatusBar, Spinner, useTriggerAndWatch, SplitWithDrawer, JsonViewer, fmtAgo } from './mockups/shared';
 
 /**
  * CapabilityScreens — the 29 nav items that previously showed the
@@ -1030,6 +1030,7 @@ export function CapDataQueues(): JSX.Element {
 export function CapMetadataSync(): JSX.Element {
   const [history, setHistory] = useState<edgeApi.JobRun[] | null>(null);
   const [sysInfo, setSysInfo] = useState<edgeApi.SystemInfo | null>(null);
+  const [sel, setSel] = useState<edgeApi.JobRun | null>(null);
   const pull = useTriggerAndWatch();
 
   async function reload(): Promise<void> {
@@ -1148,34 +1149,110 @@ export function CapMetadataSync(): JSX.Element {
         </section>
       )}
 
-      <Panel title="Recent pulls">
-        {!history || history.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>Never run on this edge.</p>
-        ) : (
-          <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
-              <thead><tr>
-                <th>When</th><th>Result</th><th>Duration</th><th>Triggered by</th>
-              </tr></thead>
-              <tbody>
-                {history.map((h) => {
-                  const ok = h.outcome === 'SUCCEEDED' || h.outcome === 'SUCCESS';
-                  return (
-                    <tr key={h.runId}>
-                      <td>{new Date(h.startedAt).toLocaleString()}</td>
-                      <td><span className={'ea-chip ea-chip--' + (ok ? 'success' : 'danger')}>
-                        {ok ? 'Succeeded' : 'Failed'}
-                      </span></td>
-                      <td>{h.durationMs != null ? fmtDur(h.durationMs) : '—'}</td>
-                      <td>{humaniseState(h.triggeredBy)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
+      <SplitWithDrawer
+        drawerOpen={!!sel}
+        main={
+          <Panel title="Recent pulls">
+            {!history || history.length === 0 ? (
+              <p className="ea-text-muted" style={{ margin: 0 }}>Never run on this edge.</p>
+            ) : (
+              <div className="ea-table-wrap">
+                <table className="ea-table ea-table--dense ea-table--selectable">
+                  <thead><tr>
+                    <th>When</th><th>Result</th><th>Duration</th><th>Triggered by</th>
+                    <th style={{ width: 70 }}>Action</th>
+                  </tr></thead>
+                  <tbody>
+                    {history.map((h) => {
+                      const ok = h.outcome === 'SUCCEEDED' || h.outcome === 'SUCCESS';
+                      return (
+                        <tr key={h.runId}
+                            className={sel?.runId === h.runId ? 'ea-row--active' : ''}
+                            onClick={() => setSel(h)}
+                            data-test={`metadata-row-${h.runId}`}>
+                          <td>{new Date(h.startedAt).toLocaleString()}</td>
+                          <td><span className={'ea-chip ea-chip--' + (ok ? 'success' : 'danger')}>
+                            {ok ? 'Succeeded' : 'Failed'}
+                          </span></td>
+                          <td>{h.durationMs != null ? fmtDur(h.durationMs) : '—'}</td>
+                          <td>{humaniseState(h.triggeredBy)}</td>
+                          <td>
+                            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                                    onClick={(e) => { e.stopPropagation(); setSel(h); }}>
+                              Open
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
+        }
+        drawer={
+          sel ? (() => {
+            const ok = sel.outcome === 'SUCCEEDED' || sel.outcome === 'SUCCESS';
+            let parsedDetail: unknown = null;
+            if (sel.detail) {
+              try { parsedDetail = JSON.parse(sel.detail); } catch { parsedDetail = sel.detail; }
+            }
+            return (
+              <>
+                <div style={{ marginBottom: 10 }}>
+                  <h3 style={{ margin: 0, fontSize: 16, display: 'flex',
+                                alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    Metadata pull
+                    <span className={'ea-chip ea-chip--' + (ok ? 'success' : 'danger')}>
+                      {ok ? 'Succeeded' : 'Failed'}
+                    </span>
+                  </h3>
+                  <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 4 }}>
+                    {new Date(sel.startedAt).toLocaleString()} · {fmtAgo(sel.startedAt)}
+                  </div>
+                </div>
+                <dl className="ea-def-list">
+                  <div className="ea-def-row"><dt>Run ID</dt>
+                    <dd className="ea-mono">{sel.runId}</dd></div>
+                  <div className="ea-def-row"><dt>Started</dt>
+                    <dd className="ea-mono">{new Date(sel.startedAt).toLocaleString()}</dd></div>
+                  <div className="ea-def-row"><dt>Finished</dt>
+                    <dd className="ea-mono">{sel.finishedAt
+                      ? new Date(sel.finishedAt).toLocaleString() : '—'}</dd></div>
+                  <div className="ea-def-row"><dt>Duration</dt>
+                    <dd>{sel.durationMs != null ? fmtDur(sel.durationMs) : '—'}</dd></div>
+                  <div className="ea-def-row"><dt>Triggered by</dt>
+                    <dd>{humaniseState(sel.triggeredBy)}</dd></div>
+                </dl>
+
+                <h4 style={{ margin: '14px 0 6px', fontSize: 11, fontWeight: 600,
+                             letterSpacing: '0.02em', textTransform: 'uppercase',
+                             color: 'var(--der-ink-400)' }}>
+                  Metadata payload
+                </h4>
+                {parsedDetail && typeof parsedDetail === 'object' && Object.keys(parsedDetail as Record<string, unknown>).length > 0 ? (
+                  <JsonViewer value={parsedDetail}
+                              label={`Pull ${sel.runId}`}
+                              maxDepth={3} />
+                ) : sel.detail ? (
+                  <JsonViewer value={{ detail: sel.detail }}
+                              label={`Pull ${sel.runId}`}
+                              maxDepth={2} />
+                ) : (
+                  <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
+                    This pull run did not record a payload summary.
+                  </p>
+                )}
+              </>
+            );
+          })() : (
+            <p className="ea-text-muted" style={{ margin: 0 }}>
+              Select a pull run to see what metadata was received.
+            </p>
+          )
+        }
+      />
     </div>
   );
 }
@@ -1438,38 +1515,50 @@ export function CapWorkflowRuns(): JSX.Element {
   }, []);
   if (err && !wfs) return <ErrorBlock title="Runs load failed" testId="err-runs-load-failed">{err}</ErrorBlock>;
   if (!wfs) return <LoadingBlock testId="loading" />;
+  const completed = runs.filter((r) => r.state === 'COMPLETED').length;
+  const inFlight = runs.filter((r) => r.state !== 'COMPLETED' && r.state !== 'REJECTED').length;
   return (
     <div className="ea-screen" data-test="cap-wf-runs">
-      <HeroHeader title="Runs & execution"
-        subtitle="Workflow runs across every workflow definition on this edge." />
-      <div className="ea-stat-strip">
-        <Stat label="Workflows" value={wfs.length} />
-        <Stat label="Runs" value={runs.length} />
-      </div>
+      <SyncStatusBar
+        tone={runs.length === 0 ? 'muted' : inFlight > 0 ? 'info' : 'success'}
+        title="Workflow runs"
+        statusLabel={runs.length === 0 ? 'None yet'
+          : inFlight > 0 ? `${inFlight} in flight`
+          : `${runs.length} recorded`}
+        subtitle={
+          <>
+            <span>Workflow runs across every workflow definition on this edge.</span>
+            <span>·</span>
+            <span>Workflows <strong style={{ color: 'var(--der-ink-900)' }}>{wfs.length}</strong></span>
+            {completed > 0 && (<><span>·</span><span>Completed <strong style={{ color: 'var(--der-ink-900)' }}>{completed}</strong></span></>)}
+          </>
+        }
+      />
       {runs.length === 0 ? (
         <EmptyBlock title="No runs recorded" testId="empty-no-runs-recorded">
           Operators have not started any workflow yet, or no workflow is enabled.
         </EmptyBlock>
       ) : (
-        <section className="ea-card">
+        <Panel title="Runs">
           <div className="ea-table-wrap">
-            <table className="ea-table"><thead><tr>
-              <th>Workflow</th><th>State</th><th>Business key</th><th>Created</th>
+            <table className="ea-table ea-table--dense"><thead><tr>
+              <th>Workflow</th><th>Status</th><th>Business key</th><th>Started</th>
             </tr></thead><tbody>
               {runs.map((r) => (
                 <tr key={r.runId}>
-                  <td>{r.workflowName}</td>
+                  <td style={{ fontWeight: 500 }}>{r.workflowName}</td>
                   <td><span className={'ea-chip ea-chip--' +
                       (r.state === 'COMPLETED' ? 'success'
                         : r.state === 'REJECTED' ? 'danger'
-                          : 'info')}>{r.state}</span></td>
+                          : 'info')} title={r.state}>{humaniseState(r.state)}</span></td>
                   <td className="ea-mono">{r.businessKey}</td>
-                  <td className="ea-mono">{r.createdAt}</td>
+                  <td className="ea-text-muted" style={{ fontSize: 12 }}
+                      title={r.createdAt}>{new Date(r.createdAt).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody></table>
           </div>
-        </section>
+        </Panel>
       )}
     </div>
   );
@@ -1487,34 +1576,44 @@ export function CapStepAssignments(): JSX.Element {
   const totalSteps = wfs.reduce((a, w) => a + (w.steps?.length ?? 0), 0);
   return (
     <div className="ea-screen" data-test="cap-assignments">
-      <HeroHeader title="Step assignments"
-        subtitle="Which role is responsible for each workflow step." />
-      <div className="ea-stat-strip">
-        <Stat label="Workflows" value={wfs.length} />
-        <Stat label="Steps" value={totalSteps} />
-      </div>
+      <SyncStatusBar
+        tone={totalSteps === 0 ? 'muted' : 'info'}
+        title="Step assignments"
+        statusLabel={totalSteps === 0 ? 'None' : `${totalSteps} step${totalSteps === 1 ? '' : 's'}`}
+        subtitle={
+          <>
+            <span>Which role is responsible for each workflow step.</span>
+            <span>·</span>
+            <span>Workflows <strong style={{ color: 'var(--der-ink-900)' }}>{wfs.length}</strong></span>
+          </>
+        }
+      />
       {wfs.length === 0 ? (
         <EmptyBlock title="No workflows defined" testId="empty-no-workflows-defined">
           Define a workflow first to see step assignments.
         </EmptyBlock>
       ) : (
-        <section className="ea-card">
+        <Panel title="Assignments">
           <div className="ea-table-wrap">
-            <table className="ea-table"><thead><tr>
-              <th>Workflow</th><th>Step #</th><th>Step</th><th>Owner role</th><th>Kind</th>
+            <table className="ea-table ea-table--dense"><thead><tr>
+              <th>Workflow</th>
+              <th style={{ width: 60 }}>Step</th>
+              <th>Name</th>
+              <th>Owner role</th>
+              <th>Kind</th>
             </tr></thead><tbody>
               {wfs.flatMap((w) => (w.steps ?? []).map((s) => (
                 <tr key={w.workflowId + '-' + s.ordinal}>
-                  <td>{w.displayName}</td>
+                  <td style={{ fontWeight: 500 }}>{w.displayName}</td>
                   <td className="ea-mono">{s.ordinal}</td>
                   <td>{s.displayName}</td>
-                  <td><span className="ea-chip ea-chip--info">{s.ownerRole}</span></td>
-                  <td><span className="ea-chip ea-chip--neutral">{s.stepKind}</span></td>
+                  <td><span className="ea-chip ea-chip--info" title={s.ownerRole}>{humaniseState(s.ownerRole)}</span></td>
+                  <td><span className="ea-chip ea-chip--neutral" title={s.stepKind}>{humaniseState(s.stepKind)}</span></td>
                 </tr>
               )))}
             </tbody></table>
           </div>
-        </section>
+        </Panel>
       )}
     </div>
   );
@@ -1529,36 +1628,51 @@ export function CapReferralHistory(): JSX.Element {
   }, []);
   if (err) return <ErrorBlock title="Referral load failed" testId="err-referral-load-failed">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
+  const accepted = rows.filter((r) => r.status === 'ACCEPTED').length;
+  const dismissed = rows.filter((r) => r.status === 'DISMISSED').length;
+  const pending = rows.filter((r) => r.status === 'PENDING').length;
   return (
     <div className="ea-screen" data-test="cap-ref-history">
-      <HeroHeader title="Referral history" subtitle="Every referral this edge has received." />
-      <div className="ea-stat-strip">
-        <Stat label="Total" value={rows.length} />
-        <Stat label="Accepted" value={rows.filter((r) => r.status === 'ACCEPTED').length} tone="success" />
-        <Stat label="Dismissed" value={rows.filter((r) => r.status === 'DISMISSED').length} tone="muted" />
-        <Stat label="Pending" value={rows.filter((r) => r.status === 'PENDING').length} tone="info" />
-      </div>
+      <SyncStatusBar
+        tone={rows.length === 0 ? 'muted' : 'info'}
+        title="Referral history"
+        statusLabel={`${rows.length} total`}
+        subtitle={
+          <>
+            <span>Every referral this edge has received.</span>
+            <span>·</span>
+            <span>Accepted <strong style={{ color: 'var(--der-ink-900)' }}>{accepted}</strong></span>
+            <span>·</span>
+            <span>Dismissed <strong style={{ color: 'var(--der-ink-900)' }}>{dismissed}</strong></span>
+            <span>·</span>
+            <span>Pending <strong style={{ color: 'var(--der-ink-900)' }}>{pending}</strong></span>
+          </>
+        }
+      />
       {rows.length === 0 ? (
         <EmptyBlock title="No referrals yet" testId="empty-no-referrals-yet">Nothing has been referred to this edge.</EmptyBlock>
       ) : (
-        <section className="ea-card">
+        <Panel title="Referrals">
           <div className="ea-table-wrap">
-            <table className="ea-table"><thead><tr>
-              <th>Discovered</th><th>Kind</th><th>Source ref</th><th>Status</th>
+            <table className="ea-table ea-table--dense"><thead><tr>
+              <th>Received</th><th>Kind</th><th>Source ref</th><th>Status</th>
             </tr></thead><tbody>
               {rows.map((r) => (
                 <tr key={r.inboxId}>
-                  <td className="ea-mono">{r.discoveredAt}</td>
-                  <td><span className="ea-chip ea-chip--info">{r.kind}</span></td>
+                  <td className="ea-text-muted" style={{ fontSize: 12 }}
+                      title={r.discoveredAt}>{new Date(r.discoveredAt).toLocaleString()}</td>
+                  <td><span className="ea-chip ea-chip--info" title={r.kind}>{humaniseState(r.kind)}</span></td>
                   <td className="ea-mono">{r.sourceRef}</td>
                   <td><span className={'ea-chip ea-chip--' +
                       (r.status === 'ACCEPTED' ? 'success'
-                        : r.status === 'DISMISSED' ? 'muted' : 'info')}>{r.status}</span></td>
+                        : r.status === 'DISMISSED' ? 'neutral' : 'warning')} title={r.status}>
+                    {humaniseState(r.status)}
+                  </span></td>
                 </tr>
               ))}
             </tbody></table>
           </div>
-        </section>
+        </Panel>
       )}
     </div>
   );

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock, OfflineBanner } from '../components/ScreenStates';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { SyncStatusBar, Panel } from './mockups/shared';
 import { HealthCards } from '../components/HealthCards';
 import { HeroHeader } from '../components/HeroHeader';
 import { SystemComponents } from '../components/SystemComponents';
@@ -1382,53 +1383,77 @@ export function EACaptureWorkflowList({ api = edgeApi }:
 
   if (error) return <ErrorBlock title="Workflow catalogue error" testId="cwf01-error">{error}</ErrorBlock>;
   if (workflows === null) return <LoadingBlock testId="cwf01-loading" />;
+  const enabled = workflows.filter((w) => w.enabled).length;
   return (
     <div className="ea-screen">
-      <h1 data-test="cwf01-heading">Capture workflows</h1>
-      <p>
-        Compose multi-step capture flows over your DHIS2 datasets.
-        Slice A supports dataSet bindings only; event / tracker bindings
-        land in <code>der-1.3.0</code>.
-      </p>
-      <Link to="/workflows/new" data-test="cwf01-new">New workflow</Link>
+      <SyncStatusBar
+        tone={workflows.length === 0 ? 'muted' : enabled > 0 ? 'success' : 'warning'}
+        title="Workflows"
+        statusLabel={workflows.length === 0 ? 'None defined'
+          : `${enabled} of ${workflows.length} enabled`}
+        subtitle={
+          <span>
+            Multi-step capture flows over your DHIS2 datasets. Each
+            workflow composes forms + review gates for an operator to
+            follow end-to-end.
+          </span>
+        }
+        actions={
+          <Link to="/workflows/new" className="ea-btn ea-btn--primary ea-btn--sm"
+                data-test="cwf01-new">
+            New workflow
+          </Link>
+        }
+      />
       {workflows.length === 0 ? (
         <EmptyBlock title="No workflows yet" testId="cwf01-empty">
           Click <strong>New workflow</strong> to configure the first one.
         </EmptyBlock>
       ) : (
-        <table className="ea-workflows">
-          <thead>
-            <tr>
-              <th>Name</th><th>Binding</th><th>Version</th>
-              <th>Enabled</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {workflows.map((w) => (
-              <tr key={w.workflowId} data-test={`cwf01-row-${w.workflowId}`}>
-                <td>
-                  <Link to={`/workflows/${w.workflowId}`}
-                    data-test={`cwf01-open-${w.workflowId}`}>
-                    {w.displayName}
-                  </Link>
-                </td>
-                <td>{w.boundMetadataKind}:{w.boundMetadataId}</td>
-                <td>v{w.version}</td>
-                <td data-test={`cwf01-enabled-${w.workflowId}`}>
-                  {w.enabled ? 'yes' : 'no'}
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    data-test={`cwf01-delete-${w.workflowId}`}
-                    onClick={() => { remove(w.workflowId).catch(() => undefined); }}>
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Panel title="Catalogue">
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense ea-table--selectable">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Binding</th>
+                  <th style={{ width: 70 }}>Version</th>
+                  <th style={{ width: 90 }}>Enabled</th>
+                  <th style={{ width: 90 }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workflows.map((w) => (
+                  <tr key={w.workflowId} data-test={`cwf01-row-${w.workflowId}`}>
+                    <td>
+                      <Link to={`/workflows/${w.workflowId}`}
+                            data-test={`cwf01-open-${w.workflowId}`}
+                            style={{ fontWeight: 500 }}>
+                        {w.displayName}
+                      </Link>
+                    </td>
+                    <td className="ea-mono" style={{ fontSize: 12 }}>
+                      {w.boundMetadataKind}:{w.boundMetadataId}
+                    </td>
+                    <td className="ea-mono">v{w.version}</td>
+                    <td data-test={`cwf01-enabled-${w.workflowId}`}>
+                      <span className={'ea-chip ea-chip--' + (w.enabled ? 'success' : 'neutral')}>
+                        {w.enabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </td>
+                    <td>
+                      <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
+                              data-test={`cwf01-delete-${w.workflowId}`}
+                              onClick={() => { remove(w.workflowId).catch(() => undefined); }}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
       )}
     </div>
   );

@@ -660,31 +660,58 @@ export function MockupApprovalQueue(): JSX.Element {
 
   return (
     <div className="ea-screen">
-      <Hero eyebrow="Workflows & Approvals"
-            title="Approval queue"
-            sub="Captured work awaiting an approver's decision." />
-      <div className="ea-kpi-grid">
-        <KpiTile tone={rows.length ? 'warning' : 'success'} icon={<IconList />}
-                 label="Pending approvals" value={rows.length} />
-      </div>
+      <SyncStatusBar
+        tone={rows.length === 0 ? 'success' : 'warning'}
+        title="Approvals"
+        statusLabel={rows.length === 0 ? 'All clear' : `${rows.length} pending`}
+        subtitle={<span>Captured records waiting for an approver's decision before they sync.</span>}
+      />
       <SplitWithDrawer
         drawerOpen={!!sel}
         main={
-          <Panel title={`${rows.length} pending`}>
+          <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} pending`}>
             {rows.length === 0 ? (
-              <p className="ea-text-muted" style={{ margin: 0 }}>Nothing to approve.</p>
+              <p className="ea-text-muted" style={{ margin: 0 }}>
+                No records are waiting for an approval decision.
+              </p>
             ) : (
               <div className="ea-table-wrap">
                 <table className="ea-table ea-table--dense ea-table--selectable">
-                  <thead><tr><th>Operation</th><th>Entity</th><th>Submitted by</th><th>Submitted</th></tr></thead>
+                  <thead><tr>
+                    <th style={{ width: 32 }}></th>
+                    <th>Record</th>
+                    <th>Submitted by</th>
+                    <th style={{ width: 110 }}>Submitted</th>
+                    <th style={{ width: 90 }}>Action</th>
+                  </tr></thead>
                   <tbody>
                     {rows.map((r) => (
-                      <tr key={r.operationId} className={sel?.operationId === r.operationId ? 'ea-row--active' : ''}
+                      <tr key={r.operationId}
+                          className={sel?.operationId === r.operationId ? 'ea-row--active' : ''}
                           onClick={() => setSel(r)}>
-                        <td className="ea-mono">{r.operationId.slice(0, 10)}…</td>
-                        <td>{r.entityType}<div className="ea-text-muted" style={{ fontSize: 11 }}>{r.entityRef}</div></td>
+                        <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                            title={entityTypeLabel(r.entityType)}>
+                          {entityTypeIcon(r.entityType)}
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
+                            {entityTypeLabel(r.entityType)}
+                          </div>
+                          <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
+                            {r.entityRef}
+                          </div>
+                        </td>
                         <td>{r.submittedBy ?? '—'}</td>
-                        <td className="ea-mono">{fmtAgo(r.createdAt)}</td>
+                        <td className="ea-text-muted" style={{ fontSize: 12 }}
+                            title={r.createdAt ? fmtDate(r.createdAt) : ''}>
+                          {r.createdAt ? fmtAgo(r.createdAt) : '—'}
+                        </td>
+                        <td>
+                          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                                  onClick={(e) => { e.stopPropagation(); setSel(r); }}>
+                            Review
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -696,19 +723,32 @@ export function MockupApprovalQueue(): JSX.Element {
         drawer={
           sel ? (
             <>
-              <h3 style={{ margin: 0, fontSize: 16 }}>Review</h3>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
+                  {entityTypeIcon(sel.entityType)}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>{entityTypeLabel(sel.entityType)}</h3>
+                  <div className="ea-text-muted ea-mono" style={{ fontSize: 12, marginTop: 2 }}>
+                    {sel.entityRef}
+                  </div>
+                </div>
+              </div>
               <dl className="ea-def-list">
-                <div className="ea-def-row"><dt>Operation</dt><dd className="ea-mono">{sel.operationId}</dd></div>
-                <div className="ea-def-row"><dt>Entity</dt><dd>{sel.entityType}</dd></div>
-                <div className="ea-def-row"><dt>Entity ref</dt><dd className="ea-mono">{sel.entityRef}</dd></div>
                 <div className="ea-def-row"><dt>Submitted by</dt><dd>{sel.submittedBy ?? '—'}</dd></div>
-                <div className="ea-def-row"><dt>Submitted</dt><dd className="ea-mono">{sel.createdAt ? fmtDate(sel.createdAt) : '—'}</dd></div>
+                <div className="ea-def-row"><dt>Submitted</dt>
+                  <dd className="ea-mono">{sel.createdAt ? fmtDate(sel.createdAt) : '—'}</dd></div>
+                {sel.createdAt && <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.createdAt)}</dd></div>}
+                <div className="ea-def-row"><dt>Operation ID</dt>
+                  <dd className="ea-mono" style={{ fontSize: 10 }}>{sel.operationId}</dd></div>
               </dl>
               <label className="ea-field">
                 <span className="ea-field-label">Reject reason (optional)</span>
-                <input className="ea-input" value={reason} onChange={(e) => setReason(e.target.value)} />
+                <input className="ea-input" value={reason}
+                       onChange={(e) => setReason(e.target.value)} />
               </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10,
+                            paddingTop: 10, borderTop: '1px solid var(--der-border-subtle)' }}>
                 <button type="button" className="ea-btn ea-btn--primary"
                         onClick={() => { approve().catch(() => undefined); }}>Approve</button>
                 <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger"
@@ -716,7 +756,7 @@ export function MockupApprovalQueue(): JSX.Element {
               </div>
             </>
           ) : (
-            <p className="ea-text-muted" style={{ margin: 0 }}>Select an item to review.</p>
+            <p className="ea-text-muted" style={{ margin: 0 }}>Select a record to review.</p>
           )
         }
       />
@@ -747,35 +787,69 @@ export function MockupReferralInbox(): JSX.Element {
   if (!rows) return <LoadingBlock testId="loading" />;
 
   const pending = rows.filter((r) => r.status === 'PENDING').length;
+  const accepted = rows.filter((r) => r.status === 'ACCEPTED').length;
   return (
     <div className="ea-screen">
-      <Hero eyebrow="Workflows & Approvals"
-            title="Referral inbox"
-            sub="Referrals from the central hub awaiting local handling." />
-      <div className="ea-kpi-grid">
-        <KpiTile tone={pending ? 'warning' : 'success'} icon={<IconList />}
-                 label="Pending" value={pending} />
-        <KpiTile tone="info" icon={<IconMail />} label="Total" value={rows.length} />
-      </div>
+      <SyncStatusBar
+        tone={pending > 0 ? 'warning' : rows.length === 0 ? 'muted' : 'success'}
+        title="Referral inbox"
+        statusLabel={pending > 0 ? `${pending} pending` : rows.length === 0 ? 'Inbox empty' : 'All handled'}
+        subtitle={
+          <>
+            <span>Referrals from the central hub awaiting local handling.</span>
+            <span>·</span>
+            <span>Total <strong style={{ color: 'var(--der-ink-900)' }}>{rows.length}</strong></span>
+            {accepted > 0 && (<><span>·</span><span>Accepted <strong style={{ color: 'var(--der-ink-900)' }}>{accepted}</strong></span></>)}
+          </>
+        }
+      />
       <SplitWithDrawer
         drawerOpen={!!sel}
         main={
-          <Panel title={`${rows.length} entries`}>
+          <Panel title={rows.length === 0 ? 'Inbox empty' : `${rows.length} referral${rows.length === 1 ? '' : 's'}`}>
             {rows.length === 0 ? (
-              <p className="ea-text-muted" style={{ margin: 0 }}>Inbox empty.</p>
+              <p className="ea-text-muted" style={{ margin: 0 }}>
+                No referrals have been received by this edge yet.
+              </p>
             ) : (
               <div className="ea-table-wrap">
                 <table className="ea-table ea-table--dense ea-table--selectable">
-                  <thead><tr><th>Discovered</th><th>Kind</th><th>Source ref</th><th>Status</th></tr></thead>
+                  <thead><tr>
+                    <th style={{ width: 32 }}></th>
+                    <th>Referral</th>
+                    <th style={{ width: 110 }}>Received</th>
+                    <th style={{ width: 110 }}>Status</th>
+                    <th style={{ width: 90 }}>Action</th>
+                  </tr></thead>
                   <tbody>
                     {rows.map((r) => (
                       <tr key={r.inboxId} className={sel?.inboxId === r.inboxId ? 'ea-row--active' : ''}
                           onClick={() => setSel(r)}>
-                        <td className="ea-mono">{fmtDate(r.discoveredAt)}</td>
-                        <td>{r.kind}</td>
-                        <td className="ea-mono">{r.sourceRef}</td>
+                        <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                            title={entityTypeLabel(r.kind)}>
+                          {entityTypeIcon(r.kind)}
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
+                            {entityTypeLabel(r.kind)}
+                          </div>
+                          <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
+                            {r.sourceRef}
+                          </div>
+                        </td>
+                        <td className="ea-text-muted" style={{ fontSize: 12 }}
+                            title={fmtDate(r.discoveredAt)}>{fmtAgo(r.discoveredAt)}</td>
                         <td><span className={'ea-chip ea-chip--' +
-                            (r.status === 'ACCEPTED' ? 'success' : r.status === 'DISMISSED' ? 'neutral' : 'warning')}>{r.status}</span></td>
+                            (r.status === 'ACCEPTED' ? 'success'
+                              : r.status === 'DISMISSED' ? 'neutral' : 'warning')} title={r.status}>
+                          {humaniseState(r.status)}
+                        </span></td>
+                        <td>
+                          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                                  onClick={(e) => { e.stopPropagation(); setSel(r); }}>
+                            {r.status === 'PENDING' ? 'Review' : 'Open'}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -787,25 +861,42 @@ export function MockupReferralInbox(): JSX.Element {
         drawer={
           sel ? (
             <>
-              <h3 style={{ margin: 0, fontSize: 16 }}>Entry details</h3>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
+                  {entityTypeIcon(sel.kind)}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>{entityTypeLabel(sel.kind)}</h3>
+                  <div className="ea-text-muted ea-mono" style={{ fontSize: 12, marginTop: 2 }}>
+                    {sel.sourceRef}
+                  </div>
+                  <div style={{ marginTop: 6 }}>
+                    <span className={'ea-chip ea-chip--' +
+                        (sel.status === 'ACCEPTED' ? 'success'
+                          : sel.status === 'DISMISSED' ? 'neutral' : 'warning')}>
+                      {humaniseState(sel.status)}
+                    </span>
+                  </div>
+                </div>
+              </div>
               <dl className="ea-def-list">
-                <div className="ea-def-row"><dt>Inbox ID</dt><dd className="ea-mono">{sel.inboxId}</dd></div>
-                <div className="ea-def-row"><dt>Kind</dt><dd>{sel.kind}</dd></div>
-                <div className="ea-def-row"><dt>Source ref</dt><dd className="ea-mono">{sel.sourceRef}</dd></div>
-                <div className="ea-def-row"><dt>Status</dt><dd>{sel.status}</dd></div>
-                <div className="ea-def-row"><dt>Discovered</dt><dd className="ea-mono">{fmtDate(sel.discoveredAt)}</dd></div>
+                <div className="ea-def-row"><dt>Received</dt><dd className="ea-mono">{fmtDate(sel.discoveredAt)}</dd></div>
+                <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.discoveredAt)}</dd></div>
+                <div className="ea-def-row"><dt>Inbox ID</dt>
+                  <dd className="ea-mono" style={{ fontSize: 10 }}>{sel.inboxId}</dd></div>
               </dl>
               {sel.status === 'PENDING' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10,
+                              paddingTop: 10, borderTop: '1px solid var(--der-border-subtle)' }}>
                   <button type="button" className="ea-btn ea-btn--primary"
-                          onClick={() => { accept().catch(() => undefined); }}>Accept</button>
+                          onClick={() => { accept().catch(() => undefined); }}>Accept referral</button>
                   <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger"
                           onClick={() => { dismiss().catch(() => undefined); }}>Dismiss</button>
                 </div>
               )}
             </>
           ) : (
-            <p className="ea-text-muted" style={{ margin: 0 }}>Select an inbox entry.</p>
+            <p className="ea-text-muted" style={{ margin: 0 }}>Select a referral to review.</p>
           )
         }
       />
@@ -1100,5 +1191,4 @@ function IconHash(): JSX.Element { return sIcon('M5 9h14M5 15h14M9 3L7 21M17 3l-
 function IconClock(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>); }
 function IconDevice(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5" /><path d="M11 18h2" /></svg>); }
 function IconHourglass(): JSX.Element { return sIcon('M6 2h12M6 22h12M6 2v4a6 6 0 0012 0V2M6 22v-4a6 6 0 0112 0v4'); }
-function IconMail(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 7 9-7" /></svg>); }
 export { fmtBytes };
