@@ -209,7 +209,40 @@ function Stat({ label, value, tone = 'info' }: {
   );
 }
 
-/* ─── /journal/conflicts ─────────────────────────────────────────── */
+/* ─── /sync/attention ────────────────────────────────────────────── */
+/** DER Sync requirements §9. "Needs your attention" consolidates
+ *  conflicts, rejected records and repeated failures into one list
+ *  with a plain-English problem description + priority chip. */
+function problemFor(r: edgeApi.ConflictRow): { label: string; summary: string } {
+  const s = (r.state ?? '').toUpperCase();
+  if (s === 'CONFLICT_REVIEW') return {
+    label: 'Record changed on both sides',
+    summary: 'This record was changed locally while the same record was also changed in Central DHIS2.',
+  };
+  if (s === 'CENTRAL_REJECTED') return {
+    label: 'Rejected by Central DHIS2',
+    summary: 'Central DHIS2 rejected this record. Review the response and either accept the local version or re-capture.',
+  };
+  if (s === 'RETRYABLE' && r.attemptCount >= 5) return {
+    label: 'Repeated sync failure',
+    summary: `This record has failed ${r.attemptCount} sync attempts and is now waiting for operator review.`,
+  };
+  if (s === 'UNKNOWN_OUTCOME') return {
+    label: 'Unconfirmed acknowledgement',
+    summary: 'DER could not confirm whether Central DHIS2 accepted this record. It will be verified on the next attempt.',
+  };
+  return {
+    label: 'Needs review',
+    summary: 'This record did not synchronise automatically. Review and choose how to resolve it.',
+  };
+}
+
+function priorityFor(r: edgeApi.ConflictRow): 'High' | 'Medium' | 'Low' {
+  if (r.attemptCount >= 5) return 'High';
+  if (r.attemptCount >= 2) return 'Medium';
+  return 'Low';
+}
+
 export function MockupConflictList(): JSX.Element {
   const [rows, setRows] = useState<edgeApi.ConflictRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -229,70 +262,89 @@ export function MockupConflictList(): JSX.Element {
 
   const paged = usePaged(rows ?? [], 50);
 
-  if (err) return <ErrorBlock title="Conflicts failed" testId="err-conflicts">{err}</ErrorBlock>;
+  if (err) return <ErrorBlock title="Attention list failed" testId="err-conflicts">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
-
-  const high = rows.filter((r) => r.attemptCount >= 5).length;
-  const med = rows.filter((r) => r.attemptCount >= 2 && r.attemptCount < 5).length;
-  const low = rows.filter((r) => r.attemptCount < 2).length;
 
   return (
     <div className="ea-screen">
-      <div className="ea-kpi-grid">
-        <KpiTile tone={rows.length ? 'warning' : 'success'} icon={<IconAlert />}
-                 label="Total conflicts" value={rows.length} />
-        <KpiTile tone="danger" icon={<IconUp />} label="High priority" value={high} />
-        <KpiTile tone="warning" icon={<IconDot />} label="Medium priority" value={med} />
-        <KpiTile tone="default" icon={<IconDown />} label="Low priority" value={low} />
-      </div>
+      <section style={{
+        padding: 14, marginBottom: 14, borderRadius: 8,
+        border: '1px solid var(--der-border-subtle)',
+        borderLeft: `4px solid ${rows.length === 0 ? 'var(--der-success, #16a34a)' : 'var(--der-warning, #d97706)'}`,
+        background: 'white',
+      }}>
+        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+          {rows.length === 0
+            ? 'Nothing needs your attention'
+            : `${rows.length} record${rows.length === 1 ? '' : 's'} need${rows.length === 1 ? 's' : ''} your attention`}
+        </h1>
+        <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--der-ink-500)' }}>
+          Records that could not synchronise automatically and need you to decide what to do.
+        </p>
+      </section>
 
       <SplitWithDrawer
         drawerOpen={!!sel}
         main={
-          <Panel title={`${rows.length} conflicts`}>
+          <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} attention items`}>
             {rows.length === 0 ? (
-              <p className="ea-text-muted" style={{ margin: 0 }}>No conflicts pending review.</p>
+              <p className="ea-text-muted" style={{ margin: 0 }}>
+                Every captured record either reached Central DHIS2 or is still safely queued.
+              </p>
             ) : (
               <div className="ea-table-wrap">
                 <table className="ea-table ea-table--dense ea-table--selectable">
                   <thead><tr>
                     <th style={{ width: 32 }}></th>
-                    <th>Entity</th>
-                    <th style={{ width: 130 }}>Direction</th>
-                    <th style={{ width: 140 }}>State</th>
-                    <th style={{ width: 70 }}>Attempts</th>
-                    <th style={{ width: 110 }}>Created</th>
+                    <th>Record</th>
+                    <th>Problem</th>
+                    <th style={{ width: 90 }}>Priority</th>
+                    <th style={{ width: 90 }}>Since</th>
+                    <th style={{ width: 90 }}>Action</th>
                   </tr></thead>
                   <tbody>
-                    {paged.rows.map((r) => (
-                      <tr key={r.operationId} className={sel?.operationId === r.operationId ? 'ea-row--active' : ''}
-                          onClick={() => setSel(r)}
-                          data-test={`ea13-row-${r.operationId}`}>
-                        <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
-                            title={entityTypeLabel(r.entityType)}>
-                          {entityTypeIcon(r.entityType)}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
-                            {entityTypeLabel(r.entityType)}
-                          </div>
-                          <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
-                            {r.entityRef}
-                          </div>
-                        </td>
-                        <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                          <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>DER</span>
-                          <span style={{ color: 'var(--der-primary)', margin: '0 6px', fontWeight: 700 }}>→</span>
-                          <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>Central</span>
-                        </td>
-                        <td>
-                          <span className="ea-chip ea-chip--warning">{humaniseState(r.state)}</span>
-                        </td>
-                        <td className="ea-mono">{r.attemptCount}</td>
-                        <td className="ea-text-muted" style={{ fontSize: 12 }}
-                            title={fmtDate(r.createdAt)}>{fmtAgo(r.createdAt)}</td>
-                      </tr>
-                    ))}
+                    {paged.rows.map((r) => {
+                      const problem = problemFor(r);
+                      const prio = priorityFor(r);
+                      return (
+                        <tr key={r.operationId} className={sel?.operationId === r.operationId ? 'ea-row--active' : ''}
+                            onClick={() => setSel(r)}
+                            data-test={`ea13-row-${r.operationId}`}>
+                          <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                              title={entityTypeLabel(r.entityType)}>
+                            {entityTypeIcon(r.entityType)}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
+                              {entityTypeLabel(r.entityType)}
+                            </div>
+                            <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
+                              {r.entityRef}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 500, fontSize: 13 }}>{problem.label}</div>
+                            <div className="ea-text-muted" style={{ fontSize: 11, marginTop: 1 }}>
+                              {problem.summary}
+                            </div>
+                          </td>
+                          <td>
+                            <span className={'ea-chip ea-chip--'
+                                + (prio === 'High' ? 'danger' : prio === 'Medium' ? 'warning' : 'info')}>
+                              {prio}
+                            </span>
+                          </td>
+                          <td className="ea-text-muted" style={{ fontSize: 12 }}
+                              title={fmtDate(r.createdAt)}>{fmtAgo(r.createdAt)}</td>
+                          <td>
+                            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                                    onClick={(e) => { e.stopPropagation(); setSel(r); }}>
+                              Review
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
                 <TablePager {...paged.pagerProps} />
@@ -301,37 +353,72 @@ export function MockupConflictList(): JSX.Element {
           </Panel>
         }
         drawer={
-          sel ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
-                <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
-                  {entityTypeIcon(sel.entityType)}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>{entityTypeLabel(sel.entityType)}</h3>
-                  <div className="ea-text-muted ea-mono" style={{ fontSize: 12, marginTop: 2 }}>
-                    {sel.entityRef}
+          sel ? (() => {
+            const problem = problemFor(sel);
+            const prio = priorityFor(sel);
+            return (
+              <>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                  <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
+                    {entityTypeIcon(sel.entityType)}
                   </div>
-                  <div style={{ fontSize: 11, marginTop: 4 }}>
-                    <span className="ea-mono">DER → Central</span>
+                  <div style={{ minWidth: 0 }}>
+                    <h3 style={{ margin: 0, fontSize: 16 }}>{entityTypeLabel(sel.entityType)}</h3>
+                    <div className="ea-text-muted ea-mono" style={{ fontSize: 12, marginTop: 2 }}>
+                      {sel.entityRef}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <dl className="ea-def-list">
-                <div className="ea-def-row"><dt>Operation</dt><dd className="ea-mono">{sel.operationId}</dd></div>
-                <div className="ea-def-row"><dt>State</dt><dd><span className="ea-chip ea-chip--warning">{humaniseState(sel.state)}</span></dd></div>
-                <div className="ea-def-row"><dt>Attempts</dt><dd className="ea-mono">{sel.attemptCount}</dd></div>
-                <div className="ea-def-row"><dt>Created</dt><dd className="ea-mono">{fmtDate(sel.createdAt)}</dd></div>
-              </dl>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <button type="button" className="ea-btn ea-btn--primary"
-                        onClick={() => { resolve('ACCEPTED').catch(() => undefined); }}>Accept</button>
-                <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger"
-                        onClick={() => { resolve('REJECTED').catch(() => undefined); }}>Reject</button>
-              </div>
-            </>
-          ) : (
-            <p className="ea-text-muted" style={{ margin: 0 }}>Select a conflict to review.</p>
+
+                <div style={{ padding: 10, marginBottom: 10, borderRadius: 6,
+                              background: 'var(--der-ink-50)',
+                              borderLeft: `3px solid ${prio === 'High' ? 'var(--der-danger, #dc2626)'
+                                : prio === 'Medium' ? 'var(--der-warning, #d97706)'
+                                : 'var(--der-primary)'}` }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{problem.label}</div>
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--der-ink-700)', lineHeight: 1.5 }}>
+                    {problem.summary}
+                  </p>
+                </div>
+
+                <dl className="ea-def-list">
+                  <div className="ea-def-row"><dt>Priority</dt>
+                    <dd><span className={'ea-chip ea-chip--'
+                        + (prio === 'High' ? 'danger' : prio === 'Medium' ? 'warning' : 'info')}>
+                      {prio}
+                    </span></dd></div>
+                  <div className="ea-def-row"><dt>Attempts</dt><dd className="ea-mono">{sel.attemptCount}</dd></div>
+                  <div className="ea-def-row"><dt>First queued</dt><dd className="ea-mono">{fmtDate(sel.createdAt)}</dd></div>
+                  <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.createdAt)}</dd></div>
+                  <div className="ea-def-row"><dt>Operation ID</dt>
+                    <dd className="ea-mono" style={{ fontSize: 10 }}>{sel.operationId}</dd></div>
+                </dl>
+
+                <h4 style={{ margin: '14px 0 6px', fontSize: 11, fontWeight: 600,
+                             letterSpacing: '0.02em', textTransform: 'uppercase',
+                             color: 'var(--der-ink-400)' }}>
+                  Recommended action
+                </h4>
+                <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.5 }}>
+                  Accept the local version to send it to Central DHIS2 anyway, or reject it to drop the record.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button type="button" className="ea-btn ea-btn--primary"
+                          onClick={() => { resolve('ACCEPTED').catch(() => undefined); }}>
+                    Accept local version
+                  </button>
+                  <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger"
+                          onClick={() => { resolve('REJECTED').catch(() => undefined); }}>
+                    Reject local version
+                  </button>
+                </div>
+              </>
+            );
+          })() : (
+            <p className="ea-text-muted" style={{ margin: 0 }}>
+              Select a record to see the recommended action.
+            </p>
           )
         }
       />
@@ -339,11 +426,14 @@ export function MockupConflictList(): JSX.Element {
   );
 }
 
-/* ─── /journal/worker ────────────────────────────────────────────── */
+/* ─── /sync/worker ───────────────────────────────────────────────── */
+/** DER Sync requirements §10. One status card + Pause/Resume + an
+ *  optional queue breakdown behind "Show breakdown". */
 export function MockupWorkerHealth(): JSX.Element {
   const [w, setW] = useState<edgeApi.WorkerHealth | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [showBreakdown, setShowBreakdown] = useState(false);
   async function reload(): Promise<void> {
     try { setW(await edgeApi.workerHealth()); }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
@@ -357,58 +447,95 @@ export function MockupWorkerHealth(): JSX.Element {
   }
   if (err) return <ErrorBlock title="Worker health failed" testId="err-worker">{err}</ErrorBlock>;
   if (!w) return <LoadingBlock testId="loading" />;
+
+  const waiting = (w.backlog.PENDING ?? 0) + (w.backlog.IN_FLIGHT ?? 0);
+  const retrying = w.backlog.RETRYABLE ?? 0;
+  const attention = (w.backlog.CONFLICT_REVIEW ?? 0) + (w.backlog.CENTRAL_REJECTED ?? 0);
   const total = Object.values(w.backlog).reduce((a, b) => a + b, 0);
+
+  const accent = w.enabled ? 'var(--der-success, #16a34a)' : 'var(--der-warning, #d97706)';
+  const headline = w.enabled ? 'The synchronisation worker is running' : 'The synchronisation worker is paused';
+  const icon = w.enabled ? '✓' : '⏸';
+
   return (
     <div className="ea-screen">
-      <div className="ea-kpi-grid"
-           style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-        <KpiTile tone={w.enabled ? 'success' : 'warning'}
-                 icon={<IconDot />}
-                 label="Journal worker"
-                 value={<span data-test="ea14-enabled">{w.enabled ? 'Running' : 'Paused'}</span>}
-                 right={
-                   <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                           disabled={busy}
-                           onClick={() => { toggle().catch(() => undefined); }}
-                           data-test="ea14-toggle">
-                     {w.enabled ? 'Pause' : 'Resume'}
-                   </button>
-                 } />
-        <KpiTile tone={total ? 'warning' : 'success'} icon={<IconList />}
-                 label="Total backlog" value={total} />
-        <KpiTile tone="default" icon={<IconClock />}
-                 label="Last tick" value={fmtAgo(w.lastTick)} />
-        <KpiTile tone="info" icon={<IconBatch />}
-                 label="Last batch" value={w.lastBatchSize} />
+      <section style={{
+        display: 'grid', gridTemplateColumns: '64px 1fr auto', gap: 14, alignItems: 'center',
+        padding: 16, marginBottom: 14, borderRadius: 8,
+        border: '1px solid var(--der-border-subtle)',
+        borderLeft: `4px solid ${accent}`, background: 'white',
+      }}>
+        <div style={{ fontSize: 38, fontWeight: 700, color: accent,
+                       textAlign: 'center', lineHeight: 1 }} aria-hidden="true">{icon}</div>
+        <div>
+          <h1 style={{ margin: '0 0 2px', fontSize: 20, fontWeight: 700 }}
+              data-test="ea14-enabled">{headline}</h1>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--der-ink-500)' }}>
+            {total === 0
+              ? 'Nothing in the queue — the worker is idle.'
+              : `${total.toLocaleString()} item${total === 1 ? '' : 's'} in the queue · last activity ${fmtAgo(w.lastTick)}.`}
+          </p>
+          <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12,
+                        color: 'var(--der-ink-500)', flexWrap: 'wrap' }}>
+            <span><strong style={{ color: 'var(--der-ink-900)' }}>Waiting:</strong> {waiting.toLocaleString()}</span>
+            <span><strong style={{ color: 'var(--der-ink-900)' }}>Retrying:</strong> {retrying.toLocaleString()}</span>
+            {attention > 0 && (
+              <span>
+                <strong style={{ color: 'var(--der-ink-900)' }}>Needs attention:</strong>{' '}
+                <Link to="/sync/attention" style={{ color: 'var(--der-danger, #dc2626)' }}>
+                  {attention.toLocaleString()}
+                </Link>
+              </span>
+            )}
+            <span><strong style={{ color: 'var(--der-ink-900)' }}>Last batch:</strong> {w.lastBatchSize}</span>
+          </div>
+        </div>
+        <button type="button" className="ea-btn ea-btn--primary"
+                style={{ fontSize: 14, padding: '10px 16px' }}
+                disabled={busy}
+                onClick={() => { toggle().catch(() => undefined); }}
+                data-test="ea14-toggle">
+          {busy ? '…' : w.enabled ? 'Pause' : 'Resume'}
+        </button>
+      </section>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                data-test="ea14-show-breakdown"
+                onClick={() => setShowBreakdown((x) => !x)}>
+          {showBreakdown ? 'Hide breakdown' : 'Show breakdown'}
+        </button>
       </div>
 
-      <Panel title="Backlog by state">
-        {Object.keys(w.backlog).length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>Nothing pending.</p>
-        ) : (
-          <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
-              <thead><tr><th>State</th><th>Operations</th></tr></thead>
-              <tbody>
-                {Object.entries(w.backlog).map(([k, v]) => (
-                  <tr key={k} data-test={`ea14-backlog-${k}`}>
-                    <td>
-                      <span className={'ea-chip ea-chip--'
-                          + (k === 'FAILED' || k === 'CENTRAL_REJECTED' ? 'danger'
-                            : k === 'PENDING' || k === 'RETRYABLE' || k === 'CONFLICT_REVIEW' ? 'warning'
-                            : k === 'CENTRAL_ACCEPTED' ? 'success'
-                            : 'info')} title={k}>
-                        {humaniseState(k)}
-                      </span>
-                    </td>
-                    <td className="ea-mono">{v as number}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
+      {showBreakdown && (
+        <Panel title="Queue breakdown">
+          {Object.keys(w.backlog).length === 0 ? (
+            <p className="ea-text-muted" style={{ margin: 0 }}>Nothing pending.</p>
+          ) : (
+            <div className="ea-table-wrap">
+              <table className="ea-table ea-table--dense">
+                <thead><tr><th>State</th><th>Operations</th></tr></thead>
+                <tbody>
+                  {Object.entries(w.backlog).map(([k, v]) => (
+                    <tr key={k} data-test={`ea14-backlog-${k}`}>
+                      <td>
+                        <span className={'ea-chip ea-chip--'
+                            + (k === 'FAILED' || k === 'CENTRAL_REJECTED' ? 'danger'
+                              : k === 'PENDING' || k === 'RETRYABLE' || k === 'CONFLICT_REVIEW' ? 'warning'
+                              : k === 'CENTRAL_ACCEPTED' ? 'success'
+                              : 'info')} title={k}>
+                          {humaniseState(k)}
+                        </span>
+                      </td>
+                      <td className="ea-mono">{v as number}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      )}
     </div>
   );
 }
@@ -983,11 +1110,6 @@ function IconCheck(): JSX.Element { return sIcon('M5 12l4 4 10-10'); }
 function IconX(): JSX.Element { return sIcon('M6 6l12 12M6 18L18 6'); }
 function IconHash(): JSX.Element { return sIcon('M5 9h14M5 15h14M9 3L7 21M17 3l-2 18'); }
 function IconClock(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>); }
-function IconAlert(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l10 18H2z" /><path d="M12 10v5" /><circle cx="12" cy="18" r=".5" fill="currentColor" /></svg>); }
-function IconUp(): JSX.Element { return sIcon('M12 20V4M6 10l6-6 6 6'); }
-function IconDown(): JSX.Element { return sIcon('M12 4v16M6 14l6 6 6-6'); }
-function IconDot(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="3" /></svg>); }
-function IconBatch(): JSX.Element { return sIcon('M3 6h18M3 12h18M3 18h18'); }
 function IconDevice(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5" /><path d="M11 18h2" /></svg>); }
 function IconHourglass(): JSX.Element { return sIcon('M6 2h12M6 22h12M6 2v4a6 6 0 0012 0V2M6 22v-4a6 6 0 0112 0v4'); }
 function IconMail(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 7 9-7" /></svg>); }

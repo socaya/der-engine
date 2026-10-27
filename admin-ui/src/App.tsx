@@ -21,7 +21,7 @@ import { SignIn } from './screens/SignIn';
 import {
   CapSystemInformation,
   CapCentralConnection, CapOrgUnitBinding, CapProgramRules,
-  CapMetadataSync, CapDataExchange, CapSyncSchedule,
+  CapMetadataSync, CapSyncSchedule, CapSyncSettings,
   CapWorkflowRuns, CapStepAssignments, CapReferralHistory,
   CapAggregate, CapEvents, CapTracker, CapDrafts, CapMaintenance,
   CapUserMappings, CapRoles, CapSessions, CapCredentials,
@@ -112,14 +112,16 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EAJobTrigger /></RequireAuth>} />
           <Route path="/sync/drift" element={<RequireAuth><MockupDriftInspector /></RequireAuth>} />
           <Route path="/sync/drift-legacy" element={<RequireAuth><EADriftInspector /></RequireAuth>} />
-          <Route path="/journal/conflicts"
+          <Route path="/sync/attention"
                  element={<RequireAuth><MockupConflictList /></RequireAuth>} />
+          <Route path="/journal/conflicts" element={<Navigate to="/sync/attention" replace />} />
           <Route path="/journal/conflicts-legacy"
                  element={<RequireAuth><EAConflictList /></RequireAuth>} />
           <Route path="/conflicts/:id"
                  element={<RequireAuth><ConflictResolveRoute /></RequireAuth>} />
-          <Route path="/journal/worker"
+          <Route path="/sync/worker"
                  element={<RequireAuth><MockupWorkerHealth /></RequireAuth>} />
+          <Route path="/journal/worker" element={<Navigate to="/sync/worker" replace />} />
           <Route path="/journal/worker-legacy"
                  element={<RequireAuth><EAWorkerHealth /></RequireAuth>} />
           <Route path="/approvals"
@@ -175,10 +177,11 @@ export default function App(): JSX.Element {
           <Route path="/integration/program-rules" element={<RequireAuth><CapProgramRules /></RequireAuth>} />
           <Route path="/sync" element={<RequireAuth><MockupSyncOverview /></RequireAuth>} />
           <Route path="/sync/history" element={<RequireAuth><MockupSyncHistory /></RequireAuth>} />
-          <Route path="/sync/queues" element={<RequireAuth><MockupDataQueues /></RequireAuth>} />
+          <Route path="/sync/queues" element={<Navigate to="/sync/data" replace />} />
           <Route path="/sync/metadata" element={<RequireAuth><CapMetadataSync /></RequireAuth>} />
-          <Route path="/sync/data" element={<RequireAuth><CapDataExchange /></RequireAuth>} />
+          <Route path="/sync/data" element={<RequireAuth><MockupDataQueues /></RequireAuth>} />
           <Route path="/sync/schedule" element={<RequireAuth><CapSyncSchedule /></RequireAuth>} />
+          <Route path="/sync/settings" element={<RequireAuth><CapSyncSettings /></RequireAuth>} />
           <Route path="/workflows/runs" element={<RequireAuth><CapWorkflowRuns /></RequireAuth>} />
           <Route path="/workflows/assignments" element={<RequireAuth><CapStepAssignments /></RequireAuth>} />
           <Route path="/referral/history" element={<RequireAuth><CapReferralHistory /></RequireAuth>} />

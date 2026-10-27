@@ -4,7 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager, describeCron } from './mockups/shared';
+import { usePaged, TablePager, describeCron, Panel, humaniseState } from './mockups/shared';
 
 /**
  * CapabilityScreens — the 29 nav items that previously showed the
@@ -1006,159 +1006,242 @@ export function CapDataQueues(): JSX.Element {
   );
 }
 
-interface SyncDirection {
-  readonly arrow: '→' | '↔';
-  readonly label: string;       // "Central → DER (pull only)"
-  readonly tone: 'info' | 'success';
-  readonly rationale: string;
-}
 
-function TriggerPanel({ jobName, direction, relatedLinks = [] }: {
-  jobName: string; title: string; subtitle: string;
-  direction?: SyncDirection;
-  relatedLinks?: ReadonlyArray<readonly [string, string, string]>;
-}): JSX.Element {
-  const [state, setState] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
-  const [msg, setMsg] = useState<string | null>(null);
+/** /admin/sync/metadata — DER Sync requirements §6. */
+export function CapMetadataSync(): JSX.Element {
   const [history, setHistory] = useState<edgeApi.JobRun[] | null>(null);
+  const [sysInfo, setSysInfo] = useState<edgeApi.SystemInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
+
   async function reload(): Promise<void> {
-    try {
-      const j = await edgeApi.listJobs(50);
-      setHistory(j.filter((x) => x.jobName === jobName).slice(0, 10));
-    } catch { /* ignore */ }
-  }
-  useEffect(() => { reload().catch(() => undefined); }, [jobName]);
-  async function run(): Promise<void> {
-    setState('running'); setMsg(null);
-    try {
-      const r = await edgeApi.triggerJob(jobName);
-      if (r.error) { setState('error'); setMsg(r.error); return; }
-      setState('done'); setMsg(r.triggered ?? 'Job queued.');
-      await reload();
-    } catch (e) {
-      setState('error'); setMsg(e instanceof Error ? e.message : String(e));
+    const [j, s] = await Promise.allSettled([edgeApi.listJobs(50), edgeApi.systemInfo()]);
+    if (j.status === 'fulfilled') {
+      setHistory(j.value.filter((x) => x.jobName === 'METADATA_SYNC_FULL').slice(0, 8));
     }
+    if (s.status === 'fulfilled') setSysInfo(s.value);
   }
+  useEffect(() => { reload().catch(() => undefined); }, []);
+  async function pull(): Promise<void> {
+    setBusy(true); setFlash(null);
+    try {
+      await edgeApi.triggerJob('METADATA_SYNC_FULL');
+      setFlash('Metadata pull started.');
+      setTimeout(() => reload().catch(() => undefined), 2000);
+    } catch (e) {
+      setFlash(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(false); }
+  }
+
   const last = history?.[0];
+  const lastSuccess = (history ?? []).find((r) => r.outcome === 'SUCCEEDED' || r.outcome === 'SUCCESS');
+  const centralReachable = sysInfo?.dhis2?.probeReachable ?? false;
+  const lastOk = last?.outcome === 'SUCCEEDED' || last?.outcome === 'SUCCESS';
+  const statusHeadline = !last
+    ? 'Metadata has never been pulled'
+    : lastOk
+    ? 'Metadata is up to date'
+    : 'Last metadata pull failed';
+  const statusAccent = !last ? 'var(--der-ink-400, #94a3b8)'
+    : lastOk ? 'var(--der-success, #16a34a)'
+    : 'var(--der-danger, #dc2626)';
+  const statusIcon = !last ? '○' : lastOk ? '✓' : '!';
+
   return (
-    <div className="ea-screen">
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+    <div className="ea-screen" data-test="cap-metadata-sync">
+      {flash && <p className="ea-saved" style={{ marginBottom: 10 }}>{flash}</p>}
+
+      <section style={{
+        display: 'grid', gridTemplateColumns: '64px 1fr auto', gap: 14, alignItems: 'center',
+        padding: 16, marginBottom: 14, borderRadius: 8,
+        border: '1px solid var(--der-border-subtle)',
+        borderLeft: `4px solid ${statusAccent}`, background: 'white',
+      }}>
+        <div style={{ fontSize: 38, fontWeight: 700, color: statusAccent,
+                       textAlign: 'center', lineHeight: 1 }} aria-hidden="true">{statusIcon}</div>
+        <div>
+          <h1 style={{ margin: '0 0 2px', fontSize: 20, fontWeight: 700 }}
+              data-test="metadata-status">{statusHeadline}</h1>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--der-ink-500)' }}>
+            Metadata flows one way only: Central DHIS2 → DER. DER does not change
+            metadata.
+          </p>
+        </div>
         <button type="button" className="ea-btn ea-btn--primary"
-                disabled={state === 'running'}
+                style={{ fontSize: 14, padding: '10px 16px' }}
+                disabled={busy || !centralReachable}
                 data-test="trigger-run"
-                onClick={() => { run().catch(() => undefined); }}>
-          {state === 'running' ? 'Triggering…' : 'Trigger now'}
+                onClick={() => { pull().catch(() => undefined); }}>
+          {busy ? 'Pulling…' : 'Pull metadata now'}
         </button>
-      </div>
-      {direction && (
-        <section data-test="trigger-direction"
-                 style={{
-                   display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-                   padding: '8px 10px', margin: '0 0 var(--sp-3)',
-                   border: '1px solid var(--der-border-subtle)', borderRadius: 6,
-                 }}>
-          <span className="ea-mono" style={{ fontSize: 14, color: 'var(--der-ink-900)' }}>Central</span>
-          <span style={{ fontSize: 18, color: 'var(--der-primary)', fontWeight: 700 }}>{direction.arrow}</span>
-          <span className="ea-mono" style={{ fontSize: 14, color: 'var(--der-ink-900)' }}>DER</span>
-          <span className="ea-text-muted" style={{ fontSize: 12 }}>· {direction.label}</span>
-          <span style={{ marginLeft: 'auto' }} className={`ea-chip ea-chip--${direction.tone}`}>
-            {direction.arrow === '↔' ? 'two-way' : 'one-way'}
-          </span>
-          <div style={{ flexBasis: '100%', fontSize: 12, color: 'var(--der-ink-500)', lineHeight: 1.4 }}>
-            {direction.rationale}
-          </div>
-        </section>
-      )}
-      <div className="ea-stat-strip">
-        <Stat label="Job" value={<span className="ea-mono">{jobName}</span>} />
-        <Stat label="Last outcome"
-              value={last?.outcome ?? '—'}
-              tone={last?.outcome === 'SUCCEEDED' ? 'success'
-                : last?.outcome === 'FAILED' ? 'danger' : 'muted'} />
-        <Stat label="Last run" value={last?.startedAt ?? '—'} />
-      </div>
-      {state === 'done' && msg && <p className="ea-saved">{msg}</p>}
-      {state === 'error' && msg && <ErrorBlock title="Trigger failed" testId="err-trigger-failed">{msg}</ErrorBlock>}
-      <section className="ea-card">
-        <div className="ea-card-toolbar"><span className="ea-card-count">Recent runs</span></div>
-        {!history || history.length === 0 ? (
-          <EmptyBlock title="No history" testId="empty-no-history">Never run on this edge.</EmptyBlock>
-        ) : (
-          <div className="ea-table-wrap">
-            <table className="ea-table"><thead><tr>
-              <th>Started</th><th>Outcome</th><th>Duration</th>
-            </tr></thead><tbody>
-              {history.map((h) => (
-                <tr key={h.runId}>
-                  <td className="ea-mono">{h.startedAt}</td>
-                  <td><span className={'ea-chip ea-chip--' +
-                      (h.outcome === 'SUCCEEDED' ? 'success'
-                        : h.outcome === 'FAILED' ? 'danger' : 'info')}>{h.outcome}</span></td>
-                  <td>{h.durationMs != null ? fmtDur(h.durationMs) : '—'}</td>
-                </tr>
-              ))}
-            </tbody></table>
-          </div>
-        )}
       </section>
 
-      {relatedLinks.length > 0 && (
-        <section data-test="trigger-related">
-          <div className="ea-section-title">Explore payload</div>
-          <div className="ea-tile-grid">
-            {relatedLinks.map(([label, to, hint]) => (
-              <Link key={to} to={to} className="ea-link-tile">
-                <div className="ea-link-tile-icon" aria-hidden="true">→</div>
-                <div className="ea-link-tile-body">
-                  <div className="ea-link-tile-title">{label}</div>
-                  <div className="ea-link-tile-desc">{hint}</div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+      {!centralReachable && (
+        <p className="ea-text-muted" style={{ margin: '-6px 0 10px', fontSize: 12 }}>
+          Central DHIS2 is unavailable right now. The next pull will run as soon as the connection returns.
+        </p>
       )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+        <Panel title="Last pull">
+          {last ? (
+            <dl className="ea-def-list">
+              <div className="ea-def-row"><dt>When</dt>
+                <dd>{new Date(last.startedAt).toLocaleString()}</dd></div>
+              <div className="ea-def-row"><dt>Result</dt>
+                <dd><span className={'ea-chip ea-chip--' + (lastOk ? 'success' : 'danger')}>
+                  {lastOk ? 'Succeeded' : 'Failed'}
+                </span></dd></div>
+              <div className="ea-def-row"><dt>Duration</dt>
+                <dd>{last.durationMs != null ? fmtDur(last.durationMs) : '—'}</dd></div>
+              <div className="ea-def-row"><dt>Triggered by</dt>
+                <dd>{humaniseState(last.triggeredBy)}</dd></div>
+            </dl>
+          ) : (
+            <p className="ea-text-muted" style={{ margin: 0 }}>No metadata pull has run yet on this edge.</p>
+          )}
+        </Panel>
+        <Panel title="Metadata summary">
+          <dl className="ea-def-list">
+            <div className="ea-def-row"><dt>Last successful pull</dt>
+              <dd>{lastSuccess ? new Date(lastSuccess.startedAt).toLocaleString() : 'None yet'}</dd></div>
+            <div className="ea-def-row"><dt>Last attempt</dt>
+              <dd>{last ? new Date(last.startedAt).toLocaleString() : '—'}</dd></div>
+            <div className="ea-def-row"><dt>DHIS2 version</dt>
+              <dd>{sysInfo?.dhis2?.centralVersion ?? '—'}</dd></div>
+            <div className="ea-def-row"><dt>Central DHIS2</dt>
+              <dd>
+                <span className={'ea-chip ea-chip--' + (centralReachable ? 'success' : 'warning')}>
+                  {centralReachable ? 'Reachable' : 'Unreachable'}
+                </span>
+              </dd></div>
+          </dl>
+        </Panel>
+      </div>
+
+      <Panel title="Recent pulls">
+        {!history || history.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0 }}>Never run on this edge.</p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense">
+              <thead><tr>
+                <th>When</th><th>Result</th><th>Duration</th><th>Triggered by</th>
+              </tr></thead>
+              <tbody>
+                {history.map((h) => {
+                  const ok = h.outcome === 'SUCCEEDED' || h.outcome === 'SUCCESS';
+                  return (
+                    <tr key={h.runId}>
+                      <td>{new Date(h.startedAt).toLocaleString()}</td>
+                      <td><span className={'ea-chip ea-chip--' + (ok ? 'success' : 'danger')}>
+                        {ok ? 'Succeeded' : 'Failed'}
+                      </span></td>
+                      <td>{h.durationMs != null ? fmtDur(h.durationMs) : '—'}</td>
+                      <td>{humaniseState(h.triggeredBy)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }
 
-export function CapMetadataSync(): JSX.Element {
-  return <TriggerPanel
-    jobName="METADATA_SYNC_FULL"
-    title="Metadata sync"
-    subtitle="Pull fresh metadata from the central DHIS2."
-    direction={{
-      arrow: '→',
-      label: 'Central → DER (pull only)',
-      tone: 'info',
-      rationale:
-        'DHIS2 is the source of truth for metadata. DER mirrors it locally so capture surfaces keep running when the WAN drops; no metadata is written back from DER.',
-    }}
-    relatedLinks={[
-      ['Metadata browser', '/dhis2/metadata', 'Browse the mirrored resources pulled by this job.'],
-      ['Metadata drift', '/dhis2/metadata-drift', 'Fingerprint comparison vs. central after the pull.'],
-    ]}
-  />;
+/** /admin/sync/data — DER Sync requirements §7. Thin wrapper over the
+ *  existing MockupDataQueues implementation (which already carries the
+ *  activity-feed table + payload drawer). The screen is reachable
+ *  through `/sync/data` as well as the legacy `/sync/queues`. */
+export function CapDataExchange(): JSX.Element {
+  // Legacy export kept so existing bookmarks still resolve; the full
+  // Data screen lives in MoreScreens → MockupDataQueues (routed on
+  // /sync/data). Rendering MockupDataQueues directly here would create
+  // a circular import.
+  return (
+    <div className="ea-screen">
+      <p className="ea-text-muted" style={{ margin: 0 }}>
+        The Data page has moved. <Link to="/sync/data">Open the new Data page →</Link>
+      </p>
+    </div>
+  );
 }
 
-export function CapDataExchange(): JSX.Element {
-  return <TriggerPanel
-    jobName="AGGREGATE_DATA_PUSH"
-    title="Data exchange"
-    subtitle="Push captured data to central and pull central-held OU data back down."
-    direction={{
-      arrow: '↔',
-      label: 'Central ↔ DER (push + pull)',
-      tone: 'success',
-      rationale:
-        'Local captures journal up to central. Central-held OU data also syncs down so distributed workflows share the same record.',
-    }}
-    relatedLinks={[
-      ['Queues', '/sync/queues', 'Journal items pending push to central.'],
-      ['Conflicts', '/journal/conflicts', 'Operations that failed to drain.'],
-      ['Sync history', '/sync/history', 'All synchronisation operations across every job.'],
-    ]}
-  />;
+/** /admin/sync/settings — DER Sync requirements §12. */
+export function CapSyncSettings(): JSX.Element {
+  const [sysInfo, setSysInfo] = useState<edgeApi.SystemInfo | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testFlash, setTestFlash] = useState<string | null>(null);
+
+  async function reload(): Promise<void> {
+    try { setSysInfo(await edgeApi.systemInfo()); } catch { /* ignore */ }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, []);
+  async function testConnection(): Promise<void> {
+    setTesting(true); setTestFlash(null);
+    try {
+      const si = await edgeApi.systemInfo();
+      setSysInfo(si);
+      setTestFlash(si.dhis2?.probeReachable
+        ? `Connection OK. Central DHIS2 ${si.dhis2.centralVersion} responded in ${si.dhis2.probeDurationMs} ms.`
+        : 'Central DHIS2 is not reachable from this edge.');
+    } catch (e) {
+      setTestFlash(e instanceof Error ? e.message : String(e));
+    } finally { setTesting(false); }
+  }
+
+  const reachable = sysInfo?.dhis2?.probeReachable ?? false;
+  return (
+    <div className="ea-screen" data-test="cap-sync-settings">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+        <Panel title="Central DHIS2"
+               action={
+                 <>
+                   <Link to="/dhis2/connection" className="ea-btn ea-btn--ghost ea-btn--sm">
+                     Open DHIS2 Configuration
+                   </Link>
+                   <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                           disabled={testing}
+                           onClick={() => { testConnection().catch(() => undefined); }}
+                           data-test="sync-test-connection">
+                     {testing ? 'Testing…' : 'Test connection'}
+                   </button>
+                 </>
+               }>
+          <p className="ea-text-muted" style={{ margin: '0 0 8px', fontSize: 12 }}>
+            These values are read-only here. They are managed in the DHIS2 Module.
+          </p>
+          {testFlash && <p className="ea-saved" style={{ margin: '0 0 8px' }}>{testFlash}</p>}
+          <dl className="ea-def-list">
+            <div className="ea-def-row"><dt>Central DHIS2 URL</dt>
+              <dd className="ea-mono">{sysInfo?.dhis2?.centralBaseUrl ?? '—'}</dd></div>
+            <div className="ea-def-row"><dt>Pinned version</dt>
+              <dd>{sysInfo?.dhis2?.pinnedVersion ?? '—'}</dd></div>
+            <div className="ea-def-row"><dt>Central version</dt>
+              <dd>{sysInfo?.dhis2?.centralVersion ?? '—'}</dd></div>
+            <div className="ea-def-row"><dt>Connection status</dt>
+              <dd>
+                <span className={'ea-chip ea-chip--' + (reachable ? 'success' : 'warning')}>
+                  {reachable ? 'Reachable' : 'Unreachable'}
+                </span>
+              </dd></div>
+            <div className="ea-def-row"><dt>Authentication</dt>
+              <dd>{sysInfo?.dhis2?.probeReachable ? 'Working' : 'Unknown'}</dd></div>
+          </dl>
+        </Panel>
+
+        <Panel title="Sync behaviour · advanced">
+          <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
+            Batch size, retry delay, back-off and request timeout are managed in the
+            schedule screen under <Link to="/sync/schedule">Schedule</Link>. Fine-grained
+            overrides live under <Link to="/settings">Settings</Link>.
+          </p>
+        </Panel>
+      </div>
+    </div>
+  );
 }
 
 /** Plain-English title + description for each known scheduler key.
@@ -1239,41 +1322,61 @@ export function CapSyncSchedule(): JSX.Element {
             {cron.length === 0 && (
               <div className="ea-field-hint">No scheduled flows configured on this build.</div>
             )}
-            {cron.map(([k, v]) => {
-              const info = scheduleKeyInfo(k);
-              return (
-                <div key={k} data-test={`cron-row-${k}`}
-                     style={{
-                       display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, alignItems: 'start',
-                       padding: '8px 10px', border: '1px solid var(--der-border-subtle)', borderRadius: 6,
-                     }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--der-ink-900)' }}>
-                      {info.title}
-                    </div>
-                    <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.4 }}>
-                      {info.desc}
-                    </div>
-                    <div style={{ marginTop: 6, fontSize: 12 }}>
-                      <span className="ea-chip ea-chip--info">{describeCron(v)}</span>
-                    </div>
-                  </div>
-                  <label className="ea-field">
-                    <span className="ea-field-label" title={k}>Cron expression</span>
-                    <input className="ea-input ea-mono" value={v}
-                           data-test={`cron-input-${k}`}
-                           onChange={(e) => setS({ ...s, cron: { ...s.cron, [k]: e.target.value } })} />
-                    <span className="ea-field-hint">
-                      Quartz syntax: <code>seconds minutes hours day-of-month month day-of-week</code>.
-                      Leave blank to use the compiled default.
-                    </span>
-                  </label>
-                </div>
-              );
-            })}
+            {cron.map(([k, v]) => (
+              <CronRow key={k}
+                       cronKey={k}
+                       value={v}
+                       onChange={(nv) => setS({ ...s, cron: { ...s.cron, [k]: nv } })} />
+            ))}
           </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+/** One scheduled flow — plain-English summary with the cron expression
+ *  tucked behind a "Show expression" toggle (DER Sync spec §8). */
+function CronRow({ cronKey, value, onChange }: {
+  cronKey: string; value: string; onChange: (v: string) => void;
+}): JSX.Element {
+  const [showExpr, setShowExpr] = useState(false);
+  const info = scheduleKeyInfo(cronKey);
+  return (
+    <div data-test={`cron-row-${cronKey}`}
+         style={{
+           padding: '10px 12px', border: '1px solid var(--der-border-subtle)',
+           borderRadius: 6,
+         }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--der-ink-900)' }}>
+            {info.title}
+          </div>
+          <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.4 }}>
+            {info.desc}
+          </div>
+          <div style={{ marginTop: 6, fontSize: 13 }}>
+            <strong>Runs {describeCron(value).toLowerCase()}</strong>
+          </div>
+        </div>
+        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                onClick={() => setShowExpr((x) => !x)}>
+          {showExpr ? 'Hide expression' : 'Show expression'}
+        </button>
+      </div>
+      {showExpr && (
+        <label className="ea-field" style={{ marginTop: 8 }}>
+          <span className="ea-field-label" title={cronKey}>Cron expression</span>
+          <input className="ea-input ea-mono" value={value}
+                 data-test={`cron-input-${cronKey}`}
+                 onChange={(e) => onChange(e.target.value)} />
+          <span className="ea-field-hint">
+            Quartz syntax: <code>seconds minutes hours day-of-month month day-of-week</code>.
+            Leave blank to use the compiled default.
+          </span>
+        </label>
+      )}
     </div>
   );
 }

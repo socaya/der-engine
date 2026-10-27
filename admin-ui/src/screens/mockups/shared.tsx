@@ -663,6 +663,51 @@ export function detailEntries(detail: string | null | undefined): ReadonlyArray<
   return out;
 }
 
+// ────────────────────────────────────────────────────────────────────
+// Operator-facing state language (per DER Sync requirements §20).
+// Backend state is detailed — operators see 6 states.
+// ────────────────────────────────────────────────────────────────────
+
+export type OperatorState = 'Waiting' | 'Sending' | 'Sent' | 'Retrying' | 'Rejected' | 'Needs attention';
+
+const BACKEND_TO_OPERATOR: Readonly<Record<string, OperatorState>> = {
+  PENDING: 'Waiting',
+  QUEUED: 'Waiting',
+  IN_FLIGHT: 'Sending',
+  SYNCHRONISING: 'Sending',
+  CENTRAL_ACCEPTED: 'Sent',
+  ACCEPTED: 'Sent',
+  SUCCESS: 'Sent',
+  SUCCEEDED: 'Sent',
+  RETRYABLE: 'Retrying',
+  RETRY_PENDING: 'Retrying',
+  UNKNOWN_OUTCOME: 'Retrying',
+  CENTRAL_REJECTED: 'Rejected',
+  REJECTED: 'Rejected',
+  FAILED: 'Rejected',
+  FAILURE: 'Rejected',
+  CONFLICT_REVIEW: 'Needs attention',
+  CONFLICT: 'Needs attention',
+  REQUIRES_REVIEW: 'Needs attention',
+};
+
+export function operatorState(backend: string | null | undefined): OperatorState {
+  if (!backend) return 'Waiting';
+  return BACKEND_TO_OPERATOR[backend.toUpperCase()] ?? 'Waiting';
+}
+
+/** Tone (chip colour) for an operator-facing state. */
+export function operatorStateTone(s: OperatorState): 'success' | 'warning' | 'danger' | 'info' | 'muted' {
+  switch (s) {
+    case 'Sent': return 'success';
+    case 'Rejected': return 'danger';
+    case 'Needs attention': return 'warning';
+    case 'Sending': return 'info';
+    case 'Retrying': return 'warning';
+    case 'Waiting': return 'muted';
+  }
+}
+
 /** Pull the operationIds list out of a detail JSON blob, if present. */
 export function parseOperationIds(detail: string | null | undefined): ReadonlyArray<string> {
   const parsed = parseDetailObject(detail);
