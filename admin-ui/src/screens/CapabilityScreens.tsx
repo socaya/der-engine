@@ -1764,29 +1764,28 @@ function DhisAppTile({ href, title, desc }: {
 }): JSX.Element {
   return (
     <div className="ea-screen" data-test={'cap-' + title.toLowerCase()}>
-      <HeroHeader title={title} subtitle={desc}
+      <SyncStatusBar
+        tone="info"
+        title={title}
+        statusLabel="DHIS2 app"
+        subtitle={<span>{desc}</span>}
         actions={
-          <a className="ea-btn ea-btn--primary" href={href} target="_blank" rel="noreferrer">
+          <a className="ea-btn ea-btn--primary ea-btn--sm" href={href} target="_blank" rel="noreferrer">
             Open in new tab ↗
           </a>
         }
       />
-      <section className="ea-card ea-form-card">
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>About</h2>
-            <p>
-              This surface delegates to the DHIS2 Core app bundled with the
-              edge. All writes flow back through the DER journal, so sync,
-              drift, and conflict review on this console continue to apply.
-            </p>
-          </div>
-          <ul className="ea-def-list">
-            <li className="ea-def-row"><dt>DHIS2 app</dt><dd className="ea-mono">{href}</dd></li>
-            <li className="ea-def-row"><dt>Mode</dt><dd>Deep-link (new tab)</dd></li>
-          </ul>
-        </div>
-      </section>
+      <Panel title="About">
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--der-ink-700)' }}>
+          This surface opens the DHIS2 Core app bundled with this edge. All
+          writes flow back through the DER journal, so sync, drift and
+          attention review on this console continue to apply.
+        </p>
+        <dl className="ea-def-list" style={{ marginTop: 10 }}>
+          <div className="ea-def-row"><dt>DHIS2 app</dt><dd className="ea-mono">{href}</dd></div>
+          <div className="ea-def-row"><dt>Mode</dt><dd>Deep-link (new tab)</dd></div>
+        </dl>
+      </Panel>
     </div>
   );
 }
@@ -1820,34 +1819,47 @@ export function CapDrafts(): JSX.Element {
   if (!rows) return <LoadingBlock testId="loading" />;
   return (
     <div className="ea-screen" data-test="cap-drafts">
-      <HeroHeader title="Drafts & pending" subtitle="Captures saved locally but not yet submitted." />
-      <div className="ea-stat-strip">
-        <Stat label="Total drafts" value={rows.length} />
-      </div>
+      <SyncStatusBar
+        tone={rows.length === 0 ? 'success' : 'info'}
+        title="Drafts"
+        statusLabel={rows.length === 0 ? 'All submitted' : `${rows.length} draft${rows.length === 1 ? '' : 's'}`}
+        subtitle={<span>Captures saved locally but not yet submitted to a workflow.</span>}
+      />
       {rows.length === 0 ? (
-        <EmptyBlock title="No drafts" testId="empty-no-drafts">All captured data has been submitted.</EmptyBlock>
+        <EmptyBlock title="No drafts" testId="empty-no-drafts">
+          Every local capture has either been submitted or discarded.
+        </EmptyBlock>
       ) : (
-        <section className="ea-card">
+        <Panel title={`${rows.length} draft${rows.length === 1 ? '' : 's'}`}>
           <div className="ea-table-wrap">
-            <table className="ea-table"><thead><tr>
-              <th>Updated</th><th>Kind</th><th>Title</th><th aria-label="Actions" />
-            </tr></thead><tbody>
-              {rows.map((d) => (
-                <tr key={d.draftId}>
-                  <td className="ea-mono">{d.updatedAt}</td>
-                  <td>{d.kind}</td>
-                  <td>{d.title ?? '—'}</td>
-                  <td className="ea-table-actions">
-                    <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger"
-                            onClick={() => { remove(d.draftId).catch(() => undefined); }}>
-                      Discard
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody></table>
+            <table className="ea-table ea-table--dense">
+              <thead><tr>
+                <th>Updated</th>
+                <th>Kind</th>
+                <th>Title</th>
+                <th style={{ width: 90 }}>Action</th>
+              </tr></thead>
+              <tbody>
+                {rows.map((d) => (
+                  <tr key={d.draftId}>
+                    <td className="ea-text-muted" style={{ fontSize: 12 }}
+                        title={d.updatedAt}>{new Date(d.updatedAt).toLocaleString()}</td>
+                    <td><span className="ea-chip ea-chip--neutral" title={d.kind}>
+                      {humaniseState(d.kind)}
+                    </span></td>
+                    <td>{d.title ?? <span className="ea-text-muted">Untitled draft</span>}</td>
+                    <td>
+                      <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
+                              onClick={() => { remove(d.draftId).catch(() => undefined); }}>
+                        Discard
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </section>
+        </Panel>
       )}
     </div>
   );
@@ -1863,62 +1875,78 @@ export function CapMaintenance(): JSX.Element {
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(null); }
   }
+  const jobCatalogue: ReadonlyArray<{ name: string; label: string; desc: string }> = [
+    { name: 'METADATA_SYNC_FULL', label: 'Pull metadata',
+      desc: 'Mirror DHIS2 metadata (programs, data elements, OUs) now.' },
+    { name: 'AGGREGATE_DATA_PUSH', label: 'Push aggregate data',
+      desc: 'Send captured aggregate data values to Central DHIS2.' },
+    { name: 'JOURNAL_DRAIN', label: 'Drain journal',
+      desc: 'Push every pending outbound record (all types) now.' },
+  ];
   return (
     <div className="ea-screen" data-test="cap-maint">
-      <HeroHeader title="Maintenance"
-        subtitle="One-off operator actions. These rebuild or re-emit local state."
+      <SyncStatusBar
+        tone="muted"
+        title="Maintenance"
+        statusLabel={busy ? 'Running' : 'Idle'}
+        subtitle={<span>One-off operator actions. Prefer the dedicated Sync pages for routine operations.</span>}
       />
       {msg && <p className="ea-saved">{msg}</p>}
       {err && <ErrorBlock title="Action failed" testId="err-action-failed">{err}</ErrorBlock>}
-      <section className="ea-card ea-form-card">
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>Jobs</h2>
-            <p>Trigger scheduler jobs directly. Prefer the dedicated screens for routine operations.</p>
-          </div>
-          <div className="ea-tile-grid">
-            {['METADATA_SYNC_FULL', 'AGGREGATE_DATA_PUSH', 'JOURNAL_DRAIN'].map((name) => (
-              <button key={name} type="button" className="ea-link-tile ea-link-tile--btn"
-                      disabled={busy === name}
-                      onClick={() => { run(name, () => edgeApi.triggerJob(name)).catch(() => undefined); }}>
-                <div className="ea-link-tile-icon" aria-hidden="true">▶</div>
-                <div className="ea-link-tile-body">
-                  <div className="ea-link-tile-title">{name}</div>
-                  <div className="ea-link-tile-desc">
-                    {busy === name ? 'Running…' : 'Trigger this scheduler job now.'}
-                  </div>
+
+      <Panel title="Trigger sync jobs">
+        <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
+          Manual trigger for the three main scheduler jobs. These normally
+          run on their schedule and are also exposed on the Sync pages.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                       gap: 8 }}>
+          {jobCatalogue.map((j) => (
+            <button key={j.name} type="button" className="ea-link-tile ea-link-tile--btn"
+                    disabled={busy === j.name}
+                    onClick={() => { run(j.label, () => edgeApi.triggerJob(j.name)).catch(() => undefined); }}>
+              <div className="ea-link-tile-icon" aria-hidden="true">▶</div>
+              <div className="ea-link-tile-body">
+                <div className="ea-link-tile-title">{j.label}</div>
+                <div className="ea-link-tile-desc">
+                  {busy === j.label ? 'Starting…' : j.desc}
                 </div>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>Backups</h2>
-            <p>Create a snapshot of the audit log or the full edge state.</p>
-          </div>
-          <div className="ea-tile-grid">
-            <button type="button" className="ea-link-tile ea-link-tile--btn"
-                    disabled={busy === 'AUDIT'}
-                    onClick={() => { run('AUDIT backup', () => edgeApi.requestBackup('AUDIT')).catch(() => undefined); }}>
-              <div className="ea-link-tile-icon" aria-hidden="true">⬇</div>
-              <div className="ea-link-tile-body">
-                <div className="ea-link-tile-title">Audit backup</div>
-                <div className="ea-link-tile-desc">Hash-chained audit log only.</div>
+                <div className="ea-text-muted ea-mono" style={{ fontSize: 10, marginTop: 2 }}>
+                  {j.name}
+                </div>
               </div>
             </button>
-            <button type="button" className="ea-link-tile ea-link-tile--btn"
-                    disabled={busy === 'FULL'}
-                    onClick={() => { run('FULL backup', () => edgeApi.requestBackup('FULL')).catch(() => undefined); }}>
-              <div className="ea-link-tile-icon" aria-hidden="true">⬇</div>
-              <div className="ea-link-tile-body">
-                <div className="ea-link-tile-title">Full backup</div>
-                <div className="ea-link-tile-desc">Database + mirror + apps.</div>
-              </div>
-            </button>
-          </div>
+          ))}
         </div>
-      </section>
+      </Panel>
+
+      <Panel title="Backups">
+        <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
+          Create a snapshot of the audit log or the full edge state.
+          Full backups cover the database, metadata mirror and installed apps.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                       gap: 8 }}>
+          <button type="button" className="ea-link-tile ea-link-tile--btn"
+                  disabled={busy === 'AUDIT backup'}
+                  onClick={() => { run('AUDIT backup', () => edgeApi.requestBackup('AUDIT')).catch(() => undefined); }}>
+            <div className="ea-link-tile-icon" aria-hidden="true">⬇</div>
+            <div className="ea-link-tile-body">
+              <div className="ea-link-tile-title">Audit backup</div>
+              <div className="ea-link-tile-desc">Hash-chained audit log only.</div>
+            </div>
+          </button>
+          <button type="button" className="ea-link-tile ea-link-tile--btn"
+                  disabled={busy === 'FULL backup'}
+                  onClick={() => { run('FULL backup', () => edgeApi.requestBackup('FULL')).catch(() => undefined); }}>
+            <div className="ea-link-tile-icon" aria-hidden="true">⬇</div>
+            <div className="ea-link-tile-body">
+              <div className="ea-link-tile-title">Full backup</div>
+              <div className="ea-link-tile-desc">Database + metadata mirror + apps.</div>
+            </div>
+          </button>
+        </div>
+      </Panel>
     </div>
   );
 }
