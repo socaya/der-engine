@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import * as edgeApi from '../../api/edgeApi';
 import {
   OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtAgo, usePaged, TablePager,
-  queueEntityIcon, queueEntityLabel, humaniseState,
+  queueEntityIcon, queueEntityLabel, humaniseState, DrawerTabs, JsonViewer,
 } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
@@ -29,6 +29,23 @@ export function MockupDataQueues(): JSX.Element {
   const [filterType, setFilterType] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [sel, setSel] = useState<QueueItem | null>(null);
+  const [drawerTab, setDrawerTab] = useState<'overview' | 'payload'>('overview');
+  const [opDetail, setOpDetail] = useState<edgeApi.JournalOperation | null>(null);
+  const [opLoading, setOpLoading] = useState(false);
+
+  // When the user selects a queue row, fetch the full operation (incl.
+  // payload JSON) only when they flip to the Payload tab. Keeps the
+  // selection UX snappy and avoids fetching for rows the user doesn't
+  // open the payload for.
+  useEffect(() => { setDrawerTab('overview'); setOpDetail(null); }, [sel?.code]);
+  useEffect(() => {
+    if (!sel?.raw || drawerTab !== 'payload' || opDetail) return;
+    setOpLoading(true);
+    edgeApi.fetchJournalOperation(sel.raw.operationId)
+      .then((op) => setOpDetail(op))
+      .catch(() => setOpDetail(null))
+      .finally(() => setOpLoading(false));
+  }, [sel, drawerTab, opDetail]);
 
   async function reload(): Promise<void> {
     const [a, b] = await Promise.allSettled([
@@ -205,27 +222,72 @@ export function MockupDataQueues(): JSX.Element {
                   </div>
                 </div>
               </div>
-              <dl className="ea-def-list">
-                <div className="ea-def-row"><dt>Code</dt><dd className="ea-mono">{sel.code}</dd></div>
-                <div className="ea-def-row"><dt>Status</dt>
-                  <dd><span className={'ea-chip ea-chip--' + (sel.status === 'done' ? 'success' : sel.status === 'failed' ? 'danger' : 'warning')}>{humaniseState(sel.status)}</span></dd>
-                </div>
-                <div className="ea-def-row"><dt>Created</dt><dd className="ea-mono">{fmtDate(sel.created)}</dd></div>
-                <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.created)}</dd></div>
-                <div className="ea-def-row"><dt>Retry count</dt><dd className="ea-mono">{sel.retry}</dd></div>
-                {sel.raw && (
-                  <div className="ea-def-row"><dt>Operation ID</dt><dd className="ea-mono">{sel.raw.operationId}</dd></div>
-                )}
-              </dl>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <DrawerTabs
+                active={drawerTab}
+                onChange={(id) => setDrawerTab(id as 'overview' | 'payload')}
+                tabs={[
+                  { id: 'overview', label: 'Overview' },
+                  { id: 'payload', label: 'Payload' },
+                ]}
+              />
+
+              {drawerTab === 'overview' && (
+                <dl className="ea-def-list">
+                  <div className="ea-def-row"><dt>Code</dt><dd className="ea-mono">{sel.code}</dd></div>
+                  <div className="ea-def-row"><dt>Status</dt>
+                    <dd><span className={'ea-chip ea-chip--' + (sel.status === 'done' ? 'success' : sel.status === 'failed' ? 'danger' : 'warning')}>{humaniseState(sel.status)}</span></dd>
+                  </div>
+                  <div className="ea-def-row"><dt>Created</dt><dd className="ea-mono">{fmtDate(sel.created)}</dd></div>
+                  <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.created)}</dd></div>
+                  <div className="ea-def-row"><dt>Retry count</dt><dd className="ea-mono">{sel.retry}</dd></div>
+                  {sel.raw && (
+                    <div className="ea-def-row"><dt>Operation ID</dt><dd className="ea-mono">{sel.raw.operationId}</dd></div>
+                  )}
+                </dl>
+              )}
+
+              {drawerTab === 'payload' && (
+                sel.raw ? (
+                  opLoading ? (
+                    <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>Loading payload…</p>
+                  ) : opDetail ? (
+                    <>
+                      <JsonViewer value={opDetail.payload}
+                                  label={`${queueEntityLabel(opDetail.entityType)} · ${opDetail.entityRef}`}
+                                  maxDepth={3} />
+                      {opDetail.lastError && (
+                        <div style={{ marginTop: 10,
+                                      padding: '6px 10px', borderRadius: 4,
+                                      background: 'var(--der-danger-50, #fef2f2)',
+                                      border: '1px solid var(--der-danger, #fca5a5)',
+                                      fontSize: 12, color: 'var(--der-danger, #b91c1c)' }}>
+                          <div style={{ fontWeight: 600, marginBottom: 2 }}>Last error</div>
+                          <div className="ea-mono" style={{ fontSize: 11 }}>{opDetail.lastError}</div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
+                      Payload no longer available — this operation was drained from the journal.
+                    </p>
+                  )
+                ) : (
+                  <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
+                    Inbound referral records don't carry a push payload. See the
+                    referral inbox for the source metadata.
+                  </p>
+                )
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12,
+                            paddingTop: 10, borderTop: '1px solid var(--der-border-subtle)' }}>
                 <button type="button" className="ea-btn ea-btn--primary"
                         onClick={() => { resolve('ACCEPTED').catch(() => undefined); }}>
-                  Sync This Item
+                  Sync this item
                 </button>
-                <button type="button" className="ea-btn ea-btn--ghost">Edit Data</button>
                 <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger"
                         onClick={() => { resolve('REJECTED').catch(() => undefined); }}>
-                  Delete From Queue
+                  Delete from queue
                 </button>
               </div>
             </>

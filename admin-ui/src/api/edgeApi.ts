@@ -314,10 +314,40 @@ export interface ConflictRow {
   state: string;
   attemptCount: number;
   createdAt: string;
+  payload?: Record<string, unknown> | null;
+  lastError?: string | null;
+  updatedAt?: string;
 }
 
 export function listConflicts(limit = 100): Promise<ConflictRow[]> {
   return request<ConflictRow[]>('GET', `/edge-api/v1/journal/conflicts?limit=${limit}`);
+}
+
+/** Full journal operation entry (includes payload JSON). */
+export interface JournalOperation {
+  operationId: string;
+  entityType: string;
+  entityRef: string;
+  payload: Record<string, unknown>;
+  state: string;
+  attemptCount: number;
+  lastError: string | null;
+  submittedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  nextHopOrgUnitUid: string | null;
+}
+
+export function fetchJournalOperation(operationId: string): Promise<JournalOperation> {
+  return request<JournalOperation>('GET',
+    `/edge-api/v1/journal/operations/${encodeURIComponent(operationId)}`);
+}
+
+/** Backlog breakdown by entity type (every known type, with state counts). */
+export type JournalStatsByType = Record<string, Record<string, number>>;
+
+export function journalStatsByType(): Promise<JournalStatsByType> {
+  return request<JournalStatsByType>('GET', '/edge-api/v1/journal/stats/by-type');
 }
 
 export function resolveConflict(id: string, outcome: 'ACCEPTED' | 'REJECTED', rationale?: string):

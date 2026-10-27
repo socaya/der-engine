@@ -1,10 +1,12 @@
 package ug.ac.mak.der.workflows.journal;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.slf4j.Logger;
@@ -45,7 +47,7 @@ public class JournalWorker {
         lastTick = Instant.now();
         if (!settings.enabled().get()) {
             lastBatchSize = 0;
-            return new DrainOutcome(0, 0, 0, 0, 0, Map.of(), "disabled");
+            return new DrainOutcome(0, 0, 0, 0, 0, Map.of(), List.of(), "disabled");
         }
         final List<OperationJournalEntry> pending =
                 journal.findPendingReadyToDrain(settings.batchSize());
@@ -55,8 +57,10 @@ public class JournalWorker {
         int retryable = 0;
         int conflicts = 0;
         final Map<String, Integer> byType = new LinkedHashMap<>();
+        final List<UUID> operationIds = new ArrayList<>();
         for (final OperationJournalEntry entry : pending) {
             byType.merge(entry.entityType().name(), 1, Integer::sum);
+            operationIds.add(entry.operationId());
             if (entry.state() != OperationJournalEntry.State.PENDING) {
                 continue;
             }
@@ -87,7 +91,7 @@ public class JournalWorker {
             }
         }
         return new DrainOutcome(pending.size(), accepted, rejected, retryable, conflicts,
-                Map.copyOf(byType), null);
+                Map.copyOf(byType), List.copyOf(operationIds), null);
     }
 
     public Instant lastTick() {
@@ -151,12 +155,13 @@ public class JournalWorker {
     }
 
     public record DrainOutcome(int picked, int accepted, int rejected, int retryable,
-                                int conflicts, Map<String, Integer> byType, String note) {
+                                int conflicts, Map<String, Integer> byType,
+                                List<UUID> operationIds, String note) {
 
-        /** Legacy constructor retained for tests. byType defaults to empty. */
+        /** Legacy constructor retained for tests. byType + operationIds default to empty. */
         public DrainOutcome(final int picked, final int accepted, final int rejected,
                              final int retryable, final int conflicts, final String note) {
-            this(picked, accepted, rejected, retryable, conflicts, Map.of(), note);
+            this(picked, accepted, rejected, retryable, conflicts, Map.of(), List.of(), note);
         }
     }
 }

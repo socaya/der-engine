@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, usePaged, TablePager, humaniseJob, humaniseState, relatedLinksForJob, syncActivityShape, parseByType, detailEntries, entityTypeIcon, entityTypeLabel } from './shared';
+import { OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, usePaged, TablePager, humaniseJob, humaniseState, relatedLinksForJob, syncActivityShape, parseByType, detailEntries, entityTypeIcon, entityTypeLabel, DrawerTabs, JsonViewer, parseOperationIds } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /** DER Sync History — matches docs/media/ui/DER Sync History Dashboard (1).png */
@@ -14,6 +14,24 @@ export function MockupSyncHistory(): JSX.Element {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [sel, setSel] = useState<edgeApi.JobRun | null>(null);
+  const [tab, setTab] = useState<'overview' | 'payload' | 'related'>('overview');
+  const [ops, setOps] = useState<edgeApi.JournalOperation[] | null>(null);
+  const [opsLoading, setOpsLoading] = useState(false);
+
+  // Fetch operation payloads when a drain-style run is selected and the
+  // user flips to the Payload tab. Guarded so we only fetch the first
+  // ~5 operations — the drawer is a preview, not a bulk export.
+  useEffect(() => {
+    if (!sel || tab !== 'payload') return;
+    const ids = parseOperationIds(sel.detail).slice(0, 5);
+    if (ids.length === 0) { setOps([]); return; }
+    setOpsLoading(true);
+    Promise.all(ids.map((id) => edgeApi.fetchJournalOperation(id).catch(() => null)))
+      .then((rows) => setOps(rows.filter((r): r is edgeApi.JournalOperation => r !== null)))
+      .finally(() => setOpsLoading(false));
+  }, [sel, tab]);
+
+  useEffect(() => { setTab('overview'); setOps(null); }, [sel?.runId]);
 
   async function reload(): Promise<void> {
     try { setJobs(await edgeApi.listJobs(200)); } catch { /* ignore */ }
@@ -171,69 +189,130 @@ export function MockupSyncHistory(): JSX.Element {
                   </div>
                 </div>
               </div>
-              <dl className="ea-def-list">
-                <div className="ea-def-row"><dt>Run ID</dt><dd className="ea-mono">{sel.runId}</dd></div>
-                <div className="ea-def-row"><dt>Job</dt>
-                  <dd>
-                    {humaniseJob(sel.jobName)}
-                    <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{sel.jobName}</div>
-                  </dd>
-                </div>
-                <div className="ea-def-row"><dt>Status</dt>
-                  <dd><span className={'ea-chip ea-chip--' + (sel.outcome === 'SUCCEEDED' ? 'success' : sel.outcome === 'FAILED' ? 'danger' : 'info')}>{humaniseState(sel.outcome)}</span></dd>
-                </div>
-                <div className="ea-def-row"><dt>Started</dt><dd className="ea-mono">{fmtDate(sel.startedAt)}</dd></div>
-                <div className="ea-def-row"><dt>Finished</dt><dd className="ea-mono">{sel.finishedAt ? fmtDate(sel.finishedAt) : '—'}</dd></div>
-                <div className="ea-def-row"><dt>Duration</dt><dd>{fmtDur(sel.durationMs)}</dd></div>
-                <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.startedAt)}</dd></div>
-                <div className="ea-def-row"><dt>Triggered by</dt><dd>{humaniseState(sel.triggeredBy)}</dd></div>
-              </dl>
+              <DrawerTabs
+                active={tab}
+                onChange={(id) => setTab(id as 'overview' | 'payload' | 'related')}
+                tabs={[
+                  { id: 'overview', label: 'Overview' },
+                  { id: 'payload', label: 'Payload',
+                    badge: parseByType(sel.detail).reduce((a, [, c]) => a + c, 0) || undefined },
+                  { id: 'related', label: 'Related',
+                    badge: relatedLinksForJob(sel.jobName).length || undefined },
+                ]}
+              />
 
-              {sel.detail && (
+              {tab === 'overview' && (
+                <dl className="ea-def-list">
+                  <div className="ea-def-row"><dt>Run ID</dt><dd className="ea-mono">{sel.runId}</dd></div>
+                  <div className="ea-def-row"><dt>Job</dt>
+                    <dd>
+                      {humaniseJob(sel.jobName)}
+                      <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{sel.jobName}</div>
+                    </dd>
+                  </div>
+                  <div className="ea-def-row"><dt>Status</dt>
+                    <dd><span className={'ea-chip ea-chip--' + (sel.outcome === 'SUCCEEDED' || sel.outcome === 'SUCCESS' ? 'success' : sel.outcome === 'FAILED' || sel.outcome === 'FAILURE' ? 'danger' : 'info')}>{humaniseState(sel.outcome)}</span></dd>
+                  </div>
+                  <div className="ea-def-row"><dt>Started</dt><dd className="ea-mono">{fmtDate(sel.startedAt)}</dd></div>
+                  <div className="ea-def-row"><dt>Finished</dt><dd className="ea-mono">{sel.finishedAt ? fmtDate(sel.finishedAt) : '—'}</dd></div>
+                  <div className="ea-def-row"><dt>Duration</dt><dd>{fmtDur(sel.durationMs)}</dd></div>
+                  <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.startedAt)}</dd></div>
+                  <div className="ea-def-row"><dt>Triggered by</dt><dd>{humaniseState(sel.triggeredBy)}</dd></div>
+                </dl>
+              )}
+
+              {tab === 'payload' && (
                 <>
-                  <h4 style={{ margin: '14px 0 4px', fontSize: 11, fontWeight: 600,
+                  {parseByType(sel.detail).length > 0 && (
+                    <>
+                      <h4 style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 600,
+                                   letterSpacing: '0.02em', textTransform: 'uppercase',
+                                   color: 'var(--der-ink-400)' }}>Breakdown</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+                        {parseByType(sel.detail).map(([type, count]) => (
+                          <div key={type}
+                               style={{ display: 'flex', alignItems: 'center', gap: 8,
+                                        padding: '4px 8px', borderRadius: 4,
+                                        background: 'var(--der-ink-50)', fontSize: 12 }}>
+                            <span aria-hidden="true" style={{ fontSize: 16 }}>{entityTypeIcon(type)}</span>
+                            <span style={{ flex: 1 }}>{entityTypeLabel(type)}</span>
+                            <span className="ea-mono" style={{ fontWeight: 600 }}>{count.toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  <h4 style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 600,
                                letterSpacing: '0.02em', textTransform: 'uppercase',
-                               color: 'var(--der-ink-400)' }}>
-                    Payload
-                  </h4>
-                  {parseByType(sel.detail).length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
-                      {parseByType(sel.detail).map(([type, count]) => (
-                        <div key={type}
-                             style={{ display: 'flex', alignItems: 'center', gap: 8,
-                                      padding: '4px 6px', borderRadius: 4,
-                                      background: 'var(--der-ink-50)', fontSize: 12 }}>
-                          <span aria-hidden="true" style={{ fontSize: 16 }}>{entityTypeIcon(type)}</span>
-                          <span style={{ flex: 1 }}>{entityTypeLabel(type)}</span>
-                          <span className="ea-mono" style={{ fontWeight: 600 }}>{count.toLocaleString()}</span>
+                               color: 'var(--der-ink-400)' }}>Records</h4>
+                  {parseOperationIds(sel.detail).length === 0 ? (
+                    <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
+                      This run didn't move individual records — it's a scheduler
+                      heartbeat with no payload to show.
+                    </p>
+                  ) : opsLoading ? (
+                    <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
+                      Loading record payloads…
+                    </p>
+                  ) : (ops ?? []).length === 0 ? (
+                    <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
+                      Records were drained and are no longer in the journal.
+                    </p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+                      {(ops ?? []).map((op) => (
+                        <div key={op.operationId}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8,
+                                        fontSize: 12, marginBottom: 4 }}>
+                            <span aria-hidden="true" style={{ fontSize: 16 }}>
+                              {entityTypeIcon(op.entityType)}
+                            </span>
+                            <span style={{ fontWeight: 500 }}>{entityTypeLabel(op.entityType)}</span>
+                            <span className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>
+                              {op.entityRef}
+                            </span>
+                            <span className="ea-chip ea-chip--info" style={{ marginLeft: 'auto' }}>
+                              {humaniseState(op.state)}
+                            </span>
+                          </div>
+                          <JsonViewer value={op.payload}
+                                      label={`${entityTypeLabel(op.entityType)} · ${op.entityRef}`} />
                         </div>
                       ))}
+                      {parseOperationIds(sel.detail).length > (ops ?? []).length && (
+                        <p className="ea-text-muted" style={{ margin: 0, fontSize: 11 }}>
+                          Showing first {(ops ?? []).length} of {parseOperationIds(sel.detail).length}
+                          {' '}records in this run.
+                        </p>
+                      )}
                     </div>
-                  ) : (
-                    <p className="ea-text-muted" style={{ margin: '0 0 8px', fontSize: 12 }}>
-                      No per-record breakdown — this run didn't move any entities.
-                    </p>
                   )}
 
                   {detailEntries(sel.detail).length > 0 && (
-                    <dl className="ea-def-list">
-                      {detailEntries(sel.detail).map(([k, v]) => (
-                        <div key={k} className="ea-def-row">
-                          <dt>{humaniseJob(k)}</dt>
-                          <dd className="ea-mono">{v}</dd>
-                        </div>
-                      ))}
-                    </dl>
+                    <>
+                      <h4 style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 600,
+                                   letterSpacing: '0.02em', textTransform: 'uppercase',
+                                   color: 'var(--der-ink-400)' }}>Run detail</h4>
+                      <dl className="ea-def-list">
+                        {detailEntries(sel.detail).map(([k, v]) => (
+                          <div key={k} className="ea-def-row">
+                            <dt>{humaniseJob(k)}</dt>
+                            <dd className="ea-mono">{v}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </>
                   )}
                 </>
               )}
-              {relatedLinksForJob(sel.jobName).length > 0 && (
-                <>
-                  <h4 style={{ margin: '12px 0 4px', fontSize: 11, fontWeight: 600,
-                               letterSpacing: '0.02em', textTransform: 'uppercase',
-                               color: 'var(--der-ink-400)' }}>
-                    Explore payload
-                  </h4>
+
+              {tab === 'related' && (
+                relatedLinksForJob(sel.jobName).length === 0 ? (
+                  <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
+                    No related screens for this job type.
+                  </p>
+                ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {relatedLinksForJob(sel.jobName).map(([label, to, hint]) => (
                       <Link key={to} to={to} className="ea-link-tile"
@@ -245,11 +324,8 @@ export function MockupSyncHistory(): JSX.Element {
                       </Link>
                     ))}
                   </div>
-                </>
+                )
               )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <button type="button" className="ea-btn ea-btn--ghost">Export this run</button>
-              </div>
             </>
           ) : (
             <p className="ea-text-muted" style={{ margin: 0 }}>Select a row to view run details.</p>

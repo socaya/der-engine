@@ -44,6 +44,9 @@ public class JournalDrainJob implements Job {
                 if (out.byType() != null && !out.byType().isEmpty()) {
                     detail.put("byType", out.byType());
                 }
+                if (out.operationIds() != null && !out.operationIds().isEmpty()) {
+                    detail.put("operationIds", out.operationIds());
+                }
                 runs.markSuccess(runId, duration, write(detail));
             }
         } catch (Exception ex) {

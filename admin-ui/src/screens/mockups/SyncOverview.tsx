@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { Panel, MiniBarChart, Dot, fmtDur, fmtAgo, fmtBytes, humaniseState, syncActivityShape } from './shared';
+import { Panel, MiniBarChart, Dot, fmtDur, fmtAgo, fmtBytes, humaniseState, syncActivityShape, entityTypeIcon, entityTypeLabel } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -21,21 +21,18 @@ import { LoadingBlock } from '../../components/ScreenStates';
 export function MockupSyncOverview(): JSX.Element {
   const [w, setW] = useState<edgeApi.WorkerHealth | null>(null);
   const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
-  const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
-  const [d, setD] = useState<edgeApi.DriftResponse | null>(null);
-  const [c, setC] = useState<edgeApi.ConflictRow[] | null>(null);
+  const [stats, setStats] = useState<edgeApi.JournalStatsByType | null>(null);
   const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
 
   async function reload(): Promise<void> {
-    const [a, b, cs, drf, conf] = await Promise.allSettled([
-      edgeApi.workerHealth(), edgeApi.listJobs(100), edgeApi.systemInfo(),
-      edgeApi.drift(), edgeApi.listConflicts(100),
+    const [a, b, st] = await Promise.allSettled([
+      edgeApi.workerHealth(), edgeApi.listJobs(100),
+      edgeApi.journalStatsByType(),
     ]);
     if (a.status === 'fulfilled') setW(a.value);
     if (b.status === 'fulfilled') setJobs(b.value);
-    if (cs.status === 'fulfilled') setSi(cs.value);
-    if (drf.status === 'fulfilled') setD(drf.value);
-    if (conf.status === 'fulfilled') setC(conf.value);
+    if (st.status === 'fulfilled') setStats(st.value);
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
 
@@ -48,15 +45,25 @@ export function MockupSyncOverview(): JSX.Element {
     } finally { setBusy(false); }
   }
 
-  if (!w || !si) return <LoadingBlock testId="loading" />;
+  if (!w) return <LoadingBlock testId="loading" />;
 
+  const isSuccess = (o: string): boolean => o === 'SUCCEEDED' || o === 'SUCCESS';
+  const isFailure = (o: string): boolean => o === 'FAILED' || o === 'FAILURE';
+
+  // 24h activity: bin into 12 slots of 2 hours each so bars are chunky
+  // and the chart doesn't look blank when drains cluster into a few
+  // minutes. Falls back to the actual job time range if there is any
+  // activity in the window — otherwise the fixed 24h window.
   const now = Date.now();
+  const windowMs = 24 * 3600_000;
+  const slots = 12;
+  const slotMs = windowMs / slots;
   const bars: Array<{ label: string; value: number }> = [];
-  for (let i = 23; i >= 0; i--) {
-    const start = now - (i + 1) * 3600_000;
-    const end = now - i * 3600_000;
+  for (let i = slots - 1; i >= 0; i--) {
+    const start = now - (i + 1) * slotMs;
+    const end = now - i * slotMs;
     bars.push({
-      label: `${new Date(end).getHours()}h`,
+      label: new Date(end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       value: (jobs ?? []).filter((j) => {
         const t = Date.parse(j.startedAt);
         return t >= start && t < end;
@@ -64,41 +71,38 @@ export function MockupSyncOverview(): JSX.Element {
     });
   }
 
-  const lastJob = (jobs ?? []).find((j) => j.outcome === 'SUCCEEDED');
+  const lastJob = (jobs ?? []).find((j) => isSuccess(j.outcome));
+  const lastAnyJob = (jobs ?? [])[0];
   const backlog = Object.values(w.backlog).reduce((a, b) => a + b, 0);
   const succeeded24 = (jobs ?? []).filter((j) =>
-    Date.now() - Date.parse(j.startedAt) < 86400_000 && j.outcome === 'SUCCEEDED').length;
+    Date.now() - Date.parse(j.startedAt) < windowMs && isSuccess(j.outcome)).length;
   const failed24 = (jobs ?? []).filter((j) =>
-    Date.now() - Date.parse(j.startedAt) < 86400_000 && j.outcome === 'FAILED').length;
-  const reliability = succeeded24 + failed24
-    ? Math.round((100 * succeeded24) / (succeeded24 + failed24))
+    Date.now() - Date.parse(j.startedAt) < windowMs && isFailure(j.outcome)).length;
+  const totalRuns24 = succeeded24 + failed24;
+  const reliability = totalRuns24
+    ? Math.round((100 * succeeded24) / totalRuns24)
     : 100;
-
-  const dataTypes = [
-    { label: 'Data elements', items: (si.journal?.AGGREGATE ?? 0) + (si.journal?.AGGREGATE_PUSH ?? 0) },
-    { label: 'Events', items: (si.journal?.EVENT ?? 0) },
-    { label: 'Tracker enrollments', items: (si.journal?.ENROLLMENT ?? 0) + (si.journal?.TRACKED_ENTITY ?? 0) },
-    { label: 'Organisation units', items: (si.journal?.ORG_UNIT ?? 0) },
-  ];
-
-  const driftDetected = Boolean(d?.fingerprintFrom && d?.fingerprintTo
-    && d.fingerprintFrom !== d.fingerprintTo);
-  const pendingConflicts = (c ?? []).filter((x) => x.state !== 'RESOLVED').length;
 
   return (
     <div className="ea-screen" data-test="sync-hub">
       <div className="ea-stat-strip">
         <Stat label="Worker" tone={w.enabled ? 'success' : 'muted'}
-              value={w.enabled ? 'running' : 'paused'} />
+              value={w.enabled ? 'Running' : 'Paused'} />
         <Stat label="Backlog" tone={backlog > 0 ? 'warning' : 'success'}
               value={backlog.toLocaleString()} />
         <Stat label="Last sync"
-              value={lastJob ? fmtAgo(lastJob.startedAt) : '—'} />
+              value={(lastJob ?? lastAnyJob)
+                ? fmtAgo((lastJob ?? lastAnyJob).startedAt)
+                : 'No runs yet'} />
         <Stat label="Last duration"
-              value={lastJob ? fmtDur(lastJob.durationMs) : '—'} />
-        <Stat label="Reliability (24h)" tone={reliability >= 95 ? 'success' : 'warning'}
-              value={`${reliability}%`} />
-        <Stat label="Last tick" value={fmtAgo(w.lastTick)} />
+              value={(lastJob ?? lastAnyJob)
+                ? fmtDur((lastJob ?? lastAnyJob).durationMs)
+                : '—'} />
+        <Stat label="Reliability (24h)"
+              tone={totalRuns24 === 0 ? 'muted' : reliability >= 95 ? 'success' : 'warning'}
+              value={totalRuns24 === 0 ? 'No data' : `${reliability}%`} />
+        <Stat label="Last tick"
+              value={w.lastTick ? fmtAgo(w.lastTick) : 'Never'} />
       </div>
 
       <div className="ea-dash-middle">
@@ -145,7 +149,7 @@ export function MockupSyncOverview(): JSX.Element {
         </Panel>
       </div>
 
-      <Panel title="Journal by data type"
+      <Panel title="Outbound queue · by data type"
              action={
                <>
                  <Link to="/sync/jobs/trigger" className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -159,55 +163,66 @@ export function MockupSyncOverview(): JSX.Element {
                  </button>
                </>
              }>
+        <p className="ea-text-muted" style={{ margin: '0 0 8px', fontSize: 12 }}>
+          Operations captured locally and queued for push to DHIS2.
+          Click a row to inspect the records and their payload JSON.
+        </p>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense">
+          <table className="ea-table ea-table--dense ea-table--selectable">
             <thead><tr>
-              <th>Type</th><th>Items</th><th>Last sync</th><th>Status</th>
+              <th style={{ width: 32 }}></th>
+              <th>Data type</th>
+              <th style={{ width: 90 }}>Pending</th>
+              <th style={{ width: 90 }}>In flight</th>
+              <th style={{ width: 90 }}>Accepted</th>
+              <th style={{ width: 90 }}>Needs review</th>
+              <th style={{ width: 90 }}>Status</th>
             </tr></thead>
             <tbody>
-              {dataTypes.map((dt) => (
-                <tr key={dt.label}>
-                  <td>{dt.label}</td>
-                  <td className="ea-mono">{dt.items.toLocaleString()}</td>
-                  <td>{lastJob ? fmtAgo(lastJob.startedAt) : '—'}</td>
-                  <td>
-                    <Dot tone={dt.items === 0 ? 'muted' : w.enabled ? 'success' : 'warning'} />
-                    {dt.items === 0 ? ' idle' : w.enabled ? ' syncing' : ' paused'}
-                  </td>
-                </tr>
-              ))}
+              {stats && Object.entries(stats).map(([type, states]) => {
+                const pending = (states.PENDING ?? 0) + (states.IN_FLIGHT ?? 0);
+                const inFlight = states.IN_FLIGHT ?? 0;
+                const accepted = states.CENTRAL_ACCEPTED ?? 0;
+                const review = (states.CONFLICT_REVIEW ?? 0) + (states.RETRYABLE ?? 0)
+                             + (states.CENTRAL_REJECTED ?? 0);
+                const total = pending + accepted + review;
+                return (
+                  <tr key={type} onClick={() => navigate('/sync/queues')}
+                      style={{ cursor: 'pointer' }}>
+                    <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true">
+                      {entityTypeIcon(type)}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 500 }}>{entityTypeLabel(type)}</div>
+                      <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{type}</div>
+                    </td>
+                    <td className="ea-mono">{(states.PENDING ?? 0).toLocaleString()}</td>
+                    <td className="ea-mono">{inFlight.toLocaleString()}</td>
+                    <td className="ea-mono">{accepted.toLocaleString()}</td>
+                    <td className="ea-mono">{review.toLocaleString()}</td>
+                    <td>
+                      <Dot tone={total === 0 ? 'muted'
+                                : review > 0 ? 'warning'
+                                : w.enabled ? 'success' : 'warning'} />
+                      <span style={{ marginLeft: 4 }}>
+                        {total === 0 ? 'Idle'
+                          : review > 0 ? 'Needs attention'
+                          : w.enabled ? 'Syncing' : 'Paused'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!stats && (
+                <tr><td colSpan={7} className="ea-text-muted"
+                        style={{ padding: 16, textAlign: 'center' }}>
+                  Loading backlog…
+                </td></tr>
+              )}
             </tbody>
           </table>
         </div>
       </Panel>
-
-      <section data-test="sync-related">
-        <div className="ea-section-title">Sync sub-modules</div>
-        <div className="ea-tile-grid">
-          <SyncTile to="/sync/history" icon="⏱" title="History"
-                    desc={`${(jobs ?? []).length} recent runs — every sync operation.`} />
-          <SyncTile to="/sync/queues" icon="≡" title="Queues"
-                    desc={backlog > 0
-                      ? `${backlog.toLocaleString()} items waiting to send`
-                      : 'Nothing waiting to send.'} />
-          <SyncTile to="/journal/conflicts" icon="⚠" title="Conflicts"
-                    desc={pendingConflicts > 0
-                      ? `${pendingConflicts} need a reviewer decision`
-                      : 'No conflicts to review.'} />
-          <SyncTile to="/journal/worker" icon="♥" title="Worker health"
-                    desc={w.enabled ? 'Running smoothly.'
-                                    : 'Paused — sync is stopped.'} />
-          <SyncTile to="/sync/metadata" icon="◱" title="Metadata sync"
-                    desc="Pull the latest DHIS2 metadata now." />
-          <SyncTile to="/sync/data" icon="↕" title="Data exchange"
-                    desc="Push + pull data between DER and DHIS2." />
-          <SyncTile to="/sync/schedule" icon="🗓" title="Schedule"
-                    desc="When each background flow runs." />
-          <SyncTile to="/sync/drift" icon="≠" title="Metadata drift"
-                    desc={driftDetected ? 'Drift detected — review before next sync.'
-                                        : 'Mirror matches DHIS2.'} />
-        </div>
-      </section>
 
       <Panel title="Recent activity"
              action={<Link to="/sync/history" className="ea-link-btn">View all</Link>}>
@@ -313,20 +328,6 @@ function SyncLane({ kind, arrow, detail, desc, badge }: {
             }}>i</span>
       {badge}
     </div>
-  );
-}
-
-function SyncTile({ to, icon, title, desc }: {
-  to: string; icon: string; title: string; desc: string;
-}): JSX.Element {
-  return (
-    <Link to={to} className="ea-link-tile">
-      <div className="ea-link-tile-icon" aria-hidden="true">{icon}</div>
-      <div className="ea-link-tile-body">
-        <div className="ea-link-tile-title">{title}</div>
-        <div className="ea-link-tile-desc">{desc}</div>
-      </div>
-    </Link>
   );
 }
 

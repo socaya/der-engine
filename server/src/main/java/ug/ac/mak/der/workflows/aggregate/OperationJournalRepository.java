@@ -55,11 +55,28 @@ public class OperationJournalRepository {
         return entry;
     }
 
+    /** Returns [entity_type, state, count] rows for the backlog breakdown
+     *  used by the sync overview "by data type" table. */
+    public List<EntityStateCount> countByEntityTypeAndState() {
+        return jdbc.query(
+                "SELECT entity_type, state, COUNT(*)::int AS c "
+                        + "FROM der.operation_journal "
+                        + "GROUP BY entity_type, state",
+                (rs, i) -> new EntityStateCount(
+                        rs.getString("entity_type"),
+                        rs.getString("state"),
+                        rs.getInt("c")));
+    }
+
+    /** Projection row for {@link #countByEntityTypeAndState()}. */
+    public record EntityStateCount(String entityType, String state, int count) { }
+
     public Optional<OperationJournalEntry> findById(final UUID operationId) {
         try {
             return Optional.ofNullable(jdbc.queryForObject(
                     "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
-                            + "attempt_count, last_error, submitted_by, created_at, updated_at "
+                            + "attempt_count, last_error, submitted_by, created_at, updated_at, "
+                            + "next_hop_org_unit_uid "
                             + "FROM der.operation_journal WHERE operation_id = ?",
                     rowMapper(),
                     operationId

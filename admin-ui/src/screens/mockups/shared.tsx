@@ -657,10 +657,18 @@ export function detailEntries(detail: string | null | undefined): ReadonlyArray<
   const parsed = parseDetailObject(detail);
   const out: Array<[string, string]> = [];
   for (const [k, v] of Object.entries(parsed)) {
-    if (k === 'byType') continue;
+    if (k === 'byType' || k === 'operationIds') continue;
     out.push([k, typeof v === 'object' ? JSON.stringify(v) : String(v)]);
   }
   return out;
+}
+
+/** Pull the operationIds list out of a detail JSON blob, if present. */
+export function parseOperationIds(detail: string | null | undefined): ReadonlyArray<string> {
+  const parsed = parseDetailObject(detail);
+  const arr = parsed.operationIds;
+  if (!Array.isArray(arr)) return [];
+  return arr.filter((x): x is string => typeof x === 'string');
 }
 
 function parseDetailObject(detail: string | null | undefined): Record<string, unknown> {
@@ -766,4 +774,175 @@ export function queueEntityLabel(type: string | null | undefined): string {
     ORG_UNIT: 'Organisation unit',
   };
   return map[key] ?? humaniseJob(type);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// DrawerTabs — simple tab navigation used in modernised side-drawers
+// ────────────────────────────────────────────────────────────────────
+
+export interface DrawerTab {
+  readonly id: string;
+  readonly label: string;
+  readonly badge?: string | number;
+}
+
+export function DrawerTabs({ tabs, active, onChange }: {
+  tabs: ReadonlyArray<DrawerTab>;
+  active: string;
+  onChange: (id: string) => void;
+}): JSX.Element {
+  return (
+    <div role="tablist"
+         style={{
+           display: 'flex', gap: 2, marginBottom: 10,
+           borderBottom: '1px solid var(--der-border-subtle)',
+         }}>
+      {tabs.map((t) => {
+        const isActive = t.id === active;
+        return (
+          <button key={t.id} type="button" role="tab" aria-selected={isActive}
+                  data-test={`drawer-tab-${t.id}`}
+                  onClick={() => onChange(t.id)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: '8px 12px',
+                    fontSize: 12, fontWeight: isActive ? 600 : 500,
+                    color: isActive ? 'var(--der-primary)' : 'var(--der-ink-500)',
+                    borderBottom: isActive
+                      ? '2px solid var(--der-primary)'
+                      : '2px solid transparent',
+                    marginBottom: -1,
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                  }}>
+            {t.label}
+            {t.badge !== undefined && t.badge !== '' && (
+              <span style={{
+                background: isActive ? 'var(--der-primary)' : 'var(--der-ink-100)',
+                color: isActive ? 'white' : 'var(--der-ink-700)',
+                fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 10,
+                minWidth: 16, textAlign: 'center',
+              }}>{t.badge}</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// JsonViewer — syntax-coloured collapsible JSON tree with copy button
+// ────────────────────────────────────────────────────────────────────
+
+export function JsonViewer({ value, maxDepth = 2, label }: {
+  value: unknown;
+  maxDepth?: number;
+  label?: string;
+}): JSX.Element {
+  const [copied, setCopied] = useState<boolean>(false);
+  async function copy(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(value, null, 2));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch { /* ignore */ }
+  }
+  return (
+    <div className="ea-json-viewer"
+         style={{
+           border: '1px solid var(--der-border-subtle)', borderRadius: 6,
+           background: 'var(--der-ink-50)',
+         }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '6px 10px', borderBottom: '1px solid var(--der-border-subtle)',
+        fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.03em',
+        color: 'var(--der-ink-500)',
+      }}>
+        <span>{label ?? 'JSON'}</span>
+        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                data-test="json-copy"
+                onClick={() => { copy().catch(() => undefined); }}
+                style={{ padding: '2px 8px', fontSize: 11 }}>
+          {copied ? 'Copied ✓' : 'Copy'}
+        </button>
+      </div>
+      <pre style={{
+        margin: 0, padding: 10, fontFamily: 'ui-monospace, Menlo, monospace',
+        fontSize: 11, lineHeight: 1.5, maxHeight: 320, overflow: 'auto',
+        color: 'var(--der-ink-900)', whiteSpace: 'pre',
+      }}>
+        <JsonNode value={value} depth={0} maxDepth={maxDepth} path="$" />
+      </pre>
+    </div>
+  );
+}
+
+function JsonNode({ value, depth, maxDepth, path }: {
+  value: unknown; depth: number; maxDepth: number; path: string;
+}): JSX.Element {
+  const [open, setOpen] = useState<boolean>(depth < maxDepth);
+  const indent = '  '.repeat(depth);
+  if (value === null) {
+    return <span style={{ color: '#999' }}>null</span>;
+  }
+  if (typeof value === 'string') {
+    return <span style={{ color: '#047857' }}>"{value}"</span>;
+  }
+  if (typeof value === 'number') {
+    return <span style={{ color: '#b45309' }}>{String(value)}</span>;
+  }
+  if (typeof value === 'boolean') {
+    return <span style={{ color: '#7c3aed' }}>{String(value)}</span>;
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span style={{ color: '#999' }}>[]</span>;
+    return (
+      <>
+        <span onClick={() => setOpen(!open)}
+              style={{ cursor: 'pointer', color: 'var(--der-ink-500)' }}
+              data-test={`json-toggle-${path}`}>
+          {open ? '▼' : '▶'} [{value.length}]
+        </span>
+        {open && (
+          <>
+            {value.map((v, i) => (
+              <div key={i} style={{ paddingLeft: 14 }}>
+                {indent}  <span style={{ color: '#64748b' }}>{i}:</span>{' '}
+                <JsonNode value={v} depth={depth + 1} maxDepth={maxDepth}
+                          path={`${path}[${i}]`} />
+              </div>
+            ))}
+            <div>{indent}]</div>
+          </>
+        )}
+      </>
+    );
+  }
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) return <span style={{ color: '#999' }}>{'{}'}</span>;
+    return (
+      <>
+        <span onClick={() => setOpen(!open)}
+              style={{ cursor: 'pointer', color: 'var(--der-ink-500)' }}
+              data-test={`json-toggle-${path}`}>
+          {open ? '▼' : '▶'} {`{${entries.length}}`}
+        </span>
+        {open && (
+          <>
+            {entries.map(([k, v]) => (
+              <div key={k} style={{ paddingLeft: 14 }}>
+                {indent}  <span style={{ color: '#1d4ed8' }}>"{k}"</span>:{' '}
+                <JsonNode value={v} depth={depth + 1} maxDepth={maxDepth}
+                          path={`${path}.${k}`} />
+              </div>
+            ))}
+            <div>{indent}{'}'}</div>
+          </>
+        )}
+      </>
+    );
+  }
+  return <span>{String(value)}</span>;
 }
