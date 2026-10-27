@@ -1,7 +1,9 @@
 package ug.ac.mak.der.workflows.journal;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -43,7 +45,7 @@ public class JournalWorker {
         lastTick = Instant.now();
         if (!settings.enabled().get()) {
             lastBatchSize = 0;
-            return new DrainOutcome(0, 0, 0, 0, 0, "disabled");
+            return new DrainOutcome(0, 0, 0, 0, 0, Map.of(), "disabled");
         }
         final List<OperationJournalEntry> pending =
                 journal.findPendingReadyToDrain(settings.batchSize());
@@ -52,7 +54,9 @@ public class JournalWorker {
         int rejected = 0;
         int retryable = 0;
         int conflicts = 0;
+        final Map<String, Integer> byType = new LinkedHashMap<>();
         for (final OperationJournalEntry entry : pending) {
+            byType.merge(entry.entityType().name(), 1, Integer::sum);
             if (entry.state() != OperationJournalEntry.State.PENDING) {
                 continue;
             }
@@ -82,7 +86,8 @@ public class JournalWorker {
                         + result.terminal());
             }
         }
-        return new DrainOutcome(pending.size(), accepted, rejected, retryable, conflicts, null);
+        return new DrainOutcome(pending.size(), accepted, rejected, retryable, conflicts,
+                Map.copyOf(byType), null);
     }
 
     public Instant lastTick() {
@@ -146,5 +151,12 @@ public class JournalWorker {
     }
 
     public record DrainOutcome(int picked, int accepted, int rejected, int retryable,
-                                int conflicts, String note) { }
+                                int conflicts, Map<String, Integer> byType, String note) {
+
+        /** Legacy constructor retained for tests. byType defaults to empty. */
+        public DrainOutcome(final int picked, final int accepted, final int rejected,
+                             final int retryable, final int conflicts, final String note) {
+            this(picked, accepted, rejected, retryable, conflicts, Map.of(), note);
+        }
+    }
 }

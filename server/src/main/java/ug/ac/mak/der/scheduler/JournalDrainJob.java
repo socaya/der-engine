@@ -1,5 +1,6 @@
 package ug.ac.mak.der.scheduler;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -34,12 +35,16 @@ public class JournalDrainJob implements Job {
             final JournalWorker.DrainOutcome out = worker.drainBatch();
             final long duration = (System.nanoTime() - t0) / 1_000_000L;
             if (runs != null) {
-                runs.markSuccess(runId, duration, write(Map.of(
-                        "picked", out.picked(),
-                        "accepted", out.accepted(),
-                        "rejected", out.rejected(),
-                        "retryable", out.retryable(),
-                        "conflicts", out.conflicts())));
+                final Map<String, Object> detail = new LinkedHashMap<>();
+                detail.put("picked", out.picked());
+                detail.put("accepted", out.accepted());
+                detail.put("rejected", out.rejected());
+                detail.put("retryable", out.retryable());
+                detail.put("conflicts", out.conflicts());
+                if (out.byType() != null && !out.byType().isEmpty()) {
+                    detail.put("byType", out.byType());
+                }
+                runs.markSuccess(runId, duration, write(detail));
             }
         } catch (Exception ex) {
             LOG.warn("JournalDrainJob failed: {}", ex.getMessage());

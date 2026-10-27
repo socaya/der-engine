@@ -492,15 +492,15 @@ export function syncActivityShape(jobName: string | null | undefined,
       category: 'Metadata pull',
       icon: '📦',
       direction: 'in',
-      directionArrow: '←',
+      directionArrow: '→',
       directionLabel: 'Central → DER',
       sentence: metadataSentence(parsed),
     };
   }
   if (name.includes('JOURNAL') || name.includes('DRAIN') || name.includes('PUSH')) {
     return {
-      category: 'Data push',
-      icon: '🩺',
+      category: dataPushCategory(parsed),
+      icon: dataPushIcon(parsed),
       direction: 'out',
       directionArrow: '→',
       directionLabel: 'DER → Central',
@@ -512,7 +512,7 @@ export function syncActivityShape(jobName: string | null | undefined,
       category: 'Referral check',
       icon: '📥',
       direction: 'in',
-      directionArrow: '←',
+      directionArrow: '→',
       directionLabel: 'Central → DER',
       sentence: referralSentence(parsed),
     };
@@ -532,7 +532,7 @@ export function syncActivityShape(jobName: string | null | undefined,
       category: 'Compatibility probe',
       icon: '🔌',
       direction: 'in',
-      directionArrow: '←',
+      directionArrow: '→',
       directionLabel: 'Central → DER',
       sentence: 'Re-probed DHIS2 version and capabilities.',
     };
@@ -552,7 +552,7 @@ export function syncActivityShape(jobName: string | null | undefined,
       category: 'Drift snapshot',
       icon: '≠',
       direction: 'in',
-      directionArrow: '←',
+      directionArrow: '→',
       directionLabel: 'Central → DER',
       sentence: 'Snapshotted metadata fingerprint vs. central.',
     };
@@ -565,6 +565,102 @@ export function syncActivityShape(jobName: string | null | undefined,
     directionLabel: 'DER-local',
     sentence: detail ?? 'Background flow.',
   };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Entity-type helpers — used by both /sync/history detail breakdowns
+// and /sync/queues row rendering.
+// ────────────────────────────────────────────────────────────────────
+
+const ENTITY_TYPE_LABEL: Readonly<Record<string, string>> = {
+  AGGREGATE_DATA_VALUE: 'Aggregate data',
+  AGGREGATE: 'Aggregate data',
+  DATA_VALUE_SET: 'Aggregate data',
+  EVENT: 'Single event',
+  PROGRAM_STAGE_EVENT: 'Tracker event',
+  ENROLLMENT: 'Enrollment',
+  TRACKED_ENTITY: 'Tracked entity',
+  TRACKED_ENTITY_INSTANCE: 'Tracked entity',
+  TEI: 'Tracked entity',
+  REFERRAL: 'Referral',
+  METADATA: 'Metadata',
+  DATA_ELEMENT: 'Data element',
+  PROGRAM: 'Program',
+  ORG_UNIT: 'Organisation unit',
+};
+
+const ENTITY_TYPE_ICON: Readonly<Record<string, string>> = {
+  AGGREGATE_DATA_VALUE: '📊',
+  AGGREGATE: '📊',
+  DATA_VALUE_SET: '📊',
+  EVENT: '📍',
+  PROGRAM_STAGE_EVENT: '📝',
+  ENROLLMENT: '📋',
+  TRACKED_ENTITY: '👤',
+  TRACKED_ENTITY_INSTANCE: '👤',
+  TEI: '👤',
+  REFERRAL: '📥',
+  METADATA: '📦',
+  DATA_ELEMENT: '🧮',
+  PROGRAM: '🗂',
+  ORG_UNIT: '🏥',
+};
+
+/** Humanise an entityType enum value. */
+export function entityTypeLabel(type: string | null | undefined): string {
+  if (!type) return 'Operation';
+  const key = type.toUpperCase();
+  return ENTITY_TYPE_LABEL[key] ?? humaniseJob(type);
+}
+
+/** Icon for an entityType enum value. */
+export function entityTypeIcon(type: string | null | undefined): string {
+  if (!type) return '⚙';
+  const key = type.toUpperCase();
+  return ENTITY_TYPE_ICON[key] ?? '⚙';
+}
+
+function dataPushCategory(d: Record<string, unknown>): string {
+  const byType = d.byType;
+  if (byType && typeof byType === 'object') {
+    const keys = Object.keys(byType);
+    if (keys.length === 1) return `${entityTypeLabel(keys[0])} push`;
+    if (keys.length > 1) return 'Mixed data push';
+  }
+  return 'Data push';
+}
+
+function dataPushIcon(d: Record<string, unknown>): string {
+  const byType = d.byType;
+  if (byType && typeof byType === 'object') {
+    const keys = Object.keys(byType);
+    if (keys.length === 1) return entityTypeIcon(keys[0]);
+  }
+  return '🩺';
+}
+
+/** Pull the byType breakdown out of a detail JSON blob, if present. */
+export function parseByType(detail: string | null | undefined): ReadonlyArray<readonly [string, number]> {
+  const parsed = parseDetailObject(detail);
+  const byType = parsed.byType;
+  if (!byType || typeof byType !== 'object') return [];
+  const out: Array<[string, number]> = [];
+  for (const [k, v] of Object.entries(byType as Record<string, unknown>)) {
+    const n = typeof v === 'number' ? v : Number(v);
+    if (Number.isFinite(n)) out.push([k, n]);
+  }
+  return out;
+}
+
+/** Return the parsed detail JSON as an entry list for drawer rendering. */
+export function detailEntries(detail: string | null | undefined): ReadonlyArray<readonly [string, string]> {
+  const parsed = parseDetailObject(detail);
+  const out: Array<[string, string]> = [];
+  for (const [k, v] of Object.entries(parsed)) {
+    if (k === 'byType') continue;
+    out.push([k, typeof v === 'object' ? JSON.stringify(v) : String(v)]);
+  }
+  return out;
 }
 
 function parseDetailObject(detail: string | null | undefined): Record<string, unknown> {
@@ -597,12 +693,19 @@ function dataPushSentence(d: Record<string, unknown>): string {
   if (picked != null && picked === 0 && !accepted && !rejected) {
     return 'Nothing waiting to send — queue was empty.';
   }
-  const parts: string[] = [];
-  if (accepted) parts.push(`${accepted} accepted`);
-  if (rejected) parts.push(`${rejected} rejected`);
-  if (conflicts) parts.push(`${conflicts} needed review`);
-  if (retryable) parts.push(`${retryable} to retry`);
-  if (parts.length) return `Pushed to DHIS2 · ${parts.join(' · ')}.`;
+  const byType = d.byType && typeof d.byType === 'object'
+    ? Object.entries(d.byType as Record<string, unknown>)
+        .map(([k, v]) => `${v} ${entityTypeLabel(k).toLowerCase()}`)
+        .join(' · ')
+    : '';
+  const outcomes: string[] = [];
+  if (accepted) outcomes.push(`${accepted} accepted`);
+  if (rejected) outcomes.push(`${rejected} rejected`);
+  if (conflicts) outcomes.push(`${conflicts} needed review`);
+  if (retryable) outcomes.push(`${retryable} to retry`);
+  if (byType && outcomes.length) return `Pushed ${byType} · ${outcomes.join(' · ')}.`;
+  if (byType) return `Picked ${byType} to push.`;
+  if (outcomes.length) return `Pushed to DHIS2 · ${outcomes.join(' · ')}.`;
   if (picked != null) return `Picked ${picked.toLocaleString()} operations to push.`;
   return 'Pushed outgoing data to DHIS2.';
 }

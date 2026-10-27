@@ -142,7 +142,7 @@ export function MockupDataQueues(): JSX.Element {
                 </tr></thead>
                 <tbody>
                   {paged.rows.map((i) => {
-                    const arrow = tab === 'outgoing' ? '→' : '←';
+                    const arrow = '→';
                     const from = tab === 'outgoing' ? 'DER' : 'Central';
                     const to = tab === 'outgoing' ? 'Central' : 'DER';
                     return (
@@ -160,9 +160,9 @@ export function MockupDataQueues(): JSX.Element {
                             {i.description}
                           </div>
                         </td>
-                        <td style={{ fontSize: 12 }}>
+                        <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
                           <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>{from}</span>
-                          <span style={{ color: 'var(--der-primary)', margin: '0 4px', fontWeight: 700 }}>{arrow}</span>
+                          <span style={{ color: 'var(--der-primary)', margin: '0 6px', fontWeight: 700 }}>{arrow}</span>
                           <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>{to}</span>
                         </td>
                         <td className="ea-text-muted" style={{ fontSize: 12 }} title={fmtDate(i.created)}>
