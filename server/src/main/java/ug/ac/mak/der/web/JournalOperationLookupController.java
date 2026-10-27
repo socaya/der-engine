@@ -1,5 +1,6 @@
 package ug.ac.mak.der.web;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -9,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.security.EdgeUserPrincipal;
@@ -41,5 +43,15 @@ public class JournalOperationLookupController {
         return journal.findById(operationId)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(404).build());
+    }
+
+    @GetMapping
+    public ResponseEntity<List<OperationJournalEntry>> list(
+            final Authentication authentication,
+            @RequestParam(name = "limit", defaultValue = "100") final int limit) {
+        if (!(authentication instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(journal.findRecent(limit));
     }
 }

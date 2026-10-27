@@ -1,298 +1,339 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
-  OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtAgo, usePaged, TablePager,
-  queueEntityIcon, queueEntityLabel, humaniseState, DrawerTabs, JsonViewer,
+  Panel, SplitWithDrawer, fmtDate, fmtAgo, usePaged, TablePager,
+  entityTypeIcon, entityTypeLabel, operatorState, operatorStateTone,
+  DrawerTabs, JsonViewer, type OperatorState,
 } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
-type Tab = 'outgoing' | 'incoming';
-
-interface QueueItem {
-  code: string;
-  created: string;
-  type: string;
-  description: string;
-  dataType: string;
-  status: 'queued' | 'pending' | 'failed' | 'done';
-  retry: number;
-  raw: edgeApi.ConflictRow | null;
-}
-
-/** DER Data Queues — matches docs/media/ui/DER Data Queues Dashboard.png */
+/** /admin/sync/data — DER Sync requirements §7.
+ *
+ * Operator-facing view of the outbound journal. Internal queue states
+ * map to six plain-English statuses (Waiting / Sending / Sent /
+ * Retrying / Rejected / Needs attention). Row drawer carries the full
+ * payload via the lazy JournalOperation fetch.
+ */
 export function MockupDataQueues(): JSX.Element {
-  const [ctx] = useOuContext();
-  const [tab, setTab] = useState<Tab>('outgoing');
-  const [conflicts, setConflicts] = useState<edgeApi.ConflictRow[] | null>(null);
-  const [inbox, setInbox] = useState<edgeApi.ReferralInboxRow[] | null>(null);
+  const [ops, setOps] = useState<edgeApi.JournalOperation[] | null>(null);
+  const [sysInfo, setSysInfo] = useState<edgeApi.SystemInfo | null>(null);
+  const [worker, setWorker] = useState<edgeApi.WorkerHealth | null>(null);
+  const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
+
   const [query, setQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
-  const [sel, setSel] = useState<QueueItem | null>(null);
+  const [sel, setSel] = useState<edgeApi.JournalOperation | null>(null);
   const [drawerTab, setDrawerTab] = useState<'overview' | 'payload'>('overview');
-  const [opDetail, setOpDetail] = useState<edgeApi.JournalOperation | null>(null);
-  const [opLoading, setOpLoading] = useState(false);
-
-  // When the user selects a queue row, fetch the full operation (incl.
-  // payload JSON) only when they flip to the Payload tab. Keeps the
-  // selection UX snappy and avoids fetching for rows the user doesn't
-  // open the payload for.
-  useEffect(() => { setDrawerTab('overview'); setOpDetail(null); }, [sel?.code]);
-  useEffect(() => {
-    if (!sel?.raw || drawerTab !== 'payload' || opDetail) return;
-    setOpLoading(true);
-    edgeApi.fetchJournalOperation(sel.raw.operationId)
-      .then((op) => setOpDetail(op))
-      .catch(() => setOpDetail(null))
-      .finally(() => setOpLoading(false));
-  }, [sel, drawerTab, opDetail]);
+  const [pushing, setPushing] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
 
   async function reload(): Promise<void> {
-    const [a, b] = await Promise.allSettled([
-      edgeApi.listConflicts(100),
-      edgeApi.listReferralInbox(100),
+    const [a, b, c, d] = await Promise.allSettled([
+      edgeApi.listJournalOperations(200),
+      edgeApi.systemInfo(),
+      edgeApi.workerHealth(),
+      edgeApi.listJobs(50),
     ]);
-    if (a.status === 'fulfilled') setConflicts(a.value);
-    if (b.status === 'fulfilled') setInbox(b.value.entries);
+    if (a.status === 'fulfilled') setOps(a.value);
+    if (b.status === 'fulfilled') setSysInfo(b.value);
+    if (c.status === 'fulfilled') setWorker(c.value);
+    if (d.status === 'fulfilled') setJobs(d.value);
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
+  useEffect(() => { setDrawerTab('overview'); }, [sel?.operationId]);
 
-  const outgoing = useMemo((): QueueItem[] => {
-    return (conflicts ?? []).map((c) => ({
-      code: c.operationId.slice(0, 8).toUpperCase(),
-      created: c.createdAt,
-      type: c.entityType,
-      description: c.entityRef,
-      dataType: c.entityType,
-      status: c.state === 'RESOLVED' ? 'done' : c.attemptCount > 3 ? 'failed' : 'pending',
-      retry: c.attemptCount,
-      raw: c,
-    }));
-  }, [conflicts]);
+  async function push(): Promise<void> {
+    setPushing(true); setFlash(null);
+    try {
+      await edgeApi.triggerJob('JOURNAL_WORKER_DRAIN');
+      setFlash('Data push started.');
+      setTimeout(() => reload().catch(() => undefined), 1500);
+    } catch (e) {
+      setFlash(e instanceof Error ? e.message : String(e));
+    } finally { setPushing(false); }
+  }
 
-  const incoming = useMemo((): QueueItem[] => {
-    return (inbox ?? []).map((e) => ({
-      code: e.inboxId.slice(0, 8).toUpperCase(),
-      created: e.discoveredAt,
-      type: e.kind,
-      description: e.sourceRef,
-      dataType: e.kind,
-      status: e.status === 'ACCEPTED' ? 'done' : e.status === 'DISMISSED' ? 'failed' : 'pending',
-      retry: 0,
-      raw: null,
-    }));
-  }, [inbox]);
+  async function retry(): Promise<void> {
+    // No per-row retry endpoint today; triggering the drain picks the
+    // row up on the next pass. Keep the UX honest.
+    await push();
+  }
 
-  const items = tab === 'outgoing' ? outgoing : incoming;
-  const types = useMemo(() => Array.from(new Set(items.map((i) => i.type))).sort(), [items]);
+  const items = useMemo(() => (ops ?? []).map((o) => ({
+    op: o,
+    state: operatorState(o.state),
+  })), [ops]);
+
+  const types = useMemo(() => Array.from(new Set(items.map((i) => i.op.entityType))).sort(),
+    [items]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items.filter((i) => {
-      if (q && !i.code.toLowerCase().includes(q) && !i.description.toLowerCase().includes(q)) return false;
-      if (filterType !== 'ALL' && i.type !== filterType) return false;
-      if (filterStatus !== 'ALL' && i.status !== filterStatus) return false;
+      if (q && !i.op.entityRef.toLowerCase().includes(q)
+            && !i.op.operationId.toLowerCase().includes(q)) return false;
+      if (filterType !== 'ALL' && i.op.entityType !== filterType) return false;
+      if (filterStatus !== 'ALL' && i.state !== filterStatus) return false;
       return true;
     });
   }, [items, query, filterType, filterStatus]);
 
-  async function resolve(action: 'ACCEPTED' | 'REJECTED'): Promise<void> {
-    if (!sel?.raw) return;
-    try { await edgeApi.resolveConflict(sel.raw.operationId, action); await reload(); setSel(null); }
-    catch { /* ignore */ }
-  }
-
   const paged = usePaged(filtered, 50);
 
-  if (!conflicts || !inbox) return <LoadingBlock testId="loading" />;
+  if (!ops) return <LoadingBlock testId="loading" />;
+
+  // Status counts for the summary strip (operator-facing names).
+  const stateCounts: Record<OperatorState, number> = {
+    Waiting: 0, Sending: 0, Sent: 0, Retrying: 0, Rejected: 0, 'Needs attention': 0,
+  };
+  for (const it of items) stateCounts[it.state] += 1;
+
+  const centralReachable = sysInfo?.dhis2?.probeReachable ?? false;
+  const workerEnabled = worker?.enabled ?? false;
+  const unsent = stateCounts.Waiting + stateCounts.Sending + stateCounts.Retrying;
+  const needsAttention = stateCounts['Needs attention'] + stateCounts.Rejected;
+
+  // Hero status headline per spec §7.
+  let headline: string;
+  let accent: string;
+  let icon: string;
+  if (!workerEnabled) {
+    headline = 'Data push is paused';
+    accent = 'var(--der-ink-400, #94a3b8)'; icon = '⏸';
+  } else if (!centralReachable) {
+    headline = 'Central DHIS2 is unavailable';
+    accent = 'var(--der-warning, #d97706)'; icon = '⌁';
+  } else if (needsAttention > 0) {
+    headline = `${needsAttention} record${needsAttention === 1 ? '' : 's'} need${needsAttention === 1 ? 's' : ''} attention`;
+    accent = 'var(--der-danger, #dc2626)'; icon = '!';
+  } else if (unsent > 0) {
+    headline = `${unsent} record${unsent === 1 ? '' : 's'} waiting to be sent`;
+    accent = 'var(--der-primary)'; icon = '↑';
+  } else {
+    headline = 'All local data has been sent';
+    accent = 'var(--der-success, #16a34a)'; icon = '✓';
+  }
+
+  const lastPush = (jobs ?? []).find((j) => j.jobName === 'JOURNAL_WORKER_DRAIN'
+    && (j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS'));
 
   return (
-    <div className="ea-screen">
-      <OuPicker ctx={ctx} />
+    <div className="ea-screen" data-test="sync-data">
+      {flash && <p className="ea-saved" style={{ marginBottom: 10 }}>{flash}</p>}
 
-      <div className="ea-section-tabs" style={{ marginBottom: 16 }}>
-        <button type="button" onClick={() => { setTab('outgoing'); setSel(null); }}
-                className={'ea-section-tab' + (tab === 'outgoing' ? ' ea-section-tab--active' : '')}>
-          Outgoing · DER → Central · {outgoing.length}
+      <section style={{
+        display: 'grid', gridTemplateColumns: '64px 1fr auto', gap: 14, alignItems: 'center',
+        padding: 16, marginBottom: 14, borderRadius: 8,
+        border: '1px solid var(--der-border-subtle)',
+        borderLeft: `4px solid ${accent}`, background: 'white',
+      }}>
+        <div style={{ fontSize: 38, fontWeight: 700, color: accent,
+                       textAlign: 'center', lineHeight: 1 }} aria-hidden="true">{icon}</div>
+        <div>
+          <h1 style={{ margin: '0 0 2px', fontSize: 20, fontWeight: 700 }}
+              data-test="data-status">{headline}</h1>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--der-ink-500)' }}>
+            Locally captured data queued for push to Central DHIS2.
+            {lastPush && <> Last successful push {fmtAgo(lastPush.startedAt)}.</>}
+          </p>
+        </div>
+        <button type="button" className="ea-btn ea-btn--primary"
+                style={{ fontSize: 14, padding: '10px 16px' }}
+                disabled={pushing || !centralReachable || !workerEnabled || unsent === 0}
+                data-test="data-push"
+                onClick={() => { push().catch(() => undefined); }}>
+          {pushing ? 'Pushing…' : 'Push data now'}
         </button>
-        <button type="button" onClick={() => { setTab('incoming'); setSel(null); }}
-                className={'ea-section-tab' + (tab === 'incoming' ? ' ea-section-tab--active' : '')}>
-          Incoming · Central → DER · {incoming.length}
-        </button>
+      </section>
+
+      <div style={{ display: 'grid',
+                    gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+                    gap: 8, marginBottom: 14 }}>
+        {(['Waiting', 'Sending', 'Sent', 'Retrying', 'Rejected', 'Needs attention'] as OperatorState[])
+          .map((s) => (
+            <div key={s}
+                 style={{
+                   padding: '10px 12px', borderRadius: 6,
+                   border: '1px solid var(--der-border-subtle)',
+                   background: 'white',
+                 }}
+                 data-test={`data-summary-${s.toLowerCase().replace(' ', '-')}`}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--der-ink-900)' }}>
+                {stateCounts[s].toLocaleString()}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--der-ink-500)', marginTop: 2 }}>{s}</div>
+            </div>
+          ))}
       </div>
 
       <SplitWithDrawer
         drawerOpen={!!sel}
         main={
-          <Panel title={tab === 'outgoing' ? 'Outgoing queue' : 'Incoming queue'}
+          <Panel title={`${filtered.length} record${filtered.length === 1 ? '' : 's'}`}
                  action={
                    <>
-                     <input className="ea-input" style={{ maxWidth: 200 }} type="search"
-                            placeholder="Search records"
+                     <input className="ea-input" style={{ maxWidth: 220 }} type="search"
+                            placeholder="Search record or operation ID"
                             value={query} onChange={(e) => setQuery(e.target.value)} />
                      <select className="ea-input" style={{ maxWidth: 160 }} value={filterType}
                              onChange={(e) => setFilterType(e.target.value)}>
                        <option value="ALL">All data types</option>
-                       {types.map((t) => <option key={t} value={t}>{queueEntityLabel(t)}</option>)}
+                       {types.map((t) => (
+                         <option key={t} value={t}>{entityTypeLabel(t)}</option>
+                       ))}
                      </select>
-                     <select className="ea-input" style={{ maxWidth: 140 }} value={filterStatus}
+                     <select className="ea-input" style={{ maxWidth: 150 }} value={filterStatus}
                              onChange={(e) => setFilterStatus(e.target.value)}>
-                       <option value="ALL">All Statuses</option>
-                       <option value="queued">Queued</option>
-                       <option value="pending">Pending</option>
-                       <option value="failed">Failed</option>
-                       <option value="done">Done</option>
+                       <option value="ALL">All statuses</option>
+                       {(['Waiting', 'Sending', 'Sent', 'Retrying', 'Rejected', 'Needs attention'] as OperatorState[])
+                         .map((s) => <option key={s} value={s}>{s}</option>)}
                      </select>
                      <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                              onClick={() => { reload().catch(() => undefined); }}>Refresh</button>
                    </>
                  }>
-            <div className="ea-table-wrap">
-              <table className="ea-table ea-table--dense ea-table--selectable">
-                <thead><tr>
-                  <th style={{ width: 32 }}></th>
-                  <th>Data</th>
-                  <th style={{ width: 130 }}>Direction</th>
-                  <th style={{ width: 110 }}>Queued</th>
-                  <th style={{ width: 110 }}>Status</th>
-                  <th style={{ width: 60 }}>Retry</th>
-                </tr></thead>
-                <tbody>
-                  {paged.rows.map((i) => {
-                    const arrow = '→';
-                    const from = tab === 'outgoing' ? 'DER' : 'Central';
-                    const to = tab === 'outgoing' ? 'Central' : 'DER';
-                    return (
-                      <tr key={i.code} className={sel?.code === i.code ? 'ea-row--active' : ''}
-                          onClick={() => setSel(i)}>
+            {filtered.length === 0 ? (
+              <p className="ea-text-muted" style={{ margin: 0 }}>
+                {items.length === 0
+                  ? 'The outbound queue is empty — nothing to send.'
+                  : 'No records match the current filters.'}
+              </p>
+            ) : (
+              <div className="ea-table-wrap">
+                <table className="ea-table ea-table--dense ea-table--selectable">
+                  <thead><tr>
+                    <th style={{ width: 32 }}></th>
+                    <th>Type</th>
+                    <th>Record</th>
+                    <th style={{ width: 110 }}>Captured</th>
+                    <th style={{ width: 130 }}>Status</th>
+                    <th style={{ width: 110 }}>Last attempt</th>
+                    <th style={{ width: 80 }}>Action</th>
+                  </tr></thead>
+                  <tbody>
+                    {paged.rows.map(({ op, state }) => (
+                      <tr key={op.operationId}
+                          className={sel?.operationId === op.operationId ? 'ea-row--active' : ''}
+                          onClick={() => setSel(op)}
+                          data-test={`data-row-${op.operationId}`}>
                         <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
-                            title={queueEntityLabel(i.type)}>
-                          {queueEntityIcon(i.type)}
+                            title={entityTypeLabel(op.entityType)}>
+                          {entityTypeIcon(op.entityType)}
                         </td>
                         <td>
-                          <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
-                            {queueEntityLabel(i.type)}
-                          </div>
-                          <div className="ea-text-muted" style={{ fontSize: 11, marginTop: 1 }}>
-                            {i.description}
+                          <div style={{ fontWeight: 500 }}>{entityTypeLabel(op.entityType)}</div>
+                          <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>
+                            {op.entityType}
                           </div>
                         </td>
-                        <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                          <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>{from}</span>
-                          <span style={{ color: 'var(--der-primary)', margin: '0 6px', fontWeight: 700 }}>{arrow}</span>
-                          <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>{to}</span>
-                        </td>
-                        <td className="ea-text-muted" style={{ fontSize: 12 }} title={fmtDate(i.created)}>
-                          {fmtAgo(i.created)}
-                        </td>
+                        <td className="ea-mono" style={{ fontSize: 12 }}>{op.entityRef}</td>
+                        <td className="ea-text-muted" style={{ fontSize: 12 }}
+                            title={fmtDate(op.createdAt)}>{fmtAgo(op.createdAt)}</td>
                         <td>
-                          <span className={'ea-chip ea-chip--' +
-                              (i.status === 'done' ? 'success' : i.status === 'failed' ? 'danger'
-                                : i.status === 'pending' ? 'warning' : 'info')}>
-                            {humaniseState(i.status)}
-                          </span>
+                          <span className={`ea-chip ea-chip--${operatorStateTone(state)}`}>{state}</span>
                         </td>
-                        <td className="ea-mono">{i.retry || '—'}</td>
+                        <td className="ea-text-muted" style={{ fontSize: 12 }}
+                            title={fmtDate(op.updatedAt)}>{fmtAgo(op.updatedAt)}</td>
+                        <td>
+                          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                                  onClick={(e) => { e.stopPropagation(); setSel(op); }}>
+                            Open
+                          </button>
+                        </td>
                       </tr>
-                    );
-                  })}
-                  {filtered.length === 0 && (
-                    <tr><td colSpan={6} className="ea-text-muted" style={{ padding: 24, textAlign: 'center' }}>Queue is empty.</td></tr>
-                  )}
-                </tbody>
-              </table>
-              <TablePager {...paged.pagerProps} />
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+                <TablePager {...paged.pagerProps} />
+              </div>
+            )}
           </Panel>
         }
         drawer={
-          sel ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
-                <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
-                  {queueEntityIcon(sel.type)}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>{queueEntityLabel(sel.type)}</h3>
-                  <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2 }}>{sel.description}</div>
-                  <div style={{ fontSize: 11, marginTop: 4 }}>
-                    <span className="ea-mono">
-                      {tab === 'outgoing' ? 'DER → Central' : 'Central → DER'}
-                    </span>
+          sel ? (() => {
+            const state = operatorState(sel.state);
+            return (
+              <>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                  <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
+                    {entityTypeIcon(sel.entityType)}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <h3 style={{ margin: 0, fontSize: 16 }}>{entityTypeLabel(sel.entityType)}</h3>
+                    <div className="ea-text-muted ea-mono" style={{ fontSize: 12, marginTop: 2 }}>
+                      {sel.entityRef}
+                    </div>
+                    <div style={{ marginTop: 6 }}>
+                      <span className={`ea-chip ea-chip--${operatorStateTone(state)}`}>{state}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <DrawerTabs
-                active={drawerTab}
-                onChange={(id) => setDrawerTab(id as 'overview' | 'payload')}
-                tabs={[
-                  { id: 'overview', label: 'Overview' },
-                  { id: 'payload', label: 'Payload' },
-                ]}
-              />
 
-              {drawerTab === 'overview' && (
-                <dl className="ea-def-list">
-                  <div className="ea-def-row"><dt>Code</dt><dd className="ea-mono">{sel.code}</dd></div>
-                  <div className="ea-def-row"><dt>Status</dt>
-                    <dd><span className={'ea-chip ea-chip--' + (sel.status === 'done' ? 'success' : sel.status === 'failed' ? 'danger' : 'warning')}>{humaniseState(sel.status)}</span></dd>
-                  </div>
-                  <div className="ea-def-row"><dt>Created</dt><dd className="ea-mono">{fmtDate(sel.created)}</dd></div>
-                  <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.created)}</dd></div>
-                  <div className="ea-def-row"><dt>Retry count</dt><dd className="ea-mono">{sel.retry}</dd></div>
-                  {sel.raw && (
-                    <div className="ea-def-row"><dt>Operation ID</dt><dd className="ea-mono">{sel.raw.operationId}</dd></div>
-                  )}
-                </dl>
-              )}
+                <DrawerTabs
+                  active={drawerTab}
+                  onChange={(id) => setDrawerTab(id as 'overview' | 'payload')}
+                  tabs={[
+                    { id: 'overview', label: 'Overview' },
+                    { id: 'payload', label: 'Payload' },
+                  ]}
+                />
 
-              {drawerTab === 'payload' && (
-                sel.raw ? (
-                  opLoading ? (
-                    <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>Loading payload…</p>
-                  ) : opDetail ? (
-                    <>
-                      <JsonViewer value={opDetail.payload}
-                                  label={`${queueEntityLabel(opDetail.entityType)} · ${opDetail.entityRef}`}
-                                  maxDepth={3} />
-                      {opDetail.lastError && (
-                        <div style={{ marginTop: 10,
-                                      padding: '6px 10px', borderRadius: 4,
-                                      background: 'var(--der-danger-50, #fef2f2)',
-                                      border: '1px solid var(--der-danger, #fca5a5)',
-                                      fontSize: 12, color: 'var(--der-danger, #b91c1c)' }}>
-                          <div style={{ fontWeight: 600, marginBottom: 2 }}>Last error</div>
-                          <div className="ea-mono" style={{ fontSize: 11 }}>{opDetail.lastError}</div>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
-                      Payload no longer available — this operation was drained from the journal.
-                    </p>
-                  )
-                ) : (
-                  <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
-                    Inbound referral records don't carry a push payload. See the
-                    referral inbox for the source metadata.
-                  </p>
-                )
-              )}
+                {drawerTab === 'overview' && (
+                  <dl className="ea-def-list">
+                    <div className="ea-def-row"><dt>Status</dt>
+                      <dd><span className={`ea-chip ea-chip--${operatorStateTone(state)}`}>{state}</span></dd>
+                    </div>
+                    <div className="ea-def-row"><dt>Captured</dt>
+                      <dd className="ea-mono">{fmtDate(sel.createdAt)}</dd></div>
+                    <div className="ea-def-row"><dt>Last attempt</dt>
+                      <dd className="ea-mono">{fmtDate(sel.updatedAt)}</dd></div>
+                    <div className="ea-def-row"><dt>Retry count</dt>
+                      <dd className="ea-mono">{sel.attemptCount}</dd></div>
+                    <div className="ea-def-row"><dt>Operation ID</dt>
+                      <dd className="ea-mono" style={{ fontSize: 10 }}>{sel.operationId}</dd></div>
+                    {sel.lastError && (
+                      <div className="ea-def-row"><dt>Last error</dt>
+                        <dd className="ea-mono" style={{ fontSize: 10, color: 'var(--der-danger, #b91c1c)' }}>
+                          {sel.lastError.slice(0, 400)}
+                        </dd></div>
+                    )}
+                  </dl>
+                )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12,
-                            paddingTop: 10, borderTop: '1px solid var(--der-border-subtle)' }}>
-                <button type="button" className="ea-btn ea-btn--primary"
-                        onClick={() => { resolve('ACCEPTED').catch(() => undefined); }}>
-                  Sync this item
-                </button>
-                <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger"
-                        onClick={() => { resolve('REJECTED').catch(() => undefined); }}>
-                  Delete from queue
-                </button>
-              </div>
-            </>
-          ) : (
-            <p className="ea-text-muted" style={{ margin: 0 }}>Select a row to inspect and act.</p>
+                {drawerTab === 'payload' && (
+                  <JsonViewer value={sel.payload}
+                              label={`${entityTypeLabel(sel.entityType)} · ${sel.entityRef}`}
+                              maxDepth={3} />
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14,
+                              paddingTop: 10, borderTop: '1px solid var(--der-border-subtle)' }}>
+                  {state === 'Retrying' || state === 'Rejected' ? (
+                    <button type="button" className="ea-btn ea-btn--primary"
+                            onClick={() => { retry().catch(() => undefined); }}>
+                      Retry push
+                    </button>
+                  ) : state === 'Needs attention' ? (
+                    <Link to="/sync/attention" className="ea-btn ea-btn--primary"
+                          style={{ textAlign: 'center' }}>
+                      Open attention item
+                    </Link>
+                  ) : state === 'Waiting' ? (
+                    <button type="button" className="ea-btn ea-btn--primary"
+                            disabled={pushing || !centralReachable || !workerEnabled}
+                            onClick={() => { push().catch(() => undefined); }}>
+                      Push now
+                    </button>
+                  ) : null}
+                </div>
+              </>
+            );
+          })() : (
+            <p className="ea-text-muted" style={{ margin: 0 }}>
+              Select a record to see its details and payload.
+            </p>
           )
         }
       />

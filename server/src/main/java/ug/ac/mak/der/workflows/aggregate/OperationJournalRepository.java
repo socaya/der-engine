@@ -158,6 +158,20 @@ public class OperationJournalRepository {
                 Timestamp.from(cutoff));
     }
 
+    /** Return recent operations across any subset of states — powers the
+     *  /sync/data table in the admin UI (DER Sync requirements §7). */
+    public List<OperationJournalEntry> findRecent(final int limit) {
+        final int capped = Math.max(1, Math.min(limit, 500));
+        return jdbc.query(
+                "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
+                        + "attempt_count, last_error, submitted_by, created_at, updated_at, "
+                        + "next_hop_org_unit_uid "
+                        + "FROM der.operation_journal "
+                        + "ORDER BY updated_at DESC LIMIT ?",
+                rowMapper(),
+                capped);
+    }
+
     public List<OperationJournalEntry> findByState(final OperationJournalEntry.State state,
                                                     final int limit) {
         final int capped = Math.max(1, Math.min(limit, 500));

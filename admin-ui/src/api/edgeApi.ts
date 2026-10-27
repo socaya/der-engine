@@ -343,6 +343,11 @@ export function fetchJournalOperation(operationId: string): Promise<JournalOpera
     `/edge-api/v1/journal/operations/${encodeURIComponent(operationId)}`);
 }
 
+export function listJournalOperations(limit = 100): Promise<JournalOperation[]> {
+  return request<JournalOperation[]>('GET',
+    `/edge-api/v1/journal/operations?limit=${limit}`);
+}
+
 /** Backlog breakdown by entity type (every known type, with state counts). */
 export type JournalStatsByType = Record<string, Record<string, number>>;
 
