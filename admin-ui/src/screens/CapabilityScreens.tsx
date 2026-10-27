@@ -32,6 +32,25 @@ function Stat({ label, value, tone = 'info' }: {
   );
 }
 
+/** Quiet label-above-value cell used in the Metadata page's last-pull
+ *  strip. No background, no border — just typographic hierarchy. */
+function StatCell({ label, value }: {
+  label: string; value: ReactNode;
+}): JSX.Element {
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.04em',
+                     textTransform: 'uppercase', color: 'var(--der-ink-400)',
+                     marginBottom: 4 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--der-ink-900)', fontWeight: 500 }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function DefinitionCard({ title, rows }: {
   title: string;
   rows: ReadonlyArray<readonly [string, ReactNode]>;
@@ -1107,42 +1126,27 @@ export function CapMetadataSync(): JSX.Element {
         </p>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-        <Panel title="Last pull">
-          {last ? (
-            <dl className="ea-def-list">
-              <div className="ea-def-row"><dt>When</dt>
-                <dd>{new Date(last.startedAt).toLocaleString()}</dd></div>
-              <div className="ea-def-row"><dt>Result</dt>
-                <dd><span className={'ea-chip ea-chip--' + (lastOk ? 'success' : 'danger')}>
-                  {lastOk ? 'Succeeded' : 'Failed'}
-                </span></dd></div>
-              <div className="ea-def-row"><dt>Duration</dt>
-                <dd>{last.durationMs != null ? fmtDur(last.durationMs) : '—'}</dd></div>
-              <div className="ea-def-row"><dt>Triggered by</dt>
-                <dd>{humaniseState(last.triggeredBy)}</dd></div>
-            </dl>
-          ) : (
-            <p className="ea-text-muted" style={{ margin: 0 }}>No metadata pull has run yet on this edge.</p>
-          )}
-        </Panel>
-        <Panel title="Metadata summary">
-          <dl className="ea-def-list">
-            <div className="ea-def-row"><dt>Last successful pull</dt>
-              <dd>{lastSuccess ? new Date(lastSuccess.startedAt).toLocaleString() : 'None yet'}</dd></div>
-            <div className="ea-def-row"><dt>Last attempt</dt>
-              <dd>{last ? new Date(last.startedAt).toLocaleString() : '—'}</dd></div>
-            <div className="ea-def-row"><dt>DHIS2 version</dt>
-              <dd>{sysInfo?.dhis2?.centralVersion ?? '—'}</dd></div>
-            <div className="ea-def-row"><dt>Central DHIS2</dt>
-              <dd>
-                <span className={'ea-chip ea-chip--' + (centralReachable ? 'success' : 'warning')}>
-                  {centralReachable ? 'Reachable' : 'Unreachable'}
-                </span>
-              </dd></div>
-          </dl>
-        </Panel>
-      </div>
+      {last && (
+        <section data-test="metadata-last-pull"
+                 style={{ display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                          gap: 24, padding: '14px 16px', marginBottom: 14,
+                          border: '1px solid var(--der-border-subtle)',
+                          borderRadius: 6, background: 'var(--der-raised)' }}>
+          <StatCell label="Last pull"
+                    value={new Date(last.startedAt).toLocaleString()} />
+          <StatCell label="Result"
+                    value={<span className={'ea-chip ea-chip--' + (lastOk ? 'success' : 'danger')}>
+                      {lastOk ? 'Succeeded' : 'Failed'}
+                    </span>} />
+          <StatCell label="Duration"
+                    value={last.durationMs != null ? fmtDur(last.durationMs) : '—'} />
+          <StatCell label="Triggered by"
+                    value={humaniseState(last.triggeredBy)} />
+          <StatCell label="DHIS2 version"
+                    value={sysInfo?.dhis2?.centralVersion ?? '—'} />
+        </section>
+      )}
 
       <Panel title="Recent pulls">
         {!history || history.length === 0 ? (
