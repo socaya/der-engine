@@ -1,6 +1,6 @@
 {
   "name": "der-client",
-  "version": "2.1.51",
+  "version": "2.1.53",
   "private": true,
   "type": "module",
   "scripts": {

@@ -811,17 +811,16 @@ export function RowMenu({ items, label = 'Actions' }: {
       <div role="menu"
            style={{
              position: 'absolute', right: 0, top: 'calc(100% + 4px)',
-             zIndex: 50, minWidth: 180,
+             zIndex: 50, minWidth: 200,
              background: 'white',
-             border: '1px solid var(--der-border-subtle)',
-             borderRadius: 6,
-             boxShadow: '0 8px 24px rgba(15, 28, 46, 0.08), 0 2px 6px rgba(15, 28, 46, 0.04)',
+             border: '1px solid var(--der-border)',
+             boxShadow: '0 4px 12px rgba(15, 28, 46, 0.08)',
              padding: 4,
            }}>
         {items.map((it, i) => {
           const style: CSSProperties = {
             display: 'block', width: '100%', textAlign: 'left',
-            padding: '6px 10px', borderRadius: 4,
+            padding: '7px 12px',
             background: 'none', border: 'none',
             fontSize: 13, cursor: it.disabled ? 'not-allowed' : 'pointer',
             color: it.disabled ? 'var(--der-ink-300)'
@@ -1098,35 +1097,22 @@ export function DrawerTabs({ tabs, active, onChange }: {
   onChange: (id: string) => void;
 }): JSX.Element {
   return (
-    <div role="tablist"
-         style={{
-           display: 'flex', gap: 2, marginBottom: 10,
-           borderBottom: '1px solid var(--der-border-subtle)',
-         }}>
+    <div className="ea-section-tabs" role="tablist" style={{ marginBottom: 14 }}>
       {tabs.map((t) => {
         const isActive = t.id === active;
         return (
           <button key={t.id} type="button" role="tab" aria-selected={isActive}
                   data-test={`drawer-tab-${t.id}`}
-                  onClick={() => onChange(t.id)}
-                  style={{
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    padding: '8px 12px',
-                    fontSize: 12, fontWeight: isActive ? 600 : 500,
-                    color: isActive ? 'var(--der-primary)' : 'var(--der-ink-500)',
-                    borderBottom: isActive
-                      ? '2px solid var(--der-primary)'
-                      : '2px solid transparent',
-                    marginBottom: -1,
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                  }}>
-            {t.label}
+                  className={'ea-section-tab' + (isActive ? ' ea-section-tab--active' : '')}
+                  onClick={() => onChange(t.id)}>
+            <span>{t.label}</span>
             {t.badge !== undefined && t.badge !== '' && (
               <span style={{
+                marginLeft: 6,
                 background: isActive ? 'var(--der-primary)' : 'var(--der-ink-100)',
                 color: isActive ? 'white' : 'var(--der-ink-700)',
-                fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 10,
-                minWidth: 16, textAlign: 'center',
+                fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 10,
+                minWidth: 16, textAlign: 'center', display: 'inline-block',
               }}>{t.badge}</span>
             )}
           </button>
@@ -1156,27 +1142,28 @@ export function JsonViewer({ value, maxDepth = 2, label }: {
   return (
     <div className="ea-json-viewer"
          style={{
-           border: '1px solid var(--der-border-subtle)', borderRadius: 6,
-           background: 'var(--der-ink-50)',
+           border: '1px solid var(--der-border-subtle)',
+           background: 'var(--der-raised)',
          }}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '6px 10px', borderBottom: '1px solid var(--der-border-subtle)',
         fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.03em',
-        color: 'var(--der-ink-500)',
+        color: 'var(--der-ink-500)', fontWeight: 600,
       }}>
         <span>{label ?? 'JSON'}</span>
-        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+        <button type="button" className="ea-link-btn"
                 data-test="json-copy"
                 onClick={() => { copy().catch(() => undefined); }}
-                style={{ padding: '2px 8px', fontSize: 11 }}>
+                style={{ fontSize: 11 }}>
           {copied ? 'Copied ✓' : 'Copy'}
         </button>
       </div>
       <pre style={{
-        margin: 0, padding: 10, fontFamily: 'ui-monospace, Menlo, monospace',
-        fontSize: 11, lineHeight: 1.5, maxHeight: 320, overflow: 'auto',
+        margin: 0, padding: 12, fontFamily: 'ui-monospace, Menlo, monospace',
+        fontSize: 11, lineHeight: 1.55, maxHeight: 360, overflow: 'auto',
         color: 'var(--der-ink-900)', whiteSpace: 'pre',
+        background: 'white',
       }}>
         <JsonNode value={value} depth={0} maxDepth={maxDepth} path="$" />
       </pre>

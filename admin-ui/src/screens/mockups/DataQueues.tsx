@@ -273,22 +273,30 @@ export function MockupDataDetail(): JSX.Element {
 
   const state = operatorState(op.state);
   const pushing = push.state === 'triggering' || push.state === 'running';
+  const isErrorState = state === 'Rejected' || state === 'Retrying' || state === 'Needs attention';
+  // The server reuses the `last_error` column for the last DHIS2 response
+  // body regardless of success/failure, so treat it as a response unless
+  // the operator-facing state is actually a failure.
+  const responseLabel = isErrorState ? 'Last error' : 'Last response';
+  const parsedResponse = parseResponseBody(op.lastError);
   return (
     <div className="ea-screen" data-test="sync-data-detail">
       <BackLink to="/sync/data" label="Back to Data" />
       <SyncStatusBar
         tone={operatorStateTone(state) === 'muted' ? 'muted' : operatorStateTone(state)}
-        title={`${entityTypeLabel(op.entityType)} · ${op.entityRef}`}
+        title={entityTypeLabel(op.entityType)}
         statusLabel={state}
         subtitle={
           <>
-            <span className="ea-mono">{op.entityType}</span>
+            <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>{op.entityRef}</span>
             <span>·</span>
             <span>Captured <strong style={{ color: 'var(--der-ink-900)' }}>{fmtDate(op.createdAt)}</strong></span>
             <span>·</span>
             <span>Last attempt <strong style={{ color: 'var(--der-ink-900)' }}>{fmtDate(op.updatedAt)}</strong></span>
-            <span>·</span>
-            <span>Attempts <strong style={{ color: 'var(--der-ink-900)' }}>{op.attemptCount}</strong></span>
+            {op.attemptCount > 0 && (<>
+              <span>·</span>
+              <span>Attempts <strong style={{ color: 'var(--der-ink-900)' }}>{op.attemptCount}</strong></span>
+            </>)}
           </>
         }
         actions={
@@ -320,31 +328,45 @@ export function MockupDataDetail(): JSX.Element {
       />
 
       {tab === 'overview' && (
-        <Panel title="Record">
-          <dl className="ea-def-list">
-            <div className="ea-def-row"><dt>Status</dt>
-              <dd><span className={`ea-chip ea-chip--${operatorStateTone(state)}`}>{state}</span></dd></div>
-            <div className="ea-def-row"><dt>Entity type</dt>
-              <dd>{entityTypeLabel(op.entityType)} <span className="ea-mono ea-text-muted">({op.entityType})</span></dd></div>
-            <div className="ea-def-row"><dt>Entity ref</dt>
-              <dd className="ea-mono">{op.entityRef}</dd></div>
-            <div className="ea-def-row"><dt>Captured</dt>
-              <dd className="ea-mono">{fmtDate(op.createdAt)}</dd></div>
-            <div className="ea-def-row"><dt>Last attempt</dt>
-              <dd className="ea-mono">{fmtDate(op.updatedAt)}</dd></div>
-            <div className="ea-def-row"><dt>Retry count</dt>
-              <dd className="ea-mono">{op.attemptCount}</dd></div>
-            <div className="ea-def-row"><dt>Operation ID</dt>
-              <dd className="ea-mono" style={{ fontSize: 10 }}>{op.operationId}</dd></div>
-            {op.lastError && (
-              <div className="ea-def-row"><dt>Last error</dt>
-                <dd className="ea-mono" style={{ fontSize: 10, color: 'var(--der-danger-ink)',
-                                                 wordBreak: 'break-word' }}>
-                  {op.lastError.slice(0, 2000)}
+        <>
+          <Panel title="Record">
+            <dl className="ea-def-list">
+              <div className="ea-def-row"><dt>Status</dt>
+                <dd><span className={`ea-chip ea-chip--${operatorStateTone(state)}`}>{state}</span></dd></div>
+              <div className="ea-def-row"><dt>Entity type</dt>
+                <dd>{entityTypeLabel(op.entityType)}
+                  <span className="ea-mono ea-text-muted" style={{ marginLeft: 6, fontSize: 11 }}>
+                    {op.entityType}
+                  </span>
                 </dd></div>
-            )}
-          </dl>
-        </Panel>
+              <div className="ea-def-row"><dt>Entity ref</dt>
+                <dd className="ea-mono">{op.entityRef}</dd></div>
+              <div className="ea-def-row"><dt>Captured</dt>
+                <dd className="ea-mono">{fmtDate(op.createdAt)}</dd></div>
+              <div className="ea-def-row"><dt>Last attempt</dt>
+                <dd className="ea-mono">{fmtDate(op.updatedAt)}</dd></div>
+              <div className="ea-def-row"><dt>Retry count</dt>
+                <dd className="ea-mono">{op.attemptCount}</dd></div>
+              <div className="ea-def-row"><dt>Operation ID</dt>
+                <dd className="ea-mono" style={{ fontSize: 11 }}>{op.operationId}</dd></div>
+            </dl>
+          </Panel>
+
+          {op.lastError && (
+            <Panel title={responseLabel}>
+              {parsedResponse ? (
+                <ResponseSummary parsed={parsedResponse} raw={op.lastError} isError={isErrorState} />
+              ) : (
+                <p className="ea-mono"
+                   style={{ margin: 0, fontSize: 11,
+                            color: isErrorState ? 'var(--der-danger-ink)' : 'var(--der-ink-700)',
+                            wordBreak: 'break-word' }}>
+                  {op.lastError.slice(0, 2000)}
+                </p>
+              )}
+            </Panel>
+          )}
+        </>
       )}
 
       {tab === 'payload' && (
@@ -353,6 +375,111 @@ export function MockupDataDetail(): JSX.Element {
                       label={`${entityTypeLabel(op.entityType)} · ${op.entityRef}`}
                       maxDepth={4} />
         </Panel>
+      )}
+    </div>
+  );
+}
+
+interface ParsedDhis2Response {
+  message?: string;
+  status?: string;
+  httpStatus?: string;
+  httpStatusCode?: number;
+  importCount?: { imported?: number; updated?: number; ignored?: number; deleted?: number };
+  conflicts?: unknown[];
+  rejectedIndexes?: unknown[];
+}
+
+function parseResponseBody(body: string | null | undefined): ParsedDhis2Response | null {
+  if (!body) return null;
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed && typeof parsed === 'object') {
+      const resp = parsed.response ?? parsed;
+      const out: ParsedDhis2Response = {
+        message: parsed.message ?? resp?.description,
+        status: parsed.status ?? resp?.status,
+        httpStatus: parsed.httpStatus,
+        httpStatusCode: parsed.httpStatusCode,
+        importCount: resp?.importCount,
+        conflicts: resp?.conflicts,
+        rejectedIndexes: resp?.rejectedIndexes,
+      };
+      return out;
+    }
+  } catch { /* not JSON */ }
+  return null;
+}
+
+function ResponseSummary({ parsed, raw, isError }: {
+  parsed: ParsedDhis2Response;
+  raw: string;
+  isError: boolean;
+}): JSX.Element {
+  const [showRaw, setShowRaw] = useState(false);
+  const okStatus = parsed.status === 'OK' || parsed.status === 'SUCCESS';
+  return (
+    <div>
+      <dl className="ea-def-list">
+        {parsed.message && (
+          <div className="ea-def-row"><dt>Message</dt>
+            <dd>{parsed.message}</dd></div>
+        )}
+        {parsed.status && (
+          <div className="ea-def-row"><dt>Status</dt>
+            <dd>
+              <span className={'ea-chip ea-chip--' + (okStatus ? 'success' : 'danger')}>
+                {parsed.status}
+              </span>
+            </dd></div>
+        )}
+        {parsed.httpStatus && (
+          <div className="ea-def-row"><dt>HTTP</dt>
+            <dd className="ea-mono">
+              {parsed.httpStatus}
+              {parsed.httpStatusCode != null && ` · ${parsed.httpStatusCode}`}
+            </dd></div>
+        )}
+        {parsed.importCount && (
+          <div className="ea-def-row"><dt>Import count</dt>
+            <dd>
+              <span style={{ marginRight: 10 }}>
+                Imported <strong>{parsed.importCount.imported ?? 0}</strong>
+              </span>
+              <span style={{ marginRight: 10 }}>
+                Updated <strong>{parsed.importCount.updated ?? 0}</strong>
+              </span>
+              <span style={{ marginRight: 10 }}>
+                Ignored <strong>{parsed.importCount.ignored ?? 0}</strong>
+              </span>
+              <span>
+                Deleted <strong>{parsed.importCount.deleted ?? 0}</strong>
+              </span>
+            </dd></div>
+        )}
+        {parsed.conflicts && parsed.conflicts.length > 0 && (
+          <div className="ea-def-row"><dt>Conflicts</dt>
+            <dd className="ea-mono"
+                style={{ color: 'var(--der-danger-ink)' }}>
+              {parsed.conflicts.length}
+            </dd></div>
+        )}
+      </dl>
+      <div style={{ marginTop: 10 }}>
+        <button type="button" className="ea-link-btn" style={{ fontSize: 11 }}
+                onClick={() => setShowRaw(!showRaw)}>
+          {showRaw ? 'Hide full response' : 'Show full response'}
+        </button>
+      </div>
+      {showRaw && (
+        <pre className="ea-mono"
+             style={{
+               marginTop: 8, padding: 10, borderRadius: 6,
+               background: 'var(--der-ink-50)', fontSize: 10, lineHeight: 1.5,
+               maxHeight: 320, overflow: 'auto',
+               color: isError ? 'var(--der-danger-ink)' : 'var(--der-ink-700)',
+               whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+             }}>{raw.slice(0, 4000)}</pre>
       )}
     </div>
   );

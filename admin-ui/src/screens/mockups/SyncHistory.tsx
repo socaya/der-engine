@@ -263,91 +263,118 @@ export function MockupSyncHistoryDetail(): JSX.Element {
       {tab === 'payload' && (
         <>
           {parseByType(sel.detail).length > 0 && (
-            <Panel title="Breakdown">
-              <div style={{ display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                            gap: 8 }}>
-                {parseByType(sel.detail).map(([type, count]) => (
-                  <div key={type}
-                       style={{ display: 'flex', alignItems: 'center', gap: 10,
-                                padding: '10px 14px', borderRadius: 6,
-                                border: '1px solid var(--der-border-subtle)',
-                                background: 'var(--der-raised)' }}>
-                    <span aria-hidden="true" style={{ fontSize: 20 }}>{entityTypeIcon(type)}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 500 }}>{entityTypeLabel(type)}</div>
-                      <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{type}</div>
-                    </div>
-                    <div className="ea-mono" style={{ fontSize: 18, fontWeight: 700 }}>
-                      {count.toLocaleString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <Panel title="Breakdown by data type">
+              <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
+                <thead><tr>
+                  <th style={{ width: 32 }}></th>
+                  <th>Data type</th>
+                  <th style={{ width: 120, textAlign: 'right' }}>Records</th>
+                </tr></thead>
+                <tbody>
+                  {parseByType(sel.detail).map(([type, count]) => (
+                    <tr key={type}>
+                      <td style={{ fontSize: 16 }} aria-hidden="true">{entityTypeIcon(type)}</td>
+                      <td>
+                        <div style={{ fontWeight: 500 }}>{entityTypeLabel(type)}</div>
+                        <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{type}</div>
+                      </td>
+                      <td className="ea-mono"
+                          style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {count.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </Panel>
           )}
 
-          <Panel title="Records">
-            {parseOperationIds(sel.detail).length === 0 ? (
-              <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
-                This run didn't move individual records — it's a scheduler
-                heartbeat with no payload to show.
-              </p>
-            ) : opsLoading ? (
-              <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
-                Loading record payloads…
-              </p>
-            ) : (ops ?? []).length === 0 ? (
-              <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
-                Records were drained and are no longer in the journal.
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {(ops ?? []).map((op) => (
-                  <div key={op.operationId}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8,
-                                  fontSize: 13, marginBottom: 6 }}>
-                      <span aria-hidden="true" style={{ fontSize: 18 }}>
-                        {entityTypeIcon(op.entityType)}
-                      </span>
-                      <span style={{ fontWeight: 500 }}>{entityTypeLabel(op.entityType)}</span>
-                      <span className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>
-                        {op.entityRef}
-                      </span>
-                      <span className="ea-chip ea-chip--info" style={{ marginLeft: 'auto' }}>
-                        {humaniseState(op.state)}
-                      </span>
-                      <Link to={`/sync/data/${op.operationId}`} className="ea-link-btn"
-                            style={{ fontSize: 11 }}>
-                        Open record →
-                      </Link>
+          {parseOperationIds(sel.detail).length > 0 && (
+            <Panel title="Records">
+              {opsLoading ? (
+                <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
+                  Loading record payloads…
+                </p>
+              ) : (ops ?? []).length === 0 ? (
+                <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
+                  Records were drained and are no longer in the journal.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {(ops ?? []).map((op) => (
+                    <div key={op.operationId}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8,
+                                    fontSize: 13, marginBottom: 6 }}>
+                        <span aria-hidden="true" style={{ fontSize: 16 }}>
+                          {entityTypeIcon(op.entityType)}
+                        </span>
+                        <span style={{ fontWeight: 500 }}>{entityTypeLabel(op.entityType)}</span>
+                        <span className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>
+                          {op.entityRef}
+                        </span>
+                        <span className="ea-chip ea-chip--info" style={{ marginLeft: 'auto' }}>
+                          {humaniseState(op.state)}
+                        </span>
+                        <Link to={`/sync/data/${op.operationId}`} className="ea-link-btn"
+                              style={{ fontSize: 11 }}>
+                          Open record →
+                        </Link>
+                      </div>
+                      <JsonViewer value={op.payload}
+                                  label={`${entityTypeLabel(op.entityType)} · ${op.entityRef}`} />
                     </div>
-                    <JsonViewer value={op.payload}
-                                label={`${entityTypeLabel(op.entityType)} · ${op.entityRef}`} />
-                  </div>
-                ))}
-                {parseOperationIds(sel.detail).length > (ops ?? []).length && (
-                  <p className="ea-text-muted" style={{ margin: 0, fontSize: 11 }}>
-                    Showing first {(ops ?? []).length} of {parseOperationIds(sel.detail).length}
-                    {' '}records in this run.
-                  </p>
-                )}
-              </div>
-            )}
-          </Panel>
-
-          {detailEntries(sel.detail).length > 0 && (
-            <Panel title="Run detail">
-              <dl className="ea-def-list">
-                {detailEntries(sel.detail).map(([k, v]) => (
-                  <div key={k} className="ea-def-row">
-                    <dt>{humaniseJob(k)}</dt>
-                    <dd className="ea-mono">{v}</dd>
-                  </div>
-                ))}
-              </dl>
+                  ))}
+                  {parseOperationIds(sel.detail).length > (ops ?? []).length && (
+                    <p className="ea-text-muted" style={{ margin: 0, fontSize: 11 }}>
+                      Showing first {(ops ?? []).length} of {parseOperationIds(sel.detail).length}
+                      {' '}records in this run.
+                    </p>
+                  )}
+                </div>
+              )}
             </Panel>
           )}
+
+          {/* Metadata pulls + other non-record runs ship their summary as
+              the run's `detail` JSON (total, snapshotId, centralVersion…).
+              Render it as the payload directly rather than hiding it
+              behind "no records to show". */}
+          {(() => {
+            const entries = detailEntries(sel.detail);
+            const hasOps = parseOperationIds(sel.detail).length > 0;
+            const hasByType = parseByType(sel.detail).length > 0;
+            if (entries.length === 0 || (hasOps && hasByType)) return null;
+            // Build a plain-English payload from the parsed JSON keys.
+            let parsed: unknown = null;
+            try { parsed = sel.detail ? JSON.parse(sel.detail) : null; } catch { parsed = null; }
+            if (parsed && typeof parsed === 'object') {
+              const clone: Record<string, unknown> = { ...(parsed as Record<string, unknown>) };
+              delete clone.byType;
+              delete clone.operationIds;
+              return (
+                <Panel title="Payload">
+                  <JsonViewer value={clone} label={`Run ${sel.runId}`} maxDepth={3} />
+                </Panel>
+              );
+            }
+            return (
+              <Panel title="Payload">
+                <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
+                  <tbody>
+                    {entries.map(([k, v]) => (
+                      <tr key={k}>
+                        <th style={{ textAlign: 'left', width: 220,
+                                     color: 'var(--der-ink-500)', fontWeight: 500 }}>
+                          {humaniseJob(k)}
+                        </th>
+                        <td className="ea-mono">{v}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Panel>
+            );
+          })()}
         </>
       )}
 
