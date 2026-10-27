@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager, describeCron, Panel, humaniseState, SyncStatusBar, Spinner, useTriggerAndWatch, SplitWithDrawer, JsonViewer, fmtAgo } from './mockups/shared';
+import { usePaged, TablePager, describeCron, Panel, humaniseState, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu } from './mockups/shared';
 
 /**
  * CapabilityScreens — the 29 nav items that previously showed the
@@ -28,25 +28,6 @@ function Stat({ label, value, tone = 'info' }: {
     <div className={`ea-stat ea-stat--${tone}`}>
       <div className="ea-stat-value">{value}</div>
       <div className="ea-stat-label">{label}</div>
-    </div>
-  );
-}
-
-/** Quiet label-above-value cell used in the Metadata page's last-pull
- *  strip. No background, no border — just typographic hierarchy. */
-function StatCell({ label, value }: {
-  label: string; value: ReactNode;
-}): JSX.Element {
-  return (
-    <div>
-      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.04em',
-                     textTransform: 'uppercase', color: 'var(--der-ink-400)',
-                     marginBottom: 4 }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 13, color: 'var(--der-ink-900)', fontWeight: 500 }}>
-        {value}
-      </div>
     </div>
   );
 }
@@ -1028,9 +1009,9 @@ export function CapDataQueues(): JSX.Element {
 
 /** /admin/sync/metadata — DER Sync requirements §6. */
 export function CapMetadataSync(): JSX.Element {
+  const navigate = useNavigate();
   const [history, setHistory] = useState<edgeApi.JobRun[] | null>(null);
   const [sysInfo, setSysInfo] = useState<edgeApi.SystemInfo | null>(null);
-  const [sel, setSel] = useState<edgeApi.JobRun | null>(null);
   const pull = useTriggerAndWatch();
 
   async function reload(): Promise<void> {
@@ -1127,132 +1108,46 @@ export function CapMetadataSync(): JSX.Element {
         </p>
       )}
 
-      {last && (
-        <section data-test="metadata-last-pull"
-                 style={{ display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                          gap: 24, padding: '14px 16px', marginBottom: 14,
-                          border: '1px solid var(--der-border-subtle)',
-                          borderRadius: 6, background: 'var(--der-raised)' }}>
-          <StatCell label="Last pull"
-                    value={new Date(last.startedAt).toLocaleString()} />
-          <StatCell label="Result"
-                    value={<span className={'ea-chip ea-chip--' + (lastOk ? 'success' : 'danger')}>
-                      {lastOk ? 'Succeeded' : 'Failed'}
-                    </span>} />
-          <StatCell label="Duration"
-                    value={last.durationMs != null ? fmtDur(last.durationMs) : '—'} />
-          <StatCell label="Triggered by"
-                    value={humaniseState(last.triggeredBy)} />
-          <StatCell label="DHIS2 version"
-                    value={sysInfo?.dhis2?.centralVersion ?? '—'} />
-        </section>
-      )}
 
-      <SplitWithDrawer
-        drawerOpen={!!sel}
-        main={
-          <Panel title="Recent pulls">
-            {!history || history.length === 0 ? (
-              <p className="ea-text-muted" style={{ margin: 0 }}>Never run on this edge.</p>
-            ) : (
-              <div className="ea-table-wrap">
-                <table className="ea-table ea-table--dense ea-table--selectable">
-                  <thead><tr>
-                    <th>When</th><th>Result</th><th>Duration</th><th>Triggered by</th>
-                    <th style={{ width: 70 }}>Action</th>
-                  </tr></thead>
-                  <tbody>
-                    {history.map((h) => {
-                      const ok = h.outcome === 'SUCCEEDED' || h.outcome === 'SUCCESS';
-                      return (
-                        <tr key={h.runId}
-                            className={sel?.runId === h.runId ? 'ea-row--active' : ''}
-                            onClick={() => setSel(h)}
-                            data-test={`metadata-row-${h.runId}`}>
-                          <td>{new Date(h.startedAt).toLocaleString()}</td>
-                          <td><span className={'ea-chip ea-chip--' + (ok ? 'success' : 'danger')}>
-                            {ok ? 'Succeeded' : 'Failed'}
-                          </span></td>
-                          <td>{h.durationMs != null ? fmtDur(h.durationMs) : '—'}</td>
-                          <td>{humaniseState(h.triggeredBy)}</td>
-                          <td>
-                            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                                    onClick={(e) => { e.stopPropagation(); setSel(h); }}>
-                              Open
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Panel>
-        }
-        drawer={
-          sel ? (() => {
-            const ok = sel.outcome === 'SUCCEEDED' || sel.outcome === 'SUCCESS';
-            let parsedDetail: unknown = null;
-            if (sel.detail) {
-              try { parsedDetail = JSON.parse(sel.detail); } catch { parsedDetail = sel.detail; }
-            }
-            return (
-              <>
-                <div style={{ marginBottom: 10 }}>
-                  <h3 style={{ margin: 0, fontSize: 16, display: 'flex',
-                                alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    Metadata pull
-                    <span className={'ea-chip ea-chip--' + (ok ? 'success' : 'danger')}>
-                      {ok ? 'Succeeded' : 'Failed'}
-                    </span>
-                  </h3>
-                  <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 4 }}>
-                    {new Date(sel.startedAt).toLocaleString()} · {fmtAgo(sel.startedAt)}
-                  </div>
-                </div>
-                <dl className="ea-def-list">
-                  <div className="ea-def-row"><dt>Run ID</dt>
-                    <dd className="ea-mono">{sel.runId}</dd></div>
-                  <div className="ea-def-row"><dt>Started</dt>
-                    <dd className="ea-mono">{new Date(sel.startedAt).toLocaleString()}</dd></div>
-                  <div className="ea-def-row"><dt>Finished</dt>
-                    <dd className="ea-mono">{sel.finishedAt
-                      ? new Date(sel.finishedAt).toLocaleString() : '—'}</dd></div>
-                  <div className="ea-def-row"><dt>Duration</dt>
-                    <dd>{sel.durationMs != null ? fmtDur(sel.durationMs) : '—'}</dd></div>
-                  <div className="ea-def-row"><dt>Triggered by</dt>
-                    <dd>{humaniseState(sel.triggeredBy)}</dd></div>
-                </dl>
-
-                <h4 style={{ margin: '14px 0 6px', fontSize: 11, fontWeight: 600,
-                             letterSpacing: '0.02em', textTransform: 'uppercase',
-                             color: 'var(--der-ink-400)' }}>
-                  Metadata payload
-                </h4>
-                {parsedDetail && typeof parsedDetail === 'object' && Object.keys(parsedDetail as Record<string, unknown>).length > 0 ? (
-                  <JsonViewer value={parsedDetail}
-                              label={`Pull ${sel.runId}`}
-                              maxDepth={3} />
-                ) : sel.detail ? (
-                  <JsonViewer value={{ detail: sel.detail }}
-                              label={`Pull ${sel.runId}`}
-                              maxDepth={2} />
-                ) : (
-                  <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
-                    This pull run did not record a payload summary.
-                  </p>
-                )}
-              </>
-            );
-          })() : (
-            <p className="ea-text-muted" style={{ margin: 0 }}>
-              Select a pull run to see what metadata was received.
-            </p>
-          )
-        }
-      />
+      <Panel title="Recent pulls">
+        {!history || history.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0 }}>Never run on this edge.</p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
+              <thead><tr>
+                <th>When</th>
+                <th>Result</th>
+                <th>Duration</th>
+                <th>Triggered by</th>
+                <th style={{ width: 48 }} aria-label="Actions"></th>
+              </tr></thead>
+              <tbody>
+                {history.map((h) => {
+                  const ok = h.outcome === 'SUCCEEDED' || h.outcome === 'SUCCESS';
+                  return (
+                    <tr key={h.runId}
+                        onClick={() => navigate(`/sync/history/${h.runId}`)}
+                        data-test={`metadata-row-${h.runId}`}>
+                      <td>{new Date(h.startedAt).toLocaleString()}</td>
+                      <td><span className={'ea-chip ea-chip--' + (ok ? 'success' : 'danger')}>
+                        {ok ? 'Succeeded' : 'Failed'}
+                      </span></td>
+                      <td>{h.durationMs != null ? fmtDur(h.durationMs) : '—'}</td>
+                      <td>{humaniseState(h.triggeredBy)}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <RowMenu items={[
+                          { label: 'Open details', to: `/sync/history/${h.runId}` },
+                        ]} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }

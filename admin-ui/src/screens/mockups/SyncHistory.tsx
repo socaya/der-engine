@@ -1,37 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, usePaged, TablePager, humaniseJob, humaniseState, relatedLinksForJob, syncActivityShape, parseByType, detailEntries, entityTypeIcon, entityTypeLabel, DrawerTabs, JsonViewer, parseOperationIds } from './shared';
+import {
+  OuPicker, useOuContext, Panel, fmtDate, fmtDur, fmtAgo, usePaged, TablePager,
+  humaniseJob, humaniseState, relatedLinksForJob, syncActivityShape,
+  parseByType, detailEntries, entityTypeIcon, entityTypeLabel,
+  DrawerTabs, JsonViewer, parseOperationIds, SyncStatusBar, BackLink, RowMenu,
+  type RowMenuItem,
+} from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
-/** DER Sync History — matches docs/media/ui/DER Sync History Dashboard (1).png */
+/** `/admin/sync/history` — full-width activity feed. */
 export function MockupSyncHistory(): JSX.Element {
   const [ctx] = useOuContext();
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
   const [query, setQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [sel, setSel] = useState<edgeApi.JobRun | null>(null);
-  const [tab, setTab] = useState<'overview' | 'payload' | 'related'>('overview');
-  const [ops, setOps] = useState<edgeApi.JournalOperation[] | null>(null);
-  const [opsLoading, setOpsLoading] = useState(false);
-
-  // Fetch operation payloads when a drain-style run is selected and the
-  // user flips to the Payload tab. Guarded so we only fetch the first
-  // ~5 operations — the drawer is a preview, not a bulk export.
-  useEffect(() => {
-    if (!sel || tab !== 'payload') return;
-    const ids = parseOperationIds(sel.detail).slice(0, 5);
-    if (ids.length === 0) { setOps([]); return; }
-    setOpsLoading(true);
-    Promise.all(ids.map((id) => edgeApi.fetchJournalOperation(id).catch(() => null)))
-      .then((rows) => setOps(rows.filter((r): r is edgeApi.JournalOperation => r !== null)))
-      .finally(() => setOpsLoading(false));
-  }, [sel, tab]);
-
-  useEffect(() => { setTab('overview'); setOps(null); }, [sel?.runId]);
 
   async function reload(): Promise<void> {
     try { setJobs(await edgeApi.listJobs(200)); } catch { /* ignore */ }
@@ -52,287 +40,337 @@ export function MockupSyncHistory(): JSX.Element {
       return true;
     });
   }, [jobs, query, filterType, filterStatus, dateFrom, dateTo]);
-
   const paged = usePaged(filtered, 50);
-
-  // Auto-focus the first row so the right drawer renders a real payload
-  // instead of the "Select a row" placeholder. Only triggers while no
-  // row has been clicked yet.
-  useEffect(() => {
-    if (!sel && paged.rows.length > 0) {
-      setSel(paged.rows[0]);
-    }
-  }, [paged.rows, sel]);
 
   if (!jobs) return <LoadingBlock testId="loading" />;
 
+  function rowMenuFor(j: edgeApi.JobRun): ReadonlyArray<RowMenuItem> {
+    const items: RowMenuItem[] = [
+      { label: 'Open details', to: `/sync/history/${j.runId}` },
+    ];
+    for (const [label, to] of relatedLinksForJob(j.jobName)) {
+      items.push({ label, to });
+    }
+    return items;
+  }
+
   return (
     <div className="ea-screen">
+      <SyncStatusBar
+        tone="muted"
+        title="Sync history"
+        statusLabel={`${jobs.length} run${jobs.length === 1 ? '' : 's'}`}
+        subtitle={<span>Every scheduled and manual sync run on this edge.</span>}
+      />
+
       <OuPicker ctx={ctx} />
 
-      <SplitWithDrawer
-        drawerOpen={!!sel}
-        main={
-          <Panel title={`All runs · ${filtered.length}`}
-                 action={
-                   <>
-                     <input className="ea-input" style={{ maxWidth: 180 }} type="search"
-                            placeholder="Search" value={query}
-                            onChange={(e) => setQuery(e.target.value)} />
-                     <select className="ea-input" style={{ maxWidth: 160 }} value={filterType}
-                             onChange={(e) => setFilterType(e.target.value)}>
-                       <option value="ALL">All Types</option>
-                       {types.map((t) => <option key={t} value={t}>{t}</option>)}
-                     </select>
-                     <select className="ea-input" style={{ maxWidth: 140 }} value={filterStatus}
-                             onChange={(e) => setFilterStatus(e.target.value)}>
-                       <option value="ALL">All Statuses</option>
-                       <option value="SUCCEEDED">Succeeded</option>
-                       <option value="FAILED">Failed</option>
-                     </select>
-                     <input className="ea-input" style={{ maxWidth: 140 }} type="date"
-                            value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                     <input className="ea-input" style={{ maxWidth: 140 }} type="date"
-                            value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                     <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                             onClick={() => { reload().catch(() => undefined); }}>Refresh</button>
-                     <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm">Export</button>
-                   </>
-                 }>
-            <div className="ea-table-wrap">
-              <table className="ea-table ea-table--dense ea-table--selectable">
-                <thead><tr>
-                  <th style={{ width: 32 }}></th>
-                  <th>What was synced</th>
-                  <th style={{ width: 110 }}>Direction</th>
-                  <th style={{ width: 110 }}>When</th>
-                  <th style={{ width: 70 }}>Duration</th>
-                  <th style={{ width: 110 }}>Status</th>
-                </tr></thead>
-                <tbody>
-                  {paged.rows.map((j) => {
-                    const shape = syncActivityShape(j.jobName, j.detail);
-                    return (
-                      <tr key={j.runId} className={sel?.runId === j.runId ? 'ea-row--active' : ''}
-                          onClick={() => setSel(j)}>
-                        <td style={{ fontSize: 16, textAlign: 'center' }}
-                            aria-hidden="true" title={shape.category}>
-                          {shape.icon}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
-                            {shape.category}
-                          </div>
-                          <div className="ea-text-muted" style={{ fontSize: 11, marginTop: 1 }}>
-                            {shape.sentence}
-                          </div>
-                        </td>
-                        <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                          {shape.direction === 'local' ? (
-                            <span className="ea-text-muted">DER-local</span>
-                          ) : (
-                            <>
-                              <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>
-                                {shape.directionLabel.split(' → ')[0]}
-                              </span>
-                              <span style={{ color: 'var(--der-primary)', margin: '0 6px', fontWeight: 700 }}>
-                                →
-                              </span>
-                              <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>
-                                {shape.directionLabel.split(' → ')[1]}
-                              </span>
-                            </>
-                          )}
-                        </td>
-                        <td className="ea-text-muted" style={{ fontSize: 12 }}
-                            title={fmtDate(j.startedAt)}>
-                          {fmtAgo(j.startedAt)}
-                        </td>
-                        <td className="ea-mono">{fmtDur(j.durationMs)}</td>
-                        <td>
-                          <span className={'ea-chip ea-chip--' +
-                              (j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS' ? 'success'
-                              : j.outcome === 'FAILED' || j.outcome === 'FAILURE' ? 'danger' : 'info')}>
-                            {humaniseState(j.outcome)}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {filtered.length === 0 && (
-                    <tr><td colSpan={6} className="ea-text-muted" style={{ padding: 24, textAlign: 'center' }}>No matching activity.</td></tr>
-                  )}
-                </tbody>
-              </table>
-              <TablePager {...paged.pagerProps} />
-            </div>
-          </Panel>
-        }
-        drawer={
-          sel ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
-                <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
-                  {syncActivityShape(sel.jobName, sel.detail).icon}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>
-                    {syncActivityShape(sel.jobName, sel.detail).category}
-                  </h3>
-                  <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2 }}>
-                    {syncActivityShape(sel.jobName, sel.detail).sentence}
-                  </div>
-                  <div style={{ fontSize: 11, marginTop: 4 }}>
-                    <span className="ea-mono">
-                      {syncActivityShape(sel.jobName, sel.detail).directionLabel}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <DrawerTabs
-                active={tab}
-                onChange={(id) => setTab(id as 'overview' | 'payload' | 'related')}
-                tabs={[
-                  { id: 'overview', label: 'Overview' },
-                  { id: 'payload', label: 'Payload',
-                    badge: parseByType(sel.detail).reduce((a, [, c]) => a + c, 0) || undefined },
-                  { id: 'related', label: 'Related',
-                    badge: relatedLinksForJob(sel.jobName).length || undefined },
-                ]}
-              />
-
-              {tab === 'overview' && (
-                <dl className="ea-def-list">
-                  <div className="ea-def-row"><dt>Run ID</dt><dd className="ea-mono">{sel.runId}</dd></div>
-                  <div className="ea-def-row"><dt>Job</dt>
-                    <dd>
-                      {humaniseJob(sel.jobName)}
-                      <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{sel.jobName}</div>
-                    </dd>
-                  </div>
-                  <div className="ea-def-row"><dt>Status</dt>
-                    <dd><span className={'ea-chip ea-chip--' + (sel.outcome === 'SUCCEEDED' || sel.outcome === 'SUCCESS' ? 'success' : sel.outcome === 'FAILED' || sel.outcome === 'FAILURE' ? 'danger' : 'info')}>{humaniseState(sel.outcome)}</span></dd>
-                  </div>
-                  <div className="ea-def-row"><dt>Started</dt><dd className="ea-mono">{fmtDate(sel.startedAt)}</dd></div>
-                  <div className="ea-def-row"><dt>Finished</dt><dd className="ea-mono">{sel.finishedAt ? fmtDate(sel.finishedAt) : '—'}</dd></div>
-                  <div className="ea-def-row"><dt>Duration</dt><dd>{fmtDur(sel.durationMs)}</dd></div>
-                  <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.startedAt)}</dd></div>
-                  <div className="ea-def-row"><dt>Triggered by</dt><dd>{humaniseState(sel.triggeredBy)}</dd></div>
-                </dl>
-              )}
-
-              {tab === 'payload' && (
-                <>
-                  {parseByType(sel.detail).length > 0 && (
-                    <>
-                      <h4 style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 600,
-                                   letterSpacing: '0.02em', textTransform: 'uppercase',
-                                   color: 'var(--der-ink-400)' }}>Breakdown</h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
-                        {parseByType(sel.detail).map(([type, count]) => (
-                          <div key={type}
-                               style={{ display: 'flex', alignItems: 'center', gap: 8,
-                                        padding: '4px 8px', borderRadius: 4,
-                                        background: 'var(--der-ink-50)', fontSize: 12 }}>
-                            <span aria-hidden="true" style={{ fontSize: 16 }}>{entityTypeIcon(type)}</span>
-                            <span style={{ flex: 1 }}>{entityTypeLabel(type)}</span>
-                            <span className="ea-mono" style={{ fontWeight: 600 }}>{count.toLocaleString()}</span>
-                          </div>
-                        ))}
+      <Panel title={`All runs · ${filtered.length}`}
+             action={
+               <>
+                 <input className="ea-input" style={{ maxWidth: 180 }} type="search"
+                        placeholder="Search" value={query}
+                        onChange={(e) => setQuery(e.target.value)} />
+                 <select className="ea-input" style={{ maxWidth: 160 }} value={filterType}
+                         onChange={(e) => setFilterType(e.target.value)}>
+                   <option value="ALL">All types</option>
+                   {types.map((t) => <option key={t} value={t}>{humaniseJob(t)}</option>)}
+                 </select>
+                 <select className="ea-input" style={{ maxWidth: 140 }} value={filterStatus}
+                         onChange={(e) => setFilterStatus(e.target.value)}>
+                   <option value="ALL">All statuses</option>
+                   <option value="SUCCEEDED">Succeeded</option>
+                   <option value="SUCCESS">Succeeded</option>
+                   <option value="FAILED">Failed</option>
+                 </select>
+                 <input className="ea-input" style={{ maxWidth: 140 }} type="date"
+                        value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                 <input className="ea-input" style={{ maxWidth: 140 }} type="date"
+                        value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                 <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                         onClick={() => { reload().catch(() => undefined); }}>Refresh</button>
+               </>
+             }>
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
+            <thead><tr>
+              <th style={{ width: 32 }}></th>
+              <th>What was synced</th>
+              <th style={{ width: 150 }}>Direction</th>
+              <th style={{ width: 110 }}>When</th>
+              <th style={{ width: 70 }}>Duration</th>
+              <th style={{ width: 110 }}>Status</th>
+              <th style={{ width: 48 }} aria-label="Actions"></th>
+            </tr></thead>
+            <tbody>
+              {paged.rows.map((j) => {
+                const shape = syncActivityShape(j.jobName, j.detail);
+                return (
+                  <tr key={j.runId}
+                      onClick={() => navigate(`/sync/history/${j.runId}`)}>
+                    <td style={{ fontSize: 16, textAlign: 'center' }}
+                        aria-hidden="true" title={shape.category}>
+                      {shape.icon}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
+                        {shape.category}
                       </div>
-                    </>
-                  )}
-
-                  <h4 style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 600,
-                               letterSpacing: '0.02em', textTransform: 'uppercase',
-                               color: 'var(--der-ink-400)' }}>Records</h4>
-                  {parseOperationIds(sel.detail).length === 0 ? (
-                    <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
-                      This run didn't move individual records — it's a scheduler
-                      heartbeat with no payload to show.
-                    </p>
-                  ) : opsLoading ? (
-                    <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
-                      Loading record payloads…
-                    </p>
-                  ) : (ops ?? []).length === 0 ? (
-                    <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
-                      Records were drained and are no longer in the journal.
-                    </p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
-                      {(ops ?? []).map((op) => (
-                        <div key={op.operationId}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8,
-                                        fontSize: 12, marginBottom: 4 }}>
-                            <span aria-hidden="true" style={{ fontSize: 16 }}>
-                              {entityTypeIcon(op.entityType)}
-                            </span>
-                            <span style={{ fontWeight: 500 }}>{entityTypeLabel(op.entityType)}</span>
-                            <span className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>
-                              {op.entityRef}
-                            </span>
-                            <span className="ea-chip ea-chip--info" style={{ marginLeft: 'auto' }}>
-                              {humaniseState(op.state)}
-                            </span>
-                          </div>
-                          <JsonViewer value={op.payload}
-                                      label={`${entityTypeLabel(op.entityType)} · ${op.entityRef}`} />
-                        </div>
-                      ))}
-                      {parseOperationIds(sel.detail).length > (ops ?? []).length && (
-                        <p className="ea-text-muted" style={{ margin: 0, fontSize: 11 }}>
-                          Showing first {(ops ?? []).length} of {parseOperationIds(sel.detail).length}
-                          {' '}records in this run.
-                        </p>
+                      <div className="ea-text-muted" style={{ fontSize: 11, marginTop: 1 }}>
+                        {shape.sentence}
+                      </div>
+                    </td>
+                    <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                      {shape.direction === 'local' ? (
+                        <span className="ea-text-muted">DER-local</span>
+                      ) : (
+                        <>
+                          <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>
+                            {shape.directionLabel.split(' → ')[0]}
+                          </span>
+                          <span style={{ color: 'var(--der-primary)', margin: '0 6px', fontWeight: 700 }}>→</span>
+                          <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>
+                            {shape.directionLabel.split(' → ')[1]}
+                          </span>
+                        </>
                       )}
-                    </div>
-                  )}
-
-                  {detailEntries(sel.detail).length > 0 && (
-                    <>
-                      <h4 style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 600,
-                                   letterSpacing: '0.02em', textTransform: 'uppercase',
-                                   color: 'var(--der-ink-400)' }}>Run detail</h4>
-                      <dl className="ea-def-list">
-                        {detailEntries(sel.detail).map(([k, v]) => (
-                          <div key={k} className="ea-def-row">
-                            <dt>{humaniseJob(k)}</dt>
-                            <dd className="ea-mono">{v}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </>
-                  )}
-                </>
+                    </td>
+                    <td className="ea-text-muted" style={{ fontSize: 12 }}
+                        title={fmtDate(j.startedAt)}>{fmtAgo(j.startedAt)}</td>
+                    <td className="ea-mono">{fmtDur(j.durationMs)}</td>
+                    <td>
+                      <span className={'ea-chip ea-chip--' +
+                          (j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS' ? 'success'
+                          : j.outcome === 'FAILED' || j.outcome === 'FAILURE' ? 'danger' : 'info')}>
+                        {humaniseState(j.outcome)}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <RowMenu items={rowMenuFor(j)} />
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr><td colSpan={7} className="ea-text-muted" style={{ padding: 24, textAlign: 'center' }}>
+                  No matching activity.
+                </td></tr>
               )}
-
-              {tab === 'related' && (
-                relatedLinksForJob(sel.jobName).length === 0 ? (
-                  <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
-                    No related screens for this job type.
-                  </p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {relatedLinksForJob(sel.jobName).map(([label, to, hint]) => (
-                      <Link key={to} to={to} className="ea-link-tile"
-                            style={{ padding: '6px 8px' }}>
-                        <div className="ea-link-tile-body">
-                          <div className="ea-link-tile-title" style={{ fontSize: 12 }}>{label}</div>
-                          <div className="ea-link-tile-desc" style={{ fontSize: 11 }}>{hint}</div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )
-              )}
-            </>
-          ) : (
-            <p className="ea-text-muted" style={{ margin: 0 }}>Select a row to view run details.</p>
-          )
-        }
-      />
+            </tbody>
+          </table>
+          <TablePager {...paged.pagerProps} />
+        </div>
+      </Panel>
     </div>
   );
 }
 
+/** `/admin/sync/history/:runId` — per-run details page. */
+export function MockupSyncHistoryDetail(): JSX.Element {
+  const { runId } = useParams<{ runId: string }>();
+  const [sel, setSel] = useState<edgeApi.JobRun | null>(null);
+  const [tab, setTab] = useState<'overview' | 'payload' | 'related'>('overview');
+  const [ops, setOps] = useState<edgeApi.JournalOperation[] | null>(null);
+  const [opsLoading, setOpsLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const all = await edgeApi.listJobs(200);
+        const match = all.find((j) => String(j.runId) === runId);
+        if (!match) { setErr('Run not found.'); return; }
+        setSel(match);
+      } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    })();
+  }, [runId]);
+
+  useEffect(() => {
+    if (!sel || tab !== 'payload') return;
+    const ids = parseOperationIds(sel.detail);
+    if (ids.length === 0) { setOps([]); return; }
+    setOpsLoading(true);
+    Promise.all(ids.slice(0, 20).map((id) => edgeApi.fetchJournalOperation(id).catch(() => null)))
+      .then((rows) => setOps(rows.filter((r): r is edgeApi.JournalOperation => r !== null)))
+      .finally(() => setOpsLoading(false));
+  }, [sel, tab]);
+
+  if (err) return (
+    <div className="ea-screen">
+      <BackLink to="/sync/history" label="Back to Sync history" />
+      <SyncStatusBar tone="danger" title="Run not found" statusLabel="Error"
+                     subtitle={<span>{err}</span>} />
+    </div>
+  );
+  if (!sel) return <LoadingBlock testId="loading" />;
+
+  const shape = syncActivityShape(sel.jobName, sel.detail);
+  const ok = sel.outcome === 'SUCCEEDED' || sel.outcome === 'SUCCESS';
+  const failed = sel.outcome === 'FAILED' || sel.outcome === 'FAILURE';
+  const breakdownBadge = parseByType(sel.detail).reduce((a, [, c]) => a + c, 0) || undefined;
+
+  return (
+    <div className="ea-screen" data-test="sync-history-detail">
+      <BackLink to="/sync/history" label="Back to Sync history" />
+      <SyncStatusBar
+        tone={ok ? 'success' : failed ? 'danger' : 'info'}
+        title={`${shape.icon} ${shape.category}`}
+        statusLabel={humaniseState(sel.outcome)}
+        subtitle={
+          <>
+            <span>{shape.sentence}</span>
+            <span>·</span>
+            <span className="ea-mono">{shape.directionLabel}</span>
+            <span>·</span>
+            <span>{fmtDate(sel.startedAt)}</span>
+          </>
+        }
+      />
+
+      <DrawerTabs
+        active={tab}
+        onChange={(id) => setTab(id as 'overview' | 'payload' | 'related')}
+        tabs={[
+          { id: 'overview', label: 'Overview' },
+          { id: 'payload', label: 'Payload', badge: breakdownBadge },
+          { id: 'related', label: 'Related',
+            badge: relatedLinksForJob(sel.jobName).length || undefined },
+        ]}
+      />
+
+      {tab === 'overview' && (
+        <Panel title="Run">
+          <dl className="ea-def-list">
+            <div className="ea-def-row"><dt>Run ID</dt><dd className="ea-mono">{sel.runId}</dd></div>
+            <div className="ea-def-row"><dt>Job</dt>
+              <dd>{humaniseJob(sel.jobName)}
+                <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{sel.jobName}</div>
+              </dd></div>
+            <div className="ea-def-row"><dt>Status</dt>
+              <dd><span className={'ea-chip ea-chip--' + (ok ? 'success' : failed ? 'danger' : 'info')}>
+                {humaniseState(sel.outcome)}
+              </span></dd></div>
+            <div className="ea-def-row"><dt>Started</dt><dd className="ea-mono">{fmtDate(sel.startedAt)}</dd></div>
+            <div className="ea-def-row"><dt>Finished</dt>
+              <dd className="ea-mono">{sel.finishedAt ? fmtDate(sel.finishedAt) : '—'}</dd></div>
+            <div className="ea-def-row"><dt>Duration</dt><dd>{fmtDur(sel.durationMs)}</dd></div>
+            <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.startedAt)}</dd></div>
+            <div className="ea-def-row"><dt>Triggered by</dt><dd>{humaniseState(sel.triggeredBy)}</dd></div>
+          </dl>
+        </Panel>
+      )}
+
+      {tab === 'payload' && (
+        <>
+          {parseByType(sel.detail).length > 0 && (
+            <Panel title="Breakdown">
+              <div style={{ display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                            gap: 8 }}>
+                {parseByType(sel.detail).map(([type, count]) => (
+                  <div key={type}
+                       style={{ display: 'flex', alignItems: 'center', gap: 10,
+                                padding: '10px 14px', borderRadius: 6,
+                                border: '1px solid var(--der-border-subtle)',
+                                background: 'var(--der-raised)' }}>
+                    <span aria-hidden="true" style={{ fontSize: 20 }}>{entityTypeIcon(type)}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 500 }}>{entityTypeLabel(type)}</div>
+                      <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{type}</div>
+                    </div>
+                    <div className="ea-mono" style={{ fontSize: 18, fontWeight: 700 }}>
+                      {count.toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          )}
+
+          <Panel title="Records">
+            {parseOperationIds(sel.detail).length === 0 ? (
+              <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
+                This run didn't move individual records — it's a scheduler
+                heartbeat with no payload to show.
+              </p>
+            ) : opsLoading ? (
+              <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
+                Loading record payloads…
+              </p>
+            ) : (ops ?? []).length === 0 ? (
+              <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
+                Records were drained and are no longer in the journal.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {(ops ?? []).map((op) => (
+                  <div key={op.operationId}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8,
+                                  fontSize: 13, marginBottom: 6 }}>
+                      <span aria-hidden="true" style={{ fontSize: 18 }}>
+                        {entityTypeIcon(op.entityType)}
+                      </span>
+                      <span style={{ fontWeight: 500 }}>{entityTypeLabel(op.entityType)}</span>
+                      <span className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>
+                        {op.entityRef}
+                      </span>
+                      <span className="ea-chip ea-chip--info" style={{ marginLeft: 'auto' }}>
+                        {humaniseState(op.state)}
+                      </span>
+                      <Link to={`/sync/data/${op.operationId}`} className="ea-link-btn"
+                            style={{ fontSize: 11 }}>
+                        Open record →
+                      </Link>
+                    </div>
+                    <JsonViewer value={op.payload}
+                                label={`${entityTypeLabel(op.entityType)} · ${op.entityRef}`} />
+                  </div>
+                ))}
+                {parseOperationIds(sel.detail).length > (ops ?? []).length && (
+                  <p className="ea-text-muted" style={{ margin: 0, fontSize: 11 }}>
+                    Showing first {(ops ?? []).length} of {parseOperationIds(sel.detail).length}
+                    {' '}records in this run.
+                  </p>
+                )}
+              </div>
+            )}
+          </Panel>
+
+          {detailEntries(sel.detail).length > 0 && (
+            <Panel title="Run detail">
+              <dl className="ea-def-list">
+                {detailEntries(sel.detail).map(([k, v]) => (
+                  <div key={k} className="ea-def-row">
+                    <dt>{humaniseJob(k)}</dt>
+                    <dd className="ea-mono">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Panel>
+          )}
+        </>
+      )}
+
+      {tab === 'related' && (
+        <Panel title="Related">
+          {relatedLinksForJob(sel.jobName).length === 0 ? (
+            <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
+              No related screens for this job type.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {relatedLinksForJob(sel.jobName).map(([label, to, hint]) => (
+                <Link key={to} to={to} className="ea-link-tile" style={{ padding: 10 }}>
+                  <div className="ea-link-tile-body">
+                    <div className="ea-link-tile-title">{label}</div>
+                    <div className="ea-link-tile-desc">{hint}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Panel>
+      )}
+    </div>
+  );
+}

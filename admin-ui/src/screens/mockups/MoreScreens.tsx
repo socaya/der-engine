@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
   KpiTile, Panel, SplitWithDrawer, fmtDate, fmtAgo, fmtBytes, useOuContext, OuPicker,
   usePaged, TablePager, humaniseState, entityTypeIcon, entityTypeLabel,
-  SyncStatusBar,
+  SyncStatusBar, BackLink, RowMenu,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
@@ -245,9 +245,9 @@ function priorityFor(r: edgeApi.ConflictRow): 'High' | 'Medium' | 'Low' {
 }
 
 export function MockupConflictList(): JSX.Element {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<edgeApi.ConflictRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [sel, setSel] = useState<edgeApi.ConflictRow | null>(null);
 
   async function reload(): Promise<void> {
     try { setRows(await edgeApi.listConflicts(100)); }
@@ -255,9 +255,8 @@ export function MockupConflictList(): JSX.Element {
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
 
-  async function resolve(outcome: 'ACCEPTED' | 'REJECTED'): Promise<void> {
-    if (!sel) return;
-    try { await edgeApi.resolveConflict(sel.operationId, outcome); setSel(null); await reload(); }
+  async function resolveFor(id: string, outcome: 'ACCEPTED' | 'REJECTED'): Promise<void> {
+    try { await edgeApi.resolveConflict(id, outcome); await reload(); }
     catch { /* ignore */ }
   }
 
@@ -275,145 +274,154 @@ export function MockupConflictList(): JSX.Element {
         subtitle={<span>Records that could not synchronise automatically and need a decision.</span>}
       />
 
-      <SplitWithDrawer
-        drawerOpen={!!sel}
-        main={
-          <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} attention items`}>
-            {rows.length === 0 ? (
-              <p className="ea-text-muted" style={{ margin: 0 }}>
-                Every captured record either reached Central DHIS2 or is still safely queued.
-              </p>
-            ) : (
-              <div className="ea-table-wrap">
-                <table className="ea-table ea-table--dense ea-table--selectable">
-                  <thead><tr>
-                    <th style={{ width: 32 }}></th>
-                    <th>Record</th>
-                    <th>Problem</th>
-                    <th style={{ width: 90 }}>Priority</th>
-                    <th style={{ width: 90 }}>Since</th>
-                    <th style={{ width: 90 }}>Action</th>
-                  </tr></thead>
-                  <tbody>
-                    {paged.rows.map((r) => {
-                      const problem = problemFor(r);
-                      const prio = priorityFor(r);
-                      return (
-                        <tr key={r.operationId} className={sel?.operationId === r.operationId ? 'ea-row--active' : ''}
-                            onClick={() => setSel(r)}
-                            data-test={`ea13-row-${r.operationId}`}>
-                          <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
-                              title={entityTypeLabel(r.entityType)}>
-                            {entityTypeIcon(r.entityType)}
-                          </td>
-                          <td>
-                            <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
-                              {entityTypeLabel(r.entityType)}
-                            </div>
-                            <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
-                              {r.entityRef}
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ fontWeight: 500, fontSize: 13 }}>{problem.label}</div>
-                            <div className="ea-text-muted" style={{ fontSize: 11, marginTop: 1 }}>
-                              {problem.summary}
-                            </div>
-                          </td>
-                          <td>
-                            <span className={'ea-chip ea-chip--'
-                                + (prio === 'High' ? 'danger' : prio === 'Medium' ? 'warning' : 'info')}>
-                              {prio}
-                            </span>
-                          </td>
-                          <td className="ea-text-muted" style={{ fontSize: 12 }}
-                              title={fmtDate(r.createdAt)}>{fmtAgo(r.createdAt)}</td>
-                          <td>
-                            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                                    onClick={(e) => { e.stopPropagation(); setSel(r); }}>
-                              Review
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                <TablePager {...paged.pagerProps} />
-              </div>
-            )}
-          </Panel>
-        }
-        drawer={
-          sel ? (() => {
-            const problem = problemFor(sel);
-            const prio = priorityFor(sel);
-            return (
-              <>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-                  <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
-                    {entityTypeIcon(sel.entityType)}
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <h3 style={{ margin: 0, fontSize: 16 }}>{entityTypeLabel(sel.entityType)}</h3>
-                    <div className="ea-text-muted ea-mono" style={{ fontSize: 12, marginTop: 2 }}>
-                      {sel.entityRef}
-                    </div>
-                  </div>
-                </div>
+      <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} attention item${rows.length === 1 ? '' : 's'}`}>
+        {rows.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0 }}>
+            Every captured record either reached Central DHIS2 or is still safely queued.
+          </p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
+              <thead><tr>
+                <th style={{ width: 32 }}></th>
+                <th>Record</th>
+                <th>Problem</th>
+                <th style={{ width: 90 }}>Priority</th>
+                <th style={{ width: 90 }}>Since</th>
+                <th style={{ width: 48 }} aria-label="Actions"></th>
+              </tr></thead>
+              <tbody>
+                {paged.rows.map((r) => {
+                  const problem = problemFor(r);
+                  const prio = priorityFor(r);
+                  return (
+                    <tr key={r.operationId}
+                        onClick={() => navigate(`/sync/attention/${r.operationId}`)}
+                        data-test={`ea13-row-${r.operationId}`}>
+                      <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                          title={entityTypeLabel(r.entityType)}>
+                        {entityTypeIcon(r.entityType)}
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
+                          {entityTypeLabel(r.entityType)}
+                        </div>
+                        <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
+                          {r.entityRef}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 500, fontSize: 13 }}>{problem.label}</div>
+                        <div className="ea-text-muted" style={{ fontSize: 11, marginTop: 1 }}>
+                          {problem.summary}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={'ea-chip ea-chip--'
+                            + (prio === 'High' ? 'danger' : prio === 'Medium' ? 'warning' : 'info')}>
+                          {prio}
+                        </span>
+                      </td>
+                      <td className="ea-text-muted" style={{ fontSize: 12 }}
+                          title={fmtDate(r.createdAt)}>{fmtAgo(r.createdAt)}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <RowMenu items={[
+                          { label: 'Open details', to: `/sync/attention/${r.operationId}` },
+                          { label: 'Accept local version',
+                            onSelect: () => { resolveFor(r.operationId, 'ACCEPTED').catch(() => undefined); } },
+                          { label: 'Reject local version', danger: true,
+                            onSelect: () => { resolveFor(r.operationId, 'REJECTED').catch(() => undefined); } },
+                        ]} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <TablePager {...paged.pagerProps} />
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
 
-                <div style={{ padding: 10, marginBottom: 10, borderRadius: 6,
-                              background: 'var(--der-ink-50)',
-                              borderLeft: `3px solid ${prio === 'High' ? 'var(--der-danger, #dc2626)'
-                                : prio === 'Medium' ? 'var(--der-warning, #d97706)'
-                                : 'var(--der-primary)'}` }}>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{problem.label}</div>
-                  <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--der-ink-700)', lineHeight: 1.5 }}>
-                    {problem.summary}
-                  </p>
-                </div>
-
-                <dl className="ea-def-list">
-                  <div className="ea-def-row"><dt>Priority</dt>
-                    <dd><span className={'ea-chip ea-chip--'
-                        + (prio === 'High' ? 'danger' : prio === 'Medium' ? 'warning' : 'info')}>
-                      {prio}
-                    </span></dd></div>
-                  <div className="ea-def-row"><dt>Attempts</dt><dd className="ea-mono">{sel.attemptCount}</dd></div>
-                  <div className="ea-def-row"><dt>First queued</dt><dd className="ea-mono">{fmtDate(sel.createdAt)}</dd></div>
-                  <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.createdAt)}</dd></div>
-                  <div className="ea-def-row"><dt>Operation ID</dt>
-                    <dd className="ea-mono" style={{ fontSize: 10 }}>{sel.operationId}</dd></div>
-                </dl>
-
-                <h4 style={{ margin: '14px 0 6px', fontSize: 11, fontWeight: 600,
-                             letterSpacing: '0.02em', textTransform: 'uppercase',
-                             color: 'var(--der-ink-400)' }}>
-                  Recommended action
-                </h4>
-                <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.5 }}>
-                  Accept the local version to send it to Central DHIS2 anyway, or reject it to drop the record.
-                </p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <button type="button" className="ea-btn ea-btn--primary"
-                          onClick={() => { resolve('ACCEPTED').catch(() => undefined); }}>
-                    Accept local version
-                  </button>
-                  <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger"
-                          onClick={() => { resolve('REJECTED').catch(() => undefined); }}>
-                    Reject local version
-                  </button>
-                </div>
-              </>
-            );
-          })() : (
-            <p className="ea-text-muted" style={{ margin: 0 }}>
-              Select a record to see the recommended action.
-            </p>
-          )
+/** `/admin/sync/attention/:operationId` */
+export function MockupConflictDetail(): JSX.Element {
+  const { operationId } = useParams<{ operationId: string }>();
+  const navigate = useNavigate();
+  const [row, setRow] = useState<edgeApi.ConflictRow | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const all = await edgeApi.listConflicts(500);
+        const match = all.find((r) => r.operationId === operationId);
+        if (!match) { setErr('Attention item not found.'); return; }
+        setRow(match);
+      } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    })();
+  }, [operationId]);
+  async function resolve(outcome: 'ACCEPTED' | 'REJECTED'): Promise<void> {
+    if (!row) return;
+    try { await edgeApi.resolveConflict(row.operationId, outcome); navigate('/sync/attention'); }
+    catch { /* ignore */ }
+  }
+  if (err) return (
+    <div className="ea-screen">
+      <BackLink to="/sync/attention" label="Back to attention list" />
+      <SyncStatusBar tone="danger" title="Not found" statusLabel="Error"
+                     subtitle={<span>{err}</span>} />
+    </div>
+  );
+  if (!row) return <LoadingBlock testId="loading" />;
+  const problem = problemFor(row);
+  const prio = priorityFor(row);
+  return (
+    <div className="ea-screen">
+      <BackLink to="/sync/attention" label="Back to attention list" />
+      <SyncStatusBar
+        tone={prio === 'High' ? 'danger' : prio === 'Medium' ? 'warning' : 'info'}
+        title={`${entityTypeLabel(row.entityType)} · ${row.entityRef}`}
+        statusLabel={prio + ' priority'}
+        subtitle={<span>{problem.label}</span>}
+        actions={
+          <>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    onClick={() => { resolve('ACCEPTED').catch(() => undefined); }}>
+              Accept local version
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
+                    onClick={() => { resolve('REJECTED').catch(() => undefined); }}>
+              Reject
+            </button>
+          </>
         }
       />
+      <Panel title="Problem">
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{problem.label}</div>
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--der-ink-700)', lineHeight: 1.5 }}>
+          {problem.summary}
+        </p>
+        <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--der-ink-500)', lineHeight: 1.5 }}>
+          Accept the local version to send it to Central DHIS2 anyway, or reject it to drop the record.
+        </p>
+      </Panel>
+      <Panel title="Record">
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>Entity type</dt>
+            <dd>{entityTypeLabel(row.entityType)} <span className="ea-mono ea-text-muted">({row.entityType})</span></dd></div>
+          <div className="ea-def-row"><dt>Entity ref</dt><dd className="ea-mono">{row.entityRef}</dd></div>
+          <div className="ea-def-row"><dt>Priority</dt>
+            <dd><span className={'ea-chip ea-chip--'
+                + (prio === 'High' ? 'danger' : prio === 'Medium' ? 'warning' : 'info')}>{prio}</span></dd></div>
+          <div className="ea-def-row"><dt>Attempts</dt><dd className="ea-mono">{row.attemptCount}</dd></div>
+          <div className="ea-def-row"><dt>First queued</dt><dd className="ea-mono">{fmtDate(row.createdAt)}</dd></div>
+          <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(row.createdAt)}</dd></div>
+          <div className="ea-def-row"><dt>Operation ID</dt>
+            <dd className="ea-mono" style={{ fontSize: 10 }}>{row.operationId}</dd></div>
+        </dl>
+      </Panel>
     </div>
   );
 }
@@ -637,23 +645,20 @@ export function MockupDeviceFleet(): JSX.Element {
 
 /* ─── /approvals ─────────────────────────────────────────────────── */
 export function MockupApprovalQueue(): JSX.Element {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<edgeApi.PendingApprovalRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [sel, setSel] = useState<edgeApi.PendingApprovalRow | null>(null);
-  const [reason, setReason] = useState('');
 
   async function reload(): Promise<void> {
     try { setRows((await edgeApi.listPendingApprovals(100)).rows); }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
-  async function approve(): Promise<void> {
-    if (!sel) return;
-    try { await edgeApi.approveOperation(sel.operationId); setSel(null); await reload(); } catch { /* ignore */ }
+  async function approveId(id: string): Promise<void> {
+    try { await edgeApi.approveOperation(id); await reload(); } catch { /* ignore */ }
   }
-  async function reject(): Promise<void> {
-    if (!sel) return;
-    try { await edgeApi.rejectOperation(sel.operationId, reason || 'rejected'); setSel(null); setReason(''); await reload(); } catch { /* ignore */ }
+  async function rejectId(id: string): Promise<void> {
+    try { await edgeApi.rejectOperation(id, 'rejected'); await reload(); } catch { /* ignore */ }
   }
   if (err) return <ErrorBlock title="Approvals failed" testId="err-approvals">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
@@ -666,122 +671,152 @@ export function MockupApprovalQueue(): JSX.Element {
         statusLabel={rows.length === 0 ? 'All clear' : `${rows.length} pending`}
         subtitle={<span>Captured records waiting for an approver's decision before they sync.</span>}
       />
-      <SplitWithDrawer
-        drawerOpen={!!sel}
-        main={
-          <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} pending`}>
-            {rows.length === 0 ? (
-              <p className="ea-text-muted" style={{ margin: 0 }}>
-                No records are waiting for an approval decision.
-              </p>
-            ) : (
-              <div className="ea-table-wrap">
-                <table className="ea-table ea-table--dense ea-table--selectable">
-                  <thead><tr>
-                    <th style={{ width: 32 }}></th>
-                    <th>Record</th>
-                    <th>Submitted by</th>
-                    <th style={{ width: 110 }}>Submitted</th>
-                    <th style={{ width: 90 }}>Action</th>
-                  </tr></thead>
-                  <tbody>
-                    {rows.map((r) => (
-                      <tr key={r.operationId}
-                          className={sel?.operationId === r.operationId ? 'ea-row--active' : ''}
-                          onClick={() => setSel(r)}>
-                        <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
-                            title={entityTypeLabel(r.entityType)}>
-                          {entityTypeIcon(r.entityType)}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
-                            {entityTypeLabel(r.entityType)}
-                          </div>
-                          <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
-                            {r.entityRef}
-                          </div>
-                        </td>
-                        <td>{r.submittedBy ?? '—'}</td>
-                        <td className="ea-text-muted" style={{ fontSize: 12 }}
-                            title={r.createdAt ? fmtDate(r.createdAt) : ''}>
-                          {r.createdAt ? fmtAgo(r.createdAt) : '—'}
-                        </td>
-                        <td>
-                          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                                  onClick={(e) => { e.stopPropagation(); setSel(r); }}>
-                            Review
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Panel>
-        }
-        drawer={
-          sel ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-                <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
-                  {entityTypeIcon(sel.entityType)}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>{entityTypeLabel(sel.entityType)}</h3>
-                  <div className="ea-text-muted ea-mono" style={{ fontSize: 12, marginTop: 2 }}>
-                    {sel.entityRef}
-                  </div>
-                </div>
-              </div>
-              <dl className="ea-def-list">
-                <div className="ea-def-row"><dt>Submitted by</dt><dd>{sel.submittedBy ?? '—'}</dd></div>
-                <div className="ea-def-row"><dt>Submitted</dt>
-                  <dd className="ea-mono">{sel.createdAt ? fmtDate(sel.createdAt) : '—'}</dd></div>
-                {sel.createdAt && <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.createdAt)}</dd></div>}
-                <div className="ea-def-row"><dt>Operation ID</dt>
-                  <dd className="ea-mono" style={{ fontSize: 10 }}>{sel.operationId}</dd></div>
-              </dl>
-              <label className="ea-field">
-                <span className="ea-field-label">Reject reason (optional)</span>
-                <input className="ea-input" value={reason}
-                       onChange={(e) => setReason(e.target.value)} />
-              </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10,
-                            paddingTop: 10, borderTop: '1px solid var(--der-border-subtle)' }}>
-                <button type="button" className="ea-btn ea-btn--primary"
-                        onClick={() => { approve().catch(() => undefined); }}>Approve</button>
-                <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger"
-                        onClick={() => { reject().catch(() => undefined); }}>Reject</button>
-              </div>
-            </>
-          ) : (
-            <p className="ea-text-muted" style={{ margin: 0 }}>Select a record to review.</p>
-          )
+      <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} pending`}>
+        {rows.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0 }}>
+            No records are waiting for an approval decision.
+          </p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
+              <thead><tr>
+                <th style={{ width: 32 }}></th>
+                <th>Record</th>
+                <th>Submitted by</th>
+                <th style={{ width: 110 }}>Submitted</th>
+                <th style={{ width: 48 }} aria-label="Actions"></th>
+              </tr></thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.operationId}
+                      onClick={() => navigate(`/approvals/${r.operationId}`)}>
+                    <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                        title={entityTypeLabel(r.entityType)}>
+                      {entityTypeIcon(r.entityType)}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
+                        {entityTypeLabel(r.entityType)}
+                      </div>
+                      <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
+                        {r.entityRef}
+                      </div>
+                    </td>
+                    <td>{r.submittedBy ?? '—'}</td>
+                    <td className="ea-text-muted" style={{ fontSize: 12 }}
+                        title={r.createdAt ? fmtDate(r.createdAt) : ''}>
+                      {r.createdAt ? fmtAgo(r.createdAt) : '—'}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <RowMenu items={[
+                        { label: 'Open details', to: `/approvals/${r.operationId}` },
+                        { label: 'Approve',
+                          onSelect: () => { approveId(r.operationId).catch(() => undefined); } },
+                        { label: 'Reject', danger: true,
+                          onSelect: () => { rejectId(r.operationId).catch(() => undefined); } },
+                      ]} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+/** `/admin/approvals/:operationId` */
+export function MockupApprovalDetail(): JSX.Element {
+  const { operationId } = useParams<{ operationId: string }>();
+  const navigate = useNavigate();
+  const [row, setRow] = useState<edgeApi.PendingApprovalRow | null>(null);
+  const [reason, setReason] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const all = (await edgeApi.listPendingApprovals(500)).rows;
+        const match = all.find((r) => r.operationId === operationId);
+        if (!match) { setErr('Approval item not found.'); return; }
+        setRow(match);
+      } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    })();
+  }, [operationId]);
+  async function approve(): Promise<void> {
+    if (!row) return;
+    try { await edgeApi.approveOperation(row.operationId); navigate('/approvals'); } catch { /* ignore */ }
+  }
+  async function reject(): Promise<void> {
+    if (!row) return;
+    try { await edgeApi.rejectOperation(row.operationId, reason || 'rejected'); navigate('/approvals'); }
+    catch { /* ignore */ }
+  }
+  if (err) return (
+    <div className="ea-screen">
+      <BackLink to="/approvals" label="Back to approvals" />
+      <SyncStatusBar tone="danger" title="Not found" statusLabel="Error"
+                     subtitle={<span>{err}</span>} />
+    </div>
+  );
+  if (!row) return <LoadingBlock testId="loading" />;
+  return (
+    <div className="ea-screen">
+      <BackLink to="/approvals" label="Back to approvals" />
+      <SyncStatusBar
+        tone="warning"
+        title={`${entityTypeLabel(row.entityType)} · ${row.entityRef}`}
+        statusLabel="Pending approval"
+        subtitle={<span>Submitted by <strong style={{ color: 'var(--der-ink-900)' }}>{row.submittedBy ?? 'unknown'}</strong>{row.createdAt && <> · {fmtDate(row.createdAt)}</>}</span>}
+        actions={
+          <>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    onClick={() => { approve().catch(() => undefined); }}>Approve</button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
+                    onClick={() => { reject().catch(() => undefined); }}>Reject</button>
+          </>
         }
       />
+      <Panel title="Record">
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>Entity type</dt>
+            <dd>{entityTypeLabel(row.entityType)} <span className="ea-mono ea-text-muted">({row.entityType})</span></dd></div>
+          <div className="ea-def-row"><dt>Entity ref</dt><dd className="ea-mono">{row.entityRef}</dd></div>
+          <div className="ea-def-row"><dt>Submitted by</dt><dd>{row.submittedBy ?? '—'}</dd></div>
+          <div className="ea-def-row"><dt>Submitted</dt>
+            <dd className="ea-mono">{row.createdAt ? fmtDate(row.createdAt) : '—'}</dd></div>
+          {row.createdAt && <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(row.createdAt)}</dd></div>}
+          <div className="ea-def-row"><dt>Operation ID</dt>
+            <dd className="ea-mono" style={{ fontSize: 10 }}>{row.operationId}</dd></div>
+        </dl>
+      </Panel>
+      <Panel title="Reject reason (optional)">
+        <input className="ea-input" value={reason}
+               style={{ width: '100%', maxWidth: 500 }}
+               placeholder="Why is this being rejected?"
+               onChange={(e) => setReason(e.target.value)} />
+      </Panel>
     </div>
   );
 }
 
 /* ─── /referral/inbox ────────────────────────────────────────────── */
 export function MockupReferralInbox(): JSX.Element {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<edgeApi.ReferralInboxRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [sel, setSel] = useState<edgeApi.ReferralInboxRow | null>(null);
 
   async function reload(): Promise<void> {
     try { setRows((await edgeApi.listReferralInbox(100)).entries); }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
-  async function accept(): Promise<void> {
-    if (!sel) return;
-    try { await edgeApi.acceptReferralInbox(sel.inboxId); setSel(null); await reload(); } catch { /* ignore */ }
+  async function acceptId(id: string): Promise<void> {
+    try { await edgeApi.acceptReferralInbox(id); await reload(); } catch { /* ignore */ }
   }
-  async function dismiss(): Promise<void> {
-    if (!sel) return;
-    try { await edgeApi.dismissReferralInbox(sel.inboxId); setSel(null); await reload(); } catch { /* ignore */ }
+  async function dismissId(id: string): Promise<void> {
+    try { await edgeApi.dismissReferralInbox(id); await reload(); } catch { /* ignore */ }
   }
   if (err) return <ErrorBlock title="Inbox failed" testId="err-inbox">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
@@ -803,103 +838,132 @@ export function MockupReferralInbox(): JSX.Element {
           </>
         }
       />
-      <SplitWithDrawer
-        drawerOpen={!!sel}
-        main={
-          <Panel title={rows.length === 0 ? 'Inbox empty' : `${rows.length} referral${rows.length === 1 ? '' : 's'}`}>
-            {rows.length === 0 ? (
-              <p className="ea-text-muted" style={{ margin: 0 }}>
-                No referrals have been received by this edge yet.
-              </p>
-            ) : (
-              <div className="ea-table-wrap">
-                <table className="ea-table ea-table--dense ea-table--selectable">
-                  <thead><tr>
-                    <th style={{ width: 32 }}></th>
-                    <th>Referral</th>
-                    <th style={{ width: 110 }}>Received</th>
-                    <th style={{ width: 110 }}>Status</th>
-                    <th style={{ width: 90 }}>Action</th>
-                  </tr></thead>
-                  <tbody>
-                    {rows.map((r) => (
-                      <tr key={r.inboxId} className={sel?.inboxId === r.inboxId ? 'ea-row--active' : ''}
-                          onClick={() => setSel(r)}>
-                        <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
-                            title={entityTypeLabel(r.kind)}>
-                          {entityTypeIcon(r.kind)}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
-                            {entityTypeLabel(r.kind)}
-                          </div>
-                          <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
-                            {r.sourceRef}
-                          </div>
-                        </td>
-                        <td className="ea-text-muted" style={{ fontSize: 12 }}
-                            title={fmtDate(r.discoveredAt)}>{fmtAgo(r.discoveredAt)}</td>
-                        <td><span className={'ea-chip ea-chip--' +
-                            (r.status === 'ACCEPTED' ? 'success'
-                              : r.status === 'DISMISSED' ? 'neutral' : 'warning')} title={r.status}>
-                          {humaniseState(r.status)}
-                        </span></td>
-                        <td>
-                          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                                  onClick={(e) => { e.stopPropagation(); setSel(r); }}>
-                            {r.status === 'PENDING' ? 'Review' : 'Open'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Panel>
-        }
-        drawer={
-          sel ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-                <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
-                  {entityTypeIcon(sel.kind)}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>{entityTypeLabel(sel.kind)}</h3>
-                  <div className="ea-text-muted ea-mono" style={{ fontSize: 12, marginTop: 2 }}>
-                    {sel.sourceRef}
-                  </div>
-                  <div style={{ marginTop: 6 }}>
-                    <span className={'ea-chip ea-chip--' +
-                        (sel.status === 'ACCEPTED' ? 'success'
-                          : sel.status === 'DISMISSED' ? 'neutral' : 'warning')}>
-                      {humaniseState(sel.status)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <dl className="ea-def-list">
-                <div className="ea-def-row"><dt>Received</dt><dd className="ea-mono">{fmtDate(sel.discoveredAt)}</dd></div>
-                <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.discoveredAt)}</dd></div>
-                <div className="ea-def-row"><dt>Inbox ID</dt>
-                  <dd className="ea-mono" style={{ fontSize: 10 }}>{sel.inboxId}</dd></div>
-              </dl>
-              {sel.status === 'PENDING' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10,
-                              paddingTop: 10, borderTop: '1px solid var(--der-border-subtle)' }}>
-                  <button type="button" className="ea-btn ea-btn--primary"
-                          onClick={() => { accept().catch(() => undefined); }}>Accept referral</button>
-                  <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger"
-                          onClick={() => { dismiss().catch(() => undefined); }}>Dismiss</button>
-                </div>
-              )}
-            </>
-          ) : (
-            <p className="ea-text-muted" style={{ margin: 0 }}>Select a referral to review.</p>
-          )
-        }
+      <Panel title={rows.length === 0 ? 'Inbox empty' : `${rows.length} referral${rows.length === 1 ? '' : 's'}`}>
+        {rows.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0 }}>
+            No referrals have been received by this edge yet.
+          </p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
+              <thead><tr>
+                <th style={{ width: 32 }}></th>
+                <th>Referral</th>
+                <th style={{ width: 110 }}>Received</th>
+                <th style={{ width: 130 }}>Status</th>
+                <th style={{ width: 48 }} aria-label="Actions"></th>
+              </tr></thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.inboxId}
+                      onClick={() => navigate(`/referral/inbox/${r.inboxId}`)}>
+                    <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                        title={entityTypeLabel(r.kind)}>
+                      {entityTypeIcon(r.kind)}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
+                        {entityTypeLabel(r.kind)}
+                      </div>
+                      <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
+                        {r.sourceRef}
+                      </div>
+                    </td>
+                    <td className="ea-text-muted" style={{ fontSize: 12 }}
+                        title={fmtDate(r.discoveredAt)}>{fmtAgo(r.discoveredAt)}</td>
+                    <td><span className={'ea-chip ea-chip--' +
+                        (r.status === 'ACCEPTED' ? 'success'
+                          : r.status === 'DISMISSED' ? 'neutral' : 'warning')} title={r.status}>
+                      {humaniseState(r.status)}
+                    </span></td>
+                    <td style={{ textAlign: 'right' }}>
+                      <RowMenu items={[
+                        { label: 'Open details', to: `/referral/inbox/${r.inboxId}` },
+                        ...(r.status === 'PENDING' ? [
+                          { label: 'Accept referral',
+                            onSelect: () => { acceptId(r.inboxId).catch(() => undefined); } },
+                          { label: 'Dismiss', danger: true,
+                            onSelect: () => { dismissId(r.inboxId).catch(() => undefined); } },
+                        ] : []),
+                      ]} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+/** `/admin/referral/inbox/:inboxId` */
+export function MockupReferralDetail(): JSX.Element {
+  const { inboxId } = useParams<{ inboxId: string }>();
+  const navigate = useNavigate();
+  const [row, setRow] = useState<edgeApi.ReferralInboxRow | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const all = (await edgeApi.listReferralInbox(500)).entries;
+        const match = all.find((r) => r.inboxId === inboxId);
+        if (!match) { setErr('Referral not found.'); return; }
+        setRow(match);
+      } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    })();
+  }, [inboxId]);
+  async function accept(): Promise<void> {
+    if (!row) return;
+    try { await edgeApi.acceptReferralInbox(row.inboxId); navigate('/referral/inbox'); } catch { /* ignore */ }
+  }
+  async function dismiss(): Promise<void> {
+    if (!row) return;
+    try { await edgeApi.dismissReferralInbox(row.inboxId); navigate('/referral/inbox'); } catch { /* ignore */ }
+  }
+  if (err) return (
+    <div className="ea-screen">
+      <BackLink to="/referral/inbox" label="Back to referral inbox" />
+      <SyncStatusBar tone="danger" title="Not found" statusLabel="Error"
+                     subtitle={<span>{err}</span>} />
+    </div>
+  );
+  if (!row) return <LoadingBlock testId="loading" />;
+  return (
+    <div className="ea-screen">
+      <BackLink to="/referral/inbox" label="Back to referral inbox" />
+      <SyncStatusBar
+        tone={row.status === 'PENDING' ? 'warning' : row.status === 'ACCEPTED' ? 'success' : 'muted'}
+        title={`${entityTypeLabel(row.kind)} · ${row.sourceRef}`}
+        statusLabel={humaniseState(row.status)}
+        subtitle={<span>Received {fmtDate(row.discoveredAt)} · {fmtAgo(row.discoveredAt)}</span>}
+        actions={row.status === 'PENDING' ? (
+          <>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    onClick={() => { accept().catch(() => undefined); }}>Accept referral</button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
+                    onClick={() => { dismiss().catch(() => undefined); }}>Dismiss</button>
+          </>
+        ) : undefined}
       />
+      <Panel title="Referral">
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>Kind</dt>
+            <dd>{entityTypeLabel(row.kind)} <span className="ea-mono ea-text-muted">({row.kind})</span></dd></div>
+          <div className="ea-def-row"><dt>Source ref</dt><dd className="ea-mono">{row.sourceRef}</dd></div>
+          <div className="ea-def-row"><dt>Status</dt>
+            <dd><span className={'ea-chip ea-chip--' +
+                (row.status === 'ACCEPTED' ? 'success'
+                  : row.status === 'DISMISSED' ? 'neutral' : 'warning')}>
+              {humaniseState(row.status)}
+            </span></dd></div>
+          <div className="ea-def-row"><dt>Received</dt><dd className="ea-mono">{fmtDate(row.discoveredAt)}</dd></div>
+          <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(row.discoveredAt)}</dd></div>
+          <div className="ea-def-row"><dt>Inbox ID</dt>
+            <dd className="ea-mono" style={{ fontSize: 10 }}>{row.inboxId}</dd></div>
+        </dl>
+      </Panel>
     </div>
   );
 }

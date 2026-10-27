@@ -34,8 +34,8 @@ import { MockupSystemOverview } from './screens/mockups/SystemOverview';
 import { MockupSyncOverview } from './screens/mockups/SyncOverview';
 import { MockupMetadata } from './screens/mockups/Metadata';
 import { MockupDataManagement } from './screens/mockups/DataManagement';
-import { MockupDataQueues } from './screens/mockups/DataQueues';
-import { MockupSyncHistory } from './screens/mockups/SyncHistory';
+import { MockupDataQueues, MockupDataDetail } from './screens/mockups/DataQueues';
+import { MockupSyncHistory, MockupSyncHistoryDetail } from './screens/mockups/SyncHistory';
 import { MockupUsersDashboard } from './screens/mockups/UsersDashboard';
 import { MockupDhis2Overview } from './screens/mockups/Dhis2Overview';
 import { MockupWorkspace } from './screens/mockups/Workspace';
@@ -43,8 +43,10 @@ import { MockupAdminTasks } from './screens/mockups/AdminTasks';
 import { MockupSystemInformation } from './screens/mockups/SystemInformation';
 import { MockupCompatMatrix } from './screens/mockups/CompatMatrix';
 import {
-  MockupDriftInspector, MockupConflictList, MockupWorkerHealth,
-  MockupDeviceFleet, MockupApprovalQueue, MockupReferralInbox,
+  MockupDriftInspector, MockupConflictList, MockupConflictDetail,
+  MockupWorkerHealth,
+  MockupDeviceFleet, MockupApprovalQueue, MockupApprovalDetail,
+  MockupReferralInbox, MockupReferralDetail,
   MockupBackupList, MockupRestoreList, MockupCompatInspector,
   MockupAuditEvents, MockupFacilityAnalytics,
 } from './screens/mockups/MoreScreens';
@@ -114,6 +116,8 @@ export default function App(): JSX.Element {
           <Route path="/sync/drift-legacy" element={<RequireAuth><EADriftInspector /></RequireAuth>} />
           <Route path="/sync/attention"
                  element={<RequireAuth><MockupConflictList /></RequireAuth>} />
+          <Route path="/sync/attention/:operationId"
+                 element={<RequireAuth><MockupConflictDetail /></RequireAuth>} />
           <Route path="/journal/conflicts" element={<Navigate to="/sync/attention" replace />} />
           <Route path="/journal/conflicts-legacy"
                  element={<RequireAuth><EAConflictList /></RequireAuth>} />
@@ -126,6 +130,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EAWorkerHealth /></RequireAuth>} />
           <Route path="/approvals"
                  element={<RequireAuth><MockupApprovalQueue /></RequireAuth>} />
+          <Route path="/approvals/:operationId"
+                 element={<RequireAuth><MockupApprovalDetail /></RequireAuth>} />
           <Route path="/approvals-legacy"
                  element={<RequireAuth><EAApprovalQueue /></RequireAuth>} />
           <Route path="/workflows"
@@ -148,6 +154,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EAAuditEvents /></RequireAuth>} />
           <Route path="/referral/inbox"
                  element={<RequireAuth><MockupReferralInbox /></RequireAuth>} />
+          <Route path="/referral/inbox/:inboxId"
+                 element={<RequireAuth><MockupReferralDetail /></RequireAuth>} />
           <Route path="/referral/inbox-legacy"
                  element={<RequireAuth><EAReferralInbox /></RequireAuth>} />
           <Route path="/metadata"
@@ -177,9 +185,11 @@ export default function App(): JSX.Element {
           <Route path="/integration/program-rules" element={<RequireAuth><CapProgramRules /></RequireAuth>} />
           <Route path="/sync" element={<RequireAuth><MockupSyncOverview /></RequireAuth>} />
           <Route path="/sync/history" element={<RequireAuth><MockupSyncHistory /></RequireAuth>} />
+          <Route path="/sync/history/:runId" element={<RequireAuth><MockupSyncHistoryDetail /></RequireAuth>} />
           <Route path="/sync/queues" element={<Navigate to="/sync/data" replace />} />
           <Route path="/sync/metadata" element={<RequireAuth><CapMetadataSync /></RequireAuth>} />
           <Route path="/sync/data" element={<RequireAuth><MockupDataQueues /></RequireAuth>} />
+          <Route path="/sync/data/:operationId" element={<RequireAuth><MockupDataDetail /></RequireAuth>} />
           <Route path="/sync/schedule" element={<RequireAuth><CapSyncSchedule /></RequireAuth>} />
           <Route path="/sync/settings" element={<RequireAuth><CapSyncSettings /></RequireAuth>} />
           <Route path="/workflows/runs" element={<RequireAuth><CapWorkflowRuns /></RequireAuth>} />

@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode, type MouseEvent as ReactMouseEvent, type CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import { useOrgUnit } from '../../components/OrgUnitContext';
 
@@ -757,6 +758,98 @@ export function SyncStatusBar({ tone, title, statusLabel, details, subtitle, act
       </div>
       {actions && <div className="ea-screen-header-right">{actions}</div>}
     </header>
+  );
+}
+
+/** Back-link rendered above a details page title. */
+export function BackLink({ to, label }: { to: string; label: string }): JSX.Element {
+  return (
+    <Link to={to}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 12, color: 'var(--der-ink-500)',
+            marginBottom: 6, textDecoration: 'none',
+          }}>
+      ← {label}
+    </Link>
+  );
+}
+
+export interface RowMenuItem {
+  readonly label: string;
+  readonly onSelect?: () => void;
+  readonly to?: string;        // Link navigation instead of callback.
+  readonly danger?: boolean;   // Red tone (destructive actions).
+  readonly disabled?: boolean;
+}
+
+/** Per-row context menu rendered as a native `<details>` dropdown
+ *  anchored to a `⋮` kebab icon. Sits in the last column, far right. */
+export function RowMenu({ items, label = 'Actions' }: {
+  items: ReadonlyArray<RowMenuItem>;
+  label?: string;
+}): JSX.Element {
+  // Stop the row-click handler from firing when the operator clicks
+  // inside the menu or on the kebab.
+  const stop = (e: ReactMouseEvent): void => { e.stopPropagation(); };
+  return (
+    <details className="ea-row-menu"
+             onClick={stop}
+             style={{ position: 'relative', display: 'inline-block' }}>
+      <summary
+        aria-label={label}
+        style={{
+          listStyle: 'none', cursor: 'pointer', userSelect: 'none',
+          width: 24, height: 24, borderRadius: 4,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--der-ink-500)',
+          border: '1px solid var(--der-border-subtle)',
+          background: 'white', fontSize: 16, lineHeight: 1,
+        }}>
+        ⋮
+      </summary>
+      <div role="menu"
+           style={{
+             position: 'absolute', right: 0, top: 'calc(100% + 4px)',
+             zIndex: 50, minWidth: 180,
+             background: 'white',
+             border: '1px solid var(--der-border-subtle)',
+             borderRadius: 6,
+             boxShadow: '0 8px 24px rgba(15, 28, 46, 0.08), 0 2px 6px rgba(15, 28, 46, 0.04)',
+             padding: 4,
+           }}>
+        {items.map((it, i) => {
+          const style: CSSProperties = {
+            display: 'block', width: '100%', textAlign: 'left',
+            padding: '6px 10px', borderRadius: 4,
+            background: 'none', border: 'none',
+            fontSize: 13, cursor: it.disabled ? 'not-allowed' : 'pointer',
+            color: it.disabled ? 'var(--der-ink-300)'
+                 : it.danger ? 'var(--der-danger-ink)'
+                 : 'var(--der-ink-900)',
+            textDecoration: 'none',
+          };
+          if (it.to) {
+            return (
+              <Link key={i} to={it.to} role="menuitem" style={style}>{it.label}</Link>
+            );
+          }
+          return (
+            <button key={i} type="button" role="menuitem" style={style}
+                    disabled={it.disabled}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Close the menu by removing the open attribute.
+                      const details = (e.currentTarget.closest('details'));
+                      if (details) details.removeAttribute('open');
+                      it.onSelect?.();
+                    }}>
+              {it.label}
+            </button>
+          );
+        })}
+      </div>
+    </details>
   );
 }
 
