@@ -440,23 +440,30 @@ function ResponseSummary({ parsed, raw, isError }: {
               {parsed.httpStatusCode != null && ` · ${parsed.httpStatusCode}`}
             </dd></div>
         )}
-        {parsed.importCount && (
-          <div className="ea-def-row"><dt>Import count</dt>
-            <dd>
-              <span style={{ marginRight: 10 }}>
-                Imported <strong>{parsed.importCount.imported ?? 0}</strong>
-              </span>
-              <span style={{ marginRight: 10 }}>
-                Updated <strong>{parsed.importCount.updated ?? 0}</strong>
-              </span>
-              <span style={{ marginRight: 10 }}>
-                Ignored <strong>{parsed.importCount.ignored ?? 0}</strong>
-              </span>
-              <span>
-                Deleted <strong>{parsed.importCount.deleted ?? 0}</strong>
-              </span>
-            </dd></div>
-        )}
+        {parsed.importCount && (() => {
+          const ic = parsed.importCount;
+          const total = (ic.imported ?? 0) + (ic.updated ?? 0)
+                      + (ic.ignored ?? 0) + (ic.deleted ?? 0);
+          return (
+            <div className="ea-def-row"><dt>Import count</dt>
+              <dd>
+                <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                  <span>Imported <strong>{ic.imported ?? 0}</strong></span>
+                  <span>Updated <strong>{ic.updated ?? 0}</strong></span>
+                  <span>Ignored <strong>{ic.ignored ?? 0}</strong></span>
+                  <span>Deleted <strong>{ic.deleted ?? 0}</strong></span>
+                </div>
+                {total === 0 && okStatus && (
+                  <div className="ea-text-muted"
+                       style={{ marginTop: 6, fontSize: 11, lineHeight: 1.5 }}>
+                    Central DHIS2 accepted the request (HTTP 200) but didn't
+                    change any records — the data was already present or
+                    matched an existing value.
+                  </div>
+                )}
+              </dd></div>
+          );
+        })()}
         {parsed.conflicts && parsed.conflicts.length > 0 && (
           <div className="ea-def-row"><dt>Conflicts</dt>
             <dd className="ea-mono"

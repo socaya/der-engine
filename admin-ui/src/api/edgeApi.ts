@@ -285,8 +285,11 @@ export interface JobRun {
   triggeredBy: string;
 }
 
-export function listJobs(limit = 50): Promise<JobRun[]> {
-  return request<JobRun[]>('GET', `/edge-api/v1/sync/jobs?limit=${limit}`);
+export function listJobs(limit = 50, jobName?: string): Promise<JobRun[]> {
+  const params = new URLSearchParams();
+  params.set('limit', String(limit));
+  if (jobName) params.set('jobName', jobName);
+  return request<JobRun[]>('GET', `/edge-api/v1/sync/jobs?${params.toString()}`);
 }
 
 export function triggerJob(name: string): Promise<{ triggered?: string; error?: string }> {

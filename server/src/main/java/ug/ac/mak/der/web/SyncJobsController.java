@@ -37,9 +37,14 @@ public class SyncJobsController {
     @GetMapping
     public ResponseEntity<List<ScheduledJobRun>> list(final Authentication authentication,
                                                        @RequestParam(name = "limit", defaultValue = "50")
-                                                       final int limit) {
+                                                       final int limit,
+                                                       @RequestParam(name = "jobName", required = false)
+                                                       final String jobName) {
         if (!(authentication instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
+        }
+        if (jobName != null && !jobName.isBlank()) {
+            return ResponseEntity.ok(runs.findRecentForJob(jobName, limit));
         }
         return ResponseEntity.ok(runs.findRecent(limit));
     }

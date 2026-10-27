@@ -1015,9 +1015,14 @@ export function CapMetadataSync(): JSX.Element {
   const pull = useTriggerAndWatch();
 
   async function reload(): Promise<void> {
-    const [j, s] = await Promise.allSettled([edgeApi.listJobs(50), edgeApi.systemInfo()]);
+    // Server-side filter so we always see the latest metadata runs
+    // even when thousands of drain/analytics runs sit above them.
+    const [j, s] = await Promise.allSettled([
+      edgeApi.listJobs(20, 'METADATA_SYNC_FULL'),
+      edgeApi.systemInfo(),
+    ]);
     if (j.status === 'fulfilled') {
-      setHistory(j.value.filter((x) => x.jobName === 'METADATA_SYNC_FULL').slice(0, 8));
+      setHistory(j.value.slice(0, 20));
     }
     if (s.status === 'fulfilled') setSysInfo(s.value);
   }
