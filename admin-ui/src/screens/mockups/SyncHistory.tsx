@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, usePaged, TablePager, humaniseJob, humaniseState, relatedLinksForJob } from './shared';
+import { OuPicker, useOuContext, Panel, SplitWithDrawer, fmtDate, fmtDur, fmtAgo, usePaged, TablePager, humaniseJob, humaniseState, relatedLinksForJob, syncActivityShape } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /** DER Sync History — matches docs/media/ui/DER Sync History Dashboard (1).png */
@@ -50,14 +50,6 @@ export function MockupSyncHistory(): JSX.Element {
 
   return (
     <div className="ea-screen">
-      <section className="ea-dash-hero">
-        <div className="ea-dash-hero-left">
-          <div className="ea-dash-hero-eyebrow">Office &amp; Sync › Sync History</div>
-          <h1 className="ea-dash-hero-title">Sync History</h1>
-          <p className="ea-dash-hero-sub">View all synchronisation operations for the selected organisation unit.</p>
-        </div>
-      </section>
-
       <OuPicker ctx={ctx} />
 
       <SplitWithDrawer
@@ -92,33 +84,59 @@ export function MockupSyncHistory(): JSX.Element {
             <div className="ea-table-wrap">
               <table className="ea-table ea-table--dense ea-table--selectable">
                 <thead><tr>
-                  <th>Start Time</th><th>Device / User</th><th>Resource</th><th>Operation</th><th>Duration</th><th>Status</th>
+                  <th style={{ width: 32 }}></th>
+                  <th>What was synced</th>
+                  <th style={{ width: 110 }}>Direction</th>
+                  <th style={{ width: 110 }}>When</th>
+                  <th style={{ width: 70 }}>Duration</th>
+                  <th style={{ width: 110 }}>Status</th>
                 </tr></thead>
                 <tbody>
-                  {paged.rows.map((j) => (
-                    <tr key={j.runId} className={sel?.runId === j.runId ? 'ea-row--active' : ''}
-                        onClick={() => setSel(j)}>
-                      <td className="ea-mono">{fmtDate(j.startedAt)}</td>
-                      <td>{humaniseState(j.triggeredBy)}</td>
-                      <td>
-                        {humaniseJob(j.jobName)}
-                        <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}
-                             title={j.jobName}>{j.jobName}</div>
-                      </td>
-                      <td className="ea-text-muted" style={{ fontSize: 11 }}>
-                        {summariseDetail(j.detail)}
-                      </td>
-                      <td className="ea-mono">{fmtDur(j.durationMs)}</td>
-                      <td>
-                        <span className={'ea-chip ea-chip--' +
-                            (j.outcome === 'SUCCEEDED' ? 'success' : j.outcome === 'FAILED' ? 'danger' : 'info')}>
-                          {humaniseState(j.outcome)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {paged.rows.map((j) => {
+                    const shape = syncActivityShape(j.jobName, j.detail);
+                    return (
+                      <tr key={j.runId} className={sel?.runId === j.runId ? 'ea-row--active' : ''}
+                          onClick={() => setSel(j)}>
+                        <td style={{ fontSize: 16, textAlign: 'center' }}
+                            aria-hidden="true" title={shape.category}>
+                          {shape.icon}
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
+                            {shape.category}
+                          </div>
+                          <div className="ea-text-muted" style={{ fontSize: 11, marginTop: 1 }}>
+                            {shape.sentence}
+                          </div>
+                        </td>
+                        <td style={{ fontSize: 12 }}>
+                          <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>
+                            {shape.directionLabel.split(' ')[0]}
+                          </span>
+                          <span style={{ color: 'var(--der-primary)', margin: '0 4px', fontWeight: 700 }}>
+                            {shape.directionArrow}
+                          </span>
+                          <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>
+                            {shape.directionLabel.split(' ').slice(-1)[0]}
+                          </span>
+                        </td>
+                        <td className="ea-text-muted" style={{ fontSize: 12 }}
+                            title={fmtDate(j.startedAt)}>
+                          {fmtAgo(j.startedAt)}
+                        </td>
+                        <td className="ea-mono">{fmtDur(j.durationMs)}</td>
+                        <td>
+                          <span className={'ea-chip ea-chip--' +
+                              (j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS' ? 'success'
+                              : j.outcome === 'FAILED' || j.outcome === 'FAILURE' ? 'danger' : 'info')}>
+                            {humaniseState(j.outcome)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {filtered.length === 0 && (
-                    <tr><td colSpan={6} className="ea-text-muted" style={{ padding: 24, textAlign: 'center' }}>No matching runs.</td></tr>
+                    <tr><td colSpan={6} className="ea-text-muted" style={{ padding: 24, textAlign: 'center' }}>No matching activity.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -129,7 +147,24 @@ export function MockupSyncHistory(): JSX.Element {
         drawer={
           sel ? (
             <>
-              <h3 style={{ margin: 0, fontSize: 16 }}>Sync Details</h3>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+                <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
+                  {syncActivityShape(sel.jobName, sel.detail).icon}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>
+                    {syncActivityShape(sel.jobName, sel.detail).category}
+                  </h3>
+                  <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2 }}>
+                    {syncActivityShape(sel.jobName, sel.detail).sentence}
+                  </div>
+                  <div style={{ fontSize: 11, marginTop: 4 }}>
+                    <span className="ea-mono">
+                      {syncActivityShape(sel.jobName, sel.detail).directionLabel}
+                    </span>
+                  </div>
+                </div>
+              </div>
               <dl className="ea-def-list">
                 <div className="ea-def-row"><dt>Run ID</dt><dd className="ea-mono">{sel.runId}</dd></div>
                 <div className="ea-def-row"><dt>Job</dt>

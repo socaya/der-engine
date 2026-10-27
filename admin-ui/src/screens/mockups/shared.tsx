@@ -463,3 +463,204 @@ export function relatedLinksForJob(jobName: string): ReadonlyArray<readonly [str
   }
   return [] as const;
 }
+
+// ────────────────────────────────────────────────────────────────────
+// Sync activity shape — turn a Quartz run (jobName + detail JSON) into
+// an operator-friendly activity entry with icon, direction arrow and
+// plain-English sentence. Powers /sync/history and /sync/queues.
+// ────────────────────────────────────────────────────────────────────
+
+export type SyncActivityDirection = 'in' | 'out' | 'two-way' | 'local';
+
+export interface SyncActivityShape {
+  readonly category: string;      // "Metadata pull" / "Data push" / "Referral check" / "Analytics" / etc.
+  readonly icon: string;          // Single emoji used as the row icon.
+  readonly direction: SyncActivityDirection;
+  readonly directionArrow: string;      // "←", "→", "↔", "·"
+  readonly directionLabel: string;      // "Central → DER" etc.
+  readonly sentence: string;      // Plain-English "what happened" line.
+}
+
+/** Return the user-visible shape for a Quartz run. */
+export function syncActivityShape(jobName: string | null | undefined,
+                                   detail: string | null | undefined): SyncActivityShape {
+  const name = (jobName ?? '').toUpperCase();
+  const parsed = parseDetailObject(detail);
+
+  if (name.includes('METADATA')) {
+    return {
+      category: 'Metadata pull',
+      icon: '📦',
+      direction: 'in',
+      directionArrow: '←',
+      directionLabel: 'Central → DER',
+      sentence: metadataSentence(parsed),
+    };
+  }
+  if (name.includes('JOURNAL') || name.includes('DRAIN') || name.includes('PUSH')) {
+    return {
+      category: 'Data push',
+      icon: '🩺',
+      direction: 'out',
+      directionArrow: '→',
+      directionLabel: 'DER → Central',
+      sentence: dataPushSentence(parsed),
+    };
+  }
+  if (name.includes('REFERRAL')) {
+    return {
+      category: 'Referral check',
+      icon: '📥',
+      direction: 'in',
+      directionArrow: '←',
+      directionLabel: 'Central → DER',
+      sentence: referralSentence(parsed),
+    };
+  }
+  if (name.includes('ANALYTICS')) {
+    return {
+      category: 'Analytics refresh',
+      icon: '📊',
+      direction: 'local',
+      directionArrow: '·',
+      directionLabel: 'DER-local',
+      sentence: 'Rebuilt analytics tables.',
+    };
+  }
+  if (name.includes('COMPAT')) {
+    return {
+      category: 'Compatibility probe',
+      icon: '🔌',
+      direction: 'in',
+      directionArrow: '←',
+      directionLabel: 'Central → DER',
+      sentence: 'Re-probed DHIS2 version and capabilities.',
+    };
+  }
+  if (name.includes('BACKUP')) {
+    return {
+      category: 'Backup rotation',
+      icon: '💾',
+      direction: 'local',
+      directionArrow: '·',
+      directionLabel: 'DER-local',
+      sentence: 'Rotated backup files.',
+    };
+  }
+  if (name.includes('DRIFT')) {
+    return {
+      category: 'Drift snapshot',
+      icon: '≠',
+      direction: 'in',
+      directionArrow: '←',
+      directionLabel: 'Central → DER',
+      sentence: 'Snapshotted metadata fingerprint vs. central.',
+    };
+  }
+  return {
+    category: humaniseJob(jobName ?? '—'),
+    icon: '⚙',
+    direction: 'local',
+    directionArrow: '·',
+    directionLabel: 'DER-local',
+    sentence: detail ?? 'Background flow.',
+  };
+}
+
+function parseDetailObject(detail: string | null | undefined): Record<string, unknown> {
+  if (!detail) return {};
+  try {
+    const obj = JSON.parse(detail);
+    return (obj && typeof obj === 'object') ? obj as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+function num(v: unknown): number | null {
+  return typeof v === 'number' ? v : null;
+}
+
+function metadataSentence(d: Record<string, unknown>): string {
+  const pulled = num(d.pulled) ?? num(d.mirrored);
+  if (pulled != null && pulled > 0) return `Mirrored ${pulled.toLocaleString()} metadata records from DHIS2.`;
+  if (pulled === 0) return 'Metadata already up to date.';
+  return 'Pulled metadata from DHIS2.';
+}
+
+function dataPushSentence(d: Record<string, unknown>): string {
+  const picked = num(d.picked);
+  const accepted = num(d.accepted);
+  const rejected = num(d.rejected);
+  const conflicts = num(d.conflicts);
+  const retryable = num(d.retryable);
+  if (picked != null && picked === 0 && !accepted && !rejected) {
+    return 'Nothing waiting to send — queue was empty.';
+  }
+  const parts: string[] = [];
+  if (accepted) parts.push(`${accepted} accepted`);
+  if (rejected) parts.push(`${rejected} rejected`);
+  if (conflicts) parts.push(`${conflicts} needed review`);
+  if (retryable) parts.push(`${retryable} to retry`);
+  if (parts.length) return `Pushed to DHIS2 · ${parts.join(' · ')}.`;
+  if (picked != null) return `Picked ${picked.toLocaleString()} operations to push.`;
+  return 'Pushed outgoing data to DHIS2.';
+}
+
+function referralSentence(d: Record<string, unknown>): string {
+  const found = num(d.found) ?? num(d.pulled);
+  if (found != null && found > 0) return `Pulled ${found} inbound referrals.`;
+  if (found === 0) return 'No new inbound referrals.';
+  return 'Checked for inbound referrals.';
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Entity-type icons for /sync/queues rows (incoming + outgoing)
+// ────────────────────────────────────────────────────────────────────
+
+const QUEUE_ICON_BY_TYPE: Readonly<Record<string, string>> = {
+  DATA_VALUE_SET: '🩺',
+  AGGREGATE: '🩺',
+  AGGREGATE_PUSH: '🩺',
+  EVENT: '📝',
+  EVENT_PUSH: '📝',
+  ENROLLMENT: '📋',
+  TRACKED_ENTITY: '👤',
+  TRACKED_ENTITY_INSTANCE: '👤',
+  TEI: '👤',
+  REFERRAL: '📥',
+  METADATA: '📦',
+  DATA_ELEMENT: '🧮',
+  PROGRAM: '🗂',
+  ORG_UNIT: '🏥',
+};
+
+/** Pick a single emoji icon for a queue row based on its type / kind. */
+export function queueEntityIcon(type: string | null | undefined): string {
+  if (!type) return '⚙';
+  const key = type.toUpperCase();
+  return QUEUE_ICON_BY_TYPE[key] ?? '⚙';
+}
+
+/** Human-readable label for a queue entity type. Keeps the raw as a tooltip. */
+export function queueEntityLabel(type: string | null | undefined): string {
+  if (!type) return 'Operation';
+  const key = type.toUpperCase();
+  const map: Record<string, string> = {
+    DATA_VALUE_SET: 'Aggregate data',
+    AGGREGATE: 'Aggregate data',
+    AGGREGATE_PUSH: 'Aggregate data',
+    EVENT: 'Event',
+    EVENT_PUSH: 'Event',
+    ENROLLMENT: 'Enrollment',
+    TRACKED_ENTITY: 'Tracked entity',
+    TRACKED_ENTITY_INSTANCE: 'Tracked entity',
+    TEI: 'Tracked entity',
+    REFERRAL: 'Referral',
+    METADATA: 'Metadata',
+    DATA_ELEMENT: 'Data element',
+    PROGRAM: 'Program',
+    ORG_UNIT: 'Organisation unit',
+  };
+  return map[key] ?? humaniseJob(type);
+}
