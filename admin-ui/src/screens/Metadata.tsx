@@ -383,62 +383,42 @@ function MetadataHealthSummary(
   const edgeSnap = drift?.snapshotFrom != null ? String(drift.snapshotFrom) : '—';
 
   return (
-    <>
-      <header className="ea-screen-header">
-        <div className="ea-screen-header-text">
-          <h1 style={{ margin: 0 }}>Metadata</h1>
-          <div className="ea-screen-header-sub">
-            Read-only mirror of every DHIS2 metadata resource on this edge.
-            {' '}{totalMirror.toLocaleString()} items across {resourceCount} resources.
-          </div>
+    <header className="ea-screen-header" data-test="metadata-health">
+      <div className="ea-screen-header-text">
+        <h1 style={{ margin: 0 }}>Metadata</h1>
+        <div className="ea-screen-header-sub">
+          <span>Read-only mirror of every DHIS2 metadata resource on this edge.</span>
+          <span>·</span>
+          <span><strong style={{ color: 'var(--der-ink-900)' }}>{totalMirror.toLocaleString()}</strong> items across {resourceCount} resources</span>
+          <span>·</span>
+          <span style={{ color: toneColor(syncTone) }}>{syncLabel}</span>
+          <span>·</span>
+          <span>Snapshot <strong style={{ color: 'var(--der-ink-900)' }}>{centralSnap}</strong>→<strong style={{ color: 'var(--der-ink-900)' }}>{edgeSnap}</strong></span>
+          <span>·</span>
+          <span style={{ color: toneColor(driftTone) }}>{driftLabel}</span>
         </div>
-        <div className="ea-screen-header-right">
-          <Link to="/dhis2/metadata-sync" className="ea-btn ea-btn--primary"
-                data-test="metadata-action-sync">
-            <UiIcon icon="pull" size={14} />
-            <span>Metadata sync</span>
-          </Link>
-          <Link to="/dhis2/metadata-drift" className="ea-btn"
-                data-test="metadata-action-drift">
-            <UiIcon icon="drift" size={14} />
-            <span>Metadata drift</span>
-          </Link>
-        </div>
-      </header>
-      <section className="ea-panel" data-test="metadata-health">
-        <div className="ea-panel-head">
-          <div className="ea-panel-title">Metadata health</div>
-        </div>
-        <dl className="ea-def-list" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16, padding: 10,
-        }}>
-          <HealthField label="Last sync" tone={syncTone} value={syncLabel} />
-          <HealthField label="Central snapshot" value={centralSnap} />
-          <HealthField label="Edge snapshot" value={edgeSnap} />
-          <HealthField label="Drift" tone={driftTone} value={driftLabel} />
-        </dl>
-      </section>
-    </>
+      </div>
+      <div className="ea-screen-header-right">
+        <Link to="/dhis2/metadata-sync" className="ea-btn ea-btn--primary ea-btn--sm"
+              data-test="metadata-action-sync">
+          <UiIcon icon="pull" size={14} />
+          <span>Metadata sync</span>
+        </Link>
+        <Link to="/dhis2/metadata-drift" className="ea-btn ea-btn--sm"
+              data-test="metadata-action-drift">
+          <UiIcon icon="drift" size={14} />
+          <span>Metadata drift</span>
+        </Link>
+      </div>
+    </header>
   );
 }
 
-type HealthTone = 'success' | 'warning' | 'danger' | 'neutral';
-
-function HealthField(
-  { label, value, tone }: { label: string; value: string; tone?: HealthTone }
-): JSX.Element {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span className="ea-text-muted" style={{ fontSize: 13 }}>{label}</span>
-      <span style={{ fontSize: 15, color: 'var(--der-ink-900)',
-                     display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        {tone && <Dot tone={tone === 'neutral' ? 'muted' : tone} />}
-        {value}
-      </span>
-    </div>
-  );
+function toneColor(t: 'success' | 'warning' | 'danger' | 'neutral'): string {
+  if (t === 'success') return 'var(--der-success-ink)';
+  if (t === 'warning') return 'var(--der-warning-ink)';
+  if (t === 'danger') return 'var(--der-danger-ink)';
+  return 'var(--der-ink-500)';
 }
 
 /* ─────── §14.3 Detail tabs: Summary / Relationships / Rules / Raw JSON ─────── */
