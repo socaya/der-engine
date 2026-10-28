@@ -58,7 +58,11 @@ export type UiIconId =
   | 'ethernet'        // RJ-45 jack
   | 'firewall'        // brick wall
   | 'peer'            // two nodes
-  | 'route';          // branching path
+  | 'route'           // branching path
+  | 'download'        // down arrow into tray
+  | 'power'           // on/off (used by AP restart, interface up/down)
+  | 'copy'            // overlapping sheets
+  | 'qr';             // 2D code (used by AP enrolment)
 
 export function UiIcon(
   { icon, size = 16 }: { icon: UiIconId; size?: number }
@@ -164,5 +168,13 @@ export function UiIcon(
       return <svg {...common}><circle cx="6" cy="6" r="2.5" /><circle cx="18" cy="18" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.3 6h7.4M18 8.5v7M8.3 18h7.4M6 15.5v-7" /></svg>;
     case 'route':
       return <svg {...common}><circle cx="6" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M6 8v6a4 4 0 004 4h6" /></svg>;
+    case 'download':
+      return <svg {...common}><path d="M12 4v10" /><path d="M7 9l5 5 5-5" /><path d="M4 20h16" /></svg>;
+    case 'power':
+      return <svg {...common}><path d="M12 4v8" /><path d="M8.5 7a7 7 0 107 0" /></svg>;
+    case 'copy':
+      return <svg {...common}><rect x="8" y="8" width="12" height="12" rx="1.5" /><path d="M4 16V5a1 1 0 011-1h11" /></svg>;
+    case 'qr':
+      return <svg {...common}><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v3M14 20h7M20 20v1" /></svg>;
   }
 }

@@ -8,6 +8,30 @@ import {
 import { UiIcon } from '../components/UiIcon';
 import { EmptyBlock } from '../components/ScreenStates';
 
+/** Trigger a browser download of a UTF-8 blob — used by every Network
+ *  page's "Export" / "Download" action. Returns silently; the browser
+ *  decides where the file lands. */
+function downloadBlob(filename: string, content: string, mime = 'text/plain'): void {
+  const blob = new Blob([content], { type: `${mime};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Fire-and-forget wrapper for an admin action that may fail (service
+ *  pending). Runs after a native-confirm prompt and never leaks an
+ *  unhandled rejection. */
+function runAction(prompt: string, fn: () => Promise<unknown>, after?: () => void): void {
+  confirmThenRun(prompt, () => {
+    (async () => {
+      try { await fn(); } catch { /* backend not yet deployed */ }
+      finally { after?.(); }
+    })();
+  });
+}
+
 /**
  * DER Network Module screens — per
  * docs/requirements/DER_Network_Module_Design_Specification.md
@@ -32,6 +56,7 @@ export function NetworkOverview(): JSX.Element {
   const [ap, setAp] = useState<edgeApi.AccessPointStatus | null>(null);
   const [events, setEvents] = useState<edgeApi.NetworkEvent[]>([]);
   const [clientCount, setClientCount] = useState<number | null>(null);
+  const [peerCount, setPeerCount] = useState<number | null>(null);
   const [servicePending, setServicePending] = useState(false);
   const ping = useCentralReachable();
 
@@ -39,11 +64,13 @@ export function NetworkOverview(): JSX.Element {
     const results = await Promise.allSettled([
       edgeApi.networkStatus(), edgeApi.networkAccessPoint(),
       edgeApi.networkEvents(10), edgeApi.networkClients(),
+      edgeApi.networkPeers(),
     ]);
     if (results[0].status === 'fulfilled') setStatus(results[0].value);
     if (results[1].status === 'fulfilled') setAp(results[1].value);
     if (results[2].status === 'fulfilled') setEvents(results[2].value.events ?? []);
     if (results[3].status === 'fulfilled') setClientCount(results[3].value.clients.length);
+    if (results[4].status === 'fulfilled') setPeerCount(results[4].value.peers.length);
     // When every call fails the Network Agent isn't deployed yet;
     // show the "pending" hint rather than a scary error banner.
     const anySuccess = results.some((r) => r.status === 'fulfilled');
@@ -60,6 +87,16 @@ export function NetworkOverview(): JSX.Element {
   const overallLabel = status?.state ? humanState(status.state)
     : centralReachable ? 'Connected' : 'Offline-first';
 
+  function exportStatus(): void {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      status, accessPoint: ap, clientCount, peerCount,
+      recentEvents: events.slice(0, 50),
+      centralDhis2: { reachable: ping.reachable, latencyMs: ping.latencyMs },
+    };
+    downloadBlob(`der-network-status-${new Date().toISOString().slice(0,10)}.json`,
+                 JSON.stringify(payload, null, 2), 'application/json');
+  }
   return (
     <div className="ea-screen" data-test="network-overview">
       <SyncStatusBar
@@ -71,6 +108,28 @@ export function NetworkOverview(): JSX.Element {
             <span>Trusted local network for this edge.</span>
             <span>·</span>
             <span>Operating mode <strong style={{ color: 'var(--der-ink-900)' }}>{overallLabel}</strong></span>
+          </>
+        }
+        actions={
+          <>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    onClick={() => { reload().catch(() => undefined); }}>
+              <UiIcon icon="refresh" size={14} />
+              <span>Refresh</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    onClick={exportStatus}>
+              <UiIcon icon="download" size={14} />
+              <span>Export status</span>
+            </button>
+            <Link to="/network/diagnostics" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="diagnostics" size={14} />
+              <span>Run diagnostics</span>
+            </Link>
+            <Link to="/network/settings" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="settings" size={14} />
+              <span>Settings</span>
+            </Link>
           </>
         }
       />
@@ -115,10 +174,10 @@ export function NetworkOverview(): JSX.Element {
           to="/sync/settings"
         />
         <NetFacetCard
-          icon="peer" tone="muted"
+          icon="peer" tone={peerCount && peerCount > 0 ? 'info' : 'muted'}
           label="Peer links"
-          value="0"
-          sub="Optional secure peers (Phase N5)"
+          value={peerCount != null ? String(peerCount) : '—'}
+          sub={peerCount != null && peerCount > 0 ? `${peerCount} configured` : 'Optional secure peers (Phase N5)'}
           to="/network/peers"
         />
       </section>
@@ -137,6 +196,7 @@ export function NetworkOverview(): JSX.Element {
         </section>
       )}
 
+      {!servicePending && (
       <Panel title="Recent network events"
              action={<Link to="/network/diagnostics#events" className="ea-link-btn">View all →</Link>}>
         {events.length === 0 ? (
@@ -172,6 +232,7 @@ export function NetworkOverview(): JSX.Element {
           </div>
         )}
       </Panel>
+      )}
     </div>
   );
 }
@@ -218,15 +279,20 @@ export function NetworkAccessPoint(): JSX.Element {
   const [ap, setAp] = useState<edgeApi.AccessPointStatus | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
+  const [showQr, setShowQr] = useState(false);
   async function reload(): Promise<void> {
-    try { setAp(await edgeApi.networkAccessPoint()); }
+    try { setAp(await edgeApi.networkAccessPoint()); setMissing(false); }
     catch { setMissing(true); }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
-  async function run(label: string, fn: () => Promise<unknown>, prompt: string): Promise<void> {
-    confirmThenRun(prompt, async () => {
+  function run(label: string, fn: () => Promise<unknown>, prompt: string): void {
+    confirmThenRun(prompt, () => {
       setBusy(label);
-      try { await fn(); await reload(); } finally { setBusy(null); }
+      (async () => {
+        try { await fn(); await reload(); }
+        catch { /* backend not yet deployed — status shows pending */ }
+        finally { setBusy(null); }
+      })();
     });
   }
   return (
@@ -238,6 +304,13 @@ export function NetworkAccessPoint(): JSX.Element {
         subtitle={<span>DER-hosted Wi-Fi Access Point for authorised devices.</span>}
         actions={
           <>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    disabled={!!busy}
+                    onClick={() => { reload().catch(() => undefined); }}>
+              <UiIcon icon="refresh" size={14} />
+              <span>Refresh</span>
+            </button>
+            {missing ? null : (<>
             {ap?.running ? (
               <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                       disabled={!!busy}
@@ -256,11 +329,24 @@ export function NetworkAccessPoint(): JSX.Element {
               </button>
             )}
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    disabled={!!busy || !ap?.running}
+                    onClick={() => run('restart', () => edgeApi.networkApRestart(),
+                      'Restart the DER Access Point? Connected devices will briefly disconnect and auto-rejoin.')}>
+              <UiIcon icon="power" size={14} />
+              <span>{busy === 'restart' ? 'Restarting…' : 'Restart'}</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                     disabled={!!busy}
                     onClick={() => run('rotate', () => edgeApi.networkApRotateKey(),
                       'Rotate the Access Point network key? Connected devices will need to re-authenticate.')}>
               <UiIcon icon="refresh" size={14} />
               <span>{busy === 'rotate' ? 'Rotating…' : 'Rotate key'}</span>
+            </button>
+            </>)}
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    onClick={() => setShowQr(true)}>
+              <UiIcon icon="qr" size={14} />
+              <span>Show QR</span>
             </button>
           </>
         }
@@ -297,6 +383,36 @@ export function NetworkAccessPoint(): JSX.Element {
           enrolment. Approve each pending device from <Link to="/network/clients">Connected Devices</Link>.
         </p>
       </Panel>
+
+      {showQr && <QrEnrolDialog ssid={ap?.ssid ?? 'DER-EDGE'} onClose={() => setShowQr(false)} />}
+    </div>
+  );
+}
+
+function QrEnrolDialog({ ssid, onClose }: { ssid: string; onClose: () => void }): JSX.Element {
+  return (
+    <div className="ea-modal-overlay" onClick={onClose}
+         style={{ position: 'fixed', inset: 0, background: 'rgba(15,28,46,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  zIndex: 1000 }}>
+      <div className="ea-modal" onClick={(e) => e.stopPropagation()}
+           style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
+                    padding: 24, maxWidth: 420, boxShadow: 'var(--el-3)' }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Enrolment QR — {ssid}</h3>
+        <p className="ea-text-muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
+          Scanning will land the device on the DER-EDGE Wi-Fi and open the
+          enrolment page. Approve the request from Connected Devices.
+        </p>
+        <div style={{ background: '#fff', padding: 12, border: '1px solid var(--der-border)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      aspectRatio: '1 / 1', fontFamily: 'monospace', fontSize: 12,
+                      color: 'var(--der-ink-500)' }}>
+          QR renders here when the Network Agent lands (Phase N2).
+        </div>
+        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" onClick={onClose}>Close</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -306,8 +422,9 @@ export function NetworkConnectedDevices(): JSX.Element {
   const [clients, setClients] = useState<edgeApi.NetworkClient[] | null>(null);
   const [missing, setMissing] = useState(false);
   const [query, setQuery] = useState('');
+  const [certFor, setCertFor] = useState<edgeApi.NetworkClient | null>(null);
   async function reload(): Promise<void> {
-    try { setClients((await edgeApi.networkClients()).clients); }
+    try { setClients((await edgeApi.networkClients()).clients); setMissing(false); }
     catch { setMissing(true); setClients([]); }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
@@ -317,13 +434,24 @@ export function NetworkConnectedDevices(): JSX.Element {
     || (c.owner ?? '').toLowerCase().includes(q)
     || c.ip.includes(q));
   const paged = usePaged(filtered, 25);
-  async function approve(id: string): Promise<void> {
-    confirmThenRun(`Approve device ${id}? It will be issued a DER identity.`,
-      async () => { try { await edgeApi.networkDeviceApprove(id); await reload(); } catch { /* ignore */ } });
-  }
-  async function revoke(id: string): Promise<void> {
-    confirmThenRun(`Revoke device ${id}? Its certificate will be invalidated and it will need to re-enrol.`,
-      async () => { try { await edgeApi.networkDeviceRevoke(id); await reload(); } catch { /* ignore */ } });
+  const approve = (id: string): void => runAction(
+    `Approve device ${id}? It will be issued a DER identity.`,
+    () => edgeApi.networkDeviceApprove(id), () => { reload().catch(() => undefined); });
+  const revoke = (id: string): void => runAction(
+    `Revoke device ${id}? Its certificate will be invalidated and it will need to re-enrol.`,
+    () => edgeApi.networkDeviceRevoke(id), () => { reload().catch(() => undefined); });
+  const block = (id: string): void => runAction(
+    `Block device ${id}? It will remain visible but can't reach any DER service.`,
+    () => edgeApi.networkDeviceBlock(id), () => { reload().catch(() => undefined); });
+  const unblock = (id: string): void => runAction(
+    `Unblock device ${id}? Its previous trust level is restored.`,
+    () => edgeApi.networkDeviceUnblock(id), () => { reload().catch(() => undefined); });
+  function exportCsv(): void {
+    const rows = (clients ?? []).map((c) =>
+      [c.deviceId, c.owner ?? '', c.ip, c.link, c.signalDbm ?? '',
+       c.trust, c.lastSeenAt].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','));
+    const csv = ['deviceId,owner,ip,link,signalDbm,trust,lastSeenAt', ...rows].join('\n');
+    downloadBlob(`der-network-clients-${new Date().toISOString().slice(0,10)}.csv`, csv, 'text/csv');
   }
 
   const pending = (clients ?? []).filter((c) => c.trust === 'PENDING').length;
@@ -339,6 +467,25 @@ export function NetworkConnectedDevices(): JSX.Element {
             <span>Devices on the DER local network.</span>
             {approved > 0 && (<><span>·</span><span>Approved <strong style={{ color: 'var(--der-ink-900)' }}>{approved}</strong></span></>)}
             {pending > 0 && (<><span>·</span><span>Pending <strong style={{ color: 'var(--der-warning-ink)' }}>{pending}</strong></span></>)}
+          </>
+        }
+        actions={
+          <>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    onClick={() => { reload().catch(() => undefined); }}>
+              <UiIcon icon="refresh" size={14} />
+              <span>Refresh</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    disabled={(clients?.length ?? 0) === 0}
+                    onClick={exportCsv}>
+              <UiIcon icon="download" size={14} />
+              <span>Export CSV</span>
+            </button>
+            <Link to="/network/access-point" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="qr" size={14} />
+              <span>Enrol a device</span>
+            </Link>
           </>
         }
       />
@@ -386,7 +533,12 @@ export function NetworkConnectedDevices(): JSX.Element {
                         <RowMenu items={[
                           ...(c.trust === 'PENDING' ? [{ label: 'Approve', onSelect: () => approve(c.deviceId) }] : []),
                           ...(c.trust === 'APPROVED' ? [{ label: 'Revoke', danger: true, onSelect: () => revoke(c.deviceId) }] : []),
-                          { label: 'View certificate', to: `/devices/${c.deviceId}` },
+                          ...(c.trust === 'BLOCKED'
+                              ? [{ label: 'Unblock', onSelect: () => unblock(c.deviceId) }]
+                              : [{ label: 'Block', danger: true, onSelect: () => block(c.deviceId) }]),
+                          { label: 'View certificate', onSelect: () => setCertFor(c) },
+                          { label: 'View audit', to: `/security/audit?device=${encodeURIComponent(c.deviceId)}` },
+                          ...(c.derDeviceId ? [{ label: 'View DER device', to: `/devices/${c.derDeviceId}` }] : []),
                         ]} />
                       </td>
                     </tr>
@@ -398,6 +550,42 @@ export function NetworkConnectedDevices(): JSX.Element {
           )}
         </Panel>
       )}
+
+      {certFor && <DeviceCertDialog client={certFor} onClose={() => setCertFor(null)} />}
+    </div>
+  );
+}
+
+function DeviceCertDialog({ client, onClose }: {
+  client: edgeApi.NetworkClient; onClose: () => void;
+}): JSX.Element {
+  return (
+    <div className="ea-modal-overlay" onClick={onClose}
+         style={{ position: 'fixed', inset: 0, background: 'rgba(15,28,46,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div className="ea-modal" onClick={(e) => e.stopPropagation()}
+           style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
+                    padding: 24, maxWidth: 520, width: '90%', boxShadow: 'var(--el-3)' }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Certificate — {client.deviceId}</h3>
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>Trust</dt>
+            <dd><Status tone={client.trust === 'APPROVED' ? 'success'
+                                : client.trust === 'PENDING' ? 'warning' : 'danger'}>{client.trust}</Status></dd></div>
+          <div className="ea-def-row"><dt>Owner</dt><dd>{client.owner ?? '—'}</dd></div>
+          <div className="ea-def-row"><dt>Hostname</dt><dd className="ea-mono">{client.hostname ?? '—'}</dd></div>
+          <div className="ea-def-row"><dt>IP</dt><dd className="ea-mono">{client.ip}</dd></div>
+          <div className="ea-def-row"><dt>Link</dt>
+            <dd>{client.link === 'wifi' ? 'Wi-Fi' : client.link === 'ethernet' ? 'Ethernet' : 'Cellular'}</dd></div>
+          <div className="ea-def-row"><dt>Last seen</dt><dd className="ea-mono">{fmtDate(client.lastSeenAt)}</dd></div>
+        </dl>
+        <p className="ea-text-muted" style={{ fontSize: 12, margin: '12px 0 0' }}>
+          Full X.509 certificate chain lands when the Network Agent (§13 Device Identity) ships
+          in Phase N2.
+        </p>
+        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" onClick={onClose}>Close</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -407,11 +595,17 @@ export function NetworkInterfaces(): JSX.Element {
   const [ifaces, setIfaces] = useState<edgeApi.NetworkInterface[] | null>(null);
   const [missing, setMissing] = useState(false);
   async function reload(): Promise<void> {
-    try { setIfaces((await edgeApi.networkInterfaces()).interfaces); }
+    try { setIfaces((await edgeApi.networkInterfaces()).interfaces); setMissing(false); }
     catch { setMissing(true); setIfaces([]); }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
   const up = (ifaces ?? []).filter((i) => i.state === 'up').length;
+  const toggle = (iface: edgeApi.NetworkInterface): void => {
+    const target: 'up' | 'down' = iface.state === 'up' ? 'down' : 'up';
+    runAction(`${target === 'up' ? 'Bring up' : 'Take down'} interface ${iface.name}? Running traffic may interrupt.`,
+      () => edgeApi.networkInterfaceSetState(iface.name, { state: target }),
+      () => { reload().catch(() => undefined); });
+  };
   return (
     <div className="ea-screen" data-test="network-interfaces">
       <SyncStatusBar
@@ -419,6 +613,23 @@ export function NetworkInterfaces(): JSX.Element {
         title="Interfaces"
         statusLabel={ifaces == null ? 'Loading' : `${up} up / ${ifaces.length}`}
         subtitle={<span>Network interfaces reported by the DER Network Agent.</span>}
+        actions={
+          <>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    onClick={() => { reload().catch(() => undefined); }}>
+              <UiIcon icon="refresh" size={14} />
+              <span>Refresh</span>
+            </button>
+            <Link to="/network/diagnostics" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="diagnostics" size={14} />
+              <span>Diagnose</span>
+            </Link>
+            <Link to="/network/settings" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="edit" size={14} />
+              <span>Edit (host config)</span>
+            </Link>
+          </>
+        }
       />
       {missing && (ifaces?.length ?? 0) === 0 ? (
         <EmptyBlock title="Interface inventory not available" testId="empty-net-ifaces">
@@ -431,6 +642,7 @@ export function NetworkInterfaces(): JSX.Element {
               <thead><tr>
                 <th>Name</th><th>Kind</th><th>Purpose</th>
                 <th>State</th><th>Address</th><th>MAC</th><th>Link</th>
+                <th style={{ width: 48 }} aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {(ifaces ?? []).map((i) => (
@@ -448,6 +660,16 @@ export function NetworkInterfaces(): JSX.Element {
                     <td className="ea-mono">{i.address ?? '—'}</td>
                     <td className="ea-mono ea-text-muted" style={{ fontSize: 12 }}>{i.mac ?? '—'}</td>
                     <td className="ea-text-muted">{i.linkSpeed ?? '—'}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <RowMenu items={[
+                        { label: i.state === 'up' ? 'Take down' : 'Bring up',
+                          danger: i.state === 'up',
+                          disabled: i.kind === 'loopback',
+                          onSelect: () => toggle(i) },
+                        { label: 'Rename / reconfigure', to: '/network/settings' },
+                        { label: 'View in diagnostics',  to: '/network/diagnostics' },
+                      ]} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -483,10 +705,19 @@ export function NetworkPeers(): JSX.Element {
   const [peers, setPeers] = useState<edgeApi.NetworkPeer[] | null>(null);
   const [missing, setMissing] = useState(false);
   async function reload(): Promise<void> {
-    try { setPeers((await edgeApi.networkPeers()).peers); }
+    try { setPeers((await edgeApi.networkPeers()).peers); setMissing(false); }
     catch { setMissing(true); setPeers([]); }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
+  const connect    = (id: string): void => runAction(
+    `Connect peer ${id}?`, () => edgeApi.networkPeerConnect(id),
+    () => { reload().catch(() => undefined); });
+  const disconnect = (id: string): void => runAction(
+    `Disconnect peer ${id}? Any in-flight traffic over this tunnel will stop.`,
+    () => edgeApi.networkPeerDisconnect(id), () => { reload().catch(() => undefined); });
+  const remove     = (id: string): void => runAction(
+    `Remove peer ${id}? Its WireGuard config will be deleted. This cannot be undone.`,
+    () => edgeApi.networkPeerRemove(id), () => { reload().catch(() => undefined); });
   return (
     <div className="ea-screen" data-test="network-peers">
       <SyncStatusBar
@@ -498,6 +729,27 @@ export function NetworkPeers(): JSX.Element {
             <span>Optional secure peer links (WireGuard / Wi-Fi Direct).</span>
             <span>·</span>
             <span>Peer connectivity does not imply peer-to-peer data sync — DER remains the shared authority.</span>
+          </>
+        }
+        actions={
+          <>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    onClick={() => runAction(
+                      'Peer provisioning is Phase N5. Open Network settings to prepare config?',
+                      async () => undefined,
+                      () => undefined)}>
+              <UiIcon icon="plus" size={14} />
+              <span>Add peer</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    onClick={() => { reload().catch(() => undefined); }}>
+              <UiIcon icon="refresh" size={14} />
+              <span>Refresh</span>
+            </button>
+            <Link to="/network/settings" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="settings" size={14} />
+              <span>Peer settings</span>
+            </Link>
           </>
         }
       />
@@ -514,6 +766,7 @@ export function NetworkPeers(): JSX.Element {
               <thead><tr>
                 <th>Node</th><th>Site</th><th>Endpoint</th><th>State</th>
                 <th>Last handshake</th><th>Trust</th>
+                <th style={{ width: 48 }} aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {(peers ?? []).map((p) => (
@@ -535,6 +788,15 @@ export function NetworkPeers(): JSX.Element {
                         {p.trust}
                       </Status>
                     </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <RowMenu items={[
+                        ...(p.state === 'CONNECTED'
+                            ? [{ label: 'Disconnect', onSelect: () => disconnect(p.id) }]
+                            : [{ label: 'Connect', onSelect: () => connect(p.id) }]),
+                        { label: 'View audit', to: `/security/audit?peer=${encodeURIComponent(p.id)}` },
+                        { label: 'Remove peer', danger: true, onSelect: () => remove(p.id) },
+                      ]} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -548,6 +810,15 @@ export function NetworkPeers(): JSX.Element {
 
 /* ─────────────── /network/security ─────────────── */
 export function NetworkSecurity(): JSX.Element {
+  function downloadPolicy(): void {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      clientIsolation: true,
+      rules: FIREWALL_RULES,
+    };
+    downloadBlob(`der-network-policy-${new Date().toISOString().slice(0,10)}.json`,
+                 JSON.stringify(payload, null, 2), 'application/json');
+  }
   return (
     <div className="ea-screen" data-test="network-security">
       <SyncStatusBar
@@ -559,6 +830,23 @@ export function NetworkSecurity(): JSX.Element {
             <span>Firewall policy and admission controls on the DER local network.</span>
             <span>·</span>
             <span>Per spec §14 — client-to-client traffic is denied by default.</span>
+          </>
+        }
+        actions={
+          <>
+            <Link to="/network/settings" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="edit" size={14} />
+              <span>Edit policy</span>
+            </Link>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    onClick={downloadPolicy}>
+              <UiIcon icon="download" size={14} />
+              <span>Download policy</span>
+            </button>
+            <Link to="/security/audit?category=network" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="audit" size={14} />
+              <span>View audit</span>
+            </Link>
           </>
         }
       />
@@ -626,9 +914,27 @@ export function NetworkDiagnostics(): JSX.Element {
   useEffect(() => { reload().catch(() => undefined); }, []);
   async function reprobe(): Promise<void> {
     setProbing(true);
-    try { await edgeApi.refreshCompat(); } catch { /* ignore */ }
+    try { await edgeApi.dhis2Ping(); } catch { /* ignore */ }
     await reload();
     setProbing(false);
+  }
+  function exportEvents(): void {
+    const rows = events.map((e) =>
+      [e.observedAt, e.eventType, e.interfaceName ?? '', e.deviceId ?? '',
+       e.nodeId ?? '', e.outcome, e.reason ?? '']
+      .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','));
+    const csv = ['observedAt,eventType,interface,deviceId,nodeId,outcome,reason', ...rows].join('\n');
+    downloadBlob(`der-network-events-${new Date().toISOString().slice(0,10)}.csv`, csv, 'text/csv');
+  }
+  function clearEvents(): void {
+    runAction('Clear the local network event log? Server-side audit is kept.',
+      () => edgeApi.networkEventsClear(), () => { reload().catch(() => undefined); });
+  }
+  function copyEvent(e: edgeApi.NetworkEvent): void {
+    const text = JSON.stringify(e, null, 2);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => undefined);
+    }
   }
   const paged = usePaged(events, 25);
   return (
@@ -639,24 +945,48 @@ export function NetworkDiagnostics(): JSX.Element {
         statusLabel={status?.state ? humanState(status.state) : missing ? 'Service pending' : 'Loading'}
         subtitle={<span>Live probe path from a client through DER to Central DHIS2.</span>}
         actions={
-          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                  disabled={probing}
-                  onClick={() => { reprobe().catch(() => undefined); }}>
-            {probing ? <span className="ea-btn-spinner" /> : <UiIcon icon="refresh" size={14} />}
-            <span>{probing ? 'Probing…' : 'Re-probe path'}</span>
-          </button>
+          <>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    disabled={probing}
+                    onClick={() => { reprobe().catch(() => undefined); }}>
+              {probing ? <span className="ea-btn-spinner" /> : <UiIcon icon="refresh" size={14} />}
+              <span>{probing ? 'Probing…' : 'Re-probe path'}</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    disabled={events.length === 0}
+                    onClick={exportEvents}>
+              <UiIcon icon="download" size={14} />
+              <span>Export events</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    disabled={events.length === 0}
+                    onClick={clearEvents}>
+              <UiIcon icon="trash" size={14} />
+              <span>Clear events</span>
+            </button>
+            <Link to="/security/audit?category=network" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="audit" size={14} />
+              <span>Full audit</span>
+            </Link>
+          </>
         }
       />
 
       <Panel title="Probe path">
         <ol className="ea-net-probe-path">
-          <ProbeStep label="Client → DER LAN" tone={status?.localLanAvailable !== false ? 'success' : 'danger'}
-                     hint="Client can reach the DER subnet" />
+          <ProbeStep label="Client → DER LAN"
+                     tone={status?.localLanAvailable === true ? 'success'
+                            : status?.localLanAvailable === false ? 'danger' : 'info'}
+                     hint={status ? 'Client can reach the DER subnet' : 'awaiting signal'} />
           <ProbeStep label="DER runtime" tone="success" hint="DER server responds locally" />
-          <ProbeStep label="DNS resolves Central" tone="success" hint="/etc/resolv.conf resolves the configured host" />
+          <ProbeStep label="DNS resolves Central"
+                     tone={status?.dnsAvailable === true ? 'success'
+                            : status?.dnsAvailable === false ? 'danger' : 'info'}
+                     hint={status ? '/etc/resolv.conf resolves the configured host' : 'awaiting signal'} />
           <ProbeStep label="DER → Internet"
-                     tone={status?.internetAvailable === false ? 'danger' : 'success'}
-                     hint="Reachable WAN gateway" />
+                     tone={status?.internetAvailable === true ? 'success'
+                            : status?.internetAvailable === false ? 'danger' : 'info'}
+                     hint={status ? 'Reachable WAN gateway' : 'awaiting signal'} />
           <ProbeStep label="DER → Central DHIS2"
                      tone={ping.reachable === false ? 'danger' : ping.reachable ? 'success' : 'info'}
                      hint={ping.latencyMs != null ? `probe ${ping.latencyMs} ms` : 'probing…'} />
@@ -674,6 +1004,7 @@ export function NetworkDiagnostics(): JSX.Element {
               <thead><tr>
                 <th>Observed</th><th>Event</th><th>Interface</th>
                 <th>Device / node</th><th>Outcome</th><th>Reason</th>
+                <th style={{ width: 48 }} aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {paged.rows.map((e) => (
@@ -691,6 +1022,19 @@ export function NetworkDiagnostics(): JSX.Element {
                       </Status>
                     </td>
                     <td className="ea-text-muted">{e.reason ?? '—'}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <RowMenu items={[
+                        { label: 'Copy JSON', onSelect: () => copyEvent(e) },
+                        ...(e.correlationId
+                            ? [{ label: 'View correlation',
+                                 to: `/security/audit?correlationId=${encodeURIComponent(e.correlationId)}` }]
+                            : []),
+                        ...(e.deviceId
+                            ? [{ label: 'View device',
+                                 to: `/network/clients?device=${encodeURIComponent(e.deviceId)}` }]
+                            : []),
+                      ]} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -719,6 +1063,16 @@ function ProbeStep({ label, tone, hint }: { label: string; tone: 'success' | 'da
 /* ─────────────── /network/settings ─────────────── */
 export function NetworkSettings(): JSX.Element {
   const config = useMemo(() => DEFAULT_CONFIG, []);
+  function copyConfig(): void {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(config).catch(() => undefined);
+    }
+  }
+  function editHint(): void {
+    runAction(
+      'Edit network settings is Phase N1 — settings land on disk at /etc/der/network.yaml and reload on service restart. Open the host-config docs?',
+      async () => undefined, () => undefined);
+  }
   return (
     <div className="ea-screen" data-test="network-settings">
       <SyncStatusBar
@@ -726,6 +1080,23 @@ export function NetworkSettings(): JSX.Element {
         title="Network settings"
         statusLabel="Read-only"
         subtitle={<span>Network configuration applied to this edge. Managed via the DER host config.</span>}
+        actions={
+          <>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" onClick={editHint}>
+              <UiIcon icon="edit" size={14} />
+              <span>Edit (host config)</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    onClick={() => downloadBlob('network.yaml', config, 'text/yaml')}>
+              <UiIcon icon="download" size={14} />
+              <span>Download</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={copyConfig}>
+              <UiIcon icon="copy" size={14} />
+              <span>Copy</span>
+            </button>
+          </>
+        }
       />
 
       <Panel title="network.yaml"

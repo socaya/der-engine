@@ -1135,6 +1135,7 @@ export interface NetworkStatus {
   localLanAvailable: boolean;
   internetAvailable: boolean;
   centralDhis2Available: boolean;
+  dnsAvailable?: boolean;
   gateway: string | null;
   subnet: string | null;
   hostname: string | null;
@@ -1170,6 +1171,7 @@ export interface AccessPointStatus {
 
 export interface NetworkClient {
   deviceId: string;              // enrolment id if approved, else temp id
+  derDeviceId?: string;          // cross-reference to the DER device record (if any)
   owner: string | null;
   hostname: string | null;
   ip: string;
@@ -1247,15 +1249,37 @@ export function networkApStop(): Promise<{ triggered: boolean }> {
 export function networkApRotateKey(): Promise<{ rotatedAt: string }> {
   return request('POST', '/edge-api/v1/network/ap/rotate-key');
 }
+export function networkApRestart(): Promise<{ triggered: boolean }> {
+  return request('POST', '/edge-api/v1/network/ap/restart');
+}
+export function networkApEnrolmentQr(): Promise<{ qrSvg: string; expiresAt: string | null }> {
+  return request('GET', '/edge-api/v1/network/ap/qr');
+}
 export function networkDeviceApprove(deviceId: string): Promise<{ approved: boolean }> {
   return request('POST', `/edge-api/v1/network/devices/${encodeURIComponent(deviceId)}/approve`);
 }
 export function networkDeviceRevoke(deviceId: string): Promise<{ revoked: boolean }> {
   return request('POST', `/edge-api/v1/network/devices/${encodeURIComponent(deviceId)}/revoke`);
 }
+export function networkDeviceBlock(deviceId: string): Promise<{ blocked: boolean }> {
+  return request('POST', `/edge-api/v1/network/devices/${encodeURIComponent(deviceId)}/block`);
+}
+export function networkDeviceUnblock(deviceId: string): Promise<{ unblocked: boolean }> {
+  return request('POST', `/edge-api/v1/network/devices/${encodeURIComponent(deviceId)}/unblock`);
+}
+export function networkInterfaceSetState(
+  name: string, body: { state: 'up' | 'down' }): Promise<{ state: string }> {
+  return request('POST', `/edge-api/v1/network/interfaces/${encodeURIComponent(name)}/state`, body);
+}
 export function networkPeerConnect(peerId: string): Promise<{ connected: boolean }> {
   return request('POST', `/edge-api/v1/network/peers/${encodeURIComponent(peerId)}/connect`);
 }
 export function networkPeerDisconnect(peerId: string): Promise<{ disconnected: boolean }> {
   return request('DELETE', `/edge-api/v1/network/peers/${encodeURIComponent(peerId)}`);
+}
+export function networkPeerRemove(peerId: string): Promise<{ removed: boolean }> {
+  return request('DELETE', `/edge-api/v1/network/peers/${encodeURIComponent(peerId)}/remove`);
+}
+export function networkEventsClear(): Promise<{ cleared: number }> {
+  return request('DELETE', '/edge-api/v1/network/events');
 }
