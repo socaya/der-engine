@@ -181,7 +181,10 @@ export function MockupDataQueues(): JSX.Element {
                      .map((s) => <option key={s} value={s}>{s}</option>)}
                  </select>
                  <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                         onClick={() => { reload().catch(() => undefined); }}>Refresh</button>
+                         onClick={() => { reload().catch(() => undefined); }}>
+                   <UiIcon icon="refresh" size={14} />
+                   <span>Refresh</span>
+                 </button>
                </>
              }>
         {filtered.length === 0 ? (

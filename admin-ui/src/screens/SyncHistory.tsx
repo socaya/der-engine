@@ -90,7 +90,10 @@ export function MockupSyncHistory(): JSX.Element {
                  <input className="ea-input" style={{ maxWidth: 140 }} type="date"
                         value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
                  <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                         onClick={() => { reload().catch(() => undefined); }}>Refresh</button>
+                         onClick={() => { reload().catch(() => undefined); }}>
+                   <UiIcon icon="refresh" size={14} />
+                   <span>Refresh</span>
+                 </button>
                </>
              }>
         <div className="ea-table-wrap">

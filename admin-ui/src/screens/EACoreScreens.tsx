@@ -1635,10 +1635,12 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
         <textarea data-test="cwf02-deps" rows={6} value={depsJson}
           onChange={(e) => { setDepsJson(e.target.value); }} />
       </label>
-      <button type="button" data-test="cwf02-save"
+      <button type="button" className="ea-btn ea-btn--primary"
+        data-test="cwf02-save"
         disabled={status === 'saving' || !displayName || !boundMetadataId}
         onClick={() => { doSave().catch(() => undefined); }}>
-        {status === 'saving' ? 'Saving…' : 'Save workflow'}
+        {status === 'saving' ? <span className="ea-btn-spinner" /> : <UiIcon icon="refresh" size={14} />}
+        <span>{status === 'saving' ? 'Saving…' : 'Save workflow'}</span>
       </button>
       {existing && (
         <section className="ea-cwf-export" data-test="cwf02-export-section">

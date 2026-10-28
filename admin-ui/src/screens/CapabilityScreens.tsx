@@ -291,15 +291,17 @@ export function CapCentralConnection(): JSX.Element {
         subtitle="Edit the DHIS2 central-connection and compatibility policy for this edge. ADMIN only."
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="ea-btn ea-btn--ghost"
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                     disabled={refreshing}
                     onClick={() => { refresh().catch(() => undefined); }}>
-              {refreshing ? 'Probing…' : 'Probe now'}
+              <UiIcon icon="refresh" size={14} />
+              <span>{refreshing ? 'Probing…' : 'Probe now'}</span>
             </button>
-            <button type="button" className="ea-btn ea-btn--primary"
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                     disabled={saving}
                     onClick={() => { save().catch(() => undefined); }}>
-              {saving ? 'Saving…' : 'Save connection'}
+              {saving ? <span className="ea-btn-spinner" /> : <UiIcon icon="refresh" size={14} />}
+              <span>{saving ? 'Saving…' : 'Save connection'}</span>
             </button>
           </div>
         }
