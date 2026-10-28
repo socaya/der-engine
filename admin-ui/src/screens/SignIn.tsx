@@ -4,10 +4,10 @@ import {
   Button,
 
   InputField,
-  NoticeBox,
 } from '@dhis2/ui';
 import { useAuth } from '../auth/AuthContext';
 import { EdgeApiError } from '../api/edgeApi';
+import { ErrorBlock, EmptyBlock } from '../components/ScreenStates';
 
 /**
  * @dhis2/ui-styled sign-in. Renders at `/sign-in` when RequireAuth
@@ -77,23 +77,23 @@ export function SignIn(): JSX.Element {
           </p>
 
           {state.status === 'EDGE_DOWN' && (
-            <div className="ea-sign-in-alert" data-test="sign-in-edge-down">
-              <NoticeBox warning title="Edge unreachable">
+            <div data-test="sign-in-edge-down">
+              <ErrorBlock title="Edge unreachable" testId="sign-in-edge-down-inner">
                 The DER server is currently unreachable. Start it with{' '}
                 <code>java -jar der-server-*.jar</code> and refresh.
-              </NoticeBox>
+              </ErrorBlock>
             </div>
           )}
           {error && (
-            <div className="ea-sign-in-alert" data-test="sign-in-error">
-              <NoticeBox error title="Sign-in failed">
+            <div data-test="sign-in-error">
+              <ErrorBlock title="Sign-in failed" testId="sign-in-error-inner">
                 {error}
-              </NoticeBox>
+              </ErrorBlock>
             </div>
           )}
 
           <div className="ea-sign-in-dev-hint" data-test="sign-in-dev-hint">
-            <NoticeBox title="Test credentials (dev build only)">
+            <EmptyBlock title="Test credentials (dev build only)" testId="sign-in-dev-hint-inner">
               <div className="ea-sign-in-dev-hint-row">
                 <span>Username</span>
                 <code>der-admin</code>
@@ -116,7 +116,7 @@ export function SignIn(): JSX.Element {
                 Rotate before any shared or production use. See{' '}
                 <code>docs/evaluation/TEST_CREDENTIALS.md</code>.
               </p>
-            </NoticeBox>
+            </EmptyBlock>
           </div>
           <form onSubmit={onSubmit} data-test="sign-in-form">
             <div data-test="sign-in-username-field">
