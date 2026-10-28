@@ -84,6 +84,117 @@ function RuntimeFooter(): JSX.Element {
   );
 }
 
+/** AttentionCentre — §17 functional notification dropdown. Aggregates
+ *  attention sources (conflicts, pending approvals, pending referrals,
+ *  worker paused) into a single actionable list. Polls every 30 s. */
+interface AttentionItem {
+  readonly kind: string;
+  readonly label: string;
+  readonly count: number;
+  readonly tone: 'danger' | 'warning' | 'info';
+  readonly to: string;
+}
+
+function useAttentionItems(): { items: AttentionItem[]; total: number } {
+  const [items, setItems] = useState<AttentionItem[]>([]);
+  useEffect(() => {
+    let cancel = false;
+    async function tick(): Promise<void> {
+      try {
+        const [c, a, r, w] = await Promise.allSettled([
+          edgeApi.listConflicts(100),
+          edgeApi.listPendingApprovals(100),
+          edgeApi.listReferralInbox(100),
+          edgeApi.workerHealth(),
+        ]);
+        if (cancel) return;
+        const next: AttentionItem[] = [];
+        if (c.status === 'fulfilled' && c.value.length > 0) {
+          next.push({ kind: 'conflict', label: 'Attention needed on captured records',
+            count: c.value.length, tone: 'danger', to: '/sync/attention' });
+        }
+        if (a.status === 'fulfilled' && a.value.rows.length > 0) {
+          next.push({ kind: 'approval', label: 'Approvals pending review',
+            count: a.value.rows.length, tone: 'warning', to: '/approvals' });
+        }
+        if (r.status === 'fulfilled') {
+          const pending = r.value.entries.filter((x) => x.status === 'PENDING').length;
+          if (pending > 0) {
+            next.push({ kind: 'referral', label: 'Referrals waiting to be handled',
+              count: pending, tone: 'warning', to: '/referral/inbox' });
+          }
+        }
+        if (w.status === 'fulfilled' && !w.value.enabled) {
+          next.push({ kind: 'worker', label: 'Sync worker paused',
+            count: 1, tone: 'warning', to: '/sync/worker' });
+        }
+        setItems(next);
+      } catch { /* ignore */ }
+    }
+    tick().catch(() => undefined);
+    const id = window.setInterval(() => { tick().catch(() => undefined); }, 30_000);
+    return () => { cancel = true; window.clearInterval(id); };
+  }, []);
+  const total = items.reduce((a, b) => a + b.count, 0);
+  return { items, total };
+}
+
+function AttentionCentre(): JSX.Element {
+  const { items, total } = useAttentionItems();
+  return (
+    <details className="ea-attention-centre" style={{ position: 'relative' }}>
+      <summary className="ea-topbar-icon-btn" aria-label={`Attention (${total})`}
+               data-test="topbar-bell">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5" />
+          <path d="M10 21a2 2 0 004 0" />
+        </svg>
+        {total > 0 && <span className="ea-attention-badge" aria-hidden="true">
+          {total > 99 ? '99+' : total}
+        </span>}
+      </summary>
+      <div className="ea-attention-popover" role="menu">
+        <div className="ea-attention-popover-head">
+          <strong>Attention</strong>
+          <span className="ea-attention-popover-sub">
+            {total === 0 ? 'All clear' : `${total} item${total === 1 ? '' : 's'}`}
+          </span>
+        </div>
+        {items.length === 0 ? (
+          <div className="ea-attention-popover-empty">
+            Nothing needs attention right now.
+          </div>
+        ) : (
+          <ul className="ea-attention-popover-list">
+            {items.map((it) => (
+              <li key={it.kind}>
+                <Link to={it.to} className="ea-attention-popover-item" role="menuitem"
+                      onClick={(e) => {
+                        const d = (e.currentTarget.closest('details'));
+                        if (d) d.removeAttribute('open');
+                      }}>
+                  <span className={'ea-attention-dot ea-attention-dot--' + it.tone} aria-hidden="true" />
+                  <span className="ea-attention-popover-label">{it.label}</span>
+                  <span className="ea-attention-popover-count">{it.count}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="ea-attention-popover-foot">
+          <Link to="/sync/attention"
+                onClick={(e) => {
+                  const d = (e.currentTarget.closest('details'));
+                  if (d) d.removeAttribute('open');
+                }}>
+            Open Attention page →
+          </Link>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 /** Topbar operating-mode pill (§6.2 mandatory global operating-state control). */
 function TopbarOperatingMode(): JSX.Element {
   const r = useRuntimeMode();
@@ -200,18 +311,9 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
         )}
         {!onSignIn && (
           <>
-            <div className="ea-topbar-search" role="search">
-              <svg className="ea-topbar-search-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" />
-                <path d="M20 20l-3.5-3.5" />
-              </svg>
-              <input
-                type="search"
-                placeholder="Search routes, jobs, users…"
-                aria-label="Search"
-                data-test="topbar-search"
-              />
-            </div>
+            {/* §18: Search removed until functional. Hidden by default; expose
+                via Ctrl/Cmd+K keyboard shortcut in a later release. */}
+            <div style={{ flex: 1 }} />
             <div data-test="brand" style={{ display: 'none' }}>DER</div>
           </>
         )}
@@ -238,17 +340,7 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
                       : 'Not bound'}
                 </span>
               </Link>
-              <button
-                type="button"
-                className="ea-topbar-icon-btn"
-                aria-label="Notifications"
-                data-test="topbar-bell"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5" />
-                  <path d="M10 21a2 2 0 004 0" />
-                </svg>
-              </button>
+              <AttentionCentre />
               <div className="ea-user-chip" data-test="headerbar-user">
                 <span className="ea-user-avatar" aria-hidden="true">
                   {initials(state.user.displayName ?? state.user.username)}

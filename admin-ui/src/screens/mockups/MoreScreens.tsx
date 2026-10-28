@@ -4,7 +4,7 @@ import * as edgeApi from '../../api/edgeApi';
 import {
   KpiTile, Panel, SplitWithDrawer, fmtDate, fmtAgo, fmtBytes, useOuContext, OuPicker,
   usePaged, TablePager, humaniseState, entityTypeIcon, entityTypeLabel,
-  SyncStatusBar, BackLink, RowMenu,
+  SyncStatusBar, BackLink, RowMenu, confirmThenRun,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
@@ -328,9 +328,17 @@ export function MockupConflictList(): JSX.Element {
                         <RowMenu items={[
                           { label: 'Open details', to: `/sync/attention/${r.operationId}` },
                           { label: 'Accept local version',
-                            onSelect: () => { resolveFor(r.operationId, 'ACCEPTED').catch(() => undefined); } },
+                            onSelect: () => {
+                              confirmThenRun(
+                                `Accept the local version of ${entityTypeLabel(r.entityType)} "${r.entityRef}" and send it to Central DHIS2?`,
+                                () => { resolveFor(r.operationId, 'ACCEPTED').catch(() => undefined); });
+                            } },
                           { label: 'Reject local version', danger: true,
-                            onSelect: () => { resolveFor(r.operationId, 'REJECTED').catch(() => undefined); } },
+                            onSelect: () => {
+                              confirmThenRun(
+                                `Reject the local version of ${entityTypeLabel(r.entityType)} "${r.entityRef}"? The local change will be dropped.`,
+                                () => { resolveFor(r.operationId, 'REJECTED').catch(() => undefined); });
+                            } },
                         ]} />
                       </td>
                     </tr>
@@ -711,9 +719,17 @@ export function MockupApprovalQueue(): JSX.Element {
                       <RowMenu items={[
                         { label: 'Open details', to: `/approvals/${r.operationId}` },
                         { label: 'Approve',
-                          onSelect: () => { approveId(r.operationId).catch(() => undefined); } },
+                          onSelect: () => {
+                            confirmThenRun(
+                              `Approve the ${entityTypeLabel(r.entityType)} "${r.entityRef}"? It will be queued for sync to Central DHIS2.`,
+                              () => { approveId(r.operationId).catch(() => undefined); });
+                          } },
                         { label: 'Reject', danger: true,
-                          onSelect: () => { rejectId(r.operationId).catch(() => undefined); } },
+                          onSelect: () => {
+                            confirmThenRun(
+                              `Reject the ${entityTypeLabel(r.entityType)} "${r.entityRef}"? The captured record will not be sent to Central DHIS2.`,
+                              () => { rejectId(r.operationId).catch(() => undefined); });
+                          } },
                       ]} />
                     </td>
                   </tr>
@@ -881,9 +897,17 @@ export function MockupReferralInbox(): JSX.Element {
                         { label: 'Open details', to: `/referral/inbox/${r.inboxId}` },
                         ...(r.status === 'PENDING' ? [
                           { label: 'Accept referral',
-                            onSelect: () => { acceptId(r.inboxId).catch(() => undefined); } },
+                            onSelect: () => {
+                              confirmThenRun(
+                                `Accept the referral "${r.sourceRef}" and import it locally?`,
+                                () => { acceptId(r.inboxId).catch(() => undefined); });
+                            } },
                           { label: 'Dismiss', danger: true,
-                            onSelect: () => { dismissId(r.inboxId).catch(() => undefined); } },
+                            onSelect: () => {
+                              confirmThenRun(
+                                `Dismiss the referral "${r.sourceRef}"? It will be marked as handled on this edge.`,
+                                () => { dismissId(r.inboxId).catch(() => undefined); });
+                            } },
                         ] : []),
                       ]} />
                     </td>

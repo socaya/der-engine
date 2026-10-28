@@ -75,8 +75,8 @@
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
   --sp-5:20px; --sp-6:24px; --sp-7:32px; --sp-8:48px;
 
-  /* Radii */
-  --r-sm:4px; --r-md:6px; --r-lg:8px; --r-xl:12px; --r-2xl:16px; --r-pill:999px;
+  /* Radii — flat UI: surface radii collapsed to 0, pills/dots retain shape. */
+  --r-sm:0; --r-md:0; --r-lg:0; --r-xl:0; --r-2xl:0; --r-pill:999px;
 
   /* Elevation */
   --el-1:0 1px 2px rgba(15,28,46,0.04),0 1px 1px rgba(15,28,46,0.03);
@@ -287,6 +287,60 @@ code{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,mon
 .ea-topbar-mode--starting .ea-topbar-mode-dot{background:var(--der-ink-400)}
 @media(max-width:900px){.ea-topbar-mode-label{display:none}}
 
+/* ============ Attention Centre — §17 ============ */
+.ea-attention-centre{position:relative}
+.ea-attention-centre summary{list-style:none;position:relative}
+.ea-attention-centre summary::-webkit-details-marker{display:none}
+.ea-attention-centre summary::marker{content:''}
+.ea-attention-badge{
+  position:absolute;top:-2px;right:-2px;
+  min-width:18px;height:18px;padding:0 5px;
+  background:var(--der-danger);color:white;
+  border-radius:999px;border:2px solid var(--der-surface);
+  font-size:11px;font-weight:700;line-height:16px;text-align:center;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.ea-attention-popover{
+  position:absolute;right:0;top:calc(100% + 8px);
+  z-index:60;min-width:340px;
+  background:var(--der-surface);
+  border:1px solid var(--der-border);
+  box-shadow:0 8px 24px rgba(15,28,46,0.1), 0 2px 6px rgba(15,28,46,0.04);
+  border-radius:8px;overflow:hidden;
+}
+.ea-attention-popover-head{
+  display:flex;align-items:baseline;justify-content:space-between;
+  padding:12px 16px;border-bottom:1px solid var(--der-border-subtle);
+  font-size:14px;
+}
+.ea-attention-popover-head strong{color:var(--der-ink-900);font-size:15px}
+.ea-attention-popover-sub{color:var(--der-ink-500);font-size:13px}
+.ea-attention-popover-empty{
+  padding:20px 16px;color:var(--der-ink-500);font-size:14px;text-align:center;
+}
+.ea-attention-popover-list{list-style:none;margin:0;padding:4px 0}
+.ea-attention-popover-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;color:var(--der-ink-900);
+  font-size:14px;text-decoration:none;line-height:1.4;
+}
+.ea-attention-popover-item:hover{background:var(--der-raised);text-decoration:none}
+.ea-attention-popover-label{flex:1}
+.ea-attention-popover-count{
+  background:var(--der-raised);color:var(--der-ink-700);
+  font-size:12px;font-weight:600;
+  padding:2px 10px;border-radius:999px;
+}
+.ea-attention-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.ea-attention-dot--danger{background:var(--der-danger)}
+.ea-attention-dot--warning{background:var(--der-warning)}
+.ea-attention-dot--info{background:var(--der-primary)}
+.ea-attention-popover-foot{
+  padding:10px 16px;border-top:1px solid var(--der-border-subtle);
+  font-size:13px;background:var(--der-raised);
+}
+.ea-attention-popover-foot a{color:var(--der-primary);font-weight:500}
+
 
 /* ---------- Topbar ---------- */
 .ea-topbar{
@@ -440,7 +494,7 @@ pre{
 dl{
   display:grid;grid-template-columns:minmax(180px,max-content) 1fr;
   gap:var(--sp-3) var(--sp-5);margin:0 0 var(--sp-4);
-  background:var(--der-surface);border-radius:var(--r-xl);
+  background:var(--der-surface);
   box-shadow:var(--el-1);padding:var(--sp-4) var(--sp-5);
 }
 dt{color:var(--der-ink-400);font-size:var(--fs-md)}
@@ -1648,7 +1702,7 @@ kbd{
 .ea-link-tile-desc{color:var(--der-ink-400);font-size:var(--fs-sm);line-height:1.4;margin-top:2px}
 
 /* Definition list used by DefinitionCard */
-.ea-def-list{display:flex;flex-direction:column;gap:0;margin:0;padding:0;list-style:none}
+.ea-def-list{display:flex;flex-direction:column;gap:0;margin:0;padding:10px;list-style:none}
 .ea-def-row{
   display:grid;grid-template-columns:200px 1fr;gap:24px;align-items:baseline;
   padding:8px 0;                              /* §26: 20–24px section content */

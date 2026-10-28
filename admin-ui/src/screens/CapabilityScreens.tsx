@@ -4,7 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager, describeCron, Panel, humaniseState, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu } from './mockups/shared';
+import { usePaged, TablePager, describeCron, Panel, humaniseState, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun } from './mockups/shared';
 
 /**
  * CapabilityScreens — the 29 nav items that previously showed the
@@ -1750,7 +1750,11 @@ export function CapDrafts(): JSX.Element {
                     <td>{d.title ?? <span className="ea-text-muted">Untitled draft</span>}</td>
                     <td>
                       <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
-                              onClick={() => { remove(d.draftId).catch(() => undefined); }}>
+                              onClick={() => {
+                                confirmThenRun(
+                                  `Discard draft "${d.title ?? 'Untitled'}"? The captured values will be lost.`,
+                                  () => { remove(d.draftId).catch(() => undefined); });
+                              }}>
                         Discard
                       </button>
                     </td>

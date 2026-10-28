@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock, OfflineBanner } from '../components/ScreenStates';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { SyncStatusBar, Panel } from './mockups/shared';
+import { SyncStatusBar, Panel, confirmThenRun } from './mockups/shared';
 import { HealthCards } from '../components/HealthCards';
 import { HeroHeader } from '../components/HeroHeader';
 import { SystemComponents } from '../components/SystemComponents';
@@ -1469,7 +1469,12 @@ export function EACaptureWorkflowList({ api = edgeApi }:
                     <td>
                       <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
                               data-test={`cwf01-delete-${w.workflowId}`}
-                              onClick={() => { remove(w.workflowId).catch(() => undefined); }}>
+                              onClick={() => {
+                                confirmThenRun(
+                                  `Delete the workflow "${w.displayName}"? ` +
+                                  'Existing runs will remain in history but no new runs can start on this workflow.',
+                                  () => { remove(w.workflowId).catch(() => undefined); });
+                              }}>
                         Delete
                       </button>
                     </td>

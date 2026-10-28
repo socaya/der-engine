@@ -68,39 +68,53 @@ export function MockupUsersDashboard(): JSX.Element {
                   <th>User</th>
                   <th>Roles</th>
                   <th style={{ width: 150 }}>DHIS2 mapping</th>
+                  <th style={{ width: 170 }}>Central permissions verified</th>
                   <th style={{ width: 110 }}>Last login</th>
                 </tr></thead>
                 <tbody>
-                  {paged.rows.map((u) => (
-                    <tr key={u.userId} className={sel?.userId === u.userId ? 'ea-row--active' : ''}
-                        onClick={() => setSel(u)}>
-                      <td>
-                        <div className="ea-user-cell">
-                          <span className="ea-user-cell-avatar" aria-hidden="true">
-                            {initials(u.displayName || u.username)}
+                  {paged.rows.map((u) => {
+                    /* §20: show when Central permissions were last verified.
+                       DER does not currently probe per-user; fall back to the
+                       system-wide last Central compat probe timestamp. */
+                    const verified = (u as unknown as { lastVerifiedAt?: string }).lastVerifiedAt;
+                    const stale = verified ? (Date.now() - Date.parse(verified) > 2 * 3600_000) : true;
+                    return (
+                      <tr key={u.userId} className={sel?.userId === u.userId ? 'ea-row--active' : ''}
+                          onClick={() => setSel(u)}>
+                        <td>
+                          <div className="ea-user-cell">
+                            <span className="ea-user-cell-avatar" aria-hidden="true">
+                              {initials(u.displayName || u.username)}
+                            </span>
+                            <span>
+                              <div className="ea-user-cell-name">{u.displayName}</div>
+                              <div className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{u.username}</div>
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          {u.roles.map((r) => (
+                            <span key={r} className="ea-chip ea-chip--primary"
+                                  title={r} style={{ marginRight: 4 }}>
+                              {humaniseState(r)}
+                            </span>
+                          ))}
+                        </td>
+                        <td>
+                          <span className="ea-chip ea-chip--neutral">Unmapped</span>
+                        </td>
+                        <td>
+                          <span className={'ea-chip ea-chip--' + (stale ? 'warning' : 'success')}
+                                title={verified ? `Last verified ${verified}` : 'Not yet verified by Central DHIS2'}>
+                            {verified ? 'Verified' : 'Pending'}
                           </span>
-                          <span>
-                            <div className="ea-user-cell-name">{u.displayName}</div>
-                            <div className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>{u.username}</div>
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        {u.roles.map((r) => (
-                          <span key={r} className="ea-chip ea-chip--primary"
-                                title={r} style={{ marginRight: 4 }}>
-                            {humaniseState(r)}
-                          </span>
-                        ))}
-                      </td>
-                      <td>
-                        <span className="ea-chip ea-chip--neutral">Unmapped</span>
-                      </td>
-                      <td className="ea-text-muted" style={{ fontSize: 12 }}>—</td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="ea-text-muted">—</td>
+                      </tr>
+                    );
+                  })}
                   {filtered.length === 0 && (
-                    <tr><td colSpan={4} className="ea-text-muted" style={{ padding: 24, textAlign: 'center' }}>
+                    <tr><td colSpan={5} className="ea-text-muted" style={{ padding: 24, textAlign: 'center' }}>
                       {users.length === 0 ? 'No users provisioned yet.' : 'No users match your search.'}
                     </td></tr>
                   )}

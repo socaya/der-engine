@@ -761,6 +761,14 @@ export function SyncStatusBar({ tone, title, statusLabel, details, subtitle, act
   );
 }
 
+/** Confirmation helper for destructive actions (§13.4 / P1 line in
+ *  UI Visibility standard). Returns a wrapped onClick that pops a
+ *  native browser confirm with an explicit effect message. */
+export function confirmThenRun(effect: string, onConfirm: () => void): void {
+  const text = `${effect}\n\nThis action cannot be undone from this screen.`;
+  if (typeof window !== 'undefined' && window.confirm(text)) onConfirm();
+}
+
 /** Back-link rendered above a details page title. */
 export function BackLink({ to, label }: { to: string; label: string }): JSX.Element {
   return (

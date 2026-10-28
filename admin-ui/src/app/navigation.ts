@@ -46,15 +46,16 @@ export interface NavGroup {
 }
 
 export const NAV_GROUPS: readonly NavGroup[] = [
+  /* UI Visibility 10/10 §28 Information Architecture — 9 logical domains. */
   {
     id: 'workspace',
-    label: 'Workspace',
+    label: 'Overview',
     primaryId: 'workspace',
     icon: 'grid',
     items: [
-      { id: 'workspace', label: 'Workspace', to: '/', status: 'implemented' },
-      { id: 'system-info', label: 'System info', to: '/system/information', status: 'implemented' },
-      { id: 'admin-tasks', label: 'Admin tasks', to: '/admin-tasks', status: 'implemented' },
+      { id: 'workspace', label: 'Overview', to: '/', status: 'implemented' },
+      { id: 'system-info', label: 'System info', to: '/system/information', status: 'contextual' },
+      { id: 'admin-tasks', label: 'Admin tasks', to: '/admin-tasks', status: 'contextual' },
     ],
   },
   {
@@ -123,57 +124,54 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'maintenance', label: 'Maintenance', to: '/data/maintenance', status: 'implemented' },
     ],
   },
+  /* Administration — merges Users + Devices + DHIS2 mappings per §28. */
   {
     id: 'access',
-    label: 'Users',
+    label: 'Administration',
     primaryId: 'users',
     icon: 'users',
     items: [
       { id: 'users', label: 'Users', to: '/provisioning/users', status: 'implemented' },
       { id: 'users-new', label: 'Add user', to: '/provisioning/users/new', status: 'contextual' },
-      { id: 'mappings', label: 'DHIS2 mapping', to: '/access/mappings', status: 'implemented' },
       { id: 'roles', label: 'Roles', to: '/access/roles', status: 'implemented' },
+      { id: 'mappings', label: 'DHIS2 mappings', to: '/access/mappings', status: 'implemented' },
       { id: 'sessions', label: 'Sessions', to: '/access/sessions', status: 'implemented' },
       { id: 'credentials', label: 'Credentials', to: '/access/credentials', status: 'implemented' },
+      { id: 'devices', label: 'Devices', to: '/devices', status: 'implemented' },
+      { id: 'enrolment', label: 'Device enrolment', to: '/devices/enrolment', status: 'implemented' },
+      { id: 'device-diag', label: 'Device diagnostics', to: '/devices/diagnostics', status: 'implemented' },
+      /* Older per-page routes now reachable via Devices detail. */
+      { id: 'ownership', label: 'Ownership', to: '/devices/ownership', status: 'contextual' },
+      { id: 'connections', label: 'Connections', to: '/devices/connections', status: 'contextual' },
     ],
   },
-  {
-    id: 'devices',
-    label: 'Devices',
-    primaryId: 'devices',
-    icon: 'device',
-    items: [
-      { id: 'devices', label: 'Fleet', to: '/devices', status: 'implemented' },
-      { id: 'enrolment', label: 'Enrolment', to: '/devices/enrolment', status: 'implemented' },
-      { id: 'ownership', label: 'Ownership', to: '/devices/ownership', status: 'implemented' },
-      { id: 'connections', label: 'Connections', to: '/devices/connections', status: 'implemented' },
-      { id: 'device-diag', label: 'Diagnostics', to: '/devices/diagnostics', status: 'implemented' },
-    ],
-  },
+  /* System — renamed from Monitoring per §28. Internals live here, not Overview. */
   {
     id: 'monitoring',
-    label: 'Monitoring',
+    label: 'System',
     primaryId: 'health',
     icon: 'chart',
     items: [
-      { id: 'health', label: 'Service health', to: '/monitoring/health', status: 'implemented' },
-      { id: 'analytics', label: 'Analytics', to: '/analytics', status: 'implemented' },
-      { id: 'metrics', label: 'Operator metrics', to: '/monitoring/metrics', status: 'implemented' },
+      { id: 'health', label: 'Health', to: '/monitoring/health', status: 'implemented' },
+      { id: 'metrics', label: 'Metrics', to: '/monitoring/metrics', status: 'implemented' },
       { id: 'storage', label: 'Storage', to: '/monitoring/storage', status: 'implemented' },
-      { id: 'activity', label: 'Alerts', to: '/audit/events', status: 'implemented' },
       { id: 'diagnostics', label: 'Diagnostics', to: '/diagnostics', status: 'implemented' },
+      { id: 'analytics', label: 'Analytics', to: '/analytics', status: 'implemented' },
       { id: 'evaluation', label: 'Evaluation', to: '/evaluation', status: 'implemented' },
+      /* Alerts moved to Security & Audit → Security events. */
+      { id: 'activity', label: 'Alerts', to: '/audit/events', status: 'contextual' },
     ],
   },
+  /* Security & Audit — renamed per §28. */
   {
     id: 'security',
-    label: 'Security',
+    label: 'Security & Audit',
     primaryId: 'audit-verify',
     icon: 'shield',
     items: [
-      { id: 'audit-verify', label: 'Audit verify', to: '/audit/verify', status: 'implemented' },
+      { id: 'audit-verify', label: 'Audit trail', to: '/audit/verify', status: 'implemented' },
       { id: 'security-events', label: 'Security events', to: '/audit/events', status: 'implemented' },
-      { id: 'backup', label: 'Backups', to: '/backup', status: 'implemented' },
+      { id: 'backup', label: 'Backup', to: '/backup', status: 'implemented' },
       { id: 'restore', label: 'Restore', to: '/restore', status: 'implemented' },
       { id: 'recovery', label: 'Recovery', to: '/recovery', status: 'implemented' },
     ],
