@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock, OfflineBanner } from '../components/ScreenStates';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { SyncStatusBar, Panel, confirmThenRun } from './shared';
+import { SyncStatusBar, Panel, confirmThenRun, Status } from './shared';
 import { HealthCards } from '../components/HealthCards';
 import { HeroHeader } from '../components/HeroHeader';
 import { SystemComponents } from '../components/SystemComponents';
 import { QuickActions } from '../components/QuickActions';
 import { RecentActivity } from '../components/RecentActivity';
 import { usePaged, TablePager } from './shared';
+import { UiIcon } from '../components/UiIcon';
 
 /**
  * Phase 06 Release 2 — EA-01..18 admin screens.
@@ -1413,7 +1414,8 @@ export function EACaptureWorkflowList({ api = edgeApi }:
         actions={
           <Link to="/workflows/new" className="ea-btn ea-btn--primary ea-btn--sm"
                 data-test="cwf01-new">
-            New workflow
+            <UiIcon icon="plus" size={14} />
+            <span>New workflow</span>
           </Link>
         }
       />
@@ -1463,9 +1465,9 @@ export function EACaptureWorkflowList({ api = edgeApi }:
                       </Link>
                     </td>
                     <td data-test={`cwf01-enabled-${w.workflowId}`}>
-                      <span className={'ea-chip ea-chip--' + (w.enabled ? 'success' : 'neutral')}>
+                      <Status tone={w.enabled ? 'success' : 'muted'}>
                         {w.enabled ? 'Enabled' : 'Disabled'}
-                      </span>
+                      </Status>
                     </td>
                     <td>
                       <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
@@ -1476,7 +1478,8 @@ export function EACaptureWorkflowList({ api = edgeApi }:
                                   'Existing runs will remain in history but no new runs can start on this workflow.',
                                   () => { remove(w.workflowId).catch(() => undefined); });
                               }}>
-                        Delete
+                        <UiIcon icon="trash" size={14} />
+                        <span>Delete</span>
                       </button>
                     </td>
                   </tr>

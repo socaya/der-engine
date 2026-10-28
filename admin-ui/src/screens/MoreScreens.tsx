@@ -1103,25 +1103,38 @@ export function MockupBackupList(): JSX.Element {
         {rows.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0 }}>No backups yet. Trigger one via the buttons above.</p>
         ) : (
-          <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
-              <thead><tr><th>Run ID</th><th>Kind</th><th>Status</th><th>Requested</th><th>Message</th></tr></thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.runId}>
-                    <td className="ea-mono">{r.runId}</td>
-                    <td><span className="ea-chip ea-chip--info">{r.kind}</span></td>
-                    <td><span className={'ea-chip ea-chip--' +
-                        (r.status === 'SUCCESS' ? 'success' : r.status === 'FAILED' ? 'danger' : 'warning')}>{r.status}</span></td>
-                    <td className="ea-mono">{fmtDate(r.requestedAt)}</td>
-                    <td className="ea-text-muted">{r.message ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <BackupRunsTable rows={rows} />
         )}
       </Panel>
+    </div>
+  );
+}
+
+function BackupRunsTable({ rows }: { rows: ReadonlyArray<edgeApi.BackupRow> }): JSX.Element {
+  const paged = usePaged(rows, 25);
+  return (
+    <div className="ea-table-wrap">
+      <table className="ea-table ea-table--dense">
+        <thead><tr><th>Run ID</th><th>Kind</th><th>Status</th><th>Requested</th><th>Message</th></tr></thead>
+        <tbody>
+          {paged.rows.map((r) => (
+            <tr key={r.runId}>
+              <td className="ea-mono">{r.runId}</td>
+              <td style={{ fontWeight: 500 }}>{r.kind}</td>
+              <td>
+                <Status tone={
+                  r.status === 'SUCCESS' ? 'success'
+                  : r.status === 'FAILED' ? 'danger' : 'warning'}>
+                  {r.status}
+                </Status>
+              </td>
+              <td className="ea-mono">{fmtDate(r.requestedAt)}</td>
+              <td className="ea-text-muted">{r.message ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <TablePager {...paged.pagerProps} />
     </div>
   );
 }
@@ -1168,24 +1181,37 @@ export function MockupRestoreList(): JSX.Element {
         {rows.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0 }}>No restores recorded.</p>
         ) : (
-          <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
-              <thead><tr><th>Run ID</th><th>Source</th><th>Status</th><th>Requested</th></tr></thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.runId}>
-                    <td className="ea-mono">{r.runId}</td>
-                    <td className="ea-mono" style={{ wordBreak: 'break-all' }}>{r.source}</td>
-                    <td><span className={'ea-chip ea-chip--' +
-                        (r.status === 'SUCCESS' ? 'success' : r.status === 'FAILED' ? 'danger' : 'warning')}>{r.status}</span></td>
-                    <td className="ea-mono">{fmtDate(r.requestedAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <RestoreRunsTable rows={rows} />
         )}
       </Panel>
+    </div>
+  );
+}
+
+function RestoreRunsTable({ rows }: { rows: ReadonlyArray<edgeApi.RestoreRow> }): JSX.Element {
+  const paged = usePaged(rows, 25);
+  return (
+    <div className="ea-table-wrap">
+      <table className="ea-table ea-table--dense">
+        <thead><tr><th>Run ID</th><th>Source</th><th>Status</th><th>Requested</th></tr></thead>
+        <tbody>
+          {paged.rows.map((r) => (
+            <tr key={r.runId}>
+              <td className="ea-mono">{r.runId}</td>
+              <td className="ea-mono" style={{ wordBreak: 'break-all' }}>{r.source}</td>
+              <td>
+                <Status tone={
+                  r.status === 'SUCCESS' ? 'success'
+                  : r.status === 'FAILED' ? 'danger' : 'warning'}>
+                  {r.status}
+                </Status>
+              </td>
+              <td className="ea-mono">{fmtDate(r.requestedAt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <TablePager {...paged.pagerProps} />
     </div>
   );
 }
@@ -1286,8 +1312,13 @@ export function MockupAuditEvents(): JSX.Element {
                 <tr key={e.auditId}>
                   <td className="ea-mono">{fmtDate(e.observedAt)}</td>
                   <td>{e.eventType}</td>
-                  <td><span className={'ea-chip ea-chip--' +
-                      (e.outcome === 'SUCCESS' ? 'success' : e.outcome === 'FAILURE' ? 'danger' : 'info')}>{e.outcome}</span></td>
+                  <td>
+                    <Status tone={
+                      e.outcome === 'SUCCESS' ? 'success'
+                      : e.outcome === 'FAILURE' ? 'danger' : 'info'}>
+                      {e.outcome}
+                    </Status>
+                  </td>
                   <td className="ea-mono">{'—'}</td>
                 </tr>
               ))}
