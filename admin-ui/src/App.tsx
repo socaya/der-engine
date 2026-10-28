@@ -45,7 +45,7 @@ import { MockupCompatMatrix } from './screens/mockups/CompatMatrix';
 import {
   MockupDriftInspector, MockupConflictList, MockupConflictDetail,
   MockupWorkerHealth,
-  MockupDeviceFleet, MockupApprovalQueue, MockupApprovalDetail,
+  MockupDeviceFleet, MockupDeviceDetail, MockupApprovalQueue, MockupApprovalDetail,
   MockupReferralInbox, MockupReferralDetail,
   MockupBackupList, MockupRestoreList, MockupCompatInspector,
   MockupAuditEvents, MockupFacilityAnalytics,
@@ -145,6 +145,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><MockupDeviceFleet /></RequireAuth>} />
           <Route path="/devices-legacy"
                  element={<RequireAuth><EADeviceFleet /></RequireAuth>} />
+          <Route path="/devices/:deviceId"
+                 element={<RequireAuth><MockupDeviceDetail /></RequireAuth>} />
           <Route path="/analytics"
                  element={<RequireAuth><MockupFacilityAnalytics /></RequireAuth>} />
           <Route path="/analytics-legacy"

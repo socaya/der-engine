@@ -2,9 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
-  KpiTile, Panel, SplitWithDrawer, fmtDate, fmtAgo, fmtBytes, useOuContext, OuPicker,
+  KpiTile, Panel, fmtDate, fmtAgo, fmtBytes, useOuContext, OuPicker,
   usePaged, TablePager, humaniseState, entityTypeIcon, entityTypeLabel,
-  SyncStatusBar, BackLink, RowMenu, confirmThenRun,
+  SyncStatusBar, BackLink, RowMenu, confirmThenRun, Status,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
@@ -284,8 +284,10 @@ export function MockupConflictList(): JSX.Element {
             <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
               <thead><tr>
                 <th style={{ width: 32 }}></th>
-                <th>Record</th>
+                <th>Record type</th>
+                <th>Record ID</th>
                 <th>Problem</th>
+                <th>Why</th>
                 <th style={{ width: 90 }}>Priority</th>
                 <th style={{ width: 90 }}>Since</th>
                 <th style={{ width: 48 }} aria-label="Actions"></th>
@@ -302,20 +304,10 @@ export function MockupConflictList(): JSX.Element {
                           title={entityTypeLabel(r.entityType)}>
                         {entityTypeIcon(r.entityType)}
                       </td>
-                      <td>
-                        <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
-                          {entityTypeLabel(r.entityType)}
-                        </div>
-                        <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
-                          {r.entityRef}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 500, fontSize: 13 }}>{problem.label}</div>
-                        <div className="ea-text-muted" style={{ fontSize: 11, marginTop: 1 }}>
-                          {problem.summary}
-                        </div>
-                      </td>
+                      <td style={{ fontWeight: 500 }}>{entityTypeLabel(r.entityType)}</td>
+                      <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.entityRef}</td>
+                      <td style={{ fontWeight: 500 }}>{problem.label}</td>
+                      <td className="ea-text-muted">{problem.summary}</td>
                       <td>
                         <span className={'ea-chip ea-chip--'
                             + (prio === 'High' ? 'danger' : prio === 'Medium' ? 'warning' : 'info')}>
@@ -546,23 +538,16 @@ export function MockupWorkerHealth(): JSX.Element {
 
 /* ─── /devices ───────────────────────────────────────────────────── */
 export function MockupDeviceFleet(): JSX.Element {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<edgeApi.EdgeDeviceRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [sel, setSel] = useState<edgeApi.EdgeDeviceRow | null>(null);
   const [query, setQuery] = useState('');
-  const [busy, setBusy] = useState(false);
 
   async function reload(): Promise<void> {
     try { setRows((await edgeApi.listDevices()).devices); }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
-
-  async function act(fn: (id: string) => Promise<unknown>): Promise<void> {
-    if (!sel) return;
-    setBusy(true);
-    try { await fn(sel.deviceId); await reload(); } finally { setBusy(false); }
-  }
 
   if (err) return <ErrorBlock title="Device load failed" testId="err-devices">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
@@ -589,64 +574,132 @@ export function MockupDeviceFleet(): JSX.Element {
         <KpiTile tone={suspended ? 'danger' : 'default'} icon={<IconX />} label="Suspended / revoked" value={suspended} />
       </div>
 
-      <SplitWithDrawer
-        drawerOpen={!!sel}
-        main={
-          <Panel title={`Devices (${rows.length})`}
-                 action={<input className="ea-input" style={{ maxWidth: 240 }} type="search"
-                                placeholder="Search by ID or user agent" value={query}
-                                onChange={(e) => setQuery(e.target.value)} />}>
-            <div className="ea-table-wrap">
-              <table className="ea-table ea-table--dense ea-table--selectable">
-                <thead><tr><th>Device</th><th>Status</th><th>Enrolled</th><th>Last seen</th></tr></thead>
-                <tbody>
-                  {filtered.map((r) => (
-                    <tr key={r.deviceId} className={sel?.deviceId === r.deviceId ? 'ea-row--active' : ''}
-                        onClick={() => setSel(r)}
-                        data-test={`dev-row-${r.deviceId}`}>
-                      <td className="ea-mono">{r.deviceId.slice(0, 12)}…</td>
-                      <td><span className={'ea-chip ea-chip--' +
-                          (r.status === 'APPROVED' ? 'success' : r.status === 'PENDING' ? 'warning' : 'danger')}>{r.status}</span></td>
-                      <td className="ea-mono">{fmtDate(r.enrolledAt)}</td>
-                      <td className="ea-mono">{fmtAgo(r.lastSeenAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        }
-        drawer={
-          sel ? (
-            <>
-              <h3 style={{ margin: 0, fontSize: 16 }}>Device details</h3>
-              <dl className="ea-def-list">
-                <div className="ea-def-row"><dt>Device ID</dt><dd className="ea-mono">{sel.deviceId}</dd></div>
-                <div className="ea-def-row"><dt>Status</dt><dd><span className="ea-chip ea-chip--info">{sel.status}</span></dd></div>
-                <div className="ea-def-row"><dt>Enrolled</dt><dd className="ea-mono">{fmtDate(sel.enrolledAt)}</dd></div>
-                <div className="ea-def-row"><dt>Approved by</dt><dd>{sel.approvedBy ?? '—'}</dd></div>
-                <div className="ea-def-row"><dt>Last seen</dt><dd className="ea-mono">{sel.lastSeenAt ? fmtDate(sel.lastSeenAt) : '—'}</dd></div>
-                <div className="ea-def-row"><dt>User agent</dt><dd className="ea-mono" style={{ wordBreak: 'break-all' }}>{sel.userAgent ?? '—'}</dd></div>
-                <div className="ea-def-row"><dt>Firmware</dt><dd className="ea-mono">{sel.firmwareVersion ?? '—'}</dd></div>
-              </dl>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {sel.status === 'PENDING' && (
-                  <button type="button" className="ea-btn ea-btn--primary" disabled={busy}
-                          onClick={() => { act(edgeApi.approveDevice).catch(() => undefined); }}>Approve</button>
-                )}
-                {sel.status === 'APPROVED' && (
-                  <button type="button" className="ea-btn ea-btn--ghost" disabled={busy}
-                          onClick={() => { act(edgeApi.suspendDevice).catch(() => undefined); }}>Suspend</button>
-                )}
-                <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger" disabled={busy}
-                        onClick={() => { act(edgeApi.revokeDevice).catch(() => undefined); }}>Revoke</button>
-              </div>
-            </>
-          ) : (
-            <p className="ea-text-muted" style={{ margin: 0 }}>Select a device for actions.</p>
-          )
-        }
-      />
+      <Panel title={`Devices (${rows.length})`}
+             action={<input className="ea-input" style={{ maxWidth: 240 }} type="search"
+                            placeholder="Search by ID or user agent" value={query}
+                            onChange={(e) => setQuery(e.target.value)} />}>
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense ea-table--selectable">
+            <thead><tr>
+              <th>Device</th>
+              <th>Status</th>
+              <th>Enrolled</th>
+              <th>Last seen</th>
+              <th style={{ width: 48 }} aria-label="Actions"></th>
+            </tr></thead>
+            <tbody>
+              {filtered.map((r) => (
+                <tr key={r.deviceId}
+                    onClick={() => navigate(`/devices/${r.deviceId}`)}
+                    data-test={`dev-row-${r.deviceId}`}>
+                  <td className="ea-mono">{r.deviceId.slice(0, 12)}…</td>
+                  <td>
+                    <Status tone={
+                      r.status === 'APPROVED' ? 'success'
+                      : r.status === 'PENDING' ? 'warning' : 'danger'}>
+                      {r.status}
+                    </Status>
+                  </td>
+                  <td className="ea-mono">{fmtDate(r.enrolledAt)}</td>
+                  <td className="ea-mono">{fmtAgo(r.lastSeenAt)}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <RowMenu items={[
+                      { label: 'Open details', to: `/devices/${r.deviceId}` },
+                    ]} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+/** `/admin/devices/:deviceId` — per-device details page.
+ *  Replaces the former right-side drawer. */
+export function MockupDeviceDetail(): JSX.Element {
+  const navigate = useNavigate();
+  const { deviceId } = useParams<{ deviceId: string }>();
+  const [device, setDevice] = useState<edgeApi.EdgeDeviceRow | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function reload(): Promise<void> {
+    try {
+      const r = await edgeApi.listDevices();
+      const d = r.devices.find((x) => x.deviceId === deviceId);
+      if (!d) { setErr('Device not found on this edge.'); return; }
+      setDevice(d);
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+  }
+  useEffect(() => { reload().catch(() => undefined); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [deviceId]);
+
+  function act(effect: string, fn: (id: string) => Promise<unknown>): void {
+    if (!device) return;
+    confirmThenRun(effect, async () => {
+      setBusy(true);
+      try { await fn(device.deviceId); await reload(); }
+      finally { setBusy(false); }
+    });
+  }
+
+  if (err) return <ErrorBlock title="Could not load device" testId="err-device-detail">{err}</ErrorBlock>;
+  if (!device) return <LoadingBlock testId="loading" />;
+
+  return (
+    <div className="ea-screen" data-test="device-detail">
+      <BackLink to="/devices" label="Back to Devices" />
+      <header className="ea-screen-header">
+        <div className="ea-screen-header-text">
+          <h1 style={{ margin: 0 }}>Device</h1>
+          <div className="ea-screen-header-sub">
+            <span className="ea-mono">{device.deviceId}</span>
+            <span>·</span>
+            <Status tone={
+              device.status === 'APPROVED' ? 'success'
+              : device.status === 'PENDING' ? 'warning' : 'danger'}>
+              {device.status}
+            </Status>
+          </div>
+        </div>
+        <div className="ea-screen-header-right">
+          {device.status === 'PENDING' && (
+            <button type="button" className="ea-btn ea-btn--primary" disabled={busy}
+                    onClick={() => { act(`Approve device ${device.deviceId.slice(0, 12)}…? It will be allowed to sync data to this edge.`, edgeApi.approveDevice); }}>
+              Approve
+            </button>
+          )}
+          {device.status === 'APPROVED' && (
+            <button type="button" className="ea-btn ea-btn--ghost" disabled={busy}
+                    onClick={() => { act(`Suspend device ${device.deviceId.slice(0, 12)}…? It will keep its enrolment but stop accepting new sessions.`, edgeApi.suspendDevice); }}>
+              Suspend
+            </button>
+          )}
+          <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger" disabled={busy}
+                  onClick={() => { act(`Revoke device ${device.deviceId.slice(0, 12)}…? Its credentials will be invalidated — it will need to re-enrol to come back.`, edgeApi.revokeDevice); }}>
+            Revoke
+          </button>
+          <button type="button" className="ea-btn ea-btn--ghost" onClick={() => navigate('/devices')}>
+            Close
+          </button>
+        </div>
+      </header>
+      <section className="ea-panel">
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>Device ID</dt><dd className="ea-mono">{device.deviceId}</dd></div>
+          <div className="ea-def-row"><dt>Status</dt><dd>{device.status}</dd></div>
+          <div className="ea-def-row"><dt>Enrolled</dt><dd className="ea-mono">{fmtDate(device.enrolledAt)}</dd></div>
+          <div className="ea-def-row"><dt>Approved by</dt><dd>{device.approvedBy ?? '—'}</dd></div>
+          <div className="ea-def-row"><dt>Last seen</dt>
+            <dd className="ea-mono">{device.lastSeenAt ? fmtDate(device.lastSeenAt) : '—'}</dd></div>
+          <div className="ea-def-row"><dt>User agent</dt>
+            <dd className="ea-mono" style={{ wordBreak: 'break-all' }}>{device.userAgent ?? '—'}</dd></div>
+          <div className="ea-def-row"><dt>Firmware</dt>
+            <dd className="ea-mono">{device.firmwareVersion ?? '—'}</dd></div>
+        </dl>
+      </section>
     </div>
   );
 }
@@ -689,7 +742,8 @@ export function MockupApprovalQueue(): JSX.Element {
             <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
               <thead><tr>
                 <th style={{ width: 32 }}></th>
-                <th>Record</th>
+                <th>Record type</th>
+                <th>Record ID</th>
                 <th>Submitted by</th>
                 <th style={{ width: 110 }}>Submitted</th>
                 <th style={{ width: 48 }} aria-label="Actions"></th>
@@ -702,16 +756,10 @@ export function MockupApprovalQueue(): JSX.Element {
                         title={entityTypeLabel(r.entityType)}>
                       {entityTypeIcon(r.entityType)}
                     </td>
-                    <td>
-                      <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
-                        {entityTypeLabel(r.entityType)}
-                      </div>
-                      <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
-                        {r.entityRef}
-                      </div>
-                    </td>
+                    <td style={{ fontWeight: 500 }}>{entityTypeLabel(r.entityType)}</td>
+                    <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.entityRef}</td>
                     <td>{r.submittedBy ?? '—'}</td>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}
+                    <td className="ea-text-muted"
                         title={r.createdAt ? fmtDate(r.createdAt) : ''}>
                       {r.createdAt ? fmtAgo(r.createdAt) : '—'}
                     </td>
@@ -864,9 +912,10 @@ export function MockupReferralInbox(): JSX.Element {
             <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
               <thead><tr>
                 <th style={{ width: 32 }}></th>
-                <th>Referral</th>
+                <th>Kind</th>
+                <th>Source ref</th>
                 <th style={{ width: 110 }}>Received</th>
-                <th style={{ width: 130 }}>Status</th>
+                <th style={{ width: 150 }}>Status</th>
                 <th style={{ width: 48 }} aria-label="Actions"></th>
               </tr></thead>
               <tbody>
@@ -877,21 +926,17 @@ export function MockupReferralInbox(): JSX.Element {
                         title={entityTypeLabel(r.kind)}>
                       {entityTypeIcon(r.kind)}
                     </td>
-                    <td>
-                      <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
-                        {entityTypeLabel(r.kind)}
-                      </div>
-                      <div className="ea-text-muted ea-mono" style={{ fontSize: 11, marginTop: 1 }}>
-                        {r.sourceRef}
-                      </div>
-                    </td>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}
+                    <td style={{ fontWeight: 500 }}>{entityTypeLabel(r.kind)}</td>
+                    <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.sourceRef}</td>
+                    <td className="ea-text-muted"
                         title={fmtDate(r.discoveredAt)}>{fmtAgo(r.discoveredAt)}</td>
-                    <td><span className={'ea-chip ea-chip--' +
-                        (r.status === 'ACCEPTED' ? 'success'
-                          : r.status === 'DISMISSED' ? 'neutral' : 'warning')} title={r.status}>
-                      {humaniseState(r.status)}
-                    </span></td>
+                    <td>
+                      <Status tone={
+                        r.status === 'ACCEPTED' ? 'success'
+                        : r.status === 'DISMISSED' ? 'muted' : 'warning'} title={r.status}>
+                        {humaniseState(r.status)}
+                      </Status>
+                    </td>
                     <td style={{ textAlign: 'right' }}>
                       <RowMenu items={[
                         { label: 'Open details', to: `/referral/inbox/${r.inboxId}` },

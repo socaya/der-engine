@@ -96,7 +96,8 @@ export function MockupSyncHistory(): JSX.Element {
           <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
             <thead><tr>
               <th style={{ width: 32 }}></th>
-              <th>What was synced</th>
+              <th style={{ width: 180 }}>What was synced</th>
+              <th>Detail</th>
               <th style={{ width: 150 }}>Direction</th>
               <th style={{ width: 110 }}>When</th>
               <th style={{ width: 70 }}>Duration</th>
@@ -113,14 +114,8 @@ export function MockupSyncHistory(): JSX.Element {
                         aria-hidden="true" title={shape.category}>
                       {shape.icon}
                     </td>
-                    <td>
-                      <div style={{ fontWeight: 500, color: 'var(--der-ink-900)' }}>
-                        {shape.category}
-                      </div>
-                      <div className="ea-text-muted" style={{ fontSize: 11, marginTop: 1 }}>
-                        {shape.sentence}
-                      </div>
-                    </td>
+                    <td style={{ fontWeight: 500 }}>{shape.category}</td>
+                    <td className="ea-text-muted">{shape.sentence}</td>
                     <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
                       {shape.direction === 'local' ? (
                         <span className="ea-text-muted">DER-local</span>
