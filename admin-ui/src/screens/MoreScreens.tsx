@@ -538,18 +538,17 @@ export function MockupDeviceFleet(): JSX.Element {
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
 
+  const q = query.trim().toLowerCase();
+  const filtered = (rows ?? []).filter((r) => !q || r.deviceId.toLowerCase().includes(q)
+    || (r.userAgent ?? '').toLowerCase().includes(q));
+  const paged = usePaged(filtered, 25);
+
   if (err) return <ErrorBlock title="Device load failed" testId="err-devices">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
 
   const approved = rows.filter((r) => r.status === 'APPROVED').length;
   const pending = rows.filter((r) => r.status === 'PENDING').length;
   const suspended = rows.filter((r) => r.status !== 'APPROVED' && r.status !== 'PENDING').length;
-
-  const q = query.trim().toLowerCase();
-  const filtered = q ? rows.filter((r) =>
-    r.deviceId.toLowerCase().includes(q)
-    || (r.userAgent ?? '').toLowerCase().includes(q)) : rows;
-  const paged = usePaged(filtered, 25);
 
   return (
     <div className="ea-screen">
@@ -716,9 +715,9 @@ export function MockupApprovalQueue(): JSX.Element {
   async function rejectId(id: string): Promise<void> {
     try { await edgeApi.rejectOperation(id, 'rejected'); await reload(); } catch { /* ignore */ }
   }
+  const paged = usePaged(rows ?? [], 25);
   if (err) return <ErrorBlock title="Approvals failed" testId="err-approvals">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
-  const paged = usePaged(rows, 25);
 
   return (
     <div className="ea-screen">
@@ -887,12 +886,12 @@ export function MockupReferralInbox(): JSX.Element {
   async function dismissId(id: string): Promise<void> {
     try { await edgeApi.dismissReferralInbox(id); await reload(); } catch { /* ignore */ }
   }
+  const paged = usePaged(rows ?? [], 25);
   if (err) return <ErrorBlock title="Inbox failed" testId="err-inbox">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
 
   const pending = rows.filter((r) => r.status === 'PENDING').length;
   const accepted = rows.filter((r) => r.status === 'ACCEPTED').length;
-  const paged = usePaged(rows, 25);
   return (
     <div className="ea-screen">
       <SyncStatusBar

@@ -1,6 +1,6 @@
 {
   "name": "der-admin-ui",
-  "version": "2.1.80",
+  "version": "2.1.81",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,19 +16,6 @@
     "test:e2e:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
-    "@atlaskit/button": "^25.6.0",
-    "@atlaskit/css-reset": "^8.4.6",
-    "@atlaskit/form": "^18.2.1",
-    "@atlaskit/heading": "^8.0.0",
-    "@atlaskit/icon": "^38.0.2",
-    "@atlaskit/menu": "^11.0.4",
-    "@atlaskit/page-layout": "^5.5.7",
-    "@atlaskit/section-message": "^10.2.6",
-    "@atlaskit/side-navigation": "^13.3.8",
-    "@atlaskit/spinner": "^20.4.4",
-    "@atlaskit/textfield": "^10.2.6",
-    "@atlaskit/tokens": "^20.7.0",
-    "@dhis2/ui": "^10.20.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0"
