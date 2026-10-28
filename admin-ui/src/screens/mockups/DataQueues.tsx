@@ -8,6 +8,7 @@ import {
   BackLink, RowMenu, Status,
   type OperatorState, type SyncStatusTone, type RowMenuItem,
 } from './shared';
+import { UiIcon } from '../../components/UiIcon';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /** `/admin/sync/data` — operator-facing outbound journal table. Full
@@ -208,9 +209,9 @@ export function MockupDataQueues(): JSX.Element {
                   <tr key={op.operationId}
                       onClick={() => navigate(`/sync/data/${op.operationId}`)}
                       data-test={`data-row-${op.operationId}`}>
-                    <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                    <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true"
                         title={entityTypeLabel(op.entityType)}>
-                      {entityTypeIcon(op.entityType)}
+                      <UiIcon icon={entityTypeIcon(op.entityType)} size={18} />
                     </td>
                     <td style={{ fontWeight: 500 }}>{entityTypeLabel(op.entityType)}</td>
                     <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{op.entityType}</td>

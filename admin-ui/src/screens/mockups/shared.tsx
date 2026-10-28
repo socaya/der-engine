@@ -485,7 +485,7 @@ export type SyncActivityDirection = 'in' | 'out' | 'two-way' | 'local';
 
 export interface SyncActivityShape {
   readonly category: string;      // "Metadata pull" / "Data push" / "Referral check" / "Analytics" / etc.
-  readonly icon: string;          // Single emoji used as the row icon.
+  readonly icon: import('../../components/UiIcon').UiIconId;  // Line-SVG id resolved via <UiIcon>.
   readonly direction: SyncActivityDirection;
   readonly directionArrow: string;      // "←", "→", "↔", "·"
   readonly directionLabel: string;      // "Central → DER" etc.
@@ -500,80 +500,56 @@ export function syncActivityShape(jobName: string | null | undefined,
 
   if (name.includes('METADATA')) {
     return {
-      category: 'Metadata pull',
-      icon: '📦',
-      direction: 'in',
-      directionArrow: '→',
-      directionLabel: 'Central → DER',
+      category: 'Metadata pull', icon: 'metadata',
+      direction: 'in', directionArrow: '→', directionLabel: 'Central → DER',
       sentence: metadataSentence(parsed),
     };
   }
   if (name.includes('JOURNAL') || name.includes('DRAIN') || name.includes('PUSH')) {
     return {
-      category: dataPushCategory(parsed),
-      icon: dataPushIcon(parsed),
-      direction: 'out',
-      directionArrow: '→',
-      directionLabel: 'DER → Central',
+      category: dataPushCategory(parsed), icon: dataPushIcon(parsed),
+      direction: 'out', directionArrow: '→', directionLabel: 'DER → Central',
       sentence: dataPushSentence(parsed),
     };
   }
   if (name.includes('REFERRAL')) {
     return {
-      category: 'Referral check',
-      icon: '📥',
-      direction: 'in',
-      directionArrow: '→',
-      directionLabel: 'Central → DER',
+      category: 'Referral check', icon: 'referral',
+      direction: 'in', directionArrow: '→', directionLabel: 'Central → DER',
       sentence: referralSentence(parsed),
     };
   }
   if (name.includes('ANALYTICS')) {
     return {
-      category: 'Analytics refresh',
-      icon: '📊',
-      direction: 'local',
-      directionArrow: '·',
-      directionLabel: 'DER-local',
+      category: 'Analytics refresh', icon: 'analytics',
+      direction: 'local', directionArrow: '·', directionLabel: 'DER-local',
       sentence: 'Rebuilt analytics tables.',
     };
   }
   if (name.includes('COMPAT')) {
     return {
-      category: 'Compatibility probe',
-      icon: '🔌',
-      direction: 'in',
-      directionArrow: '→',
-      directionLabel: 'Central → DER',
+      category: 'Compatibility probe', icon: 'compat',
+      direction: 'in', directionArrow: '→', directionLabel: 'Central → DER',
       sentence: 'Re-probed DHIS2 version and capabilities.',
     };
   }
   if (name.includes('BACKUP')) {
     return {
-      category: 'Backup rotation',
-      icon: '💾',
-      direction: 'local',
-      directionArrow: '·',
-      directionLabel: 'DER-local',
+      category: 'Backup rotation', icon: 'backup',
+      direction: 'local', directionArrow: '·', directionLabel: 'DER-local',
       sentence: 'Rotated backup files.',
     };
   }
   if (name.includes('DRIFT')) {
     return {
-      category: 'Drift snapshot',
-      icon: '≠',
-      direction: 'in',
-      directionArrow: '→',
-      directionLabel: 'Central → DER',
+      category: 'Drift snapshot', icon: 'drift',
+      direction: 'in', directionArrow: '→', directionLabel: 'Central → DER',
       sentence: 'Snapshotted metadata fingerprint vs. central.',
     };
   }
   return {
-    category: humaniseJob(jobName ?? '—'),
-    icon: '⚙',
-    direction: 'local',
-    directionArrow: '·',
-    directionLabel: 'DER-local',
+    category: humaniseJob(jobName ?? '—'), icon: 'cog',
+    direction: 'local', directionArrow: '·', directionLabel: 'DER-local',
     sentence: detail ?? 'Background flow.',
   };
 }
@@ -600,21 +576,23 @@ const ENTITY_TYPE_LABEL: Readonly<Record<string, string>> = {
   ORG_UNIT: 'Organisation unit',
 };
 
-const ENTITY_TYPE_ICON: Readonly<Record<string, string>> = {
-  AGGREGATE_DATA_VALUE: '📊',
-  AGGREGATE: '📊',
-  DATA_VALUE_SET: '📊',
-  EVENT: '📍',
-  PROGRAM_STAGE_EVENT: '📝',
-  ENROLLMENT: '📋',
-  TRACKED_ENTITY: '👤',
-  TRACKED_ENTITY_INSTANCE: '👤',
-  TEI: '👤',
-  REFERRAL: '📥',
-  METADATA: '📦',
-  DATA_ELEMENT: '🧮',
-  PROGRAM: '🗂',
-  ORG_UNIT: '🏥',
+type EntityIconId = import('../../components/UiIcon').UiIconId;
+
+const ENTITY_TYPE_ICON: Readonly<Record<string, EntityIconId>> = {
+  AGGREGATE_DATA_VALUE: 'aggregate',
+  AGGREGATE: 'aggregate',
+  DATA_VALUE_SET: 'aggregate',
+  EVENT: 'event',
+  PROGRAM_STAGE_EVENT: 'tracker-event',
+  ENROLLMENT: 'enrollment',
+  TRACKED_ENTITY: 'tei',
+  TRACKED_ENTITY_INSTANCE: 'tei',
+  TEI: 'tei',
+  REFERRAL: 'referral',
+  METADATA: 'metadata',
+  DATA_ELEMENT: 'data-element',
+  PROGRAM: 'program',
+  ORG_UNIT: 'org-unit',
 };
 
 /** Humanise an entityType enum value. */
@@ -624,11 +602,11 @@ export function entityTypeLabel(type: string | null | undefined): string {
   return ENTITY_TYPE_LABEL[key] ?? humaniseJob(type);
 }
 
-/** Icon for an entityType enum value. */
-export function entityTypeIcon(type: string | null | undefined): string {
-  if (!type) return '⚙';
+/** Icon id (UiIcon) for an entityType enum value. */
+export function entityTypeIcon(type: string | null | undefined): EntityIconId {
+  if (!type) return 'cog';
   const key = type.toUpperCase();
-  return ENTITY_TYPE_ICON[key] ?? '⚙';
+  return ENTITY_TYPE_ICON[key] ?? 'cog';
 }
 
 function dataPushCategory(d: Record<string, unknown>): string {
@@ -641,13 +619,13 @@ function dataPushCategory(d: Record<string, unknown>): string {
   return 'Data push';
 }
 
-function dataPushIcon(d: Record<string, unknown>): string {
+function dataPushIcon(d: Record<string, unknown>): EntityIconId {
   const byType = d.byType;
   if (byType && typeof byType === 'object') {
     const keys = Object.keys(byType);
     if (keys.length === 1) return entityTypeIcon(keys[0]);
   }
-  return '🩺';
+  return 'push';
 }
 
 /** Pull the byType breakdown out of a detail JSON blob, if present. */

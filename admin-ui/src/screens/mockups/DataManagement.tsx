@@ -7,6 +7,7 @@ import {
   type RowMenuItem,
 } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
+import { UiIcon } from '../../components/UiIcon';
 
 interface DataRow {
   id: string;
@@ -114,9 +115,9 @@ export function MockupDataManagement(): JSX.Element {
                 <tr key={r.id}
                     onClick={() => navigate(`/sync/data?type=${encodeURIComponent(r.typeKey)}`)}
                     data-test={`data-type-row-${r.typeKey}`}>
-                  <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                  <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true"
                       title={r.type}>
-                    {entityTypeIcon(r.typeKey)}
+                    <UiIcon icon={entityTypeIcon(r.typeKey)} size={18} />
                   </td>
                   <td style={{ fontWeight: 500 }}>{r.type}</td>
                   <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.typeKey}</td>

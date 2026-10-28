@@ -167,8 +167,8 @@ export function MockupSyncOverview(): JSX.Element {
                 const os = operatorState(j.outcome);
                 return (
                   <tr key={j.runId}>
-                    <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true">
-                      {shape.icon}
+                    <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true">
+                      <UiIcon icon={shape.icon} size={18} />
                     </td>
                     <td style={{ fontWeight: 500 }}>{shape.category}</td>
                     <td className="ea-text-muted">{shape.sentence}</td>

@@ -39,7 +39,20 @@ export type UiIconId =
   | 'play'
   | 'pause'
   | 'search'
-  | 'filter';
+  | 'filter'
+  // Entity / activity glyphs
+  | 'aggregate'       // data value / grid of cells
+  | 'event'           // calendar tick (single event)
+  | 'tracker-event'   // calendar document (program-stage event)
+  | 'enrollment'      // clipboard check
+  | 'tei'             // person
+  | 'org-unit'        // building
+  | 'program'         // folder-stack
+  | 'data-element'    // calculator / abacus
+  | 'referral'        // inbox-in
+  | 'compat'          // plug (version probe)
+  | 'cog'             // generic process
+  | 'activity';       // waveform (recent activity)
 
 export function UiIcon(
   { icon, size = 16 }: { icon: UiIconId; size?: number }
@@ -109,5 +122,29 @@ export function UiIcon(
       return <svg {...common}><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>;
     case 'filter':
       return <svg {...common}><path d="M4 5h16" /><path d="M7 11h10" /><path d="M10 17h4" /></svg>;
+    case 'aggregate':
+      return <svg {...common}><rect x="4" y="4" width="16" height="16" rx="1.5" /><path d="M4 10h16M4 14h16M10 4v16M14 4v16" /></svg>;
+    case 'event':
+      return <svg {...common}><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16" /><path d="M8 3v4M16 3v4" /><path d="M9 15l2 2 4-4" /></svg>;
+    case 'tracker-event':
+      return <svg {...common}><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16" /><path d="M8 3v4M16 3v4" /><path d="M8 14h8M8 17h5" /></svg>;
+    case 'enrollment':
+      return <svg {...common}><rect x="6" y="3" width="12" height="18" rx="2" /><path d="M9 7h6" /><path d="M9 11l1.5 1.5L14 9" /><path d="M9 16h6" /></svg>;
+    case 'tei':
+      return <svg {...common}><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg>;
+    case 'org-unit':
+      return <svg {...common}><path d="M4 21V8l8-5 8 5v13" /><path d="M9 21v-6h6v6" /><path d="M9 11h.01M15 11h.01" /></svg>;
+    case 'program':
+      return <svg {...common}><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /><path d="M3 11h18" /></svg>;
+    case 'data-element':
+      return <svg {...common}><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 11h8M8 15h5" /></svg>;
+    case 'referral':
+      return <svg {...common}><path d="M4 13l8 7 8-7" /><path d="M4 13V5a2 2 0 012-2h12a2 2 0 012 2v8" /><path d="M8 9h8" /></svg>;
+    case 'compat':
+      return <svg {...common}><path d="M9 2v4M15 2v4" /><path d="M7 6h10v4a5 5 0 01-10 0V6z" /><path d="M12 15v7" /></svg>;
+    case 'cog':
+      return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1" /></svg>;
+    case 'activity':
+      return <svg {...common}><path d="M3 12h4l3-7 4 14 3-7h4" /></svg>;
   }
 }

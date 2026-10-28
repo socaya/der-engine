@@ -6,6 +6,7 @@ import {
   usePaged, TablePager, humaniseState, entityTypeIcon, entityTypeLabel,
   SyncStatusBar, BackLink, RowMenu, confirmThenRun, Status,
 } from './shared';
+import { UiIcon } from '../../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -300,9 +301,9 @@ export function MockupConflictList(): JSX.Element {
                     <tr key={r.operationId}
                         onClick={() => navigate(`/sync/attention/${r.operationId}`)}
                         data-test={`ea13-row-${r.operationId}`}>
-                      <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                      <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true"
                           title={entityTypeLabel(r.entityType)}>
-                        {entityTypeIcon(r.entityType)}
+                        <UiIcon icon={entityTypeIcon(r.entityType)} size={18} />
                       </td>
                       <td style={{ fontWeight: 500 }}>{entityTypeLabel(r.entityType)}</td>
                       <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.entityRef}</td>
@@ -752,9 +753,9 @@ export function MockupApprovalQueue(): JSX.Element {
                 {rows.map((r) => (
                   <tr key={r.operationId}
                       onClick={() => navigate(`/approvals/${r.operationId}`)}>
-                    <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                    <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true"
                         title={entityTypeLabel(r.entityType)}>
-                      {entityTypeIcon(r.entityType)}
+                      <UiIcon icon={entityTypeIcon(r.entityType)} size={18} />
                     </td>
                     <td style={{ fontWeight: 500 }}>{entityTypeLabel(r.entityType)}</td>
                     <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.entityRef}</td>
@@ -922,9 +923,9 @@ export function MockupReferralInbox(): JSX.Element {
                 {rows.map((r) => (
                   <tr key={r.inboxId}
                       onClick={() => navigate(`/referral/inbox/${r.inboxId}`)}>
-                    <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true"
+                    <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true"
                         title={entityTypeLabel(r.kind)}>
-                      {entityTypeIcon(r.kind)}
+                      <UiIcon icon={entityTypeIcon(r.kind)} size={18} />
                     </td>
                     <td style={{ fontWeight: 500 }}>{entityTypeLabel(r.kind)}</td>
                     <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.sourceRef}</td>

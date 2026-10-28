@@ -9,6 +9,7 @@ import {
   Status,
   type RowMenuItem,
 } from './shared';
+import { UiIcon } from '../../components/UiIcon';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /** `/admin/sync/history` — full-width activity feed. */
@@ -110,9 +111,9 @@ export function MockupSyncHistory(): JSX.Element {
                 return (
                   <tr key={j.runId}
                       onClick={() => navigate(`/sync/history/${j.runId}`)}>
-                    <td style={{ fontSize: 16, textAlign: 'center' }}
+                    <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }}
                         aria-hidden="true" title={shape.category}>
-                      {shape.icon}
+                      <UiIcon icon={shape.icon} size={18} />
                     </td>
                     <td style={{ fontWeight: 500 }}>{shape.category}</td>
                     <td className="ea-text-muted">{shape.sentence}</td>
@@ -244,7 +245,7 @@ export function MockupSyncHistoryDetail(): JSX.Element {
       <BackLink to="/sync/history" label="Back to Sync history" />
       <SyncStatusBar
         tone={ok ? 'success' : failed ? 'danger' : 'info'}
-        title={`${shape.icon} ${shape.category}`}
+        title={shape.category}
         statusLabel={humaniseState(sel.outcome)}
         subtitle={
           <>
@@ -380,7 +381,7 @@ export function MockupSyncHistoryDetail(): JSX.Element {
                 <tbody>
                   {parseByType(sel.detail).map(([type, count]) => (
                     <tr key={type}>
-                      <td style={{ fontSize: 16 }} aria-hidden="true">{entityTypeIcon(type)}</td>
+                      <td style={{ color: 'var(--der-ink-500)' }} aria-hidden="true"><UiIcon icon={entityTypeIcon(type)} size={16} /></td>
                       <td>
                         <div style={{ fontWeight: 500 }}>{entityTypeLabel(type)}</div>
                         <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{type}</div>
@@ -412,8 +413,8 @@ export function MockupSyncHistoryDetail(): JSX.Element {
                     <div key={op.operationId}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8,
                                     fontSize: 13, marginBottom: 6 }}>
-                        <span aria-hidden="true" style={{ fontSize: 16 }}>
-                          {entityTypeIcon(op.entityType)}
+                        <span aria-hidden="true" style={{ color: 'var(--der-ink-500)' }}>
+                          <UiIcon icon={entityTypeIcon(op.entityType)} size={16} />
                         </span>
                         <span style={{ fontWeight: 500 }}>{entityTypeLabel(op.entityType)}</span>
                         <span className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>

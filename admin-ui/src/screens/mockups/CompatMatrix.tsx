@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import * as edgeApi from '../../api/edgeApi';
-import { KpiTile, Panel, fmtDate, fmtAgo } from './shared';
+import { Panel, fmtDate, fmtAgo, SyncStatusBar } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { UiIcon } from '../../components/UiIcon';
 
 /**
  * MockupCompatMatrix — unified Compatibility surface.
@@ -48,46 +49,32 @@ export function MockupCompatMatrix(): JSX.Element {
 
   return (
     <div className="ea-screen">
-      <section className="ea-dash-hero">
-        <div className="ea-dash-hero-left">
-          <div className="ea-dash-hero-eyebrow">DHIS2</div>
-          <h1 className="ea-dash-hero-title">Compatibility</h1>
-          <p className="ea-dash-hero-sub">
-            Live DHIS2 version probe, supported-version matrix, and the full
-            snapshot history for ADR-0006 compatibility decisions.
-          </p>
-          <div className="ea-dash-hero-meta">
-            <span className={'ea-chip ea-chip--' + (snap.probeReachable ? 'success' : 'danger')}>
-              {snap.probeReachable ? 'Central reachable' : 'Central unreachable'}
-            </span>
-            <span className="ea-dash-hero-meta-item">{history.length} snapshots</span>
-            <span className="ea-dash-hero-meta-item">captured {fmtAgo(snap.capturedAt)}</span>
-          </div>
-        </div>
-        <div>
-          <button type="button" className="ea-btn ea-btn--primary"
+      <SyncStatusBar
+        tone={snap.probeReachable ? 'success' : 'danger'}
+        title="Compatibility"
+        statusLabel={snap.probeReachable ? 'Central reachable' : 'Central unreachable'}
+        subtitle={
+          <>
+            <span>Central <strong style={{ color: 'var(--der-ink-900)' }}>{snap.centralVersion ?? '—'}</strong></span>
+            <span>·</span>
+            <span>Profile <strong style={{ color: 'var(--der-ink-900)' }}>{snap.profileName ?? '—'}</strong></span>
+            <span>·</span>
+            <span>Probe RTT <strong style={{ color: 'var(--der-ink-900)' }}>{snap.probeDurationMs != null ? `${snap.probeDurationMs} ms` : '—'}</strong></span>
+            <span>·</span>
+            <span>Captured <strong style={{ color: 'var(--der-ink-900)' }}>{fmtAgo(snap.capturedAt)}</strong></span>
+            <span>·</span>
+            <span>{reliability}% reliability over last {history.length} probe{history.length === 1 ? '' : 's'}</span>
+          </>
+        }
+        actions={
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                   disabled={refreshing}
                   onClick={() => { refresh().catch(() => undefined); }}>
-            {refreshing ? 'Probing…' : 'Probe now'}
+            <UiIcon icon="refresh" size={14} />
+            <span>{refreshing ? 'Probing…' : 'Probe now'}</span>
           </button>
-        </div>
-      </section>
-
-      <div className="ea-kpi-grid">
-        <KpiTile tone={snap.probeReachable ? 'success' : 'danger'}
-                 label="Probe status"
-                 value={snap.probeReachable ? 'reachable' : 'unreachable'}
-                 caption={snap.message ?? snap.status} />
-        <KpiTile tone="info" label="Central version"
-                 value={snap.centralVersion ?? '—'}
-                 caption={`compiled profile ${snap.profileName ?? '—'}`} />
-        <KpiTile tone="info" label="Compat profile"
-                 value={snap.profileName ?? '—'}
-                 caption={`engine v${snap.engineVersion ?? '—'}`} />
-        <KpiTile tone="info" label="Probe RTT"
-                 value={snap.probeDurationMs != null ? `${snap.probeDurationMs} ms` : '—'}
-                 caption={`${reliability}% probe reliability (last ${history.length})`} />
-      </div>
+        }
+      />
 
       <Panel title="Supported DHIS2 version matrix">
         <div className="ea-table-wrap">
