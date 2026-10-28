@@ -3,6 +3,7 @@ package ug.ac.mak.der.web;
 import java.util.List;
 import java.util.Objects;
 
+import org.quartz.JobDataMap;
 import org.quartz.JobKey;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
@@ -63,7 +64,12 @@ public class SyncJobsController {
         if (!scheduler.checkExists(key)) {
             return ResponseEntity.status(404).body(java.util.Map.of("error", "unknown job: " + name));
         }
-        scheduler.triggerJob(key);
+        // Carry the acting operator's username so the job can record it on
+        // scheduled_job_run.triggered_by. Without this the row would land
+        // as "SCHEDULED" even though a human kicked it off.
+        final JobDataMap data = new JobDataMap();
+        data.put("triggeredBy", principal.user().username());
+        scheduler.triggerJob(key, data);
         return ResponseEntity.accepted().body(java.util.Map.of("triggered", name));
     }
 }

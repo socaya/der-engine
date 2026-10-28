@@ -4,7 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager, describeCron, Panel, humaniseState, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status } from './mockups/shared';
+import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status } from './mockups/shared';
 
 /**
  * CapabilityScreens — the 29 nav items that previously showed the
@@ -1118,39 +1118,51 @@ export function CapMetadataSync(): JSX.Element {
         {!history || history.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0 }}>Never run on this edge.</p>
         ) : (
-          <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
-              <thead><tr>
-                <th>When</th>
-                <th>Result</th>
-                <th>Duration</th>
-                <th>Triggered by</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th>
-              </tr></thead>
-              <tbody>
-                {history.map((h) => {
-                  const ok = h.outcome === 'SUCCEEDED' || h.outcome === 'SUCCESS';
-                  return (
-                    <tr key={h.runId}
-                        onClick={() => navigate(`/sync/history/${h.runId}`)}
-                        data-test={`metadata-row-${h.runId}`}>
-                      <td>{new Date(h.startedAt).toLocaleString()}</td>
-                      <td><Status tone={ok ? 'success' : 'danger'}>{ok ? 'Succeeded' : 'Failed'}</Status></td>
-                      <td>{h.durationMs != null ? fmtDur(h.durationMs) : '—'}</td>
-                      <td>{humaniseState(h.triggeredBy)}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <RowMenu items={[
-                          { label: 'Open details', to: `/sync/history/${h.runId}` },
-                        ]} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <RecentPullsTable history={history} navigate={navigate} />
         )}
       </Panel>
+    </div>
+  );
+}
+
+function RecentPullsTable(
+  { history, navigate }:
+  { history: ReadonlyArray<edgeApi.JobRun>;
+    navigate: ReturnType<typeof useNavigate> }
+): JSX.Element {
+  const paged = usePaged(history, 25);
+  return (
+    <div className="ea-table-wrap">
+      <table className="ea-table ea-table--dense ea-table--selectable">
+        <thead><tr>
+          <th>When</th>
+          <th>Result</th>
+          <th>Duration</th>
+          <th>Triggered by</th>
+          <th style={{ width: 48 }} aria-label="Actions"></th>
+        </tr></thead>
+        <tbody>
+          {paged.rows.map((h) => {
+            const ok = h.outcome === 'SUCCEEDED' || h.outcome === 'SUCCESS';
+            return (
+              <tr key={h.runId}
+                  onClick={() => navigate(`/sync/history/${h.runId}`)}
+                  data-test={`metadata-row-${h.runId}`}>
+                <td>{new Date(h.startedAt).toLocaleString()}</td>
+                <td><Status tone={ok ? 'success' : 'danger'}>{ok ? 'Succeeded' : 'Failed'}</Status></td>
+                <td>{h.durationMs != null ? fmtDur(h.durationMs) : '—'}</td>
+                <td>{humaniseTrigger(h.triggeredBy)}</td>
+                <td style={{ textAlign: 'right' }}>
+                  <RowMenu items={[
+                    { label: 'Open details', to: `/sync/history/${h.runId}` },
+                  ]} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <TablePager {...paged.pagerProps} />
     </div>
   );
 }
@@ -1458,26 +1470,41 @@ export function CapWorkflowRuns(): JSX.Element {
         </EmptyBlock>
       ) : (
         <Panel title="Runs">
-          <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"><thead><tr>
-              <th>Workflow</th><th>Status</th><th>Business key</th><th>Started</th>
-            </tr></thead><tbody>
-              {runs.map((r) => (
-                <tr key={r.runId}>
-                  <td style={{ fontWeight: 500 }}>{r.workflowName}</td>
-                  <td><span className={'ea-chip ea-chip--' +
-                      (r.state === 'COMPLETED' ? 'success'
-                        : r.state === 'REJECTED' ? 'danger'
-                          : 'info')} title={r.state}>{humaniseState(r.state)}</span></td>
-                  <td className="ea-mono">{r.businessKey}</td>
-                  <td className="ea-text-muted" style={{ fontSize: 12 }}
-                      title={r.createdAt}>{new Date(r.createdAt).toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody></table>
-          </div>
+          <WorkflowRunsTable runs={runs} />
         </Panel>
       )}
+    </div>
+  );
+}
+
+function WorkflowRunsTable(
+  { runs }: { runs: ReadonlyArray<edgeApi.CaptureWorkflowRun & { workflowName: string }> }
+): JSX.Element {
+  const paged = usePaged(runs, 25);
+  return (
+    <div className="ea-table-wrap">
+      <table className="ea-table ea-table--dense">
+        <thead><tr>
+          <th>Workflow</th><th>Status</th><th>Business key</th><th>Started</th>
+        </tr></thead>
+        <tbody>
+          {paged.rows.map((r) => (
+            <tr key={r.runId}>
+              <td style={{ fontWeight: 500 }}>{r.workflowName}</td>
+              <td>
+                <Status tone={
+                  r.state === 'COMPLETED' ? 'success'
+                  : r.state === 'REJECTED' ? 'danger'
+                  : 'info'} title={r.state}>{humaniseState(r.state)}</Status>
+              </td>
+              <td className="ea-mono">{r.businessKey}</td>
+              <td className="ea-text-muted"
+                  title={r.createdAt}>{new Date(r.createdAt).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <TablePager {...paged.pagerProps} />
     </div>
   );
 }
@@ -1590,27 +1617,42 @@ export function CapReferralHistory(): JSX.Element {
         <EmptyBlock title="No referrals yet" testId="empty-no-referrals-yet">Nothing has been referred to this edge.</EmptyBlock>
       ) : (
         <Panel title="Referrals">
-          <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"><thead><tr>
-              <th>Received</th><th>Kind</th><th>Source ref</th><th>Status</th>
-            </tr></thead><tbody>
-              {rows.map((r) => (
-                <tr key={r.inboxId}>
-                  <td className="ea-text-muted" style={{ fontSize: 12 }}
-                      title={r.discoveredAt}>{new Date(r.discoveredAt).toLocaleString()}</td>
-                  <td><span className="ea-chip ea-chip--info" title={r.kind}>{humaniseState(r.kind)}</span></td>
-                  <td className="ea-mono">{r.sourceRef}</td>
-                  <td><span className={'ea-chip ea-chip--' +
-                      (r.status === 'ACCEPTED' ? 'success'
-                        : r.status === 'DISMISSED' ? 'neutral' : 'warning')} title={r.status}>
-                    {humaniseState(r.status)}
-                  </span></td>
-                </tr>
-              ))}
-            </tbody></table>
-          </div>
+          <ReferralHistoryTable rows={rows} />
         </Panel>
       )}
+    </div>
+  );
+}
+
+function ReferralHistoryTable(
+  { rows }: { rows: ReadonlyArray<edgeApi.ReferralInboxRow> }
+): JSX.Element {
+  const paged = usePaged(rows, 25);
+  return (
+    <div className="ea-table-wrap">
+      <table className="ea-table ea-table--dense">
+        <thead><tr>
+          <th>Received</th><th>Kind</th><th>Source ref</th><th>Status</th>
+        </tr></thead>
+        <tbody>
+          {paged.rows.map((r) => (
+            <tr key={r.inboxId}>
+              <td className="ea-text-muted"
+                  title={r.discoveredAt}>{new Date(r.discoveredAt).toLocaleString()}</td>
+              <td><span className="ea-chip ea-chip--info" title={r.kind}>{humaniseState(r.kind)}</span></td>
+              <td className="ea-mono">{r.sourceRef}</td>
+              <td>
+                <Status tone={
+                  r.status === 'ACCEPTED' ? 'success'
+                  : r.status === 'DISMISSED' ? 'muted' : 'warning'} title={r.status}>
+                  {humaniseState(r.status)}
+                </Status>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <TablePager {...paged.pagerProps} />
     </div>
   );
 }
@@ -1729,40 +1771,50 @@ export function CapDrafts(): JSX.Element {
         </EmptyBlock>
       ) : (
         <Panel title={`${rows.length} draft${rows.length === 1 ? '' : 's'}`}>
-          <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
-              <thead><tr>
-                <th>Updated</th>
-                <th>Kind</th>
-                <th>Title</th>
-                <th style={{ width: 90 }}>Action</th>
-              </tr></thead>
-              <tbody>
-                {rows.map((d) => (
-                  <tr key={d.draftId}>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}
-                        title={d.updatedAt}>{new Date(d.updatedAt).toLocaleString()}</td>
-                    <td><span className="ea-chip ea-chip--neutral" title={d.kind}>
-                      {humaniseState(d.kind)}
-                    </span></td>
-                    <td>{d.title ?? <span className="ea-text-muted">Untitled draft</span>}</td>
-                    <td>
-                      <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
-                              onClick={() => {
-                                confirmThenRun(
-                                  `Discard draft "${d.title ?? 'Untitled'}"? The captured values will be lost.`,
-                                  () => { remove(d.draftId).catch(() => undefined); });
-                              }}>
-                        Discard
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DraftsTable rows={rows} remove={remove} />
         </Panel>
       )}
+    </div>
+  );
+}
+
+function DraftsTable(
+  { rows, remove }: { rows: ReadonlyArray<edgeApi.DraftRow>; remove: (id: string) => Promise<unknown> }
+): JSX.Element {
+  const paged = usePaged(rows, 25);
+  return (
+    <div className="ea-table-wrap">
+      <table className="ea-table ea-table--dense">
+        <thead><tr>
+          <th>Updated</th>
+          <th>Kind</th>
+          <th>Title</th>
+          <th style={{ width: 90 }}>Action</th>
+        </tr></thead>
+        <tbody>
+          {paged.rows.map((d) => (
+            <tr key={d.draftId}>
+              <td className="ea-text-muted"
+                  title={d.updatedAt}>{new Date(d.updatedAt).toLocaleString()}</td>
+              <td><span className="ea-chip ea-chip--neutral" title={d.kind}>
+                {humaniseState(d.kind)}
+              </span></td>
+              <td>{d.title ?? <span className="ea-text-muted">Untitled draft</span>}</td>
+              <td>
+                <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
+                        onClick={() => {
+                          confirmThenRun(
+                            `Discard draft "${d.title ?? 'Untitled'}"? The captured values will be lost.`,
+                            () => { remove(d.draftId).catch(() => undefined); });
+                        }}>
+                  Discard
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <TablePager {...paged.pagerProps} />
     </div>
   );
 }

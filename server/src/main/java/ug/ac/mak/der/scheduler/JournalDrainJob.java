@@ -30,7 +30,9 @@ public class JournalDrainJob implements Job {
     @Override
     public void execute(final JobExecutionContext context) throws JobExecutionException {
         final long t0 = System.nanoTime();
-        final Long runId = runs == null ? null : runs.insertStart(JOB_NAME, "SCHEDULED");
+        final String trigger = context.getMergedJobDataMap().getString("triggeredBy");
+        final String triggeredBy = trigger == null || trigger.isBlank() ? "SCHEDULED" : trigger;
+        final Long runId = runs == null ? null : runs.insertStart(JOB_NAME, triggeredBy);
         try {
             final JournalWorker.DrainOutcome out = worker.drainBatch();
             final long duration = (System.nanoTime() - t0) / 1_000_000L;

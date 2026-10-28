@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
   OuPicker, useOuContext, Panel, fmtDate, fmtDur, fmtAgo, usePaged, TablePager,
-  humaniseJob, humaniseState, relatedLinksForJob, syncActivityShape,
+  humaniseJob, humaniseState, humaniseTrigger, relatedLinksForJob, syncActivityShape,
   parseByType, detailEntries, entityTypeIcon, entityTypeLabel,
   DrawerTabs, JsonViewer, parseOperationIds, SyncStatusBar, BackLink, RowMenu,
   Status,
@@ -288,7 +288,7 @@ export function MockupSyncHistoryDetail(): JSX.Element {
               <dd className="ea-mono">{sel.finishedAt ? fmtDate(sel.finishedAt) : '—'}</dd></div>
             <div className="ea-def-row"><dt>Duration</dt><dd>{fmtDur(sel.durationMs)}</dd></div>
             <div className="ea-def-row"><dt>Age</dt><dd>{fmtAgo(sel.startedAt)}</dd></div>
-            <div className="ea-def-row"><dt>Triggered by</dt><dd>{humaniseState(sel.triggeredBy)}</dd></div>
+            <div className="ea-def-row"><dt>Triggered by</dt><dd>{humaniseTrigger(sel.triggeredBy)}</dd></div>
           </dl>
         </Panel>
       )}

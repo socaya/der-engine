@@ -77,16 +77,18 @@ public class RestoreController {
         final RestoreRun created = repo.insert(new RestoreRun(null, Instant.now(),
                 principal.userId(), body.source(), RestoreRun.Status.REQUESTED,
                 null, null, null, null, kind));
-        kickDrain();
+        kickDrain(principal.user().username());
         return ResponseEntity.accepted().body(toJson(created));
     }
 
-    private void kickDrain() {
+    private void kickDrain(final String triggeredBy) {
         if (scheduler == null) {
             return;
         }
         try {
-            scheduler.triggerJob(JobKey.jobKey(BackupDrainJob.JOB_NAME));
+            final org.quartz.JobDataMap data = new org.quartz.JobDataMap();
+            data.put("triggeredBy", triggeredBy);
+            scheduler.triggerJob(JobKey.jobKey(BackupDrainJob.JOB_NAME), data);
         } catch (SchedulerException ex) {
             LOG.warn("could not kick BackupDrainJob: {}", ex.getMessage());
         }

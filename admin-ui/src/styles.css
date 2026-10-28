@@ -826,6 +826,12 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
 /* overflow:visible so RowMenu popovers can escape the table wrap.
    The table itself handles horizontal scroll via overflow-x on tbody if needed. */
 .ea-table-wrap{overflow:visible;max-width:100%;margin:0}
+/* All tables default to full-width, collapsed borders, 14px dense body.
+   Individual screens no longer need width:100% / dense modifier for the
+   base layout — only --selectable adds the hover/pointer behaviour. */
+.ea-table{width:100%;border-collapse:collapse;table-layout:auto}
+.ea-table th, .ea-table td{padding:5px;font-size:14px;line-height:1.45}
+.ea-table thead th{font-size:13px}
 .ea-cell-two{display:flex;flex-direction:column;gap:2px}
 .ea-cell-primary{color:var(--der-ink-900);font-weight:500;font-size:var(--fs-md)}
 .ea-cell-secondary{color:var(--der-ink-400);font-size:var(--fs-xs)}

@@ -402,6 +402,16 @@ const STATE_LABELS: Readonly<Record<string, string>> = {
   SCHEDULED: 'Scheduled',
 };
 
+/** Humanise a scheduled_job_run.triggered_by column:
+ *  - "SCHEDULED" → "Scheduled" (cron fired it)
+ *  - anything else is a username — preserve it exactly so admins see
+ *    who kicked off the run. */
+export function humaniseTrigger(value: string | undefined | null): string {
+  if (!value) return '—';
+  if (value === 'SCHEDULED') return 'Scheduled';
+  return value;
+}
+
 /** Humanise a journal / worker state like `IN_FLIGHT`. */
 export function humaniseState(state: string | undefined | null): string {
   if (!state) return '—';
