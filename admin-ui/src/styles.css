@@ -917,6 +917,19 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
 .ea-chip--danger{background:var(--der-danger-soft);color:var(--der-danger-ink)}
 .ea-chip--info{background:var(--der-primary-soft);color:var(--der-primary-ink)}
 
+/* ============ Status — quiet result marker (icon + text, no fill) ============ */
+.ea-status{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:13px;font-weight:500;line-height:1.3;white-space:nowrap;
+  color:var(--der-ink-700);
+}
+.ea-status > svg{flex-shrink:0;display:block}
+.ea-status--success{color:var(--der-success-ink)}
+.ea-status--warning{color:var(--der-warning-ink)}
+.ea-status--danger{color:var(--der-danger-ink)}
+.ea-status--info{color:var(--der-primary-ink)}
+.ea-status--muted{color:var(--der-ink-500)}
+
 /* ============ Sign-in ============ */
 .ea-sign-in{
   display:flex;align-items:center;justify-content:center;

@@ -32,11 +32,11 @@ import {
 import { MockupDashboard } from './screens/mockups/Dashboard';
 import { MockupSystemOverview } from './screens/mockups/SystemOverview';
 import { MockupSyncOverview } from './screens/mockups/SyncOverview';
-import { MockupMetadata } from './screens/mockups/Metadata';
+import { MockupMetadata, MockupMetadataDetail } from './screens/mockups/Metadata';
 import { MockupDataManagement } from './screens/mockups/DataManagement';
 import { MockupDataQueues, MockupDataDetail } from './screens/mockups/DataQueues';
 import { MockupSyncHistory, MockupSyncHistoryDetail } from './screens/mockups/SyncHistory';
-import { MockupUsersDashboard } from './screens/mockups/UsersDashboard';
+import { MockupUsersDashboard, MockupUserDetail } from './screens/mockups/UsersDashboard';
 import { MockupDhis2Overview } from './screens/mockups/Dhis2Overview';
 import { MockupWorkspace } from './screens/mockups/Workspace';
 import { MockupAdminTasks } from './screens/mockups/AdminTasks';
@@ -87,6 +87,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EAUsersList /></RequireAuth>} />
           <Route path="/provisioning/users/new"
                  element={<RequireAuth><EAUserCreate /></RequireAuth>} />
+          <Route path="/provisioning/users/:userId"
+                 element={<RequireAuth><MockupUserDetail /></RequireAuth>} />
           {/* der-2.0.17 — standard URL layout: /dhis2/* for every
               DHIS2-integration surface. Legacy paths kept as
               redirect-equivalent routes so bookmarks continue to work.
@@ -100,6 +102,7 @@ export default function App(): JSX.Element {
           <Route path="/dhis2/compat-legacy-inspector" element={<RequireAuth><MockupCompatInspector /></RequireAuth>} />
           <Route path="/dhis2/compat-history" element={<RequireAuth><EACompatHistory /></RequireAuth>} />
           <Route path="/dhis2/metadata" element={<RequireAuth><MockupMetadata /></RequireAuth>} />
+          <Route path="/dhis2/metadata/:resource/:id" element={<RequireAuth><MockupMetadataDetail /></RequireAuth>} />
           <Route path="/dhis2/metadata-drift" element={<RequireAuth><MockupDriftInspector /></RequireAuth>} />
           <Route path="/dhis2/metadata-sync" element={<RequireAuth><CapMetadataSync /></RequireAuth>} />
           {/* Legacy aliases — kept so existing links / bookmarks still work. */}

@@ -384,26 +384,22 @@ export function humaniseJob(name: string | undefined | null): string {
 
 const STATE_LABELS: Readonly<Record<string, string>> = {
   PENDING: 'Waiting to send',
-  IN_FLIGHT: 'Sending now',
-  CENTRAL_ACCEPTED: 'Delivered to DHIS2',
-  CENTRAL_REJECTED: 'DHIS2 did not accept',
-  RETRYABLE: 'Will try again',
-  UNKNOWN_OUTCOME: 'Checking response',
-  CONFLICT_REVIEW: 'Needs your review',
-  SUCCEEDED: 'Done',
-  SUCCESS: 'Done',
-  FAILED: 'Did not finish',
-  FAILURE: 'Did not finish',
-  ERROR: 'Problem',
-  QUEUED: 'In queue',
-  RUNNING: 'Working on it',
+  IN_FLIGHT: 'In transit',
+  CENTRAL_ACCEPTED: 'Accepted by DHIS2',
+  CENTRAL_REJECTED: 'Rejected by DHIS2',
+  RETRYABLE: 'Will retry',
+  UNKNOWN_OUTCOME: 'Unknown response',
+  CONFLICT_REVIEW: 'Needs review',
+  SUCCEEDED: 'Succeeded',
+  SUCCESS: 'Succeeded',
+  FAILED: 'Failed',
+  FAILURE: 'Failed',
+  ERROR: 'Failed',
+  QUEUED: 'Queued',
+  RUNNING: 'Running',
   PAUSED: 'Paused',
-  RESOLVED: 'Sorted',
-  SCHEDULED: 'Coming up',
-  OK: 'Healthy',
-  WARN: 'Watch this',
-  WARNING: 'Watch this',
-  DOWN: 'Not responding',
+  RESOLVED: 'Resolved',
+  SCHEDULED: 'Scheduled',
 };
 
 /** Humanise a journal / worker state like `IN_FLIGHT`. */
@@ -673,27 +669,27 @@ export function detailEntries(detail: string | null | undefined): ReadonlyArray<
 // Backend state is detailed — operators see 6 states.
 // ────────────────────────────────────────────────────────────────────
 
-export type OperatorState = 'Waiting' | 'Sending' | 'Delivered' | 'Trying again' | 'Not accepted' | 'Needs your review';
+export type OperatorState = 'Waiting' | 'Sending' | 'Sent' | 'Retrying' | 'Rejected' | 'Needs attention';
 
 const BACKEND_TO_OPERATOR: Readonly<Record<string, OperatorState>> = {
   PENDING: 'Waiting',
   QUEUED: 'Waiting',
   IN_FLIGHT: 'Sending',
   SYNCHRONISING: 'Sending',
-  CENTRAL_ACCEPTED: 'Delivered',
-  ACCEPTED: 'Delivered',
-  SUCCESS: 'Delivered',
-  SUCCEEDED: 'Delivered',
-  RETRYABLE: 'Trying again',
-  RETRY_PENDING: 'Trying again',
-  UNKNOWN_OUTCOME: 'Trying again',
-  CENTRAL_REJECTED: 'Not accepted',
-  REJECTED: 'Not accepted',
-  FAILED: 'Not accepted',
-  FAILURE: 'Not accepted',
-  CONFLICT_REVIEW: 'Needs your review',
-  CONFLICT: 'Needs your review',
-  REQUIRES_REVIEW: 'Needs your review',
+  CENTRAL_ACCEPTED: 'Sent',
+  ACCEPTED: 'Sent',
+  SUCCESS: 'Sent',
+  SUCCEEDED: 'Sent',
+  RETRYABLE: 'Retrying',
+  RETRY_PENDING: 'Retrying',
+  UNKNOWN_OUTCOME: 'Retrying',
+  CENTRAL_REJECTED: 'Rejected',
+  REJECTED: 'Rejected',
+  FAILED: 'Rejected',
+  FAILURE: 'Rejected',
+  CONFLICT_REVIEW: 'Needs attention',
+  CONFLICT: 'Needs attention',
+  REQUIRES_REVIEW: 'Needs attention',
 };
 
 export function operatorState(backend: string | null | undefined): OperatorState {
@@ -704,13 +700,57 @@ export function operatorState(backend: string | null | undefined): OperatorState
 /** Tone (chip colour) for an operator-facing state. */
 export function operatorStateTone(s: OperatorState): 'success' | 'warning' | 'danger' | 'info' | 'muted' {
   switch (s) {
-    case 'Delivered': return 'success';
-    case 'Not accepted': return 'danger';
-    case 'Needs your review': return 'warning';
+    case 'Sent': return 'success';
+    case 'Rejected': return 'danger';
+    case 'Needs attention': return 'warning';
     case 'Sending': return 'info';
-    case 'Trying again': return 'warning';
+    case 'Retrying': return 'warning';
     case 'Waiting': return 'muted';
   }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Status — quiet status indicator used in table cells.
+// Replaces the background-filled pill chip with a small line-icon
+// prefix + tone-coloured text. Classic ✓ / ✕ / ⚠ / ◦ glyphs — not
+// playful shapes — so the result column reads as hierarchy, not
+// highlight.
+// ────────────────────────────────────────────────────────────────────
+
+export type StatusTone = 'success' | 'warning' | 'danger' | 'info' | 'muted';
+
+function StatusIcon({ tone }: { tone: StatusTone }): JSX.Element {
+  const common = {
+    width: 12, height: 12, viewBox: '0 0 12 12', fill: 'none',
+    stroke: 'currentColor', strokeWidth: 1.75,
+    strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
+    'aria-hidden': true, focusable: false,
+  };
+  switch (tone) {
+    case 'success':
+      return <svg {...common}><path d="M2.5 6.5l2.2 2.2L9.5 3.8" /></svg>;
+    case 'danger':
+      return <svg {...common}><path d="M3 3l6 6M9 3l-6 6" /></svg>;
+    case 'warning':
+      return <svg {...common}><path d="M6 2.2l4.3 7.6H1.7L6 2.2z" /><path d="M6 5v2.2" /><circle cx="6" cy="8.6" r="0.4" fill="currentColor" stroke="none" /></svg>;
+    case 'info':
+      return <svg {...common}><circle cx="6" cy="6" r="4" /><path d="M6 5.4v2.6" /><circle cx="6" cy="4.1" r="0.35" fill="currentColor" stroke="none" /></svg>;
+    case 'muted':
+      return <svg {...common}><path d="M2.5 6h7" /></svg>;
+  }
+}
+
+/** Quiet status marker — tone-coloured text with a small line-icon prefix.
+ *  Use in table result/status columns instead of background-filled chips. */
+export function Status(
+  { tone, children, title }: { tone: StatusTone; children: ReactNode; title?: string }
+): JSX.Element {
+  return (
+    <span className={`ea-status ea-status--${tone}`} title={title}>
+      <StatusIcon tone={tone} />
+      <span>{children}</span>
+    </span>
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────

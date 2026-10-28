@@ -4,7 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager, describeCron, Panel, humaniseState, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun } from './mockups/shared';
+import { usePaged, TablePager, describeCron, Panel, humaniseState, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status } from './mockups/shared';
 
 /**
  * CapabilityScreens — the 29 nav items that previously showed the
@@ -1040,8 +1040,8 @@ export function CapMetadataSync(): JSX.Element {
   const tone = !last ? 'muted' : lastOk ? 'success' : 'danger';
   const busy = pull.state === 'triggering' || pull.state === 'running';
 
-  const statusLabel = !last ? 'Not pulled yet'
-    : lastOk ? 'Up to date' : "Last pull didn't finish";
+  const statusLabel = !last ? 'Never pulled'
+    : lastOk ? 'Up to date' : 'Last pull failed';
 
   return (
     <div className="ea-screen" data-test="cap-metadata-sync">
@@ -1135,9 +1135,7 @@ export function CapMetadataSync(): JSX.Element {
                         onClick={() => navigate(`/sync/history/${h.runId}`)}
                         data-test={`metadata-row-${h.runId}`}>
                       <td>{new Date(h.startedAt).toLocaleString()}</td>
-                      <td><span className={'ea-chip ea-chip--' + (ok ? 'success' : 'danger')}>
-                        {ok ? 'Done' : "Didn't finish"}
-                      </span></td>
+                      <td><Status tone={ok ? 'success' : 'danger'}>{ok ? 'Succeeded' : 'Failed'}</Status></td>
                       <td>{h.durationMs != null ? fmtDur(h.durationMs) : '—'}</td>
                       <td>{humaniseState(h.triggeredBy)}</td>
                       <td style={{ textAlign: 'right' }}>
@@ -2307,7 +2305,7 @@ export function CapServiceHealth(): JSX.Element {
   if (err) return <ErrorBlock title="Health probe failed" testId="err-health-probe-failed">{err}</ErrorBlock>;
   if (!h || !si) return <LoadingBlock testId="loading" />;
   const dot = (ok: boolean | undefined): JSX.Element =>
-    <span className={'ea-chip ea-chip--' + (ok ? 'success' : 'danger')}>{ok ? 'Healthy' : 'Needs attention'}</span>;
+    <Status tone={ok ? 'success' : 'danger'}>{ok ? 'OK' : 'FAIL'}</Status>;
   return (
     <div className="ea-screen" data-test="cap-health">
       <HeroHeader title="Service health"

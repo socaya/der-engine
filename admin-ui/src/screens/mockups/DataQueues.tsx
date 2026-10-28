@@ -5,7 +5,7 @@ import {
   Panel, fmtDate, fmtAgo, usePaged, TablePager,
   entityTypeIcon, entityTypeLabel, operatorState, operatorStateTone,
   DrawerTabs, JsonViewer, SyncStatusBar, Spinner, useTriggerAndWatch,
-  BackLink, RowMenu,
+  BackLink, RowMenu, Status,
   type OperatorState, type SyncStatusTone, type RowMenuItem,
 } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
@@ -63,14 +63,14 @@ export function MockupDataQueues(): JSX.Element {
   if (!ops) return <LoadingBlock testId="loading" />;
 
   const stateCounts: Record<OperatorState, number> = {
-    Waiting: 0, Sending: 0, Delivered: 0, 'Trying again': 0, 'Not accepted': 0, 'Needs your review': 0,
+    Waiting: 0, Sending: 0, Sent: 0, Retrying: 0, Rejected: 0, 'Needs attention': 0,
   };
   for (const it of items) stateCounts[it.state] += 1;
 
   const centralReachable = sysInfo?.dhis2?.probeReachable ?? false;
   const workerEnabled = worker?.enabled ?? false;
-  const unsent = stateCounts.Waiting + stateCounts.Sending + stateCounts['Trying again'];
-  const needsAttention = stateCounts['Needs your review'] + stateCounts['Not accepted'];
+  const unsent = stateCounts.Waiting + stateCounts.Sending + stateCounts.Retrying;
+  const needsAttention = stateCounts['Needs attention'] + stateCounts.Rejected;
 
   let statusLabel: string;
   let tone: SyncStatusTone;
@@ -89,14 +89,14 @@ export function MockupDataQueues(): JSX.Element {
     const items: RowMenuItem[] = [
       { label: 'Open details', to: `/sync/data/${op.operationId}` },
     ];
-    if (state === 'Trying again' || state === 'Not accepted' || state === 'Waiting') {
+    if (state === 'Retrying' || state === 'Rejected' || state === 'Waiting') {
       items.push({
         label: 'Push now',
         disabled: pushing || !centralReachable || !workerEnabled,
         onSelect: () => { push.trigger('JOURNAL_WORKER_DRAIN').catch(() => undefined); },
       });
     }
-    if (state === 'Needs your review') {
+    if (state === 'Needs attention') {
       items.push({ label: 'Open attention item', to: '/sync/attention' });
     }
     return items;
@@ -120,9 +120,9 @@ export function MockupDataQueues(): JSX.Element {
             <span>·</span>
             <span>Waiting <strong>{stateCounts.Waiting}</strong></span>
             <span>·</span>
-            <span>Delivered <strong>{stateCounts.Delivered}</strong></span>
-            {stateCounts['Trying again'] > 0 && (<><span>·</span><span>Trying again <strong>{stateCounts['Trying again']}</strong></span></>)}
-            {needsAttention > 0 && (<><span>·</span><span>Needs your review <strong style={{ color: 'var(--der-danger-ink)' }}>{needsAttention}</strong></span></>)}
+            <span>Sent <strong>{stateCounts.Sent}</strong></span>
+            {stateCounts.Retrying > 0 && (<><span>·</span><span>Retrying <strong>{stateCounts.Retrying}</strong></span></>)}
+            {needsAttention > 0 && (<><span>·</span><span>Needs attention <strong style={{ color: 'var(--der-danger-ink)' }}>{needsAttention}</strong></span></>)}
           </>
         }
         actions={
@@ -176,7 +176,7 @@ export function MockupDataQueues(): JSX.Element {
                  <select className="ea-input" style={{ maxWidth: 150 }} value={filterStatus}
                          onChange={(e) => setFilterStatus(e.target.value)}>
                    <option value="ALL">All statuses</option>
-                   {(['Waiting', 'Sending', 'Delivered', 'Trying again', 'Not accepted', 'Needs your review'] as OperatorState[])
+                   {(['Waiting', 'Sending', 'Sent', 'Retrying', 'Rejected', 'Needs attention'] as OperatorState[])
                      .map((s) => <option key={s} value={s}>{s}</option>)}
                  </select>
                  <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -196,9 +196,10 @@ export function MockupDataQueues(): JSX.Element {
               <thead><tr>
                 <th style={{ width: 32 }}></th>
                 <th>Type</th>
+                <th>Backend key</th>
                 <th>Record</th>
                 <th style={{ width: 110 }}>Captured</th>
-                <th style={{ width: 130 }}>Status</th>
+                <th style={{ width: 150 }}>Status</th>
                 <th style={{ width: 110 }}>Last attempt</th>
                 <th style={{ width: 48 }} aria-label="Actions"></th>
               </tr></thead>
@@ -211,19 +212,15 @@ export function MockupDataQueues(): JSX.Element {
                         title={entityTypeLabel(op.entityType)}>
                       {entityTypeIcon(op.entityType)}
                     </td>
-                    <td>
-                      <div style={{ fontWeight: 500 }}>{entityTypeLabel(op.entityType)}</div>
-                      <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>
-                        {op.entityType}
-                      </div>
-                    </td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{op.entityRef}</td>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}
+                    <td style={{ fontWeight: 500 }}>{entityTypeLabel(op.entityType)}</td>
+                    <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{op.entityType}</td>
+                    <td className="ea-mono" style={{ fontSize: 13 }}>{op.entityRef}</td>
+                    <td className="ea-text-muted"
                         title={fmtDate(op.createdAt)}>{fmtAgo(op.createdAt)}</td>
                     <td>
-                      <span className={`ea-chip ea-chip--${operatorStateTone(state)}`}>{state}</span>
+                      <Status tone={operatorStateTone(state)}>{state}</Status>
                     </td>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}
+                    <td className="ea-text-muted"
                         title={fmtDate(op.updatedAt)}>{fmtAgo(op.updatedAt)}</td>
                     <td style={{ textAlign: 'right' }}>
                       <RowMenu items={rowMenuFor(op)} />
@@ -273,7 +270,7 @@ export function MockupDataDetail(): JSX.Element {
 
   const state = operatorState(op.state);
   const pushing = push.state === 'triggering' || push.state === 'running';
-  const isErrorState = state === 'Not accepted' || state === 'Trying again' || state === 'Needs your review';
+  const isErrorState = state === 'Rejected' || state === 'Retrying' || state === 'Needs attention';
   // The server reuses the `last_error` column for the last DHIS2 response
   // body regardless of success/failure, so treat it as a response unless
   // the operator-facing state is actually a failure.
@@ -301,7 +298,7 @@ export function MockupDataDetail(): JSX.Element {
         }
         actions={
           <>
-            {(state === 'Trying again' || state === 'Not accepted' || state === 'Waiting') && (
+            {(state === 'Retrying' || state === 'Rejected' || state === 'Waiting') && (
               <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                       disabled={pushing}
                       onClick={() => { push.trigger('JOURNAL_WORKER_DRAIN').catch(() => undefined); }}>
@@ -309,7 +306,7 @@ export function MockupDataDetail(): JSX.Element {
                 {push.state === 'running' ? 'Pushing…' : 'Push now'}
               </button>
             )}
-            {state === 'Needs your review' && (
+            {state === 'Needs attention' && (
               <Link to="/sync/attention" className="ea-btn ea-btn--primary ea-btn--sm">
                 Open attention item
               </Link>

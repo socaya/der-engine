@@ -6,6 +6,7 @@ import {
   humaniseJob, humaniseState, relatedLinksForJob, syncActivityShape,
   parseByType, detailEntries, entityTypeIcon, entityTypeLabel,
   DrawerTabs, JsonViewer, parseOperationIds, SyncStatusBar, BackLink, RowMenu,
+  Status,
   type RowMenuItem,
 } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
@@ -139,11 +140,11 @@ export function MockupSyncHistory(): JSX.Element {
                         title={fmtDate(j.startedAt)}>{fmtAgo(j.startedAt)}</td>
                     <td className="ea-mono">{fmtDur(j.durationMs)}</td>
                     <td>
-                      <span className={'ea-chip ea-chip--' +
-                          (j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS' ? 'success'
-                          : j.outcome === 'FAILED' || j.outcome === 'FAILURE' ? 'danger' : 'info')}>
+                      <Status tone={
+                        j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS' ? 'success'
+                        : j.outcome === 'FAILED' || j.outcome === 'FAILURE' ? 'danger' : 'info'}>
                         {humaniseState(j.outcome)}
-                      </span>
+                      </Status>
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <RowMenu items={rowMenuFor(j)} />

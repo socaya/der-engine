@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
   Panel, fmtAgo, syncActivityShape, operatorState, operatorStateTone,
-  SyncStatusBar, Spinner, useTriggerAndWatch, type SyncStatusTone,
+  SyncStatusBar, Spinner, useTriggerAndWatch, type SyncStatusTone, Status,
 } from './shared';
 import { LoadingBlock } from '../../components/ScreenStates';
 
@@ -155,7 +155,8 @@ export function MockupSyncOverview(): JSX.Element {
           <table className="ea-table ea-table--dense">
             <thead><tr>
               <th style={{ width: 32 }}></th>
-              <th>Activity</th>
+              <th style={{ width: 180 }}>Activity</th>
+              <th>Detail</th>
               <th style={{ width: 90 }}>When</th>
               <th style={{ width: 110 }}>Result</th>
             </tr></thead>
@@ -168,22 +169,18 @@ export function MockupSyncOverview(): JSX.Element {
                     <td style={{ fontSize: 16, textAlign: 'center' }} aria-hidden="true">
                       {shape.icon}
                     </td>
-                    <td>
-                      <div style={{ fontWeight: 500 }}>{shape.category}</div>
-                      <div className="ea-text-muted" style={{ fontSize: 11 }}>
-                        {shape.sentence}
-                      </div>
-                    </td>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}
+                    <td style={{ fontWeight: 500 }}>{shape.category}</td>
+                    <td className="ea-text-muted">{shape.sentence}</td>
+                    <td className="ea-text-muted"
                         title={j.startedAt}>{fmtAgo(j.startedAt)}</td>
                     <td>
-                      <span className={`ea-chip ea-chip--${operatorStateTone(os)}`}>{os}</span>
+                      <Status tone={operatorStateTone(os)}>{os}</Status>
                     </td>
                   </tr>
                 );
               })}
               {(jobs ?? []).length === 0 && (
-                <tr><td colSpan={4} className="ea-text-muted"
+                <tr><td colSpan={5} className="ea-text-muted"
                         style={{ textAlign: 'center', padding: 16 }}>
                   No sync runs yet.
                 </td></tr>

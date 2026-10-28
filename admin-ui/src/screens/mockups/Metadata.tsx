@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import {
-  Panel, SplitWithDrawer, Dot, fmtDate, TablePager,
+  Panel, Dot, fmtDate, TablePager, BackLink, RowMenu,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
@@ -105,17 +105,16 @@ interface MetaRow {
 }
 
 export function MockupMetadata(): JSX.Element {
+  const navigate = useNavigate();
   const [tabKey, setTabKey] = useState<string>(RESOURCES[0].key);
   const [rows, setRows] = useState<MetaRow[] | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [err, setErr] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [sel, setSel] = useState<MetaRow | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [pageTotal, setPageTotal] = useState(0);
   const [pageCount, setPageCount] = useState(1);
-  const [tab, setTab] = useState<'summary' | 'relationships' | 'rules' | 'raw'>('summary');
 
   const activeResource = RESOURCES.find((r) => r.key === tabKey) ?? RESOURCES[0];
 
@@ -123,7 +122,7 @@ export function MockupMetadata(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
-    setRows(null); setErr(null); setSel(null); setTab('summary');
+    setRows(null); setErr(null);
     edgeApi.metadataList(activeResource.key, { page, pageSize })
       .then((r) => {
         if (cancelled) return;
@@ -143,7 +142,6 @@ export function MockupMetadata(): JSX.Element {
           raw: it as Record<string, unknown>,
         }));
         setRows(mapped);
-        if (mapped.length > 0) setSel(mapped[0]);
       })
       .catch((e: unknown) => {
         if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
@@ -189,80 +187,131 @@ export function MockupMetadata(): JSX.Element {
       {!rows && !err && <LoadingBlock testId="loading" />}
 
       {rows && (
-        <SplitWithDrawer
-          drawerOpen={!!sel}
-          main={
-            <Panel action={
-              <>
-                <select className="ea-input" style={{ maxWidth: 300 }}
-                        value={tabKey}
-                        onChange={(e) => setTabKey(e.target.value)}
-                        data-test="metadata-resource"
-                        aria-label="Metadata resource">
-                  {DOMAIN_GROUPS.map((g) => (
-                    <optgroup key={g.domain} label={g.domain}>
-                      {g.resources.map((r) => (
-                        <option key={r.key} value={r.key}>
-                          {r.label} — {counts[r.key] ?? '…'}
-                        </option>
-                      ))}
-                    </optgroup>
+        <Panel action={
+          <>
+            <select className="ea-input" style={{ maxWidth: 300 }}
+                    value={tabKey}
+                    onChange={(e) => setTabKey(e.target.value)}
+                    data-test="metadata-resource"
+                    aria-label="Metadata resource">
+              {DOMAIN_GROUPS.map((g) => (
+                <optgroup key={g.domain} label={g.domain}>
+                  {g.resources.map((r) => (
+                    <option key={r.key} value={r.key}>
+                      {r.label} — {counts[r.key] ?? '…'}
+                    </option>
                   ))}
-                </select>
-                <span className="ea-chip ea-chip--info">
-                  {counts[tabKey] ?? '…'} mirrored
-                </span>
-                <input className="ea-input" style={{ maxWidth: 240 }}
-                       type="search" placeholder="Search by name, ID or code"
-                       value={query} onChange={(e) => setQuery(e.target.value)} />
-                <span className="ea-text-muted" style={{ fontSize: 12 }}>
-                  {query
-                    ? `${filtered.length.toLocaleString()} match${filtered.length === 1 ? '' : 'es'} on this page`
-                    : `${pageTotal.toLocaleString()} items`}
-                </span>
-              </>
-            }>
-              <div className="ea-table-wrap">
-                <table className="ea-table ea-table--dense ea-table--selectable">
-                  <thead><tr>
-                    <th>Name</th><th>Code</th><th>Short name</th><th>Last updated</th><th>Mirror</th>
-                  </tr></thead>
-                  <tbody>
-                    {filtered.map((r) => (
-                      <tr key={r.id} className={sel?.id === r.id ? 'ea-row--active' : ''}
-                          onClick={() => setSel(r)}>
-                        <td>{r.name || <span className="ea-text-muted">(unnamed)</span>}</td>
-                        <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.code ?? '—'}</td>
-                        <td className="ea-text-muted">{r.shortName ?? '—'}</td>
-                        <td className="ea-mono">{r.lastUpdated ? fmtDate(r.lastUpdated) : '—'}</td>
-                        <td><Dot tone="success" /> mirrored</td>
-                      </tr>
-                    ))}
-                    {filtered.length === 0 && (
-                      <tr><td colSpan={5} className="ea-text-muted" style={{ padding: 24, textAlign: 'center' }}>
-                        {query ? 'No metadata matches that search on this page.' : 'No metadata mirrored for this resource.'}
-                      </td></tr>
-                    )}
-                  </tbody>
-                </table>
-                <TablePager
-                  page={page} pageCount={pageCount} pageSize={pageSize} total={pageTotal}
-                  onPage={setPage} onPageSize={setPageSize}
-                />
-              </div>
-            </Panel>
-          }
-          drawer={
-            sel ? (
-              <MetadataDetail sel={sel} tab={tab} setTab={setTab} />
-            ) : (
-              <p className="ea-text-muted" style={{ margin: 0 }}>
-                Select a row to see the full mirrored payload.
-              </p>
-            )
-          }
-        />
+                </optgroup>
+              ))}
+            </select>
+            <span className="ea-chip ea-chip--info">
+              {counts[tabKey] ?? '…'} mirrored
+            </span>
+            <input className="ea-input" style={{ maxWidth: 240 }}
+                   type="search" placeholder="Search by name, ID or code"
+                   value={query} onChange={(e) => setQuery(e.target.value)} />
+            <span className="ea-text-muted" style={{ fontSize: 12 }}>
+              {query
+                ? `${filtered.length.toLocaleString()} match${filtered.length === 1 ? '' : 'es'} on this page`
+                : `${pageTotal.toLocaleString()} items`}
+            </span>
+          </>
+        }>
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense ea-table--selectable">
+              <thead><tr>
+                <th>Name</th><th>ID</th><th>Code</th><th>Short name</th>
+                <th>Last updated</th><th>Mirror</th><th style={{ width: 36 }}></th>
+              </tr></thead>
+              <tbody>
+                {filtered.map((r) => (
+                  <tr key={r.id}
+                      onClick={() => navigate(`/dhis2/metadata/${r.resource}/${r.id}`)}
+                      data-test={`meta-row-${r.id}`}>
+                    <td>{r.name || <span className="ea-text-muted">(unnamed)</span>}</td>
+                    <td className="ea-mono" style={{ fontSize: 13 }}>{r.id}</td>
+                    <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.code ?? '—'}</td>
+                    <td className="ea-text-muted">{r.shortName ?? '—'}</td>
+                    <td className="ea-mono">{r.lastUpdated ? fmtDate(r.lastUpdated) : '—'}</td>
+                    <td><Dot tone="success" /> mirrored</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <RowMenu items={[
+                        { label: 'Open details', to: `/dhis2/metadata/${r.resource}/${r.id}` },
+                      ]} />
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr><td colSpan={7} className="ea-text-muted" style={{ padding: 24, textAlign: 'center' }}>
+                    {query ? 'No metadata matches that search on this page.' : 'No metadata mirrored for this resource.'}
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+            <TablePager
+              page={page} pageCount={pageCount} pageSize={pageSize} total={pageTotal}
+              onPage={setPage} onPageSize={setPageSize}
+            />
+          </div>
+        </Panel>
       )}
+    </div>
+  );
+}
+
+/** `/admin/dhis2/metadata/:resource/:id` — per-record details page.
+ *  Replaces the former right-side drawer. */
+export function MockupMetadataDetail(): JSX.Element {
+  const { resource, id } = useParams<{ resource: string; id: string }>();
+  const [item, setItem] = useState<Record<string, unknown> | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [tab, setTab] = useState<'summary' | 'relationships' | 'rules' | 'raw'>('summary');
+
+  useEffect(() => {
+    if (!resource || !id) return;
+    let cancelled = false;
+    edgeApi.metadataList(resource, { page: 1, pageSize: 1000 })
+      .then((r) => {
+        if (cancelled) return;
+        const items = (r[resource] ?? []) as edgeApi.MetadataListItem[];
+        const found = items.find((x) => x.id === id);
+        if (!found) { setErr('Record not found in this mirror. It may have been removed since the last metadata sync.'); return; }
+        setItem(found as unknown as Record<string, unknown>);
+      })
+      .catch((e: unknown) => { if (!cancelled) setErr(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
+  }, [resource, id]);
+
+  const typeLabel = RESOURCES.find((r) => r.key === resource)?.typeLabel ?? resource ?? 'Record';
+
+  if (err) return <ErrorBlock title="Could not load record" testId="err-meta-detail">{err}</ErrorBlock>;
+  if (!item) return <LoadingBlock testId="loading" />;
+
+  const name = (item.displayName ?? item.name) as string | undefined;
+  const shortName = item.shortName as string | undefined;
+  const code = item.code as string | undefined;
+  const lastUpdated = item.lastUpdated as string | undefined;
+  const sel: MetaRow = {
+    id: id ?? '', name: name ?? '', shortName, code, type: typeLabel,
+    lastUpdated, resource: resource ?? '', raw: item,
+  };
+
+  return (
+    <div className="ea-screen" data-test="meta-detail">
+      <BackLink to="/dhis2/metadata" label="Back to Metadata" />
+      <header className="ea-screen-header">
+        <div className="ea-screen-header-text">
+          <h1 style={{ margin: 0 }}>{sel.name || '(unnamed)'}</h1>
+          <div className="ea-screen-header-sub">
+            <span>{typeLabel}</span>
+            <span>·</span>
+            <span className="ea-mono">{sel.id}</span>
+          </div>
+        </div>
+      </header>
+      <section className="ea-panel">
+        <MetadataDetail sel={sel} tab={tab} setTab={setTab} />
+      </section>
     </div>
   );
 }
