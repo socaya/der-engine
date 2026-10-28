@@ -1210,8 +1210,21 @@ kbd{
 .ea-field-label{
   font-size:var(--fs-sm);font-weight:600;color:var(--der-ink-700);
 }
+.ea-field-required{color:var(--der-danger-ink);font-weight:400}
 .ea-main .ea-form .ea-input{max-width:none}
 .ea-field-hint{color:var(--der-ink-400);font-size:var(--fs-xs);line-height:1.4}
+.ea-btn-spinner{
+  display:inline-block;width:12px;height:12px;border-radius:50%;
+  border:2px solid currentColor;border-right-color:transparent;
+  animation:ea-btn-spin 0.9s linear infinite;
+  margin-right:2px;
+}
+@keyframes ea-btn-spin{to{transform:rotate(360deg)}}
+.ea-loading-spinner{
+  display:inline-block;width:18px;height:18px;border-radius:50%;
+  border:2px solid var(--der-border);border-right-color:var(--der-primary);
+  animation:ea-btn-spin 0.9s linear infinite;
+}
 
 /* Role picker cards */
 .ea-role-picker{

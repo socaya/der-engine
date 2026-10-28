@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { CircularLoader } from '@dhis2/ui';
 import { UiIcon } from './UiIcon';
 
 /**
@@ -11,7 +10,7 @@ import { UiIcon } from './UiIcon';
 export function LoadingBlock({ testId }: { testId: string }): JSX.Element {
   return (
     <div className="ea-centered" data-test={testId} role="status">
-      <CircularLoader small />
+      <span className="ea-loading-spinner" aria-hidden="true" />
       <span className="ea-centered-text">Loading…</span>
     </div>
   );

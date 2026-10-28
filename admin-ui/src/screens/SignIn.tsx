@@ -1,10 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  Button,
-
-  InputField,
-} from '@dhis2/ui';
 import { useAuth } from '../auth/AuthContext';
 import { EdgeApiError } from '../api/edgeApi';
 import { ErrorBlock, EmptyBlock } from '../components/ScreenStates';
@@ -119,41 +114,47 @@ export function SignIn(): JSX.Element {
             </EmptyBlock>
           </div>
           <form onSubmit={onSubmit} data-test="sign-in-form">
-            <div data-test="sign-in-username-field">
-              <InputField
-                label="Username"
+            <div data-test="sign-in-username-field" className="ea-field">
+              <label className="ea-field-label" htmlFor="sign-in-username">
+                Username <span className="ea-field-required" aria-hidden="true">*</span>
+              </label>
+              <input
+                id="sign-in-username"
+                className="ea-input"
                 name="username"
                 value={username}
-                onChange={({ value }) => setUsername(value ?? '')}
+                onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
                 placeholder="der-admin"
                 required
-                dense
               />
             </div>
             <div className="ea-sign-in-spacer" />
-            <div data-test="sign-in-password-field">
-              <InputField
-                label="Password"
+            <div data-test="sign-in-password-field" className="ea-field">
+              <label className="ea-field-label" htmlFor="sign-in-password">
+                Password <span className="ea-field-required" aria-hidden="true">*</span>
+              </label>
+              <input
+                id="sign-in-password"
+                className="ea-input"
                 name="password"
                 type="password"
                 value={password}
-                onChange={({ value }) => setPassword(value ?? '')}
+                onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 required
-                dense
               />
             </div>
             <div className="ea-sign-in-spacer" />
             <div data-test="sign-in-submit">
-              <Button
-                primary
+              <button
                 type="submit"
-                loading={submitting}
-                disabled={!username || !password}
+                className="ea-btn ea-btn--primary"
+                disabled={submitting || !username || !password}
               >
-                {submitting ? 'Signing in…' : 'Sign in'}
-              </Button>
+                {submitting && <span className="ea-btn-spinner" aria-hidden="true" />}
+                <span>{submitting ? 'Signing in…' : 'Sign in'}</span>
+              </button>
             </div>
           </form>
           <p className="ea-sign-in-footnote">
