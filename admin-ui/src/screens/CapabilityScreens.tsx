@@ -1192,74 +1192,145 @@ export function CapDataExchange(): JSX.Element {
 /** /admin/sync/settings — DER Sync requirements §12. */
 export function CapSyncSettings(): JSX.Element {
   const [sysInfo, setSysInfo] = useState<edgeApi.SystemInfo | null>(null);
+  const [history, setHistory] = useState<edgeApi.CompatSnapshot[] | null>(null);
   const [testing, setTesting] = useState(false);
-  const [testFlash, setTestFlash] = useState<string | null>(null);
+  const ping = useCentralReachable();
 
   async function reload(): Promise<void> {
     try { setSysInfo(await edgeApi.systemInfo()); } catch { /* ignore */ }
+    try { setHistory((await edgeApi.compatHistory(100)).snapshots); } catch { /* ignore */ }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
   async function testConnection(): Promise<void> {
-    setTesting(true); setTestFlash(null);
+    setTesting(true);
     try {
-      const si = await edgeApi.systemInfo();
-      setSysInfo(si);
-      setTestFlash(si.dhis2?.probeReachable
-        ? `Connection OK. Central DHIS2 ${si.dhis2.centralVersion} responded in ${si.dhis2.probeDurationMs} ms.`
-        : 'Central DHIS2 is not reachable from this edge.');
-    } catch (e) {
-      setTestFlash(e instanceof Error ? e.message : String(e));
-    } finally { setTesting(false); }
+      await edgeApi.refreshCompat();
+      await reload();
+    } catch { /* ignore — status strip will reflect the probe result */ }
+    finally { setTesting(false); }
   }
 
-  const reachable = sysInfo?.dhis2?.probeReachable ?? false;
+  // Reliability metrics — "% of the last N probes that succeeded".
+  const successCount = (history ?? []).filter((s) => s.probeReachable).length;
+  const totalCount = history?.length ?? 0;
+  const reliability = totalCount > 0 ? Math.round((100 * successCount) / totalCount) : 0;
+  const lastSnap = history?.[0];
+  // Prefer the live ping; fall back to the last compat snapshot on first paint.
+  const isLive = ping.reachable ?? sysInfo?.dhis2?.probeReachable ?? false;
+  const latencyMs = ping.latencyMs ?? lastSnap?.probeDurationMs ?? sysInfo?.dhis2?.probeDurationMs ?? null;
+  const centralVersion = lastSnap?.centralVersion ?? sysInfo?.dhis2?.centralVersion ?? null;
+  const authKind = sysInfo?.dhis2 ? 'Basic' : 'Unknown';
+
   return (
     <div className="ea-screen" data-test="cap-sync-settings">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-        <Panel title="Central DHIS2"
-               action={
-                 <>
-                   <Link to="/dhis2/connection" className="ea-btn ea-btn--ghost ea-btn--sm">
-                     Open DHIS2 Configuration
-                   </Link>
-                   <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                           disabled={testing}
-                           onClick={() => { testConnection().catch(() => undefined); }}
-                           data-test="sync-test-connection">
-                     {testing ? 'Testing…' : 'Test connection'}
-                   </button>
-                 </>
-               }>
-          <p className="ea-text-muted" style={{ margin: '0 0 8px', fontSize: 12 }}>
-            These values are read-only here. They are managed in the DHIS2 Module.
-          </p>
-          {testFlash && <p className="ea-saved" style={{ margin: '0 0 8px' }}>{testFlash}</p>}
-          <dl className="ea-def-list">
-            <div className="ea-def-row"><dt>Central DHIS2 URL</dt>
-              <dd className="ea-mono">{sysInfo?.dhis2?.centralBaseUrl ?? '—'}</dd></div>
-            <div className="ea-def-row"><dt>Pinned version</dt>
-              <dd>{sysInfo?.dhis2?.pinnedVersion ?? '—'}</dd></div>
-            <div className="ea-def-row"><dt>Central version</dt>
-              <dd>{sysInfo?.dhis2?.centralVersion ?? '—'}</dd></div>
-            <div className="ea-def-row"><dt>Connection status</dt>
-              <dd>
-                <span className={'ea-chip ea-chip--' + (reachable ? 'success' : 'warning')}>
-                  {reachable ? 'Reachable' : 'Unreachable'}
-                </span>
-              </dd></div>
-            <div className="ea-def-row"><dt>Authentication</dt>
-              <dd>{sysInfo?.dhis2?.probeReachable ? 'Working' : 'Unknown'}</dd></div>
-          </dl>
-        </Panel>
+      <SyncStatusBar
+        tone={isLive ? 'success' : 'warning'}
+        title="Sync Settings"
+        statusLabel={isLive ? 'Connected' : 'Offline-first'}
+        subtitle={
+          <>
+            <span>Central DHIS2 connection + sync behaviour for this edge.</span>
+            <span>·</span>
+            <span>{reliability}% uptime over last {totalCount} probe{totalCount === 1 ? '' : 's'}</span>
+          </>
+        }
+        actions={
+          <>
+            <Link to="/dhis2/connection" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="edit" size={14} />
+              <span>Open DHIS2 configuration</span>
+            </Link>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    disabled={testing}
+                    onClick={() => { testConnection().catch(() => undefined); }}
+                    data-test="sync-test-connection">
+              {testing ? <span className="ea-btn-spinner" /> : <UiIcon icon="refresh" size={14} />}
+              <span>{testing ? 'Probing…' : 'Probe now'}</span>
+            </button>
+          </>
+        }
+      />
 
-        <Panel title="Sync behaviour · advanced">
-          <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
-            Batch size, retry delay, back-off and request timeout are managed in the
-            schedule screen under <Link to="/sync/schedule">Schedule</Link>. Fine-grained
-            overrides live under <Link to="/settings">Settings</Link>.
+      <section className="ea-dhis2-conn-card" data-test="dhis2-connection-card">
+        <div className={'ea-dhis2-conn-pulse' + (isLive ? ' ea-dhis2-conn-pulse--on' : ' ea-dhis2-conn-pulse--off')}
+             aria-hidden="true">
+          <div className="ea-dhis2-conn-pulse-core" />
+          {isLive && <>
+            <div className="ea-dhis2-conn-pulse-ring ea-dhis2-conn-pulse-ring--1" />
+            <div className="ea-dhis2-conn-pulse-ring ea-dhis2-conn-pulse-ring--2" />
+            <div className="ea-dhis2-conn-pulse-ring ea-dhis2-conn-pulse-ring--3" />
+          </>}
+          {!isLive && <div className="ea-dhis2-conn-pulse-slash" />}
+        </div>
+        <div className="ea-dhis2-conn-info">
+          <div className="ea-dhis2-conn-headline"
+               style={{ color: isLive ? 'var(--der-success-ink)' : 'var(--der-warning-ink)' }}>
+            {isLive ? 'DHIS2 Central is online' : 'DHIS2 Central is unreachable'}
+          </div>
+          <div className="ea-dhis2-conn-sub">
+            {isLive
+              ? <>Reached in {latencyMs != null ? `${latencyMs} ms` : '—'} · live-probing every 15 s</>
+              : <>{ping.message ?? 'Last probe did not complete. Local captures continue to queue safely.'}</>}
+          </div>
+          <dl className="ea-dhis2-conn-facts">
+            <div><dt>URL</dt><dd className="ea-mono">{sysInfo?.dhis2?.centralBaseUrl ?? '—'}</dd></div>
+            <div><dt>Central version</dt><dd>{centralVersion ?? '—'}</dd></div>
+            <div><dt>Pinned</dt><dd>{sysInfo?.dhis2?.pinnedVersion ?? '—'}</dd></div>
+            <div><dt>Profile</dt><dd>{sysInfo?.dhis2?.profileName ?? '—'}</dd></div>
+            <div><dt>Auth</dt><dd>{authKind}</dd></div>
+            <div><dt>Last probe</dt>
+              <dd>{lastSnap?.capturedAt ? new Date(lastSnap.capturedAt).toLocaleString() : '—'}</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section className="ea-panel" data-test="sync-reliability">
+        <div className="ea-panel-head">
+          <div className="ea-panel-title">Reliability — last 100 probes</div>
+          <div className="ea-text-muted" style={{ fontSize: 12 }}>
+            {successCount} succeeded · {totalCount - successCount} failed · {reliability}% uptime
+          </div>
+        </div>
+        <div className="ea-sparkline" aria-label={`${reliability}% probe reliability`}>
+          {(history ?? []).slice(0, 60).reverse().map((s, i) => (
+            <span key={s.snapshotId ?? i}
+                  className={'ea-sparkline-bar' + (s.probeReachable ? ' ea-sparkline-bar--ok' : ' ea-sparkline-bar--bad')}
+                  title={`${s.probeReachable ? 'OK' : 'Fail'} · ${s.probeDurationMs ?? '—'} ms · ${s.capturedAt ?? ''}`}
+                  style={{ height: `${Math.min(100, Math.max(8, (s.probeDurationMs ?? 100) / 20))}%` }} />
+          ))}
+          {totalCount === 0 && (
+            <div className="ea-text-muted" style={{ fontSize: 12, padding: '20px 0' }}>
+              No probe snapshots recorded yet.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="ea-panel">
+        <div className="ea-panel-head">
+          <div className="ea-panel-title">Sync behaviour</div>
+        </div>
+        <div style={{ padding: 14 }}>
+          <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 13 }}>
+            Batch size, retry delay, back-off and request timeout are managed
+            via scheduler cron expressions.
           </p>
-        </Panel>
-      </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Link to="/sync/schedule" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="schedule" size={14} />
+              <span>Open Schedule</span>
+            </Link>
+            <Link to="/settings" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="settings" size={14} />
+              <span>Open fine-grained Settings</span>
+            </Link>
+            <Link to="/sync/history" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <UiIcon icon="history" size={14} />
+              <span>Open Sync history</span>
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
