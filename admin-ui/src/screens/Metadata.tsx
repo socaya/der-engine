@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import * as edgeApi from '../../api/edgeApi';
+import * as edgeApi from '../api/edgeApi';
 import {
   Panel, Dot, fmtDate, TablePager, BackLink, RowMenu,
 } from './shared';
-import { UiIcon } from '../../components/UiIcon';
-import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { UiIcon } from '../components/UiIcon';
+import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /**
  * MockupMetadata — browse every mirrored DHIS2 metadata resource.

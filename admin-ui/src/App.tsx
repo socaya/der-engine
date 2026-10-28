@@ -29,19 +29,19 @@ import {
   CapOperatorMetrics, CapServiceHealth, CapStorage,
   CapProvisioningSetup, CapReleases, CapNetwork,
 } from './screens/CapabilityScreens';
-import { MockupDashboard } from './screens/mockups/Dashboard';
-import { MockupSystemOverview } from './screens/mockups/SystemOverview';
-import { MockupSyncOverview } from './screens/mockups/SyncOverview';
-import { MockupMetadata, MockupMetadataDetail } from './screens/mockups/Metadata';
-import { MockupDataManagement } from './screens/mockups/DataManagement';
-import { MockupDataQueues, MockupDataDetail } from './screens/mockups/DataQueues';
-import { MockupSyncHistory, MockupSyncHistoryDetail } from './screens/mockups/SyncHistory';
-import { MockupUsersDashboard, MockupUserDetail } from './screens/mockups/UsersDashboard';
-import { MockupDhis2Overview } from './screens/mockups/Dhis2Overview';
-import { MockupWorkspace } from './screens/mockups/Workspace';
-import { MockupAdminTasks } from './screens/mockups/AdminTasks';
-import { MockupSystemInformation } from './screens/mockups/SystemInformation';
-import { MockupCompatMatrix } from './screens/mockups/CompatMatrix';
+import { MockupDashboard } from './screens/Dashboard';
+import { MockupSystemOverview } from './screens/SystemOverview';
+import { MockupSyncOverview } from './screens/SyncOverview';
+import { MockupMetadata, MockupMetadataDetail } from './screens/Metadata';
+import { MockupDataManagement } from './screens/DataManagement';
+import { MockupDataQueues, MockupDataDetail } from './screens/DataQueues';
+import { MockupSyncHistory, MockupSyncHistoryDetail } from './screens/SyncHistory';
+import { MockupUsersDashboard, MockupUserDetail } from './screens/UsersDashboard';
+import { MockupDhis2Overview } from './screens/Dhis2Overview';
+import { MockupWorkspace } from './screens/Workspace';
+import { MockupAdminTasks } from './screens/AdminTasks';
+import { MockupSystemInformation } from './screens/SystemInformation';
+import { MockupCompatMatrix } from './screens/CompatMatrix';
 import {
   MockupDriftInspector, MockupConflictList, MockupConflictDetail,
   MockupWorkerHealth,
@@ -49,7 +49,7 @@ import {
   MockupReferralInbox, MockupReferralDetail,
   MockupBackupList, MockupRestoreList, MockupCompatInspector,
   MockupAuditEvents, MockupFacilityAnalytics,
-} from './screens/mockups/MoreScreens';
+} from './screens/MoreScreens';
 
 function ConflictResolveRoute(): JSX.Element {
   const { id = '' } = useParams();

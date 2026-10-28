@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import * as edgeApi from '../../api/edgeApi';
+import * as edgeApi from '../api/edgeApi';
 import {
   KpiTile, Panel, Ring, MiniBarChart, Dot, fmtDate, fmtAgo, fmtBytes, fmtDur,
 } from './shared';
-import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /**
  * MockupWorkspace — the single Workspace landing page.

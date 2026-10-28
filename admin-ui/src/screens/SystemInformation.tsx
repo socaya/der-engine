@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import * as edgeApi from '../../api/edgeApi';
+import * as edgeApi from '../api/edgeApi';
 import { Panel, fmtBytes, fmtDur, fmtDate, SyncStatusBar } from './shared';
-import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /**
  * MockupSystemInformation — rich, uniform system diagnostics page.

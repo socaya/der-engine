@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock, OfflineBanner } from '../components/ScreenStates';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { SyncStatusBar, Panel, confirmThenRun } from './mockups/shared';
+import { SyncStatusBar, Panel, confirmThenRun } from './shared';
 import { HealthCards } from '../components/HealthCards';
 import { HeroHeader } from '../components/HeroHeader';
 import { SystemComponents } from '../components/SystemComponents';
 import { QuickActions } from '../components/QuickActions';
 import { RecentActivity } from '../components/RecentActivity';
-import { usePaged, TablePager } from './mockups/shared';
+import { usePaged, TablePager } from './shared';
 
 /**
  * Phase 06 Release 2 — EA-01..18 admin screens.

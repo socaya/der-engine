@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import * as edgeApi from '../../api/edgeApi';
+import * as edgeApi from '../api/edgeApi';
 import { Panel, fmtAgo, fmtDur, SyncStatusBar } from './shared';
-import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /**
  * MockupAdminTasks — ADMIN-only lifecycle + control-plane page.

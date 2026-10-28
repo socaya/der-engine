@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import * as edgeApi from '../../api/edgeApi';
+import * as edgeApi from '../api/edgeApi';
 import {
   Panel, fmtDate, fmtAgo, usePaged, TablePager,
   entityTypeIcon, entityTypeLabel, operatorState, operatorStateTone,
@@ -8,8 +8,8 @@ import {
   BackLink, RowMenu, Status,
   type OperatorState, type SyncStatusTone, type RowMenuItem,
 } from './shared';
-import { UiIcon } from '../../components/UiIcon';
-import { LoadingBlock } from '../../components/ScreenStates';
+import { UiIcon } from '../components/UiIcon';
+import { LoadingBlock } from '../components/ScreenStates';
 
 /** `/admin/sync/data` — operator-facing outbound journal table. Full
  *  width, no side drawer. Row click navigates to the per-record

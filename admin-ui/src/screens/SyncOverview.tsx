@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import * as edgeApi from '../../api/edgeApi';
+import * as edgeApi from '../api/edgeApi';
 import {
   Panel, fmtAgo, syncActivityShape, operatorState, operatorStateTone,
   SyncStatusBar, Spinner, useTriggerAndWatch, type SyncStatusTone, Status,
 } from './shared';
-import { UiIcon } from '../../components/UiIcon';
-import { LoadingBlock } from '../../components/ScreenStates';
+import { UiIcon } from '../components/UiIcon';
+import { LoadingBlock } from '../components/ScreenStates';
 
 /**
  * `/admin/sync` — Overview per DER Sync requirements §5.

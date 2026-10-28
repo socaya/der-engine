@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import * as edgeApi from '../../api/edgeApi';
+import * as edgeApi from '../api/edgeApi';
 import {
   OuPicker, useOuContext, Panel, fmtDate, fmtDur, fmtAgo, usePaged, TablePager,
   humaniseJob, humaniseState, humaniseTrigger, relatedLinksForJob, syncActivityShape,
@@ -9,8 +9,8 @@ import {
   Status,
   type RowMenuItem,
 } from './shared';
-import { UiIcon } from '../../components/UiIcon';
-import { LoadingBlock } from '../../components/ScreenStates';
+import { UiIcon } from '../components/UiIcon';
+import { LoadingBlock } from '../components/ScreenStates';
 
 /** `/admin/sync/history` — full-width activity feed. */
 export function MockupSyncHistory(): JSX.Element {

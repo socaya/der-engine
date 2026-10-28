@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode, type MouseEvent as ReactMouseEvent, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import * as edgeApi from '../../api/edgeApi';
-import { useOrgUnit } from '../../components/OrgUnitContext';
+import * as edgeApi from '../api/edgeApi';
+import { useOrgUnit } from '../components/OrgUnitContext';
 
 /**
  * Mockup-matched helpers used across the Dashboard, Overview, Sync,
@@ -485,7 +485,7 @@ export type SyncActivityDirection = 'in' | 'out' | 'two-way' | 'local';
 
 export interface SyncActivityShape {
   readonly category: string;      // "Metadata pull" / "Data push" / "Referral check" / "Analytics" / etc.
-  readonly icon: import('../../components/UiIcon').UiIconId;  // Line-SVG id resolved via <UiIcon>.
+  readonly icon: import('../components/UiIcon').UiIconId;  // Line-SVG id resolved via <UiIcon>.
   readonly direction: SyncActivityDirection;
   readonly directionArrow: string;      // "←", "→", "↔", "·"
   readonly directionLabel: string;      // "Central → DER" etc.
@@ -576,7 +576,7 @@ const ENTITY_TYPE_LABEL: Readonly<Record<string, string>> = {
   ORG_UNIT: 'Organisation unit',
 };
 
-type EntityIconId = import('../../components/UiIcon').UiIconId;
+type EntityIconId = import('../components/UiIcon').UiIconId;
 
 const ENTITY_TYPE_ICON: Readonly<Record<string, EntityIconId>> = {
   AGGREGATE_DATA_VALUE: 'aggregate',

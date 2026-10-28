@@ -1,13 +1,13 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import * as edgeApi from '../../api/edgeApi';
+import * as edgeApi from '../api/edgeApi';
 import {
   KpiTile, Panel, fmtDate, fmtAgo, fmtBytes, useOuContext, OuPicker,
   usePaged, TablePager, humaniseState, entityTypeIcon, entityTypeLabel,
   SyncStatusBar, BackLink, RowMenu, confirmThenRun, Status,
 } from './shared';
-import { UiIcon } from '../../components/UiIcon';
-import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { UiIcon } from '../components/UiIcon';
+import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /* ──────────────────────────────────────────────────────────────────────
  * Mockup-aesthetic re-skins for the remaining heavily-used routes.
@@ -74,33 +74,33 @@ export function MockupDriftInspector(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="drift-hub">
-      <section className="ea-dash-hero">
-        <div className="ea-dash-hero-left">
-          <h1 className="ea-dash-hero-title">Metadata drift</h1>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span className={'ea-chip ea-chip--' + (equal ? 'success' : 'warning')}
-                data-test="drift-status-chip">
-            {equal ? 'In sync' : 'Drift detected'}
-          </span>
-          <button type="button" className="ea-btn ea-btn--primary"
+      <SyncStatusBar
+        tone={equal ? 'success' : 'warning'}
+        title="Metadata drift"
+        statusLabel={equal ? 'In sync' : 'Drift detected'}
+        subtitle={
+          <>
+            <span>Added <strong style={{ color: 'var(--der-ink-900)' }}>{totalAdded}</strong></span>
+            <span>·</span>
+            <span>Removed <strong style={{ color: 'var(--der-ink-900)' }}>{totalRemoved}</strong></span>
+            <span>·</span>
+            <span>Modified <strong style={{ color: 'var(--der-ink-900)' }}>{totalModified}</strong></span>
+            <span>·</span>
+            <span>Entities <strong style={{ color: 'var(--der-ink-900)' }}>{rowSummaries.length}</strong></span>
+            <span>·</span>
+            <span>Snapshot <strong style={{ color: 'var(--der-ink-900)' }}>{d.snapshotTo ?? '—'}</strong></span>
+          </>
+        }
+        actions={
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                   disabled={refreshing}
                   onClick={() => { reload(true).catch(() => undefined); }}
                   data-test="drift-refresh">
-            {refreshing ? 'Refreshing…' : 'Recompute drift'}
+            <UiIcon icon="refresh" size={14} />
+            <span>{refreshing ? 'Refreshing…' : 'Recompute drift'}</span>
           </button>
-        </div>
-      </section>
-
-      <div className="ea-stat-strip">
-        <Stat label="Status" tone={equal ? 'success' : 'warning'}
-              value={equal ? 'identical' : 'different'} />
-        <Stat label="Added"    value={totalAdded}    tone={totalAdded ? 'info' : 'muted'} />
-        <Stat label="Removed"  value={totalRemoved}  tone={totalRemoved ? 'danger' : 'muted'} />
-        <Stat label="Modified" value={totalModified} tone={totalModified ? 'warning' : 'muted'} />
-        <Stat label="Entities" value={rowSummaries.length} />
-        <Stat label="Snapshot to" value={d.snapshotTo ?? '—'} />
-      </div>
+        }
+      />
 
       <section data-test="drift-direction"
                style={{
@@ -205,17 +205,6 @@ export function MockupDriftInspector(): JSX.Element {
   );
 }
 
-function Stat({ label, value, tone = 'info' }: {
-  label: string; value: ReactNode;
-  tone?: 'info' | 'success' | 'danger' | 'warning' | 'muted';
-}): JSX.Element {
-  return (
-    <div className={`ea-stat ea-stat--${tone}`}>
-      <div className="ea-stat-value">{value}</div>
-      <div className="ea-stat-label">{label}</div>
-    </div>
-  );
-}
 
 /* ─── /sync/attention ────────────────────────────────────────────── */
 /** DER Sync requirements §9. "Needs your attention" consolidates
@@ -1142,12 +1131,12 @@ export function MockupRestoreList(): JSX.Element {
   if (!rows) return <LoadingBlock testId="loading" />;
   return (
     <div className="ea-screen">
-      <Hero eyebrow="Security & Recovery"
-            title="Restore"
-            sub="Replay an audit log or full backup bundle to this edge." />
-      <div className="ea-kpi-grid">
-        <KpiTile tone="info" icon={<IconList />} label="Restores on record" value={rows.length} />
-      </div>
+      <SyncStatusBar
+        tone="muted"
+        title="Restore"
+        statusLabel={`${rows.length} on record`}
+        subtitle={<span>Replay an audit log or full backup bundle to this edge.</span>}
+      />
       <Panel title="Request a restore">
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
           <label className="ea-field" style={{ flex: 1 }}>
@@ -1204,26 +1193,27 @@ export function MockupCompatInspector(): JSX.Element {
   if (!c) return <LoadingBlock testId="loading" />;
   return (
     <div className="ea-screen">
-      <Hero eyebrow="DHIS2 Integration"
-            title="Compatibility"
-            sub="Compatibility profile between this DER build and the central DHIS2."
-            actions={
-              <button type="button" className="ea-btn ea-btn--primary" disabled={refreshing}
-                      onClick={() => { refresh().catch(() => undefined); }}>
-                {refreshing ? 'Refreshing…' : 'Refresh profile'}
-              </button>
-            }
-            chip={<span className={'ea-chip ea-chip--' + (c.probeReachable ? 'success' : 'danger')}>
-              {c.probeReachable ? 'Reachable' : 'Unreachable'}
-            </span>} />
-      <div className="ea-kpi-grid">
-        <KpiTile tone="info" icon={<IconHash />} label="Profile" value={c.profileName ?? '—'} />
-        <KpiTile tone="info" icon={<IconList />} label="Central version" value={c.centralVersion ?? '—'} />
-        <KpiTile tone={c.probeReachable ? 'success' : 'danger'} icon={<IconCheck />}
-                 label="Probe status" value={c.probeReachable ? 'ok' : 'fail'} />
-        <KpiTile tone="default" icon={<IconClock />}
-                 label="Engine" value={c.engineVersion ?? '—'} />
-      </div>
+      <SyncStatusBar
+        tone={c.probeReachable ? 'success' : 'danger'}
+        title="Compatibility"
+        statusLabel={c.probeReachable ? 'Reachable' : 'Unreachable'}
+        subtitle={
+          <>
+            <span>Profile <strong style={{ color: 'var(--der-ink-900)' }}>{c.profileName ?? '—'}</strong></span>
+            <span>·</span>
+            <span>Central <strong style={{ color: 'var(--der-ink-900)' }}>{c.centralVersion ?? '—'}</strong></span>
+            <span>·</span>
+            <span>Engine <strong style={{ color: 'var(--der-ink-900)' }}>{c.engineVersion ?? '—'}</strong></span>
+          </>
+        }
+        actions={
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" disabled={refreshing}
+                  onClick={() => { refresh().catch(() => undefined); }}>
+            <UiIcon icon="refresh" size={14} />
+            <span>{refreshing ? 'Refreshing…' : 'Refresh profile'}</span>
+          </button>
+        }
+      />
       <Panel title="Snapshot">
         <dl className="ea-def-list">
           <div className="ea-def-row"><dt>Snapshot ID</dt><dd className="ea-mono">{c.snapshotId ?? '—'}</dd></div>
@@ -1341,5 +1331,4 @@ function IconList(): JSX.Element { return sIcon('M4 6h16M4 12h16M4 18h16'); }
 function IconCheck(): JSX.Element { return sIcon('M5 12l4 4 10-10'); }
 function IconX(): JSX.Element { return sIcon('M6 6l12 12M6 18L18 6'); }
 function IconHash(): JSX.Element { return sIcon('M5 9h14M5 15h14M9 3L7 21M17 3l-2 18'); }
-function IconClock(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>); }
 export { fmtBytes };

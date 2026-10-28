@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import * as edgeApi from '../../api/edgeApi';
+import * as edgeApi from '../api/edgeApi';
 import {
   OuPicker, useOuContext, Panel, fmtDate, fmtAgo,
   SyncStatusBar, entityTypeIcon, entityTypeLabel, RowMenu,
   type RowMenuItem,
 } from './shared';
-import { LoadingBlock } from '../../components/ScreenStates';
-import { UiIcon } from '../../components/UiIcon';
+import { LoadingBlock } from '../components/ScreenStates';
+import { UiIcon } from '../components/UiIcon';
 
 interface DataRow {
   id: string;

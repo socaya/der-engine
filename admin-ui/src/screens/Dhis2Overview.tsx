@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import * as edgeApi from '../../api/edgeApi';
+import * as edgeApi from '../api/edgeApi';
 import { fmtAgo, fmtDate } from './shared';
-import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /**
  * DHIS2 — single landing page that merges the old Overview and the

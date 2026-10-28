@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import * as edgeApi from '../../api/edgeApi';
+import * as edgeApi from '../api/edgeApi';
 import {
   Panel, Dot, fmtDate, usePaged, TablePager,
   SyncStatusBar, humaniseState, RowMenu, BackLink,
 } from './shared';
-import { UiIcon } from '../../components/UiIcon';
-import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { UiIcon } from '../components/UiIcon';
+import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /** `/admin/provisioning/users` — Users dashboard. */
 export function MockupUsersDashboard(): JSX.Element {

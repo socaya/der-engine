@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import * as edgeApi from '../../api/edgeApi';
+import * as edgeApi from '../api/edgeApi';
 import { Panel, fmtDate, fmtAgo, SyncStatusBar } from './shared';
-import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
-import { UiIcon } from '../../components/UiIcon';
+import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
+import { UiIcon } from '../components/UiIcon';
 
 /**
  * MockupCompatMatrix — unified Compatibility surface.
