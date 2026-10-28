@@ -278,9 +278,11 @@ export function MockupSyncHistoryDetail(): JSX.Element {
                 <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{sel.jobName}</div>
               </dd></div>
             <div className="ea-def-row"><dt>Status</dt>
-              <dd><span className={'ea-chip ea-chip--' + (ok ? 'success' : failed ? 'danger' : 'info')}>
-                {humaniseState(sel.outcome)}
-              </span></dd></div>
+              <dd>
+                <Status tone={ok ? 'success' : failed ? 'danger' : 'info'}>
+                  {humaniseState(sel.outcome)}
+                </Status>
+              </dd></div>
             <div className="ea-def-row"><dt>Started</dt><dd className="ea-mono">{fmtDate(sel.startedAt)}</dd></div>
             <div className="ea-def-row"><dt>Finished</dt>
               <dd className="ea-mono">{sel.finishedAt ? fmtDate(sel.finishedAt) : '—'}</dd></div>

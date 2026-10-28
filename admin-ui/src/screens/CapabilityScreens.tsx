@@ -622,8 +622,8 @@ export function CapOrgUnitBinding(): JSX.Element {
                 <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em' }}>
                   {b.orgUnitDisplayName ?? '—'}
                 </h2>
-                <span className="ea-chip ea-chip--success">bound</span>
-                {level > 0 && <span className="ea-chip ea-chip--info">Level {level}</span>}
+                <Status tone="success">bound</Status>
+                {level > 0 && <Status tone="info">Level {level}</Status>}
               </div>
               {pathParts.length > 0 && (
                 <nav aria-label="OU path"
@@ -1090,15 +1090,15 @@ export function CapMetadataSync(): JSX.Element {
                color: 'var(--der-ink-500)', marginBottom: 4,
              }}>
           {busy && <Spinner />}
-          <span className={'ea-chip ea-chip--'
-            + (pull.state === 'done' ? 'success'
-              : pull.state === 'failed' ? 'danger'
-              : pull.state === 'timeout' ? 'warning' : 'info')}>
+          <Status tone={
+            pull.state === 'done' ? 'success'
+            : pull.state === 'failed' ? 'danger'
+            : pull.state === 'timeout' ? 'warning' : 'info'}>
             {pull.state === 'triggering' ? 'Starting'
               : pull.state === 'running' ? 'Running'
               : pull.state === 'done' ? 'Completed'
               : pull.state === 'failed' ? 'Failed' : 'Still running'}
-          </span>
+          </Status>
           <strong style={{ color: 'var(--der-ink-900)' }}>Pull metadata</strong>
           <span style={{ flex: 1 }}>{pull.message}</span>
           {(pull.state === 'done' || pull.state === 'failed' || pull.state === 'timeout') && (

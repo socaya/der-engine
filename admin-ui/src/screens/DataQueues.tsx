@@ -144,15 +144,15 @@ export function MockupDataQueues(): JSX.Element {
                color: 'var(--der-ink-500)', marginBottom: 4,
              }}>
           {pushing && <Spinner />}
-          <span className={'ea-chip ea-chip--'
-            + (push.state === 'done' ? 'success'
-              : push.state === 'failed' ? 'danger'
-              : push.state === 'timeout' ? 'warning' : 'info')}>
+          <Status tone={
+            push.state === 'done' ? 'success'
+            : push.state === 'failed' ? 'danger'
+            : push.state === 'timeout' ? 'warning' : 'info'}>
             {push.state === 'triggering' ? 'Starting'
               : push.state === 'running' ? 'Running'
               : push.state === 'done' ? 'Completed'
               : push.state === 'failed' ? 'Failed' : 'Still running'}
-          </span>
+          </Status>
           <strong style={{ color: 'var(--der-ink-900)' }}>Push data</strong>
           <span style={{ flex: 1 }}>{push.message}</span>
           {(push.state === 'done' || push.state === 'failed' || push.state === 'timeout') && (
@@ -330,7 +330,7 @@ export function MockupDataDetail(): JSX.Element {
           <Panel title="Record">
             <dl className="ea-def-list">
               <div className="ea-def-row"><dt>Status</dt>
-                <dd><span className={`ea-chip ea-chip--${operatorStateTone(state)}`}>{state}</span></dd></div>
+                <dd><Status tone={operatorStateTone(state)}>{state}</Status></dd></div>
               <div className="ea-def-row"><dt>Entity type</dt>
                 <dd>{entityTypeLabel(op.entityType)}
                   <span className="ea-mono ea-text-muted" style={{ marginLeft: 6, fontSize: 11 }}>
@@ -426,9 +426,7 @@ function ResponseSummary({ parsed, raw, isError }: {
         {parsed.status && (
           <div className="ea-def-row"><dt>Status</dt>
             <dd>
-              <span className={'ea-chip ea-chip--' + (okStatus ? 'success' : 'danger')}>
-                {parsed.status}
-              </span>
+              <Status tone={okStatus ? 'success' : 'danger'}>{parsed.status}</Status>
             </dd></div>
         )}
         {parsed.httpStatus && (

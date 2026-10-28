@@ -748,11 +748,11 @@ export function EAJobsList({ api = edgeApi }:
     if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
     return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
   }
-  function outcomeChipCls(o: string): string {
-    if (o === 'SUCCESS') return 'ea-chip ea-chip--success';
-    if (o === 'FAILED' || o === 'ERROR') return 'ea-chip ea-chip--danger';
-    if (o === 'RUNNING') return 'ea-chip ea-chip--info';
-    return 'ea-chip ea-chip--warning';
+  function outcomeTone(o: string): 'success' | 'danger' | 'info' | 'warning' {
+    if (o === 'SUCCESS') return 'success';
+    if (o === 'FAILED' || o === 'ERROR') return 'danger';
+    if (o === 'RUNNING') return 'info';
+    return 'warning';
   }
 
   return (
@@ -836,7 +836,7 @@ export function EAJobsList({ api = edgeApi }:
                         </div>
                       </td>
                       <td>{fmtDate(r.startedAt)}</td>
-                      <td><span className={outcomeChipCls(r.outcome)}>{r.outcome}</span></td>
+                      <td><Status tone={outcomeTone(r.outcome)}>{r.outcome}</Status></td>
                       <td>{fmtDuration(r.durationMs ?? undefined)}</td>
                       <td className="ea-cell-right">
                         <span className="ea-row-arrow" aria-hidden="true">›</span>
@@ -870,7 +870,7 @@ export function EAJobsList({ api = edgeApi }:
             <dt>Run id</dt><dd>{selected.runId}</dd>
             <dt>Started</dt><dd>{selected.startedAt}</dd>
             <dt>Finished</dt><dd>{selected.finishedAt ?? '—'}</dd>
-            <dt>Outcome</dt><dd><span className={outcomeChipCls(selected.outcome)}>{selected.outcome}</span></dd>
+            <dt>Outcome</dt><dd><Status tone={outcomeTone(selected.outcome)}>{selected.outcome}</Status></dd>
             <dt>Duration</dt><dd>{fmtDuration(selected.durationMs ?? undefined)}</dd>
           </dl>
         </div>

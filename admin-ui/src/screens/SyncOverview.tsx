@@ -205,10 +205,11 @@ function ProgressRow({ label, state, message, onDismiss }: {
   message: string;
   onDismiss?: () => void;
 }): JSX.Element {
-  const chipClass = state === 'done' ? 'ea-chip ea-chip--success'
-                  : state === 'failed' ? 'ea-chip ea-chip--danger'
-                  : state === 'timeout' ? 'ea-chip ea-chip--warning'
-                  : 'ea-chip ea-chip--info';
+  const statusTone: 'success' | 'danger' | 'warning' | 'info'
+    = state === 'done' ? 'success'
+    : state === 'failed' ? 'danger'
+    : state === 'timeout' ? 'warning'
+    : 'info';
   const busy = state === 'triggering' || state === 'running';
   const chipLabel = state === 'triggering' ? 'Starting'
                   : state === 'running' ? 'Running'
@@ -222,7 +223,7 @@ function ProgressRow({ label, state, message, onDismiss }: {
            fontSize: 12, color: 'var(--der-ink-500)',
          }}>
       {busy && <Spinner />}
-      <span className={chipClass}>{chipLabel}</span>
+      <Status tone={statusTone}>{chipLabel}</Status>
       <strong style={{ color: 'var(--der-ink-900)' }}>{label}</strong>
       <span style={{ flex: 1 }}>{message}</span>
       {onDismiss && (
