@@ -227,11 +227,15 @@ export function EAUsersList({ api = edgeApi }:
       />
       <h1 data-test="ea02-heading" className="ea-visually-hidden">Provisioned users</h1>
 
-      <div className="ea-stat-strip" role="group" aria-label="User summary">
-        <StatCard label="Total users" value={total} tone="info" />
-        <StatCard label="Administrators" value={admins} tone="success" />
-        <StatCard label="Operators" value={operators} tone="muted" />
-      </div>
+      <section className="ea-screen-header-sub" role="group" aria-label="User summary"
+               style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12,
+                        margin: '0 0 var(--sp-3)' }}>
+        <span>Total users <strong style={{ color: 'var(--der-ink-900)' }}>{total}</strong></span>
+        <span>·</span>
+        <span style={{ color: 'var(--der-success-ink)' }}>Administrators <strong>{admins}</strong></span>
+        <span>·</span>
+        <span className="ea-text-muted">Operators <strong>{operators}</strong></span>
+      </section>
 
       {users.length === 0 ? (
         <EmptyBlock title="No users yet" testId="ea02-empty">
@@ -768,12 +772,15 @@ export function EAJobsList({ api = edgeApi }:
         }
       />
 
-      <div className="ea-stat-strip" data-test="ea06-strip">
-        <StatCard label="Total runs" value={total} tone="info" />
-        <StatCard label="Succeeded" value={nSuccess} tone="success" />
-        <StatCard label="Failed" value={nFailed} tone="danger" />
-        <StatCard label="Other" value={nOther} tone="muted" />
-      </div>
+      <section className="ea-screen-header-sub" data-test="ea06-strip"
+               style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12,
+                        margin: '0 0 var(--sp-3)' }}>
+        <span>Total runs <strong style={{ color: 'var(--der-ink-900)' }}>{total}</strong></span>
+        <span>·</span>
+        <span style={{ color: 'var(--der-success-ink)' }}>Succeeded <strong>{nSuccess}</strong></span>
+        {nFailed > 0 && (<><span>·</span><span style={{ color: 'var(--der-danger-ink)' }}>Failed <strong>{nFailed}</strong></span></>)}
+        {nOther > 0 && (<><span>·</span><span className="ea-text-muted">Other <strong>{nOther}</strong></span></>)}
+      </section>
 
       <section>
         <div className="ea-filter-chips" data-test="ea06-chips">
@@ -871,16 +878,6 @@ export function EAJobsList({ api = edgeApi }:
   );
 }
 
-function StatCard(
-  { label, value, tone }: { label: string; value: number; tone: 'info' | 'success' | 'danger' | 'muted' },
-): JSX.Element {
-  return (
-    <div className={`ea-stat ea-stat--${tone}`} data-test={`stat-${label.replace(/\s+/g, '-').toLowerCase()}`}>
-      <div className="ea-stat-value">{value.toLocaleString()}</div>
-      <div className="ea-stat-label">{label}</div>
-    </div>
-  );
-}
 
 // EA-07 Job trigger -------------------------------------------------
 const JOB_CATALOG: readonly { name: string; label: string; desc: string }[] = [
@@ -1158,6 +1155,12 @@ export function EAWorkerHealth({ api = edgeApi }:
     if (state === 'PENDING' || state === 'IN_FLIGHT' || state === 'RETRYABLE') return 'info';
     return 'muted';
   };
+  const toneColorFor = (t: 'info' | 'success' | 'danger' | 'muted'): string => {
+    if (t === 'success') return 'var(--der-success-ink)';
+    if (t === 'danger') return 'var(--der-danger-ink)';
+    if (t === 'info') return 'var(--der-primary-ink)';
+    return 'var(--der-ink-500)';
+  };
   return (
     <div className="ea-screen">
       <HeroHeader
@@ -1199,18 +1202,16 @@ export function EAWorkerHealth({ api = edgeApi }:
           </div>
         </div>
       </section>
-      <div className="ea-stat-strip ea-stat-strip--wrap" data-test="ea14-backlog">
-        {Object.entries(h.backlog).map(([state, n]) => (
-          <div
-            key={state}
-            className={`ea-stat ea-stat--${toneFor(state)}`}
-            data-test={`ea14-backlog-${state}`}
-          >
-            <div className="ea-stat-value">{n}</div>
-            <div className="ea-stat-label">{state.replace(/_/g, ' ')}</div>
-          </div>
+      <section data-test="ea14-backlog" style={{ display: 'flex', flexWrap: 'wrap',
+                                                   gap: 14, fontSize: 13 }}>
+        {Object.entries(h.backlog).map(([state, n], i) => (
+          <span key={state} data-test={`ea14-backlog-${state}`}
+                style={{ color: toneColorFor(toneFor(state)) }}>
+            {i > 0 && <span className="ea-text-muted" style={{ marginRight: 14 }}>·</span>}
+            {state.replace(/_/g, ' ')} <strong>{n}</strong>
+          </span>
         ))}
-      </div>
+      </section>
     </div>
   );
 }

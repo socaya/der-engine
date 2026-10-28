@@ -247,11 +247,15 @@ export function EAAppsList({ api = edgeApi }: {
       />
       <h1 data-test="ea31-heading" className="ea-visually-hidden">Installed apps</h1>
 
-      <div className="ea-stat-strip" role="group" aria-label="App summary">
-        <AppStat label="Installed" value={rows.length} tone="primary" />
-        <AppStat label="Enabled" value={enabled} tone="teal" />
-        <AppStat label="Disabled" value={disabled} tone="neutral" />
-      </div>
+      <section role="group" aria-label="App summary"
+               style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13,
+                        margin: '0 0 var(--sp-3)' }}>
+        <span>Installed <strong style={{ color: 'var(--der-ink-900)' }}>{rows.length}</strong></span>
+        <span>·</span>
+        <span style={{ color: 'var(--der-success-ink)' }}>Enabled <strong>{enabled}</strong></span>
+        <span>·</span>
+        <span className="ea-text-muted">Disabled <strong>{disabled}</strong></span>
+      </section>
 
       {rows.length === 0 ? (
         <EmptyBlock title="No installed apps" testId="ea31-empty">
@@ -308,17 +312,6 @@ export function EAAppsList({ api = edgeApi }: {
   );
 }
 
-function AppStat(
-  { label, value, tone }: { label: string; value: number; tone: 'primary' | 'teal' | 'neutral' },
-): JSX.Element {
-  const map = { primary: 'info', teal: 'success', neutral: 'muted' } as const;
-  return (
-    <div className={`ea-stat ea-stat--${map[tone]}`}>
-      <div className="ea-stat-value">{value.toLocaleString()}</div>
-      <div className="ea-stat-label">{label}</div>
-    </div>
-  );
-}
 
 // EA-35 Diagnostics -------------------------------------------------
 export function EADiagnostics({ api = edgeApi }: {

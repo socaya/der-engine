@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
-  KpiTile, Panel, fmtDate, fmtAgo, fmtBytes, useOuContext, OuPicker,
+  Panel, fmtDate, fmtAgo, fmtBytes, useOuContext, OuPicker,
   usePaged, TablePager, humaniseState, entityTypeIcon, entityTypeLabel,
   SyncStatusBar, BackLink, RowMenu, confirmThenRun, Status,
 } from './shared';
@@ -14,28 +14,6 @@ import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
  * Every screen uses: hero section + KPI grid + Panel cards + optional
  * right drawer. Data from existing /edge-api/v1 endpoints.
  * ──────────────────────────────────────────────────────────────────── */
-
-/** Local hero → thin adapter over SyncStatusBar so the Devices /
- *  Drift / etc. screens pick up the standard screen-header pattern
- *  automatically (no `ea-dash-hero` chrome). */
-function Hero({ eyebrow, title, sub, actions, chip }: {
-  eyebrow?: string; title: string; sub?: string; actions?: JSX.Element; chip?: JSX.Element;
-}): JSX.Element {
-  return (
-    <SyncStatusBar
-      tone="muted"
-      title={title}
-      statusLabel={eyebrow}
-      subtitle={
-        <>
-          {sub && <span>{sub}</span>}
-          {chip && (sub ? <><span>·</span>{chip}</> : chip)}
-        </>
-      }
-      actions={actions}
-    />
-  );
-}
 
 /* /sync/jobs merged into /sync/history in der-2.1.36 — see MockupSyncHistory. */
 
@@ -1246,14 +1224,19 @@ export function MockupAuditEvents(): JSX.Element {
   const failure = rows.filter((r) => r.outcome === 'FAILURE').length;
   return (
     <div className="ea-screen">
-      <Hero eyebrow="Monitoring & Analytics"
-            title="Alerts & activity"
-            sub="Audit stream for every security-relevant event handled by this edge." />
-      <div className="ea-kpi-grid">
-        <KpiTile tone="info" icon={<IconList />} label="Events (last 100)" value={rows.length} />
-        <KpiTile tone="success" icon={<IconCheck />} label="Success" value={success} />
-        <KpiTile tone={failure ? 'danger' : 'default'} icon={<IconX />} label="Failures" value={failure} />
-      </div>
+      <SyncStatusBar
+        tone={failure > 0 ? 'warning' : 'success'}
+        title="Alerts & activity"
+        statusLabel={`${rows.length} events`}
+        subtitle={
+          <>
+            <span>Audit stream for every security-relevant event handled by this edge.</span>
+            <span>·</span>
+            <span>Success <strong style={{ color: 'var(--der-ink-900)' }}>{success}</strong></span>
+            {failure > 0 && (<><span>·</span><span>Failures <strong style={{ color: 'var(--der-danger-ink)' }}>{failure}</strong></span></>)}
+          </>
+        }
+      />
       <Panel title="Timeline"
              action={<input className="ea-input" style={{ maxWidth: 240 }} type="search"
                              placeholder="Filter by event type"
@@ -1290,14 +1273,19 @@ export function MockupFacilityAnalytics(): JSX.Element {
   const total = journal.reduce((a, [, v]) => a + (v as number), 0);
   return (
     <div className="ea-screen">
-      <Hero eyebrow="Monitoring & Analytics"
-            title="Facility analytics"
-            sub="Capture throughput for the bound organisation unit." />
+      <SyncStatusBar
+        tone="info"
+        title="Facility analytics"
+        statusLabel={`${total.toLocaleString()} entries`}
+        subtitle={
+          <>
+            <span>Capture throughput for the bound organisation unit.</span>
+            <span>·</span>
+            <span>Entity kinds <strong style={{ color: 'var(--der-ink-900)' }}>{journal.length}</strong></span>
+          </>
+        }
+      />
       <OuPicker ctx={ctx} />
-      <div className="ea-kpi-grid">
-        <KpiTile tone="info" icon={<IconList />} label="Journal entries" value={total} />
-        <KpiTile tone="default" icon={<IconHash />} label="Entity kinds" value={journal.length} />
-      </div>
       <Panel title="By entity kind">
         {journal.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0 }}>No captured data yet.</p>
@@ -1318,17 +1306,4 @@ export function MockupFacilityAnalytics(): JSX.Element {
   );
 }
 
-/* ─── Icons used by the above (local, inline SVG) ─────────────── */
-function sIcon(d: string): JSX.Element {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={d} />
-    </svg>
-  );
-}
-function IconList(): JSX.Element { return sIcon('M4 6h16M4 12h16M4 18h16'); }
-function IconCheck(): JSX.Element { return sIcon('M5 12l4 4 10-10'); }
-function IconX(): JSX.Element { return sIcon('M6 6l12 12M6 18L18 6'); }
-function IconHash(): JSX.Element { return sIcon('M5 9h14M5 15h14M9 3L7 21M17 3l-2 18'); }
 export { fmtBytes };
