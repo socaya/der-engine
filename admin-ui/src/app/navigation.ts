@@ -22,11 +22,19 @@
 
 export type ScreenStatus = 'implemented' | 'capability-gap' | 'contextual';
 
+export type TabIconId =
+  | 'overview' | 'metadata' | 'data-queue' | 'attention' | 'worker'
+  | 'schedule' | 'history' | 'settings' | 'drift' | 'health'
+  | 'storage' | 'diagnostics' | 'analytics' | 'evaluation'
+  | 'audit' | 'backup' | 'restore' | 'recovery';
+
 export interface NavItem {
   readonly id: string;
   readonly label: string;
   readonly to: string;
   readonly status: ScreenStatus;
+  /** Icon rendered inside the Section Tabs strip. */
+  readonly tabIcon?: TabIconId;
   /** Breadcrumb label when the route is reached. */
   readonly crumb?: string;
 }
@@ -64,11 +72,11 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     primaryId: 'dhis2-overview',
     icon: 'plug',
     items: [
-      { id: 'dhis2-overview', label: 'Overview', to: '/dhis2', status: 'implemented' },
+      { id: 'dhis2-overview', label: 'Overview', to: '/dhis2', status: 'implemented', tabIcon: 'overview' },
       { id: 'central-conn', label: 'Connection', to: '/dhis2/connection', status: 'contextual' },
-      { id: 'ou-binding', label: 'Organisation unit', to: '/dhis2/organisation-unit', status: 'implemented' },
-      { id: 'compat', label: 'Compatibility', to: '/dhis2/compat', status: 'implemented' },
-      { id: 'metadata-mirror', label: 'Metadata', to: '/dhis2/metadata', status: 'implemented' },
+      { id: 'ou-binding', label: 'Organisation unit', to: '/dhis2/organisation-unit', status: 'implemented', tabIcon: 'health' },
+      { id: 'compat', label: 'Compatibility', to: '/dhis2/compat', status: 'implemented', tabIcon: 'diagnostics' },
+      { id: 'metadata-mirror', label: 'Metadata', to: '/dhis2/metadata', status: 'implemented', tabIcon: 'metadata' },
       { id: 'drift', label: 'Metadata drift', to: '/dhis2/metadata-drift', status: 'contextual' },
       { id: 'metadata-sync', label: 'Metadata sync', to: '/dhis2/metadata-sync', status: 'contextual' },
     ],
@@ -80,14 +88,14 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     icon: 'sync',
     items: [
       /* §9.2 operator terminology */
-      { id: 'sync-overview', label: 'Overview', to: '/sync', status: 'implemented' },
-      { id: 'sync-metadata', label: 'Metadata Sync', to: '/sync/metadata', status: 'implemented' },
-      { id: 'sync-data', label: 'Data Queue', to: '/sync/data', status: 'implemented' },
-      { id: 'sync-attention', label: 'Attention', to: '/sync/attention', status: 'implemented' },
-      { id: 'sync-worker', label: 'Sync Worker', to: '/sync/worker', status: 'implemented' },
-      { id: 'sync-schedule', label: 'Schedule', to: '/sync/schedule', status: 'implemented' },
-      { id: 'sync-history', label: 'History', to: '/sync/history', status: 'implemented' },
-      { id: 'sync-settings', label: 'Settings', to: '/sync/settings', status: 'implemented' },
+      { id: 'sync-overview', label: 'Overview', to: '/sync', status: 'implemented', tabIcon: 'overview' },
+      { id: 'sync-metadata', label: 'Metadata Sync', to: '/sync/metadata', status: 'implemented', tabIcon: 'metadata' },
+      { id: 'sync-data', label: 'Data Queue', to: '/sync/data', status: 'implemented', tabIcon: 'data-queue' },
+      { id: 'sync-attention', label: 'Attention', to: '/sync/attention', status: 'implemented', tabIcon: 'attention' },
+      { id: 'sync-worker', label: 'Sync Worker', to: '/sync/worker', status: 'implemented', tabIcon: 'worker' },
+      { id: 'sync-schedule', label: 'Schedule', to: '/sync/schedule', status: 'implemented', tabIcon: 'schedule' },
+      { id: 'sync-history', label: 'History', to: '/sync/history', status: 'implemented', tabIcon: 'history' },
+      { id: 'sync-settings', label: 'Settings', to: '/sync/settings', status: 'implemented', tabIcon: 'settings' },
       /* Legacy routes retained for existing bookmarks; not shown in sidebar. */
       { id: 'sync-jobs', label: 'Jobs', to: '/sync/jobs', status: 'contextual' },
       { id: 'sync-queues-legacy', label: 'Queues', to: '/sync/queues', status: 'contextual' },
@@ -152,12 +160,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     primaryId: 'health',
     icon: 'chart',
     items: [
-      { id: 'health', label: 'Health', to: '/monitoring/health', status: 'implemented' },
-      { id: 'metrics', label: 'Metrics', to: '/monitoring/metrics', status: 'implemented' },
-      { id: 'storage', label: 'Storage', to: '/monitoring/storage', status: 'implemented' },
-      { id: 'diagnostics', label: 'Diagnostics', to: '/diagnostics', status: 'implemented' },
-      { id: 'analytics', label: 'Analytics', to: '/analytics', status: 'implemented' },
-      { id: 'evaluation', label: 'Evaluation', to: '/evaluation', status: 'implemented' },
+      { id: 'health', label: 'Health', to: '/monitoring/health', status: 'implemented', tabIcon: 'health' },
+      { id: 'metrics', label: 'Metrics', to: '/monitoring/metrics', status: 'implemented', tabIcon: 'analytics' },
+      { id: 'storage', label: 'Storage', to: '/monitoring/storage', status: 'implemented', tabIcon: 'storage' },
+      { id: 'diagnostics', label: 'Diagnostics', to: '/diagnostics', status: 'implemented', tabIcon: 'diagnostics' },
+      { id: 'analytics', label: 'Analytics', to: '/analytics', status: 'implemented', tabIcon: 'analytics' },
+      { id: 'evaluation', label: 'Evaluation', to: '/evaluation', status: 'implemented', tabIcon: 'evaluation' },
       /* Alerts moved to Security & Audit → Security events. */
       { id: 'activity', label: 'Alerts', to: '/audit/events', status: 'contextual' },
     ],
@@ -169,11 +177,11 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     primaryId: 'audit-verify',
     icon: 'shield',
     items: [
-      { id: 'audit-verify', label: 'Audit trail', to: '/audit/verify', status: 'implemented' },
-      { id: 'security-events', label: 'Security events', to: '/audit/events', status: 'implemented' },
-      { id: 'backup', label: 'Backup', to: '/backup', status: 'implemented' },
-      { id: 'restore', label: 'Restore', to: '/restore', status: 'implemented' },
-      { id: 'recovery', label: 'Recovery', to: '/recovery', status: 'implemented' },
+      { id: 'audit-verify', label: 'Audit trail', to: '/audit/verify', status: 'implemented', tabIcon: 'audit' },
+      { id: 'security-events', label: 'Security events', to: '/audit/events', status: 'implemented', tabIcon: 'attention' },
+      { id: 'backup', label: 'Backup', to: '/backup', status: 'implemented', tabIcon: 'backup' },
+      { id: 'restore', label: 'Restore', to: '/restore', status: 'implemented', tabIcon: 'restore' },
+      { id: 'recovery', label: 'Recovery', to: '/recovery', status: 'implemented', tabIcon: 'recovery' },
     ],
   },
   {

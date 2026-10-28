@@ -226,8 +226,10 @@ code{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,mon
   border-bottom:2px solid transparent;margin-bottom:-1px;
   transition:color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
   background:transparent !important;min-height:38px;
-  display:inline-flex;align-items:center;
+  display:inline-flex;align-items:center;gap:8px;
 }
+.ea-section-tab svg{flex-shrink:0;opacity:0.85}
+.ea-section-tab--active svg{opacity:1}
 .ea-section-tab:hover{color:var(--der-ink-900);text-decoration:none}
 .ea-section-tab--active{
   color:var(--der-navy-700);font-weight:600;
@@ -1074,13 +1076,14 @@ kbd{
 
 /* Buttons (quiet, flat per §3) */
 .ea-btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-1);
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
   padding:8px 14px;border-radius:var(--r-md);
   font-family:inherit;font-size:var(--fs-md);font-weight:500;line-height:1.2;
   text-decoration:none;cursor:pointer;
   transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease);
   border:1px solid transparent;
 }
+.ea-btn > svg{flex-shrink:0}
 .ea-btn--primary{
   color:#fff;background:var(--der-primary);border-color:var(--der-primary-ink);
   box-shadow:0 1px 2px rgba(13,46,92,0.18);

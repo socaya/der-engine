@@ -5,6 +5,7 @@ import {
   Panel, Dot, fmtDate, usePaged, TablePager,
   SyncStatusBar, humaniseState, RowMenu, BackLink,
 } from './shared';
+import { UiIcon } from '../../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
 /** `/admin/provisioning/users` — Users dashboard. */
@@ -48,7 +49,8 @@ export function MockupUsersDashboard(): JSX.Element {
         }
         actions={
           <Link to="/provisioning/users/new" className="ea-btn ea-btn--primary ea-btn--sm">
-            + Add user
+            <UiIcon icon="plus" size={14} />
+            <span>Add user</span>
           </Link>
         }
       />

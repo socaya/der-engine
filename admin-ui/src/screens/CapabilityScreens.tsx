@@ -5,6 +5,7 @@ import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
 import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status } from './mockups/shared';
+import { UiIcon } from '../components/UiIcon';
 
 /**
  * CapabilityScreens — the 29 nav items that previously showed the
@@ -1075,8 +1076,8 @@ export function CapMetadataSync(): JSX.Element {
                   disabled={busy || !centralReachable}
                   data-test="trigger-run"
                   onClick={() => { pull.trigger('METADATA_SYNC_FULL').catch(() => undefined); }}>
-            {busy && <><Spinner /><span style={{ marginLeft: 6 }} /></>}
-            {pull.state === 'running' ? 'Pulling…' : 'Pull metadata'}
+            {busy ? <Spinner /> : <UiIcon icon="pull" size={14} />}
+            <span>{pull.state === 'running' ? 'Pulling…' : 'Pull metadata'}</span>
           </button>
         }
       />

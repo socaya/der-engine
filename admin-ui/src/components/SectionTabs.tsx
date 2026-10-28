@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { groupForRoute } from '../app/navigation';
+import { UiIcon } from './UiIcon';
 
 /**
  * Secondary tab strip rendered above the main content whenever the
@@ -26,7 +27,8 @@ export function SectionTabs(): JSX.Element | null {
           }
           data-test={`tab-${it.id}`}
         >
-          {it.label}
+          {it.tabIcon && <UiIcon icon={it.tabIcon} size={14} />}
+          <span>{it.label}</span>
         </NavLink>
       ))}
     </nav>

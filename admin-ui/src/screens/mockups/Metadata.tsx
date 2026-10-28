@@ -4,6 +4,7 @@ import * as edgeApi from '../../api/edgeApi';
 import {
   Panel, Dot, fmtDate, TablePager, BackLink, RowMenu,
 } from './shared';
+import { UiIcon } from '../../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -362,9 +363,15 @@ function MetadataHealthSummary(
         </div>
         <div className="ea-screen-header-right">
           <Link to="/dhis2/metadata-sync" className="ea-btn ea-btn--primary"
-                data-test="metadata-action-sync">Metadata sync</Link>
+                data-test="metadata-action-sync">
+            <UiIcon icon="pull" size={14} />
+            <span>Metadata sync</span>
+          </Link>
           <Link to="/dhis2/metadata-drift" className="ea-btn"
-                data-test="metadata-action-drift">Metadata drift</Link>
+                data-test="metadata-action-drift">
+            <UiIcon icon="drift" size={14} />
+            <span>Metadata drift</span>
+          </Link>
         </div>
       </header>
       <section className="ea-panel" data-test="metadata-health">

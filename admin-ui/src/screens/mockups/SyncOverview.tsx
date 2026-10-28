@@ -5,6 +5,7 @@ import {
   Panel, fmtAgo, syncActivityShape, operatorState, operatorStateTone,
   SyncStatusBar, Spinner, useTriggerAndWatch, type SyncStatusTone, Status,
 } from './shared';
+import { UiIcon } from '../../components/UiIcon';
 import { LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -118,8 +119,8 @@ export function MockupSyncOverview(): JSX.Element {
                     disabled={pullDisabled}
                     title={!centralReachable ? 'Central DHIS2 is unavailable' : undefined}
                     onClick={() => { pull.trigger('METADATA_SYNC_FULL').catch(() => undefined); }}>
-              {pullBusy && <><Spinner /><span style={{ marginLeft: 6 }} /></>}
-              {pull.state === 'running' ? 'Pulling metadata…' : 'Pull metadata'}
+              {pullBusy ? <Spinner /> : <UiIcon icon="pull" size={14} />}
+              <span>{pull.state === 'running' ? 'Pulling metadata…' : 'Pull metadata'}</span>
             </button>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                     data-test="sync-push-data"
@@ -127,8 +128,8 @@ export function MockupSyncOverview(): JSX.Element {
                     title={!w.enabled ? 'Worker is paused — resume it on the Worker page'
                       : !centralReachable ? 'Central DHIS2 is unavailable' : undefined}
                     onClick={() => { push.trigger('JOURNAL_WORKER_DRAIN').catch(() => undefined); }}>
-              {pushBusy && <><Spinner /><span style={{ marginLeft: 6 }} /></>}
-              {push.state === 'running' ? 'Pushing data…' : 'Push data'}
+              {pushBusy ? <Spinner /> : <UiIcon icon="push" size={14} />}
+              <span>{push.state === 'running' ? 'Pushing data…' : 'Push data'}</span>
             </button>
           </>
         }
