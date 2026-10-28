@@ -26,7 +26,8 @@ export type TabIconId =
   | 'overview' | 'metadata' | 'data-queue' | 'attention' | 'worker'
   | 'schedule' | 'history' | 'settings' | 'drift' | 'health'
   | 'storage' | 'diagnostics' | 'analytics' | 'evaluation'
-  | 'audit' | 'backup' | 'restore' | 'recovery';
+  | 'audit' | 'backup' | 'restore' | 'recovery'
+  | 'wifi' | 'access-point' | 'ethernet' | 'firewall' | 'peer' | 'tei';
 
 export interface NavItem {
   readonly id: string;
@@ -42,7 +43,7 @@ export interface NavItem {
 export type IconId =
   | 'grid' | 'plug' | 'sync' | 'workflow'
   | 'database' | 'users' | 'device' | 'chart'
-  | 'shield' | 'cog';
+  | 'shield' | 'cog' | 'wifi';
 
 export interface NavGroup {
   readonly id: string;
@@ -101,6 +102,23 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'sync-queues-legacy', label: 'Queues', to: '/sync/queues', status: 'contextual' },
       { id: 'conflicts-legacy', label: 'Conflicts', to: '/journal/conflicts', status: 'contextual' },
       { id: 'worker-legacy', label: 'Worker health', to: '/journal/worker', status: 'contextual' },
+    ],
+  },
+  /* Network module per docs/requirements/DER_Network_Module_Design_Specification.md §24. */
+  {
+    id: 'network',
+    label: 'Network',
+    primaryId: 'network-overview',
+    icon: 'wifi',
+    items: [
+      { id: 'network-overview', label: 'Overview', to: '/network', status: 'implemented', tabIcon: 'overview' },
+      { id: 'network-ap', label: 'Access Point', to: '/network/access-point', status: 'implemented', tabIcon: 'access-point' },
+      { id: 'network-clients', label: 'Connected Devices', to: '/network/clients', status: 'implemented', tabIcon: 'tei' },
+      { id: 'network-interfaces', label: 'Interfaces', to: '/network/interfaces', status: 'implemented', tabIcon: 'ethernet' },
+      { id: 'network-peers', label: 'Peers', to: '/network/peers', status: 'implemented', tabIcon: 'peer' },
+      { id: 'network-security', label: 'Security', to: '/network/security', status: 'implemented', tabIcon: 'firewall' },
+      { id: 'network-diagnostics', label: 'Diagnostics', to: '/network/diagnostics', status: 'implemented', tabIcon: 'diagnostics' },
+      { id: 'network-settings', label: 'Settings', to: '/network/settings', status: 'implemented', tabIcon: 'settings' },
     ],
   },
   {

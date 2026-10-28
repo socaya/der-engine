@@ -1118,3 +1118,144 @@ export function listAuditEvents(opts: {
   return request<AuditEventsResponse>(
     'GET', `/edge-api/v1/security/audit/events?${q.toString()}`);
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// Network module — docs/requirements/DER_Network_Module_Design_Specification.md
+// Thin client over /edge-api/v1/network/*. Server endpoints land in Phase N1-N3;
+// until then these calls 404 and the UI falls back to safe empty states.
+// ──────────────────────────────────────────────────────────────────────
+
+export type ConnectivityState = 'CONNECTED' | 'OFFLINE_FIRST' | 'RECOVERING'
+  | 'LOCAL_NETWORK_DEGRADED' | 'EDGE_NETWORK_UNAVAILABLE'
+  | 'CENTRAL_AUTH_FAILURE' | 'DNS_FAILURE' | 'CERTIFICATE_FAILURE';
+
+export interface NetworkStatus {
+  state: ConnectivityState;
+  localApAvailable: boolean;
+  localLanAvailable: boolean;
+  internetAvailable: boolean;
+  centralDhis2Available: boolean;
+  gateway: string | null;
+  subnet: string | null;
+  hostname: string | null;
+  lastProbeAt: string | null;
+  warnings: readonly string[];
+}
+
+export interface NetworkInterface {
+  name: string;                 // wlan0, eth0, wwan0, …
+  kind: 'wifi' | 'ethernet' | 'cellular' | 'virtual' | 'loopback';
+  state: 'up' | 'down' | 'degraded' | 'unknown';
+  address: string | null;
+  mac: string | null;
+  rxBytes: number | null;
+  txBytes: number | null;
+  linkSpeed: string | null;
+  purpose: 'local-ap' | 'facility-lan' | 'upstream-wifi' | 'cellular-fallback' | 'unknown';
+}
+
+export interface AccessPointStatus {
+  running: boolean;
+  interface: string | null;
+  ssid: string | null;
+  band: '2.4GHz' | '5GHz' | '6GHz' | null;
+  channel: number | null;
+  security: 'WPA3-SAE' | 'WPA2' | 'OPEN' | null;
+  clients: number;
+  gateway: string | null;
+  dhcpActive: boolean;
+  edgeId: string | null;
+  startedAt: string | null;
+}
+
+export interface NetworkClient {
+  deviceId: string;              // enrolment id if approved, else temp id
+  owner: string | null;
+  hostname: string | null;
+  ip: string;
+  link: 'wifi' | 'ethernet' | 'cellular';
+  signalDbm: number | null;
+  trust: 'APPROVED' | 'PENDING' | 'REVOKED' | 'BLOCKED' | 'UNKNOWN';
+  lastSeenAt: string;
+  bytesTx: number | null;
+  bytesRx: number | null;
+}
+
+export interface NetworkPeer {
+  id: string;
+  nodeId: string;
+  siteId: string | null;
+  endpoint: string;              // e.g. "10.88.0.5:51820" for WireGuard
+  state: 'CONNECTED' | 'HANDSHAKING' | 'DISCONNECTED' | 'ERROR';
+  lastHandshake: string | null;
+  rxBytes: number | null;
+  txBytes: number | null;
+  allowedServices: readonly string[];
+  trust: 'TRUSTED' | 'UNVERIFIED' | 'REVOKED';
+}
+
+export interface NetworkRoute {
+  destination: string;
+  via: string | null;
+  dev: string;
+  metric: number;
+  scope: string;
+}
+
+export interface NetworkEvent {
+  eventId: string;
+  eventType: string;             // AP_STARTED, DEVICE_APPROVED, WAN_LOST, …
+  actor: string | null;
+  deviceId: string | null;
+  nodeId: string | null;
+  interfaceName: string | null;
+  outcome: 'SUCCESS' | 'FAILURE' | 'INFO';
+  reason: string | null;
+  correlationId: string | null;
+  observedAt: string;
+}
+
+export function networkStatus(): Promise<NetworkStatus> {
+  return request<NetworkStatus>('GET', '/edge-api/v1/network/status');
+}
+export function networkInterfaces(): Promise<{ interfaces: NetworkInterface[] }> {
+  return request<{ interfaces: NetworkInterface[] }>('GET', '/edge-api/v1/network/interfaces');
+}
+export function networkAccessPoint(): Promise<AccessPointStatus> {
+  return request<AccessPointStatus>('GET', '/edge-api/v1/network/access-point');
+}
+export function networkClients(): Promise<{ clients: NetworkClient[] }> {
+  return request<{ clients: NetworkClient[] }>('GET', '/edge-api/v1/network/clients');
+}
+export function networkPeers(): Promise<{ peers: NetworkPeer[] }> {
+  return request<{ peers: NetworkPeer[] }>('GET', '/edge-api/v1/network/peers');
+}
+export function networkRoutes(): Promise<{ routes: NetworkRoute[] }> {
+  return request<{ routes: NetworkRoute[] }>('GET', '/edge-api/v1/network/routes');
+}
+export function networkEvents(limit = 100): Promise<{ events: NetworkEvent[] }> {
+  return request<{ events: NetworkEvent[] }>('GET',
+    `/edge-api/v1/network/events?limit=${limit}`);
+}
+
+export function networkApStart(): Promise<{ triggered: boolean }> {
+  return request('POST', '/edge-api/v1/network/ap/start');
+}
+export function networkApStop(): Promise<{ triggered: boolean }> {
+  return request('POST', '/edge-api/v1/network/ap/stop');
+}
+export function networkApRotateKey(): Promise<{ rotatedAt: string }> {
+  return request('POST', '/edge-api/v1/network/ap/rotate-key');
+}
+export function networkDeviceApprove(deviceId: string): Promise<{ approved: boolean }> {
+  return request('POST', `/edge-api/v1/network/devices/${encodeURIComponent(deviceId)}/approve`);
+}
+export function networkDeviceRevoke(deviceId: string): Promise<{ revoked: boolean }> {
+  return request('POST', `/edge-api/v1/network/devices/${encodeURIComponent(deviceId)}/revoke`);
+}
+export function networkPeerConnect(peerId: string): Promise<{ connected: boolean }> {
+  return request('POST', `/edge-api/v1/network/peers/${encodeURIComponent(peerId)}/connect`);
+}
+export function networkPeerDisconnect(peerId: string): Promise<{ disconnected: boolean }> {
+  return request('DELETE', `/edge-api/v1/network/peers/${encodeURIComponent(peerId)}`);
+}

@@ -52,7 +52,13 @@ export type UiIconId =
   | 'referral'        // inbox-in
   | 'compat'          // plug (version probe)
   | 'cog'             // generic process
-  | 'activity';       // waveform (recent activity)
+  | 'activity'        // waveform (recent activity)
+  | 'wifi'            // wi-fi radio arcs (used by Access Point / network)
+  | 'access-point'    // broadcast tower
+  | 'ethernet'        // RJ-45 jack
+  | 'firewall'        // brick wall
+  | 'peer'            // two nodes
+  | 'route';          // branching path
 
 export function UiIcon(
   { icon, size = 16 }: { icon: UiIconId; size?: number }
@@ -146,5 +152,17 @@ export function UiIcon(
       return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1" /></svg>;
     case 'activity':
       return <svg {...common}><path d="M3 12h4l3-7 4 14 3-7h4" /></svg>;
+    case 'wifi':
+      return <svg {...common}><path d="M4.5 10.5a12 12 0 0115 0" /><path d="M7 13.5a8 8 0 0110 0" /><path d="M9.5 16.5a4 4 0 015 0" /><circle cx="12" cy="19" r="0.9" fill="currentColor" stroke="none" /></svg>;
+    case 'access-point':
+      return <svg {...common}><path d="M4.5 6a10 10 0 0115 0" /><path d="M7.5 9a6 6 0 019 0" /><path d="M10 12a2.5 2.5 0 014 0" /><path d="M12 14v8" /><path d="M8 22h8" /></svg>;
+    case 'ethernet':
+      return <svg {...common}><rect x="4" y="8" width="16" height="10" rx="1.5" /><path d="M8 18v2M10.5 18v2M13.5 18v2M16 18v2" /><path d="M4 8l2-3h12l2 3" /></svg>;
+    case 'firewall':
+      return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="1" /><path d="M3 9h18M3 14h18" /><path d="M8 4v5M13 9v5M6 14v6M11 14v6M16 14v6M14 4v5M18 4v5" /></svg>;
+    case 'peer':
+      return <svg {...common}><circle cx="6" cy="6" r="2.5" /><circle cx="18" cy="18" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.3 6h7.4M18 8.5v7M8.3 18h7.4M6 15.5v-7" /></svg>;
+    case 'route':
+      return <svg {...common}><circle cx="6" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M6 8v6a4 4 0 004 4h6" /></svg>;
   }
 }

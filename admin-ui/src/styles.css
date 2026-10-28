@@ -1329,6 +1329,53 @@ kbd{
 .ea-info-popover-body p{margin:0 0 8px}
 .ea-info-popover-body p:last-child{margin-bottom:0}
 
+/* ============ Network module ============ */
+/* Overview facet grid — 6 clickable status cards. */
+.ea-net-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;margin:0 0 var(--sp-4);
+}
+.ea-net-facet{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;background:var(--der-surface);
+  border:1px solid var(--der-border-subtle);
+  text-decoration:none;color:inherit;
+  transition:border-color var(--t-fast) var(--ease);
+}
+.ea-net-facet:hover{border-color:var(--der-primary);text-decoration:none}
+.ea-net-facet-icon{
+  flex-shrink:0;color:var(--der-ink-500);
+  width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+  background:var(--der-raised);
+}
+.ea-net-facet-body{flex:1 1 auto;min-width:0}
+.ea-net-facet-label{font-size:12px;color:var(--der-ink-500);font-weight:500;line-height:1.2;margin-bottom:3px}
+.ea-net-facet-value{font-size:17px;color:var(--der-ink-900);font-weight:600;line-height:1.2;margin-bottom:3px}
+.ea-net-facet-sub{font-size:12px;color:var(--der-ink-500);line-height:1.3;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ea-net-facet[data-tone="success"] .ea-net-facet-icon{color:var(--der-success-ink)}
+.ea-net-facet[data-tone="warning"] .ea-net-facet-icon{color:var(--der-warning-ink)}
+.ea-net-facet[data-tone="danger"]  .ea-net-facet-icon{color:var(--der-danger-ink)}
+.ea-net-facet[data-tone="info"]    .ea-net-facet-icon{color:var(--der-primary-ink)}
+
+/* Probe-path visualiser on /network/diagnostics */
+.ea-net-probe-path{list-style:none;margin:0;padding:14px 16px}
+.ea-net-probe-step{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 0;border-bottom:1px dashed var(--der-border-subtle);
+}
+.ea-net-probe-step:last-child{border-bottom:0}
+.ea-net-probe-step-dot{
+  flex-shrink:0;width:12px;height:12px;border-radius:50%;
+  background:var(--der-ink-200);
+}
+.ea-net-probe-step--success .ea-net-probe-step-dot{background:var(--der-success)}
+.ea-net-probe-step--danger  .ea-net-probe-step-dot{background:var(--der-danger)}
+.ea-net-probe-step--info    .ea-net-probe-step-dot{background:var(--der-primary)}
+.ea-net-probe-step-body{flex:1 1 auto;min-width:0}
+.ea-net-probe-step-label{font-weight:500;font-size:14px;color:var(--der-ink-900)}
+.ea-net-probe-step-hint{font-size:12px;color:var(--der-ink-500);margin-top:1px}
+
 /* Role picker cards */
 .ea-role-picker{
   display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));

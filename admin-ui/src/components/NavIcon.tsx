@@ -96,5 +96,14 @@ export function NavIcon({ icon }: { icon: IconId }): JSX.Element {
           <path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1" />
         </svg>
       );
+    case 'wifi':
+      return (
+        <svg {...common}>
+          <path d="M4.5 10.5a12 12 0 0115 0" />
+          <path d="M7 13.5a8 8 0 0110 0" />
+          <path d="M9.5 16.5a4 4 0 015 0" />
+          <circle cx="12" cy="19" r="1" fill="currentColor" stroke="none" />
+        </svg>
+      );
   }
 }

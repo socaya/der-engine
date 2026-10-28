@@ -50,6 +50,11 @@ import {
   MockupBackupList, MockupRestoreList, MockupCompatInspector,
   MockupAuditEvents, MockupFacilityAnalytics,
 } from './screens/MoreScreens';
+import {
+  NetworkOverview, NetworkAccessPoint, NetworkConnectedDevices,
+  NetworkInterfaces, NetworkPeers, NetworkSecurity,
+  NetworkDiagnostics, NetworkSettings,
+} from './screens/Network';
 
 function ConflictResolveRoute(): JSX.Element {
   const { id = '' } = useParams();
@@ -177,6 +182,15 @@ export default function App(): JSX.Element {
           <Route path="/apps" element={<RequireAuth><EAAppsList /></RequireAuth>} />
           <Route path="/diagnostics" element={<RequireAuth><EADiagnostics /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><EASettings /></RequireAuth>} />
+          {/* Network module per docs/requirements/DER_Network_Module_Design_Specification.md. */}
+          <Route path="/network" element={<RequireAuth><NetworkOverview /></RequireAuth>} />
+          <Route path="/network/access-point" element={<RequireAuth><NetworkAccessPoint /></RequireAuth>} />
+          <Route path="/network/clients" element={<RequireAuth><NetworkConnectedDevices /></RequireAuth>} />
+          <Route path="/network/interfaces" element={<RequireAuth><NetworkInterfaces /></RequireAuth>} />
+          <Route path="/network/peers" element={<RequireAuth><NetworkPeers /></RequireAuth>} />
+          <Route path="/network/security" element={<RequireAuth><NetworkSecurity /></RequireAuth>} />
+          <Route path="/network/diagnostics" element={<RequireAuth><NetworkDiagnostics /></RequireAuth>} />
+          <Route path="/network/settings" element={<RequireAuth><NetworkSettings /></RequireAuth>} />
           {/* Previously capability-gap screens — now implemented against
               existing /edge-api/v1 endpoints. */}
           <Route path="/dashboard" element={<RequireAuth><MockupWorkspace /></RequireAuth>} />
