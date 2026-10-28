@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import * as edgeApi from '../../api/edgeApi';
-import { KpiTile, Panel, fmtBytes, fmtDur, fmtDate } from './shared';
+import { Panel, fmtBytes, fmtDur, fmtDate, SyncStatusBar } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -34,39 +34,24 @@ export function MockupSystemInformation(): JSX.Element {
 
   return (
     <div className="ea-screen">
-      <section className="ea-dash-hero">
-        <div className="ea-dash-hero-left">
-          <div className="ea-dash-hero-eyebrow">Workspace</div>
-          <h1 className="ea-dash-hero-title">System information</h1>
-          <p className="ea-dash-hero-sub">
-            Build identity, runtime, database, scheduler, storage and
-            downstream probes for this DER edge.
-          </p>
-          <div className="ea-dash-hero-meta">
-            <span className={'ea-chip ea-chip--' + (dhis2Up && dbUp && schedUp ? 'success' : 'warning')}>
-              {dhis2Up && dbUp && schedUp ? 'All subsystems healthy' : 'Degraded subsystem'}
-            </span>
-            <span className="ea-dash-hero-meta-item">captured {fmtDate(si.timestamp)}</span>
-          </div>
-        </div>
-      </section>
-
-      <div className="ea-kpi-grid">
-        <KpiTile tone="info" icon={<IconClock />} label="Uptime"
-                 value={fmtDur(si.runtime.uptimeMillis)}
-                 caption={si.runtime.hostname ?? '—'} />
-        <KpiTile tone={heapPct > 85 ? 'warning' : 'info'} icon={<IconChip />}
-                 label="JVM heap" value={`${heapPct}%`}
-                 caption={`${fmtBytes(heapUsed)} / ${fmtBytes(heapMax)}`} />
-        <KpiTile tone={storagePct > 85 ? 'danger' : storagePct > 70 ? 'warning' : 'info'}
-                 icon={<IconDisk />} label="Storage used"
-                 value={`${storagePct}%`}
-                 caption={`${fmtBytes(storageUsed)} / ${fmtBytes(si.storage.totalBytes)}`} />
-        <KpiTile tone={dbUp ? 'success' : 'danger'} icon={<IconDb />}
-                 label="Database"
-                 value={dbUp ? 'OK' : 'FAIL'}
-                 caption={`${si.database.migrationCount ?? 0} migrations`} />
-      </div>
+      <SyncStatusBar
+        tone={dhis2Up && dbUp && schedUp ? 'success' : 'warning'}
+        title="System information"
+        statusLabel={dhis2Up && dbUp && schedUp ? 'All subsystems healthy' : 'Degraded subsystem'}
+        subtitle={
+          <>
+            <span>Uptime <strong style={{ color: 'var(--der-ink-900)' }}>{fmtDur(si.runtime.uptimeMillis)}</strong></span>
+            <span>·</span>
+            <span>Heap <strong style={{ color: 'var(--der-ink-900)' }}>{heapPct}%</strong></span>
+            <span>·</span>
+            <span>Storage <strong style={{ color: 'var(--der-ink-900)' }}>{storagePct}%</strong></span>
+            <span>·</span>
+            <span>Database <strong style={{ color: 'var(--der-ink-900)' }}>{dbUp ? 'OK' : 'FAIL'}</strong></span>
+            <span>·</span>
+            <span>Captured <strong style={{ color: 'var(--der-ink-900)' }}>{fmtDate(si.timestamp)}</strong></span>
+          </>
+        }
+      />
 
       <div className="ea-ws-grid-2">
         <Panel title="Build &amp; release">
@@ -238,7 +223,3 @@ function ProgressRow({ label, pct, hint, tone = 'info' }: {
   );
 }
 
-function IconClock(): JSX.Element { return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>); }
-function IconChip(): JSX.Element { return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2" /></svg>); }
-function IconDisk(): JSX.Element { return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3" /></svg>); }
-function IconDb(): JSX.Element { return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" /></svg>); }

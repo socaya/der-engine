@@ -15,19 +15,25 @@ import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
  * right drawer. Data from existing /edge-api/v1 endpoints.
  * ──────────────────────────────────────────────────────────────────── */
 
+/** Local hero → thin adapter over SyncStatusBar so the Devices /
+ *  Drift / etc. screens pick up the standard screen-header pattern
+ *  automatically (no `ea-dash-hero` chrome). */
 function Hero({ eyebrow, title, sub, actions, chip }: {
   eyebrow?: string; title: string; sub?: string; actions?: JSX.Element; chip?: JSX.Element;
 }): JSX.Element {
   return (
-    <section className="ea-dash-hero">
-      <div className="ea-dash-hero-left">
-        {eyebrow && <div className="ea-dash-hero-eyebrow">{eyebrow}</div>}
-        <h1 className="ea-dash-hero-title">{title}</h1>
-        {sub && <p className="ea-dash-hero-sub">{sub}</p>}
-        {chip && <div className="ea-dash-hero-meta">{chip}</div>}
-      </div>
-      {actions && <div>{actions}</div>}
-    </section>
+    <SyncStatusBar
+      tone="muted"
+      title={title}
+      statusLabel={eyebrow}
+      subtitle={
+        <>
+          {sub && <span>{sub}</span>}
+          {chip && (sub ? <><span>·</span>{chip}</> : chip)}
+        </>
+      }
+      actions={actions}
+    />
   );
 }
 
@@ -564,16 +570,20 @@ export function MockupDeviceFleet(): JSX.Element {
 
   return (
     <div className="ea-screen">
-      <Hero eyebrow="Devices & Clients"
-            title="Device fleet"
-            sub="Edge devices registered against this DER instance." />
-
-      <div className="ea-kpi-grid">
-        <KpiTile tone="info" icon={<IconDevice />} label="Fleet" value={rows.length} />
-        <KpiTile tone="success" icon={<IconCheck />} label="Approved" value={approved} />
-        <KpiTile tone="warning" icon={<IconHourglass />} label="Pending" value={pending} />
-        <KpiTile tone={suspended ? 'danger' : 'default'} icon={<IconX />} label="Suspended / revoked" value={suspended} />
-      </div>
+      <SyncStatusBar
+        tone={suspended > 0 ? 'warning' : pending > 0 ? 'info' : 'success'}
+        title="Device fleet"
+        statusLabel={`${rows.length} enrolled`}
+        subtitle={
+          <>
+            <span>Edge devices registered against this DER instance.</span>
+            <span>·</span>
+            <span>Approved <strong style={{ color: 'var(--der-ink-900)' }}>{approved}</strong></span>
+            {pending > 0 && (<><span>·</span><span>Pending <strong style={{ color: 'var(--der-ink-900)' }}>{pending}</strong></span></>)}
+            {suspended > 0 && (<><span>·</span><span>Suspended / revoked <strong style={{ color: 'var(--der-danger-ink)' }}>{suspended}</strong></span></>)}
+          </>
+        }
+      />
 
       <Panel title={`Devices (${rows.length})`}
              action={<input className="ea-input" style={{ maxWidth: 240 }} type="search"
@@ -1059,23 +1069,32 @@ export function MockupBackupList(): JSX.Element {
   const pend = rows.filter((r) => r.status === 'QUEUED' || r.status === 'REQUESTED').length;
   return (
     <div className="ea-screen">
-      <Hero eyebrow="Security & Recovery"
-            title="Backups"
-            sub="Hash-chained audit log snapshots and full edge state exports."
-            actions={
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" className="ea-btn ea-btn--ghost" disabled={busy}
-                        onClick={() => { request('AUDIT').catch(() => undefined); }}>+ Audit backup</button>
-                <button type="button" className="ea-btn ea-btn--primary" disabled={busy}
-                        onClick={() => { request('FULL').catch(() => undefined); }}>+ Full backup</button>
-              </div>
-            } />
-      <div className="ea-kpi-grid">
-        <KpiTile tone="info" icon={<IconList />} label="Total runs" value={rows.length} />
-        <KpiTile tone="success" icon={<IconCheck />} label="Successful" value={succ} />
-        <KpiTile tone="warning" icon={<IconHourglass />} label="In flight" value={pend} />
-        <KpiTile tone={fail ? 'danger' : 'default'} icon={<IconX />} label="Failed" value={fail} />
-      </div>
+      <SyncStatusBar
+        tone={fail > 0 ? 'danger' : pend > 0 ? 'warning' : 'success'}
+        title="Backups"
+        statusLabel={`${rows.length} runs`}
+        subtitle={
+          <>
+            <span>Hash-chained audit log snapshots and full edge state exports.</span>
+            <span>·</span>
+            <span>Successful <strong style={{ color: 'var(--der-ink-900)' }}>{succ}</strong></span>
+            {pend > 0 && (<><span>·</span><span>In flight <strong style={{ color: 'var(--der-ink-900)' }}>{pend}</strong></span></>)}
+            {fail > 0 && (<><span>·</span><span>Failed <strong style={{ color: 'var(--der-danger-ink)' }}>{fail}</strong></span></>)}
+          </>
+        }
+        actions={
+          <>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" disabled={busy}
+                    onClick={() => { request('AUDIT').catch(() => undefined); }}>
+              <UiIcon icon="plus" size={14} /><span>Audit backup</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" disabled={busy}
+                    onClick={() => { request('FULL').catch(() => undefined); }}>
+              <UiIcon icon="backup" size={14} /><span>Full backup</span>
+            </button>
+          </>
+        }
+      />
       <Panel title="Backup runs">
         {rows.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0 }}>No backups yet. Trigger one via the buttons above.</p>
@@ -1323,6 +1342,4 @@ function IconCheck(): JSX.Element { return sIcon('M5 12l4 4 10-10'); }
 function IconX(): JSX.Element { return sIcon('M6 6l12 12M6 18L18 6'); }
 function IconHash(): JSX.Element { return sIcon('M5 9h14M5 15h14M9 3L7 21M17 3l-2 18'); }
 function IconClock(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>); }
-function IconDevice(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5" /><path d="M11 18h2" /></svg>); }
-function IconHourglass(): JSX.Element { return sIcon('M6 2h12M6 22h12M6 2v4a6 6 0 0012 0V2M6 22v-4a6 6 0 0112 0v4'); }
 export { fmtBytes };

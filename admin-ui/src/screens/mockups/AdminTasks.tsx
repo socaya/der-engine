@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import * as edgeApi from '../../api/edgeApi';
-import { Panel, KpiTile, fmtAgo, fmtDur, fmtBytes } from './shared';
+import { Panel, fmtAgo, fmtDur, SyncStatusBar } from './shared';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -72,31 +72,27 @@ export function MockupAdminTasks(): JSX.Element {
 
   return (
     <div className="ea-screen">
-      <section className="ea-dash-hero">
-        <div className="ea-dash-hero-left">
-          <div className="ea-dash-hero-eyebrow">Workspace</div>
-          <h1 className="ea-dash-hero-title">Admin tasks</h1>
-          <p className="ea-dash-hero-sub">
-            Destructive operations that affect the running edge: service
-            lifecycle, session invalidation, config reload, and recent log
-            output. ADMIN only.
-          </p>
-        </div>
-      </section>
+      <SyncStatusBar
+        tone={si.scheduler.started ? 'warning' : 'danger'}
+        title="Admin tasks"
+        statusLabel="ADMIN only"
+        subtitle={
+          <>
+            <span>Uptime <strong style={{ color: 'var(--der-ink-900)' }}>{uptime}</strong></span>
+            <span>·</span>
+            <span>Heap <strong style={{ color: 'var(--der-ink-900)' }}>{heap}%</strong></span>
+            <span>·</span>
+            <span>DB sessions <strong style={{ color: 'var(--der-ink-900)' }}>{sessions}</strong></span>
+            <span>·</span>
+            <span>Scheduler <strong style={{ color: 'var(--der-ink-900)' }}>{si.scheduler.started ? 'running' : 'standby'}</strong> ({si.scheduler.executingJobs ?? 0}/{si.scheduler.totalJobs ?? 0})</span>
+            <span>·</span>
+            <span>Destructive operations — service lifecycle, session invalidation, config reload.</span>
+          </>
+        }
+      />
 
       {msg && <p className="ea-saved">{msg}</p>}
       {err && <ErrorBlock title="Action failed" testId="err-admin">{err}</ErrorBlock>}
-
-      <div className="ea-kpi-grid">
-        <KpiTile tone="info" label="Uptime" value={uptime} caption={`JVM pid snapshot`} />
-        <KpiTile tone="info" label="Heap used" value={`${heap}%`}
-                 caption={`${fmtBytes(si.runtime.heapUsedBytes)} / ${fmtBytes(si.runtime.heapMaxBytes)}`} />
-        <KpiTile tone="info" label="DB sessions" value={sessions}
-                 caption="revokable via Clear sessions" />
-        <KpiTile tone={si.scheduler.started ? 'success' : 'warning'}
-                 label="Scheduler" value={si.scheduler.started ? 'running' : 'standby'}
-                 caption={`${si.scheduler.executingJobs ?? 0} / ${si.scheduler.totalJobs ?? 0}`} />
-      </div>
 
       <Panel title="Service control">
         <p className="ea-text-muted" style={{ margin: '0 0 12px' }}>

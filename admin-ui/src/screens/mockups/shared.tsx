@@ -749,14 +749,6 @@ export function Status(
 
 export type SyncStatusTone = 'success' | 'warning' | 'danger' | 'info' | 'muted';
 
-const TONE_CHIP_CLASS: Readonly<Record<SyncStatusTone, string>> = {
-  success: 'ea-chip ea-chip--success',
-  warning: 'ea-chip ea-chip--warning',
-  danger: 'ea-chip ea-chip--danger',
-  info: 'ea-chip ea-chip--info',
-  muted: 'ea-chip ea-chip--neutral',
-};
-
 /** Quiet page header: title + optional status chip inline with the h1,
  *  short subtitle (details) beneath, and action buttons right-aligned.
  *  No card background, no accent stripes — matches the standard
@@ -770,6 +762,7 @@ export function SyncStatusBar({ tone, title, statusLabel, details, subtitle, act
   actions?: ReactNode;
 }): JSX.Element {
   const sub = subtitle ?? details;
+  const statusTone: StatusTone = tone === 'info' ? 'info' : tone;
   return (
     <header className="ea-screen-header" data-test="sync-status-header">
       <div className="ea-screen-header-text">
@@ -777,7 +770,7 @@ export function SyncStatusBar({ tone, title, statusLabel, details, subtitle, act
                       display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span data-test="sync-status-title">{title}</span>
           {statusLabel && (
-            <span className={TONE_CHIP_CLASS[tone]}>{statusLabel}</span>
+            <Status tone={statusTone}>{statusLabel}</Status>
           )}
         </h1>
         {sub && (

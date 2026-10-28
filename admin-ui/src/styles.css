@@ -266,26 +266,24 @@ code{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,mon
 .ea-shell--collapsed .ea-sidebar-footer-sub{display:none}
 .ea-shell--collapsed .ea-sidebar-footer{justify-content:center;padding:12px 0}
 
-/* Topbar operating-mode pill — §6.2 */
+/* Topbar operating-mode marker — now quiet (dot + tone-coloured text). */
 .ea-topbar-mode{
   display:inline-flex;align-items:center;gap:8px;
-  padding:7px 14px;border-radius:999px;
-  border:1px solid var(--der-border);background:var(--der-raised);
-  color:var(--der-ink-900);font-size:14px;font-weight:600;
+  padding:0;border:0;background:transparent;
+  color:var(--der-ink-700);font-size:14px;font-weight:500;
   text-decoration:none;line-height:1.2;
-  transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
 }
-.ea-topbar-mode:hover{background:#eef2f8;border-color:var(--der-border-strong);text-decoration:none}
-.ea-topbar-mode-dot{width:9px;height:9px;border-radius:50%;background:var(--der-ink-300);flex-shrink:0}
-.ea-topbar-mode--operational{background:var(--der-success-soft);border-color:#bfe5cf;color:var(--der-success-ink)}
+.ea-topbar-mode:hover{background:transparent;color:var(--der-ink-900);text-decoration:none}
+.ea-topbar-mode-dot{width:8px;height:8px;border-radius:50%;background:var(--der-ink-300);flex-shrink:0}
+.ea-topbar-mode--operational{color:var(--der-success-ink)}
 .ea-topbar-mode--operational .ea-topbar-mode-dot{background:var(--der-success)}
-.ea-topbar-mode--offline-first{background:var(--der-warning-soft);border-color:#f0d5a1;color:var(--der-warning-ink)}
+.ea-topbar-mode--offline-first{color:var(--der-warning-ink)}
 .ea-topbar-mode--offline-first .ea-topbar-mode-dot{background:var(--der-warning)}
-.ea-topbar-mode--recovering{background:var(--der-primary-soft);border-color:#c6d3ea;color:var(--der-primary-ink)}
+.ea-topbar-mode--recovering{color:var(--der-primary-ink)}
 .ea-topbar-mode--recovering .ea-topbar-mode-dot{background:var(--der-primary)}
-.ea-topbar-mode--degraded{background:var(--der-danger-soft);border-color:#f1c4c4;color:var(--der-danger-ink)}
+.ea-topbar-mode--degraded{color:var(--der-danger-ink)}
 .ea-topbar-mode--degraded .ea-topbar-mode-dot{background:var(--der-danger)}
-.ea-topbar-mode--starting{background:var(--der-raised);border-color:var(--der-border);color:var(--der-ink-500)}
+.ea-topbar-mode--starting{color:var(--der-ink-500)}
 .ea-topbar-mode--starting .ea-topbar-mode-dot{background:var(--der-ink-400)}
 @media(max-width:900px){.ea-topbar-mode-label{display:none}}
 
@@ -912,18 +910,23 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
   .ea-hero-date{text-align:left}
 }
 
-/* ============ Chips — §4.1 12–13px, §11 plain language ============ */
+/* ============ Chips — now quiet markers (dot + tone-coloured text, no fill) ============
+   The previous soft-background pills were too loud across module pages.
+   Chips now render as inline-flex "● label" tokens — a small coloured dot
+   prefixing tone-coloured text, no background, no border, no border-radius.
+   This matches the Status marker vocabulary and keeps the UI calm. */
 .ea-chip{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:3px 10px;border-radius:var(--r-pill);
-  font-size:12px;font-weight:600;line-height:16px;letter-spacing:0.2px;
-  background:var(--der-raised);color:var(--der-ink-500);white-space:nowrap;
+  display:inline-flex;align-items:center;gap:6px;
+  padding:0;border:0;background:transparent;
+  font-size:13px;font-weight:500;line-height:1.3;letter-spacing:0;
+  color:var(--der-ink-500);white-space:nowrap;
 }
-.ea-chip::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.85}
-.ea-chip--success{background:var(--der-success-soft);color:var(--der-success-ink)}
-.ea-chip--warning{background:var(--der-warning-soft);color:var(--der-warning-ink)}
-.ea-chip--danger{background:var(--der-danger-soft);color:var(--der-danger-ink)}
-.ea-chip--info{background:var(--der-primary-soft);color:var(--der-primary-ink)}
+.ea-chip::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:0.9}
+.ea-chip--success{color:var(--der-success-ink)}
+.ea-chip--warning{color:var(--der-warning-ink)}
+.ea-chip--danger{color:var(--der-danger-ink)}
+.ea-chip--info{color:var(--der-primary-ink)}
+.ea-chip--neutral,.ea-chip--primary{color:var(--der-ink-500)}
 
 /* ============ Status — quiet result marker (icon + text, no fill) ============ */
 .ea-status{
@@ -1152,10 +1155,10 @@ kbd{
 .ea-role-chips{display:inline-flex;gap:var(--sp-1);flex-wrap:wrap}
 .ea-table-actions{text-align:right;width:1%;white-space:nowrap}
 
-/* Chips: brand variants */
-.ea-chip--primary{background:var(--der-navy-soft);color:var(--der-navy-700)}
-.ea-chip--teal{background:rgba(43,158,172,0.14);color:#1f7681}
-.ea-chip--neutral{background:var(--der-raised);color:var(--der-ink-500)}
+/* Chips: brand variants (also quiet — tone-coloured text only). */
+.ea-chip--primary{color:var(--der-navy-700);background:transparent}
+.ea-chip--teal{color:#1f7681;background:transparent}
+.ea-chip--neutral{color:var(--der-ink-500);background:transparent}
 
 /* Muted link-btn used for not-yet-available actions */
 .ea-link-btn--muted{
@@ -1303,7 +1306,7 @@ kbd{
 /* Table toolbar inputs — compact to match the dense table. */
 .ea-main .ea-panel-action .ea-input{height:28px;font-size:12px;padding:2px 8px}
 .ea-main .ea-panel-action input[type="search"]{min-width:180px}
-.ea-main .ea-panel-action .ea-chip{padding:2px 8px;font-size:11px}
+.ea-main .ea-panel-action .ea-chip{padding:0;font-size:12px}
 .ea-panel-body{padding:0}
 .ea-panel-body--flush{padding:0}
 
@@ -1373,7 +1376,7 @@ kbd{
 .ea-table--selectable tbody tr.ea-row--active td{background:rgba(13,46,92,0.08)}
 .ea-main .ea-table--dense tbody tr:hover td{background:rgba(13,46,92,0.045)}
 /* Compact chips */
-.ea-main .ea-table--dense .ea-chip{padding:1px 7px;font-size:10px;line-height:14px}
+.ea-main .ea-table--dense .ea-chip{padding:0;font-size:12px;line-height:1.3}
 
 /* Dashboard-specific */
 .ea-dash-hero{

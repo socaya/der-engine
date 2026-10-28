@@ -595,20 +595,20 @@ export function CapOrgUnitBinding(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="cap-ou">
-      <section className="ea-dash-hero">
-        <div className="ea-dash-hero-left">
-          <h1 className="ea-dash-hero-title">Organisation unit</h1>
-        </div>
-        {b.bound && !rebindOpen && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="ea-btn ea-btn--primary"
-                    data-test="ou-change"
-                    onClick={() => setRebindOpen(true)}>
-              Change organisation unit
-            </button>
-          </div>
-        )}
-      </section>
+      <SyncStatusBar
+        tone={b.bound ? 'success' : 'muted'}
+        title="Organisation unit"
+        statusLabel={b.bound ? 'Bound' : 'Not bound'}
+        subtitle={b.bound ? <span>Facility bound to this edge. All captured data is attributed here.</span> : <span>No facility bound yet — bind an OU to start capturing data.</span>}
+        actions={b.bound && !rebindOpen ? (
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  data-test="ou-change"
+                  onClick={() => setRebindOpen(true)}>
+            <UiIcon icon="edit" size={14} />
+            <span>Change organisation unit</span>
+          </button>
+        ) : undefined}
+      />
 
       {err && <ErrorBlock title="Binding failed" testId="err-binding-failed">{err}</ErrorBlock>}
       {msg && <p className="ea-saved" data-test="ou-msg">{msg}</p>}
