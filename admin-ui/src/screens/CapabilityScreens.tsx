@@ -4,7 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status } from './shared';
+import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status, useCentralReachable } from './shared';
 import { UiIcon } from '../components/UiIcon';
 
 /**
@@ -1034,9 +1034,10 @@ export function CapMetadataSync(): JSX.Element {
     }
   }, [pull.state]);
 
+  const livePing = useCentralReachable();
   const last = history?.[0];
   const lastSuccess = (history ?? []).find((r) => r.outcome === 'SUCCEEDED' || r.outcome === 'SUCCESS');
-  const centralReachable = sysInfo?.dhis2?.probeReachable ?? false;
+  const centralReachable = livePing.reachable ?? sysInfo?.dhis2?.probeReachable ?? false;
   const lastOk = last?.outcome === 'SUCCEEDED' || last?.outcome === 'SUCCESS';
   const tone = !last ? 'muted' : lastOk ? 'success' : 'danger';
   const busy = pull.state === 'triggering' || pull.state === 'running';

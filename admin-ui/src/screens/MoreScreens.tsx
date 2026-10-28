@@ -549,6 +549,7 @@ export function MockupDeviceFleet(): JSX.Element {
   const filtered = q ? rows.filter((r) =>
     r.deviceId.toLowerCase().includes(q)
     || (r.userAgent ?? '').toLowerCase().includes(q)) : rows;
+  const paged = usePaged(filtered, 25);
 
   return (
     <div className="ea-screen">
@@ -581,7 +582,7 @@ export function MockupDeviceFleet(): JSX.Element {
               <th style={{ width: 48 }} aria-label="Actions"></th>
             </tr></thead>
             <tbody>
-              {filtered.map((r) => (
+              {paged.rows.map((r) => (
                 <tr key={r.deviceId}
                     onClick={() => navigate(`/devices/${r.deviceId}`)}
                     data-test={`dev-row-${r.deviceId}`}>
@@ -604,6 +605,7 @@ export function MockupDeviceFleet(): JSX.Element {
               ))}
             </tbody>
           </table>
+          <TablePager {...paged.pagerProps} />
         </div>
       </Panel>
     </div>
@@ -716,6 +718,7 @@ export function MockupApprovalQueue(): JSX.Element {
   }
   if (err) return <ErrorBlock title="Approvals failed" testId="err-approvals">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
+  const paged = usePaged(rows, 25);
 
   return (
     <div className="ea-screen">
@@ -742,7 +745,7 @@ export function MockupApprovalQueue(): JSX.Element {
                 <th style={{ width: 48 }} aria-label="Actions"></th>
               </tr></thead>
               <tbody>
-                {rows.map((r) => (
+                {paged.rows.map((r) => (
                   <tr key={r.operationId}
                       onClick={() => navigate(`/approvals/${r.operationId}`)}>
                     <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true"
@@ -777,6 +780,7 @@ export function MockupApprovalQueue(): JSX.Element {
                 ))}
               </tbody>
             </table>
+            <TablePager {...paged.pagerProps} />
           </div>
         )}
       </Panel>
@@ -888,6 +892,7 @@ export function MockupReferralInbox(): JSX.Element {
 
   const pending = rows.filter((r) => r.status === 'PENDING').length;
   const accepted = rows.filter((r) => r.status === 'ACCEPTED').length;
+  const paged = usePaged(rows, 25);
   return (
     <div className="ea-screen">
       <SyncStatusBar
@@ -920,7 +925,7 @@ export function MockupReferralInbox(): JSX.Element {
                 <th style={{ width: 48 }} aria-label="Actions"></th>
               </tr></thead>
               <tbody>
-                {rows.map((r) => (
+                {paged.rows.map((r) => (
                   <tr key={r.inboxId}
                       onClick={() => navigate(`/referral/inbox/${r.inboxId}`)}>
                     <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true"
@@ -961,6 +966,7 @@ export function MockupReferralInbox(): JSX.Element {
                 ))}
               </tbody>
             </table>
+            <TablePager {...paged.pagerProps} />
           </div>
         )}
       </Panel>
