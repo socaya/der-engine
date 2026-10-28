@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { HeroHeader } from '../components/HeroHeader';
+import { UiIcon } from '../components/UiIcon';
 
 /**
  * Phase 06 Release 3 — EA-19..36 admin screens.
@@ -385,12 +386,13 @@ export function EASettings({ api = edgeApi }: {
         actions={
           <button
             type="button"
-            className="ea-btn ea-btn--primary"
+            className="ea-btn ea-btn--primary ea-btn--sm"
             data-test="ea36-save"
             disabled={status === 'saving'}
             onClick={() => { doSave().catch(() => undefined); }}
           >
-            {status === 'saving' ? 'Saving…' : 'Save changes'}
+            <UiIcon icon="refresh" size={14} />
+            <span>{status === 'saving' ? 'Saving…' : 'Save changes'}</span>
           </button>
         }
       />

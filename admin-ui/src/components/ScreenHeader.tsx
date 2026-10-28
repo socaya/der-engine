@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Button } from '@dhis2/ui';
+import { UiIcon } from './UiIcon';
 
 /**
  * B5: shared header for data-fetching screens. Renders the title,
@@ -57,9 +57,11 @@ export function ScreenHeader({
           </span>
         )}
         {onRefresh && (
-          <Button small onClick={() => void onRefresh()}>
-            Refresh
-          </Button>
+          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                  onClick={() => void onRefresh()}>
+            <UiIcon icon="refresh" size={14} />
+            <span>Refresh</span>
+          </button>
         )}
         {actions}
       </div>
