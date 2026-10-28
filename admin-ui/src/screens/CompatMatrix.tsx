@@ -17,11 +17,21 @@ import { UiIcon } from '../components/UiIcon';
  *
  * Serves at /dhis2/compat.
  */
+type CompatTab = 'overview' | 'history';
+
 export function MockupCompatMatrix(): JSX.Element {
   const [snap, setSnap] = useState<edgeApi.CompatSnapshot | null>(null);
   const [history, setHistory] = useState<edgeApi.CompatSnapshot[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [tab, setTab] = useState<CompatTab>(() => {
+    if (typeof window === 'undefined') return 'overview';
+    return window.location.hash === '#history' ? 'history' : 'overview';
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.location.hash = tab === 'history' ? '#history' : '';
+  }, [tab]);
 
   async function reload(): Promise<void> {
     const [a, b] = await Promise.allSettled([
@@ -76,6 +86,26 @@ export function MockupCompatMatrix(): JSX.Element {
         }
       />
 
+      <nav className="ea-section-tabs" aria-label="Compatibility sub-navigation"
+           style={{ marginBottom: 12 }}>
+        <button type="button"
+                className={'ea-section-tab' + (tab === 'overview' ? ' ea-section-tab--active' : '')}
+                onClick={() => setTab('overview')}
+                data-test="compat-tab-overview">
+          <UiIcon icon="overview" size={14} />
+          <span>Overview</span>
+        </button>
+        <button type="button"
+                className={'ea-section-tab' + (tab === 'history' ? ' ea-section-tab--active' : '')}
+                onClick={() => setTab('history')}
+                data-test="compat-tab-history">
+          <UiIcon icon="history" size={14} />
+          <span>Snapshot history</span>
+          <span className="ea-text-muted" style={{ marginLeft: 4, fontWeight: 400 }}>({history.length})</span>
+        </button>
+      </nav>
+
+      {tab === 'overview' && (<>
       <Panel title="Supported DHIS2 version matrix">
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense">
@@ -140,44 +170,69 @@ export function MockupCompatMatrix(): JSX.Element {
         )}
       </Panel>
 
-      <Panel title="Snapshot history"
-             action={<span className="ea-text-muted">{history.length} snapshots</span>}>
-        {history.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>No snapshots recorded.</p>
-        ) : (
-          <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
-              <thead><tr>
-                <th>Snapshot</th><th>Captured</th><th>Central version</th>
-                <th>Profile</th><th>Reachable</th><th>RTT</th><th>Note</th>
-              </tr></thead>
-              <tbody>
-                {history.slice(0, 25).map((s) => (
-                  <tr key={s.snapshotId}>
-                    <td className="ea-mono">#{s.snapshotId}</td>
-                    <td className="ea-mono">{s.capturedAt ? fmtDate(s.capturedAt) : '—'}</td>
-                    <td>{s.centralVersion ?? '—'}</td>
-                    <td>{s.profileName ?? '—'}</td>
-                    <td>
-                      <span className={'ea-chip ea-chip--' + (s.probeReachable ? 'success' : 'danger')}>
-                        {s.probeReachable ? 'yes' : 'no'}
-                      </span>
-                    </td>
-                    <td className="ea-mono">{s.probeDurationMs != null ? `${s.probeDurationMs} ms` : '—'}</td>
-                    <td className="ea-text-muted" style={{ fontSize: 11 }}>{s.message ?? s.status ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {history.length > 25 && (
-              <div className="ea-table-footer">
-                <span className="ea-text-muted">Showing first 25 of {history.length} snapshots.</span>
-              </div>
-            )}
-          </div>
-        )}
-      </Panel>
+      </>)}
+
+      {tab === 'history' && (
+        <SnapshotHistoryPanel history={history} />
+      )}
     </div>
+  );
+}
+
+function SnapshotHistoryPanel({ history }: { history: edgeApi.CompatSnapshot[] }): JSX.Element {
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
+  const total = history.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const slice = history.slice((page - 1) * pageSize, page * pageSize);
+  return (
+    <Panel title="Snapshot history"
+           action={<span className="ea-text-muted">{total} snapshot{total === 1 ? '' : 's'}</span>}>
+      {total === 0 ? (
+        <p className="ea-text-muted" style={{ margin: 0 }}>No snapshots recorded.</p>
+      ) : (
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense">
+            <thead><tr>
+              <th>Snapshot</th><th>Captured</th><th>Central version</th>
+              <th>Profile</th><th>Reachable</th><th>RTT</th><th>Note</th>
+            </tr></thead>
+            <tbody>
+              {slice.map((s) => (
+                <tr key={s.snapshotId}>
+                  <td className="ea-mono">#{s.snapshotId}</td>
+                  <td className="ea-mono">{s.capturedAt ? fmtDate(s.capturedAt) : '—'}</td>
+                  <td>{s.centralVersion ?? '—'}</td>
+                  <td>{s.profileName ?? '—'}</td>
+                  <td>
+                    <span className={'ea-chip ea-chip--' + (s.probeReachable ? 'success' : 'danger')}>
+                      {s.probeReachable ? 'yes' : 'no'}
+                    </span>
+                  </td>
+                  <td className="ea-mono">{s.probeDurationMs != null ? `${s.probeDurationMs} ms` : '—'}</td>
+                  <td className="ea-text-muted">{s.message ?? s.status ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {pageCount > 1 && (
+            <div className="ea-table-footer" style={{ display: 'flex', justifyContent: 'space-between',
+                                                       alignItems: 'center', padding: '8px 10px' }}>
+              <span className="ea-text-muted">
+                Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total} snapshots.
+              </span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                        disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button>
+                <span className="ea-text-muted">Page {page} of {pageCount}</span>
+                <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                        disabled={page >= pageCount} onClick={() => setPage(page + 1)}>Next</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Panel>
   );
 }
 
