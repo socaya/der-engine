@@ -285,6 +285,10 @@ export interface JobRun {
   triggeredBy: string;
 }
 
+export function getJobRun(runId: string | number): Promise<JobRun> {
+  return request<JobRun>('GET', `/edge-api/v1/sync/jobs/${encodeURIComponent(String(runId))}`);
+}
+
 export function listJobs(limit = 50, jobName?: string): Promise<JobRun[]> {
   const params = new URLSearchParams();
   params.set('limit', String(limit));

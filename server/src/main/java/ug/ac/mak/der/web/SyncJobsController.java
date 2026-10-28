@@ -50,6 +50,19 @@ public class SyncJobsController {
         return ResponseEntity.ok(runs.findRecent(limit));
     }
 
+    @GetMapping("/{runId:\\d+}")
+    public ResponseEntity<ScheduledJobRun> get(final Authentication authentication,
+                                                @PathVariable("runId") final long runId) {
+        if (!(authentication instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final ScheduledJobRun row = runs.findById(runId);
+        if (row == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(row);
+    }
+
     @PostMapping("/{name}/trigger")
     public ResponseEntity<Object> trigger(final Authentication authentication,
                                            @PathVariable("name") final String name)

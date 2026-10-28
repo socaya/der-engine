@@ -190,13 +190,15 @@ export function MockupSyncHistoryDetail(): JSX.Element {
   const [metaInv, setMetaInv] = useState<Awaited<ReturnType<typeof edgeApi.metadataInventory>> | null>(null);
 
   useEffect(() => {
+    if (!runId) return;
     (async () => {
       try {
-        const all = await edgeApi.listJobs(200);
-        const match = all.find((j) => String(j.runId) === runId);
-        if (!match) { setErr('Run not found.'); return; }
-        setSel(match);
-      } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+        const row = await edgeApi.getJobRun(runId);
+        setSel(row);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setErr(/404/.test(msg) ? 'Run not found.' : msg);
+      }
     })();
   }, [runId]);
 

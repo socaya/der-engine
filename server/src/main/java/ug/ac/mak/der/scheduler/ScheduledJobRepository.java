@@ -39,6 +39,15 @@ public class ScheduledJobRepository {
                 durationMs, detailJson, runId);
     }
 
+    public ScheduledJobRun findById(final long runId) {
+        final List<ScheduledJobRun> rows = jdbc.query(
+                "SELECT run_id, job_name, started_at, finished_at, outcome, duration_ms, "
+                        + "detail::text AS detail, triggered_by "
+                        + "FROM der.scheduled_job_run WHERE run_id = ?",
+                rowMapper(), runId);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
     public List<ScheduledJobRun> findRecent(final int limit) {
         final int capped = Math.max(1, Math.min(200, limit));
         return jdbc.query(
