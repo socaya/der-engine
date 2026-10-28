@@ -63,14 +63,14 @@ export function MockupDataQueues(): JSX.Element {
   if (!ops) return <LoadingBlock testId="loading" />;
 
   const stateCounts: Record<OperatorState, number> = {
-    Waiting: 0, Sending: 0, Sent: 0, Retrying: 0, Rejected: 0, 'Needs attention': 0,
+    Waiting: 0, Sending: 0, Delivered: 0, 'Trying again': 0, 'Not accepted': 0, 'Needs your review': 0,
   };
   for (const it of items) stateCounts[it.state] += 1;
 
   const centralReachable = sysInfo?.dhis2?.probeReachable ?? false;
   const workerEnabled = worker?.enabled ?? false;
-  const unsent = stateCounts.Waiting + stateCounts.Sending + stateCounts.Retrying;
-  const needsAttention = stateCounts['Needs attention'] + stateCounts.Rejected;
+  const unsent = stateCounts.Waiting + stateCounts.Sending + stateCounts['Trying again'];
+  const needsAttention = stateCounts['Needs your review'] + stateCounts['Not accepted'];
 
   let statusLabel: string;
   let tone: SyncStatusTone;
@@ -89,14 +89,14 @@ export function MockupDataQueues(): JSX.Element {
     const items: RowMenuItem[] = [
       { label: 'Open details', to: `/sync/data/${op.operationId}` },
     ];
-    if (state === 'Retrying' || state === 'Rejected' || state === 'Waiting') {
+    if (state === 'Trying again' || state === 'Not accepted' || state === 'Waiting') {
       items.push({
         label: 'Push now',
         disabled: pushing || !centralReachable || !workerEnabled,
         onSelect: () => { push.trigger('JOURNAL_WORKER_DRAIN').catch(() => undefined); },
       });
     }
-    if (state === 'Needs attention') {
+    if (state === 'Needs your review') {
       items.push({ label: 'Open attention item', to: '/sync/attention' });
     }
     return items;
@@ -120,9 +120,9 @@ export function MockupDataQueues(): JSX.Element {
             <span>·</span>
             <span>Waiting <strong>{stateCounts.Waiting}</strong></span>
             <span>·</span>
-            <span>Sent <strong>{stateCounts.Sent}</strong></span>
-            {stateCounts.Retrying > 0 && (<><span>·</span><span>Retrying <strong>{stateCounts.Retrying}</strong></span></>)}
-            {needsAttention > 0 && (<><span>·</span><span>Needs attention <strong style={{ color: 'var(--der-danger-ink)' }}>{needsAttention}</strong></span></>)}
+            <span>Delivered <strong>{stateCounts.Delivered}</strong></span>
+            {stateCounts['Trying again'] > 0 && (<><span>·</span><span>Trying again <strong>{stateCounts['Trying again']}</strong></span></>)}
+            {needsAttention > 0 && (<><span>·</span><span>Needs your review <strong style={{ color: 'var(--der-danger-ink)' }}>{needsAttention}</strong></span></>)}
           </>
         }
         actions={
@@ -176,7 +176,7 @@ export function MockupDataQueues(): JSX.Element {
                  <select className="ea-input" style={{ maxWidth: 150 }} value={filterStatus}
                          onChange={(e) => setFilterStatus(e.target.value)}>
                    <option value="ALL">All statuses</option>
-                   {(['Waiting', 'Sending', 'Sent', 'Retrying', 'Rejected', 'Needs attention'] as OperatorState[])
+                   {(['Waiting', 'Sending', 'Delivered', 'Trying again', 'Not accepted', 'Needs your review'] as OperatorState[])
                      .map((s) => <option key={s} value={s}>{s}</option>)}
                  </select>
                  <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -273,7 +273,7 @@ export function MockupDataDetail(): JSX.Element {
 
   const state = operatorState(op.state);
   const pushing = push.state === 'triggering' || push.state === 'running';
-  const isErrorState = state === 'Rejected' || state === 'Retrying' || state === 'Needs attention';
+  const isErrorState = state === 'Not accepted' || state === 'Trying again' || state === 'Needs your review';
   // The server reuses the `last_error` column for the last DHIS2 response
   // body regardless of success/failure, so treat it as a response unless
   // the operator-facing state is actually a failure.
@@ -301,7 +301,7 @@ export function MockupDataDetail(): JSX.Element {
         }
         actions={
           <>
-            {(state === 'Retrying' || state === 'Rejected' || state === 'Waiting') && (
+            {(state === 'Trying again' || state === 'Not accepted' || state === 'Waiting') && (
               <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                       disabled={pushing}
                       onClick={() => { push.trigger('JOURNAL_WORKER_DRAIN').catch(() => undefined); }}>
@@ -309,7 +309,7 @@ export function MockupDataDetail(): JSX.Element {
                 {push.state === 'running' ? 'Pushing…' : 'Push now'}
               </button>
             )}
-            {state === 'Needs attention' && (
+            {state === 'Needs your review' && (
               <Link to="/sync/attention" className="ea-btn ea-btn--primary ea-btn--sm">
                 Open attention item
               </Link>

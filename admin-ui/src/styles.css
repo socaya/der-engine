@@ -58,7 +58,7 @@
   --der-ink-100:#e3e8ef;
   --der-surface:#ffffff;
   --der-raised:#f8fafc;
-  --der-canvas:#f1f4f9;
+  --der-canvas:#fafbfc;
   --der-border:#e2e6ec;
   --der-border-strong:#c7cdd6;
   --der-border-subtle:#eef0f4;
@@ -599,16 +599,15 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
   background:none;color:var(--der-ink-500);
   font-weight:600;font-size:13px;        /* §10.1: headers 12.5–13px */
   text-align:left;letter-spacing:0.3px;text-transform:uppercase;
-  padding:12px 14px;border-bottom:2px solid var(--der-border);
+  padding:8px 5px;border-bottom:2px solid var(--der-border);
   white-space:nowrap;position:sticky;top:0;background:var(--der-canvas); /* §10.1: sticky headers */
 }
 .ea-main tbody td{
-  padding:14px;color:var(--der-ink-900);
-  border-bottom:1px solid var(--der-border-subtle);vertical-align:middle;line-height:1.45;
+  padding:5px;color:var(--der-ink-900);
+  vertical-align:middle;line-height:1.45;
   background:transparent;
 }
-.ea-main tbody tr{min-height:48px;transition:background var(--t-fast) var(--ease)}   /* §10.1: 44–52px */
-.ea-main tbody tr:last-child td{border-bottom:none}
+.ea-main tbody tr{min-height:32px;transition:background var(--t-fast) var(--ease)}
 .ea-main tbody tr:hover td{background:rgba(13,46,92,0.045)}
 .ea-main .ea-table--selectable tbody tr:hover td{background:rgba(13,46,92,0.065)}
 .ea-main thead th > button{
@@ -1344,10 +1343,10 @@ kbd{
 }
 
 /* Dense table (used in Queues / Metadata / History / Data mockups) */
-.ea-table--dense th, .ea-table--dense td{padding:11px 12px;font-size:14px;line-height:1.45}  /* §10.1: body 14–15 */
+.ea-table--dense th, .ea-table--dense td{padding:5px;font-size:14px;line-height:1.45}
 .ea-table--dense thead th{font-size:13px}
 .ea-table--dense tbody td{color:var(--der-ink-900)}
-.ea-table--dense tbody tr{min-height:44px}      /* §10.1: 44–52px */
+.ea-table--dense tbody tr{min-height:28px}
 .ea-table--selectable tbody tr{cursor:pointer}
 .ea-table--selectable tbody tr.ea-row--active td{background:rgba(13,46,92,0.08)}
 .ea-main .ea-table--dense tbody tr:hover td{background:rgba(13,46,92,0.045)}
