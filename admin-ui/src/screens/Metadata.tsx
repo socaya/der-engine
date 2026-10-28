@@ -207,24 +207,20 @@ export function MockupMetadata(): JSX.Element {
       {!rows && !err && <LoadingBlock testId="loading" />}
 
       {rows && (
-        <>
-        <nav className="ea-section-tabs" aria-label="Metadata domain"
-             style={{ marginBottom: 10 }}>
-          {DOMAIN_GROUPS.map((g) => (
-            <button key={g.domain} type="button"
-                    className={'ea-section-tab' + (activeDomain === g.domain ? ' ea-section-tab--active' : '')}
-                    onClick={() => setActiveDomain(g.domain)}
-                    data-test={`metadata-domain-${g.domain.toLowerCase().replace(/[^a-z]+/g, '-')}`}>
-              <span>{g.domain}</span>
-              <span className="ea-text-muted" style={{ marginLeft: 4, fontWeight: 400 }}>
-                ({(domainCounts[g.domain] ?? 0).toLocaleString()})
-              </span>
-            </button>
-          ))}
-        </nav>
         <Panel action={
           <>
-            <select className="ea-input" style={{ maxWidth: 300 }}
+            <select className="ea-input" style={{ maxWidth: 220 }}
+                    value={activeDomain}
+                    onChange={(e) => setActiveDomain(e.target.value)}
+                    data-test="metadata-category"
+                    aria-label="Metadata category">
+              {DOMAIN_GROUPS.map((g) => (
+                <option key={g.domain} value={g.domain}>
+                  {g.domain} ({(domainCounts[g.domain] ?? 0).toLocaleString()})
+                </option>
+              ))}
+            </select>
+            <select className="ea-input" style={{ maxWidth: 260 }}
                     value={tabKey}
                     onChange={(e) => setTabKey(e.target.value)}
                     data-test="metadata-resource"
@@ -235,9 +231,6 @@ export function MockupMetadata(): JSX.Element {
                 </option>
               ))}
             </select>
-            <span className="ea-chip ea-chip--info">
-              {counts[tabKey] ?? '…'} mirrored
-            </span>
             <input className="ea-input" style={{ maxWidth: 240 }}
                    type="search" placeholder="Search by name, ID or code"
                    value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -285,7 +278,6 @@ export function MockupMetadata(): JSX.Element {
             />
           </div>
         </Panel>
-        </>
       )}
     </div>
   );

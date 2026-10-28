@@ -1302,20 +1302,85 @@ function scheduleKeyInfo(key: string): { title: string; desc: string } {
   }
 }
 
+/** Map scheduler settings-key (e.g. "sync.metadata") to the server-side
+ *  Quartz job-name (e.g. "METADATA_SYNC_FULL") so Run-now hits the right
+ *  trigger endpoint. Unknown keys get an empty job-name — Run-now disabled. */
+function jobNameForKey(key: string): string {
+  switch (key) {
+    case 'sync.metadata':      return 'METADATA_SYNC_FULL';
+    case 'sync.data':
+    case 'journal.drain':      return 'JOURNAL_WORKER_DRAIN';
+    case 'analytics.refresh':  return 'ANALYTICS_REFRESH';
+    case 'referral.inbox':     return 'REFERRAL_INBOX_POLL';
+    case 'backup.rotate':      return 'BACKUP_ROUTINE_DRAIN';
+    case 'compat.refresh':     return 'COMPAT_REFRESH';
+    case 'drift.snapshot':     return 'DRIFT_SNAPSHOT';
+    default:                   return '';
+  }
+}
+
+/** UiIcon id that depicts each scheduled flow. */
+function iconForKey(key: string): 'metadata' | 'push' | 'analytics' | 'referral' | 'backup' | 'compat' | 'drift' | 'schedule' {
+  switch (key) {
+    case 'sync.metadata':      return 'metadata';
+    case 'sync.data':
+    case 'journal.drain':      return 'push';
+    case 'analytics.refresh':  return 'analytics';
+    case 'referral.inbox':     return 'referral';
+    case 'backup.rotate':      return 'backup';
+    case 'compat.refresh':     return 'compat';
+    case 'drift.snapshot':     return 'drift';
+    default:                   return 'schedule';
+  }
+}
+
 export function CapSyncSchedule(): JSX.Element {
   const [s, setS] = useState<edgeApi.SettingsPayload | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [recentRuns, setRecentRuns] = useState<Record<string, edgeApi.JobRun | null>>({});
+  const [flashKey, setFlashKey] = useState<string | null>(null);
+
+  async function reloadRecents(keys: readonly string[]): Promise<void> {
+    const entries = await Promise.all(keys.map(async (k) => {
+      const name = jobNameForKey(k);
+      if (!name) return [k, null] as const;
+      try {
+        const runs = await edgeApi.listJobs(1, name);
+        return [k, runs[0] ?? null] as const;
+      } catch { return [k, null] as const; }
+    }));
+    const next: Record<string, edgeApi.JobRun | null> = {};
+    for (const [k, r] of entries) next[k] = r;
+    setRecentRuns(next);
+  }
+
   useEffect(() => {
-    edgeApi.readSettings().then(setS)
-      .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
+    edgeApi.readSettings().then((v) => {
+      setS(v);
+      void reloadRecents(Object.keys(v.cron ?? {}));
+    }).catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
   }, []);
+
   async function save(): Promise<void> {
     if (!s) return;
     setStatus('saving');
     try { await edgeApi.saveSettings(s); setStatus('saved'); }
     catch (e) { setStatus('error'); setErr(e instanceof Error ? e.message : String(e)); }
   }
+
+  async function runNow(cronKey: string): Promise<void> {
+    const name = jobNameForKey(cronKey);
+    if (!name) return;
+    try {
+      await edgeApi.triggerJob(name);
+      setFlashKey(cronKey);
+      setTimeout(() => setFlashKey((v) => (v === cronKey ? null : v)), 3000);
+      // Give the job 1.5 s to kick off, then refresh the last-run cell.
+      setTimeout(() => { void reloadRecents([cronKey]); }, 1500);
+    } catch { /* ignore — the sync-history page will show the failure if any */ }
+  }
+
   if (err && !s) return <ErrorBlock title="Settings load failed" testId="err-settings-load-failed">{err}</ErrorBlock>;
   if (!s) return <LoadingBlock testId="loading" />;
   const cron = Object.entries(s.cron ?? {});
@@ -1325,7 +1390,13 @@ export function CapSyncSchedule(): JSX.Element {
         tone="info"
         title="Schedule"
         statusLabel={`${cron.length} scheduled flow${cron.length === 1 ? '' : 's'}`}
-        subtitle={<span>When each background flow runs. The exact cron expression is editable per row.</span>}
+        subtitle={
+          <>
+            <span>Background flows that keep DER aligned with Central DHIS2.</span>
+            <span>·</span>
+            <span>Edit the cron expression per row, run any flow now, or jump to its history.</span>
+          </>
+        }
         actions={
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                   disabled={status === 'saving'}
@@ -1337,73 +1408,152 @@ export function CapSyncSchedule(): JSX.Element {
       />
       {status === 'saved' && <p className="ea-saved">Schedule saved.</p>}
       {status === 'error' && err && <ErrorBlock title="Save failed" testId="err-save-failed">{err}</ErrorBlock>}
-      <section className="ea-card ea-form-card">
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>Scheduled sync flows</h2>
-            <p>When each background flow runs. Plain-English summary first; the exact cron expression is editable below each row.</p>
+
+      {cron.length === 0 ? (
+        <EmptyBlock title="No scheduled flows" testId="empty-schedule">
+          This build has no cron entries configured. Add them under
+          Settings or recompile with <code>der.*.cron</code> defaults.
+        </EmptyBlock>
+      ) : (
+        <Panel title="Scheduled flows">
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense ea-table--selectable">
+              <thead>
+                <tr>
+                  <th style={{ width: 32 }}></th>
+                  <th>Flow</th>
+                  <th>Runs</th>
+                  <th>Last run</th>
+                  <th>Status</th>
+                  <th style={{ width: 48 }} aria-label="Actions"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {cron.map(([k, v]) => (
+                  <ScheduleRow
+                    key={k}
+                    cronKey={k}
+                    value={v}
+                    lastRun={recentRuns[k] ?? null}
+                    onChange={(nv) => setS({ ...s, cron: { ...s.cron, [k]: nv } })}
+                    onRunNow={() => { void runNow(k); }}
+                    flash={flashKey === k}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {cron.length === 0 && (
-              <div className="ea-field-hint">No scheduled flows configured on this build.</div>
-            )}
-            {cron.map(([k, v]) => (
-              <CronRow key={k}
-                       cronKey={k}
-                       value={v}
-                       onChange={(nv) => setS({ ...s, cron: { ...s.cron, [k]: nv } })} />
-            ))}
-          </div>
-        </div>
-      </section>
+        </Panel>
+      )}
     </div>
   );
 }
 
-/** One scheduled flow — plain-English summary with the cron expression
- *  tucked behind a "Show expression" toggle (DER Sync spec §8). */
-function CronRow({ cronKey, value, onChange }: {
-  cronKey: string; value: string; onChange: (v: string) => void;
+/** Per-flow row — Flow name + description, plain-English schedule,
+ *  last-run status (via `<Status>` marker), per-row context menu with
+ *  Run now / Show expression / View history / Copy expression. */
+function ScheduleRow({ cronKey, value, onChange, onRunNow, lastRun, flash }: {
+  cronKey: string;
+  value: string;
+  onChange: (v: string) => void;
+  onRunNow: () => void;
+  lastRun: edgeApi.JobRun | null;
+  flash: boolean;
 }): JSX.Element {
   const [showExpr, setShowExpr] = useState(false);
   const info = scheduleKeyInfo(cronKey);
+  const icon = iconForKey(cronKey);
+  const jobName = jobNameForKey(cronKey);
+  const canTrigger = jobName.length > 0;
+  const outcomeTone: 'success' | 'danger' | 'warning' | 'info' | 'muted'
+    = !lastRun ? 'muted'
+    : (lastRun.outcome === 'SUCCESS' || lastRun.outcome === 'SUCCEEDED') ? 'success'
+    : (lastRun.outcome === 'FAILED' || lastRun.outcome === 'FAILURE') ? 'danger'
+    : (lastRun.outcome === 'STARTED') ? 'info' : 'warning';
+  const outcomeLabel = !lastRun ? 'Never run'
+    : lastRun.outcome === 'STARTED' ? 'Running'
+    : humaniseState(lastRun.outcome);
+  const menuItems = [
+    ...(canTrigger ? [{ label: 'Run now', onSelect: onRunNow }] : []),
+    { label: showExpr ? 'Hide expression' : 'Edit expression',
+      onSelect: () => setShowExpr((x) => !x) },
+    { label: 'Copy expression',
+      onSelect: () => {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          navigator.clipboard.writeText(value).catch(() => undefined);
+        }
+      } },
+    ...(canTrigger ? [{ label: 'View history',
+      to: `/sync/history?jobName=${encodeURIComponent(jobName)}` }] : []),
+  ];
   return (
-    <div data-test={`cron-row-${cronKey}`}
-         style={{
-           padding: '10px 12px', border: '1px solid var(--der-border-subtle)',
-           borderRadius: 6,
-         }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--der-ink-900)' }}>
-            {info.title}
-          </div>
-          <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.4 }}>
+    <>
+      <tr data-test={`cron-row-${cronKey}`}
+          onClick={() => setShowExpr((x) => !x)}>
+        <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true">
+          <UiIcon icon={icon} size={18} />
+        </td>
+        <td>
+          <div style={{ fontWeight: 500 }}>{info.title}</div>
+          <div className="ea-text-muted" style={{ fontSize: 12, lineHeight: 1.4 }}>
             {info.desc}
           </div>
-          <div style={{ marginTop: 6, fontSize: 13 }}>
-            <strong>Runs {describeCron(value).toLowerCase()}</strong>
-          </div>
-        </div>
-        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                onClick={() => setShowExpr((x) => !x)}>
-          {showExpr ? 'Hide expression' : 'Show expression'}
-        </button>
-      </div>
+          {flash && (
+            <div style={{ marginTop: 4, fontSize: 12, color: 'var(--der-success-ink)' }}>
+              ✓ Triggered — see history for progress
+            </div>
+          )}
+        </td>
+        <td>
+          <div>{describeCron(value)}</div>
+          <div className="ea-text-muted ea-mono" style={{ fontSize: 12 }}>{value}</div>
+        </td>
+        <td className="ea-text-muted">
+          {lastRun?.startedAt ? fmtAgo(lastRun.startedAt) : '—'}
+        </td>
+        <td>
+          <Status tone={outcomeTone}>{outcomeLabel}</Status>
+        </td>
+        <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+          <RowMenu items={menuItems} />
+        </td>
+      </tr>
       {showExpr && (
-        <label className="ea-field" style={{ marginTop: 8 }}>
-          <span className="ea-field-label" title={cronKey}>Cron expression</span>
-          <input className="ea-input ea-mono" value={value}
-                 data-test={`cron-input-${cronKey}`}
-                 onChange={(e) => onChange(e.target.value)} />
-          <span className="ea-field-hint">
-            Quartz syntax: <code>seconds minutes hours day-of-month month day-of-week</code>.
-            Leave blank to use the compiled default.
-          </span>
-        </label>
+        <tr data-test={`cron-expr-${cronKey}`}>
+          <td></td>
+          <td colSpan={5} style={{ paddingTop: 0 }}>
+            <label className="ea-field" style={{ display: 'block' }}>
+              <span className="ea-field-label" title={cronKey}>Cron expression</span>
+              <input className="ea-input ea-mono" value={value}
+                     data-test={`cron-input-${cronKey}`}
+                     onChange={(e) => onChange(e.target.value)}
+                     onClick={(e) => e.stopPropagation()} />
+              <span className="ea-field-hint">
+                Quartz syntax: <code>seconds minutes hours day-of-month month day-of-week</code>.
+                Click <strong>Save schedule</strong> above to apply.
+              </span>
+            </label>
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
+}
+
+/** Local alias to avoid importing fmtAgo on the top level — Schedule
+ *  only consumer in this file. */
+function fmtAgo(iso: string): string {
+  const now = Date.now();
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return '—';
+  const sec = Math.max(0, Math.round((now - t) / 1000));
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const d = Math.round(hr / 24);
+  return `${d}d ago`;
 }
 
 // ────────────────────────────────────────────────────────────────────
