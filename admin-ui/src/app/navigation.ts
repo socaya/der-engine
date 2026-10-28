@@ -78,15 +78,16 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     primaryId: 'sync-overview',
     icon: 'sync',
     items: [
+      /* §9.2 operator terminology */
       { id: 'sync-overview', label: 'Overview', to: '/sync', status: 'implemented' },
-      { id: 'sync-metadata', label: 'Metadata', to: '/sync/metadata', status: 'implemented' },
-      { id: 'sync-data', label: 'Data', to: '/sync/data', status: 'implemented' },
-      { id: 'sync-attention', label: 'Needs your attention', to: '/sync/attention', status: 'implemented' },
-      { id: 'sync-worker', label: 'Worker', to: '/sync/worker', status: 'implemented' },
+      { id: 'sync-metadata', label: 'Metadata Sync', to: '/sync/metadata', status: 'implemented' },
+      { id: 'sync-data', label: 'Data Queue', to: '/sync/data', status: 'implemented' },
+      { id: 'sync-attention', label: 'Attention', to: '/sync/attention', status: 'implemented' },
+      { id: 'sync-worker', label: 'Sync Worker', to: '/sync/worker', status: 'implemented' },
       { id: 'sync-schedule', label: 'Schedule', to: '/sync/schedule', status: 'implemented' },
       { id: 'sync-history', label: 'History', to: '/sync/history', status: 'implemented' },
       { id: 'sync-settings', label: 'Settings', to: '/sync/settings', status: 'implemented' },
-      // Legacy routes retained for existing bookmarks; not shown in sidebar.
+      /* Legacy routes retained for existing bookmarks; not shown in sidebar. */
       { id: 'sync-jobs', label: 'Jobs', to: '/sync/jobs', status: 'contextual' },
       { id: 'sync-queues-legacy', label: 'Queues', to: '/sync/queues', status: 'contextual' },
       { id: 'conflicts-legacy', label: 'Conflicts', to: '/journal/conflicts', status: 'contextual' },

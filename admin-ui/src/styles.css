@@ -88,13 +88,20 @@
   --t-fast:120ms; --t-base:200ms;
   --ease:cubic-bezier(0.2,0.0,0.2,1);
 
-  /* Type scale */
-  --fs-xs:12px; --fs-sm:13px; --fs-md:14px; --fs-base:14px;
-  --fs-lg:16px; --fs-xl:20px; --fs-2xl:24px; --fs-3xl:28px; --fs-4xl:32px;
+  /* Type scale — DER UI 10/10 Visibility standard (§4.1) */
+  --fs-xs:13px;        /* micro / helper min (§4.1: critical secondary ≥13px) */
+  --fs-sm:14px;        /* table headers, tabs */
+  --fs-md:15px;        /* standard body */
+  --fs-base:15px;      /* app baseline (§4.1: body 15–16px) */
+  --fs-lg:17px;        /* panel/section titles 17–18px */
+  --fs-xl:20px;        /* major section headings 20–22px */
+  --fs-2xl:24px;
+  --fs-3xl:28px;       /* main page title 28–30px */
+  --fs-4xl:32px;
 
-  /* Layout */
-  --sidebar-w:230px;
-  --sidebar-w-collapsed:68px;
+  /* Layout — sidebar 240–260px per §6.1 */
+  --sidebar-w:252px;
+  --sidebar-w-collapsed:72px;
   --topbar-h:60px;
 }
 
@@ -103,15 +110,19 @@ html,body,#root{height:100%}
 
 body{
   margin:0;
-  font-family:'Inter','-apple-system',BlinkMacSystemFont,
+  /* §4.3: Inter stack */
+  font-family:Inter,-apple-system,BlinkMacSystemFont,
     'Segoe UI','Helvetica Neue',Arial,sans-serif;
   color:var(--der-ink-900);
   background:var(--der-canvas);
-  font-size:var(--fs-base);
+  font-size:15px;                 /* §4.1 non-negotiable: body ≥15px */
   line-height:1.5;
   -webkit-font-smoothing:antialiased;
   text-rendering:optimizeLegibility;
 }
+.ea-mono{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,monospace;font-size:13px}
+.ea-text-muted{color:var(--der-ink-500);font-size:14px}
+code{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,monospace;font-size:13px}
 
 /* ============ Shell layout ============ */
 .ea-shell{
@@ -170,13 +181,13 @@ body{
 }
 .ea-sidebar-item{
   display:flex;align-items:center;gap:var(--sp-3);
-  padding:10px var(--sp-3);
+  padding:11px var(--sp-4);
   color:var(--der-sidebar-ink);text-decoration:none;
-  font-size:var(--fs-md);font-weight:500;
-  border-radius:var(--r-md);line-height:1.2;
+  font-size:15px;font-weight:500;              /* §4.1: primary nav 15px */
+  border-radius:var(--r-md);line-height:1.25;
   transition:color var(--t-fast) var(--ease),
              background var(--t-fast) var(--ease);
-  white-space:nowrap;
+  white-space:nowrap;min-height:40px;          /* §9.1: 36–40px touch */
 }
 .ea-sidebar-item:hover{
   color:var(--der-sidebar-ink-hover);
@@ -209,12 +220,13 @@ body{
   border-bottom:1px solid var(--der-border-subtle);
 }
 .ea-section-tab{
-  padding:6px 12px;border-radius:0;
-  color:var(--der-ink-400);font-size:11px;font-weight:500;
+  padding:10px 14px;border-radius:0;
+  color:var(--der-ink-500);font-size:14px;font-weight:500;      /* §9.1: ≥14px, 36–40px */
   text-decoration:none;line-height:1.2;white-space:nowrap;
   border-bottom:2px solid transparent;margin-bottom:-1px;
   transition:color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
-  background:transparent !important;
+  background:transparent !important;min-height:38px;
+  display:inline-flex;align-items:center;
 }
 .ea-section-tab:hover{color:var(--der-ink-900);text-decoration:none}
 .ea-section-tab--active{
@@ -226,18 +238,55 @@ body{
   .ea-section-tab{flex-shrink:0}
 }
 
+/* Live DER Runtime indicator — §6.3 */
 .ea-sidebar-footer{
-  padding:var(--sp-3) var(--sp-5);
+  padding:12px 16px;
   border-top:1px solid var(--der-sidebar-border);
-  font-size:var(--fs-xs);color:#6a7a98;
-  display:flex;align-items:center;gap:var(--sp-2);
+  font-size:13px;color:#c7d2e3;                       /* §4.1: ≥13px secondary */
+  display:flex;align-items:center;gap:10px;
+  text-decoration:none;flex-wrap:wrap;
 }
+.ea-sidebar-footer-link{color:#c7d2e3}
+.ea-sidebar-footer-link:hover{background:rgba(255,255,255,0.04)}
+.ea-sidebar-footer-text{font-weight:600;line-height:1.3}
+.ea-sidebar-footer-sub{color:#8a98b6;font-size:12px;line-height:1.3;width:100%;padding-left:18px;margin-top:1px}
 .ea-sidebar-footer-dot{
-  width:8px;height:8px;border-radius:50%;
-  background:var(--der-success);box-shadow:0 0 6px var(--der-success);
+  width:9px;height:9px;border-radius:50%;flex-shrink:0;
+  background:var(--der-ink-300);
 }
-.ea-shell--collapsed .ea-sidebar-footer-text{display:none}
-.ea-shell--collapsed .ea-sidebar-footer{justify-content:center;padding:var(--sp-3) 0}
+.ea-sidebar-footer-dot--operational{background:#2ecc71;box-shadow:0 0 7px rgba(46,204,113,0.55)}
+.ea-sidebar-footer-dot--offline-first{background:#f0c93b;box-shadow:0 0 7px rgba(240,201,59,0.55)}
+.ea-sidebar-footer-dot--recovering{background:#5aa7ff;box-shadow:0 0 7px rgba(90,167,255,0.55)}
+.ea-sidebar-footer-dot--starting{background:#8a98b6;box-shadow:0 0 7px rgba(138,152,182,0.55)}
+.ea-sidebar-footer-dot--degraded{background:#ff6a6a;box-shadow:0 0 7px rgba(255,106,106,0.55)}
+.ea-sidebar-footer-dot--unknown{background:#8a98b6}
+.ea-shell--collapsed .ea-sidebar-footer-text,
+.ea-shell--collapsed .ea-sidebar-footer-sub{display:none}
+.ea-shell--collapsed .ea-sidebar-footer{justify-content:center;padding:12px 0}
+
+/* Topbar operating-mode pill — §6.2 */
+.ea-topbar-mode{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:7px 14px;border-radius:999px;
+  border:1px solid var(--der-border);background:var(--der-raised);
+  color:var(--der-ink-900);font-size:14px;font-weight:600;
+  text-decoration:none;line-height:1.2;
+  transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
+}
+.ea-topbar-mode:hover{background:#eef2f8;border-color:var(--der-border-strong);text-decoration:none}
+.ea-topbar-mode-dot{width:9px;height:9px;border-radius:50%;background:var(--der-ink-300);flex-shrink:0}
+.ea-topbar-mode--operational{background:var(--der-success-soft);border-color:#bfe5cf;color:var(--der-success-ink)}
+.ea-topbar-mode--operational .ea-topbar-mode-dot{background:var(--der-success)}
+.ea-topbar-mode--offline-first{background:var(--der-warning-soft);border-color:#f0d5a1;color:var(--der-warning-ink)}
+.ea-topbar-mode--offline-first .ea-topbar-mode-dot{background:var(--der-warning)}
+.ea-topbar-mode--recovering{background:var(--der-primary-soft);border-color:#c6d3ea;color:var(--der-primary-ink)}
+.ea-topbar-mode--recovering .ea-topbar-mode-dot{background:var(--der-primary)}
+.ea-topbar-mode--degraded{background:var(--der-danger-soft);border-color:#f1c4c4;color:var(--der-danger-ink)}
+.ea-topbar-mode--degraded .ea-topbar-mode-dot{background:var(--der-danger)}
+.ea-topbar-mode--starting{background:var(--der-raised);border-color:var(--der-border);color:var(--der-ink-500)}
+.ea-topbar-mode--starting .ea-topbar-mode-dot{background:var(--der-ink-400)}
+@media(max-width:900px){.ea-topbar-mode-label{display:none}}
+
 
 /* ---------- Topbar ---------- */
 .ea-topbar{
@@ -486,28 +535,28 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
 .ea-row-menu div[role="menu"] [role="menuitem"]:hover{background:var(--der-raised)}
 .ea-row-menu div[role="menu"] [role="menuitem"][disabled]:hover{background:none}
 
-/* ============ Tables (Atlassian-flat) ============ */
+/* ============ Tables — §10 10/10 standard ============ */
 .ea-main table{
   width:100%;border-collapse:separate;border-spacing:0;
   background:none;border-radius:0;box-shadow:none;overflow:visible;
-  font-size:13px;
+  font-size:15px;                       /* §10.1: body 14–15px */
 }
 .ea-main thead th{
   background:none;color:var(--der-ink-500);
-  font-weight:600;font-size:11px;
-  text-align:left;letter-spacing:0.4px;text-transform:uppercase;
-  padding:8px 12px;border-bottom:2px solid var(--der-border);
-  white-space:nowrap;
+  font-weight:600;font-size:13px;        /* §10.1: headers 12.5–13px */
+  text-align:left;letter-spacing:0.3px;text-transform:uppercase;
+  padding:12px 14px;border-bottom:2px solid var(--der-border);
+  white-space:nowrap;position:sticky;top:0;background:var(--der-canvas); /* §10.1: sticky headers */
 }
 .ea-main tbody td{
-  padding:10px 12px;color:var(--der-ink-800);
-  border-bottom:1px solid var(--der-border-subtle);vertical-align:middle;line-height:1.4;
+  padding:14px;color:var(--der-ink-900);
+  border-bottom:1px solid var(--der-border-subtle);vertical-align:middle;line-height:1.45;
   background:transparent;
 }
+.ea-main tbody tr{min-height:48px;transition:background var(--t-fast) var(--ease)}   /* §10.1: 44–52px */
 .ea-main tbody tr:last-child td{border-bottom:none}
-.ea-main tbody tr{transition:background var(--t-fast) var(--ease)}
-.ea-main tbody tr:hover td{background:rgba(13,46,92,0.04)}
-.ea-main .ea-table--selectable tbody tr:hover td{background:rgba(13,46,92,0.06)}
+.ea-main tbody tr:hover td{background:rgba(13,46,92,0.045)}
+.ea-main .ea-table--selectable tbody tr:hover td{background:rgba(13,46,92,0.065)}
 .ea-main thead th > button{
   background:none;border:none;padding:0;box-shadow:none;
   font-size:var(--fs-xs);font-weight:600;color:var(--der-ink-400);
@@ -540,13 +589,13 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
 /* ============ ScreenHeader ============ */
 .ea-screen-header{
   display:flex;align-items:flex-start;justify-content:space-between;
-  gap:var(--sp-4);margin:0 0 var(--sp-4);flex-wrap:wrap;
+  gap:var(--sp-5);margin:0 0 var(--sp-6);flex-wrap:wrap;      /* §26: 24px section */
 }
 .ea-screen-header-text{flex:1;min-width:200px}
-.ea-screen-header-text h1{margin:0}
-.ea-screen-header-sub{margin:var(--sp-1) 0 0;color:var(--der-ink-400);font-size:var(--fs-md)}
+.ea-screen-header-text h1{margin:0;font-size:22px;font-weight:700;line-height:1.25;letter-spacing:-0.01em}  /* §4.1: major section 20–22 */
+.ea-screen-header-sub{margin:6px 0 0;color:var(--der-ink-500);font-size:14px;line-height:1.5}  /* §4.1: secondary ≥13; use 14 */
 .ea-screen-header-right{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap}
-.ea-screen-header-stale{color:var(--der-ink-400);font-size:var(--fs-sm)}
+.ea-screen-header-stale{color:var(--der-ink-500);font-size:14px}
 
 /* ============ Breadcrumbs ============ */
 .ea-breadcrumbs{
@@ -802,14 +851,14 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
   .ea-hero-date{text-align:left}
 }
 
-/* ============ Chips ============ */
+/* ============ Chips — §4.1 12–13px, §11 plain language ============ */
 .ea-chip{
-  display:inline-flex;align-items:center;gap:4px;
-  padding:1px 7px;border-radius:var(--r-pill);
-  font-size:10px;font-weight:600;line-height:14px;letter-spacing:0.2px;
-  background:var(--der-raised);color:var(--der-ink-500);
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px;border-radius:var(--r-pill);
+  font-size:12px;font-weight:600;line-height:16px;letter-spacing:0.2px;
+  background:var(--der-raised);color:var(--der-ink-500);white-space:nowrap;
 }
-.ea-chip::before{content:'';width:4px;height:4px;border-radius:50%;background:currentColor;opacity:0.8}
+.ea-chip::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.85}
 .ea-chip--success{background:var(--der-success-soft);color:var(--der-success-ink)}
 .ea-chip--warning{background:var(--der-warning-soft);color:var(--der-warning-ink)}
 .ea-chip--danger{background:var(--der-danger-soft);color:var(--der-danger-ink)}
@@ -1167,10 +1216,11 @@ kbd{
    the thead's own border serves as the separator. */
 .ea-panel{background:none;border:none;border-radius:0;margin:0 0 20px;box-shadow:none}
 .ea-panel-head{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
-  padding:0 0 8px;margin:0 0 10px;border-bottom:1px solid var(--der-border-subtle);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:0 0 10px;margin:0 0 14px;border-bottom:1px solid var(--der-border-subtle);
 }
-.ea-panel-title{margin:0;font-size:14px;font-weight:600;color:var(--der-ink-900);letter-spacing:0;text-transform:none;white-space:nowrap}
+.ea-panel-title{margin:0;font-size:17px;font-weight:600;color:var(--der-ink-900);letter-spacing:0;text-transform:none;white-space:nowrap;line-height:1.3}
+/* §4.1: panel/section titles 17–18px */
 /* flex: 1 so the action container fills the head's remaining width —
    otherwise it shrinks to its wrapped content and forces children
    onto two visual rows even when horizontal space is available. */
@@ -1240,11 +1290,13 @@ kbd{
 }
 
 /* Dense table (used in Queues / Metadata / History / Data mockups) */
-.ea-table--dense th, .ea-table--dense td{padding:8px 10px;font-size:12px;line-height:1.4}
-.ea-table--dense tbody td{color:var(--der-ink-800)}
+.ea-table--dense th, .ea-table--dense td{padding:11px 12px;font-size:14px;line-height:1.45}  /* §10.1: body 14–15 */
+.ea-table--dense thead th{font-size:13px}
+.ea-table--dense tbody td{color:var(--der-ink-900)}
+.ea-table--dense tbody tr{min-height:44px}      /* §10.1: 44–52px */
 .ea-table--selectable tbody tr{cursor:pointer}
-.ea-table--selectable tbody tr.ea-row--active td{background:rgba(13,46,92,0.06)}
-.ea-main .ea-table--dense tbody tr:hover td{background:rgba(13,46,92,0.04)}
+.ea-table--selectable tbody tr.ea-row--active td{background:rgba(13,46,92,0.08)}
+.ea-main .ea-table--dense tbody tr:hover td{background:rgba(13,46,92,0.045)}
 /* Compact chips */
 .ea-main .ea-table--dense .ea-chip{padding:1px 7px;font-size:10px;line-height:14px}
 
@@ -1598,14 +1650,14 @@ kbd{
 /* Definition list used by DefinitionCard */
 .ea-def-list{display:flex;flex-direction:column;gap:0;margin:0;padding:0;list-style:none}
 .ea-def-row{
-  display:grid;grid-template-columns:180px 1fr;gap:20px;align-items:baseline;
-  padding:6px 0;
+  display:grid;grid-template-columns:200px 1fr;gap:24px;align-items:baseline;
+  padding:8px 0;                              /* §26: 20–24px section content */
 }
 .ea-def-row:first-child{padding-top:0}
 .ea-def-row:last-child{padding-bottom:0}
-.ea-def-row dt{color:var(--der-ink-500);font-weight:500;font-size:12px;margin:0;line-height:1.5}
-.ea-def-row dd{color:var(--der-ink-900);margin:0;font-size:13px;line-height:1.5;word-break:break-word}
-.ea-text-muted{color:var(--der-ink-400)}
+.ea-def-row dt{color:var(--der-ink-500);font-weight:500;font-size:14px;margin:0;line-height:1.5}
+.ea-def-row dd{color:var(--der-ink-900);margin:0;font-size:15px;line-height:1.5;word-break:break-word}  /* §4.1: body 15–16 */
+/* .ea-text-muted hoisted above (§4.1 ≥13px for secondary; use 14px) */
 
 @media(max-width:768px){
   .ea-def-row{grid-template-columns:1fr;gap:2px}
