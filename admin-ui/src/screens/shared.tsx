@@ -786,6 +786,31 @@ export function SyncStatusBar({ tone, title, statusLabel, details, subtitle, act
   );
 }
 
+/** Poll /edge-api/v1/dhis2/ping every 15 s so screens can key off a
+ *  live-probed central-reachability signal rather than the stale
+ *  compat snapshot. The server caches the probe for 10 s, so N tabs
+ *  polling in parallel still only ever fan out to Central every 10 s. */
+export function useCentralReachable(): { reachable: boolean | null; latencyMs: number | null; message: string | null } {
+  const [snap, setSnap] = useState<edgeApi.PingSnapshot | null>(null);
+  useEffect(() => {
+    let cancel = false;
+    async function tick(): Promise<void> {
+      try {
+        const s = await edgeApi.dhis2Ping();
+        if (!cancel) setSnap(s);
+      } catch { /* ignore — leave previous snapshot */ }
+    }
+    tick().catch(() => undefined);
+    const id = window.setInterval(() => { tick().catch(() => undefined); }, 15_000);
+    return () => { cancel = true; window.clearInterval(id); };
+  }, []);
+  return {
+    reachable: snap == null ? null : snap.reachable,
+    latencyMs: snap?.latencyMs ?? null,
+    message: snap?.message ?? null,
+  };
+}
+
 /** Confirmation helper for destructive actions (§13.4 / P1 line in
  *  UI Visibility standard). Returns a wrapped onClick that pops a
  *  native browser confirm with an explicit effect message. */

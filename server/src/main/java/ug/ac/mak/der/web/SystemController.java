@@ -35,9 +35,12 @@ public class SystemController {
     @GetMapping("/health")
     public SystemHealthResponse health() {
         final BuildInfo info = buildInfo.buildInfo();
+        // By the time this controller services a request the Spring context
+        // is fully up — report "UP" so the UI runtime indicator doesn't
+        // stay on "Starting" forever (see 2.1.66 offline-sweep notes).
         return new SystemHealthResponse(
                 "der-server",
-                "starter-ready",
+                "UP",
                 info.release(),
                 info.commit(),
                 info.branch(),

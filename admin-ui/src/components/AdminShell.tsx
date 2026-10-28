@@ -16,30 +16,38 @@ type RuntimeMode = 'operational' | 'degraded' | 'offline-first' | 'recovering' |
 
 function useRuntimeMode(): { mode: RuntimeMode; label: string; sub: string; detail: string } {
   const [h, setH] = useState<edgeApi.HealthResponse | null>(null);
-  const [c, setC] = useState<edgeApi.CompatSnapshot | null>(null);
+  const [p, setP] = useState<edgeApi.PingSnapshot | null>(null);
+  const [probing, setProbing] = useState(true);
   useEffect(() => {
     let cancel = false;
     async function tick(): Promise<void> {
       try {
-        const [hr, cr] = await Promise.allSettled([edgeApi.health(), edgeApi.compat()]);
+        const [hr, pr] = await Promise.allSettled([edgeApi.health(), edgeApi.dhis2Ping()]);
         if (!cancel) {
           if (hr.status === 'fulfilled') setH(hr.value);
-          if (cr.status === 'fulfilled') setC(cr.value);
+          if (pr.status === 'fulfilled') setP(pr.value);
+          setProbing(false);
         }
-      } catch { /* ignore */ }
+      } catch { if (!cancel) setProbing(false); }
     }
     tick().catch(() => undefined);
     const id = window.setInterval(() => { tick().catch(() => undefined); }, 15_000);
     return () => { cancel = true; window.clearInterval(id); };
   }, []);
   if (!h) return { mode: 'unknown', label: 'DER Runtime · Checking', sub: '', detail: 'Checking status…' };
-  const derUp = h.status === 'UP' || h.status === 'starter-ready' || h.status === 'ready';
+  const derUp = h.status === 'UP' || h.status === 'ready';
   const starting = h.status === 'starter-ready' || h.status === 'starting';
-  const centralReachable = c?.probeReachable === true;
-  if (!derUp) return { mode: 'degraded', label: 'DER Runtime · Degraded', sub: h.status ?? 'unavailable', detail: 'DER runtime is not operational.' };
+  // Ping is authoritative — it does a live GET against central with a short
+  // timeout and caches server-side for 10 s. If the probe hasn't landed yet
+  // (first 15 s after mount) we show "Checking" rather than guess.
+  const centralReachable = p?.reachable === true;
+  const centralUnreachable = p != null && p.reachable === false;
+  if (!derUp && !starting) return { mode: 'degraded', label: 'DER Runtime · Degraded', sub: h.status ?? 'unavailable', detail: 'DER runtime is not operational.' };
   if (starting) return { mode: 'starting', label: 'DER Runtime · Starting', sub: '', detail: 'DER is initialising.' };
   if (centralReachable) return { mode: 'operational', label: 'DER Connected', sub: 'Central reachable', detail: 'DER is connected to Central DHIS2. Local operations are available and eligible changes are being synchronised.' };
-  return { mode: 'offline-first', label: 'DER Offline-First', sub: 'Central unavailable', detail: 'Central DHIS2 is unavailable. DER remains operational on the local network. Locally accepted changes are being stored safely and queued for synchronisation.' };
+  if (centralUnreachable) return { mode: 'offline-first', label: 'DER Offline-First', sub: 'Central unavailable', detail: p?.message ?? 'Central DHIS2 is unavailable. DER remains operational on the local network. Locally accepted changes are being stored safely and queued for synchronisation.' };
+  if (probing) return { mode: 'unknown', label: 'DER Runtime · Checking', sub: '', detail: 'Checking central reachability…' };
+  return { mode: 'operational', label: 'DER Connected', sub: '', detail: 'DER is operational.' };
 }
 
 /**

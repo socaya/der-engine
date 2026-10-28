@@ -1,5 +1,8 @@
 package ug.ac.mak.der.web;
 
+import java.time.Instant;
+import java.util.concurrent.atomic.AtomicReference;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,9 +28,18 @@ public class Dhis2CompatibilityController {
     private static final Logger LOG = LoggerFactory.getLogger(Dhis2CompatibilityController.class);
 
     private final Dhis2CompatibilityGuard guard;
+    private final Dhis2ReferenceClient dhis2;
 
-    public Dhis2CompatibilityController(final Dhis2CompatibilityGuard guard) {
+    /** Cached last ping result. Shared across threads via AtomicReference so a
+     *  burst of UI polls doesn't fan out to Central — a single stored probe
+     *  is reused for {@link #PING_TTL_MS} milliseconds. */
+    private final AtomicReference<PingSnapshot> lastPing = new AtomicReference<>();
+    private static final long PING_TTL_MS = 10_000L;
+
+    public Dhis2CompatibilityController(final Dhis2CompatibilityGuard guard,
+                                         final Dhis2ReferenceClient dhis2) {
         this.guard = guard;
+        this.dhis2 = dhis2;
     }
 
     @GetMapping("/compatibility")
@@ -55,6 +67,52 @@ public class Dhis2CompatibilityController {
                     "BAD_RESPONSE", null, null, null, null, ex.getMessage()));
         }
     }
+
+    /** Lightweight DHIS2 reachability probe for the UI runtime indicator.
+     *  Does a short-timeout GET /api/system/info and caches the result for
+     *  {@link #PING_TTL_MS} ms. Returns 200 either way; the body carries
+     *  the reachable flag so a client can distinguish "central down" from
+     *  "DER down". */
+    @GetMapping("/ping")
+    public ResponseEntity<PingSnapshot> ping() {
+        final PingSnapshot cached = lastPing.get();
+        if (cached != null && (System.currentTimeMillis() - cached.probedAtMillis) < PING_TTL_MS) {
+            return ResponseEntity.ok(cached);
+        }
+        final long t0 = System.nanoTime();
+        boolean reachable = false;
+        String message = null;
+        String observedVersion = null;
+        try {
+            final Dhis2Version v = dhis2.fetchVersion();
+            reachable = true;
+            observedVersion = v == null ? null : v.version();
+        } catch (Dhis2ReferenceClient.Dhis2UnreachableException ex) {
+            message = ex.getMessage();
+        } catch (Dhis2ReferenceClient.Dhis2ResponseException ex) {
+            // Central answered — treat as reachable even if the body shape
+            // changed unexpectedly; the compat profile check will quarantine
+            // separately.
+            reachable = true;
+            message = "Central reachable but response unexpected: " + ex.getMessage();
+        } catch (Exception ex) {
+            message = ex.getClass().getSimpleName() + ": " + ex.getMessage();
+        }
+        final long rttMs = (System.nanoTime() - t0) / 1_000_000L;
+        final PingSnapshot snap = new PingSnapshot(reachable, observedVersion,
+                rttMs, Instant.now().toString(), System.currentTimeMillis(), message);
+        lastPing.set(snap);
+        return ResponseEntity.ok(snap);
+    }
+
+    public record PingSnapshot(
+            @JsonProperty("reachable") boolean reachable,
+            @JsonProperty("observedVersion") String observedVersion,
+            @JsonProperty("latencyMs") long latencyMs,
+            @JsonProperty("probedAt") String probedAt,
+            @JsonProperty(access = JsonProperty.Access.WRITE_ONLY) long probedAtMillis,
+            @JsonProperty("message") String message
+    ) {}
 
     public record CompatibilityStatus(
             @JsonProperty("status") String status,

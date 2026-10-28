@@ -4,6 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import {
   Panel, fmtAgo, syncActivityShape, operatorState, operatorStateTone,
   SyncStatusBar, Spinner, useTriggerAndWatch, type SyncStatusTone, Status,
+  useCentralReachable,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
 import { LoadingBlock } from '../components/ScreenStates';
@@ -49,9 +50,13 @@ export function MockupSyncOverview(): JSX.Element {
     }
   }, [push.state]);
 
+  const livePing = useCentralReachable();
   if (!w) return <LoadingBlock testId="loading" />;
 
-  const centralReachable = sysInfo?.dhis2?.probeReachable ?? false;
+  // Prefer the live ping (polls every 15 s with 10 s server cache); fall
+  // back to the compat probe cached on sysInfo while the first ping
+  // response is in flight.
+  const centralReachable = livePing.reachable ?? sysInfo?.dhis2?.probeReachable ?? false;
   const attentionCount = stats
     ? Object.values(stats).reduce((a, b) =>
         a + (b.CONFLICT_REVIEW ?? 0) + (b.RETRYABLE ?? 0) + (b.CENTRAL_REJECTED ?? 0), 0)

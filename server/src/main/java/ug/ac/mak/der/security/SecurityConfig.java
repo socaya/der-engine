@@ -78,6 +78,11 @@ public class SecurityConfig {
                         // calls remain session-gated by the matchers below.
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                                 "/admin", "/admin/", "/admin/**").permitAll()
+                        // Lightweight reachability probe used by the runtime
+                        // indicator in every authenticated UI session — admin
+                        // + operator both need to see "central is down" when
+                        // it's down. Full /dhis2/compat etc. remain admin-only.
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/edge-api/v1/dhis2/ping").authenticated()
                         .requestMatchers("/edge-api/v1/dhis2/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/provisioning/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/sync/notify").authenticated()

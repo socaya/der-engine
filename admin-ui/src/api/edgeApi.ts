@@ -266,6 +266,21 @@ export function compat(): Promise<CompatSnapshot> {
   return request<CompatSnapshot>('GET', '/edge-api/v1/compat');
 }
 
+/** Lightweight central reachability probe used by the runtime indicator.
+ *  Server does GET /api/system/info with a short timeout + caches the
+ *  response for 10 s so a storm of UI polls doesn't fan out to Central. */
+export interface PingSnapshot {
+  reachable: boolean;
+  observedVersion: string | null;
+  latencyMs: number;
+  probedAt: string;
+  message: string | null;
+}
+
+export function dhis2Ping(): Promise<PingSnapshot> {
+  return request<PingSnapshot>('GET', '/edge-api/v1/dhis2/ping');
+}
+
 export function compatHistory(limit = 20): Promise<{ snapshots: CompatSnapshot[] }> {
   return request('GET', `/edge-api/v1/compat/history?limit=${limit}`);
 }
