@@ -108,6 +108,7 @@ interface MetaRow {
 export function MockupMetadata(): JSX.Element {
   const navigate = useNavigate();
   const [tabKey, setTabKey] = useState<string>(RESOURCES[0].key);
+  const [activeDomain, setActiveDomain] = useState<string>(DOMAIN_GROUPS[0].domain);
   const [rows, setRows] = useState<MetaRow[] | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [err, setErr] = useState<string | null>(null);
@@ -118,6 +119,24 @@ export function MockupMetadata(): JSX.Element {
   const [pageCount, setPageCount] = useState(1);
 
   const activeResource = RESOURCES.find((r) => r.key === tabKey) ?? RESOURCES[0];
+  const activeDomainGroup = DOMAIN_GROUPS.find((g) => g.domain === activeDomain) ?? DOMAIN_GROUPS[0];
+
+  // When domain switches, snap to the first resource in that domain if the
+  // currently-selected resource isn't in it.
+  useEffect(() => {
+    if (!activeDomainGroup.resources.some((r) => r.key === tabKey)) {
+      setTabKey(activeDomainGroup.resources[0].key);
+    }
+  }, [activeDomain, activeDomainGroup, tabKey]);
+
+  // Compute per-domain item counts for the tab labels.
+  const domainCounts = useMemo((): Record<string, number> => {
+    const out: Record<string, number> = {};
+    for (const g of DOMAIN_GROUPS) {
+      out[g.domain] = g.resources.reduce((a, r) => a + (counts[r.key] ?? 0), 0);
+    }
+    return out;
+  }, [counts]);
 
   useEffect(() => { setPage(1); }, [tabKey, pageSize]);
 
@@ -188,6 +207,21 @@ export function MockupMetadata(): JSX.Element {
       {!rows && !err && <LoadingBlock testId="loading" />}
 
       {rows && (
+        <>
+        <nav className="ea-section-tabs" aria-label="Metadata domain"
+             style={{ marginBottom: 10 }}>
+          {DOMAIN_GROUPS.map((g) => (
+            <button key={g.domain} type="button"
+                    className={'ea-section-tab' + (activeDomain === g.domain ? ' ea-section-tab--active' : '')}
+                    onClick={() => setActiveDomain(g.domain)}
+                    data-test={`metadata-domain-${g.domain.toLowerCase().replace(/[^a-z]+/g, '-')}`}>
+              <span>{g.domain}</span>
+              <span className="ea-text-muted" style={{ marginLeft: 4, fontWeight: 400 }}>
+                ({(domainCounts[g.domain] ?? 0).toLocaleString()})
+              </span>
+            </button>
+          ))}
+        </nav>
         <Panel action={
           <>
             <select className="ea-input" style={{ maxWidth: 300 }}
@@ -195,14 +229,10 @@ export function MockupMetadata(): JSX.Element {
                     onChange={(e) => setTabKey(e.target.value)}
                     data-test="metadata-resource"
                     aria-label="Metadata resource">
-              {DOMAIN_GROUPS.map((g) => (
-                <optgroup key={g.domain} label={g.domain}>
-                  {g.resources.map((r) => (
-                    <option key={r.key} value={r.key}>
-                      {r.label} — {counts[r.key] ?? '…'}
-                    </option>
-                  ))}
-                </optgroup>
+              {activeDomainGroup.resources.map((r) => (
+                <option key={r.key} value={r.key}>
+                  {r.label} — {counts[r.key] ?? '…'}
+                </option>
               ))}
             </select>
             <span className="ea-chip ea-chip--info">
@@ -255,6 +285,7 @@ export function MockupMetadata(): JSX.Element {
             />
           </div>
         </Panel>
+        </>
       )}
     </div>
   );
@@ -485,7 +516,12 @@ function MetadataDetail({ sel, tab, setTab }: {
           <p className="ea-text-muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
             Diagnostic view of the full mirrored payload. Prefer the Summary / Relationships / Rules tabs for operator work.
           </p>
-          <pre className="ea-log-tail" style={{ fontSize: 12, maxHeight: 360 }}>
+          <pre className="ea-log-tail" style={{
+            fontSize: 12,
+            height: 'calc(100vh - 320px)',
+            minHeight: 320,
+            maxHeight: 'none',
+          }}>
 {JSON.stringify(raw, null, 2)}
           </pre>
         </>

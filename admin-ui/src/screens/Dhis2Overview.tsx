@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
-import { fmtAgo, fmtDate } from './shared';
+import { fmtAgo, fmtDate, SyncStatusBar } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
+import { UiIcon } from '../components/UiIcon';
 
 /**
  * DHIS2 — single landing page that merges the old Overview and the
@@ -77,36 +78,41 @@ export function MockupDhis2Overview(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="cap-dhis2-hub">
-      <section className="ea-dash-hero">
-        <div className="ea-dash-hero-left">
-          <h1 className="ea-dash-hero-title">DHIS2</h1>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" className="ea-btn ea-btn--ghost"
-                  disabled={refreshing}
-                  data-test="dhis2-probe-now"
-                  onClick={() => { probeNow().catch(() => undefined); }}>
-            {refreshing ? 'Probing…' : 'Probe now'}
-          </button>
-          <button type="button" className="ea-btn ea-btn--primary"
-                  disabled={saving}
-                  data-test="dhis2-save"
-                  onClick={() => { save().catch(() => undefined); }}>
-            {saving ? 'Saving…' : 'Save connection'}
-          </button>
-        </div>
-      </section>
-
-      <div className="ea-stat-strip">
-        <Stat label="Reachable" tone={reach ? 'success' : 'danger'} value={reach ? 'yes' : 'no'} />
-        <Stat label="Central version" value={c.centralVersion ?? '—'} />
-        <Stat label="Profile" value={c.profileName ?? '—'} />
-        <Stat label="Probe RTT"
-              value={si.dhis2.probeDurationMs != null ? `${si.dhis2.probeDurationMs} ms` : '—'} />
-        <Stat label="Auth" tone={authKind === 'none' ? 'warning' : 'success'}
-              value={authKind === 'PAT' ? 'PAT (Bearer)' : authKind === 'Basic' ? 'Basic' : 'none'} />
-        <Stat label="Last probe" value={c.capturedAt ? fmtAgo(c.capturedAt) : '—'} />
-      </div>
+      <SyncStatusBar
+        tone={reach ? 'success' : 'danger'}
+        title="DHIS2"
+        statusLabel={reach ? 'Central reachable' : 'Central unreachable'}
+        subtitle={
+          <>
+            <span>Central <strong style={{ color: 'var(--der-ink-900)' }}>{c.centralVersion ?? '—'}</strong></span>
+            <span>·</span>
+            <span>Profile <strong style={{ color: 'var(--der-ink-900)' }}>{c.profileName ?? '—'}</strong></span>
+            <span>·</span>
+            <span>RTT <strong style={{ color: 'var(--der-ink-900)' }}>{si.dhis2.probeDurationMs != null ? `${si.dhis2.probeDurationMs} ms` : '—'}</strong></span>
+            <span>·</span>
+            <span>Auth <strong style={{ color: 'var(--der-ink-900)' }}>{authKind === 'PAT' ? 'PAT (Bearer)' : authKind === 'Basic' ? 'Basic' : 'none'}</strong></span>
+            <span>·</span>
+            <span>Last probe <strong style={{ color: 'var(--der-ink-900)' }}>{c.capturedAt ? fmtAgo(c.capturedAt) : '—'}</strong></span>
+          </>
+        }
+        actions={
+          <>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    disabled={refreshing}
+                    data-test="dhis2-probe-now"
+                    onClick={() => { probeNow().catch(() => undefined); }}>
+              <UiIcon icon="refresh" size={14} />
+              <span>{refreshing ? 'Probing…' : 'Probe now'}</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    disabled={saving}
+                    data-test="dhis2-save"
+                    onClick={() => { save().catch(() => undefined); }}>
+              <span>{saving ? 'Saving…' : 'Save connection'}</span>
+            </button>
+          </>
+        }
+      />
 
       {msg && <p className="ea-saved" data-test="dhis2-saved">{msg}</p>}
       {err && <ErrorBlock title="Connection error" testId="err-dhis2-hub">{err}</ErrorBlock>}
@@ -310,13 +316,3 @@ export function MockupDhis2Overview(): JSX.Element {
   );
 }
 
-function Stat({ label, value, tone = 'info' }: {
-  label: string; value: ReactNode; tone?: 'info' | 'success' | 'danger' | 'warning' | 'muted';
-}): JSX.Element {
-  return (
-    <div className={`ea-stat ea-stat--${tone}`}>
-      <div className="ea-stat-value">{value}</div>
-      <div className="ea-stat-label">{label}</div>
-    </div>
-  );
-}
