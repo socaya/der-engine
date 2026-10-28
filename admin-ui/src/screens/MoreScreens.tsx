@@ -362,11 +362,19 @@ export function MockupConflictDetail(): JSX.Element {
         actions={
           <>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                    onClick={() => { resolve('ACCEPTED').catch(() => undefined); }}>
+                    onClick={() => {
+                      confirmThenRun(
+                        `Accept the local version of ${entityTypeLabel(row.entityType)} "${row.entityRef}"? It will be queued for Central DHIS2.`,
+                        () => { resolve('ACCEPTED').catch(() => undefined); });
+                    }}>
               Accept local version
             </button>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
-                    onClick={() => { resolve('REJECTED').catch(() => undefined); }}>
+                    onClick={() => {
+                      confirmThenRun(
+                        `Reject the local version of ${entityTypeLabel(row.entityType)} "${row.entityRef}"? The record will be dropped.`,
+                        () => { resolve('REJECTED').catch(() => undefined); });
+                    }}>
               Reject
             </button>
           </>
@@ -462,9 +470,16 @@ export function MockupWorkerHealth(): JSX.Element {
         actions={
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                   disabled={busy}
-                  onClick={() => { toggle().catch(() => undefined); }}
+                  onClick={() => {
+                    confirmThenRun(
+                      w.enabled
+                        ? 'Pause the sync worker? Captured records will keep queueing locally but nothing will be sent until it resumes.'
+                        : 'Resume the sync worker? It will start draining the local queue to Central DHIS2.',
+                      () => { toggle().catch(() => undefined); });
+                  }}
                   data-test="ea14-toggle">
-            {busy ? '…' : w.enabled ? 'Pause' : 'Resume'}
+            <UiIcon icon={w.enabled ? 'pause' : 'play'} size={14} />
+            <span>{busy ? '…' : w.enabled ? 'Pause' : 'Resume'}</span>
           </button>
         }
       />
@@ -814,9 +829,17 @@ export function MockupApprovalDetail(): JSX.Element {
         actions={
           <>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                    onClick={() => { approve().catch(() => undefined); }}>Approve</button>
+                    onClick={() => {
+                      confirmThenRun(
+                        `Approve ${entityTypeLabel(row.entityType)} "${row.entityRef}"? It will be queued for sync to Central DHIS2.`,
+                        () => { approve().catch(() => undefined); });
+                    }}>Approve</button>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
-                    onClick={() => { reject().catch(() => undefined); }}>Reject</button>
+                    onClick={() => {
+                      confirmThenRun(
+                        `Reject ${entityTypeLabel(row.entityType)} "${row.entityRef}"? The record will not be sent to Central DHIS2.`,
+                        () => { reject().catch(() => undefined); });
+                    }}>Reject</button>
           </>
         }
       />
@@ -988,9 +1011,17 @@ export function MockupReferralDetail(): JSX.Element {
         actions={row.status === 'PENDING' ? (
           <>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                    onClick={() => { accept().catch(() => undefined); }}>Accept referral</button>
+                    onClick={() => {
+                      confirmThenRun(
+                        `Accept referral "${row.sourceRef}" and import it locally?`,
+                        () => { accept().catch(() => undefined); });
+                    }}>Accept referral</button>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
-                    onClick={() => { dismiss().catch(() => undefined); }}>Dismiss</button>
+                    onClick={() => {
+                      confirmThenRun(
+                        `Dismiss referral "${row.sourceRef}"? It will be marked as handled on this edge.`,
+                        () => { dismiss().catch(() => undefined); });
+                    }}>Dismiss</button>
           </>
         ) : undefined}
       />

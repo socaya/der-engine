@@ -1320,13 +1320,20 @@ export function CapSyncSchedule(): JSX.Element {
   const cron = Object.entries(s.cron ?? {});
   return (
     <div className="ea-screen" data-test="cap-schedule">
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <button type="button" className="ea-btn ea-btn--primary"
-                disabled={status === 'saving'}
-                onClick={() => { save().catch(() => undefined); }}>
-          {status === 'saving' ? 'Saving…' : 'Save schedule'}
-        </button>
-      </div>
+      <SyncStatusBar
+        tone="info"
+        title="Schedule"
+        statusLabel={`${cron.length} scheduled flow${cron.length === 1 ? '' : 's'}`}
+        subtitle={<span>When each background flow runs. The exact cron expression is editable per row.</span>}
+        actions={
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  disabled={status === 'saving'}
+                  onClick={() => { save().catch(() => undefined); }}>
+            <UiIcon icon="refresh" size={14} />
+            <span>{status === 'saving' ? 'Saving…' : 'Save schedule'}</span>
+          </button>
+        }
+      />
       {status === 'saved' && <p className="ea-saved">Schedule saved.</p>}
       {status === 'error' && err && <ErrorBlock title="Save failed" testId="err-save-failed">{err}</ErrorBlock>}
       <section className="ea-card ea-form-card">
