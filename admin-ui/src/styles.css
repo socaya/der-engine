@@ -1300,6 +1300,35 @@ kbd{
   .ea-dhis2-conn-card{flex-direction:column;align-items:flex-start;gap:16px}
 }
 
+/* ============ Info popover — quiet (i) that reveals an explainer on click ============ */
+.ea-info-popover{list-style:none}
+.ea-info-popover > summary{list-style:none;cursor:pointer}
+.ea-info-popover > summary::-webkit-details-marker{display:none}
+.ea-info-popover-trigger{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;border-radius:50%;
+  color:var(--der-ink-400);
+  transition:color var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
+}
+.ea-info-popover-trigger:hover{color:var(--der-primary-ink);background:var(--der-raised)}
+.ea-info-popover[open] > summary > .ea-info-popover-trigger{
+  color:var(--der-primary-ink);background:var(--der-raised);
+}
+.ea-info-popover-body{
+  position:absolute;left:0;top:calc(100% + 6px);z-index:50;
+  min-width:280px;max-width:360px;
+  background:var(--der-surface);border:1px solid var(--der-border);
+  box-shadow:var(--el-2);
+  padding:12px 14px;
+  font-size:13px;color:var(--der-ink-700);line-height:1.5;
+}
+.ea-info-popover-title{
+  font-size:13px;font-weight:600;color:var(--der-ink-900);
+  margin:0 0 6px;
+}
+.ea-info-popover-body p{margin:0 0 8px}
+.ea-info-popover-body p:last-child{margin-bottom:0}
+
 /* Role picker cards */
 .ea-role-picker{
   display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));

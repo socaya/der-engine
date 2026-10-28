@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
@@ -58,6 +58,18 @@ export function MockupDriftInspector(): JSX.Element {
         statusLabel={equal ? 'In sync' : 'Drift detected'}
         subtitle={
           <>
+            <span>Central → DER (one-way)</span>
+            <InfoPopover label="About metadata drift">
+              <p>
+                DHIS2 is the source of truth. This probe hashes DER's
+                mirrored resources against Central's.
+              </p>
+              <p>
+                A mismatch simply means the next metadata-sync pull will
+                update DER. Nothing is ever written back to Central.
+              </p>
+            </InfoPopover>
+            <span>·</span>
             <span>Added <strong style={{ color: 'var(--der-ink-900)' }}>{totalAdded}</strong></span>
             <span>·</span>
             <span>Removed <strong style={{ color: 'var(--der-ink-900)' }}>{totalRemoved}</strong></span>
@@ -80,42 +92,16 @@ export function MockupDriftInspector(): JSX.Element {
         }
       />
 
-      <section data-test="drift-direction"
-               style={{
-                 display: 'grid', gridTemplateColumns: 'max-content 1fr max-content',
-                 columnGap: 14, rowGap: 4, alignItems: 'center',
-                 padding: '8px 10px', margin: '0 0 var(--sp-3)',
-                 border: '1px solid var(--der-border-subtle)', borderRadius: 6,
-               }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-          <span className="ea-mono" style={{ fontSize: 14 }}>Central</span>
-          <span style={{ fontSize: 18, color: 'var(--der-primary)', fontWeight: 700 }}>→</span>
-          <span className="ea-mono" style={{ fontSize: 14 }}>DER</span>
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--der-ink-900)' }}>
-            Metadata mirror fidelity
-            <span className="ea-text-muted" style={{ fontWeight: 400, fontSize: 12 }}> · one-way comparison</span>
-          </div>
-          <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.4 }}>
-            DHIS2 is the source of truth. This probe hashes the mirrored
-            resources against central, so a mismatch means the next
-            metadata-sync pull will update DER — nothing is written back.
-          </div>
-        </div>
-        <div style={{ alignSelf: 'start', paddingTop: 2 }}>
-          <span className="ea-chip ea-chip--info">one-way</span>
-        </div>
-      </section>
-
-      <Panel title="Fingerprints">
+      <Panel title="Fingerprints"
+             action={<Status tone={equal ? 'success' : 'warning'}>{equal ? 'Identical' : 'Different'}</Status>}>
         <div className="ea-drift">
           <div className="ea-drift-side">
             <div className="ea-text-muted" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Mirror</div>
             <div className="ea-mono" style={{ wordBreak: 'break-all' }}>{d.fingerprintFrom ?? '—'}</div>
           </div>
-          <div className="ea-drift-sep">
-            <span className={'ea-chip ea-chip--' + (equal ? 'success' : 'warning')}>{equal ? '=' : '≠'}</span>
+          <div className="ea-drift-sep" style={{ color: equal ? 'var(--der-success-ink)' : 'var(--der-warning-ink)',
+                                                   fontSize: 20, fontWeight: 700 }}>
+            {equal ? '=' : '≠'}
           </div>
           <div className="ea-drift-side">
             <div className="ea-text-muted" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Central</div>
@@ -153,33 +139,47 @@ export function MockupDriftInspector(): JSX.Element {
         )}
       </Panel>
 
-      <section data-test="drift-related">
-        <div className="ea-section-title">Related</div>
-        <div className="ea-tile-grid">
-          <Link to="/dhis2/metadata" className="ea-link-tile">
-            <div className="ea-link-tile-icon" aria-hidden="true">◱</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Metadata browser</div>
-              <div className="ea-link-tile-desc">Browse the mirrored resources this comparison is measured against.</div>
-            </div>
+      <Panel title="Related">
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: 14 }}>
+          <Link to="/dhis2/metadata" className="ea-btn ea-btn--ghost ea-btn--sm">
+            <UiIcon icon="metadata" size={14} />
+            <span>Metadata browser</span>
           </Link>
-          <Link to="/sync/metadata" className="ea-link-tile">
-            <div className="ea-link-tile-icon" aria-hidden="true">▶</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Metadata sync</div>
-              <div className="ea-link-tile-desc">Trigger a Central → DER pull to reconcile the delta.</div>
-            </div>
+          <Link to="/sync/metadata" className="ea-btn ea-btn--ghost ea-btn--sm">
+            <UiIcon icon="pull" size={14} />
+            <span>Metadata sync</span>
           </Link>
-          <Link to="/sync/history" className="ea-link-tile">
-            <div className="ea-link-tile-icon" aria-hidden="true">⏱</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Sync history</div>
-              <div className="ea-link-tile-desc">Prior metadata-sync runs that produced earlier snapshots.</div>
-            </div>
+          <Link to="/sync/history" className="ea-btn ea-btn--ghost ea-btn--sm">
+            <UiIcon icon="history" size={14} />
+            <span>Sync history</span>
           </Link>
         </div>
-      </section>
+      </Panel>
     </div>
+  );
+}
+
+/** Quiet info-hint — subtle `i` button that opens a native <details>
+ *  popover with the explainer. Keeps the screen header short on first
+ *  read; the detail is one click away. */
+function InfoPopover({ label, children }: { label: string; children: ReactNode }): JSX.Element {
+  return (
+    <details className="ea-info-popover" style={{ position: 'relative', display: 'inline-flex' }}>
+      <summary className="ea-info-popover-trigger" aria-label={label}
+               title={label}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
+             aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11v6" />
+          <circle cx="12" cy="7.5" r="0.6" fill="currentColor" stroke="none" />
+        </svg>
+      </summary>
+      <div className="ea-info-popover-body" role="tooltip">
+        <div className="ea-info-popover-title">{label}</div>
+        {children}
+      </div>
+    </details>
   );
 }
 
