@@ -6,6 +6,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+import java.util.List;
+
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import ug.ac.mak.der.messaging.DeviceMessageService;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
@@ -48,9 +51,80 @@ public class DeviceMessageController {
         }
         final UUID uid = auth instanceof EdgeUserPrincipal p ? p.userId() : null;
         final Duration ttl = body.ttlSeconds == null ? null : Duration.ofSeconds(body.ttlSeconds);
+        final boolean enc = Boolean.TRUE.equals(body.encrypted);
         final UUID id = svc.publish(body.channel, body.fromDeviceId, uid,
-                                     body.messageType, body.payload, body.replyTo, ttl);
+                                     body.messageType, body.payload, body.replyTo, ttl,
+                                     enc, body.recipientDeviceId,
+                                     body.senderEphemeralPubkey, body.nonce,
+                                     body.ciphertext);
         return ResponseEntity.status(201).body(Map.of("messageId", id.toString()));
+    }
+
+    /* ─── v2: SSE push stream ─────────────────────────────────── */
+
+    @GetMapping(path = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream(@RequestParam final String deviceId) {
+        return svc.dispatcher().register(deviceId);
+    }
+
+    @GetMapping("/stream/stats")
+    public ResponseEntity<Map<String, Object>> streamStats() {
+        return ResponseEntity.ok(Map.of(
+            "liveDevices",  svc.dispatcher().liveDevices(),
+            "liveStreams",  svc.dispatcher().liveStreams()));
+    }
+
+    /* ─── v2: Device key registry ─────────────────────────────── */
+
+    @PostMapping(path = "/keys", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> registerKeys(
+            final Authentication auth, @RequestBody final KeysBody body) {
+        if (body == null || body.deviceId == null || body.x25519PublicKeyBase64 == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "code", "FIELDS_REQUIRED",
+                "message", "deviceId + x25519PublicKeyBase64 required"));
+        }
+        svc.v2().upsertKeys(body.deviceId, body.x25519PublicKeyBase64,
+                             body.ed25519PublicKeyBase64);
+        return ResponseEntity.status(201).body(Map.of("registered", true));
+    }
+
+    @GetMapping("/keys/{deviceId}")
+    public ResponseEntity<Map<String, Object>> fetchKeys(@PathVariable final String deviceId) {
+        return svc.v2().findKeys(deviceId)
+            .<ResponseEntity<Map<String, Object>>>map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.status(404).body(Map.of(
+                "code", "KEYS_NOT_FOUND",
+                "message", "no device-key record for " + deviceId)));
+    }
+
+    @GetMapping("/keys")
+    public ResponseEntity<Map<String, Object>> listKeys() {
+        return ResponseEntity.ok(Map.of("keys", svc.v2().listKeys()));
+    }
+
+    /* ─── v2: CRDT document index ─────────────────────────────── */
+
+    @GetMapping("/documents")
+    public ResponseEntity<Map<String, Object>> listDocuments() {
+        return ResponseEntity.ok(Map.of("documents", svc.v2().listDocuments()));
+    }
+
+    /* ─── v2: Edge-to-edge relay inbound ──────────────────────── */
+
+    @PostMapping(path = "/relay", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> relay(@RequestBody final List<Map<String, Object>> entries) {
+        if (entries == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "code", "ENTRIES_REQUIRED", "message", "entries array required"));
+        }
+        return ResponseEntity.ok(Map.of("accepted", svc.ingestRelay(entries)));
+    }
+
+    @GetMapping("/forwards")
+    public ResponseEntity<Map<String, Object>> forwards(
+            @RequestParam(value = "limit", defaultValue = "50") final int limit) {
+        return ResponseEntity.ok(Map.of("forwards", svc.forwarder().recentForwards(limit)));
     }
 
     /** Pull messages addressed to this device (and any role / broadcast
@@ -145,6 +219,19 @@ public class DeviceMessageController {
         public Map<String, Object> payload;
         public UUID replyTo;
         public Integer ttlSeconds;
+        // v2 — end-to-end encryption. When encrypted=true, payload is
+        // ignored and ciphertext is used as the opaque blob.
+        public Boolean encrypted;
+        public String recipientDeviceId;
+        public String senderEphemeralPubkey;
+        public String nonce;
+        public String ciphertext;
+    }
+
+    public static final class KeysBody {
+        public String deviceId;
+        public String x25519PublicKeyBase64;
+        public String ed25519PublicKeyBase64;
     }
 
     public static final class SubscribeBody {

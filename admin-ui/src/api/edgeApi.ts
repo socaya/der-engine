@@ -1458,6 +1458,61 @@ export function messagingUnsubscribe(deviceId: string, channel: string):
   return request('DELETE', `/edge-api/v1/messaging/subscribe?${q}`);
 }
 
+/* ─── DER-MSG v2 — SSE, E2E keys, CRDT docs, edge forwards ──── */
+export interface MessagingStreamStats {
+  liveDevices: number;
+  liveStreams: number;
+}
+export function messagingStreamStats(): Promise<MessagingStreamStats> {
+  return request('GET', '/edge-api/v1/messaging/stream/stats');
+}
+
+export interface DeviceCryptoKey {
+  deviceId: string;
+  x25519PublicKeyBase64: string;
+  ed25519PublicKeyBase64: string | null;
+  updatedAt: string;
+}
+export function messagingKeysRegister(body: {
+  deviceId: string; x25519PublicKeyBase64: string;
+  ed25519PublicKeyBase64?: string;
+}): Promise<{ registered: boolean }> {
+  return request('POST', '/edge-api/v1/messaging/keys', body);
+}
+export function messagingKeys(): Promise<{ keys: DeviceCryptoKey[] }> {
+  return request('GET', '/edge-api/v1/messaging/keys');
+}
+export function messagingKeyFor(deviceId: string): Promise<DeviceCryptoKey> {
+  return request('GET', `/edge-api/v1/messaging/keys/${encodeURIComponent(deviceId)}`);
+}
+
+export interface CrdtDocument {
+  docId: string;
+  docType: string;
+  createdBy: string;
+  description: string | null;
+  createdAt: string;
+  lastOpAt: string | null;
+  opCount: number;
+}
+export function messagingDocuments(): Promise<{ documents: CrdtDocument[] }> {
+  return request('GET', '/edge-api/v1/messaging/documents');
+}
+
+export interface EdgeForward {
+  forwardId: string;
+  messageId: string;
+  targetEdgeId: string;
+  targetPeerId: string | null;
+  outcome: string;
+  httpStatus: number | null;
+  attemptedAt: string;
+  reason: string | null;
+}
+export function messagingForwards(limit = 50): Promise<{ forwards: EdgeForward[] }> {
+  return request('GET', `/edge-api/v1/messaging/forwards?limit=${limit}`);
+}
+
 export function networkApEdit(body: {
   ssid?: string; band?: string; channel?: number;
   security?: string; interfaceName?: string;

@@ -27,14 +27,27 @@ public class DeviceMessageRepository {
                                 final UUID fromUser, final String type,
                                 final String payloadJson, final UUID replyTo,
                                 final Instant expiresAt) {
+        return insertMessage(channel, fromDevice, fromUser, type, payloadJson,
+                              replyTo, expiresAt, false, null, null, null);
+    }
+
+    public UUID insertMessage(final String channel, final String fromDevice,
+                                final UUID fromUser, final String type,
+                                final String payloadJson, final UUID replyTo,
+                                final Instant expiresAt, final boolean encrypted,
+                                final String recipientDeviceId,
+                                final String senderEphemeralPubkey,
+                                final String nonce) {
         final UUID id = UUID.randomUUID();
         jdbc.update(
             "INSERT INTO der.device_message "
           + "(message_id, channel, from_device_id, from_user_id, message_type, "
-          + " payload, reply_to, expires_at) "
-          + "VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?)",
+          + " payload, reply_to, expires_at, encrypted, recipient_device_id, "
+          + " sender_ephemeral_pubkey, nonce) "
+          + "VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)",
             id, channel, fromDevice, fromUser, type, payloadJson, replyTo,
-            expiresAt == null ? null : Timestamp.from(expiresAt));
+            expiresAt == null ? null : Timestamp.from(expiresAt),
+            encrypted, recipientDeviceId, senderEphemeralPubkey, nonce);
         return id;
     }
 
@@ -58,7 +71,8 @@ public class DeviceMessageRepository {
         return jdbc.query(
             "SELECT message_id, channel, from_device_id, from_user_id, "
           + "       message_type, payload::text AS payload, reply_to, "
-          + "       expires_at, created_at "
+          + "       expires_at, created_at, encrypted, recipient_device_id, "
+          + "       sender_ephemeral_pubkey, nonce "
           + "  FROM der.device_message "
           + " WHERE channel IN (" + placeholders + ") "
           + "   AND created_at > ? "
@@ -72,7 +86,8 @@ public class DeviceMessageRepository {
         return jdbc.query(
             "SELECT message_id, channel, from_device_id, from_user_id, "
           + "       message_type, payload::text AS payload, reply_to, "
-          + "       expires_at, created_at "
+          + "       expires_at, created_at, encrypted, recipient_device_id, "
+          + "       sender_ephemeral_pubkey, nonce "
           + "  FROM der.device_message "
           + " ORDER BY created_at DESC LIMIT ?",
             (ResultSet rs, int row) -> rowMap(rs),
@@ -184,6 +199,30 @@ public class DeviceMessageRepository {
         m.put("replyTo",      rt == null ? null : rt.toString());
         m.put("expiresAt",    optInstant(rs.getTimestamp("expires_at")));
         m.put("createdAt",    optInstant(rs.getTimestamp("created_at")));
+        // v2 extensions. Row metadata may not be present on older
+        // columns if an operator ran a mid-upgrade query — guard with
+        // getObject + wasNull on the primitive.
+        try {
+            final boolean enc = rs.getBoolean("encrypted");
+            m.put("encrypted", rs.wasNull() ? false : enc);
+        } catch (final java.sql.SQLException ignore) {
+            // older row shape
+        }
+        try {
+            m.put("recipientDeviceId", rs.getString("recipient_device_id"));
+        } catch (final java.sql.SQLException ignore) {
+            // older row shape
+        }
+        try {
+            m.put("senderEphemeralPubkey", rs.getString("sender_ephemeral_pubkey"));
+        } catch (final java.sql.SQLException ignore) {
+            // older row shape
+        }
+        try {
+            m.put("nonce", rs.getString("nonce"));
+        } catch (final java.sql.SQLException ignore) {
+            // older row shape
+        }
         return m;
     }
 

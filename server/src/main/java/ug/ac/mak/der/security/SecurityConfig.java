@@ -125,6 +125,11 @@ public class SecurityConfig {
                         // Every authenticated device may publish, pull,
                         // subscribe, and update cursors. Admin surface
                         // (stats / log / subscriptions) same policy.
+                        // Phase N5 v2 — the /relay inbound hook accepts
+                        // messages from peer edges reaching us over the
+                        // WireGuard tunnel; trust comes from the tunnel.
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                            "/edge-api/v1/messaging/relay").permitAll()
                         .requestMatchers("/edge-api/v1/messaging/**").authenticated()
                         .requestMatchers("/edge-api/v1/apps/**").authenticated()
                         .requestMatchers("/edge-api/v1/**").authenticated()

@@ -13,19 +13,37 @@ import { UiIcon } from '../components/UiIcon';
  *  demos / announcements. */
 export function DeviceMessaging(): JSX.Element {
   const [stats, setStats] = useState<edgeApi.MessagingStats | null>(null);
+  const [streamStats, setStreamStats] = useState<edgeApi.MessagingStreamStats | null>(null);
   const [messages, setMessages] = useState<edgeApi.DeviceMessage[]>([]);
   const [subs, setSubs] = useState<edgeApi.DeviceSubscription[]>([]);
+  const [keys, setKeys] = useState<edgeApi.DeviceCryptoKey[]>([]);
+  const [docs, setDocs] = useState<edgeApi.CrdtDocument[]>([]);
+  const [forwards, setForwards] = useState<edgeApi.EdgeForward[]>([]);
   const [showPublish, setShowPublish] = useState(false);
+  const [sseConnected, setSseConnected] = useState(false);
 
   async function reload(): Promise<void> {
     try { setStats(await edgeApi.messagingStats()); } catch { /* ignore */ }
+    try { setStreamStats(await edgeApi.messagingStreamStats()); } catch { /* ignore */ }
     try { setMessages((await edgeApi.messagingLog(100)).messages); } catch { /* ignore */ }
     try { setSubs((await edgeApi.messagingSubscriptions()).subscriptions); } catch { /* ignore */ }
+    try { setKeys((await edgeApi.messagingKeys()).keys); } catch { /* ignore */ }
+    try { setDocs((await edgeApi.messagingDocuments()).documents); } catch { /* ignore */ }
+    try { setForwards((await edgeApi.messagingForwards(25)).forwards); } catch { /* ignore */ }
   }
   useEffect(() => {
     reload().catch(() => undefined);
     const t = setInterval(() => reload().catch(() => undefined), 5000);
-    return () => clearInterval(t);
+    // Open SSE so this admin UI reflects live traffic without waiting
+    // for the 5-second poll. We register as deviceId=ADMIN-UI so any
+    // channels: broadcast/role messages that an operator subscribes
+    // ADMIN-UI to light up here.
+    const es = new EventSource('/edge-api/v1/messaging/stream?deviceId=ADMIN-UI');
+    es.onopen    = () => setSseConnected(true);
+    es.onerror   = () => setSseConnected(false);
+    es.onmessage = () => { reload().catch(() => undefined); };
+    es.addEventListener('message', () => { reload().catch(() => undefined); });
+    return () => { clearInterval(t); es.close(); };
   }, []);
 
   const paged = usePaged(messages, 25);
@@ -38,7 +56,7 @@ export function DeviceMessaging(): JSX.Element {
         statusLabel={stats ? `${stats.messagesTotal} messages` : 'Loading…'}
         subtitle={
           <>
-            <span>DER-MSG v1 — devices on this edge exchange data over DER as broker.</span>
+            <span>DER-MSG v2 — devices on this edge exchange data over DER with SSE push, E2E encryption, CRDT docs, and edge-to-edge relay.</span>
             {stats && (<>
               <span>·</span>
               <span>Devices subscribed <strong style={{ color: 'var(--der-ink-900)' }}>{stats.devicesSubscribed}</strong></span>
@@ -47,6 +65,10 @@ export function DeviceMessaging(): JSX.Element {
               <span>·</span>
               <span>Last hour <strong style={{ color: 'var(--der-ink-900)' }}>{stats.messagesLastHour}</strong></span>
             </>)}
+            <span>·</span>
+            <Status tone={sseConnected ? 'success' : 'muted'}>
+              {sseConnected ? `SSE live (${streamStats?.liveStreams ?? '?'} streams)` : 'SSE disconnected'}
+            </Status>
           </>
         }
         actions={
@@ -109,12 +131,18 @@ export function DeviceMessaging(): JSX.Element {
                     <td className="ea-text-muted">{fmtAgo(m.createdAt)}</td>
                     <td className="ea-mono" style={{ fontSize: 12 }}>{m.channel}</td>
                     <td className="ea-mono" style={{ fontSize: 12 }}>{m.fromDeviceId}</td>
-                    <td style={{ fontWeight: 500 }}>{m.messageType}</td>
+                    <td style={{ fontWeight: 500 }}>
+                      {m.messageType}
+                      {(m as unknown as { encrypted?: boolean }).encrypted
+                        && <Status tone="info">E2E</Status>}
+                    </td>
                     <td className="ea-mono" style={{ fontSize: 11, maxWidth: 320,
                                                       overflow: 'hidden', textOverflow: 'ellipsis',
                                                       whiteSpace: 'nowrap' }}
                         title={m.payload}>
-                      {m.payload}
+                      {(m as unknown as { encrypted?: boolean }).encrypted
+                        ? <em>(encrypted — server opaque)</em>
+                        : m.payload}
                     </td>
                     <td className="ea-text-muted">{m.expiresAt ? fmtAgo(m.expiresAt) : '—'}</td>
                   </tr>
@@ -161,6 +189,117 @@ export function DeviceMessaging(): JSX.Element {
                                  .catch(() => undefined);
                         } },
                       ]} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title={`Device cryptographic keys · ${keys.length}`}
+             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+               X25519 pubkeys for E2E encryption; Ed25519 for signing.
+             </span>}>
+        {keys.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
+            No devices have registered keys yet. Clients post to
+            <code> /messaging/keys</code> with their X25519 pubkey before publishing
+            an encrypted direct message.
+          </p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense">
+              <thead><tr>
+                <th>Device</th><th>X25519 pubkey</th><th>Ed25519 pubkey</th><th>Updated</th>
+              </tr></thead>
+              <tbody>
+                {keys.map((k) => (
+                  <tr key={k.deviceId}>
+                    <td className="ea-mono">{k.deviceId}</td>
+                    <td className="ea-mono" style={{ fontSize: 11, maxWidth: 240,
+                                                      overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        title={k.x25519PublicKeyBase64}>
+                      {k.x25519PublicKeyBase64.slice(0, 20)}…
+                    </td>
+                    <td className="ea-mono" style={{ fontSize: 11 }}>
+                      {k.ed25519PublicKeyBase64
+                        ? k.ed25519PublicKeyBase64.slice(0, 20) + '…'
+                        : '—'}
+                    </td>
+                    <td className="ea-text-muted">{fmtAgo(k.updatedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title={`CRDT documents · ${docs.length}`}
+             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+               Channel prefix <code>crdt:</code> routes LWW-Map ops.
+             </span>}>
+        {docs.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
+            No CRDT documents yet. Publish to <code>crdt:&lt;docId&gt;</code> with
+            <code> messageType=CRDT_OP</code> and the doc appears here.
+          </p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense">
+              <thead><tr>
+                <th>Doc ID</th><th>Type</th><th>Created by</th>
+                <th>Ops</th><th>Last op</th>
+              </tr></thead>
+              <tbody>
+                {docs.map((d) => (
+                  <tr key={d.docId}>
+                    <td className="ea-mono">{d.docId}</td>
+                    <td>{d.docType}</td>
+                    <td className="ea-mono" style={{ fontSize: 12 }}>{d.createdBy}</td>
+                    <td className="ea-mono">{d.opCount}</td>
+                    <td className="ea-text-muted">{d.lastOpAt ? fmtAgo(d.lastOpAt) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title={`Edge-to-edge forwards · ${forwards.length}`}
+             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+               Channel prefix <code>edge:&lt;peerNodeId&gt;:&lt;sub&gt;</code> relays over WireGuard.
+             </span>}>
+        {forwards.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
+            No forwards attempted yet. Publish to <code>edge:&lt;peerNodeId&gt;:&lt;sub&gt;</code>
+            and attempts appear here.
+          </p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense">
+              <thead><tr>
+                <th>When</th><th>Target edge</th><th>Outcome</th>
+                <th>HTTP</th><th>Reason</th>
+              </tr></thead>
+              <tbody>
+                {forwards.map((f) => (
+                  <tr key={f.forwardId}>
+                    <td className="ea-text-muted">{fmtAgo(f.attemptedAt)}</td>
+                    <td className="ea-mono" style={{ fontSize: 12 }}>{f.targetEdgeId}</td>
+                    <td>
+                      <Status tone={f.outcome === 'SUCCESS' ? 'success'
+                                     : f.outcome === 'NO_PEER' ? 'warning'
+                                     : 'danger'}>
+                        {f.outcome}
+                      </Status>
+                    </td>
+                    <td className="ea-mono">{f.httpStatus ?? '—'}</td>
+                    <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                      {f.reason ?? '—'}
                     </td>
                   </tr>
                 ))}
