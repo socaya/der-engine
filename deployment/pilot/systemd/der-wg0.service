@@ -1,0 +1,25 @@
+[Unit]
+Description=DER WireGuard peer interface (der0)
+Documentation=https://der.local/docs/network
+After=network-online.target
+Wants=network-online.target
+Before=der-server.service
+ConditionPathExists=/etc/wireguard/der0.key
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+# Create der0, assign the pilot's inside-10.88.0.0/24 address, listen
+# on UDP 51820. Peer entries are added at runtime by LinuxNetworkAgent
+# when operators click Connect on the Peers page.
+ExecStart=/usr/sbin/ip link add dev der0 type wireguard
+ExecStart=/bin/sh -c 'wg set der0 private-key /etc/wireguard/der0.key listen-port 51820'
+ExecStart=/usr/sbin/ip addr add 10.88.0.1/24 dev der0
+ExecStart=/usr/sbin/ip link set der0 up
+
+ExecStop=/usr/sbin/ip link set der0 down
+ExecStop=/usr/sbin/ip link delete dev der0
+
+[Install]
+WantedBy=multi-user.target

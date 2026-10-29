@@ -47,6 +47,8 @@ if [[ -z "${SKIP_PG}" ]] && ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
+SKIP_NETWORK_STACK="${SKIP_NETWORK_STACK:-}"
+
 SERVER_JAR="${ROOT}/server/target/der-server-$(cat "${ROOT}/VERSION" | tr -d '[:space:]').jar"
 if [[ ! -f "${SERVER_JAR}" ]]; then
   CANDIDATE="$(find "${ROOT}/server/target" -maxdepth 1 -name 'der-server-*.jar' -not -name '*sources*' -not -name '*javadoc*' 2>/dev/null | head -n1 || true)"
@@ -127,6 +129,73 @@ if [[ -z "${SKIP_SYSTEMD}" ]]; then
   log "enabled der-server.service (not yet started; edit env then: systemctl start der-server)"
 else
   log "skipping systemd install (SKIP_SYSTEMD=1)"
+fi
+
+# --- 6.5. Network stack (hostapd / NetworkManager / avahi / wg) --------
+# LinuxNetworkAgent shells out to nmcli / ip / wg / nft to drive the
+# physical AP. Install the OS packages, grant sudo for just the four
+# binaries, pre-create the WireGuard interface, and announce DER on
+# Avahi so der.local works over the LAN segment too.
+if [[ -z "${SKIP_NETWORK_STACK}" ]]; then
+  log "installing network stack (NetworkManager, hostapd, dnsmasq, nftables, wireguard, avahi)"
+  if command -v apt-get >/dev/null 2>&1; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq
+    apt-get install -y -qq --no-install-recommends \
+      network-manager hostapd dnsmasq nftables wireguard-tools avahi-daemon \
+      libnss-mdns openssh-server
+  else
+    log "apt-get not found; install network-manager/hostapd/dnsmasq/nftables/wireguard-tools/avahi-daemon manually"
+  fi
+
+  # Sudoers hook — der user gets passwordless access to exactly the
+  # four binaries LinuxNetworkAgent calls (nmcli / ip / wg / nft) plus
+  # the three systemctl restart commands.
+  log "installing /etc/sudoers.d/der-network"
+  install -o root -g root -m 0440 \
+    "${ROOT}/deployment/pilot/sudoers.d/der-network" \
+    /etc/sudoers.d/der-network
+  if ! visudo -c -f /etc/sudoers.d/der-network >/dev/null 2>&1; then
+    log "WARNING: sudoers file failed validation; removing"
+    rm -f /etc/sudoers.d/der-network
+  fi
+
+  # DER config dir — holds the AP network.key (chmod 600, der user)
+  # and the pilot-specific keystore DER-SERVER picks up at boot.
+  install -d -o "${USER_NAME}" -g "${GROUP_NAME}" -m 0700 /etc/der
+
+  # WireGuard private key + interface + systemd unit.
+  if [[ ! -f /etc/wireguard/der0.key ]]; then
+    log "generating WireGuard der0 keypair"
+    install -d -o root -g root -m 0700 /etc/wireguard
+    wg genkey | tee /etc/wireguard/der0.key | wg pubkey > /etc/wireguard/der0.pub
+    chmod 600 /etc/wireguard/der0.key
+    chmod 644 /etc/wireguard/der0.pub
+  fi
+  log "installing der-wg0.service"
+  install -o root -g root -m 0644 \
+    "${ROOT}/deployment/pilot/systemd/der-wg0.service" \
+    /etc/systemd/system/der-wg0.service
+  systemctl enable der-wg0.service >/dev/null 2>&1 || true
+
+  # Avahi service announcement for der.local on the LAN segment.
+  log "installing /etc/avahi/services/der.service"
+  install -d -o root -g root -m 0755 /etc/avahi/services
+  install -o root -g root -m 0644 \
+    "${ROOT}/deployment/pilot/avahi/der.service" \
+    /etc/avahi/services/der.service
+  systemctl enable --now avahi-daemon >/dev/null 2>&1 || true
+
+  # Make sure NetworkManager + nftables are enabled; disable
+  # systemd-networkd / wpa_supplicant where they fight NM for the Wi-Fi
+  # radio (common on fresh Ubuntu Server images).
+  systemctl enable --now NetworkManager >/dev/null 2>&1 || true
+  systemctl enable --now nftables       >/dev/null 2>&1 || true
+  systemctl mask wpa_supplicant         >/dev/null 2>&1 || true
+
+  log "network stack ready — AP will come up when der-server starts"
+else
+  log "skipping network stack (SKIP_NETWORK_STACK=1)"
 fi
 
 # --- 7. nginx ----------------------------------------------------------

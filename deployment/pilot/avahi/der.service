@@ -1,0 +1,29 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<!--
+  Avahi service announcement for the DER edge. Installed to
+  /etc/avahi/services/der.service by deployment/pilot/install.sh.
+  avahi-daemon picks it up at startup; clients see
+  _der._tcp.local. and _http._tcp.local. and _derapi._tcp.local.
+-->
+<service-group>
+  <name replace-wildcards="yes">DER Edge (%h)</name>
+
+  <service>
+    <type>_der._tcp</type>
+    <port>8443</port>
+    <txt-record>desc=DER HTTPS admin + capture</txt-record>
+  </service>
+
+  <service>
+    <type>_derapi._tcp</type>
+    <port>8443</port>
+    <txt-record>desc=DER edge-api</txt-record>
+  </service>
+
+  <service>
+    <type>_http._tcp</type>
+    <port>80</port>
+    <txt-record>desc=HTTP redirect to HTTPS</txt-record>
+  </service>
+</service-group>

@@ -1,0 +1,10 @@
+# der user may invoke exactly these binaries without a password so the
+# LinuxNetworkAgent can orchestrate hostapd / NetworkManager / iproute2
+# / WireGuard / nftables. No wildcard — anything else is blocked.
+#
+# This file is installed to /etc/sudoers.d/der-network by
+# deployment/pilot/install.sh. Validate after any edit with:
+#   sudo visudo -c -f /etc/sudoers.d/der-network
+
+der ALL=(root) NOPASSWD: /usr/bin/nmcli, /usr/sbin/ip, /usr/bin/wg, /usr/sbin/nft, /usr/sbin/hostapd, /usr/sbin/dnsmasq, /usr/bin/systemctl restart NetworkManager, /usr/bin/systemctl restart hostapd, /usr/bin/systemctl restart dnsmasq
+Defaults!/usr/bin/nmcli,/usr/sbin/ip,/usr/bin/wg,/usr/sbin/nft !log_output
