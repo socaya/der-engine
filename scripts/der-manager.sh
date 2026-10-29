@@ -17,6 +17,12 @@
 #   sudo der-manager ap-rotate-key
 #   sudo der-manager logs              # journalctl -f der-server
 #   sudo der-manager version
+#   sudo der-manager backup            # POST /backup trigger local
+#   sudo der-manager backup --remote   # also push to configured destination
+#   sudo der-manager backup list       # GET /backup/runs
+#   sudo der-manager restore <runId>   # POST /restore from a local snapshot
+#   sudo der-manager pitr <timestamp>  # POST /backup/pitr/plan for a target time
+#   sudo der-manager verify            # POST /backup/pitr/verify/run
 #
 # Env:
 #   DER_HOST    (default http://localhost:8085)
@@ -105,6 +111,43 @@ cmd_version() {
   cat "${ROOT}/VERSION"
 }
 
+cmd_backup() {
+  shift || true
+  local sub="${1:-trigger}"
+  case "${sub}" in
+    list)
+      api GET /edge-api/v1/backup/runs ;;
+    trigger|--remote|'')
+      local kind='LOCAL'
+      if [[ "${sub}" == '--remote' ]]; then kind='UPLOAD'; fi
+      api POST /edge-api/v1/backup "{\"kind\":\"${kind}\"}" ;;
+    *) echo "unknown backup subcommand: ${sub}" >&2; exit 1 ;;
+  esac
+}
+
+cmd_restore() {
+  local runId="${2:-}"
+  if [[ -z "${runId}" ]]; then
+    echo "usage: der-manager restore <runId>" >&2
+    exit 1
+  fi
+  api POST "/edge-api/v1/restore" "{\"backupRunId\":${runId},\"kind\":\"LOCAL\"}"
+}
+
+cmd_pitr() {
+  local target="${2:-}"
+  if [[ -z "${target}" ]]; then
+    echo "usage: der-manager pitr <ISO-8601-timestamp>" >&2
+    echo "       e.g. der-manager pitr 2026-10-29T14:00:00Z" >&2
+    exit 1
+  fi
+  api POST /edge-api/v1/backup/pitr/plan "{\"target\":\"${target}\"}"
+}
+
+cmd_verify() {
+  api POST /edge-api/v1/backup/pitr/verify/run
+}
+
 case "${1:-}" in
   install)         cmd_install        "$@" ;;
   start)           cmd_start                ;;
@@ -117,6 +160,10 @@ case "${1:-}" in
   ap-rotate-key)   cmd_ap_rotate_key        ;;
   logs)            cmd_logs                 ;;
   version)         cmd_version              ;;
+  backup)          cmd_backup           "$@" ;;
+  restore)         cmd_restore          "$@" ;;
+  pitr)            cmd_pitr             "$@" ;;
+  verify)          cmd_verify               ;;
   -h|--help|help|'') usage ;;
   *) echo "unknown command: $1" >&2; usage; exit 1 ;;
 esac
