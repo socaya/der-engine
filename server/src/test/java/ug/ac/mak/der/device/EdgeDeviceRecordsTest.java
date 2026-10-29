@@ -13,13 +13,13 @@ class EdgeDeviceRecordsTest {
     @Test
     void edgeDeviceRejectsMissing() {
         assertThatThrownBy(() -> new EdgeDevice(null, null, null, Instant.now(),
-                null, null, null, null, null, EdgeDevice.Status.PENDING))
+                null, null, null, null, null, EdgeDevice.Status.PENDING, null, null))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> new EdgeDevice(UUID.randomUUID(), null, null, null,
-                null, null, null, null, null, EdgeDevice.Status.PENDING))
+                null, null, null, null, null, EdgeDevice.Status.PENDING, null, null))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> new EdgeDevice(UUID.randomUUID(), null, null, Instant.now(),
-                null, null, null, null, null, null))
+                null, null, null, null, null, null, null, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -27,7 +27,7 @@ class EdgeDeviceRecordsTest {
     void edgeDeviceAccepts() {
         final UUID id = UUID.randomUUID();
         final EdgeDevice d = new EdgeDevice(id, null, null, Instant.now(),
-                null, null, null, "chrome", null, EdgeDevice.Status.PENDING);
+                null, null, null, "chrome", null, EdgeDevice.Status.PENDING, null, null);
         assertThat(d.deviceId()).isEqualTo(id);
         assertThat(d.status()).isEqualTo(EdgeDevice.Status.PENDING);
     }

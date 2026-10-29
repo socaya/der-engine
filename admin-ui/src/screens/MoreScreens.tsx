@@ -692,9 +692,77 @@ export function MockupDeviceDetail(): JSX.Element {
             <dd className="ea-mono" style={{ wordBreak: 'break-all' }}>{device.userAgent ?? '—'}</dd></div>
           <div className="ea-def-row"><dt>Firmware</dt>
             <dd className="ea-mono">{device.firmwareVersion ?? '—'}</dd></div>
+          <div className="ea-def-row"><dt>Display name</dt>
+            <dd>{device.displayName ?? <em className="ea-text-muted">unnamed</em>}</dd></div>
+          <div className="ea-def-row"><dt>Form factor</dt>
+            <dd>{device.formFactor ?? 'UNKNOWN'}</dd></div>
         </dl>
       </section>
+      <DeviceProfileEditor device={device} onSaved={() => { reload().catch(() => undefined); }} />
     </div>
+  );
+}
+
+/** V043 — operator rename + form-factor edit used by the mesh topology. */
+function DeviceProfileEditor(
+  { device, onSaved }: { device: edgeApi.EdgeDeviceRow; onSaved(): void }
+): JSX.Element {
+  const [displayName, setDisplayName] = useState<string>(device.displayName ?? '');
+  const [formFactor, setFormFactor] = useState<edgeApi.DeviceFormFactor>(
+    device.formFactor ?? 'UNKNOWN');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function save(): Promise<void> {
+    setBusy(true); setErr(null);
+    try {
+      await edgeApi.updateDeviceProfile(device.deviceId, {
+        displayName: displayName.trim() === '' ? null : displayName.trim(),
+        formFactor,
+      });
+      onSaved();
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <section className="ea-panel" data-test="device-profile-editor">
+      <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600 }}>Profile</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 12px',
+                     alignItems: 'center', fontSize: 13 }}>
+        <label htmlFor="dev-display-name" style={{ color: 'var(--der-ink-500)' }}>
+          Display name
+        </label>
+        <input id="dev-display-name" type="text" value={displayName}
+               data-test="input-display-name"
+               placeholder="e.g. Registration, Triage Tablet"
+               onChange={(e) => setDisplayName(e.target.value)}
+               style={{ padding: '6px 8px', border: '1px solid var(--der-border)',
+                         borderRadius: 4, maxWidth: 320 }} />
+        <label htmlFor="dev-form-factor" style={{ color: 'var(--der-ink-500)' }}>
+          Form factor
+        </label>
+        <select id="dev-form-factor" value={formFactor}
+                data-test="select-form-factor"
+                onChange={(e) => setFormFactor(e.target.value as edgeApi.DeviceFormFactor)}
+                style={{ padding: '6px 8px', border: '1px solid var(--der-border)',
+                          borderRadius: 4, maxWidth: 320 }}>
+          <option value="UNKNOWN">Unknown</option>
+          <option value="WORKSTATION">Workstation</option>
+          <option value="LAPTOP">Laptop</option>
+          <option value="TABLET">Tablet</option>
+          <option value="MOBILE">Mobile · P2P</option>
+        </select>
+      </div>
+      <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" disabled={busy}
+                data-test="btn-save-profile"
+                onClick={() => { save().catch(() => undefined); }}>
+          {busy ? 'Saving…' : 'Save profile'}
+        </button>
+        {err && <span className="ea-text-danger" style={{ fontSize: 12 }}>{err}</span>}
+      </div>
+    </section>
   );
 }
 

@@ -94,10 +94,25 @@ public class EdgeDeviceRepository {
         return jdbc.update("DELETE FROM der.edge_device WHERE device_id = ?", deviceId);
     }
 
+    /** V043: updates the operator-editable name + form factor. */
+    public int updateProfile(final UUID deviceId, final String displayName,
+                              final EdgeDevice.FormFactor formFactor) {
+        if (deviceId == null) {
+            return 0;
+        }
+        return jdbc.update(
+                "UPDATE der.edge_device SET display_name = ?, form_factor = ? "
+                        + "WHERE device_id = ?",
+                displayName,
+                (formFactor == null ? EdgeDevice.FormFactor.UNKNOWN : formFactor).name(),
+                deviceId);
+    }
+
     private String selectAll() {
         return "SELECT device_id, assigned_user_id, enrolment_token_hash, "
                 + "enrolled_at, approved_by, approved_at, last_seen_at, "
-                + "user_agent, firmware_version, status FROM der.edge_device";
+                + "user_agent, firmware_version, status, "
+                + "display_name, form_factor FROM der.edge_device";
     }
 
     private RowMapper<EdgeDevice> mapper() {
@@ -111,7 +126,9 @@ public class EdgeDeviceRepository {
                 optInstant(rs.getTimestamp("last_seen_at")),
                 rs.getString("user_agent"),
                 rs.getString("firmware_version"),
-                EdgeDevice.Status.valueOf(rs.getString("status")));
+                EdgeDevice.Status.valueOf(rs.getString("status")),
+                rs.getString("display_name"),
+                EdgeDevice.FormFactor.valueOf(rs.getString("form_factor")));
     }
 
     private static Instant optInstant(final Timestamp ts) {

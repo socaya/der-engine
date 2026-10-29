@@ -89,7 +89,7 @@ class CaptureWorkflowImportServiceTest {
         final UUID device = UUID.randomUUID();
         when(devices.findById(device)).thenReturn(Optional.of(new EdgeDevice(
                 device, null, "hash", NOW, null, null, null, "ua", null,
-                EdgeDevice.Status.APPROVED)));
+                EdgeDevice.Status.APPROVED, null, null)));
         final ImportResult r = svc(workflows, devices).importWorkflow(sample(device),
                 false, UUID.randomUUID());
         assertThat(r.workflow().steps().get(0).ownerDeviceId()).isEqualTo(device);

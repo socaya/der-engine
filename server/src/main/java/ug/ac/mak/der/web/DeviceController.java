@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -103,6 +104,40 @@ public class DeviceController {
                 : ResponseEntity.noContent().build();
     }
 
+    /** V043 — rename + form-factor edit. */
+    @PatchMapping(path = "/{id}/profile", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> updateProfile(
+            final Authentication authentication,
+            @PathVariable("id") final UUID id,
+            @RequestBody final ProfileRequest body) {
+        if (!(authentication instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (body == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "BODY_REQUIRED",
+                    "message", "profile body is required"));
+        }
+        final EdgeDevice.FormFactor ff;
+        try {
+            ff = body.formFactor() == null ? EdgeDevice.FormFactor.UNKNOWN
+                    : EdgeDevice.FormFactor.valueOf(body.formFactor().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "FORM_FACTOR_INVALID",
+                    "message", "form factor must be WORKSTATION / LAPTOP / TABLET / MOBILE / UNKNOWN"));
+        }
+        return switch (svc.renameProfile(id, body.displayName(), ff)) {
+            case OK -> svc.get(id)
+                    .<ResponseEntity<Map<String, Object>>>map(d -> ResponseEntity.ok(toJson(d)))
+                    .orElseGet(() -> ResponseEntity.notFound().build());
+            case NOT_FOUND -> ResponseEntity.notFound().build();
+            case REVOKED_IS_TERMINAL -> ResponseEntity.status(409).body(Map.of(
+                    "code", "DEVICE_REVOKED",
+                    "message", "revoked devices cannot be edited"));
+        };
+    }
+
     private ResponseEntity<Map<String, Object>> decide(final Authentication authentication,
                                                          final java.util.function.BiFunction<UUID, UUID,
                                                                  DeviceService.Outcome> op,
@@ -130,10 +165,16 @@ public class DeviceController {
         m.put("userAgent", d.userAgent());
         m.put("firmwareVersion", d.firmwareVersion());
         m.put("status", d.status().name());
+        m.put("displayName", d.displayName());
+        m.put("formFactor", d.formFactor().name());
         return m;
     }
 
     public record EnrolRequest(
             @JsonProperty("deviceId") UUID deviceId,
             @JsonProperty("userAgent") String userAgent) { }
+
+    public record ProfileRequest(
+            @JsonProperty("displayName") String displayName,
+            @JsonProperty("formFactor") String formFactor) { }
 }

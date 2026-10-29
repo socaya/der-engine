@@ -77,6 +77,19 @@ public class DeviceService {
         return repo.delete(deviceId);
     }
 
+    /** V043 — operator renames the device + updates its form factor. */
+    public Outcome renameProfile(final UUID deviceId, final String displayName,
+                                  final EdgeDevice.FormFactor formFactor) {
+        if (repo.findById(deviceId).isEmpty()) {
+            return Outcome.NOT_FOUND;
+        }
+        final String trimmed = displayName == null ? null : displayName.trim();
+        repo.updateProfile(deviceId,
+                (trimmed == null || trimmed.isEmpty()) ? null : trimmed,
+                formFactor);
+        return Outcome.OK;
+    }
+
     private Outcome transition(final UUID deviceId, final EdgeDevice.Status next,
                                  final UUID actor, final EnumAllowed allowed) {
         final Optional<EdgeDevice> d = repo.findById(deviceId);

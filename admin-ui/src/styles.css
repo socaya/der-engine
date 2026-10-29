@@ -267,6 +267,18 @@ code{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,mon
   color:var(--der-navy-700);font-weight:600;
   border-bottom-color:var(--der-primary);
 }
+/* v2.2.7 — mesh topology grid collapses on narrower screens. */
+.ea-sync-dot span{animation: ea-sync-pulse 2s ease-in-out infinite}
+@keyframes ea-sync-pulse{
+  0%,100%{opacity:1}
+  50%{opacity:.35}
+}
+@media (prefers-reduced-motion: reduce){
+  .ea-sync-dot span{animation:none !important}
+}
+@media(max-width:960px){
+  .ea-mesh-grid{grid-template-columns:1fr !important}
+}
 @media(max-width:768px){
   .ea-section-tabs{overflow-x:auto;flex-wrap:nowrap}
   .ea-section-tab{flex-shrink:0}

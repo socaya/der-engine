@@ -22,7 +22,7 @@ class DeviceServiceTest {
     private final Instant NOW = Instant.parse("2026-10-22T00:00:00Z");
 
     private EdgeDevice device(final UUID id, final EdgeDevice.Status status) {
-        return new EdgeDevice(id, null, "h", NOW, null, null, NOW, "ua", null, status);
+        return new EdgeDevice(id, null, "h", NOW, null, null, NOW, "ua", null, status, null, null);
     }
 
     @Test

@@ -53,7 +53,7 @@ class DeviceControllerTest {
     }
 
     private EdgeDevice device(final UUID id, final EdgeDevice.Status s) {
-        return new EdgeDevice(id, null, "h", NOW, null, null, NOW, "ua", null, s);
+        return new EdgeDevice(id, null, "h", NOW, null, null, NOW, "ua", null, s, null, null);
     }
 
     @Test

@@ -62,7 +62,14 @@ export type UiIconId =
   | 'download'        // down arrow into tray
   | 'power'           // on/off (used by AP restart, interface up/down)
   | 'copy'            // overlapping sheets
-  | 'qr';             // 2D code (used by AP enrolment)
+  | 'qr'              // 2D code (used by AP enrolment)
+  // Mesh topology — v2.2.7 device form-factor glyphs.
+  | 'workstation'     // desktop monitor
+  | 'laptop'          // laptop clamshell
+  | 'tablet'          // tablet slab
+  | 'mobile'          // phone slab
+  | 'facility-server' // diamond (DER centre node)
+  | 'unknown-device'; // generic chip
 
 export function UiIcon(
   { icon, size = 16 }: { icon: UiIconId; size?: number }
@@ -176,5 +183,17 @@ export function UiIcon(
       return <svg {...common}><rect x="8" y="8" width="12" height="12" rx="1.5" /><path d="M4 16V5a1 1 0 011-1h11" /></svg>;
     case 'qr':
       return <svg {...common}><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v3M14 20h7M20 20v1" /></svg>;
+    case 'workstation':
+      return <svg {...common}><rect x="2.5" y="4" width="19" height="12" rx="1.5" /><path d="M9 20h6M8 20l1-4M16 20l-1-4" /></svg>;
+    case 'laptop':
+      return <svg {...common}><rect x="4" y="5" width="16" height="11" rx="1.5" /><path d="M2 19h20l-1.5-2h-17z" /></svg>;
+    case 'tablet':
+      return <svg {...common}><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M11 18h2" /></svg>;
+    case 'mobile':
+      return <svg {...common}><rect x="7" y="3" width="10" height="18" rx="2" /><path d="M11 18h2" /></svg>;
+    case 'facility-server':
+      return <svg {...common}><path d="M12 2.5l9.5 9.5-9.5 9.5-9.5-9.5z" /></svg>;
+    case 'unknown-device':
+      return <svg {...common}><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M9.5 10a2.5 2.5 0 115 0c0 1.5-2.5 1.8-2.5 3M12 17v.01" /></svg>;
   }
 }

@@ -1011,6 +1011,7 @@ export function listWorkflowContributions(runId: string):
 // ---- der-1.2.0-alpha.2 Initiative 1: device management (ADR-0019) ----
 
 export type DeviceStatus = 'PENDING' | 'APPROVED' | 'SUSPENDED' | 'REVOKED';
+export type DeviceFormFactor = 'WORKSTATION' | 'LAPTOP' | 'TABLET' | 'MOBILE' | 'UNKNOWN';
 
 export interface EdgeDeviceRow {
   deviceId: string;
@@ -1022,6 +1023,10 @@ export interface EdgeDeviceRow {
   userAgent: string | null;
   firmwareVersion: string | null;
   status: DeviceStatus;
+  /** V043 — operator-editable. Null until renamed by an admin. */
+  displayName?: string | null;
+  /** V043 — operator-editable. Defaults to 'UNKNOWN'. */
+  formFactor?: DeviceFormFactor;
 }
 
 export function listDevices(): Promise<{ devices: EdgeDeviceRow[] }> {
@@ -1042,6 +1047,13 @@ export function revokeDevice(id: string): Promise<{ outcome: string }> {
 
 export function deleteDevice(id: string): Promise<void> {
   return request<void>('DELETE', `/edge-api/v1/devices/${id}`);
+}
+
+/** V043 — rename + form-factor edit. */
+export function updateDeviceProfile(
+  id: string, body: { displayName?: string | null; formFactor?: DeviceFormFactor }
+): Promise<EdgeDeviceRow> {
+  return request<EdgeDeviceRow>('PATCH', `/edge-api/v1/devices/${id}/profile`, body);
 }
 
 // ---- der-1.2.0-alpha.4 Initiative 7: analytics (ADR-0020) ----

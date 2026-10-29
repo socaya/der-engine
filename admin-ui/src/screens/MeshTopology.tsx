@@ -1,20 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Panel, SyncStatusBar, Status, fmtAgo } from './shared';
 import { UiIcon } from '../components/UiIcon';
-
-interface TopologyPeer {
-  id: string;
-  nodeId: string;
-  endpoint: string;
-  state: string;
-  trust: string;
-  reachable: Array<{ edgeFingerprint: string; hops: number; announcedAt: string }>;
-}
-
-interface Topology {
-  self: { fingerprint: string; role: string };
-  peers: TopologyPeer[];
-}
+import { NetworkLegend } from '../components/network/NetworkLegend';
+import { NetworkSummary } from '../components/network/NetworkSummary';
+import { NetworkNodeDetails } from '../components/network/NetworkNodeDetails';
+import { TopologyCanvas } from '../components/network/TopologyCanvas';
+import { useMeshTopology } from '../components/network/useMeshTopology';
+import type { SelectedNode } from '../components/network/types';
 
 interface AdjacencyRow {
   localPeerId: string;
@@ -25,82 +17,145 @@ interface AdjacencyRow {
   announcedAt: string;
 }
 
-async function j<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const r = await fetch(path, {
-    method, credentials: 'include',
-    headers: body ? { 'content-type': 'application/json' } : {},
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const text = await r.text();
-  return (text ? JSON.parse(text) : undefined) as T;
-}
-
+/** Facility mesh — DER centre + facility devices + peer edges + WAN.
+ *  Spec: docs/media/DER Mesh Topology — Claude Implementation Instruction.md */
 export function MeshTopology(): JSX.Element {
-  const [topology, setTopology] = useState<Topology | null>(null);
+  const { topology, loading, error, reload } = useMeshTopology(15000);
+  const [selected, setSelected] = useState<SelectedNode | null>(null);
   const [adjacency, setAdjacency] = useState<AdjacencyRow[]>([]);
-  async function reload(): Promise<void> {
-    try { setTopology(await j<Topology>('GET', '/edge-api/v1/peer-mesh/topology')); } catch { /* */ }
-    try { setAdjacency((await j<{ adjacency: AdjacencyRow[] }>('GET', '/edge-api/v1/peer-mesh/adjacency')).adjacency); } catch { /* */ }
-  }
-  useEffect(() => { reload().catch(() => undefined); }, []);
 
-  const connected = topology?.peers.filter((p) => p.state === 'CONNECTED').length ?? 0;
-  const trusted = topology?.peers.filter((p) => p.trust === 'TRUSTED').length ?? 0;
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/edge-api/v1/peer-mesh/adjacency', { credentials: 'include' });
+        if (r.ok) {
+          const body = await r.json() as { adjacency?: AdjacencyRow[] };
+          setAdjacency(body.adjacency ?? []);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, [topology]);
+
+  // On first topology arrival, default-select the DER node so the right
+  // panel has content immediately.
+  useEffect(() => {
+    if (topology !== null && selected === null) {
+      setSelected({ kind: 'der', ...topology.der });
+    }
+  }, [topology, selected]);
+
+  const summary = topology?.summary ?? null;
+  const headerTone = useMemo(() => {
+    if (!summary) return 'muted';
+    if (summary.devicesOffline > 0) return 'warning';
+    if (summary.devicesOnline > 0) return 'success';
+    return 'muted';
+  }, [summary]);
 
   return (
     <div className="ea-screen" data-test="mesh-topology">
       <SyncStatusBar
-        tone={connected > 0 ? 'success' : 'muted'}
-        title="Mesh topology"
-        statusLabel={`${connected} connected · ${trusted} trusted`}
-        subtitle={<span>Direct peers + transitive reachability through the WireGuard mesh.</span>}
+        tone={headerTone}
+        title="Facility Mesh"
+        statusLabel={summary
+          ? `${summary.devicesOnline}/${summary.devices} devices · ${summary.peersConnected}/${summary.peers} peers · WAN ${summary.wanStatus}`
+          : (loading ? 'loading…' : 'no topology data')}
+        subtitle={<span>DER Edge Runtime and connected LAN / peer devices.</span>}
         actions={
-          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                  onClick={() => { reload().catch(() => undefined); }}>
-            <UiIcon icon="refresh" size={14} /><span>Refresh</span>
-          </button>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 14 }}>
+            <NetworkLegend />
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    aria-label="Refresh topology"
+                    onClick={() => { reload().catch(() => undefined); }}>
+              <UiIcon icon="refresh" size={14} /><span>Refresh</span>
+            </button>
+          </span>
         }
       />
 
-      {topology && (
-        <Panel title={`This edge · ${topology.self.fingerprint.slice(0, 24)}…`}>
-          <TopologySvg topology={topology} />
+      {error && (
+        <Panel title="Network topology unavailable">
+          <p style={{ margin: 0, padding: 12 }}>
+            The DER network monitoring service could not be reached ({error}).
+            <br />
+            <button type="button" className="ea-btn ea-btn--sm" style={{ marginTop: 8 }}
+                    onClick={() => { reload().catch(() => undefined); }}>Retry</button>
+          </p>
         </Panel>
       )}
 
+      {!error && topology && (
+        <div className="ea-mesh-grid" style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 2.3fr) minmax(260px, 1fr)',
+          gap: 16,
+        }}>
+          <Panel title="Live topology">
+            <TopologyCanvas
+              der={topology.der}
+              wan={topology.wan}
+              devices={topology.devices}
+              peers={topology.peers}
+              connections={topology.connections}
+              selected={selected}
+              onSelect={setSelected}
+            />
+          </Panel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <Panel title="Network status">
+              {summary && <NetworkSummary summary={summary} />}
+            </Panel>
+            <Panel title="Selected node">
+              <NetworkNodeDetails selected={selected} />
+            </Panel>
+          </div>
+        </div>
+      )}
+
+      {!error && topology !== null && topology.devices.length === 0 && topology.peers.length === 0 && (
+        <Panel title="No devices discovered">
+          <p style={{ margin: 0, padding: 12 }}>
+            DER is running, but no client devices are currently visible on the facility network.
+            Enrol a device at <strong>/devices</strong>.
+          </p>
+        </Panel>
+      )}
+
+      {/* Legacy tables kept for machine-readable detail. */}
       <Panel title={`Direct peers · ${topology?.peers.length ?? 0}`}>
-        {!topology?.peers.length ? (
+        {(topology?.peers.length ?? 0) === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
             No peers configured. Add one via <strong>/network/peers</strong>.
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense" aria-label="Direct peers">
               <thead><tr>
-                <th>Node ID</th><th>Endpoint</th><th>State</th>
-                <th>Trust</th><th>Reaches via mesh</th>
+                <th scope="col">Node ID</th>
+                <th scope="col">Endpoint</th>
+                <th scope="col">State</th>
+                <th scope="col">Trust</th>
+                <th scope="col">Last handshake</th>
               </tr></thead>
               <tbody>
-                {topology.peers.map((p) => (
+                {(topology?.peers ?? []).map((p) => (
                   <tr key={p.id}>
-                    <td className="ea-mono">{p.nodeId}</td>
+                    <td className="ea-mono">{p.name}</td>
                     <td className="ea-mono" style={{ fontSize: 12 }}>{p.endpoint}</td>
                     <td>
-                      <Status tone={p.state === 'CONNECTED' ? 'success'
-                                     : p.state === 'HANDSHAKING' ? 'info'
-                                     : p.state === 'ERROR' ? 'danger' : 'muted'}>
-                        {p.state}
+                      <Status tone={p.status === 'online' ? 'success'
+                                     : p.status === 'degraded' ? 'warning' : 'danger'}>
+                        {(p.state ?? 'UNKNOWN').toUpperCase()}
                       </Status>
                     </td>
                     <td>
                       <Status tone={p.trust === 'TRUSTED' ? 'success'
                                      : p.trust === 'UNVERIFIED' ? 'warning' : 'danger'}>
-                        {p.trust}
+                        {p.trust ?? '—'}
                       </Status>
                     </td>
                     <td className="ea-text-muted">
-                      {p.reachable.length === 0 ? '—'
-                        : p.reachable.map((r) => `${r.edgeFingerprint.slice(0, 8)}…(h${r.hops})`).join(', ')}
+                      {p.lastHandshake ? fmtAgo(p.lastHandshake) : '—'}
                     </td>
                   </tr>
                 ))}
@@ -116,22 +171,22 @@ export function MeshTopology(): JSX.Element {
              </span>}>
         {adjacency.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
-            No announced adjacencies yet. Peers announce theirs via
-            <code> POST /peer-mesh/adjacency</code>.
+            No announced adjacencies yet.
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense" aria-label="Transitive reachability">
               <thead><tr>
-                <th>Via (local peer)</th><th>Reaches</th>
-                <th>Hops</th><th>Announced</th>
+                <th scope="col">Via (local peer)</th>
+                <th scope="col">Reaches</th>
+                <th scope="col">Hops</th>
+                <th scope="col">Announced</th>
               </tr></thead>
               <tbody>
                 {adjacency.map((a) => (
                   <tr key={a.localPeerId + a.reachableEdge}>
                     <td className="ea-mono" style={{ fontSize: 12 }}>{a.localNodeId}</td>
-                    <td className="ea-mono" style={{ fontSize: 11 }}
-                        title={a.reachableEdge}>
+                    <td className="ea-mono" style={{ fontSize: 11 }} title={a.reachableEdge}>
                       {a.reachableEdge.slice(0, 24)}…
                     </td>
                     <td className="ea-mono">{a.hops}</td>
@@ -144,55 +199,5 @@ export function MeshTopology(): JSX.Element {
         )}
       </Panel>
     </div>
-  );
-}
-
-function TopologySvg({ topology }: { topology: Topology }): JSX.Element {
-  const peers = topology.peers;
-  const centre = { x: 300, y: 180 };
-  const radius = 130;
-  const nodes = peers.map((p, i) => {
-    const theta = (2 * Math.PI * i) / Math.max(1, peers.length);
-    return {
-      peer: p,
-      x: centre.x + radius * Math.cos(theta),
-      y: centre.y + radius * Math.sin(theta),
-    };
-  });
-  return (
-    <svg viewBox="0 0 600 360" style={{ width: '100%', maxHeight: 360,
-                                         background: 'var(--der-raised)' }}>
-      {nodes.map((n) => (
-        <g key={n.peer.id}>
-          <line x1={centre.x} y1={centre.y} x2={n.x} y2={n.y}
-                stroke={n.peer.state === 'CONNECTED' ? 'var(--der-success-ink)'
-                        : 'var(--der-border)'}
-                strokeWidth={n.peer.state === 'CONNECTED' ? 2 : 1}
-                strokeDasharray={n.peer.state === 'CONNECTED' ? '0' : '4 3'} />
-          <circle cx={n.x} cy={n.y} r={28}
-                  fill={n.peer.trust === 'TRUSTED' ? 'var(--der-success-wash)'
-                        : 'var(--der-raised)'}
-                  stroke={n.peer.trust === 'TRUSTED' ? 'var(--der-success-ink)'
-                          : 'var(--der-border)'}
-                  strokeWidth={1.5} />
-          <text x={n.x} y={n.y + 4} textAnchor="middle"
-                fontSize={11} fontFamily="monospace" fill="var(--der-ink-900)">
-            {n.peer.nodeId.slice(0, 8)}
-          </text>
-          <text x={n.x} y={n.y + 44} textAnchor="middle"
-                fontSize={10} fill="var(--der-ink-500)">
-            {n.peer.state}
-          </text>
-        </g>
-      ))}
-      <circle cx={centre.x} cy={centre.y} r={38}
-              fill="var(--der-primary)" stroke="var(--der-primary-ink)" strokeWidth={2} />
-      <text x={centre.x} y={centre.y - 2} textAnchor="middle"
-            fontSize={13} fontWeight={600} fill="#fff">this edge</text>
-      <text x={centre.x} y={centre.y + 14} textAnchor="middle"
-            fontSize={10} fontFamily="monospace" fill="#fff">
-        {topology.self.fingerprint.slice(0, 8)}
-      </text>
-    </svg>
   );
 }
