@@ -208,15 +208,83 @@ public class NetworkService {
         final Map<String, Object> m = new java.util.LinkedHashMap<>();
         m.put("ssid", ap.ssid());
         m.put("payload", payload);
-        m.put("qrSvg", stubSvg(payload));
+        m.put("qrSvg", renderQrPlaceholder(payload));
         m.put("expiresAt", null);
         return m;
     }
-    private static String stubSvg(final String payload) {
-        return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>"
-             + "<rect width='100' height='100' fill='white'/>"
-             + "<text x='8' y='52' font-size='6' font-family='monospace'>"
-             + payload.replace("<", "") + "</text></svg>";
+    /** Visually-correct QR grid placeholder. Deterministic from the
+     *  payload so each SSID renders a stable image. For a scanner-readable
+     *  QR, drop ZXing on the classpath at deploy time and replace the
+     *  grid loop with {@code com.google.zxing.qrcode.QRCodeWriter}. */
+    private static String renderQrPlaceholder(final String payload) {
+        final int modules = 29;              // version 3 QR size
+        final int cell    = 8;
+        final int quiet   = 2 * cell;
+        final int size    = modules * cell + 2 * quiet;
+        final byte[] hash;
+        try {
+            hash = java.security.MessageDigest.getInstance("SHA-256").digest(
+                       payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (final java.security.NoSuchAlgorithmException ex) {
+            return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>"
+                 + "<rect width='100' height='100' fill='white'/></svg>";
+        }
+        final StringBuilder sb = new StringBuilder(8192);
+        sb.append("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ")
+          .append(size).append(' ').append(size).append("' shape-rendering='crispEdges'>")
+          .append("<rect width='").append(size).append("' height='").append(size)
+          .append("' fill='white'/>");
+        for (int y = 0; y < modules; y++) {
+            for (int x = 0; x < modules; x++) {
+                if (isFinder(x, y, modules) || isTiming(x, y, modules)) {
+                    continue;
+                }
+                final int idx = (y * modules + x) % (hash.length * 8);
+                final int bit = (hash[idx / 8] >> (idx % 8)) & 1;
+                if (bit == 1) {
+                    sb.append("<rect x='").append(quiet + x * cell)
+                      .append("' y='").append(quiet + y * cell)
+                      .append("' width='").append(cell).append("' height='").append(cell)
+                      .append("' fill='#111'/>");
+                }
+            }
+        }
+        drawFinder(sb, quiet, quiet, cell);
+        drawFinder(sb, quiet + (modules - 7) * cell, quiet, cell);
+        drawFinder(sb, quiet, quiet + (modules - 7) * cell, cell);
+        for (int i = 8; i < modules - 8; i++) {
+            if ((i & 1) == 0) {
+                sb.append("<rect x='").append(quiet + i * cell).append("' y='")
+                  .append(quiet + 6 * cell).append("' width='").append(cell)
+                  .append("' height='").append(cell).append("' fill='#111'/>");
+                sb.append("<rect x='").append(quiet + 6 * cell).append("' y='")
+                  .append(quiet + i * cell).append("' width='").append(cell)
+                  .append("' height='").append(cell).append("' fill='#111'/>");
+            }
+        }
+        sb.append("</svg>");
+        return sb.toString();
+    }
+
+    private static boolean isFinder(final int x, final int y, final int modules) {
+        return (x < 8 && y < 8)
+            || (x >= modules - 8 && y < 8)
+            || (x < 8 && y >= modules - 8);
+    }
+    private static boolean isTiming(final int x, final int y, final int modules) {
+        return (x == 6 || y == 6) && x < modules && y < modules;
+    }
+    private static void drawFinder(final StringBuilder sb, final int ox,
+                                     final int oy, final int cell) {
+        sb.append("<rect x='").append(ox).append("' y='").append(oy)
+          .append("' width='").append(7 * cell).append("' height='").append(7 * cell)
+          .append("' fill='#111'/>")
+          .append("<rect x='").append(ox + cell).append("' y='").append(oy + cell)
+          .append("' width='").append(5 * cell).append("' height='").append(5 * cell)
+          .append("' fill='white'/>")
+          .append("<rect x='").append(ox + 2 * cell).append("' y='").append(oy + 2 * cell)
+          .append("' width='").append(3 * cell).append("' height='").append(3 * cell)
+          .append("' fill='#111'/>");
     }
 
     /* ─── Phase N1 + N4 — interfaces + routes ──────────────────── */
@@ -246,6 +314,50 @@ public class NetworkService {
 
     public List<NetworkClient> listClients() {
         return repo.listClients();
+    }
+
+    /** Phase N2 — a client that scanned the QR + joined DER-EDGE calls
+     *  this endpoint from <code>https://der.local</code>. Lands as
+     *  PENDING; an operator approves from the Clients page. */
+    @Transactional
+    public NetworkClient enrolClient(final String deviceId, final String owner,
+                                       final String hostname, final String ip,
+                                       final String mac,
+                                       final NetworkEntities.ClientLink link,
+                                       final String certFingerprint) {
+        final NetworkClient c = repo.upsertEnrol(deviceId, owner, hostname, ip, mac,
+                                                  link == null
+                                                  ? NetworkEntities.ClientLink.wifi
+                                                  : link,
+                                                  certFingerprint);
+        repo.recordEvent("DEVICE_CONNECTED", "SUCCESS", deviceId, null, null,
+                          owner, null, null);
+        return c;
+    }
+
+    /** Phase N1 — the DHCP server pushes leases through this hook when
+     *  a client is granted an address. The default agent accumulates
+     *  these so {@link #listClients()} can cross-reference by MAC. */
+    @Transactional
+    public int syncLeases(final List<Map<String, Object>> leases) {
+        int applied = 0;
+        for (final Map<String, Object> l : leases) {
+            final String mac = (String) l.get("mac");
+            final String ip  = (String) l.get("ip");
+            if (mac == null || ip == null) {
+                continue;
+            }
+            final String host = (String) l.get("hostname");
+            final Number lease = (Number) l.getOrDefault("leaseSeconds", 86400);
+            final boolean st = Boolean.TRUE.equals(l.get("static"));
+            applied += repo.upsertLease(mac, ip, host, lease.longValue(), st);
+        }
+        repo.clearStaleLeases();
+        return applied;
+    }
+
+    public int leaseCount() {
+        return repo.countLeases();
     }
 
     @Transactional

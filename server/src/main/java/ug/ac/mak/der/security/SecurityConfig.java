@@ -111,7 +111,12 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/accept").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/dismiss").hasRole("ADMIN")
                         // Phase N1-N5 Network module — reads for all authenticated
-                        // users, writes gated to ADMIN.
+                        // users, writes gated to ADMIN. Device self-enrol +
+                        // DHCP-lease ingest are authenticated-only (devices /
+                        // DHCP server have their own bootstrap credential).
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                            "/edge-api/v1/network/enroll",
+                            "/edge-api/v1/network/leases").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST,  "/edge-api/v1/network/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.PUT,   "/edge-api/v1/network/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE,"/edge-api/v1/network/**").hasRole("ADMIN")

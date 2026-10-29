@@ -384,12 +384,25 @@ export function NetworkAccessPoint(): JSX.Element {
         </p>
       </Panel>
 
-      {showQr && <QrEnrolDialog ssid={ap?.ssid ?? 'DER-EDGE'} onClose={() => setShowQr(false)} />}
+      {showQr && <QrEnrolDialog onClose={() => setShowQr(false)} />}
     </div>
   );
 }
 
-function QrEnrolDialog({ ssid, onClose }: { ssid: string; onClose: () => void }): JSX.Element {
+function QrEnrolDialog({ onClose }: { onClose: () => void }): JSX.Element {
+  const [qr, setQr] = useState<{ ssid: string; payload: string; qrSvg: string } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    (async () => {
+      try { setQr(await edgeApi.networkApEnrolmentQr()); }
+      catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    })();
+  }, []);
+  function copyPayload(): void {
+    if (qr && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(qr.payload).catch(() => undefined);
+    }
+  }
   return (
     <div className="ea-modal-overlay" onClick={onClose}
          style={{ position: 'fixed', inset: 0, background: 'rgba(15,28,46,0.5)',
@@ -397,19 +410,38 @@ function QrEnrolDialog({ ssid, onClose }: { ssid: string; onClose: () => void })
                   zIndex: 1000 }}>
       <div className="ea-modal" onClick={(e) => e.stopPropagation()}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
-                    padding: 24, maxWidth: 420, boxShadow: 'var(--el-3)' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Enrolment QR — {ssid}</h3>
-        <p className="ea-text-muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
-          Scanning will land the device on the DER-EDGE Wi-Fi and open the
-          enrolment page. Approve the request from Connected Devices.
-        </p>
+                    padding: 24, maxWidth: 460, width: '90%', boxShadow: 'var(--el-3)' }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>
+          Enrol a device — {qr?.ssid ?? '…'}
+        </h3>
+        <ol className="ea-text-muted" style={{ margin: '0 0 14px', paddingLeft: 20, fontSize: 13, lineHeight: 1.6 }}>
+          <li>Scan the QR below on the new device.</li>
+          <li>The device joins the DER-EDGE Wi-Fi automatically.</li>
+          <li>Open <code>https://der.local</code> and send an enrol request.</li>
+          <li>Approve the pending row from the Connected Devices table.</li>
+        </ol>
         <div style={{ background: '#fff', padding: 12, border: '1px solid var(--der-border)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      aspectRatio: '1 / 1', fontFamily: 'monospace', fontSize: 12,
-                      color: 'var(--der-ink-500)' }}>
-          QR renders here when the Network Agent lands (Phase N2).
-        </div>
+                      aspectRatio: '1 / 1' }}
+             dangerouslySetInnerHTML={{ __html: qr?.qrSvg ??
+                '<div style="color:#99a;font-size:12px;font-family:monospace">loading…</div>' }} />
+        {qr && (
+          <div style={{ marginTop: 10, fontFamily: 'monospace', fontSize: 11,
+                        color: 'var(--der-ink-500)', wordBreak: 'break-all' }}>
+            {qr.payload}
+          </div>
+        )}
+        {err && (
+          <div className="ea-text-muted" style={{ margin: '12px 0 0', fontSize: 12 }}>
+            Couldn't load QR — {err}
+          </div>
+        )}
         <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                  disabled={!qr} onClick={copyPayload}>
+            <UiIcon icon="copy" size={14} />
+            <span>Copy payload</span>
+          </button>
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" onClick={onClose}>Close</button>
         </div>
       </div>
@@ -423,6 +455,7 @@ export function NetworkConnectedDevices(): JSX.Element {
   const [missing, setMissing] = useState(false);
   const [query, setQuery] = useState('');
   const [certFor, setCertFor] = useState<edgeApi.NetworkClient | null>(null);
+  const [showEnrol, setShowEnrol] = useState(false);
   async function reload(): Promise<void> {
     try { setClients((await edgeApi.networkClients()).clients); setMissing(false); }
     catch { setMissing(true); setClients([]); }
@@ -482,10 +515,11 @@ export function NetworkConnectedDevices(): JSX.Element {
               <UiIcon icon="download" size={14} />
               <span>Export CSV</span>
             </button>
-            <Link to="/network/access-point" className="ea-btn ea-btn--ghost ea-btn--sm">
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    onClick={() => setShowEnrol(true)}>
               <UiIcon icon="qr" size={14} />
               <span>Enrol a device</span>
-            </Link>
+            </button>
           </>
         }
       />
@@ -552,6 +586,7 @@ export function NetworkConnectedDevices(): JSX.Element {
       )}
 
       {certFor && <DeviceCertDialog client={certFor} onClose={() => setCertFor(null)} />}
+      {showEnrol && <QrEnrolDialog onClose={() => setShowEnrol(false)} />}
     </div>
   );
 }

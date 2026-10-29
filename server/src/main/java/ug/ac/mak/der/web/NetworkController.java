@@ -119,6 +119,42 @@ public class NetworkController {
                         .map(NetworkController::toJson).toList()));
     }
 
+    @PostMapping(path = "/enroll", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> enrol(
+            final Authentication auth,
+            @RequestBody final EnrolBody body) {
+        if (body == null || body.deviceId == null || body.ip == null) {
+            return ResponseEntity.badRequest().body(err("DEVICE_ID_REQUIRED",
+                "deviceId + ip required"));
+        }
+        final NetworkEntities.ClientLink link = body.link == null
+            ? NetworkEntities.ClientLink.wifi
+            : NetworkEntities.ClientLink.valueOf(body.link);
+        final NetworkClient c = svc.enrolClient(body.deviceId, body.owner, body.hostname,
+                                                 body.ip, body.mac, link,
+                                                 body.certificateFingerprint);
+        return ResponseEntity.status(201).body(toJson(c));
+    }
+
+    /* ─── DHCP lease ingestion (Phase N1) ──────────────────────── */
+
+    @GetMapping("/leases/count")
+    public ResponseEntity<Map<String, Object>> leaseCount() {
+        return ResponseEntity.ok(Map.of("count", svc.leaseCount()));
+    }
+
+    @PostMapping(path = "/leases", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<Map<String, Object>> ingestLeases(
+            final Authentication auth, @RequestBody final Map<String, Object> body) {
+        if (body == null || !(body.get("leases") instanceof java.util.List<?> list)) {
+            return ResponseEntity.badRequest().body(err("LEASES_REQUIRED", "leases[] required"));
+        }
+        final int applied = svc.syncLeases(
+            (java.util.List<Map<String, Object>>) list);
+        return ResponseEntity.ok(Map.of("applied", applied));
+    }
+
     @PostMapping("/devices/{id}/approve")
     public ResponseEntity<Map<String, Object>> approve(final Authentication auth,
                                                         @PathVariable final String id) {
@@ -220,6 +256,18 @@ public class NetworkController {
 
     public record StateChange(String state) { }
     public record SettingBody(String value) { }
+
+    /** Phase N2 — device self-enrol payload. Posted from the device
+     *  after it joined DER-EDGE and loaded <code>https://der.local</code>. */
+    public static final class EnrolBody {
+        public String deviceId;
+        public String owner;
+        public String hostname;
+        public String ip;
+        public String mac;
+        public String link;
+        public String certificateFingerprint;
+    }
 
     private static String actor(final Authentication auth) {
         return auth != null ? auth.getName() : "anonymous";

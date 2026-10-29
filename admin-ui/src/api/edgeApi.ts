@@ -1252,7 +1252,7 @@ export function networkApRotateKey(): Promise<{ rotatedAt: string }> {
 export function networkApRestart(): Promise<{ triggered: boolean }> {
   return request('POST', '/edge-api/v1/network/ap/restart');
 }
-export function networkApEnrolmentQr(): Promise<{ qrSvg: string; expiresAt: string | null }> {
+export function networkApEnrolmentQr(): Promise<{ ssid: string; payload: string; qrSvg: string; expiresAt: string | null }> {
   return request('GET', '/edge-api/v1/network/ap/qr');
 }
 export function networkDeviceApprove(deviceId: string): Promise<{ approved: boolean }> {

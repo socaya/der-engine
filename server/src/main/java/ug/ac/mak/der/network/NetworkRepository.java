@@ -177,6 +177,54 @@ public class NetworkRepository {
         }
     }
 
+    /** Idempotent upsert — a device that scans the QR + hits the
+     *  enrolment endpoint lands as PENDING on first contact and
+     *  refreshes its last-seen on subsequent heartbeats. */
+    public NetworkClient upsertEnrol(final String deviceId, final String owner,
+                                        final String hostname, final String ip,
+                                        final String mac, final ClientLink link,
+                                        final String certFingerprint) {
+        jdbc.update(
+            "INSERT INTO der.network_client "
+          + "(device_id, owner, hostname, ip, mac, link, trust, "
+          + " certificate_fingerprint, first_seen_at, last_seen_at) "
+          + "VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, now(), now()) "
+          + "ON CONFLICT (device_id) DO UPDATE SET "
+          + "  last_seen_at = now(), "
+          + "  ip = EXCLUDED.ip, "
+          + "  mac = COALESCE(EXCLUDED.mac, der.network_client.mac), "
+          + "  hostname = COALESCE(EXCLUDED.hostname, der.network_client.hostname), "
+          + "  owner = COALESCE(EXCLUDED.owner, der.network_client.owner), "
+          + "  certificate_fingerprint = COALESCE(EXCLUDED.certificate_fingerprint, "
+          + "                                      der.network_client.certificate_fingerprint)",
+            deviceId, owner, hostname, ip, mac, link.name(), certFingerprint);
+        return findClient(deviceId).orElseThrow(() ->
+            new IllegalStateException("enrol row disappeared"));
+    }
+
+    public int upsertLease(final String mac, final String ip, final String hostname,
+                             final long leaseSeconds, final boolean staticLease) {
+        return jdbc.update(
+            "INSERT INTO der.network_lease (mac, ip, hostname, expires_at, static_lease) "
+          + "VALUES (?, ?, ?, now() + make_interval(secs => ?), ?) "
+          + "ON CONFLICT (mac) DO UPDATE SET "
+          + "  ip = EXCLUDED.ip, hostname = EXCLUDED.hostname, "
+          + "  expires_at = EXCLUDED.expires_at, static_lease = EXCLUDED.static_lease",
+            mac, ip, hostname, (double) leaseSeconds, staticLease);
+    }
+
+    public int clearStaleLeases() {
+        return jdbc.update(
+            "DELETE FROM der.network_lease "
+          + "WHERE expires_at < now() AND NOT static_lease");
+    }
+
+    public int countLeases() {
+        return jdbc.queryForObject(
+            "SELECT COUNT(*)::int FROM der.network_lease WHERE expires_at > now()",
+            Integer.class);
+    }
+
     public int updateClientTrust(final String deviceId, final ClientTrust trust,
                                    final UUID actor) {
         if (trust == ClientTrust.APPROVED) {
