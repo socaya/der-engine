@@ -18,8 +18,6 @@ import org.springframework.stereotype.Component;
 
 import ug.ac.mak.der.network.NetworkCaService;
 import ug.ac.mak.der.network.NetworkEntities.NetworkPeer;
-import ug.ac.mak.der.network.NetworkEntities.PeerState;
-import ug.ac.mak.der.network.NetworkEntities.PeerTrust;
 import ug.ac.mak.der.network.NetworkRepository;
 
 /** Phase N5 v2 — Edge-to-edge message forwarder.
@@ -46,6 +44,7 @@ public class EdgeMessageForwarder {
     private final NetworkCaService ca;
     private final MessagingV2Repository v2repo;
     private final ug.ac.mak.der.network.PeerLifecycleService lifecycle;
+    private final ug.ac.mak.der.network.PeerMeshService mesh;
     private final ObjectMapper mapper;
     private final HttpClient http;
 
@@ -53,11 +52,13 @@ public class EdgeMessageForwarder {
                                   final NetworkCaService ca,
                                   final MessagingV2Repository v2repo,
                                   final ug.ac.mak.der.network.PeerLifecycleService lifecycle,
+                                  final ug.ac.mak.der.network.PeerMeshService mesh,
                                   final ObjectMapper mapper) {
         this.networkRepo = Objects.requireNonNull(networkRepo, "networkRepo");
         this.ca = Objects.requireNonNull(ca, "ca");
         this.v2repo = Objects.requireNonNull(v2repo, "v2repo");
         this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle");
+        this.mesh = Objects.requireNonNull(mesh, "mesh");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.http = HttpClient.newBuilder()
                               .connectTimeout(Duration.ofSeconds(5))
@@ -117,18 +118,11 @@ public class EdgeMessageForwarder {
                                   "target already in visitedEdges");
             return;
         }
-        // Find a TRUSTED + CONNECTED peer whose nodeId matches the
-        // target edge fingerprint; nodeId is operator-set at add-peer
-        // time so operators can match arbitrary identifiers.
-        NetworkPeer target = null;
-        for (final NetworkPeer p : networkRepo.listPeers()) {
-            if (targetEdge.equals(p.nodeId())
-                    && p.state() == PeerState.CONNECTED
-                    && p.trust() == PeerTrust.TRUSTED) {
-                target = p;
-                break;
-            }
-        }
+        // §1 Multi-hop routing — direct peer first, then transitive
+        // route via adjacency table (PeerMeshService). resolveRoute
+        // returns the best next-hop peer or empty if the mesh can't
+        // reach the target.
+        final NetworkPeer target = mesh.resolveRoute(targetEdge).orElse(null);
         if (target == null) {
             v2repo.recordForward(messageId, targetEdge, null, "NO_PEER", null,
                                   "no TRUSTED+CONNECTED peer with nodeId=" + targetEdge);

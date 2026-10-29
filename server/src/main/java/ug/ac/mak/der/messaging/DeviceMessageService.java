@@ -41,17 +41,20 @@ public class DeviceMessageService {
     private final MessagingV2Repository v2repo;
     private final MessageStreamDispatcher dispatcher;
     private final EdgeMessageForwarder forwarder;
+    private final ug.ac.mak.der.network.PeerMeshService mesh;
     private final ObjectMapper mapper;
 
     public DeviceMessageService(final DeviceMessageRepository repo,
                                   final MessagingV2Repository v2repo,
                                   final MessageStreamDispatcher dispatcher,
                                   final EdgeMessageForwarder forwarder,
+                                  final ug.ac.mak.der.network.PeerMeshService mesh,
                                   final ObjectMapper mapper) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.v2repo = Objects.requireNonNull(v2repo, "v2repo");
         this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
         this.forwarder  = Objects.requireNonNull(forwarder, "forwarder");
+        this.mesh = Objects.requireNonNull(mesh, "mesh");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
     }
 
@@ -127,11 +130,14 @@ public class DeviceMessageService {
         final java.util.Set<String> targets = resolveSseTargets(channel);
         dispatcher.dispatch(rendered, targets);
 
-        // CRDT: when channel starts with crdt: track the doc.
+        // CRDT: when channel starts with crdt: track the doc + bump
+        // the vector clock entry for the sending replica so
+        // /peer-mesh/crdt/{docId}/clock reflects live state.
         if (channel.startsWith("crdt:")) {
             final String docId = channel.substring("crdt:".length());
             v2repo.upsertDocument(docId, "LWW_MAP", fromDevice, null);
             v2repo.recordOp(docId);
+            mesh.recordOp(docId, fromDevice);
         }
 
         // Edge-to-edge: forward if the channel is edge:<fp>:<sub>.

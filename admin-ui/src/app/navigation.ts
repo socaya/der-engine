@@ -27,7 +27,7 @@ export type TabIconId =
   | 'schedule' | 'history' | 'settings' | 'drift' | 'health'
   | 'storage' | 'diagnostics' | 'analytics' | 'evaluation'
   | 'audit' | 'backup' | 'restore' | 'recovery'
-  | 'wifi' | 'access-point' | 'ethernet' | 'firewall' | 'peer' | 'tei' | 'activity';
+  | 'wifi' | 'access-point' | 'ethernet' | 'firewall' | 'peer' | 'tei' | 'activity' | 'route';
 
 export interface NavItem {
   readonly id: string;
@@ -116,6 +116,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'network-clients', label: 'Connected Devices', to: '/network/clients', status: 'implemented', tabIcon: 'tei' },
       { id: 'network-interfaces', label: 'Interfaces', to: '/network/interfaces', status: 'implemented', tabIcon: 'ethernet' },
       { id: 'network-peers', label: 'Peers', to: '/network/peers', status: 'implemented', tabIcon: 'peer' },
+      { id: 'network-mesh', label: 'Mesh topology', to: '/network/mesh', status: 'implemented', tabIcon: 'route' },
       { id: 'network-security', label: 'Security', to: '/network/security', status: 'implemented', tabIcon: 'firewall' },
       { id: 'network-diagnostics', label: 'Diagnostics', to: '/network/diagnostics', status: 'implemented', tabIcon: 'diagnostics' },
       { id: 'network-messaging', label: 'Device messaging', to: '/network/messaging', status: 'implemented', tabIcon: 'activity' },

@@ -169,6 +169,10 @@ public class PeerLifecycleService implements ServiceListener {
         return token;
     }
 
+    public String tokenHash(final String token) {
+        return sha256Hex(token);
+    }
+
     public boolean consumeInvite(final String token, final String consumingEdgeFingerprint,
                                    final UUID peerId) {
         return repo.consumeInvite(sha256Hex(token), consumingEdgeFingerprint, peerId);

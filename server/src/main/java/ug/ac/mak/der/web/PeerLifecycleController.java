@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.network.NetworkCaService;
 import ug.ac.mak.der.network.PeerLifecycleService;
+import ug.ac.mak.der.network.PeerMeshService;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 
 /** Phase N5 — peer discovery, invite, health, retry admin surface. */
@@ -25,11 +26,14 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 public class PeerLifecycleController {
 
     private final PeerLifecycleService svc;
+    private final PeerMeshService mesh;
     private final NetworkCaService ca;
 
     public PeerLifecycleController(final PeerLifecycleService svc,
+                                     final PeerMeshService mesh,
                                      final NetworkCaService ca) {
         this.svc = Objects.requireNonNull(svc, "svc");
+        this.mesh = Objects.requireNonNull(mesh, "mesh");
         this.ca  = Objects.requireNonNull(ca, "ca");
     }
 
@@ -63,10 +67,14 @@ public class PeerLifecycleController {
         final int ttl = body == null || body.ttlSeconds == null ? 86400 : body.ttlSeconds;
         final String note = body == null ? null : body.note;
         final String token = svc.issueInvite(uid, note, ttl);
-        return ResponseEntity.status(201).body(Map.of(
-            "token", token,
-            "ttlSeconds", ttl,
-            "edgeFingerprint", ca.fingerprint()));
+        final Map<String, Object> signed = mesh.issueSignedInvite(
+            uid, note, ttl, svc.tokenHash(token));
+        final Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("token", token);
+        out.put("ttlSeconds", ttl);
+        out.put("edgeFingerprint", ca.fingerprint());
+        out.put("signedPayload", signed);
+        return ResponseEntity.status(201).body(out);
     }
 
     @GetMapping("/invites")
