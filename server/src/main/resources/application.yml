@@ -56,10 +56,25 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus,metrics
   endpoint:
     health:
       show-details: never
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: der-server
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+# §2 Observability — structured JSON logs. Flip DER_LOG_FORMAT=plain
+# in dev; keep json in pilot / production so log aggregators (Loki,
+# Elasticsearch) can parse without custom codecs.
+logging:
+  pattern:
+    console: "${DER_LOG_PATTERN:%d{ISO8601} %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n}"
 
 # DHIS2 adapter — Phase 01 (ADR-0002, ADR-0003).
 der:

@@ -72,6 +72,11 @@ public class SecurityConfig {
                         .requestMatchers("/edge-api/v1/system/health").permitAll()
                         .requestMatchers("/edge-api/v1/auth/sign-in").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // §2 Observability — Prometheus scrape endpoint.
+                        // Operators restrict reach via nginx / firewall;
+                        // the content is non-sensitive counter / gauge data.
+                        .requestMatchers("/actuator/prometheus").permitAll()
+                        .requestMatchers("/actuator/metrics").hasRole("ADMIN")
                         // ADR-0033: admin UI static shell is public so the
                         // login screen renders; AuthContext inside the SPA
                         // then calls /edge-api/v1/auth/sign-in. All data
@@ -138,6 +143,11 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
                             "/edge-api/v1/messaging/relay").permitAll()
                         .requestMatchers("/edge-api/v1/messaging/**").authenticated()
+                        // §7 Compliance — retention, erasure, audit export.
+                        // Writes require ADMIN; reads require session.
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                            "/edge-api/v1/compliance/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/compliance/**").authenticated()
                         .requestMatchers("/edge-api/v1/apps/**").authenticated()
                         .requestMatchers("/edge-api/v1/**").authenticated()
                         // ADR-0004: DER emulates the DHIS2 Web API at /api/**.

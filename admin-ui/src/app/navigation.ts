@@ -198,6 +198,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       { id: 'audit-verify', label: 'Audit trail', to: '/audit/verify', status: 'implemented', tabIcon: 'audit' },
       { id: 'security-events', label: 'Security events', to: '/audit/events', status: 'implemented', tabIcon: 'attention' },
+      { id: 'compliance', label: 'Compliance', to: '/compliance', status: 'implemented', tabIcon: 'audit' },
       { id: 'backup', label: 'Backup', to: '/backup', status: 'implemented', tabIcon: 'backup' },
       { id: 'restore', label: 'Restore', to: '/restore', status: 'implemented', tabIcon: 'restore' },
       { id: 'recovery', label: 'Recovery', to: '/recovery', status: 'implemented', tabIcon: 'recovery' },
