@@ -1,0 +1,351 @@
+package ug.ac.mak.der.network;
+
+import java.sql.ResultSet;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
+import ug.ac.mak.der.network.NetworkEntities.AccessPointStatus;
+import ug.ac.mak.der.network.NetworkEntities.ClientLink;
+import ug.ac.mak.der.network.NetworkEntities.ClientTrust;
+import ug.ac.mak.der.network.NetworkEntities.ConnectivityState;
+import ug.ac.mak.der.network.NetworkEntities.InterfaceKind;
+import ug.ac.mak.der.network.NetworkEntities.InterfacePurpose;
+import ug.ac.mak.der.network.NetworkEntities.InterfaceState;
+import ug.ac.mak.der.network.NetworkEntities.NetworkClient;
+import ug.ac.mak.der.network.NetworkEntities.NetworkEvent;
+import ug.ac.mak.der.network.NetworkEntities.NetworkInterface;
+import ug.ac.mak.der.network.NetworkEntities.NetworkPeer;
+import ug.ac.mak.der.network.NetworkEntities.NetworkRoute;
+import ug.ac.mak.der.network.NetworkEntities.NetworkStatus;
+import ug.ac.mak.der.network.NetworkEntities.PeerState;
+import ug.ac.mak.der.network.NetworkEntities.PeerTrust;
+import ug.ac.mak.der.network.NetworkEntities.PolicyAction;
+import ug.ac.mak.der.network.NetworkEntities.PolicyRule;
+
+/** All JDBC read/write ops for the Network control plane.
+ *  Thin, intentionally monolithic — one class per phase table group
+ *  would just scatter the SQL across the module. */
+@Repository
+public class NetworkRepository {
+
+    private final JdbcTemplate jdbc;
+
+    public NetworkRepository(final JdbcTemplate jdbc) {
+        this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+    }
+
+    /* ─── State ─────────────────────────────────────────────────── */
+
+    public NetworkStatus loadStatus() {
+        return jdbc.queryForObject(
+            "SELECT ns.state, ns.local_ap_available, ns.local_lan_available, "
+          + "       ns.internet_available, ns.central_available, ns.dns_available, "
+          + "       ns.last_probe_at, ns.hostname, "
+          + "       (SELECT value FROM der.network_settings WHERE key='lan.gateway') AS gateway, "
+          + "       (SELECT value FROM der.network_settings WHERE key='lan.subnet')  AS subnet "
+          + "  FROM der.network_state ns WHERE ns.id = 1",
+            (ResultSet rs, int row) -> new NetworkStatus(
+                ConnectivityState.valueOf(rs.getString("state")),
+                rs.getBoolean("local_ap_available"),
+                rs.getBoolean("local_lan_available"),
+                rs.getBoolean("internet_available"),
+                rs.getBoolean("central_available"),
+                rs.getBoolean("dns_available"),
+                rs.getString("gateway"), rs.getString("subnet"),
+                rs.getString("hostname"),
+                optInstant(rs.getTimestamp("last_probe_at")),
+                List.of()));
+    }
+
+    public void updateStatus(final boolean lanUp, final boolean internetUp,
+                              final boolean dnsUp, final boolean centralUp,
+                              final boolean apUp, final ConnectivityState state) {
+        jdbc.update(
+            "UPDATE der.network_state SET state=?, local_ap_available=?, "
+          + "       local_lan_available=?, internet_available=?, "
+          + "       dns_available=?, central_available=?, last_probe_at=now(), "
+          + "       updated_at=now() WHERE id=1",
+            state.name(), apUp, lanUp, internetUp, dnsUp, centralUp);
+    }
+
+    public void recordProbe(final String kind, final boolean success,
+                              final Integer latencyMs, final String message) {
+        jdbc.update(
+            "INSERT INTO der.network_probe (kind, outcome, latency_ms, message) "
+          + "VALUES (?, ?, ?, ?)",
+            kind, success ? "SUCCESS" : "FAILURE", latencyMs, message);
+    }
+
+    /* ─── Access Point ──────────────────────────────────────────── */
+
+    public AccessPointStatus loadAp() {
+        final int clients = jdbc.queryForObject(
+            "SELECT COUNT(*)::int FROM der.network_client WHERE trust='APPROVED'",
+            Integer.class);
+        return jdbc.queryForObject(
+            "SELECT * FROM der.network_access_point WHERE id = 1",
+            (ResultSet rs, int row) -> new AccessPointStatus(
+                rs.getBoolean("running"), rs.getBoolean("enabled"),
+                rs.getString("interface_name"), rs.getString("ssid"),
+                rs.getString("band"), rs.getInt("channel"),
+                rs.getString("security_mode"), clients,
+                rs.getBoolean("dhcp_active"), rs.getString("gateway"),
+                rs.getString("subnet"), rs.getString("edge_id"),
+                optInstant(rs.getTimestamp("started_at")),
+                optInstant(rs.getTimestamp("network_key_rotated_at"))));
+    }
+
+    public void setApRunning(final boolean running) {
+        jdbc.update(
+            "UPDATE der.network_access_point SET running=?, "
+          + "  started_at = CASE WHEN ? THEN now() ELSE started_at END, "
+          + "  stopped_at = CASE WHEN ? THEN NULL ELSE now() END, "
+          + "  dhcp_active=?, updated_at=now() WHERE id=1",
+            running, running, running, running);
+    }
+
+    public void rotateApKey(final String hash) {
+        jdbc.update(
+            "UPDATE der.network_access_point SET network_key_hash=?, "
+          + "       network_key_rotated_at=now(), updated_at=now() WHERE id=1",
+            hash);
+    }
+
+    /* ─── Interfaces + routes ───────────────────────────────────── */
+
+    public List<NetworkInterface> listInterfaces() {
+        return jdbc.query(
+            "SELECT * FROM der.network_interface ORDER BY priority ASC, name",
+            interfaceMapper());
+    }
+
+    public Optional<NetworkInterface> findInterface(final String name) {
+        try {
+            return Optional.ofNullable(jdbc.queryForObject(
+                "SELECT * FROM der.network_interface WHERE name=?",
+                interfaceMapper(), name));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    public int setInterfaceState(final String name, final InterfaceState state) {
+        return jdbc.update(
+            "UPDATE der.network_interface SET state=?, "
+          + "       administrative_up = (?::text = 'up'), updated_at=now() "
+          + "WHERE name=?",
+            state.name(), state.name(), name);
+    }
+
+    public List<NetworkRoute> listRoutes() {
+        return jdbc.query(
+            "SELECT * FROM der.network_route WHERE active=TRUE ORDER BY metric ASC",
+            (ResultSet rs, int row) -> new NetworkRoute(
+                (UUID) rs.getObject("id"), rs.getString("destination"),
+                rs.getString("gateway"), rs.getString("interface_name"),
+                rs.getInt("metric"), rs.getString("source"),
+                rs.getBoolean("active")));
+    }
+
+    /* ─── Clients + events ──────────────────────────────────────── */
+
+    public List<NetworkClient> listClients() {
+        return jdbc.query(
+            "SELECT * FROM der.network_client ORDER BY last_seen_at DESC",
+            clientMapper());
+    }
+
+    public Optional<NetworkClient> findClient(final String deviceId) {
+        try {
+            return Optional.ofNullable(jdbc.queryForObject(
+                "SELECT * FROM der.network_client WHERE device_id=?",
+                clientMapper(), deviceId));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    public int updateClientTrust(final String deviceId, final ClientTrust trust,
+                                   final UUID actor) {
+        if (trust == ClientTrust.APPROVED) {
+            return jdbc.update(
+                "UPDATE der.network_client SET trust='APPROVED', "
+              + "       approved_by=?, approved_at=now(), revoked_at=NULL "
+              + "WHERE device_id=?", actor, deviceId);
+        }
+        if (trust == ClientTrust.REVOKED) {
+            return jdbc.update(
+                "UPDATE der.network_client SET trust='REVOKED', revoked_at=now() "
+              + "WHERE device_id=?", deviceId);
+        }
+        return jdbc.update(
+            "UPDATE der.network_client SET trust=? WHERE device_id=?",
+            trust.name(), deviceId);
+    }
+
+    public List<NetworkEvent> listEvents(final int limit) {
+        return jdbc.query(
+            "SELECT * FROM der.network_event ORDER BY observed_at DESC LIMIT ?",
+            eventMapper(), Math.max(1, Math.min(limit, 500)));
+    }
+
+    public int clearEvents() {
+        return jdbc.update("DELETE FROM der.network_event");
+    }
+
+    public void recordEvent(final String type, final String outcome,
+                              final String deviceId, final String nodeId,
+                              final String interfaceName, final String actor,
+                              final String reason, final String correlationId) {
+        jdbc.update(
+            "INSERT INTO der.network_event "
+          + "(event_type, outcome, device_id, node_id, interface_name, actor, reason, correlation_id) "
+          + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            type, outcome, deviceId, nodeId, interfaceName, actor, reason, correlationId);
+    }
+
+    /* ─── Peers (Phase N5) ──────────────────────────────────────── */
+
+    public List<NetworkPeer> listPeers() {
+        return jdbc.query(
+            "SELECT * FROM der.network_peer ORDER BY added_at DESC",
+            peerMapper());
+    }
+
+    public Optional<NetworkPeer> findPeer(final UUID id) {
+        try {
+            return Optional.ofNullable(jdbc.queryForObject(
+                "SELECT * FROM der.network_peer WHERE id=?",
+                peerMapper(), id));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    public int setPeerState(final UUID id, final PeerState state) {
+        return jdbc.update(
+            "UPDATE der.network_peer SET state=?, "
+          + "       last_handshake = CASE WHEN ?::text = 'CONNECTED' THEN now() "
+          + "                              ELSE last_handshake END "
+          + "WHERE id=?", state.name(), state.name(), id);
+    }
+
+    public int deletePeer(final UUID id) {
+        return jdbc.update("DELETE FROM der.network_peer WHERE id=?", id);
+    }
+
+    /* ─── Firewall policy ───────────────────────────────────────── */
+
+    public List<PolicyRule> listRules() {
+        return jdbc.query(
+            "SELECT * FROM der.network_policy_rule ORDER BY position ASC",
+            (ResultSet rs, int row) -> new PolicyRule(
+                (UUID) rs.getObject("id"), rs.getInt("position"),
+                rs.getString("source_zone"), rs.getString("destination_zone"),
+                PolicyAction.valueOf(rs.getString("action")),
+                rs.getString("note"),
+                optInstant(rs.getTimestamp("updated_at"))));
+    }
+
+    /* ─── Settings ──────────────────────────────────────────────── */
+
+    public Map<String, String> loadSettings() {
+        final Map<String, String> out = new LinkedHashMap<>();
+        jdbc.query("SELECT key, value FROM der.network_settings ORDER BY key",
+                   (ResultSet rs) -> {
+                       out.put(rs.getString("key"), rs.getString("value"));
+                   });
+        return out;
+    }
+
+    public int putSetting(final String key, final String value) {
+        return jdbc.update(
+            "INSERT INTO der.network_settings (key, value, updated_at) "
+          + "VALUES (?, ?, now()) ON CONFLICT (key) DO UPDATE "
+          + "SET value = EXCLUDED.value, updated_at = now()",
+            key, value);
+    }
+
+    /* ─── Mappers ───────────────────────────────────────────────── */
+
+    private RowMapper<NetworkInterface> interfaceMapper() {
+        return (ResultSet rs, int row) -> new NetworkInterface(
+            rs.getString("name"),
+            InterfaceKind.valueOf(rs.getString("kind")),
+            InterfaceState.valueOf(rs.getString("state")),
+            InterfacePurpose.fromWire(rs.getString("purpose")),
+            rs.getString("address"), rs.getString("mac"),
+            optLong(rs, "rx_bytes"), optLong(rs, "tx_bytes"),
+            rs.getString("link_speed"), rs.getInt("priority"));
+    }
+
+    private RowMapper<NetworkClient> clientMapper() {
+        return (ResultSet rs, int row) -> new NetworkClient(
+            rs.getString("device_id"), (UUID) rs.getObject("der_device_id"),
+            rs.getString("owner"), rs.getString("hostname"),
+            rs.getString("ip"), rs.getString("mac"),
+            ClientLink.valueOf(rs.getString("link")),
+            optInt(rs, "signal_dbm"),
+            ClientTrust.valueOf(rs.getString("trust")),
+            rs.getString("certificate_fingerprint"),
+            optLong(rs, "bytes_tx"), optLong(rs, "bytes_rx"),
+            optInstant(rs.getTimestamp("first_seen_at")),
+            optInstant(rs.getTimestamp("last_seen_at")),
+            (UUID) rs.getObject("approved_by"),
+            optInstant(rs.getTimestamp("approved_at")),
+            optInstant(rs.getTimestamp("revoked_at")));
+    }
+
+    private RowMapper<NetworkEvent> eventMapper() {
+        return (ResultSet rs, int row) -> new NetworkEvent(
+            (UUID) rs.getObject("event_id"), rs.getString("event_type"),
+            rs.getString("outcome"), rs.getString("device_id"),
+            rs.getString("node_id"), rs.getString("interface_name"),
+            rs.getString("actor"), rs.getString("reason"),
+            rs.getString("correlation_id"),
+            optInstant(rs.getTimestamp("observed_at")));
+    }
+
+    private RowMapper<NetworkPeer> peerMapper() {
+        return (ResultSet rs, int row) -> new NetworkPeer(
+            (UUID) rs.getObject("id"), rs.getString("node_id"),
+            rs.getString("site_id"), rs.getString("endpoint"),
+            rs.getString("public_key"), rs.getString("allowed_ips"),
+            PeerState.valueOf(rs.getString("state")),
+            PeerTrust.valueOf(rs.getString("trust")),
+            optLong(rs, "rx_bytes"), optLong(rs, "tx_bytes"),
+            optInstant(rs.getTimestamp("last_handshake")),
+            optInstant(rs.getTimestamp("added_at")));
+    }
+
+    private static Instant optInstant(final Timestamp ts) {
+        return ts == null ? null : ts.toInstant();
+    }
+    private static Integer optInt(final ResultSet rs, final String col)
+            throws java.sql.SQLException {
+        final int v = rs.getInt(col);
+        return rs.wasNull() ? null : v;
+    }
+    private static Long optLong(final ResultSet rs, final String col)
+            throws java.sql.SQLException {
+        final long v = rs.getLong(col);
+        return rs.wasNull() ? null : v;
+    }
+
+    @SuppressWarnings("unused")
+    private List<String> unused() {
+        return new ArrayList<>();
+    }
+}

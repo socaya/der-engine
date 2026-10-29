@@ -110,6 +110,12 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/aggregate/completion").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/accept").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/dismiss").hasRole("ADMIN")
+                        // Phase N1-N5 Network module — reads for all authenticated
+                        // users, writes gated to ADMIN.
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,  "/edge-api/v1/network/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT,   "/edge-api/v1/network/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE,"/edge-api/v1/network/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/network/**").authenticated()
                         .requestMatchers("/edge-api/v1/apps/**").authenticated()
                         .requestMatchers("/edge-api/v1/**").authenticated()
                         // ADR-0004: DER emulates the DHIS2 Web API at /api/**.
