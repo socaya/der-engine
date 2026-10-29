@@ -1392,6 +1392,15 @@ export function networkMdns(): Promise<{ services: MdnsService[] }> {
   return request('GET', '/edge-api/v1/network/mdns');
 }
 
+export function networkExport(): Promise<Record<string, unknown>> {
+  return request('GET', '/edge-api/v1/network/export');
+}
+export function networkImport(bundle: unknown): Promise<{
+  rules: number; settings: number; interfaces: number; peers: number; leases: number;
+}> {
+  return request('POST', '/edge-api/v1/network/import', bundle);
+}
+
 export function networkApEdit(body: {
   ssid?: string; band?: string; channel?: number;
   security?: string; interfaceName?: string;

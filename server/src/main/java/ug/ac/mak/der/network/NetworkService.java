@@ -546,6 +546,179 @@ public class NetworkService {
 
     /* ─── mDNS / service discovery (spec §8) ────────────────────── */
 
+    /* ─── Backup bundle + restore (pilot-handover) ──────────────── */
+
+    /** Snapshot of the whole network control plane in a single JSON
+     *  blob. Used for pilot handover and as a seed when provisioning
+     *  a sibling edge from a known-good configuration. Secrets (device
+     *  attestations, AP key hashes) are excluded by design — the
+     *  bundle carries operator-visible config only. */
+    public java.util.Map<String, Object> exportBundle() {
+        final java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("exportedAt", Instant.now().toString());
+        m.put("version", "1.0");
+        m.put("accessPoint", exportAp());
+        m.put("settings",    repo.loadSettings());
+        m.put("policy",      repo.listRules().stream().map(r -> {
+            final java.util.Map<String, Object> x = new java.util.LinkedHashMap<>();
+            x.put("position", r.position());
+            x.put("sourceZone", r.sourceZone());
+            x.put("destinationZone", r.destinationZone());
+            x.put("action", r.action().name());
+            x.put("note", r.note() == null ? "" : r.note());
+            return x;
+        }).toList());
+        m.put("interfaces", repo.listInterfaces().stream().map(i -> {
+            final java.util.Map<String, Object> x = new java.util.LinkedHashMap<>();
+            x.put("name", i.name());
+            x.put("kind", i.kind().name());
+            x.put("purpose", i.purpose().wire);
+            x.put("priority", i.priority());
+            x.put("address", i.address() == null ? "" : i.address());
+            return x;
+        }).toList());
+        m.put("peers", repo.listPeers().stream().map(p -> {
+            final java.util.Map<String, Object> x = new java.util.LinkedHashMap<>();
+            x.put("nodeId", p.nodeId() == null ? "" : p.nodeId());
+            x.put("siteId", p.siteId() == null ? "" : p.siteId());
+            x.put("endpoint", p.endpoint() == null ? "" : p.endpoint());
+            x.put("publicKey", p.publicKey() == null ? "" : p.publicKey());
+            x.put("allowedIps", p.allowedIps() == null ? "" : p.allowedIps());
+            return x;
+        }).toList());
+        m.put("staticLeases", repo.listLeases().stream()
+            .filter(l -> Boolean.TRUE.equals(l.get("staticLease")))
+            .map(l -> {
+                final java.util.Map<String, Object> x = new java.util.LinkedHashMap<>();
+                x.put("mac", l.get("mac"));
+                x.put("ip", l.get("ip"));
+                x.put("hostname", l.getOrDefault("hostname", ""));
+                return x;
+            }).toList());
+        return m;
+    }
+
+    private java.util.Map<String, Object> exportAp() {
+        final AccessPointStatus ap = repo.loadAp();
+        final java.util.Map<String, Object> x = new java.util.LinkedHashMap<>();
+        x.put("ssid", ap.ssid() == null ? "" : ap.ssid());
+        x.put("band", ap.band() == null ? "" : ap.band());
+        x.put("channel", ap.channel());
+        x.put("security", ap.security() == null ? "" : ap.security());
+        x.put("interface", ap.interfaceName() == null ? "" : ap.interfaceName());
+        x.put("gateway", ap.gateway() == null ? "" : ap.gateway());
+        x.put("subnet", ap.subnet() == null ? "" : ap.subnet());
+        return x;
+    }
+
+    /** Restore from an export bundle. The bundle is applied additively —
+     *  existing policy rules are overwritten, settings merged in,
+     *  interfaces matched by name, peers matched by endpoint. */
+    @Transactional
+    @SuppressWarnings("unchecked")
+    public java.util.Map<String, Object> importBundle(
+            final java.util.Map<String, Object> body, final String actorName) {
+        if (body == null) {
+            throw new IllegalArgumentException("bundle required");
+        }
+        int rules = 0, settings = 0, ifaces = 0, peers = 0, leases = 0;
+
+        if (body.get("accessPoint") instanceof java.util.Map<?, ?> ap) {
+            final java.util.Map<String, Object> a = (java.util.Map<String, Object>) ap;
+            editAccessPoint(
+                str(a.get("ssid")), str(a.get("band")),
+                a.get("channel") instanceof Number n ? n.intValue() : null,
+                str(a.get("security")), str(a.get("interface")),
+                str(a.get("gateway")), str(a.get("subnet")),
+                actorName);
+        }
+
+        if (body.get("settings") instanceof java.util.Map<?, ?> s) {
+            for (final java.util.Map.Entry<?, ?> e : s.entrySet()) {
+                repo.putSetting(e.getKey().toString(), e.getValue().toString());
+                settings++;
+            }
+        }
+
+        if (body.get("policy") instanceof java.util.List<?> ps) {
+            // Overwrite — pilot handover expects the imported ruleset to be authoritative.
+            for (final NetworkEntities.PolicyRule existing : repo.listRules()) {
+                repo.deleteRule(existing.id());
+            }
+            for (final Object o : ps) {
+                if (!(o instanceof java.util.Map<?, ?> p)) {
+                    continue;
+                }
+                final java.util.Map<String, Object> r = (java.util.Map<String, Object>) p;
+                repo.insertRule(
+                    r.get("position") instanceof Number n ? n.intValue() : 500,
+                    str(r.get("sourceZone")), str(r.get("destinationZone")),
+                    NetworkEntities.PolicyAction.valueOf(str(r.get("action"))),
+                    str(r.get("note")), null);
+                rules++;
+            }
+        }
+
+        if (body.get("interfaces") instanceof java.util.List<?> is) {
+            for (final Object o : is) {
+                if (!(o instanceof java.util.Map<?, ?> p)) {
+                    continue;
+                }
+                final java.util.Map<String, Object> r = (java.util.Map<String, Object>) p;
+                repo.updateInterfaceConfig(
+                    str(r.get("name")),
+                    r.get("priority") instanceof Number n ? n.intValue() : null,
+                    str(r.get("purpose")));
+                ifaces++;
+            }
+        }
+
+        if (body.get("peers") instanceof java.util.List<?> ps) {
+            for (final Object o : ps) {
+                if (!(o instanceof java.util.Map<?, ?> p)) {
+                    continue;
+                }
+                final java.util.Map<String, Object> r = (java.util.Map<String, Object>) p;
+                repo.insertPeer(
+                    str(r.get("nodeId")), str(r.get("siteId")),
+                    str(r.get("endpoint")), str(r.get("publicKey")),
+                    str(r.get("allowedIps")), null);
+                peers++;
+            }
+        }
+
+        if (body.get("staticLeases") instanceof java.util.List<?> ls) {
+            for (final Object o : ls) {
+                if (!(o instanceof java.util.Map<?, ?> p)) {
+                    continue;
+                }
+                final java.util.Map<String, Object> r = (java.util.Map<String, Object>) p;
+                repo.insertStaticLease(str(r.get("mac")), str(r.get("ip")),
+                                        str(r.get("hostname")));
+                leases++;
+            }
+        }
+
+        repo.recordEvent("CONFIG_IMPORTED", "SUCCESS", null, null, null, actorName,
+                          "rules=" + rules + " settings=" + settings + " ifaces=" + ifaces
+                          + " peers=" + peers + " leases=" + leases, null);
+        final java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("rules", rules);
+        out.put("settings", settings);
+        out.put("interfaces", ifaces);
+        out.put("peers", peers);
+        out.put("leases", leases);
+        return out;
+    }
+
+    private static String str(final Object v) {
+        if (v == null) {
+            return null;
+        }
+        final String s = v.toString();
+        return s.isBlank() ? null : s;
+    }
+
     public java.util.List<java.util.Map<String, Object>> mdnsServices() {
         final String hostname = settings().getOrDefault("discovery.hostname", "der.local");
         return java.util.List.of(
@@ -558,10 +731,10 @@ public class NetworkService {
     private static java.util.Map<String, Object> svcEntry(
             final String type, final String host, final int port, final String desc) {
         final java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
-        m.put("type",     type);
-        m.put("host",     host);
+        m.put("type",     type == null ? "" : type);
+        m.put("host",     host == null ? "" : host);
         m.put("port",     port);
-        m.put("description", desc);
+        m.put("description", desc == null ? "" : desc);
         return m;
     }
 

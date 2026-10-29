@@ -196,9 +196,8 @@ export function NetworkOverview(): JSX.Element {
         </section>
       )}
 
-      {!servicePending && (
-      <Panel title="Recent network events"
-             action={<Link to="/network/diagnostics#events" className="ea-link-btn">View all →</Link>}>
+      <Panel title={`Live activity · ${events.length} events`}
+             action={<Link to="/audit/events?category=network" className="ea-link-btn">View all →</Link>}>
         {events.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
             No network events yet.
@@ -207,24 +206,25 @@ export function NetworkOverview(): JSX.Element {
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense">
               <thead><tr>
-                <th>Observed</th><th>Event</th><th>Device / node</th>
-                <th>Outcome</th><th>Reason</th>
+                <th>Observed</th><th>Event</th><th>Interface</th>
+                <th>Device / node</th><th>Actor</th><th>Outcome</th>
               </tr></thead>
               <tbody>
-                {events.slice(0, 10).map((e) => (
+                {events.slice(0, 12).map((e) => (
                   <tr key={e.eventId}>
-                    <td className="ea-mono">{fmtDate(e.observedAt)}</td>
+                    <td className="ea-mono">{fmtAgo(e.observedAt)}</td>
                     <td style={{ fontWeight: 500 }}>{humaniseEventType(e.eventType)}</td>
+                    <td className="ea-mono ea-text-muted">{e.interfaceName ?? '—'}</td>
                     <td className="ea-mono ea-text-muted" style={{ fontSize: 13 }}>
                       {e.deviceId ?? e.nodeId ?? '—'}
                     </td>
+                    <td className="ea-mono ea-text-muted">{e.actor ?? '—'}</td>
                     <td>
                       <Status tone={e.outcome === 'SUCCESS' ? 'success'
                                      : e.outcome === 'FAILURE' ? 'danger' : 'info'}>
                         {e.outcome}
                       </Status>
                     </td>
-                    <td className="ea-text-muted">{e.reason ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -232,7 +232,6 @@ export function NetworkOverview(): JSX.Element {
           </div>
         )}
       </Panel>
-      )}
     </div>
   );
 }
@@ -1788,6 +1787,8 @@ export function NetworkDiagnostics(): JSX.Element {
         </ol>
       </Panel>
 
+      <MdnsPanel />
+
       <Panel title="Network events">
         {events.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
@@ -1842,6 +1843,43 @@ export function NetworkDiagnostics(): JSX.Element {
   );
 }
 
+function MdnsPanel(): JSX.Element {
+  const [services, setServices] = useState<edgeApi.MdnsService[]>([]);
+  useEffect(() => {
+    edgeApi.networkMdns().then((r) => setServices(r.services)).catch(() => undefined);
+  }, []);
+  return (
+    <Panel title={`mDNS / service discovery · ${services.length}`}
+           action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+             Advertised on the local segment via Avahi.
+           </span>}>
+      {services.length === 0 ? (
+        <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
+          No services advertised.
+        </p>
+      ) : (
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense">
+            <thead><tr>
+              <th>Service type</th><th>Host</th><th>Port</th><th>Description</th>
+            </tr></thead>
+            <tbody>
+              {services.map((s) => (
+                <tr key={s.type}>
+                  <td className="ea-mono">{s.type}</td>
+                  <td className="ea-mono">{s.host}</td>
+                  <td className="ea-mono">{s.port}</td>
+                  <td className="ea-text-muted">{s.description}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 function ProbeStep({ label, tone, hint }: { label: string; tone: 'success' | 'danger' | 'info'; hint: string }): JSX.Element {
   return (
     <li className={'ea-net-probe-step ea-net-probe-step--' + tone}>
@@ -1861,11 +1899,42 @@ export function NetworkSettings(): JSX.Element {
   const [editKey, setEditKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<string | null>(null);
   async function reload(): Promise<void> {
     try { setSettings((await edgeApi.networkSettings()).settings); }
     catch { /* leave previous */ }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
+  async function exportBundle(): Promise<void> {
+    try {
+      const bundle = await edgeApi.networkExport();
+      downloadBlob(`der-network-bundle-${new Date().toISOString().slice(0,10)}.json`,
+                    JSON.stringify(bundle, null, 2), 'application/json');
+    } catch { /* ignore */ }
+  }
+  function importBundle(): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = async () => {
+      const f = input.files?.[0];
+      if (!f) return;
+      setImporting(true); setImportResult(null);
+      try {
+        const text = await f.text();
+        const bundle = JSON.parse(text);
+        const r = await edgeApi.networkImport(bundle);
+        setImportResult(
+          `Imported: ${r.rules} rules · ${r.settings} settings · `
+          + `${r.interfaces} ifaces · ${r.peers} peers · ${r.leases} leases.`);
+        await reload();
+      } catch (e) {
+        setImportResult('Import failed: ' + (e instanceof Error ? e.message : String(e)));
+      } finally { setImporting(false); }
+    };
+    input.click();
+  }
   function startEdit(k: string): void {
     setEditKey(k);
     setEditValue(settings[k] ?? '');
@@ -1902,6 +1971,15 @@ export function NetworkSettings(): JSX.Element {
         subtitle={<span>Live edit of DER network configuration. Changes persist to der.network_settings and are picked up on the next agent reconcile.</span>}
         actions={
           <>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" onClick={exportBundle}>
+              <UiIcon icon="download" size={14} />
+              <span>Export bundle</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    disabled={importing} onClick={importBundle}>
+              {importing ? <span className="ea-btn-spinner" /> : <UiIcon icon="restore" size={14} />}
+              <span>{importing ? 'Importing…' : 'Import bundle'}</span>
+            </button>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                     onClick={() => { reload().catch(() => undefined); }}>
               <UiIcon icon="refresh" size={14} />
@@ -1909,7 +1987,7 @@ export function NetworkSettings(): JSX.Element {
             </button>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={downloadYaml}>
               <UiIcon icon="download" size={14} />
-              <span>Download</span>
+              <span>network.yaml</span>
             </button>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={copyYaml}>
               <UiIcon icon="copy" size={14} />
@@ -1918,6 +1996,12 @@ export function NetworkSettings(): JSX.Element {
           </>
         }
       />
+      {importResult && (
+        <div style={{ padding: '10px 14px', background: 'var(--der-raised)',
+                       border: '1px solid var(--der-border)', fontSize: 13 }}>
+          {importResult}
+        </div>
+      )}
 
       <Panel title={`Network settings · ${keys.length}`}>
         {keys.length === 0 ? (

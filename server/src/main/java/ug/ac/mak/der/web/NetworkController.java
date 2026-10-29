@@ -236,6 +236,26 @@ public class NetworkController {
         return ResponseEntity.ok(Map.of("services", svc.mdnsServices()));
     }
 
+    /* ─── Backup bundle + restore (pilot-handover) ─────────────── */
+
+    @GetMapping("/export")
+    public ResponseEntity<Map<String, Object>> exportBundle() {
+        return ResponseEntity.ok(svc.exportBundle());
+    }
+
+    @PostMapping(path = "/import", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> importBundle(
+            final Authentication auth, @RequestBody final Map<String, Object> body) {
+        if (body == null) {
+            return ResponseEntity.badRequest().body(err("BUNDLE_REQUIRED", "bundle required"));
+        }
+        try {
+            return ResponseEntity.ok(svc.importBundle(body, actor(auth)));
+        } catch (final IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(err("BUNDLE_INVALID", ex.getMessage()));
+        }
+    }
+
     /* ─── DHCP lease ingestion (Phase N1) ──────────────────────── */
 
     @GetMapping("/leases/count")
