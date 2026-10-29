@@ -1175,9 +1175,12 @@ export interface NetworkClient {
   owner: string | null;
   hostname: string | null;
   ip: string;
+  mac?: string | null;
   link: 'wifi' | 'ethernet' | 'cellular';
   signalDbm: number | null;
   trust: 'APPROVED' | 'PENDING' | 'REVOKED' | 'BLOCKED' | 'UNKNOWN';
+  certificateFingerprint?: string | null;
+  firstSeenAt?: string | null;
   lastSeenAt: string;
   bytesTx: number | null;
   bytesRx: number | null;
@@ -1282,4 +1285,41 @@ export function networkPeerRemove(peerId: string): Promise<{ removed: boolean }>
 }
 export function networkEventsClear(): Promise<{ cleared: number }> {
   return request('DELETE', '/edge-api/v1/network/events');
+}
+export function networkPeerAdd(body: {
+  nodeId?: string; siteId?: string | null; endpoint: string;
+  publicKey: string; allowedIps?: string;
+}): Promise<{ id: string }> {
+  return request('POST', '/edge-api/v1/network/peers', body);
+}
+export interface NetworkPolicyRule {
+  id: string; position: number;
+  sourceZone: string; destinationZone: string;
+  action: 'allow' | 'controlled' | 'deny';
+  note: string | null;
+  updatedAt: string | null;
+}
+export function networkPolicy(): Promise<{ rules: NetworkPolicyRule[] }> {
+  return request('GET', '/edge-api/v1/network/policy');
+}
+export function networkPolicyAdd(body: {
+  position?: number; sourceZone: string; destinationZone: string;
+  action: 'allow' | 'controlled' | 'deny'; note?: string;
+}): Promise<{ id: string }> {
+  return request('POST', '/edge-api/v1/network/policy', body);
+}
+export function networkPolicyUpdate(id: string, body: {
+  action: 'allow' | 'controlled' | 'deny'; note?: string;
+}): Promise<{ updated: boolean }> {
+  return request('PUT', `/edge-api/v1/network/policy/${encodeURIComponent(id)}`, body);
+}
+export function networkPolicyDelete(id: string): Promise<{ deleted: boolean }> {
+  return request('DELETE', `/edge-api/v1/network/policy/${encodeURIComponent(id)}`);
+}
+export interface NetworkCaInfo {
+  algorithm: string; publicKeyBase64: string;
+  fingerprint: string; createdAt: string;
+}
+export function networkCa(): Promise<NetworkCaInfo> {
+  return request('GET', '/edge-api/v1/network/ca');
 }

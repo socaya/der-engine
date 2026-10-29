@@ -294,6 +294,19 @@ public class NetworkRepository {
         return jdbc.update("DELETE FROM der.network_peer WHERE id=?", id);
     }
 
+    public UUID insertPeer(final String nodeId, final String siteId, final String endpoint,
+                             final String publicKey, final String allowedIps,
+                             final UUID addedBy) {
+        final UUID id = UUID.randomUUID();
+        jdbc.update(
+            "INSERT INTO der.network_peer "
+          + "(id, node_id, site_id, endpoint, public_key, allowed_ips, "
+          + " state, trust, added_by) "
+          + "VALUES (?, ?, ?, ?, ?, ?, 'DISCONNECTED', 'UNVERIFIED', ?)",
+            id, nodeId, siteId, endpoint, publicKey, allowedIps, addedBy);
+        return id;
+    }
+
     /* ─── Firewall policy ───────────────────────────────────────── */
 
     public List<PolicyRule> listRules() {
@@ -305,6 +318,29 @@ public class NetworkRepository {
                 PolicyAction.valueOf(rs.getString("action")),
                 rs.getString("note"),
                 optInstant(rs.getTimestamp("updated_at"))));
+    }
+
+    public UUID insertRule(final int position, final String src, final String dst,
+                             final PolicyAction action, final String note, final UUID actor) {
+        final UUID id = UUID.randomUUID();
+        jdbc.update(
+            "INSERT INTO der.network_policy_rule "
+          + "(id, position, source_zone, destination_zone, action, note, updated_by) "
+          + "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            id, position, src, dst, action.name(), note, actor);
+        return id;
+    }
+
+    public int updateRule(final UUID id, final PolicyAction action, final String note,
+                            final UUID actor) {
+        return jdbc.update(
+            "UPDATE der.network_policy_rule SET action=?, note=?, "
+          + "       updated_by=?, updated_at=now() WHERE id=?",
+            action.name(), note, actor, id);
+    }
+
+    public int deleteRule(final UUID id) {
+        return jdbc.update("DELETE FROM der.network_policy_rule WHERE id=?", id);
     }
 
     /* ─── Settings ──────────────────────────────────────────────── */

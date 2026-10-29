@@ -33,13 +33,28 @@ public class NetworkService {
     private final NetworkRepository repo;
     private final NetworkAgent agent;
     private final JdbcTemplate jdbc;
+    private final NetworkCaService ca;
 
     public NetworkService(final NetworkRepository repo,
                            final NetworkAgent agent,
-                           final JdbcTemplate jdbc) {
+                           final JdbcTemplate jdbc,
+                           final NetworkCaService ca) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.agent = Objects.requireNonNull(agent, "agent");
         this.jdbc  = Objects.requireNonNull(jdbc, "jdbc");
+        this.ca    = Objects.requireNonNull(ca, "ca");
+    }
+
+    /** Phase N2 — CA public-key material for devices that want to
+     *  pin DER before trusting its signed attestations. */
+    public Map<String, Object> trustAnchor() {
+        ca.ensureCa();
+        final Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("algorithm", "Ed25519");
+        m.put("publicKeyBase64", ca.publicKeyBase64());
+        m.put("fingerprint", ca.fingerprint());
+        m.put("createdAt", ca.createdAt().toString());
+        return m;
     }
 
     /* ─── Phase N3 — state + probes ─────────────────────────────── */
@@ -318,22 +333,40 @@ public class NetworkService {
 
     /** Phase N2 — a client that scanned the QR + joined DER-EDGE calls
      *  this endpoint from <code>https://der.local</code>. Lands as
-     *  PENDING; an operator approves from the Clients page. */
+     *  PENDING; an operator approves from the Clients page.
+     *
+     *  <p>If the device presents an Ed25519 public key, DER's internal
+     *  CA signs an attestation binding it to this edge. The returned
+     *  {@link EnrolResult#attestation} is the signed blob the device
+     *  must present on subsequent requests; the fingerprint is stored
+     *  on the client row so operators can revoke by cert. */
     @Transactional
-    public NetworkClient enrolClient(final String deviceId, final String owner,
+    public EnrolResult enrolClient(final String deviceId, final String owner,
                                        final String hostname, final String ip,
                                        final String mac,
                                        final NetworkEntities.ClientLink link,
-                                       final String certFingerprint) {
+                                       final String devicePublicKeyB64) {
+        String fp = null;
+        NetworkCaService.Attestation attestation = null;
+        if (devicePublicKeyB64 != null && !devicePublicKeyB64.isBlank()) {
+            attestation = ca.issueAttestation(devicePublicKeyB64);
+            fp = attestation.fingerprint();
+        }
         final NetworkClient c = repo.upsertEnrol(deviceId, owner, hostname, ip, mac,
                                                   link == null
                                                   ? NetworkEntities.ClientLink.wifi
                                                   : link,
-                                                  certFingerprint);
+                                                  fp);
         repo.recordEvent("DEVICE_CONNECTED", "SUCCESS", deviceId, null, null,
                           owner, null, null);
-        return c;
+        return new EnrolResult(c, attestation);
     }
+
+    /** Return of {@link #enrolClient} — carries the stored row + the
+     *  freshly-issued attestation (null if the device didn't present
+     *  a public key). The attestation is only returned on the enrol
+     *  response; it is never persisted server-side in plaintext. */
+    public record EnrolResult(NetworkClient client, NetworkCaService.Attestation attestation) { }
 
     /** Phase N1 — the DHCP server pushes leases through this hook when
      *  a client is granted an address. The default agent accumulates
@@ -471,6 +504,49 @@ public class NetworkService {
 
     public List<PolicyRule> listRules() {
         return repo.listRules();
+    }
+
+    @Transactional
+    public UUID addRule(final int position, final String src, final String dst,
+                          final NetworkEntities.PolicyAction action, final String note,
+                          final UUID actor, final String actorName) {
+        final UUID id = repo.insertRule(position, src, dst, action, note, actor);
+        repo.recordEvent("FIREWALL_RULE_ADDED", "SUCCESS", null, null, null,
+                          actorName, src + "→" + dst + " " + action.name(), null);
+        return id;
+    }
+
+    @Transactional
+    public boolean editRule(final UUID id, final NetworkEntities.PolicyAction action,
+                              final String note, final UUID actor, final String actorName) {
+        final boolean ok = repo.updateRule(id, action, note, actor) > 0;
+        if (ok) {
+            repo.recordEvent("FIREWALL_RULE_UPDATED", "SUCCESS", null, null, null,
+                              actorName, id + " → " + action.name(), null);
+        }
+        return ok;
+    }
+
+    @Transactional
+    public boolean deleteRule(final UUID id, final String actorName) {
+        final boolean ok = repo.deleteRule(id) > 0;
+        if (ok) {
+            repo.recordEvent("FIREWALL_RULE_REMOVED", "SUCCESS", null, null, null,
+                              actorName, id.toString(), null);
+        }
+        return ok;
+    }
+
+    /* ─── Peers (Phase N5) — add ────────────────────────────────── */
+
+    @Transactional
+    public UUID addPeer(final String nodeId, final String siteId, final String endpoint,
+                         final String publicKey, final String allowedIps,
+                         final UUID actor, final String actorName) {
+        final UUID id = repo.insertPeer(nodeId, siteId, endpoint, publicKey, allowedIps, actor);
+        repo.recordEvent("PEER_ADDED", "SUCCESS", null, nodeId, null,
+                          actorName, endpoint, null);
+        return id;
     }
 
     /* ─── Settings ──────────────────────────────────────────────── */

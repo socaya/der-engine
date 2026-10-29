@@ -130,10 +130,25 @@ public class NetworkController {
         final NetworkEntities.ClientLink link = body.link == null
             ? NetworkEntities.ClientLink.wifi
             : NetworkEntities.ClientLink.valueOf(body.link);
-        final NetworkClient c = svc.enrolClient(body.deviceId, body.owner, body.hostname,
-                                                 body.ip, body.mac, link,
-                                                 body.certificateFingerprint);
-        return ResponseEntity.status(201).body(toJson(c));
+        final NetworkService.EnrolResult r = svc.enrolClient(body.deviceId, body.owner,
+                                                              body.hostname, body.ip,
+                                                              body.mac, link,
+                                                              body.devicePublicKey);
+        final Map<String, Object> m = new LinkedHashMap<>(toJson(r.client()));
+        if (r.attestation() != null) {
+            m.put("attestation", r.attestation().blob());
+            m.put("attestationFingerprint", r.attestation().fingerprint());
+            m.put("attestationIssuedAt", r.attestation().issuedAt().toString());
+        }
+        return ResponseEntity.status(201).body(m);
+    }
+
+    /** Phase N2 — trust-anchor material. Devices call this once at
+     *  first contact to pin DER's internal CA public key, then verify
+     *  the signed attestation returned by /enroll against it. */
+    @GetMapping("/ca")
+    public ResponseEntity<Map<String, Object>> ca() {
+        return ResponseEntity.ok(svc.trustAnchor());
     }
 
     /* ─── DHCP lease ingestion (Phase N1) ──────────────────────── */
@@ -193,6 +208,20 @@ public class NetworkController {
             "peers", svc.listPeers().stream()
                       .map(NetworkController::toJson).toList()));
     }
+    @PostMapping(path = "/peers", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> addPeer(final Authentication auth,
+                                                        @RequestBody final PeerBody body) {
+        if (body == null || body.endpoint == null || body.publicKey == null) {
+            return ResponseEntity.badRequest().body(err("PEER_FIELDS_REQUIRED",
+                "endpoint + publicKey required"));
+        }
+        final UUID id = svc.addPeer(
+            body.nodeId == null ? body.endpoint : body.nodeId,
+            body.siteId, body.endpoint, body.publicKey,
+            body.allowedIps == null ? "10.88.0.0/24" : body.allowedIps,
+            userId(auth), actor(auth));
+        return ResponseEntity.status(201).body(Map.of("id", id.toString()));
+    }
     @PostMapping("/peers/{id}/connect")
     public ResponseEntity<Map<String, Object>> peerConnect(final Authentication auth,
                                                              @PathVariable final UUID id) {
@@ -236,6 +265,43 @@ public class NetworkController {
                       .map(NetworkController::toJson).toList()));
     }
 
+    @PostMapping(path = "/policy", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> addRule(final Authentication auth,
+                                                        @RequestBody final PolicyBody body) {
+        if (body == null || body.sourceZone == null || body.destinationZone == null
+                || body.action == null) {
+            return ResponseEntity.badRequest().body(err("RULE_FIELDS_REQUIRED",
+                "sourceZone + destinationZone + action required"));
+        }
+        final UUID id = svc.addRule(
+            body.position == null ? 500 : body.position,
+            body.sourceZone, body.destinationZone,
+            NetworkEntities.PolicyAction.valueOf(body.action),
+            body.note, userId(auth), actor(auth));
+        return ResponseEntity.status(201).body(Map.of("id", id.toString()));
+    }
+
+    @PutMapping(path = "/policy/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> editRule(final Authentication auth,
+                                                         @PathVariable final UUID id,
+                                                         @RequestBody final PolicyBody body) {
+        if (body == null || body.action == null) {
+            return ResponseEntity.badRequest().body(err("ACTION_REQUIRED", "action required"));
+        }
+        return svc.editRule(id, NetworkEntities.PolicyAction.valueOf(body.action),
+                             body.note, userId(auth), actor(auth))
+            ? ResponseEntity.ok(Map.of("updated", true))
+            : ResponseEntity.status(404).body(err("RULE_NOT_FOUND", id.toString()));
+    }
+
+    @DeleteMapping("/policy/{id}")
+    public ResponseEntity<Map<String, Object>> deleteRule(final Authentication auth,
+                                                           @PathVariable final UUID id) {
+        return svc.deleteRule(id, actor(auth))
+            ? ResponseEntity.ok(Map.of("deleted", true))
+            : ResponseEntity.status(404).body(err("RULE_NOT_FOUND", id.toString()));
+    }
+
     @GetMapping("/settings")
     public ResponseEntity<Map<String, Object>> settings() {
         return ResponseEntity.ok(Map.of("settings", svc.settings()));
@@ -258,7 +324,10 @@ public class NetworkController {
     public record SettingBody(String value) { }
 
     /** Phase N2 — device self-enrol payload. Posted from the device
-     *  after it joined DER-EDGE and loaded <code>https://der.local</code>. */
+     *  after it joined DER-EDGE and loaded <code>https://der.local</code>.
+     *  {@code devicePublicKey} is an Ed25519 X.509-encoded public key
+     *  (Base64); when present, DER signs an attestation with the
+     *  internal CA and returns the blob on the enrol response. */
     public static final class EnrolBody {
         public String deviceId;
         public String owner;
@@ -266,7 +335,23 @@ public class NetworkController {
         public String ip;
         public String mac;
         public String link;
-        public String certificateFingerprint;
+        public String devicePublicKey;
+    }
+
+    public static final class PeerBody {
+        public String nodeId;
+        public String siteId;
+        public String endpoint;
+        public String publicKey;
+        public String allowedIps;
+    }
+
+    public static final class PolicyBody {
+        public Integer position;
+        public String sourceZone;
+        public String destinationZone;
+        public String action;
+        public String note;
     }
 
     private static String actor(final Authentication auth) {

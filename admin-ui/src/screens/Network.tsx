@@ -594,13 +594,17 @@ export function NetworkConnectedDevices(): JSX.Element {
 function DeviceCertDialog({ client, onClose }: {
   client: edgeApi.NetworkClient; onClose: () => void;
 }): JSX.Element {
+  const [ca, setCa] = useState<edgeApi.NetworkCaInfo | null>(null);
+  useEffect(() => {
+    edgeApi.networkCa().then(setCa).catch(() => undefined);
+  }, []);
   return (
     <div className="ea-modal-overlay" onClick={onClose}
          style={{ position: 'fixed', inset: 0, background: 'rgba(15,28,46,0.5)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
       <div className="ea-modal" onClick={(e) => e.stopPropagation()}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
-                    padding: 24, maxWidth: 520, width: '90%', boxShadow: 'var(--el-3)' }}>
+                    padding: 24, maxWidth: 560, width: '90%', boxShadow: 'var(--el-3)' }}>
         <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Certificate — {client.deviceId}</h3>
         <dl className="ea-def-list">
           <div className="ea-def-row"><dt>Trust</dt>
@@ -609,14 +613,29 @@ function DeviceCertDialog({ client, onClose }: {
           <div className="ea-def-row"><dt>Owner</dt><dd>{client.owner ?? '—'}</dd></div>
           <div className="ea-def-row"><dt>Hostname</dt><dd className="ea-mono">{client.hostname ?? '—'}</dd></div>
           <div className="ea-def-row"><dt>IP</dt><dd className="ea-mono">{client.ip}</dd></div>
+          <div className="ea-def-row"><dt>MAC</dt><dd className="ea-mono">{client.mac ?? '—'}</dd></div>
           <div className="ea-def-row"><dt>Link</dt>
             <dd>{client.link === 'wifi' ? 'Wi-Fi' : client.link === 'ethernet' ? 'Ethernet' : 'Cellular'}</dd></div>
+          <div className="ea-def-row"><dt>First seen</dt>
+            <dd className="ea-mono">{client.firstSeenAt ? fmtDate(client.firstSeenAt) : '—'}</dd></div>
           <div className="ea-def-row"><dt>Last seen</dt><dd className="ea-mono">{fmtDate(client.lastSeenAt)}</dd></div>
+          <div className="ea-def-row"><dt>Attestation</dt>
+            <dd className="ea-mono" style={{ fontSize: 11, wordBreak: 'break-all' }}>
+              {client.certificateFingerprint ?? '(none — device enrolled without a public key)'}
+            </dd></div>
         </dl>
-        <p className="ea-text-muted" style={{ fontSize: 12, margin: '12px 0 0' }}>
-          Full X.509 certificate chain lands when the Network Agent (§13 Device Identity) ships
-          in Phase N2.
-        </p>
+        {ca && (
+          <div style={{ marginTop: 14, padding: '12px 14px', background: 'var(--der-raised)',
+                        border: '1px solid var(--der-border)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+              Signed by DER internal CA
+            </div>
+            <div className="ea-mono" style={{ fontSize: 11, wordBreak: 'break-all',
+                                              color: 'var(--der-ink-700)' }}>
+              {ca.algorithm} · {ca.fingerprint}
+            </div>
+          </div>
+        )}
         <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" onClick={onClose}>Close</button>
         </div>
@@ -739,6 +758,7 @@ function humanisePurpose(k: edgeApi.NetworkInterface['purpose']): string {
 export function NetworkPeers(): JSX.Element {
   const [peers, setPeers] = useState<edgeApi.NetworkPeer[] | null>(null);
   const [missing, setMissing] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
   async function reload(): Promise<void> {
     try { setPeers((await edgeApi.networkPeers()).peers); setMissing(false); }
     catch { setMissing(true); setPeers([]); }
@@ -769,10 +789,7 @@ export function NetworkPeers(): JSX.Element {
         actions={
           <>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                    onClick={() => runAction(
-                      'Peer provisioning is Phase N5. Open Network settings to prepare config?',
-                      async () => undefined,
-                      () => undefined)}>
+                    onClick={() => setShowAdd(true)}>
               <UiIcon icon="plus" size={14} />
               <span>Add peer</span>
             </button>
@@ -839,20 +856,119 @@ export function NetworkPeers(): JSX.Element {
           </div>
         </Panel>
       )}
+      {showAdd && <PeerAddDialog
+          onClose={() => setShowAdd(false)}
+          onSaved={() => { setShowAdd(false); reload().catch(() => undefined); }} />}
+    </div>
+  );
+}
+
+function PeerAddDialog({ onClose, onSaved }: {
+  onClose: () => void; onSaved: () => void;
+}): JSX.Element {
+  const [nodeId, setNodeId] = useState('');
+  const [siteId, setSiteId] = useState('');
+  const [endpoint, setEndpoint] = useState('');
+  const [publicKey, setPublicKey] = useState('');
+  const [allowedIps, setAllowedIps] = useState('10.88.0.0/24');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function save(): Promise<void> {
+    setSaving(true); setErr(null);
+    try {
+      await edgeApi.networkPeerAdd({ nodeId, siteId: siteId || null, endpoint,
+                                       publicKey, allowedIps });
+      onSaved();
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setSaving(false); }
+  }
+  return (
+    <div className="ea-modal-overlay" onClick={onClose}
+         style={{ position: 'fixed', inset: 0, background: 'rgba(15,28,46,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div className="ea-modal" onClick={(e) => e.stopPropagation()}
+           style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
+                    padding: 24, maxWidth: 520, width: '90%', boxShadow: 'var(--el-3)' }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Add WireGuard peer</h3>
+        <p className="ea-text-muted" style={{ margin: '0 0 14px', fontSize: 13 }}>
+          Register another DER edge as a peer. The peer's WireGuard
+          public key + reachable endpoint are required. Connection is
+          established after you click Connect on the Peers row.
+        </p>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <label style={{ fontSize: 12 }}>Node ID
+            <input className="ea-input" value={nodeId}
+                   placeholder="edge-012" onChange={(e) => setNodeId(e.target.value)} />
+          </label>
+          <label style={{ fontSize: 12 }}>Site ID (optional)
+            <input className="ea-input" value={siteId}
+                   placeholder="e.g. health-centre-nakawa"
+                   onChange={(e) => setSiteId(e.target.value)} />
+          </label>
+          <label style={{ fontSize: 12 }}>Endpoint (host:port)
+            <input className="ea-input" value={endpoint}
+                   placeholder="203.0.113.9:51820"
+                   onChange={(e) => setEndpoint(e.target.value)} />
+          </label>
+          <label style={{ fontSize: 12 }}>WireGuard public key
+            <textarea className="ea-input" rows={2}
+                      style={{ fontFamily: 'monospace', fontSize: 11, resize: 'vertical' }}
+                      value={publicKey}
+                      placeholder="base64 public key"
+                      onChange={(e) => setPublicKey(e.target.value)} />
+          </label>
+          <label style={{ fontSize: 12 }}>Allowed IPs
+            <input className="ea-input" value={allowedIps}
+                   onChange={(e) => setAllowedIps(e.target.value)} />
+          </label>
+        </div>
+        {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
+                     color: 'var(--der-danger-ink)' }}>{err}</div>}
+        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  disabled={saving || !endpoint || !publicKey}
+                  onClick={save}>
+            {saving ? <span className="ea-btn-spinner" /> : <UiIcon icon="plus" size={14} />}
+            <span>{saving ? 'Saving…' : 'Save peer'}</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
 /* ─────────────── /network/security ─────────────── */
 export function NetworkSecurity(): JSX.Element {
+  const [rules, setRules] = useState<edgeApi.NetworkPolicyRule[]>([]);
+  const [showAdd, setShowAdd] = useState(false);
+  async function reload(): Promise<void> {
+    try { setRules((await edgeApi.networkPolicy()).rules); }
+    catch { /* leave previous */ }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, []);
   function downloadPolicy(): void {
     const payload = {
       exportedAt: new Date().toISOString(),
       clientIsolation: true,
-      rules: FIREWALL_RULES,
+      rules,
     };
     downloadBlob(`der-network-policy-${new Date().toISOString().slice(0,10)}.json`,
                  JSON.stringify(payload, null, 2), 'application/json');
+  }
+  function cycleAction(r: edgeApi.NetworkPolicyRule): void {
+    const next: edgeApi.NetworkPolicyRule['action'] =
+      r.action === 'allow'      ? 'controlled'
+      : r.action === 'controlled' ? 'deny'
+      : 'allow';
+    runAction(`Change ${r.sourceZone} → ${r.destinationZone} from ${r.action.toUpperCase()} to ${next.toUpperCase()}?`,
+      () => edgeApi.networkPolicyUpdate(r.id, { action: next, note: r.note ?? undefined }),
+      () => { reload().catch(() => undefined); });
+  }
+  function removeRule(r: edgeApi.NetworkPolicyRule): void {
+    runAction(`Remove rule ${r.sourceZone} → ${r.destinationZone}? Devices will fall through to the default-deny chain.`,
+      () => edgeApi.networkPolicyDelete(r.id),
+      () => { reload().catch(() => undefined); });
   }
   return (
     <div className="ea-screen" data-test="network-security">
@@ -869,11 +985,18 @@ export function NetworkSecurity(): JSX.Element {
         }
         actions={
           <>
-            <Link to="/network/settings" className="ea-btn ea-btn--ghost ea-btn--sm">
-              <UiIcon icon="edit" size={14} />
-              <span>Edit policy</span>
-            </Link>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    onClick={() => setShowAdd(true)}>
+              <UiIcon icon="plus" size={14} />
+              <span>Add rule</span>
+            </button>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    onClick={() => { reload().catch(() => undefined); }}>
+              <UiIcon icon="refresh" size={14} />
+              <span>Refresh</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    disabled={rules.length === 0}
                     onClick={downloadPolicy}>
               <UiIcon icon="download" size={14} />
               <span>Download policy</span>
@@ -886,22 +1009,47 @@ export function NetworkSecurity(): JSX.Element {
         }
       />
 
-      <Panel title="Default firewall policy">
+      <Panel title="Firewall policy"
+             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>Click an action chip to cycle allow / controlled / deny.</span>}>
         <table className="ea-table ea-table--dense" style={{ margin: 10 }}>
-          <thead><tr><th>Source</th><th>Destination</th><th>Policy</th></tr></thead>
+          <thead><tr>
+            <th style={{ width: 56 }}>#</th>
+            <th>Source</th><th>Destination</th><th>Action</th><th>Note</th>
+            <th style={{ width: 48 }} aria-label="Actions"></th>
+          </tr></thead>
           <tbody>
-            {FIREWALL_RULES.map((r) => (
-              <tr key={r.source + r.dest}>
-                <td>{r.source}</td><td>{r.dest}</td>
+            {rules.map((r) => (
+              <tr key={r.id}>
+                <td className="ea-mono">{r.position}</td>
+                <td>{r.sourceZone}</td>
+                <td>{r.destinationZone}</td>
                 <td>
-                  <Status tone={r.allow === 'allow' ? 'success'
-                                 : r.allow === 'controlled' ? 'warning' : 'danger'}>
-                    {r.allow === 'allow' ? 'ALLOW'
-                      : r.allow === 'controlled' ? 'CONTROLLED' : 'DENY'}
-                  </Status>
+                  <button type="button"
+                          onClick={() => cycleAction(r)}
+                          style={{ background: 'none', border: 'none', padding: 0,
+                                   cursor: 'pointer' }}>
+                    <Status tone={r.action === 'allow' ? 'success'
+                                   : r.action === 'controlled' ? 'warning' : 'danger'}>
+                      {r.action === 'allow' ? 'ALLOW'
+                        : r.action === 'controlled' ? 'CONTROLLED' : 'DENY'}
+                    </Status>
+                  </button>
+                </td>
+                <td className="ea-text-muted" style={{ fontSize: 12 }}>{r.note ?? '—'}</td>
+                <td style={{ textAlign: 'right' }}>
+                  <RowMenu items={[
+                    { label: 'Cycle action', onSelect: () => cycleAction(r) },
+                    { label: 'Delete rule', danger: true, onSelect: () => removeRule(r) },
+                  ]} />
                 </td>
               </tr>
             ))}
+            {rules.length === 0 && (
+              <tr><td colSpan={6} className="ea-text-muted"
+                      style={{ padding: 14, textAlign: 'center' }}>
+                No policy rules. Click <strong>Add rule</strong> to create the first one.
+              </td></tr>
+            )}
           </tbody>
         </table>
       </Panel>
@@ -921,19 +1069,82 @@ export function NetworkSecurity(): JSX.Element {
           Can join DER network <strong>≠</strong> can access DER application / data.
         </p>
       </Panel>
+
+      {showAdd && <PolicyAddDialog
+          onClose={() => setShowAdd(false)}
+          onSaved={() => { setShowAdd(false); reload().catch(() => undefined); }} />}
     </div>
   );
 }
 
-const FIREWALL_RULES = [
-  { source: 'Client', dest: 'DER HTTPS',       allow: 'allow' as const },
-  { source: 'Client', dest: 'DER DNS',         allow: 'allow' as const },
-  { source: 'Client', dest: 'DER DHCP',        allow: 'allow' as const },
-  { source: 'Client', dest: 'Admin API',       allow: 'controlled' as const },
-  { source: 'Client', dest: 'Client',          allow: 'deny' as const },
-  { source: 'Client', dest: 'DER PostgreSQL',  allow: 'deny' as const },
-  { source: 'Client', dest: 'DER SSH',         allow: 'deny' as const },
-];
+function PolicyAddDialog({ onClose, onSaved }: {
+  onClose: () => void; onSaved: () => void;
+}): JSX.Element {
+  const [src, setSrc] = useState('Client');
+  const [dst, setDst] = useState('');
+  const [action, setAction] = useState<edgeApi.NetworkPolicyRule['action']>('allow');
+  const [note, setNote] = useState('');
+  const [position, setPosition] = useState<number>(500);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function save(): Promise<void> {
+    setSaving(true); setErr(null);
+    try {
+      await edgeApi.networkPolicyAdd({ sourceZone: src, destinationZone: dst,
+                                        action, note, position });
+      onSaved();
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setSaving(false); }
+  }
+  return (
+    <div className="ea-modal-overlay" onClick={onClose}
+         style={{ position: 'fixed', inset: 0, background: 'rgba(15,28,46,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div className="ea-modal" onClick={(e) => e.stopPropagation()}
+           style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
+                    padding: 24, maxWidth: 520, width: '90%', boxShadow: 'var(--el-3)' }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Add firewall rule</h3>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <label style={{ fontSize: 12 }}>Source zone
+            <input className="ea-input" value={src} onChange={(e) => setSrc(e.target.value)} />
+          </label>
+          <label style={{ fontSize: 12 }}>Destination zone
+            <input className="ea-input" value={dst}
+                   placeholder="e.g. DHIS2 Central"
+                   onChange={(e) => setDst(e.target.value)} />
+          </label>
+          <label style={{ fontSize: 12 }}>Action
+            <select className="ea-input" value={action}
+                    onChange={(e) => setAction(e.target.value as typeof action)}>
+              <option value="allow">allow</option>
+              <option value="controlled">controlled</option>
+              <option value="deny">deny</option>
+            </select>
+          </label>
+          <label style={{ fontSize: 12 }}>Position (lower = evaluated first)
+            <input className="ea-input" type="number" value={position}
+                   onChange={(e) => setPosition(Number(e.target.value))} />
+          </label>
+          <label style={{ fontSize: 12 }}>Note (optional)
+            <input className="ea-input" value={note}
+                   placeholder="rationale shown in the policy table"
+                   onChange={(e) => setNote(e.target.value)} />
+          </label>
+        </div>
+        {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
+                     color: 'var(--der-danger-ink)' }}>{err}</div>}
+        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  disabled={saving || !dst} onClick={save}>
+            {saving ? <span className="ea-btn-spinner" /> : <UiIcon icon="plus" size={14} />}
+            <span>{saving ? 'Saving…' : 'Add rule'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ─────────────── /network/diagnostics ─────────────── */
 export function NetworkDiagnostics(): JSX.Element {
