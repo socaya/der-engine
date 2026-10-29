@@ -8,6 +8,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class AuthenticationService {
+
+    private static final Logger AUTH_LOG = LoggerFactory.getLogger(AuthenticationService.class);
 
     /**
      * Dummy Argon2id verifier produced from "unknown-user" with the standard
@@ -88,6 +92,8 @@ public class AuthenticationService {
         final EdgeUser user = maybeUser.orElse(null);
 
         if (user == null || !passwordMatches || user.disabled()) {
+            final String reason = user == null ? "USER_NOT_FOUND"
+                : user.disabled() ? "USER_DISABLED" : "BAD_PASSWORD";
             audit.append(new AuditEvent(
                     "SIGN_IN_FAILURE",
                     AuditEvent.Outcome.DENIED,
@@ -96,10 +102,14 @@ public class AuthenticationService {
                     clientIp, userAgent,
                     Map.of(
                             "username", normalisedUsername,
-                            "reason", user == null ? "USER_NOT_FOUND"
-                                    : user.disabled() ? "USER_DISABLED"
-                                    : "BAD_PASSWORD")
+                            "reason", reason)
             ), now);
+            // §6 — structured log line fail2ban parses; AUTH_FAIL marker +
+            // ip=<HOST> so der-auth.conf filter can ban repeat offenders.
+            AUTH_LOG.warn("AUTH_FAIL username={} ip={} reason={}",
+                           normalisedUsername,
+                           clientIp == null ? "unknown" : clientIp,
+                           reason);
             return SignInOutcome.invalidCredentials();
         }
 

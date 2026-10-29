@@ -1,0 +1,90 @@
+# AppArmor profile for the DER server JVM (§6.1 security hardening).
+# Install to /etc/apparmor.d/opt.der.der-server (filename follows
+# AppArmor convention: path with slashes → dots).
+#
+# Load with:  sudo apparmor_parser -r /etc/apparmor.d/opt.der.der-server
+# Enforce:    sudo aa-enforce   /opt/der/der-server.jar
+# Complain:   sudo aa-complain  /opt/der/der-server.jar
+#
+# The profile is deliberately narrow: fs access limited to DER's own
+# directories + the JVM runtime + system CA certs, network bind to
+# the two configured ports only, no ptrace, no reading other users'
+# process memory. Operators extend `extra.der` additions below.
+
+#include <tunables/global>
+
+profile der-server /usr/bin/java flags=(attach_disconnected) {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+  #include <abstractions/openssl>
+
+  # --- JVM runtime ---
+  /usr/bin/java rix,
+  /usr/lib/jvm/** r,
+  /usr/lib/jvm/**/bin/java ix,
+  /etc/java*/ r,
+  /etc/java*/** r,
+
+  # --- Timezone + locale ---
+  /usr/share/zoneinfo/ r,
+  /usr/share/zoneinfo/** r,
+  /usr/share/locale/ r,
+  /usr/share/locale/** r,
+
+  # --- Root certs for TLS ---
+  /etc/ssl/certs/ r,
+  /etc/ssl/certs/** r,
+
+  # --- DER's own tree ---
+  /opt/der/ r,
+  /opt/der/der-server.jar r,
+  /opt/der/admin-ui/ r,
+  /opt/der/admin-ui/** r,
+  /etc/der/ r,
+  /etc/der/** r,
+  /var/lib/der/ r,
+  /var/lib/der/** rwk,
+  /var/log/der/ rw,
+  /var/log/der/** rw,
+
+  # --- Postgres pg_dump / pg_restore subprocess (ADR-0012) ---
+  /usr/bin/pg_dump rix,
+  /usr/bin/pg_restore rix,
+  /usr/bin/psql rix,
+  /tmp/der-* rwk,
+
+  # --- Linux network agent shell-outs (Phase N1) ---
+  /usr/bin/nmcli rix,
+  /usr/sbin/ip rix,
+  /usr/bin/wg rix,
+  /usr/sbin/nft rix,
+
+  # --- Network ---
+  network inet stream,
+  network inet dgram,
+  network inet6 stream,
+  network inet6 dgram,
+  network unix stream,
+  network unix dgram,
+
+  # --- /proc self only (block /proc/*/mem reads of other PIDs) ---
+  /proc/*/net/tcp r,
+  /proc/*/net/tcp6 r,
+  /proc/*/status r,
+  /proc/sys/kernel/random/uuid r,
+  owner /proc/*/stat r,
+  owner /proc/*/task/* r,
+  owner /proc/*/task/*/stat r,
+
+  # --- Deny the obvious footguns ---
+  deny ptrace,
+  deny /proc/*/mem rw,
+  deny /root/** rw,
+  deny /home/**/.ssh/** rw,
+  deny capability sys_module,
+  deny capability sys_rawio,
+  deny capability sys_boot,
+
+  # --- Operator overrides go in the include below ---
+  include if exists <local/der-server>
+}

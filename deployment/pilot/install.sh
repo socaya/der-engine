@@ -198,6 +198,38 @@ else
   log "skipping network stack (SKIP_NETWORK_STACK=1)"
 fi
 
+# --- 6.6. Security hardening (AppArmor + fail2ban) ---------------------
+# §6 — Install AppArmor profile restricting DER's filesystem + network
+# reach; fail2ban jail that bans repeated AUTH_FAIL log lines.  Both
+# are safe no-ops if the respective package isn't installed.
+if [[ -z "${SKIP_HARDENING}" ]]; then
+  if command -v apparmor_parser >/dev/null 2>&1; then
+    log "installing AppArmor profile for der-server"
+    install -o root -g root -m 0644 \
+      "${ROOT}/deployment/pilot/apparmor/opt.der.der-server" \
+      /etc/apparmor.d/opt.der.der-server
+    apparmor_parser -r /etc/apparmor.d/opt.der.der-server || log "WARN: AppArmor parse failed"
+  else
+    log "apparmor_parser not installed; skipping profile install"
+  fi
+
+  if command -v fail2ban-client >/dev/null 2>&1; then
+    log "installing fail2ban filter + jail for DER auth"
+    install -o root -g root -m 0644 \
+      "${ROOT}/deployment/pilot/fail2ban/filter.d/der-auth.conf" \
+      /etc/fail2ban/filter.d/der-auth.conf
+    install -o root -g root -m 0644 \
+      "${ROOT}/deployment/pilot/fail2ban/jail.d/der.conf" \
+      /etc/fail2ban/jail.d/der.conf
+    systemctl reload fail2ban 2>/dev/null || systemctl restart fail2ban \
+      || log "WARN: fail2ban reload failed"
+  else
+    log "fail2ban-client not installed; skipping jail install"
+  fi
+else
+  log "skipping security hardening (SKIP_HARDENING=1)"
+fi
+
 # --- 7. nginx ----------------------------------------------------------
 if [[ -z "${SKIP_NGINX}" ]] && command -v nginx >/dev/null 2>&1; then
   log "installing nginx server block"

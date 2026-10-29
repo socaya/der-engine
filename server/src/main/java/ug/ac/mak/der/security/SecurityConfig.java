@@ -150,6 +150,11 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
                             "/edge-api/v1/system/hardware/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/system/hardware/**").authenticated()
+                        // §6 Security hardening — read-only probes;
+                        // Vault secret fetch is admin-only.
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/edge-api/v1/security/hardening/vault/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/security/hardening/**").authenticated()
                         // Phase N5 — DER-MSG v1 device-to-device bus.
                         // Every authenticated device may publish, pull,
                         // subscribe, and update cursors. Admin surface
