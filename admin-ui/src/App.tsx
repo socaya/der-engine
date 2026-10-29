@@ -59,6 +59,7 @@ import { DeviceMessaging } from './screens/DeviceMessaging';
 import { Compliance } from './screens/Compliance';
 import { MeshTopology } from './screens/MeshTopology';
 import { Hardware } from './screens/Hardware';
+import { Fleet } from './screens/Fleet';
 
 function ConflictResolveRoute(): JSX.Element {
   const { id = '' } = useParams();
@@ -198,6 +199,7 @@ export default function App(): JSX.Element {
           <Route path="/network/messaging" element={<RequireAuth><DeviceMessaging /></RequireAuth>} />
           <Route path="/network/mesh" element={<RequireAuth><MeshTopology /></RequireAuth>} />
           <Route path="/system/hardware" element={<RequireAuth><Hardware /></RequireAuth>} />
+          <Route path="/fleet" element={<RequireAuth><Fleet /></RequireAuth>} />
           <Route path="/compliance" element={<RequireAuth><Compliance /></RequireAuth>} />
           {/* Previously capability-gap screens — now implemented against
               existing /edge-api/v1 endpoints. */}

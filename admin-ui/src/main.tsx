@@ -14,6 +14,15 @@ const base = (typeof __DER_ADMIN_BASE__ !== 'undefined'
   : '/') as string;
 const basename = base === '/' ? undefined : base.replace(/\/$/, '');
 
+// §8 — register the offline-first service worker. Prod only (HMR
+// doesn't play well with a service worker caching the shell).
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' })
+      .catch(() => undefined);
+  });
+}
+
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter basename={basename}>

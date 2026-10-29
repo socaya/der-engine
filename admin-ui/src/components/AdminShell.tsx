@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { NAV_GROUPS, groupForRoute, type NavGroup } from '../app/navigation';
 import { NavIcon } from './NavIcon';
 import { SectionTabs } from './SectionTabs';
+import { OnboardingTour } from '../screens/OnboardingTour';
 import { useOrgUnit } from './OrgUnitContext';
 import * as edgeApi from '../api/edgeApi';
 
@@ -265,8 +266,10 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
 
   return (
     <div className={shellCls}>
+      {/* §8 a11y — skip link lands keyboard users on main content */}
+      <a href="#ea-main" className="ea-skip-link">Skip to main content</a>
       {!onSignIn && (
-        <aside className="ea-sidebar" data-test="sidebar">
+        <aside className="ea-sidebar" data-test="sidebar" aria-label="Primary navigation">
           <div className="ea-sidebar-brand">
             <img
               src="/admin/der-logo.png"
@@ -375,12 +378,13 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
         </div>
       </header>
 
-      <main className="ea-main" data-der-app="admin-ui">
+      <main id="ea-main" className="ea-main" data-der-app="admin-ui" tabIndex={-1}>
         <div className="ea-main-inner">
           {!onSignIn && <SectionTabs />}
           {children}
         </div>
       </main>
+      {!onSignIn && <OnboardingTour />}
     </div>
   );
 }

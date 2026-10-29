@@ -155,6 +155,9 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                             "/edge-api/v1/security/hardening/vault/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/security/hardening/**").authenticated()
+                        // §8 Fleet view + per-operator preferences.
+                        .requestMatchers("/edge-api/v1/fleet/**").authenticated()
+                        .requestMatchers("/edge-api/v1/user-prefs/**").authenticated()
                         // Phase N5 — DER-MSG v1 device-to-device bus.
                         // Every authenticated device may publish, pull,
                         // subscribe, and update cursors. Admin surface
