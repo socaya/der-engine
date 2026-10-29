@@ -1153,17 +1153,19 @@ export interface NetworkInterface {
   txBytes: number | null;
   linkSpeed: string | null;
   purpose: 'local-ap' | 'facility-lan' | 'upstream-wifi' | 'cellular-fallback' | 'unknown';
+  priority?: number;
 }
 
 export interface AccessPointStatus {
   running: boolean;
   interface: string | null;
   ssid: string | null;
-  band: '2.4GHz' | '5GHz' | '6GHz' | null;
+  band: string | null;
   channel: number | null;
-  security: 'WPA3-SAE' | 'WPA2' | 'OPEN' | null;
+  security: string | null;
   clients: number;
   gateway: string | null;
+  subnet?: string | null;
   dhcpActive: boolean;
   edgeId: string | null;
   startedAt: string | null;
@@ -1191,11 +1193,13 @@ export interface NetworkPeer {
   nodeId: string;
   siteId: string | null;
   endpoint: string;              // e.g. "10.88.0.5:51820" for WireGuard
+  publicKey?: string | null;
+  allowedIps?: string | null;
   state: 'CONNECTED' | 'HANDSHAKING' | 'DISCONNECTED' | 'ERROR';
   lastHandshake: string | null;
   rxBytes: number | null;
   txBytes: number | null;
-  allowedServices: readonly string[];
+  allowedServices?: readonly string[];
   trust: 'TRUSTED' | 'UNVERIFIED' | 'REVOKED';
 }
 
@@ -1347,4 +1351,42 @@ export function networkEnrolTokenIssue(body: {
   ttlSeconds?: number; deviceIdHint?: string;
 }): Promise<{ token: string; ttlSeconds: number; deviceIdHint: string }> {
   return request('POST', '/edge-api/v1/network/enrol-tokens', body);
+}
+
+/* ─── 2.1.91 — edit endpoints across sub-modules ─────────── */
+export function networkSettings(): Promise<{ settings: Record<string, string> }> {
+  return request('GET', '/edge-api/v1/network/settings');
+}
+export function networkSettingPut(key: string, value: string): Promise<{ key: string; value: string }> {
+  return request('PUT', `/edge-api/v1/network/settings/${encodeURIComponent(key)}`, { value });
+}
+
+export function networkApEdit(body: {
+  ssid?: string; band?: string; channel?: number;
+  security?: string; interfaceName?: string;
+  gateway?: string; subnet?: string;
+}): Promise<{ updated: boolean }> {
+  return request('PUT', '/edge-api/v1/network/access-point', body);
+}
+export function networkClientEdit(deviceId: string, body: {
+  owner?: string | null; hostname?: string | null;
+}): Promise<{ updated: boolean }> {
+  return request('PUT', `/edge-api/v1/network/clients/${encodeURIComponent(deviceId)}`, body);
+}
+export function networkInterfaceEdit(name: string, body: {
+  priority?: number; purpose?: string;
+}): Promise<{ updated: boolean }> {
+  return request('PUT', `/edge-api/v1/network/interfaces/${encodeURIComponent(name)}`, body);
+}
+export function networkPeerEdit(id: string, body: {
+  nodeId?: string; siteId?: string | null; endpoint?: string;
+  publicKey?: string; allowedIps?: string;
+}): Promise<{ updated: boolean }> {
+  return request('PUT', `/edge-api/v1/network/peers/${encodeURIComponent(id)}`, body);
+}
+export function networkPolicyEditFull(id: string, body: {
+  position?: number; sourceZone?: string; destinationZone?: string;
+  action?: 'allow' | 'controlled' | 'deny'; note?: string;
+}): Promise<{ updated: boolean }> {
+  return request('PUT', `/edge-api/v1/network/policy/${encodeURIComponent(id)}`, body);
 }

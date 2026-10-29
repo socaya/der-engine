@@ -79,6 +79,19 @@ public class NetworkController {
         return ResponseEntity.ok(svc.enrolmentQr());
     }
 
+    @PutMapping(path = "/access-point", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> editAp(final Authentication auth,
+                                                       @RequestBody final ApBody body) {
+        if (body == null) {
+            return ResponseEntity.badRequest().body(err("BODY_REQUIRED", "body required"));
+        }
+        return svc.editAccessPoint(body.ssid, body.band, body.channel, body.security,
+                                     body.interfaceName, body.gateway, body.subnet,
+                                     actor(auth))
+            ? ResponseEntity.ok(Map.of("updated", true))
+            : ResponseEntity.status(500).body(err("AP_UPDATE_FAILED", "no row changed"));
+    }
+
     /* ─── Interfaces + routes ──────────────────────────────────── */
 
     @GetMapping("/interfaces")
@@ -101,6 +114,18 @@ public class NetworkController {
         final InterfaceState s = InterfaceState.valueOf(body.state());
         final boolean ok = svc.setInterfaceState(name, s, actor(auth));
         return ResponseEntity.ok(Map.of("state", s.name(), "applied", ok));
+    }
+
+    @PutMapping(path = "/interfaces/{name}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> editInterface(
+            final Authentication auth, @PathVariable final String name,
+            @RequestBody final InterfaceBody body) {
+        if (body == null) {
+            return ResponseEntity.badRequest().body(err("BODY_REQUIRED", "body required"));
+        }
+        return svc.editInterface(name, body.priority, body.purpose, actor(auth))
+            ? ResponseEntity.ok(Map.of("updated", true))
+            : ResponseEntity.status(404).body(err("IFACE_NOT_FOUND", name));
     }
 
     @GetMapping("/routes")
@@ -224,6 +249,18 @@ public class NetworkController {
             : ResponseEntity.status(404).body(err("DEVICE_NOT_FOUND", id));
     }
 
+    @PutMapping(path = "/clients/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> editClient(
+            final Authentication auth, @PathVariable final String id,
+            @RequestBody final ClientBody body) {
+        if (body == null) {
+            return ResponseEntity.badRequest().body(err("BODY_REQUIRED", "body required"));
+        }
+        return svc.editClientLabel(id, body.owner, body.hostname, actor(auth))
+            ? ResponseEntity.ok(Map.of("updated", true))
+            : ResponseEntity.status(404).body(err("CLIENT_NOT_FOUND", id));
+    }
+
     /* ─── Peers ────────────────────────────────────────────────── */
 
     @GetMapping("/peers")
@@ -268,6 +305,19 @@ public class NetworkController {
             : ResponseEntity.status(404).body(err("PEER_NOT_FOUND", id.toString()));
     }
 
+    @PutMapping(path = "/peers/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> editPeer(
+            final Authentication auth, @PathVariable final UUID id,
+            @RequestBody final PeerBody body) {
+        if (body == null) {
+            return ResponseEntity.badRequest().body(err("BODY_REQUIRED", "body required"));
+        }
+        return svc.editPeer(id, body.nodeId, body.siteId, body.endpoint,
+                             body.publicKey, body.allowedIps, actor(auth))
+            ? ResponseEntity.ok(Map.of("updated", true))
+            : ResponseEntity.status(404).body(err("PEER_NOT_FOUND", id.toString()));
+    }
+
     /* ─── Events + policy + settings ───────────────────────────── */
 
     @GetMapping("/events")
@@ -309,11 +359,13 @@ public class NetworkController {
     public ResponseEntity<Map<String, Object>> editRule(final Authentication auth,
                                                          @PathVariable final UUID id,
                                                          @RequestBody final PolicyBody body) {
-        if (body == null || body.action == null) {
-            return ResponseEntity.badRequest().body(err("ACTION_REQUIRED", "action required"));
+        if (body == null) {
+            return ResponseEntity.badRequest().body(err("BODY_REQUIRED", "body required"));
         }
-        return svc.editRule(id, NetworkEntities.PolicyAction.valueOf(body.action),
-                             body.note, userId(auth), actor(auth))
+        final NetworkEntities.PolicyAction action = body.action == null ? null
+            : NetworkEntities.PolicyAction.valueOf(body.action);
+        return svc.editRuleFull(id, body.position, body.sourceZone, body.destinationZone,
+                                 action, body.note, userId(auth), actor(auth))
             ? ResponseEntity.ok(Map.of("updated", true))
             : ResponseEntity.status(404).body(err("RULE_NOT_FOUND", id.toString()));
     }
@@ -381,6 +433,26 @@ public class NetworkController {
     public static final class TokenBody {
         public Integer ttlSeconds;
         public String deviceIdHint;
+    }
+
+    public static final class ApBody {
+        public String ssid;
+        public String band;
+        public Integer channel;
+        public String security;
+        public String interfaceName;
+        public String gateway;
+        public String subnet;
+    }
+
+    public static final class ClientBody {
+        public String owner;
+        public String hostname;
+    }
+
+    public static final class InterfaceBody {
+        public Integer priority;
+        public String purpose;
     }
 
     private static String actor(final Authentication auth) {

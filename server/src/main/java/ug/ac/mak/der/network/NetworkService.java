@@ -631,6 +631,70 @@ public class NetworkService {
     }
 
     @Transactional
+    public boolean editRuleFull(final UUID id, final Integer position, final String src,
+                                   final String dst, final NetworkEntities.PolicyAction action,
+                                   final String note, final UUID actor, final String actorName) {
+        final boolean ok = repo.editRule(id, position, src, dst, action, note, actor) > 0;
+        if (ok) {
+            repo.recordEvent("FIREWALL_RULE_UPDATED", "SUCCESS", null, null, null,
+                              actorName, id.toString(), null);
+        }
+        return ok;
+    }
+
+    /* ─── Config edits (2.1.91) ─────────────────────────────────── */
+
+    @Transactional
+    public boolean editAccessPoint(final String ssid, final String band, final Integer channel,
+                                      final String security, final String iface,
+                                      final String gateway, final String subnet,
+                                      final String actorName) {
+        final boolean ok = repo.updateApConfig(ssid, band, channel, security, iface, gateway, subnet) > 0;
+        if (ok) {
+            repo.recordEvent("AP_CONFIG_UPDATED", "SUCCESS", null, null, iface,
+                              actorName, "ssid=" + ssid, null);
+        }
+        return ok;
+    }
+
+    @Transactional
+    public boolean editClientLabel(final String deviceId, final String owner,
+                                      final String hostname, final String actorName) {
+        final boolean ok = repo.updateClientLabel(deviceId, owner, hostname) > 0;
+        if (ok) {
+            repo.recordEvent("DEVICE_LABEL_UPDATED", "SUCCESS", deviceId, null, null,
+                              actorName, "owner=" + owner, null);
+        }
+        return ok;
+    }
+
+    @Transactional
+    public boolean editInterface(final String name, final Integer priority,
+                                    final String purpose, final String actorName) {
+        final boolean ok = repo.updateInterfaceConfig(name, priority, purpose) > 0;
+        if (ok) {
+            repo.recordEvent("IFACE_CONFIG_UPDATED", "SUCCESS", null, null, name,
+                              actorName,
+                              (priority != null ? "priority=" + priority : "")
+                              + (purpose != null ? " purpose=" + purpose : ""),
+                              null);
+        }
+        return ok;
+    }
+
+    @Transactional
+    public boolean editPeer(final UUID id, final String nodeId, final String siteId,
+                               final String endpoint, final String publicKey,
+                               final String allowedIps, final String actorName) {
+        final boolean ok = repo.updatePeerConfig(id, nodeId, siteId, endpoint, publicKey, allowedIps) > 0;
+        if (ok) {
+            repo.recordEvent("PEER_UPDATED", "SUCCESS", null, nodeId, null,
+                              actorName, "endpoint=" + endpoint, null);
+        }
+        return ok;
+    }
+
+    @Transactional
     public boolean deleteRule(final UUID id, final String actorName) {
         final boolean ok = repo.deleteRule(id) > 0;
         if (ok) {

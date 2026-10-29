@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
   Panel, fmtDate, fmtAgo, usePaged, TablePager, SyncStatusBar,
@@ -280,6 +280,7 @@ export function NetworkAccessPoint(): JSX.Element {
   const [busy, setBusy] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   async function reload(): Promise<void> {
     try { setAp(await edgeApi.networkAccessPoint()); setMissing(false); }
     catch { setMissing(true); }
@@ -344,6 +345,11 @@ export function NetworkAccessPoint(): JSX.Element {
             </button>
             </>)}
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    onClick={() => setShowEdit(true)}>
+              <UiIcon icon="edit" size={14} />
+              <span>Edit AP</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                     onClick={() => setShowQr(true)}>
               <UiIcon icon="qr" size={14} />
               <span>Show QR</span>
@@ -377,6 +383,93 @@ export function NetworkAccessPoint(): JSX.Element {
       )}
 
       {showQr && <QrEnrolDialog onClose={() => setShowQr(false)} />}
+      {showEdit && ap && <ApEditDialog ap={ap}
+          onClose={() => setShowEdit(false)}
+          onSaved={() => { setShowEdit(false); reload().catch(() => undefined); }} />}
+    </div>
+  );
+}
+
+function ApEditDialog({ ap, onClose, onSaved }: {
+  ap: edgeApi.AccessPointStatus;
+  onClose: () => void;
+  onSaved: () => void;
+}): JSX.Element {
+  const [ssid, setSsid] = useState(ap.ssid ?? '');
+  const [band, setBand] = useState(ap.band ?? '5GHz');
+  const [channel, setChannel] = useState<number>(ap.channel ?? 44);
+  const [security, setSecurity] = useState(ap.security ?? 'WPA3-SAE');
+  const [iface, setIface] = useState(ap.interface ?? 'wlan0');
+  const [gateway, setGateway] = useState(ap.gateway ?? '10.88.0.1');
+  const [subnet, setSubnet] = useState(ap.subnet ?? '10.88.0.0/24');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function save(): Promise<void> {
+    setSaving(true); setErr(null);
+    try {
+      await edgeApi.networkApEdit({ ssid, band, channel, security,
+                                     interfaceName: iface, gateway, subnet });
+      onSaved();
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setSaving(false); }
+  }
+  return (
+    <div className="ea-modal-overlay" onClick={onClose}
+         style={{ position: 'fixed', inset: 0, background: 'rgba(15,28,46,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div className="ea-modal" onClick={(e) => e.stopPropagation()}
+           style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
+                    padding: 24, maxWidth: 560, width: '90%', boxShadow: 'var(--el-3)' }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Edit Access Point</h3>
+        <p className="ea-text-muted" style={{ margin: '0 0 12px', fontSize: 12 }}>
+          Changes take effect on the next AP (re)start. Clients will need the new PSK on security-mode change.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <label style={{ fontSize: 12 }}>SSID
+            <input className="ea-input" value={ssid} onChange={(e) => setSsid(e.target.value)} />
+          </label>
+          <label style={{ fontSize: 12 }}>Interface
+            <input className="ea-input" value={iface} onChange={(e) => setIface(e.target.value)} />
+          </label>
+          <label style={{ fontSize: 12 }}>Band
+            <select className="ea-input" value={band} onChange={(e) => setBand(e.target.value)}>
+              <option value="2.4GHz">2.4 GHz</option>
+              <option value="5GHz">5 GHz</option>
+              <option value="6GHz">6 GHz</option>
+            </select>
+          </label>
+          <label style={{ fontSize: 12 }}>Channel
+            <input className="ea-input" type="number" value={channel}
+                   onChange={(e) => setChannel(Number(e.target.value))} />
+          </label>
+          <label style={{ fontSize: 12 }}>Security
+            <select className="ea-input" value={security}
+                    onChange={(e) => setSecurity(e.target.value)}>
+              <option value="WPA3-SAE">WPA3-SAE</option>
+              <option value="WPA2-PSK">WPA2-PSK</option>
+              <option value="OWE">OWE (enhanced-open)</option>
+            </select>
+          </label>
+          <label style={{ fontSize: 12 }}>Gateway
+            <input className="ea-input" value={gateway}
+                   onChange={(e) => setGateway(e.target.value)} />
+          </label>
+          <label style={{ fontSize: 12, gridColumn: '1 / span 2' }}>Subnet
+            <input className="ea-input" value={subnet}
+                   onChange={(e) => setSubnet(e.target.value)} />
+          </label>
+        </div>
+        {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
+                     color: 'var(--der-danger-ink)' }}>{err}</div>}
+        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  disabled={saving || !ssid} onClick={save}>
+            {saving ? <span className="ea-btn-spinner" /> : <UiIcon icon="edit" size={14} />}
+            <span>{saving ? 'Saving…' : 'Save'}</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -485,10 +578,12 @@ function QrEnrolDialog({ onClose }: { onClose: () => void }): JSX.Element {
 
 /* ─────────────── /network/clients ─────────────── */
 export function NetworkConnectedDevices(): JSX.Element {
+  const [params] = useSearchParams();
   const [clients, setClients] = useState<edgeApi.NetworkClient[] | null>(null);
   const [missing, setMissing] = useState(false);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(params.get('device') ?? '');
   const [certFor, setCertFor] = useState<edgeApi.NetworkClient | null>(null);
+  const [editFor, setEditFor] = useState<edgeApi.NetworkClient | null>(null);
   const [showEnrol, setShowEnrol] = useState(false);
   async function reload(): Promise<void> {
     try { setClients((await edgeApi.networkClients()).clients); setMissing(false); }
@@ -599,13 +694,14 @@ export function NetworkConnectedDevices(): JSX.Element {
                       <td className="ea-text-muted" title={c.lastSeenAt}>{fmtAgo(c.lastSeenAt)}</td>
                       <td style={{ textAlign: 'right' }}>
                         <RowMenu items={[
+                          { label: 'Edit label', onSelect: () => setEditFor(c) },
                           ...(c.trust === 'PENDING' ? [{ label: 'Approve', onSelect: () => approve(c.deviceId) }] : []),
                           ...(c.trust === 'APPROVED' ? [{ label: 'Revoke', danger: true, onSelect: () => revoke(c.deviceId) }] : []),
                           ...(c.trust === 'BLOCKED'
                               ? [{ label: 'Unblock', onSelect: () => unblock(c.deviceId) }]
                               : [{ label: 'Block', danger: true, onSelect: () => block(c.deviceId) }]),
                           { label: 'View certificate', onSelect: () => setCertFor(c) },
-                          { label: 'View audit', to: `/security/audit?device=${encodeURIComponent(c.deviceId)}` },
+                          { label: 'View audit', to: `/audit/events?device=${encodeURIComponent(c.deviceId)}` },
                           ...(c.derDeviceId ? [{ label: 'View DER device', to: `/devices/${c.derDeviceId}` }] : []),
                         ]} />
                       </td>
@@ -620,7 +716,62 @@ export function NetworkConnectedDevices(): JSX.Element {
       )}
 
       {certFor && <DeviceCertDialog client={certFor} onClose={() => setCertFor(null)} />}
+      {editFor && <ClientLabelDialog client={editFor}
+          onClose={() => setEditFor(null)}
+          onSaved={() => { setEditFor(null); reload().catch(() => undefined); }} />}
       {showEnrol && <QrEnrolDialog onClose={() => setShowEnrol(false)} />}
+    </div>
+  );
+}
+
+function ClientLabelDialog({ client, onClose, onSaved }: {
+  client: edgeApi.NetworkClient;
+  onClose: () => void;
+  onSaved: () => void;
+}): JSX.Element {
+  const [owner, setOwner] = useState(client.owner ?? '');
+  const [hostname, setHostname] = useState(client.hostname ?? '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function save(): Promise<void> {
+    setSaving(true); setErr(null);
+    try {
+      await edgeApi.networkClientEdit(client.deviceId, { owner, hostname });
+      onSaved();
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setSaving(false); }
+  }
+  return (
+    <div className="ea-modal-overlay" onClick={onClose}
+         style={{ position: 'fixed', inset: 0, background: 'rgba(15,28,46,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div className="ea-modal" onClick={(e) => e.stopPropagation()}
+           style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
+                    padding: 24, maxWidth: 460, width: '90%', boxShadow: 'var(--el-3)' }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Edit label — {client.deviceId}</h3>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <label style={{ fontSize: 12 }}>Owner / role
+            <input className="ea-input" value={owner}
+                   placeholder="e.g. Registration, Laboratory"
+                   onChange={(e) => setOwner(e.target.value)} />
+          </label>
+          <label style={{ fontSize: 12 }}>Hostname
+            <input className="ea-input" value={hostname}
+                   placeholder="e.g. tab-reg-01"
+                   onChange={(e) => setHostname(e.target.value)} />
+          </label>
+        </div>
+        {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
+                     color: 'var(--der-danger-ink)' }}>{err}</div>}
+        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  disabled={saving} onClick={save}>
+            {saving ? <span className="ea-btn-spinner" /> : <UiIcon icon="edit" size={14} />}
+            <span>{saving ? 'Saving…' : 'Save'}</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -684,6 +835,7 @@ export function NetworkInterfaces(): JSX.Element {
   const [leases, setLeases] = useState<edgeApi.NetworkLease[]>([]);
   const [routes, setRoutes] = useState<edgeApi.NetworkRoute[]>([]);
   const [missing, setMissing] = useState(false);
+  const [editIface, setEditIface] = useState<edgeApi.NetworkInterface | null>(null);
   async function reload(): Promise<void> {
     try { setIfaces((await edgeApi.networkInterfaces()).interfaces); setMissing(false); }
     catch { setMissing(true); setIfaces([]); }
@@ -756,11 +908,12 @@ export function NetworkInterfaces(): JSX.Element {
                     <td className="ea-text-muted">{i.linkSpeed ?? '—'}</td>
                     <td style={{ textAlign: 'right' }}>
                       <RowMenu items={[
+                        { label: 'Edit (priority / purpose)',
+                          onSelect: () => setEditIface(i) },
                         { label: i.state === 'up' ? 'Take down' : 'Bring up',
                           danger: i.state === 'up',
                           disabled: i.kind === 'loopback',
                           onSelect: () => toggle(i) },
-                        { label: 'Rename / reconfigure', to: '/network/settings' },
                         { label: 'View in diagnostics',  to: '/network/diagnostics' },
                       ]} />
                     </td>
@@ -804,6 +957,10 @@ export function NetworkInterfaces(): JSX.Element {
         )}
       </Panel>
 
+      {editIface && <InterfaceConfigDialog iface={editIface}
+          onClose={() => setEditIface(null)}
+          onSaved={() => { setEditIface(null); reload().catch(() => undefined); }} />}
+
       <Panel title={`DHCP leases · ${leases.length}`}>
         {leases.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
@@ -835,6 +992,66 @@ export function NetworkInterfaces(): JSX.Element {
   );
 }
 
+function InterfaceConfigDialog({ iface, onClose, onSaved }: {
+  iface: edgeApi.NetworkInterface;
+  onClose: () => void;
+  onSaved: () => void;
+}): JSX.Element {
+  const [priority, setPriority] = useState<number>(iface.priority ?? 100);
+  const [purpose, setPurpose] = useState<string>(iface.purpose ?? 'unknown');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function save(): Promise<void> {
+    setSaving(true); setErr(null);
+    try {
+      await edgeApi.networkInterfaceEdit(iface.name, { priority, purpose });
+      onSaved();
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setSaving(false); }
+  }
+  return (
+    <div className="ea-modal-overlay" onClick={onClose}
+         style={{ position: 'fixed', inset: 0, background: 'rgba(15,28,46,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div className="ea-modal" onClick={(e) => e.stopPropagation()}
+           style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
+                    padding: 24, maxWidth: 460, width: '90%', boxShadow: 'var(--el-3)' }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Edit interface — {iface.name}</h3>
+        <p className="ea-text-muted" style={{ margin: '0 0 12px', fontSize: 12 }}>
+          Priority drives WAN failover — lowest value wins. Purpose
+          controls whether the interface is eligible as a WAN candidate.
+        </p>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <label style={{ fontSize: 12 }}>Purpose
+            <select className="ea-input" value={purpose}
+                    onChange={(e) => setPurpose(e.target.value)}>
+              <option value="local-ap">Local AP</option>
+              <option value="facility-lan">Facility LAN</option>
+              <option value="upstream-wifi">Upstream Wi-Fi</option>
+              <option value="cellular-fallback">Cellular fallback</option>
+              <option value="unknown">—</option>
+            </select>
+          </label>
+          <label style={{ fontSize: 12 }}>Priority (lower = preferred for WAN)
+            <input className="ea-input" type="number" value={priority}
+                   onChange={(e) => setPriority(Number(e.target.value))} />
+          </label>
+        </div>
+        {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
+                     color: 'var(--der-danger-ink)' }}>{err}</div>}
+        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  disabled={saving} onClick={save}>
+            {saving ? <span className="ea-btn-spinner" /> : <UiIcon icon="edit" size={14} />}
+            <span>{saving ? 'Saving…' : 'Save'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function humaniseKind(k: edgeApi.NetworkInterface['kind']): string {
   switch (k) {
     case 'wifi': return 'Wi-Fi';
@@ -859,6 +1076,7 @@ export function NetworkPeers(): JSX.Element {
   const [peers, setPeers] = useState<edgeApi.NetworkPeer[] | null>(null);
   const [missing, setMissing] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [editPeer, setEditPeer] = useState<edgeApi.NetworkPeer | null>(null);
   async function reload(): Promise<void> {
     try { setPeers((await edgeApi.networkPeers()).peers); setMissing(false); }
     catch { setMissing(true); setPeers([]); }
@@ -942,10 +1160,11 @@ export function NetworkPeers(): JSX.Element {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <RowMenu items={[
+                        { label: 'Edit peer', onSelect: () => setEditPeer(p) },
                         ...(p.state === 'CONNECTED'
                             ? [{ label: 'Disconnect', onSelect: () => disconnect(p.id) }]
                             : [{ label: 'Connect', onSelect: () => connect(p.id) }]),
-                        { label: 'View audit', to: `/security/audit?peer=${encodeURIComponent(p.id)}` },
+                        { label: 'View audit', to: `/audit/events?peer=${encodeURIComponent(p.id)}` },
                         { label: 'Remove peer', danger: true, onSelect: () => remove(p.id) },
                       ]} />
                     </td>
@@ -956,28 +1175,38 @@ export function NetworkPeers(): JSX.Element {
           </div>
         </Panel>
       )}
-      {showAdd && <PeerAddDialog
+      {showAdd && <PeerDialog mode="add"
           onClose={() => setShowAdd(false)}
           onSaved={() => { setShowAdd(false); reload().catch(() => undefined); }} />}
+      {editPeer && <PeerDialog mode="edit" peer={editPeer}
+          onClose={() => setEditPeer(null)}
+          onSaved={() => { setEditPeer(null); reload().catch(() => undefined); }} />}
     </div>
   );
 }
 
-function PeerAddDialog({ onClose, onSaved }: {
+function PeerDialog({ mode, peer, onClose, onSaved }: {
+  mode: 'add' | 'edit';
+  peer?: edgeApi.NetworkPeer;
   onClose: () => void; onSaved: () => void;
 }): JSX.Element {
-  const [nodeId, setNodeId] = useState('');
-  const [siteId, setSiteId] = useState('');
-  const [endpoint, setEndpoint] = useState('');
-  const [publicKey, setPublicKey] = useState('');
-  const [allowedIps, setAllowedIps] = useState('10.88.0.0/24');
+  const [nodeId, setNodeId] = useState(peer?.nodeId ?? '');
+  const [siteId, setSiteId] = useState(peer?.siteId ?? '');
+  const [endpoint, setEndpoint] = useState(peer?.endpoint ?? '');
+  const [publicKey, setPublicKey] = useState(peer?.publicKey ?? '');
+  const [allowedIps, setAllowedIps] = useState(peer?.allowedIps ?? '10.88.0.0/24');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   async function save(): Promise<void> {
     setSaving(true); setErr(null);
     try {
-      await edgeApi.networkPeerAdd({ nodeId, siteId: siteId || null, endpoint,
-                                       publicKey, allowedIps });
+      if (mode === 'edit' && peer) {
+        await edgeApi.networkPeerEdit(peer.id, { nodeId, siteId: siteId || null,
+                                                   endpoint, publicKey, allowedIps });
+      } else {
+        await edgeApi.networkPeerAdd({ nodeId, siteId: siteId || null, endpoint,
+                                        publicKey, allowedIps });
+      }
       onSaved();
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setSaving(false); }
@@ -989,11 +1218,13 @@ function PeerAddDialog({ onClose, onSaved }: {
       <div className="ea-modal" onClick={(e) => e.stopPropagation()}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
                     padding: 24, maxWidth: 520, width: '90%', boxShadow: 'var(--el-3)' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Add WireGuard peer</h3>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>
+          {mode === 'edit' ? 'Edit WireGuard peer' : 'Add WireGuard peer'}
+        </h3>
         <p className="ea-text-muted" style={{ margin: '0 0 14px', fontSize: 13 }}>
-          Register another DER edge as a peer. The peer's WireGuard
-          public key + reachable endpoint are required. Connection is
-          established after you click Connect on the Peers row.
+          The peer's WireGuard public key + reachable endpoint are
+          required. Connection is established after you click Connect
+          on the Peers row.
         </p>
         <div style={{ display: 'grid', gap: 10 }}>
           <label style={{ fontSize: 12 }}>Node ID
@@ -1029,8 +1260,9 @@ function PeerAddDialog({ onClose, onSaved }: {
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                   disabled={saving || !endpoint || !publicKey}
                   onClick={save}>
-            {saving ? <span className="ea-btn-spinner" /> : <UiIcon icon="plus" size={14} />}
-            <span>{saving ? 'Saving…' : 'Save peer'}</span>
+            {saving ? <span className="ea-btn-spinner" />
+                     : <UiIcon icon={mode === 'edit' ? 'edit' : 'plus'} size={14} />}
+            <span>{saving ? 'Saving…' : (mode === 'edit' ? 'Save' : 'Save peer')}</span>
           </button>
         </div>
       </div>
@@ -1042,6 +1274,7 @@ function PeerAddDialog({ onClose, onSaved }: {
 export function NetworkSecurity(): JSX.Element {
   const [rules, setRules] = useState<edgeApi.NetworkPolicyRule[]>([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [editRule, setEditRule] = useState<edgeApi.NetworkPolicyRule | null>(null);
   async function reload(): Promise<void> {
     try { setRules((await edgeApi.networkPolicy()).rules); }
     catch { /* leave previous */ }
@@ -1101,7 +1334,7 @@ export function NetworkSecurity(): JSX.Element {
               <UiIcon icon="download" size={14} />
               <span>Download policy</span>
             </button>
-            <Link to="/security/audit?category=network" className="ea-btn ea-btn--ghost ea-btn--sm">
+            <Link to="/audit/events?category=network" className="ea-btn ea-btn--ghost ea-btn--sm">
               <UiIcon icon="audit" size={14} />
               <span>View audit</span>
             </Link>
@@ -1137,6 +1370,7 @@ export function NetworkSecurity(): JSX.Element {
                 <td className="ea-text-muted" style={{ fontSize: 12 }}>{r.note ?? '—'}</td>
                 <td style={{ textAlign: 'right' }}>
                   <RowMenu items={[
+                    { label: 'Edit rule', onSelect: () => setEditRule(r) },
                     { label: 'Cycle action', onSelect: () => cycleAction(r) },
                     { label: 'Delete rule', danger: true, onSelect: () => removeRule(r) },
                   ]} />
@@ -1153,28 +1387,39 @@ export function NetworkSecurity(): JSX.Element {
         </table>
       </Panel>
 
-      {showAdd && <PolicyAddDialog
+      {showAdd && <PolicyDialog mode="add"
           onClose={() => setShowAdd(false)}
           onSaved={() => { setShowAdd(false); reload().catch(() => undefined); }} />}
+      {editRule && <PolicyDialog mode="edit" rule={editRule}
+          onClose={() => setEditRule(null)}
+          onSaved={() => { setEditRule(null); reload().catch(() => undefined); }} />}
     </div>
   );
 }
 
-function PolicyAddDialog({ onClose, onSaved }: {
-  onClose: () => void; onSaved: () => void;
+function PolicyDialog({ mode, rule, onClose, onSaved }: {
+  mode: 'add' | 'edit';
+  rule?: edgeApi.NetworkPolicyRule;
+  onClose: () => void;
+  onSaved: () => void;
 }): JSX.Element {
-  const [src, setSrc] = useState('Client');
-  const [dst, setDst] = useState('');
-  const [action, setAction] = useState<edgeApi.NetworkPolicyRule['action']>('allow');
-  const [note, setNote] = useState('');
-  const [position, setPosition] = useState<number>(500);
+  const [src, setSrc] = useState(rule?.sourceZone ?? 'Client');
+  const [dst, setDst] = useState(rule?.destinationZone ?? '');
+  const [action, setAction] = useState<edgeApi.NetworkPolicyRule['action']>(rule?.action ?? 'allow');
+  const [note, setNote] = useState(rule?.note ?? '');
+  const [position, setPosition] = useState<number>(rule?.position ?? 500);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   async function save(): Promise<void> {
     setSaving(true); setErr(null);
     try {
-      await edgeApi.networkPolicyAdd({ sourceZone: src, destinationZone: dst,
-                                        action, note, position });
+      if (mode === 'edit' && rule) {
+        await edgeApi.networkPolicyEditFull(rule.id, { sourceZone: src, destinationZone: dst,
+                                                        action, note, position });
+      } else {
+        await edgeApi.networkPolicyAdd({ sourceZone: src, destinationZone: dst,
+                                          action, note, position });
+      }
       onSaved();
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setSaving(false); }
@@ -1186,7 +1431,9 @@ function PolicyAddDialog({ onClose, onSaved }: {
       <div className="ea-modal" onClick={(e) => e.stopPropagation()}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
                     padding: 24, maxWidth: 520, width: '90%', boxShadow: 'var(--el-3)' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Add firewall rule</h3>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>
+          {mode === 'edit' ? 'Edit firewall rule' : 'Add firewall rule'}
+        </h3>
         <div style={{ display: 'grid', gap: 10 }}>
           <label style={{ fontSize: 12 }}>Source zone
             <input className="ea-input" value={src} onChange={(e) => setSrc(e.target.value)} />
@@ -1220,8 +1467,9 @@ function PolicyAddDialog({ onClose, onSaved }: {
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                   disabled={saving || !dst} onClick={save}>
-            {saving ? <span className="ea-btn-spinner" /> : <UiIcon icon="plus" size={14} />}
-            <span>{saving ? 'Saving…' : 'Add rule'}</span>
+            {saving ? <span className="ea-btn-spinner" />
+                     : <UiIcon icon={mode === 'edit' ? 'edit' : 'plus'} size={14} />}
+            <span>{saving ? 'Saving…' : (mode === 'edit' ? 'Save' : 'Add rule')}</span>
           </button>
         </div>
       </div>
@@ -1293,7 +1541,7 @@ export function NetworkDiagnostics(): JSX.Element {
               <UiIcon icon="trash" size={14} />
               <span>Clear events</span>
             </button>
-            <Link to="/security/audit?category=network" className="ea-btn ea-btn--ghost ea-btn--sm">
+            <Link to="/audit/events?category=network" className="ea-btn ea-btn--ghost ea-btn--sm">
               <UiIcon icon="audit" size={14} />
               <span>Full audit</span>
             </Link>
@@ -1356,7 +1604,7 @@ export function NetworkDiagnostics(): JSX.Element {
                         { label: 'Copy JSON', onSelect: () => copyEvent(e) },
                         ...(e.correlationId
                             ? [{ label: 'View correlation',
-                                 to: `/security/audit?correlationId=${encodeURIComponent(e.correlationId)}` }]
+                                 to: `/audit/events?correlationId=${encodeURIComponent(e.correlationId)}` }]
                             : []),
                         ...(e.deviceId
                             ? [{ label: 'View device',
@@ -1391,36 +1639,61 @@ function ProbeStep({ label, tone, hint }: { label: string; tone: 'success' | 'da
 
 /* ─────────────── /network/settings ─────────────── */
 export function NetworkSettings(): JSX.Element {
-  const config = useMemo(() => DEFAULT_CONFIG, []);
-  function copyConfig(): void {
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [editKey, setEditKey] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [saving, setSaving] = useState(false);
+  async function reload(): Promise<void> {
+    try { setSettings((await edgeApi.networkSettings()).settings); }
+    catch { /* leave previous */ }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, []);
+  function startEdit(k: string): void {
+    setEditKey(k);
+    setEditValue(settings[k] ?? '');
+  }
+  async function commit(): Promise<void> {
+    if (!editKey) return;
+    setSaving(true);
+    try {
+      await edgeApi.networkSettingPut(editKey, editValue);
+      setEditKey(null);
+      await reload();
+    } catch { /* leave open */ }
+    finally { setSaving(false); }
+  }
+  function downloadYaml(): void {
+    const yaml = Object.entries(settings).sort(([a], [b]) => a.localeCompare(b))
+                       .map(([k, v]) => `${k}: ${v}`).join('\n') + '\n';
+    downloadBlob('network.yaml', yaml, 'text/yaml');
+  }
+  function copyYaml(): void {
+    const yaml = Object.entries(settings).sort(([a], [b]) => a.localeCompare(b))
+                       .map(([k, v]) => `${k}: ${v}`).join('\n');
     if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(config).catch(() => undefined);
+      navigator.clipboard.writeText(yaml).catch(() => undefined);
     }
   }
-  function editHint(): void {
-    runAction(
-      'Edit network settings is Phase N1 — settings land on disk at /etc/der/network.yaml and reload on service restart. Open the host-config docs?',
-      async () => undefined, () => undefined);
-  }
+  const keys = Object.keys(settings).sort();
   return (
     <div className="ea-screen" data-test="network-settings">
       <SyncStatusBar
         tone="info"
         title="Network settings"
-        statusLabel="Read-only"
-        subtitle={<span>Network configuration applied to this edge. Managed via the DER host config.</span>}
+        statusLabel={`${keys.length} keys`}
+        subtitle={<span>Live edit of DER network configuration. Changes persist to der.network_settings and are picked up on the next agent reconcile.</span>}
         actions={
           <>
-            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" onClick={editHint}>
-              <UiIcon icon="edit" size={14} />
-              <span>Edit (host config)</span>
-            </button>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                    onClick={() => downloadBlob('network.yaml', config, 'text/yaml')}>
+                    onClick={() => { reload().catch(() => undefined); }}>
+              <UiIcon icon="refresh" size={14} />
+              <span>Refresh</span>
+            </button>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={downloadYaml}>
               <UiIcon icon="download" size={14} />
               <span>Download</span>
             </button>
-            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={copyConfig}>
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={copyYaml}>
               <UiIcon icon="copy" size={14} />
               <span>Copy</span>
             </button>
@@ -1428,61 +1701,51 @@ export function NetworkSettings(): JSX.Element {
         }
       />
 
-      <Panel title="network.yaml"
-             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>Phase N1 — edit via host config</span>}>
-        <pre className="ea-log-tail" style={{ fontSize: 12, maxHeight: 'none', height: 'auto', padding: 14 }}>{config}</pre>
-      </Panel>
-
-      <Panel title="Scope boundary (§31)">
-        <div style={{ padding: 10 }}>
-          <strong>In scope</strong>
-          <p className="ea-text-muted" style={{ margin: '4px 0 10px', fontSize: 13 }}>
-            Access Point · LAN management · DHCP · local DNS · service discovery ·
-            device enrolment · network isolation · HTTPS/TLS · network monitoring ·
-            connectivity-state detection · offline-first mode · WAN recovery.
-          </p>
-          <strong>Optional / experimental</strong>
-          <p className="ea-text-muted" style={{ margin: '4px 0 10px', fontSize: 13 }}>
-            WireGuard overlay · Wi-Fi Direct · peer tunnels · local peer relay.
-          </p>
-          <strong>Out of core scope</strong>
-          <p className="ea-text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-            Peer-to-peer record sync · CRDT client mesh · nationwide mesh networking.
-          </p>
-        </div>
+      <Panel title={`Network settings · ${keys.length}`}>
+        {keys.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>No settings.</p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense">
+              <thead><tr><th style={{ width: 280 }}>Key</th><th>Value</th>
+                <th style={{ width: 48 }} aria-label="Actions"></th></tr></thead>
+              <tbody>
+                {keys.map((k) => (
+                  <tr key={k}>
+                    <td className="ea-mono" style={{ fontSize: 12 }}>{k}</td>
+                    <td className="ea-mono">
+                      {editKey === k ? (
+                        <input className="ea-input" value={editValue}
+                               onChange={(e) => setEditValue(e.target.value)}
+                               onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
+                               autoFocus />
+                      ) : settings[k]}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      {editKey === k ? (
+                        <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                                  disabled={saving} onClick={commit}>
+                            {saving ? <span className="ea-btn-spinner" /> : null}
+                            <span>Save</span>
+                          </button>
+                          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                                  onClick={() => setEditKey(null)}>Cancel</button>
+                        </div>
+                      ) : (
+                        <RowMenu items={[
+                          { label: 'Edit', onSelect: () => startEdit(k) },
+                        ]} />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Panel>
     </div>
   );
 }
 
-const DEFAULT_CONFIG = `network:
-  mode: managed
-
-  lan:
-    subnet: 10.88.0.0/24
-    gateway: 10.88.0.1
-
-  accessPoint:
-    enabled: true
-    interface: wlan0
-    ssid: DER-EDGE
-    security: WPA3-SAE
-
-  dhcp:
-    enabled: true
-    start: 10.88.0.50
-    end: 10.88.0.200
-
-  discovery:
-    mdns: true
-    hostname: der.local
-
-  peer:
-    enabled: false
-
-  firewall:
-    clientIsolation: true
-
-  central:
-    probeIntervalSeconds: 30
-`;

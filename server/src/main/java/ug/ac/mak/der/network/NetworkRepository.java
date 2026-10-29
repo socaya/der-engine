@@ -444,6 +444,77 @@ public class NetworkRepository {
             action.name(), note, actor, id);
     }
 
+    /** Full-record update — used by the Edit rule dialog. Null fields
+     *  are preserved (so operators can tweak just one field at a time). */
+    public int editRule(final UUID id, final Integer position, final String src,
+                          final String dst, final PolicyAction action,
+                          final String note, final UUID actor) {
+        return jdbc.update(
+            "UPDATE der.network_policy_rule SET "
+          + "  position         = COALESCE(?, position), "
+          + "  source_zone      = COALESCE(?, source_zone), "
+          + "  destination_zone = COALESCE(?, destination_zone), "
+          + "  action           = COALESCE(?, action), "
+          + "  note             = COALESCE(?, note), "
+          + "  updated_by = ?, updated_at = now() "
+          + "WHERE id = ?",
+            position, src, dst, action == null ? null : action.name(),
+            note, actor, id);
+    }
+
+    /* ─── AP + client + interface + peer config edits (2.1.91) ──── */
+
+    public int updateApConfig(final String ssid, final String band, final Integer channel,
+                                 final String security, final String interfaceName,
+                                 final String gateway, final String subnet) {
+        return jdbc.update(
+            "UPDATE der.network_access_point SET "
+          + "  ssid           = COALESCE(?, ssid), "
+          + "  band           = COALESCE(?, band), "
+          + "  channel        = COALESCE(?, channel), "
+          + "  security_mode  = COALESCE(?, security_mode), "
+          + "  interface_name = COALESCE(?, interface_name), "
+          + "  gateway        = COALESCE(?, gateway), "
+          + "  subnet         = COALESCE(?, subnet), "
+          + "  updated_at     = now() WHERE id = 1",
+            ssid, band, channel, security, interfaceName, gateway, subnet);
+    }
+
+    public int updateClientLabel(final String deviceId, final String owner,
+                                    final String hostname) {
+        return jdbc.update(
+            "UPDATE der.network_client SET "
+          + "  owner    = COALESCE(?, owner), "
+          + "  hostname = COALESCE(?, hostname) "
+          + "WHERE device_id = ?",
+            owner, hostname, deviceId);
+    }
+
+    public int updateInterfaceConfig(final String name, final Integer priority,
+                                        final String purpose) {
+        return jdbc.update(
+            "UPDATE der.network_interface SET "
+          + "  priority = COALESCE(?, priority), "
+          + "  purpose  = COALESCE(?, purpose), "
+          + "  updated_at = now() "
+          + "WHERE name = ?",
+            priority, purpose, name);
+    }
+
+    public int updatePeerConfig(final UUID id, final String nodeId, final String siteId,
+                                   final String endpoint, final String publicKey,
+                                   final String allowedIps) {
+        return jdbc.update(
+            "UPDATE der.network_peer SET "
+          + "  node_id     = COALESCE(?, node_id), "
+          + "  site_id     = COALESCE(?, site_id), "
+          + "  endpoint    = COALESCE(?, endpoint), "
+          + "  public_key  = COALESCE(?, public_key), "
+          + "  allowed_ips = COALESCE(?, allowed_ips) "
+          + "WHERE id = ?",
+            nodeId, siteId, endpoint, publicKey, allowedIps, id);
+    }
+
     public int deleteRule(final UUID id) {
         return jdbc.update("DELETE FROM der.network_policy_rule WHERE id=?", id);
     }

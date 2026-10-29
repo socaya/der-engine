@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
   Panel, fmtDate, fmtAgo, fmtBytes, useOuContext, OuPicker,
@@ -1269,27 +1269,143 @@ export function MockupCompatInspector(): JSX.Element {
 
 /* ─── /audit/events ──────────────────────────────────────────────── */
 export function MockupAuditEvents(): JSX.Element {
-  const [rows, setRows] = useState<edgeApi.ActivityEntry[] | null>(null);
+  const [params] = useSearchParams();
+  const category      = params.get('category');
+  const deviceFilter  = params.get('device');
+  const peerFilter    = params.get('peer');
+  const correlationId = params.get('correlationId');
+  // When any network-specific filter is present we switch the data
+  // source from /activity/recent (which lacks device/peer fields) to
+  // /network/events (which carries the full shape per spec §29).
+  const networkMode = Boolean(category === 'network' || deviceFilter || peerFilter || correlationId);
+
+  const [sysRows, setSysRows] = useState<edgeApi.ActivityEntry[] | null>(null);
+  const [netRows, setNetRows] = useState<edgeApi.NetworkEvent[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+
   async function reload(): Promise<void> {
-    try { setRows((await edgeApi.recentActivity(100)).entries); }
-    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    try {
+      if (networkMode) {
+        setNetRows(((await edgeApi.networkEvents(200)) as { events: edgeApi.NetworkEvent[] }).events);
+      } else {
+        setSysRows((await edgeApi.recentActivity(100)).entries);
+      }
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
-  useEffect(() => { reload().catch(() => undefined); }, []);
-  const q = query.trim().toLowerCase();
-  const filtered = q ? (rows ?? []).filter((r) => r.eventType.toLowerCase().includes(q)) : (rows ?? []);
-  const paged = usePaged(filtered, 50);
+  useEffect(() => { reload().catch(() => undefined); }, [networkMode]);
+
+  // Hooks must stay above every early-return. Compute both filtered
+  // datasets up front and feed usePaged whichever is active.
+  const qLower = query.trim().toLowerCase();
+  const netFiltered = (netRows ?? []).filter((e) => {
+    if (deviceFilter && e.deviceId !== deviceFilter) return false;
+    if (peerFilter   && e.nodeId   !== peerFilter)   return false;
+    if (correlationId && e.correlationId !== correlationId) return false;
+    if (qLower && !(e.eventType.toLowerCase().includes(qLower)
+               || (e.reason ?? '').toLowerCase().includes(qLower)
+               || (e.deviceId ?? '').toLowerCase().includes(qLower)
+               || (e.nodeId ?? '').toLowerCase().includes(qLower))) return false;
+    return true;
+  });
+  const sysFiltered = qLower
+    ? (sysRows ?? []).filter((r) => r.eventType.toLowerCase().includes(qLower))
+    : (sysRows ?? []);
+  const pagedNet = usePaged(netFiltered, 50);
+  const pagedSys = usePaged(sysFiltered, 50);
+
   if (err) return <ErrorBlock title="Audit load failed" testId="err-audit">{err}</ErrorBlock>;
-  if (!rows) return <LoadingBlock testId="loading" />;
-  const success = rows.filter((r) => r.outcome === 'SUCCESS').length;
-  const failure = rows.filter((r) => r.outcome === 'FAILURE').length;
+  if (networkMode && !netRows) return <LoadingBlock testId="loading" />;
+  if (!networkMode && !sysRows) return <LoadingBlock testId="loading" />;
+
+  if (networkMode) {
+    const filtered = netFiltered;
+    const paged = pagedNet;
+    const failure = filtered.filter((e) => e.outcome === 'FAILURE').length;
+    const filterPills: string[] = [];
+    if (category === 'network') filterPills.push('network');
+    if (deviceFilter)  filterPills.push(`device=${deviceFilter}`);
+    if (peerFilter)    filterPills.push(`peer=${peerFilter.slice(0, 8)}…`);
+    if (correlationId) filterPills.push(`correlation=${correlationId.slice(0, 8)}…`);
+    return (
+      <div className="ea-screen" data-test="audit-events">
+        <SyncStatusBar
+          tone={failure > 0 ? 'warning' : 'success'}
+          title="Network audit"
+          statusLabel={`${filtered.length} events`}
+          subtitle={
+            <>
+              <span>Filtered view from /edge-api/v1/network/events.</span>
+              {filterPills.length > 0 && (<><span>·</span>
+                <span className="ea-mono" style={{ color: 'var(--der-ink-700)' }}>
+                  {filterPills.join(' · ')}
+                </span></>)}
+            </>
+          }
+          actions={
+            <>
+              <Link to="/audit/events" className="ea-btn ea-btn--ghost ea-btn--sm">
+                <UiIcon icon="refresh" size={14} /><span>Clear filter</span>
+              </Link>
+              <Link to="/network/diagnostics" className="ea-btn ea-btn--ghost ea-btn--sm">
+                <UiIcon icon="diagnostics" size={14} /><span>Diagnostics</span>
+              </Link>
+            </>
+          }
+        />
+        <Panel title="Timeline"
+               action={<input className="ea-input" style={{ maxWidth: 260 }} type="search"
+                               placeholder="Filter by event type / device / reason"
+                               value={query} onChange={(e) => setQuery(e.target.value)} />}>
+          {filtered.length === 0 ? (
+            <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
+              No network events match this filter.
+            </p>
+          ) : (
+            <div className="ea-table-wrap">
+              <table className="ea-table ea-table--dense">
+                <thead><tr>
+                  <th>Observed</th><th>Event</th><th>Interface</th>
+                  <th>Device / node</th><th>Actor</th><th>Outcome</th><th>Reason</th>
+                </tr></thead>
+                <tbody>
+                  {paged.rows.map((e) => (
+                    <tr key={e.eventId}>
+                      <td className="ea-mono">{fmtDate(e.observedAt)}</td>
+                      <td style={{ fontWeight: 500 }}>{e.eventType}</td>
+                      <td className="ea-mono ea-text-muted">{e.interfaceName ?? '—'}</td>
+                      <td className="ea-mono ea-text-muted" style={{ fontSize: 13 }}>
+                        {e.deviceId ?? e.nodeId ?? '—'}
+                      </td>
+                      <td className="ea-mono ea-text-muted">{e.actor ?? '—'}</td>
+                      <td>
+                        <Status tone={e.outcome === 'SUCCESS' ? 'success'
+                                       : e.outcome === 'FAILURE' ? 'danger' : 'info'}>
+                          {e.outcome}
+                        </Status>
+                      </td>
+                      <td className="ea-text-muted">{e.reason ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <TablePager {...paged.pagerProps} />
+            </div>
+          )}
+        </Panel>
+      </div>
+    );
+  }
+
+  const paged = pagedSys;
+  const success = (sysRows ?? []).filter((r) => r.outcome === 'SUCCESS').length;
+  const failure = (sysRows ?? []).filter((r) => r.outcome === 'FAILURE').length;
   return (
-    <div className="ea-screen">
+    <div className="ea-screen" data-test="audit-events">
       <SyncStatusBar
         tone={failure > 0 ? 'warning' : 'success'}
         title="Alerts & activity"
-        statusLabel={`${rows.length} events`}
+        statusLabel={`${(sysRows ?? []).length} events`}
         subtitle={
           <>
             <span>Audit stream for every security-relevant event handled by this edge.</span>
