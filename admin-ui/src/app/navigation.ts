@@ -188,6 +188,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'diagnostics', label: 'Diagnostics', to: '/diagnostics', status: 'implemented', tabIcon: 'diagnostics' },
       { id: 'analytics', label: 'Analytics', to: '/analytics', status: 'implemented', tabIcon: 'analytics' },
       { id: 'evaluation', label: 'Evaluation', to: '/evaluation', status: 'implemented', tabIcon: 'evaluation' },
+      { id: 'testing', label: 'Testing', to: '/testing', status: 'implemented', tabIcon: 'diagnostics' },
       /* Alerts moved to Security & Audit → Security events. */
       { id: 'activity', label: 'Alerts', to: '/audit/events', status: 'contextual' },
     ],

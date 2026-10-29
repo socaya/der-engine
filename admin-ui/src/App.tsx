@@ -60,6 +60,7 @@ import { Compliance } from './screens/Compliance';
 import { MeshTopology } from './screens/MeshTopology';
 import { Hardware } from './screens/Hardware';
 import { Fleet } from './screens/Fleet';
+import { Testing } from './screens/Testing';
 
 function ConflictResolveRoute(): JSX.Element {
   const { id = '' } = useParams();
@@ -200,6 +201,7 @@ export default function App(): JSX.Element {
           <Route path="/network/mesh" element={<RequireAuth><MeshTopology /></RequireAuth>} />
           <Route path="/system/hardware" element={<RequireAuth><Hardware /></RequireAuth>} />
           <Route path="/fleet" element={<RequireAuth><Fleet /></RequireAuth>} />
+          <Route path="/testing" element={<RequireAuth><Testing /></RequireAuth>} />
           <Route path="/compliance" element={<RequireAuth><Compliance /></RequireAuth>} />
           {/* Previously capability-gap screens — now implemented against
               existing /edge-api/v1 endpoints. */}

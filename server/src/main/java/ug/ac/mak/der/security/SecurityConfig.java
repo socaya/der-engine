@@ -158,6 +158,8 @@ public class SecurityConfig {
                         // §8 Fleet view + per-operator preferences.
                         .requestMatchers("/edge-api/v1/fleet/**").authenticated()
                         .requestMatchers("/edge-api/v1/user-prefs/**").authenticated()
+                        // §9 Testing harness — chaos / load / soak / golden.
+                        .requestMatchers("/edge-api/v1/testing/**").hasRole("ADMIN")
                         // Phase N5 — DER-MSG v1 device-to-device bus.
                         // Every authenticated device may publish, pull,
                         // subscribe, and update cursors. Admin surface
