@@ -541,8 +541,22 @@ public class NetworkService {
               ca.createdAt().plus(java.time.Duration.ofDays(3650)).toString());
         m.put("san", java.util.List.of("der.local", "10.88.0.1"));
         m.put("renewable", true);
+        // Live listener state so the UI can render the actual URL
+        // instead of the aspirational one.
+        m.put("httpsEnabled", httpsEnabled);
+        m.put("httpsPort", httpsPort);
+        m.put("mdnsEnabled", mdnsEnabled);
+        m.put("hostname",
+              settings().getOrDefault("discovery.hostname", "der.local"));
         return m;
     }
+
+    @org.springframework.beans.factory.annotation.Value("${der.https.enabled:true}")
+    private boolean httpsEnabled;
+    @org.springframework.beans.factory.annotation.Value("${der.https.port:8443}")
+    private int httpsPort;
+    @org.springframework.beans.factory.annotation.Value("${der.mdns.enabled:true}")
+    private boolean mdnsEnabled;
 
     /* ─── mDNS / service discovery (spec §8) ────────────────────── */
 

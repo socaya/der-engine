@@ -26,7 +26,7 @@
   </parent>
 
   <groupId>ug.ac.mak.der</groupId>
-  <artifactId>der-server</artifactId><version>2.1.93</version>
+  <artifactId>der-server</artifactId><version>2.1.94</version>
   <packaging>jar</packaging>
   <name>DER coordination server</name>
   <description>DHIS2 Edge Runtime coordination service (Phase 00 baseline)</description>
@@ -127,6 +127,15 @@
       <artifactId>junit-jupiter</artifactId>
       <version>${testcontainers.version}</version>
       <scope>test</scope>
+    </dependency>
+    <!-- 2.1.94: user-space mDNS responder so https://der.local resolves
+         on dev machines (macOS Bonjour / Linux nss-mdns consume these
+         announcements). On a production edge, Avahi via the Linux agent
+         takes over and this bean quietly steps aside. -->
+    <dependency>
+      <groupId>org.jmdns</groupId>
+      <artifactId>jmdns</artifactId>
+      <version>3.5.9</version>
     </dependency>
   </dependencies>
 
