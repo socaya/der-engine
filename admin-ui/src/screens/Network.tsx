@@ -376,14 +376,6 @@ export function NetworkAccessPoint(): JSX.Element {
         </Panel>
       )}
 
-      <Panel title="QR enrolment"
-             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>Phase N2</span>}>
-        <p className="ea-text-muted" style={{ margin: 0, padding: 10, fontSize: 13 }}>
-          Devices join the SSID, scan the QR, then open <code>https://der.local</code> to request
-          enrolment. Approve each pending device from <Link to="/network/clients">Connected Devices</Link>.
-        </p>
-      </Panel>
-
       {showQr && <QrEnrolDialog onClose={() => setShowQr(false)} />}
     </div>
   );
@@ -392,6 +384,8 @@ export function NetworkAccessPoint(): JSX.Element {
 function QrEnrolDialog({ onClose }: { onClose: () => void }): JSX.Element {
   const [qr, setQr] = useState<{ ssid: string; payload: string; qrSvg: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [issuing, setIssuing] = useState(false);
   useEffect(() => {
     (async () => {
       try { setQr(await edgeApi.networkApEnrolmentQr()); }
@@ -401,6 +395,19 @@ function QrEnrolDialog({ onClose }: { onClose: () => void }): JSX.Element {
   function copyPayload(): void {
     if (qr && navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(qr.payload).catch(() => undefined);
+    }
+  }
+  async function issueToken(): Promise<void> {
+    setIssuing(true);
+    try {
+      const r = await edgeApi.networkEnrolTokenIssue({ ttlSeconds: 1800 });
+      setToken(r.token);
+    } catch { /* ignore */ }
+    finally { setIssuing(false); }
+  }
+  function copyToken(): void {
+    if (token && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(token).catch(() => undefined);
     }
   }
   return (
@@ -436,6 +443,33 @@ function QrEnrolDialog({ onClose }: { onClose: () => void }): JSX.Element {
             Couldn't load QR — {err}
           </div>
         )}
+        <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--der-raised)',
+                      border: '1px solid var(--der-border)' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+            Optional — one-shot enrol token (30 min)
+          </div>
+          {token ? (
+            <div className="ea-mono" style={{ fontSize: 12, wordBreak: 'break-all',
+                                               color: 'var(--der-ink-700)' }}>
+              {token}
+              <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                      style={{ marginLeft: 8 }} onClick={copyToken}>
+                <UiIcon icon="copy" size={12} /> <span>Copy</span>
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                Hand this token to a specific device for a managed first-contact.
+              </span>
+              <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                      disabled={issuing} onClick={issueToken}>
+                <UiIcon icon="plus" size={12} />
+                <span>{issuing ? 'Issuing…' : 'Issue token'}</span>
+              </button>
+            </div>
+          )}
+        </div>
         <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                   disabled={!qr} onClick={copyPayload}>
@@ -647,10 +681,16 @@ function DeviceCertDialog({ client, onClose }: {
 /* ─────────────── /network/interfaces ─────────────── */
 export function NetworkInterfaces(): JSX.Element {
   const [ifaces, setIfaces] = useState<edgeApi.NetworkInterface[] | null>(null);
+  const [leases, setLeases] = useState<edgeApi.NetworkLease[]>([]);
+  const [routes, setRoutes] = useState<edgeApi.NetworkRoute[]>([]);
   const [missing, setMissing] = useState(false);
   async function reload(): Promise<void> {
     try { setIfaces((await edgeApi.networkInterfaces()).interfaces); setMissing(false); }
     catch { setMissing(true); setIfaces([]); }
+    try { setLeases((await edgeApi.networkLeases()).leases); }
+    catch { /* leave previous */ }
+    try { setRoutes((await edgeApi.networkRoutes()).routes); }
+    catch { /* leave previous */ }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
   const up = (ifaces ?? []).filter((i) => i.state === 'up').length;
@@ -731,6 +771,66 @@ export function NetworkInterfaces(): JSX.Element {
           </div>
         </Panel>
       )}
+
+      <Panel title={`Routes · ${routes.length}`}
+             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>Lower metric evaluated first.</span>}>
+        {routes.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>No routes.</p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense">
+              <thead><tr>
+                <th>Destination</th><th>Gateway</th><th>Interface</th>
+                <th>Metric</th><th>Source</th><th>Active</th>
+              </tr></thead>
+              <tbody>
+                {routes.map((r) => (
+                  <tr key={r.id}>
+                    <td className="ea-mono">{r.destination}</td>
+                    <td className="ea-mono">{r.gateway ?? '—'}</td>
+                    <td className="ea-mono">{r.interface ?? '—'}</td>
+                    <td className="ea-mono">{r.metric}</td>
+                    <td className="ea-text-muted">{r.source}</td>
+                    <td>
+                      <Status tone={r.active ? 'success' : 'muted'}>
+                        {r.active ? 'ACTIVE' : 'inactive'}
+                      </Status>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title={`DHCP leases · ${leases.length}`}>
+        {leases.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
+            No active DHCP leases. Devices appear here once the local DHCP server grants an address.
+          </p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense">
+              <thead><tr>
+                <th>MAC</th><th>IP</th><th>Hostname</th><th>Issued</th><th>Expires</th><th>Kind</th>
+              </tr></thead>
+              <tbody>
+                {leases.map((l) => (
+                  <tr key={l.mac}>
+                    <td className="ea-mono">{l.mac}</td>
+                    <td className="ea-mono">{l.ip}</td>
+                    <td>{l.hostname ?? '—'}</td>
+                    <td className="ea-text-muted">{l.issuedAt ? fmtAgo(l.issuedAt) : '—'}</td>
+                    <td className="ea-text-muted">{l.expiresAt ? fmtAgo(l.expiresAt) : '—'}</td>
+                    <td>{l.staticLease ? 'Static' : 'Dynamic'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }
@@ -1009,8 +1109,7 @@ export function NetworkSecurity(): JSX.Element {
         }
       />
 
-      <Panel title="Firewall policy"
-             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>Click an action chip to cycle allow / controlled / deny.</span>}>
+      <Panel title="Firewall policy">
         <table className="ea-table ea-table--dense" style={{ margin: 10 }}>
           <thead><tr>
             <th style={{ width: 56 }}>#</th>
@@ -1052,22 +1151,6 @@ export function NetworkSecurity(): JSX.Element {
             )}
           </tbody>
         </table>
-      </Panel>
-
-      <Panel title="Layered security model (§10)">
-        <ol style={{ margin: 10, padding: '0 0 0 20px', fontSize: 14, lineHeight: 1.7 }}>
-          <li>Wi-Fi / Ethernet connectivity</li>
-          <li>Network admission</li>
-          <li>Device identity</li>
-          <li>TLS / encrypted tunnel</li>
-          <li>DER user authentication</li>
-          <li>DHIS2-derived authorization</li>
-          <li>Workflow / record access rules</li>
-          <li>Audit</li>
-        </ol>
-        <p className="ea-text-muted" style={{ margin: 10, fontSize: 13 }}>
-          Can join DER network <strong>≠</strong> can access DER application / data.
-        </p>
       </Panel>
 
       {showAdd && <PolicyAddDialog

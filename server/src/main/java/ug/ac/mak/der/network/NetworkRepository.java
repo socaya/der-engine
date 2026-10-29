@@ -225,6 +225,111 @@ public class NetworkRepository {
             Integer.class);
     }
 
+    public List<Map<String, Object>> listLeases() {
+        return jdbc.query(
+            "SELECT mac, ip, hostname, issued_at, expires_at, static_lease "
+          + "  FROM der.network_lease WHERE expires_at > now() "
+          + "  ORDER BY expires_at DESC",
+            (ResultSet rs, int row) -> {
+                final Map<String, Object> m = new LinkedHashMap<>();
+                m.put("mac",       rs.getString("mac"));
+                m.put("ip",        rs.getString("ip"));
+                m.put("hostname",  rs.getString("hostname"));
+                m.put("issuedAt",  optInstant(rs.getTimestamp("issued_at")));
+                m.put("expiresAt", optInstant(rs.getTimestamp("expires_at")));
+                m.put("staticLease", rs.getBoolean("static_lease"));
+                return m;
+            });
+    }
+
+    /* ─── Phase N4 — WAN failover ───────────────────────────────── */
+
+    /** Find the current active default-route interface (lowest-metric
+     *  active row whose destination is 0.0.0.0/0). Returns null if
+     *  no default route is active. */
+    public String currentDefaultIface() {
+        try {
+            return jdbc.queryForObject(
+                "SELECT interface_name FROM der.network_route "
+              + "  WHERE destination='0.0.0.0/0' AND active=TRUE "
+              + "  ORDER BY metric ASC LIMIT 1",
+                String.class);
+        } catch (final org.springframework.dao.EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    /** Pick the WAN-worthy interface with the lowest priority value
+     *  (lowest = highest preference) that is currently up. Returns
+     *  null if no interface qualifies. */
+    public Optional<NetworkInterface> pickWanCandidate() {
+        try {
+            final NetworkInterface n = jdbc.queryForObject(
+                "SELECT * FROM der.network_interface "
+              + "  WHERE state='up' AND administrative_up=TRUE "
+              + "    AND purpose IN ('facility-lan','upstream-wifi','cellular-fallback') "
+              + "  ORDER BY priority ASC LIMIT 1",
+                interfaceMapper());
+            return Optional.ofNullable(n);
+        } catch (final org.springframework.dao.EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
+    public int promoteDefaultRoute(final String iface, final String gateway) {
+        jdbc.update("UPDATE der.network_route SET active=FALSE WHERE destination='0.0.0.0/0'");
+        return jdbc.update(
+            "INSERT INTO der.network_route (destination, gateway, interface_name, "
+          + "                                 metric, source, active) "
+          + "  VALUES ('0.0.0.0/0', ?, ?, 100, 'DYNAMIC', TRUE) "
+          + "  ON CONFLICT DO NOTHING",
+            gateway, iface);
+    }
+
+    public int deactivateDefaultRoute() {
+        return jdbc.update(
+            "UPDATE der.network_route SET active=FALSE WHERE destination='0.0.0.0/0'");
+    }
+
+    /* ─── Phase N2 — enrolment tokens ──────────────────────────── */
+
+    public void insertEnrolToken(final String tokenHash, final UUID issuedBy,
+                                   final java.time.Instant expiresAt,
+                                   final String deviceIdHint) {
+        jdbc.update(
+            "INSERT INTO der.network_enrol_token "
+          + "(token_hash, issued_by, expires_at, device_id_hint) "
+          + "VALUES (?, ?, ?, ?)",
+            tokenHash, issuedBy, Timestamp.from(expiresAt), deviceIdHint);
+    }
+
+    /** Returns true if the token is valid + unconsumed, and marks it
+     *  consumed by {@code deviceId} atomically. */
+    public boolean consumeEnrolToken(final String tokenHash, final String deviceId) {
+        return jdbc.update(
+            "UPDATE der.network_enrol_token "
+          + "   SET consumed_at=now(), consumed_by_device=? "
+          + " WHERE token_hash=? AND consumed_at IS NULL "
+          + "   AND expires_at > now()",
+            deviceId, tokenHash) > 0;
+    }
+
+    public List<Map<String, Object>> listEnrolTokens() {
+        return jdbc.query(
+            "SELECT issued_at, expires_at, device_id_hint, consumed_at, consumed_by_device "
+          + "  FROM der.network_enrol_token "
+          + "  ORDER BY issued_at DESC LIMIT 100",
+            (ResultSet rs, int row) -> {
+                final Map<String, Object> m = new LinkedHashMap<>();
+                m.put("issuedAt",   optInstant(rs.getTimestamp("issued_at")));
+                m.put("expiresAt",  optInstant(rs.getTimestamp("expires_at")));
+                m.put("deviceIdHint", rs.getString("device_id_hint"));
+                m.put("consumedAt", optInstant(rs.getTimestamp("consumed_at")));
+                m.put("consumedBy", rs.getString("consumed_by_device"));
+                return m;
+            });
+    }
+
     public int updateClientTrust(final String deviceId, final ClientTrust trust,
                                    final UUID actor) {
         if (trust == ClientTrust.APPROVED) {

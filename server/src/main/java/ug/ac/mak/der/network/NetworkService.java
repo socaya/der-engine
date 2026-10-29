@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,8 @@ import ug.ac.mak.der.network.NetworkEntities.PolicyRule;
 /** Core business logic for the Network control plane. Phase N1-N5. */
 @Service
 public class NetworkService {
+
+    private static final Logger LOG = LoggerFactory.getLogger(NetworkService.class);
 
     private final NetworkRepository repo;
     private final NetworkAgent agent;
@@ -79,6 +83,12 @@ public class NetworkService {
         final boolean centralUp = probeCentralUrl(centralUrl);
         final ConnectivityState state = classify(apUp, lanUp, internetUp, dnsUp, centralUp);
         persistProbe(apUp, lanUp, internetUp, dnsUp, centralUp, state);
+        // Phase N4 — pick the best WAN interface each cycle.
+        try {
+            reconcileWanRoute();
+        } catch (final Exception ex) {
+            LOG.warn("WAN failover reconcile failed", ex);
+        }
     }
 
     @Transactional
@@ -391,6 +401,99 @@ public class NetworkService {
 
     public int leaseCount() {
         return repo.countLeases();
+    }
+
+    public java.util.List<java.util.Map<String, Object>> listLeases() {
+        return repo.listLeases();
+    }
+
+    /* ─── Phase N4 — WAN failover ───────────────────────────────── */
+
+    /** Reconcile the default route against current interface state.
+     *  Called from the probe loop. Promotes the highest-priority UP
+     *  interface tagged for WAN use; records a ROUTE_FAILOVER audit
+     *  event when the primary changes. Returns the interface name
+     *  now owning the default route, or null if nothing qualifies. */
+    @Transactional
+    public String reconcileWanRoute() {
+        final String current = repo.currentDefaultIface();
+        final NetworkEntities.NetworkInterface pick = repo.pickWanCandidate().orElse(null);
+        if (pick == null) {
+            // No qualifying WAN interface. Deactivate the stale default
+            // route so the next cycle sees current=null and we don't
+            // re-emit the audit event every 30s.
+            if (current != null) {
+                repo.deactivateDefaultRoute();
+                repo.recordEvent("ROUTE_WAN_LOST", "FAILURE", null, null, current,
+                                  "scheduler", "no WAN-capable interface up", null);
+            }
+            return null;
+        }
+        if (pick.name().equals(current)) {
+            return current;
+        }
+        final String gw = guessGatewayFor(pick);
+        repo.promoteDefaultRoute(pick.name(), gw);
+        if (current == null) {
+            repo.recordEvent("ROUTE_WAN_RESTORED", "SUCCESS", null, null, pick.name(),
+                              "scheduler", "promoted to default route", null);
+        } else {
+            repo.recordEvent("ROUTE_FAILOVER", "SUCCESS", null, null, pick.name(),
+                              "scheduler", "failover from " + current, null);
+        }
+        return pick.name();
+    }
+
+    /** Infer the gateway for an interface. Facility LAN gets the
+     *  address portion with .1 (common RFC-1918 convention);
+     *  cellular + upstream-wifi hand off to the agent for proper
+     *  discovery via DHCP. */
+    private static String guessGatewayFor(final NetworkEntities.NetworkInterface iface) {
+        if (iface.address() == null) {
+            return null;
+        }
+        final int dot = iface.address().lastIndexOf('.');
+        if (dot <= 0) {
+            return null;
+        }
+        return iface.address().substring(0, dot) + ".1";
+    }
+
+    /* ─── Phase N2 — enrolment tokens ──────────────────────────── */
+
+    @Transactional
+    public String issueEnrolToken(final UUID issuedBy, final String actorName,
+                                    final String deviceIdHint, final int ttlSeconds) {
+        final byte[] raw = new byte[24];
+        new java.security.SecureRandom().nextBytes(raw);
+        final String token = java.util.Base64.getUrlEncoder().withoutPadding()
+                                             .encodeToString(raw);
+        final String hash = sha256Hex(token);
+        final java.time.Instant exp = java.time.Instant.now()
+                                          .plusSeconds(Math.max(60, ttlSeconds));
+        repo.insertEnrolToken(hash, issuedBy, exp, deviceIdHint);
+        repo.recordEvent("ENROL_TOKEN_ISSUED", "SUCCESS", null, null, null,
+                          actorName, "hint=" + deviceIdHint, null);
+        return token;
+    }
+
+    public boolean consumeEnrolToken(final String token, final String deviceId) {
+        return repo.consumeEnrolToken(sha256Hex(token), deviceId);
+    }
+
+    public java.util.List<java.util.Map<String, Object>> listEnrolTokens() {
+        return repo.listEnrolTokens();
+    }
+
+    private static String sha256Hex(final String s) {
+        try {
+            final byte[] h = java.security.MessageDigest.getInstance("SHA-256")
+                                                        .digest(s.getBytes(
+                                        java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(h);
+        } catch (final Exception ex) {
+            throw new IllegalStateException("SHA-256 missing", ex);
+        }
     }
 
     @Transactional

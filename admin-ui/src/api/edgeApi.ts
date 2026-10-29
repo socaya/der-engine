@@ -1200,11 +1200,13 @@ export interface NetworkPeer {
 }
 
 export interface NetworkRoute {
+  id: string;
   destination: string;
-  via: string | null;
-  dev: string;
+  gateway: string | null;
+  interface: string | null;
   metric: number;
-  scope: string;
+  source: string;
+  active: boolean;
 }
 
 export interface NetworkEvent {
@@ -1322,4 +1324,27 @@ export interface NetworkCaInfo {
 }
 export function networkCa(): Promise<NetworkCaInfo> {
   return request('GET', '/edge-api/v1/network/ca');
+}
+
+export interface NetworkLease {
+  mac: string; ip: string; hostname: string | null;
+  issuedAt: string | null; expiresAt: string | null;
+  staticLease: boolean;
+}
+export function networkLeases(): Promise<{ leases: NetworkLease[] }> {
+  return request('GET', '/edge-api/v1/network/leases');
+}
+
+export interface NetworkEnrolToken {
+  issuedAt: string | null; expiresAt: string | null;
+  deviceIdHint: string | null;
+  consumedAt: string | null; consumedBy: string | null;
+}
+export function networkEnrolTokens(): Promise<{ tokens: NetworkEnrolToken[] }> {
+  return request('GET', '/edge-api/v1/network/enrol-tokens');
+}
+export function networkEnrolTokenIssue(body: {
+  ttlSeconds?: number; deviceIdHint?: string;
+}): Promise<{ token: string; ttlSeconds: number; deviceIdHint: string }> {
+  return request('POST', '/edge-api/v1/network/enrol-tokens', body);
 }

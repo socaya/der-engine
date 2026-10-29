@@ -151,11 +151,35 @@ public class NetworkController {
         return ResponseEntity.ok(svc.trustAnchor());
     }
 
+    /* ─── Phase N2 — enrolment tokens ──────────────────────────── */
+
+    @GetMapping("/enrol-tokens")
+    public ResponseEntity<Map<String, Object>> listTokens() {
+        return ResponseEntity.ok(Map.of("tokens", svc.listEnrolTokens()));
+    }
+
+    @PostMapping(path = "/enrol-tokens", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> issueToken(final Authentication auth,
+                                                           @RequestBody(required = false) final TokenBody body) {
+        final int ttl = body == null || body.ttlSeconds == null ? 1800 : body.ttlSeconds;
+        final String hint = body == null ? null : body.deviceIdHint;
+        final String tok = svc.issueEnrolToken(userId(auth), actor(auth), hint, ttl);
+        return ResponseEntity.status(201).body(Map.of(
+            "token", tok,
+            "ttlSeconds", ttl,
+            "deviceIdHint", hint == null ? "" : hint));
+    }
+
     /* ─── DHCP lease ingestion (Phase N1) ──────────────────────── */
 
     @GetMapping("/leases/count")
     public ResponseEntity<Map<String, Object>> leaseCount() {
         return ResponseEntity.ok(Map.of("count", svc.leaseCount()));
+    }
+
+    @GetMapping("/leases")
+    public ResponseEntity<Map<String, Object>> leases() {
+        return ResponseEntity.ok(Map.of("leases", svc.listLeases()));
     }
 
     @PostMapping(path = "/leases", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -352,6 +376,11 @@ public class NetworkController {
         public String destinationZone;
         public String action;
         public String note;
+    }
+
+    public static final class TokenBody {
+        public Integer ttlSeconds;
+        public String deviceIdHint;
     }
 
     private static String actor(final Authentication auth) {
