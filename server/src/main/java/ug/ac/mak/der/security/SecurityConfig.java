@@ -141,6 +141,15 @@ public class SecurityConfig {
                         .requestMatchers("/edge-api/v1/peer-mesh/**").authenticated()
                         // §1 WebRTC signalling — devices need session.
                         .requestMatchers("/edge-api/v1/webrtc/**").authenticated()
+                        // §4 Hardware — LED poll from a tiny Pi-side
+                        // daemon is unauthenticated (reach restricted
+                        // via nginx / LAN); everything else needs
+                        // session.  Writes gated to ADMIN.
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/edge-api/v1/system/hardware/leds").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                            "/edge-api/v1/system/hardware/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/system/hardware/**").authenticated()
                         // Phase N5 — DER-MSG v1 device-to-device bus.
                         // Every authenticated device may publish, pull,
                         // subscribe, and update cursors. Admin surface

@@ -14,7 +14,12 @@ After=postgresql.service network-online.target
 Wants=network-online.target
 
 [Service]
-Type=simple
+# §4 Hardware integration — Type=notify so DER can send WATCHDOG=1
+# pings. WatchdogSec=30s so systemd kills + restarts a hung server
+# within half a minute.
+Type=notify
+NotifyAccess=main
+WatchdogSec=30s
 User=der
 Group=der
 WorkingDirectory=/opt/der
