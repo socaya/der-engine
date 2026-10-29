@@ -121,6 +121,13 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.PUT,   "/edge-api/v1/network/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE,"/edge-api/v1/network/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/network/**").authenticated()
+                        // Peer lifecycle — invite redeem is reachable
+                        // from peer edges across the WireGuard tunnel
+                        // (trust comes from the tunnel + the token
+                        // itself); the rest of the surface is UI/admin.
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                            "/edge-api/v1/peer-lifecycle/invites/redeem").permitAll()
+                        .requestMatchers("/edge-api/v1/peer-lifecycle/**").authenticated()
                         // Phase N5 — DER-MSG v1 device-to-device bus.
                         // Every authenticated device may publish, pull,
                         // subscribe, and update cursors. Admin surface

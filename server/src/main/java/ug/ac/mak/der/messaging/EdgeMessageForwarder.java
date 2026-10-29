@@ -40,19 +40,24 @@ public class EdgeMessageForwarder {
     private static final Logger LOG = LoggerFactory.getLogger(EdgeMessageForwarder.class);
     private static final String EDGE_PREFIX = "edge:";
 
+    private static final int MAX_HOPS = 4;
+
     private final NetworkRepository networkRepo;
     private final NetworkCaService ca;
     private final MessagingV2Repository v2repo;
+    private final ug.ac.mak.der.network.PeerLifecycleService lifecycle;
     private final ObjectMapper mapper;
     private final HttpClient http;
 
     public EdgeMessageForwarder(final NetworkRepository networkRepo,
                                   final NetworkCaService ca,
                                   final MessagingV2Repository v2repo,
+                                  final ug.ac.mak.der.network.PeerLifecycleService lifecycle,
                                   final ObjectMapper mapper) {
         this.networkRepo = Objects.requireNonNull(networkRepo, "networkRepo");
         this.ca = Objects.requireNonNull(ca, "ca");
         this.v2repo = Objects.requireNonNull(v2repo, "v2repo");
+        this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.http = HttpClient.newBuilder()
                               .connectTimeout(Duration.ofSeconds(5))
@@ -95,6 +100,23 @@ public class EdgeMessageForwarder {
             LOG.debug("ignoring self-forward for {}", messageId);
             return;
         }
+        // Loop prevention — if a hop count was carried into this message
+        // (indicating it was itself a relay), reject re-forwarding past
+        // the max or back to an edge that already saw it.
+        final Object hcObj = originalMessage.get("hopCount");
+        final int hopCount = hcObj instanceof Number ? ((Number) hcObj).intValue() : 0;
+        if (hopCount >= MAX_HOPS) {
+            v2repo.recordForward(messageId, targetEdge, null, "LOOP_LIMIT", null,
+                                  "hop count " + hopCount + " >= " + MAX_HOPS);
+            return;
+        }
+        final Object visitedObj = originalMessage.get("visitedEdges");
+        if (visitedObj instanceof java.util.List<?> visitedList
+                && visitedList.contains(targetEdge)) {
+            v2repo.recordForward(messageId, targetEdge, null, "LOOP_DETECTED", null,
+                                  "target already in visitedEdges");
+            return;
+        }
         // Find a TRUSTED + CONNECTED peer whose nodeId matches the
         // target edge fingerprint; nodeId is operator-set at add-peer
         // time so operators can match arbitrary identifiers.
@@ -110,6 +132,7 @@ public class EdgeMessageForwarder {
         if (target == null) {
             v2repo.recordForward(messageId, targetEdge, null, "NO_PEER", null,
                                   "no TRUSTED+CONNECTED peer with nodeId=" + targetEdge);
+            lifecycle.scheduleRetry(messageId, targetEdge, 0);
             return;
         }
         final String sub = subChannel(channel);
@@ -118,6 +141,17 @@ public class EdgeMessageForwarder {
         // its own bus (not another edge: channel to re-forward forever).
         relayed.put("channel", sub);
         relayed.put("relayedFromEdgeId", ca.fingerprint());
+        // Loop prevention — bump hop count + add our fingerprint to the
+        // visited-edges list the receiver will carry forward.
+        relayed.put("hopCount", hopCount + 1);
+        final java.util.List<String> visited = new java.util.ArrayList<>();
+        if (visitedObj instanceof java.util.List<?> vl) {
+            for (final Object v : vl) {
+                visited.add(v.toString());
+            }
+        }
+        visited.add(ca.fingerprint());
+        relayed.put("visitedEdges", visited);
         final String host = target.endpoint().split(":")[0];
         final URI uri = URI.create("https://" + host + ":8443/edge-api/v1/messaging/relay");
         try {
@@ -136,12 +170,14 @@ public class EdgeMessageForwarder {
                 v2repo.recordForward(messageId, targetEdge, target.id(),
                                       "HTTP_ERROR", r.statusCode(),
                                       r.body().length() > 200 ? r.body().substring(0, 200) : r.body());
+                lifecycle.scheduleRetry(messageId, targetEdge, 0);
             }
         } catch (final Exception ex) {
             v2repo.recordForward(messageId, targetEdge, target.id(),
                                   "PEER_UNREACHABLE", null,
                                   ex.getMessage() == null ? ex.getClass().getSimpleName()
                                                            : ex.getMessage());
+            lifecycle.scheduleRetry(messageId, targetEdge, 0);
         }
     }
 
