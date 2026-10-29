@@ -485,6 +485,86 @@ public class NetworkService {
         return repo.listEnrolTokens();
     }
 
+    @Transactional
+    public boolean revokeEnrolToken(final String tokenHash, final String actorName) {
+        final boolean ok = repo.revokeEnrolToken(tokenHash) > 0;
+        if (ok) {
+            repo.recordEvent("ENROL_TOKEN_REVOKED", "SUCCESS", null, null, null,
+                              actorName, tokenHash.substring(0, Math.min(16, tokenHash.length())),
+                              null);
+        }
+        return ok;
+    }
+
+    /* ─── Static DHCP leases (Phase N1) ─────────────────────────── */
+
+    @Transactional
+    public boolean pinStaticLease(final String mac, final String ip, final String hostname,
+                                     final String actorName) {
+        final boolean ok = repo.insertStaticLease(mac, ip, hostname) > 0;
+        if (ok) {
+            repo.recordEvent("STATIC_LEASE_SET", "SUCCESS", null, null, null,
+                              actorName, mac + "→" + ip, null);
+        }
+        return ok;
+    }
+
+    @Transactional
+    public boolean deleteLease(final String mac, final String actorName) {
+        final boolean ok = repo.deleteLease(mac) > 0;
+        if (ok) {
+            repo.recordEvent("LEASE_REMOVED", "SUCCESS", null, null, null,
+                              actorName, mac, null);
+        }
+        return ok;
+    }
+
+    /* ─── TLS cert introspection (spec §11) ─────────────────────── */
+
+    /** Return the current TLS certificate DER uses to serve
+     *  <code>https://der.local</code>. We present the DER internal CA
+     *  (NetworkCaService) as both the certificate authority AND the
+     *  server cert in this release — a dedicated server-cert flow is
+     *  pilot-deploy scope. */
+    public java.util.Map<String, Object> tlsCertificate() {
+        ca.ensureCa();
+        final java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("subject", "CN=der.local, O=DER Edge");
+        m.put("issuer",  "CN=DER Internal CA, O=DER Edge");
+        m.put("algorithm", "Ed25519");
+        m.put("fingerprint", ca.fingerprint());
+        m.put("publicKeyBase64", ca.publicKeyBase64());
+        m.put("notBefore", ca.createdAt().toString());
+        // CA + server cert are the same handle for N2; validity treated
+        // as the CA creation time + 10 years.
+        m.put("notAfter",
+              ca.createdAt().plus(java.time.Duration.ofDays(3650)).toString());
+        m.put("san", java.util.List.of("der.local", "10.88.0.1"));
+        m.put("renewable", true);
+        return m;
+    }
+
+    /* ─── mDNS / service discovery (spec §8) ────────────────────── */
+
+    public java.util.List<java.util.Map<String, Object>> mdnsServices() {
+        final String hostname = settings().getOrDefault("discovery.hostname", "der.local");
+        return java.util.List.of(
+            svcEntry("_der._tcp.local.",    hostname, 443, "DER HTTPS admin + capture"),
+            svcEntry("_derapi._tcp.local.", hostname, 443, "DER edge-api"),
+            svcEntry("_http._tcp.local.",   hostname,  80, "HTTP redirect to HTTPS")
+        );
+    }
+
+    private static java.util.Map<String, Object> svcEntry(
+            final String type, final String host, final int port, final String desc) {
+        final java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("type",     type);
+        m.put("host",     host);
+        m.put("port",     port);
+        m.put("description", desc);
+        return m;
+    }
+
     private static String sha256Hex(final String s) {
         try {
             final byte[] h = java.security.MessageDigest.getInstance("SHA-256")

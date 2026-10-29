@@ -195,6 +195,47 @@ public class NetworkController {
             "deviceIdHint", hint == null ? "" : hint));
     }
 
+    @DeleteMapping("/enrol-tokens/{tokenHash}")
+    public ResponseEntity<Map<String, Object>> revokeToken(final Authentication auth,
+                                                            @PathVariable final String tokenHash) {
+        return svc.revokeEnrolToken(tokenHash, actor(auth))
+            ? ResponseEntity.ok(Map.of("revoked", true))
+            : ResponseEntity.status(404).body(err("TOKEN_NOT_FOUND", tokenHash));
+    }
+
+    /* ─── Static DHCP leases ───────────────────────────────────── */
+
+    @PostMapping(path = "/leases/static", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> pinLease(final Authentication auth,
+                                                         @RequestBody final StaticLeaseBody body) {
+        if (body == null || body.mac == null || body.ip == null) {
+            return ResponseEntity.badRequest().body(err("MAC_IP_REQUIRED", "mac + ip required"));
+        }
+        return svc.pinStaticLease(body.mac, body.ip, body.hostname, actor(auth))
+            ? ResponseEntity.status(201).body(Map.of("pinned", true))
+            : ResponseEntity.status(500).body(err("LEASE_WRITE_FAILED", body.mac));
+    }
+
+    @DeleteMapping("/leases/{mac}")
+    public ResponseEntity<Map<String, Object>> deleteLease(final Authentication auth,
+                                                            @PathVariable final String mac) {
+        return svc.deleteLease(mac, actor(auth))
+            ? ResponseEntity.ok(Map.of("deleted", true))
+            : ResponseEntity.status(404).body(err("LEASE_NOT_FOUND", mac));
+    }
+
+    /* ─── TLS cert + mDNS visibility ───────────────────────────── */
+
+    @GetMapping("/tls")
+    public ResponseEntity<Map<String, Object>> tls() {
+        return ResponseEntity.ok(svc.tlsCertificate());
+    }
+
+    @GetMapping("/mdns")
+    public ResponseEntity<Map<String, Object>> mdns() {
+        return ResponseEntity.ok(Map.of("services", svc.mdnsServices()));
+    }
+
     /* ─── DHCP lease ingestion (Phase N1) ──────────────────────── */
 
     @GetMapping("/leases/count")
@@ -453,6 +494,12 @@ public class NetworkController {
     public static final class InterfaceBody {
         public Integer priority;
         public String purpose;
+    }
+
+    public static final class StaticLeaseBody {
+        public String mac;
+        public String ip;
+        public String hostname;
     }
 
     private static String actor(final Authentication auth) {

@@ -715,12 +715,80 @@ export function NetworkConnectedDevices(): JSX.Element {
         </Panel>
       )}
 
+      <EnrolTokensPanel />
+
       {certFor && <DeviceCertDialog client={certFor} onClose={() => setCertFor(null)} />}
       {editFor && <ClientLabelDialog client={editFor}
           onClose={() => setEditFor(null)}
           onSaved={() => { setEditFor(null); reload().catch(() => undefined); }} />}
       {showEnrol && <QrEnrolDialog onClose={() => setShowEnrol(false)} />}
     </div>
+  );
+}
+
+function EnrolTokensPanel(): JSX.Element {
+  const [tokens, setTokens] = useState<edgeApi.NetworkEnrolToken[]>([]);
+  async function reload(): Promise<void> {
+    try { setTokens((await edgeApi.networkEnrolTokens()).tokens); }
+    catch { /* leave previous */ }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, []);
+  function revoke(tokenHash: string): void {
+    runAction('Revoke this enrol token? It cannot be used after this.',
+      () => edgeApi.networkEnrolTokenRevoke(tokenHash),
+      () => { reload().catch(() => undefined); });
+  }
+  const outstanding = tokens.filter((t) => !t.consumedAt);
+  return (
+    <Panel title={`Enrolment tokens · ${outstanding.length} outstanding`}
+           action={<button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                            onClick={() => { reload().catch(() => undefined); }}>
+             <UiIcon icon="refresh" size={14} /><span>Refresh</span>
+           </button>}>
+      {tokens.length === 0 ? (
+        <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
+          No enrol tokens issued yet. Use <strong>Enrol a device</strong> above to issue one.
+        </p>
+      ) : (
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense">
+            <thead><tr>
+              <th>Token (truncated)</th><th>Hint</th><th>Issued</th><th>Expires</th>
+              <th>Status</th><th style={{ width: 48 }} aria-label="Actions"></th>
+            </tr></thead>
+            <tbody>
+              {tokens.map((t) => {
+                const expired = t.expiresAt && new Date(t.expiresAt) < new Date();
+                const revoked = t.consumedBy === 'REVOKED';
+                const status: { label: string; tone: 'success' | 'warning' | 'danger' | 'muted' } =
+                  revoked           ? { label: 'REVOKED',  tone: 'danger' }
+                  : t.consumedAt    ? { label: 'CONSUMED', tone: 'success' }
+                  : expired         ? { label: 'EXPIRED',  tone: 'muted' }
+                                    : { label: 'ACTIVE',   tone: 'success' };
+                return (
+                  <tr key={t.tokenHash}>
+                    <td className="ea-mono" style={{ fontSize: 11 }}>
+                      {t.tokenHash.slice(0, 20)}…
+                    </td>
+                    <td>{t.deviceIdHint ?? '—'}</td>
+                    <td className="ea-text-muted">{t.issuedAt ? fmtAgo(t.issuedAt) : '—'}</td>
+                    <td className="ea-text-muted">{t.expiresAt ? fmtAgo(t.expiresAt) : '—'}</td>
+                    <td><Status tone={status.tone}>{status.label}</Status></td>
+                    <td style={{ textAlign: 'right' }}>
+                      {!t.consumedAt && !expired && (
+                        <RowMenu items={[
+                          { label: 'Revoke', danger: true, onSelect: () => revoke(t.tokenHash) },
+                        ]} />
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
   );
 }
 
@@ -836,6 +904,12 @@ export function NetworkInterfaces(): JSX.Element {
   const [routes, setRoutes] = useState<edgeApi.NetworkRoute[]>([]);
   const [missing, setMissing] = useState(false);
   const [editIface, setEditIface] = useState<edgeApi.NetworkInterface | null>(null);
+  const [showPinLease, setShowPinLease] = useState(false);
+  function removeLease(mac: string): void {
+    runAction(`Delete lease ${mac}? If the client is still connected it will reacquire a dynamic address.`,
+      () => edgeApi.networkLeaseDelete(mac),
+      () => { reload().catch(() => undefined); });
+  }
   async function reload(): Promise<void> {
     try { setIfaces((await edgeApi.networkInterfaces()).interfaces); setMissing(false); }
     catch { setMissing(true); setIfaces([]); }
@@ -961,7 +1035,11 @@ export function NetworkInterfaces(): JSX.Element {
           onClose={() => setEditIface(null)}
           onSaved={() => { setEditIface(null); reload().catch(() => undefined); }} />}
 
-      <Panel title={`DHCP leases · ${leases.length}`}>
+      <Panel title={`DHCP leases · ${leases.length}`}
+             action={<button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                              onClick={() => setShowPinLease(true)}>
+               <UiIcon icon="plus" size={14} /><span>Pin static lease</span>
+             </button>}>
         {leases.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
             No active DHCP leases. Devices appear here once the local DHCP server grants an address.
@@ -971,6 +1049,7 @@ export function NetworkInterfaces(): JSX.Element {
             <table className="ea-table ea-table--dense">
               <thead><tr>
                 <th>MAC</th><th>IP</th><th>Hostname</th><th>Issued</th><th>Expires</th><th>Kind</th>
+                <th style={{ width: 48 }} aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {leases.map((l) => (
@@ -980,7 +1059,16 @@ export function NetworkInterfaces(): JSX.Element {
                     <td>{l.hostname ?? '—'}</td>
                     <td className="ea-text-muted">{l.issuedAt ? fmtAgo(l.issuedAt) : '—'}</td>
                     <td className="ea-text-muted">{l.expiresAt ? fmtAgo(l.expiresAt) : '—'}</td>
-                    <td>{l.staticLease ? 'Static' : 'Dynamic'}</td>
+                    <td>
+                      <Status tone={l.staticLease ? 'info' : 'muted'}>
+                        {l.staticLease ? 'STATIC' : 'DYNAMIC'}
+                      </Status>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <RowMenu items={[
+                        { label: 'Delete lease', danger: true, onSelect: () => removeLease(l.mac) },
+                      ]} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -988,6 +1076,70 @@ export function NetworkInterfaces(): JSX.Element {
           </div>
         )}
       </Panel>
+
+      {showPinLease && <StaticLeaseDialog
+          onClose={() => setShowPinLease(false)}
+          onSaved={() => { setShowPinLease(false); reload().catch(() => undefined); }} />}
+    </div>
+  );
+}
+
+function StaticLeaseDialog({ onClose, onSaved }: {
+  onClose: () => void; onSaved: () => void;
+}): JSX.Element {
+  const [mac, setMac] = useState('');
+  const [ip, setIp] = useState('');
+  const [hostname, setHostname] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function save(): Promise<void> {
+    setSaving(true); setErr(null);
+    try {
+      await edgeApi.networkLeasePin({ mac, ip, hostname: hostname || undefined });
+      onSaved();
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setSaving(false); }
+  }
+  return (
+    <div className="ea-modal-overlay" onClick={onClose}
+         style={{ position: 'fixed', inset: 0, background: 'rgba(15,28,46,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div className="ea-modal" onClick={(e) => e.stopPropagation()}
+           style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
+                    padding: 24, maxWidth: 460, width: '90%', boxShadow: 'var(--el-3)' }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Pin static DHCP lease</h3>
+        <p className="ea-text-muted" style={{ margin: '0 0 12px', fontSize: 12 }}>
+          Reserve an IP for a specific MAC. The DHCP server will always
+          hand out this IP when the device joins the network.
+        </p>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <label style={{ fontSize: 12 }}>MAC address
+            <input className="ea-input" value={mac}
+                   placeholder="aa:bb:cc:00:00:01"
+                   onChange={(e) => setMac(e.target.value)} />
+          </label>
+          <label style={{ fontSize: 12 }}>IP address
+            <input className="ea-input" value={ip}
+                   placeholder="10.88.0.60"
+                   onChange={(e) => setIp(e.target.value)} />
+          </label>
+          <label style={{ fontSize: 12 }}>Hostname (optional)
+            <input className="ea-input" value={hostname}
+                   placeholder="tab-reg-01"
+                   onChange={(e) => setHostname(e.target.value)} />
+          </label>
+        </div>
+        {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
+                     color: 'var(--der-danger-ink)' }}>{err}</div>}
+        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  disabled={saving || !mac || !ip} onClick={save}>
+            {saving ? <span className="ea-btn-spinner" /> : <UiIcon icon="plus" size={14} />}
+            <span>{saving ? 'Saving…' : 'Pin lease'}</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1387,6 +1539,8 @@ export function NetworkSecurity(): JSX.Element {
         </table>
       </Panel>
 
+      <TlsCertPanel />
+
       {showAdd && <PolicyDialog mode="add"
           onClose={() => setShowAdd(false)}
           onSaved={() => { setShowAdd(false); reload().catch(() => undefined); }} />}
@@ -1394,6 +1548,70 @@ export function NetworkSecurity(): JSX.Element {
           onClose={() => setEditRule(null)}
           onSaved={() => { setEditRule(null); reload().catch(() => undefined); }} />}
     </div>
+  );
+}
+
+function TlsCertPanel(): JSX.Element {
+  const [tls, setTls] = useState<edgeApi.NetworkTlsCert | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    edgeApi.networkTls().then(setTls).catch((e) =>
+      setErr(e instanceof Error ? e.message : String(e)));
+  }, []);
+  function downloadPem(): void {
+    if (!tls) return;
+    const pem = '-----BEGIN PUBLIC KEY-----\n'
+              + tls.publicKeyBase64.match(/.{1,64}/g)?.join('\n') + '\n'
+              + '-----END PUBLIC KEY-----\n';
+    downloadBlob('der-local-tls.pub.pem', pem, 'application/x-pem-file');
+  }
+  const expiresAt = tls?.notAfter ? new Date(tls.notAfter) : null;
+  const daysLeft  = expiresAt
+    ? Math.round((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+  const tone: 'success' | 'warning' | 'danger' =
+    daysLeft == null || daysLeft < 0 ? 'danger'
+    : daysLeft < 30 ? 'warning' : 'success';
+  return (
+    <Panel title="TLS certificate — https://der.local"
+           action={<button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                            disabled={!tls} onClick={downloadPem}>
+             <UiIcon icon="download" size={14} /><span>Download pubkey</span>
+           </button>}>
+      {err ? (
+        <p className="ea-text-muted" style={{ margin: 0, padding: 10,
+                                              color: 'var(--der-danger-ink)' }}>
+          Couldn't load TLS state — {err}
+        </p>
+      ) : !tls ? (
+        <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>Loading…</p>
+      ) : (
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>Status</dt>
+            <dd><Status tone={tone}>
+              {daysLeft != null && daysLeft >= 0
+                ? `${daysLeft} days until expiry`
+                : 'EXPIRED'}
+            </Status></dd></div>
+          <div className="ea-def-row"><dt>Subject</dt>
+            <dd className="ea-mono">{tls.subject}</dd></div>
+          <div className="ea-def-row"><dt>Issuer</dt>
+            <dd className="ea-mono">{tls.issuer}</dd></div>
+          <div className="ea-def-row"><dt>Algorithm</dt>
+            <dd className="ea-mono">{tls.algorithm}</dd></div>
+          <div className="ea-def-row"><dt>Fingerprint</dt>
+            <dd className="ea-mono" style={{ fontSize: 11, wordBreak: 'break-all' }}>
+              {tls.fingerprint}
+            </dd></div>
+          <div className="ea-def-row"><dt>SAN</dt>
+            <dd className="ea-mono">{tls.san.join(', ')}</dd></div>
+          <div className="ea-def-row"><dt>Not before</dt>
+            <dd className="ea-mono">{fmtDate(tls.notBefore)}</dd></div>
+          <div className="ea-def-row"><dt>Not after</dt>
+            <dd className="ea-mono">{fmtDate(tls.notAfter)}</dd></div>
+        </dl>
+      )}
+    </Panel>
   );
 }
 

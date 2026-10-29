@@ -1340,9 +1340,11 @@ export function networkLeases(): Promise<{ leases: NetworkLease[] }> {
 }
 
 export interface NetworkEnrolToken {
+  tokenHash: string;
   issuedAt: string | null; expiresAt: string | null;
   deviceIdHint: string | null;
   consumedAt: string | null; consumedBy: string | null;
+  issuedBy?: string | null;
 }
 export function networkEnrolTokens(): Promise<{ tokens: NetworkEnrolToken[] }> {
   return request('GET', '/edge-api/v1/network/enrol-tokens');
@@ -1359,6 +1361,35 @@ export function networkSettings(): Promise<{ settings: Record<string, string> }>
 }
 export function networkSettingPut(key: string, value: string): Promise<{ key: string; value: string }> {
   return request('PUT', `/edge-api/v1/network/settings/${encodeURIComponent(key)}`, { value });
+}
+
+export function networkEnrolTokenRevoke(tokenHash: string): Promise<{ revoked: boolean }> {
+  return request('DELETE', `/edge-api/v1/network/enrol-tokens/${encodeURIComponent(tokenHash)}`);
+}
+
+export function networkLeasePin(body: { mac: string; ip: string; hostname?: string }):
+    Promise<{ pinned: boolean }> {
+  return request('POST', '/edge-api/v1/network/leases/static', body);
+}
+export function networkLeaseDelete(mac: string): Promise<{ deleted: boolean }> {
+  return request('DELETE', `/edge-api/v1/network/leases/${encodeURIComponent(mac)}`);
+}
+
+export interface NetworkTlsCert {
+  subject: string; issuer: string; algorithm: string;
+  fingerprint: string; publicKeyBase64: string;
+  notBefore: string; notAfter: string;
+  san: string[]; renewable: boolean;
+}
+export function networkTls(): Promise<NetworkTlsCert> {
+  return request('GET', '/edge-api/v1/network/tls');
+}
+
+export interface MdnsService {
+  type: string; host: string; port: number; description: string;
+}
+export function networkMdns(): Promise<{ services: MdnsService[] }> {
+  return request('GET', '/edge-api/v1/network/mdns');
 }
 
 export function networkApEdit(body: {

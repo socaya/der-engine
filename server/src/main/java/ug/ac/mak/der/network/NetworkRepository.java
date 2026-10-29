@@ -316,18 +316,47 @@ public class NetworkRepository {
 
     public List<Map<String, Object>> listEnrolTokens() {
         return jdbc.query(
-            "SELECT issued_at, expires_at, device_id_hint, consumed_at, consumed_by_device "
+            "SELECT token_hash, issued_at, expires_at, device_id_hint, "
+          + "       consumed_at, consumed_by_device, issued_by "
           + "  FROM der.network_enrol_token "
           + "  ORDER BY issued_at DESC LIMIT 100",
             (ResultSet rs, int row) -> {
                 final Map<String, Object> m = new LinkedHashMap<>();
+                m.put("tokenHash",  rs.getString("token_hash"));
                 m.put("issuedAt",   optInstant(rs.getTimestamp("issued_at")));
                 m.put("expiresAt",  optInstant(rs.getTimestamp("expires_at")));
                 m.put("deviceIdHint", rs.getString("device_id_hint"));
                 m.put("consumedAt", optInstant(rs.getTimestamp("consumed_at")));
                 m.put("consumedBy", rs.getString("consumed_by_device"));
+                m.put("issuedBy",   rs.getObject("issued_by"));
                 return m;
             });
+    }
+
+    public int revokeEnrolToken(final String tokenHash) {
+        // "Revoke" = force-expire by setting consumed_at. Keeps the row
+        // for audit so operators can see who tried what.
+        return jdbc.update(
+            "UPDATE der.network_enrol_token "
+          + "   SET consumed_at = now(), consumed_by_device = 'REVOKED' "
+          + " WHERE token_hash = ? AND consumed_at IS NULL",
+            tokenHash);
+    }
+
+    /* ─── Static DHCP lease management (Phase N1) ───────────────── */
+
+    public int insertStaticLease(final String mac, final String ip, final String hostname) {
+        return jdbc.update(
+            "INSERT INTO der.network_lease (mac, ip, hostname, expires_at, static_lease) "
+          + "VALUES (?, ?, ?, now() + interval '10 years', TRUE) "
+          + "ON CONFLICT (mac) DO UPDATE SET "
+          + "  ip = EXCLUDED.ip, hostname = EXCLUDED.hostname, "
+          + "  expires_at = EXCLUDED.expires_at, static_lease = TRUE",
+            mac, ip, hostname);
+    }
+
+    public int deleteLease(final String mac) {
+        return jdbc.update("DELETE FROM der.network_lease WHERE mac=?", mac);
     }
 
     public int updateClientTrust(final String deviceId, final ClientTrust trust,
