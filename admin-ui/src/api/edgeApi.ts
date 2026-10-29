@@ -1401,6 +1401,63 @@ export function networkImport(bundle: unknown): Promise<{
   return request('POST', '/edge-api/v1/network/import', bundle);
 }
 
+/* ─── DER-MSG v1 — device-to-device bus ──────────────── */
+export interface DeviceMessage {
+  messageId: string;
+  channel: string;
+  fromDeviceId: string;
+  fromUserId: string | null;
+  messageType: string;
+  payload: string;
+  replyTo: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+export interface DeviceSubscription {
+  deviceId: string;
+  channel: string;
+  cursorAt: string | null;
+  lastPollAt: string | null;
+  createdAt: string;
+}
+export interface MessagingStats {
+  messagesTotal: number;
+  devicesSubscribed: number;
+  channelsActive: number;
+  messagesLastHour: number;
+  topChannels: Array<{ channel: string; n: number; lastAt: string }>;
+}
+export function messagingStats(): Promise<MessagingStats> {
+  return request('GET', '/edge-api/v1/messaging/stats');
+}
+export function messagingLog(limit = 100): Promise<{ messages: DeviceMessage[] }> {
+  return request('GET', `/edge-api/v1/messaging/log?limit=${limit}`);
+}
+export function messagingSubscriptions(): Promise<{ subscriptions: DeviceSubscription[] }> {
+  return request('GET', '/edge-api/v1/messaging/subscriptions');
+}
+export function messagingPublish(body: {
+  channel: string; fromDeviceId: string; messageType: string;
+  payload?: Record<string, unknown>; replyTo?: string; ttlSeconds?: number;
+}): Promise<{ messageId: string }> {
+  return request('POST', '/edge-api/v1/messaging/publish', body);
+}
+export function messagingRecent(deviceId: string, since?: string, limit = 50):
+    Promise<{ messages: DeviceMessage[] }> {
+  const q = new URLSearchParams({ deviceId, limit: String(limit) });
+  if (since) q.set('since', since);
+  return request('GET', `/edge-api/v1/messaging/recent?${q.toString()}`);
+}
+export function messagingSubscribe(body: { deviceId: string; channel: string }):
+    Promise<{ subscribed: boolean }> {
+  return request('POST', '/edge-api/v1/messaging/subscribe', body);
+}
+export function messagingUnsubscribe(deviceId: string, channel: string):
+    Promise<{ removed: number }> {
+  const q = new URLSearchParams({ deviceId, channel }).toString();
+  return request('DELETE', `/edge-api/v1/messaging/subscribe?${q}`);
+}
+
 export function networkApEdit(body: {
   ssid?: string; band?: string; channel?: number;
   security?: string; interfaceName?: string;

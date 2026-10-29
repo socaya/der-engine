@@ -121,6 +121,11 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.PUT,   "/edge-api/v1/network/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE,"/edge-api/v1/network/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/network/**").authenticated()
+                        // Phase N5 — DER-MSG v1 device-to-device bus.
+                        // Every authenticated device may publish, pull,
+                        // subscribe, and update cursors. Admin surface
+                        // (stats / log / subscriptions) same policy.
+                        .requestMatchers("/edge-api/v1/messaging/**").authenticated()
                         .requestMatchers("/edge-api/v1/apps/**").authenticated()
                         .requestMatchers("/edge-api/v1/**").authenticated()
                         // ADR-0004: DER emulates the DHIS2 Web API at /api/**.

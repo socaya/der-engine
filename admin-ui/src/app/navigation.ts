@@ -27,7 +27,7 @@ export type TabIconId =
   | 'schedule' | 'history' | 'settings' | 'drift' | 'health'
   | 'storage' | 'diagnostics' | 'analytics' | 'evaluation'
   | 'audit' | 'backup' | 'restore' | 'recovery'
-  | 'wifi' | 'access-point' | 'ethernet' | 'firewall' | 'peer' | 'tei';
+  | 'wifi' | 'access-point' | 'ethernet' | 'firewall' | 'peer' | 'tei' | 'activity';
 
 export interface NavItem {
   readonly id: string;
@@ -118,6 +118,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'network-peers', label: 'Peers', to: '/network/peers', status: 'implemented', tabIcon: 'peer' },
       { id: 'network-security', label: 'Security', to: '/network/security', status: 'implemented', tabIcon: 'firewall' },
       { id: 'network-diagnostics', label: 'Diagnostics', to: '/network/diagnostics', status: 'implemented', tabIcon: 'diagnostics' },
+      { id: 'network-messaging', label: 'Device messaging', to: '/network/messaging', status: 'implemented', tabIcon: 'activity' },
       { id: 'network-settings', label: 'Settings', to: '/network/settings', status: 'implemented', tabIcon: 'settings' },
     ],
   },
