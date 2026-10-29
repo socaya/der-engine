@@ -1,0 +1,37 @@
+#!/bin/sh
+# postinst — DER appliance package.
+#
+# Creates the der system user, provisions the data + log dirs, applies
+# flyway migrations through the embedded tooling, and starts
+# der-server.service.
+set -e
+
+USER_NAME=der
+DATA_DIR=/var/lib/der
+LOG_DIR=/var/log/der
+CONFIG_DIR=/etc/der
+
+if ! getent passwd "${USER_NAME}" >/dev/null; then
+    adduser --system --group --home /nonexistent --no-create-home \
+            --shell /usr/sbin/nologin "${USER_NAME}"
+fi
+
+mkdir -p "${DATA_DIR}" "${LOG_DIR}" "${CONFIG_DIR}"
+chown -R "${USER_NAME}":"${USER_NAME}" "${DATA_DIR}" "${LOG_DIR}"
+chmod 750 "${DATA_DIR}" "${LOG_DIR}"
+
+if [ ! -f "${CONFIG_DIR}/pilot.env" ] && [ -f "${CONFIG_DIR}/pilot.env.example" ]; then
+    cp "${CONFIG_DIR}/pilot.env.example" "${CONFIG_DIR}/pilot.env"
+    chmod 640 "${CONFIG_DIR}/pilot.env"
+    chown root:"${USER_NAME}" "${CONFIG_DIR}/pilot.env"
+    echo "DER: copied example pilot.env — edit ${CONFIG_DIR}/pilot.env before starting."
+fi
+
+systemctl daemon-reload || true
+systemctl enable der-server.service || true
+
+echo "DER: installed. Edit ${CONFIG_DIR}/pilot.env then:"
+echo "       systemctl start der-server"
+
+#DEBHELPER#
+exit 0

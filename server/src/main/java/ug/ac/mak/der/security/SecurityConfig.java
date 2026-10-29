@@ -160,6 +160,8 @@ public class SecurityConfig {
                         .requestMatchers("/edge-api/v1/user-prefs/**").authenticated()
                         // §9 Testing harness — chaos / load / soak / golden.
                         .requestMatchers("/edge-api/v1/testing/**").hasRole("ADMIN")
+                        // §10 Packaging — artefact registry + HW kit catalogue.
+                        .requestMatchers("/edge-api/v1/packaging/**").authenticated()
                         // Phase N5 — DER-MSG v1 device-to-device bus.
                         // Every authenticated device may publish, pull,
                         // subscribe, and update cursors. Admin surface

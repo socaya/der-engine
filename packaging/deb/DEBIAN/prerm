@@ -1,0 +1,11 @@
+#!/bin/sh
+# prerm — stop + disable DER before removal.
+set -e
+
+if [ -x /usr/bin/systemctl ]; then
+    systemctl stop der-server.service || true
+    systemctl disable der-server.service || true
+fi
+
+#DEBHELPER#
+exit 0

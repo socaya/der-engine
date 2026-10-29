@@ -1,0 +1,19 @@
+Package: der
+Version: @VERSION@
+Section: net
+Priority: optional
+Architecture: all
+Depends: openjdk-21-jre-headless | openjdk-17-jre-headless, postgresql-17 | postgresql-16 | postgresql-15, adduser
+Recommends: nginx, fail2ban, apparmor
+Maintainer: DER Engineering <socaya@stephocay.com>
+Homepage: https://github.com/socaya/der-engine
+Description: DHIS2 Edge Runtime appliance
+ DER is an edge appliance that keeps a facility running when the
+ central DHIS2 server is unreachable. It mirrors metadata, buffers
+ data entry, and syncs when connectivity returns.
+ .
+ Includes:
+   * Spring Boot coordination service (/opt/der/der-server.jar)
+   * Admin UI (served at /admin/)
+   * Device-client PWA (served at /)
+   * systemd unit, AppArmor profile, nginx config, fail2ban jail

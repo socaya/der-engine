@@ -29,3 +29,5 @@ CLAUDE.md
 
 __pycache__/
 *.pyc
+# §10 packaging artefacts
+/dist/
