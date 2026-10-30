@@ -198,6 +198,59 @@ else
   log "skipping network stack (SKIP_NETWORK_STACK=1)"
 fi
 
+# --- 6.5b. local-tls: trust DER cert + redirect 443 → 8443 -----------
+# Lets operators and LAN devices open the bare `https://der.local`
+# instead of the explicit `:8443` port. Idempotent — safe to re-run
+# with `der-manager local-tls` after a cert rotation.
+if [[ -z "${SKIP_LOCAL_TLS}" ]]; then
+  log "configuring local-tls (443 → 8443 redirect + system cert trust)"
+
+  # (1) Install nftables redirect, both for inbound LAN traffic to der.local
+  #     and for localhost traffic (ops on the box itself).
+  if command -v nft >/dev/null 2>&1; then
+    install -d -o root -g root -m 0755 /etc/nftables.d
+    install -o root -g root -m 0644 \
+      "${ROOT}/deployment/pilot/nftables/der-local-tls.nft" \
+      /etc/nftables.d/der-local-tls.nft
+    # Include our file from /etc/nftables.conf once.
+    if ! grep -q '/etc/nftables.d/der-local-tls.nft' /etc/nftables.conf 2>/dev/null; then
+      echo 'include "/etc/nftables.d/der-local-tls.nft"' >> /etc/nftables.conf
+      log "added include for der-local-tls.nft to /etc/nftables.conf"
+    fi
+    nft -f /etc/nftables.conf 2>/dev/null \
+      && log "nftables loaded (443 → 8443 redirect active)" \
+      || log "WARN: nftables reload failed; see 'nft list ruleset'"
+  else
+    log "nft not installed; skipping 443 → 8443 redirect"
+  fi
+
+  # (2) Install the DER self-signed cert into the system trust store so
+  #     curl / wget / apt / Java all accept it. Looks for keystore in
+  #     either the pilot location (/etc/der/der-local.p12) or the per-user
+  #     dev location (~/.der/der-local.p12).
+  KS_SEARCH=(/etc/der/der-local.p12 /opt/der/der-local.p12 \
+             "${USER_HOME:-/home/${USER_NAME}}/.der/der-local.p12")
+  KS_PATH=""
+  for p in "${KS_SEARCH[@]}"; do
+    if [[ -f "${p}" ]]; then KS_PATH="${p}"; break; fi
+  done
+  if [[ -n "${KS_PATH}" ]] && command -v openssl >/dev/null 2>&1; then
+    openssl pkcs12 -in "${KS_PATH}" -passin "pass:${DER_HTTPS_PASSWORD:-changeit}" \
+                   -clcerts -nokeys 2>/dev/null \
+      > /usr/local/share/ca-certificates/der-local.crt
+    chmod 0644 /usr/local/share/ca-certificates/der-local.crt
+    if command -v update-ca-certificates >/dev/null 2>&1; then
+      update-ca-certificates >/dev/null 2>&1 \
+        && log "DER cert installed to /usr/local/share/ca-certificates/der-local.crt + system trust refreshed" \
+        || log "WARN: update-ca-certificates failed"
+    fi
+  else
+    log "keystore not found at ${KS_SEARCH[*]} (start der-server once to generate); skipping cert trust"
+  fi
+else
+  log "skipping local-tls (SKIP_LOCAL_TLS=1)"
+fi
+
 # --- 6.6. Security hardening (AppArmor + fail2ban) ---------------------
 # §6 — Install AppArmor profile restricting DER's filesystem + network
 # reach; fail2ban jail that bans repeated AUTH_FAIL log lines.  Both

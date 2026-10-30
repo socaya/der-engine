@@ -23,6 +23,9 @@
 #   sudo der-manager restore <runId>   # POST /restore from a local snapshot
 #   sudo der-manager pitr <timestamp>  # POST /backup/pitr/plan for a target time
 #   sudo der-manager verify            # POST /backup/pitr/verify/run
+#   sudo der-manager local-tls         # trust DER cert + 443 → 8443
+#                                        redirect so https://der.local
+#                                        works without an explicit port
 #
 # Env:
 #   DER_HOST    (default http://localhost:8085)
@@ -148,6 +151,59 @@ cmd_verify() {
   api POST /edge-api/v1/backup/pitr/verify/run
 }
 
+# ─── local-tls — trust DER cert + 443 → 8443 redirect ─────────────────
+# Re-runnable slice of install.sh §6.5b. Useful after cert rotation
+# or on a host that was installed with SKIP_LOCAL_TLS=1 originally.
+cmd_local_tls() {
+  need_root local-tls
+  log() { printf '[der-manager local-tls] %s\n' "$*"; }
+
+  # (1) nftables redirect.
+  if command -v nft >/dev/null 2>&1; then
+    install -d -o root -g root -m 0755 /etc/nftables.d
+    install -o root -g root -m 0644 \
+      "${ROOT}/deployment/pilot/nftables/der-local-tls.nft" \
+      /etc/nftables.d/der-local-tls.nft
+    if ! grep -q '/etc/nftables.d/der-local-tls.nft' /etc/nftables.conf 2>/dev/null; then
+      echo 'include "/etc/nftables.d/der-local-tls.nft"' >> /etc/nftables.conf
+      log 'added include for der-local-tls.nft to /etc/nftables.conf'
+    fi
+    nft -f /etc/nftables.conf 2>/dev/null \
+      && log 'nftables loaded (443 → 8443 redirect active)' \
+      || log 'WARN: nftables reload failed'
+  else
+    log 'nft not installed; skipping redirect (install nftables first)'
+  fi
+
+  # (2) System trust store.
+  local ks_path=""
+  for p in /etc/der/der-local.p12 /opt/der/der-local.p12 \
+           "${HOME}/.der/der-local.p12" /home/der/.der/der-local.p12; do
+    if [[ -f "${p}" ]]; then ks_path="${p}"; break; fi
+  done
+  if [[ -n "${ks_path}" ]] && command -v openssl >/dev/null 2>&1; then
+    openssl pkcs12 -in "${ks_path}" -passin "pass:${DER_HTTPS_PASSWORD:-changeit}" \
+                   -clcerts -nokeys 2>/dev/null \
+      > /usr/local/share/ca-certificates/der-local.crt
+    chmod 0644 /usr/local/share/ca-certificates/der-local.crt
+    if command -v update-ca-certificates >/dev/null 2>&1; then
+      update-ca-certificates >/dev/null 2>&1 \
+        && log "DER cert added to system trust from ${ks_path}" \
+        || log 'WARN: update-ca-certificates failed'
+    fi
+  else
+    log 'no keystore found — start the DER server once so it provisions ~/.der/der-local.p12'
+  fi
+
+  # (3) Verify (needs server running).
+  if curl -fsS --resolve der.local:443:127.0.0.1 \
+          "https://der.local/edge-api/v1/system/health" >/dev/null 2>&1; then
+    log 'VERIFIED: https://der.local → 200 OK (trusted)'
+  else
+    log 'NOTE: server may not be listening on 8443; try: der-manager start'
+  fi
+}
+
 case "${1:-}" in
   install)         cmd_install        "$@" ;;
   start)           cmd_start                ;;
@@ -164,6 +220,7 @@ case "${1:-}" in
   restore)         cmd_restore          "$@" ;;
   pitr)            cmd_pitr             "$@" ;;
   verify)          cmd_verify               ;;
+  local-tls)       cmd_local_tls            ;;
   -h|--help|help|'') usage ;;
   *) echo "unknown command: $1" >&2; usage; exit 1 ;;
 esac

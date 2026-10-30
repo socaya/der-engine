@@ -1,0 +1,23 @@
+# deployment/pilot/nftables/der-local-tls.nft — redirect 443 → 8443.
+#
+# DER's Spring Boot HTTPS listener binds :8443 so it doesn't need root.
+# For bare `https://der.local` to work from any device on the facility
+# LAN (and from `curl` on the DER host itself) we redirect TCP 443 to
+# 8443 at the kernel level.
+#
+# Loaded by nftables.service via /etc/nftables.conf include. Safe to
+# remove — the server still listens on :8443 directly.
+
+table ip der_local_tls {
+    # LAN inbound: devices hitting der.local on 443 get redirected.
+    chain prerouting {
+        type nat hook prerouting priority dstnat; policy accept;
+        tcp dport 443 redirect to :8443
+    }
+
+    # Host-local traffic (curl / ops on the DER box).
+    chain output {
+        type nat hook output priority -100; policy accept;
+        ip daddr 127.0.0.1 tcp dport 443 redirect to :8443
+    }
+}
