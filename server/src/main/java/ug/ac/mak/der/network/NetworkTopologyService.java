@@ -103,11 +103,14 @@ public class NetworkTopologyService {
             dj.put("sync", sync);
             deviceJson.add(dj);
 
-            // LAN connection der → device
+            // LAN connection der → device. Always rendered as solid Wi-Fi
+            // regardless of form factor; devices connect to DER through
+            // the facility LAN or DER-hosted access point. Device↔device
+            // P2P dashed edges live in the adjacency table.
             final Map<String, Object> link = new LinkedHashMap<>();
             link.put("source", "der");
             link.put("target", d.deviceId().toString());
-            link.put("type", d.formFactor() == EdgeDevice.FormFactor.MOBILE ? "p2p" : "wifi");
+            link.put("type", "wifi");
             link.put("status", devStatus);
             connections.add(link);
         }

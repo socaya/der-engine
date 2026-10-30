@@ -90,7 +90,8 @@ export function ringLayout<T>(nodes: T[], radius: number,
   });
 }
 
-/** WAN cloud sits above the DER centre. */
+/** WAN cloud sits above-right of the DER centre so the DER↔WAN line
+ *  never crosses the top-centre or upper-right device slots. */
 export function wanPosition(): Point {
-  return { x: CENTRE.x, y: CENTRE.y - 340 };
+  return { x: CENTRE.x + 300, y: CENTRE.y - 320 };
 }

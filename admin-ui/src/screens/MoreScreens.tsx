@@ -526,6 +526,11 @@ export function MockupWorkerHealth(): JSX.Element {
 }
 
 /* ─── /devices ───────────────────────────────────────────────────── */
+function titleCase(s: string): string {
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
 export function MockupDeviceFleet(): JSX.Element {
   const navigate = useNavigate();
   const [rows, setRows] = useState<edgeApi.EdgeDeviceRow[] | null>(null);
@@ -539,8 +544,11 @@ export function MockupDeviceFleet(): JSX.Element {
   useEffect(() => { reload().catch(() => undefined); }, []);
 
   const q = query.trim().toLowerCase();
-  const filtered = (rows ?? []).filter((r) => !q || r.deviceId.toLowerCase().includes(q)
-    || (r.userAgent ?? '').toLowerCase().includes(q));
+  const filtered = (rows ?? []).filter((r) => !q
+    || r.deviceId.toLowerCase().includes(q)
+    || (r.userAgent ?? '').toLowerCase().includes(q)
+    || (r.displayName ?? '').toLowerCase().includes(q)
+    || (r.formFactor ?? '').toLowerCase().includes(q));
   const paged = usePaged(filtered, 25);
 
   if (err) return <ErrorBlock title="Device load failed" testId="err-devices">{err}</ErrorBlock>;
@@ -575,6 +583,7 @@ export function MockupDeviceFleet(): JSX.Element {
           <table className="ea-table ea-table--dense ea-table--selectable">
             <thead><tr>
               <th>Device</th>
+              <th>Form factor</th>
               <th>Status</th>
               <th>Enrolled</th>
               <th>Last seen</th>
@@ -585,7 +594,18 @@ export function MockupDeviceFleet(): JSX.Element {
                 <tr key={r.deviceId}
                     onClick={() => navigate(`/devices/${r.deviceId}`)}
                     data-test={`dev-row-${r.deviceId}`}>
-                  <td className="ea-mono">{r.deviceId.slice(0, 12)}…</td>
+                  <td>
+                    <div style={{ fontWeight: r.displayName ? 500 : 400 }}>
+                      {r.displayName ?? <em className="ea-text-muted">unnamed</em>}
+                    </div>
+                    <div className="ea-text-muted ea-mono"
+                         style={{ fontSize: 11 }} title={r.deviceId}>
+                      {r.deviceId.slice(0, 12)}…
+                    </div>
+                  </td>
+                  <td>{r.formFactor && r.formFactor !== 'UNKNOWN'
+                        ? titleCase(r.formFactor)
+                        : <span className="ea-text-muted">—</span>}</td>
                   <td>
                     <Status tone={
                       r.status === 'APPROVED' ? 'success'
