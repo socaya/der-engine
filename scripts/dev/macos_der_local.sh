@@ -42,7 +42,8 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 if [[ "${1:-}" == "--uninstall" ]]; then
-    step "Removing pf anchor + trust"
+    step "Removing /etc/hosts entry, pf anchor + trust"
+    sudo sed -i '' '/[[:space:]]der\.local$/d' /etc/hosts 2>/dev/null || true
     sudo rm -f "${PF_ANCHOR}"
     sudo sed -i '' "\\|${PF_CONF_LINE}|d" /etc/pf.conf 2>/dev/null || true
     sudo sed -i '' "\\|${PF_LOAD_LINE}|d" /etc/pf.conf 2>/dev/null || true
@@ -56,6 +57,22 @@ if [[ "${1:-}" == "--uninstall" ]]; then
     ok "removed. https://der.local → nothing (back to default)."
     exit 0
 fi
+
+# ─── 0. /etc/hosts entry ──────────────────────────────────────
+# macOS mDNSResponder only publishes <system LocalHostName>.local; a bare
+# `der.local` doesn't resolve unless we pin it in /etc/hosts.
+step "0. /etc/hosts der.local → 127.0.0.1"
+if grep -qE '^[^#]*127\.0\.0\.1[[:space:]]+der\.local$' /etc/hosts; then
+    ok "already present"
+else
+    # Clean any stale entry pointing elsewhere, then add the fresh line.
+    sudo sed -i '' '/[[:space:]]der\.local$/d' /etc/hosts
+    echo '127.0.0.1	der.local' | sudo tee -a /etc/hosts >/dev/null
+    ok "added '127.0.0.1 der.local' to /etc/hosts"
+fi
+# Flush DNS cache so Chrome / Safari pick it up immediately.
+sudo dscacheutil -flushcache 2>/dev/null || true
+sudo killall -HUP mDNSResponder 2>/dev/null || true
 
 # ─── 1. Export cert ────────────────────────────────────────────
 step "1. Export self-signed cert"

@@ -203,7 +203,18 @@ fi
 # instead of the explicit `:8443` port. Idempotent — safe to re-run
 # with `der-manager local-tls` after a cert rotation.
 if [[ -z "${SKIP_LOCAL_TLS}" ]]; then
-  log "configuring local-tls (443 → 8443 redirect + system cert trust)"
+  log "configuring local-tls (hosts entry + 443 → 8443 redirect + cert trust)"
+
+  # (0) /etc/hosts der.local → 127.0.0.1. Avahi normally publishes
+  #     <hostname>.local via mDNS, but a host whose system hostname is
+  #     not 'der' won't resolve the bare 'der.local'. The /etc/hosts
+  #     pin guarantees localhost resolution on the DER box itself;
+  #     LAN devices still get mDNS from the avahi service file.
+  if ! grep -qE '^[^#]*127\.0\.0\.1[[:space:]]+der\.local$' /etc/hosts; then
+    sed -i '/[[:space:]]der\.local$/d' /etc/hosts
+    echo '127.0.0.1	der.local' >> /etc/hosts
+    log "added '127.0.0.1 der.local' to /etc/hosts"
+  fi
 
   # (1) Install nftables redirect, both for inbound LAN traffic to der.local
   #     and for localhost traffic (ops on the box itself).

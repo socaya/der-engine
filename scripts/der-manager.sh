@@ -158,6 +158,13 @@ cmd_local_tls() {
   need_root local-tls
   log() { printf '[der-manager local-tls] %s\n' "$*"; }
 
+  # (0) /etc/hosts der.local → 127.0.0.1.
+  if ! grep -qE '^[^#]*127\.0\.0\.1[[:space:]]+der\.local$' /etc/hosts; then
+    sed -i '/[[:space:]]der\.local$/d' /etc/hosts
+    echo '127.0.0.1	der.local' >> /etc/hosts
+    log "added '127.0.0.1 der.local' to /etc/hosts"
+  fi
+
   # (1) nftables redirect.
   if command -v nft >/dev/null 2>&1; then
     install -d -o root -g root -m 0755 /etc/nftables.d
