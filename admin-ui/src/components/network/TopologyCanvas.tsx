@@ -1,5 +1,5 @@
-import { CANVAS_HEIGHT, CANVAS_WIDTH, CENTRE, DEVICE_RING_RADIUS,
-         PEER_RING_RADIUS, ringLayout, wanPosition } from './topologyLayout';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, CENTRE,
+         layoutDevices, layoutPeers, wanPosition } from './topologyLayout';
 import { NetworkConnection } from './NetworkConnection';
 import { DerCard, DeviceCard, PeerCard, WanBubble } from './NetworkNode';
 import type { Connection, DerNode, DeviceNode, PeerNode, SelectedNode,
@@ -19,8 +19,8 @@ interface Props {
 export function TopologyCanvas(props: Props): JSX.Element {
   const { der, wan, devices, peers, connections, selected, onSelect } = props;
 
-  const deviceLaid = ringLayout(devices, DEVICE_RING_RADIUS);
-  const peerLaid = ringLayout(peers, PEER_RING_RADIUS);
+  const deviceLaid = layoutDevices(devices);
+  const peerLaid = layoutPeers(peers);
   const wanPos = wanPosition();
 
   // Index of positions by node id for drawing connections.
@@ -43,7 +43,7 @@ export function TopologyCanvas(props: Props): JSX.Element {
       <svg viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
            role="img"
            aria-label="Facility mesh topology"
-           style={{ width: '100%', maxHeight: 620, display: 'block' }}
+           style={{ width: '100%', maxHeight: 760, display: 'block' }}
            preserveAspectRatio="xMidYMid meet">
         {/* Edges first so cards sit on top. */}
         {/* DER → WAN (vertical dashed, WAN-tone) */}
