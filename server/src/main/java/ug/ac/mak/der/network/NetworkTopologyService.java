@@ -13,6 +13,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import ug.ac.mak.der.device.DeviceAdjacencyService;
 import ug.ac.mak.der.device.DeviceService;
 import ug.ac.mak.der.device.EdgeDevice;
 
@@ -32,17 +33,20 @@ public class NetworkTopologyService {
     private final NetworkRepository networkRepo;
     private final NetworkService network;
     private final ObjectProvider<DeviceService> devices;
+    private final ObjectProvider<DeviceAdjacencyService> adjacencies;
     private final JdbcTemplate jdbc;
 
     public NetworkTopologyService(final NetworkCaService ca,
                                     final NetworkRepository networkRepo,
                                     final NetworkService network,
                                     final ObjectProvider<DeviceService> devices,
+                                    final ObjectProvider<DeviceAdjacencyService> adjacencies,
                                     final JdbcTemplate jdbc) {
         this.ca = Objects.requireNonNull(ca, "ca");
         this.networkRepo = Objects.requireNonNull(networkRepo, "networkRepo");
         this.network = Objects.requireNonNull(network, "network");
         this.devices = Objects.requireNonNull(devices, "devices");
+        this.adjacencies = Objects.requireNonNull(adjacencies, "adjacencies");
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 
@@ -106,6 +110,26 @@ public class NetworkTopologyService {
             link.put("type", d.formFactor() == EdgeDevice.FormFactor.MOBILE ? "p2p" : "wifi");
             link.put("status", devStatus);
             connections.add(link);
+        }
+
+        // Device-to-device P2P adjacencies — rendered as dashed edges.
+        // §2.2.9 spec §20: only emit links the discovery layer reports.
+        final DeviceAdjacencyService ads = adjacencies.getIfAvailable();
+        if (ads != null) {
+            for (final Map<String, Object> adj : ads.list()) {
+                final Map<String, Object> link = new LinkedHashMap<>();
+                link.put("source", adj.get("deviceAId"));
+                link.put("target", adj.get("deviceBId"));
+                link.put("type", "p2p");
+                link.put("linkType", adj.get("linkType"));
+                final String st = Objects.toString(adj.get("state"), "active");
+                link.put("status",
+                    "active".equals(st) ? "online"
+                  : "degraded".equals(st) ? "degraded"
+                  : "offline");
+                link.put("lastSeenAt", adj.get("lastSeenAt"));
+                connections.add(link);
+            }
         }
 
         // Peer edges (other DER appliances). Rendered on the topology

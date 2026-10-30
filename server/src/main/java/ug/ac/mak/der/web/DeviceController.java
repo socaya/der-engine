@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import ug.ac.mak.der.device.DeviceAdjacencyService;
 import ug.ac.mak.der.device.DeviceService;
 import ug.ac.mak.der.device.EdgeDevice;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
@@ -28,9 +29,12 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 public class DeviceController {
 
     private final DeviceService svc;
+    private final DeviceAdjacencyService adjacency;
 
-    public DeviceController(final DeviceService svc) {
+    public DeviceController(final DeviceService svc,
+                             final DeviceAdjacencyService adjacency) {
         this.svc = Objects.requireNonNull(svc, "svc");
+        this.adjacency = Objects.requireNonNull(adjacency, "adjacency");
     }
 
     @PostMapping(path = "/enroll", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -170,6 +174,60 @@ public class DeviceController {
         return m;
     }
 
+    /** List every adjacency row this edge knows about. */
+    @GetMapping("/adjacencies")
+    public ResponseEntity<Map<String, Object>> listAdjacencies() {
+        return ResponseEntity.ok(Map.of("adjacencies", adjacency.list()));
+    }
+
+    /** Adjacencies involving a specific device. */
+    @GetMapping("/{id}/adjacencies")
+    public ResponseEntity<Map<String, Object>> listDeviceAdjacencies(
+            @PathVariable("id") final UUID id) {
+        return ResponseEntity.ok(Map.of("adjacencies", adjacency.listFor(id)));
+    }
+
+    /** Report (or re-report) a P2P link from device {id} to peerDeviceId. */
+    @PostMapping(path = "/{id}/adjacencies", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> postAdjacency(
+            final Authentication authentication,
+            @PathVariable("id") final UUID id,
+            @RequestBody final AdjacencyRequest body) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (body == null || body.peerDeviceId() == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "PEER_DEVICE_ID_REQUIRED",
+                    "message", "peerDeviceId is required"));
+        }
+        try {
+            final DeviceAdjacencyService.LinkType lt = body.linkType() == null
+                    ? DeviceAdjacencyService.LinkType.P2P
+                    : DeviceAdjacencyService.LinkType.valueOf(
+                            body.linkType().toUpperCase().replace('-', '_'));
+            final DeviceAdjacencyService.State st = body.state() == null
+                    ? DeviceAdjacencyService.State.ACTIVE
+                    : DeviceAdjacencyService.State.valueOf(body.state().toUpperCase());
+            return ResponseEntity.ok(adjacency.upsert(id, body.peerDeviceId(),
+                    lt, st, principal.userId()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "ADJACENCY_INVALID",
+                    "message", ex.getMessage()));
+        }
+    }
+
+    /** Clear a reported adjacency. */
+    @DeleteMapping("/{id}/adjacencies/{peerId}")
+    public ResponseEntity<Void> deleteAdjacency(
+            @PathVariable("id") final UUID id,
+            @PathVariable("peerId") final UUID peerId) {
+        return adjacency.delete(id, peerId) == 0
+                ? ResponseEntity.notFound().build()
+                : ResponseEntity.noContent().build();
+    }
+
     public record EnrolRequest(
             @JsonProperty("deviceId") UUID deviceId,
             @JsonProperty("userAgent") String userAgent) { }
@@ -177,4 +235,9 @@ public class DeviceController {
     public record ProfileRequest(
             @JsonProperty("displayName") String displayName,
             @JsonProperty("formFactor") String formFactor) { }
+
+    public record AdjacencyRequest(
+            @JsonProperty("peerDeviceId") UUID peerDeviceId,
+            @JsonProperty("linkType") String linkType,
+            @JsonProperty("state") String state) { }
 }
