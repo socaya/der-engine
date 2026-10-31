@@ -78,15 +78,19 @@ export function WorkflowQueue({ api = edgeApi }:
 
   return (
     <div className="ea-screen" data-test="queue-root">
-      <h1 data-test="queue-heading">
-        My work
-        <StreamBadge connected={streamConnected} />
-      </h1>
-      <p className="ea-text-muted">
-        Workflow steps that are ready for you to capture, plus steps
-        that are waiting on an earlier step to finish. Updates push via
-        a live stream — a 60-second safety-net poll backs it up.
-      </p>
+      <header className="ea-screen-header">
+        <div className="ea-screen-header-text">
+          <h1 data-test="queue-heading">
+            My work
+            <StreamBadge connected={streamConnected} />
+          </h1>
+          <p className="ea-screen-header-sub">
+            Workflow steps that are ready for you to capture, plus steps
+            that are waiting on an earlier step to finish. Updates push
+            via a live stream — a 60-second safety-net poll backs it up.
+          </p>
+        </div>
+      </header>
 
       <div style={{ display: 'flex', gap: 'var(--sp-4)', alignItems: 'center',
                      flexWrap: 'wrap', margin: 'var(--sp-3) 0' }}>

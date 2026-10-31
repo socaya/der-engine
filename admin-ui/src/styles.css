@@ -2178,3 +2178,16 @@ kbd{
   border:1px solid var(--der-border-subtle);border-radius:var(--r-md);
   margin:var(--sp-2) 0;
 }
+
+/* Snapshot diff view (2.3.29) */
+.ea-diff-groups{display:flex;flex-direction:column;gap:var(--sp-3);margin-top:var(--sp-2)}
+.ea-diff-group{
+  border-left:3px solid transparent;padding:var(--sp-2) var(--sp-3);
+  background:var(--der-raised);border-radius:var(--r-md);
+}
+.ea-diff-group > h3{margin:0 0 var(--sp-1);font-size:14px;font-weight:600;color:var(--der-ink-900)}
+.ea-diff-group > ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.ea-diff-group > ul > li{font-size:13px;line-height:1.4;color:var(--der-ink-900)}
+.ea-diff-group--success{border-left-color:#1f7a1f}
+.ea-diff-group--error{border-left-color:#b02a37}
+.ea-diff-group--warning{border-left-color:#f0ad4e}

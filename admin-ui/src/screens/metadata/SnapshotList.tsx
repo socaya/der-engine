@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
@@ -63,17 +64,20 @@ export function SnapshotList({ api = edgeApi }:
     return <LoadingBlock testId="snapshots-loading" />;
   }
 
+  const latest = snapshots[0];
   return (
     <div className="ea-screen" data-test="snapshots-root">
-      <h1 data-test="snapshots-heading">Metadata snapshots</h1>
-      <p className="ea-text-muted">
-        Each sync of DHIS2 metadata lands as a snapshot. A workflow
-        can be pinned to a specific snapshot so it keeps running
-        against the schema it was authored for even when upstream
-        drifts.
-      </p>
+      <header className="ea-screen-header">
+        <div className="ea-screen-header-text">
+          <h1 data-test="snapshots-heading">Metadata snapshots</h1>
+          <p className="ea-screen-header-sub">
+            Each DHIS2 metadata sync lands as a snapshot. Workflows pin
+            to a snapshot to keep their schema stable across upstream drift.
+          </p>
+        </div>
+      </header>
 
-      <table className="ea-table" data-test="snapshots-table">
+      <table className="ea-table ea-table--dense" data-test="snapshots-table">
         <thead>
           <tr>
             <th>Snapshot</th>
@@ -82,6 +86,7 @@ export function SnapshotList({ api = edgeApi }:
             <th>Rows</th>
             <th>Pinned</th>
             <th>Status</th>
+            <th>Compare</th>
             <th></th>
           </tr>
         </thead>
@@ -127,6 +132,15 @@ export function SnapshotList({ api = edgeApi }:
                   <span className={`ea-pill ea-pill--${s.status === 'ACTIVE' ? 'success' : 'muted'}`}>
                     {s.status === 'ACTIVE' ? 'Active' : 'Retired'}
                   </span>
+                </td>
+                <td>
+                  {latest && s.snapshotId !== latest.snapshotId && (
+                    <Link to={`/metadata/snapshots/${s.snapshotId}/diff/${latest.snapshotId}`}
+                           className="ea-link-btn" style={{ fontSize: 12 }}
+                           data-test={`snapshot-row-${s.snapshotId}-diff`}>
+                      vs #{latest.snapshotId}
+                    </Link>
+                  )}
                 </td>
                 <td>
                   {s.status === 'ACTIVE' ? (

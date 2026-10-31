@@ -1062,6 +1062,35 @@ export function reinstateSnapshot(snapshotId: number): Promise<unknown> {
     `/edge-api/v1/metadata/snapshots/${snapshotId}/reinstate`);
 }
 
+export interface SnapshotDiffDelta {
+  a: number; b: number; delta: number;
+}
+
+export interface SnapshotDiffCounters {
+  a: MetadataSnapshot;
+  b: MetadataSnapshot;
+  deltas: Record<string, SnapshotDiffDelta>;
+  liveTaggedCounts: { a: Record<string, number>; b: Record<string, number> };
+}
+
+export function snapshotCounterDiff(a: number, b: number): Promise<SnapshotDiffCounters> {
+  return request<SnapshotDiffCounters>('GET',
+    `/edge-api/v1/metadata/snapshots/${a}/diff/${b}`);
+}
+
+export interface SnapshotResourceDiff {
+  a: number; b: number; resource: string;
+  added:   { id: string; displayName: string | null }[];
+  removed: { id: string; displayName: string | null }[];
+  changed: { id: string; displayName: string | null }[];
+}
+
+export function snapshotResourceDiff(a: number, b: number,
+                                       resource: string): Promise<SnapshotResourceDiff> {
+  return request<SnapshotResourceDiff>('GET',
+    `/edge-api/v1/metadata/snapshots/${a}/diff/${b}/${resource}`);
+}
+
 export function getWorkflowPin(workflowId: string): Promise<{
   workflowId: string; snapshotId: number | null;
 }> {
