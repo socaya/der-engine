@@ -885,7 +885,7 @@ export function rejectOperation(operationId: string, reason: string): Promise<{ 
 export type OwnerRole = 'ADMIN' | 'OPERATOR' | 'REVIEWER';
 export type StepKind = 'CAPTURE' | 'REVIEW' | 'APPROVE' | 'DISPATCH';
 export type FieldRequirement = 'REQUIRED' | 'OPTIONAL' | 'READONLY' | 'HIDDEN';
-/** V045 (+V046 ENROLLMENT_FORM) — a step binds to a specific DHIS2 slice. */
+/** V045..V047 — a step binds to a specific DHIS2 slice. */
 export type SectionKind =
   | 'DATASET_SECTION'
   | 'PROGRAM_STAGE'
@@ -893,7 +893,8 @@ export type SectionKind =
   | 'TEI_ATTRIBUTE_GROUP'
   | 'DATA_ELEMENT_GROUP'
   | 'COC_SPLIT'
-  | 'ENROLLMENT_FORM'
+  | 'ENROLLMENT_FORM'      /* V046 */
+  | 'PROGRAM_SECTION'      /* V047 — DHIS2 v2.30+ ProgramSection */
   | 'AD_HOC';
 
 export interface CaptureWorkflowField {

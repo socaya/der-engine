@@ -67,6 +67,27 @@ class WorkflowCompilerTest {
     }
 
     @Test
+    void programSectionAttributesMergeIntoAttributesArray() {
+        // V047 — two PROGRAM_SECTION steps contribute different attribute
+        // uids; compiler merges by `attribute` UID into attributes[].
+        final UUID id = UUID.randomUUID();
+        final UUID s1 = UUID.randomUUID();
+        final UUID s2 = UUID.randomUUID();
+        final CaptureWorkflow w = new CaptureWorkflow(id, "ANC tracker",
+            CaptureWorkflow.BindingKind.PROGRAM, "anc-prog", true, 1, NOW, NOW, null,
+            List.of(step(s1, id, 0,
+                        CaptureWorkflowStep.SectionKind.PROGRAM_SECTION, "sec-demographics"),
+                    step(s2, id, 1,
+                        CaptureWorkflowStep.SectionKind.PROGRAM_SECTION, "sec-contact")),
+            List.of(), false, null);
+        final List<CaptureWorkflowContribution> cs = List.of(
+            contrib(s1, "{\"attributes\":[{\"attribute\":\"A1\",\"value\":\"Mary\"}]}"),
+            contrib(s2, "{\"attributes\":[{\"attribute\":\"A2\",\"value\":\"+256700000\"}]}"));
+        final JsonNode out = compiler.compile(w, cs).orElseThrow().payload();
+        assertThat(out.path("attributes").size()).isEqualTo(2);
+    }
+
+    @Test
     void trackerEnrollmentFoldedIntoEnrollmentBlock() {
         final UUID id = UUID.randomUUID();
         final UUID enrollStep = UUID.randomUUID();

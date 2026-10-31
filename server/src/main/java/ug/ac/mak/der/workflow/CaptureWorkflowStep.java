@@ -78,6 +78,11 @@ public record CaptureWorkflowStep(
          *  status / orgUnit + the attributes captured on the enrollment
          *  form. Only valid for PROGRAM-bound workflows. */
         ENROLLMENT_FORM,
+        /** V047 — DHIS2 v2.30+ ProgramSection: a named grouping of
+         *  tracked-entity attributes rendered as a section of the
+         *  enrollment form. {@code sectionRef} is the ProgramSection UID.
+         *  Only valid for PROGRAM-bound workflows. */
+        PROGRAM_SECTION,
         /** Free-form field list defined only by the workflow fields[]. */
         AD_HOC
     }
