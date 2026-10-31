@@ -1049,16 +1049,29 @@ export interface WorkflowPeer {
   addedBy: string | null;
   lastPushAt: string | null;
   lastPushStatus: string | null;
+  /** §2.3.35 — service account username (password never leaves server). */
+  authUsername: string | null;
 }
 
 export function listWorkflowPeers(): Promise<{ peers: WorkflowPeer[] }> {
   return request('GET', '/edge-api/v1/workflows/peers');
 }
 
-export function addWorkflowPeer(displayName: string, baseUrl: string):
-    Promise<WorkflowPeer> {
-  return request('POST', '/edge-api/v1/workflows/peers',
-    { displayName, baseUrl });
+export function addWorkflowPeer(opts: {
+  displayName: string;
+  baseUrl: string;
+  authUsername?: string;
+  authPassword?: string;
+}): Promise<WorkflowPeer> {
+  return request('POST', '/edge-api/v1/workflows/peers', opts);
+}
+
+export function setWorkflowPeerCredentials(peerId: string,
+                                             authUsername: string,
+                                             authPassword: string): Promise<unknown> {
+  return request('POST',
+    `/edge-api/v1/workflows/peers/${peerId}/credentials`,
+    { authUsername, authPassword });
 }
 
 export function deleteWorkflowPeer(peerId: string): Promise<unknown> {

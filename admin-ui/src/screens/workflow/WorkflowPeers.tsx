@@ -10,6 +10,7 @@ import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 export interface WorkflowPeersProps {
   api?: Pick<typeof edgeApi, 'listWorkflowPeers' | 'addWorkflowPeer'
                              | 'deleteWorkflowPeer' | 'pushWorkflowToPeer'
+                             | 'setWorkflowPeerCredentials'
                              | 'listWorkflows'>;
 }
 
@@ -20,7 +21,11 @@ export function WorkflowPeers({ api = edgeApi }:
   const [error, setError] = useState<string | null>(null);
   const [newDisplay, setNewDisplay] = useState('');
   const [newUrl, setNewUrl] = useState('');
+  const [newAuthUser, setNewAuthUser] = useState('');
+  const [newAuthPass, setNewAuthPass] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [credEdit, setCredEdit] = useState<Record<string,
+    { user: string; pass: string }>>({});
   const [chosenWorkflow, setChosenWorkflow] = useState<Record<string, string>>({});
   const [lastResult, setLastResult] = useState<string | null>(null);
 
@@ -43,9 +48,32 @@ export function WorkflowPeers({ api = edgeApi }:
     if (!newDisplay.trim() || !newUrl.trim()) return;
     setBusy('add');
     try {
-      await api.addWorkflowPeer(newDisplay.trim(), newUrl.trim());
+      await api.addWorkflowPeer({
+        displayName: newDisplay.trim(),
+        baseUrl: newUrl.trim(),
+        authUsername: newAuthUser.trim() || undefined,
+        authPassword: newAuthPass || undefined,
+      });
       setNewDisplay('');
       setNewUrl('');
+      setNewAuthUser('');
+      setNewAuthPass('');
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function saveCreds(peerId: string): Promise<void> {
+    const entry = credEdit[peerId];
+    if (!entry) return;
+    setBusy(peerId + ':cred');
+    try {
+      await api.setWorkflowPeerCredentials(peerId,
+        entry.user.trim(), entry.pass);
+      setCredEdit({ ...credEdit, [peerId]: { user: '', pass: '' } });
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -121,6 +149,25 @@ export function WorkflowPeers({ api = edgeApi }:
                       value={newUrl} placeholder="https://der.nakivale.local"
                       onChange={(e) => setNewUrl(e.target.value)} />
             </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Service-account username</span>
+              <input className="ea-input" type="text" data-test="peers-new-auth-user"
+                      value={newAuthUser} placeholder="der-peer"
+                      autoComplete="off"
+                      onChange={(e) => setNewAuthUser(e.target.value)} />
+              <span className="ea-field-hint">
+                Optional. Dedicated ADMIN user on the remote edge.
+              </span>
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Service-account password</span>
+              <input className="ea-input" type="password" data-test="peers-new-auth-pass"
+                      value={newAuthPass} autoComplete="new-password"
+                      onChange={(e) => setNewAuthPass(e.target.value)} />
+              <span className="ea-field-hint">
+                Stored plaintext in the pilot DB — rotate quarterly.
+              </span>
+            </label>
           </div>
           <div style={{ marginTop: 'var(--sp-2)' }}>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
@@ -150,6 +197,7 @@ export function WorkflowPeers({ api = edgeApi }:
                 <tr>
                   <th>Peer</th>
                   <th>Base URL</th>
+                  <th>Auth</th>
                   <th>Added</th>
                   <th>Last push</th>
                   <th>Push a workflow</th>
@@ -161,6 +209,60 @@ export function WorkflowPeers({ api = edgeApi }:
                   <tr key={p.peerId} data-test={`peers-row-${p.peerId}`}>
                     <td style={{ fontWeight: 500 }}>{p.displayName}</td>
                     <td className="ea-mono" style={{ fontSize: 12 }}>{p.baseUrl}</td>
+                    <td style={{ fontSize: 12 }}>
+                      {p.authUsername ? (
+                        <span data-test={`peers-row-${p.peerId}-auth`}>
+                          <span className="ea-pill ea-pill--success">signed in</span>
+                          <span className="ea-mono" style={{ marginLeft: 6 }}>
+                            {p.authUsername}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="ea-pill ea-pill--muted"
+                               data-test={`peers-row-${p.peerId}-auth-none`}>
+                          anonymous
+                        </span>
+                      )}
+                      <details style={{ marginTop: 4 }}>
+                        <summary style={{ fontSize: 11, cursor: 'pointer',
+                                           color: 'var(--der-ink-500)' }}>
+                          Rotate credentials
+                        </summary>
+                        <div style={{ display: 'flex', gap: 4, marginTop: 4,
+                                       flexWrap: 'wrap' }}>
+                          <input className="ea-input" type="text"
+                                  data-test={`peers-row-${p.peerId}-cred-user`}
+                                  placeholder="username"
+                                  style={{ fontSize: 12, padding: '3px 6px', width: 110 }}
+                                  autoComplete="off"
+                                  value={credEdit[p.peerId]?.user ?? ''}
+                                  onChange={(e) => setCredEdit({
+                                    ...credEdit,
+                                    [p.peerId]: { user: e.target.value,
+                                                   pass: credEdit[p.peerId]?.pass ?? '' },
+                                  })} />
+                          <input className="ea-input" type="password"
+                                  data-test={`peers-row-${p.peerId}-cred-pass`}
+                                  placeholder="password"
+                                  style={{ fontSize: 12, padding: '3px 6px', width: 110 }}
+                                  autoComplete="new-password"
+                                  value={credEdit[p.peerId]?.pass ?? ''}
+                                  onChange={(e) => setCredEdit({
+                                    ...credEdit,
+                                    [p.peerId]: { user: credEdit[p.peerId]?.user ?? '',
+                                                   pass: e.target.value },
+                                  })} />
+                          <button type="button"
+                                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                                   data-test={`peers-row-${p.peerId}-cred-save`}
+                                   disabled={busy === p.peerId + ':cred'
+                                              || !(credEdit[p.peerId]?.user ?? '').trim()}
+                                   onClick={() => { saveCreds(p.peerId).catch(() => undefined); }}>
+                            Save
+                          </button>
+                        </div>
+                      </details>
+                    </td>
                     <td className="ea-text-muted" style={{ fontSize: 12 }}>
                       {new Date(p.addedAt).toLocaleDateString()}
                     </td>

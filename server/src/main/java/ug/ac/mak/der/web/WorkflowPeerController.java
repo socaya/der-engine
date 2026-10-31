@@ -63,7 +63,7 @@ public class WorkflowPeerController {
     public ResponseEntity<Map<String, Object>> list() {
         final List<Map<String, Object>> rows = jdbc.query(
                 "SELECT peer_id, display_name, base_url, added_at, added_by, "
-                        + "last_push_at, last_push_status "
+                        + "last_push_at, last_push_status, auth_username "
                         + "FROM der.workflow_peer ORDER BY added_at DESC",
                 (rs, i) -> {
                     final Map<String, Object> m = new LinkedHashMap<>();
@@ -76,6 +76,9 @@ public class WorkflowPeerController {
                     final var lastPushAt = rs.getTimestamp("last_push_at");
                     m.put("lastPushAt", lastPushAt == null ? null : lastPushAt.toInstant().toString());
                     m.put("lastPushStatus", rs.getString("last_push_status"));
+                    // §2.3.35 — surface the username only; the password
+                    // stays server-side (never exposed over the API).
+                    m.put("authUsername", rs.getString("auth_username"));
                     return m;
                 });
         return ResponseEntity.ok(Map.of("peers", rows));
@@ -93,15 +96,47 @@ public class WorkflowPeerController {
                     "code", "DISPLAY_NAME_AND_URL_REQUIRED"));
         }
         final UUID id = UUID.randomUUID();
+        final String user = body.authUsername == null ? null
+                : (body.authUsername.isBlank() ? null : body.authUsername.trim());
+        final String pass = body.authPassword == null ? null
+                : (body.authPassword.isEmpty() ? null : body.authPassword);
         jdbc.update("INSERT INTO der.workflow_peer "
-                + "(peer_id, display_name, base_url, added_by) VALUES (?, ?, ?, ?)",
+                + "(peer_id, display_name, base_url, added_by, "
+                + " auth_username, auth_password) "
+                + "VALUES (?, ?, ?, ?, ?, ?)",
                 id, body.displayName.trim(),
                 body.baseUrl.trim().replaceAll("/$", ""),
-                principal.userId());
+                principal.userId(),
+                user, pass);
         return ResponseEntity.ok(Map.of(
                 "peerId", id.toString(),
                 "displayName", body.displayName.trim(),
-                "baseUrl", body.baseUrl.trim()));
+                "baseUrl", body.baseUrl.trim(),
+                "authUsername", user == null ? "" : user));
+    }
+
+    /** §2.3.35 — set / clear the stored service-account credentials
+     *  for an existing peer. Separate from the create path so an
+     *  operator can rotate the password without recreating the peer. */
+    @PostMapping(path = "/{peerId}/credentials",
+                 consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> setCredentials(
+            final Authentication auth, @PathVariable final UUID peerId,
+            @RequestBody final PeerBody body) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final String user = body == null || body.authUsername == null ? null
+                : (body.authUsername.isBlank() ? null : body.authUsername.trim());
+        final String pass = body == null || body.authPassword == null ? null
+                : (body.authPassword.isEmpty() ? null : body.authPassword);
+        final int n = jdbc.update(
+                "UPDATE der.workflow_peer SET auth_username = ?, auth_password = ? "
+                        + "WHERE peer_id = ?",
+                user, pass, peerId);
+        return n == 0 ? ResponseEntity.notFound().build()
+                : ResponseEntity.ok(Map.of("peerId", peerId.toString(),
+                                             "authUsername", user == null ? "" : user));
     }
 
     @DeleteMapping("/{peerId}")
@@ -121,13 +156,22 @@ public class WorkflowPeerController {
             return ResponseEntity.status(401).build();
         }
         final List<Map<String, Object>> peers = jdbc.query(
-                "SELECT base_url FROM der.workflow_peer WHERE peer_id = ?",
-                (rs, i) -> Map.of("baseUrl", (Object) rs.getString(1)),
+                "SELECT base_url, auth_username, auth_password "
+                        + "FROM der.workflow_peer WHERE peer_id = ?",
+                (rs, i) -> {
+                    final Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("baseUrl", rs.getString(1));
+                    m.put("authUsername", rs.getString(2));
+                    m.put("authPassword", rs.getString(3));
+                    return m;
+                },
                 peerId);
         if (peers.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         final String base = (String) peers.get(0).get("baseUrl");
+        final String authUser = (String) peers.get(0).get("authUsername");
+        final String authPass = (String) peers.get(0).get("authPassword");
         final CaptureWorkflow w = workflows.get(workflowId)
                 .orElse(null);
         if (w == null) {
@@ -135,14 +179,50 @@ public class WorkflowPeerController {
         }
         final Map<String, Object> canonical = canonicalFromCapture(w);
         try {
+            // §2.3.35 — if the peer carries creds, sign in first and
+            // extract the DER_SESSION cookie; replay it on the actual
+            // import POST. Peers without creds attempt the push
+            // anonymously (pre-2.3.35 behaviour).
+            String cookie = null;
+            if (authUser != null && authPass != null) {
+                final String signInBody = mapper.writeValueAsString(Map.of(
+                    "username", authUser, "password", authPass));
+                final HttpRequest signIn = HttpRequest.newBuilder()
+                        .uri(URI.create(base + "/edge-api/v1/auth/sign-in"))
+                        .timeout(Duration.ofSeconds(30))
+                        .header("Content-Type", "application/json")
+                        .header("Accept", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(
+                                signInBody, StandardCharsets.UTF_8))
+                        .build();
+                final HttpResponse<String> sr = http.send(signIn,
+                        HttpResponse.BodyHandlers.ofString());
+                if (sr.statusCode() < 200 || sr.statusCode() >= 300) {
+                    final String reason = "sign-in HTTP " + sr.statusCode();
+                    jdbc.update(
+                            "UPDATE der.workflow_peer SET last_push_at = ?, "
+                                    + "last_push_status = ? WHERE peer_id = ?",
+                            java.sql.Timestamp.from(Instant.now()), reason, peerId);
+                    return ResponseEntity.status(502).body(Map.of(
+                            "peerId", peerId.toString(),
+                            "workflowId", workflowId.toString(),
+                            "status", reason));
+                }
+                cookie = sr.headers().firstValue("set-cookie")
+                        .map(c -> c.split(";", 2)[0])
+                        .orElse(null);
+            }
             final String body = mapper.writeValueAsString(canonical);
-            final HttpRequest req = HttpRequest.newBuilder()
+            final HttpRequest.Builder reqB = HttpRequest.newBuilder()
                     .uri(URI.create(base + "/edge-api/v1/workflows/import"))
                     .timeout(Duration.ofSeconds(30))
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
-                    .build();
+                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
+            if (cookie != null) {
+                reqB.header("Cookie", cookie);
+            }
+            final HttpRequest req = reqB.build();
             final HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             final String outcome = resp.statusCode() >= 200 && resp.statusCode() < 300
                     ? "OK" : "HTTP " + resp.statusCode();
@@ -225,5 +305,7 @@ public class WorkflowPeerController {
     public static final class PeerBody {
         public String displayName;
         public String baseUrl;
+        public String authUsername;
+        public String authPassword;
     }
 }
