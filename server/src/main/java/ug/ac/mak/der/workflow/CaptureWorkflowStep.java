@@ -74,6 +74,10 @@ public record CaptureWorkflowStep(
         DATA_ELEMENT_GROUP,
         /** CategoryOptionCombo split (e.g. one person captures male column). */
         COC_SPLIT,
+        /** V046 — tracker enrollment layer: enrollmentDate / incidentDate /
+         *  status / orgUnit + the attributes captured on the enrollment
+         *  form. Only valid for PROGRAM-bound workflows. */
+        ENROLLMENT_FORM,
         /** Free-form field list defined only by the workflow fields[]. */
         AD_HOC
     }

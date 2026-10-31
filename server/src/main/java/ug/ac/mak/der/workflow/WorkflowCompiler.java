@@ -126,18 +126,35 @@ public class WorkflowCompiler {
                                   final List<UUID> consumedIds) throws JsonProcessingException {
         final Map<String, JsonNode> attributes = new LinkedHashMap<>();
         final Map<String, JsonNode> events = new LinkedHashMap<>();
+        // V046 — ENROLLMENT_FORM contributions land in a dedicated section.
+        final ObjectNode enrollment = mapper.createObjectNode();
+        boolean enrollmentPresent = false;
+
         for (final CaptureWorkflowStep s : ordered) {
             final CaptureWorkflowContribution c = byStep.get(s.stepId());
             if (c == null) {
                 continue;
             }
             final JsonNode payload = mapper.readTree(c.payload());
+
+            if (s.sectionKind() == CaptureWorkflowStep.SectionKind.ENROLLMENT_FORM) {
+                enrollmentPresent |= mergeEnrollment(enrollment, payload);
+            }
+
             payload.path("attributes").forEach((a) -> attributes.put(
                     a.path("attribute").asText(""), a));
             payload.path("events").forEach((e) -> {
                 final String key = e.path("programStage").asText("") + "|"
                         + e.path("occurredAt").asText("");
-                events.put(key, e);
+                final JsonNode existing = events.get(key);
+                if (existing == null) {
+                    events.put(key, e.deepCopy());
+                } else {
+                    // Field-level split across steps on the same event:
+                    // merge dataValues[] by (dataElement, categoryOptionCombo)
+                    // instead of replacing the whole event.
+                    events.put(key, mergeEventFields((ObjectNode) existing, e));
+                }
             });
             consumedSteps.add(s.stepId().toString());
             consumedIds.add(c.contributionId());
@@ -145,10 +162,69 @@ public class WorkflowCompiler {
         root.put("program", workflow.boundMetadataKind()
                 == CaptureWorkflow.BindingKind.PROGRAM
                 ? workflow.boundMetadataId() : null);
+        if (enrollmentPresent) {
+            root.set("enrollment", enrollment);
+        }
         final ArrayNode attrs = root.putArray("attributes");
         attributes.values().forEach(attrs::add);
         final ArrayNode evts = root.putArray("events");
         events.values().forEach(evts::add);
+    }
+
+    /** Merge dataValues[] from a later contribution into an existing
+     *  event, keyed by (dataElement, categoryOptionCombo). Later steps
+     *  overwrite earlier cells. Non-dataValue top-level fields on the
+     *  later contribution overwrite the existing event. */
+    private ObjectNode mergeEventFields(final ObjectNode existing,
+                                          final JsonNode incoming) {
+        incoming.fields().forEachRemaining((entry) -> {
+            if (!"dataValues".equals(entry.getKey())) {
+                existing.set(entry.getKey(), entry.getValue());
+            }
+        });
+        final Map<String, JsonNode> cells = new LinkedHashMap<>();
+        final JsonNode existingValues = existing.path("dataValues");
+        if (existingValues.isArray()) {
+            existingValues.forEach((v) -> cells.put(cellKey(v), v));
+        }
+        final JsonNode incomingValues = incoming.path("dataValues");
+        if (incomingValues.isArray()) {
+            incomingValues.forEach((v) -> cells.put(cellKey(v), v));
+        }
+        final ArrayNode out = existing.putArray("dataValues");
+        cells.values().forEach(out::add);
+        return existing;
+    }
+
+    private static String cellKey(final JsonNode v) {
+        return v.path("dataElement").asText("") + "|"
+                + v.path("categoryOptionCombo").asText("");
+    }
+
+    /** Fold ENROLLMENT_FORM contribution fields into the compiled
+     *  enrollment node. Later steps overwrite earlier values. */
+    private boolean mergeEnrollment(final ObjectNode enrollment,
+                                       final JsonNode payload) {
+        boolean touched = false;
+        for (final String f : new String[] {
+                "enrollment", "enrollmentDate", "incidentDate",
+                "orgUnit", "status", "trackedEntity", "geometry",
+                "program", "deleted"}) {
+            final JsonNode node = payload.path(f);
+            if (!node.isMissingNode() && !node.isNull()) {
+                enrollment.set(f, node);
+                touched = true;
+            }
+        }
+        // Enrollment-attached attributes merge into the dedicated
+        // `enrollmentAttributes` array; non-enrollment attributes stay in
+        // the workflow-level `attributes` array for backward compat.
+        final JsonNode ea = payload.path("enrollmentAttributes");
+        if (ea.isArray() && !ea.isEmpty()) {
+            enrollment.set("attributes", ea);
+            touched = true;
+        }
+        return touched;
     }
 
     /** The compiled payload + which contribution rows it drained. */

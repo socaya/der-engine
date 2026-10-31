@@ -1660,7 +1660,8 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
           (<code>DATASET_SECTION</code> / <code>PROGRAM_STAGE</code> /
           <code>PROGRAM_STAGE_SECTION</code> /{' '}
           <code>TEI_ATTRIBUTE_GROUP</code> / <code>DATA_ELEMENT_GROUP</code> /{' '}
-          <code>COC_SPLIT</code> / <code>AD_HOC</code>) and{' '}
+          <code>COC_SPLIT</code> / <code>ENROLLMENT_FORM</code> /{' '}
+          <code>AD_HOC</code>) and{' '}
           <code>sectionRef</code> (DHIS2 UID of the slice, or null for AD_HOC).
           The server rejects section kinds that don't fit the chosen binding.
         </small>
