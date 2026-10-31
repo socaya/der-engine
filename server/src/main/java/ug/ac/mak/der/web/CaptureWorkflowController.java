@@ -319,7 +319,8 @@ public class CaptureWorkflowController {
                     || section == CaptureWorkflowStep.SectionKind.DATA_ELEMENT_GROUP
                     || section == CaptureWorkflowStep.SectionKind.ENROLLMENT_FORM
                     || section == CaptureWorkflowStep.SectionKind.PROGRAM_SECTION
-                    || section == CaptureWorkflowStep.SectionKind.TEI_TYPE_ATTRIBUTES;
+                    || section == CaptureWorkflowStep.SectionKind.TEI_TYPE_ATTRIBUTES
+                    || section == CaptureWorkflowStep.SectionKind.RELATIONSHIP;
             case PROGRAM_STAGE -> section == CaptureWorkflowStep.SectionKind.PROGRAM_STAGE_SECTION
                     || section == CaptureWorkflowStep.SectionKind.DATA_ELEMENT_GROUP;
             case PROGRAM_STAGE_SECTION -> section == CaptureWorkflowStep.SectionKind.DATA_ELEMENT_GROUP;

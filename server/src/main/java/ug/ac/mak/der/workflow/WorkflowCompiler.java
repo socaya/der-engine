@@ -155,6 +155,11 @@ public class WorkflowCompiler {
         final ObjectNode trackedEntity = mapper.createObjectNode();
         final Map<String, JsonNode> teiAttrs = new LinkedHashMap<>();
         boolean teiPresent = false;
+        // V051 — RELATIONSHIP contributions land on relationships[].
+        // Key = (from.trackedEntity | from.enrollment | from.event)
+        //     + "|" + (to…) + "|" + relationshipType — so a mother↔child
+        // pair appearing from multiple steps dedupes correctly.
+        final Map<String, JsonNode> relationships = new LinkedHashMap<>();
 
         for (final CaptureWorkflowStep s : ordered) {
             final CaptureWorkflowContribution c = byStep.get(s.stepId());
@@ -183,6 +188,13 @@ public class WorkflowCompiler {
                 teiPresent |= mergeTei(trackedEntity, teiAttrs, payload);
                 // TEI_TYPE_ATTRIBUTES does NOT also contribute to the
                 // enrollment-level attributes[] bucket. Skip to next step.
+                consumedSteps.add(s.stepId().toString());
+                consumedIds.add(c.contributionId());
+                continue;
+            }
+            // V051 — RELATIONSHIP contributions go only to relationships[].
+            if (s.sectionKind() == CaptureWorkflowStep.SectionKind.RELATIONSHIP) {
+                mergeRelationships(relationships, payload, s.sectionRef());
                 consumedSteps.add(s.stepId().toString());
                 consumedIds.add(c.contributionId());
                 continue;
@@ -237,10 +249,57 @@ public class WorkflowCompiler {
             teiAttrs.values().forEach(teiArr::add);
             root.set("trackedEntity", trackedEntity);
         }
+        if (!relationships.isEmpty()) {
+            final ArrayNode rels = root.putArray("relationships");
+            relationships.values().forEach(rels::add);
+        }
         final ArrayNode attrs = root.putArray("attributes");
         attributes.values().forEach(attrs::add);
         final ArrayNode evts = root.putArray("events");
         events.values().forEach(evts::add);
+    }
+
+    /** V051 — fold RELATIONSHIP step payload's relationships[] into a
+     *  dedupe map. relationshipType defaults from the step's sectionRef
+     *  when the payload itself doesn't set it. Dedupe key is
+     *  (from endpoint, to endpoint, relationshipType). */
+    private void mergeRelationships(final Map<String, JsonNode> relationships,
+                                      final JsonNode payload,
+                                      final String defaultRelType) {
+        final JsonNode arr = payload.path("relationships");
+        if (!arr.isArray()) {
+            return;
+        }
+        arr.forEach((r) -> {
+            final ObjectNode rel = (ObjectNode) r.deepCopy();
+            if ((rel.path("relationshipType").isMissingNode()
+                    || rel.path("relationshipType").isNull()
+                    || "".equals(rel.path("relationshipType").asText()))
+                    && defaultRelType != null && !defaultRelType.isBlank()) {
+                rel.put("relationshipType", defaultRelType);
+            }
+            final String fromKey = endpointKey(rel.path("from"));
+            final String toKey   = endpointKey(rel.path("to"));
+            final String key = fromKey + "|" + toKey + "|"
+                    + rel.path("relationshipType").asText("");
+            relationships.put(key, rel);
+        });
+    }
+
+    /** Flatten a relationship endpoint {trackedEntity|enrollment|event}
+     *  into a single key fragment, preferring trackedEntity when
+     *  present. */
+    private static String endpointKey(final JsonNode endpoint) {
+        if (endpoint.isMissingNode() || endpoint.isNull()) {
+            return "";
+        }
+        for (final String f : new String[] {"trackedEntity", "enrollment", "event"}) {
+            final JsonNode n = endpoint.path(f);
+            if (!n.isMissingNode() && !n.isNull() && !"".equals(n.asText(""))) {
+                return f + ":" + n.asText();
+            }
+        }
+        return "";
     }
 
     /** Merge dataValues[] from a later contribution into an existing

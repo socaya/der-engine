@@ -101,6 +101,13 @@ public record CaptureWorkflowStep(
          *  step contributes. Cross-cutting across every parent binding;
          *  a no-op annotation when the edge is a single-OU facility. */
         ORG_UNIT_SCOPE,
+        /** V051 — DHIS2 Tracker TEI relationships (mother ↔ child,
+         *  index ↔ contact, caregiver ↔ patient). {@code sectionRef}
+         *  is the RelationshipType UID; the compiler merges each
+         *  payload's relationships[] into a dedicated top-level
+         *  relationships[] block on the compiled tracker payload.
+         *  Only valid for PROGRAM-bound workflows. */
+        RELATIONSHIP,
         /** Free-form field list defined only by the workflow fields[]. */
         AD_HOC
     }

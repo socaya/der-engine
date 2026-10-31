@@ -159,6 +159,37 @@ class WorkflowCompilerTest {
     }
 
     @Test
+    void relationshipsFoldedIntoDedicatedBlock() {
+        // V051 — RELATIONSHIP step contributes relationships[] which the
+        // compiler folds into a dedicated top-level relationships[]
+        // block. relationshipType defaults from the step's sectionRef
+        // when the payload doesn't set it.
+        final UUID id = UUID.randomUUID();
+        final UUID step = UUID.randomUUID();
+        final CaptureWorkflow w = new CaptureWorkflow(id, "Index-contact tracker",
+            CaptureWorkflow.BindingKind.PROGRAM, "ic-prog", true, 1, NOW, NOW, null,
+            List.of(step(step, id, 0,
+                    CaptureWorkflowStep.SectionKind.RELATIONSHIP, "RT-INDEX-CONTACT")),
+            List.of(), false, null);
+        final String payload = "{\"relationships\":["
+            + "{\"from\":{\"trackedEntity\":\"TE-INDEX-1\"},"
+            + " \"to\":{\"trackedEntity\":\"TE-CONTACT-1\"}},"
+            + "{\"from\":{\"trackedEntity\":\"TE-INDEX-1\"},"
+            + " \"to\":{\"trackedEntity\":\"TE-CONTACT-2\"},"
+            + " \"relationshipType\":\"RT-OTHER\"}"
+            + "]}";
+        final JsonNode out = compiler.compile(w, List.of(contrib(step, payload)))
+            .orElseThrow().payload();
+        assertThat(out.path("relationships").size()).isEqualTo(2);
+        // Default relationshipType from sectionRef stamped on 1st
+        assertThat(out.path("relationships").get(0).path("relationshipType").asText())
+            .isEqualTo("RT-INDEX-CONTACT");
+        // Explicit relationshipType preserved on 2nd
+        assertThat(out.path("relationships").get(1).path("relationshipType").asText())
+            .isEqualTo("RT-OTHER");
+    }
+
+    @Test
     void teiTypeAttributesFoldedIntoTrackedEntityBlock() {
         // V048 — TEI_TYPE_ATTRIBUTES contributes name/DoB onto a dedicated
         // trackedEntity.attributes[] block, distinct from enrollment-level

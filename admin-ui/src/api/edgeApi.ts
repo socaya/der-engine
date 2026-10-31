@@ -898,6 +898,7 @@ export type SectionKind =
   | 'TEI_TYPE_ATTRIBUTES'  /* V048 — TrackedEntityType cross-program profile */
   | 'ATTRIBUTE_OPTION_COMBO' /* V049 — funder/project split, cross-cutting */
   | 'ORG_UNIT_SCOPE'          /* V050 — sub-OU split, cross-cutting */
+  | 'RELATIONSHIP'            /* V051 — tracker TEI relationships */
   | 'AD_HOC';
 
 export interface CaptureWorkflowField {
