@@ -13,7 +13,7 @@
  * old cache on first activation.
  */
 
-const SW_VERSION = 'der-admin-v2.3.18';
+const SW_VERSION = 'der-admin-v2.3.19';
 const SHELL_CACHE = `${SW_VERSION}-shell`;
 const DATA_CACHE  = `${SW_VERSION}-data`;
 

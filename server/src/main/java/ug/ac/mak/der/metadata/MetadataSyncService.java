@@ -7,7 +7,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -52,6 +54,13 @@ public class MetadataSyncService {
     static final String PROGRAM_STAGE_PATH = "/api/programStages" + FIELDS_ALL;
     static final String TRACKED_ENTITY_ATTRIBUTE_PATH = "/api/trackedEntityAttributes" + FIELDS_ALL;
     static final String PROGRAM_RULE_PATH = "/api/programRules" + FIELDS_ALL;
+    /** §2.3.19 — fetch actions separately. DHIS2's {@code fields=:all}
+     *  on {@code /api/programRules} does not descend into
+     *  {@code programRuleActions[]}, so the embedded entries carry
+     *  only {@code id}. Pulling the actions endpoint directly gives
+     *  us the full shape (action type, content, data element). */
+    static final String PROGRAM_RULE_ACTION_PATH =
+            "/api/programRuleActions" + FIELDS_ALL;
     static final String OPTION_SET_PATH = "/api/optionSets" + FIELDS_ALL;
     static final String INDICATOR_PATH = "/api/indicators" + FIELDS_ALL;
     static final String VALIDATION_RULE_PATH = "/api/validationRules" + FIELDS_ALL;
@@ -295,23 +304,15 @@ public class MetadataSyncService {
         if (body == null) {
             return out;
         }
+        // Fetch all actions in one pass and group by their programRule
+        // id — the /api/programRules endpoint only returns {id} for
+        // nested actions regardless of fields= filter.
+        final Map<String, List<MirroredProgramRuleAction>> actionsByRule =
+                readProgramRuleActionsByRule();
         for (final JsonNode node : body.withArray("programRules")) {
             final String ruleId = requireText(node, "id");
-            final List<MirroredProgramRuleAction> actions = new ArrayList<>();
-            final JsonNode actionsNode = node.get("programRuleActions");
-            if (actionsNode != null && actionsNode.isArray()) {
-                for (final JsonNode a : actionsNode) {
-                    actions.add(new MirroredProgramRuleAction(
-                            requireText(a, "id"),
-                            ruleId,
-                            textOr(a, "programRuleActionType", "UNKNOWN"),
-                            nestedIdOrNull(a, "dataElement"),
-                            nestedIdOrNull(a, "trackedEntityAttribute"),
-                            textOrNull(a, "data"),
-                            textOrNull(a, "content"),
-                            a));
-                }
-            }
+            final List<MirroredProgramRuleAction> actions =
+                    actionsByRule.getOrDefault(ruleId, new ArrayList<>());
             out.add(new MirroredProgramRule(
                     ruleId,
                     nestedIdOrNull(node, "program") == null ? "" : nestedIdOrNull(node, "program"),
@@ -320,6 +321,33 @@ public class MetadataSyncService {
                     textOr(node, "condition", "false"),
                     actions,
                     node));
+        }
+        return out;
+    }
+
+    private Map<String, List<MirroredProgramRuleAction>> readProgramRuleActionsByRule()
+            throws Dhis2ReferenceClient.Dhis2UnreachableException,
+                   Dhis2ReferenceClient.Dhis2ResponseException {
+        final JsonNode body = dhis2.fetchJson(PROGRAM_RULE_ACTION_PATH);
+        final Map<String, List<MirroredProgramRuleAction>> out = new HashMap<>();
+        if (body == null) {
+            return out;
+        }
+        for (final JsonNode a : body.withArray("programRuleActions")) {
+            final String ruleId = nestedIdOrNull(a, "programRule");
+            if (ruleId == null) {
+                continue;
+            }
+            out.computeIfAbsent(ruleId, k -> new ArrayList<>()).add(
+                    new MirroredProgramRuleAction(
+                        requireText(a, "id"),
+                        ruleId,
+                        textOr(a, "programRuleActionType", "UNKNOWN"),
+                        nestedIdOrNull(a, "dataElement"),
+                        nestedIdOrNull(a, "trackedEntityAttribute"),
+                        textOrNull(a, "data"),
+                        textOrNull(a, "content"),
+                        a));
         }
         return out;
     }

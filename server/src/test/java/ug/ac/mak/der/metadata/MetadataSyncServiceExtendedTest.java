@@ -106,14 +106,19 @@ class MetadataSyncServiceExtendedTest {
                 "{\"programRules\":[{"
                         + "\"id\":\"r1\",\"displayName\":\"rule\","
                         + "\"program\":{\"id\":\"p1\"},\"priority\":10,"
-                        + "\"condition\":\"true\","
-                        + "\"programRuleActions\":["
-                        + "{\"id\":\"a1\",\"programRuleActionType\":\"ASSIGN\","
-                        + "\"dataElement\":{\"id\":\"de\"},\"data\":\"1\"}]}"
-                        + "]}"));
+                        + "\"condition\":\"true\"}]}"));
+        // §2.3.19: actions come from the dedicated endpoint keyed by
+        // programRule.id — the parent /api/programRules response only
+        // carries {id} for each action.
+        when(c.fetchJson(MetadataSyncService.PROGRAM_RULE_ACTION_PATH)).thenReturn(tree(
+                "{\"programRuleActions\":["
+                        + "{\"id\":\"a1\",\"programRule\":{\"id\":\"r1\"},"
+                        + "\"programRuleActionType\":\"ASSIGN\","
+                        + "\"dataElement\":{\"id\":\"de\"},\"data\":\"1\"}]}"));
         final var out = service(c).readProgramRules();
         assertThat(out).hasSize(1);
         assertThat(out.get(0).actions()).hasSize(1);
+        assertThat(out.get(0).actions().get(0).actionType()).isEqualTo("ASSIGN");
     }
 
     @Test
@@ -129,6 +134,8 @@ class MetadataSyncServiceExtendedTest {
         when(c.fetchJson(MetadataSyncService.PROGRAM_RULE_PATH)).thenReturn(tree(
                 "{\"programRules\":[{\"id\":\"r1\",\"displayName\":\"rule\","
                         + "\"program\":{\"id\":\"p1\"},\"condition\":\"true\"}]}"));
+        when(c.fetchJson(MetadataSyncService.PROGRAM_RULE_ACTION_PATH)).thenReturn(tree(
+                "{\"programRuleActions\":[]}"));
         final var out = service(c).readProgramRules();
         assertThat(out.get(0).actions()).isEmpty();
     }
