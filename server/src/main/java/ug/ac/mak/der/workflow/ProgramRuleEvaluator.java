@@ -71,9 +71,15 @@ public class ProgramRuleEvaluator {
     /** {@code #{UID}} or {@code A{UID}} — resolved against payload fields. */
     private static final Pattern FIELD_REF =
             Pattern.compile("[#A]\\{([A-Za-z0-9_]+)\\}");
+    /** {@code V{context_var}} — runtime context (today, current_date, …). */
+    private static final Pattern CONTEXT_VAR =
+            Pattern.compile("V\\{([A-Za-z0-9_]+)\\}");
     /** {@code d2:hasValue(#{UID})}. */
     private static final Pattern D2_HAS_VALUE =
             Pattern.compile("d2:hasValue\\(\\s*[#A]\\{([A-Za-z0-9_]+)\\}\\s*\\)");
+    /** Generic {@code d2:fnName(args)} for the function library. */
+    private static final Pattern D2_FN =
+            Pattern.compile("d2:([a-zA-Z]+)\\((.*)\\)");
 
     private final ExtendedMirrorRepository mirror;
     private final ObjectMapper mapper;
@@ -311,12 +317,146 @@ public class ProgramRuleEvaluator {
         if (m.matches()) {
             return values.get(m.group(1));
         }
+        final Matcher ctx = CONTEXT_VAR.matcher(token);
+        if (ctx.matches()) {
+            return resolveContext(ctx.group(1));
+        }
+        final Matcher fn = D2_FN.matcher(token);
+        if (fn.matches()) {
+            return callD2(fn.group(1), fn.group(2), values);
+        }
         // Strip surrounding single/double quotes for string literals.
         if ((token.startsWith("'") && token.endsWith("'"))
                 || (token.startsWith("\"") && token.endsWith("\""))) {
             return token.substring(1, token.length() - 1);
         }
         return token;
+    }
+
+    /** Context variables — {@code V{current_date}} is today in {@code
+     *  yyyy-MM-dd}. The others we don't know in the DER merge model
+     *  (no event date / enrollment date per contribution) → null. */
+    private String resolveContext(final String name) {
+        return switch (name) {
+            case "current_date", "today" ->
+                java.time.LocalDate.now().toString();
+            default -> null;
+        };
+    }
+
+    /** {@code d2:*} function library. Returns the function's string
+     *  value, or null if the function/args don't resolve. */
+    private String callD2(final String fn, final String argStr,
+                            final Map<String, String> values) {
+        final List<String> args = splitArgs(argStr).stream()
+                .map((a) -> resolve(a.trim(), values))
+                .toList();
+        try {
+            return switch (fn) {
+                case "daysBetween"  -> dateDiff(args, java.time.temporal.ChronoUnit.DAYS);
+                case "weeksBetween" -> dateDiff(args, java.time.temporal.ChronoUnit.WEEKS);
+                case "monthsBetween" -> dateDiff(args, java.time.temporal.ChronoUnit.MONTHS);
+                case "yearsBetween" -> dateDiff(args, java.time.temporal.ChronoUnit.YEARS);
+                case "length"       -> String.valueOf(args.get(0) == null ? 0 : args.get(0).length());
+                case "left"         -> substring(args, true);
+                case "right"        -> substring(args, false);
+                case "floor"        -> fmt(Math.floor(num(args.get(0))));
+                case "ceil"         -> fmt(Math.ceil(num(args.get(0))));
+                case "round"        -> fmt((double) Math.round(num(args.get(0))));
+                case "modulus"      -> fmt(num(args.get(0)) % num(args.get(1)));
+                case "zing"         -> fmt(Math.max(0, num(args.get(0))));
+                case "oizp"         -> num(args.get(0)) > 0 ? "1" : "0";
+                case "count"        -> values.containsKey(stripBraces(argStr.trim())) ? "1" : "0";
+                case "zpvc"         -> fmt(args.stream().filter(a -> a != null && !a.isBlank())
+                                              .count());
+                case "concatenate"  -> String.join("", args.stream()
+                                              .map(a -> a == null ? "" : a).toList());
+                case "lastEventDate" -> null; // not meaningful in DER merge model
+                default -> null;
+            };
+        } catch (RuntimeException ex) {
+            LOG.debug("d2:{}({}) failed: {}", fn, argStr, ex.getMessage());
+            return null;
+        }
+    }
+
+    private List<String> splitArgs(final String s) {
+        final List<String> out = new ArrayList<>();
+        int depth = 0;
+        int start = 0;
+        boolean inStr = false;
+        char strCh = 0;
+        for (int i = 0; i < s.length(); i++) {
+            final char c = s.charAt(i);
+            if (inStr) {
+                if (c == strCh) {
+                    inStr = false;
+                }
+                continue;
+            }
+            if (c == '\'' || c == '"') {
+                inStr = true;
+                strCh = c;
+            } else if (c == '(') {
+                depth++;
+            } else if (c == ')') {
+                depth--;
+            } else if (c == ',' && depth == 0) {
+                out.add(s.substring(start, i));
+                start = i + 1;
+            }
+        }
+        out.add(s.substring(start));
+        return out;
+    }
+
+    private String dateDiff(final List<String> args, final java.time.temporal.ChronoUnit unit) {
+        if (args.size() < 2 || args.get(0) == null || args.get(1) == null) {
+            return null;
+        }
+        final java.time.LocalDate a = parseDate(args.get(0));
+        final java.time.LocalDate b = parseDate(args.get(1));
+        if (a == null || b == null) {
+            return null;
+        }
+        return String.valueOf(unit.between(a, b));
+    }
+
+    private java.time.LocalDate parseDate(final String s) {
+        try {
+            // DHIS2 program-rule date values are usually yyyy-MM-dd;
+            // tolerate full ISO instants by stripping to the first 10 chars.
+            final String base = s.length() >= 10 ? s.substring(0, 10) : s;
+            return java.time.LocalDate.parse(base);
+        } catch (java.time.format.DateTimeParseException ex) {
+            return null;
+        }
+    }
+
+    private String substring(final List<String> args, final boolean fromLeft) {
+        if (args.size() < 2 || args.get(0) == null) {
+            return null;
+        }
+        final int n = (int) num(args.get(1));
+        final String src = args.get(0);
+        final int len = Math.min(n, src.length());
+        return fromLeft ? src.substring(0, len) : src.substring(src.length() - len);
+    }
+
+    private double num(final String s) {
+        return s == null || s.isBlank() ? 0.0 : Double.parseDouble(s);
+    }
+
+    private String fmt(final double d) {
+        if (d == Math.floor(d) && !Double.isInfinite(d)) {
+            return String.valueOf((long) d);
+        }
+        return String.valueOf(d);
+    }
+
+    private String stripBraces(final String s) {
+        final Matcher m = FIELD_REF.matcher(s);
+        return m.matches() ? m.group(1) : s;
     }
 
     private boolean compare(final String a, final String b, final String op) {
