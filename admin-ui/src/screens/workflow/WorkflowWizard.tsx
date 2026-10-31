@@ -4,7 +4,7 @@ import * as edgeApi from '../../api/edgeApi';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 import * as md from './wizardMetadata';
 import type {
-  Breakable, MetadataOption, WizardWorkflowType,
+  Breakable, FieldCandidate, MetadataOption, WizardWorkflowType,
 } from './wizardMetadata';
 
 /**
@@ -26,11 +26,19 @@ export interface WorkflowWizardProps {
 
 type Stage = 1 | 2 | 3;
 
+type FieldReq = 'REQUIRED' | 'OPTIONAL';
+
 interface StepRow {
   breakable: Breakable;
   included: boolean;
   ownerDeviceId: string | null;
   ownerRole: 'OPERATOR' | 'REVIEWER' | 'ADMIN';
+  /** `null` until the operator expands the row — avoids a fetch per
+   *  stage on page load (programs with 50 stages → 50 fetches). */
+  fieldCandidates: FieldCandidate[] | null;
+  /** Per-field include + requirement. Keyed by field UID. */
+  fieldSelection: Record<string, { included: boolean; requirement: FieldReq }>;
+  expanded: boolean;
 }
 
 export function WorkflowWizard({ api = edgeApi, workflowId }:
@@ -101,11 +109,21 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
           .map((s) => [s.sectionRef, s] as const));
         const prefilled: StepRow[] = bs.map((b) => {
           const existing = bySectionRef.get(b.id);
+          const selection: Record<string, { included: boolean; requirement: FieldReq }> = {};
+          existing?.fields?.forEach((f) => {
+            selection[f.fieldRef] = {
+              included: true,
+              requirement: f.requirement === 'REQUIRED' ? 'REQUIRED' : 'OPTIONAL',
+            };
+          });
           return {
             breakable: b,
             included: existing != null,
             ownerRole: (existing?.ownerRole as StepRow['ownerRole']) ?? 'OPERATOR',
             ownerDeviceId: existing?.ownerDeviceId ?? null,
+            fieldCandidates: null,
+            fieldSelection: selection,
+            expanded: false,
           };
         });
         // Breakables the workflow included but the metadata no longer has
@@ -113,6 +131,13 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
         const seenRefs = new Set(bs.map((b) => b.id));
         w.steps.forEach((s) => {
           if (s.sectionRef && !seenRefs.has(s.sectionRef)) {
+            const selection: Record<string, { included: boolean; requirement: FieldReq }> = {};
+            s.fields?.forEach((f) => {
+              selection[f.fieldRef] = {
+                included: true,
+                requirement: f.requirement === 'REQUIRED' ? 'REQUIRED' : 'OPTIONAL',
+              };
+            });
             prefilled.push({
               breakable: { id: s.sectionRef, displayName: s.displayName
                              + ' (not in current metadata)',
@@ -121,6 +146,9 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
               included: true,
               ownerRole: (s.ownerRole as StepRow['ownerRole']) ?? 'OPERATOR',
               ownerDeviceId: s.ownerDeviceId ?? null,
+              fieldCandidates: null,
+              fieldSelection: selection,
+              expanded: false,
             });
           }
         });
@@ -183,6 +211,9 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
           included: bs.length <= 6,
           ownerDeviceId: null,
           ownerRole: 'OPERATOR',
+          fieldCandidates: null,
+          fieldSelection: {},
+          expanded: false,
         })));
       })
       .catch((e) => setLoadError(e instanceof Error ? e.message : String(e)));
@@ -214,6 +245,9 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
           breakable: r.breakable,
           ownerDeviceId: r.ownerDeviceId,
           ownerRole: r.ownerRole,
+          fields: Object.entries(r.fieldSelection)
+            .filter(([, s]) => s.included)
+            .map(([fieldRef, s]) => ({ fieldRef, requirement: s.requirement })),
         })),
       });
       const saved = await api.saveWorkflow(payload);
@@ -375,6 +409,7 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
             <table className="ea-wizard-rows" data-test="wiz-rows">
               <thead>
                 <tr>
+                  <th scope="col" aria-label="Expand" style={{ width: 24 }} />
                   <th scope="col">Include</th>
                   <th scope="col">
                     {typeLabel(type) === 'dataset' ? 'Section' : 'Stage'}
@@ -384,44 +419,139 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => (
-                  <tr key={r.breakable.id} data-test={`wiz-row-${i}`}
-                       className={r.included ? '' : 'is-dim'}>
-                    <td>
-                      <input type="checkbox"
-                              data-test={`wiz-row-${i}-include`}
-                              checked={r.included}
-                              onChange={(e) => updateRow(i, { included: e.target.checked })} />
-                    </td>
-                    <td>{r.breakable.displayName}</td>
-                    <td>
-                      <select data-test={`wiz-row-${i}-role`}
-                               value={r.ownerRole} disabled={!r.included}
-                               onChange={(e) => updateRow(i,
-                                 { ownerRole: e.target.value as StepRow['ownerRole'] })}>
-                        <option value="OPERATOR">Capture operator</option>
-                        <option value="REVIEWER">Reviewer</option>
-                        <option value="ADMIN">Administrator</option>
-                      </select>
-                    </td>
-                    <td>
-                      <select data-test={`wiz-row-${i}-device`}
-                               value={r.ownerDeviceId ?? ''}
-                               disabled={!r.included}
-                               onChange={(e) => updateRow(i, {
-                                 ownerDeviceId: e.target.value === ''
-                                   ? null : e.target.value,
-                               })}>
-                        <option value="">— any available device —</option>
-                        {devices.map((d) => (
-                          <option key={d.deviceId} value={d.deviceId}>
-                            {d.displayName ?? d.deviceId.slice(0, 12)}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
+                {rows.flatMap((r, i) => {
+                  const summary = fieldSummary(r);
+                  return [
+                    (
+                      <tr key={r.breakable.id} data-test={`wiz-row-${i}`}
+                           className={r.included ? '' : 'is-dim'}>
+                        <td>
+                          <button type="button"
+                                   className="ea-icon-btn"
+                                   data-test={`wiz-row-${i}-expand`}
+                                   disabled={!r.included}
+                                   onClick={() => toggleExpand(i)}
+                                   aria-label={r.expanded ? 'Collapse fields' : 'Expand fields'}>
+                            {r.expanded ? '▾' : '▸'}
+                          </button>
+                        </td>
+                        <td>
+                          <input type="checkbox"
+                                  data-test={`wiz-row-${i}-include`}
+                                  checked={r.included}
+                                  onChange={(e) => updateRow(i, { included: e.target.checked })} />
+                        </td>
+                        <td>
+                          <div>{r.breakable.displayName}</div>
+                          {summary && (
+                            <div className="ea-text-muted" style={{ fontSize: 12 }}
+                                  data-test={`wiz-row-${i}-field-summary`}>
+                              {summary}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <select data-test={`wiz-row-${i}-role`}
+                                   value={r.ownerRole} disabled={!r.included}
+                                   onChange={(e) => updateRow(i,
+                                     { ownerRole: e.target.value as StepRow['ownerRole'] })}>
+                            <option value="OPERATOR">Capture operator</option>
+                            <option value="REVIEWER">Reviewer</option>
+                            <option value="ADMIN">Administrator</option>
+                          </select>
+                        </td>
+                        <td>
+                          <select data-test={`wiz-row-${i}-device`}
+                                   value={r.ownerDeviceId ?? ''}
+                                   disabled={!r.included}
+                                   onChange={(e) => updateRow(i, {
+                                     ownerDeviceId: e.target.value === ''
+                                       ? null : e.target.value,
+                                   })}>
+                            <option value="">— any available device —</option>
+                            {devices.map((d) => (
+                              <option key={d.deviceId} value={d.deviceId}>
+                                {d.displayName ?? d.deviceId.slice(0, 12)}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ),
+                    r.expanded && r.included && (
+                      <tr key={`${r.breakable.id}-fields`}
+                           className="ea-wizard-fields-row"
+                           data-test={`wiz-row-${i}-fields`}>
+                        <td></td>
+                        <td colSpan={4}>
+                          {r.fieldCandidates == null ? (
+                            <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                              Loading fields…
+                            </span>
+                          ) : r.fieldCandidates.length === 0 ? (
+                            <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                              No fields found for this breakable in the mirror.
+                              Save without selection to capture everything in the section.
+                            </span>
+                          ) : (
+                            <div className="ea-wizard-field-selector">
+                              <div className="ea-wizard-field-selector-head">
+                                <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                                         data-test={`wiz-row-${i}-fields-all`}
+                                         onClick={() => bulkSetFieldSelection(i, true)}>
+                                  Select all
+                                </button>
+                                <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                                         data-test={`wiz-row-${i}-fields-none`}
+                                         onClick={() => bulkSetFieldSelection(i, false)}>
+                                  Clear
+                                </button>
+                              </div>
+                              <ul className="ea-wizard-field-list">
+                                {r.fieldCandidates.map((f) => {
+                                  const sel = r.fieldSelection[f.id];
+                                  const included = sel?.included ?? false;
+                                  const req = sel?.requirement
+                                               ?? (f.compulsory ? 'REQUIRED' : 'OPTIONAL');
+                                  return (
+                                    <li key={f.id}
+                                         data-test={`wiz-row-${i}-field-${f.id}`}>
+                                      <label>
+                                        <input type="checkbox"
+                                                data-test={`wiz-row-${i}-field-${f.id}-include`}
+                                                checked={included}
+                                                onChange={(e) => updateFieldSelection(i, f.id,
+                                                  { included: e.target.checked,
+                                                    requirement: req as FieldReq })} />
+                                        <span>{f.displayName}</span>
+                                        {f.compulsory && (
+                                          <span className="ea-pill ea-pill--muted"
+                                                 style={{ marginLeft: 6, fontSize: 10 }}>
+                                            upstream required
+                                          </span>
+                                        )}
+                                      </label>
+                                      {included && (
+                                        <select data-test={`wiz-row-${i}-field-${f.id}-req`}
+                                                 value={req}
+                                                 onChange={(e) => updateFieldSelection(i, f.id,
+                                                   { included: true,
+                                                     requirement: e.target.value as FieldReq })}>
+                                          <option value="REQUIRED">Required</option>
+                                          <option value="OPTIONAL">Optional</option>
+                                        </select>
+                                      )}
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ),
+                  ].filter(Boolean);
+                })}
               </tbody>
             </table>
           )}
@@ -448,6 +578,80 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
       copy[ix] = { ...copy[ix], ...patch };
       return copy;
     });
+  }
+
+  function toggleExpand(ix: number): void {
+    setRows((prev) => {
+      const copy = [...prev];
+      const row = copy[ix];
+      const willExpand = !row.expanded;
+      copy[ix] = { ...row, expanded: willExpand };
+      if (willExpand && row.fieldCandidates == null) {
+        // Lazy fetch per row — only hit the server when the operator
+        // opens the field selector.
+        md.listFieldCandidates(row.breakable)
+          .then((fields) => setRows((p) => {
+            const next = [...p];
+            // Preserve any selection the operator pre-set (edit mode).
+            const existingSel = next[ix].fieldSelection;
+            const seeded: Record<string, { included: boolean; requirement: FieldReq }> = {};
+            fields.forEach((f) => {
+              seeded[f.id] = existingSel[f.id] ?? {
+                included: f.compulsory,
+                requirement: f.compulsory ? 'REQUIRED' : 'OPTIONAL',
+              };
+            });
+            // Carry over any pre-set selection whose field is not in
+            // the current candidates (metadata drift).
+            Object.entries(existingSel).forEach(([k, v]) => {
+              if (!(k in seeded)) seeded[k] = v;
+            });
+            next[ix] = { ...next[ix], fieldCandidates: fields, fieldSelection: seeded };
+            return next;
+          }))
+          .catch(() => setRows((p) => {
+            const next = [...p];
+            next[ix] = { ...next[ix], fieldCandidates: [] };
+            return next;
+          }));
+      }
+      return copy;
+    });
+  }
+
+  function updateFieldSelection(ix: number, fieldId: string,
+                                 next: { included: boolean; requirement: FieldReq }): void {
+    setRows((prev) => {
+      const copy = [...prev];
+      copy[ix] = { ...copy[ix],
+                    fieldSelection: { ...copy[ix].fieldSelection, [fieldId]: next } };
+      return copy;
+    });
+  }
+
+  function bulkSetFieldSelection(ix: number, selected: boolean): void {
+    setRows((prev) => {
+      const copy = [...prev];
+      const row = copy[ix];
+      const candidates = row.fieldCandidates ?? [];
+      const next: Record<string, { included: boolean; requirement: FieldReq }> = {};
+      candidates.forEach((f) => {
+        next[f.id] = {
+          included: selected,
+          requirement: f.compulsory ? 'REQUIRED' : 'OPTIONAL',
+        };
+      });
+      copy[ix] = { ...row, fieldSelection: next };
+      return copy;
+    });
+  }
+
+  function fieldSummary(row: StepRow): string | null {
+    const total = Object.values(row.fieldSelection).filter((s) => s.included).length;
+    if (total === 0) return null;
+    const req = Object.values(row.fieldSelection)
+      .filter((s) => s.included && s.requirement === 'REQUIRED').length;
+    return `${total} field${total === 1 ? '' : 's'} · ${req} required`;
   }
 }
 

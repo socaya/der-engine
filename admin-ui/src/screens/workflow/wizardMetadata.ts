@@ -16,6 +16,28 @@ export interface Breakable {
   sectionKind: 'DATASET_SECTION' | 'PROGRAM_STAGE' | 'EVENT_INSTANCE';
 }
 
+/** One data element / attribute offered inside a breakable step. */
+export interface FieldCandidate {
+  id: string;
+  displayName: string;
+  /** Flagged compulsory upstream — pre-tick + preselect REQUIRED. */
+  compulsory: boolean;
+}
+
+export async function listFieldCandidates(breakable: Breakable): Promise<FieldCandidate[]> {
+  const r = await fetch(
+    `/edge-api/v1/metadata/field-candidates`
+      + `?kind=${encodeURIComponent(breakable.sectionKind)}`
+      + `&ref=${encodeURIComponent(breakable.id)}`,
+    { credentials: 'include', headers: { Accept: 'application/json' } },
+  );
+  if (!r.ok) {
+    return [];
+  }
+  const body = (await r.json()) as { fields?: FieldCandidate[] };
+  return body.fields ?? [];
+}
+
 interface DhisListResponse<T> {
   pager?: unknown;
   [key: string]: unknown | T[];
@@ -126,6 +148,10 @@ export function buildWorkflowPayload(opts: {
     breakable: Breakable;
     ownerDeviceId: string | null;
     ownerRole: 'OPERATOR' | 'REVIEWER' | 'ADMIN';
+    /** Per-step field selection. Empty → "capture everything in the
+     *  section/stage" (server treats fields=[] as unscoped). */
+    fields?: { fieldRef: string;
+                 requirement: 'REQUIRED' | 'OPTIONAL' | 'READONLY' | 'HIDDEN' }[];
   }[];
 }): Parameters<typeof edgeApi.saveWorkflow>[0] {
   const boundMetadataKind = opts.type === 'AGGREGATE' ? 'DATA_SET' : 'PROGRAM';
@@ -138,7 +164,7 @@ export function buildWorkflowPayload(opts: {
     stepKind: 'CAPTURE',
     sectionKind: s.breakable.sectionKind,
     sectionRef: s.breakable.id,
-    fields: [],
+    fields: s.fields ?? [],
   }));
   // Linear dependency chain — each step depends on the previous one.
   const dependencies: edgeApi.CaptureWorkflowDependency[] = [];

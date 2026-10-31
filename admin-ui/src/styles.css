@@ -2109,3 +2109,32 @@ kbd{
 .ea-validation-section--error{border-left-color:#dc3545}
 .ea-validation-section--warning{border-left-color:#f0ad4e}
 .ea-validation-section--info{border-left-color:#5bc0de}
+
+/* ─── Wizard field selector (2.3.22) ───────────────────────── */
+.ea-icon-btn{
+  background:transparent;border:0;cursor:pointer;color:var(--der-ink-500);
+  font-size:14px;padding:4px 6px;
+}
+.ea-icon-btn:hover{color:var(--der-ink-900)}
+.ea-icon-btn:disabled{opacity:0.3;cursor:not-allowed}
+
+.ea-wizard-fields-row > td{
+  background:var(--der-raised);border-top:0;padding:12px 16px;
+}
+.ea-wizard-field-selector-head{
+  display:flex;gap:var(--sp-2);margin-bottom:var(--sp-2);
+}
+.ea-wizard-field-list{
+  list-style:none;margin:0;padding:0;display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:4px 12px;
+  max-height:300px;overflow-y:auto;
+}
+.ea-wizard-field-list > li{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:6px;font-size:13px;padding:3px 0;
+}
+.ea-wizard-field-list > li > label{display:flex;align-items:center;gap:6px;flex:1;cursor:pointer}
+.ea-wizard-field-list > li select{
+  padding:2px 6px;border:1px solid var(--der-border-strong);
+  border-radius:var(--r-sm);font-size:12px;background:var(--der-surface);
+}
