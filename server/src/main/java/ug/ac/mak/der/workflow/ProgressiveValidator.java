@@ -52,10 +52,13 @@ public class ProgressiveValidator {
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
+    private final ProgramRuleEvaluator programRules;
 
-    public ProgressiveValidator(final JdbcTemplate jdbc, final ObjectMapper mapper) {
+    public ProgressiveValidator(final JdbcTemplate jdbc, final ObjectMapper mapper,
+                                 final ProgramRuleEvaluator programRules) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
+        this.programRules = Objects.requireNonNull(programRules, "programRules");
     }
 
     /** Issue surface returned by {@link #findForRun(UUID)} + persisted
@@ -122,6 +125,10 @@ public class ProgressiveValidator {
                 }
             }
         }
+
+        // §35 — program-rule evaluation lands its findings in the same
+        // bucket so operators see one list.
+        issues.addAll(programRules.evaluate(workflow, runId, contributions));
 
         rewritePersistedIssues(runId, issues);
         LOG.debug("validateRun {} → {} issue(s)", runId, issues.size());
