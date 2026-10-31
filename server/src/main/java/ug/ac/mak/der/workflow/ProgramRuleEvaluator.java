@@ -53,11 +53,14 @@ import ug.ac.mak.der.metadata.MirroredProgramRuleAction;
  *       treated as SHOWERROR / SHOWWARNING, since the DER coordinator
  *       validates on every contribute (not on a separate complete
  *       event).</li>
+ *   <li>{@code SETMANDATORYFIELD} — once the rule's condition fires,
+ *       the targeted field must be present in the merged payload or we
+ *       emit a {@code PROGRAM_RULE_SETMANDATORYFIELD} ERROR. Bridges
+ *       §35 into §36.</li>
  *   <li>Other action types ({@code HIDEFIELD}, {@code ASSIGN},
- *       {@code CREATEEVENT}, {@code SETMANDATORY}, …) are not yet
- *       enforced at the server. {@code SETMANDATORY} is still partially
- *       honoured because the existing REQUIRED_FIELD_MISSING check
- *       covers mandatoriness.</li>
+ *       {@code CREATEEVENT}, {@code HIDESECTION}, …) are not yet
+ *       enforced at the server; they will land as a follow-up once a
+ *       client-side surface exists to hide/assign fields.</li>
  * </ul>
  */
 @Service
@@ -125,7 +128,7 @@ public class ProgramRuleEvaluator {
                 continue;
             }
             for (final MirroredProgramRuleAction a : r.actions()) {
-                final ProgressiveValidator.Issue issue = toIssue(runId, r, a);
+                final ProgressiveValidator.Issue issue = toIssue(runId, r, a, values);
                 if (issue != null) {
                     issues.add(issue);
                 }
@@ -173,29 +176,64 @@ public class ProgramRuleEvaluator {
 
     private ProgressiveValidator.Issue toIssue(final UUID runId,
                                                   final MirroredProgramRule rule,
-                                                  final MirroredProgramRuleAction action) {
+                                                  final MirroredProgramRuleAction action,
+                                                  final Map<String, String> values) {
         final String type = action.actionType();
-        final ProgressiveValidator.Severity sev;
-        switch (type) {
+        return switch (type) {
             case "SHOWERROR", "SHOWERRORONCOMPLETE" ->
-                sev = ProgressiveValidator.Severity.ERROR;
+                textIssue(runId, rule, action, ProgressiveValidator.Severity.ERROR);
             case "SHOWWARNING", "WARNINGONCOMPLETE" ->
-                sev = ProgressiveValidator.Severity.WARNING;
-            default -> {
-                // Unmapped action types do not produce issues. HIDEFIELD /
-                // ASSIGN / CREATEEVENT / etc. need a different surface
-                // (client UI feature flag) and will land as follow-ups.
-                return null;
-            }
-        }
+                textIssue(runId, rule, action, ProgressiveValidator.Severity.WARNING);
+            case "SETMANDATORYFIELD" ->
+                mandatoryIssue(runId, rule, action, values);
+            // HIDEFIELD / ASSIGN / CREATEEVENT / HIDESECTION / etc. need a
+            // client-side surface and will land as follow-ups.
+            default -> null;
+        };
+    }
+
+    private ProgressiveValidator.Issue textIssue(final UUID runId,
+                                                    final MirroredProgramRule rule,
+                                                    final MirroredProgramRuleAction action,
+                                                    final ProgressiveValidator.Severity sev) {
         final String message = action.content() == null || action.content().isBlank()
                 ? "Rule '" + rule.displayName() + "' triggered"
                 : action.content();
         return new ProgressiveValidator.Issue(
                 UUID.randomUUID(), runId, null,
-                "PROGRAM_RULE_" + type, sev, message,
+                "PROGRAM_RULE_" + action.actionType(), sev, message,
                 action.dataElementUid() != null ? action.dataElementUid()
                         : action.trackedEntityAttributeUid());
+    }
+
+    /**
+     * SETMANDATORYFIELD bridges §35 → §36: once the rule's condition
+     * fires, the targeted field must be present in the merged payload
+     * or we emit a {@code PROGRAM_RULE_SETMANDATORYFIELD} ERROR issue
+     * that gates completion. If the field is already present → no issue.
+     */
+    private ProgressiveValidator.Issue mandatoryIssue(final UUID runId,
+                                                        final MirroredProgramRule rule,
+                                                        final MirroredProgramRuleAction action,
+                                                        final Map<String, String> values) {
+        final String targetUid = action.dataElementUid() != null
+                ? action.dataElementUid()
+                : action.trackedEntityAttributeUid();
+        if (targetUid == null) {
+            return null;
+        }
+        final String current = values.get(targetUid);
+        if (current != null && !current.isBlank()) {
+            return null; // already captured — nothing to flag
+        }
+        final String message = "Field '" + targetUid
+                + "' is mandatory under rule '" + rule.displayName()
+                + "' — please provide a value.";
+        return new ProgressiveValidator.Issue(
+                UUID.randomUUID(), runId, null,
+                "PROGRAM_RULE_SETMANDATORYFIELD",
+                ProgressiveValidator.Severity.ERROR,
+                message, targetUid);
     }
 
     /* ─── expression evaluation ────────────────────────────────────── */
@@ -412,7 +450,7 @@ public class ProgramRuleEvaluator {
                 continue;
             }
             for (final MirroredProgramRuleAction a : r.actions()) {
-                final ProgressiveValidator.Issue i = toIssue(runId, r, a);
+                final ProgressiveValidator.Issue i = toIssue(runId, r, a, values);
                 if (i != null) {
                     out.add(i);
                 }
