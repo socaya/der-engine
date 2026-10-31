@@ -129,6 +129,10 @@ public class WorkflowCompiler {
         // V046 — ENROLLMENT_FORM contributions land in a dedicated section.
         final ObjectNode enrollment = mapper.createObjectNode();
         boolean enrollmentPresent = false;
+        // V048 — TEI_TYPE_ATTRIBUTES contributions land on trackedEntity.
+        final ObjectNode trackedEntity = mapper.createObjectNode();
+        final Map<String, JsonNode> teiAttrs = new LinkedHashMap<>();
+        boolean teiPresent = false;
 
         for (final CaptureWorkflowStep s : ordered) {
             final CaptureWorkflowContribution c = byStep.get(s.stepId());
@@ -139,6 +143,14 @@ public class WorkflowCompiler {
 
             if (s.sectionKind() == CaptureWorkflowStep.SectionKind.ENROLLMENT_FORM) {
                 enrollmentPresent |= mergeEnrollment(enrollment, payload);
+            }
+            if (s.sectionKind() == CaptureWorkflowStep.SectionKind.TEI_TYPE_ATTRIBUTES) {
+                teiPresent |= mergeTei(trackedEntity, teiAttrs, payload);
+                // TEI_TYPE_ATTRIBUTES does NOT also contribute to the
+                // enrollment-level attributes[] bucket. Skip to next step.
+                consumedSteps.add(s.stepId().toString());
+                consumedIds.add(c.contributionId());
+                continue;
             }
 
             payload.path("attributes").forEach((a) -> attributes.put(
@@ -164,6 +176,11 @@ public class WorkflowCompiler {
                 ? workflow.boundMetadataId() : null);
         if (enrollmentPresent) {
             root.set("enrollment", enrollment);
+        }
+        if (teiPresent) {
+            final ArrayNode teiArr = trackedEntity.putArray("attributes");
+            teiAttrs.values().forEach(teiArr::add);
+            root.set("trackedEntity", trackedEntity);
         }
         final ArrayNode attrs = root.putArray("attributes");
         attributes.values().forEach(attrs::add);
@@ -199,6 +216,35 @@ public class WorkflowCompiler {
     private static String cellKey(final JsonNode v) {
         return v.path("dataElement").asText("") + "|"
                 + v.path("categoryOptionCombo").asText("");
+    }
+
+    /** V048 — fold TEI_TYPE_ATTRIBUTES into the trackedEntity block.
+     *  Later steps overwrite earlier values. The payload may carry
+     *  trackedEntity-level metadata too (trackedEntity UID,
+     *  trackedEntityType UID, orgUnit, geometry) which lives at the
+     *  trackedEntity root alongside the merged attributes array. */
+    private boolean mergeTei(final ObjectNode trackedEntity,
+                               final Map<String, JsonNode> teiAttrs,
+                               final JsonNode payload) {
+        boolean touched = false;
+        for (final String f : new String[] {
+                "trackedEntity", "trackedEntityType", "orgUnit",
+                "geometry", "inactive", "potentialDuplicate"}) {
+            final JsonNode node = payload.path(f);
+            if (!node.isMissingNode() && !node.isNull()) {
+                trackedEntity.set(f, node);
+                touched = true;
+            }
+        }
+        final JsonNode attrs = payload.path("attributes");
+        if (attrs.isArray()) {
+            attrs.forEach((a) -> teiAttrs.put(
+                    a.path("attribute").asText(""), a));
+            if (attrs.size() > 0) {
+                touched = true;
+            }
+        }
+        return touched;
     }
 
     /** Fold ENROLLMENT_FORM contribution fields into the compiled

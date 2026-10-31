@@ -895,6 +895,7 @@ export type SectionKind =
   | 'COC_SPLIT'
   | 'ENROLLMENT_FORM'      /* V046 */
   | 'PROGRAM_SECTION'      /* V047 — DHIS2 v2.30+ ProgramSection */
+  | 'TEI_TYPE_ATTRIBUTES'  /* V048 — TrackedEntityType cross-program profile */
   | 'AD_HOC';
 
 export interface CaptureWorkflowField {

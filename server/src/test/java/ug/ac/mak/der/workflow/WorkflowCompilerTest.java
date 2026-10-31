@@ -67,6 +67,33 @@ class WorkflowCompilerTest {
     }
 
     @Test
+    void teiTypeAttributesFoldedIntoTrackedEntityBlock() {
+        // V048 — TEI_TYPE_ATTRIBUTES contributes name/DoB onto a dedicated
+        // trackedEntity.attributes[] block, distinct from enrollment-level
+        // attributes[] on the root.
+        final UUID id = UUID.randomUUID();
+        final UUID teiStep = UUID.randomUUID();
+        final UUID enrollStep = UUID.randomUUID();
+        final CaptureWorkflow w = new CaptureWorkflow(id, "ANC tracker",
+            CaptureWorkflow.BindingKind.PROGRAM, "anc-prog", true, 1, NOW, NOW, null,
+            List.of(step(teiStep, id, 0,
+                        CaptureWorkflowStep.SectionKind.TEI_TYPE_ATTRIBUTES, "teType-person"),
+                    step(enrollStep, id, 1,
+                        CaptureWorkflowStep.SectionKind.PROGRAM_SECTION, "sec-visit")),
+            List.of(), false, null);
+        final List<CaptureWorkflowContribution> cs = List.of(
+            contrib(teiStep, "{\"trackedEntityType\":\"PERSON\","
+                + "\"attributes\":[{\"attribute\":\"NAME\",\"value\":\"Mary\"},"
+                + "{\"attribute\":\"DOB\",\"value\":\"1990-01-01\"}]}"),
+            contrib(enrollStep, "{\"attributes\":[{\"attribute\":\"VISIT_REASON\",\"value\":\"ANC1\"}]}"));
+        final JsonNode out = compiler.compile(w, cs).orElseThrow().payload();
+        assertThat(out.path("trackedEntity").path("trackedEntityType").asText()).isEqualTo("PERSON");
+        assertThat(out.path("trackedEntity").path("attributes").size()).isEqualTo(2);
+        assertThat(out.path("attributes").size()).isEqualTo(1);
+        assertThat(out.path("attributes").get(0).path("attribute").asText()).isEqualTo("VISIT_REASON");
+    }
+
+    @Test
     void programSectionAttributesMergeIntoAttributesArray() {
         // V047 — two PROGRAM_SECTION steps contribute different attribute
         // uids; compiler merges by `attribute` UID into attributes[].

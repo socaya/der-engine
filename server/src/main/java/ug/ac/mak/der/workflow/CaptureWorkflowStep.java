@@ -83,6 +83,11 @@ public record CaptureWorkflowStep(
          *  enrollment form. {@code sectionRef} is the ProgramSection UID.
          *  Only valid for PROGRAM-bound workflows. */
         PROGRAM_SECTION,
+        /** V048 — TrackedEntityType attributes: cross-program profile
+         *  fields (name, DoB, sex, national ID) that live on the TEI
+         *  itself, not on any enrollment. {@code sectionRef} is the
+         *  TrackedEntityType UID. Only valid for PROGRAM-bound workflows. */
+        TEI_TYPE_ATTRIBUTES,
         /** Free-form field list defined only by the workflow fields[]. */
         AD_HOC
     }
