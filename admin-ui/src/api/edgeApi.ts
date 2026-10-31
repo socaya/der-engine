@@ -897,6 +897,7 @@ export type SectionKind =
   | 'PROGRAM_SECTION'      /* V047 — DHIS2 v2.30+ ProgramSection */
   | 'TEI_TYPE_ATTRIBUTES'  /* V048 — TrackedEntityType cross-program profile */
   | 'ATTRIBUTE_OPTION_COMBO' /* V049 — funder/project split, cross-cutting */
+  | 'ORG_UNIT_SCOPE'          /* V050 — sub-OU split, cross-cutting */
   | 'AD_HOC';
 
 export interface CaptureWorkflowField {

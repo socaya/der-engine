@@ -114,6 +114,51 @@ class WorkflowCompilerTest {
     }
 
     @Test
+    void aggregateOrgUnitScopeStampedOnDataValues() {
+        // V050 — ORG_UNIT_SCOPE stamps orgUnit on dataValues so a
+        // district edge can collect per-facility slices and emit them
+        // as distinct rows on one dataset submission.
+        final UUID id = UUID.randomUUID();
+        final UUID ouA = UUID.randomUUID();
+        final UUID ouB = UUID.randomUUID();
+        final CaptureWorkflow w = new CaptureWorkflow(id, "District ANC",
+            CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 1, NOW, NOW, null,
+            List.of(step(ouA, id, 0,
+                    CaptureWorkflowStep.SectionKind.ORG_UNIT_SCOPE, "ou-facility-A"),
+                    step(ouB, id, 1,
+                    CaptureWorkflowStep.SectionKind.ORG_UNIT_SCOPE, "ou-facility-B")),
+            List.of(), false, null);
+        final List<CaptureWorkflowContribution> cs = List.of(
+            contrib(ouA, "{\"dataValues\":[{\"dataElement\":\"DE1\",\"categoryOptionCombo\":\"COC1\",\"value\":\"10\"}]}"),
+            contrib(ouB, "{\"dataValues\":[{\"dataElement\":\"DE1\",\"categoryOptionCombo\":\"COC1\",\"value\":\"7\"}]}"));
+        final JsonNode out = compiler.compile(w, cs).orElseThrow().payload();
+        assertThat(out.path("dataValues").size()).isEqualTo(2);
+        boolean sawA = false; boolean sawB = false;
+        for (final JsonNode v : out.path("dataValues")) {
+            if ("ou-facility-A".equals(v.path("orgUnit").asText())) sawA = true;
+            if ("ou-facility-B".equals(v.path("orgUnit").asText())) sawB = true;
+        }
+        assertThat(sawA).isTrue();
+        assertThat(sawB).isTrue();
+    }
+
+    @Test
+    void eventOrgUnitScopeStampedOnEvents() {
+        final UUID id = UUID.randomUUID();
+        final UUID ouA = UUID.randomUUID();
+        final CaptureWorkflow w = new CaptureWorkflow(id, "events — OU split",
+            CaptureWorkflow.BindingKind.PROGRAM, "prog1", true, 1, NOW, NOW, null,
+            List.of(step(ouA, id, 0,
+                    CaptureWorkflowStep.SectionKind.ORG_UNIT_SCOPE, "ou-ward-A")),
+            List.of(), false, null);
+        final JsonNode out = compiler.compile(w, List.of(contrib(ouA,
+            "{\"events\":[{\"programStage\":\"stage1\",\"occurredAt\":\"2026-10-30\",\"dataValues\":[]}]}")))
+            .orElseThrow().payload();
+        assertThat(out.path("events").get(0).path("orgUnit").asText())
+            .isEqualTo("ou-ward-A");
+    }
+
+    @Test
     void teiTypeAttributesFoldedIntoTrackedEntityBlock() {
         // V048 — TEI_TYPE_ATTRIBUTES contributes name/DoB onto a dedicated
         // trackedEntity.attributes[] block, distinct from enrollment-level

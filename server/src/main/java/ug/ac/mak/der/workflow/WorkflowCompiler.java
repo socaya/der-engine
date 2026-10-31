@@ -104,12 +104,14 @@ public class WorkflowCompiler {
             }
             final JsonNode payload = mapper.readTree(c.payload());
             final JsonNode arr = payload.path("dataValues");
-            // V049 — if the step is ATTRIBUTE_OPTION_COMBO, every
-            // dataValue it contributes gets stamped with its AOC UID
-            // (sectionRef), so one dataset can carry multiple funder
-            // splits that the API processes separately.
+            // V049 — ATTRIBUTE_OPTION_COMBO stamps attributeOptionCombo.
+            // V050 — ORG_UNIT_SCOPE stamps orgUnit (sub-OU under edge).
+            // Both are cross-cutting; sectionRef is the respective UID.
             final String aocStamp = s.sectionKind()
                     == CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO
+                    ? s.sectionRef() : null;
+            final String ouStamp = s.sectionKind()
+                    == CaptureWorkflowStep.SectionKind.ORG_UNIT_SCOPE
                     ? s.sectionRef() : null;
             if (arr.isArray()) {
                 arr.forEach((v) -> {
@@ -118,9 +120,14 @@ public class WorkflowCompiler {
                             && !value.has("attributeOptionCombo")) {
                         value.put("attributeOptionCombo", aocStamp);
                     }
+                    if (ouStamp != null && !ouStamp.isBlank()
+                            && !value.has("orgUnit")) {
+                        value.put("orgUnit", ouStamp);
+                    }
                     final String key = value.path("dataElement").asText("")
                             + "|" + value.path("categoryOptionCombo").asText("")
-                            + "|" + value.path("attributeOptionCombo").asText("");
+                            + "|" + value.path("attributeOptionCombo").asText("")
+                            + "|" + value.path("orgUnit").asText("");
                     values.put(key, value);
                 });
             }
@@ -159,15 +166,18 @@ public class WorkflowCompiler {
             if (s.sectionKind() == CaptureWorkflowStep.SectionKind.ENROLLMENT_FORM) {
                 enrollmentPresent |= mergeEnrollment(enrollment, payload);
             }
-            // V049 — AOC step can target the enrollment layer too. If
-            // its payload sets any enrollment-level fields, fold them +
-            // stamp the AOC.
-            if (s.sectionKind() == CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO
-                    && s.sectionRef() != null && !s.sectionRef().isBlank()
+            // V049 — AOC step can target the enrollment layer too.
+            // V050 — ORG_UNIT_SCOPE step similarly stamps enrollment.orgUnit.
+            if (s.sectionRef() != null && !s.sectionRef().isBlank()
                     && (!payload.path("enrollmentDate").isMissingNode()
                         || !payload.path("enrollment").isMissingNode())) {
-                enrollment.put("attributeOptionCombo", s.sectionRef());
-                enrollmentPresent = true;
+                if (s.sectionKind() == CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO) {
+                    enrollment.put("attributeOptionCombo", s.sectionRef());
+                    enrollmentPresent = true;
+                } else if (s.sectionKind() == CaptureWorkflowStep.SectionKind.ORG_UNIT_SCOPE) {
+                    enrollment.put("orgUnit", s.sectionRef());
+                    enrollmentPresent = true;
+                }
             }
             if (s.sectionKind() == CaptureWorkflowStep.SectionKind.TEI_TYPE_ATTRIBUTES) {
                 teiPresent |= mergeTei(trackedEntity, teiAttrs, payload);
@@ -178,10 +188,13 @@ public class WorkflowCompiler {
                 continue;
             }
 
-            // V049 — ATTRIBUTE_OPTION_COMBO step stamps every event /
-            // enrollment it contributes with its sectionRef AOC UID.
+            // V049 — ATTRIBUTE_OPTION_COMBO stamps event AOC.
+            // V050 — ORG_UNIT_SCOPE stamps event orgUnit.
             final String aocStamp = s.sectionKind()
                     == CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO
+                    ? s.sectionRef() : null;
+            final String ouStamp = s.sectionKind()
+                    == CaptureWorkflowStep.SectionKind.ORG_UNIT_SCOPE
                     ? s.sectionRef() : null;
 
             payload.path("attributes").forEach((a) -> attributes.put(
@@ -192,9 +205,14 @@ public class WorkflowCompiler {
                         && !event.has("attributeOptionCombo")) {
                     event.put("attributeOptionCombo", aocStamp);
                 }
+                if (ouStamp != null && !ouStamp.isBlank()
+                        && !event.has("orgUnit")) {
+                    event.put("orgUnit", ouStamp);
+                }
                 final String key = event.path("programStage").asText("") + "|"
                         + event.path("occurredAt").asText("") + "|"
-                        + event.path("attributeOptionCombo").asText("");
+                        + event.path("attributeOptionCombo").asText("") + "|"
+                        + event.path("orgUnit").asText("");
                 final JsonNode existing = events.get(key);
                 if (existing == null) {
                     events.put(key, event);

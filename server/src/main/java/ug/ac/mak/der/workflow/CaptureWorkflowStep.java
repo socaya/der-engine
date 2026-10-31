@@ -94,6 +94,13 @@ public record CaptureWorkflowStep(
          *  contributed by this step with that UID so DHIS2 can split
          *  value populations by funder. */
         ATTRIBUTE_OPTION_COMBO,
+        /** V050 — sub-OU split for edges that serve more than one
+         *  org unit (district edges, hospital wards, OU groups).
+         *  {@code sectionRef} is the sub-OU UID; the compiler stamps
+         *  {@code orgUnit} on every dataValue / event / enrollment the
+         *  step contributes. Cross-cutting across every parent binding;
+         *  a no-op annotation when the edge is a single-OU facility. */
+        ORG_UNIT_SCOPE,
         /** Free-form field list defined only by the workflow fields[]. */
         AD_HOC
     }
