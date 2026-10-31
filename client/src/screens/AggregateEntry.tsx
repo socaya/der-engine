@@ -4,6 +4,8 @@ import { Button } from '@dhis2/ui';
 import * as edgeApi from '../api/edgeApi';
 import type { AggregateReadbackRow, ImportSummary } from '../api/edgeApi';
 import { ErrorBlock, LoadingBlock, OfflineBanner, LocallyCommittedPill } from '../components/ScreenStates';
+import { useRunValidation } from '../hooks/useRunValidation';
+import { RunValidationBanner } from '../components/RunValidationBanner';
 
 export interface AggregateEntryProps {
   readonly api?: Pick<typeof edgeApi, 'readAggregateValues' | 'submitAggregate' | 'health'>;
@@ -13,6 +15,7 @@ export interface AggregateEntryProps {
 export function AggregateEntry({ api = edgeApi }: AggregateEntryProps = {}): JSX.Element {
   const [params] = useSearchParams();
   const dataSet = params.get('dataSet') ?? '';
+  const runId = params.get('runId');
   const [orgUnit, setOrgUnit] = useState(params.get('orgUnit') ?? '');
   const [period, setPeriod] = useState(params.get('period') ?? '');
   const [rows, setRows] = useState<AggregateReadbackRow[] | null>(null);
@@ -21,6 +24,11 @@ export function AggregateEntry({ api = edgeApi }: AggregateEntryProps = {}): JSX
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // §2.3.34 — program-rule actions from the server. When this screen
+  // is driving a workflow run (?runId=…) we hide fields the server
+  // asked us to hide, pre-fill ASSIGN values, and show the banner.
+  const validation = useRunValidation(runId);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,9 +51,18 @@ export function AggregateEntry({ api = edgeApi }: AggregateEntryProps = {}): JSX
   async function submit(): Promise<void> {
     setSaving(true);
     try {
-      const dataValues = Object.entries(edits).map(([dataElement, value]) => ({
-        dataElement, orgUnit, period, value,
-      }));
+      // Fold auto-filled ASSIGN values into the submission unless the
+      // operator has typed over them. Hidden fields never go up.
+      const merged: Record<string, string> = {};
+      validation.assignedValues.forEach((v, k) => {
+        if (!validation.hiddenFields.has(k)) merged[k] = v;
+      });
+      Object.entries(edits).forEach(([k, v]) => { merged[k] = v; });
+      const dataValues = Object.entries(merged)
+        .filter(([k]) => !validation.hiddenFields.has(k))
+        .map(([dataElement, value]) => ({
+          dataElement, orgUnit, period, value,
+        }));
       const r = await api.submitAggregate({ dataValues });
       setResult(r);
       setEdits({});
@@ -61,6 +78,10 @@ export function AggregateEntry({ api = edgeApi }: AggregateEntryProps = {}): JSX
       <h1 data-test="aggregate-entry-heading">Aggregate entry</h1>
       <p>Dataset: <span data-test="aggregate-entry-dataset">{dataSet || '(none)'}</span></p>
       {offline && <OfflineBanner testId="aggregate-entry-offline" />}
+      {runId && (
+        <RunValidationBanner state={validation}
+                              testId="aggregate-entry-validation" />
+      )}
       <div className="der-aggregate-filters">
         <label className="der-field"><span>Organisation unit UID</span><input data-test="aggregate-entry-orgunit" value={orgUnit} onChange={(e) => { setOrgUnit(e.target.value) }} /></label>
         <label className="der-field"><span>Period (e.g. 2026Q1)</span><input data-test="aggregate-entry-period" value={period} onChange={(e) => { setPeriod(e.target.value) }} /></label>
@@ -84,24 +105,57 @@ export function AggregateEntry({ api = edgeApi }: AggregateEntryProps = {}): JSX
             <tr><th>Data element</th><th>Current</th><th>New</th></tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.dataElement}>
-                <td data-test={`aggregate-row-de-${r.dataElement}`}>{r.dataElement}</td>
-                <td data-test={`aggregate-row-current-${r.dataElement}`}>{r.value}</td>
-                <td>
-                  <input
-                    data-test={`aggregate-row-input-${r.dataElement}`}
-                    value={edits[r.dataElement] ?? ''}
-                    onChange={(e) =>
-                      setEdits({ ...edits, [r.dataElement]: e.target.value })}
-                  />
-                </td>
-              </tr>
-            ))}
+            {rows.map((r) => {
+              const hidden = validation.hiddenFields.has(r.dataElement);
+              if (hidden) {
+                return (
+                  <tr key={r.dataElement} data-test={`aggregate-row-hidden-${r.dataElement}`}
+                       style={{ opacity: 0.4 }}>
+                    <td data-test={`aggregate-row-de-${r.dataElement}`}>
+                      {r.dataElement}
+                      <span style={{ marginLeft: 8, fontSize: 11, color: '#5a6a85' }}>
+                        hidden by rule
+                      </span>
+                    </td>
+                    <td>—</td>
+                    <td>—</td>
+                  </tr>
+                );
+              }
+              const suggested = validation.assignedValues.get(r.dataElement);
+              const edited = edits[r.dataElement];
+              const value = edited != null ? edited : (suggested ?? '');
+              const isAutoFilled = edited == null && suggested != null;
+              return (
+                <tr key={r.dataElement}
+                     data-test={isAutoFilled
+                       ? `aggregate-row-autofilled-${r.dataElement}`
+                       : undefined}>
+                  <td data-test={`aggregate-row-de-${r.dataElement}`}>{r.dataElement}</td>
+                  <td data-test={`aggregate-row-current-${r.dataElement}`}>{r.value}</td>
+                  <td>
+                    <input
+                      data-test={`aggregate-row-input-${r.dataElement}`}
+                      value={value}
+                      style={isAutoFilled
+                        ? { background: 'rgba(91,192,222,0.08)' } : undefined}
+                      onChange={(e) =>
+                        setEdits({ ...edits, [r.dataElement]: e.target.value })}
+                    />
+                    {isAutoFilled && (
+                      <span style={{ marginLeft: 6, fontSize: 11, color: '#2a7998' }}
+                             data-test={`aggregate-row-assign-hint-${r.dataElement}`}>
+                        suggested by rule
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
-      {Object.keys(edits).length > 0 && (
+      {(Object.keys(edits).length > 0 || validation.assignedValues.size > 0) && (
         <Button
           primary
           dataTest="aggregate-entry-submit"

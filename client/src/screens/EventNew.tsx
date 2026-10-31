@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@dhis2/ui';
 import * as edgeApi from '../api/edgeApi';
 import { ErrorBlock, LocallyCommittedPill, OfflineBanner } from '../components/ScreenStates';
+import { useRunValidation } from '../hooks/useRunValidation';
+import { RunValidationBanner } from '../components/RunValidationBanner';
 
 export interface EventNewProps {
   readonly api?: Pick<typeof edgeApi, 'listEvents' | 'health'>;
@@ -16,6 +18,8 @@ export interface EventNewProps {
  */
 export function EventNew({ api = edgeApi, submit }: EventNewProps = {}): JSX.Element {
   const { program = '', stage = '' } = useParams();
+  const [params] = useSearchParams();
+  const runId = params.get('runId');
   const [orgUnit, setOrgUnit] = useState('');
   const [programStage, setProgramStage] = useState(stage);
   const [dataElement, setDataElement] = useState('');
@@ -23,6 +27,15 @@ export function EventNew({ api = edgeApi, submit }: EventNewProps = {}): JSX.Ele
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+
+  // §2.3.34 — program-rule actions. When run-scoped we hide the DE
+  // row if the server marked it hidden and auto-fill with ASSIGN.
+  const validation = useRunValidation(runId);
+  const deHidden = dataElement !== '' && validation.hiddenFields.has(dataElement);
+  const deAssigned = dataElement !== ''
+    ? validation.assignedValues.get(dataElement) ?? null
+    : null;
+  const effectiveValue = value !== '' ? value : (deAssigned ?? '');
 
   // health badge
   if (typeof window !== 'undefined' && !offline) {
@@ -32,6 +45,10 @@ export function EventNew({ api = edgeApi, submit }: EventNewProps = {}): JSX.Ele
   async function doSubmit(): Promise<void> {
     setStatus('saving');
     setError(null);
+    const dvs: { dataElement: string; value: string }[] = [];
+    if (dataElement && !deHidden) {
+      dvs.push({ dataElement, value: effectiveValue });
+    }
     const body = {
       events: [{
         program,
@@ -39,7 +56,7 @@ export function EventNew({ api = edgeApi, submit }: EventNewProps = {}): JSX.Ele
         orgUnit,
         occurredAt: new Date().toISOString(),
         status: 'ACTIVE',
-        dataValues: dataElement && value ? [{ dataElement, value }] : [],
+        dataValues: dvs,
       }],
     };
     try {
@@ -62,10 +79,31 @@ export function EventNew({ api = edgeApi, submit }: EventNewProps = {}): JSX.Ele
     <div className="der-event-new">
       <h1 data-test="event-new-heading">New event — {program}</h1>
       {offline && <OfflineBanner testId="event-new-offline" />}
+      {runId && (
+        <RunValidationBanner state={validation} testId="event-new-validation" />
+      )}
       <label className="der-field"><span>Organisation unit UID</span><input data-test="event-new-orgunit" value={orgUnit} onChange={(e) => { setOrgUnit(e.target.value) }} /></label>
       <label className="der-field"><span>Program stage UID</span><input data-test="event-new-stage" value={programStage} onChange={(e) => { setProgramStage(e.target.value) }} /></label>
       <label className="der-field"><span>Data element UID (optional)</span><input data-test="event-new-de" value={dataElement} onChange={(e) => { setDataElement(e.target.value) }} /></label>
-      <label className="der-field"><span>Value</span><input data-test="event-new-value" value={value} onChange={(e) => { setValue(e.target.value) }} /></label>
+      {deHidden ? (
+        <p className="der-field" data-test="event-new-de-hidden"
+            style={{ color: '#5a6a85' }}>
+          Field '{dataElement}' hidden by program rule — value won't be submitted.
+        </p>
+      ) : (
+        <label className="der-field">
+          <span>Value</span>
+          <input data-test="event-new-value" value={effectiveValue}
+                  style={deAssigned != null && value === ''
+                    ? { background: 'rgba(91,192,222,0.08)' } : undefined}
+                  onChange={(e) => { setValue(e.target.value) }} />
+          {deAssigned != null && value === '' && (
+            <span data-test="event-new-value-hint" style={{ fontSize: 11, color: '#2a7998' }}>
+              suggested by rule
+            </span>
+          )}
+        </label>
+      )}
       <Button primary dataTest="event-new-submit"
               loading={status === 'saving'}
               disabled={!orgUnit || !programStage}
