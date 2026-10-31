@@ -159,6 +159,54 @@ class WorkflowCompilerTest {
     }
 
     @Test
+    void eventInstanceStampsUidAndMergesByUid() {
+        // V052 — two EVENT_INSTANCE steps split field capture across the
+        // SAME event (ANC1). Both stamp event=ANC1-UID; compiler
+        // deduplicates by event UID and merges dataValues.
+        final UUID id = UUID.randomUUID();
+        final UUID s1 = UUID.randomUUID();
+        final UUID s2 = UUID.randomUUID();
+        final CaptureWorkflow w = new CaptureWorkflow(id, "ANC visit — split capture",
+            CaptureWorkflow.BindingKind.PROGRAM_STAGE, "ANC_VISIT", true, 1, NOW, NOW, null,
+            List.of(step(s1, id, 0,
+                        CaptureWorkflowStep.SectionKind.EVENT_INSTANCE, "ANC1-UID"),
+                    step(s2, id, 1,
+                        CaptureWorkflowStep.SectionKind.EVENT_INSTANCE, "ANC1-UID")),
+            List.of(), false, null);
+        // Both payloads omit the event UID — compiler will stamp it.
+        final List<CaptureWorkflowContribution> cs = List.of(
+            contrib(s1, "{\"events\":[{\"programStage\":\"ANC_VISIT\",\"occurredAt\":\"2026-01-15\","
+                + "\"dataValues\":[{\"dataElement\":\"BP\",\"value\":\"120/80\"}]}]}"),
+            contrib(s2, "{\"events\":[{\"programStage\":\"ANC_VISIT\",\"occurredAt\":\"2026-01-15\","
+                + "\"dataValues\":[{\"dataElement\":\"TEMP\",\"value\":\"36.5\"}]}]}"));
+        final JsonNode out = compiler.compile(w, cs).orElseThrow().payload();
+        assertThat(out.path("events").size()).isEqualTo(1);
+        assertThat(out.path("events").get(0).path("event").asText()).isEqualTo("ANC1-UID");
+        assertThat(out.path("events").get(0).path("dataValues").size()).isEqualTo(2);
+    }
+
+    @Test
+    void twoEventInstancesStayDistinct() {
+        // V052 — two EVENT_INSTANCE steps targeting DIFFERENT event
+        // UIDs produce 2 distinct events on compiled output.
+        final UUID id = UUID.randomUUID();
+        final UUID s1 = UUID.randomUUID();
+        final UUID s2 = UUID.randomUUID();
+        final CaptureWorkflow w = new CaptureWorkflow(id, "ANC series",
+            CaptureWorkflow.BindingKind.PROGRAM_STAGE, "ANC_VISIT", true, 1, NOW, NOW, null,
+            List.of(step(s1, id, 0,
+                        CaptureWorkflowStep.SectionKind.EVENT_INSTANCE, "ANC1-UID"),
+                    step(s2, id, 1,
+                        CaptureWorkflowStep.SectionKind.EVENT_INSTANCE, "ANC2-UID")),
+            List.of(), false, null);
+        final List<CaptureWorkflowContribution> cs = List.of(
+            contrib(s1, "{\"events\":[{\"programStage\":\"ANC_VISIT\",\"occurredAt\":\"2026-01-15\",\"dataValues\":[]}]}"),
+            contrib(s2, "{\"events\":[{\"programStage\":\"ANC_VISIT\",\"occurredAt\":\"2026-02-15\",\"dataValues\":[]}]}"));
+        final JsonNode out = compiler.compile(w, cs).orElseThrow().payload();
+        assertThat(out.path("events").size()).isEqualTo(2);
+    }
+
+    @Test
     void relationshipsFoldedIntoDedicatedBlock() {
         // V051 — RELATIONSHIP step contributes relationships[] which the
         // compiler folds into a dedicated top-level relationships[]

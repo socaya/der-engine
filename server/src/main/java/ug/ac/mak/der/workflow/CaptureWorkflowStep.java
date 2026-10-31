@@ -108,6 +108,14 @@ public record CaptureWorkflowStep(
          *  relationships[] block on the compiled tracker payload.
          *  Only valid for PROGRAM-bound workflows. */
         RELATIONSHIP,
+        /** V052 — a single event occurrence within a repeating program
+         *  stage (ANC1 of the ANC_VISIT stage). {@code sectionRef} is
+         *  the event UID; the compiler stamps it onto every event the
+         *  step contributes and makes the event UID the primary dedupe
+         *  key so parallel steps can split capture across one event's
+         *  fields without overwriting. Valid under PROGRAM /
+         *  PROGRAM_STAGE / PROGRAM_STAGE_SECTION bindings. */
+        EVENT_INSTANCE,
         /** Free-form field list defined only by the workflow fields[]. */
         AD_HOC
     }

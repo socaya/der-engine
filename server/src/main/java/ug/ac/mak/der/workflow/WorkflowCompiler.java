@@ -202,11 +202,15 @@ public class WorkflowCompiler {
 
             // V049 — ATTRIBUTE_OPTION_COMBO stamps event AOC.
             // V050 — ORG_UNIT_SCOPE stamps event orgUnit.
+            // V052 — EVENT_INSTANCE stamps event UID.
             final String aocStamp = s.sectionKind()
                     == CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO
                     ? s.sectionRef() : null;
             final String ouStamp = s.sectionKind()
                     == CaptureWorkflowStep.SectionKind.ORG_UNIT_SCOPE
+                    ? s.sectionRef() : null;
+            final String eventUidStamp = s.sectionKind()
+                    == CaptureWorkflowStep.SectionKind.EVENT_INSTANCE
                     ? s.sectionRef() : null;
 
             payload.path("attributes").forEach((a) -> attributes.put(
@@ -221,10 +225,22 @@ public class WorkflowCompiler {
                         && !event.has("orgUnit")) {
                     event.put("orgUnit", ouStamp);
                 }
-                final String key = event.path("programStage").asText("") + "|"
-                        + event.path("occurredAt").asText("") + "|"
-                        + event.path("attributeOptionCombo").asText("") + "|"
-                        + event.path("orgUnit").asText("");
+                if (eventUidStamp != null && !eventUidStamp.isBlank()
+                        && (!event.has("event")
+                            || "".equals(event.path("event").asText("")))) {
+                    event.put("event", eventUidStamp);
+                }
+                // V052 — if an explicit event UID is present, it IS the
+                // primary dedupe key so two steps splitting fields of
+                // the same event merge into one row. Fallback to
+                // (programStage, occurredAt, AOC, OU) when no UID.
+                final String uid = event.path("event").asText("");
+                final String key = !uid.isBlank()
+                        ? "event:" + uid
+                        : event.path("programStage").asText("") + "|"
+                            + event.path("occurredAt").asText("") + "|"
+                            + event.path("attributeOptionCombo").asText("") + "|"
+                            + event.path("orgUnit").asText("");
                 final JsonNode existing = events.get(key);
                 if (existing == null) {
                     events.put(key, event);
