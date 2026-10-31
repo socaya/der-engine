@@ -257,3 +257,23 @@ export function heartbeatDevice(deviceId: string): Promise<{ outcome: string }> 
 export function fetchDevice(deviceId: string): Promise<EnrolledDevice> {
   return request<EnrolledDevice>('GET', `/edge-api/v1/devices/${deviceId}`);
 }
+
+/** §2.3.30 — progressive-validation issues attached to a workflow run. */
+export interface ValidationIssue {
+  issueId: string;
+  runId: string;
+  stepId: string | null;
+  code: string;
+  severity: 'ERROR' | 'WARNING' | 'INFO';
+  message: string;
+  fieldRef: string | null;
+}
+
+export function runValidation(runId: string): Promise<{
+  runId: string;
+  errorCount: number;
+  issues: ValidationIssue[];
+}> {
+  return request<{ runId: string; errorCount: number; issues: ValidationIssue[] }>(
+    'GET', `/edge-api/v1/workflows/runs/${runId}/validation`);
+}

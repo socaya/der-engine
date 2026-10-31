@@ -62,3 +62,20 @@ body {
     flex-direction: column;
     gap: 16px;
 }
+
+/* ─── Run validation banner (2.3.30) ──────────────────── */
+.run-validation-banner{
+  display:flex;flex-direction:column;gap:6px;
+  padding:10px 14px;margin:12px 0;
+  border-radius:6px;border-left:3px solid transparent;
+  background:#f6f7f9;
+}
+.run-validation-banner.is-error{background:rgba(220,53,69,0.08);border-left-color:#dc3545}
+.run-validation-banner.is-warning{background:rgba(240,173,78,0.08);border-left-color:#f0ad4e}
+.run-validation-banner.is-info{background:rgba(91,192,222,0.08);border-left-color:#5bc0de}
+.run-validation-banner-head{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:13px;font-weight:500}
+.run-validation-count--error{color:#b02a37}
+.run-validation-count--warning{color:#8a6007}
+.run-validation-count--info{color:#2a7998}
+.run-validation-cues{list-style:disc;margin:0;padding-left:20px;font-size:12px;color:#2a3346}
+.run-validation-cues > li{margin:2px 0}
