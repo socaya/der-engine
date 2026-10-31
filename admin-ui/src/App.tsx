@@ -18,6 +18,7 @@ import {
   EAAppsList, EADiagnostics, EASettings,
 } from './screens/EARemainderScreens';
 import { SignIn } from './screens/SignIn';
+import { WorkflowWizard } from './screens/workflow/WorkflowWizard';
 import {
   CapSystemInformation,
   CapCentralConnection, CapOrgUnitBinding, CapProgramRules,
@@ -151,6 +152,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EAApprovalQueue /></RequireAuth>} />
           <Route path="/workflows"
                  element={<RequireAuth><EACaptureWorkflowList /></RequireAuth>} />
+          <Route path="/workflows/new"
+                 element={<RequireAuth><WorkflowWizard /></RequireAuth>} />
           <Route path="/workflows/:id"
                  element={<RequireAuth><WorkflowDesignerRoute /></RequireAuth>} />
           <Route path="/devices"
