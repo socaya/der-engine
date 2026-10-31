@@ -74,6 +74,11 @@ function WorkflowDesignerRoute(): JSX.Element {
   return <EACaptureWorkflowDesigner workflowId={id} />;
 }
 
+function WorkflowWizardEditRoute(): JSX.Element {
+  const { id = '' } = useParams();
+  return <WorkflowWizard workflowId={id} />;
+}
+
 /**
  * DER administration console. Routed shell with 36 EA-* screens.
  *
@@ -154,8 +159,10 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EACaptureWorkflowList /></RequireAuth>} />
           <Route path="/workflows/new"
                  element={<RequireAuth><WorkflowWizard /></RequireAuth>} />
-          <Route path="/workflows/:id"
+          <Route path="/workflows/:id/advanced"
                  element={<RequireAuth><WorkflowDesignerRoute /></RequireAuth>} />
+          <Route path="/workflows/:id"
+                 element={<RequireAuth><WorkflowWizardEditRoute /></RequireAuth>} />
           <Route path="/devices"
                  element={<RequireAuth><MockupDeviceFleet /></RequireAuth>} />
           <Route path="/devices-legacy"

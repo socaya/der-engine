@@ -43,6 +43,11 @@ vi.mock('./screens/EACoreScreens', () => ({
   EAReferralInbox:     () => <div data-test="s-referral">referral</div>,
 }));
 
+vi.mock('./screens/workflow/WorkflowWizard', () => ({
+  WorkflowWizard: ({ workflowId }: { workflowId?: string }) =>
+    <div data-test="s-workflow-wizard">wizard-{workflowId ?? 'new'}</div>,
+}));
+
 vi.mock('./screens/EARemainderScreens', () => ({
   EARecoveryTools:     () => <div data-test="s-recovery">recovery</div>,
   EABackupList:        () => <div data-test="s-backup">backup</div>,
@@ -109,9 +114,15 @@ describe('App routing', () => {
       .toBe('resolve-op-xyz'));
   });
 
-  it('/workflows/:id passes the id into the designer', async () => {
-    await renderAt('/workflows/wf-abc');
+  it('/workflows/:id/advanced passes the id into the designer', async () => {
+    await renderAt('/workflows/wf-abc/advanced');
     await waitFor(() => expect(screen.getByTestId('s-workflow-designer').textContent)
       .toBe('designer-wf-abc'));
+  });
+
+  it('/workflows/:id passes the id into the wizard', async () => {
+    await renderAt('/workflows/wf-abc');
+    await waitFor(() => expect(screen.getByTestId('s-workflow-wizard').textContent)
+      .toBe('wizard-wf-abc'));
   });
 });

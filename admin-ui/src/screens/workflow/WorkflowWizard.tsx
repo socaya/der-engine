@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 import * as md from './wizardMetadata';
@@ -19,7 +19,9 @@ import type {
  */
 
 export interface WorkflowWizardProps {
-  api?: Pick<typeof edgeApi, 'saveWorkflow' | 'listDevices'>;
+  api?: Pick<typeof edgeApi, 'saveWorkflow' | 'listDevices' | 'getWorkflow'>;
+  /** Pass to edit an existing workflow. Omitted → new workflow mode. */
+  workflowId?: string;
 }
 
 type Stage = 1 | 2 | 3;
@@ -31,9 +33,13 @@ interface StepRow {
   ownerRole: 'OPERATOR' | 'REVIEWER' | 'ADMIN';
 }
 
-export function WorkflowWizard({ api = edgeApi }: WorkflowWizardProps = {}): JSX.Element {
+export function WorkflowWizard({ api = edgeApi, workflowId }:
+    WorkflowWizardProps = {}): JSX.Element {
   const navigate = useNavigate();
-  const [stage, setStage] = useState<Stage>(1);
+  const editing = workflowId != null && workflowId !== 'new';
+  const [stage, setStage] = useState<Stage>(editing ? 3 : 1);
+  const [loadingExisting, setLoadingExisting] = useState(editing);
+  const [wizardIncompatible, setWizardIncompatible] = useState(false);
 
   // Step 1 — type
   const [type, setType] = useState<WizardWorkflowType | null>(null);
@@ -59,6 +65,77 @@ export function WorkflowWizard({ api = edgeApi }: WorkflowWizardProps = {}): JSX
     api.listDevices().then((d) => setDevices(d.devices ?? [])).catch(() => undefined);
   }, [api]);
 
+  // Edit mode — pre-fill the wizard from an existing workflow.
+  useEffect(() => {
+    if (!editing || workflowId == null) {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const w = await api.getWorkflow(workflowId);
+        if (!md.isWizardCompatible(w)) {
+          if (!cancelled) {
+            setWizardIncompatible(true);
+            setLoadingExisting(false);
+          }
+          return;
+        }
+        const detected = await md.detectWorkflowType(
+          w.boundMetadataKind, w.boundMetadataId);
+        if (cancelled) return;
+        setType(detected.type);
+        setChosenMetadata(detected.metadata);
+        setName(w.displayName);
+        const bs = detected.type === 'AGGREGATE'
+          ? await md.listDataSetSections(w.boundMetadataId)
+          : detected.type === 'EVENT'
+            ? [{ id: w.boundMetadataId, displayName: 'Whole event',
+                 sectionKind: 'EVENT_INSTANCE' as const }]
+            : await md.listProgramStages(w.boundMetadataId);
+        if (cancelled) return;
+        setBreakables(bs);
+        // Pre-tick + preserve role/device from existing steps.
+        const bySectionRef = new Map(w.steps
+          .filter((s) => s.sectionRef)
+          .map((s) => [s.sectionRef, s] as const));
+        const prefilled: StepRow[] = bs.map((b) => {
+          const existing = bySectionRef.get(b.id);
+          return {
+            breakable: b,
+            included: existing != null,
+            ownerRole: (existing?.ownerRole as StepRow['ownerRole']) ?? 'OPERATOR',
+            ownerDeviceId: existing?.ownerDeviceId ?? null,
+          };
+        });
+        // Breakables the workflow included but the metadata no longer has
+        // (metadata changed since the workflow was authored).
+        const seenRefs = new Set(bs.map((b) => b.id));
+        w.steps.forEach((s) => {
+          if (s.sectionRef && !seenRefs.has(s.sectionRef)) {
+            prefilled.push({
+              breakable: { id: s.sectionRef, displayName: s.displayName
+                             + ' (not in current metadata)',
+                           sectionKind: (s.sectionKind
+                             ?? 'DATASET_SECTION') as Breakable['sectionKind'] },
+              included: true,
+              ownerRole: (s.ownerRole as StepRow['ownerRole']) ?? 'OPERATOR',
+              ownerDeviceId: s.ownerDeviceId ?? null,
+            });
+          }
+        });
+        setRows(prefilled);
+        setLoadingExisting(false);
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(err instanceof Error ? err.message : String(err));
+          setLoadingExisting(false);
+        }
+      }
+    })().catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [api, editing, workflowId]);
+
   // Load metadata options when entering step 2.
   useEffect(() => {
     if (stage !== 2 || type === null) {
@@ -74,8 +151,13 @@ export function WorkflowWizard({ api = edgeApi }: WorkflowWizardProps = {}): JSX
       .catch((e) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, [stage, type]);
 
-  // Load breakables when entering step 3.
+  // Load breakables when entering step 3 — only in create mode. Edit
+  // mode uses the prefill effect below (loads breakables and matches
+  // them against the existing workflow's steps in one atomic update).
   useEffect(() => {
+    if (editing) {
+      return;
+    }
     if (stage !== 3 || type === null || chosenMetadata === null) {
       return;
     }
@@ -95,7 +177,10 @@ export function WorkflowWizard({ api = edgeApi }: WorkflowWizardProps = {}): JSX
         setBreakables(bs);
         setRows(bs.map((b) => ({
           breakable: b,
-          included: true,
+          // Default: section-based (small list) → ticked;
+          // stage-based (often 50+) → unticked so the operator
+          // explicitly picks what to capture.
+          included: bs.length <= 6,
           ownerDeviceId: null,
           ownerRole: 'OPERATOR',
         })));
@@ -121,6 +206,7 @@ export function WorkflowWizard({ api = edgeApi }: WorkflowWizardProps = {}): JSX
     setSaveError(null);
     try {
       const payload = md.buildWorkflowPayload({
+        workflowId: editing ? workflowId : undefined,
         displayName: name.trim(),
         type,
         metadata: chosenMetadata,
@@ -131,7 +217,13 @@ export function WorkflowWizard({ api = edgeApi }: WorkflowWizardProps = {}): JSX
         })),
       });
       const saved = await api.saveWorkflow(payload);
-      navigate(`/workflows/${saved.workflowId}`);
+      // On create → go to the edit view of the new workflow. On edit
+      // → stay here with success toast via /workflows list.
+      if (editing) {
+        navigate('/workflows');
+      } else {
+        navigate(`/workflows/${saved.workflowId}`);
+      }
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -139,9 +231,49 @@ export function WorkflowWizard({ api = edgeApi }: WorkflowWizardProps = {}): JSX
     }
   }
 
+  if (editing && loadingExisting) {
+    return (
+      <div className="ea-screen ea-wizard">
+        <LoadingBlock testId="wiz-loading-existing" />
+      </div>
+    );
+  }
+
+  if (editing && wizardIncompatible) {
+    return (
+      <div className="ea-screen ea-wizard" data-test="wiz-incompat">
+        <h1>Edit workflow</h1>
+        <ErrorBlock title="This workflow uses advanced options"
+                     testId="wiz-incompat-notice">
+          It mixes section kinds the guided editor does not model yet.
+          Edit it with the advanced designer.
+        </ErrorBlock>
+        <p>
+          <Link to={`/workflows/${workflowId}/advanced`}
+                 className="ea-btn ea-btn--primary"
+                 data-test="wiz-open-advanced">
+            Open advanced designer →
+          </Link>
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="ea-screen ea-wizard" data-test="wiz-root">
-      <h1 data-test="wiz-heading">New capture workflow</h1>
+      <h1 data-test="wiz-heading">
+        {editing ? `Edit workflow${name ? ': ' + name : ''}` : 'New capture workflow'}
+      </h1>
+      {editing && (
+        <p className="ea-text-muted" data-test="wiz-edit-advanced-hint">
+          Prefer raw form?{' '}
+          <Link to={`/workflows/${workflowId}/advanced`}
+                 data-test="wiz-link-advanced">
+            Open advanced designer
+          </Link>
+          .
+        </p>
+      )}
 
       <nav className="ea-wizard-nav" data-test="wiz-nav" aria-label="Wizard steps">
         <StageDot n={1} label="Type" current={stage} />
@@ -230,6 +362,13 @@ export function WorkflowWizard({ api = edgeApi }: WorkflowWizardProps = {}): JSX
             captured, assign a device to each, and the order you tick in
             becomes the capture order.
           </p>
+          {editing && (
+            <label className="ea-wizard-field">
+              <span>Workflow name</span>
+              <input type="text" data-test="wiz-name" value={name}
+                      onChange={(e) => setName(e.target.value)} />
+            </label>
+          )}
 
           {breakables == null && <LoadingBlock testId="wiz-breakables-loading" />}
           {breakables && (
@@ -291,8 +430,9 @@ export function WorkflowWizard({ api = edgeApi }: WorkflowWizardProps = {}): JSX
                                      testId="wiz-save-error">{saveError}</ErrorBlock>}
 
           <WizardFooter
-            onBack={() => setStage(2)}
-            onSave={{ onClick: doSave, disabled: !canSave || saving, saving }}
+            onBack={editing ? null : () => setStage(2)}
+            onSave={{ onClick: doSave, disabled: !canSave || saving, saving,
+                       label: editing ? 'Save changes' : 'Create workflow' }}
           />
         </section>
       )}
@@ -300,9 +440,14 @@ export function WorkflowWizard({ api = edgeApi }: WorkflowWizardProps = {}): JSX
   );
 
   function updateRow(ix: number, patch: Partial<StepRow>): void {
-    const copy = [...rows];
-    copy[ix] = { ...copy[ix], ...patch };
-    setRows(copy);
+    // Functional form — successive rapid updates (e.g. unticking many
+    // rows in a row) accumulate correctly instead of overwriting from
+    // a stale `rows` closure.
+    setRows((prev) => {
+      const copy = [...prev];
+      copy[ix] = { ...copy[ix], ...patch };
+      return copy;
+    });
   }
 }
 
@@ -340,7 +485,7 @@ function WizardFooter({ onBack, onNext, nextDisabled, onSave }: {
     onBack: null | (() => void);
     onNext?: () => void;
     nextDisabled?: boolean;
-    onSave?: { onClick: () => void; disabled: boolean; saving: boolean };
+    onSave?: { onClick: () => void; disabled: boolean; saving: boolean; label?: string };
 }): JSX.Element {
   return (
     <div className="ea-wizard-footer">
@@ -358,7 +503,7 @@ function WizardFooter({ onBack, onNext, nextDisabled, onSave }: {
         <button type="button" className="ea-btn ea-btn--primary"
                  data-test="wiz-save" onClick={onSave.onClick}
                  disabled={onSave.disabled}>
-          {onSave.saving ? 'Saving…' : 'Create workflow'}
+          {onSave.saving ? 'Saving…' : (onSave.label ?? 'Create workflow')}
         </button>
       )}
     </div>

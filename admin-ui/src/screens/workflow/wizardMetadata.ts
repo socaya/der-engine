@@ -83,8 +83,42 @@ export async function listProgramStages(programId: string): Promise<Breakable[]>
   }));
 }
 
-/** Payload builder — turns wizard state into saveWorkflow input. */
+/** Fetch display name for a single DataSet or Program by UID. Used
+ *  when loading an existing workflow back into the wizard — the
+ *  workflow stores just `boundMetadataId`. */
+export async function fetchMetadataName(
+    kind: 'DATA_SET' | 'PROGRAM', id: string): Promise<MetadataOption> {
+  const path = kind === 'DATA_SET'
+    ? `/api/dataSets/${id}?fields=id,displayName`
+    : `/api/programs/${id}?fields=id,displayName,programType`;
+  const d = await dhisGet<MetadataOption>(path);
+  return {
+    id: d.id, displayName: d.displayName, programType: d.programType,
+  };
+}
+
+/** Reverse-map an existing workflow's binding to a wizard type.
+ *  Needs an extra fetch when the binding is PROGRAM to tell event
+ *  vs tracker apart. */
+export async function detectWorkflowType(
+    boundMetadataKind: string, boundMetadataId: string,
+): Promise<{ type: WizardWorkflowType; metadata: MetadataOption }> {
+  if (boundMetadataKind === 'DATA_SET') {
+    const m = await fetchMetadataName('DATA_SET', boundMetadataId);
+    return { type: 'AGGREGATE', metadata: m };
+  }
+  const m = await fetchMetadataName('PROGRAM', boundMetadataId);
+  return {
+    type: m.programType === 'WITHOUT_REGISTRATION' ? 'EVENT' : 'TRACKER',
+    metadata: m,
+  };
+}
+
+/** Payload builder — turns wizard state into saveWorkflow input.
+ *  Pass `workflowId` to produce an update (PUT) payload; omit for
+ *  create (POST). */
 export function buildWorkflowPayload(opts: {
+  workflowId?: string;
   displayName: string;
   type: WizardWorkflowType;
   metadata: MetadataOption;
@@ -116,6 +150,7 @@ export function buildWorkflowPayload(opts: {
     });
   }
   return {
+    workflowId: opts.workflowId,
     displayName: opts.displayName,
     boundMetadataKind,
     boundMetadataId: opts.metadata.id,
@@ -123,4 +158,16 @@ export function buildWorkflowPayload(opts: {
     steps: stepsPayload,
     dependencies,
   };
+}
+
+/** Decides whether the wizard can round-trip an existing workflow or
+ *  whether the operator needs the technical designer. */
+export function isWizardCompatible(w: edgeApi.CaptureWorkflowSummary): boolean {
+  if (w.steps.length === 0) {
+    return true;
+  }
+  const allowed: ReadonlySet<string> = new Set([
+    'DATASET_SECTION', 'PROGRAM_STAGE', 'EVENT_INSTANCE',
+  ]);
+  return w.steps.every((s) => allowed.has(s.sectionKind ?? ''));
 }
