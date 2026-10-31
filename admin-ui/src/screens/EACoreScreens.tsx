@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock, OfflineBanner } from '../components/ScreenStates';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { SyncStatusBar, Panel, confirmThenRun, Status } from './shared';
+import { SyncStatusBar, Panel, confirmThenRun, Status, RowMenu } from './shared';
 import { HealthCards } from '../components/HealthCards';
 import { HeroHeader } from '../components/HeroHeader';
 import { SystemComponents } from '../components/SystemComponents';
@@ -1360,7 +1360,8 @@ export function EAApprovalQueue({ api = edgeApi }:
 
 // EA-CWF-01 Capture-workflow catalogue (ADR-0018 slice A) ----------
 export function EACaptureWorkflowList({ api = edgeApi }:
-    { api?: Pick<typeof edgeApi, 'listWorkflows' | 'deleteWorkflow' | 'listWorkflowRuns'> } = {}): JSX.Element {
+    { api?: Pick<typeof edgeApi, 'listWorkflows' | 'deleteWorkflow'
+      | 'listWorkflowRuns' | 'saveWorkflow' | 'getWorkflow' | 'exportWorkflow'> } = {}): JSX.Element {
   const [workflows, setWorkflows] = useState<edgeApi.CaptureWorkflowSummary[] | null>(null);
   const [runCounts, setRunCounts] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
@@ -1389,6 +1390,64 @@ export function EACaptureWorkflowList({ api = edgeApi }:
     try {
       await api.deleteWorkflow(id);
       await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function toggleEnabled(w: edgeApi.CaptureWorkflowSummary): Promise<void> {
+    try {
+      // Fetch full to preserve steps/dependencies (list endpoint
+      // ships them inline, but a full get is defensive).
+      const full = (api.getWorkflow ?? edgeApi.getWorkflow)
+        ? await (api.getWorkflow ?? edgeApi.getWorkflow)(w.workflowId)
+        : w;
+      await (api.saveWorkflow ?? edgeApi.saveWorkflow)({
+        ...full,
+        enabled: !full.enabled,
+      });
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function duplicate(w: edgeApi.CaptureWorkflowSummary): Promise<void> {
+    try {
+      const full = (api.getWorkflow ?? edgeApi.getWorkflow)
+        ? await (api.getWorkflow ?? edgeApi.getWorkflow)(w.workflowId)
+        : w;
+      // Strip step ids so the server mints new UUIDs — reusing them
+      // collides on capture_workflow_step_pkey. Drop dependencies too
+      // since they reference the old step ids.
+      const steps = full.steps.map((s) => ({ ...s, stepId: undefined }));
+      await (api.saveWorkflow ?? edgeApi.saveWorkflow)({
+        ...full,
+        workflowId: undefined,                        // force server to mint new UUID
+        displayName: `${full.displayName} (copy)`,
+        enabled: false,                               // copies start disabled
+        steps,
+        dependencies: [],
+      });
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function exportJson(w: edgeApi.CaptureWorkflowSummary): Promise<void> {
+    try {
+      const canonical = await (api.exportWorkflow ?? edgeApi.exportWorkflow)(w.workflowId);
+      const blob = new Blob([JSON.stringify(canonical, null, 2)],
+        { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `workflow-${w.displayName.replace(/[^a-zA-Z0-9-_]/g, '_')}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -1469,18 +1528,29 @@ export function EACaptureWorkflowList({ api = edgeApi }:
                         {w.enabled ? 'Enabled' : 'Disabled'}
                       </Status>
                     </td>
-                    <td>
-                      <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
-                              data-test={`cwf01-delete-${w.workflowId}`}
-                              onClick={() => {
-                                confirmThenRun(
-                                  `Delete the workflow "${w.displayName}"? ` +
-                                  'Existing runs will remain in history but no new runs can start on this workflow.',
-                                  () => { remove(w.workflowId).catch(() => undefined); });
-                              }}>
-                        <UiIcon icon="trash" size={14} />
-                        <span>Delete</span>
-                      </button>
+                    <td style={{ textAlign: 'right' }}
+                        data-test={`cwf01-row-menu-${w.workflowId}`}>
+                      <RowMenu items={[
+                        { label: 'Open designer', to: `/workflows/${w.workflowId}` },
+                        { label: 'View runs',
+                          to: `/workflows/runs?workflow=${w.workflowId}` },
+                        { label: w.enabled ? 'Disable' : 'Enable',
+                          onSelect: () => { void toggleEnabled(w); } },
+                        { label: 'Duplicate',
+                          onSelect: () => {
+                            confirmThenRun(
+                              `Duplicate "${w.displayName}"? A copy will be created disabled with "(copy)" appended.`,
+                              () => { void duplicate(w); });
+                          } },
+                        { label: 'Export JSON',
+                          onSelect: () => { void exportJson(w); } },
+                        { label: 'Delete', danger: true,
+                          onSelect: () => {
+                            confirmThenRun(
+                              `Delete the workflow "${w.displayName}"? Existing runs will remain in history but no new runs can start on this workflow.`,
+                              () => { remove(w.workflowId).catch(() => undefined); });
+                          } },
+                      ]} />
                     </td>
                   </tr>
                 ))}
