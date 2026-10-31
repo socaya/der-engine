@@ -36,7 +36,8 @@ class MetadataSyncServiceExtendedTest {
         return new MetadataSyncService(client, props(),
                 mock(MetadataMirrorRepository.class), mock(ExtendedMirrorRepository.class),
                 mock(MetadataCatalogRepository.class),
-                mock(MetadataSnapshotRepository.class), CLOCK);
+                mock(MetadataSnapshotRepository.class), CLOCK,
+                mock(org.springframework.jdbc.core.JdbcTemplate.class));
     }
 
     @Test

@@ -68,6 +68,85 @@ public class MetadataSnapshotController {
         return ResponseEntity.ok(Map.of("snapshotId", snapshotId, "retired", true));
     }
 
+    /** §2.3.28 — per-UID diff of a single resource between two snapshots.
+     *  Returns added/removed/changed UID lists. Backed by
+     *  {@code metadata_entity_version} (V060), so values populate from
+     *  the first sync after that migration lands. Earlier snapshots
+     *  carry zero rows and show up as "unchanged (no history)". */
+    @GetMapping("/{a}/diff/{b}/{resource}")
+    public ResponseEntity<Map<String, Object>> resourceDiff(
+            @PathVariable final long a,
+            @PathVariable final long b,
+            @PathVariable final String resource) {
+        final Map<String, String> aMap = fingerprintsFor(a, resource);
+        final Map<String, String> bMap = fingerprintsFor(b, resource);
+        final List<Map<String, String>> added = new java.util.ArrayList<>();
+        final List<Map<String, String>> removed = new java.util.ArrayList<>();
+        final List<Map<String, String>> changed = new java.util.ArrayList<>();
+        for (final var e : bMap.entrySet()) {
+            if (!aMap.containsKey(e.getKey())) {
+                added.add(resolveLabel(resource, e.getKey()));
+            } else if (!java.util.Objects.equals(aMap.get(e.getKey()), e.getValue())) {
+                changed.add(resolveLabel(resource, e.getKey()));
+            }
+        }
+        for (final String uid : aMap.keySet()) {
+            if (!bMap.containsKey(uid)) {
+                removed.add(resolveLabel(resource, uid));
+            }
+        }
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("a", a);
+        out.put("b", b);
+        out.put("resource", resource);
+        out.put("added", added);
+        out.put("removed", removed);
+        out.put("changed", changed);
+        return ResponseEntity.ok(out);
+    }
+
+    private Map<String, String> fingerprintsFor(final long snapshotId, final String resource) {
+        final Map<String, String> out = new LinkedHashMap<>();
+        jdbc.query(
+                "SELECT dhis2_uid, fingerprint FROM der.metadata_entity_version "
+                        + "WHERE snapshot_id = ? AND resource = ?",
+                (ResultSet rs) -> {
+                    out.put(rs.getString(1), rs.getString(2));
+                },
+                snapshotId, resource);
+        return out;
+    }
+
+    /** Try to resolve a UID to a human label via the live mirror tables.
+     *  Falls back to the UID if the row is no longer present. */
+    private Map<String, String> resolveLabel(final String resource, final String uid) {
+        final Map<String, String> m = new LinkedHashMap<>();
+        m.put("id", uid);
+        final String table = switch (resource) {
+            case "organisationUnits" -> "metadata_organisation_unit";
+            case "dataElements"      -> "metadata_data_element";
+            case "dataSets"          -> "metadata_data_set";
+            case "programs"          -> "metadata_program";
+            case "programStages"     -> "metadata_program_stage";
+            case "programRules"      -> "metadata_program_rule";
+            case "trackedEntityTypes" -> "metadata_tracked_entity_type";
+            case "trackedEntityAttributes" -> "metadata_tracked_entity_attribute";
+            default -> null;
+        };
+        if (table != null) {
+            try {
+                final String name = jdbc.queryForObject(
+                        "SELECT display_name FROM der." + table
+                                + " WHERE dhis2_uid = ?",
+                        String.class, uid);
+                m.put("displayName", name);
+            } catch (org.springframework.dao.EmptyResultDataAccessException ex) {
+                m.put("displayName", null);
+            }
+        }
+        return m;
+    }
+
     /** §2.3.27 — pairwise diff between two snapshots.
      *  Shows per-resource counts in each snapshot + a delta so operators
      *  can see at a glance what grew / shrank. True per-UID row-level

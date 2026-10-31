@@ -73,6 +73,7 @@ public class MetadataSyncService {
     private final MetadataCatalogRepository catalog;
     private final MetadataSnapshotRepository snapshots;
     private final Clock clock;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public MetadataSyncService(final Dhis2ReferenceClient dhis2,
                                 final Dhis2Properties props,
@@ -80,7 +81,8 @@ public class MetadataSyncService {
                                 final ExtendedMirrorRepository extended,
                                 final MetadataCatalogRepository catalog,
                                 final MetadataSnapshotRepository snapshots,
-                                final Clock clock) {
+                                final Clock clock,
+                                final org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.dhis2 = Objects.requireNonNull(dhis2, "dhis2");
         this.props = Objects.requireNonNull(props, "props");
         this.mirror = Objects.requireNonNull(mirror, "mirror");
@@ -88,6 +90,7 @@ public class MetadataSyncService {
         this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.snapshots = Objects.requireNonNull(snapshots, "snapshots");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 
     /**
@@ -153,11 +156,92 @@ public class MetadataSyncService {
                     "/api/" + resource + FIELDS_ALL, persisted.snapshotId()));
         }
 
+        // §2.3.28 — row-versioning. One entry per (snapshot, resource, uid)
+        // captures the latest known fingerprint. Enables true per-UID
+        // diff(a, b) across snapshots.
+        writeEntityVersions(persisted.snapshotId(), ous, des, dss, prgs, tets,
+                pss, teas, rules, cocs);
+
         LOG.info("Phase 03/05 metadata sync complete, snapshot={} total={} coc={} ps={} tea={} rules={} "
                         + "catalog={}",
                 persisted.snapshotId(), persisted.counts().total(),
                 cocs.size(), pss.size(), teas.size(), rules.size(), cat);
         return persisted;
+    }
+
+    /** §2.3.28 — write one row per entity into metadata_entity_version.
+     *  The fingerprint is the entity's lastUpdated when available, else
+     *  a SHA-256 of its payload. Each row is a point-in-time snapshot
+     *  of the entity's identity + content hash. */
+    private void writeEntityVersions(final long snapshotId,
+                                       final List<MirroredOrganisationUnit> ous,
+                                       final List<MirroredDataElement> des,
+                                       final List<MirroredDataSet> dss,
+                                       final List<MirroredProgram> prgs,
+                                       final List<MirroredTrackedEntityType> tets,
+                                       final List<MirroredProgramStage> pss,
+                                       final List<MirroredTrackedEntityAttribute> teas,
+                                       final List<MirroredProgramRule> rules,
+                                       final List<MirroredCategoryOptionCombo> cocs) {
+        batchInsertVersions(snapshotId, "organisationUnits",
+                ous.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
+        batchInsertVersions(snapshotId, "dataElements",
+                des.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
+        batchInsertVersions(snapshotId, "dataSets",
+                dss.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
+        batchInsertVersions(snapshotId, "programs",
+                prgs.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
+        batchInsertVersions(snapshotId, "trackedEntityTypes",
+                tets.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
+        batchInsertVersions(snapshotId, "programStages",
+                pss.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
+        batchInsertVersions(snapshotId, "trackedEntityAttributes",
+                teas.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
+        batchInsertVersions(snapshotId, "programRules",
+                rules.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
+        batchInsertVersions(snapshotId, "categoryOptionCombos",
+                cocs.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
+    }
+
+    private void batchInsertVersions(final long snapshotId, final String resource,
+                                       final List<String[]> rows) {
+        if (rows.isEmpty()) {
+            return;
+        }
+        jdbc.batchUpdate(
+                "INSERT INTO der.metadata_entity_version "
+                        + "(snapshot_id, resource, dhis2_uid, fingerprint) "
+                        + "VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
+                rows,
+                rows.size(),
+                (ps, row) -> {
+                    ps.setLong(1, snapshotId);
+                    ps.setString(2, resource);
+                    ps.setString(3, row[0]);
+                    ps.setString(4, row[1]);
+                });
+    }
+
+    private static String fp(final com.fasterxml.jackson.databind.JsonNode payload) {
+        if (payload == null) {
+            return "";
+        }
+        // Prefer lastUpdated when present — DHIS2 bumps it on every edit.
+        final com.fasterxml.jackson.databind.JsonNode lu = payload.get("lastUpdated");
+        if (lu != null && lu.isTextual()) {
+            return lu.asText();
+        }
+        try {
+            final MessageDigest md = MessageDigest.getInstance("SHA-256");
+            final byte[] hash = md.digest(payload.toString().getBytes(StandardCharsets.UTF_8));
+            final StringBuilder sb = new StringBuilder();
+            for (final byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.substring(0, 16);
+        } catch (NoSuchAlgorithmException ex) {
+            return String.valueOf(payload.hashCode());
+        }
     }
 
     /**
