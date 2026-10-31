@@ -2142,3 +2142,10 @@ kbd{
 /* Nested PROGRAM_STAGE_SECTION rows (2.3.23) */
 .ea-wizard-rows tr.is-nested > td:nth-child(1),
 .ea-wizard-rows tr.is-nested > td:nth-child(2){background:var(--der-raised)}
+
+/* Workflow pin panel (2.3.25) */
+.ea-wizard-pin-panel{
+  padding:var(--sp-3) var(--sp-4);background:var(--der-raised);
+  border:1px solid var(--der-border-subtle);border-radius:var(--r-md);
+  margin:var(--sp-2) 0;
+}

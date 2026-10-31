@@ -21,6 +21,7 @@ import { SignIn } from './screens/SignIn';
 import { WorkflowWizard } from './screens/workflow/WorkflowWizard';
 import { WorkflowQueue } from './screens/workflow/WorkflowQueue';
 import { RunValidation } from './screens/workflow/RunValidation';
+import { SnapshotList } from './screens/metadata/SnapshotList';
 import {
   CapSystemInformation,
   CapCentralConnection, CapOrgUnitBinding, CapProgramRules,
@@ -165,6 +166,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><WorkflowQueue /></RequireAuth>} />
           <Route path="/workflows/runs/:runId/validation"
                  element={<RequireAuth><RunValidation /></RequireAuth>} />
+          <Route path="/metadata/snapshots"
+                 element={<RequireAuth><SnapshotList /></RequireAuth>} />
           <Route path="/workflows/:id/advanced"
                  element={<RequireAuth><WorkflowDesignerRoute /></RequireAuth>} />
           <Route path="/workflows/:id"

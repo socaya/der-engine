@@ -1028,6 +1028,54 @@ export function runValidation(runId: string): Promise<{
     'GET', `/edge-api/v1/workflows/runs/${runId}/validation`);
 }
 
+/** §37–§42 metadata snapshot + workflow pinning. */
+export interface MetadataSnapshot {
+  snapshotId: number;
+  importedFrom: string;
+  importedBy: string | null;
+  importedAt: string;
+  counts: {
+    organisationUnits: number; dataElements: number;
+    dataSets: number; programs: number; trackedEntityTypes: number;
+  };
+  centralVersion: string | null;
+  centralRevision: string | null;
+  fingerprint: string | null;
+  retiredAt: string | null;
+  retiredBy: string | null;
+  pinnedWorkflows: number;
+  status: 'ACTIVE' | 'RETIRED';
+}
+
+export function listSnapshots(): Promise<{ snapshots: MetadataSnapshot[] }> {
+  return request<{ snapshots: MetadataSnapshot[] }>('GET',
+    '/edge-api/v1/metadata/snapshots');
+}
+
+export function retireSnapshot(snapshotId: number): Promise<unknown> {
+  return request('POST',
+    `/edge-api/v1/metadata/snapshots/${snapshotId}/retire`);
+}
+
+export function reinstateSnapshot(snapshotId: number): Promise<unknown> {
+  return request('POST',
+    `/edge-api/v1/metadata/snapshots/${snapshotId}/reinstate`);
+}
+
+export function getWorkflowPin(workflowId: string): Promise<{
+  workflowId: string; snapshotId: number | null;
+}> {
+  return request('GET',
+    `/edge-api/v1/workflows/${workflowId}/pinned-snapshot`);
+}
+
+export function setWorkflowPin(workflowId: string,
+                                 snapshotId: number | null): Promise<unknown> {
+  return request('PUT',
+    `/edge-api/v1/workflows/${workflowId}/pinned-snapshot`,
+    { snapshotId });
+}
+
 // ---- der-1.3.0-alpha.3 Initiative 10 slice B (ADR-0024): import/export ----
 
 export interface CanonicalWorkflow {

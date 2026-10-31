@@ -78,6 +78,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'ou-binding', label: 'Organisation unit', to: '/dhis2/organisation-unit', status: 'implemented', tabIcon: 'health' },
       { id: 'compat', label: 'Compatibility', to: '/dhis2/compat', status: 'implemented', tabIcon: 'diagnostics' },
       { id: 'metadata-mirror', label: 'Metadata', to: '/dhis2/metadata', status: 'implemented', tabIcon: 'metadata' },
+      { id: 'metadata-snapshots', label: 'Snapshots', to: '/metadata/snapshots', status: 'implemented' },
       { id: 'drift', label: 'Metadata drift', to: '/dhis2/metadata-drift', status: 'contextual' },
       { id: 'metadata-sync', label: 'Metadata sync', to: '/dhis2/metadata-sync', status: 'contextual' },
     ],

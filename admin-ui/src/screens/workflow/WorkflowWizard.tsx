@@ -63,6 +63,11 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
   const [rows, setRows] = useState<StepRow[]>([]);
   const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[]>([]);
 
+  // §37–§42 — metadata snapshot pinning (edit mode only).
+  const [snapshots, setSnapshots] = useState<edgeApi.MetadataSnapshot[]>([]);
+  const [pinnedSnapshotId, setPinnedSnapshotId] = useState<number | null>(null);
+  const [pinSaving, setPinSaving] = useState(false);
+
   // Save
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -72,6 +77,18 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
   useEffect(() => {
     api.listDevices().then((d) => setDevices(d.devices ?? [])).catch(() => undefined);
   }, [api]);
+
+  // Edit mode — load snapshots + current pin so we can offer the
+  // picker on step 3.
+  useEffect(() => {
+    if (!editing || workflowId == null) return;
+    edgeApi.listSnapshots()
+      .then((r) => setSnapshots(r.snapshots))
+      .catch(() => undefined);
+    edgeApi.getWorkflowPin(workflowId)
+      .then((r) => setPinnedSnapshotId(r.snapshotId))
+      .catch(() => undefined);
+  }, [editing, workflowId]);
 
   // Edit mode — pre-fill the wizard from an existing workflow.
   useEffect(() => {
@@ -402,6 +419,43 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
               <input type="text" data-test="wiz-name" value={name}
                       onChange={(e) => setName(e.target.value)} />
             </label>
+          )}
+
+          {editing && snapshots.length > 0 && (
+            <div className="ea-wizard-pin-panel" data-test="wiz-pin-panel">
+              <label className="ea-wizard-field" style={{ maxWidth: 540 }}>
+                <span>Metadata snapshot pin</span>
+                <select data-test="wiz-pin-select"
+                         value={pinnedSnapshotId == null ? '' : String(pinnedSnapshotId)}
+                         disabled={pinSaving}
+                         onChange={(e) => {
+                           const next = e.target.value === ''
+                             ? null
+                             : Number(e.target.value);
+                           setPinSaving(true);
+                           edgeApi.setWorkflowPin(workflowId!, next)
+                             .then(() => setPinnedSnapshotId(next))
+                             .catch(() => undefined)
+                             .finally(() => setPinSaving(false));
+                         }}>
+                  <option value="">Float with the live mirror</option>
+                  {snapshots.map((s) => (
+                    <option key={s.snapshotId} value={s.snapshotId}
+                             disabled={s.status === 'RETIRED'
+                                        && s.snapshotId !== pinnedSnapshotId}>
+                      #{s.snapshotId} · {new Date(s.importedAt).toLocaleDateString()}
+                      {' · '}{s.counts.programs + s.counts.dataElements} rows
+                      {s.status === 'RETIRED' ? ' (retired)' : ''}
+                    </option>
+                  ))}
+                </select>
+                <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                  {pinnedSnapshotId == null
+                    ? 'Workflow floats with the latest metadata — upstream drift may invalidate steps.'
+                    : 'Workflow stays locked to this snapshot regardless of upstream drift.'}
+                </span>
+              </label>
+            </div>
           )}
 
           {breakables == null && <LoadingBlock testId="wiz-breakables-loading" />}

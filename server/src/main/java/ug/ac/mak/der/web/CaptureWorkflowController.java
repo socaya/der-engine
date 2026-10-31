@@ -32,6 +32,7 @@ import ug.ac.mak.der.workflow.CaptureWorkflowRun;
 import ug.ac.mak.der.workflow.CaptureWorkflowService;
 import ug.ac.mak.der.workflow.CaptureWorkflowStep;
 import ug.ac.mak.der.workflow.ProgressiveValidator;
+import ug.ac.mak.der.workflow.WorkflowPinningService;
 import ug.ac.mak.der.workflow.WorkflowQueueStream;
 import ug.ac.mak.der.workflow.WorkflowRunCoordinator;
 
@@ -46,20 +47,58 @@ public class CaptureWorkflowController {
     private final WorkflowRunCoordinator coordinator;
     private final ProgressiveValidator validator;
     private final WorkflowQueueStream queueStream;
+    private final WorkflowPinningService pinning;
 
     public CaptureWorkflowController(final CaptureWorkflowService svc,
                                        final CaptureWorkflowImportService importer,
                                        final CaptureWorkflowContributionRepository contributions,
                                        final WorkflowRunCoordinator coordinator,
                                        final ProgressiveValidator validator,
-                                       final WorkflowQueueStream queueStream) {
+                                       final WorkflowQueueStream queueStream,
+                                       final WorkflowPinningService pinning) {
         this.svc = Objects.requireNonNull(svc, "svc");
         this.importer = Objects.requireNonNull(importer, "importer");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
         this.coordinator = Objects.requireNonNull(coordinator, "coordinator");
         this.validator = Objects.requireNonNull(validator, "validator");
         this.queueStream = Objects.requireNonNull(queueStream, "queueStream");
+        this.pinning = Objects.requireNonNull(pinning, "pinning");
     }
+
+    /** §37–§42 — read the workflow's pin. {@code snapshotId=null}
+     *  means the workflow floats with the live mirror. */
+    @GetMapping("/{id}/pinned-snapshot")
+    public ResponseEntity<Map<String, Object>> getPin(@PathVariable("id") final UUID id) {
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("workflowId", id.toString());
+        body.put("snapshotId", pinning.getPinnedSnapshot(id).orElse(null));
+        return ResponseEntity.ok(body);
+    }
+
+    /** §37–§42 — pin / unpin a workflow. {@code snapshotId=null}
+     *  unpins. */
+    @org.springframework.web.bind.annotation.PutMapping(
+            path = "/{id}/pinned-snapshot",
+            consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> pin(
+            final org.springframework.security.core.Authentication auth,
+            @PathVariable("id") final UUID id,
+            @org.springframework.web.bind.annotation.RequestBody final PinRequest body) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        try {
+            pinning.pin(id, body == null ? null : body.snapshotId(), principal.userId());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.notFound().build();
+        }
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("workflowId", id.toString());
+        out.put("snapshotId", body == null ? null : body.snapshotId());
+        return ResponseEntity.ok(out);
+    }
+
+    public record PinRequest(Long snapshotId) { }
 
     /** §2.3.24 — SSE: push a {@code queue.invalidate} event whenever a
      *  workflow run moves, so the UI can skip the 15 s polling loop. */
