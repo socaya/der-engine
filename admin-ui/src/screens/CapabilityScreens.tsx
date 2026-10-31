@@ -1797,6 +1797,8 @@ export function CapStepAssignments(): JSX.Element {
               <th>Name</th>
               <th>Owner role</th>
               <th>Kind</th>
+              <th>Device</th>
+              <th></th>
             </tr></thead><tbody>
               {displayed.flatMap((w) => (w.steps ?? []).map((s) => (
                 <tr key={w.workflowId + '-' + s.ordinal}>
@@ -1805,6 +1807,15 @@ export function CapStepAssignments(): JSX.Element {
                   <td>{s.displayName}</td>
                   <td><span className="ea-chip ea-chip--info" title={s.ownerRole}>{humaniseState(s.ownerRole)}</span></td>
                   <td><span className="ea-chip ea-chip--neutral" title={s.stepKind}>{humaniseState(s.stepKind)}</span></td>
+                  <td className="ea-mono" style={{ fontSize: 12 }}>
+                    {s.ownerDeviceId
+                      ? s.ownerDeviceId.slice(0, 8) + '…'
+                      : <span className="ea-text-muted">any</span>}
+                  </td>
+                  <td>
+                    <Link to={`/workflows/${w.workflowId}`} className="ea-link-btn"
+                           style={{ fontSize: 12 }}>Edit</Link>
+                  </td>
                 </tr>
               )))}
             </tbody></table>

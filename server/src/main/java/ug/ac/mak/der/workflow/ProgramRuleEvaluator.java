@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -84,13 +85,16 @@ public class ProgramRuleEvaluator {
     private final ExtendedMirrorRepository mirror;
     private final ObjectMapper mapper;
     private final JdbcTemplate jdbc;
+    private final WorkflowPinningService pinning;
 
     public ProgramRuleEvaluator(final ExtendedMirrorRepository mirror,
                                   final ObjectMapper mapper,
-                                  final JdbcTemplate jdbc) {
+                                  final JdbcTemplate jdbc,
+                                  final WorkflowPinningService pinning) {
         this.mirror = Objects.requireNonNull(mirror, "mirror");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+        this.pinning = Objects.requireNonNull(pinning, "pinning");
     }
 
     /**
@@ -104,13 +108,42 @@ public class ProgramRuleEvaluator {
         if (workflow.boundMetadataKind() != CaptureWorkflow.BindingKind.PROGRAM) {
             return List.of();
         }
-        final List<MirroredProgramRule> rules =
-                mirror.findRulesByProgram(workflow.boundMetadataId());
+        // §2.3.26 — if the workflow is pinned, try the pinned snapshot first.
+        // If the pin is stale (mirror upsert overwrote), fall back to latest.
+        final Long pinnedSnapshotId = pinning.getPinnedSnapshot(workflow.workflowId())
+                .orElse(null);
+        List<MirroredProgramRule> rules = pinnedSnapshotId == null
+                ? List.of()
+                : mirror.findRulesByProgramInSnapshot(workflow.boundMetadataId(),
+                                                        pinnedSnapshotId);
+        boolean pinStale = false;
         if (rules.isEmpty()) {
-            return List.of();
+            if (pinnedSnapshotId != null) {
+                pinStale = true;
+            }
+            rules = mirror.findRulesByProgram(workflow.boundMetadataId());
+        }
+        final List<ProgressiveValidator.Issue> issues = new ArrayList<>();
+        if (pinStale) {
+            issues.add(new ProgressiveValidator.Issue(
+                UUID.randomUUID(), runId, null,
+                "PINNED_SNAPSHOT_DRIFT",
+                ProgressiveValidator.Severity.WARNING,
+                "Workflow is pinned to snapshot #" + pinnedSnapshotId
+                        + " but no rules remain at that snapshot — "
+                        + "program-rule evaluation is falling back to the live mirror.",
+                null));
+        }
+        if (rules.isEmpty()) {
+            return issues;
         }
         final Map<String, String> rawValues = extractFieldValues(all);
-        final Map<String, String> variableToUid = loadRuleVariableAliases(workflow.boundMetadataId());
+        // §2.3.31 — alongside the merged value map, build a "most-recent
+        // contribution timestamp per UID" table so d2:lastEventDate can
+        // answer "when was this field last captured".
+        final Map<String, java.time.Instant> lastSeen = extractLastSeen(all);
+        final Map<String, String> variableToUid =
+                loadRuleVariableAliases(workflow.boundMetadataId(), pinnedSnapshotId);
         // Alias the UID-keyed values under the variable names declared
         // by programRuleVariables, so expressions written as
         // #{varName} resolve the same as #{DE_UID}.
@@ -120,7 +153,19 @@ public class ProgramRuleEvaluator {
                 values.put(varName, rawValues.get(uid));
             }
         });
-        final List<ProgressiveValidator.Issue> issues = new ArrayList<>();
+        // Mirror lastSeen under variable names too so d2:lastEventDate(#{var})
+        // resolves via either the raw UID or the alias.
+        final Map<String, java.time.Instant> lastSeenAll =
+                new HashMap<>(lastSeen);
+        variableToUid.forEach((varName, uid) -> {
+            if (uid != null && lastSeen.containsKey(uid)) {
+                lastSeenAll.put(varName, lastSeen.get(uid));
+            }
+        });
+        // Expose lastSeen to callD2 via thread-local so we don't have
+        // to thread a context record through every helper.
+        LAST_SEEN.set(lastSeenAll);
+        try {
         for (final MirroredProgramRule r : rules) {
             final Boolean fired;
             try {
@@ -140,7 +185,59 @@ public class ProgramRuleEvaluator {
                 }
             }
         }
+        } finally {
+            LAST_SEEN.remove();
+        }
         return issues;
+    }
+
+    /** §2.3.31 — per-thread last-seen table used by d2:lastEventDate. */
+    private static final ThreadLocal<Map<String, java.time.Instant>> LAST_SEEN
+            = ThreadLocal.withInitial(java.util.HashMap::new);
+
+    private Map<String, java.time.Instant> extractLastSeen(
+            final List<CaptureWorkflowContribution> all) {
+        final Map<String, java.time.Instant> out = new HashMap<>();
+        for (final CaptureWorkflowContribution c : all) {
+            final JsonNode root;
+            try {
+                root = mapper.readTree(c.payload());
+            } catch (JsonProcessingException ex) {
+                continue;
+            }
+            final Set<String> refs = new java.util.LinkedHashSet<>();
+            collectUids(root, refs);
+            for (final String uid : refs) {
+                final java.time.Instant prev = out.get(uid);
+                if (prev == null || prev.isBefore(c.submittedAt())) {
+                    out.put(uid, c.submittedAt());
+                }
+            }
+        }
+        return out;
+    }
+
+    private void collectUids(final JsonNode n, final Set<String> acc) {
+        if (n == null) {
+            return;
+        }
+        if (n.isObject()) {
+            final String deUid = textOrNull(n.get("dataElement"));
+            final String attrUid = textOrNull(n.get("attribute"));
+            final String teaUid = textOrNull(n.get("trackedEntityAttribute"));
+            if (deUid != null) {
+                acc.add(deUid);
+            }
+            if (attrUid != null) {
+                acc.add(attrUid);
+            }
+            if (teaUid != null) {
+                acc.add(teaUid);
+            }
+            n.fieldNames().forEachRemaining((k) -> collectUids(n.get(k), acc));
+        } else if (n.isArray()) {
+            n.forEach((child) -> collectUids(child, acc));
+        }
     }
 
     /**
@@ -150,14 +247,26 @@ public class ProgramRuleEvaluator {
      * name (e.g. {@code #{ahd_cd4}}) and this is how we resolve them
      * to the UIDs that show up in contribution payloads.
      */
-    private Map<String, String> loadRuleVariableAliases(final String programUid) {
+    private Map<String, String> loadRuleVariableAliases(final String programUid,
+                                                          final Long pinnedSnapshotId) {
         final Map<String, String> out = new HashMap<>();
         try {
-            final List<String> payloads = jdbc.queryForList(
+            // Prefer the pinned snapshot's variables when a pin is set.
+            // Falls back to latest if the pin is stale (mirror overwrite).
+            List<String> payloads = pinnedSnapshotId == null ? List.of() :
+                jdbc.queryForList(
+                    "SELECT payload::text FROM der.metadata_catalog_item "
+                            + "WHERE resource = 'programRuleVariables' "
+                            + "AND payload->'program'->>'id' = ? "
+                            + "AND snapshot_id = ?",
+                    String.class, programUid, pinnedSnapshotId);
+            if (payloads.isEmpty()) {
+                payloads = jdbc.queryForList(
                     "SELECT payload::text FROM der.metadata_catalog_item "
                             + "WHERE resource = 'programRuleVariables' "
                             + "AND payload->'program'->>'id' = ?",
                     String.class, programUid);
+            }
             for (final String p : payloads) {
                 final JsonNode n = mapper.readTree(p);
                 final String name = n.hasNonNull("name") ? n.get("name").asText() : null;
@@ -192,10 +301,90 @@ public class ProgramRuleEvaluator {
                 textIssue(runId, rule, action, ProgressiveValidator.Severity.WARNING);
             case "SETMANDATORYFIELD" ->
                 mandatoryIssue(runId, rule, action, values);
-            // HIDEFIELD / ASSIGN / CREATEEVENT / HIDESECTION / etc. need a
-            // client-side surface and will land as follow-ups.
+            case "HIDEFIELD", "HIDESECTION" ->
+                hideIssue(runId, rule, action);
+            case "ASSIGN" ->
+                assignIssue(runId, rule, action, values);
+            case "CREATEEVENT" ->
+                createEventIssue(runId, rule, action);
             default -> null;
         };
+    }
+
+    /** §2.3.28 — HIDEFIELD / HIDESECTION. INFO-severity, carries the
+     *  field UID so a client that renders inputs can hide the target
+     *  without a round-trip. Does not gate completion. */
+    private ProgressiveValidator.Issue hideIssue(final UUID runId,
+                                                   final MirroredProgramRule rule,
+                                                   final MirroredProgramRuleAction action) {
+        final String targetUid = action.dataElementUid() != null
+                ? action.dataElementUid()
+                : action.trackedEntityAttributeUid();
+        if (targetUid == null) {
+            return null;
+        }
+        return new ProgressiveValidator.Issue(
+                UUID.randomUUID(), runId, null,
+                "PROGRAM_RULE_" + action.actionType(),
+                ProgressiveValidator.Severity.INFO,
+                "Field '" + targetUid + "' should be hidden ("
+                        + rule.displayName() + ").",
+                targetUid);
+    }
+
+    /** §2.3.28 — ASSIGN. Evaluates the action's data expression and
+     *  reports the suggested value as an INFO issue. If the field is
+     *  already present with a different value, raises a WARNING so
+     *  reviewers notice the conflict. */
+    private ProgressiveValidator.Issue assignIssue(final UUID runId,
+                                                     final MirroredProgramRule rule,
+                                                     final MirroredProgramRuleAction action,
+                                                     final Map<String, String> values) {
+        final String targetUid = action.dataElementUid() != null
+                ? action.dataElementUid()
+                : action.trackedEntityAttributeUid();
+        if (targetUid == null) {
+            return null;
+        }
+        String suggested = action.dataExpression();
+        if (suggested != null) {
+            // Try to resolve the expression — strip DHIS2 wrapper if present.
+            suggested = resolve(suggested.trim(), values);
+        }
+        final String current = values.get(targetUid);
+        final boolean conflict = current != null && suggested != null
+                && !current.isBlank() && !current.equals(suggested);
+        final ProgressiveValidator.Severity sev = conflict
+                ? ProgressiveValidator.Severity.WARNING
+                : ProgressiveValidator.Severity.INFO;
+        final String message = conflict
+                ? "Rule '" + rule.displayName() + "' assigns '"
+                        + suggested + "' to field '" + targetUid
+                        + "' but a different value ('" + current + "') is already captured."
+                : "Rule '" + rule.displayName() + "' suggests value '"
+                        + (suggested == null ? "<unresolved>" : suggested)
+                        + "' for field '" + targetUid + "'.";
+        return new ProgressiveValidator.Issue(
+                UUID.randomUUID(), runId, null,
+                "PROGRAM_RULE_ASSIGN", sev, message, targetUid);
+    }
+
+    /** §2.3.28 — CREATEEVENT. INFO cue that a follow-up event should
+     *  be created once the current contribution finalises. The flat
+     *  merge model doesn't itself create events; the client picks up
+     *  the cue and schedules one. */
+    private ProgressiveValidator.Issue createEventIssue(final UUID runId,
+                                                           final MirroredProgramRule rule,
+                                                           final MirroredProgramRuleAction action) {
+        return new ProgressiveValidator.Issue(
+                UUID.randomUUID(), runId, null,
+                "PROGRAM_RULE_CREATEEVENT",
+                ProgressiveValidator.Severity.INFO,
+                "Rule '" + rule.displayName() + "' asks for a follow-up event "
+                        + (action.content() == null || action.content().isBlank()
+                            ? "to be created."
+                            : "to be created: " + action.content()),
+                action.dataElementUid());
     }
 
     private ProgressiveValidator.Issue textIssue(final UUID runId,
@@ -357,6 +546,7 @@ public class ProgramRuleEvaluator {
                 case "weeksBetween" -> dateDiff(args, java.time.temporal.ChronoUnit.WEEKS);
                 case "monthsBetween" -> dateDiff(args, java.time.temporal.ChronoUnit.MONTHS);
                 case "yearsBetween" -> dateDiff(args, java.time.temporal.ChronoUnit.YEARS);
+                case "minutesBetween" -> minutesBetween(args);
                 case "length"       -> String.valueOf(args.get(0) == null ? 0 : args.get(0).length());
                 case "left"         -> substring(args, true);
                 case "right"        -> substring(args, false);
@@ -366,12 +556,13 @@ public class ProgramRuleEvaluator {
                 case "modulus"      -> fmt(num(args.get(0)) % num(args.get(1)));
                 case "zing"         -> fmt(Math.max(0, num(args.get(0))));
                 case "oizp"         -> num(args.get(0)) > 0 ? "1" : "0";
-                case "count"        -> values.containsKey(stripBraces(argStr.trim())) ? "1" : "0";
+                case "count"        -> countFn(argStr.trim(), values);
+                case "condition"    -> conditionFn(args, values);
                 case "zpvc"         -> fmt(args.stream().filter(a -> a != null && !a.isBlank())
                                               .count());
                 case "concatenate"  -> String.join("", args.stream()
                                               .map(a -> a == null ? "" : a).toList());
-                case "lastEventDate" -> null; // not meaningful in DER merge model
+                case "lastEventDate" -> lastEventDate(argStr.trim());
                 default -> null;
             };
         } catch (RuntimeException ex) {
@@ -408,6 +599,35 @@ public class ProgramRuleEvaluator {
         }
         out.add(s.substring(start));
         return out;
+    }
+
+    /** §2.3.31 — {@code d2:minutesBetween(a, b)}. Accepts dates or
+     *  ISO-8601 instants on either side. */
+    private String minutesBetween(final List<String> args) {
+        if (args.size() < 2 || args.get(0) == null || args.get(1) == null) {
+            return null;
+        }
+        final java.time.Instant a = parseInstant(args.get(0));
+        final java.time.Instant b = parseInstant(args.get(1));
+        if (a == null || b == null) {
+            return null;
+        }
+        return String.valueOf(java.time.temporal.ChronoUnit.MINUTES.between(a, b));
+    }
+
+    private java.time.Instant parseInstant(final String s) {
+        try {
+            // Full ISO-8601 instant.
+            return java.time.Instant.parse(s);
+        } catch (java.time.format.DateTimeParseException ignore1) {
+            // Date-only — assume midnight UTC.
+            try {
+                return java.time.LocalDate.parse(s.length() >= 10 ? s.substring(0, 10) : s)
+                        .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+            } catch (java.time.format.DateTimeParseException ignore2) {
+                return null;
+            }
+        }
     }
 
     private String dateDiff(final List<String> args, final java.time.temporal.ChronoUnit unit) {
@@ -457,6 +677,48 @@ public class ProgramRuleEvaluator {
     private String stripBraces(final String s) {
         final Matcher m = FIELD_REF.matcher(s);
         return m.matches() ? m.group(1) : s;
+    }
+
+    /** §2.3.31 — {@code d2:lastEventDate(#{var})}. In DER's flat merge
+     *  model, "last event" is "latest contribution carrying the field".
+     *  Returns the contribution's submitted-at date (yyyy-MM-dd). */
+    private String lastEventDate(final String rawArg) {
+        final String key = stripBraces(rawArg);
+        final java.time.Instant t = LAST_SEEN.get().get(key);
+        if (t == null) {
+            return null;
+        }
+        return t.atZone(java.time.ZoneOffset.UTC).toLocalDate().toString();
+    }
+
+    /** §2.3.29 — richer {@code d2:count(#{var})}. Returns {@code "1"}
+     *  if the variable resolves to a non-blank value, {@code "0"}
+     *  otherwise. In the DER flat merge model there is a single value
+     *  per variable; repeated-event history is not modelled yet. */
+    private String countFn(final String rawArg, final Map<String, String> values) {
+        final String uid = stripBraces(rawArg);
+        final String v = values.get(uid);
+        return (v != null && !v.isBlank()) ? "1" : "0";
+    }
+
+    /** §2.3.29 — {@code d2:condition("<cond>", <trueV>, <falseV>)}
+     *  ternary. The condition arg is a DHIS2 expression string (we
+     *  evaluate it recursively via {@link #eval}), the branches are
+     *  values already resolved by splitArgs/resolve. */
+    private String conditionFn(final List<String> args, final Map<String, String> values) {
+        if (args.size() < 3) {
+            return null;
+        }
+        // resolve() stripped the quotes around the condition arg, so
+        // what remains IS the DHIS2 expression body. Evaluate it
+        // recursively against the same values map.
+        final Boolean b;
+        try {
+            b = eval(args.get(0), values);
+        } catch (RuntimeException ex) {
+            return null;
+        }
+        return Boolean.TRUE.equals(b) ? args.get(1) : args.get(2);
     }
 
     private boolean compare(final String a, final String b, final String op) {

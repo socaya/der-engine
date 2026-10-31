@@ -68,6 +68,78 @@ public class MetadataSnapshotController {
         return ResponseEntity.ok(Map.of("snapshotId", snapshotId, "retired", true));
     }
 
+    /** §2.3.27 — pairwise diff between two snapshots.
+     *  Shows per-resource counts in each snapshot + a delta so operators
+     *  can see at a glance what grew / shrank. True per-UID row-level
+     *  diff needs the row-versioning schema (follow-up); the mirror's
+     *  upsert-overwrite semantics mean we only ever carry the latest
+     *  version of each row today. */
+    @GetMapping("/{a}/diff/{b}")
+    public ResponseEntity<Map<String, Object>> diff(@PathVariable final long a,
+                                                       @PathVariable final long b) {
+        final Map<String, Object> ra = fetchCounts(a);
+        final Map<String, Object> rb = fetchCounts(b);
+        if (ra == null || rb == null) {
+            return ResponseEntity.notFound().build();
+        }
+        final Map<String, Object> deltas = new LinkedHashMap<>();
+        for (final String key : java.util.List.of(
+                "organisationUnits", "dataElements", "dataSets",
+                "programs", "trackedEntityTypes")) {
+            final int ca = ((Integer) ((Map<?, ?>) ra.get("counts")).get(key));
+            final int cb = ((Integer) ((Map<?, ?>) rb.get("counts")).get(key));
+            final Map<String, Object> cell = new LinkedHashMap<>();
+            cell.put("a", ca);
+            cell.put("b", cb);
+            cell.put("delta", cb - ca);
+            deltas.put(key, cell);
+        }
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("a", ra);
+        out.put("b", rb);
+        out.put("deltas", deltas);
+        // Also live row-tagged counts: how many rows presently carry
+        // each snapshot_id. These drift to zero as later syncs overwrite.
+        out.put("liveTaggedCounts", Map.of(
+            "a", liveTaggedCounts(a),
+            "b", liveTaggedCounts(b)));
+        return ResponseEntity.ok(out);
+    }
+
+    private Map<String, Object> fetchCounts(final long snapshotId) {
+        final List<Map<String, Object>> rows = jdbc.query(
+                "SELECT s.snapshot_id, s.imported_from, s.imported_by, s.imported_at, "
+                        + "s.organisation_units_count, s.data_elements_count, "
+                        + "s.data_sets_count, s.programs_count, "
+                        + "s.tracked_entity_types_count, "
+                        + "s.central_version, s.central_revision, s.fingerprint, "
+                        + "s.retired_at, s.retired_by, "
+                        + "(SELECT COUNT(*) FROM der.capture_workflow w "
+                        + "   WHERE w.pinned_snapshot_id = s.snapshot_id) AS pinned_workflows "
+                        + "FROM der.metadata_snapshot s "
+                        + "WHERE s.snapshot_id = ?",
+                (ResultSet rs, int i) -> row(rs),
+                snapshotId);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private Map<String, Integer> liveTaggedCounts(final long snapshotId) {
+        final Map<String, Integer> out = new LinkedHashMap<>();
+        for (final String[] res : new String[][] {
+                { "organisationUnits", "metadata_organisation_unit" },
+                { "dataElements",      "metadata_data_element" },
+                { "dataSets",          "metadata_data_set" },
+                { "programs",          "metadata_program" },
+                { "programRules",      "metadata_program_rule" },
+        }) {
+            final Integer n = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM der." + res[1] + " WHERE snapshot_id = ?",
+                    Integer.class, snapshotId);
+            out.put(res[0], n == null ? 0 : n);
+        }
+        return out;
+    }
+
     @PostMapping("/{snapshotId}/reinstate")
     public ResponseEntity<Map<String, Object>> reinstate(final Authentication auth,
                                                             @PathVariable final long snapshotId) {

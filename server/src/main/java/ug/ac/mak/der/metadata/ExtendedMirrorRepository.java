@@ -183,11 +183,30 @@ public class ExtendedMirrorRepository {
     }
 
     public List<MirroredProgramRule> findRulesByProgram(final String programUid) {
-        final List<MirroredProgramRule> rules = jdbc.query(
-                "SELECT dhis2_uid, program_uid, display_name, priority, condition, payload "
+        return findRulesByProgramInSnapshot(programUid, null);
+    }
+
+    /**
+     * §2.3.26 — pin-aware rule lookup. When {@code snapshotId != null}
+     * we only match rows whose {@code snapshot_id} equals the pin.
+     * The mirror's upsert-overwrite semantics mean rows carry only the
+     * latest snapshot_id they were touched by, so this returns an
+     * empty list once the pin becomes stale (the caller then falls
+     * back to the unpinned query via {@link #findRulesByProgram}).
+     */
+    public List<MirroredProgramRule> findRulesByProgramInSnapshot(
+            final String programUid, final Long snapshotId) {
+        final String sql = snapshotId == null
+                ? "SELECT dhis2_uid, program_uid, display_name, priority, condition, payload "
                         + "FROM der.metadata_program_rule WHERE program_uid = ? "
-                        + "ORDER BY COALESCE(priority, 0) DESC",
-                ruleMapper(), programUid);
+                        + "ORDER BY COALESCE(priority, 0) DESC"
+                : "SELECT dhis2_uid, program_uid, display_name, priority, condition, payload "
+                        + "FROM der.metadata_program_rule "
+                        + "WHERE program_uid = ? AND snapshot_id = ? "
+                        + "ORDER BY COALESCE(priority, 0) DESC";
+        final List<MirroredProgramRule> rules = snapshotId == null
+                ? jdbc.query(sql, ruleMapper(), programUid)
+                : jdbc.query(sql, ruleMapper(), programUid, snapshotId);
         for (int i = 0; i < rules.size(); i++) {
             final MirroredProgramRule r = rules.get(i);
             final List<MirroredProgramRuleAction> actions = jdbc.query(
