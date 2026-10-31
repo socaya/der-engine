@@ -642,14 +642,17 @@ describe('EA-CWF-02 CaptureWorkflowDesigner', () => {
     await waitFor(() => expect(screen.getByTestId('cwf02-error')).toBeInTheDocument());
   });
 
-  it('invalid JSON in steps surfaces error', async () => {
+  it('invalid JSON in the advanced panel surfaces error', async () => {
     renderWithProviders(<EACaptureWorkflowDesigner workflowId="new" api={{
       getWorkflow: vi.fn(), saveWorkflow: vi.fn(),
     } as never} />);
     await userEvent.type(screen.getByTestId('cwf02-name'), 'x');
     await userEvent.type(screen.getByTestId('cwf02-binding'), 'ds');
+    // Advanced JSON lives behind a <details> toggle — open it, then
+    // feed invalid JSON into the steps textarea.
+    const advanced = screen.getByText(/Advanced — edit raw JSON/);
+    (advanced.parentElement as HTMLDetailsElement).open = true;
     await userEvent.clear(screen.getByTestId('cwf02-steps'));
-    // userEvent treats "{" as a key descriptor start; "{{" produces a literal "{".
     await userEvent.type(screen.getByTestId('cwf02-steps'), '{{');
     await userEvent.click(screen.getByTestId('cwf02-save'));
     await waitFor(() => expect(screen.getByTestId('cwf02-error')).toBeInTheDocument());

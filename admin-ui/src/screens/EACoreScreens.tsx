@@ -11,6 +11,9 @@ import { QuickActions } from '../components/QuickActions';
 import { RecentActivity } from '../components/RecentActivity';
 import { usePaged, TablePager } from './shared';
 import { UiIcon } from '../components/UiIcon';
+import { StepsEditor } from '../components/workflow/StepsEditor';
+import { DependenciesEditor } from '../components/workflow/DependenciesEditor';
+import { validateWorkflow, type ValidationError } from '../components/workflow/validate';
 
 /**
  * Phase 06 Release 2 — EA-01..18 admin screens.
@@ -1577,8 +1580,13 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
   /* V045 — workflow-level approval + default assignee. */
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [defaultDeviceId, setDefaultDeviceId] = useState<string>('');
+  /* 2.3.13 form-based editors (primary) + raw JSON (advanced panel). */
+  const [steps, setSteps] = useState<edgeApi.CaptureWorkflowStep[]>([]);
+  const [dependencies, setDependencies] = useState<edgeApi.CaptureWorkflowDependency[]>([]);
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [stepsJson, setStepsJson] = useState('[]');
   const [depsJson, setDepsJson] = useState('[]');
+  const [showJsonPanel, setShowJsonPanel] = useState(false);
   const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -1597,6 +1605,8 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
         setEnabled(w.enabled);
         setRequiresApproval(w.requiresApproval ?? false);
         setDefaultDeviceId(w.defaultDeviceId ?? '');
+        setSteps([...w.steps]);
+        setDependencies([...w.dependencies]);
         setStepsJson(JSON.stringify(w.steps, null, 2));
         setDepsJson(JSON.stringify(w.dependencies, null, 2));
       }
@@ -1612,12 +1622,34 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
   async function doSave(): Promise<void> {
     setStatus('saving');
     setError(null);
+    // Prefer form-based state. Fall back to parsing the advanced JSON
+    // panel only when it's visibly open (operator editing JSON directly).
+    let stepsPayload = steps;
+    let depsPayload = dependencies;
+    if (showJsonPanel) {
+      try {
+        stepsPayload = JSON.parse(stepsJson) as edgeApi.CaptureWorkflowStep[];
+        depsPayload = JSON.parse(depsJson) as edgeApi.CaptureWorkflowDependency[];
+      } catch (ex) {
+        setStatus('idle');
+        setError('Invalid JSON in advanced panel: ' + (ex instanceof Error ? ex.message : String(ex)));
+        return;
+      }
+    }
+    const errs = validateWorkflow({
+      displayName, boundMetadataId,
+      steps: stepsPayload, dependencies: depsPayload,
+    });
+    setValidationErrors(errs);
+    if (errs.length > 0) {
+      setStatus('idle');
+      return;
+    }
     try {
-      const steps = JSON.parse(stepsJson) as edgeApi.CaptureWorkflowStep[];
-      const dependencies = JSON.parse(depsJson) as edgeApi.CaptureWorkflowDependency[];
       await api.saveWorkflow({
         workflowId: existing?.workflowId,
-        displayName, boundMetadataKind, boundMetadataId, enabled, steps, dependencies,
+        displayName, boundMetadataKind, boundMetadataId, enabled,
+        steps: stepsPayload, dependencies: depsPayload,
         requiresApproval,
         defaultDeviceId: defaultDeviceId === '' ? null : defaultDeviceId,
       });
@@ -1723,30 +1755,57 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
           </ul>
         </details>
       )}
-      <label>
-        <span>Steps (JSON array; visual builder lands in 2.3.3)</span>
-        <small className="ea-text-muted" style={{ display: 'block', margin: '4px 0 6px' }}>
-          Each step must include <code>sectionKind</code>
-          (<code>DATASET_SECTION</code> / <code>PROGRAM_STAGE</code> /
-          <code>PROGRAM_STAGE_SECTION</code> /{' '}
-          <code>TEI_ATTRIBUTE_GROUP</code> / <code>DATA_ELEMENT_GROUP</code> /{' '}
-          <code>COC_SPLIT</code> / <code>ENROLLMENT_FORM</code> /{' '}
-          <code>PROGRAM_SECTION</code> / <code>TEI_TYPE_ATTRIBUTES</code> /{' '}
-          <code>ATTRIBUTE_OPTION_COMBO</code> / <code>ORG_UNIT_SCOPE</code> /{' '}
-          <code>RELATIONSHIP</code> / <code>EVENT_INSTANCE</code> /{' '}
-          <code>DATASET_ELEMENT</code> / <code>PERIOD_SCOPE</code> /{' '}
-          <code>AD_HOC</code>) and{' '}
-          <code>sectionRef</code> (DHIS2 UID of the slice, or null for AD_HOC).
-          The server rejects section kinds that don't fit the chosen binding.
-        </small>
-        <textarea data-test="cwf02-steps" rows={10} value={stepsJson}
-          onChange={(e) => { setStepsJson(e.target.value); }} />
-      </label>
-      <label>
-        <span>Dependencies (JSON array)</span>
-        <textarea data-test="cwf02-deps" rows={6} value={depsJson}
-          onChange={(e) => { setDepsJson(e.target.value); }} />
-      </label>
+      <fieldset style={{ border: '1px solid var(--der-border)',
+                           borderRadius: 6, padding: 10, marginTop: 10 }}>
+        <legend style={{ padding: '0 6px', fontSize: 13 }}>
+          Steps · {steps.length}
+        </legend>
+        <StepsEditor steps={steps} devices={devices} onChange={setSteps} />
+      </fieldset>
+      <fieldset style={{ border: '1px solid var(--der-border)',
+                           borderRadius: 6, padding: 10, marginTop: 10 }}>
+        <legend style={{ padding: '0 6px', fontSize: 13 }}>
+          Dependencies · {dependencies.length}
+        </legend>
+        <DependenciesEditor steps={steps} dependencies={dependencies}
+                             onChange={setDependencies} />
+      </fieldset>
+
+      {validationErrors.length > 0 && (
+        <div className="ea-alert ea-alert--danger"
+             data-test="cwf02-validation"
+             style={{ marginTop: 10, padding: 8, border: '1px solid var(--der-danger-ink)',
+                       borderRadius: 4, fontSize: 13 }}>
+          <strong>Please fix before saving:</strong>
+          <ul style={{ margin: '4px 0 0 18px' }}>
+            {validationErrors.map((e, i) => (
+              <li key={i}><code>{e.code}</code> — {e.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <details style={{ marginTop: 10 }}
+               open={showJsonPanel}
+               onToggle={(e) => { setShowJsonPanel(
+                 (e.target as HTMLDetailsElement).open); }}>
+        <summary style={{ cursor: 'pointer', fontSize: 13 }}>
+          Advanced — edit raw JSON (steps + dependencies)
+        </summary>
+        <label>
+          <span>Steps JSON</span>
+          <textarea data-test="cwf02-steps" rows={10}
+                     value={showJsonPanel ? stepsJson : JSON.stringify(steps, null, 2)}
+                     onChange={(e) => { setStepsJson(e.target.value); }} />
+        </label>
+        <label>
+          <span>Dependencies JSON</span>
+          <textarea data-test="cwf02-deps" rows={6}
+                     value={showJsonPanel ? depsJson
+                       : JSON.stringify(dependencies, null, 2)}
+                     onChange={(e) => { setDepsJson(e.target.value); }} />
+        </label>
+      </details>
       <button type="button" className="ea-btn ea-btn--primary"
         data-test="cwf02-save"
         disabled={status === 'saving' || !displayName || !boundMetadataId}
