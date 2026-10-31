@@ -48,6 +48,7 @@ public class MetadataFieldCandidatesController {
         }
         final List<Map<String, Object>> fields = switch (kind) {
             case "PROGRAM_STAGE" -> stageFields(ref);
+            case "PROGRAM_STAGE_SECTION" -> programStageSectionFields(ref);
             case "EVENT_INSTANCE" -> eventFields(ref);
             case "DATASET_SECTION" -> datasetSectionFields(ref);
             default -> List.of();
@@ -81,6 +82,48 @@ public class MetadataFieldCandidatesController {
             return List.of();
         }
         return stageFields(stageUids.get(0));
+    }
+
+    /** Program-stage-section → walks the mirrored catalog payload for
+     *  this section and extracts its {@code dataElements[]}. We fall
+     *  back to the parent stage's data elements if the section itself
+     *  does not carry an explicit element list. */
+    private List<Map<String, Object>> programStageSectionFields(final String sectionUid) {
+        final List<String> payloads = jdbc.queryForList(
+                "SELECT payload::text FROM der.metadata_catalog_item "
+                        + "WHERE resource = 'programStageSections' AND dhis2_uid = ?",
+                String.class, sectionUid);
+        if (payloads.isEmpty()) {
+            return List.of();
+        }
+        final JsonNode root;
+        try {
+            root = mapper.readTree(payloads.get(0));
+        } catch (JsonProcessingException ex) {
+            return List.of();
+        }
+        final List<Map<String, Object>> out = new ArrayList<>();
+        final JsonNode des = root.get("dataElements");
+        if (des != null && des.isArray()) {
+            for (final JsonNode de : des) {
+                final String uid = de.path("id").asText(null);
+                if (uid == null) {
+                    continue;
+                }
+                final String name = de.path("displayName").asText(
+                        de.path("name").asText(uid));
+                out.add(row(uid, name, false));
+            }
+        }
+        // Fallback: section without an explicit element list → inherit
+        // the parent stage's elements so operators have something to pick.
+        if (out.isEmpty()) {
+            final String parentStageUid = root.path("programStage").path("id").asText(null);
+            if (parentStageUid != null) {
+                return stageFields(parentStageUid);
+            }
+        }
+        return out;
     }
 
     /** Dataset section → walks the dataset payload's

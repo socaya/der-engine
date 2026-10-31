@@ -12,8 +12,14 @@ export interface MetadataOption {
 export interface Breakable {
   id: string;
   displayName: string;
-  /** For aggregate: DATASET_SECTION. For tracker/event: PROGRAM_STAGE. */
-  sectionKind: 'DATASET_SECTION' | 'PROGRAM_STAGE' | 'EVENT_INSTANCE';
+  /** Aggregate: DATASET_SECTION. Event: EVENT_INSTANCE. Tracker:
+   *  PROGRAM_STAGE (whole stage) or PROGRAM_STAGE_SECTION (one of
+   *  the stage's inner sections). */
+  sectionKind: 'DATASET_SECTION' | 'PROGRAM_STAGE'
+             | 'PROGRAM_STAGE_SECTION' | 'EVENT_INSTANCE';
+  /** For PROGRAM_STAGE_SECTION: the parent stage's breakable id,
+   *  so the wizard can render sections nested under their stage. */
+  parentId?: string;
 }
 
 /** One data element / attribute offered inside a breakable step. */
@@ -93,16 +99,64 @@ export async function listDataSetSections(dataSetId: string): Promise<Breakable[
   }));
 }
 
-/** For a chosen Program, list its stages (one breakable unit per stage). */
+/** For a chosen Program, list its stages (one breakable unit per
+ *  stage). Each stage that itself has program-stage-sections gets a
+ *  matching list of nested PROGRAM_STAGE_SECTION breakables appended
+ *  after it, with `parentId` pointing at the stage. The wizard
+ *  renders those indented and the operator may pick either the whole
+ *  stage or specific sections. */
 export async function listProgramStages(programId: string): Promise<Breakable[]> {
-  const d = await dhisGet<DhisListResponse<{ id: string; displayName: string }>>(
+  const stagesResp = await dhisGet<DhisListResponse<{ id: string; displayName: string }>>(
     `/api/programStages?filter=program.id:eq:${programId}`
     + '&fields=id,displayName&paging=false',
   );
-  const rows = (d.programStages as { id: string; displayName: string }[] | undefined) ?? [];
-  return rows.map((s) => ({
-    id: s.id, displayName: s.displayName, sectionKind: 'PROGRAM_STAGE',
-  }));
+  type S = { id: string; displayName: string };
+  const stages: S[] = (stagesResp.programStages as S[] | undefined) ?? [];
+  const stageIds = new Set(stages.map((s) => s.id));
+  // One batched fetch, grouped client-side by programStage.id.
+  const sectionsByStage = await listSectionsForStages(stageIds);
+  const out: Breakable[] = [];
+  for (const s of stages) {
+    out.push({ id: s.id, displayName: s.displayName,
+                sectionKind: 'PROGRAM_STAGE' });
+    const children = sectionsByStage.get(s.id) ?? [];
+    for (const sec of children) {
+      out.push({ ...sec, parentId: s.id });
+    }
+  }
+  return out;
+}
+
+async function listSectionsForStages(
+    stageIds: Set<string>): Promise<Map<string, Breakable[]>> {
+  if (stageIds.size === 0) {
+    return new Map();
+  }
+  let rows: { id: string; displayName: string;
+               programStage?: { id: string } }[] = [];
+  try {
+    const d = await dhisGet<DhisListResponse<{
+      id: string; displayName: string; programStage?: { id: string };
+    }>>(
+      '/api/programStageSections?paging=false'
+      + '&fields=id,displayName,programStage',
+    );
+    rows = (d.programStageSections as typeof rows | undefined) ?? [];
+  } catch {
+    rows = [];
+  }
+  const out = new Map<string, Breakable[]>();
+  for (const s of rows) {
+    const stageId = s.programStage?.id;
+    if (!stageId || !stageIds.has(stageId)) {
+      continue;
+    }
+    const list = out.get(stageId) ?? [];
+    list.push({ id: s.id, displayName: s.displayName,
+                 sectionKind: 'PROGRAM_STAGE_SECTION' });
+    out.set(stageId, list);
+  }
+  return out;
 }
 
 /** Fetch display name for a single DataSet or Program by UID. Used
@@ -193,7 +247,8 @@ export function isWizardCompatible(w: edgeApi.CaptureWorkflowSummary): boolean {
     return true;
   }
   const allowed: ReadonlySet<string> = new Set([
-    'DATASET_SECTION', 'PROGRAM_STAGE', 'EVENT_INSTANCE',
+    'DATASET_SECTION', 'PROGRAM_STAGE', 'PROGRAM_STAGE_SECTION',
+    'EVENT_INSTANCE',
   ]);
   return w.steps.every((s) => allowed.has(s.sectionKind ?? ''));
 }

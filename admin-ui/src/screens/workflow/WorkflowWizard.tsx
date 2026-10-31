@@ -424,7 +424,8 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
                   return [
                     (
                       <tr key={r.breakable.id} data-test={`wiz-row-${i}`}
-                           className={r.included ? '' : 'is-dim'}>
+                           className={(r.included ? '' : 'is-dim')
+                             + (r.breakable.parentId ? ' is-nested' : '')}>
                         <td>
                           <button type="button"
                                    className="ea-icon-btn"
@@ -441,8 +442,13 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
                                   checked={r.included}
                                   onChange={(e) => updateRow(i, { included: e.target.checked })} />
                         </td>
-                        <td>
-                          <div>{r.breakable.displayName}</div>
+                        <td style={r.breakable.parentId ? { paddingLeft: 32 } : undefined}>
+                          <div>
+                            {r.breakable.parentId && (
+                              <span className="ea-text-muted" style={{ fontSize: 11, marginRight: 6 }}>↳</span>
+                            )}
+                            {r.breakable.displayName}
+                          </div>
                           {summary && (
                             <div className="ea-text-muted" style={{ fontSize: 12 }}
                                   data-test={`wiz-row-${i}-field-summary`}>
@@ -576,6 +582,25 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
     setRows((prev) => {
       const copy = [...prev];
       copy[ix] = { ...copy[ix], ...patch };
+      // Mutex between a stage and its sections: ticking the stage
+      // unticks any sibling PROGRAM_STAGE_SECTION rows under it;
+      // ticking a section unticks the parent stage.
+      if (patch.included === true) {
+        const b = copy[ix].breakable;
+        if (b.sectionKind === 'PROGRAM_STAGE') {
+          for (let j = 0; j < copy.length; j++) {
+            if (copy[j].breakable.parentId === b.id && copy[j].included) {
+              copy[j] = { ...copy[j], included: false };
+            }
+          }
+        } else if (b.sectionKind === 'PROGRAM_STAGE_SECTION' && b.parentId) {
+          for (let j = 0; j < copy.length; j++) {
+            if (copy[j].breakable.id === b.parentId && copy[j].included) {
+              copy[j] = { ...copy[j], included: false };
+            }
+          }
+        }
+      }
       return copy;
     });
   }
