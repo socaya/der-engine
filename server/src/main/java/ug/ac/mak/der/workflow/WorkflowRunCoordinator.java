@@ -55,6 +55,7 @@ public class WorkflowRunCoordinator {
     private final CaptureWorkflowRepository repo;
     private final CaptureWorkflowContributionRepository contributions;
     private final WorkflowCompiler compiler;
+    private final ConflictDetector conflicts;
     private final OperationJournalRepository journal;
     private final ObjectMapper mapper;
     private final JdbcTemplate jdbc;
@@ -65,6 +66,7 @@ public class WorkflowRunCoordinator {
                                     final CaptureWorkflowRepository repo,
                                     final CaptureWorkflowContributionRepository contributions,
                                     final WorkflowCompiler compiler,
+                                    final ConflictDetector conflicts,
                                     final OperationJournalRepository journal,
                                     final ObjectMapper mapper,
                                     final JdbcTemplate jdbc,
@@ -74,6 +76,7 @@ public class WorkflowRunCoordinator {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
         this.compiler = Objects.requireNonNull(compiler, "compiler");
+        this.conflicts = Objects.requireNonNull(conflicts, "conflicts");
         this.journal = Objects.requireNonNull(journal, "journal");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
@@ -163,14 +166,20 @@ public class WorkflowRunCoordinator {
         // Re-run merge engine → store canonical state.
         final List<CaptureWorkflowContribution> all = contributions.findByRun(runId);
         final Optional<WorkflowCompiler.CompileResult> merge = compiler.compile(w, all);
-        upsertCanonicalState(runId, merge, w, all, submittedBy, submittedDeviceId);
+        final int revision = upsertCanonicalState(runId, merge, w, all,
+                submittedBy, submittedDeviceId);
+
+        // §12 + §48–§50 — detect divergent identities across contributions.
+        conflicts.detect(runId, revision, all);
+        final boolean hasPendingConflicts = conflicts.hasPending(runId);
 
         // Recompute readiness per step.
         final Map<UUID, Readiness> readiness = computeReadiness(w, all);
 
-        // Transition state + publish events.
+        // Transition state + publish events. Run blocked from completing
+        // while any PENDING_REVIEW conflict exists.
         boolean completed = false;
-        if (allComplete(readiness)) {
+        if (allComplete(readiness) && !hasPendingConflicts) {
             completeRun(run, w, merge, submittedBy);
             completed = true;
         } else if (run.state() == CaptureWorkflowRun.State.OPEN) {
@@ -185,6 +194,29 @@ public class WorkflowRunCoordinator {
 
         final CaptureWorkflowRun refreshed = repo.findRun(runId).orElse(run);
         return new ContributionResult(refreshed, readiness, completed);
+    }
+
+    /** §2.3.12 — called after a conflict is resolved to re-attempt
+     *  completion. Idempotent: if there are still pending conflicts
+     *  or missing contributions, the run stays AWAITING. */
+    @Transactional
+    public boolean tryComplete(final UUID runId) {
+        final CaptureWorkflowRun run = repo.findRun(runId)
+                .orElseThrow(() -> new IllegalArgumentException("run not found: " + runId));
+        if (run.state() == CaptureWorkflowRun.State.COMPLETED
+                || run.state() == CaptureWorkflowRun.State.REJECTED) {
+            return true;
+        }
+        final CaptureWorkflow w = workflows.get(run.workflowId())
+                .orElseThrow(() -> new IllegalStateException("workflow row disappeared"));
+        final List<CaptureWorkflowContribution> all = contributions.findByRun(runId);
+        final Map<UUID, Readiness> readiness = computeReadiness(w, all);
+        if (!allComplete(readiness) || conflicts.hasPending(runId)) {
+            return false;
+        }
+        final Optional<WorkflowCompiler.CompileResult> merge = compiler.compile(w, all);
+        completeRun(run, w, merge, run.createdBy());
+        return true;
     }
 
     /* ─── 3. mark rejected ───────────────────────────────────────── */
@@ -238,7 +270,7 @@ public class WorkflowRunCoordinator {
 
     /* ─── Canonical state storage ────────────────────────────────── */
 
-    private void upsertCanonicalState(final UUID runId,
+    private int upsertCanonicalState(final UUID runId,
                                         final Optional<WorkflowCompiler.CompileResult> merge,
                                         final CaptureWorkflow w,
                                         final List<CaptureWorkflowContribution> all,
@@ -262,8 +294,13 @@ public class WorkflowRunCoordinator {
               + "  last_contributor_device_id = EXCLUDED.last_contributor_device_id",
                 runId, mapper.writeValueAsString(payload),
                 completeness, lastUser, lastDevice);
+            final Integer rev = jdbc.queryForObject(
+                "SELECT revision FROM der.canonical_workflow_state WHERE run_id = ?",
+                Integer.class, runId);
+            return rev == null ? 1 : rev;
         } catch (Exception ex) {
             LOG.warn("failed to upsert canonical state for run {}", runId, ex);
+            return 0;
         }
     }
 

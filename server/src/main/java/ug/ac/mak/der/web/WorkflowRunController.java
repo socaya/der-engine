@@ -1,11 +1,13 @@
 package ug.ac.mak.der.web;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.CaptureWorkflowRun;
 import ug.ac.mak.der.workflow.CaptureWorkflowService;
+import ug.ac.mak.der.workflow.ConflictDetector;
 import ug.ac.mak.der.workflow.WorkflowRunCoordinator;
 
 /** §2.3.11 — workflow run API (spec §69).
@@ -40,11 +43,14 @@ public class WorkflowRunController {
 
     private final WorkflowRunCoordinator coord;
     private final CaptureWorkflowService workflows;
+    private final ConflictDetector conflicts;
 
     public WorkflowRunController(final WorkflowRunCoordinator coord,
-                                   final CaptureWorkflowService workflows) {
+                                   final CaptureWorkflowService workflows,
+                                   final ConflictDetector conflicts) {
         this.coord = Objects.requireNonNull(coord, "coord");
         this.workflows = Objects.requireNonNull(workflows, "workflows");
+        this.conflicts = Objects.requireNonNull(conflicts, "conflicts");
     }
 
     @PostMapping(path = "/{workflowId}/runs",
@@ -160,6 +166,47 @@ public class WorkflowRunController {
         return ResponseEntity.ok(Map.of("readiness", readinessJson(readiness)));
     }
 
+    /* ─── §2.3.12 conflict API ──────────────────────────────────── */
+
+    @GetMapping("/runs/{runId}/conflicts")
+    public ResponseEntity<Map<String, Object>> listConflicts(
+            @PathVariable("runId") final UUID runId) {
+        final List<Map<String, Object>> rows = conflicts.list(runId);
+        return ResponseEntity.ok(Map.of(
+            "runId", runId.toString(),
+            "pending", rows.stream().filter((m) -> "PENDING_REVIEW".equals(m.get("status"))).count(),
+            "conflicts", rows));
+    }
+
+    @PostMapping(path = "/runs/{runId}/conflicts/{conflictId}/resolve",
+                 consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> resolveConflict(
+            final Authentication auth,
+            @PathVariable("runId") final UUID runId,
+            @PathVariable("conflictId") final UUID conflictId,
+            @RequestBody final ResolveRequest body) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (body == null || body.strategy() == null || body.strategy().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "code", "STRATEGY_REQUIRED",
+                "message", "resolution strategy required (LATEST_WINS / EARLIEST_WINS / MANUAL / DISMISSED)"));
+        }
+        final int rows = conflicts.resolve(conflictId, body.strategy().toUpperCase(),
+            body.value(), principal.userId());
+        if (rows == 0) {
+            return ResponseEntity.status(409).body(Map.of(
+                "code", "CONFLICT_NOT_PENDING",
+                "message", "conflict already resolved or does not exist"));
+        }
+        final boolean completed = coord.tryComplete(runId);
+        return ResponseEntity.ok(Map.of(
+            "conflictId", conflictId.toString(),
+            "resolved", true,
+            "runCompleted", completed));
+    }
+
     /* ─── helpers ────────────────────────────────────────────────── */
 
     private static Map<String, Object> runJson(final CaptureWorkflowRun r) {
@@ -193,4 +240,8 @@ public class WorkflowRunController {
             @JsonProperty("deviceId") UUID deviceId) { }
 
     public record RejectRequest(@JsonProperty("reason") String reason) { }
+
+    public record ResolveRequest(
+            @JsonProperty("strategy") String strategy,
+            @JsonProperty("value") JsonNode value) { }
 }
