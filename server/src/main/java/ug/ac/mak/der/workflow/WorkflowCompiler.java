@@ -93,7 +93,9 @@ public class WorkflowCompiler {
                                   final Map<UUID, CaptureWorkflowContribution> byStep,
                                   final ArrayNode consumedSteps,
                                   final List<UUID> consumedIds) throws JsonProcessingException {
-        // (dataElement, coc) → value node (last write wins).
+        // (dataElement, coc, aoc) → value node (last write wins). AOC
+        // is part of the key so AOC-split steps land in distinct rows
+        // instead of overwriting each other.
         final Map<String, JsonNode> values = new LinkedHashMap<>();
         for (final CaptureWorkflowStep s : ordered) {
             final CaptureWorkflowContribution c = byStep.get(s.stepId());
@@ -102,11 +104,24 @@ public class WorkflowCompiler {
             }
             final JsonNode payload = mapper.readTree(c.payload());
             final JsonNode arr = payload.path("dataValues");
+            // V049 — if the step is ATTRIBUTE_OPTION_COMBO, every
+            // dataValue it contributes gets stamped with its AOC UID
+            // (sectionRef), so one dataset can carry multiple funder
+            // splits that the API processes separately.
+            final String aocStamp = s.sectionKind()
+                    == CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO
+                    ? s.sectionRef() : null;
             if (arr.isArray()) {
                 arr.forEach((v) -> {
-                    final String key = v.path("dataElement").asText("")
-                            + "|" + v.path("categoryOptionCombo").asText("");
-                    values.put(key, v);
+                    final ObjectNode value = (ObjectNode) v;
+                    if (aocStamp != null && !aocStamp.isBlank()
+                            && !value.has("attributeOptionCombo")) {
+                        value.put("attributeOptionCombo", aocStamp);
+                    }
+                    final String key = value.path("dataElement").asText("")
+                            + "|" + value.path("categoryOptionCombo").asText("")
+                            + "|" + value.path("attributeOptionCombo").asText("");
+                    values.put(key, value);
                 });
             }
             consumedSteps.add(s.stepId().toString());
@@ -144,6 +159,16 @@ public class WorkflowCompiler {
             if (s.sectionKind() == CaptureWorkflowStep.SectionKind.ENROLLMENT_FORM) {
                 enrollmentPresent |= mergeEnrollment(enrollment, payload);
             }
+            // V049 — AOC step can target the enrollment layer too. If
+            // its payload sets any enrollment-level fields, fold them +
+            // stamp the AOC.
+            if (s.sectionKind() == CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO
+                    && s.sectionRef() != null && !s.sectionRef().isBlank()
+                    && (!payload.path("enrollmentDate").isMissingNode()
+                        || !payload.path("enrollment").isMissingNode())) {
+                enrollment.put("attributeOptionCombo", s.sectionRef());
+                enrollmentPresent = true;
+            }
             if (s.sectionKind() == CaptureWorkflowStep.SectionKind.TEI_TYPE_ATTRIBUTES) {
                 teiPresent |= mergeTei(trackedEntity, teiAttrs, payload);
                 // TEI_TYPE_ATTRIBUTES does NOT also contribute to the
@@ -153,19 +178,31 @@ public class WorkflowCompiler {
                 continue;
             }
 
+            // V049 — ATTRIBUTE_OPTION_COMBO step stamps every event /
+            // enrollment it contributes with its sectionRef AOC UID.
+            final String aocStamp = s.sectionKind()
+                    == CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO
+                    ? s.sectionRef() : null;
+
             payload.path("attributes").forEach((a) -> attributes.put(
                     a.path("attribute").asText(""), a));
             payload.path("events").forEach((e) -> {
-                final String key = e.path("programStage").asText("") + "|"
-                        + e.path("occurredAt").asText("");
+                final ObjectNode event = (ObjectNode) e.deepCopy();
+                if (aocStamp != null && !aocStamp.isBlank()
+                        && !event.has("attributeOptionCombo")) {
+                    event.put("attributeOptionCombo", aocStamp);
+                }
+                final String key = event.path("programStage").asText("") + "|"
+                        + event.path("occurredAt").asText("") + "|"
+                        + event.path("attributeOptionCombo").asText("");
                 final JsonNode existing = events.get(key);
                 if (existing == null) {
-                    events.put(key, e.deepCopy());
+                    events.put(key, event);
                 } else {
                     // Field-level split across steps on the same event:
                     // merge dataValues[] by (dataElement, categoryOptionCombo)
                     // instead of replacing the whole event.
-                    events.put(key, mergeEventFields((ObjectNode) existing, e));
+                    events.put(key, mergeEventFields((ObjectNode) existing, event));
                 }
             });
             consumedSteps.add(s.stepId().toString());

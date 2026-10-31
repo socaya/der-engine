@@ -67,6 +67,53 @@ class WorkflowCompilerTest {
     }
 
     @Test
+    void aggregateAttributeOptionComboStampedOnDataValues() {
+        // V049 — ATTRIBUTE_OPTION_COMBO step stamps its sectionRef AOC
+        // onto every dataValue, so one dataset can carry parallel funder
+        // populations without them colliding on (DE, CoC).
+        final UUID id = UUID.randomUUID();
+        final UUID gavi = UUID.randomUUID();
+        final UUID wb = UUID.randomUUID();
+        final CaptureWorkflow w = new CaptureWorkflow(id, "ANC monthly — split funders",
+            CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 1, NOW, NOW, null,
+            List.of(step(gavi, id, 0,
+                    CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO, "aoc-GAVI"),
+                    step(wb, id, 1,
+                    CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO, "aoc-WB")),
+            List.of(), false, null);
+        final List<CaptureWorkflowContribution> cs = List.of(
+            contrib(gavi, "{\"dataValues\":[{\"dataElement\":\"DE1\",\"categoryOptionCombo\":\"COC1\",\"value\":\"10\"}]}"),
+            contrib(wb,   "{\"dataValues\":[{\"dataElement\":\"DE1\",\"categoryOptionCombo\":\"COC1\",\"value\":\"20\"}]}"));
+        final JsonNode out = compiler.compile(w, cs).orElseThrow().payload();
+        // Two rows (same DE+CoC but different AOC), each stamped.
+        assertThat(out.path("dataValues").size()).isEqualTo(2);
+        boolean sawGavi = false; boolean sawWb = false;
+        for (final JsonNode v : out.path("dataValues")) {
+            if ("aoc-GAVI".equals(v.path("attributeOptionCombo").asText())) sawGavi = true;
+            if ("aoc-WB".equals(v.path("attributeOptionCombo").asText())) sawWb = true;
+        }
+        assertThat(sawGavi).isTrue();
+        assertThat(sawWb).isTrue();
+    }
+
+    @Test
+    void eventAttributeOptionComboStampedOnEvents() {
+        // V049 — same pattern for program events.
+        final UUID id = UUID.randomUUID();
+        final UUID gavi = UUID.randomUUID();
+        final CaptureWorkflow w = new CaptureWorkflow(id, "events — split funders",
+            CaptureWorkflow.BindingKind.PROGRAM, "prog1", true, 1, NOW, NOW, null,
+            List.of(step(gavi, id, 0,
+                    CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO, "aoc-GAVI")),
+            List.of(), false, null);
+        final JsonNode out = compiler.compile(w, List.of(contrib(gavi,
+            "{\"events\":[{\"programStage\":\"stage1\",\"occurredAt\":\"2026-10-30\",\"dataValues\":[]}]}")))
+            .orElseThrow().payload();
+        assertThat(out.path("events").get(0).path("attributeOptionCombo").asText())
+            .isEqualTo("aoc-GAVI");
+    }
+
+    @Test
     void teiTypeAttributesFoldedIntoTrackedEntityBlock() {
         // V048 — TEI_TYPE_ATTRIBUTES contributes name/DoB onto a dedicated
         // trackedEntity.attributes[] block, distinct from enrollment-level

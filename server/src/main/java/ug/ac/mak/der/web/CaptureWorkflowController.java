@@ -300,6 +300,13 @@ public class CaptureWorkflowController {
         if (section == CaptureWorkflowStep.SectionKind.AD_HOC) {
             return true;
         }
+        // V049 — ATTRIBUTE_OPTION_COMBO is cross-cutting; legal under
+        // every parent binding since aggregate dataValues, event
+        // programs and tracker enrollments all carry an AOC UID in the
+        // compiled DHIS2 payload.
+        if (section == CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO) {
+            return true;
+        }
         return switch (binding) {
             case DATA_SET -> section == CaptureWorkflowStep.SectionKind.DATASET_SECTION
                     || section == CaptureWorkflowStep.SectionKind.DATA_ELEMENT_GROUP

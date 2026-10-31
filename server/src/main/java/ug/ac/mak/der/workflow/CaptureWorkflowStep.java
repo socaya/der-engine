@@ -88,6 +88,12 @@ public record CaptureWorkflowStep(
          *  itself, not on any enrollment. {@code sectionRef} is the
          *  TrackedEntityType UID. Only valid for PROGRAM-bound workflows. */
         TEI_TYPE_ATTRIBUTES,
+        /** V049 — funder / project / donor split via AttributeOptionCombo.
+         *  Cross-cutting across every parent binding. {@code sectionRef}
+         *  is the AOC UID; the compiler stamps every dataValue / event
+         *  contributed by this step with that UID so DHIS2 can split
+         *  value populations by funder. */
+        ATTRIBUTE_OPTION_COMBO,
         /** Free-form field list defined only by the workflow fields[]. */
         AD_HOC
     }
