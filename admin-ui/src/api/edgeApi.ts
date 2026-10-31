@@ -1002,11 +1002,43 @@ export interface WorkflowQueueRow {
   validationErrorCount: number;
 }
 
-export function workflowQueue(deviceId?: string): Promise<{ rows: WorkflowQueueRow[] }> {
-  const q = deviceId ? `?deviceId=${encodeURIComponent(deviceId)}` : '';
-  return request<{ rows: WorkflowQueueRow[] }>('GET',
-    '/edge-api/v1/workflows/queue' + q);
+export function workflowQueue(opts?: {
+  deviceId?: string;
+  allDevices?: boolean;
+}): Promise<{
+  rows: WorkflowQueueRow[];
+  appliedDeviceId: string | null;
+  deviceScopeSource: 'QUERY' | 'PREFERENCE' | 'NONE';
+}> {
+  const params = new URLSearchParams();
+  if (opts?.deviceId) params.set('deviceId', opts.deviceId);
+  if (opts?.allDevices) params.set('allDevices', 'true');
+  const q = params.toString() ? '?' + params.toString() : '';
+  return request<{
+    rows: WorkflowQueueRow[];
+    appliedDeviceId: string | null;
+    deviceScopeSource: 'QUERY' | 'PREFERENCE' | 'NONE';
+  }>('GET', '/edge-api/v1/workflows/queue' + q);
 }
+
+/** User preferences — generic KV. §2.3.31 uses it for the preferred
+ *  device so the queue auto-scopes without a query param. */
+export function readAllUserPrefs(): Promise<{ prefs: Record<string, string> }> {
+  return request('GET', '/edge-api/v1/user-prefs');
+}
+
+export function writeUserPref(key: string, value: string): Promise<unknown> {
+  return request('POST',
+    `/edge-api/v1/user-prefs/${encodeURIComponent(key)}`,
+    { value });
+}
+
+export function deleteUserPref(key: string): Promise<unknown> {
+  return request('DELETE',
+    `/edge-api/v1/user-prefs/${encodeURIComponent(key)}`);
+}
+
+export const PREF_PREFERRED_DEVICE = 'workflow.preferredDeviceId';
 
 /** Progressive-validation issues on a run (spec §36). */
 export interface ValidationIssue {

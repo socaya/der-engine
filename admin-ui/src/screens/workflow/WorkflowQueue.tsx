@@ -33,10 +33,19 @@ export function WorkflowQueue({ api = edgeApi }:
   const [error, setError] = useState<string | null>(null);
   const [streamConnected, setStreamConnected] = useState(false);
 
+  const [scopeSource, setScopeSource] = useState<'QUERY' | 'PREFERENCE' | 'NONE'>('NONE');
+  const [appliedDevice, setAppliedDevice] = useState<string | null>(null);
+  const [allDevices, setAllDevices] = useState(false);
+
   async function reload(scope?: string): Promise<void> {
     try {
-      const r = await api.workflowQueue(scope === '' ? undefined : scope);
+      const r = await api.workflowQueue({
+        deviceId: scope === '' ? undefined : scope,
+        allDevices: scope === '' && allDevices ? true : undefined,
+      });
       setRows(r.rows);
+      setAppliedDevice(r.appliedDeviceId);
+      setScopeSource(r.deviceScopeSource);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -44,6 +53,15 @@ export function WorkflowQueue({ api = edgeApi }:
 
   useEffect(() => {
     edgeApi.listDevices().then((d) => setDevices(d.devices ?? [])).catch(() => undefined);
+    // Load saved pref into the local picker so operators see what the
+    // auto-scope is bound to. The server reads the pref itself, so
+    // this is purely for display.
+    edgeApi.readAllUserPrefs()
+      .then((p) => {
+        const pref = p.prefs?.[edgeApi.PREF_PREFERRED_DEVICE];
+        if (pref) setDeviceId(pref);
+      })
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -99,17 +117,37 @@ export function WorkflowQueue({ api = edgeApi }:
           <TabBtn label={`Ready (${readyCount})`} value="READY" current={filter} onPick={setFilter} />
           <TabBtn label={`Blocked (${blockedCount})`} value="BLOCKED" current={filter} onPick={setFilter} />
         </div>
-        <label className="ea-wizard-field" style={{ margin: 0, maxWidth: 280 }}>
-          <span>Device scope</span>
-          <select data-test="queue-device-filter" value={deviceId}
-                   onChange={(e) => setDeviceId(e.target.value)}>
-            <option value="">All devices</option>
+        <label className="ea-field" style={{ margin: 0, maxWidth: 320 }}>
+          <span className="ea-field-label">Device scope</span>
+          <select className="ea-input" data-test="queue-device-filter"
+                   value={deviceId}
+                   onChange={(e) => {
+                     const v = e.target.value;
+                     setDeviceId(v);
+                     if (v === '') {
+                       setAllDevices(true);
+                       edgeApi.deleteUserPref(edgeApi.PREF_PREFERRED_DEVICE)
+                         .catch(() => undefined);
+                     } else {
+                       setAllDevices(false);
+                       edgeApi.writeUserPref(edgeApi.PREF_PREFERRED_DEVICE, v)
+                         .catch(() => undefined);
+                     }
+                   }}>
+            <option value="">All devices (no auto-scope)</option>
             {devices.map((d) => (
               <option key={d.deviceId} value={d.deviceId}>
                 {d.displayName ?? d.deviceId.slice(0, 12)}
               </option>
             ))}
           </select>
+          <span className="ea-field-hint">
+            {scopeSource === 'PREFERENCE' && appliedDevice
+              ? 'Auto-scoped from your saved preferred device.'
+              : scopeSource === 'QUERY'
+                ? 'Scoped by explicit filter.'
+                : 'All devices in view — pick one to auto-scope on next load.'}
+          </span>
         </label>
       </div>
 

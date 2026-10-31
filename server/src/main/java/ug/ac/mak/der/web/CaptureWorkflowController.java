@@ -33,6 +33,7 @@ import ug.ac.mak.der.workflow.CaptureWorkflowService;
 import ug.ac.mak.der.workflow.CaptureWorkflowStep;
 import ug.ac.mak.der.workflow.ProgressiveValidator;
 import ug.ac.mak.der.workflow.WorkflowPinningService;
+import ug.ac.mak.der.fleet.UserPreferenceService;
 import ug.ac.mak.der.workflow.WorkflowQueueStream;
 import ug.ac.mak.der.workflow.WorkflowRunCoordinator;
 
@@ -48,6 +49,11 @@ public class CaptureWorkflowController {
     private final ProgressiveValidator validator;
     private final WorkflowQueueStream queueStream;
     private final WorkflowPinningService pinning;
+    private final UserPreferenceService prefs;
+    /** §2.3.31 — pref key for the operator's preferred device.
+     *  When set, GET /queue auto-filters to it unless the caller
+     *  supplies an explicit ?deviceId=. */
+    public static final String PREF_PREFERRED_DEVICE = "workflow.preferredDeviceId";
 
     public CaptureWorkflowController(final CaptureWorkflowService svc,
                                        final CaptureWorkflowImportService importer,
@@ -55,7 +61,8 @@ public class CaptureWorkflowController {
                                        final WorkflowRunCoordinator coordinator,
                                        final ProgressiveValidator validator,
                                        final WorkflowQueueStream queueStream,
-                                       final WorkflowPinningService pinning) {
+                                       final WorkflowPinningService pinning,
+                                       final UserPreferenceService prefs) {
         this.svc = Objects.requireNonNull(svc, "svc");
         this.importer = Objects.requireNonNull(importer, "importer");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
@@ -63,6 +70,7 @@ public class CaptureWorkflowController {
         this.validator = Objects.requireNonNull(validator, "validator");
         this.queueStream = Objects.requireNonNull(queueStream, "queueStream");
         this.pinning = Objects.requireNonNull(pinning, "pinning");
+        this.prefs = Objects.requireNonNull(prefs, "prefs");
     }
 
     /** §37–§42 — read the workflow's pin. {@code snapshotId=null}
@@ -170,11 +178,28 @@ public class CaptureWorkflowController {
     public ResponseEntity<Map<String, Object>> queue(
             final Authentication authentication,
             @org.springframework.web.bind.annotation.RequestParam(
-                    name = "deviceId", required = false) final UUID deviceId) {
+                    name = "deviceId", required = false) final UUID deviceId,
+            @org.springframework.web.bind.annotation.RequestParam(
+                    name = "allDevices", required = false,
+                    defaultValue = "false") final boolean allDevices) {
         if (!(authentication instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
         }
         final boolean isAdmin = principal.roleNames().contains("ADMIN");
+        // §2.3.31 — auto-scope: if the operator has set a preferred
+        // device and didn't opt out via ?allDevices=true, use that pref.
+        UUID effectiveDeviceId = deviceId;
+        if (effectiveDeviceId == null && !allDevices) {
+            final var pref = prefs.read(principal.userId(), PREF_PREFERRED_DEVICE);
+            if (pref.isPresent()) {
+                try {
+                    effectiveDeviceId = UUID.fromString(pref.get());
+                } catch (IllegalArgumentException ex) {
+                    // Corrupt pref — ignore, fall back to all-devices.
+                }
+            }
+        }
+        final UUID appliedDeviceId = effectiveDeviceId;
         final List<Map<String, Object>> rows = new ArrayList<>();
         final java.util.Set<UUID> activeRunIds = new java.util.LinkedHashSet<>();
         for (final CaptureWorkflow w : svc.list()) {
@@ -200,12 +225,12 @@ public class CaptureWorkflowController {
                     if (!isAdmin && !principal.roleNames().contains(s.ownerRole().name())) {
                         continue;
                     }
-                    // §2.3.24 — device scope. When the caller supplies
-                    // ?deviceId=X, only expose steps that either (a) are
-                    // unassigned (ownerDeviceId=null) or (b) are bound
-                    // to that device.
-                    if (deviceId != null && s.ownerDeviceId() != null
-                            && !s.ownerDeviceId().equals(deviceId)) {
+                    // §2.3.24 + §2.3.31 — device scope. Narrows to
+                    // the caller's explicit ?deviceId or their saved
+                    // preferred device unless they passed
+                    // ?allDevices=true.
+                    if (appliedDeviceId != null && s.ownerDeviceId() != null
+                            && !s.ownerDeviceId().equals(appliedDeviceId)) {
                         continue;
                     }
                     final Map<String, Object> row = new LinkedHashMap<>();
@@ -238,7 +263,14 @@ public class CaptureWorkflowController {
         // Newest runs first — operators triage the latest work.
         rows.sort((a, b) -> ((String) b.get("runUpdatedAt"))
                 .compareTo((String) a.get("runUpdatedAt")));
-        return ResponseEntity.ok(Map.of("rows", rows));
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("rows", rows);
+        out.put("appliedDeviceId", appliedDeviceId == null
+                ? null : appliedDeviceId.toString());
+        out.put("deviceScopeSource",
+                deviceId != null ? "QUERY"
+                : (appliedDeviceId != null ? "PREFERENCE" : "NONE"));
+        return ResponseEntity.ok(out);
     }
 
     @GetMapping("/runs/{runId}/contributions")
