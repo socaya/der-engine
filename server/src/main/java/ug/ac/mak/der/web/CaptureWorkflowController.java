@@ -31,6 +31,7 @@ import ug.ac.mak.der.workflow.CaptureWorkflowImportService;
 import ug.ac.mak.der.workflow.CaptureWorkflowRun;
 import ug.ac.mak.der.workflow.CaptureWorkflowService;
 import ug.ac.mak.der.workflow.CaptureWorkflowStep;
+import ug.ac.mak.der.workflow.WorkflowRunCoordinator;
 
 /** ADR-0018 slice A capture-workflow REST surface. ADMIN-gated for writes. */
 @RestController
@@ -40,13 +41,16 @@ public class CaptureWorkflowController {
     private final CaptureWorkflowService svc;
     private final CaptureWorkflowImportService importer;
     private final CaptureWorkflowContributionRepository contributions;
+    private final WorkflowRunCoordinator coordinator;
 
     public CaptureWorkflowController(final CaptureWorkflowService svc,
                                        final CaptureWorkflowImportService importer,
-                                       final CaptureWorkflowContributionRepository contributions) {
+                                       final CaptureWorkflowContributionRepository contributions,
+                                       final WorkflowRunCoordinator coordinator) {
         this.svc = Objects.requireNonNull(svc, "svc");
         this.importer = Objects.requireNonNull(importer, "importer");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
+        this.coordinator = Objects.requireNonNull(coordinator, "coordinator");
     }
 
     @GetMapping
@@ -85,6 +89,71 @@ public class CaptureWorkflowController {
     public ResponseEntity<Map<String, Object>> runs(@PathVariable("id") final UUID id) {
         return ResponseEntity.ok(Map.of("runs",
                 svc.runs(id).stream().map(CaptureWorkflowController::runToJson).toList()));
+    }
+
+    /**
+     * Operator work queue (spec §51–§52). Returns every step across all
+     * active runs that is READY or BLOCKED and that the caller is
+     * entitled to see, newest-first.
+     *
+     * Entitlement: ADMIN sees everything. OPERATOR/REVIEWER see steps
+     * whose {@code ownerRole} matches one of their granted roles, or
+     * steps bound to a device the caller owns (that filter lands when
+     * device ownership is on the principal — for now, ADMINs see all,
+     * operators see steps matching their role).
+     */
+    @GetMapping("/queue")
+    public ResponseEntity<Map<String, Object>> queue(final Authentication authentication) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final boolean isAdmin = principal.roleNames().contains("ADMIN");
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        for (final CaptureWorkflow w : svc.list()) {
+            if (!w.enabled()) {
+                continue;
+            }
+            final List<CaptureWorkflowRun> runs = svc.runs(w.workflowId());
+            for (final CaptureWorkflowRun r : runs) {
+                if (r.state() != CaptureWorkflowRun.State.OPEN
+                        && r.state() != CaptureWorkflowRun.State.AWAITING) {
+                    continue;
+                }
+                final List<CaptureWorkflowContribution> contribs =
+                        contributions.findByRun(r.runId());
+                final Map<UUID, WorkflowRunCoordinator.Readiness> readiness =
+                        coordinator.computeReadiness(w, contribs);
+                for (final CaptureWorkflowStep s : w.steps()) {
+                    final WorkflowRunCoordinator.Readiness k = readiness.get(s.stepId());
+                    if (k != WorkflowRunCoordinator.Readiness.READY
+                            && k != WorkflowRunCoordinator.Readiness.BLOCKED) {
+                        continue;
+                    }
+                    if (!isAdmin && !principal.roleNames().contains(s.ownerRole().name())) {
+                        continue;
+                    }
+                    final Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("runId", r.runId().toString());
+                    row.put("workflowId", w.workflowId().toString());
+                    row.put("workflowName", w.displayName());
+                    row.put("businessKey", r.businessKey());
+                    row.put("stepId", s.stepId().toString());
+                    row.put("stepOrdinal", s.ordinal());
+                    row.put("stepName", s.displayName());
+                    row.put("ownerRole", s.ownerRole().name());
+                    row.put("ownerDeviceId", s.ownerDeviceId() == null
+                            ? null : s.ownerDeviceId().toString());
+                    row.put("readiness", k.name());
+                    row.put("runCreatedAt", r.createdAt().toString());
+                    row.put("runUpdatedAt", r.updatedAt().toString());
+                    rows.add(row);
+                }
+            }
+        }
+        // Newest runs first — operators triage the latest work.
+        rows.sort((a, b) -> ((String) b.get("runUpdatedAt"))
+                .compareTo((String) a.get("runUpdatedAt")));
+        return ResponseEntity.ok(Map.of("rows", rows));
     }
 
     @GetMapping("/runs/{runId}/contributions")

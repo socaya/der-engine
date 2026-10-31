@@ -983,6 +983,28 @@ export function listWorkflowRuns(id: string): Promise<{ runs: CaptureWorkflowRun
     `/edge-api/v1/workflows/${id}/runs`);
 }
 
+/** Operator work queue (spec §51–§52). Every step across all active
+ *  runs that is READY or BLOCKED and the caller is entitled to see. */
+export interface WorkflowQueueRow {
+  runId: string;
+  workflowId: string;
+  workflowName: string;
+  businessKey: string;
+  stepId: string;
+  stepOrdinal: number;
+  stepName: string;
+  ownerRole: 'ADMIN' | 'OPERATOR' | 'REVIEWER';
+  ownerDeviceId: string | null;
+  readiness: 'READY' | 'BLOCKED';
+  runCreatedAt: string;
+  runUpdatedAt: string;
+}
+
+export function workflowQueue(): Promise<{ rows: WorkflowQueueRow[] }> {
+  return request<{ rows: WorkflowQueueRow[] }>('GET',
+    '/edge-api/v1/workflows/queue');
+}
+
 // ---- der-1.3.0-alpha.3 Initiative 10 slice B (ADR-0024): import/export ----
 
 export interface CanonicalWorkflow {

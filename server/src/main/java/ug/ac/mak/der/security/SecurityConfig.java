@@ -106,6 +106,10 @@ public class SecurityConfig {
                             "/edge-api/v1/workflows/runs/**").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                             "/edge-api/v1/workflows/runs/**").authenticated()
+                        // §2.3.16 — operator queue is any authenticated user.
+                        //   The controller role-filters rows.
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/edge-api/v1/workflows/queue").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/workflows/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.PUT, "/edge-api/v1/workflows/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/workflows/**").hasRole("ADMIN")
