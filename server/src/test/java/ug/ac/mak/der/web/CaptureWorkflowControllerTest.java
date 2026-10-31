@@ -43,6 +43,8 @@ class CaptureWorkflowControllerTest {
     @MockBean CaptureWorkflowService svc;
     @MockBean ug.ac.mak.der.workflow.CaptureWorkflowImportService importer;
     @MockBean ug.ac.mak.der.workflow.CaptureWorkflowContributionRepository contributions;
+    @MockBean ug.ac.mak.der.workflow.WorkflowRunCoordinator coordinator;
+    @MockBean ug.ac.mak.der.workflow.ProgressiveValidator validator;
 
     private final Instant NOW = Instant.parse("2026-10-22T00:00:00Z");
 

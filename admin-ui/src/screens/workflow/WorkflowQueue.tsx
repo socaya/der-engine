@@ -77,6 +77,7 @@ export function WorkflowQueue({ api = edgeApi }:
               <th>Step</th>
               <th>Role</th>
               <th>Readiness</th>
+              <th>Issues</th>
               <th>Updated</th>
               <th></th>
             </tr>
@@ -100,6 +101,17 @@ export function WorkflowQueue({ api = edgeApi }:
                 <td>{r.ownerRole}</td>
                 <td>
                   <ReadinessPill readiness={r.readiness} />
+                </td>
+                <td>
+                  {r.validationErrorCount > 0 ? (
+                    <Link to={`/workflows/runs/${r.runId}/validation`}
+                          className="ea-pill ea-pill--error"
+                          data-test={`queue-row-${r.runId}-${r.stepId}-issues`}>
+                      {r.validationErrorCount} issue{r.validationErrorCount === 1 ? '' : 's'}
+                    </Link>
+                  ) : (
+                    <span className="ea-text-muted" style={{ fontSize: 12 }}>—</span>
+                  )}
                 </td>
                 <td className="ea-text-muted" style={{ fontSize: 12 }}>
                   {new Date(r.runUpdatedAt).toLocaleString()}

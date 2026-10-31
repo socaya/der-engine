@@ -998,11 +998,33 @@ export interface WorkflowQueueRow {
   readiness: 'READY' | 'BLOCKED';
   runCreatedAt: string;
   runUpdatedAt: string;
+  /** Count of ERROR-severity validation issues on this run. */
+  validationErrorCount: number;
 }
 
 export function workflowQueue(): Promise<{ rows: WorkflowQueueRow[] }> {
   return request<{ rows: WorkflowQueueRow[] }>('GET',
     '/edge-api/v1/workflows/queue');
+}
+
+/** Progressive-validation issues on a run (spec §36). */
+export interface ValidationIssue {
+  issueId: string;
+  runId: string;
+  stepId: string | null;
+  code: string;
+  severity: 'ERROR' | 'WARNING' | 'INFO';
+  message: string;
+  fieldRef: string | null;
+}
+
+export function runValidation(runId: string): Promise<{
+  runId: string;
+  errorCount: number;
+  issues: ValidationIssue[];
+}> {
+  return request<{ runId: string; errorCount: number; issues: ValidationIssue[] }>(
+    'GET', `/edge-api/v1/workflows/runs/${runId}/validation`);
 }
 
 // ---- der-1.3.0-alpha.3 Initiative 10 slice B (ADR-0024): import/export ----

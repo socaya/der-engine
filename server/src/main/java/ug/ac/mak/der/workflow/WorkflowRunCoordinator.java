@@ -61,6 +61,7 @@ public class WorkflowRunCoordinator {
     private final JdbcTemplate jdbc;
     private final Clock clock;
     private final ApplicationEventPublisher events;
+    private final ProgressiveValidator validator;
 
     public WorkflowRunCoordinator(final CaptureWorkflowService workflows,
                                     final CaptureWorkflowRepository repo,
@@ -71,7 +72,8 @@ public class WorkflowRunCoordinator {
                                     final ObjectMapper mapper,
                                     final JdbcTemplate jdbc,
                                     final Clock clock,
-                                    final ApplicationEventPublisher events) {
+                                    final ApplicationEventPublisher events,
+                                    final ProgressiveValidator validator) {
         this.workflows = Objects.requireNonNull(workflows, "workflows");
         this.repo = Objects.requireNonNull(repo, "repo");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
@@ -82,6 +84,7 @@ public class WorkflowRunCoordinator {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.events = Objects.requireNonNull(events, "events");
+        this.validator = Objects.requireNonNull(validator, "validator");
     }
 
     /* ─── 1. open ────────────────────────────────────────────────── */
@@ -173,13 +176,22 @@ public class WorkflowRunCoordinator {
         conflicts.detect(runId, revision, all);
         final boolean hasPendingConflicts = conflicts.hasPending(runId);
 
+        // §36 — progressive validation. Pass runs after every contribution
+        // and overwrites the run's open-issue set so operators always see
+        // the current state of play on the queue + run detail.
+        final List<ProgressiveValidator.Issue> issues =
+                validator.validateRun(w, runId, all);
+        final boolean hasValidationErrors = issues.stream()
+                .anyMatch((i) -> i.severity() == ProgressiveValidator.Severity.ERROR);
+
         // Recompute readiness per step.
         final Map<UUID, Readiness> readiness = computeReadiness(w, all);
 
         // Transition state + publish events. Run blocked from completing
-        // while any PENDING_REVIEW conflict exists.
+        // while any PENDING_REVIEW conflict exists OR any ERROR-severity
+        // validation issue is still open (§36).
         boolean completed = false;
-        if (allComplete(readiness) && !hasPendingConflicts) {
+        if (allComplete(readiness) && !hasPendingConflicts && !hasValidationErrors) {
             completeRun(run, w, merge, submittedBy);
             completed = true;
         } else if (run.state() == CaptureWorkflowRun.State.OPEN) {
@@ -212,6 +224,14 @@ public class WorkflowRunCoordinator {
         final List<CaptureWorkflowContribution> all = contributions.findByRun(runId);
         final Map<UUID, Readiness> readiness = computeReadiness(w, all);
         if (!allComplete(readiness) || conflicts.hasPending(runId)) {
+            return false;
+        }
+        // §36 — validation also gates completion.
+        final List<ProgressiveValidator.Issue> issues =
+                validator.validateRun(w, runId, all);
+        final boolean hasErrors = issues.stream()
+                .anyMatch((i) -> i.severity() == ProgressiveValidator.Severity.ERROR);
+        if (hasErrors) {
             return false;
         }
         final Optional<WorkflowCompiler.CompileResult> merge = compiler.compile(w, all);

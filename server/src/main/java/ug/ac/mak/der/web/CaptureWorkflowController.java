@@ -31,6 +31,7 @@ import ug.ac.mak.der.workflow.CaptureWorkflowImportService;
 import ug.ac.mak.der.workflow.CaptureWorkflowRun;
 import ug.ac.mak.der.workflow.CaptureWorkflowService;
 import ug.ac.mak.der.workflow.CaptureWorkflowStep;
+import ug.ac.mak.der.workflow.ProgressiveValidator;
 import ug.ac.mak.der.workflow.WorkflowRunCoordinator;
 
 /** ADR-0018 slice A capture-workflow REST surface. ADMIN-gated for writes. */
@@ -42,15 +43,18 @@ public class CaptureWorkflowController {
     private final CaptureWorkflowImportService importer;
     private final CaptureWorkflowContributionRepository contributions;
     private final WorkflowRunCoordinator coordinator;
+    private final ProgressiveValidator validator;
 
     public CaptureWorkflowController(final CaptureWorkflowService svc,
                                        final CaptureWorkflowImportService importer,
                                        final CaptureWorkflowContributionRepository contributions,
-                                       final WorkflowRunCoordinator coordinator) {
+                                       final WorkflowRunCoordinator coordinator,
+                                       final ProgressiveValidator validator) {
         this.svc = Objects.requireNonNull(svc, "svc");
         this.importer = Objects.requireNonNull(importer, "importer");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
         this.coordinator = Objects.requireNonNull(coordinator, "coordinator");
+        this.validator = Objects.requireNonNull(validator, "validator");
     }
 
     @GetMapping
@@ -109,6 +113,7 @@ public class CaptureWorkflowController {
         }
         final boolean isAdmin = principal.roleNames().contains("ADMIN");
         final List<Map<String, Object>> rows = new ArrayList<>();
+        final java.util.Set<UUID> activeRunIds = new java.util.LinkedHashSet<>();
         for (final CaptureWorkflow w : svc.list()) {
             if (!w.enabled()) {
                 continue;
@@ -146,10 +151,19 @@ public class CaptureWorkflowController {
                     row.put("readiness", k.name());
                     row.put("runCreatedAt", r.createdAt().toString());
                     row.put("runUpdatedAt", r.updatedAt().toString());
+                    row.put("validationErrorCount", 0); // filled in after loop
                     rows.add(row);
+                    activeRunIds.add(r.runId());
                 }
             }
         }
+        // Second pass — stamp validation error counts per run.
+        final Map<UUID, Integer> errorCounts = validator.errorCountsForRuns(activeRunIds);
+        rows.forEach((row) -> {
+            final UUID runId = UUID.fromString((String) row.get("runId"));
+            final Integer n = errorCounts.get(runId);
+            row.put("validationErrorCount", n == null ? 0 : n);
+        });
         // Newest runs first — operators triage the latest work.
         rows.sort((a, b) -> ((String) b.get("runUpdatedAt"))
                 .compareTo((String) a.get("runUpdatedAt")));

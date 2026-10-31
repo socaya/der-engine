@@ -23,6 +23,7 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.CaptureWorkflowRun;
 import ug.ac.mak.der.workflow.CaptureWorkflowService;
 import ug.ac.mak.der.workflow.ConflictDetector;
+import ug.ac.mak.der.workflow.ProgressiveValidator;
 import ug.ac.mak.der.workflow.WorkflowRunCoordinator;
 
 /** §2.3.11 — workflow run API (spec §69).
@@ -44,13 +45,16 @@ public class WorkflowRunController {
     private final WorkflowRunCoordinator coord;
     private final CaptureWorkflowService workflows;
     private final ConflictDetector conflicts;
+    private final ProgressiveValidator validator;
 
     public WorkflowRunController(final WorkflowRunCoordinator coord,
                                    final CaptureWorkflowService workflows,
-                                   final ConflictDetector conflicts) {
+                                   final ConflictDetector conflicts,
+                                   final ProgressiveValidator validator) {
         this.coord = Objects.requireNonNull(coord, "coord");
         this.workflows = Objects.requireNonNull(workflows, "workflows");
         this.conflicts = Objects.requireNonNull(conflicts, "conflicts");
+        this.validator = Objects.requireNonNull(validator, "validator");
     }
 
     @PostMapping(path = "/{workflowId}/runs",
@@ -148,6 +152,32 @@ public class WorkflowRunController {
     public ResponseEntity<Map<String, Object>> canonical(
             @PathVariable("runId") final UUID runId) {
         return ResponseEntity.ok(coord.readCanonicalState(runId));
+    }
+
+    /** Progressive-validation findings for a run (spec §36). */
+    @GetMapping("/runs/{runId}/validation")
+    public ResponseEntity<Map<String, Object>> validation(
+            @PathVariable("runId") final UUID runId) {
+        final List<ProgressiveValidator.Issue> issues = validator.findForRun(runId);
+        final List<Map<String, Object>> rows = new java.util.ArrayList<>();
+        for (final ProgressiveValidator.Issue i : issues) {
+            final Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("issueId", i.issueId().toString());
+            m.put("runId", i.runId().toString());
+            m.put("stepId", i.stepId() == null ? null : i.stepId().toString());
+            m.put("code", i.code());
+            m.put("severity", i.severity().name());
+            m.put("message", i.message());
+            m.put("fieldRef", i.fieldRef());
+            rows.add(m);
+        }
+        final long errors = issues.stream()
+                .filter((i) -> i.severity() == ProgressiveValidator.Severity.ERROR)
+                .count();
+        return ResponseEntity.ok(Map.of(
+            "runId", runId.toString(),
+            "errorCount", errors,
+            "issues", rows));
     }
 
     @GetMapping("/runs/{runId}/readiness")
