@@ -800,9 +800,6 @@ export function MockupApprovalQueue(): JSX.Element {
   async function approveId(id: string): Promise<void> {
     try { await edgeApi.approveOperation(id); await reload(); } catch { /* ignore */ }
   }
-  async function rejectId(id: string): Promise<void> {
-    try { await edgeApi.rejectOperation(id, 'rejected'); await reload(); } catch { /* ignore */ }
-  }
   const paged = usePaged(rows ?? [], 25);
   if (err) return <ErrorBlock title="Approvals failed" testId="err-approvals">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
@@ -855,12 +852,10 @@ export function MockupApprovalQueue(): JSX.Element {
                               `Approve the ${entityTypeLabel(r.entityType)} "${r.entityRef}"? It will be queued for sync to Central DHIS2.`,
                               () => { approveId(r.operationId).catch(() => undefined); });
                           } },
-                        { label: 'Reject', danger: true,
-                          onSelect: () => {
-                            confirmThenRun(
-                              `Reject the ${entityTypeLabel(r.entityType)} "${r.entityRef}"? The captured record will not be sent to Central DHIS2.`,
-                              () => { rejectId(r.operationId).catch(() => undefined); });
-                          } },
+                        { label: 'Reject with reason…', danger: true,
+                          /* V045 — rejection reason is mandatory. Open the
+                             detail page where the operator must enter one. */
+                          to: `/approvals/${r.operationId}` },
                       ]} />
                     </td>
                   </tr>
@@ -898,8 +893,16 @@ export function MockupApprovalDetail(): JSX.Element {
   }
   async function reject(): Promise<void> {
     if (!row) return;
-    try { await edgeApi.rejectOperation(row.operationId, reason || 'rejected'); navigate('/approvals'); }
-    catch { /* ignore */ }
+    if (reason.trim() === '') {
+      setErr('A rejection reason is required.');
+      return;
+    }
+    try {
+      await edgeApi.rejectOperation(row.operationId, reason.trim());
+      navigate('/approvals');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
   }
   if (err) return (
     <div className="ea-screen">
@@ -926,6 +929,9 @@ export function MockupApprovalDetail(): JSX.Element {
                         () => { approve().catch(() => undefined); });
                     }}>Approve</button>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
+                    disabled={reason.trim() === ''}
+                    data-test="btn-reject"
+                    title={reason.trim() === '' ? 'Enter a rejection reason below first' : ''}
                     onClick={() => {
                       confirmThenRun(
                         `Reject ${entityTypeLabel(row.entityType)} "${row.entityRef}"? The record will not be sent to Central DHIS2.`,
@@ -947,11 +953,14 @@ export function MockupApprovalDetail(): JSX.Element {
             <dd className="ea-mono" style={{ fontSize: 10 }}>{row.operationId}</dd></div>
         </dl>
       </Panel>
-      <Panel title="Reject reason (optional)">
+      <Panel title="Rejection reason (required to reject)">
         <input className="ea-input" value={reason}
+               data-test="input-reject-reason"
                style={{ width: '100%', maxWidth: 500 }}
                placeholder="Why is this being rejected?"
                onChange={(e) => setReason(e.target.value)} />
+        {err && <p className="ea-text-danger" style={{ marginTop: 6, fontSize: 12 }}
+                   data-test="err-reject">{err}</p>}
       </Panel>
     </div>
   );
@@ -969,10 +978,15 @@ export function MockupReferralInbox(): JSX.Element {
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
   async function acceptId(id: string): Promise<void> {
-    try { await edgeApi.acceptReferralInbox(id); await reload(); } catch { /* ignore */ }
+    try { await edgeApi.acceptReferralInbox(id); await reload(); }
+    catch (e) {
+      /* V045 — surface 503 INGEST_UNAVAILABLE + 502 INGEST_FAILED/REJECTED. */
+      setErr(e instanceof Error ? e.message : String(e));
+    }
   }
   async function dismissId(id: string): Promise<void> {
-    try { await edgeApi.dismissReferralInbox(id); await reload(); } catch { /* ignore */ }
+    try { await edgeApi.dismissReferralInbox(id); await reload(); }
+    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
   const paged = usePaged(rows ?? [], 25);
   if (err) return <ErrorBlock title="Inbox failed" testId="err-inbox">{err}</ErrorBlock>;
@@ -1079,11 +1093,17 @@ export function MockupReferralDetail(): JSX.Element {
   }, [inboxId]);
   async function accept(): Promise<void> {
     if (!row) return;
-    try { await edgeApi.acceptReferralInbox(row.inboxId); navigate('/referral/inbox'); } catch { /* ignore */ }
+    try { await edgeApi.acceptReferralInbox(row.inboxId); navigate('/referral/inbox'); }
+    catch (e) {
+      /* V045 — ingest can now fail loud; show the server message instead
+         of silently swallowing. */
+      setErr(e instanceof Error ? e.message : String(e));
+    }
   }
   async function dismiss(): Promise<void> {
     if (!row) return;
-    try { await edgeApi.dismissReferralInbox(row.inboxId); navigate('/referral/inbox'); } catch { /* ignore */ }
+    try { await edgeApi.dismissReferralInbox(row.inboxId); navigate('/referral/inbox'); }
+    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
   if (err) return (
     <div className="ea-screen">

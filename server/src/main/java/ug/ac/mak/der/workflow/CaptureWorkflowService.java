@@ -61,7 +61,8 @@ public class CaptureWorkflowService {
                 incoming.workflowId(), incoming.displayName(),
                 incoming.boundMetadataKind(), incoming.boundMetadataId(),
                 incoming.enabled(), version, createdAt, now, createdBy,
-                incoming.steps(), incoming.dependencies());
+                incoming.steps(), incoming.dependencies(),
+                incoming.requiresApproval(), incoming.defaultDeviceId());
         return repo.upsert(toStore);
     }
 

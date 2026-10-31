@@ -5,10 +5,10 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * One step within a {@link CaptureWorkflow}. ADR-0018; the optional
- * {@code ownerDeviceId} was added by ADR-0022 (slice B) to bind a step
- * to a specific {@link ug.ac.mak.der.device.EdgeDevice}. Null means the
- * step is role-only.
+ * One step within a {@link CaptureWorkflow}. V045 extends ADR-0018/0022
+ * with explicit section-kind + section-ref so a step says exactly which
+ * slice of the parent unit it captures (a dataset section, a program-stage
+ * section, a TEI-attribute group, etc.).
  */
 public record CaptureWorkflowStep(
         UUID stepId,
@@ -18,7 +18,11 @@ public record CaptureWorkflowStep(
         OwnerRole ownerRole,
         UUID ownerDeviceId,
         StepKind stepKind,
-        List<CaptureWorkflowField> fields
+        List<CaptureWorkflowField> fields,
+        /** V045 — what kind of slice this step captures. */
+        SectionKind sectionKind,
+        /** V045 — DHIS2 UID of the slice (null for AD_HOC). */
+        String sectionRef
 ) {
 
     public CaptureWorkflowStep {
@@ -34,6 +38,9 @@ public record CaptureWorkflowStep(
         Objects.requireNonNull(ownerRole, "ownerRole");
         Objects.requireNonNull(stepKind, "stepKind");
         fields = fields == null ? List.of() : List.copyOf(fields);
+        if (sectionKind == null) {
+            sectionKind = SectionKind.AD_HOC;
+        }
     }
 
     public enum OwnerRole { ADMIN, OPERATOR, REVIEWER }
@@ -43,9 +50,31 @@ public record CaptureWorkflowStep(
         CAPTURE,
         /** Read-only review pass; no field writes. */
         REVIEW,
-        /** Explicit approve/reject gate. Reuses ADR-0016 mechanics in slice B. */
+        /** Explicit approve/reject gate. Reuses ADR-0016 mechanics. */
         APPROVE,
         /** Hands the run off to another device or role. */
         DISPATCH
+    }
+
+    /**
+     * V045 — the kind of DHIS2 slice this step binds to. Combined with
+     * {@link #sectionRef()} it tells the compiler which fields the step's
+     * contributions belong to.
+     */
+    public enum SectionKind {
+        /** DataSet.sections — aggregate groups of data elements. */
+        DATASET_SECTION,
+        /** A whole program stage (events + attributes). */
+        PROGRAM_STAGE,
+        /** ProgramStage.programStageSections — grouped data elements. */
+        PROGRAM_STAGE_SECTION,
+        /** TrackedEntityAttribute group — profile fields. */
+        TEI_ATTRIBUTE_GROUP,
+        /** DataElementGroup — ad-hoc grouping across stages/datasets. */
+        DATA_ELEMENT_GROUP,
+        /** CategoryOptionCombo split (e.g. one person captures male column). */
+        COC_SPLIT,
+        /** Free-form field list defined only by the workflow fields[]. */
+        AD_HOC
     }
 }

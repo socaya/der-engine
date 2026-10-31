@@ -67,7 +67,9 @@ public class CaptureWorkflowImportService {
                     CaptureWorkflowStep.OwnerRole.valueOf(s.ownerRole().toUpperCase(Locale.ROOT)),
                     resolvedDevice,
                     CaptureWorkflowStep.StepKind.valueOf(s.stepKind().toUpperCase(Locale.ROOT)),
-                    fields));
+                    fields,
+                    CaptureWorkflowStep.SectionKind.AD_HOC,
+                    null));
         }
         final List<CaptureWorkflowDependency> deps = new ArrayList<>();
         for (final CanonicalDependency d : canonical.dependencies()) {
@@ -87,7 +89,8 @@ public class CaptureWorkflowImportService {
                 CaptureWorkflow.BindingKind.valueOf(
                         canonical.boundMetadataKind().toUpperCase(Locale.ROOT)),
                 canonical.boundMetadataId(), canonical.enabled(), 1,
-                now, now, actor, steps, deps);
+                now, now, actor, steps, deps,
+                false, null);
         if (dryRun) {
             return new ImportResult(built, warnings, true);
         }

@@ -57,7 +57,8 @@ class CaptureWorkflowControllerTest {
 
     private CaptureWorkflow workflow(final UUID id) {
         return new CaptureWorkflow(id, "wf", CaptureWorkflow.BindingKind.DATA_SET,
-                "ds1", true, 1, NOW, NOW, null, List.of(), List.of());
+                "ds1", true, 1, NOW, NOW, null, List.of(), List.of(),
+                false, null);
     }
 
     @Test

@@ -67,7 +67,13 @@ public class ApprovalController {
             return ResponseEntity.status(401).build();
         }
         final String reason = body == null ? null : body.reason();
-        return decide(service.reject(opId, principal.userId(), reason));
+        // V045 — audit trail requires a reason on every reject.
+        if (reason == null || reason.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "REJECTION_REASON_REQUIRED",
+                    "message", "a reason is required when rejecting an operation"));
+        }
+        return decide(service.reject(opId, principal.userId(), reason.trim()));
     }
 
     private ResponseEntity<Map<String, Object>> decide(final ApprovalService.Outcome outcome) {

@@ -1504,6 +1504,9 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
     useState<edgeApi.CanonicalWorkflow['boundMetadataKind']>('DATA_SET');
   const [boundMetadataId, setBoundMetadataId] = useState('');
   const [enabled, setEnabled] = useState(true);
+  /* V045 — workflow-level approval + default assignee. */
+  const [requiresApproval, setRequiresApproval] = useState(false);
+  const [defaultDeviceId, setDefaultDeviceId] = useState<string>('');
   const [stepsJson, setStepsJson] = useState('[]');
   const [depsJson, setDepsJson] = useState('[]');
   const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[]>([]);
@@ -1522,6 +1525,8 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
         setBoundMetadataKind(w.boundMetadataKind);
         setBoundMetadataId(w.boundMetadataId);
         setEnabled(w.enabled);
+        setRequiresApproval(w.requiresApproval ?? false);
+        setDefaultDeviceId(w.defaultDeviceId ?? '');
         setStepsJson(JSON.stringify(w.steps, null, 2));
         setDepsJson(JSON.stringify(w.dependencies, null, 2));
       }
@@ -1543,6 +1548,8 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
       await api.saveWorkflow({
         workflowId: existing?.workflowId,
         displayName, boundMetadataKind, boundMetadataId, enabled, steps, dependencies,
+        requiresApproval,
+        defaultDeviceId: defaultDeviceId === '' ? null : defaultDeviceId,
       });
       setStatus('saved');
     } catch (err) {
@@ -1595,9 +1602,10 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
         <select data-test="cwf02-binding-kind" value={boundMetadataKind}
           onChange={(e) => { setBoundMetadataKind(
             e.target.value as edgeApi.CanonicalWorkflow['boundMetadataKind']); }}>
-          <option value="DATA_SET">Dataset</option>
-          <option value="PROGRAM">Program (event-only)</option>
-          <option value="PROGRAM_STAGE">Program stage (tracker)</option>
+          <option value="DATA_SET">Dataset (aggregate)</option>
+          <option value="PROGRAM">Program (tracker or event-only)</option>
+          <option value="PROGRAM_STAGE">Program stage</option>
+          <option value="PROGRAM_STAGE_SECTION">Program-stage section</option>
         </select>
       </label>
       <label>
@@ -1609,6 +1617,26 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
         <input type="checkbox" data-test="cwf02-enabled" checked={enabled}
           onChange={(e) => { setEnabled(e.target.checked); }} />
         Enabled
+      </label>
+      <label>
+        <input type="checkbox" data-test="cwf02-requires-approval"
+          checked={requiresApproval}
+          onChange={(e) => { setRequiresApproval(e.target.checked); }} />
+        Requires approval before upload
+      </label>
+      <label>
+        <span>Default assigned device (optional — each step may override)</span>
+        <select data-test="cwf02-default-device" value={defaultDeviceId}
+          onChange={(e) => { setDefaultDeviceId(e.target.value); }}>
+          <option value="">— none (step must bind explicitly) —</option>
+          {devices.map((d) => (
+            <option key={d.deviceId} value={d.deviceId}>
+              {d.displayName ?? d.deviceId.slice(0, 12)}
+              {d.formFactor && d.formFactor !== 'UNKNOWN'
+                ? ` · ${d.formFactor.toLowerCase()}` : ''}
+            </option>
+          ))}
+        </select>
       </label>
       {devices.length > 0 && (
         <details className="ea-cwf-device-ref" data-test="cwf02-devices">
@@ -1626,7 +1654,16 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
         </details>
       )}
       <label>
-        <span>Steps (JSON array; slice A ships a simple editor)</span>
+        <span>Steps (JSON array; visual builder lands in 2.3.3)</span>
+        <small className="ea-text-muted" style={{ display: 'block', margin: '4px 0 6px' }}>
+          Each step must include <code>sectionKind</code>
+          (<code>DATASET_SECTION</code> / <code>PROGRAM_STAGE</code> /
+          <code>PROGRAM_STAGE_SECTION</code> /{' '}
+          <code>TEI_ATTRIBUTE_GROUP</code> / <code>DATA_ELEMENT_GROUP</code> /{' '}
+          <code>COC_SPLIT</code> / <code>AD_HOC</code>) and{' '}
+          <code>sectionRef</code> (DHIS2 UID of the slice, or null for AD_HOC).
+          The server rejects section kinds that don't fit the chosen binding.
+        </small>
         <textarea data-test="cwf02-steps" rows={10} value={stepsJson}
           onChange={(e) => { setStepsJson(e.target.value); }} />
       </label>

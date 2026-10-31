@@ -213,13 +213,32 @@ public class CaptureWorkflowController {
                                             f.requirement().toUpperCase(java.util.Locale.ROOT))));
                         }
                     }
+                    final CaptureWorkflowStep.SectionKind sk = s.sectionKind() == null
+                            ? CaptureWorkflowStep.SectionKind.AD_HOC
+                            : CaptureWorkflowStep.SectionKind.valueOf(
+                                    s.sectionKind().toUpperCase(java.util.Locale.ROOT));
                     steps.add(new CaptureWorkflowStep(stepId, id, s.ordinal(), s.displayName(),
                             CaptureWorkflowStep.OwnerRole.valueOf(
                                     s.ownerRole().toUpperCase(java.util.Locale.ROOT)),
                             s.ownerDeviceId(),
                             CaptureWorkflowStep.StepKind.valueOf(
                                     s.stepKind().toUpperCase(java.util.Locale.ROOT)),
-                            fields));
+                            fields,
+                            sk,
+                            s.sectionRef()));
+                }
+            }
+            // V045 — validate section_kind matches bound_metadata_kind.
+            final CaptureWorkflow.BindingKind bk = CaptureWorkflow.BindingKind.valueOf(
+                    body.boundMetadataKind() == null ? "DATA_SET"
+                            : body.boundMetadataKind().toUpperCase(java.util.Locale.ROOT));
+            for (final CaptureWorkflowStep step : steps) {
+                if (!sectionKindCompatible(bk, step.sectionKind())) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "code", "SECTION_KIND_INVALID",
+                            "message", "step '" + step.displayName()
+                                + "' sectionKind=" + step.sectionKind()
+                                + " is not valid for a " + bk + " workflow"));
                 }
             }
             if (body.dependencies() != null) {
@@ -231,7 +250,8 @@ public class CaptureWorkflowController {
             }
             final CaptureWorkflow incoming = new CaptureWorkflow(id, body.displayName(),
                     kind, body.boundMetadataId(), body.enabled(), 1,
-                    Instant.now(), Instant.now(), principal.userId(), steps, deps);
+                    Instant.now(), Instant.now(), principal.userId(), steps, deps,
+                    body.requiresApproval(), body.defaultDeviceId());
             return ResponseEntity.ok(toJson(svc.save(incoming, principal.userId())));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of(
@@ -249,6 +269,9 @@ public class CaptureWorkflowController {
         m.put("version", w.version());
         m.put("createdAt", w.createdAt() == null ? null : w.createdAt().toString());
         m.put("updatedAt", w.updatedAt() == null ? null : w.updatedAt().toString());
+        m.put("requiresApproval", w.requiresApproval());
+        m.put("defaultDeviceId", w.defaultDeviceId() == null ? null
+                : w.defaultDeviceId().toString());
         m.put("steps", w.steps().stream().map(CaptureWorkflowController::stepJson).toList());
         m.put("dependencies", w.dependencies().stream()
                 .map(CaptureWorkflowController::depJson).toList());
@@ -263,9 +286,32 @@ public class CaptureWorkflowController {
         m.put("ownerRole", s.ownerRole().name());
         m.put("ownerDeviceId", s.ownerDeviceId() == null ? null : s.ownerDeviceId().toString());
         m.put("stepKind", s.stepKind().name());
+        m.put("sectionKind", s.sectionKind().name());
+        m.put("sectionRef", s.sectionRef());
         m.put("fields", s.fields().stream().map(f -> Map.of(
                 "fieldRef", f.fieldRef(), "requirement", f.requirement().name())).toList());
         return m;
+    }
+
+    /** V045 — which section kinds are legal for a given workflow parent. */
+    private static boolean sectionKindCompatible(
+            final CaptureWorkflow.BindingKind binding,
+            final CaptureWorkflowStep.SectionKind section) {
+        if (section == CaptureWorkflowStep.SectionKind.AD_HOC) {
+            return true;
+        }
+        return switch (binding) {
+            case DATA_SET -> section == CaptureWorkflowStep.SectionKind.DATASET_SECTION
+                    || section == CaptureWorkflowStep.SectionKind.DATA_ELEMENT_GROUP
+                    || section == CaptureWorkflowStep.SectionKind.COC_SPLIT;
+            case PROGRAM -> section == CaptureWorkflowStep.SectionKind.PROGRAM_STAGE
+                    || section == CaptureWorkflowStep.SectionKind.PROGRAM_STAGE_SECTION
+                    || section == CaptureWorkflowStep.SectionKind.TEI_ATTRIBUTE_GROUP
+                    || section == CaptureWorkflowStep.SectionKind.DATA_ELEMENT_GROUP;
+            case PROGRAM_STAGE -> section == CaptureWorkflowStep.SectionKind.PROGRAM_STAGE_SECTION
+                    || section == CaptureWorkflowStep.SectionKind.DATA_ELEMENT_GROUP;
+            case PROGRAM_STAGE_SECTION -> section == CaptureWorkflowStep.SectionKind.DATA_ELEMENT_GROUP;
+        };
     }
 
     private static Map<String, Object> depJson(final CaptureWorkflowDependency d) {
@@ -292,7 +338,9 @@ public class CaptureWorkflowController {
             @JsonProperty("boundMetadataId") String boundMetadataId,
             @JsonProperty("enabled") boolean enabled,
             @JsonProperty("steps") List<StepRequest> steps,
-            @JsonProperty("dependencies") List<DependencyRequest> dependencies) { }
+            @JsonProperty("dependencies") List<DependencyRequest> dependencies,
+            @JsonProperty("requiresApproval") boolean requiresApproval,
+            @JsonProperty("defaultDeviceId") UUID defaultDeviceId) { }
 
     public record StepRequest(
             @JsonProperty("stepId") UUID stepId,
@@ -301,7 +349,9 @@ public class CaptureWorkflowController {
             @JsonProperty("ownerRole") String ownerRole,
             @JsonProperty("ownerDeviceId") UUID ownerDeviceId,
             @JsonProperty("stepKind") String stepKind,
-            @JsonProperty("fields") List<FieldRequest> fields) { }
+            @JsonProperty("fields") List<FieldRequest> fields,
+            @JsonProperty("sectionKind") String sectionKind,
+            @JsonProperty("sectionRef") String sectionRef) { }
 
     public record FieldRequest(
             @JsonProperty("fieldRef") String fieldRef,

@@ -62,15 +62,36 @@ public class ReferralInboxController {
             return ResponseEntity.notFound().build();
         }
         final ReferralIngestService ing = ingest.getIfAvailable();
-        boolean ingested = false;
-        if (ing != null) {
+        // V045 — ingest is mandatory on accept. Previously a missing service
+        // silently marked the inbox entry ACCEPTED without any data landing,
+        // so operators believed the referral had been processed. Fail loud
+        // instead so they can act (restart with the ingest bean, re-queue).
+        if (ing == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "code", "INGEST_UNAVAILABLE",
+                    "message", "referral ingest service is not available on this edge; "
+                        + "cannot accept — try again after the service bean is wired "
+                        + "or dismiss instead"));
+        }
+        final boolean ingested;
+        try {
             ingested = ing.ingest(entry.get(), principal.userId(),
                     http.getRemoteAddr(), http.getHeader("User-Agent"));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(502).body(Map.of(
+                    "code", "INGEST_FAILED",
+                    "message", "referral ingest threw: " + ex.getMessage()));
+        }
+        if (!ingested) {
+            return ResponseEntity.status(502).body(Map.of(
+                    "code", "INGEST_REJECTED",
+                    "message", "ingest returned false — payload may be malformed; "
+                        + "inbox entry left PENDING for retry"));
         }
         repo.markResolved(inboxId, ReferralInboxEntry.Status.ACCEPTED,
                 principal.userId(), Instant.now(clock));
         return ResponseEntity.ok(Map.of("inboxId", inboxId.toString(),
-                "status", "ACCEPTED", "ingested", ingested));
+                "status", "ACCEPTED", "ingested", true));
     }
 
     @PostMapping("/{inboxId}/dismiss")

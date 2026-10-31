@@ -24,10 +24,12 @@ class CaptureWorkflowServiceTest {
         for (int i = 0; i < stepCount; i++) {
             steps.add(new CaptureWorkflowStep(UUID.randomUUID(), id, i, "s" + i,
                     CaptureWorkflowStep.OwnerRole.OPERATOR, null,
-                    CaptureWorkflowStep.StepKind.CAPTURE, List.of()));
+                    CaptureWorkflowStep.StepKind.CAPTURE, List.of(),
+                    CaptureWorkflowStep.SectionKind.AD_HOC, null));
         }
         return new CaptureWorkflow(id, "wf", CaptureWorkflow.BindingKind.DATA_SET, "ds1",
-                true, version, NOW, NOW, null, steps, List.of());
+                true, version, NOW, NOW, null, steps, List.of(),
+                false, null);
     }
 
     @Test
@@ -87,8 +89,10 @@ class CaptureWorkflowServiceTest {
                 CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 2, NOW, NOW, null,
                 List.of(new CaptureWorkflowStep(a.steps().get(0).stepId(), id, 0, "s0",
                         CaptureWorkflowStep.OwnerRole.OPERATOR, null,
-                        CaptureWorkflowStep.StepKind.APPROVE, List.of())),
-                List.of());
+                        CaptureWorkflowStep.StepKind.APPROVE, List.of(),
+                        CaptureWorkflowStep.SectionKind.AD_HOC, null)),
+                List.of(),
+                false, null);
         when(repo.findById(id)).thenReturn(Optional.of(a));
         when(repo.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
         assertThat(new CaptureWorkflowService(repo).save(b, UUID.randomUUID()).version())
@@ -261,8 +265,10 @@ class CaptureWorkflowServiceTest {
                 CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 1, NOW, NOW, null,
                 List.of(new CaptureWorkflowStep(a.steps().get(0).stepId(), id, 0, "s0",
                         CaptureWorkflowStep.OwnerRole.REVIEWER, null,
-                        CaptureWorkflowStep.StepKind.CAPTURE, List.of())),
-                List.of());
+                        CaptureWorkflowStep.StepKind.CAPTURE, List.of(),
+                        CaptureWorkflowStep.SectionKind.AD_HOC, null)),
+                List.of(),
+                false, null);
         assertThat(CaptureWorkflowService.shapeChanged(a, b)).isTrue();
     }
 }

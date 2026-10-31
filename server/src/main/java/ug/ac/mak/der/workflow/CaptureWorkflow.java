@@ -5,7 +5,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-/** ADR-0018 slice A: a capture workflow bound to a DHIS2 metadata root. */
+/** DER capture workflow — a data-collection unit (dataset / program /
+ *  program-stage / program-stage-section) broken into one or more sections,
+ *  each section assigned to a specific device for capture, compiled back
+ *  into a single submission, optionally gated by approval. ADR-0018 slice A
+ *  + ADR-0024 program binding + V045 breakable sections. */
 public record CaptureWorkflow(
         UUID workflowId,
         String displayName,
@@ -17,7 +21,15 @@ public record CaptureWorkflow(
         Instant updatedAt,
         UUID createdBy,
         List<CaptureWorkflowStep> steps,
-        List<CaptureWorkflowDependency> dependencies
+        List<CaptureWorkflowDependency> dependencies,
+        /** V045 — single approval gate for the compiled submission. Steps
+         *  can still carry a dedicated APPROVE step_kind for mid-flow
+         *  review; this flag is the final sign-off before DHIS2 upload. */
+        boolean requiresApproval,
+        /** V045 — the workflow's default assignee. Individual steps may
+         *  override via {@link CaptureWorkflowStep#ownerDeviceId()}. Null
+         *  means every step must bind to a device explicitly. */
+        UUID defaultDeviceId
 ) {
 
     public CaptureWorkflow {
@@ -38,6 +50,11 @@ public record CaptureWorkflow(
         dependencies = dependencies == null ? List.of() : List.copyOf(dependencies);
     }
 
-    /** Slice A shipped only DATA_SET; slice B (ADR-0024) adds PROGRAM + PROGRAM_STAGE. */
-    public enum BindingKind { DATA_SET, PROGRAM, PROGRAM_STAGE }
+    /** V045 — four parent-unit kinds across aggregate + tracker + event. */
+    public enum BindingKind {
+        DATA_SET,
+        PROGRAM,
+        PROGRAM_STAGE,
+        PROGRAM_STAGE_SECTION
+    }
 }

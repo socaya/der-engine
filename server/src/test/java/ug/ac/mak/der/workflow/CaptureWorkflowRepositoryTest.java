@@ -27,7 +27,8 @@ class CaptureWorkflowRepositoryTest {
 
     private CaptureWorkflow sample(final UUID id) {
         return new CaptureWorkflow(id, "wf", CaptureWorkflow.BindingKind.DATA_SET,
-                "ds1", true, 1, NOW, NOW, UUID.randomUUID(), List.of(), List.of());
+                "ds1", true, 1, NOW, NOW, UUID.randomUUID(), List.of(), List.of(),
+                false, null);
     }
 
     @Test
@@ -97,7 +98,7 @@ class CaptureWorkflowRepositoryTest {
     void upsertHappyPath() {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.update(anyString(), any(), any(), any(), any(), any(), any(),
-                any(), any(), any())).thenReturn(1);
+                any(), any(), any(), any(), any())).thenReturn(1);
         final UUID id = UUID.randomUUID();
         final UUID stepId = UUID.randomUUID();
         final UUID stepId2 = UUID.randomUUID();
@@ -108,12 +109,15 @@ class CaptureWorkflowRepositoryTest {
                                 CaptureWorkflowStep.OwnerRole.OPERATOR, null,
                                 CaptureWorkflowStep.StepKind.CAPTURE,
                                 List.of(new CaptureWorkflowField(stepId, "de.coc",
-                                        CaptureWorkflowField.Requirement.REQUIRED))),
+                                        CaptureWorkflowField.Requirement.REQUIRED)),
+                                CaptureWorkflowStep.SectionKind.AD_HOC, null),
                         new CaptureWorkflowStep(stepId2, id, 1, "s1",
                                 CaptureWorkflowStep.OwnerRole.REVIEWER, null,
-                                CaptureWorkflowStep.StepKind.REVIEW, List.of())),
+                                CaptureWorkflowStep.StepKind.REVIEW, List.of(),
+                                CaptureWorkflowStep.SectionKind.AD_HOC, null)),
                 List.of(new CaptureWorkflowDependency(stepId2, stepId,
-                        CaptureWorkflowDependency.Kind.COMPLETES_BEFORE)));
+                        CaptureWorkflowDependency.Kind.COMPLETES_BEFORE)),
+                false, null);
         assertThat(new CaptureWorkflowRepository(jdbc).upsert(w)).isSameAs(w);
         verify(jdbc).update(org.mockito.ArgumentMatchers.contains("DELETE FROM der.capture_workflow_step"),
                 eq(id));
@@ -123,7 +127,7 @@ class CaptureWorkflowRepositoryTest {
     void upsertPersistsOwnerDeviceId() {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.update(anyString(), any(), any(), any(), any(), any(), any(), any(),
-                any(), any())).thenReturn(1);
+                any(), any(), any(), any())).thenReturn(1);
         when(jdbc.update(anyString(), any(), any())).thenReturn(1);
         final UUID id = UUID.randomUUID();
         final UUID stepId = UUID.randomUUID();
@@ -132,8 +136,10 @@ class CaptureWorkflowRepositoryTest {
                 CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 1, NOW, NOW, null,
                 List.of(new CaptureWorkflowStep(stepId, id, 0, "s0",
                         CaptureWorkflowStep.OwnerRole.OPERATOR, deviceId,
-                        CaptureWorkflowStep.StepKind.CAPTURE, List.of())),
-                List.of());
+                        CaptureWorkflowStep.StepKind.CAPTURE, List.of(),
+                        CaptureWorkflowStep.SectionKind.AD_HOC, null)),
+                List.of(),
+                false, null);
         new CaptureWorkflowRepository(jdbc).upsert(w);
         verify(jdbc).update(
                 org.mockito.ArgumentMatchers.contains("owner_device_id"),

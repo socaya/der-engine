@@ -17,7 +17,7 @@ class CaptureWorkflowRecordsTest {
     void workflowRejectsBlankDisplayName() {
         assertThatThrownBy(() -> new CaptureWorkflow(UUID.randomUUID(), "",
                 CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 1,
-                NOW, NOW, null, List.of(), List.of()))
+                NOW, NOW, null, List.of(), List.of(), false, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -25,7 +25,7 @@ class CaptureWorkflowRecordsTest {
     void workflowRejectsBlankMetadataId() {
         assertThatThrownBy(() -> new CaptureWorkflow(UUID.randomUUID(), "wf",
                 CaptureWorkflow.BindingKind.DATA_SET, " ", true, 1,
-                NOW, NOW, null, List.of(), List.of()))
+                NOW, NOW, null, List.of(), List.of(), false, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -33,7 +33,7 @@ class CaptureWorkflowRecordsTest {
     void workflowRejectsZeroVersion() {
         assertThatThrownBy(() -> new CaptureWorkflow(UUID.randomUUID(), "wf",
                 CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 0,
-                NOW, NOW, null, List.of(), List.of()))
+                NOW, NOW, null, List.of(), List.of(), false, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -42,7 +42,7 @@ class CaptureWorkflowRecordsTest {
         final List<CaptureWorkflowStep> steps = List.of();
         final CaptureWorkflow w = new CaptureWorkflow(UUID.randomUUID(), "wf",
                 CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 1,
-                NOW, NOW, null, steps, null);
+                NOW, NOW, null, steps, null, false, null);
         assertThat(w.steps()).isNotNull();
         assertThat(w.dependencies()).isNotNull();
     }
@@ -52,7 +52,8 @@ class CaptureWorkflowRecordsTest {
         assertThatThrownBy(() -> new CaptureWorkflowStep(UUID.randomUUID(),
                 UUID.randomUUID(), 0, " ",
                 CaptureWorkflowStep.OwnerRole.OPERATOR, null,
-                CaptureWorkflowStep.StepKind.CAPTURE, List.of()))
+                CaptureWorkflowStep.StepKind.CAPTURE, List.of(),
+                CaptureWorkflowStep.SectionKind.AD_HOC, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -61,7 +62,8 @@ class CaptureWorkflowRecordsTest {
         assertThatThrownBy(() -> new CaptureWorkflowStep(UUID.randomUUID(),
                 UUID.randomUUID(), -1, "x",
                 CaptureWorkflowStep.OwnerRole.OPERATOR, null,
-                CaptureWorkflowStep.StepKind.CAPTURE, List.of()))
+                CaptureWorkflowStep.StepKind.CAPTURE, List.of(),
+                CaptureWorkflowStep.SectionKind.AD_HOC, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -70,7 +72,8 @@ class CaptureWorkflowRecordsTest {
         final CaptureWorkflowStep s = new CaptureWorkflowStep(UUID.randomUUID(),
                 UUID.randomUUID(), 0, "x",
                 CaptureWorkflowStep.OwnerRole.OPERATOR, null,
-                CaptureWorkflowStep.StepKind.CAPTURE, null);
+                CaptureWorkflowStep.StepKind.CAPTURE, null,
+                CaptureWorkflowStep.SectionKind.AD_HOC, null);
         assertThat(s.fields()).isNotNull();
     }
 

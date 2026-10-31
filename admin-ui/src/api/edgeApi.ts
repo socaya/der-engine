@@ -885,6 +885,15 @@ export function rejectOperation(operationId: string, reason: string): Promise<{ 
 export type OwnerRole = 'ADMIN' | 'OPERATOR' | 'REVIEWER';
 export type StepKind = 'CAPTURE' | 'REVIEW' | 'APPROVE' | 'DISPATCH';
 export type FieldRequirement = 'REQUIRED' | 'OPTIONAL' | 'READONLY' | 'HIDDEN';
+/** V045 — a step binds to a specific DHIS2 slice. */
+export type SectionKind =
+  | 'DATASET_SECTION'
+  | 'PROGRAM_STAGE'
+  | 'PROGRAM_STAGE_SECTION'
+  | 'TEI_ATTRIBUTE_GROUP'
+  | 'DATA_ELEMENT_GROUP'
+  | 'COC_SPLIT'
+  | 'AD_HOC';
 
 export interface CaptureWorkflowField {
   fieldRef: string;
@@ -896,8 +905,12 @@ export interface CaptureWorkflowStep {
   ordinal: number;
   displayName: string;
   ownerRole: OwnerRole;
+  ownerDeviceId?: string | null;
   stepKind: StepKind;
   fields: readonly CaptureWorkflowField[];
+  /** V045 — section binding (defaults to AD_HOC server-side). */
+  sectionKind?: SectionKind;
+  sectionRef?: string | null;
 }
 
 export interface CaptureWorkflowDependency {
@@ -909,12 +922,16 @@ export interface CaptureWorkflowDependency {
 export interface CaptureWorkflowSummary {
   workflowId: string;
   displayName: string;
-  boundMetadataKind: 'DATA_SET' | 'PROGRAM' | 'PROGRAM_STAGE';
+  boundMetadataKind: 'DATA_SET' | 'PROGRAM' | 'PROGRAM_STAGE' | 'PROGRAM_STAGE_SECTION';
   boundMetadataId: string;
   enabled: boolean;
   version: number;
   createdAt?: string;
   updatedAt?: string;
+  /** V045 — workflow-level approval gate before DHIS2 upload. */
+  requiresApproval?: boolean;
+  /** V045 — default assignee; steps may override via ownerDeviceId. */
+  defaultDeviceId?: string | null;
   steps: readonly CaptureWorkflowStep[];
   dependencies: readonly CaptureWorkflowDependency[];
 }
@@ -962,7 +979,7 @@ export function listWorkflowRuns(id: string): Promise<{ runs: CaptureWorkflowRun
 export interface CanonicalWorkflow {
   schemaVersion: number;
   displayName: string;
-  boundMetadataKind: 'DATA_SET' | 'PROGRAM' | 'PROGRAM_STAGE';
+  boundMetadataKind: 'DATA_SET' | 'PROGRAM' | 'PROGRAM_STAGE' | 'PROGRAM_STAGE_SECTION';
   boundMetadataId: string;
   enabled: boolean;
   steps: Array<{

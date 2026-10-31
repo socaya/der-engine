@@ -61,8 +61,10 @@ class DeviceOwnerEnforcementInterceptorTest {
                 true, 1, NOW, NOW, null,
                 List.of(new CaptureWorkflowStep(UUID.randomUUID(), id, 0, "s0",
                         CaptureWorkflowStep.OwnerRole.OPERATOR, stepDevice,
-                        CaptureWorkflowStep.StepKind.CAPTURE, List.of())),
-                List.of());
+                        CaptureWorkflowStep.StepKind.CAPTURE, List.of(),
+                        CaptureWorkflowStep.SectionKind.AD_HOC, null)),
+                List.of(),
+                false, null);
     }
 
     @Test
