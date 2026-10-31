@@ -32,6 +32,7 @@ import ug.ac.mak.der.workflow.CaptureWorkflowRun;
 import ug.ac.mak.der.workflow.CaptureWorkflowService;
 import ug.ac.mak.der.workflow.CaptureWorkflowStep;
 import ug.ac.mak.der.workflow.ProgressiveValidator;
+import ug.ac.mak.der.workflow.WorkflowQueueStream;
 import ug.ac.mak.der.workflow.WorkflowRunCoordinator;
 
 /** ADR-0018 slice A capture-workflow REST surface. ADMIN-gated for writes. */
@@ -44,17 +45,37 @@ public class CaptureWorkflowController {
     private final CaptureWorkflowContributionRepository contributions;
     private final WorkflowRunCoordinator coordinator;
     private final ProgressiveValidator validator;
+    private final WorkflowQueueStream queueStream;
 
     public CaptureWorkflowController(final CaptureWorkflowService svc,
                                        final CaptureWorkflowImportService importer,
                                        final CaptureWorkflowContributionRepository contributions,
                                        final WorkflowRunCoordinator coordinator,
-                                       final ProgressiveValidator validator) {
+                                       final ProgressiveValidator validator,
+                                       final WorkflowQueueStream queueStream) {
         this.svc = Objects.requireNonNull(svc, "svc");
         this.importer = Objects.requireNonNull(importer, "importer");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
         this.coordinator = Objects.requireNonNull(coordinator, "coordinator");
         this.validator = Objects.requireNonNull(validator, "validator");
+        this.queueStream = Objects.requireNonNull(queueStream, "queueStream");
+    }
+
+    /** §2.3.24 — SSE: push a {@code queue.invalidate} event whenever a
+     *  workflow run moves, so the UI can skip the 15 s polling loop. */
+    @GetMapping(path = "/queue/stream",
+                produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter queueStream(
+            final Authentication authentication) {
+        if (!(authentication instanceof EdgeUserPrincipal)) {
+            // Can't return a 401 as the body of an SSE response — the
+            // caller will see the connection close immediately.
+            final var em = new org.springframework.web.servlet
+                    .mvc.method.annotation.SseEmitter(0L);
+            em.completeWithError(new SecurityException("unauthenticated"));
+            return em;
+        }
+        return queueStream.register();
     }
 
     @GetMapping
@@ -107,7 +128,10 @@ public class CaptureWorkflowController {
      * operators see steps matching their role).
      */
     @GetMapping("/queue")
-    public ResponseEntity<Map<String, Object>> queue(final Authentication authentication) {
+    public ResponseEntity<Map<String, Object>> queue(
+            final Authentication authentication,
+            @org.springframework.web.bind.annotation.RequestParam(
+                    name = "deviceId", required = false) final UUID deviceId) {
         if (!(authentication instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
         }
@@ -135,6 +159,14 @@ public class CaptureWorkflowController {
                         continue;
                     }
                     if (!isAdmin && !principal.roleNames().contains(s.ownerRole().name())) {
+                        continue;
+                    }
+                    // §2.3.24 — device scope. When the caller supplies
+                    // ?deviceId=X, only expose steps that either (a) are
+                    // unassigned (ownerDeviceId=null) or (b) are bound
+                    // to that device.
+                    if (deviceId != null && s.ownerDeviceId() != null
+                            && !s.ownerDeviceId().equals(deviceId)) {
                         continue;
                     }
                     final Map<String, Object> row = new LinkedHashMap<>();

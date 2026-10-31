@@ -1002,9 +1002,10 @@ export interface WorkflowQueueRow {
   validationErrorCount: number;
 }
 
-export function workflowQueue(): Promise<{ rows: WorkflowQueueRow[] }> {
+export function workflowQueue(deviceId?: string): Promise<{ rows: WorkflowQueueRow[] }> {
+  const q = deviceId ? `?deviceId=${encodeURIComponent(deviceId)}` : '';
   return request<{ rows: WorkflowQueueRow[] }>('GET',
-    '/edge-api/v1/workflows/queue');
+    '/edge-api/v1/workflows/queue' + q);
 }
 
 /** Progressive-validation issues on a run (spec §36). */

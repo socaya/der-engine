@@ -12,15 +12,30 @@ export interface WorkflowQueueProps {
   api?: Pick<typeof edgeApi, 'workflowQueue'>;
 }
 
+// 2.3.24 — Streaming cue label.
+function StreamBadge({ connected }: { connected: boolean }): JSX.Element {
+  return (
+    <span className={`ea-pill ea-pill--${connected ? 'success' : 'muted'}`}
+           data-test="queue-stream-badge"
+           title={connected ? 'Live updates via SSE' : 'Polling fallback'}
+           style={{ marginLeft: 8, fontSize: 11 }}>
+      {connected ? '● live' : '○ polling'}
+    </span>
+  );
+}
+
 export function WorkflowQueue({ api = edgeApi }:
     WorkflowQueueProps = {}): JSX.Element {
   const [rows, setRows] = useState<edgeApi.WorkflowQueueRow[] | null>(null);
   const [filter, setFilter] = useState<'ALL' | 'READY' | 'BLOCKED'>('ALL');
+  const [deviceId, setDeviceId] = useState<string | ''>('');
+  const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [streamConnected, setStreamConnected] = useState(false);
 
-  async function reload(): Promise<void> {
+  async function reload(scope?: string): Promise<void> {
     try {
-      const r = await api.workflowQueue();
+      const r = await api.workflowQueue(scope === '' ? undefined : scope);
       setRows(r.rows);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -28,10 +43,26 @@ export function WorkflowQueue({ api = edgeApi }:
   }
 
   useEffect(() => {
-    reload().catch(() => undefined);
-    const t = window.setInterval(() => { reload().catch(() => undefined); }, 15_000);
-    return () => window.clearInterval(t);
-  }, [api]);
+    edgeApi.listDevices().then((d) => setDevices(d.devices ?? [])).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    reload(deviceId).catch(() => undefined);
+    // §2.3.24 — SSE push instead of a 15 s poll. We still refresh on
+    // scope change, and keep a 60 s safety-net poll in case the stream
+    // drops silently (reverse proxies, laptop sleep, etc).
+    const es = new EventSource('/edge-api/v1/workflows/queue/stream');
+    es.addEventListener('hello', () => setStreamConnected(true));
+    es.addEventListener('queue.invalidate',
+      () => { reload(deviceId).catch(() => undefined); });
+    es.onerror = () => setStreamConnected(false);
+    const safetyNet = window.setInterval(
+      () => { reload(deviceId).catch(() => undefined); }, 60_000);
+    return () => {
+      es.close();
+      window.clearInterval(safetyNet);
+    };
+  }, [api, deviceId]);
 
   if (error) {
     return <ErrorBlock title="Queue load failed"
@@ -47,17 +78,35 @@ export function WorkflowQueue({ api = edgeApi }:
 
   return (
     <div className="ea-screen" data-test="queue-root">
-      <h1 data-test="queue-heading">My work</h1>
+      <h1 data-test="queue-heading">
+        My work
+        <StreamBadge connected={streamConnected} />
+      </h1>
       <p className="ea-text-muted">
         Workflow steps that are ready for you to capture, plus steps
-        that are waiting on an earlier step to finish. Updates every 15
-        seconds.
+        that are waiting on an earlier step to finish. Updates push via
+        a live stream — a 60-second safety-net poll backs it up.
       </p>
 
-      <div className="ea-queue-tabs" data-test="queue-tabs" role="tablist">
-        <TabBtn label={`All (${rows.length})`} value="ALL" current={filter} onPick={setFilter} />
-        <TabBtn label={`Ready (${readyCount})`} value="READY" current={filter} onPick={setFilter} />
-        <TabBtn label={`Blocked (${blockedCount})`} value="BLOCKED" current={filter} onPick={setFilter} />
+      <div style={{ display: 'flex', gap: 'var(--sp-4)', alignItems: 'center',
+                     flexWrap: 'wrap', margin: 'var(--sp-3) 0' }}>
+        <div className="ea-queue-tabs" data-test="queue-tabs" role="tablist">
+          <TabBtn label={`All (${rows.length})`} value="ALL" current={filter} onPick={setFilter} />
+          <TabBtn label={`Ready (${readyCount})`} value="READY" current={filter} onPick={setFilter} />
+          <TabBtn label={`Blocked (${blockedCount})`} value="BLOCKED" current={filter} onPick={setFilter} />
+        </div>
+        <label className="ea-wizard-field" style={{ margin: 0, maxWidth: 280 }}>
+          <span>Device scope</span>
+          <select data-test="queue-device-filter" value={deviceId}
+                   onChange={(e) => setDeviceId(e.target.value)}>
+            <option value="">All devices</option>
+            {devices.map((d) => (
+              <option key={d.deviceId} value={d.deviceId}>
+                {d.displayName ?? d.deviceId.slice(0, 12)}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {filtered.length === 0 ? (

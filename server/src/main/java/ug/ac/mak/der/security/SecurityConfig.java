@@ -110,6 +110,8 @@ public class SecurityConfig {
                         //   The controller role-filters rows.
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                             "/edge-api/v1/workflows/queue").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/edge-api/v1/workflows/queue/stream").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/workflows/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.PUT, "/edge-api/v1/workflows/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/workflows/**").hasRole("ADMIN")
