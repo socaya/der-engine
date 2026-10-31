@@ -133,6 +133,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       { id: 'workflows', label: 'Workflows', to: '/workflows', status: 'implemented' },
       { id: 'queue', label: 'My queue', to: '/workflows/queue', status: 'implemented' },
+      { id: 'peers', label: 'Peers', to: '/workflows/peers', status: 'implemented' },
       { id: 'approvals', label: 'Approvals', to: '/approvals', status: 'implemented' },
       { id: 'referral-inbox', label: 'Referrals', to: '/referral/inbox', status: 'implemented' },
       { id: 'referral-history', label: 'Referral history', to: '/referral/history', status: 'implemented' },

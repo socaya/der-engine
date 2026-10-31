@@ -1040,6 +1040,37 @@ export function deleteUserPref(key: string): Promise<unknown> {
 
 export const PREF_PREFERRED_DEVICE = 'workflow.preferredDeviceId';
 
+/** §62–§63 — peer-to-peer workflow exchange. */
+export interface WorkflowPeer {
+  peerId: string;
+  displayName: string;
+  baseUrl: string;
+  addedAt: string;
+  addedBy: string | null;
+  lastPushAt: string | null;
+  lastPushStatus: string | null;
+}
+
+export function listWorkflowPeers(): Promise<{ peers: WorkflowPeer[] }> {
+  return request('GET', '/edge-api/v1/workflows/peers');
+}
+
+export function addWorkflowPeer(displayName: string, baseUrl: string):
+    Promise<WorkflowPeer> {
+  return request('POST', '/edge-api/v1/workflows/peers',
+    { displayName, baseUrl });
+}
+
+export function deleteWorkflowPeer(peerId: string): Promise<unknown> {
+  return request('DELETE', `/edge-api/v1/workflows/peers/${peerId}`);
+}
+
+export function pushWorkflowToPeer(peerId: string, workflowId: string):
+    Promise<{ peerId: string; workflowId: string; status: string; peerBody?: string }> {
+  return request('POST',
+    `/edge-api/v1/workflows/peers/${peerId}/push/${workflowId}`);
+}
+
 /** Progressive-validation issues on a run (spec §36). */
 export interface ValidationIssue {
   issueId: string;
