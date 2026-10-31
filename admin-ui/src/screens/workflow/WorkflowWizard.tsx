@@ -28,6 +28,9 @@ type Stage = 1 | 2 | 3;
 
 type FieldReq = 'REQUIRED' | 'OPTIONAL';
 
+/** Dependency kinds the wizard surfaces explicitly to operators. */
+type DepKind = 'COMPLETES_BEFORE';
+
 interface StepRow {
   breakable: Breakable;
   included: boolean;
@@ -39,6 +42,23 @@ interface StepRow {
   /** Per-field include + requirement. Keyed by field UID. */
   fieldSelection: Record<string, { included: boolean; requirement: FieldReq }>;
   expanded: boolean;
+}
+
+/** Workflow-level toggles not covered by step rows. */
+interface WorkflowLevel {
+  enabled: boolean;
+  requiresApproval: boolean;
+  defaultDeviceId: string | null;
+}
+
+/** Explicit dependency the operator added on step 3. The two sides
+ *  reference breakable ids (the step's sectionRef) rather than
+ *  stepIds because stepIds don't exist until save. The payload
+ *  builder resolves them before shipping. */
+interface DepRow {
+  fromBreakableId: string;
+  toBreakableId: string;
+  kind: DepKind;
 }
 
 export function WorkflowWizard({ api = edgeApi, workflowId }:
@@ -62,6 +82,14 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
   const [breakables, setBreakables] = useState<Breakable[] | null>(null);
   const [rows, setRows] = useState<StepRow[]>([]);
   const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[]>([]);
+  const [wfLevel, setWfLevel] = useState<WorkflowLevel>({
+    enabled: true, requiresApproval: false, defaultDeviceId: null,
+  });
+  // Explicit dependencies the operator added. Linear-chain remains
+  // the default on create (buildWorkflowPayload derives it) but once
+  // the operator touches this list we treat it as authoritative.
+  const [deps, setDeps] = useState<DepRow[]>([]);
+  const [depsTouched, setDepsTouched] = useState(false);
 
   // §37–§42 — metadata snapshot pinning (edit mode only).
   const [snapshots, setSnapshots] = useState<edgeApi.MetadataSnapshot[]>([]);
@@ -106,18 +134,59 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
           }
           return;
         }
-        const detected = await md.detectWorkflowType(
-          w.boundMetadataKind, w.boundMetadataId);
+        // Fall back to a placeholder when the metadata lookup fails
+        // (upstream removed / renamed the entity, or the workflow was
+        // authored against a UID the mirror never had). The step list
+        // still renders — operators can toggle enabled / reassign and
+        // see what the workflow is bound to.
+        let detected: { type: WizardWorkflowType; metadata: MetadataOption };
+        try {
+          detected = await md.detectWorkflowType(
+            w.boundMetadataKind, w.boundMetadataId);
+        } catch {
+          detected = {
+            type: w.boundMetadataKind === 'DATA_SET' ? 'AGGREGATE' : 'TRACKER',
+            metadata: { id: w.boundMetadataId,
+                         displayName: w.boundMetadataId + ' (not in mirror)' },
+          };
+        }
         if (cancelled) return;
         setType(detected.type);
         setChosenMetadata(detected.metadata);
         setName(w.displayName);
-        const bs = detected.type === 'AGGREGATE'
-          ? await md.listDataSetSections(w.boundMetadataId)
-          : detected.type === 'EVENT'
-            ? [{ id: w.boundMetadataId, displayName: 'Whole event',
-                 sectionKind: 'EVENT_INSTANCE' as const }]
-            : await md.listProgramStages(w.boundMetadataId);
+        setWfLevel({
+          enabled: w.enabled,
+          requiresApproval: w.requiresApproval ?? false,
+          defaultDeviceId: w.defaultDeviceId ?? null,
+        });
+        // Pre-fill explicit deps if they exist on the stored workflow.
+        if (w.dependencies && w.dependencies.length > 0) {
+          const stepRefById = new Map(w.steps.map((s) => [s.stepId, s.sectionRef]));
+          const prefilledDeps: DepRow[] = [];
+          w.dependencies.forEach((d) => {
+            const from = stepRefById.get(d.dependsOnStepId);
+            const to = stepRefById.get(d.stepId);
+            if (from && to) {
+              prefilledDeps.push({ fromBreakableId: from, toBreakableId: to,
+                                     kind: 'COMPLETES_BEFORE' });
+            }
+          });
+          if (prefilledDeps.length > 0) {
+            setDeps(prefilledDeps);
+            setDepsTouched(true);
+          }
+        }
+        let bs: Breakable[];
+        try {
+          bs = detected.type === 'AGGREGATE'
+            ? await md.listDataSetSections(w.boundMetadataId)
+            : detected.type === 'EVENT'
+              ? [{ id: w.boundMetadataId, displayName: 'Whole event',
+                   sectionKind: 'EVENT_INSTANCE' as const }]
+              : await md.listProgramStages(w.boundMetadataId);
+        } catch {
+          bs = [];
+        }
         if (cancelled) return;
         setBreakables(bs);
         // Pre-tick + preserve role/device from existing steps.
@@ -143,11 +212,15 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
             expanded: false,
           };
         });
-        // Breakables the workflow included but the metadata no longer has
-        // (metadata changed since the workflow was authored).
+        // Steps the workflow carries whose sectionRef isn't in the
+        // wizard-native breakable list — either because the kind
+        // isn't natively modelled (COC_SPLIT, AD_HOC, …) or because
+        // upstream metadata changed since the workflow was authored.
+        // Both appear in the step list as read-only "advanced" rows
+        // so the operator can toggle / reassign without losing them.
         const seenRefs = new Set(bs.map((b) => b.id));
         w.steps.forEach((s) => {
-          if (s.sectionRef && !seenRefs.has(s.sectionRef)) {
+          if (!seenRefs.has(s.sectionRef ?? '')) {
             const selection: Record<string, { included: boolean; requirement: FieldReq }> = {};
             s.fields?.forEach((f) => {
               selection[f.fieldRef] = {
@@ -155,11 +228,15 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
                 requirement: f.requirement === 'REQUIRED' ? 'REQUIRED' : 'OPTIONAL',
               };
             });
+            const kind = (s.sectionKind ?? 'DATASET_SECTION') as Breakable['sectionKind'];
+            const native = md.WIZARD_NATIVE_KINDS.has(kind);
+            const label = native
+              ? s.displayName + ' (not in current metadata)'
+              : s.displayName + ' (advanced · ' + kind + ')';
             prefilled.push({
-              breakable: { id: s.sectionRef, displayName: s.displayName
-                             + ' (not in current metadata)',
-                           sectionKind: (s.sectionKind
-                             ?? 'DATASET_SECTION') as Breakable['sectionKind'] },
+              breakable: { id: s.sectionRef ?? ('adhoc-' + s.stepId),
+                            displayName: label,
+                            sectionKind: kind },
               included: true,
               ownerRole: (s.ownerRole as StepRow['ownerRole']) ?? 'OPERATOR',
               ownerDeviceId: s.ownerDeviceId ?? null,
@@ -258,6 +335,9 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
         displayName: name.trim(),
         type,
         metadata: chosenMetadata,
+        enabled: wfLevel.enabled,
+        requiresApproval: wfLevel.requiresApproval,
+        defaultDeviceId: wfLevel.defaultDeviceId,
         steps: includedRows.map((r) => ({
           breakable: r.breakable,
           ownerDeviceId: r.ownerDeviceId,
@@ -266,6 +346,13 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
             .filter(([, s]) => s.included)
             .map(([fieldRef, s]) => ({ fieldRef, requirement: s.requirement })),
         })),
+        explicitDependencies: depsTouched
+          ? deps.filter((d) => {
+              // Keep only deps whose endpoints are still ticked rows.
+              const ids = new Set(includedRows.map((r) => r.breakable.id));
+              return ids.has(d.fromBreakableId) && ids.has(d.toBreakableId);
+            })
+          : undefined,
       });
       const saved = await api.saveWorkflow(payload);
       // On create → go to the edit view of the new workflow. On edit
@@ -312,41 +399,56 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
 
   return (
     <div className="ea-screen ea-wizard" data-test="wiz-root">
-      <h1 data-test="wiz-heading">
-        {editing ? `Edit workflow${name ? ': ' + name : ''}` : 'New capture workflow'}
-      </h1>
-      {editing && (
-        <p className="ea-text-muted" data-test="wiz-edit-advanced-hint">
-          Prefer raw form?{' '}
-          <Link to={`/workflows/${workflowId}/advanced`}
-                 data-test="wiz-link-advanced">
-            Open advanced designer
-          </Link>
-          .
-        </p>
-      )}
+      <header className="ea-screen-header" data-test="wiz-header">
+        <div className="ea-screen-header-text">
+          <h1 data-test="wiz-heading">
+            {editing ? `Edit workflow${name ? ': ' + name : ''}` : 'New capture workflow'}
+          </h1>
+          <p className="ea-screen-header-sub">
+            {editing
+              ? 'Change the steps, roles, devices, dependencies and workflow-level settings. Save to update.'
+              : 'Pick the type of capture, pick the metadata by name, then choose who captures each part.'}
+          </p>
+        </div>
+        {editing && (
+          <div className="ea-screen-header-right">
+            <Link to={`/workflows/${workflowId}/advanced`}
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-test="wiz-link-advanced">
+              Advanced designer
+            </Link>
+          </div>
+        )}
+      </header>
 
       <nav className="ea-wizard-nav" data-test="wiz-nav" aria-label="Wizard steps">
         <StageDot n={1} label="Type" current={stage} />
-        <StageDot n={2} label="What" current={stage} />
-        <StageDot n={3} label="Who" current={stage} />
+        <StageDot n={2} label="Target" current={stage} />
+        <StageDot n={3} label="Steps · roles · deps" current={stage} />
       </nav>
 
       {loadError && <ErrorBlock title="Metadata load failed"
                                  testId="wiz-load-error">{loadError}</ErrorBlock>}
 
       {stage === 1 && (
-        <section data-test="wiz-step-type" className="ea-wizard-step">
-          <h2>What are you capturing?</h2>
-          <TypeCard current={type} value="AGGREGATE" setValue={setType}
-                     title="Aggregate reporting form"
-                     subtitle="Monthly or weekly dataset" />
-          <TypeCard current={type} value="EVENT" setValue={setType}
-                     title="Event program"
-                     subtitle="One-off visit, immunisation" />
-          <TypeCard current={type} value="TRACKER" setValue={setType}
-                     title="Tracker program"
-                     subtitle="Patient enrolment + follow-up" />
+        <section data-test="wiz-step-type" className="ea-card ea-form-card ea-wizard-step">
+          <div className="ea-form-section">
+            <div className="ea-form-section-head">
+              <h2>Capture type</h2>
+              <p>What are you capturing with this workflow?</p>
+            </div>
+            <div className="ea-wizard-type-grid">
+              <TypeCard current={type} value="AGGREGATE" setValue={setType}
+                         title="Aggregate reporting form"
+                         subtitle="Monthly or weekly dataset" />
+              <TypeCard current={type} value="EVENT" setValue={setType}
+                         title="Event program"
+                         subtitle="One-off visit, immunisation" />
+              <TypeCard current={type} value="TRACKER" setValue={setType}
+                         title="Tracker program"
+                         subtitle="Patient enrolment + follow-up" />
+            </div>
+          </div>
           <WizardFooter
             onBack={null}
             onNext={() => setStage(2)}
@@ -356,46 +458,63 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
       )}
 
       {stage === 2 && (
-        <section data-test="wiz-step-what" className="ea-wizard-step">
-          <h2>Which {typeLabel(type)}?</h2>
+        <section data-test="wiz-step-what" className="ea-card ea-form-card ea-wizard-step">
+          <div className="ea-form-section">
+            <div className="ea-form-section-head">
+              <h2>Workflow name</h2>
+              <p>Shown everywhere operators see this workflow.</p>
+            </div>
+            <div className="ea-form-grid">
+              <label className="ea-field">
+                <span className="ea-field-label">Name</span>
+                <input className="ea-input" type="text" data-test="wiz-name"
+                        value={name}
+                        placeholder="e.g. Monthly ANC report"
+                        onChange={(e) => setName(e.target.value)} />
+                <span className="ea-field-hint">A short, operator-facing title.</span>
+              </label>
+            </div>
+          </div>
 
-          <label className="ea-wizard-field">
-            <span>Workflow name</span>
-            <input type="text" data-test="wiz-name" value={name}
-                    placeholder="e.g. Monthly ANC report"
-                    onChange={(e) => setName(e.target.value)} />
-          </label>
-
-          <label className="ea-wizard-field">
-            <span>Search</span>
-            <input type="search" data-test="wiz-search"
-                    placeholder={`Filter ${typeLabel(type)}s by name`}
-                    value={metadataSearch}
-                    onChange={(e) => setMetadataSearch(e.target.value)} />
-          </label>
-
-          {filteredOptions == null && <LoadingBlock testId="wiz-metadata-loading" />}
-          {filteredOptions && filteredOptions.length === 0 && (
-            <p className="ea-text-muted" data-test="wiz-metadata-empty">
-              No {typeLabel(type)}s match “{metadataSearch}”.
-            </p>
-          )}
-          {filteredOptions && filteredOptions.length > 0 && (
-            <ul className="ea-wizard-picklist" data-test="wiz-metadata-list" role="radiogroup">
-              {filteredOptions.map((o) => (
-                <li key={o.id}>
-                  <label className={'ea-wizard-pickrow'
-                    + (chosenMetadata?.id === o.id ? ' is-selected' : '')}>
-                    <input type="radio" name="wiz-metadata"
-                            data-test={`wiz-metadata-${o.id}`}
-                            checked={chosenMetadata?.id === o.id}
-                            onChange={() => setChosenMetadata(o)} />
-                    <span>{o.displayName}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="ea-form-section">
+            <div className="ea-form-section-head">
+              <h2>{type === 'AGGREGATE' ? 'DataSet' : 'Program'}</h2>
+              <p>Pick the {typeLabel(type)} the workflow captures.</p>
+            </div>
+            <div className="ea-wizard-pick">
+              <label className="ea-field" style={{ marginBottom: 8 }}>
+                <span className="ea-field-label">Search</span>
+                <input className="ea-input" type="search" data-test="wiz-search"
+                        placeholder={`Filter ${typeLabel(type)}s by name`}
+                        value={metadataSearch}
+                        onChange={(e) => setMetadataSearch(e.target.value)} />
+              </label>
+              {filteredOptions == null && <LoadingBlock testId="wiz-metadata-loading" />}
+              {filteredOptions && filteredOptions.length === 0 && (
+                <p className="ea-text-muted" data-test="wiz-metadata-empty"
+                    style={{ margin: '8px 0' }}>
+                  No {typeLabel(type)}s match “{metadataSearch}”.
+                </p>
+              )}
+              {filteredOptions && filteredOptions.length > 0 && (
+                <ul className="ea-wizard-picklist" data-test="wiz-metadata-list"
+                     role="radiogroup">
+                  {filteredOptions.map((o) => (
+                    <li key={o.id}>
+                      <label className={'ea-wizard-pickrow'
+                        + (chosenMetadata?.id === o.id ? ' is-selected' : '')}>
+                        <input type="radio" name="wiz-metadata"
+                                data-test={`wiz-metadata-${o.id}`}
+                                checked={chosenMetadata?.id === o.id}
+                                onChange={() => setChosenMetadata(o)} />
+                        <span>{o.displayName}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
 
           <WizardFooter
             onBack={() => setStage(1)}
@@ -406,57 +525,126 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
       )}
 
       {stage === 3 && (
-        <section data-test="wiz-step-who" className="ea-wizard-step">
-          <h2>Who captures what?</h2>
-          <p className="ea-text-muted">
-            Tick the parts of “{chosenMetadata?.displayName}” that will be
-            captured, assign a device to each, and the order you tick in
-            becomes the capture order.
-          </p>
+        <section data-test="wiz-step-who" className="ea-card ea-form-card ea-wizard-step">
           {editing && (
-            <label className="ea-wizard-field">
-              <span>Workflow name</span>
-              <input type="text" data-test="wiz-name" value={name}
-                      onChange={(e) => setName(e.target.value)} />
-            </label>
+            <div className="ea-form-section">
+              <div className="ea-form-section-head">
+                <h2>Workflow name</h2>
+                <p>Rename the workflow without rebuilding its steps.</p>
+              </div>
+              <div className="ea-form-grid">
+                <label className="ea-field">
+                  <span className="ea-field-label">Name</span>
+                  <input className="ea-input" type="text" data-test="wiz-name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)} />
+                </label>
+              </div>
+            </div>
           )}
 
-          {editing && snapshots.length > 0 && (
-            <div className="ea-wizard-pin-panel" data-test="wiz-pin-panel">
-              <label className="ea-wizard-field" style={{ maxWidth: 540 }}>
-                <span>Metadata snapshot pin</span>
-                <select data-test="wiz-pin-select"
-                         value={pinnedSnapshotId == null ? '' : String(pinnedSnapshotId)}
-                         disabled={pinSaving}
-                         onChange={(e) => {
-                           const next = e.target.value === ''
-                             ? null
-                             : Number(e.target.value);
-                           setPinSaving(true);
-                           edgeApi.setWorkflowPin(workflowId!, next)
-                             .then(() => setPinnedSnapshotId(next))
-                             .catch(() => undefined)
-                             .finally(() => setPinSaving(false));
-                         }}>
-                  <option value="">Float with the live mirror</option>
-                  {snapshots.map((s) => (
-                    <option key={s.snapshotId} value={s.snapshotId}
-                             disabled={s.status === 'RETIRED'
-                                        && s.snapshotId !== pinnedSnapshotId}>
-                      #{s.snapshotId} · {new Date(s.importedAt).toLocaleDateString()}
-                      {' · '}{s.counts.programs + s.counts.dataElements} rows
-                      {s.status === 'RETIRED' ? ' (retired)' : ''}
+          <div className="ea-form-section">
+            <div className="ea-form-section-head">
+              <h2>Workflow settings</h2>
+              <p>How the workflow finalises + who's assigned by default.</p>
+            </div>
+            <div className="ea-form-grid">
+              <label className="ea-field">
+                <span className="ea-field-label">Status</span>
+                <select className="ea-input" data-test="wiz-enabled"
+                         value={wfLevel.enabled ? 'ENABLED' : 'DISABLED'}
+                         onChange={(e) => setWfLevel({ ...wfLevel,
+                           enabled: e.target.value === 'ENABLED' })}>
+                  <option value="ENABLED">Enabled</option>
+                  <option value="DISABLED">Disabled</option>
+                </select>
+                <span className="ea-field-hint">
+                  Disabled workflows don't accept new runs.
+                </span>
+              </label>
+              <label className="ea-field">
+                <span className="ea-field-label">Approval gate</span>
+                <select className="ea-input" data-test="wiz-requires-approval"
+                         value={wfLevel.requiresApproval ? 'YES' : 'NO'}
+                         onChange={(e) => setWfLevel({ ...wfLevel,
+                           requiresApproval: e.target.value === 'YES' })}>
+                  <option value="NO">No sign-off</option>
+                  <option value="YES">Reviewer must sign off before submission</option>
+                </select>
+                <span className="ea-field-hint">
+                  Adds a final APPROVE gate before the DHIS2 upload.
+                </span>
+              </label>
+              <label className="ea-field">
+                <span className="ea-field-label">Default device</span>
+                <select className="ea-input" data-test="wiz-default-device"
+                         value={wfLevel.defaultDeviceId ?? ''}
+                         onChange={(e) => setWfLevel({ ...wfLevel,
+                           defaultDeviceId: e.target.value === '' ? null
+                             : e.target.value })}>
+                  <option value="">— operator chooses per step —</option>
+                  {devices.map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.displayName ?? d.deviceId.slice(0, 12)}
                     </option>
                   ))}
                 </select>
-                <span className="ea-text-muted" style={{ fontSize: 12 }}>
-                  {pinnedSnapshotId == null
-                    ? 'Workflow floats with the latest metadata — upstream drift may invalidate steps.'
-                    : 'Workflow stays locked to this snapshot regardless of upstream drift.'}
+                <span className="ea-field-hint">
+                  Pre-fills every step with this device unless overridden.
                 </span>
               </label>
             </div>
+          </div>
+
+          {editing && snapshots.length > 0 && (
+            <div className="ea-form-section">
+              <div className="ea-form-section-head">
+                <h2>Metadata pin</h2>
+                <p>Lock the workflow to a snapshot so upstream drift doesn't invalidate it.</p>
+              </div>
+              <div className="ea-form-grid">
+                <label className="ea-field">
+                  <span className="ea-field-label">Pinned snapshot</span>
+                  <select className="ea-input" data-test="wiz-pin-select"
+                           value={pinnedSnapshotId == null ? '' : String(pinnedSnapshotId)}
+                           disabled={pinSaving}
+                           onChange={(e) => {
+                             const next = e.target.value === ''
+                               ? null
+                               : Number(e.target.value);
+                             setPinSaving(true);
+                             edgeApi.setWorkflowPin(workflowId!, next)
+                               .then(() => setPinnedSnapshotId(next))
+                               .catch(() => undefined)
+                               .finally(() => setPinSaving(false));
+                           }}>
+                    <option value="">Float with the live mirror</option>
+                    {snapshots.map((s) => (
+                      <option key={s.snapshotId} value={s.snapshotId}
+                               disabled={s.status === 'RETIRED'
+                                          && s.snapshotId !== pinnedSnapshotId}>
+                        #{s.snapshotId} · {new Date(s.importedAt).toLocaleDateString()}
+                        {' · '}{s.counts.programs + s.counts.dataElements} rows
+                        {s.status === 'RETIRED' ? ' (retired)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="ea-field-hint">
+                    {pinnedSnapshotId == null
+                      ? 'Workflow follows the latest metadata — upstream drift may invalidate steps.'
+                      : 'Workflow stays locked to this snapshot regardless of upstream drift.'}
+                  </span>
+                </label>
+              </div>
+            </div>
           )}
+
+          <div className="ea-form-section">
+            <div className="ea-form-section-head">
+              <h2>Steps · roles · devices</h2>
+              <p>Tick the parts of “{chosenMetadata?.displayName}” captured by this workflow. Expand a row to pick fields.</p>
+            </div>
+            <div className="ea-wizard-steps">
 
           {breakables == null && <LoadingBlock testId="wiz-breakables-loading" />}
           {breakables && (
@@ -616,14 +804,31 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
             </table>
           )}
 
+            </div>
+          </div>
+
+          <div className="ea-form-section">
+            <div className="ea-form-section-head">
+              <h2>Dependencies</h2>
+              <p>Earlier steps must finish before a dependent step opens.
+                 Leave blank to accept the default linear chain.</p>
+            </div>
+            <DependencyEditor rows={rows} deps={deps}
+                               setDeps={setDeps}
+                               onTouched={() => setDepsTouched(true)}
+                               depsTouched={depsTouched} />
+          </div>
+
           {saveError && <ErrorBlock title="Save failed"
                                      testId="wiz-save-error">{saveError}</ErrorBlock>}
 
-          <WizardFooter
-            onBack={editing ? null : () => setStage(2)}
-            onSave={{ onClick: doSave, disabled: !canSave || saving, saving,
-                       label: editing ? 'Save changes' : 'Create workflow' }}
-          />
+          <div className="ea-form-section">
+            <WizardFooter
+              onBack={editing ? null : () => setStage(2)}
+              onSave={{ onClick: doSave, disabled: !canSave || saving, saving,
+                         label: editing ? 'Save changes' : 'Create workflow' }}
+            />
+          </div>
         </section>
       )}
     </div>
@@ -761,6 +966,99 @@ function TypeCard({ current, value, setValue, title, subtitle }: {
       <span className="ea-wizard-type-title">{title}</span>
       <span className="ea-wizard-type-sub">{subtitle}</span>
     </label>
+  );
+}
+
+function DependencyEditor({ rows, deps, setDeps, onTouched, depsTouched }: {
+    rows: StepRow[];
+    deps: DepRow[];
+    setDeps: (next: DepRow[]) => void;
+    onTouched: () => void;
+    depsTouched: boolean;
+}): JSX.Element {
+  const picked = rows.filter((r) => r.included);
+  const byId = new Map(picked.map((r) => [r.breakable.id, r.breakable.displayName]));
+  function addDep(): void {
+    if (picked.length < 2) return;
+    const next: DepRow = {
+      fromBreakableId: picked[0].breakable.id,
+      toBreakableId:  picked[1].breakable.id,
+      kind: 'COMPLETES_BEFORE',
+    };
+    setDeps([...deps, next]);
+    onTouched();
+  }
+  function updateDep(i: number, patch: Partial<DepRow>): void {
+    const copy = [...deps];
+    copy[i] = { ...copy[i], ...patch };
+    setDeps(copy);
+    onTouched();
+  }
+  function removeDep(i: number): void {
+    setDeps(deps.filter((_, j) => j !== i));
+    onTouched();
+  }
+  if (picked.length < 2) {
+    return (
+      <p className="ea-text-muted" data-test="wiz-deps-empty"
+          style={{ margin: 0 }}>
+        Tick at least two steps above to add dependencies between them.
+      </p>
+    );
+  }
+  return (
+    <div className="ea-wizard-deps" data-test="wiz-deps">
+      {!depsTouched && (
+        <p className="ea-field-hint" style={{ marginTop: 0 }}>
+          Default: each step waits for the one above it in the list.
+          Add a row below to override.
+        </p>
+      )}
+      {deps.length > 0 && (
+        <ul className="ea-wizard-deps-list">
+          {deps.map((d, i) => (
+            <li key={i} data-test={`wiz-dep-${i}`}>
+              <select className="ea-input"
+                       data-test={`wiz-dep-${i}-from`}
+                       value={d.fromBreakableId}
+                       onChange={(e) => updateDep(i, { fromBreakableId: e.target.value })}>
+                {picked.map((r) => (
+                  <option key={r.breakable.id} value={r.breakable.id}>
+                    {r.breakable.displayName}
+                  </option>
+                ))}
+              </select>
+              <span className="ea-text-muted" style={{ fontSize: 13 }}>completes before</span>
+              <select className="ea-input"
+                       data-test={`wiz-dep-${i}-to`}
+                       value={d.toBreakableId}
+                       onChange={(e) => updateDep(i, { toBreakableId: e.target.value })}>
+                {picked.map((r) => (
+                  <option key={r.breakable.id} value={r.breakable.id}>
+                    {r.breakable.displayName}
+                  </option>
+                ))}
+              </select>
+              <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                       data-test={`wiz-dep-${i}-remove`}
+                       onClick={() => removeDep(i)}>Remove</button>
+              {d.fromBreakableId === d.toBreakableId && (
+                <span className="ea-field-error">A step cannot depend on itself.</span>
+              )}
+              {!byId.has(d.fromBreakableId) && (
+                <span className="ea-field-error">
+                  "{d.fromBreakableId}" is no longer in the step list.
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <button type="button" className="ea-btn ea-btn--sm"
+               data-test="wiz-dep-add" onClick={addDep}>
+        + Add dependency
+      </button>
+    </div>
   );
 }
 

@@ -198,6 +198,10 @@ export function buildWorkflowPayload(opts: {
   displayName: string;
   type: WizardWorkflowType;
   metadata: MetadataOption;
+  /** Workflow-level toggles (§2.3.27 — exposed to the wizard). */
+  enabled?: boolean;
+  requiresApproval?: boolean;
+  defaultDeviceId?: string | null;
   steps: {
     breakable: Breakable;
     ownerDeviceId: string | null;
@@ -207,6 +211,11 @@ export function buildWorkflowPayload(opts: {
     fields?: { fieldRef: string;
                  requirement: 'REQUIRED' | 'OPTIONAL' | 'READONLY' | 'HIDDEN' }[];
   }[];
+  /** Explicit dependencies, keyed by breakable id. Omit to fall back
+   *  to the historical linear chain built from step order. */
+  explicitDependencies?: { fromBreakableId: string;
+                            toBreakableId: string;
+                            kind: 'COMPLETES_BEFORE' }[];
 }): Parameters<typeof edgeApi.saveWorkflow>[0] {
   const boundMetadataKind = opts.type === 'AGGREGATE' ? 'DATA_SET' : 'PROGRAM';
   const stepsPayload: edgeApi.CaptureWorkflowStep[] = opts.steps.map((s, ix) => ({
@@ -220,35 +229,62 @@ export function buildWorkflowPayload(opts: {
     sectionRef: s.breakable.id,
     fields: s.fields ?? [],
   }));
-  // Linear dependency chain — each step depends on the previous one.
-  const dependencies: edgeApi.CaptureWorkflowDependency[] = [];
-  for (let i = 1; i < stepsPayload.length; i++) {
-    dependencies.push({
-      stepId: stepsPayload[i].stepId!,
-      dependsOnStepId: stepsPayload[i - 1].stepId!,
-      kind: 'COMPLETES_BEFORE',
-    });
+  // Resolve each step's breakable id to its freshly-minted stepId.
+  const stepIdByBreakable = new Map<string, string>();
+  opts.steps.forEach((s, ix) => {
+    stepIdByBreakable.set(s.breakable.id, stepsPayload[ix].stepId!);
+  });
+  let dependencies: edgeApi.CaptureWorkflowDependency[];
+  if (opts.explicitDependencies && opts.explicitDependencies.length > 0) {
+    dependencies = opts.explicitDependencies
+      .map((d) => {
+        const from = stepIdByBreakable.get(d.fromBreakableId);
+        const to = stepIdByBreakable.get(d.toBreakableId);
+        if (!from || !to || from === to) return null;
+        return { stepId: to, dependsOnStepId: from, kind: d.kind };
+      })
+      .filter((d): d is edgeApi.CaptureWorkflowDependency => d != null);
+  } else {
+    // Linear chain fallback — each step depends on the previous one.
+    dependencies = [];
+    for (let i = 1; i < stepsPayload.length; i++) {
+      dependencies.push({
+        stepId: stepsPayload[i].stepId!,
+        dependsOnStepId: stepsPayload[i - 1].stepId!,
+        kind: 'COMPLETES_BEFORE',
+      });
+    }
   }
   return {
     workflowId: opts.workflowId,
     displayName: opts.displayName,
     boundMetadataKind,
     boundMetadataId: opts.metadata.id,
-    enabled: true,
+    enabled: opts.enabled ?? true,
+    requiresApproval: opts.requiresApproval ?? false,
+    defaultDeviceId: opts.defaultDeviceId ?? null,
     steps: stepsPayload,
     dependencies,
   };
 }
 
-/** Decides whether the wizard can round-trip an existing workflow or
- *  whether the operator needs the technical designer. */
+/** Section kinds the wizard offers natively on step 3. Other kinds
+ *  still open — they appear as read-only "custom step" rows the
+ *  operator can enable/disable and reassign, but can't change the
+ *  section binding of. */
+export const WIZARD_NATIVE_KINDS: ReadonlySet<string> = new Set([
+  'DATASET_SECTION', 'PROGRAM_STAGE', 'PROGRAM_STAGE_SECTION',
+  'EVENT_INSTANCE',
+]);
+
+/** §2.3.27 — the wizard now opens any workflow; non-native section
+ *  kinds render as advanced-badge rows that the operator can still
+ *  enable/reassign/field-pick inside the wizard. Returning true
+ *  everywhere lets edits land through the guided editor without the
+ *  "advanced options" hard-stop that pilots were hitting. */
 export function isWizardCompatible(w: edgeApi.CaptureWorkflowSummary): boolean {
-  if (w.steps.length === 0) {
-    return true;
-  }
-  const allowed: ReadonlySet<string> = new Set([
-    'DATASET_SECTION', 'PROGRAM_STAGE', 'PROGRAM_STAGE_SECTION',
-    'EVENT_INSTANCE',
-  ]);
-  return w.steps.every((s) => allowed.has(s.sectionKind ?? ''));
+  // Suppress the lint warning while keeping a public hook for a
+  // future "detect truly unmodellable workflow" check if needed.
+  void w;
+  return true;
 }

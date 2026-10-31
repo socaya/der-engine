@@ -1999,76 +1999,105 @@ kbd{
 .ea-main .ea-switch:checked::after{transform:translateX(16px)}
 .ea-main .ea-switch:focus-visible{box-shadow:0 0 0 3px var(--der-primary-ring)}
 
-/* ─── Workflow wizard (2.3.14) ─────────────────────────────────── */
-.ea-wizard{max-width:720px}
+/* ─── Workflow wizard (2.3.27 restyle) ─────────────────────────── */
+.ea-wizard{max-width:1040px}
+
+/* Stepper nav — align with other screen headers' typography. */
 .ea-wizard-nav{
-  display:flex;gap:var(--sp-4);align-items:center;
-  padding:var(--sp-3) 0;border-bottom:1px solid var(--der-border-subtle);
-  margin-bottom:var(--sp-4);
+  display:flex;gap:var(--sp-4);align-items:center;flex-wrap:wrap;
+  padding:var(--sp-3) var(--sp-4);
+  background:var(--der-surface);border:1px solid var(--der-border-subtle);
+  border-radius:var(--r-md);
 }
-.ea-wizard-dot{display:flex;align-items:center;gap:var(--sp-2);font-size:14px;color:var(--der-ink-500)}
+.ea-wizard-dot{display:flex;align-items:center;gap:var(--sp-2);font-size:14px;color:var(--der-ink-700,#334155)}
 .ea-wizard-dot-ring{
-  display:inline-block;width:14px;height:14px;border-radius:50%;
+  display:inline-block;width:16px;height:16px;border-radius:50%;
   border:2px solid var(--der-border-strong);background:var(--der-surface);
 }
 .ea-wizard-dot.is-active{color:var(--der-ink-900);font-weight:600}
 .ea-wizard-dot.is-active .ea-wizard-dot-ring{border-color:var(--der-primary);background:var(--der-primary)}
+.ea-wizard-dot.is-done{color:var(--der-ink-900)}
 .ea-wizard-dot.is-done .ea-wizard-dot-ring{border-color:var(--der-primary);background:var(--der-primary)}
-.ea-wizard-dot.is-future{opacity:0.6}
+.ea-wizard-dot.is-future{color:var(--der-ink-500)}
 
-.ea-wizard-step{display:flex;flex-direction:column;gap:var(--sp-3);padding-top:var(--sp-2)}
-.ea-wizard-step > h2{margin:0 0 var(--sp-1);font-size:18px;font-weight:600}
-.ea-wizard-step > p{margin:0;color:var(--der-ink-500);font-size:14px;line-height:1.5}
+/* Step container — rendered as .ea-card.ea-form-card for consistency.
+ * The surface + divider lines come from .ea-form-section already;
+ * override max-width since wizard is wider than EAUserCreate. */
+.ea-wizard-step.ea-form-card{max-width:1040px}
 
-.ea-wizard-field{display:flex;flex-direction:column;gap:4px;max-width:420px}
-.ea-wizard-field > span{font-size:13px;color:var(--der-ink-500)}
-.ea-wizard-field input{
-  padding:8px 10px;border:1px solid var(--der-border-strong);border-radius:var(--r-md);
-  font-size:14px;background:var(--der-surface);
-}
-.ea-wizard-field input:focus-visible{outline:none;box-shadow:0 0 0 3px var(--der-primary-ring);border-color:var(--der-primary)}
-
+/* Type cards grid */
+.ea-wizard-type-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--sp-3)}
 .ea-wizard-type-card{
-  display:grid;grid-template-columns:24px 1fr;align-items:center;gap:4px var(--sp-3);
-  padding:var(--sp-3) var(--sp-4);border:1px solid var(--der-border-subtle);
-  border-radius:var(--r-md);cursor:pointer;background:var(--der-surface);
-  transition:border-color var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
+  display:grid;grid-template-columns:20px 1fr;align-items:start;gap:4px var(--sp-3);
+  padding:var(--sp-3) var(--sp-4);
+  border:1px solid var(--der-border-subtle);border-radius:var(--r-md);
+  cursor:pointer;background:var(--der-surface);
+  transition:border-color var(--t-fast) var(--ease),background var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease);
 }
 .ea-wizard-type-card:hover{border-color:var(--der-border-strong)}
-.ea-wizard-type-card.is-selected{border-color:var(--der-primary);background:var(--der-primary-ring)}
-.ea-wizard-type-card > input{grid-row:1 / span 2}
-.ea-wizard-type-title{font-size:15px;font-weight:600;color:var(--der-ink-900)}
-.ea-wizard-type-sub{font-size:13px;color:var(--der-ink-500)}
+.ea-wizard-type-card.is-selected{
+  border-color:var(--der-primary);background:var(--der-primary-ring);
+  box-shadow:0 0 0 1px var(--der-primary) inset;
+}
+.ea-wizard-type-card > input{margin-top:4px;grid-row:1 / span 2}
+.ea-wizard-type-title{font-size:15px;font-weight:600;color:var(--der-ink-900);line-height:1.3}
+.ea-wizard-type-sub{font-size:13px;color:var(--der-ink-500);line-height:1.4}
 
+/* Metadata pick-list */
+.ea-wizard-pick{max-width:720px}
 .ea-wizard-picklist{
-  list-style:none;padding:0;margin:0;max-height:360px;overflow-y:auto;
-  border:1px solid var(--der-border-subtle);border-radius:var(--r-md);background:var(--der-surface);
+  list-style:none;padding:0;margin:0;max-height:320px;overflow-y:auto;
+  border:1px solid var(--der-border-subtle);border-radius:var(--r-md);
+  background:var(--der-surface);
 }
 .ea-wizard-pickrow{
   display:flex;align-items:center;gap:var(--sp-3);
-  padding:8px 12px;cursor:pointer;font-size:14px;
+  padding:8px 12px;cursor:pointer;font-size:14px;color:var(--der-ink-900);
   border-bottom:1px solid var(--der-border-subtle);
 }
 .ea-wizard-pickrow:last-child{border-bottom:none}
 .ea-wizard-pickrow:hover{background:var(--der-raised)}
 .ea-wizard-pickrow.is-selected{background:var(--der-primary-ring);font-weight:500}
 
-.ea-wizard-rows{width:100%;border-collapse:collapse;font-size:14px}
+/* Steps · roles · devices table — matches ea-table idiom. */
+.ea-wizard-steps{overflow-x:auto}
+.ea-wizard-rows{width:100%;border-collapse:collapse;font-size:14px;color:var(--der-ink-900)}
 .ea-wizard-rows th,.ea-wizard-rows td{
-  padding:8px;border-bottom:1px solid var(--der-border-subtle);text-align:left;
+  padding:8px 10px;border-bottom:1px solid var(--der-border-subtle);text-align:left;vertical-align:top;
 }
-.ea-wizard-rows th{font-size:12px;color:var(--der-ink-500);font-weight:500;text-transform:uppercase;letter-spacing:0.02em}
-.ea-wizard-rows select{
-  padding:4px 8px;border:1px solid var(--der-border-strong);border-radius:var(--r-sm);
-  background:var(--der-surface);font-size:13px;
+.ea-wizard-rows thead th{
+  font-size:12px;color:var(--der-ink-700,#475569);font-weight:600;
+  text-transform:uppercase;letter-spacing:0.03em;
+  background:var(--der-raised);
 }
-.ea-wizard-rows tr.is-dim td:not(:first-child){color:var(--der-ink-500);opacity:0.5}
+.ea-wizard-rows select,.ea-wizard-rows input[type="text"]{
+  padding:5px 8px;border:1px solid var(--der-border-strong);border-radius:var(--r-sm);
+  background:var(--der-surface);font-size:13px;color:var(--der-ink-900);
+  max-width:220px;
+}
+.ea-wizard-rows tr.is-dim td{color:var(--der-ink-500)}
+.ea-wizard-rows tr.is-dim select{opacity:0.6}
+.ea-wizard-rows tr.is-nested > td:first-child,
+.ea-wizard-rows tr.is-nested > td:nth-child(2){background:var(--der-raised)}
+.ea-wizard-rows tr.is-advanced > td{background:rgba(240,173,78,0.06)}
 
+/* Dependency editor */
+.ea-wizard-deps{display:flex;flex-direction:column;gap:var(--sp-2)}
+.ea-wizard-deps-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.ea-wizard-deps-list > li{
+  display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;font-size:13px;
+}
+.ea-wizard-deps-list select{max-width:280px}
+.ea-wizard-deps .ea-field-error{color:#b02a37;font-size:12px;margin-left:var(--sp-2)}
+
+/* Footer buttons bar */
 .ea-wizard-footer{
   display:flex;gap:var(--sp-2);align-items:center;
-  padding-top:var(--sp-4);margin-top:var(--sp-2);
-  border-top:1px solid var(--der-border-subtle);
+  margin-top:0;padding-top:0;
 }
+
+/* Pin panel kept for backwards compat (now rendered inside .ea-form-section) */
+.ea-wizard-pin-panel{display:none}
 
 /* ─── Workflow queue (2.3.16) ────────────────────────────────── */
 .ea-queue-tabs{
