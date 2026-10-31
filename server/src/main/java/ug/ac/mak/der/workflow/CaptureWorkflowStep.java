@@ -116,6 +116,13 @@ public record CaptureWorkflowStep(
          *  fields without overwriting. Valid under PROGRAM /
          *  PROGRAM_STAGE / PROGRAM_STAGE_SECTION bindings. */
         EVENT_INSTANCE,
+        /** V053 — a specific DataSet element row (data element plus
+         *  optional categoryCombo override). {@code sectionRef} is the
+         *  data element UID; the compiler stamps it on every dataValue
+         *  the step contributes when the payload doesn't already set
+         *  one. Useful when a single high-stakes DE needs a dedicated
+         *  capture responsibility. Only valid for DATA_SET workflows. */
+        DATASET_ELEMENT,
         /** Free-form field list defined only by the workflow fields[]. */
         AD_HOC
     }

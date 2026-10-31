@@ -114,6 +114,29 @@ class WorkflowCompilerTest {
     }
 
     @Test
+    void aggregateDatasetElementStampsDataElement() {
+        // V053 — DATASET_ELEMENT step owns one DE; its sectionRef is
+        // stamped as the dataElement on each dataValue the step
+        // contributes, so the payload can omit the DE on each row.
+        final UUID id = UUID.randomUUID();
+        final UUID step = UUID.randomUUID();
+        final CaptureWorkflow w = new CaptureWorkflow(id, "ANC — DE-only step",
+            CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 1, NOW, NOW, null,
+            List.of(step(step, id, 0,
+                    CaptureWorkflowStep.SectionKind.DATASET_ELEMENT, "DE_ANC_VISITS")),
+            List.of(), false, null);
+        final List<CaptureWorkflowContribution> cs = List.of(
+            contrib(step, "{\"dataValues\":["
+                + "{\"categoryOptionCombo\":\"COC_MALE\",\"value\":\"5\"},"
+                + "{\"categoryOptionCombo\":\"COC_FEMALE\",\"value\":\"7\"}]}"));
+        final JsonNode out = compiler.compile(w, cs).orElseThrow().payload();
+        assertThat(out.path("dataValues").size()).isEqualTo(2);
+        for (final JsonNode v : out.path("dataValues")) {
+            assertThat(v.path("dataElement").asText()).isEqualTo("DE_ANC_VISITS");
+        }
+    }
+
+    @Test
     void aggregateOrgUnitScopeStampedOnDataValues() {
         // V050 — ORG_UNIT_SCOPE stamps orgUnit on dataValues so a
         // district edge can collect per-facility slices and emit them

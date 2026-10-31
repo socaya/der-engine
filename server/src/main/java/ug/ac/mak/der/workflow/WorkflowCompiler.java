@@ -106,12 +106,15 @@ public class WorkflowCompiler {
             final JsonNode arr = payload.path("dataValues");
             // V049 — ATTRIBUTE_OPTION_COMBO stamps attributeOptionCombo.
             // V050 — ORG_UNIT_SCOPE stamps orgUnit (sub-OU under edge).
-            // Both are cross-cutting; sectionRef is the respective UID.
+            // V053 — DATASET_ELEMENT stamps dataElement.
             final String aocStamp = s.sectionKind()
                     == CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO
                     ? s.sectionRef() : null;
             final String ouStamp = s.sectionKind()
                     == CaptureWorkflowStep.SectionKind.ORG_UNIT_SCOPE
+                    ? s.sectionRef() : null;
+            final String deStamp = s.sectionKind()
+                    == CaptureWorkflowStep.SectionKind.DATASET_ELEMENT
                     ? s.sectionRef() : null;
             if (arr.isArray()) {
                 arr.forEach((v) -> {
@@ -123,6 +126,11 @@ public class WorkflowCompiler {
                     if (ouStamp != null && !ouStamp.isBlank()
                             && !value.has("orgUnit")) {
                         value.put("orgUnit", ouStamp);
+                    }
+                    if (deStamp != null && !deStamp.isBlank()
+                            && (!value.has("dataElement")
+                                || "".equals(value.path("dataElement").asText("")))) {
+                        value.put("dataElement", deStamp);
                     }
                     final String key = value.path("dataElement").asText("")
                             + "|" + value.path("categoryOptionCombo").asText("")

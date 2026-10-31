@@ -900,6 +900,7 @@ export type SectionKind =
   | 'ORG_UNIT_SCOPE'          /* V050 — sub-OU split, cross-cutting */
   | 'RELATIONSHIP'            /* V051 — tracker TEI relationships */
   | 'EVENT_INSTANCE'          /* V052 — specific event in repeating stage */
+  | 'DATASET_ELEMENT'         /* V053 — specific aggregate DE row */
   | 'AD_HOC';
 
 export interface CaptureWorkflowField {
