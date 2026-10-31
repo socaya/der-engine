@@ -172,7 +172,8 @@ public class CaptureWorkflowRepository {
         try {
             return Optional.ofNullable(jdbc.queryForObject(
                     "SELECT run_id, workflow_id, workflow_version, business_key, "
-                            + "current_step_id, state, created_at, updated_at, created_by "
+                            + "current_step_id, state, created_at, updated_at, created_by, "
+                        + "submission_journal_op_id, submission_error "
                             + "FROM der.capture_workflow_run WHERE run_id = ?",
                     runMapper(), runId));
         } catch (EmptyResultDataAccessException ex) {
@@ -196,7 +197,8 @@ public class CaptureWorkflowRepository {
         }
         return jdbc.query(
                 "SELECT run_id, workflow_id, workflow_version, business_key, "
-                        + "current_step_id, state, created_at, updated_at, created_by "
+                        + "current_step_id, state, created_at, updated_at, created_by, "
+                        + "submission_journal_op_id, submission_error "
                         + "FROM der.capture_workflow_run WHERE workflow_id = ? "
                         + "ORDER BY created_at DESC",
                 runMapper(), workflowId);
@@ -211,7 +213,8 @@ public class CaptureWorkflowRepository {
         try {
             return Optional.ofNullable(jdbc.queryForObject(
                     "SELECT run_id, workflow_id, workflow_version, business_key, "
-                            + "current_step_id, state, created_at, updated_at, created_by "
+                            + "current_step_id, state, created_at, updated_at, created_by, "
+                        + "submission_journal_op_id, submission_error "
                             + "FROM der.capture_workflow_run "
                             + "WHERE workflow_id = ? AND workflow_version = ? "
                             + "  AND business_key = ?",
@@ -291,7 +294,22 @@ public class CaptureWorkflowRepository {
                 CaptureWorkflowRun.State.valueOf(rs.getString("state")),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant(),
-                (UUID) rs.getObject("created_by"));
+                (UUID) rs.getObject("created_by"),
+                (UUID) rs.getObject("submission_journal_op_id"),
+                rs.getString("submission_error"));
+    }
+
+    /** V055 — stamp the compiled submission's journal op id (or an
+     *  error message) on the run so operators can trace it. */
+    public int setRunSubmission(final UUID runId, final UUID journalOpId,
+                                  final String error, final Instant updatedAt) {
+        return jdbc.update(
+                "UPDATE der.capture_workflow_run SET "
+                        + "submission_journal_op_id = ?, "
+                        + "submission_error = ?, "
+                        + "updated_at = ? "
+                        + "WHERE run_id = ?",
+                journalOpId, error, Timestamp.from(updatedAt), runId);
     }
 
     private record HeaderRow(UUID workflowId, String displayName, String boundKind,

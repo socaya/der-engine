@@ -96,6 +96,16 @@ public class SecurityConfig {
                         .requestMatchers("/edge-api/v1/restore/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/system/org-unit").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/approvals/**").hasAnyRole("REVIEWER", "ADMIN")
+                        // §2.3.11 — workflow runs are operator-level:
+                        //   open run / contribute / reject by any authenticated user
+                        //   (device auth or operator session). CRUD on the
+                        //   catalogue stays ADMIN per the catch-all below.
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                            "/edge-api/v1/workflows/*/runs").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                            "/edge-api/v1/workflows/runs/**").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/edge-api/v1/workflows/runs/**").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/workflows/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.PUT, "/edge-api/v1/workflows/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/workflows/**").hasRole("ADMIN")

@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 
@@ -21,9 +22,19 @@ import org.springframework.stereotype.Service;
 public class CaptureWorkflowService {
 
     private final CaptureWorkflowRepository repo;
+    private final CaptureWorkflowContributionRepository contributions;
 
-    public CaptureWorkflowService(final CaptureWorkflowRepository repo) {
+    @Autowired
+    public CaptureWorkflowService(final CaptureWorkflowRepository repo,
+                                    final CaptureWorkflowContributionRepository contributions) {
         this.repo = Objects.requireNonNull(repo, "repo");
+        this.contributions = Objects.requireNonNull(contributions, "contributions");
+    }
+
+    /** Legacy single-arg ctor kept for tests that predate 2.3.11 and
+     *  don't exercise the contribution-lookup methods. */
+    public CaptureWorkflowService(final CaptureWorkflowRepository repo) {
+        this(repo, null);
     }
 
     public List<CaptureWorkflow> list() {
@@ -32,6 +43,16 @@ public class CaptureWorkflowService {
 
     public Optional<CaptureWorkflow> get(final UUID workflowId) {
         return repo.findById(workflowId);
+    }
+
+    /** §2.3.11 — look up a run by id. */
+    public Optional<CaptureWorkflowRun> findRunById(final UUID runId) {
+        return repo.findRun(runId);
+    }
+
+    /** §2.3.11 — list every contribution recorded against a run. */
+    public List<CaptureWorkflowContribution> contributionsForRun(final UUID runId) {
+        return contributions == null ? List.of() : contributions.findByRun(runId);
     }
 
     /**
@@ -102,7 +123,8 @@ public class CaptureWorkflowService {
         final Instant now = Instant.now();
         return repo.insertRun(new CaptureWorkflowRun(
                 UUID.randomUUID(), workflowId, w.version(), businessKey,
-                firstStepId, CaptureWorkflowRun.State.OPEN, now, now, actor));
+                firstStepId, CaptureWorkflowRun.State.OPEN, now, now, actor,
+                null, null));
     }
 
     public List<CaptureWorkflowRun> runs(final UUID workflowId) {
