@@ -107,6 +107,7 @@ public class WorkflowCompiler {
             // V049 — ATTRIBUTE_OPTION_COMBO stamps attributeOptionCombo.
             // V050 — ORG_UNIT_SCOPE stamps orgUnit (sub-OU under edge).
             // V053 — DATASET_ELEMENT stamps dataElement.
+            // V054 — PERIOD_SCOPE stamps period.
             final String aocStamp = s.sectionKind()
                     == CaptureWorkflowStep.SectionKind.ATTRIBUTE_OPTION_COMBO
                     ? s.sectionRef() : null;
@@ -115,6 +116,9 @@ public class WorkflowCompiler {
                     ? s.sectionRef() : null;
             final String deStamp = s.sectionKind()
                     == CaptureWorkflowStep.SectionKind.DATASET_ELEMENT
+                    ? s.sectionRef() : null;
+            final String periodStamp = s.sectionKind()
+                    == CaptureWorkflowStep.SectionKind.PERIOD_SCOPE
                     ? s.sectionRef() : null;
             if (arr.isArray()) {
                 arr.forEach((v) -> {
@@ -132,10 +136,16 @@ public class WorkflowCompiler {
                                 || "".equals(value.path("dataElement").asText("")))) {
                         value.put("dataElement", deStamp);
                     }
+                    if (periodStamp != null && !periodStamp.isBlank()
+                            && (!value.has("period")
+                                || "".equals(value.path("period").asText("")))) {
+                        value.put("period", periodStamp);
+                    }
                     final String key = value.path("dataElement").asText("")
                             + "|" + value.path("categoryOptionCombo").asText("")
                             + "|" + value.path("attributeOptionCombo").asText("")
-                            + "|" + value.path("orgUnit").asText("");
+                            + "|" + value.path("orgUnit").asText("")
+                            + "|" + value.path("period").asText("");
                     values.put(key, value);
                 });
             }

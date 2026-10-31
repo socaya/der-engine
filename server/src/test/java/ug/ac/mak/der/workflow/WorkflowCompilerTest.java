@@ -114,6 +114,35 @@ class WorkflowCompilerTest {
     }
 
     @Test
+    void aggregatePeriodScopeStampsPeriodAndKeepsSlicesDistinct() {
+        // V054 — two PERIOD_SCOPE steps on the same (DE, CoC) but
+        // different periods stay as 2 distinct dataValues on the
+        // compiled output, each stamped with its period.
+        final UUID id = UUID.randomUUID();
+        final UUID q1 = UUID.randomUUID();
+        final UUID q2 = UUID.randomUUID();
+        final CaptureWorkflow w = new CaptureWorkflow(id, "Backfill 2026 — Q1 + Q2",
+            CaptureWorkflow.BindingKind.DATA_SET, "ds1", true, 1, NOW, NOW, null,
+            List.of(step(q1, id, 0,
+                    CaptureWorkflowStep.SectionKind.PERIOD_SCOPE, "2026Q1"),
+                    step(q2, id, 1,
+                    CaptureWorkflowStep.SectionKind.PERIOD_SCOPE, "2026Q2")),
+            List.of(), false, null);
+        final List<CaptureWorkflowContribution> cs = List.of(
+            contrib(q1, "{\"dataValues\":[{\"dataElement\":\"DE1\",\"categoryOptionCombo\":\"COC1\",\"value\":\"10\"}]}"),
+            contrib(q2, "{\"dataValues\":[{\"dataElement\":\"DE1\",\"categoryOptionCombo\":\"COC1\",\"value\":\"13\"}]}"));
+        final JsonNode out = compiler.compile(w, cs).orElseThrow().payload();
+        assertThat(out.path("dataValues").size()).isEqualTo(2);
+        boolean sawQ1 = false; boolean sawQ2 = false;
+        for (final JsonNode v : out.path("dataValues")) {
+            if ("2026Q1".equals(v.path("period").asText())) sawQ1 = true;
+            if ("2026Q2".equals(v.path("period").asText())) sawQ2 = true;
+        }
+        assertThat(sawQ1).isTrue();
+        assertThat(sawQ2).isTrue();
+    }
+
+    @Test
     void aggregateDatasetElementStampsDataElement() {
         // V053 — DATASET_ELEMENT step owns one DE; its sectionRef is
         // stamped as the dataElement on each dataValue the step

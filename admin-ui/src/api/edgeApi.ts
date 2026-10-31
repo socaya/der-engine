@@ -901,6 +901,7 @@ export type SectionKind =
   | 'RELATIONSHIP'            /* V051 — tracker TEI relationships */
   | 'EVENT_INSTANCE'          /* V052 — specific event in repeating stage */
   | 'DATASET_ELEMENT'         /* V053 — specific aggregate DE row */
+  | 'PERIOD_SCOPE'            /* V054 — period/time split for aggregate */
   | 'AD_HOC';
 
 export interface CaptureWorkflowField {

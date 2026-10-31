@@ -313,7 +313,8 @@ public class CaptureWorkflowController {
             case DATA_SET -> section == CaptureWorkflowStep.SectionKind.DATASET_SECTION
                     || section == CaptureWorkflowStep.SectionKind.DATA_ELEMENT_GROUP
                     || section == CaptureWorkflowStep.SectionKind.COC_SPLIT
-                    || section == CaptureWorkflowStep.SectionKind.DATASET_ELEMENT;
+                    || section == CaptureWorkflowStep.SectionKind.DATASET_ELEMENT
+                    || section == CaptureWorkflowStep.SectionKind.PERIOD_SCOPE;
             case PROGRAM -> section == CaptureWorkflowStep.SectionKind.PROGRAM_STAGE
                     || section == CaptureWorkflowStep.SectionKind.PROGRAM_STAGE_SECTION
                     || section == CaptureWorkflowStep.SectionKind.TEI_ATTRIBUTE_GROUP

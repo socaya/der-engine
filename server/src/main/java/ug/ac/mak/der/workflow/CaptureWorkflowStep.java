@@ -123,6 +123,14 @@ public record CaptureWorkflowStep(
          *  one. Useful when a single high-stakes DE needs a dedicated
          *  capture responsibility. Only valid for DATA_SET workflows. */
         DATASET_ELEMENT,
+        /** V054 — period / time split for aggregate workflows (one
+         *  person captures Q1 2026, another captures Q2 2026 of the
+         *  same dataset). {@code sectionRef} is the DHIS2 period
+         *  expression ("2026Q1" / "202601" / "2026W15" / …); the
+         *  compiler stamps it on every dataValue the step contributes
+         *  and extends the dedup key with period so Q1 and Q2 slices
+         *  stay distinct. Only valid for DATA_SET workflows. */
+        PERIOD_SCOPE,
         /** Free-form field list defined only by the workflow fields[]. */
         AD_HOC
     }

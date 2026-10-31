@@ -1664,7 +1664,8 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
           <code>PROGRAM_SECTION</code> / <code>TEI_TYPE_ATTRIBUTES</code> /{' '}
           <code>ATTRIBUTE_OPTION_COMBO</code> / <code>ORG_UNIT_SCOPE</code> /{' '}
           <code>RELATIONSHIP</code> / <code>EVENT_INSTANCE</code> /{' '}
-          <code>DATASET_ELEMENT</code> / <code>AD_HOC</code>) and{' '}
+          <code>DATASET_ELEMENT</code> / <code>PERIOD_SCOPE</code> /{' '}
+          <code>AD_HOC</code>) and{' '}
           <code>sectionRef</code> (DHIS2 UID of the slice, or null for AD_HOC).
           The server rejects section kinds that don't fit the chosen binding.
         </small>
