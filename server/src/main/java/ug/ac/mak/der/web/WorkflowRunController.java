@@ -169,6 +169,7 @@ public class WorkflowRunController {
             m.put("severity", i.severity().name());
             m.put("message", i.message());
             m.put("fieldRef", i.fieldRef());
+            m.put("suggestedValue", i.suggestedValue());
             rows.add(m);
         }
         final long errors = issues.stream()

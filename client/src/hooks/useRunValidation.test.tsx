@@ -34,7 +34,7 @@ describe('useRunValidation', () => {
         { issueId: 'i3', runId: 'r1', stepId: null,
           code: 'PROGRAM_RULE_ASSIGN', severity: 'INFO',
           message: "Rule 'X' suggests value '42' for field 'DE_B'.",
-          fieldRef: 'DE_B' },
+          fieldRef: 'DE_B', suggestedValue: '42' },
         { issueId: 'i4', runId: 'r1', stepId: null,
           code: 'PROGRAM_RULE_CREATEEVENT', severity: 'INFO',
           message: 'schedule follow-up', fieldRef: null },
@@ -55,5 +55,20 @@ describe('useRunValidation', () => {
     render(<Harness runId="" />);
     // No fetch should happen; nothing explodes.
     await act(async () => undefined);
+  });
+
+  it('falls back to message-text parsing when suggestedValue missing', async () => {
+    vi.spyOn(edgeApi, 'runValidation').mockResolvedValue({
+      runId: 'r2', errorCount: 0,
+      issues: [
+        { issueId: 'i', runId: 'r2', stepId: null,
+          code: 'PROGRAM_RULE_ASSIGN', severity: 'INFO',
+          message: "Rule 'legacy' suggests value '99' for field 'LEG'.",
+          fieldRef: 'LEG' },   // no suggestedValue field — legacy row
+      ],
+    });
+    render(<Harness runId="r2" />);
+    await waitFor(() =>
+      expect(screen.getByTestId('assigned').textContent).toBe('LEG=99'));
   });
 });

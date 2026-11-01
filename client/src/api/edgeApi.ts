@@ -267,6 +267,9 @@ export interface ValidationIssue {
   severity: 'ERROR' | 'WARNING' | 'INFO';
   message: string;
   fieldRef: string | null;
+  /** §2.3.37 — structured value for ASSIGN issues. Falls back to the
+   *  message-text parser in older clients. */
+  suggestedValue?: string | null;
 }
 
 export function runValidation(runId: string): Promise<{

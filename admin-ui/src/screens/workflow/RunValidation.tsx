@@ -100,6 +100,13 @@ function Section({ title, tone, issues, testIdPrefix }: {
                 (field {i.fieldRef})
               </span>
             )}
+            {i.suggestedValue != null && (
+              <span className="ea-mono" style={{ marginLeft: 8, fontSize: 11,
+                                                   color: '#2a7998' }}
+                     data-test={`${testIdPrefix}-${i.code.toLowerCase()}-value`}>
+                → {i.suggestedValue}
+              </span>
+            )}
           </li>
         ))}
       </ul>

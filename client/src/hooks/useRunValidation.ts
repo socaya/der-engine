@@ -80,14 +80,16 @@ export function useRunValidation(runId: string | null | undefined,
           if (i.fieldRef) hidden.add(i.fieldRef);
           break;
         case 'PROGRAM_RULE_ASSIGN':
-          // The ASSIGN message carries either "suggests value '<v>' for
-          // field '<uid>'" or "assigns '<v>' to field …". Extract the
-          // value right after "value" / "assigns" — this is a
-          // lightweight contract until the server starts sending the
-          // computed value as a structured field on the issue.
+          // §2.3.37 — prefer the structured suggestedValue the server
+          // now ships; fall back to the message-text parser for issues
+          // persisted before the migration landed.
           if (i.fieldRef) {
-            const m = i.message.match(/(?:value|assigns)\s+'([^']*)'/);
-            if (m && m[1] != null) assigned.set(i.fieldRef, m[1]);
+            if (typeof i.suggestedValue === 'string') {
+              assigned.set(i.fieldRef, i.suggestedValue);
+            } else {
+              const m = i.message.match(/(?:value|assigns)\s+'([^']*)'/);
+              if (m && m[1] != null) assigned.set(i.fieldRef, m[1]);
+            }
           }
           break;
         case 'PROGRAM_RULE_CREATEEVENT':

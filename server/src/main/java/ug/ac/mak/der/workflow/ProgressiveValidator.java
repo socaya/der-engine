@@ -62,10 +62,19 @@ public class ProgressiveValidator {
     }
 
     /** Issue surface returned by {@link #findForRun(UUID)} + persisted
-     *  in {@code workflow_validation_issue}. */
+     *  in {@code workflow_validation_issue}. {@code suggestedValue}
+     *  is populated for ASSIGN-style issues; {@code null} for the rest. */
     public record Issue(UUID issueId, UUID runId, UUID stepId,
                         String code, Severity severity, String message,
-                        String fieldRef) { }
+                        String fieldRef, String suggestedValue) {
+        /** Overload used by the HIDEFIELD / SHOWERROR / etc. paths that
+         *  don't produce a suggested value. */
+        public Issue(final UUID issueId, final UUID runId, final UUID stepId,
+                      final String code, final Severity severity,
+                      final String message, final String fieldRef) {
+            this(issueId, runId, stepId, code, severity, message, fieldRef, null);
+        }
+    }
 
     public enum Severity { ERROR, WARNING, INFO }
 
@@ -137,7 +146,8 @@ public class ProgressiveValidator {
 
     public List<Issue> findForRun(final UUID runId) {
         return jdbc.query(
-                "SELECT issue_id, run_id, step_id, code, severity, message, field_ref "
+                "SELECT issue_id, run_id, step_id, code, severity, message, "
+                        + "field_ref, suggested_value "
                         + "FROM der.workflow_validation_issue "
                         + "WHERE run_id = ? ORDER BY detected_at DESC",
                 (rs, i) -> new Issue(
@@ -148,7 +158,8 @@ public class ProgressiveValidator {
                         rs.getString("code"),
                         Severity.valueOf(rs.getString("severity")),
                         rs.getString("message"),
-                        rs.getString("field_ref")),
+                        rs.getString("field_ref"),
+                        rs.getString("suggested_value")),
                 runId);
     }
 
@@ -179,10 +190,12 @@ public class ProgressiveValidator {
         for (final Issue i : issues) {
             jdbc.update(
                     "INSERT INTO der.workflow_validation_issue "
-                            + "(issue_id, run_id, step_id, code, severity, message, field_ref) "
-                            + "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            + "(issue_id, run_id, step_id, code, severity, message, "
+                            + " field_ref, suggested_value) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     i.issueId(), runId, i.stepId(),
-                    i.code(), i.severity().name(), i.message(), i.fieldRef());
+                    i.code(), i.severity().name(), i.message(),
+                    i.fieldRef(), i.suggestedValue());
         }
     }
 

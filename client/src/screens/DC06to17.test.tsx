@@ -214,7 +214,7 @@ describe('EnrollmentCreate DC-13', () => {
         { issueId: 'a', runId: 'r1', stepId: null,
           code: 'PROGRAM_RULE_ASSIGN', severity: 'INFO',
           message: "Rule 'X' suggests value 'auto' for field 'TEA_AUTO'.",
-          fieldRef: 'TEA_AUTO' },
+          fieldRef: 'TEA_AUTO', suggestedValue: 'auto' },
       ],
     });
     renderWithProviders(<EnrollmentCreate submit={submit} />,

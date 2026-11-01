@@ -125,7 +125,7 @@ describe('AggregateEntry', () => {
         { issueId: 'a', runId: 'r1', stepId: null,
           code: 'PROGRAM_RULE_ASSIGN', severity: 'INFO',
           message: "Rule 'Default' suggests value '42' for field 'DE_ASSIGN'.",
-          fieldRef: 'DE_ASSIGN' },
+          fieldRef: 'DE_ASSIGN', suggestedValue: '42' },
       ],
     });
     renderWithProviders(<AggregateEntry api={api as never} />,

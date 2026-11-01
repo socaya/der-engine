@@ -366,7 +366,8 @@ public class ProgramRuleEvaluator {
                         + "' for field '" + targetUid + "'.";
         return new ProgressiveValidator.Issue(
                 UUID.randomUUID(), runId, null,
-                "PROGRAM_RULE_ASSIGN", sev, message, targetUid);
+                "PROGRAM_RULE_ASSIGN", sev, message, targetUid,
+                suggested);
     }
 
     /** §2.3.28 — CREATEEVENT. INFO cue that a follow-up event should
