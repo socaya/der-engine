@@ -302,7 +302,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
     <strong style={{ color: 'var(--der-ink-900)' }}>{v}</strong>;
 
   return (
-    <div className="ea-screen" data-test="wf-monitor-root">
+    <div className="ea-screen ea-screen--tight" data-test="wf-monitor-root">
       <SyncStatusBar
         tone={tone}
         title="Workflow monitoring"

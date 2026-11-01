@@ -2512,14 +2512,21 @@ tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
    Groups the 11 monitoring panels into 5 scannable sections so an
    admin isn't scrolling through everything. Matches the DER split-
    content pattern (see Dhis2Overview etc.). */
+/* Pulls a dense admin dashboard (Monitoring) in a few px closer to
+   the DER sidebar than the default .ea-main-inner padding would
+   allow — reduces wasted horizontal gap on wide monitors without
+   affecting any other screen. */
+.ea-main .ea-screen.ea-screen--tight{margin:0 calc(-1 * var(--sp-3))}
+@media(max-width:900px){
+  .ea-main .ea-screen.ea-screen--tight{margin:0}
+}
 .ea-wf-monitor-split{
-  display:grid;grid-template-columns:200px 1fr;gap:var(--sp-4);
+  display:grid;grid-template-columns:168px 1fr;gap:var(--sp-3);
   align-items:flex-start;
 }
 .ea-wf-monitor-nav{
   display:flex;flex-direction:column;gap:2px;
-  padding:var(--sp-3);border:1px solid var(--der-border-subtle);
-  border-radius:6px;background:var(--der-canvas);
+  padding:0;border:none;background:transparent;
   position:sticky;top:calc(var(--topbar-h,56px) + var(--sp-3));
 }
 .ea-wf-monitor-nav-item{
