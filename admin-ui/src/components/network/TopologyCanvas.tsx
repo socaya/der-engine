@@ -1,7 +1,7 @@
 import { CANVAS_HEIGHT, CANVAS_WIDTH, CENTRE,
-         layoutDevices, layoutPeers, wanPosition } from './topologyLayout';
+         layoutDevices, wanPosition } from './topologyLayout';
 import { NetworkConnection } from './NetworkConnection';
-import { DerCard, DeviceCard, PeerCard, WanBubble } from './NetworkNode';
+import { DerCard, DeviceCard, WanBubble } from './NetworkNode';
 import type { Connection, DerNode, DeviceNode, PeerNode, SelectedNode,
                 WanInfo } from './types';
 
@@ -17,10 +17,13 @@ interface Props {
 
 /** Pure SVG canvas rendering centre + rings + edges. */
 export function TopologyCanvas(props: Props): JSX.Element {
-  const { der, wan, devices, peers, connections, selected, onSelect } = props;
+  // §2.3.69 — pilot scope is Devices → DER → DHIS2. Peer edges
+  // (DER-to-DER) are suppressed from the canvas; the server may
+  // still carry them in the response but the view intentionally
+  // doesn't surface them.
+  const { der, wan, devices, connections, selected, onSelect } = props;
 
   const deviceLaid = layoutDevices(devices);
-  const peerLaid = layoutPeers(peers);
   const wanPos = wanPosition();
 
   // Index of positions by node id for drawing connections.
@@ -29,7 +32,7 @@ export function TopologyCanvas(props: Props): JSX.Element {
     wan: wanPos,
   };
   deviceLaid.forEach((d) => { pos[d.node.id] = { x: d.x, y: d.y }; });
-  peerLaid.forEach((p) => { pos[p.node.id] = { x: p.x, y: p.y }; });
+  // Peers deliberately not laid out (see note above).
 
   const isSel = (kind: SelectedNode['kind'], id: string): boolean =>
     selected !== null && selected.kind === kind
@@ -50,16 +53,18 @@ export function TopologyCanvas(props: Props): JSX.Element {
         <NetworkConnection x1={CENTRE.x} y1={CENTRE.y}
                             x2={wanPos.x} y2={wanPos.y}
                             type="wan" status={wan.status} />
-        {connections.map((c, i) => {
-          const a = pos[c.source];
-          const b = pos[c.target];
-          if (!a || !b) return null;
-          return (
-            <NetworkConnection key={`e${i}`}
-                                x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                                type={c.type} status={c.status} />
-          );
-        })}
+        {connections
+          .filter((c) => c.type !== 'p2p')
+          .map((c, i) => {
+            const a = pos[c.source];
+            const b = pos[c.target];
+            if (!a || !b) return null;
+            return (
+              <NetworkConnection key={`e${i}`}
+                                  x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                                  type={c.type} status={c.status} />
+            );
+          })}
 
         {/* Cards */}
         <WanBubble x={wanPos.x} y={wanPos.y}
@@ -80,13 +85,7 @@ export function TopologyCanvas(props: Props): JSX.Element {
                        onSelect={() => onSelect({ kind: 'device', ...d.node })} />
         ))}
 
-        {peerLaid.map((p) => (
-          <PeerCard key={p.node.id}
-                     x={p.x} y={p.y}
-                     peer={p.node}
-                     selected={isSel('peer', p.node.id)}
-                     onSelect={() => onSelect({ kind: 'peer', ...p.node })} />
-        ))}
+        {/* Peer cards suppressed — pilot scope is Devices → DER → DHIS2. */}
       </svg>
     </div>
   );

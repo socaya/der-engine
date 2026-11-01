@@ -9,22 +9,29 @@ export function NetworkLegend(): JSX.Element {
       <span role="listitem"><NetworkStatusBadge status="online"   showLabel /></span>
       <span role="listitem"><NetworkStatusBadge status="degraded" showLabel /></span>
       <span role="listitem"><NetworkStatusBadge status="offline"  showLabel /></span>
-      <span role="listitem" aria-label="LAN / Wi-Fi link"
+      <span role="listitem" aria-label="DER to DHIS2 sync link"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <svg width="24" height="4" aria-hidden="true" focusable={false}>
           <line x1="1" y1="2" x2="23" y2="2"
-                stroke="var(--der-ink-500, #6b7280)" strokeWidth="2" />
+                stroke="var(--der-primary-ink, #1d4ed8)" strokeWidth="2.5" />
         </svg>
-        <span>LAN</span>
+        <span>Sync</span>
       </span>
-      <span role="listitem" aria-label="Peer-to-peer link"
+      <span role="listitem" aria-label="Ethernet LAN link"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <svg width="24" height="4" aria-hidden="true" focusable={false}>
           <line x1="1" y1="2" x2="23" y2="2"
-                stroke="var(--der-ink-500, #6b7280)"
-                strokeWidth="2" strokeDasharray="4 3" />
+                stroke="var(--der-success-ink, #0f766e)" strokeWidth="2" />
         </svg>
-        <span>P2P</span>
+        <span>Ethernet</span>
+      </span>
+      <span role="listitem" aria-label="Wi-Fi link"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <svg width="24" height="4" aria-hidden="true" focusable={false}>
+          <line x1="1" y1="2" x2="23" y2="2"
+                stroke="var(--der-warning-ink, #b45309)" strokeWidth="2" />
+        </svg>
+        <span>Wi-Fi</span>
       </span>
     </span>
   );

@@ -18,8 +18,7 @@ export function NetworkSummary({ summary }: { summary: TopologySummary }): JSX.E
                                                                    ? <NetworkStatusBadge status="offline" />
                                                                    : null} />
       <Row label="Sync queue" value={summary.syncQueueTotal} />
-      <Row label="Peers"    value={`${summary.peersConnected} / ${summary.peers}`} />
-      <Row label="WAN"      tone={<NetworkStatusBadge status={summary.wanStatus} showLabel />} />
+      <Row label="DHIS2"    tone={<NetworkStatusBadge status={summary.wanStatus} showLabel />} />
     </dl>
   );
 }

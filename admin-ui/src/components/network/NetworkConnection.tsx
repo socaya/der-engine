@@ -87,11 +87,27 @@ export function NetworkConnection(
           Each extra particle starts with a phase offset so they
           spread along the edge instead of stacking. */}
       {Array.from({ length: particles }).map((_, i) => (
-        <circle key={i} r={type === 'wan' ? 3 : 2.5} fill={stroke}>
+        <circle key={`fwd-${i}`} r={type === 'wan' ? 3 : 2.5} fill={stroke}>
           <animateMotion dur={dur}
                            repeatCount="indefinite"
                            begin={`${(-baseDur * style.cadence * i) / particles}s`}
                            path={`M ${sx} ${sy} L ${ex} ${ey}`}
+                           rotate="auto" />
+        </circle>
+      ))}
+      {/* Reverse-direction particles — real DER↔DHIS2 sync is
+          bidirectional (metadata pull + data push), same for
+          device uplinks (contributions in + prefetch cues out).
+          Reverse dots are smaller + a touch more transparent so
+          forward flow stays dominant. */}
+      {online && Array.from({ length: style.reverseParticles }).map((_, i) => (
+        <circle key={`rev-${i}`} r={type === 'wan' ? 2.5 : 2}
+                 fill={stroke}
+                 opacity={0.75}>
+          <animateMotion dur={dur}
+                           repeatCount="indefinite"
+                           begin={`${(-baseDur * style.cadence * i) / Math.max(1, style.reverseParticles) - baseDur * style.cadence * 0.5}s`}
+                           path={`M ${ex} ${ey} L ${sx} ${sy}`}
                            rotate="auto" />
         </circle>
       ))}
@@ -104,44 +120,48 @@ interface EdgeStyle {
   width: number;
   dashed: boolean;
   dashArray: string;
-  cadence: number;    // 1.0 = baseline length-based duration; higher = slower
-  particles: number;  // # of animated dots along the edge
+  cadence: number;            // 1.0 = baseline length-based duration; higher = slower
+  particles: number;          // # forward (DER → endpoint) particles
+  reverseParticles: number;   // # reverse (endpoint → DER) particles
 }
 
 /** Edge styling table — different traffic classes read as different
  *  colours + cadences so admins recognise DER↔DHIS2 sync, peer
- *  exchange, and local LAN/WiFi at a glance. */
+ *  exchange, and local LAN/WiFi at a glance. Forward + reverse
+ *  particle counts model bidirectional reality: WAN sync pulls
+ *  metadata + pushes data; device uplinks carry contributions in +
+ *  prefetch cues out. */
 function edgeStyle(type: ConnectionType): EdgeStyle {
   switch (type) {
     case 'wan':
       return {
         colour: 'var(--der-primary-ink, #1d4ed8)',
         width: 2.5, dashed: false, dashArray: '6 4',
-        cadence: 1.3, particles: 2,
+        cadence: 1.3, particles: 2, reverseParticles: 2,
       };
     case 'p2p':
       return {
         colour: 'var(--der-teal-ink, #0d9488)',
         width: 1.75, dashed: true, dashArray: '6 4',
-        cadence: 1.1, particles: 1,
+        cadence: 1.1, particles: 1, reverseParticles: 1,
       };
     case 'wifi':
       return {
         colour: 'var(--der-warning-ink, #b45309)',
         width: 1.5, dashed: false, dashArray: '4 4',
-        cadence: 0.8, particles: 1,
+        cadence: 0.8, particles: 1, reverseParticles: 1,
       };
     case 'ethernet':
       return {
         colour: 'var(--der-success-ink, #0f766e)',
         width: 1.5, dashed: false, dashArray: '4 4',
-        cadence: 0.9, particles: 1,
+        cadence: 0.9, particles: 1, reverseParticles: 1,
       };
     default:
       return {
         colour: 'var(--der-ink-300, #cbd5e1)',
         width: 1.5, dashed: false, dashArray: '4 4',
-        cadence: 1.0, particles: 1,
+        cadence: 1.0, particles: 1, reverseParticles: 0,
       };
   }
 }
