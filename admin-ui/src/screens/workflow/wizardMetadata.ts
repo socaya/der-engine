@@ -60,10 +60,10 @@ async function dhisGet<T>(path: string): Promise<T> {
   return (await r.json()) as T;
 }
 
-/** List DataSets by name. Used in Step 2 when type=AGGREGATE. */
+/** List DataSets by name. */
 export async function listDataSets(): Promise<MetadataOption[]> {
   const d = await dhisGet<DhisListResponse<MetadataOption>>(
-    '/api/dataSets?fields=id,displayName&paging=false',
+    '/api/dataSets?pageSize=500',
   );
   return ((d.dataSets as MetadataOption[] | undefined) ?? []).map((x) => ({
     id: x.id, displayName: x.displayName,
@@ -107,12 +107,16 @@ export async function listDataSetSections(dataSetId: string): Promise<Breakable[
  *  renders those indented and the operator may pick either the whole
  *  stage or specific sections. */
 export async function listProgramStages(programId: string): Promise<Breakable[]> {
-  const stagesResp = await dhisGet<DhisListResponse<{ id: string; displayName: string }>>(
-    `/api/programStages?filter=program.id:eq:${programId}`
-    + '&fields=id,displayName&paging=false',
-  );
-  type S = { id: string; displayName: string };
-  const stages: S[] = (stagesResp.programStages as S[] | undefined) ?? [];
+  // The DER mirror's /api/programStages controller ignores DHIS2's
+  // `filter=` parameter, so we page through all stages and keep only
+  // those whose payload.program.id matches. Mirror payload includes
+  // the full stage body (including the parent program ref).
+  const stagesResp = await dhisGet<DhisListResponse<{
+    id: string; displayName: string; program?: { id: string };
+  }>>('/api/programStages?pageSize=500');
+  type S = { id: string; displayName: string; program?: { id: string } };
+  const allStages: S[] = (stagesResp.programStages as S[] | undefined) ?? [];
+  const stages: S[] = allStages.filter((s) => s.program?.id === programId);
   const stageIds = new Set(stages.map((s) => s.id));
   // One batched fetch, grouped client-side by programStage.id.
   const sectionsByStage = await listSectionsForStages(stageIds);
