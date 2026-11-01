@@ -158,6 +158,8 @@ export function WorkflowMonitoring({ api = edgeApi }:
   const [conflicts, setConflicts] = useState<edgeApi.WorkflowConflictRow[]>([]);
   const [summary, setSummary] = useState<edgeApi.WorkflowActivitySummary | null>(null);
   const [drafts, setDrafts] = useState<edgeApi.WorkflowDraftRow[]>([]);
+  type Section = 'attention' | 'activity' | 'depth' | 'performance' | 'prefetch';
+  const [section, setSection] = useState<Section>('attention');
   const [err, setErr] = useState<string | null>(null);
   const [loadedAt, setLoadedAt] = useState<string | null>(null);
   const [windowHours, setWindowHours] = useState(24);
@@ -341,6 +343,42 @@ export function WorkflowMonitoring({ api = edgeApi }:
                      testId="wf-monitor-error">{err}</ErrorBlock>
       )}
 
+      <div className="ea-wf-monitor-split" data-test="wf-monitor-split">
+        <nav className="ea-wf-monitor-nav" role="tablist"
+              aria-label="Monitoring sections">
+          {([
+            { id: 'attention',   label: 'Attention',
+              badge: (summary?.currentlyBlocked ?? 0)
+                   + (summary?.openErrorIssues ?? 0)
+                   + (summary?.openConflicts ?? 0) },
+            { id: 'activity',    label: 'Activity',
+              badge: feed.length + drafts.length },
+            { id: 'depth',       label: 'Queue depth',
+              badge: byWorkflow.length },
+            { id: 'performance', label: 'Performance',
+              badge: metrics?.perStep.length ?? 0 },
+            { id: 'prefetch',    label: 'Prefetch readiness',
+              badge: devices.length },
+          ] as { id: Section; label: string; badge: number }[]).map((t) => {
+            const active = section === t.id;
+            return (
+              <button key={t.id} type="button" role="tab"
+                       aria-selected={active}
+                       className={'ea-wf-monitor-nav-item'
+                         + (active ? ' is-active' : '')}
+                       data-test={`wf-monitor-nav-${t.id}`}
+                       onClick={() => setSection(t.id)}>
+                <span>{t.label}</span>
+                {t.badge > 0 && (
+                  <span className="ea-wf-monitor-nav-badge">{t.badge}</span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="ea-wf-monitor-panels">
+
+      <div hidden={section !== 'attention'}>
       <Panel title="Blockages — review and troubleshoot"
              action={blockages.length > 0
                ? <span className="ea-text-muted" style={{ fontSize: 11 }}>
@@ -484,7 +522,9 @@ export function WorkflowMonitoring({ api = edgeApi }:
           </table>
         </div>
       </Panel>
+      </div>
 
+      <div hidden={section !== 'activity'}>
       <Panel title="Draft data captured so far"
              action={drafts.length > 0
                ? <span className="ea-text-muted" style={{ fontSize: 11 }}>
@@ -593,7 +633,9 @@ export function WorkflowMonitoring({ api = edgeApi }:
           </table>
         </div>
       </Panel>
+      </div>
 
+      <div hidden={section !== 'depth'}>
       <Panel title="By workflow"
              action={undefined}>
         <div className="ea-table-wrap">
@@ -700,7 +742,9 @@ export function WorkflowMonitoring({ api = edgeApi }:
           </table>
         </div>
       </Panel>
+      </div>
 
+      <div hidden={section !== 'performance'}>
       <Panel title={`Turnaround percentiles · last ${windowHours} h`}
              action={
                <select className="ea-input ea-input--sm"
@@ -756,11 +800,15 @@ export function WorkflowMonitoring({ api = edgeApi }:
           </table>
         </div>
       </Panel>
+      </div>
 
+      <div hidden={section !== 'prefetch'}>
       <Panel title="Prefetch readiness">
         <PrefetchReadinessTable devices={devices} />
       </Panel>
+      </div>
 
+      <div hidden={section !== 'performance'}>
       <Panel title={`Device turnaround · last ${windowHours} h`}>
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense"
@@ -797,7 +845,9 @@ export function WorkflowMonitoring({ api = edgeApi }:
           </table>
         </div>
       </Panel>
+      </div>
 
+      <div hidden={section !== 'depth'}>
       <Panel title="Service-point pressure"
              action={undefined}>
         <div className="ea-table-wrap">
@@ -836,6 +886,10 @@ export function WorkflowMonitoring({ api = edgeApi }:
           </table>
         </div>
       </Panel>
+      </div>
+
+        </div>
+      </div>
     </div>
   );
 }

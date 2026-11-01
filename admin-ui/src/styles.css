@@ -2508,3 +2508,46 @@ tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
 }
 .ea-wf-flow-arrow{color:var(--der-ink-500);font-size:16px;flex-shrink:0}
 
+/* WorkflowMonitoring — vertical inner-sidebar nav + content panel.
+   Groups the 11 monitoring panels into 5 scannable sections so an
+   admin isn't scrolling through everything. Matches the DER split-
+   content pattern (see Dhis2Overview etc.). */
+.ea-wf-monitor-split{
+  display:grid;grid-template-columns:200px 1fr;gap:var(--sp-4);
+  align-items:flex-start;
+}
+.ea-wf-monitor-nav{
+  display:flex;flex-direction:column;gap:2px;
+  padding:var(--sp-3);border:1px solid var(--der-border-subtle);
+  border-radius:6px;background:var(--der-canvas);
+  position:sticky;top:calc(var(--topbar-h,56px) + var(--sp-3));
+}
+.ea-wf-monitor-nav-item{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:7px 10px;background:transparent;border:none;cursor:pointer;
+  text-align:left;color:var(--der-ink-700);font-size:13px;font-weight:500;
+  border-radius:4px;
+}
+.ea-wf-monitor-nav-item:hover:not(.is-active){
+  background:var(--der-raised);color:var(--der-ink-900);
+}
+.ea-wf-monitor-nav-item.is-active{
+  background:var(--der-navy-700);color:#fff;
+}
+.ea-wf-monitor-nav-badge{
+  background:var(--der-ink-100);color:var(--der-ink-700);
+  font-size:11px;font-weight:600;padding:1px 7px;border-radius:10px;
+  min-width:16px;text-align:center;
+}
+.ea-wf-monitor-nav-item.is-active .ea-wf-monitor-nav-badge{
+  background:rgba(255,255,255,0.2);color:#fff;
+}
+.ea-wf-monitor-panels{
+  display:flex;flex-direction:column;gap:var(--sp-4);min-width:0;
+}
+@media(max-width:900px){
+  .ea-wf-monitor-split{grid-template-columns:1fr}
+  .ea-wf-monitor-nav{position:static;flex-direction:row;flex-wrap:wrap;
+    overflow-x:auto}
+}
+

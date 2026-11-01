@@ -23,6 +23,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import ug.ac.mak.der.build.BuildInfo;
 import ug.ac.mak.der.build.BuildInfoProvider;
+import ug.ac.mak.der.dhis2.Dhis2ConnectionConfig;
+import ug.ac.mak.der.dhis2.Dhis2ConnectionConfigRepository;
 
 @WebMvcTest(SystemController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -35,8 +37,12 @@ class SystemControllerTest {
     @MockBean
     private BuildInfoProvider buildInfoProvider;
 
+    @MockBean
+    private Dhis2ConnectionConfigRepository dhis2;
+
     @Test
     void reportsServiceIdentityAndBuildInfo() throws Exception {
+        when(dhis2.read()).thenReturn(Dhis2ConnectionConfig.empty());
         when(buildInfoProvider.buildInfo()).thenReturn(new BuildInfo(
                 "0.1.0-SNAPSHOT",
                 "abc1234",
@@ -63,6 +69,7 @@ class SystemControllerTest {
 
     @Test
     void reportsDirtyFlagAndPinnedDhis2VersionWhenPresent() throws Exception {
+        when(dhis2.read()).thenReturn(Dhis2ConnectionConfig.empty());
         when(buildInfoProvider.buildInfo()).thenReturn(new BuildInfo(
                 "0.5.0",
                 "deadbeef",
@@ -81,6 +88,7 @@ class SystemControllerTest {
 
     @Test
     void doesNotLeakSecretsOrDatabaseDescriptors() throws Exception {
+        when(dhis2.read()).thenReturn(Dhis2ConnectionConfig.empty());
         when(buildInfoProvider.buildInfo()).thenReturn(new BuildInfo(
                 "0.1.0", "c", "b", false, Instant.EPOCH, "unknown"));
 
