@@ -4,6 +4,9 @@ import * as edgeApi from '../api/edgeApi';
 import {
   KpiTile, Panel, Donut, Dot, fmtDate, fmtAgo, fmtBytes, fmtDur,
 } from './shared';
+import { TopologyCanvas } from '../components/network/TopologyCanvas';
+import { useMeshTopology } from '../components/network/useMeshTopology';
+import type { SelectedNode } from '../components/network/types';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /**
@@ -36,6 +39,8 @@ export function MockupWorkspace(): JSX.Element {
   const [wfs, setWfs] = useState<edgeApi.CaptureWorkflowSummary[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [t, setT] = useState<Date | null>(null);
+  const [meshSel, setMeshSel] = useState<SelectedNode | null>(null);
+  const mesh = useMeshTopology(30000);
 
   useEffect(() => {
     Promise.allSettled([
@@ -156,21 +161,27 @@ export function MockupWorkspace(): JSX.Element {
                  caption={`${activeDevices} active`} />
       </div>
 
-      {/* ─── Topology ─────────────────────────────────────────── */}
-      <Panel title="Topology">
-        <div className="ea-topology">
-          <TopoNode label="DHIS2 Central"
-                    sub={c?.centralVersion ?? '—'}
-                    tone={dhis2Up ? 'success' : 'danger'} />
-          <TopoArrow />
-          <TopoNode label="DER Server"
-                    sub={`v${si.build.version}`}
-                    tone={derUp ? 'success' : 'danger'} highlight />
-          <TopoArrow />
-          <TopoNode label="Clients"
-                    sub={`${activeDevices} / ${totalDevices}`}
-                    tone={activeDevices > 0 ? 'success' : 'muted'} />
-        </div>
+      {/* ─── Mesh topology (modern) ──────────────────────────── */}
+      <Panel title="Topology"
+             action={<Link to="/network/mesh" className="ea-link-btn">View full mesh</Link>}>
+        {mesh.topology ? (
+          <div className="ea-ws-mesh" data-test="ws-mesh">
+            <TopologyCanvas
+              der={mesh.topology.der}
+              wan={mesh.topology.wan}
+              devices={mesh.topology.devices}
+              peers={mesh.topology.peers}
+              connections={mesh.topology.connections}
+              selected={meshSel}
+              onSelect={setMeshSel} />
+          </div>
+        ) : (
+          <p className="ea-text-muted" style={{ padding: 16, textAlign: 'center' }}>
+            {mesh.loading ? 'Loading topology…'
+              : mesh.error ? `Topology unavailable (${mesh.error})`
+              : 'No topology data yet.'}
+          </p>
+        )}
       </Panel>
 
       {/* ─── Row: Devices + Workflows + Storage pie ────────────── */}
@@ -240,28 +251,6 @@ export function MockupWorkspace(): JSX.Element {
           })()}
         </Panel>
       </div>
-    </div>
-  );
-}
-
-function TopoNode({ label, sub, tone, highlight }: {
-  label: string; sub: string;
-  tone: 'success' | 'warning' | 'danger' | 'muted'; highlight?: boolean;
-}): JSX.Element {
-  return (
-    <div className={'ea-topo-node' + (highlight ? ' ea-topo-node--highlight' : '')}>
-      <div className="ea-topo-label">{label}</div>
-      <div className="ea-topo-sub">{sub}</div>
-      <Dot tone={tone} />
-    </div>
-  );
-}
-function TopoArrow(): JSX.Element {
-  return (
-    <div className="ea-topo-arrow" aria-hidden="true">
-      <svg width="48" height="20" viewBox="0 0 48 20" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M2 10h40M38 4l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
     </div>
   );
 }
