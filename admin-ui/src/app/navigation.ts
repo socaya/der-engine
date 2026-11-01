@@ -117,6 +117,11 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'network-clients', label: 'Connected Devices', to: '/network/clients', status: 'implemented', tabIcon: 'tei' },
       { id: 'network-interfaces', label: 'Interfaces', to: '/network/interfaces', status: 'implemented', tabIcon: 'ethernet' },
       { id: 'network-peers', label: 'Peers', to: '/network/peers', status: 'implemented', tabIcon: 'peer' },
+      /* Workflow-definition sharing between DER edges — fleet-admin
+       * concern surfaced here (ADR §2.3.59) because it's independent
+       * of the workflow runtime and sits naturally next to transport-
+       * level peer management. */
+      { id: 'workflow-sharing', label: 'Workflow sharing', to: '/network/workflow-sharing', status: 'implemented', tabIcon: 'metadata' },
       { id: 'network-mesh', label: 'Mesh topology', to: '/network/mesh', status: 'implemented', tabIcon: 'route' },
       { id: 'network-fleet', label: 'Fleet', to: '/fleet', status: 'implemented', tabIcon: 'peer' },
       { id: 'network-security', label: 'Security', to: '/network/security', status: 'implemented', tabIcon: 'firewall' },
@@ -135,17 +140,23 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     primaryId: 'workflow-activity',
     icon: 'workflow',
     items: [
-      { id: 'workflow-activity',  label: 'Activity overview',   to: '/workflows',                 status: 'implemented', tabIcon: 'overview' },
-      { id: 'workflows-manage',   label: 'Workflow management', to: '/workflows/manage',          status: 'implemented', tabIcon: 'metadata' },
-      { id: 'peer-exchange',      label: 'Peer exchange',       to: '/workflows/peer-exchange',   status: 'implemented', tabIcon: 'peer' },
+      { id: 'workflow-activity',   label: 'Activity overview',   to: '/workflows',                 status: 'implemented', tabIcon: 'overview' },
+      { id: 'workflows-manage',    label: 'Workflow management', to: '/workflows/manage',          status: 'implemented', tabIcon: 'metadata' },
+      { id: 'workflow-monitoring', label: 'Monitoring',          to: '/workflows/monitoring',      status: 'implemented', tabIcon: 'analytics' },
+      /* Peer exchange moved out of Workflows (ADR §2.3.59):
+       * Workflows is transport-agnostic. Sharing workflow definitions
+       * between edges is a fleet-admin concern surfaced under Network
+       * alongside the WireGuard peers list. Route kept alive here as
+       * contextual for existing bookmarks. */
+      { id: 'peer-exchange',       label: 'Peer exchange',       to: '/workflows/peer-exchange',   status: 'contextual' },
       /* Operator-work routes kept alive for drill-down from the
        * Activity overview + external bookmarks. Not shown in sidebar. */
-      { id: 'queue',              label: 'My queue',            to: '/workflows/queue',           status: 'contextual' },
-      { id: 'peers',              label: 'Peers',               to: '/workflows/peers',           status: 'contextual' },
-      { id: 'import-inbox',       label: 'Import inbox',        to: '/workflows/import-inbox',    status: 'contextual' },
-      { id: 'approvals',          label: 'Approvals',           to: '/approvals',                 status: 'contextual' },
-      { id: 'runs',               label: 'Runs',                to: '/workflows/runs',            status: 'contextual' },
-      { id: 'assignments',        label: 'Assignments',         to: '/workflows/assignments',     status: 'contextual' },
+      { id: 'queue',               label: 'My queue',            to: '/workflows/queue',           status: 'contextual' },
+      { id: 'peers',               label: 'Peers',               to: '/workflows/peers',           status: 'contextual' },
+      { id: 'import-inbox',        label: 'Import inbox',        to: '/workflows/import-inbox',    status: 'contextual' },
+      { id: 'approvals',           label: 'Approvals',           to: '/approvals',                 status: 'contextual' },
+      { id: 'runs',                label: 'Runs',                to: '/workflows/runs',            status: 'contextual' },
+      { id: 'assignments',         label: 'Assignments',         to: '/workflows/assignments',     status: 'contextual' },
     ],
   },
   {

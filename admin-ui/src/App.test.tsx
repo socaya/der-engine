@@ -58,6 +58,11 @@ vi.mock('./screens/workflow/WorkflowPeerExchange', () => ({
     <div data-test="s-peer-exchange">peer-exchange</div>,
 }));
 
+vi.mock('./screens/workflow/WorkflowMonitoring', () => ({
+  WorkflowMonitoring: () =>
+    <div data-test="s-workflow-monitoring">workflow-monitoring</div>,
+}));
+
 vi.mock('./screens/EARemainderScreens', () => ({
   EARecoveryTools:     () => <div data-test="s-recovery">recovery</div>,
   EABackupList:        () => <div data-test="s-backup">backup</div>,
@@ -100,9 +105,11 @@ describe('App routing', () => {
     ['/journal/conflicts-legacy', 's-conflicts'],
     ['/journal/worker-legacy',  's-worker'],
     ['/approvals-legacy',        's-approvals'],
-    ['/workflows',               's-workflow-activity'],
-    ['/workflows/manage',        's-workflows'],
-    ['/workflows/peer-exchange', 's-peer-exchange'],
+    ['/workflows',                     's-workflow-activity'],
+    ['/workflows/manage',              's-workflows'],
+    ['/workflows/monitoring',          's-workflow-monitoring'],
+    ['/workflows/peer-exchange',       's-peer-exchange'],
+    ['/network/workflow-sharing',      's-peer-exchange'],
     ['/devices-legacy',          's-devices'],
     ['/analytics-legacy',        's-analytics'],
     ['/audit/verify',            's-audit'],

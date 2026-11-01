@@ -23,6 +23,7 @@ import { WorkflowQueue } from './screens/workflow/WorkflowQueue';
 import { WorkflowPeers } from './screens/workflow/WorkflowPeers';
 import { WorkflowImportInbox } from './screens/workflow/WorkflowImportInbox';
 import { WorkflowActivity } from './screens/workflow/WorkflowActivity';
+import { WorkflowMonitoring } from './screens/workflow/WorkflowMonitoring';
 import { WorkflowPeerExchange } from './screens/workflow/WorkflowPeerExchange';
 import { RunValidation } from './screens/workflow/RunValidation';
 import { SnapshotList } from './screens/metadata/SnapshotList';
@@ -163,6 +164,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><WorkflowActivity /></RequireAuth>} />
           <Route path="/workflows/manage"
                  element={<RequireAuth><EACaptureWorkflowList /></RequireAuth>} />
+          <Route path="/workflows/monitoring"
+                 element={<RequireAuth><WorkflowMonitoring /></RequireAuth>} />
           <Route path="/workflows/peer-exchange"
                  element={<RequireAuth><WorkflowPeerExchange /></RequireAuth>} />
           <Route path="/workflows/new"
@@ -225,6 +228,10 @@ export default function App(): JSX.Element {
           <Route path="/network/clients" element={<RequireAuth><NetworkConnectedDevices /></RequireAuth>} />
           <Route path="/network/interfaces" element={<RequireAuth><NetworkInterfaces /></RequireAuth>} />
           <Route path="/network/peers" element={<RequireAuth><NetworkPeers /></RequireAuth>} />
+          {/* Workflow definition sharing (moved from /workflows/peer-exchange
+              in 2.3.59). Both routes resolve to the same component. */}
+          <Route path="/network/workflow-sharing"
+                 element={<RequireAuth><WorkflowPeerExchange /></RequireAuth>} />
           <Route path="/network/security" element={<RequireAuth><NetworkSecurity /></RequireAuth>} />
           <Route path="/network/diagnostics" element={<RequireAuth><NetworkDiagnostics /></RequireAuth>} />
           <Route path="/network/settings" element={<RequireAuth><NetworkSettings /></RequireAuth>} />
