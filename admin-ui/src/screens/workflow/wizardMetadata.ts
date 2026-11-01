@@ -70,17 +70,18 @@ export async function listDataSets(): Promise<MetadataOption[]> {
   }));
 }
 
-/** List Programs filtered by programType. */
+/** List Programs filtered by programType. The DER mirror's /api/programs
+ *  endpoint ignores DHIS2's `filter=` parameter, so we fetch all programs
+ *  (with a large pageSize) and filter client-side by programType. */
 export async function listPrograms(type: 'EVENT' | 'TRACKER'): Promise<MetadataOption[]> {
-  const filter = type === 'EVENT'
-    ? 'programType:eq:WITHOUT_REGISTRATION'
-    : 'programType:eq:WITH_REGISTRATION';
+  const wanted = type === 'EVENT' ? 'WITHOUT_REGISTRATION' : 'WITH_REGISTRATION';
   const d = await dhisGet<DhisListResponse<MetadataOption>>(
-    `/api/programs?fields=id,displayName,programType&filter=${filter}&paging=false`,
+    '/api/programs?fields=id,displayName,programType&pageSize=500',
   );
-  return ((d.programs as MetadataOption[] | undefined) ?? []).map((x) => ({
-    id: x.id, displayName: x.displayName, programType: x.programType,
-  }));
+  const all = (d.programs as MetadataOption[] | undefined) ?? [];
+  return all
+    .filter((x) => x.programType === wanted)
+    .map((x) => ({ id: x.id, displayName: x.displayName, programType: x.programType }));
 }
 
 /** For a chosen DataSet, list its sections (breakable units). */

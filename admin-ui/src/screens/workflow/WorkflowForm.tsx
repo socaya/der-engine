@@ -236,10 +236,9 @@ export function WorkflowForm({ api = edgeApi }:
   const filteredOptions = useMemo(() => {
     if (metadataOptions == null) return null;
     const q = metadataSearch.trim().toLowerCase();
-    if (q === '') return metadataOptions.slice(0, 50);
-    return metadataOptions
-      .filter((o) => o.displayName.toLowerCase().includes(q))
-      .slice(0, 50);
+    if (q === '') return metadataOptions;
+    return metadataOptions.filter((o) =>
+      o.displayName.toLowerCase().includes(q));
   }, [metadataOptions, metadataSearch]);
 
   const includedRows = rows.filter((r) => r.included);
@@ -403,7 +402,9 @@ export function WorkflowForm({ api = edgeApi }:
               onSubmit={(e) => { e.preventDefault(); if (canSave) void doSave(); }}>
           <div className="ea-form-section">
             <div className="ea-form-section-head">
-              <h2>Workflow</h2>
+              <h2>Workflow settings</h2>
+              <p>Name, status, approval rule, and the device that owns
+                 steps you don't explicitly route elsewhere.</p>
             </div>
             <div className="ea-form-grid">
               <label className="ea-field">
@@ -452,7 +453,9 @@ export function WorkflowForm({ api = edgeApi }:
 
           <div className="ea-form-section">
             <div className="ea-form-section-head">
-              <h2>Target</h2>
+              <h2>DHIS2 target</h2>
+              <p>Which DHIS2 object the workflow captures into. Pick a
+                 type first, then the specific dataset or program.</p>
             </div>
             <div className="ea-form-grid">
               <label className="ea-field">
@@ -466,55 +469,57 @@ export function WorkflowForm({ api = edgeApi }:
                              setChosenMetadata(null);
                              setBreakables(null);
                              setRows([]);
+                             setMetadataSearch('');
                            }
                          }}>
                   <option value="">— pick —</option>
                   <option value="AGGREGATE">Aggregate dataset</option>
-                  <option value="EVENT">Event program</option>
-                  <option value="TRACKER">Tracker program</option>
+                  <option value="EVENT">Event program (no enrolment)</option>
+                  <option value="TRACKER">Tracker program (with enrolment)</option>
                 </select>
               </label>
               {type && (
                 <label className="ea-field">
                   <span className="ea-field-label">
-                    {type === 'AGGREGATE' ? 'DataSet' : 'Program'}
+                    {type === 'AGGREGATE' ? 'Dataset' : 'Program'}
                   </span>
-                  {chosenMetadata && !editing ? (
-                    <div className="ea-field-chosen" data-test="wf-form-chosen">
-                      <span className="ea-field-chosen-name">
-                        {chosenMetadata.displayName}
-                      </span>
-                      <button type="button"
-                               className="ea-btn ea-btn--ghost ea-btn--sm"
-                               onClick={() => setChosenMetadata(null)}>Change</button>
-                    </div>
-                  ) : chosenMetadata && editing ? (
+                  {chosenMetadata && editing ? (
                     <input className="ea-input"
                             data-test="wf-form-chosen-locked"
                             value={chosenMetadata.displayName}
                             readOnly disabled />
+                  ) : filteredOptions == null ? (
+                    <span className="ea-field-hint">Loading…</span>
                   ) : (
                     <>
-                      <input className="ea-input" type="search"
-                              data-test="wf-form-metadata-search"
-                              placeholder="Search by name"
-                              value={metadataSearch}
-                              onChange={(e) => setMetadataSearch(e.target.value)} />
-                      {filteredOptions == null ? (
-                        <span className="ea-field-hint">Loading…</span>
-                      ) : filteredOptions.length === 0 ? (
-                        <span className="ea-field-hint">No matches.</span>
-                      ) : (
-                        <select className="ea-input" size={6}
-                                 data-test="wf-form-metadata-list"
-                                 onChange={(e) => {
-                                   const o = filteredOptions.find((x) => x.id === e.target.value);
-                                   if (o) setChosenMetadata(o);
-                                 }}>
-                          {filteredOptions.map((o) => (
+                      {(metadataOptions ?? []).length > 12 && (
+                        <input className="ea-input ea-input--sm ea-metadata-filter"
+                                type="search"
+                                data-test="wf-form-metadata-search"
+                                placeholder={`Filter ${(metadataOptions ?? []).length} ${type === 'AGGREGATE' ? 'datasets' : 'programs'}…`}
+                                value={metadataSearch}
+                                onChange={(e) => setMetadataSearch(e.target.value)} />
+                      )}
+                      <select className="ea-input"
+                               data-test="wf-form-metadata-list"
+                               value={chosenMetadata?.id ?? ''}
+                               onChange={(e) => {
+                                 const o = (metadataOptions ?? [])
+                                   .find((x) => x.id === e.target.value);
+                                 setChosenMetadata(o ?? null);
+                               }}>
+                        <option value="">
+                          — pick {type === 'AGGREGATE' ? 'dataset' : 'program'} —
+                        </option>
+                        {filteredOptions
+                          .slice()
+                          .sort((a, b) => a.displayName.localeCompare(b.displayName))
+                          .map((o) => (
                             <option key={o.id} value={o.id}>{o.displayName}</option>
                           ))}
-                        </select>
+                      </select>
+                      {filteredOptions.length === 0 && metadataSearch.trim() !== '' && (
+                        <span className="ea-field-hint">No matches.</span>
                       )}
                     </>
                   )}
@@ -526,7 +531,12 @@ export function WorkflowForm({ api = edgeApi }:
           {chosenMetadata && (
             <div className="ea-form-section">
               <div className="ea-form-section-head">
-                <h2>Steps</h2>
+                <h2>Capture steps · owner device &amp; role</h2>
+                <p>Each ticked section becomes a step. The device + role
+                   picked here is the <strong>handover target</strong> —
+                   who picks up that step in their “My queue”. Leave the
+                   device as <em>Any</em> to pool it to anyone with the
+                   role.</p>
               </div>
               {breakables == null ? (
                 <LoadingBlock testId="wf-form-breakables-loading" />
@@ -543,7 +553,11 @@ export function WorkflowForm({ api = edgeApi }:
           {chosenMetadata && includedRows.length >= 2 && (
             <div className="ea-form-section">
               <div className="ea-form-section-head">
-                <h2>Dependencies</h2>
+                <h2>Step order (handover sequence)</h2>
+                <p>Which step must complete before the next one opens.
+                   Default is top-to-bottom: each step waits for the one
+                   above it. Add explicit rules only if a step should
+                   open out-of-order or wait on a sibling.</p>
               </div>
               <DependencyEditor rows={rows} deps={deps}
                                  setDeps={setDeps}
@@ -556,6 +570,10 @@ export function WorkflowForm({ api = edgeApi }:
             <div className="ea-form-section">
               <div className="ea-form-section-head">
                 <h2>Metadata pin</h2>
+                <p>Freeze this workflow's schema to a specific metadata
+                   snapshot so upstream DHIS2 changes don't break it in
+                   the field. Default (<em>Follow live mirror</em>)
+                   tracks whatever the current snapshot is.</p>
               </div>
               <div className="ea-form-grid">
                 <label className="ea-field">
@@ -626,7 +644,7 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
             <th className="ea-wf-steps-col-include">Include</th>
             <th>Section / stage</th>
             <th className="ea-wf-steps-col-role">Role</th>
-            <th className="ea-wf-steps-col-device">Device</th>
+            <th className="ea-wf-steps-col-device">Handover to (device)</th>
             <th className="ea-wf-steps-col-fields">Fields</th>
           </tr>
         </thead>
