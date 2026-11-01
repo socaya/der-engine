@@ -642,8 +642,8 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
   white-space:nowrap;position:sticky;top:0;background:var(--der-canvas); /* §10.1: sticky headers */
 }
 .ea-main tbody td{
-  padding:5px;color:var(--der-ink-900);
-  vertical-align:middle;line-height:1.45;
+  padding:3px 8px;color:var(--der-ink-900);
+  vertical-align:middle;line-height:1.35;
   background:transparent;
 }
 .ea-main tbody tr{min-height:32px;transition:background var(--t-fast) var(--ease)}
@@ -2224,7 +2224,7 @@ kbd{
   padding:12px 16px;border-top:1px solid var(--der-border);
   background:var(--der-raised-weak,transparent);
 }
-.ea-input--sm{padding:4px 8px;font-size:13px;line-height:1.3}
+.ea-input--sm{padding:2px 6px;font-size:12px;line-height:1.25}
 
 .ea-field-chosen{
   display:flex;align-items:center;gap:8px;
@@ -2235,16 +2235,19 @@ kbd{
 
 /* Steps + fields tables share one compact tabular idiom matching the
    rest of DER's record-management modules. No cards, no inner
-   borders, every cell left-aligned (including the Order column).
-   Hierarchy indicated purely by indentation + a subtle tone tint on
-   nested rows and the fields panel. */
+   borders, every cell left-aligned. Hierarchy indicated by
+   progressive indentation + three distinct background tints:
+     level 0 (service point)      transparent
+     level 1 (section)            rgba(29,78,216,0.045)
+     level 2 (parent fields)      rgba(29,78,216,0.025)
+     level 2 (section fields)     rgba(29,78,216,0.055) */
 .ea-wf-steps-table{border-collapse:collapse}
 .ea-wf-steps-table th{
   text-align:left;font-weight:600;
-  padding:6px 10px;border-bottom:1px solid var(--der-border);
+  padding:4px 8px;border-bottom:1px solid var(--der-border);
 }
 .ea-wf-steps-table td{
-  text-align:left;vertical-align:middle;padding:6px 10px;
+  text-align:left;vertical-align:middle;padding:3px 8px;
   border-top:1px solid var(--der-border-subtle);
 }
 .ea-wf-steps-table tbody tr:first-child > td{border-top:none}
@@ -2285,16 +2288,22 @@ kbd{
 }
 tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
 
-/* Nested rows (sections) + fields rows share a single tone tint so
-   hierarchy is scannable without boxing. Indentation grows per level. */
-tr.is-nested > td{background:rgba(29,78,216,0.04)}
-tr.is-nested .ea-wf-steps-sp-expand{padding-left:22px}
+/* Section rows (level 1) — distinct tint + indented chevron. */
+tr.is-nested > td{background:rgba(29,78,216,0.045)}
+tr.is-nested .ea-wf-steps-sp-expand{padding-left:28px}
+
+/* Fields panel for a top-level service point (level 2 fields). */
 .ea-wf-steps-fields-row > td{
-  background:rgba(29,78,216,0.03);
-  padding:4px 10px 10px 44px;
+  background:rgba(29,78,216,0.025);
+  padding:4px 8px 8px 32px;
   border-top:none;
 }
-tr.is-nested + .ea-wf-steps-fields-row > td{padding-left:66px}
+/* Fields panel for a section (level 2 under a section — darker tint
+   + deeper indent so the double-nesting is obvious). */
+tr.is-nested + .ea-wf-steps-fields-row > td{
+  background:rgba(29,78,216,0.055);
+  padding-left:60px;
+}
 .ea-wf-steps-summary{font-size:11px;color:var(--der-ink-500)}
 
 /* Flat kind icon — no border, no filled box; just a small glyph. */
@@ -2325,12 +2334,12 @@ tr.is-nested + .ea-wf-steps-fields-row > td{padding-left:66px}
 }
 .ea-wf-fields-table th{
   text-align:left;font-weight:600;font-size:11px;
-  padding:4px 10px;color:var(--der-ink-500);
+  padding:2px 8px;color:var(--der-ink-500);
   border-bottom:1px solid var(--der-border-subtle);
 }
 .ea-wf-fields-table td{
-  text-align:left;vertical-align:middle;padding:3px 10px;
-  border-top:1px solid var(--der-border-subtle);
+  text-align:left;vertical-align:middle;padding:2px 8px;
+  border-top:1px solid rgba(0,0,0,0.04);
 }
 .ea-wf-fields-table tbody tr:first-child > td{border-top:none}
 .ea-wf-fields-col-include{width:56px}
