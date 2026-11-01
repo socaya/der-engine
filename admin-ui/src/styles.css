@@ -2431,6 +2431,33 @@ tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
   padding:6px 10px;font-size:12px;color:var(--der-ink-500);
 }
 
+/* Workflow Activity tiles — admin-only read-only overview. */
+.ea-wf-activity-grid{
+  display:grid;gap:12px;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+}
+.ea-wf-activity-tile{
+  display:flex;flex-direction:column;gap:6px;
+  padding:12px 14px;border:1px solid var(--der-border);
+  border-radius:8px;background:var(--der-canvas);
+}
+.ea-wf-activity-tile--info   {border-left:3px solid var(--der-primary-ink,#1d4ed8)}
+.ea-wf-activity-tile--warning{border-left:3px solid var(--der-warning-ink,#b45309)}
+.ea-wf-activity-tile--danger {border-left:3px solid var(--der-danger-ink,#b91c1c)}
+.ea-wf-activity-tile--neutral{border-left:3px solid var(--der-border-strong,var(--der-border))}
+.ea-wf-activity-tile-count{
+  font-size:28px;font-weight:700;color:var(--der-ink-900);
+  line-height:1;font-variant-numeric:tabular-nums;
+}
+.ea-wf-activity-tile-label{
+  font-size:12px;color:var(--der-ink-500);font-weight:600;
+  letter-spacing:0.02em;text-transform:uppercase;
+}
+.ea-wf-activity-tile-desc{
+  font-size:12px;color:var(--der-ink-500);margin:4px 0;line-height:1.4;flex:1;
+}
+.ea-wf-activity-tile .ea-btn{align-self:flex-start}
+
 /* Workflow module uses a wide form card so the Steps table has room
    for the Role / Handover-to columns + inline field editor. Cap at
    1400px (matches the baseline DER readable-width cap used elsewhere)

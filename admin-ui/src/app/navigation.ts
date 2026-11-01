@@ -128,19 +128,24 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     id: 'workflows',
     label: 'Workflows',
-    primaryId: 'workflows',
+    /* der-2.3.58 scope cleanup: the admin UI is for configuration +
+     * oversight. Operator surfaces (My queue, Approvals, Referrals)
+     * live on the device-side client UI and are only reachable as
+     * contextual drill-down routes from the Activity dashboard. */
+    primaryId: 'workflow-activity',
     icon: 'workflow',
     items: [
-      { id: 'workflows', label: 'Workflows', to: '/workflows', status: 'implemented', tabIcon: 'overview' },
-      { id: 'queue', label: 'My queue', to: '/workflows/queue', status: 'implemented', tabIcon: 'data-queue' },
-      { id: 'peers', label: 'Peers', to: '/workflows/peers', status: 'implemented', tabIcon: 'peer' },
-      { id: 'import-inbox', label: 'Import inbox', to: '/workflows/import-inbox', status: 'implemented', tabIcon: 'metadata' },
-      { id: 'approvals', label: 'Approvals', to: '/approvals', status: 'implemented', tabIcon: 'attention' },
-      { id: 'referral-inbox', label: 'Referrals', to: '/referral/inbox', status: 'implemented', tabIcon: 'activity' },
-      { id: 'referral-history', label: 'Referral history', to: '/referral/history', status: 'implemented', tabIcon: 'history' },
-      // Reachable only from a workflow's detail page — not top-level.
-      { id: 'runs', label: 'Runs', to: '/workflows/runs', status: 'contextual' },
-      { id: 'assignments', label: 'Assignments', to: '/workflows/assignments', status: 'contextual' },
+      { id: 'workflow-activity',  label: 'Activity overview',   to: '/workflows',                 status: 'implemented', tabIcon: 'overview' },
+      { id: 'workflows-manage',   label: 'Workflow management', to: '/workflows/manage',          status: 'implemented', tabIcon: 'metadata' },
+      { id: 'peer-exchange',      label: 'Peer exchange',       to: '/workflows/peer-exchange',   status: 'implemented', tabIcon: 'peer' },
+      /* Operator-work routes kept alive for drill-down from the
+       * Activity overview + external bookmarks. Not shown in sidebar. */
+      { id: 'queue',              label: 'My queue',            to: '/workflows/queue',           status: 'contextual' },
+      { id: 'peers',              label: 'Peers',               to: '/workflows/peers',           status: 'contextual' },
+      { id: 'import-inbox',       label: 'Import inbox',        to: '/workflows/import-inbox',    status: 'contextual' },
+      { id: 'approvals',          label: 'Approvals',           to: '/approvals',                 status: 'contextual' },
+      { id: 'runs',               label: 'Runs',                to: '/workflows/runs',            status: 'contextual' },
+      { id: 'assignments',        label: 'Assignments',         to: '/workflows/assignments',     status: 'contextual' },
     ],
   },
   {
@@ -154,6 +159,11 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'events', label: 'Events', to: '/data/events', status: 'implemented' },
       { id: 'tracker', label: 'Tracker', to: '/data/tracker', status: 'implemented' },
       { id: 'drafts', label: 'Drafts', to: '/data/drafts', status: 'implemented' },
+      /* Referrals are patient data flowing between facilities (DHIS2
+       * Tracker relationship pattern, ADR-0027) — belongs with
+       * Tracker data, not with workflow definitions. */
+      { id: 'referral-inbox', label: 'Referrals', to: '/referral/inbox', status: 'contextual' },
+      { id: 'referral-history', label: 'Referral history', to: '/referral/history', status: 'contextual' },
       { id: 'maintenance', label: 'Maintenance', to: '/data/maintenance', status: 'implemented' },
     ],
   },

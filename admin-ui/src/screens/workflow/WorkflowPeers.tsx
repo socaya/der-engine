@@ -14,9 +14,12 @@ export interface WorkflowPeersProps {
                              | 'setWorkflowPeerCredentials'
                              | 'setWorkflowPeerTrust'
                              | 'listWorkflows'>;
+  /** True when rendered inside a parent tab shell (PeerExchange) —
+   *  suppresses this screen's own HeroHeader to avoid double headers. */
+  embedded?: boolean;
 }
 
-export function WorkflowPeers({ api = edgeApi }:
+export function WorkflowPeers({ api = edgeApi, embedded = false }:
     WorkflowPeersProps = {}): JSX.Element {
   const [peers, setPeers] = useState<edgeApi.WorkflowPeer[] | null>(null);
   const [workflows, setWorkflows] = useState<edgeApi.CaptureWorkflowSummary[]>([]);
@@ -121,7 +124,7 @@ export function WorkflowPeers({ api = edgeApi }:
   }
   return (
     <div className="ea-screen" data-test="peers-root">
-      <HeroHeader title="Peers" />
+      {!embedded && <HeroHeader title="Peers" />}
       <h1 className="ea-visually-hidden" data-test="peers-heading">Peers</h1>
 
       <section className="ea-card ea-form-card">

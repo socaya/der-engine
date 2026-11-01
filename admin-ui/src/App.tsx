@@ -22,6 +22,8 @@ import { WorkflowForm } from './screens/workflow/WorkflowForm';
 import { WorkflowQueue } from './screens/workflow/WorkflowQueue';
 import { WorkflowPeers } from './screens/workflow/WorkflowPeers';
 import { WorkflowImportInbox } from './screens/workflow/WorkflowImportInbox';
+import { WorkflowActivity } from './screens/workflow/WorkflowActivity';
+import { WorkflowPeerExchange } from './screens/workflow/WorkflowPeerExchange';
 import { RunValidation } from './screens/workflow/RunValidation';
 import { SnapshotList } from './screens/metadata/SnapshotList';
 import { SnapshotDiff } from './screens/metadata/SnapshotDiff';
@@ -158,7 +160,11 @@ export default function App(): JSX.Element {
           <Route path="/approvals-legacy"
                  element={<RequireAuth><EAApprovalQueue /></RequireAuth>} />
           <Route path="/workflows"
+                 element={<RequireAuth><WorkflowActivity /></RequireAuth>} />
+          <Route path="/workflows/manage"
                  element={<RequireAuth><EACaptureWorkflowList /></RequireAuth>} />
+          <Route path="/workflows/peer-exchange"
+                 element={<RequireAuth><WorkflowPeerExchange /></RequireAuth>} />
           <Route path="/workflows/new"
                  element={<RequireAuth><WorkflowForm /></RequireAuth>} />
           <Route path="/workflows/queue"

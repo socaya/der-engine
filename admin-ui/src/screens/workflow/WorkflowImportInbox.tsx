@@ -11,9 +11,11 @@ import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 export interface WorkflowImportInboxProps {
   api?: Pick<typeof edgeApi,
       'listImportInbox' | 'acceptImport' | 'rejectImport' | 'importInboxDiff'>;
+  /** True when rendered inside the PeerExchange tab shell. */
+  embedded?: boolean;
 }
 
-export function WorkflowImportInbox({ api = edgeApi }:
+export function WorkflowImportInbox({ api = edgeApi, embedded = false }:
     WorkflowImportInboxProps = {}): JSX.Element {
   const [entries, setEntries] = useState<edgeApi.ImportInboxEntry[] | null>(null);
   const [filter, setFilter] =
@@ -101,7 +103,7 @@ export function WorkflowImportInbox({ api = edgeApi }:
   }
   return (
     <div className="ea-screen" data-test="inbox-root">
-      <HeroHeader title="Import inbox" />
+      {!embedded && <HeroHeader title="Import inbox" />}
       <h1 className="ea-visually-hidden" data-test="inbox-heading">Import inbox</h1>
 
       <div className="ea-queue-tabs" data-test="inbox-tabs">

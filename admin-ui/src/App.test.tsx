@@ -48,6 +48,16 @@ vi.mock('./screens/workflow/WorkflowForm', () => ({
     <div data-test="s-workflow-form">workflow-form</div>,
 }));
 
+vi.mock('./screens/workflow/WorkflowActivity', () => ({
+  WorkflowActivity: () =>
+    <div data-test="s-workflow-activity">workflow-activity</div>,
+}));
+
+vi.mock('./screens/workflow/WorkflowPeerExchange', () => ({
+  WorkflowPeerExchange: () =>
+    <div data-test="s-peer-exchange">peer-exchange</div>,
+}));
+
 vi.mock('./screens/EARemainderScreens', () => ({
   EARecoveryTools:     () => <div data-test="s-recovery">recovery</div>,
   EABackupList:        () => <div data-test="s-backup">backup</div>,
@@ -90,7 +100,9 @@ describe('App routing', () => {
     ['/journal/conflicts-legacy', 's-conflicts'],
     ['/journal/worker-legacy',  's-worker'],
     ['/approvals-legacy',        's-approvals'],
-    ['/workflows',               's-workflows'],
+    ['/workflows',               's-workflow-activity'],
+    ['/workflows/manage',        's-workflows'],
+    ['/workflows/peer-exchange', 's-peer-exchange'],
     ['/devices-legacy',          's-devices'],
     ['/analytics-legacy',        's-analytics'],
     ['/audit/verify',            's-audit'],
