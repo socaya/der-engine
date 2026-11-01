@@ -20,6 +20,10 @@ export interface Breakable {
   /** For PROGRAM_STAGE_SECTION: the parent stage's breakable id,
    *  so the wizard can render sections nested under their stage. */
   parentId?: string;
+  /** DHIS2 program stage flag: can the stage be filled multiple times
+   *  per enrollment? Surfaced for PROGRAM_STAGE / child stage sections
+   *  so operators can see which steps repeat (e.g. visit vs enrolment). */
+  repeatable?: boolean;
 }
 
 /** One data element / attribute offered inside a breakable step. */
@@ -112,21 +116,30 @@ export async function listProgramStages(programId: string): Promise<Breakable[]>
   // those whose payload.program.id matches. Mirror payload includes
   // the full stage body (including the parent program ref).
   const stagesResp = await dhisGet<DhisListResponse<{
-    id: string; displayName: string; program?: { id: string };
+    id: string; displayName: string;
+    program?: { id: string };
+    repeatable?: boolean;
   }>>('/api/programStages?pageSize=500');
-  type S = { id: string; displayName: string; program?: { id: string } };
+  type S = {
+    id: string; displayName: string;
+    program?: { id: string };
+    repeatable?: boolean;
+  };
   const allStages: S[] = (stagesResp.programStages as S[] | undefined) ?? [];
   const stages: S[] = allStages.filter((s) => s.program?.id === programId);
   const stageIds = new Set(stages.map((s) => s.id));
-  // One batched fetch, grouped client-side by programStage.id.
   const sectionsByStage = await listSectionsForStages(stageIds);
+  const repeatableByStage = new Map<string, boolean>();
+  for (const s of stages) repeatableByStage.set(s.id, s.repeatable === true);
   const out: Breakable[] = [];
   for (const s of stages) {
     out.push({ id: s.id, displayName: s.displayName,
-                sectionKind: 'PROGRAM_STAGE' });
+                sectionKind: 'PROGRAM_STAGE',
+                repeatable: s.repeatable === true });
     const children = sectionsByStage.get(s.id) ?? [];
     for (const sec of children) {
-      out.push({ ...sec, parentId: s.id });
+      out.push({ ...sec, parentId: s.id,
+                  repeatable: repeatableByStage.get(s.id) ?? false });
     }
   }
   return out;

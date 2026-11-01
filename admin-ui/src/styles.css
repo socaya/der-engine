@@ -2256,7 +2256,8 @@ kbd{
 }
 .ea-wf-steps-ord-moves .ea-icon-btn:disabled{opacity:0.3;cursor:not-allowed}
 .ea-wf-steps-ord-sub{color:var(--der-ink-500);font-size:11px}
-.ea-wf-steps-col-kind{width:160px}
+.ea-wf-steps-col-kind{width:200px}
+.ea-wf-steps-kind-cell{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
 .ea-wf-steps-col-fields{width:72px;text-align:right}
 .ea-wf-steps-table .ea-wf-steps-col-fields{text-align:right}
 .ea-wf-steps-table td:last-child{text-align:right}

@@ -626,10 +626,16 @@ export function WorkflowForm({ api = edgeApi }:
             <div className="ea-form-section">
               <div className="ea-form-section-head">
                 <h2>Handover sequence · service-point flow</h2>
-                <p>How work flows between the ticked service points.
-                   Default is top-to-bottom: each step opens once the
-                   one above completes. Add explicit rules only when a
-                   step should open out-of-order or wait on a sibling.</p>
+                <p>Default order is the row order above (reorder with
+                   ↑ / ↓ in the # column): each step opens once the one
+                   immediately above completes. <strong>Explicit
+                   dependencies</strong> override that default for
+                   non-linear flows — e.g. a step that must wait on
+                   <em>two</em> predecessors (join), a parallel branch
+                   that converges later, or a step that may open after
+                   any one of several earlier steps. If your flow is
+                   strictly top-to-bottom you don't need to add any
+                   rules here.</p>
               </div>
               <HandoverFlowPreview rows={includedRows} devices={devices} />
               {includedRows.length >= 2 && (
@@ -785,9 +791,21 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
                     )}
                   </td>
                   <td>
-                    <span className={'ea-chip ea-chip--' + kindTone(r.breakable.sectionKind)}>
-                      {kindLabel(r.breakable.sectionKind)}
-                    </span>
+                    <div className="ea-wf-steps-kind-cell">
+                      <span className={'ea-chip ea-chip--' + kindTone(r.breakable.sectionKind)}>
+                        {kindLabel(r.breakable.sectionKind)}
+                      </span>
+                      {(r.breakable.sectionKind === 'PROGRAM_STAGE'
+                        || r.breakable.sectionKind === 'PROGRAM_STAGE_SECTION') && (
+                        <span className={'ea-chip ea-chip--'
+                          + (r.breakable.repeatable ? 'info' : 'neutral')}
+                              title={r.breakable.repeatable
+                                ? 'Program stage can be captured multiple times per enrolment'
+                                : 'Program stage is captured once per enrolment'}>
+                          {r.breakable.repeatable ? 'Repeats' : 'Once'}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <select className="ea-input ea-input--sm"
@@ -911,6 +929,12 @@ function HandoverFlowPreview({ rows, devices }: {
             </div>
             <div className="ea-wf-flow-step-meta">
               <span className="ea-chip ea-chip--neutral">{r.ownerRole}</span>
+              {(r.breakable.sectionKind === 'PROGRAM_STAGE'
+                || r.breakable.sectionKind === 'PROGRAM_STAGE_SECTION')
+                && r.breakable.repeatable && (
+                <span className="ea-chip ea-chip--info"
+                      title="Captured multiple times per enrolment">Repeats</span>
+              )}
               <span className="ea-text-muted">
                 → {r.ownerDeviceId == null
                    ? 'Any device'
