@@ -1308,9 +1308,6 @@ export function EAApprovalQueue({ api = edgeApi }:
       <header className="ea-screen-header">
         <div className="ea-screen-header-text">
           <h1 data-test="apr-heading">Pending approvals</h1>
-          <p className="ea-screen-header-sub">
-            Operations awaiting a reviewer's sign-off before they drain to DHIS2.
-          </p>
         </div>
       </header>
       {rows.length === 0 ? (
@@ -2159,10 +2156,6 @@ export function EAReferralInbox({ api = edgeApi }:
       <header className="ea-screen-header">
         <div className="ea-screen-header-text">
           <h1 data-test="ref01-heading">Referral inbox</h1>
-          <p className="ea-screen-header-sub">
-            Pending referrals discovered on central addressed to this
-            edge's bound organisation unit (ADR-0027).
-          </p>
         </div>
       </header>
       {rows.length === 0 ? (

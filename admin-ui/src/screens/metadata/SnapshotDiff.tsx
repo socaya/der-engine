@@ -57,11 +57,8 @@ export function SnapshotDiff({ api = edgeApi, aOverride, bOverride }:
       <header className="ea-screen-header">
         <div className="ea-screen-header-text">
           <h1 data-test="diff-heading">
-            Snapshot diff · #{a} → #{b}
+            Diff · #{a} → #{b}
           </h1>
-          <p className="ea-screen-header-sub">
-            Added, removed and changed metadata UIDs between two syncs.
-          </p>
         </div>
         <div className="ea-screen-header-right">
           <Link to="/metadata/snapshots" className="ea-btn ea-btn--ghost ea-btn--sm">

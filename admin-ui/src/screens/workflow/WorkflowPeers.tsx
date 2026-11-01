@@ -122,12 +122,7 @@ export function WorkflowPeers({ api = edgeApi }:
     <div className="ea-screen" data-test="peers-root">
       <header className="ea-screen-header">
         <div className="ea-screen-header-text">
-          <h1 data-test="peers-heading">Workflow peers</h1>
-          <p className="ea-screen-header-sub">
-            Register other DER edges you want to share workflow
-            definitions with. Pushing POSTs the canonical JSON to the
-            peer's import endpoint.
-          </p>
+          <h1 data-test="peers-heading">Peers</h1>
         </div>
       </header>
 
@@ -135,7 +130,6 @@ export function WorkflowPeers({ api = edgeApi }:
         <div className="ea-form-section">
           <div className="ea-form-section-head">
             <h2>Add peer</h2>
-            <p>A friendly label + the peer's base URL.</p>
           </div>
           <div className="ea-form-grid">
             <label className="ea-field">
@@ -156,9 +150,6 @@ export function WorkflowPeers({ api = edgeApi }:
                       value={newAuthUser} placeholder="der-peer"
                       autoComplete="off"
                       onChange={(e) => setNewAuthUser(e.target.value)} />
-              <span className="ea-field-hint">
-                Optional. Dedicated ADMIN user on the remote edge.
-              </span>
             </label>
             <label className="ea-field">
               <span className="ea-field-label">Service-account password</span>
@@ -185,7 +176,6 @@ export function WorkflowPeers({ api = edgeApi }:
         <div className="ea-form-section">
           <div className="ea-form-section-head">
             <h2>Registered peers</h2>
-            <p>Push a workflow or remove a peer.</p>
           </div>
           {peers.length === 0 ? (
             <p className="ea-text-muted" data-test="peers-empty"

@@ -18,7 +18,7 @@ import {
   EAAppsList, EADiagnostics, EASettings,
 } from './screens/EARemainderScreens';
 import { SignIn } from './screens/SignIn';
-import { WorkflowWizard } from './screens/workflow/WorkflowWizard';
+import { WorkflowForm } from './screens/workflow/WorkflowForm';
 import { WorkflowQueue } from './screens/workflow/WorkflowQueue';
 import { WorkflowPeers } from './screens/workflow/WorkflowPeers';
 import { WorkflowImportInbox } from './screens/workflow/WorkflowImportInbox';
@@ -80,10 +80,6 @@ function WorkflowDesignerRoute(): JSX.Element {
   return <EACaptureWorkflowDesigner workflowId={id} />;
 }
 
-function WorkflowWizardEditRoute(): JSX.Element {
-  const { id = '' } = useParams();
-  return <WorkflowWizard workflowId={id} />;
-}
 
 /**
  * DER administration console. Routed shell with 36 EA-* screens.
@@ -164,7 +160,7 @@ export default function App(): JSX.Element {
           <Route path="/workflows"
                  element={<RequireAuth><EACaptureWorkflowList /></RequireAuth>} />
           <Route path="/workflows/new"
-                 element={<RequireAuth><WorkflowWizard /></RequireAuth>} />
+                 element={<RequireAuth><WorkflowForm /></RequireAuth>} />
           <Route path="/workflows/queue"
                  element={<RequireAuth><WorkflowQueue /></RequireAuth>} />
           <Route path="/workflows/peers"
@@ -180,7 +176,7 @@ export default function App(): JSX.Element {
           <Route path="/workflows/:id/advanced"
                  element={<RequireAuth><WorkflowDesignerRoute /></RequireAuth>} />
           <Route path="/workflows/:id"
-                 element={<RequireAuth><WorkflowWizardEditRoute /></RequireAuth>} />
+                 element={<RequireAuth><WorkflowForm /></RequireAuth>} />
           <Route path="/devices"
                  element={<RequireAuth><MockupDeviceFleet /></RequireAuth>} />
           <Route path="/devices-legacy"

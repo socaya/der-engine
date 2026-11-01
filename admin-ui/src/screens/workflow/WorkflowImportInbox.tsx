@@ -102,12 +102,7 @@ export function WorkflowImportInbox({ api = edgeApi }:
     <div className="ea-screen" data-test="inbox-root">
       <header className="ea-screen-header">
         <div className="ea-screen-header-text">
-          <h1 data-test="inbox-heading">Workflow import inbox</h1>
-          <p className="ea-screen-header-sub">
-            Workflow definitions peers have pushed to this edge. Accept to
-            apply the canonical doc via the normal import service, or
-            reject with a note.
-          </p>
+          <h1 data-test="inbox-heading">Inbox</h1>
         </div>
       </header>
 

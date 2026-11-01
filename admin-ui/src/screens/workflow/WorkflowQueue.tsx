@@ -1,27 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
+import { HeroHeader } from '../../components/HeroHeader';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
-/**
- * Operator work queue — "my inbox" across all active workflow runs.
- * Spec §51–§52. The server role-filters rows against the signed-in
- * user's granted roles; this screen just renders what it gets back.
- */
 export interface WorkflowQueueProps {
   api?: Pick<typeof edgeApi, 'workflowQueue'>;
-}
-
-// 2.3.24 — Streaming cue label.
-function StreamBadge({ connected }: { connected: boolean }): JSX.Element {
-  return (
-    <span className={`ea-pill ea-pill--${connected ? 'success' : 'muted'}`}
-           data-test="queue-stream-badge"
-           title={connected ? 'Live updates via SSE' : 'Polling fallback'}
-           style={{ marginLeft: 8, fontSize: 11 }}>
-      {connected ? '● live' : '○ polling'}
-    </span>
-  );
 }
 
 export function WorkflowQueue({ api = edgeApi }:
@@ -31,21 +15,14 @@ export function WorkflowQueue({ api = edgeApi }:
   const [deviceId, setDeviceId] = useState<string | ''>('');
   const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [streamConnected, setStreamConnected] = useState(false);
-
-  const [scopeSource, setScopeSource] = useState<'QUERY' | 'PREFERENCE' | 'NONE'>('NONE');
-  const [appliedDevice, setAppliedDevice] = useState<string | null>(null);
-  const [allDevices, setAllDevices] = useState(false);
 
   async function reload(scope?: string): Promise<void> {
     try {
-      const r = await api.workflowQueue({
-        deviceId: scope === '' ? undefined : scope,
-        allDevices: scope === '' && allDevices ? true : undefined,
-      });
+      // "" = All devices → force server to drop any saved pref.
+      // non-empty → explicit scope.
+      const r = await api.workflowQueue(
+        scope === '' ? { allDevices: true } : { deviceId: scope });
       setRows(r.rows);
-      setAppliedDevice(r.appliedDeviceId);
-      setScopeSource(r.deviceScopeSource);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -66,14 +43,9 @@ export function WorkflowQueue({ api = edgeApi }:
 
   useEffect(() => {
     reload(deviceId).catch(() => undefined);
-    // §2.3.24 — SSE push instead of a 15 s poll. We still refresh on
-    // scope change, and keep a 60 s safety-net poll in case the stream
-    // drops silently (reverse proxies, laptop sleep, etc).
     const es = new EventSource('/edge-api/v1/workflows/queue/stream');
-    es.addEventListener('hello', () => setStreamConnected(true));
     es.addEventListener('queue.invalidate',
       () => { reload(deviceId).catch(() => undefined); });
-    es.onerror = () => setStreamConnected(false);
     const safetyNet = window.setInterval(
       () => { reload(deviceId).catch(() => undefined); }, 60_000);
     return () => {
@@ -96,19 +68,7 @@ export function WorkflowQueue({ api = edgeApi }:
 
   return (
     <div className="ea-screen" data-test="queue-root">
-      <header className="ea-screen-header">
-        <div className="ea-screen-header-text">
-          <h1 data-test="queue-heading">
-            My work
-            <StreamBadge connected={streamConnected} />
-          </h1>
-          <p className="ea-screen-header-sub">
-            Workflow steps that are ready for you to capture, plus steps
-            that are waiting on an earlier step to finish. Updates push
-            via a live stream — a 60-second safety-net poll backs it up.
-          </p>
-        </div>
-      </header>
+      <HeroHeader title="My work" />
 
       <div style={{ display: 'flex', gap: 'var(--sp-4)', alignItems: 'center',
                      flexWrap: 'wrap', margin: 'var(--sp-3) 0' }}>
@@ -117,48 +77,34 @@ export function WorkflowQueue({ api = edgeApi }:
           <TabBtn label={`Ready (${readyCount})`} value="READY" current={filter} onPick={setFilter} />
           <TabBtn label={`Blocked (${blockedCount})`} value="BLOCKED" current={filter} onPick={setFilter} />
         </div>
-        <label className="ea-field" style={{ margin: 0, maxWidth: 320 }}>
-          <span className="ea-field-label">Device scope</span>
+        <label className="ea-field" style={{ margin: 0, maxWidth: 240 }}>
+          <span className="ea-field-label">Device</span>
           <select className="ea-input" data-test="queue-device-filter"
                    value={deviceId}
                    onChange={(e) => {
                      const v = e.target.value;
                      setDeviceId(v);
                      if (v === '') {
-                       setAllDevices(true);
                        edgeApi.deleteUserPref(edgeApi.PREF_PREFERRED_DEVICE)
                          .catch(() => undefined);
                      } else {
-                       setAllDevices(false);
                        edgeApi.writeUserPref(edgeApi.PREF_PREFERRED_DEVICE, v)
                          .catch(() => undefined);
                      }
                    }}>
-            <option value="">All devices (no auto-scope)</option>
+            <option value="">All devices</option>
             {devices.map((d) => (
               <option key={d.deviceId} value={d.deviceId}>
                 {d.displayName ?? d.deviceId.slice(0, 12)}
               </option>
             ))}
           </select>
-          <span className="ea-field-hint">
-            {scopeSource === 'PREFERENCE' && appliedDevice
-              ? 'Auto-scoped from your saved preferred device.'
-              : scopeSource === 'QUERY'
-                ? 'Scoped by explicit filter.'
-                : 'All devices in view — pick one to auto-scope on next load.'}
-          </span>
         </label>
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyBlock title={filter === 'ALL' ? 'No pending work'
-                             : filter === 'READY' ? 'Nothing ready for you'
-                                                     : 'Nothing blocked'}
-                     testId="queue-empty">
-          {filter === 'READY' && 'When a step becomes ready for your role, it will show up here.'}
-          {filter === 'BLOCKED' && 'Blocked steps are waiting on an earlier step to complete.'}
-          {filter === 'ALL' && 'You will see rows here once a workflow run opens and a step matches your role.'}
+        <EmptyBlock title="Nothing here" testId="queue-empty">
+          No steps match the current device scope.
         </EmptyBlock>
       ) : (
         <table className="ea-table ea-queue-table" data-test="queue-table">

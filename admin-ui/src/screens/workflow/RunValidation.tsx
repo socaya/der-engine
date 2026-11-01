@@ -45,14 +45,9 @@ export function RunValidation({ api = edgeApi, runId: propRunId }:
     <div className="ea-screen" data-test="validation-root">
       <header className="ea-screen-header">
         <div className="ea-screen-header-text">
-          <h1 data-test="validation-heading">Run validation</h1>
-          <p className="ea-screen-header-sub">
-            Run <code className="ea-mono">{runId.slice(0, 8)}</code>
-            {' · '}
-            {data.errorCount === 0
-              ? 'No blocking issues.'
-              : `${data.errorCount} blocking issue${data.errorCount === 1 ? '' : 's'} prevent completion.`}
-          </p>
+          <h1 data-test="validation-heading">
+            Validation · <code className="ea-mono">{runId.slice(0, 8)}</code>
+          </h1>
         </div>
         <div className="ea-screen-header-right">
           <Link to="/workflows/queue" className="ea-btn ea-btn--ghost ea-btn--sm">

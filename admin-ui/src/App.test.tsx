@@ -43,9 +43,9 @@ vi.mock('./screens/EACoreScreens', () => ({
   EAReferralInbox:     () => <div data-test="s-referral">referral</div>,
 }));
 
-vi.mock('./screens/workflow/WorkflowWizard', () => ({
-  WorkflowWizard: ({ workflowId }: { workflowId?: string }) =>
-    <div data-test="s-workflow-wizard">wizard-{workflowId ?? 'new'}</div>,
+vi.mock('./screens/workflow/WorkflowForm', () => ({
+  WorkflowForm: () =>
+    <div data-test="s-workflow-form">workflow-form</div>,
 }));
 
 vi.mock('./screens/EARemainderScreens', () => ({
@@ -120,9 +120,8 @@ describe('App routing', () => {
       .toBe('designer-wf-abc'));
   });
 
-  it('/workflows/:id passes the id into the wizard', async () => {
+  it('/workflows/:id renders the workflow form', async () => {
     await renderAt('/workflows/wf-abc');
-    await waitFor(() => expect(screen.getByTestId('s-workflow-wizard').textContent)
-      .toBe('wizard-wf-abc'));
+    await waitFor(() => expect(screen.getByTestId('s-workflow-form')).toBeInTheDocument());
   });
 });

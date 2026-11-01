@@ -69,11 +69,7 @@ export function SnapshotList({ api = edgeApi }:
     <div className="ea-screen" data-test="snapshots-root">
       <header className="ea-screen-header">
         <div className="ea-screen-header-text">
-          <h1 data-test="snapshots-heading">Metadata snapshots</h1>
-          <p className="ea-screen-header-sub">
-            Each DHIS2 metadata sync lands as a snapshot. Workflows pin
-            to a snapshot to keep their schema stable across upstream drift.
-          </p>
+          <h1 data-test="snapshots-heading">Snapshots</h1>
         </div>
       </header>
 

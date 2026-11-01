@@ -249,10 +249,11 @@ public class CaptureWorkflowController {
                     if (!isAdmin && !principal.roleNames().contains(s.ownerRole().name())) {
                         continue;
                     }
-                    // §2.3.24 + §2.3.31 — device scope. Narrows to
-                    // the caller's explicit ?deviceId or their saved
-                    // preferred device unless they passed
-                    // ?allDevices=true.
+                    // §2.3.24 + §2.3.31 + §2.3.46 — device scope.
+                    // Strict: when a scope is active, only expose
+                    // steps bound to that device OR shared steps
+                    // (ownerDeviceId=null). Steps bound to a *different*
+                    // device are hidden.
                     if (appliedDeviceId != null && s.ownerDeviceId() != null
                             && !s.ownerDeviceId().equals(appliedDeviceId)) {
                         continue;
