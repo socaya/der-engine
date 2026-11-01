@@ -199,6 +199,74 @@ export function MiniBarChart({ bars, max }: {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Donut / pie chart (storage breakdown etc.)
+// ────────────────────────────────────────────────────────────────────
+
+export interface DonutSlice {
+  readonly label: string;
+  readonly value: number;
+  readonly color: string;
+}
+
+/** Compact donut chart matching the standard DER dashboard idiom
+ *  (same aesthetic as the Ring sync-progress indicator). Legend is
+ *  rendered below the donut; slices with value 0 are skipped. */
+export function Donut({ slices, size = 120, thickness = 18, caption }: {
+  slices: ReadonlyArray<DonutSlice>;
+  size?: number;
+  thickness?: number;
+  caption?: ReactNode;
+}): JSX.Element {
+  const total = slices.reduce((a, s) => a + s.value, 0);
+  const r = (size - thickness) / 2;
+  const c = size / 2;
+  const circumference = 2 * Math.PI * r;
+  let offset = 0;
+  return (
+    <div className="ea-donut">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
+           role="img" aria-label="Donut chart">
+        <circle cx={c} cy={c} r={r} fill="none"
+                stroke="var(--der-border-subtle, #e5e7eb)"
+                strokeWidth={thickness} />
+        {total > 0 && slices.filter((s) => s.value > 0).map((s) => {
+          const frac = s.value / total;
+          const seg = frac * circumference;
+          const arc = (
+            <circle key={s.label} cx={c} cy={c} r={r} fill="none"
+                    stroke={s.color} strokeWidth={thickness}
+                    strokeDasharray={`${seg} ${circumference - seg}`}
+                    strokeDashoffset={-offset}
+                    transform={`rotate(-90 ${c} ${c})`} />
+          );
+          offset += seg;
+          return arc;
+        })}
+        {caption && (
+          <foreignObject x="0" y="0" width={size} height={size}>
+            <div style={{ display: 'flex', alignItems: 'center',
+                           justifyContent: 'center', width: '100%', height: '100%',
+                           textAlign: 'center', fontSize: 12, lineHeight: 1.2,
+                           color: 'var(--der-ink-700)' }}>
+              {caption}
+            </div>
+          </foreignObject>
+        )}
+      </svg>
+      <ul className="ea-donut-legend">
+        {slices.filter((s) => s.value > 0).map((s) => (
+          <li key={s.label}>
+            <span className="ea-donut-swatch"
+                  style={{ background: s.color }} />
+            <span className="ea-donut-label">{s.label}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Status dot inline
 // ────────────────────────────────────────────────────────────────────
 

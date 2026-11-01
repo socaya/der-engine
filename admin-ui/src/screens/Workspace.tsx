@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
-  KpiTile, Panel, Ring, MiniBarChart, Dot, fmtDate, fmtAgo, fmtBytes, fmtDur,
+  KpiTile, Panel, Donut, Dot, fmtDate, fmtAgo, fmtBytes, fmtDur,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
@@ -32,7 +32,6 @@ export function MockupWorkspace(): JSX.Element {
   const [w, setW] = useState<edgeApi.WorkerHealth | null>(null);
   const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
   const [conflicts, setConflicts] = useState<edgeApi.ConflictRow[] | null>(null);
-  const [activity, setActivity] = useState<edgeApi.ActivityEntry[] | null>(null);
   const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[] | null>(null);
   const [wfs, setWfs] = useState<edgeApi.CaptureWorkflowSummary[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -42,7 +41,7 @@ export function MockupWorkspace(): JSX.Element {
     Promise.allSettled([
       edgeApi.health(), edgeApi.systemInfo(), edgeApi.compat(),
       edgeApi.workerHealth(), edgeApi.listJobs(100),
-      edgeApi.listConflicts(50), edgeApi.recentActivity(10),
+      edgeApi.listConflicts(50),
       edgeApi.listDevices(), edgeApi.listWorkflows(),
     ]).then((r) => {
       if (r[0].status === 'fulfilled') setH(r[0].value);
@@ -51,9 +50,8 @@ export function MockupWorkspace(): JSX.Element {
       if (r[3].status === 'fulfilled') setW(r[3].value);
       if (r[4].status === 'fulfilled') setJobs(r[4].value);
       if (r[5].status === 'fulfilled') setConflicts(r[5].value);
-      if (r[6].status === 'fulfilled') setActivity(r[6].value.entries);
-      if (r[7].status === 'fulfilled') setDevices(r[7].value.devices);
-      if (r[8].status === 'fulfilled') setWfs(r[8].value.workflows);
+      if (r[6].status === 'fulfilled') setDevices(r[6].value.devices);
+      if (r[7].status === 'fulfilled') setWfs(r[7].value.workflows);
       setT(new Date());
       const first = r.find((x) => x.status === 'rejected');
       if (first && first.status === 'rejected') {
@@ -75,40 +73,11 @@ export function MockupWorkspace(): JSX.Element {
   const activeDevices = (devices ?? []).filter((d) => d.status === 'APPROVED').length;
   const backlog = w ? Object.values(w.backlog).reduce((a, b) => a + b, 0) : 0;
 
-  // 24h sync bars
-  const now = Date.now();
-  const bars: Array<{ label: string; value: number }> = [];
-  for (let i = 23; i >= 0; i--) {
-    const start = now - (i + 1) * 3600_000;
-    const end = now - i * 3600_000;
-    const count = (jobs ?? []).filter((j) => {
-      const tt = Date.parse(j.startedAt);
-      return tt >= start && tt < end;
-    }).length;
-    bars.push({ label: `${new Date(end).getHours()}h`, value: count });
-  }
+  // Conflict count for the attention chip (details live under /journal/conflicts).
+  const totalConflicts = (conflicts ?? []).length;
   const totalRuns = (jobs ?? []).length;
   const succeeded = (jobs ?? []).filter((j) => j.outcome === 'SUCCEEDED').length;
-  const failed = (jobs ?? []).filter((j) => j.outcome === 'FAILED').length;
   const reliability = totalRuns ? Math.round((100 * succeeded) / totalRuns) : 100;
-
-  // Conflict priority buckets
-  const high = (conflicts ?? []).filter((x) => x.attemptCount >= 5).length;
-  const med = (conflicts ?? []).filter((x) => x.attemptCount >= 2 && x.attemptCount < 5).length;
-  const low = (conflicts ?? []).filter((x) => x.attemptCount < 2).length;
-
-  // Resource rings — DER actual footprint (data root + Postgres der.*)
-  // against the volume total so operators see DER's cost, not host-OS
-  // utilisation.
-  const derFootprint = (si.storage.derDataRootBytes ?? 0)
-      + (si.storage.derDbSchemaBytes ?? 0);
-  const storagePct = si.storage.totalBytes
-    ? Math.max(1, Math.round((100 * derFootprint) / si.storage.totalBytes)) : 0;
-  const heapPct = si.runtime.heapMaxBytes
-    ? Math.round((100 * (si.runtime.heapUsedBytes ?? 0)) / si.runtime.heapMaxBytes) : 0;
-  const cpuPct = Math.min(100, Math.round(
-    (si.scheduler.executingJobs ?? 0) / Math.max(1, si.scheduler.totalJobs ?? 1) * 100));
-
   const activeWf = (wfs ?? []).filter((x) => x.enabled).length;
 
   // DER's /system/health reports `starter-ready` when the service is live
@@ -135,8 +104,16 @@ export function MockupWorkspace(): JSX.Element {
                 : !derUp ? derStatusLabel : 'Partial outage'}
             </span>
             <span className="ea-dash-hero-meta-item">v{si.build.version}</span>
-            <span className="ea-dash-hero-meta-item">{fmtDate(si.timestamp)}</span>
+            <span className="ea-dash-hero-meta-item">Sync reliability {reliability}%</span>
+            {totalConflicts > 0 && (
+              <Link to="/journal/conflicts"
+                     className="ea-chip ea-chip--warning"
+                     style={{ textDecoration: 'none' }}>
+                {totalConflicts} conflict{totalConflicts === 1 ? '' : 's'}
+              </Link>
+            )}
             {t && <span className="ea-dash-hero-meta-item">updated {fmtAgo(t.toISOString())}</span>}
+            <span className="ea-dash-hero-meta-item">{fmtDate(si.timestamp)}</span>
           </div>
         </div>
         <div className="ea-dash-hero-topology-mini" aria-hidden="true">
@@ -179,95 +156,24 @@ export function MockupWorkspace(): JSX.Element {
                  caption={`${activeDevices} active`} />
       </div>
 
-      {/* ─── Row: Topology + Resource usage ──────────────────── */}
-      <div className="ea-ws-grid-2">
-        <Panel title="System topology">
-          <div className="ea-topology">
-            <TopoNode label="DHIS2 Central"
-                      sub={c?.centralVersion ?? '—'}
-                      tone={dhis2Up ? 'success' : 'danger'} />
-            <TopoArrow />
-            <TopoNode label="DER Server"
-                      sub={`v${si.build.version}`}
-                      tone={derUp ? 'success' : 'danger'} highlight />
-            <TopoArrow />
-            <TopoNode label="Clients"
-                      sub={`${activeDevices} / ${totalDevices}`}
-                      tone={activeDevices > 0 ? 'success' : 'muted'} />
-          </div>
-        </Panel>
+      {/* ─── Topology ─────────────────────────────────────────── */}
+      <Panel title="Topology">
+        <div className="ea-topology">
+          <TopoNode label="DHIS2 Central"
+                    sub={c?.centralVersion ?? '—'}
+                    tone={dhis2Up ? 'success' : 'danger'} />
+          <TopoArrow />
+          <TopoNode label="DER Server"
+                    sub={`v${si.build.version}`}
+                    tone={derUp ? 'success' : 'danger'} highlight />
+          <TopoArrow />
+          <TopoNode label="Clients"
+                    sub={`${activeDevices} / ${totalDevices}`}
+                    tone={activeDevices > 0 ? 'success' : 'muted'} />
+        </div>
+      </Panel>
 
-        <Panel title="Resource usage">
-          <div className="ea-dash-gauges">
-            <div className="ea-dash-gauge"><Ring percent={cpuPct} label="Scheduler" size={72} color="var(--der-primary)" /></div>
-            <div className="ea-dash-gauge"><Ring percent={heapPct} label="Memory" size={72} color="var(--der-teal)" /></div>
-            <div className="ea-dash-gauge"><Ring percent={storagePct} label="DER footprint" size={72} color="var(--der-warning)" /></div>
-          </div>
-        </Panel>
-      </div>
-
-      {/* ─── Row: Sync activity + Conflict review ────────────── */}
-      <div className="ea-ws-grid-2">
-        <Panel title="Synchronisation activity"
-               action={<Link to="/sync/jobs" className="ea-link-btn">View all</Link>}>
-          <MiniBarChart bars={bars} />
-          <div className="ea-dash-sync-stats">
-            <div><strong>{totalRuns}</strong><span>Runs</span></div>
-            <div><strong>{succeeded}</strong><span>Succeeded</span></div>
-            <div><strong>{failed}</strong><span>Failed</span></div>
-            <div><strong>{reliability}%</strong><span>Reliability</span></div>
-          </div>
-        </Panel>
-
-        <Panel title="Conflict review"
-               action={<Link to="/journal/conflicts" className="ea-link-btn">View all</Link>}>
-          <PriorityBreakdown total={(conflicts ?? []).length}
-                             high={high} medium={med} low={low} />
-        </Panel>
-      </div>
-
-      {/* ─── Row: System components + Recent activity ────────── */}
-      <div className="ea-ws-grid-2">
-        <Panel title="System components"
-               action={<Link to="/system/information" className="ea-link-btn">Details</Link>}>
-          <ul className="ea-components-list ea-components-list--grid">
-            <ComponentRow name="DER Server" version={`v${si.build.version}`} status="OK" meta={fmtDur(si.runtime.uptimeMillis)} />
-            <ComponentRow name="DHIS2 central" version={si.dhis2.centralVersion ?? '—'} status={dhis2Up ? 'OK' : 'FAIL'} meta={dhis2Up ? 'reachable' : 'unreachable'} />
-            <ComponentRow name="PostgreSQL" version={(si.database.product ?? '').split(' ')[1] ?? '—'} status={dbUp ? 'OK' : 'FAIL'} meta={`${si.database.migrationCount ?? 0} migrations`} />
-            <ComponentRow name="Scheduler" version={`${si.scheduler.totalJobs ?? 0} jobs`} status={schedUp ? 'OK' : 'WARN'} meta={`${si.scheduler.executingJobs ?? 0} running`} />
-            <ComponentRow name="Compat engine" version={c?.profileName ?? '—'} status={c?.probeReachable ? 'OK' : 'FAIL'} meta={c?.engineVersion ?? '—'} />
-            <ComponentRow name="Journal worker" version={w?.enabled ? 'running' : 'paused'} status={w?.enabled ? 'OK' : 'WARN'} meta={`${backlog} queued`} />
-            <ComponentRow name="Custom apps" version={`${si.apps.installed ?? 0} installed`} status="OK" meta={`${si.apps.enabled ?? 0} enabled`} />
-          </ul>
-        </Panel>
-
-        <Panel title="Recent activity"
-               action={<Link to="/audit/events" className="ea-link-btn">View all</Link>}>
-          {(activity ?? []).length === 0 ? (
-            <p className="ea-text-muted" style={{ margin: 0 }}>No activity recorded yet.</p>
-          ) : (
-            <ul className="ea-dash-activity-list">
-              {dedupeActivity(activity ?? []).slice(0, 5).map((a) => (
-                <li key={`${a.first.auditId}-${a.count}`}>
-                  <Dot tone={a.first.outcome === 'SUCCESS' ? 'success' : a.first.outcome === 'FAILURE' ? 'danger' : 'muted'} />
-                  <div>
-                    <div className="ea-dash-activity-type">
-                      {a.first.eventType}
-                      {a.count > 1 && <span className="ea-text-muted" style={{ marginLeft: 6 }}>· ×{a.count}</span>}
-                    </div>
-                    <div className="ea-dash-activity-meta">
-                      {a.first.outcome} · {fmtAgo(a.last.observedAt)}
-                      {a.count > 1 && <> → {fmtAgo(a.first.observedAt)}</>}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
-
-      {/* ─── Row: Devices + Workflows + Storage health ───────── */}
+      {/* ─── Row: Devices + Workflows + Storage pie ────────────── */}
       <div className="ea-ws-grid-3">
         <Panel title="Client devices"
                action={<Link to="/devices" className="ea-link-btn">All</Link>}>
@@ -279,7 +185,7 @@ export function MockupWorkspace(): JSX.Element {
                 <li key={d.deviceId}>
                   <Dot tone={d.status === 'APPROVED' ? 'success' : d.status === 'PENDING' ? 'warning' : 'danger'} />
                   <div>
-                    <div className="ea-mono">{d.deviceId.slice(0, 8)}…</div>
+                    <div className="ea-mono">{d.displayName ?? d.deviceId.slice(0, 8) + '…'}</div>
                     <div className="ea-dash-activity-meta">{d.status} · {fmtAgo(d.lastSeenAt)}</div>
                   </div>
                 </li>
@@ -306,100 +212,35 @@ export function MockupWorkspace(): JSX.Element {
           )}
         </Panel>
 
-        <Panel title="Database &amp; storage">
-          <ul className="ea-components-list">
-            <li>
-              <Dot tone={si.database.probeError ? 'danger' : 'success'} />
-              <div className="ea-components-main">
-                <div className="ea-components-name">Database</div>
-                <div className="ea-components-meta">{si.database.product?.split(' ').slice(0, 2).join(' ') ?? '—'}</div>
-              </div>
-              <div className="ea-components-version ea-mono">{si.database.migrationCount ?? 0} mig</div>
-            </li>
-            <li>
-              <Dot tone={si.storage.status === 'OK' ? 'success' : si.storage.status === 'WARN' ? 'warning' : 'danger'} />
-              <div className="ea-components-main">
-                <div className="ea-components-name">Edge data root</div>
-                <div className="ea-components-meta ea-mono" style={{ wordBreak: 'break-all' }}>{si.storage.root ?? '—'}</div>
-              </div>
-              <div className="ea-components-version">{fmtBytes(si.storage.usableBytes)}</div>
-            </li>
-            <li>
-              <Dot tone="muted" />
-              <div className="ea-components-main">
-                <div className="ea-components-name">Journal entries</div>
-                <div className="ea-components-meta">by kind</div>
-              </div>
-              <div className="ea-components-version">
-                {Object.values(si.journal ?? {}).reduce((a, b) => a + (b as number), 0).toLocaleString()}
-              </div>
-            </li>
-          </ul>
+        <Panel title="Storage"
+               action={<Link to="/monitoring/storage" className="ea-link-btn">Details</Link>}>
+          {(() => {
+            const total  = si.storage.totalBytes ?? 0;
+            const files  = si.storage.derDataRootBytes ?? 0;
+            const dbSz   = si.storage.derDbSchemaBytes ?? 0;
+            const free   = si.storage.usableBytes ?? 0;
+            const other  = Math.max(0, total - files - dbSz - free);
+            return (
+              <Donut
+                size={128}
+                thickness={18}
+                caption={<div><strong>{fmtBytes(files + dbSz)}</strong>
+                             <div style={{ fontSize: 10, color: 'var(--der-ink-500)' }}>DER footprint</div></div>}
+                slices={[
+                  { label: `DER files · ${fmtBytes(files)}`, value: files,
+                    color: 'var(--der-primary, #1d4ed8)' },
+                  { label: `PostgreSQL (der.*) · ${fmtBytes(dbSz)}`, value: dbSz,
+                    color: 'var(--der-teal, #0d9488)' },
+                  { label: `Other on volume · ${fmtBytes(other)}`, value: other,
+                    color: 'var(--der-warning, #d97706)' },
+                  { label: `Free · ${fmtBytes(free)}`, value: free,
+                    color: 'var(--der-border-strong, #cbd5e1)' },
+                ]} />
+            );
+          })()}
         </Panel>
       </div>
     </div>
-  );
-}
-
-interface ActivityGroup {
-  first: edgeApi.ActivityEntry;
-  last: edgeApi.ActivityEntry;
-  count: number;
-}
-function dedupeActivity(items: ReadonlyArray<edgeApi.ActivityEntry>): ActivityGroup[] {
-  const out: ActivityGroup[] = [];
-  for (const it of items) {
-    const prev = out[out.length - 1];
-    if (prev && prev.first.eventType === it.eventType && prev.first.outcome === it.outcome) {
-      prev.last = it;
-      prev.count += 1;
-    } else {
-      out.push({ first: it, last: it, count: 1 });
-    }
-  }
-  return out;
-}
-
-function PriorityBreakdown({ total, high, medium, low }: {
-  total: number; high: number; medium: number; low: number;
-}): JSX.Element {
-  const safeTotal = Math.max(1, total);
-  const hp = (100 * high) / safeTotal;
-  const mp = (100 * medium) / safeTotal;
-  const lp = (100 * low) / safeTotal;
-  return (
-    <div className="ea-prio">
-      <div className="ea-prio-head">
-        <strong>{total.toLocaleString()}</strong>
-        <span className="ea-prio-head-label">pending conflicts</span>
-      </div>
-      <div className="ea-prio-track" aria-hidden="true">
-        <div className="ea-prio-seg ea-prio-seg--high"   style={{ width: `${hp}%` }} />
-        <div className="ea-prio-seg ea-prio-seg--medium" style={{ width: `${mp}%` }} />
-        <div className="ea-prio-seg ea-prio-seg--low"    style={{ width: `${lp}%` }} />
-      </div>
-      <ul className="ea-prio-legend">
-        <li><span className="ea-prio-dot ea-prio-dot--high"   /> High priority <strong>{high}</strong></li>
-        <li><span className="ea-prio-dot ea-prio-dot--medium" /> Medium priority <strong>{medium}</strong></li>
-        <li><span className="ea-prio-dot ea-prio-dot--low"    /> Low priority <strong>{low}</strong></li>
-      </ul>
-    </div>
-  );
-}
-
-function ComponentRow({ name, version, status, meta }: {
-  name: string; version: string; status: 'OK' | 'WARN' | 'FAIL'; meta: string;
-}): JSX.Element {
-  const tone = status === 'OK' ? 'success' : status === 'WARN' ? 'warning' : 'danger';
-  return (
-    <li>
-      <Dot tone={tone} />
-      <div className="ea-components-main">
-        <div className="ea-components-name">{name}</div>
-        <div className="ea-components-meta">{meta}</div>
-      </div>
-      <div className="ea-components-version ea-mono">{version}</div>
-    </li>
   );
 }
 
