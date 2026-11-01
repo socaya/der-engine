@@ -2,6 +2,7 @@ package ug.ac.mak.der.web;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -430,6 +431,135 @@ public class CaptureWorkflowController {
         return n == 0 ? ResponseEntity.notFound().build()
                 : ResponseEntity.ok(Map.of("importId", importId.toString(),
                                              "status", "REJECTED"));
+    }
+
+    /** §2.3.39 — compute a step-level diff between an inbox PENDING
+     *  entry and the local workflow it would replace. "Local" is
+     *  resolved by matching {@code boundMetadataKind:boundMetadataId}
+     *  first, falling back to {@code displayName}. */
+    @GetMapping("/import-inbox/{importId}/diff")
+    public ResponseEntity<Map<String, Object>> inboxDiff(
+            @PathVariable final UUID importId) {
+        final List<Map<String, Object>> rows = jdbc.query(
+                "SELECT display_name, bound_kind, bound_id, canonical_json::text "
+                        + "FROM der.workflow_import_inbox WHERE import_id = ?",
+                (rs, i) -> {
+                    final Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("displayName", rs.getString(1));
+                    m.put("boundKind", rs.getString(2));
+                    m.put("boundId", rs.getString(3));
+                    m.put("payload", rs.getString(4));
+                    return m;
+                },
+                importId);
+        if (rows.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        final Map<String, Object> entry = rows.get(0);
+        // Resolve a local candidate.
+        final String kind = (String) entry.get("boundKind");
+        final String bound = (String) entry.get("boundId");
+        final String name = (String) entry.get("displayName");
+        CaptureWorkflow local = null;
+        String matchStrategy = "NONE";
+        for (final CaptureWorkflow w : svc.list()) {
+            if (w.boundMetadataKind().name().equals(kind)
+                    && w.boundMetadataId().equals(bound)) {
+                local = w;
+                matchStrategy = "BINDING";
+                break;
+            }
+        }
+        if (local == null) {
+            for (final CaptureWorkflow w : svc.list()) {
+                if (w.displayName().equalsIgnoreCase(name)) {
+                    local = w;
+                    matchStrategy = "DISPLAY_NAME";
+                    break;
+                }
+            }
+        }
+        // Parse the canonical doc so we can line steps up.
+        final CaptureWorkflowImportService.CanonicalWorkflow doc;
+        try {
+            doc = mapper.readValue((String) entry.get("payload"),
+                    CaptureWorkflowImportService.CanonicalWorkflow.class);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "CANONICAL_INVALID", "message", ex.getMessage()));
+        }
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("importId", importId.toString());
+        out.put("incoming", Map.of(
+                "displayName", doc.displayName(),
+                "boundKind", doc.boundMetadataKind(),
+                "boundId", doc.boundMetadataId(),
+                "stepCount", doc.steps() == null ? 0 : doc.steps().size()));
+        out.put("matchStrategy", matchStrategy);
+        if (local == null) {
+            out.put("summary", "NEW_WORKFLOW");
+            out.put("local", null);
+            return ResponseEntity.ok(out);
+        }
+        out.put("local", Map.of(
+                "workflowId", local.workflowId().toString(),
+                "displayName", local.displayName(),
+                "stepCount", local.steps().size()));
+        // Compare steps by ordinal + displayName + sectionKind + sectionRef.
+        final java.util.List<Map<String, Object>> added = new ArrayList<>();
+        final java.util.List<Map<String, Object>> removed = new ArrayList<>();
+        final java.util.List<Map<String, Object>> changed = new ArrayList<>();
+        final Map<Integer, CaptureWorkflowStep> localByOrd = new HashMap<>();
+        for (final CaptureWorkflowStep s : local.steps()) {
+            localByOrd.put(s.ordinal(), s);
+        }
+        final Map<Integer, CaptureWorkflowImportService.CanonicalStep> incomingByOrd =
+                new HashMap<>();
+        if (doc.steps() != null) {
+            doc.steps().forEach((s) -> incomingByOrd.put(s.ordinal(), s));
+        }
+        for (final var inc : incomingByOrd.entrySet()) {
+            final var lo = localByOrd.get(inc.getKey());
+            final var is = inc.getValue();
+            if (lo == null) {
+                added.add(Map.of("ordinal", inc.getKey(),
+                        "displayName", is.displayName(),
+                        "stepKind", is.stepKind() == null ? "" : is.stepKind(),
+                        "fieldCount", is.fields().size()));
+            } else if (!safeEq(lo.displayName(), is.displayName())
+                    || !safeEq(lo.stepKind() == null ? null : lo.stepKind().name(), is.stepKind())
+                    || lo.fields().size() != is.fields().size()) {
+                changed.add(Map.of("ordinal", inc.getKey(),
+                        "local", Map.of(
+                            "displayName", lo.displayName(),
+                            "stepKind", lo.stepKind() == null ? "" : lo.stepKind().name(),
+                            "fieldCount", lo.fields().size()),
+                        "incoming", Map.of(
+                            "displayName", is.displayName(),
+                            "stepKind", is.stepKind() == null ? "" : is.stepKind(),
+                            "fieldCount", is.fields().size())));
+            }
+        }
+        for (final var lo : localByOrd.entrySet()) {
+            if (!incomingByOrd.containsKey(lo.getKey())) {
+                final var s = lo.getValue();
+                removed.add(Map.of("ordinal", lo.getKey(),
+                        "displayName", s.displayName(),
+                        "stepKind", s.stepKind() == null ? "" : s.stepKind().name()));
+            }
+        }
+        out.put("added", added);
+        out.put("removed", removed);
+        out.put("changed", changed);
+        out.put("summary",
+                added.isEmpty() && removed.isEmpty() && changed.isEmpty()
+                        ? "NO_CHANGES"
+                        : "REPLACEMENT");
+        return ResponseEntity.ok(out);
+    }
+
+    private static boolean safeEq(final String a, final String b) {
+        return a == null ? b == null : a.equals(b);
     }
 
     private Map<String, Object> inboxRow(final java.sql.ResultSet rs)

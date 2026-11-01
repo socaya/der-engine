@@ -1116,6 +1116,31 @@ export function rejectImport(importId: string, note?: string): Promise<unknown> 
     { note: note ?? '' });
 }
 
+/** §2.3.39 — step-level diff vs. local candidate workflow. */
+export interface ImportInboxDiff {
+  importId: string;
+  incoming: {
+    displayName: string;
+    boundKind: string;
+    boundId: string;
+    stepCount: number;
+  };
+  matchStrategy: 'NONE' | 'DISPLAY_NAME' | 'BINDING';
+  local: { workflowId: string; displayName: string; stepCount: number } | null;
+  summary: 'NO_CHANGES' | 'REPLACEMENT' | 'NEW_WORKFLOW';
+  added?: Array<{ ordinal: number; displayName: string; stepKind: string;
+                    fieldCount: number }>;
+  removed?: Array<{ ordinal: number; displayName: string; stepKind: string }>;
+  changed?: Array<{ ordinal: number;
+                      local: { displayName: string; stepKind: string; fieldCount: number };
+                      incoming: { displayName: string; stepKind: string; fieldCount: number } }>;
+}
+
+export function importInboxDiff(importId: string): Promise<ImportInboxDiff> {
+  return request('GET',
+    `/edge-api/v1/workflows/import-inbox/${importId}/diff`);
+}
+
 /** Progressive-validation issues on a run (spec §36). */
 export interface ValidationIssue {
   issueId: string;

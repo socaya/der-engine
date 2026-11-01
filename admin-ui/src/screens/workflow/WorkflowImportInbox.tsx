@@ -9,7 +9,7 @@ import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
  */
 export interface WorkflowImportInboxProps {
   api?: Pick<typeof edgeApi,
-      'listImportInbox' | 'acceptImport' | 'rejectImport'>;
+      'listImportInbox' | 'acceptImport' | 'rejectImport' | 'importInboxDiff'>;
 }
 
 export function WorkflowImportInbox({ api = edgeApi }:
@@ -21,6 +21,7 @@ export function WorkflowImportInbox({ api = edgeApi }:
   const [busy, setBusy] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [lastResult, setLastResult] = useState<string | null>(null);
+  const [diffs, setDiffs] = useState<Record<string, edgeApi.ImportInboxDiff | 'loading'>>({});
 
   async function reload(): Promise<void> {
     try {
@@ -47,6 +48,28 @@ export function WorkflowImportInbox({ api = edgeApi }:
       setBusy(null);
     }
   }
+  async function showDiff(id: string): Promise<void> {
+    if (diffs[id]) {
+      // toggle off
+      const next = { ...diffs };
+      delete next[id];
+      setDiffs(next);
+      return;
+    }
+    setDiffs({ ...diffs, [id]: 'loading' });
+    try {
+      const d = await api.importInboxDiff(id);
+      setDiffs((prev) => ({ ...prev, [id]: d }));
+    } catch (err) {
+      setLastResult(err instanceof Error ? err.message : String(err));
+      setDiffs((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  }
+
   async function reject(id: string): Promise<void> {
     setBusy(id);
     setLastResult(null);
@@ -111,7 +134,7 @@ export function WorkflowImportInbox({ api = edgeApi }:
             </tr>
           </thead>
           <tbody>
-            {entries.map((e) => (
+            {entries.flatMap((e) => [
               <tr key={e.importId} data-test={`inbox-row-${e.importId}`}>
                 <td style={{ fontWeight: 500 }}>{e.displayName}</td>
                 <td className="ea-mono" style={{ fontSize: 12 }}>
@@ -135,6 +158,11 @@ export function WorkflowImportInbox({ api = edgeApi }:
                   {e.status === 'PENDING' ? (
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center',
                                    flexWrap: 'wrap' }}>
+                      <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                               data-test={`inbox-row-${e.importId}-review`}
+                               onClick={() => { showDiff(e.importId).catch(() => undefined); }}>
+                        {diffs[e.importId] ? 'Hide diff' : 'Review'}
+                      </button>
                       <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                                data-test={`inbox-row-${e.importId}-accept`}
                                disabled={busy === e.importId}
@@ -163,8 +191,20 @@ export function WorkflowImportInbox({ api = edgeApi }:
                     </span>
                   )}
                 </td>
-              </tr>
-            ))}
+              </tr>,
+              diffs[e.importId] ? (
+                <tr key={`${e.importId}-diff`}
+                     data-test={`inbox-row-${e.importId}-diff`}>
+                  <td colSpan={6} className="ea-wizard-fields-row">
+                    {diffs[e.importId] === 'loading' ? (
+                      <span className="ea-text-muted" style={{ fontSize: 12 }}>Loading diff…</span>
+                    ) : (
+                      <InboxDiffBlock diff={diffs[e.importId] as edgeApi.ImportInboxDiff} />
+                    )}
+                  </td>
+                </tr>
+              ) : null,
+            ].filter(Boolean))}
           </tbody>
         </table>
       )}
@@ -173,6 +213,87 @@ export function WorkflowImportInbox({ api = edgeApi }:
             style={{ marginTop: 'var(--sp-2)' }}>
           {lastResult}
         </p>
+      )}
+    </div>
+  );
+}
+
+function InboxDiffBlock({ diff }: { diff: edgeApi.ImportInboxDiff }): JSX.Element {
+  if (diff.summary === 'NEW_WORKFLOW') {
+    return (
+      <div data-test="inbox-diff-new">
+        <strong style={{ fontSize: 13 }}>New workflow — nothing to compare against on this edge.</strong>
+        <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2 }}>
+          Incoming: {diff.incoming.displayName} · {diff.incoming.boundKind}:{diff.incoming.boundId}
+          · {diff.incoming.stepCount} step{diff.incoming.stepCount === 1 ? '' : 's'}
+        </div>
+      </div>
+    );
+  }
+  if (diff.summary === 'NO_CHANGES') {
+    return (
+      <div data-test="inbox-diff-nochange">
+        <strong style={{ fontSize: 13 }}>No changes — step shape identical to the local workflow.</strong>
+        <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2 }}>
+          Matched via {diff.matchStrategy.toLowerCase().replace('_', ' ')}.
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="ea-diff-groups" data-test="inbox-diff-replacement">
+      <div className="ea-text-muted" style={{ fontSize: 12, marginBottom: 4 }}>
+        Replacing local {diff.local?.displayName} (matched via{' '}
+        {diff.matchStrategy.toLowerCase().replace('_', ' ')}).
+      </div>
+      {(diff.added ?? []).length > 0 && (
+        <section className="ea-diff-group ea-diff-group--success"
+                  data-test="inbox-diff-added">
+          <h3>Added steps ({(diff.added ?? []).length})</h3>
+          <ul>
+            {(diff.added ?? []).map((s) => (
+              <li key={s.ordinal}>
+                <strong>#{s.ordinal}</strong> {s.displayName} ·{' '}
+                <span className="ea-text-muted">
+                  {s.stepKind} · {s.fieldCount} field{s.fieldCount === 1 ? '' : 's'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {(diff.removed ?? []).length > 0 && (
+        <section className="ea-diff-group ea-diff-group--error"
+                  data-test="inbox-diff-removed">
+          <h3>Removed steps ({(diff.removed ?? []).length})</h3>
+          <ul>
+            {(diff.removed ?? []).map((s) => (
+              <li key={s.ordinal}>
+                <strong>#{s.ordinal}</strong> {s.displayName} ·{' '}
+                <span className="ea-text-muted">{s.stepKind}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {(diff.changed ?? []).length > 0 && (
+        <section className="ea-diff-group ea-diff-group--warning"
+                  data-test="inbox-diff-changed">
+          <h3>Changed steps ({(diff.changed ?? []).length})</h3>
+          <ul>
+            {(diff.changed ?? []).map((c) => (
+              <li key={c.ordinal}>
+                <strong>#{c.ordinal}</strong>{' '}
+                <code className="ea-mono" style={{ fontSize: 11 }}>
+                  {c.local.displayName} → {c.incoming.displayName}
+                </code>
+                <span className="ea-text-muted" style={{ marginLeft: 6, fontSize: 11 }}>
+                  {c.local.stepKind}·{c.local.fieldCount}f → {c.incoming.stepKind}·{c.incoming.fieldCount}f
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );
