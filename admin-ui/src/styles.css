@@ -2260,6 +2260,22 @@ kbd{
   display:flex;align-items:flex-start;gap:8px;
 }
 .ea-wf-steps-sp-text{flex:1;min-width:0}
+.ea-wf-steps-sp-name{color:var(--der-ink-900);font-weight:500}
+
+/* Service-point row chevron: whole row name is a button so operators
+   can click anywhere on the service-point cell to expand/collapse. */
+.ea-wf-steps-sp-expand{
+  display:flex;align-items:center;gap:8px;width:100%;
+  padding:0;background:transparent;border:none;cursor:pointer;
+  text-align:left;color:inherit;font:inherit;
+}
+.ea-wf-steps-sp-expand:hover .ea-wf-steps-sp-name{color:var(--der-navy-700)}
+.ea-wf-steps-sp-chevron{
+  width:14px;flex-shrink:0;color:var(--der-ink-500);font-size:12px;
+  text-align:center;line-height:1;
+}
+tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
+tr.is-nested .ea-wf-steps-sp-expand{padding-left:22px}
 .ea-wf-steps-kind-icon{
   display:inline-flex;align-items:center;justify-content:center;
   width:24px;height:24px;flex-shrink:0;
@@ -2276,8 +2292,6 @@ kbd{
   flex-shrink:0;margin-top:3px;
 }
 .ea-wf-steps-repeat-icon:hover{color:var(--der-ink-900)}
-.ea-wf-steps-col-fields{width:72px;text-align:right}
-.ea-wf-steps-table .ea-wf-steps-col-fields{text-align:right}
 .ea-wf-steps-table td:last-child{text-align:right}
 .ea-wf-steps-nested{padding-left:24px}
 .ea-wf-steps-summary{font-size:11px;margin-top:2px}

@@ -772,211 +772,69 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
             <th>Service point</th>
             <th className="ea-wf-steps-col-role">Role</th>
             <th className="ea-wf-steps-col-device">Handover to (device)</th>
-            <th className="ea-wf-steps-col-fields">Fields</th>
             <th className="ea-wf-steps-col-order">Order</th>
           </tr>
         </thead>
         <tbody>
           {(() => {
+            // Index rows for quick parent → children lookup.
+            const topIxs: number[] = [];
+            const childIxsByParentId = new Map<string, number[]>();
+            rows.forEach((r, i) => {
+              if (r.breakable.parentId == null) {
+                topIxs.push(i);
+              } else {
+                const p = childIxsByParentId.get(r.breakable.parentId) ?? [];
+                p.push(i);
+                childIxsByParentId.set(r.breakable.parentId, p);
+              }
+            });
             let ordinal = 0;
-            return rows.flatMap((r, i) => {
-              const summary = fieldSummary(r);
+            const out: JSX.Element[] = [];
+            for (const i of topIxs) {
+              const r = rows[i];
               if (r.included) ordinal += 1;
               const stepNumber = r.included ? ordinal : null;
-              return [
-              (
-                <tr key={r.breakable.id} data-test={`wf-form-row-${i}`}
-                     className={(r.included ? '' : 'is-dim')
-                       + (r.breakable.parentId ? ' is-nested' : '')}>
-                  <td>
-                    <input type="checkbox"
-                            data-test={`wf-form-row-${i}-include`}
-                            checked={r.included}
-                            onChange={(e) => onUpdate(i, { included: e.target.checked })} />
-                  </td>
-                  <td className={r.breakable.parentId ? 'ea-wf-steps-nested' : undefined}>
-                    <div className="ea-wf-steps-sp-cell">
-                      <span className={'ea-wf-steps-kind-icon ea-wf-steps-kind-icon--'
-                                       + kindTone(r.breakable.sectionKind)}
-                            aria-label={kindLabel(r.breakable.sectionKind)}
-                            title={kindLabel(r.breakable.sectionKind)}>
-                        <UiIcon icon={kindIcon(r.breakable.sectionKind)} size={16} />
-                      </span>
-                      <div className="ea-wf-steps-sp-text">
-                        <div>{r.breakable.displayName}</div>
-                        {summary && (
-                          <div className="ea-text-muted ea-wf-steps-summary">{summary}</div>
-                        )}
-                      </div>
-                      {(r.breakable.sectionKind === 'PROGRAM_STAGE'
-                        || r.breakable.sectionKind === 'PROGRAM_STAGE_SECTION') && (
-                        <span className="ea-wf-steps-repeat-icon"
-                              aria-label={r.breakable.repeatable
-                                ? 'Repeatable stage'
-                                : 'Captured once'}
-                              title={r.breakable.repeatable
-                                ? 'Captured multiple times per enrolment'
-                                : 'Captured once per enrolment'}>
-                          <UiIcon icon={r.breakable.repeatable
-                                        ? 'refresh' : 'event'} size={14} />
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <select className="ea-input ea-input--sm"
-                             data-test={`wf-form-row-${i}-role`}
-                             value={r.ownerRole} disabled={!r.included}
-                             onChange={(e) => onUpdate(i,
-                               { ownerRole: e.target.value as StepRow['ownerRole'] })}>
-                      <option value="OPERATOR">Operator</option>
-                      <option value="REVIEWER">Reviewer</option>
-                      <option value="ADMIN">Admin</option>
-                    </select>
-                  </td>
-                  <td>
-                    <select className="ea-input ea-input--sm"
-                             data-test={`wf-form-row-${i}-device`}
-                             value={r.ownerDeviceId ?? ''}
-                             disabled={!r.included}
-                             onChange={(e) => onUpdate(i, {
-                               ownerDeviceId: e.target.value === '' ? null
-                                 : e.target.value,
-                             })}>
-                      <option value="">Any</option>
-                      {devices.map((d) => (
-                        <option key={d.deviceId} value={d.deviceId}>
-                          {d.displayName ?? d.deviceId.slice(0, 12)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <button type="button"
-                             className="ea-btn ea-btn--ghost ea-btn--sm"
-                             data-test={`wf-form-row-${i}-expand`}
-                             disabled={!r.included}
-                             onClick={() => onExpand(i)}>
-                      {r.expanded ? 'Hide' : 'Edit'}
-                    </button>
-                  </td>
-                  <td className="ea-wf-steps-ord">
-                    {r.breakable.parentId == null ? (
-                      <div className="ea-wf-steps-ord-cell">
-                        <span className="ea-wf-steps-ord-num">
-                          {stepNumber == null ? '—' : stepNumber}
-                        </span>
-                        <div className="ea-wf-steps-ord-moves">
-                          <button type="button"
-                                   className="ea-icon-btn"
-                                   title="Move up"
-                                   aria-label="Move step up"
-                                   data-test={`wf-form-row-${i}-up`}
-                                   disabled={i === firstTop}
-                                   onClick={() => onMove(i, -1)}>↑</button>
-                          <button type="button"
-                                   className="ea-icon-btn"
-                                   title="Move down"
-                                   aria-label="Move step down"
-                                   data-test={`wf-form-row-${i}-down`}
-                                   disabled={i === lastTop}
-                                   onClick={() => onMove(i, 1)}>↓</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="ea-wf-steps-ord-sub">{stepNumber ?? '—'}</span>
-                    )}
-                  </td>
-                </tr>
-              ),
-              r.expanded && r.included && (
-                <tr key={`${r.breakable.id}-fields`}
-                     className="ea-wf-steps-fields-row"
-                     data-test={`wf-form-row-${i}-fields`}>
-                  <td colSpan={6}>
-                    {r.fieldCandidates == null ? (
-                      <span className="ea-text-muted">Loading…</span>
-                    ) : r.fieldCandidates.length === 0 ? (
-                      <span className="ea-text-muted">
-                        No fields mirrored. Save without selection to capture all.
-                      </span>
-                    ) : (
-                      <>
-                        <div className="ea-wf-fields-actions">
-                          <span className="ea-text-muted ea-wf-fields-count">
-                            {r.fieldCandidates.length} field{r.fieldCandidates.length === 1 ? '' : 's'}
-                            {' · '}
-                            {Object.values(r.fieldSelection)
-                              .filter((s) => s.included).length} included
-                          </span>
-                          <div className="ea-wf-fields-bulk">
-                            <button type="button"
-                                     className="ea-btn ea-btn--ghost ea-btn--sm"
-                                     onClick={() => onBulkField(i, true)}>Include all</button>
-                            <button type="button"
-                                     className="ea-btn ea-btn--ghost ea-btn--sm"
-                                     onClick={() => onBulkField(i, false)}>Clear</button>
-                          </div>
-                        </div>
-                        <table className="ea-table ea-table--dense ea-wf-fields-table">
-                          <thead>
-                            <tr>
-                              <th className="ea-wf-fields-col-include">Include</th>
-                              <th>Field</th>
-                              <th className="ea-wf-fields-col-req">Behaviour</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {r.fieldCandidates.map((f) => {
-                              const sel = r.fieldSelection[f.id];
-                              const included = sel?.included ?? false;
-                              const req: FieldReq = sel?.requirement
-                                           ?? (f.compulsory ? 'REQUIRED' : 'OPTIONAL');
-                              return (
-                                <tr key={f.id}
-                                     className={included ? '' : 'is-dim'}
-                                     data-test={`wf-form-row-${i}-field-${f.id}`}>
-                                  <td className="ea-wf-fields-col-include">
-                                    <input type="checkbox"
-                                            data-test={`wf-form-row-${i}-field-${f.id}-include`}
-                                            checked={included}
-                                            onChange={(e) => onField(i, f.id,
-                                              { included: e.target.checked, requirement: req })} />
-                                  </td>
-                                  <td>
-                                    <div className="ea-wf-fields-name">{f.displayName}</div>
-                                    {f.compulsory && (
-                                      <div className="ea-text-muted ea-wf-fields-hint">
-                                        Mandatory upstream in DHIS2
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td>
-                                    <select className="ea-input ea-input--sm"
-                                             data-test={`wf-form-row-${i}-field-${f.id}-req`}
-                                             value={req}
-                                             disabled={!included}
-                                             onChange={(e) => onField(i, f.id,
-                                               { included: true,
-                                                 requirement: e.target.value as FieldReq })}>
-                                      <option value="REQUIRED">Required</option>
-                                      <option value="OPTIONAL">Optional</option>
-                                      <option value="READONLY">Read-only</option>
-                                      <option value="HIDDEN">Hidden</option>
-                                    </select>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ),
-            ].filter(Boolean);
-            });
+              const childIxs = childIxsByParentId.get(r.breakable.id) ?? [];
+              const hasChildren = childIxs.length > 0;
+              out.push(renderRow({
+                row: r, ix: i, stepNumber, hasChildren,
+                isChild: false, firstTop, lastTop,
+                onUpdate, onExpand, onMove,
+                devices,
+              }));
+              if (r.expanded) {
+                // When a parent has children (sections), expanding
+                // shows the children instead of (or alongside) the
+                // parent's own field panel. If the parent is ticked
+                // (whole-parent capture), its field panel is appended
+                // under the children for refinement.
+                for (const ci of childIxs) {
+                  const c = rows[ci];
+                  out.push(renderRow({
+                    row: c, ix: ci, stepNumber: null,
+                    hasChildren: false, isChild: true,
+                    firstTop, lastTop,
+                    onUpdate, onExpand, onMove,
+                    devices,
+                  }));
+                  if (c.expanded && c.included) {
+                    out.push(renderFieldsPanel({
+                      row: c, ix: ci, onField, onBulkField,
+                    }));
+                  }
+                }
+                if (r.included && (!hasChildren || hasChildren)) {
+                  // Leaf → always show fields when included + expanded.
+                  // Parent-with-children + ticked → show the whole-parent
+                  // field panel so operator can refine the capture.
+                  out.push(renderFieldsPanel({
+                    row: r, ix: i, onField, onBulkField,
+                  }));
+                }
+              }
+            }
+            return out;
           })()}
         </tbody>
       </table>
@@ -1030,6 +888,223 @@ function HandoverFlowPreview({ rows, devices }: {
   );
 }
 
+function renderRow(args: {
+  row: StepRow; ix: number;
+  stepNumber: number | null;
+  hasChildren: boolean;
+  isChild: boolean;
+  firstTop: number; lastTop: number;
+  onUpdate: (ix: number, patch: Partial<StepRow>) => void;
+  onExpand: (ix: number) => void;
+  onMove: (ix: number, direction: -1 | 1) => void;
+  devices: edgeApi.EdgeDeviceRow[];
+}): JSX.Element {
+  const { row, ix, stepNumber, hasChildren, isChild,
+          firstTop, lastTop, onUpdate, onExpand, onMove, devices } = args;
+  const summary = fieldSummary(row);
+  const childCount = hasChildren ? '' : null;
+  return (
+    <tr key={row.breakable.id} data-test={`wf-form-row-${ix}`}
+         className={(row.included ? '' : 'is-dim')
+           + (isChild ? ' is-nested' : '')
+           + (row.expanded ? ' is-expanded' : '')}>
+      <td>
+        <input type="checkbox"
+                data-test={`wf-form-row-${ix}-include`}
+                checked={row.included}
+                onChange={(e) => onUpdate(ix, { included: e.target.checked })} />
+      </td>
+      <td className={isChild ? 'ea-wf-steps-nested' : undefined}>
+        <button type="button"
+                 className="ea-wf-steps-sp-expand"
+                 data-test={`wf-form-row-${ix}-expand`}
+                 aria-expanded={row.expanded}
+                 aria-label={row.expanded ? 'Collapse' : 'Expand'}
+                 onClick={() => onExpand(ix)}>
+          <span className="ea-wf-steps-sp-chevron"
+                aria-hidden="true">{row.expanded ? '▾' : '▸'}</span>
+          <span className={'ea-wf-steps-kind-icon ea-wf-steps-kind-icon--'
+                           + kindTone(row.breakable.sectionKind)}
+                aria-label={kindLabel(row.breakable.sectionKind)}
+                title={kindLabel(row.breakable.sectionKind)}>
+            <UiIcon icon={kindIcon(row.breakable.sectionKind)} size={16} />
+          </span>
+          <span className="ea-wf-steps-sp-text">
+            <span className="ea-wf-steps-sp-name">{row.breakable.displayName}</span>
+            {summary && (
+              <span className="ea-text-muted ea-wf-steps-summary"> · {summary}</span>
+            )}
+            {childCount}
+          </span>
+          {(row.breakable.sectionKind === 'PROGRAM_STAGE'
+            || row.breakable.sectionKind === 'PROGRAM_STAGE_SECTION') && (
+            <span className="ea-wf-steps-repeat-icon"
+                  aria-label={row.breakable.repeatable
+                    ? 'Repeatable stage'
+                    : 'Captured once'}
+                  title={row.breakable.repeatable
+                    ? 'Captured multiple times per enrolment'
+                    : 'Captured once per enrolment'}>
+              <UiIcon icon={row.breakable.repeatable
+                            ? 'refresh' : 'event'} size={14} />
+            </span>
+          )}
+        </button>
+      </td>
+      <td>
+        <select className="ea-input ea-input--sm"
+                 data-test={`wf-form-row-${ix}-role`}
+                 value={row.ownerRole} disabled={!row.included}
+                 onChange={(e) => onUpdate(ix,
+                   { ownerRole: e.target.value as StepRow['ownerRole'] })}>
+          <option value="OPERATOR">Operator</option>
+          <option value="REVIEWER">Reviewer</option>
+          <option value="ADMIN">Admin</option>
+        </select>
+      </td>
+      <td>
+        <select className="ea-input ea-input--sm"
+                 data-test={`wf-form-row-${ix}-device`}
+                 value={row.ownerDeviceId ?? ''}
+                 disabled={!row.included}
+                 onChange={(e) => onUpdate(ix, {
+                   ownerDeviceId: e.target.value === '' ? null
+                     : e.target.value,
+                 })}>
+          <option value="">Any</option>
+          {devices.map((d) => (
+            <option key={d.deviceId} value={d.deviceId}>
+              {d.displayName ?? d.deviceId.slice(0, 12)}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="ea-wf-steps-ord">
+        {!isChild ? (
+          <div className="ea-wf-steps-ord-cell">
+            <span className="ea-wf-steps-ord-num">
+              {stepNumber == null ? '—' : stepNumber}
+            </span>
+            <div className="ea-wf-steps-ord-moves">
+              <button type="button"
+                       className="ea-icon-btn"
+                       title="Move up"
+                       aria-label="Move step up"
+                       data-test={`wf-form-row-${ix}-up`}
+                       disabled={ix === firstTop}
+                       onClick={() => onMove(ix, -1)}>↑</button>
+              <button type="button"
+                       className="ea-icon-btn"
+                       title="Move down"
+                       aria-label="Move step down"
+                       data-test={`wf-form-row-${ix}-down`}
+                       disabled={ix === lastTop}
+                       onClick={() => onMove(ix, 1)}>↓</button>
+            </div>
+          </div>
+        ) : (
+          <span className="ea-wf-steps-ord-sub">—</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function renderFieldsPanel(args: {
+  row: StepRow; ix: number;
+  onField: (ix: number, id: string,
+            next: { included: boolean; requirement: FieldReq }) => void;
+  onBulkField: (ix: number, selected: boolean) => void;
+}): JSX.Element {
+  const { row: r, ix: i, onField, onBulkField } = args;
+  return (
+    <tr key={`${r.breakable.id}-fields`}
+         className="ea-wf-steps-fields-row"
+         data-test={`wf-form-row-${i}-fields`}>
+      <td colSpan={5}>
+        {r.fieldCandidates == null ? (
+          <span className="ea-text-muted">Loading…</span>
+        ) : r.fieldCandidates.length === 0 ? (
+          <span className="ea-text-muted">
+            No fields mirrored. Save without selection to capture all.
+          </span>
+        ) : (
+          <>
+            <div className="ea-wf-fields-actions">
+              <span className="ea-text-muted ea-wf-fields-count">
+                {r.fieldCandidates.length} field{r.fieldCandidates.length === 1 ? '' : 's'}
+                {' · '}
+                {Object.values(r.fieldSelection)
+                  .filter((s) => s.included).length} included
+              </span>
+              <div className="ea-wf-fields-bulk">
+                <button type="button"
+                         className="ea-btn ea-btn--ghost ea-btn--sm"
+                         onClick={() => onBulkField(i, true)}>Include all</button>
+                <button type="button"
+                         className="ea-btn ea-btn--ghost ea-btn--sm"
+                         onClick={() => onBulkField(i, false)}>Clear</button>
+              </div>
+            </div>
+            <table className="ea-table ea-table--dense ea-wf-fields-table">
+              <thead>
+                <tr>
+                  <th className="ea-wf-fields-col-include">Include</th>
+                  <th>Field</th>
+                  <th className="ea-wf-fields-col-req">Behaviour</th>
+                </tr>
+              </thead>
+              <tbody>
+                {r.fieldCandidates.map((f) => {
+                  const sel = r.fieldSelection[f.id];
+                  const included = sel?.included ?? false;
+                  const req: FieldReq = sel?.requirement
+                               ?? (f.compulsory ? 'REQUIRED' : 'OPTIONAL');
+                  return (
+                    <tr key={f.id}
+                         className={included ? '' : 'is-dim'}
+                         data-test={`wf-form-row-${i}-field-${f.id}`}>
+                      <td className="ea-wf-fields-col-include">
+                        <input type="checkbox"
+                                data-test={`wf-form-row-${i}-field-${f.id}-include`}
+                                checked={included}
+                                onChange={(e) => onField(i, f.id,
+                                  { included: e.target.checked, requirement: req })} />
+                      </td>
+                      <td>
+                        <div className="ea-wf-fields-name">{f.displayName}</div>
+                        {f.compulsory && (
+                          <div className="ea-text-muted ea-wf-fields-hint">
+                            Mandatory upstream in DHIS2
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <select className="ea-input ea-input--sm"
+                                 data-test={`wf-form-row-${i}-field-${f.id}-req`}
+                                 value={req}
+                                 disabled={!included}
+                                 onChange={(e) => onField(i, f.id,
+                                   { included: true,
+                                     requirement: e.target.value as FieldReq })}>
+                          <option value="REQUIRED">Required</option>
+                          <option value="OPTIONAL">Optional</option>
+                          <option value="READONLY">Read-only</option>
+                          <option value="HIDDEN">Hidden</option>
+                        </select>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
+        )}
+      </td>
+    </tr>
+  );
+}
+
 function coerceReq(v: string | undefined): FieldReq {
   if (v === 'REQUIRED' || v === 'OPTIONAL'
       || v === 'READONLY' || v === 'HIDDEN') return v;
@@ -1077,7 +1152,7 @@ function fieldSummary(row: StepRow): string | null {
   if (total === 0) return null;
   const req = Object.values(row.fieldSelection)
     .filter((s) => s.included && s.requirement === 'REQUIRED').length;
-  return `${total} field${total === 1 ? '' : 's'} · ${req} required`;
+  return `${total} field${total === 1 ? '' : 's'}, ${req} required`;
 }
 
 function DependencyEditor({ rows, deps, setDeps, onTouched, depsTouched }: {
