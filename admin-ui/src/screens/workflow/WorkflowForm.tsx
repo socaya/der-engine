@@ -1015,14 +1015,14 @@ function kindLabel(k: Breakable['sectionKind']): string {
 
 function kindIcon(k: Breakable['sectionKind']):
     'tracker-event' | 'program-stage-section' | 'aggregate'
-    | 'event' | 'enrollment' {
+    | 'event' | 'enrollment' | 'program-section' {
   switch (k) {
     case 'PROGRAM_STAGE':         return 'tracker-event';
     case 'PROGRAM_STAGE_SECTION': return 'program-stage-section';
     case 'DATASET_SECTION':       return 'aggregate';
     case 'EVENT_INSTANCE':        return 'event';
     case 'ENROLLMENT_FORM':       return 'enrollment';
-    case 'PROGRAM_SECTION':       return 'program-stage-section';
+    case 'PROGRAM_SECTION':       return 'program-section';
     default:                      return 'event';
   }
 }
