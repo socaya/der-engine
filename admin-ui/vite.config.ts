@@ -11,9 +11,12 @@ const version = readFileSync(resolve(here, '..', 'VERSION'), 'utf-8').trim();
 const DER_SERVER = process.env.DER_SERVER_URL ?? 'http://127.0.0.1:8085';
 
 // ADR-0033: when served by DER server at /admin/, Vite needs the
-// base path baked into generated asset URLs. Dev server keeps `/`
-// so the proxy to :8085 for /edge-api works unchanged.
-const BASE = process.env.DER_ADMIN_UI_BASE ?? '/';
+// base path baked into generated asset URLs. Production builds default
+// to /admin/ since that's the only mount point the DER server exposes;
+// dev server (`vite`) overrides to `/` via NODE_ENV so the proxy to
+// :8085 for /edge-api works unchanged.
+const DEFAULT_BASE = process.env.NODE_ENV === 'production' ? '/admin/' : '/';
+const BASE = process.env.DER_ADMIN_UI_BASE ?? DEFAULT_BASE;
 
 export default defineConfig({
   base: BASE,
