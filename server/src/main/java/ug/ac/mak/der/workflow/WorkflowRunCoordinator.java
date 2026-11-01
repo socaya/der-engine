@@ -62,6 +62,9 @@ public class WorkflowRunCoordinator {
     private final Clock clock;
     private final ApplicationEventPublisher events;
     private final ProgressiveValidator validator;
+    private final CaptureWorkflowStepTransitionRepository transitions;
+    private final CaptureWorkflowPrefetchRepository prefetch;
+    private final WorkflowPrefetchStream prefetchStream;
 
     public WorkflowRunCoordinator(final CaptureWorkflowService workflows,
                                     final CaptureWorkflowRepository repo,
@@ -73,7 +76,10 @@ public class WorkflowRunCoordinator {
                                     final JdbcTemplate jdbc,
                                     final Clock clock,
                                     final ApplicationEventPublisher events,
-                                    final ProgressiveValidator validator) {
+                                    final ProgressiveValidator validator,
+                                    final CaptureWorkflowStepTransitionRepository transitions,
+                                    final CaptureWorkflowPrefetchRepository prefetch,
+                                    final WorkflowPrefetchStream prefetchStream) {
         this.workflows = Objects.requireNonNull(workflows, "workflows");
         this.repo = Objects.requireNonNull(repo, "repo");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
@@ -85,6 +91,47 @@ public class WorkflowRunCoordinator {
         this.clock = Objects.requireNonNull(clock, "clock");
         this.events = Objects.requireNonNull(events, "events");
         this.validator = Objects.requireNonNull(validator, "validator");
+        this.transitions = Objects.requireNonNull(transitions, "transitions");
+        this.prefetch = Objects.requireNonNull(prefetch, "prefetch");
+        this.prefetchStream = Objects.requireNonNull(prefetchStream, "prefetchStream");
+    }
+
+    /** V067 helper — log every step whose readiness differs from the
+     *  most recent recorded transition row for the same (run, step).
+     *  Called after each readiness recomputation so wait + turnaround
+     *  percentiles can be derived server-side.
+     *
+     *  <p>V068 side-effect — any step that transitions BLOCKED → READY
+     *  triggers a prefetch notification to its owner device so the
+     *  client UI can warm its cache before the operator arrives. */
+    private void recordTransitions(final CaptureWorkflow w, final UUID runId,
+                                     final Map<UUID, Readiness> readiness,
+                                     final UUID actorUser,
+                                     final UUID actorDevice) {
+        for (final Map.Entry<UUID, Readiness> e : readiness.entrySet()) {
+            final UUID stepId = e.getKey();
+            final Readiness to = e.getValue();
+            final Readiness prev = transitions.lastKnownState(runId, stepId);
+            if (prev == to) {
+                continue;
+            }
+            transitions.insert(new CaptureWorkflowStepTransition(
+                    null, w.workflowId(), runId, stepId,
+                    prev, to, Instant.now(clock), actorDevice, actorUser));
+            // V068 — only BLOCKED → READY triggers prefetch; initial
+            // READY (prev == null) and all other transitions skip.
+            if (prev == Readiness.BLOCKED && to == Readiness.READY) {
+                final UUID targetDevice = w.steps().stream()
+                        .filter((s) -> s.stepId().equals(stepId))
+                        .findFirst()
+                        .map(CaptureWorkflowStep::ownerDeviceId)
+                        .orElse(null);
+                if (targetDevice != null) {
+                    prefetch.notify(runId, stepId, targetDevice);
+                    prefetchStream.push(targetDevice, runId, stepId);
+                }
+            }
+        }
     }
 
     /* ─── 1. open ────────────────────────────────────────────────── */
@@ -108,7 +155,12 @@ public class WorkflowRunCoordinator {
                 UUID.randomUUID(), workflowId, w.version(), businessKey,
                 null, CaptureWorkflowRun.State.OPEN, now, now, actor,
                 null, null);
-        return repo.insertRun(run);
+        final CaptureWorkflowRun saved = repo.insertRun(run);
+        // V067 — log initial readiness for every step of the new run
+        // so wait-time calculations have a BLOCKED / READY baseline.
+        final Map<UUID, Readiness> initial = computeReadiness(w, List.of());
+        recordTransitions(w, saved.runId(), initial, actor, null);
+        return saved;
     }
 
     /* ─── 2. contribute ──────────────────────────────────────────── */
@@ -186,6 +238,11 @@ public class WorkflowRunCoordinator {
 
         // Recompute readiness per step.
         final Map<UUID, Readiness> readiness = computeReadiness(w, all);
+        // V067 — log every per-step transition (including the just-
+        // completed step) so the metrics endpoint can read wait +
+        // turnaround percentiles over a trailing window. actor/device
+        // on the row attributes the COMPLETE transition.
+        recordTransitions(w, runId, readiness, submittedBy, submittedDeviceId);
 
         // Transition state + publish events. Run blocked from completing
         // while any PENDING_REVIEW conflict exists OR any ERROR-severity

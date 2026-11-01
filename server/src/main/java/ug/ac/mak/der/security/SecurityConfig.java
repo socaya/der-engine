@@ -114,6 +114,16 @@ public class SecurityConfig {
                             "/edge-api/v1/workflows/queue/stream").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                             "/edge-api/v1/workflows/import-inbox/stream").authenticated()
+                        // §2.3.60 — admin-only metrics dashboard aggregation.
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/edge-api/v1/workflows/metrics").hasRole("ADMIN")
+                        // §2.3.60 — prefetch coordination (phase B).
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/edge-api/v1/workflows/prefetch/stream").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/edge-api/v1/workflows/prefetch/pending").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                            "/edge-api/v1/workflows/prefetch/*/acked").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/workflows/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.PUT, "/edge-api/v1/workflows/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/workflows/**").hasRole("ADMIN")

@@ -19,7 +19,100 @@ import { UiIcon } from '../../components/UiIcon';
  */
 
 export interface WorkflowMonitoringProps {
-  api?: Pick<typeof edgeApi, 'workflowQueue' | 'listDevices'>;
+  api?: Pick<typeof edgeApi, 'workflowQueue' | 'listDevices'
+                             | 'getWorkflowMetrics'>;
+}
+
+function PrefetchReadinessTable({ devices }: {
+  devices: edgeApi.EdgeDeviceRow[];
+}): JSX.Element {
+  const [pendingByDevice, setPendingByDevice] = useState<Map<string, number>>(new Map());
+  const [oldestByDevice, setOldestByDevice] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load(): Promise<void> {
+      const next = new Map<string, number>();
+      const oldest = new Map<string, string>();
+      for (const d of devices) {
+        try {
+          const r = await edgeApi.listPrefetchPending(d.deviceId);
+          if (cancelled) return;
+          next.set(d.deviceId, r.rows.length);
+          if (r.rows.length > 0) {
+            oldest.set(d.deviceId,
+              r.rows[0].notifiedAt);
+          }
+        } catch { /* ignore per-device */ }
+      }
+      if (!cancelled) {
+        setPendingByDevice(next);
+        setOldestByDevice(oldest);
+      }
+    }
+    load().catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [devices]);
+
+  if (devices.length === 0) {
+    return (<p className="ea-text-muted"
+                 style={{ padding: 12, textAlign: 'center' }}>
+      No devices enrolled.
+    </p>);
+  }
+
+  return (
+    <div className="ea-table-wrap">
+      <table className="ea-table ea-table--dense"
+             data-test="wf-monitor-prefetch">
+        <thead>
+          <tr>
+            <th>Device</th>
+            <th style={{ width: 100 }}>Pending</th>
+            <th style={{ width: 160 }}>Oldest unacked</th>
+            <th style={{ width: 140 }}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {devices.map((d) => {
+            const pending = pendingByDevice.get(d.deviceId) ?? 0;
+            const oldest = oldestByDevice.get(d.deviceId);
+            const ageMs = oldest ? Date.now() - new Date(oldest).getTime() : 0;
+            const stale = ageMs > 5 * 60_000;
+            return (
+              <tr key={d.deviceId}
+                   data-test={`wf-monitor-prefetch-${d.deviceId}`}>
+                <td style={{ fontWeight: 500 }}>
+                  {d.displayName ?? d.deviceId.slice(0, 8)}
+                </td>
+                <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                  {pending}
+                </td>
+                <td className="ea-text-muted" title={oldest}>
+                  {oldest ? fmtAgo(oldest) : '—'}
+                </td>
+                <td>
+                  {pending === 0
+                    ? <Status tone="success">Warm</Status>
+                    : stale
+                      ? <Status tone="danger">Not warming</Status>
+                      : <Status tone="info">In-flight</Status>}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function fmtDur(ms: number | null | undefined): string {
+  if (ms == null) return '—';
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
+  if (ms < 3_600_000) return `${Math.round(ms / 1000 / 60)} min`;
+  return `${(ms / 1000 / 60 / 60).toFixed(1)} h`;
 }
 
 interface WorkflowBreakdown {
@@ -52,24 +145,29 @@ export function WorkflowMonitoring({ api = edgeApi }:
     WorkflowMonitoringProps = {}): JSX.Element {
   const [rows, setRows] = useState<edgeApi.WorkflowQueueRow[] | null>(null);
   const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[]>([]);
+  const [metrics, setMetrics] = useState<edgeApi.WorkflowMetricsResponse | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loadedAt, setLoadedAt] = useState<string | null>(null);
+  const [windowHours, setWindowHours] = useState(24);
 
   async function reload(): Promise<void> {
     try {
-      const [qRes, dRes] = await Promise.allSettled([
+      const [qRes, dRes, mRes] = await Promise.allSettled([
         api.workflowQueue({ allDevices: true }),
         api.listDevices(),
+        api.getWorkflowMetrics(windowHours),
       ]);
       if (qRes.status === 'fulfilled') setRows(qRes.value.rows);
       if (dRes.status === 'fulfilled') setDevices(dRes.value.devices ?? []);
+      if (mRes.status === 'fulfilled') setMetrics(mRes.value);
       setLoadedAt(new Date().toISOString());
       setErr(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
   }
-  useEffect(() => { reload().catch(() => undefined); }, []);
+  useEffect(() => { reload().catch(() => undefined); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [windowHours]);
 
   const deviceNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -314,6 +412,103 @@ export function WorkflowMonitoring({ api = edgeApi }:
                   </tr>
                 );
               })}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      <Panel title={`Turnaround percentiles · last ${windowHours} h`}
+             action={
+               <select className="ea-input ea-input--sm"
+                        data-test="wf-monitor-window"
+                        value={windowHours}
+                        onChange={(e) => setWindowHours(Number(e.target.value))}>
+                 <option value={1}>1 h</option>
+                 <option value={6}>6 h</option>
+                 <option value={24}>24 h</option>
+                 <option value={168}>7 days</option>
+                 <option value={720}>30 days</option>
+               </select>
+             }>
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense"
+                 data-test="wf-monitor-turnaround">
+            <thead>
+              <tr>
+                <th>Service point</th>
+                <th>Workflow</th>
+                <th style={{ width: 80 }}>Completed</th>
+                <th style={{ width: 80 }}>p50</th>
+                <th style={{ width: 80 }}>p95</th>
+                <th style={{ width: 80 }}>Max</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(metrics?.perStep ?? []).length === 0 ? (
+                <tr><td colSpan={6} className="ea-text-muted"
+                         style={{ textAlign: 'center', padding: 16 }}>
+                  No completed steps in the selected window.
+                </td></tr>
+              ) : (metrics?.perStep ?? [])
+                  .slice()
+                  .sort((a, b) => (b.turnaroundP95Ms ?? 0) - (a.turnaroundP95Ms ?? 0))
+                  .slice(0, 12)
+                  .map((s) => (
+                <tr key={s.workflowId + s.stepId}
+                     data-test={`wf-monitor-ta-${s.stepId}`}>
+                  <td style={{ fontWeight: 500 }}>{s.stepName ?? '—'}</td>
+                  <td className="ea-text-muted">
+                    <Link to={`/workflows/${s.workflowId}`}>{s.workflowName ?? '—'}</Link>
+                  </td>
+                  <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                    {s.completedCount}
+                  </td>
+                  <td className="ea-text-muted">{fmtDur(s.turnaroundP50Ms)}</td>
+                  <td className="ea-text-muted">{fmtDur(s.turnaroundP95Ms)}</td>
+                  <td className="ea-text-muted">{fmtDur(s.turnaroundMaxMs)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      <Panel title="Prefetch readiness">
+        <PrefetchReadinessTable devices={devices} />
+      </Panel>
+
+      <Panel title={`Device turnaround · last ${windowHours} h`}>
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense"
+                 data-test="wf-monitor-device-turnaround">
+            <thead>
+              <tr>
+                <th>Device</th>
+                <th style={{ width: 80 }}>Completed</th>
+                <th style={{ width: 80 }}>p50</th>
+                <th style={{ width: 80 }}>p95</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(metrics?.perDevice ?? []).length === 0 ? (
+                <tr><td colSpan={4} className="ea-text-muted"
+                         style={{ textAlign: 'center', padding: 16 }}>
+                  No completions attributed to a device in the window.
+                </td></tr>
+              ) : (metrics?.perDevice ?? [])
+                  .slice()
+                  .sort((a, b) => (b.turnaroundP95Ms ?? 0) - (a.turnaroundP95Ms ?? 0))
+                  .map((d) => (
+                <tr key={d.deviceId}
+                     data-test={`wf-monitor-dev-ta-${d.deviceId}`}>
+                  <td style={{ fontWeight: 500 }}>{d.deviceName ?? d.deviceId.slice(0, 8)}</td>
+                  <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                    {d.completedCount}
+                  </td>
+                  <td className="ea-text-muted">{fmtDur(d.turnaroundP50Ms)}</td>
+                  <td className="ea-text-muted">{fmtDur(d.turnaroundP95Ms)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

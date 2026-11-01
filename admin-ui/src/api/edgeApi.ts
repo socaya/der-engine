@@ -1006,6 +1006,56 @@ export interface WorkflowQueueRow {
   validationErrorCount: number;
 }
 
+/** §2.3.60 — admin-only aggregation of step-transition rows (V067). */
+export interface WorkflowStepMetric {
+  workflowId: string;
+  workflowName: string | null;
+  stepId: string;
+  stepName: string | null;
+  completedCount: number;
+  turnaroundP50Ms: number | null;
+  turnaroundP95Ms: number | null;
+  turnaroundMaxMs: number | null;
+}
+export interface WorkflowDeviceMetric {
+  deviceId: string;
+  deviceName: string | null;
+  completedCount: number;
+  turnaroundP50Ms: number | null;
+  turnaroundP95Ms: number | null;
+}
+export interface WorkflowMetricsResponse {
+  windowHours: number;
+  perStep: WorkflowStepMetric[];
+  perDevice: WorkflowDeviceMetric[];
+}
+
+export function getWorkflowMetrics(windowHours = 24):
+    Promise<WorkflowMetricsResponse> {
+  return request<WorkflowMetricsResponse>('GET',
+    `/edge-api/v1/workflows/metrics?windowHours=${windowHours}`);
+}
+
+/** §2.3.60 — prefetch coordination. The client-side `WorkflowPrefetch`
+ *  helper opens an EventSource against this endpoint on boot and
+ *  warms its local cache in response to each `prefetch` event. */
+export interface PrefetchPendingRow {
+  runId: string;
+  stepId: string;
+  notifiedAt: string;
+}
+export function listPrefetchPending(deviceId: string):
+    Promise<{ deviceId: string; rows: PrefetchPendingRow[] }> {
+  return request('GET',
+    `/edge-api/v1/workflows/prefetch/pending?deviceId=${encodeURIComponent(deviceId)}`);
+}
+export function ackPrefetch(stepId: string, deviceId: string):
+    Promise<{ acked: number }> {
+  return request('POST',
+    `/edge-api/v1/workflows/prefetch/${encodeURIComponent(stepId)}/acked`
+    + `?deviceId=${encodeURIComponent(deviceId)}`);
+}
+
 export function workflowQueue(opts?: {
   deviceId?: string;
   allDevices?: boolean;
