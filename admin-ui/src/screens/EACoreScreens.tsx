@@ -1371,6 +1371,7 @@ export function EACaptureWorkflowList({ api = edgeApi }:
       | 'listWorkflowRuns' | 'saveWorkflow' | 'getWorkflow' | 'exportWorkflow'> } = {}): JSX.Element {
   const [workflows, setWorkflows] = useState<edgeApi.CaptureWorkflowSummary[] | null>(null);
   const [runCounts, setRunCounts] = useState<Record<string, number>>({});
+  const [bindingNames, setBindingNames] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
   async function reload(): Promise<void> {
@@ -1387,6 +1388,25 @@ export function EACaptureWorkflowList({ api = edgeApi }:
         } catch { counts[w.workflowId] = 0; }
       }));
       setRunCounts(counts);
+      // §2.3.67 — resolve each workflow's binding UID to the mirror
+      // display name so admins see "PEP Prevention HIV Programme"
+      // instead of "PROGRAM:ypERhZSScUZ". De-duplicated by UID so a
+      // catalogue with N workflows on the same program fires one
+      // fetch, not N.
+      const names: Record<string, string> = {};
+      const seen = new Set<string>();
+      const md = await import('./workflow/wizardMetadata');
+      await Promise.all(resp.workflows.map(async (w) => {
+        const key = `${w.boundMetadataKind}:${w.boundMetadataId}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const kind = w.boundMetadataKind === 'DATA_SET' ? 'DATA_SET' : 'PROGRAM';
+        try {
+          const m = await md.fetchMetadataName(kind, w.boundMetadataId);
+          names[key] = m.displayName;
+        } catch { /* leave absent */ }
+      }));
+      setBindingNames(names);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -1514,8 +1534,26 @@ export function EACaptureWorkflowList({ api = edgeApi }:
                         {w.displayName}
                       </Link>
                     </td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>
-                      {w.boundMetadataKind}:{w.boundMetadataId}
+                    <td>
+                      {(() => {
+                        const key = `${w.boundMetadataKind}:${w.boundMetadataId}`;
+                        const name = bindingNames[key];
+                        return (
+                          <>
+                            <span style={{ fontSize: 13 }}>
+                              {name ?? w.boundMetadataId}
+                            </span>
+                            <div className="ea-text-muted"
+                                  style={{ fontSize: 11 }}>
+                              {w.boundMetadataKind === 'DATA_SET' ? 'Dataset'
+                                : w.boundMetadataKind === 'PROGRAM' ? 'Program'
+                                : w.boundMetadataKind}
+                              {' · '}
+                              <span className="ea-mono">{w.boundMetadataId}</span>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </td>
                     <td className="ea-mono">v{w.version}</td>
                     <td>
