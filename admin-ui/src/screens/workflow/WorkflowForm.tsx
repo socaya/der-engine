@@ -349,6 +349,33 @@ export function WorkflowForm({ api = edgeApi }:
       return copy;
     });
   }
+  function moveStep(ix: number, direction: -1 | 1): void {
+    setRows((prev) => {
+      // Only reorder top-level rows (parentId == null). Children
+      // (stage sections) move as part of their parent block so sections
+      // never get orphaned above/below an unrelated stage.
+      const groups: { head: number; size: number }[] = [];
+      for (let i = 0; i < prev.length; i++) {
+        if (prev[i].breakable.parentId == null) {
+          groups.push({ head: i, size: 1 });
+        } else if (groups.length > 0) {
+          groups[groups.length - 1].size += 1;
+        }
+      }
+      const gIx = groups.findIndex((g) => g.head === ix);
+      if (gIx < 0) return prev;
+      const swapWith = gIx + direction;
+      if (swapWith < 0 || swapWith >= groups.length) return prev;
+      const a = groups[Math.min(gIx, swapWith)];
+      const b = groups[Math.max(gIx, swapWith)];
+      const before = prev.slice(0, a.head);
+      const first = prev.slice(a.head, a.head + a.size);
+      const middle = prev.slice(a.head + a.size, b.head);
+      const second = prev.slice(b.head, b.head + b.size);
+      const after = prev.slice(b.head + b.size);
+      return [...before, ...second, ...middle, ...first, ...after];
+    });
+  }
   function bulkSetFieldSelection(ix: number, selected: boolean): void {
     setRows((prev) => {
       const copy = [...prev];
@@ -589,7 +616,8 @@ export function WorkflowForm({ api = edgeApi }:
                              onUpdate={updateRow}
                              onExpand={toggleExpand}
                              onField={updateFieldSelection}
-                             onBulkField={bulkSetFieldSelection} />
+                             onBulkField={bulkSetFieldSelection}
+                             onMove={moveStep} />
               )}
             </div>
           )}
@@ -673,7 +701,7 @@ export function WorkflowForm({ api = edgeApi }:
   );
 }
 
-function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }: {
+function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, onMove }: {
     rows: StepRow[];
     devices: edgeApi.EdgeDeviceRow[];
     onUpdate: (ix: number, patch: Partial<StepRow>) => void;
@@ -681,7 +709,15 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
     onField: (ix: number, id: string,
               next: { included: boolean; requirement: FieldReq }) => void;
     onBulkField: (ix: number, selected: boolean) => void;
+    onMove: (ix: number, direction: -1 | 1) => void;
 }): JSX.Element {
+  // Precompute which top-level indices can move up / down.
+  const topLevelIxs = rows
+    .map((r, i) => ({ r, i }))
+    .filter((x) => x.r.breakable.parentId == null)
+    .map((x) => x.i);
+  const firstTop = topLevelIxs[0];
+  const lastTop  = topLevelIxs[topLevelIxs.length - 1];
   return (
     <div className="ea-table-wrap">
       <table className="ea-table ea-table--dense ea-wf-steps-table"
@@ -710,7 +746,31 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
                      className={(r.included ? '' : 'is-dim')
                        + (r.breakable.parentId ? ' is-nested' : '')}>
                   <td className="ea-wf-steps-ord">
-                    {stepNumber == null ? '—' : stepNumber}
+                    {r.breakable.parentId == null ? (
+                      <div className="ea-wf-steps-ord-cell">
+                        <span className="ea-wf-steps-ord-num">
+                          {stepNumber == null ? '—' : stepNumber}
+                        </span>
+                        <div className="ea-wf-steps-ord-moves">
+                          <button type="button"
+                                   className="ea-icon-btn"
+                                   title="Move up"
+                                   aria-label="Move step up"
+                                   data-test={`wf-form-row-${i}-up`}
+                                   disabled={i === firstTop}
+                                   onClick={() => onMove(i, -1)}>↑</button>
+                          <button type="button"
+                                   className="ea-icon-btn"
+                                   title="Move down"
+                                   aria-label="Move step down"
+                                   data-test={`wf-form-row-${i}-down`}
+                                   disabled={i === lastTop}
+                                   onClick={() => onMove(i, 1)}>↓</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="ea-wf-steps-ord-sub">{stepNumber ?? '—'}</span>
+                    )}
                   </td>
                   <td>
                     <input type="checkbox"
