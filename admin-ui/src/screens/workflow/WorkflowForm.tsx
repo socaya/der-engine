@@ -247,8 +247,6 @@ export function WorkflowForm({ api = edgeApi }:
       o.displayName.toLowerCase().includes(q));
   }, [metadataOptions, metadataSearch]);
 
-  type TabId = 'settings' | 'target' | 'steps' | 'handover' | 'pin';
-  const [activeTab, setActiveTab] = useState<TabId>(editing ? 'settings' : 'target');
 
   const includedRows = rows.filter((r) => r.included);
   const canSave = name.trim() !== '' && chosenMetadata != null
@@ -474,44 +472,11 @@ export function WorkflowForm({ api = edgeApi }:
                      testId="wf-form-load-error">{loadError}</ErrorBlock>
       )}
 
-      <section className="ea-card ea-form-card ea-form-card--wide ea-form-card--split">
-        <form className="ea-form ea-form--split"
+      <section className="ea-card ea-form-card ea-form-card--wide ea-form-card--flat">
+        <form className="ea-form ea-form--flat"
               onSubmit={(e) => { e.preventDefault(); if (canSave) void doSave(); }}>
-          <nav className="ea-form-nav" role="tablist" aria-label="Workflow sections">
-            {([
-              { id: 'settings', label: 'Settings' },
-              { id: 'target',   label: 'DHIS2 target' },
-              { id: 'steps',    label: 'Service points',
-                                badge: includedRows.length || undefined },
-              { id: 'handover', label: 'Handover',
-                                badge: deps.length || undefined,
-                                disabled: includedRows.length === 0 },
-              ...(editing && snapshots.length > 0
-                ? [{ id: 'pin' as const, label: 'Metadata pin' }]
-                : []),
-            ] as { id: TabId; label: string; badge?: number; disabled?: boolean }[])
-              .map((t) => {
-                const active = activeTab === t.id;
-                return (
-                  <button key={t.id} type="button" role="tab"
-                           aria-selected={active}
-                           disabled={t.disabled}
-                           data-test={`wf-form-nav-${t.id}`}
-                           className={'ea-form-nav-item'
-                             + (active ? ' is-active' : '')}
-                           onClick={() => setActiveTab(t.id)}>
-                    <span>{t.label}</span>
-                    {t.badge !== undefined && (
-                      <span className="ea-form-nav-badge">{t.badge}</span>
-                    )}
-                  </button>
-                );
-              })}
-          </nav>
-          <div className="ea-form-panel">
 
-          <div className="ea-form-section"
-               hidden={activeTab !== 'settings'}>
+          <div className="ea-form-section">
             <div className="ea-form-section-head">
               <h2>Settings</h2>
               <p>Name, status and the default role/device for steps you
@@ -562,8 +527,7 @@ export function WorkflowForm({ api = edgeApi }:
             </div>
           </div>
 
-          <div className="ea-form-section"
-               hidden={activeTab !== 'target'}>
+          <div className="ea-form-section">
             <div className="ea-form-section-head">
               <h2>DHIS2 target</h2>
               <p>What this workflow captures. Pick a type, then the dataset
@@ -641,8 +605,7 @@ export function WorkflowForm({ api = edgeApi }:
           </div>
 
           {chosenMetadata && (
-            <div className="ea-form-section"
-                 hidden={activeTab !== 'steps'}>
+            <div className="ea-form-section">
               <div className="ea-form-section-head">
                 <h2>Service points</h2>
                 <p>Tick each service point the workflow should cover.
@@ -664,8 +627,7 @@ export function WorkflowForm({ api = edgeApi }:
           )}
 
           {chosenMetadata && includedRows.length >= 1 && (
-            <div className="ea-form-section"
-                 hidden={activeTab !== 'handover'}>
+            <div className="ea-form-section">
               <div className="ea-form-section-head">
                 <h2>Handover</h2>
                 <p>Preview of how work flows between service points.
@@ -684,8 +646,7 @@ export function WorkflowForm({ api = edgeApi }:
           )}
 
           {editing && snapshots.length > 0 && (
-            <div className="ea-form-section"
-                 hidden={activeTab !== 'pin'}>
+            <div className="ea-form-section">
               <div className="ea-form-section-head">
                 <h2>Metadata pin</h2>
                 <p>Freeze this workflow to a specific metadata snapshot
@@ -729,8 +690,7 @@ export function WorkflowForm({ api = edgeApi }:
                          testId="wf-form-save-error">{saveError}</ErrorBlock>
           )}
 
-          </div>
-          <div className="ea-form-footer ea-form-footer--split">
+          <div className="ea-form-footer">
             <Link to="/workflows" className="ea-btn ea-btn--ghost">Cancel</Link>
             <button type="submit"
                      className="ea-btn ea-btn--primary"
@@ -804,11 +764,13 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
                 devices,
               }));
               if (r.expanded) {
-                // When a parent has children (sections), expanding
-                // shows the children instead of (or alongside) the
-                // parent's own field panel. If the parent is ticked
-                // (whole-parent capture), its field panel is appended
-                // under the children for refinement.
+                // Expanding a parent reveals its sections (if any) +
+                // its own field table. Expanding a leaf reveals its
+                // field table. Field table always shows on expand so
+                // operators can inspect / pre-select fields before
+                // ticking the step itself. Selection is persisted
+                // regardless of the include state and applied on save
+                // once the step is ticked.
                 for (const ci of childIxs) {
                   const c = rows[ci];
                   out.push(renderRow({
@@ -818,16 +780,20 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
                     onUpdate, onExpand, onMove,
                     devices,
                   }));
-                  if (c.expanded && c.included) {
+                  if (c.expanded) {
                     out.push(renderFieldsPanel({
                       row: c, ix: ci, onField, onBulkField,
                     }));
                   }
                 }
-                if (r.included && (!hasChildren || hasChildren)) {
-                  // Leaf → always show fields when included + expanded.
-                  // Parent-with-children + ticked → show the whole-parent
-                  // field panel so operator can refine the capture.
+                if (!hasChildren) {
+                  out.push(renderFieldsPanel({
+                    row: r, ix: i, onField, onBulkField,
+                  }));
+                } else if (r.included) {
+                  // Parent-with-children + ticked (whole-parent capture)
+                  // → append the parent's full field panel below sections
+                  // so operator can refine the capture.
                   out.push(renderFieldsPanel({
                     row: r, ix: i, onField, onBulkField,
                   }));

@@ -2335,68 +2335,23 @@ tr.is-nested .ea-wf-steps-sp-expand{padding-left:22px}
    for the Kind / Role / Handover-to columns + inline field editor. */
 .ea-form-card--wide{max-width:none}
 
-/* Split layout — vertical inner-sidebar nav on the left, section panel
-   on the right. Used by the WorkflowForm so the long record-management
-   form has a scannable navigation column instead of a stack of
-   per-section grids. Specificity has to beat the base rules at
-   .ea-main .ea-form-card form.ea-form (which forces flex column) and
-   .ea-form-section (which forces a 220/1fr section-head grid). */
-.ea-form-card--split{padding:0;display:flex;flex-direction:column}
-.ea-main .ea-form-card.ea-form-card--split > form.ea-form.ea-form--split{
-  display:grid;grid-template-columns:220px 1fr;align-items:stretch;
-  min-height:360px;gap:0;
+/* Flat layout — full-width stacked sections, no inner nav rail.
+   Overrides the base .ea-form-section 220/1fr grid so each section's
+   head renders stacked above its content instead of as a left column.
+   Specificity has to beat
+   .ea-main .ea-form-card form.ea-form { display:flex; } and
+   .ea-form-section { display:grid; grid-template-columns:220px 1fr }. */
+.ea-form-card--flat{padding:0;display:flex;flex-direction:column}
+.ea-main .ea-form-card.ea-form-card--flat > form.ea-form.ea-form--flat{
+  display:flex;flex-direction:column;gap:0;
 }
-.ea-form--split .ea-form-section{
+.ea-form--flat .ea-form-section{
   display:block;grid-template-columns:none;
-  padding:var(--sp-5) var(--sp-5);border-bottom:none;
+  padding:var(--sp-5) var(--sp-5);
+  border-bottom:1px solid var(--der-border-subtle);
 }
-.ea-form--split .ea-form-section-head{margin-bottom:var(--sp-3)}
-.ea-form-nav{
-  display:flex;flex-direction:column;gap:2px;padding:16px 10px;
-  border-right:1px solid var(--der-border);
-  background:var(--der-raised-weak,transparent);
-}
-.ea-form-nav-item{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  padding:8px 12px;border:none;background:transparent;
-  text-align:left;color:var(--der-ink-700);font-size:13px;font-weight:500;
-  border-radius:6px;cursor:pointer;
-}
-.ea-form-nav-item:hover:not(:disabled):not(.is-active){
-  background:var(--der-raised);color:var(--der-ink-900);
-}
-.ea-form-nav-item.is-active{
-  background:var(--der-navy-700);color:#fff;
-}
-.ea-form-nav-item:disabled{opacity:0.4;cursor:not-allowed}
-.ea-form-nav-badge{
-  background:var(--der-ink-100);color:var(--der-ink-700);
-  font-size:11px;font-weight:600;padding:1px 7px;border-radius:10px;
-  min-width:16px;text-align:center;
-}
-.ea-form-nav-item.is-active .ea-form-nav-badge{
-  background:rgba(255,255,255,0.2);color:#fff;
-}
-.ea-form-panel{
-  display:flex;flex-direction:column;min-width:0;
-  /* make sure the panel takes the right column fully */
-}
-.ea-form-panel > .ea-form-section{
-  border-bottom:none;
-}
-.ea-form-footer--split{
-  grid-column:1 / -1;
-  border-top:1px solid var(--der-border);
-  padding:12px 16px;
-  background:var(--der-raised-weak,transparent);
-}
-
-@media(max-width:900px){
-  .ea-form--split{grid-template-columns:1fr}
-  .ea-form-nav{flex-direction:row;flex-wrap:wrap;overflow-x:auto;
-    border-right:none;border-bottom:1px solid var(--der-border);
-    padding:8px}
-}
+.ea-form--flat .ea-form-section:last-of-type{border-bottom:none}
+.ea-form--flat .ea-form-section-head{margin-bottom:var(--sp-3)}
 
 /* Handover flow preview — service-point chain under Dependencies. */
 .ea-wf-flow{
