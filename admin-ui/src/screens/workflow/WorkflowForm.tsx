@@ -740,43 +740,45 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
               const stepNumber = r.included ? ordinal : null;
               const childIxs = childIxsByParentId.get(r.breakable.id) ?? [];
               const hasChildren = childIxs.length > 0;
+              // Whole-parent capture: ticking a parent clears its
+              // section children and hides them from the Steps table.
+              // Show a "N sections hidden" tag on the parent so the
+              // operator sees why the sections aren't listed. Unticking
+              // the parent brings the sections back.
+              const hideChildren = r.included && hasChildren;
               out.push(renderRow({
                 row: r, ix: i, stepNumber, hasChildren,
+                hiddenChildrenCount: hideChildren ? childIxs.length : 0,
                 isChild: false, firstTop, lastTop,
                 onUpdate, onExpand, onMove,
                 devices,
               }));
               if (r.expanded) {
-                // Expanding a parent reveals its sections (if any) +
-                // its own field table. Expanding a leaf reveals its
-                // field table. Field table always shows on expand so
-                // operators can inspect / pre-select fields before
-                // ticking the step itself. Selection is persisted
-                // regardless of the include state and applied on save
-                // once the step is ticked.
-                for (const ci of childIxs) {
-                  const c = rows[ci];
-                  out.push(renderRow({
-                    row: c, ix: ci, stepNumber: null,
-                    hasChildren: false, isChild: true,
-                    firstTop, lastTop,
-                    onUpdate, onExpand, onMove,
-                    devices,
-                  }));
-                  if (c.expanded) {
-                    out.push(renderFieldsPanel({
-                      row: c, ix: ci, devices, onField, onBulkField,
+                // Only render children when the parent isn't itself
+                // selected as a whole-step capture.
+                if (!hideChildren) {
+                  for (const ci of childIxs) {
+                    const c = rows[ci];
+                    out.push(renderRow({
+                      row: c, ix: ci, stepNumber: null,
+                      hasChildren: false,
+                      hiddenChildrenCount: 0,
+                      isChild: true,
+                      firstTop, lastTop,
+                      onUpdate, onExpand, onMove,
+                      devices,
                     }));
+                    if (c.expanded) {
+                      out.push(renderFieldsPanel({
+                        row: c, ix: ci, devices, onField, onBulkField,
+                      }));
+                    }
                   }
                 }
-                if (!hasChildren) {
-                  out.push(renderFieldsPanel({
-                    row: r, ix: i, devices, onField, onBulkField,
-                  }));
-                } else if (r.included) {
-                  // Parent-with-children + ticked (whole-parent capture)
-                  // → append the parent's full field panel below sections
-                  // so operator can refine the capture.
+                // Field panel for the parent: leaf → always, or
+                // parent ticked (whole-parent capture) → show the
+                // field table so operator can refine the field set.
+                if (!hasChildren || r.included) {
                   out.push(renderFieldsPanel({
                     row: r, ix: i, devices, onField, onBulkField,
                   }));
@@ -841,6 +843,7 @@ function renderRow(args: {
   row: StepRow; ix: number;
   stepNumber: number | null;
   hasChildren: boolean;
+  hiddenChildrenCount: number;
   isChild: boolean;
   firstTop: number; lastTop: number;
   onUpdate: (ix: number, patch: Partial<StepRow>) => void;
@@ -848,7 +851,7 @@ function renderRow(args: {
   onMove: (ix: number, direction: -1 | 1) => void;
   devices: edgeApi.EdgeDeviceRow[];
 }): JSX.Element {
-  const { row, ix, stepNumber, hasChildren, isChild,
+  const { row, ix, stepNumber, hasChildren, hiddenChildrenCount, isChild,
           firstTop, lastTop, onUpdate, onExpand, onMove, devices } = args;
   const summary = fieldSummary(row);
   const childCount = hasChildren ? '' : null;
@@ -885,6 +888,13 @@ function renderRow(args: {
             <span className="ea-wf-steps-sp-name">{row.breakable.displayName}</span>
             {summary && (
               <span className="ea-text-muted ea-wf-steps-summary"> · {summary}</span>
+            )}
+            {hiddenChildrenCount > 0 && (
+              <span className="ea-chip ea-chip--info ea-wf-steps-hidden-tag"
+                     data-test={`wf-form-row-${ix}-hidden-sections`}
+                     title={`Whole-${kindLabel(row.breakable.sectionKind).toLowerCase()} capture — ${hiddenChildrenCount} section${hiddenChildrenCount === 1 ? '' : 's'} hidden. Untick Include to switch to section-level capture.`}>
+                {hiddenChildrenCount} section{hiddenChildrenCount === 1 ? '' : 's'} hidden
+              </span>
             )}
             {childCount}
           </span>

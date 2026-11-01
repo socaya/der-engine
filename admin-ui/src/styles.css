@@ -2366,6 +2366,10 @@ tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
   color:var(--der-danger-ink);font-weight:700;
   margin-left:4px;cursor:help;
 }
+.ea-wf-steps-hidden-tag{
+  font-size:10px;padding:1px 6px;
+  cursor:help;flex-shrink:0;
+}
 .ea-wf-fields-table .is-dim td{color:var(--der-ink-500)}
 .ea-wf-fields-table .is-dim select{opacity:0.6}
 
