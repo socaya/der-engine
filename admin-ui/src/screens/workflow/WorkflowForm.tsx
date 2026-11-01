@@ -63,6 +63,8 @@ export function WorkflowForm({ api = edgeApi }:
   const [pinnedSnapshotId, setPinnedSnapshotId] = useState<number | null>(null);
   const [pinSaving, setPinSaving] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [draggingIx, setDraggingIx] = useState<number | null>(null);
+  const [dragOverIx, setDragOverIx] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -338,11 +340,13 @@ export function WorkflowForm({ api = edgeApi }:
       return copy;
     });
   }
-  function moveStep(ix: number, direction: -1 | 1): void {
+  function moveStepTo(sourceIx: number, targetIx: number): void {
+    if (sourceIx === targetIx) return;
     setRows((prev) => {
       // Only reorder top-level rows (parentId == null). Children
-      // (stage sections) move as part of their parent block so sections
-      // never get orphaned above/below an unrelated stage.
+      // (stage sections / enrolment sections) move with their parent
+      // block so sections never get orphaned above/below an
+      // unrelated parent.
       const groups: { head: number; size: number }[] = [];
       for (let i = 0; i < prev.length; i++) {
         if (prev[i].breakable.parentId == null) {
@@ -351,18 +355,25 @@ export function WorkflowForm({ api = edgeApi }:
           groups[groups.length - 1].size += 1;
         }
       }
-      const gIx = groups.findIndex((g) => g.head === ix);
-      if (gIx < 0) return prev;
-      const swapWith = gIx + direction;
-      if (swapWith < 0 || swapWith >= groups.length) return prev;
-      const a = groups[Math.min(gIx, swapWith)];
-      const b = groups[Math.max(gIx, swapWith)];
-      const before = prev.slice(0, a.head);
-      const first = prev.slice(a.head, a.head + a.size);
-      const middle = prev.slice(a.head + a.size, b.head);
-      const second = prev.slice(b.head, b.head + b.size);
-      const after = prev.slice(b.head + b.size);
-      return [...before, ...second, ...middle, ...first, ...after];
+      const srcG = groups.findIndex((g) => g.head === sourceIx);
+      const dstG = groups.findIndex((g) => g.head === targetIx);
+      if (srcG < 0 || dstG < 0 || srcG === dstG) return prev;
+      // Pull the source group out, then insert at the new slot.
+      const extracted = prev.slice(groups[srcG].head,
+                                     groups[srcG].head + groups[srcG].size);
+      const withoutSrc = [
+        ...prev.slice(0, groups[srcG].head),
+        ...prev.slice(groups[srcG].head + groups[srcG].size),
+      ];
+      // Recompute dst group head in the pulled array.
+      const dstHead = srcG < dstG
+        ? groups[dstG].head - groups[srcG].size
+        : groups[dstG].head;
+      return [
+        ...withoutSrc.slice(0, dstHead),
+        ...extracted,
+        ...withoutSrc.slice(dstHead),
+      ];
     });
   }
   function bulkSetFieldSelection(ix: number, selected: boolean): void {
@@ -577,7 +588,19 @@ export function WorkflowForm({ api = edgeApi }:
                              onExpand={toggleExpand}
                              onField={updateFieldSelection}
                              onBulkField={bulkSetFieldSelection}
-                             onMove={moveStep} />
+                             draggingIx={draggingIx}
+                             dragOverIx={dragOverIx}
+                             onDragStart={setDraggingIx}
+                             onDragEnd={() => {
+                               setDraggingIx(null);
+                               setDragOverIx(null);
+                             }}
+                             onDragOver={setDragOverIx}
+                             onDrop={(targetIx) => {
+                               if (draggingIx != null) moveStepTo(draggingIx, targetIx);
+                               setDraggingIx(null);
+                               setDragOverIx(null);
+                             }} />
               )}
             </div>
           )}
@@ -655,7 +678,9 @@ export function WorkflowForm({ api = edgeApi }:
   );
 }
 
-function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, onMove }: {
+function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField,
+                      draggingIx, dragOverIx,
+                      onDragStart, onDragEnd, onDragOver, onDrop }: {
     rows: StepRow[];
     devices: edgeApi.EdgeDeviceRow[];
     onUpdate: (ix: number, patch: Partial<StepRow>) => void;
@@ -663,15 +688,13 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
     onField: (ix: number, id: string,
               next: FieldSel) => void;
     onBulkField: (ix: number, selected: boolean) => void;
-    onMove: (ix: number, direction: -1 | 1) => void;
+    draggingIx: number | null;
+    dragOverIx: number | null;
+    onDragStart: (ix: number) => void;
+    onDragEnd: () => void;
+    onDragOver: (ix: number) => void;
+    onDrop: (ix: number) => void;
 }): JSX.Element {
-  // Precompute which top-level indices can move up / down.
-  const topLevelIxs = rows
-    .map((r, i) => ({ r, i }))
-    .filter((x) => x.r.breakable.parentId == null)
-    .map((x) => x.i);
-  const firstTop = topLevelIxs[0];
-  const lastTop  = topLevelIxs[topLevelIxs.length - 1];
   return (
     <div className="ea-table-wrap">
       <table className="ea-table ea-table--dense ea-wf-steps-table"
@@ -716,8 +739,10 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
               out.push(renderRow({
                 row: r, ix: i, stepNumber, hasChildren,
                 hiddenChildrenCount: hideChildren ? childIxs.length : 0,
-                isChild: false, firstTop, lastTop,
-                onUpdate, onExpand, onMove,
+                isChild: false,
+                draggingIx, dragOverIx,
+                onDragStart, onDragEnd, onDragOver, onDrop,
+                onUpdate, onExpand,
                 devices,
               }));
               if (r.expanded) {
@@ -731,8 +756,9 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
                       hasChildren: false,
                       hiddenChildrenCount: 0,
                       isChild: true,
-                      firstTop, lastTop,
-                      onUpdate, onExpand, onMove,
+                      draggingIx, dragOverIx,
+                      onDragStart, onDragEnd, onDragOver, onDrop,
+                      onUpdate, onExpand,
                       devices,
                     }));
                     if (c.expanded) {
@@ -928,21 +954,42 @@ function renderRow(args: {
   hasChildren: boolean;
   hiddenChildrenCount: number;
   isChild: boolean;
-  firstTop: number; lastTop: number;
+  draggingIx: number | null;
+  dragOverIx: number | null;
+  onDragStart: (ix: number) => void;
+  onDragEnd: () => void;
+  onDragOver: (ix: number) => void;
+  onDrop: (ix: number) => void;
   onUpdate: (ix: number, patch: Partial<StepRow>) => void;
   onExpand: (ix: number) => void;
-  onMove: (ix: number, direction: -1 | 1) => void;
   devices: edgeApi.EdgeDeviceRow[];
 }): JSX.Element {
   const { row, ix, stepNumber, hasChildren, hiddenChildrenCount, isChild,
-          firstTop, lastTop, onUpdate, onExpand, onMove, devices } = args;
+          draggingIx, dragOverIx,
+          onDragStart, onDragEnd, onDragOver, onDrop,
+          onUpdate, onExpand, devices } = args;
+  void onDragEnd; // handled on the drag handle itself.
   const summary = fieldSummary(row);
   const childCount = hasChildren ? '' : null;
+  const isDragging = draggingIx === ix;
+  const isDropTarget = !isChild && dragOverIx === ix && draggingIx !== null
+                       && draggingIx !== ix;
   return (
     <tr key={row.breakable.id} data-test={`wf-form-row-${ix}`}
          className={(row.included ? '' : 'is-dim')
            + (isChild ? ' is-nested' : '')
-           + (row.expanded ? ' is-expanded' : '')}>
+           + (row.expanded ? ' is-expanded' : '')
+           + (isDragging ? ' is-dragging' : '')
+           + (isDropTarget ? ' is-drop-target' : '')}
+         onDragOver={!isChild ? (e) => {
+           e.preventDefault();
+           e.dataTransfer.dropEffect = 'move';
+           onDragOver(ix);
+         } : undefined}
+         onDrop={!isChild ? (e) => {
+           e.preventDefault();
+           onDrop(ix);
+         } : undefined}>
       <td className="ea-wf-steps-numcell">
         <input type="checkbox"
                 data-test={`wf-form-row-${ix}-include`}
@@ -1026,22 +1073,17 @@ function renderRow(args: {
       </td>
       <td className="ea-wf-steps-ord">
         {!isChild && (
-          <div className="ea-wf-steps-ord-moves">
-            <button type="button"
-                     className="ea-icon-btn"
-                     title="Move up"
-                     aria-label="Move step up"
-                     data-test={`wf-form-row-${ix}-up`}
-                     disabled={ix === firstTop}
-                     onClick={() => onMove(ix, -1)}>↑</button>
-            <button type="button"
-                     className="ea-icon-btn"
-                     title="Move down"
-                     aria-label="Move step down"
-                     data-test={`wf-form-row-${ix}-down`}
-                     disabled={ix === lastTop}
-                     onClick={() => onMove(ix, 1)}>↓</button>
-          </div>
+          <span className="ea-wf-steps-drag-handle"
+                 title="Drag to reorder"
+                 aria-label="Drag to reorder"
+                 data-test={`wf-form-row-${ix}-drag`}
+                 draggable
+                 onDragStart={(e) => {
+                   e.dataTransfer.setData('text/plain', String(ix));
+                   e.dataTransfer.effectAllowed = 'move';
+                   onDragStart(ix);
+                 }}
+                 onDragEnd={() => onDragEnd()}>⋮⋮</span>
         )}
       </td>
     </tr>
