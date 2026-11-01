@@ -2191,3 +2191,27 @@ kbd{
 .ea-diff-group--success{border-left-color:#1f7a1f}
 .ea-diff-group--error{border-left-color:#b02a37}
 .ea-diff-group--warning{border-left-color:#f0ad4e}
+
+/* Wizard detail-page tabs (2.3.46) */
+.ea-wizard-tabs{
+  display:flex;gap:2px;padding:4px;flex-wrap:wrap;
+  background:var(--der-raised);border:1px solid var(--der-border-subtle);
+  border-radius:var(--r-md);margin-bottom:var(--sp-3);
+}
+.ea-wizard-tab{
+  padding:6px 14px;border:0;background:transparent;cursor:pointer;
+  font-size:13px;font-weight:500;color:var(--der-ink-500);
+  border-radius:var(--r-sm);
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.ea-wizard-tab:hover{color:var(--der-ink-900)}
+.ea-wizard-tab.is-active{background:var(--der-surface);color:var(--der-ink-900);box-shadow:0 1px 2px rgba(0,0,0,0.08)}
+
+/* Overview facts list */
+.ea-overview-dl{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:12px 24px;margin:12px 0 0;
+}
+.ea-overview-dl > div{display:flex;flex-direction:column;gap:2px;font-size:13px}
+.ea-overview-dl dt{color:var(--der-ink-500);font-size:11px;text-transform:uppercase;letter-spacing:0.03em;margin:0}
+.ea-overview-dl dd{margin:0;color:var(--der-ink-900);font-weight:500}

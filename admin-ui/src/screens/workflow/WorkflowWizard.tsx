@@ -61,6 +61,16 @@ interface DepRow {
   kind: DepKind;
 }
 
+type EditTab = 'overview' | 'steps' | 'deps' | 'settings' | 'pin' | 'runs';
+const EDIT_TABS: { id: EditTab; label: string }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'steps',    label: 'Steps · roles · devices' },
+  { id: 'deps',     label: 'Dependencies' },
+  { id: 'settings', label: 'Settings' },
+  { id: 'pin',      label: 'Metadata pin' },
+  { id: 'runs',     label: 'Runs' },
+];
+
 export function WorkflowWizard({ api = edgeApi, workflowId }:
     WorkflowWizardProps = {}): JSX.Element {
   const navigate = useNavigate();
@@ -68,6 +78,8 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
   const [stage, setStage] = useState<Stage>(editing ? 3 : 1);
   const [loadingExisting, setLoadingExisting] = useState(editing);
   const [wizardIncompatible, setWizardIncompatible] = useState(false);
+  const [editTab, setEditTab] = useState<EditTab>('overview');
+  const [runs, setRuns] = useState<edgeApi.CaptureWorkflowRun[] | null>(null);
 
   // Step 1 — type
   const [type, setType] = useState<WizardWorkflowType | null>(null);
@@ -117,6 +129,15 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
       .then((r) => setPinnedSnapshotId(r.snapshotId))
       .catch(() => undefined);
   }, [editing, workflowId]);
+
+  // §2.3.46 — lazy-load runs when the Runs tab opens.
+  useEffect(() => {
+    if (!editing || workflowId == null) return;
+    if (editTab !== 'runs' || runs != null) return;
+    edgeApi.listWorkflowRuns(workflowId)
+      .then((r) => setRuns(r.runs))
+      .catch(() => setRuns([]));
+  }, [editing, workflowId, editTab, runs]);
 
   // Edit mode — pre-fill the wizard from an existing workflow.
   useEffect(() => {
@@ -527,6 +548,36 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
       {stage === 3 && (
         <section data-test="wiz-step-who" className="ea-card ea-form-card ea-wizard-step">
           {editing && (
+            <nav className="ea-wizard-tabs" data-test="wiz-tabs" role="tablist">
+              {EDIT_TABS.map((t) => (
+                <button key={t.id} type="button" role="tab"
+                         data-test={`wiz-tab-${t.id}`}
+                         className={'ea-wizard-tab'
+                           + (editTab === t.id ? ' is-active' : '')}
+                         onClick={() => setEditTab(t.id)}>
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+          )}
+
+          {editing && editTab === 'overview' && (
+            <OverviewPanel name={name} setName={setName}
+                            type={type} chosenMetadata={chosenMetadata}
+                            wfLevel={wfLevel}
+                            pinnedSnapshotId={pinnedSnapshotId}
+                            snapshots={snapshots}
+                            stepCount={includedRows.length}
+                            depsCount={deps.length}
+                            runCount={runs?.length ?? null}
+                            onJumpTab={setEditTab} />
+          )}
+
+          {editing && editTab === 'runs' && (
+            <RunsPanel workflowId={workflowId!} runs={runs} />
+          )}
+
+          {(!editing || editTab === 'steps') && editing && (
             <div className="ea-form-section">
               <div className="ea-form-section-head">
                 <h2>Workflow name</h2>
@@ -543,6 +594,7 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
             </div>
           )}
 
+          {(!editing || editTab === 'settings') && (
           <div className="ea-form-section">
             <div className="ea-form-section-head">
               <h2>Workflow settings</h2>
@@ -595,8 +647,9 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
               </label>
             </div>
           </div>
+          )}
 
-          {editing && snapshots.length > 0 && (
+          {editing && editTab === 'pin' && snapshots.length > 0 && (
             <div className="ea-form-section">
               <div className="ea-form-section-head">
                 <h2>Metadata pin</h2>
@@ -639,6 +692,7 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
             </div>
           )}
 
+          {(!editing || editTab === 'steps') && (
           <div className="ea-form-section">
             <div className="ea-form-section-head">
               <h2>Steps · roles · devices</h2>
@@ -806,7 +860,9 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
 
             </div>
           </div>
+          )}
 
+          {(!editing || editTab === 'deps') && (
           <div className="ea-form-section">
             <div className="ea-form-section-head">
               <h2>Dependencies</h2>
@@ -818,10 +874,12 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
                                onTouched={() => setDepsTouched(true)}
                                depsTouched={depsTouched} />
           </div>
+          )}
 
           {saveError && <ErrorBlock title="Save failed"
                                      testId="wiz-save-error">{saveError}</ErrorBlock>}
 
+          {(!editing || (editTab !== 'overview' && editTab !== 'runs')) && (
           <div className="ea-form-section">
             <WizardFooter
               onBack={editing ? null : () => setStage(2)}
@@ -829,6 +887,7 @@ export function WorkflowWizard({ api = edgeApi, workflowId }:
                          label: editing ? 'Save changes' : 'Create workflow' }}
             />
           </div>
+          )}
         </section>
       )}
     </div>
@@ -1086,6 +1145,146 @@ function WizardFooter({ onBack, onNext, nextDisabled, onSave }: {
                  disabled={onSave.disabled}>
           {onSave.saving ? 'Saving…' : (onSave.label ?? 'Create workflow')}
         </button>
+      )}
+    </div>
+  );
+}
+
+/** §2.3.46 — tabbed detail-page summary. */
+function OverviewPanel(props: {
+    name: string;
+    setName: (s: string) => void;
+    type: WizardWorkflowType | null;
+    chosenMetadata: MetadataOption | null;
+    wfLevel: WorkflowLevel;
+    pinnedSnapshotId: number | null;
+    snapshots: edgeApi.MetadataSnapshot[];
+    stepCount: number;
+    depsCount: number;
+    runCount: number | null;
+    onJumpTab: (t: EditTab) => void;
+}): JSX.Element {
+  const pin = props.pinnedSnapshotId == null
+    ? 'Not pinned (floats with live mirror)'
+    : `Pinned to snapshot #${props.pinnedSnapshotId}`;
+  return (
+    <div className="ea-form-section" data-test="wiz-overview">
+      <div className="ea-form-section-head">
+        <h2>Overview</h2>
+        <p>Everything about this workflow at a glance. Jump to any tab to edit.</p>
+      </div>
+      <div className="ea-form-grid">
+        <label className="ea-field">
+          <span className="ea-field-label">Workflow name</span>
+          <input className="ea-input" type="text"
+                  data-test="wiz-overview-name"
+                  value={props.name}
+                  onChange={(e) => props.setName(e.target.value)} />
+        </label>
+      </div>
+      <dl className="ea-overview-dl" data-test="wiz-overview-facts">
+        <div><dt>Type</dt><dd>{typeLabel(props.type)}</dd></div>
+        <div><dt>Target</dt>
+             <dd>{props.chosenMetadata?.displayName ?? '—'}</dd></div>
+        <div><dt>Status</dt>
+             <dd>{props.wfLevel.enabled ? 'Enabled' : 'Disabled'}</dd></div>
+        <div><dt>Approval</dt>
+             <dd>{props.wfLevel.requiresApproval
+                  ? 'Reviewer must sign off' : 'No gate'}</dd></div>
+        <div><dt>Default device</dt>
+             <dd>{props.wfLevel.defaultDeviceId
+                  ? props.wfLevel.defaultDeviceId.slice(0, 12) + '…'
+                  : 'Operator chooses per step'}</dd></div>
+        <div><dt>Metadata pin</dt><dd>{pin}</dd></div>
+        <div><dt>Steps</dt>
+             <dd>
+               <button type="button" className="ea-link-btn"
+                        onClick={() => props.onJumpTab('steps')}>
+                 {props.stepCount} ticked →
+               </button>
+             </dd></div>
+        <div><dt>Dependencies</dt>
+             <dd>
+               <button type="button" className="ea-link-btn"
+                        onClick={() => props.onJumpTab('deps')}>
+                 {props.depsCount} explicit →
+               </button>
+             </dd></div>
+        <div><dt>Runs</dt>
+             <dd>
+               <button type="button" className="ea-link-btn"
+                        onClick={() => props.onJumpTab('runs')}>
+                 {props.runCount == null ? 'Load →' : `${props.runCount} total →`}
+               </button>
+             </dd></div>
+      </dl>
+    </div>
+  );
+}
+
+/** §2.3.46 — simple runs table on the Runs tab. */
+function RunsPanel({ workflowId, runs }:
+    { workflowId: string;
+      runs: edgeApi.CaptureWorkflowRun[] | null }): JSX.Element {
+  if (runs == null) {
+    return (
+      <div className="ea-form-section" data-test="wiz-runs">
+        <div className="ea-form-section-head">
+          <h2>Runs</h2>
+          <p>Live rows for this workflow — read-only. Drill into a run to see
+             its canonical state + validation issues.</p>
+        </div>
+        <p className="ea-text-muted" style={{ margin: 0 }}>Loading…</p>
+      </div>
+    );
+  }
+  return (
+    <div className="ea-form-section" data-test="wiz-runs">
+      <div className="ea-form-section-head">
+        <h2>Runs</h2>
+        <p>Every run of this workflow this edge has opened.
+           Count: {runs.length}.</p>
+      </div>
+      {runs.length === 0 ? (
+        <p className="ea-text-muted" style={{ margin: 0 }}
+            data-test="wiz-runs-empty">
+          No runs yet. Open one from{' '}
+          <Link to={`/workflows/runs?workflow=${workflowId}`}>Runs</Link>.
+        </p>
+      ) : (
+        <table className="ea-table ea-table--dense" data-test="wiz-runs-table">
+          <thead>
+            <tr>
+              <th>Business key</th>
+              <th>State</th>
+              <th>Created</th>
+              <th>Version</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.map((r) => (
+              <tr key={r.runId}>
+                <td className="ea-mono" style={{ fontSize: 12 }}>{r.businessKey}</td>
+                <td>
+                  <span className="ea-pill ea-pill--muted">{r.state}</span>
+                </td>
+                <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                  {new Date(r.createdAt).toLocaleString()}
+                </td>
+                <td className="ea-mono ea-text-muted" style={{ fontSize: 11 }}>
+                  v{r.workflowVersion}
+                </td>
+                <td>
+                  <Link to={`/workflows/runs/${r.runId}/validation`}
+                         className="ea-link-btn" style={{ fontSize: 12 }}>
+                    Validation →
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );

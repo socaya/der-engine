@@ -1305,7 +1305,14 @@ export function EAApprovalQueue({ api = edgeApi }:
   if (rows === null) return <LoadingBlock testId="apr-loading" />;
   return (
     <div className="ea-screen">
-      <h1 data-test="apr-heading">Pending approvals</h1>
+      <header className="ea-screen-header">
+        <div className="ea-screen-header-text">
+          <h1 data-test="apr-heading">Pending approvals</h1>
+          <p className="ea-screen-header-sub">
+            Operations awaiting a reviewer's sign-off before they drain to DHIS2.
+          </p>
+        </div>
+      </header>
       {rows.length === 0 ? (
         <EmptyBlock title="No pending approvals" testId="apr-empty">
           Nothing is waiting for a reviewer. Writes that do not need approval
@@ -2149,9 +2156,15 @@ export function EAReferralInbox({ api = edgeApi }:
 
   return (
     <div className="ea-screen">
-      <h1 data-test="ref01-heading">Referral inbox</h1>
-      <p>Pending referrals discovered on central addressed to this
-        edge's bound organisation unit (ADR-0027).</p>
+      <header className="ea-screen-header">
+        <div className="ea-screen-header-text">
+          <h1 data-test="ref01-heading">Referral inbox</h1>
+          <p className="ea-screen-header-sub">
+            Pending referrals discovered on central addressed to this
+            edge's bound organisation unit (ADR-0027).
+          </p>
+        </div>
+      </header>
       {rows.length === 0 ? (
         <EmptyBlock title="No pending referrals" testId="ref01-empty">
           The next inbox scan runs on <code>der.referral.inbox.cron</code>
