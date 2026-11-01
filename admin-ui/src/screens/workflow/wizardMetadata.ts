@@ -13,12 +13,19 @@ export interface Breakable {
   id: string;
   displayName: string;
   /** Aggregate: DATASET_SECTION. Event: EVENT_INSTANCE. Tracker:
-   *  PROGRAM_STAGE (whole stage) or PROGRAM_STAGE_SECTION (one of
-   *  the stage's inner sections). */
-  sectionKind: 'DATASET_SECTION' | 'PROGRAM_STAGE'
-             | 'PROGRAM_STAGE_SECTION' | 'EVENT_INSTANCE';
-  /** For PROGRAM_STAGE_SECTION: the parent stage's breakable id,
-   *  so the wizard can render sections nested under their stage. */
+   *  ENROLLMENT_FORM (the registration step), PROGRAM_SECTION (a
+   *  named grouping of TEAs on the enrolment form), PROGRAM_STAGE
+   *  (whole stage) or PROGRAM_STAGE_SECTION (one of the stage's
+   *  inner sections). */
+  sectionKind: 'DATASET_SECTION'
+             | 'PROGRAM_STAGE'
+             | 'PROGRAM_STAGE_SECTION'
+             | 'EVENT_INSTANCE'
+             | 'ENROLLMENT_FORM'
+             | 'PROGRAM_SECTION';
+  /** For PROGRAM_STAGE_SECTION / PROGRAM_SECTION: the parent step's
+   *  breakable id, so the wizard can render sections nested under
+   *  their parent. */
   parentId?: string;
   /** DHIS2 program stage flag: can the stage be filled multiple times
    *  per enrollment? Surfaced for PROGRAM_STAGE / child stage sections
@@ -35,6 +42,17 @@ export interface FieldCandidate {
 }
 
 export async function listFieldCandidates(breakable: Breakable): Promise<FieldCandidate[]> {
+  // Enrolment-layer kinds (ENROLLMENT_FORM, PROGRAM_SECTION) aren't
+  // yet handled by /edge-api/v1/metadata/field-candidates, so fall
+  // back to the program's trackedEntityAttributes list which already
+  // powers EnrollmentCreate. For PROGRAM_SECTION we filter down to
+  // the section's own attributes if the payload lists them.
+  if (breakable.sectionKind === 'ENROLLMENT_FORM') {
+    return programTeaFields(breakable.id);
+  }
+  if (breakable.sectionKind === 'PROGRAM_SECTION' && breakable.parentId) {
+    return programSectionTeaFields(breakable.parentId, breakable.id);
+  }
   const r = await fetch(
     `/edge-api/v1/metadata/field-candidates`
       + `?kind=${encodeURIComponent(breakable.sectionKind)}`
@@ -46,6 +64,48 @@ export async function listFieldCandidates(breakable: Breakable): Promise<FieldCa
   }
   const body = (await r.json()) as { fields?: FieldCandidate[] };
   return body.fields ?? [];
+}
+
+async function programTeaFields(programId: string): Promise<FieldCandidate[]> {
+  try {
+    const prog = await dhisGet<{
+      programTrackedEntityAttributes?: {
+        trackedEntityAttribute?: { id: string; displayName?: string };
+        mandatory?: boolean;
+      }[];
+    }>(`/api/programs/${encodeURIComponent(programId)}`);
+    return (prog.programTrackedEntityAttributes ?? [])
+      .filter((p) => p.trackedEntityAttribute?.id != null)
+      .map((p) => ({
+        id: p.trackedEntityAttribute!.id,
+        displayName: p.trackedEntityAttribute!.displayName
+                     ?? p.trackedEntityAttribute!.id,
+        compulsory: p.mandatory === true,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+async function programSectionTeaFields(programId: string,
+    sectionId: string): Promise<FieldCandidate[]> {
+  try {
+    const prog = await dhisGet<{
+      programSections?: {
+        id: string;
+        trackedEntityAttributes?: { id: string; displayName?: string }[];
+      }[];
+    }>(`/api/programs/${encodeURIComponent(programId)}`);
+    const sec = (prog.programSections ?? []).find((s) => s.id === sectionId);
+    const tea = sec?.trackedEntityAttributes ?? [];
+    if (tea.length > 0) {
+      return tea.map((t) => ({ id: t.id,
+        displayName: t.displayName ?? t.id, compulsory: false }));
+    }
+    return programTeaFields(programId);
+  } catch {
+    return [];
+  }
 }
 
 interface DhisListResponse<T> {
@@ -131,7 +191,16 @@ export async function listProgramStages(programId: string): Promise<Breakable[]>
   const sectionsByStage = await listSectionsForStages(stageIds);
   const repeatableByStage = new Map<string, boolean>();
   for (const s of stages) repeatableByStage.set(s.id, s.repeatable === true);
+
   const out: Breakable[] = [];
+
+  // Tracker programs capture the enrolment form (TEI attributes +
+  // enrolment metadata) BEFORE any stage. Fetch the program itself
+  // to detect registration + pull any programSections. Event
+  // programs (WITHOUT_REGISTRATION) have no enrolment layer.
+  const enrolment = await fetchEnrolmentBreakables(programId);
+  out.push(...enrolment);
+
   for (const s of stages) {
     out.push({ id: s.id, displayName: s.displayName,
                 sectionKind: 'PROGRAM_STAGE',
@@ -141,6 +210,45 @@ export async function listProgramStages(programId: string): Promise<Breakable[]>
       out.push({ ...sec, parentId: s.id,
                   repeatable: repeatableByStage.get(s.id) ?? false });
     }
+  }
+  return out;
+}
+
+/** For a tracker (WITH_REGISTRATION) program, return the enrolment-form
+ *  breakable and any ProgramSection (named TEA grouping) children.
+ *  Returns [] for event programs. */
+async function fetchEnrolmentBreakables(programId: string): Promise<Breakable[]> {
+  let prog: {
+    id: string;
+    displayName?: string;
+    programType?: string;
+    programSections?: { id: string; displayName: string;
+                         sortOrder?: number }[];
+  };
+  try {
+    prog = await dhisGet<typeof prog>(
+      `/api/programs/${encodeURIComponent(programId)}`,
+    );
+  } catch {
+    return [];
+  }
+  if (prog.programType !== 'WITH_REGISTRATION') return [];
+  const out: Breakable[] = [];
+  out.push({
+    id: programId,
+    displayName: 'Enrolment',
+    sectionKind: 'ENROLLMENT_FORM',
+  });
+  const sections = (prog.programSections ?? [])
+    .slice()
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  for (const s of sections) {
+    out.push({
+      id: s.id,
+      displayName: s.displayName,
+      sectionKind: 'PROGRAM_SECTION',
+      parentId: programId,
+    });
   }
   return out;
 }

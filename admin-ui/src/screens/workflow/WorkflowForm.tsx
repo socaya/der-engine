@@ -260,13 +260,20 @@ export function WorkflowForm({ api = edgeApi }:
       copy[ix] = { ...copy[ix], ...patch };
       if (patch.included === true) {
         const b = copy[ix].breakable;
-        if (b.sectionKind === 'PROGRAM_STAGE') {
+        // Mutually-exclusive parent/child selection: picking a whole
+        // parent clears any ticked children; picking a child clears
+        // the parent. Applies to PROGRAM_STAGE ↔ PROGRAM_STAGE_SECTION
+        // and to ENROLLMENT_FORM ↔ PROGRAM_SECTION.
+        const parentKinds = ['PROGRAM_STAGE', 'ENROLLMENT_FORM'] as const;
+        const childKinds  = ['PROGRAM_STAGE_SECTION', 'PROGRAM_SECTION'] as const;
+        if ((parentKinds as readonly string[]).includes(b.sectionKind)) {
           for (let j = 0; j < copy.length; j++) {
             if (copy[j].breakable.parentId === b.id && copy[j].included) {
               copy[j] = { ...copy[j], included: false };
             }
           }
-        } else if (b.sectionKind === 'PROGRAM_STAGE_SECTION' && b.parentId) {
+        } else if ((childKinds as readonly string[]).includes(b.sectionKind)
+                    && b.parentId) {
           for (let j = 0; j < copy.length; j++) {
             if (copy[j].breakable.id === b.parentId && copy[j].included) {
               copy[j] = { ...copy[j], included: false };
@@ -1000,17 +1007,22 @@ function kindLabel(k: Breakable['sectionKind']): string {
     case 'PROGRAM_STAGE_SECTION': return 'Stage section';
     case 'DATASET_SECTION':       return 'Dataset section';
     case 'EVENT_INSTANCE':        return 'Event';
+    case 'ENROLLMENT_FORM':       return 'Enrolment';
+    case 'PROGRAM_SECTION':       return 'Enrolment section';
     default:                      return k;
   }
 }
 
 function kindIcon(k: Breakable['sectionKind']):
-    'tracker-event' | 'program-stage-section' | 'aggregate' | 'event' {
+    'tracker-event' | 'program-stage-section' | 'aggregate'
+    | 'event' | 'enrollment' {
   switch (k) {
     case 'PROGRAM_STAGE':         return 'tracker-event';
     case 'PROGRAM_STAGE_SECTION': return 'program-stage-section';
     case 'DATASET_SECTION':       return 'aggregate';
     case 'EVENT_INSTANCE':        return 'event';
+    case 'ENROLLMENT_FORM':       return 'enrollment';
+    case 'PROGRAM_SECTION':       return 'program-stage-section';
     default:                      return 'event';
   }
 }
