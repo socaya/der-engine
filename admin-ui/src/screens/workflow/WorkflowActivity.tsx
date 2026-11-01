@@ -205,25 +205,25 @@ export function WorkflowActivity({ api = edgeApi }:
             </thead>
             <tbody>
               <QueueRow icon="data-queue" label="Capture queue — ready"
-                         to="/workflows/queue"
+                         to="/workflows/monitoring"
                          value={c?.queueReady ?? 0}
                          status={c && c.queueReady > 0
                            ? { tone: 'info', text: 'Awaiting operator' }
                            : { tone: 'success', text: 'Drained' }} />
               <QueueRow icon="data-queue" label="Capture queue — blocked"
-                         to="/workflows/queue"
+                         to="/workflows/monitoring"
                          value={c?.queueBlocked ?? 0}
                          status={c && c.queueBlocked > 0
                            ? { tone: 'muted', text: 'Waiting on predecessor' }
                            : { tone: 'success', text: 'Clear' }} />
               <QueueRow icon="attention" label="Approvals pending"
-                         to="/approvals"
+                         to="/workflows/monitoring"
                          value={c?.approvals ?? 0}
                          status={c && c.approvals > 0
                            ? { tone: 'warning', text: 'Reviewer sign-off needed' }
                            : { tone: 'success', text: 'Clear' }} />
               <QueueRow icon="activity" label="Referrals pending intake"
-                         to="/referral/inbox"
+                         to="/workflows/monitoring"
                          value={c?.referrals ?? 0}
                          status={c && c.referrals > 0
                            ? { tone: 'warning', text: 'Patients waiting' }

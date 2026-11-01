@@ -25,7 +25,8 @@ export interface WorkflowMonitoringProps {
                              | 'getWorkflowBlockages'
                              | 'getWorkflowIssues'
                              | 'getWorkflowConflicts'
-                             | 'getWorkflowActivitySummary'>;
+                             | 'getWorkflowActivitySummary'
+                             | 'getWorkflowDrafts'>;
 }
 
 function SummaryTile({ label, value, tone }: {
@@ -169,13 +170,15 @@ export function WorkflowMonitoring({ api = edgeApi }:
   const [issues, setIssues] = useState<edgeApi.WorkflowIssueRow[]>([]);
   const [conflicts, setConflicts] = useState<edgeApi.WorkflowConflictRow[]>([]);
   const [summary, setSummary] = useState<edgeApi.WorkflowActivitySummary | null>(null);
+  const [drafts, setDrafts] = useState<edgeApi.WorkflowDraftRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loadedAt, setLoadedAt] = useState<string | null>(null);
   const [windowHours, setWindowHours] = useState(24);
 
   async function reload(): Promise<void> {
     try {
-      const [qRes, dRes, mRes, fRes, bRes, iRes, cRes, sRes] = await Promise.allSettled([
+      const [qRes, dRes, mRes, fRes, bRes, iRes, cRes, sRes, drRes] =
+          await Promise.allSettled([
         api.workflowQueue({ allDevices: true }),
         api.listDevices(),
         api.getWorkflowMetrics(windowHours),
@@ -184,6 +187,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
         api.getWorkflowIssues(200),
         api.getWorkflowConflicts(200),
         api.getWorkflowActivitySummary(),
+        api.getWorkflowDrafts(50),
       ]);
       if (qRes.status === 'fulfilled') setRows(qRes.value.rows);
       if (dRes.status === 'fulfilled') setDevices(dRes.value.devices ?? []);
@@ -193,6 +197,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
       if (iRes.status === 'fulfilled') setIssues(iRes.value.rows);
       if (cRes.status === 'fulfilled') setConflicts(cRes.value.rows);
       if (sRes.status === 'fulfilled') setSummary(sRes.value);
+      if (drRes.status === 'fulfilled') setDrafts(drRes.value.rows);
       setLoadedAt(new Date().toISOString());
       setErr(null);
     } catch (e) {
@@ -503,6 +508,67 @@ export function WorkflowMonitoring({ api = edgeApi }:
         </div>
       </Panel>
 
+      <Panel title="Draft data captured so far"
+             action={drafts.length > 0
+               ? <span className="ea-text-muted" style={{ fontSize: 11 }}>
+                   {drafts.length} contribution{drafts.length === 1 ? '' : 's'} in flight
+                 </span>
+               : undefined}>
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense"
+                 data-test="wf-monitor-drafts">
+            <thead>
+              <tr>
+                <th>Service point</th>
+                <th>Run</th>
+                <th style={{ width: 70 }}>Fields</th>
+                <th>Captured by</th>
+                <th>Payload preview</th>
+                <th style={{ width: 110 }}>Captured</th>
+              </tr>
+            </thead>
+            <tbody>
+              {drafts.length === 0 ? (
+                <tr><td colSpan={6} className="ea-text-muted"
+                         style={{ textAlign: 'center', padding: 16 }}>
+                  No in-flight contributions.
+                </td></tr>
+              ) : drafts.slice(0, 15).map((d) => (
+                <tr key={d.contributionId}
+                     data-test={`wf-monitor-draft-${d.contributionId}`}>
+                  <td style={{ fontWeight: 500 }}>
+                    {d.stepName ?? '—'}
+                    <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                      <Link to={`/workflows/${d.workflowId}`}>{d.workflowName ?? '—'}</Link>
+                    </div>
+                  </td>
+                  <td className="ea-mono ea-text-muted" style={{ fontSize: 12 }}>
+                    {d.businessKey}
+                  </td>
+                  <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                    {d.fieldCount}
+                  </td>
+                  <td className="ea-text-muted">
+                    {d.submittedDeviceName ?? (d.submittedDeviceId
+                      ? d.submittedDeviceId.slice(0, 8) : '—')}
+                  </td>
+                  <td className="ea-text-muted ea-mono"
+                      style={{ fontSize: 11, maxWidth: 360,
+                               overflow: 'hidden', textOverflow: 'ellipsis',
+                               whiteSpace: 'nowrap' }}
+                      title={d.preview}>
+                    {d.preview}
+                  </td>
+                  <td className="ea-text-muted" title={d.submittedAt}>
+                    {fmtAgo(d.submittedAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
       <Panel title="Recent activity">
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense"
@@ -552,7 +618,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
       </Panel>
 
       <Panel title="By workflow"
-             action={<Link to="/workflows/queue" className="ea-link-btn">Open queue</Link>}>
+             action={undefined}>
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense"
                  data-test="wf-monitor-by-workflow">
@@ -599,7 +665,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
       </Panel>
 
       <Panel title="By owner device"
-             action={<Link to="/devices" className="ea-link-btn">Fleet</Link>}>
+             action={undefined}>
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense"
                  data-test="wf-monitor-by-device">
@@ -756,7 +822,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
       </Panel>
 
       <Panel title="Service-point pressure"
-             action={<Link to="/workflows/queue" className="ea-link-btn">Operator queue</Link>}>
+             action={undefined}>
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense"
                  data-test="wf-monitor-by-step">

@@ -1136,6 +1136,28 @@ export function getWorkflowActivitySummary():
   return request('GET', '/edge-api/v1/workflows/activity/summary');
 }
 
+/** §2.3.62 — draft data captured so far in each in-flight run.
+ *  One row per contribution with a trimmed payload preview. */
+export interface WorkflowDraftRow {
+  contributionId: string;
+  workflowId: string;
+  workflowName: string | null;
+  runId: string;
+  businessKey: string;
+  stepId: string;
+  stepName: string | null;
+  submittedAt: string;
+  submittedDeviceId: string | null;
+  submittedDeviceName: string | null;
+  fieldCount: number;
+  preview: string;
+}
+export function getWorkflowDrafts(limit = 50):
+    Promise<{ rows: WorkflowDraftRow[] }> {
+  return request('GET',
+    `/edge-api/v1/workflows/activity/drafts?limit=${limit}`);
+}
+
 export function workflowQueue(opts?: {
   deviceId?: string;
   allDevices?: boolean;

@@ -215,6 +215,87 @@ public class WorkflowActivityController {
         return ResponseEntity.ok(body);
     }
 
+    /** §2.3.62 — draft data captured so far across in-flight runs.
+     *  Each row is one contribution (one completed step on one run),
+     *  payload surfaced as a trimmed preview so admins can see what
+     *  flowed through earlier service points. Ordered newest-first;
+     *  runs still in OPEN / AWAITING only. */
+    @GetMapping("/drafts")
+    public ResponseEntity<Map<String, Object>> drafts(final Authentication auth,
+            @RequestParam(name = "limit", defaultValue = "50") final int limit) {
+        requireAdmin(auth);
+        final int safe = Math.max(1, Math.min(limit, 500));
+        final List<Map<String, Object>> rows = jdbc.query(
+                "SELECT c.contribution_id, c.run_id, c.step_id, c.payload, "
+              + "       c.submitted_by, c.submitted_device_id, c.submitted_at, "
+              + "       r.workflow_id, r.business_key "
+              + "  FROM der.capture_workflow_step_contribution c "
+              + "  JOIN der.capture_workflow_run r ON r.run_id = c.run_id "
+              + " WHERE r.state IN ('OPEN','AWAITING') "
+              + " ORDER BY c.submitted_at DESC "
+              + " LIMIT ?",
+                (rs, i) -> {
+                    final UUID workflowId = (UUID) rs.getObject("workflow_id");
+                    final UUID stepId = (UUID) rs.getObject("step_id");
+                    final UUID deviceId = (UUID) rs.getObject("submitted_device_id");
+                    final String payload = rs.getString("payload");
+                    final Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("contributionId",
+                        rs.getObject("contribution_id").toString());
+                    m.put("workflowId", workflowId.toString());
+                    m.put("workflowName", lookupWorkflowName(workflowId));
+                    m.put("runId", rs.getObject("run_id").toString());
+                    m.put("businessKey", rs.getString("business_key"));
+                    m.put("stepId", stepId.toString());
+                    m.put("stepName", lookupStepName(workflowId, stepId));
+                    m.put("submittedAt",
+                        rs.getTimestamp("submitted_at").toInstant().toString());
+                    m.put("submittedDeviceId",
+                        deviceId == null ? null : deviceId.toString());
+                    m.put("submittedDeviceName",
+                        deviceId == null ? null
+                            : devices.findById(deviceId)
+                                .map((d) -> d.displayName()).orElse(null));
+                    m.put("fieldCount", countTopLevelFields(payload));
+                    m.put("preview", preview(payload));
+                    return m;
+                }, safe);
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("rows", rows);
+        return ResponseEntity.ok(body);
+    }
+
+    /** Count the top-level JSON keys in the contribution payload.
+     *  Treats arrays as "N items" one key. Robust to malformed payloads
+     *  (never throws). */
+    private int countTopLevelFields(final String payload) {
+        try {
+            final com.fasterxml.jackson.databind.JsonNode root =
+                new com.fasterxml.jackson.databind.ObjectMapper().readTree(payload);
+            if (root.isObject()) {
+                return root.size();
+            } else if (root.isArray()) {
+                return root.size();
+            }
+            return 0;
+        } catch (final Exception ex) {
+            return 0;
+        }
+    }
+
+    /** Returns a short preview string (first 160 chars) of the payload
+     *  for the UI — pretty-printing deferred to the drill-down page. */
+    private String preview(final String payload) {
+        if (payload == null) {
+            return "";
+        }
+        final String flat = payload.replaceAll("\\s+", " ");
+        if (flat.length() <= 160) {
+            return flat;
+        }
+        return flat.substring(0, 157) + "…";
+    }
+
     /** One-shot summary used by the Monitoring dashboard header card. */
     @GetMapping("/summary")
     public ResponseEntity<Map<String, Object>> summary(final Authentication auth) {
