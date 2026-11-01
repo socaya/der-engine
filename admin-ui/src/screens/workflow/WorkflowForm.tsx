@@ -764,7 +764,6 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
             <th className="ea-wf-steps-col-order">#</th>
             <th className="ea-wf-steps-col-include">Include</th>
             <th>Service point</th>
-            <th className="ea-wf-steps-col-kind">Kind</th>
             <th className="ea-wf-steps-col-role">Role</th>
             <th className="ea-wf-steps-col-device">Handover to (device)</th>
             <th className="ea-wf-steps-col-fields">Fields</th>
@@ -816,16 +815,19 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
                             onChange={(e) => onUpdate(i, { included: e.target.checked })} />
                   </td>
                   <td className={r.breakable.parentId ? 'ea-wf-steps-nested' : undefined}>
-                    <div>{r.breakable.parentId ? '↳ ' : ''}{r.breakable.displayName}</div>
-                    {summary && (
-                      <div className="ea-text-muted ea-wf-steps-summary">{summary}</div>
-                    )}
-                  </td>
-                  <td>
-                    <div className="ea-wf-steps-kind-cell">
-                      <span className={'ea-chip ea-chip--' + kindTone(r.breakable.sectionKind)}>
-                        {kindLabel(r.breakable.sectionKind)}
+                    <div className="ea-wf-steps-sp-cell">
+                      <span className={'ea-wf-steps-kind-icon ea-wf-steps-kind-icon--'
+                                       + kindTone(r.breakable.sectionKind)}
+                            aria-label={kindLabel(r.breakable.sectionKind)}
+                            title={kindLabel(r.breakable.sectionKind)}>
+                        <UiIcon icon={kindIcon(r.breakable.sectionKind)} size={16} />
                       </span>
+                      <div className="ea-wf-steps-sp-text">
+                        <div>{r.breakable.displayName}</div>
+                        {summary && (
+                          <div className="ea-text-muted ea-wf-steps-summary">{summary}</div>
+                        )}
+                      </div>
                       {(r.breakable.sectionKind === 'PROGRAM_STAGE'
                         || r.breakable.sectionKind === 'PROGRAM_STAGE_SECTION') && (
                         <span className="ea-wf-steps-repeat-icon"
@@ -884,7 +886,7 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
                 <tr key={`${r.breakable.id}-fields`}
                      className="ea-wf-steps-fields-row"
                      data-test={`wf-form-row-${i}-fields`}>
-                  <td colSpan={7}>
+                  <td colSpan={6}>
                     {r.fieldCandidates == null ? (
                       <span className="ea-text-muted">Loading…</span>
                     ) : r.fieldCandidates.length === 0 ? (
@@ -959,7 +961,13 @@ function HandoverFlowPreview({ rows, devices }: {
           <div className="ea-wf-flow-step-num">{i + 1}</div>
           <div className="ea-wf-flow-step-body">
             <div className="ea-wf-flow-step-title">
-              {r.breakable.displayName}
+              <span className={'ea-wf-steps-kind-icon ea-wf-steps-kind-icon--'
+                               + kindTone(r.breakable.sectionKind)}
+                    aria-label={kindLabel(r.breakable.sectionKind)}
+                    title={kindLabel(r.breakable.sectionKind)}>
+                <UiIcon icon={kindIcon(r.breakable.sectionKind)} size={14} />
+              </span>
+              <span>{r.breakable.displayName}</span>
             </div>
             <div className="ea-wf-flow-step-meta">
               <span className="ea-chip ea-chip--neutral">{r.ownerRole}</span>
@@ -993,6 +1001,17 @@ function kindLabel(k: Breakable['sectionKind']): string {
     case 'DATASET_SECTION':       return 'Dataset section';
     case 'EVENT_INSTANCE':        return 'Event';
     default:                      return k;
+  }
+}
+
+function kindIcon(k: Breakable['sectionKind']):
+    'tracker-event' | 'program-stage-section' | 'aggregate' | 'event' {
+  switch (k) {
+    case 'PROGRAM_STAGE':         return 'tracker-event';
+    case 'PROGRAM_STAGE_SECTION': return 'program-stage-section';
+    case 'DATASET_SECTION':       return 'aggregate';
+    case 'EVENT_INSTANCE':        return 'event';
+    default:                      return 'event';
   }
 }
 

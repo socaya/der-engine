@@ -44,6 +44,7 @@ export type UiIconId =
   | 'aggregate'       // data value / grid of cells
   | 'event'           // calendar tick (single event)
   | 'tracker-event'   // calendar document (program-stage event)
+  | 'program-stage-section' // calendar document with a highlighted inner section
   | 'enrollment'      // clipboard check
   | 'tei'             // person
   | 'org-unit'        // building
@@ -145,6 +146,8 @@ export function UiIcon(
       return <svg {...common}><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16" /><path d="M8 3v4M16 3v4" /><path d="M9 15l2 2 4-4" /></svg>;
     case 'tracker-event':
       return <svg {...common}><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16" /><path d="M8 3v4M16 3v4" /><path d="M8 14h8M8 17h5" /></svg>;
+    case 'program-stage-section':
+      return <svg {...common}><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16" /><path d="M8 3v4M16 3v4" /><rect x="7" y="13" width="10" height="4" rx="1" fill="currentColor" fillOpacity={0.18} stroke="currentColor" /></svg>;
     case 'enrollment':
       return <svg {...common}><rect x="6" y="3" width="12" height="18" rx="2" /><path d="M9 7h6" /><path d="M9 11l1.5 1.5L14 9" /><path d="M9 16h6" /></svg>;
     case 'tei':

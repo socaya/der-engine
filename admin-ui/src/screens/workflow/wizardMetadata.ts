@@ -150,15 +150,14 @@ async function listSectionsForStages(
   if (stageIds.size === 0) {
     return new Map();
   }
+  // DER mirror ignores DHIS2 fields=/filter=/paging=, so page in bulk
+  // (pageSize=500) and filter client-side by payload.programStage.id.
   let rows: { id: string; displayName: string;
                programStage?: { id: string } }[] = [];
   try {
     const d = await dhisGet<DhisListResponse<{
       id: string; displayName: string; programStage?: { id: string };
-    }>>(
-      '/api/programStageSections?paging=false'
-      + '&fields=id,displayName,programStage',
-    );
+    }>>('/api/programStageSections?pageSize=500');
     rows = (d.programStageSections as typeof rows | undefined) ?? [];
   } catch {
     rows = [];
