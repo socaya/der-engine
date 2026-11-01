@@ -2419,7 +2419,7 @@ tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
   position:absolute;top:100%;left:0;right:0;
   background:var(--der-canvas);border:1px solid var(--der-border);
   border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.08);
-  max-height:280px;overflow-y:auto;z-index:30;
+  max-height:280px;overflow-y:auto;z-index:50;
 }
 .ea-metadata-combo-opt{
   padding:4px 10px;font-size:13px;cursor:pointer;color:var(--der-ink-900);
@@ -2479,13 +2479,33 @@ tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
   display:block;grid-template-columns:none;
   padding:var(--sp-4);
   border-bottom:1px solid var(--der-border-subtle);
-  overflow-x:hidden;min-width:0;
+  /* `overflow:clip` prevents layout-overflow (horizontal scrollbars
+     from long names) WITHOUT creating a clipping context that would
+     hide absolutely-positioned dropdowns like the metadata combo. */
+  overflow-x:clip;min-width:0;
 }
 .ea-form--flat .ea-form-section:last-of-type{border-bottom:none}
 .ea-form--flat .ea-form-section-head{margin-bottom:var(--sp-3)}
 
 @media(max-width:768px){
   .ea-form--flat .ea-form-section{padding:var(--sp-3)}
+}
+
+/* Full-height form: content fills the available content area; the
+   footer sits at the bottom of the card so Cancel + Save stay in
+   place while the content column scrolls internally if it's taller
+   than the viewport. */
+.ea-main .ea-form-card.ea-form-card--flat{
+  display:flex;flex-direction:column;
+  min-height:calc(100vh - var(--topbar-h, 56px) - 2 * var(--sp-4) - 32px);
+}
+.ea-main .ea-form-card.ea-form-card--flat > form.ea-form.ea-form--flat{
+  flex:1;min-height:0;
+}
+.ea-form--flat > .ea-form-section:last-of-type{flex:1}
+.ea-form--flat > .ea-form-footer{
+  margin-top:auto;position:sticky;bottom:0;background:var(--der-canvas);
+  z-index:5;
 }
 
 /* Handover flow preview — service-point chain under Dependencies. */
