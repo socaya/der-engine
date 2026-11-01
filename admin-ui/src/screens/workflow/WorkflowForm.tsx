@@ -746,11 +746,11 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
              data-test="wf-form-steps">
         <thead>
           <tr>
-            <th className="ea-wf-steps-col-include">Include</th>
+            <th className="ea-wf-steps-col-include">#</th>
             <th>Service point</th>
             <th className="ea-wf-steps-col-role">Role</th>
             <th className="ea-wf-steps-col-device">Handover to (device)</th>
-            <th className="ea-wf-steps-col-order">Order</th>
+            <th className="ea-wf-steps-col-order"></th>
           </tr>
         </thead>
         <tbody>
@@ -892,13 +892,16 @@ function renderRow(args: {
          className={(row.included ? '' : 'is-dim')
            + (isChild ? ' is-nested' : '')
            + (row.expanded ? ' is-expanded' : '')}>
-      <td>
+      <td className="ea-wf-steps-numcell">
         <input type="checkbox"
                 data-test={`wf-form-row-${ix}-include`}
                 checked={row.included}
                 onChange={(e) => onUpdate(ix, { included: e.target.checked })} />
+        <span className="ea-wf-steps-ord-num">
+          {stepNumber == null ? '' : stepNumber}
+        </span>
       </td>
-      <td className={isChild ? 'ea-wf-steps-nested' : undefined}>
+      <td>
         <button type="button"
                  className="ea-wf-steps-sp-expand"
                  data-test={`wf-form-row-${ix}-expand`}
@@ -964,30 +967,23 @@ function renderRow(args: {
         </select>
       </td>
       <td className="ea-wf-steps-ord">
-        {!isChild ? (
-          <div className="ea-wf-steps-ord-cell">
-            <span className="ea-wf-steps-ord-num">
-              {stepNumber == null ? '—' : stepNumber}
-            </span>
-            <div className="ea-wf-steps-ord-moves">
-              <button type="button"
-                       className="ea-icon-btn"
-                       title="Move up"
-                       aria-label="Move step up"
-                       data-test={`wf-form-row-${ix}-up`}
-                       disabled={ix === firstTop}
-                       onClick={() => onMove(ix, -1)}>↑</button>
-              <button type="button"
-                       className="ea-icon-btn"
-                       title="Move down"
-                       aria-label="Move step down"
-                       data-test={`wf-form-row-${ix}-down`}
-                       disabled={ix === lastTop}
-                       onClick={() => onMove(ix, 1)}>↓</button>
-            </div>
+        {!isChild && (
+          <div className="ea-wf-steps-ord-moves">
+            <button type="button"
+                     className="ea-icon-btn"
+                     title="Move up"
+                     aria-label="Move step up"
+                     data-test={`wf-form-row-${ix}-up`}
+                     disabled={ix === firstTop}
+                     onClick={() => onMove(ix, -1)}>↑</button>
+            <button type="button"
+                     className="ea-icon-btn"
+                     title="Move down"
+                     aria-label="Move step down"
+                     data-test={`wf-form-row-${ix}-down`}
+                     disabled={ix === lastTop}
+                     onClick={() => onMove(ix, 1)}>↓</button>
           </div>
-        ) : (
-          <span className="ea-wf-steps-ord-sub">—</span>
         )}
       </td>
     </tr>

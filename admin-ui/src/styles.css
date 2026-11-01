@@ -2233,89 +2233,115 @@ kbd{
 }
 .ea-field-chosen-name{flex:1;color:var(--der-ink-900)}
 
-.ea-wf-steps-table th{text-align:left;font-weight:600}
-.ea-wf-steps-col-include{width:72px}
-.ea-wf-steps-col-role{width:120px}
-.ea-wf-steps-col-device{width:160px}
-.ea-wf-steps-col-order{width:72px;text-align:center}
-.ea-wf-steps-ord{text-align:center;color:var(--der-ink-500);
-  font-variant-numeric:tabular-nums;font-weight:600;padding:4px 2px}
-.ea-wf-steps-ord-cell{
-  display:flex;flex-direction:column;align-items:center;gap:2px;
+/* Steps + fields tables share one compact tabular idiom matching the
+   rest of DER's record-management modules. No cards, no inner
+   borders, every cell left-aligned (including the Order column).
+   Hierarchy indicated purely by indentation + a subtle tone tint on
+   nested rows and the fields panel. */
+.ea-wf-steps-table{border-collapse:collapse}
+.ea-wf-steps-table th{
+  text-align:left;font-weight:600;
+  padding:6px 10px;border-bottom:1px solid var(--der-border);
 }
-.ea-wf-steps-ord-num{font-size:13px;line-height:1}
-.ea-wf-steps-ord-moves{display:flex;gap:1px}
-.ea-wf-steps-ord-moves .ea-icon-btn{
-  width:22px;height:18px;padding:0;line-height:1;
-  background:transparent;border:1px solid var(--der-border);
-  border-radius:3px;color:var(--der-ink-500);font-size:11px;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;
+.ea-wf-steps-table td{
+  text-align:left;vertical-align:middle;padding:6px 10px;
+  border-top:1px solid var(--der-border-subtle);
 }
-.ea-wf-steps-ord-moves .ea-icon-btn:hover:not(:disabled){
-  background:var(--der-raised);color:var(--der-ink-900);
+.ea-wf-steps-table tbody tr:first-child > td{border-top:none}
+.ea-wf-steps-col-include{width:64px}
+.ea-wf-steps-col-role{width:110px}
+.ea-wf-steps-col-device{width:150px}
+.ea-wf-steps-col-order{width:44px}
+.ea-wf-steps-numcell{white-space:nowrap}
+.ea-wf-steps-numcell input{margin:0;vertical-align:middle}
+.ea-wf-steps-numcell .ea-wf-steps-ord-num{
+  margin-left:6px;vertical-align:middle;color:var(--der-ink-500);
 }
-.ea-wf-steps-ord-moves .ea-icon-btn:disabled{opacity:0.3;cursor:not-allowed}
-.ea-wf-steps-ord-sub{color:var(--der-ink-500);font-size:11px}
-.ea-wf-steps-sp-cell{
-  display:flex;align-items:flex-start;gap:8px;
-}
-.ea-wf-steps-sp-text{flex:1;min-width:0}
-.ea-wf-steps-sp-name{color:var(--der-ink-900);font-weight:500}
 
-/* Service-point row chevron: whole row name is a button so operators
-   can click anywhere on the service-point cell to expand/collapse. */
+/* Order cell: just up/down controls, no label. */
+.ea-wf-steps-ord{color:var(--der-ink-500);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ea-wf-steps-ord-num{font-size:12px;font-weight:600}
+.ea-wf-steps-ord-moves{display:inline-flex;gap:0}
+.ea-wf-steps-ord-moves .ea-icon-btn{
+  width:18px;height:18px;padding:0;line-height:1;
+  background:transparent;border:none;color:var(--der-ink-500);font-size:12px;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.ea-wf-steps-ord-moves .ea-icon-btn:hover:not(:disabled){color:var(--der-ink-900)}
+.ea-wf-steps-ord-moves .ea-icon-btn:disabled{opacity:0.3;cursor:not-allowed}
+
+/* Service-point cell is a flat left-aligned button, no border, no card. */
 .ea-wf-steps-sp-expand{
   display:flex;align-items:center;gap:8px;width:100%;
   padding:0;background:transparent;border:none;cursor:pointer;
   text-align:left;color:inherit;font:inherit;
 }
 .ea-wf-steps-sp-expand:hover .ea-wf-steps-sp-name{color:var(--der-navy-700)}
+.ea-wf-steps-sp-text{flex:1;min-width:0;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.ea-wf-steps-sp-name{color:var(--der-ink-900);font-weight:500;text-align:left}
 .ea-wf-steps-sp-chevron{
-  width:14px;flex-shrink:0;color:var(--der-ink-500);font-size:12px;
-  text-align:center;line-height:1;
+  width:12px;flex-shrink:0;color:var(--der-ink-500);font-size:11px;
+  text-align:left;line-height:1;
 }
 tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
+
+/* Nested rows (sections) + fields rows share a single tone tint so
+   hierarchy is scannable without boxing. Indentation grows per level. */
+tr.is-nested > td{background:rgba(29,78,216,0.04)}
 tr.is-nested .ea-wf-steps-sp-expand{padding-left:22px}
+.ea-wf-steps-fields-row > td{
+  background:rgba(29,78,216,0.03);
+  padding:4px 10px 10px 44px;
+  border-top:none;
+}
+tr.is-nested + .ea-wf-steps-fields-row > td{padding-left:66px}
+.ea-wf-steps-summary{font-size:11px;color:var(--der-ink-500)}
+
+/* Flat kind icon — no border, no filled box; just a small glyph. */
 .ea-wf-steps-kind-icon{
   display:inline-flex;align-items:center;justify-content:center;
-  width:24px;height:24px;flex-shrink:0;
-  border-radius:4px;border:1px solid var(--der-border);
-  color:var(--der-ink-700);background:var(--der-raised-weak,transparent);
+  width:16px;height:16px;flex-shrink:0;
+  color:var(--der-ink-500);
 }
-.ea-wf-steps-kind-icon--info{color:var(--der-primary-ink);
-  border-color:var(--der-primary-ink);background:rgba(29,78,216,0.05)}
+.ea-wf-steps-kind-icon--info{color:var(--der-primary-ink)}
 .ea-wf-steps-kind-icon--neutral{color:var(--der-ink-500)}
-.ea-wf-flow-step-title .ea-wf-steps-kind-icon{width:20px;height:20px}
+.ea-wf-flow-step-title .ea-wf-steps-kind-icon{width:14px;height:14px}
 .ea-wf-flow-step-title{display:flex;align-items:center;gap:6px}
 .ea-wf-steps-repeat-icon{
   display:inline-flex;align-items:center;color:var(--der-ink-500);
-  flex-shrink:0;margin-top:3px;
+  flex-shrink:0;
 }
 .ea-wf-steps-repeat-icon:hover{color:var(--der-ink-900)}
-.ea-wf-steps-table td:last-child{text-align:right}
-.ea-wf-steps-nested{padding-left:24px}
-.ea-wf-steps-summary{font-size:11px;margin-top:2px}
-.ea-wf-steps-fields-row > td{
-  background:var(--der-raised);padding:12px 14px;
-  border-top:1px solid var(--der-border);
-}
+
+/* Fields panel: left-aligned actions bar, borderless inline table. */
 .ea-wf-fields-actions{
-  display:flex;align-items:center;justify-content:space-between;
-  gap:12px;margin-bottom:8px;flex-wrap:wrap;
+  display:flex;align-items:center;gap:12px;
+  margin:0 0 6px;flex-wrap:wrap;
 }
-.ea-wf-fields-count{font-size:12px}
-.ea-wf-fields-bulk{display:flex;gap:6px}
-.ea-wf-fields-table{width:100%;margin:0;background:var(--der-raised-weak,transparent)}
-.ea-wf-fields-table th{text-align:left;font-weight:600}
-.ea-wf-fields-col-include{width:72px;text-align:center}
+.ea-wf-fields-count{font-size:11px}
+.ea-wf-fields-bulk{display:flex;gap:4px}
+.ea-wf-fields-table{
+  width:100%;margin:0;background:transparent;border-collapse:collapse;
+}
+.ea-wf-fields-table th{
+  text-align:left;font-weight:600;font-size:11px;
+  padding:4px 10px;color:var(--der-ink-500);
+  border-bottom:1px solid var(--der-border-subtle);
+}
+.ea-wf-fields-table td{
+  text-align:left;vertical-align:middle;padding:3px 10px;
+  border-top:1px solid var(--der-border-subtle);
+}
+.ea-wf-fields-table tbody tr:first-child > td{border-top:none}
+.ea-wf-fields-col-include{width:56px}
 .ea-wf-fields-col-include input{margin:0}
-.ea-wf-fields-col-req{width:140px}
-.ea-wf-fields-col-role{width:120px}
-.ea-wf-fields-col-dev{width:200px}
-.ea-wf-fields-table td{vertical-align:middle}
-.ea-wf-fields-name{color:var(--der-ink-900);font-size:13px}
-.ea-wf-fields-hint{font-size:11px;margin-top:2px}
-.ea-wf-fields-table .is-dim{opacity:0.55}
+.ea-wf-fields-col-req{width:120px}
+.ea-wf-fields-col-role{width:110px}
+.ea-wf-fields-col-dev{width:180px}
+.ea-wf-fields-name{color:var(--der-ink-900);font-size:13px;text-align:left}
+.ea-wf-fields-hint{font-size:11px;margin-top:1px}
+.ea-wf-fields-table .is-dim td{color:var(--der-ink-500)}
+.ea-wf-fields-table .is-dim select{opacity:0.6}
 
 .ea-wf-deps{display:flex;flex-direction:column;gap:8px}
 .ea-wf-deps-list{list-style:none;margin:0;padding:0;
