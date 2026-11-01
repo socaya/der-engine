@@ -20,7 +20,25 @@ import { UiIcon } from '../../components/UiIcon';
 
 export interface WorkflowMonitoringProps {
   api?: Pick<typeof edgeApi, 'workflowQueue' | 'listDevices'
-                             | 'getWorkflowMetrics'>;
+                             | 'getWorkflowMetrics'
+                             | 'getWorkflowActivityFeed'
+                             | 'getWorkflowBlockages'
+                             | 'getWorkflowIssues'
+                             | 'getWorkflowConflicts'
+                             | 'getWorkflowActivitySummary'>;
+}
+
+function SummaryTile({ label, value, tone }: {
+  label: string;
+  value: number;
+  tone: 'info' | 'warning' | 'danger' | 'neutral';
+}): JSX.Element {
+  return (
+    <div className={'ea-wf-monitor-tile ea-wf-monitor-tile--' + tone}>
+      <div className="ea-wf-monitor-tile-value">{value}</div>
+      <div className="ea-wf-monitor-tile-label">{label}</div>
+    </div>
+  );
 }
 
 function PrefetchReadinessTable({ devices }: {
@@ -146,20 +164,35 @@ export function WorkflowMonitoring({ api = edgeApi }:
   const [rows, setRows] = useState<edgeApi.WorkflowQueueRow[] | null>(null);
   const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[]>([]);
   const [metrics, setMetrics] = useState<edgeApi.WorkflowMetricsResponse | null>(null);
+  const [feed, setFeed] = useState<edgeApi.WorkflowActivityFeedRow[]>([]);
+  const [blockages, setBlockages] = useState<edgeApi.WorkflowBlockageRow[]>([]);
+  const [issues, setIssues] = useState<edgeApi.WorkflowIssueRow[]>([]);
+  const [conflicts, setConflicts] = useState<edgeApi.WorkflowConflictRow[]>([]);
+  const [summary, setSummary] = useState<edgeApi.WorkflowActivitySummary | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loadedAt, setLoadedAt] = useState<string | null>(null);
   const [windowHours, setWindowHours] = useState(24);
 
   async function reload(): Promise<void> {
     try {
-      const [qRes, dRes, mRes] = await Promise.allSettled([
+      const [qRes, dRes, mRes, fRes, bRes, iRes, cRes, sRes] = await Promise.allSettled([
         api.workflowQueue({ allDevices: true }),
         api.listDevices(),
         api.getWorkflowMetrics(windowHours),
+        api.getWorkflowActivityFeed(50),
+        api.getWorkflowBlockages(),
+        api.getWorkflowIssues(200),
+        api.getWorkflowConflicts(200),
+        api.getWorkflowActivitySummary(),
       ]);
       if (qRes.status === 'fulfilled') setRows(qRes.value.rows);
       if (dRes.status === 'fulfilled') setDevices(dRes.value.devices ?? []);
       if (mRes.status === 'fulfilled') setMetrics(mRes.value);
+      if (fRes.status === 'fulfilled') setFeed(fRes.value.rows);
+      if (bRes.status === 'fulfilled') setBlockages(bRes.value.rows);
+      if (iRes.status === 'fulfilled') setIssues(iRes.value.rows);
+      if (cRes.status === 'fulfilled') setConflicts(cRes.value.rows);
+      if (sRes.status === 'fulfilled') setSummary(sRes.value);
       setLoadedAt(new Date().toISOString());
       setErr(null);
     } catch (e) {
@@ -309,6 +342,214 @@ export function WorkflowMonitoring({ api = edgeApi }:
         <ErrorBlock title="Could not load monitoring data"
                      testId="wf-monitor-error">{err}</ErrorBlock>
       )}
+
+      {summary && (
+        <div className="ea-wf-monitor-summary" data-test="wf-monitor-summary">
+          <SummaryTile label="Completed · last 24 h"
+                        value={summary.completedLast24h} tone="info" />
+          <SummaryTile label="Blocked right now"
+                        value={summary.currentlyBlocked}
+                        tone={summary.currentlyBlocked > 0 ? 'warning' : 'neutral'} />
+          <SummaryTile label="Error issues open"
+                        value={summary.openErrorIssues}
+                        tone={summary.openErrorIssues > 0 ? 'danger' : 'neutral'} />
+          <SummaryTile label="Conflicts pending"
+                        value={summary.openConflicts}
+                        tone={summary.openConflicts > 0 ? 'danger' : 'neutral'} />
+        </div>
+      )}
+
+      <Panel title="Blockages — review and troubleshoot"
+             action={blockages.length > 0
+               ? <span className="ea-text-muted" style={{ fontSize: 11 }}>
+                   {blockages.length} step{blockages.length === 1 ? '' : 's'} waiting
+                 </span>
+               : undefined}>
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense"
+                 data-test="wf-monitor-blockages">
+            <thead>
+              <tr>
+                <th>Blocked step</th>
+                <th>Run</th>
+                <th>Blocked by</th>
+                <th style={{ width: 110 }}>Since</th>
+              </tr>
+            </thead>
+            <tbody>
+              {blockages.length === 0 ? (
+                <tr><td colSpan={4} className="ea-text-muted"
+                         style={{ textAlign: 'center', padding: 16 }}>
+                  No steps are currently blocked.
+                </td></tr>
+              ) : blockages.map((b) => (
+                <tr key={b.runId + ':' + b.stepId}
+                     data-test={`wf-monitor-blocked-${b.stepId}`}>
+                  <td style={{ fontWeight: 500 }}>
+                    {b.stepName ?? '—'}
+                    <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                      <Link to={`/workflows/${b.workflowId}`}>{b.workflowName ?? '—'}</Link>
+                    </div>
+                  </td>
+                  <td className="ea-mono ea-text-muted" style={{ fontSize: 12 }}>
+                    {b.businessKey}
+                  </td>
+                  <td>
+                    {b.blockedBy.length === 0
+                      ? <span className="ea-text-muted">—</span>
+                      : b.blockedBy.map((p) => p.stepName ?? p.stepId.slice(0, 8)).join(', ')}
+                  </td>
+                  <td className="ea-text-muted" title={b.blockedSince}>
+                    {fmtAgo(b.blockedSince)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      <Panel title="Open issues"
+             action={issues.length > 0
+               ? <span className="ea-text-muted" style={{ fontSize: 11 }}>
+                   {issues.length} issue{issues.length === 1 ? '' : 's'}
+                 </span>
+               : undefined}>
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense"
+                 data-test="wf-monitor-issues">
+            <thead>
+              <tr>
+                <th style={{ width: 90 }}>Severity</th>
+                <th>Message</th>
+                <th>Step · workflow</th>
+                <th style={{ width: 110 }}>Field</th>
+                <th style={{ width: 110 }}>Detected</th>
+              </tr>
+            </thead>
+            <tbody>
+              {issues.length === 0 ? (
+                <tr><td colSpan={5} className="ea-text-muted"
+                         style={{ textAlign: 'center', padding: 16 }}>
+                  No open validation issues.
+                </td></tr>
+              ) : issues.slice(0, 10).map((i) => (
+                <tr key={i.issueId}
+                     data-test={`wf-monitor-issue-${i.issueId}`}>
+                  <td>
+                    <Status tone={i.severity === 'ERROR' ? 'danger'
+                                   : i.severity === 'WARNING' ? 'warning' : 'info'}>
+                      {i.severity}
+                    </Status>
+                  </td>
+                  <td>{i.message}</td>
+                  <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                    {i.stepName ?? '—'}
+                    <br/>
+                    <Link to={`/workflows/${i.workflowId}`}>{i.workflowName ?? '—'}</Link>
+                  </td>
+                  <td className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>
+                    {i.fieldRef ?? '—'}
+                  </td>
+                  <td className="ea-text-muted" title={i.detectedAt}>
+                    {fmtAgo(i.detectedAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      <Panel title="Pending conflicts"
+             action={conflicts.length > 0
+               ? <span className="ea-text-muted" style={{ fontSize: 11 }}>
+                   {conflicts.length} conflict{conflicts.length === 1 ? '' : 's'}
+                 </span>
+               : undefined}>
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense"
+                 data-test="wf-monitor-conflicts">
+            <thead>
+              <tr>
+                <th>Workflow</th>
+                <th>Run</th>
+                <th style={{ width: 170 }}>Category</th>
+                <th style={{ width: 110 }}>Detected</th>
+              </tr>
+            </thead>
+            <tbody>
+              {conflicts.length === 0 ? (
+                <tr><td colSpan={4} className="ea-text-muted"
+                         style={{ textAlign: 'center', padding: 16 }}>
+                  No pending conflicts.
+                </td></tr>
+              ) : conflicts.slice(0, 10).map((c) => (
+                <tr key={c.conflictId}>
+                  <td>
+                    <Link to={`/workflows/${c.workflowId}`}>{c.workflowName ?? '—'}</Link>
+                  </td>
+                  <td className="ea-mono ea-text-muted" style={{ fontSize: 12 }}>
+                    {c.businessKey}
+                  </td>
+                  <td className="ea-text-muted">{c.category}</td>
+                  <td className="ea-text-muted" title={c.detectedAt}>
+                    {fmtAgo(c.detectedAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      <Panel title="Recent activity">
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense"
+                 data-test="wf-monitor-feed">
+            <thead>
+              <tr>
+                <th style={{ width: 110 }}>Event</th>
+                <th>Step · workflow</th>
+                <th>Device</th>
+                <th style={{ width: 110 }}>When</th>
+              </tr>
+            </thead>
+            <tbody>
+              {feed.length === 0 ? (
+                <tr><td colSpan={4} className="ea-text-muted"
+                         style={{ textAlign: 'center', padding: 16 }}>
+                  No recent activity.
+                </td></tr>
+              ) : feed.slice(0, 20).map((f) => (
+                <tr key={f.transitionId}>
+                  <td>
+                    <Status tone={f.toState === 'COMPLETE' ? 'success'
+                                   : f.toState === 'READY' ? 'info'
+                                   : f.toState === 'BLOCKED' ? 'muted' : 'info'}>
+                      {f.toState}
+                    </Status>
+                  </td>
+                  <td>
+                    <span style={{ fontWeight: 500 }}>{f.stepName ?? '—'}</span>
+                    <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                      <Link to={`/workflows/${f.workflowId}`}>{f.workflowName ?? '—'}</Link>
+                      {' · '}<span className="ea-mono">{f.businessKey}</span>
+                    </div>
+                  </td>
+                  <td className="ea-text-muted">
+                    {f.actorDeviceName ?? (f.actorDeviceId
+                      ? f.actorDeviceId.slice(0, 8) : '—')}
+                  </td>
+                  <td className="ea-text-muted" title={f.transitionedAt}>
+                    {fmtAgo(f.transitionedAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
 
       <Panel title="By workflow"
              action={<Link to="/workflows/queue" className="ea-link-btn">Open queue</Link>}>

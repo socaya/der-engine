@@ -1056,6 +1056,86 @@ export function ackPrefetch(stepId: string, deviceId: string):
     + `?deviceId=${encodeURIComponent(deviceId)}`);
 }
 
+/** §2.3.61 — admin troubleshooting feeds. */
+export interface WorkflowActivityFeedRow {
+  transitionId: number;
+  workflowId: string;
+  workflowName: string | null;
+  runId: string;
+  businessKey: string;
+  stepId: string;
+  stepName: string | null;
+  fromState: 'BLOCKED' | 'READY' | 'IN_PROGRESS' | 'COMPLETE' | null;
+  toState: 'BLOCKED' | 'READY' | 'IN_PROGRESS' | 'COMPLETE';
+  transitionedAt: string;
+  actorDeviceId: string | null;
+  actorDeviceName: string | null;
+}
+export interface WorkflowBlockageRow {
+  workflowId: string;
+  workflowName: string | null;
+  runId: string;
+  businessKey: string;
+  stepId: string;
+  stepName: string | null;
+  blockedSince: string;
+  blockedBy: { stepId: string; stepName: string | null }[];
+}
+export interface WorkflowIssueRow {
+  issueId: string;
+  workflowId: string;
+  workflowName: string | null;
+  runId: string;
+  businessKey: string;
+  stepId: string | null;
+  stepName: string | null;
+  code: string;
+  severity: 'ERROR' | 'WARNING' | 'INFO';
+  message: string;
+  fieldRef: string | null;
+  detectedAt: string;
+}
+export interface WorkflowConflictRow {
+  conflictId: string;
+  workflowId: string;
+  workflowName: string | null;
+  runId: string;
+  businessKey: string;
+  category: string;
+  identityKey: string;
+  detectedAt: string;
+}
+export interface WorkflowActivitySummary {
+  completedLast24h: number;
+  currentlyBlocked: number;
+  openErrorIssues: number;
+  openConflicts: number;
+}
+
+export function getWorkflowActivityFeed(limit = 50):
+    Promise<{ rows: WorkflowActivityFeedRow[] }> {
+  return request('GET',
+    `/edge-api/v1/workflows/activity/feed?limit=${limit}`);
+}
+export function getWorkflowBlockages():
+    Promise<{ rows: WorkflowBlockageRow[] }> {
+  return request('GET', '/edge-api/v1/workflows/activity/blockages');
+}
+export function getWorkflowIssues(limit = 200):
+    Promise<{ rows: WorkflowIssueRow[] }> {
+  return request('GET',
+    `/edge-api/v1/workflows/activity/issues?limit=${limit}`);
+}
+export function getWorkflowConflicts(limit = 200):
+    Promise<{ rows: WorkflowConflictRow[] }> {
+  return request('GET',
+    `/edge-api/v1/workflows/activity/conflicts?limit=${limit}`);
+}
+export function getWorkflowActivitySummary():
+    Promise<WorkflowActivitySummary> {
+  return request('GET', '/edge-api/v1/workflows/activity/summary');
+}
+
 export function workflowQueue(opts?: {
   deviceId?: string;
   allDevices?: boolean;

@@ -117,6 +117,9 @@ public class SecurityConfig {
                         // §2.3.60 — admin-only metrics dashboard aggregation.
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                             "/edge-api/v1/workflows/metrics").hasRole("ADMIN")
+                        // §2.3.61 — admin troubleshooting feed/blockages/issues/conflicts.
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/edge-api/v1/workflows/activity/**").hasRole("ADMIN")
                         // §2.3.60 — prefetch coordination (phase B).
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                             "/edge-api/v1/workflows/prefetch/stream").authenticated()
