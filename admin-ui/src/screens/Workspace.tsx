@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
-  KpiTile, Panel, Donut, Dot, fmtDate, fmtAgo, fmtBytes, fmtDur,
+  Panel, Donut, Dot, fmtDate, fmtAgo, fmtBytes,
 } from './shared';
 import { TopologyCanvas } from '../components/network/TopologyCanvas';
 import { useMeshTopology } from '../components/network/useMeshTopology';
@@ -32,7 +32,6 @@ export function MockupWorkspace(): JSX.Element {
   const [h, setH] = useState<edgeApi.HealthResponse | null>(null);
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
   const [c, setC] = useState<edgeApi.CompatSnapshot | null>(null);
-  const [w, setW] = useState<edgeApi.WorkerHealth | null>(null);
   const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
   const [conflicts, setConflicts] = useState<edgeApi.ConflictRow[] | null>(null);
   const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[] | null>(null);
@@ -45,18 +44,17 @@ export function MockupWorkspace(): JSX.Element {
   useEffect(() => {
     Promise.allSettled([
       edgeApi.health(), edgeApi.systemInfo(), edgeApi.compat(),
-      edgeApi.workerHealth(), edgeApi.listJobs(100),
+      edgeApi.listJobs(100),
       edgeApi.listConflicts(50),
       edgeApi.listDevices(), edgeApi.listWorkflows(),
     ]).then((r) => {
       if (r[0].status === 'fulfilled') setH(r[0].value);
       if (r[1].status === 'fulfilled') setSi(r[1].value);
       if (r[2].status === 'fulfilled') setC(r[2].value);
-      if (r[3].status === 'fulfilled') setW(r[3].value);
-      if (r[4].status === 'fulfilled') setJobs(r[4].value);
-      if (r[5].status === 'fulfilled') setConflicts(r[5].value);
-      if (r[6].status === 'fulfilled') setDevices(r[6].value.devices);
-      if (r[7].status === 'fulfilled') setWfs(r[7].value.workflows);
+      if (r[3].status === 'fulfilled') setJobs(r[3].value);
+      if (r[4].status === 'fulfilled') setConflicts(r[4].value);
+      if (r[5].status === 'fulfilled') setDevices(r[5].value.devices);
+      if (r[6].status === 'fulfilled') setWfs(r[6].value.workflows);
       setT(new Date());
       const first = r.find((x) => x.status === 'rejected');
       if (first && first.status === 'rejected') {
@@ -74,10 +72,6 @@ export function MockupWorkspace(): JSX.Element {
   // fields that aren't on the response and always failed closed.
   const dbUp = Boolean(si.database.product) && (si.database.migrationCount ?? 0) > 0;
   const schedUp = si.scheduler.started === true;
-  const totalDevices = devices?.length ?? 0;
-  const activeDevices = (devices ?? []).filter((d) => d.status === 'APPROVED').length;
-  const backlog = w ? Object.values(w.backlog).reduce((a, b) => a + b, 0) : 0;
-
   // Conflict count for the attention chip (details live under /journal/conflicts).
   const totalConflicts = (conflicts ?? []).length;
   const totalRuns = (jobs ?? []).length;
@@ -136,30 +130,6 @@ export function MockupWorkspace(): JSX.Element {
       </section>
 
       {err && <ErrorBlock title="Partial load" testId="err-workspace">{err}</ErrorBlock>}
-
-      {/* ─── 5 KPIs row ───────────────────────────────────────── */}
-      <div className="ea-kpi-grid">
-        <KpiTile tone={derUp ? 'success' : 'danger'}
-                 icon={<IconPulse />} label="DER status"
-                 value={derStatusLabel}
-                 caption={`uptime ${fmtDur(si.runtime.uptimeMillis)}`} />
-        <KpiTile tone={dhis2Up ? 'success' : 'danger'}
-                 icon={<IconPlug />} label="DHIS2"
-                 value={dhis2Up ? 'Connected' : 'Unreachable'}
-                 caption={c?.centralVersion ?? '—'} />
-        <KpiTile tone={dbUp ? 'success' : 'danger'}
-                 icon={<IconDatabase />} label="Local database"
-                 value={dbUp ? 'Operational' : 'Degraded'}
-                 caption={si.database.product?.split(' ').slice(0, 2).join(' ') ?? '—'} />
-        <KpiTile tone={schedUp ? 'success' : 'warning'}
-                 icon={<IconSync />} label="Synchronisation"
-                 value={schedUp ? 'Running' : 'Standby'}
-                 caption={`${backlog} queued`} />
-        <KpiTile tone="info"
-                 icon={<IconDevice />} label="Client devices"
-                 value={totalDevices}
-                 caption={`${activeDevices} active`} />
-      </div>
 
       {/* ─── Mesh topology (modern) ──────────────────────────── */}
       <Panel title="Topology"
@@ -255,8 +225,3 @@ export function MockupWorkspace(): JSX.Element {
   );
 }
 
-function IconPulse(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h4l3-9 6 18 3-9h4" /></svg>); }
-function IconPlug(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 2v4M15 2v4" /><path d="M7 6h10v4a5 5 0 01-10 0V6z" /><path d="M12 15v7" /></svg>); }
-function IconDatabase(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" /></svg>); }
-function IconSync(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12a8 8 0 0113-6.3L20 8" /><path d="M20 4v4h-4" /><path d="M20 12a8 8 0 01-13 6.3L4 16" /><path d="M4 20v-4h4" /></svg>); }
-function IconDevice(): JSX.Element { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5" /><path d="M11 18h2" /></svg>); }
