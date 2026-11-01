@@ -33,7 +33,14 @@ export function WorkflowImportInbox({ api = edgeApi }:
     }
   }
 
-  useEffect(() => { reload().catch(() => undefined); }, [api, filter]);
+  useEffect(() => {
+    reload().catch(() => undefined);
+    // §2.3.41 — SSE push on inbox arrivals/decisions.
+    const es = new EventSource('/edge-api/v1/workflows/import-inbox/stream');
+    es.addEventListener('inbox.updated',
+      () => { reload().catch(() => undefined); });
+    return () => { es.close(); };
+  }, [api, filter]);
 
   async function accept(id: string): Promise<void> {
     setBusy(id);

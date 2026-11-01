@@ -78,6 +78,11 @@ logging:
 
 # DHIS2 adapter — Phase 01 (ADR-0002, ADR-0003).
 der:
+  peer:
+    # §2.3.42 — AES-256-GCM key for peer service-account password
+    # at rest. Falls back to a well-known dev-only key when unset
+    # (logged WARN). Pilots must set DER_PEER_SECRET_KEY.
+    secret-key: ${DER_PEER_SECRET_KEY:}
   dhis2:
     central:
       base-url: ${DER_DHIS2_CENTRAL_URL:}

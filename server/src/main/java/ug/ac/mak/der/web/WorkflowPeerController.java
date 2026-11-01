@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.CaptureWorkflow;
 import ug.ac.mak.der.workflow.CaptureWorkflowService;
+import ug.ac.mak.der.workflow.PeerSecretCrypto;
 
 /**
  * §62–§63 — pilot peer-to-peer workflow exchange. Operators register
@@ -48,22 +49,26 @@ public class WorkflowPeerController {
     private final CaptureWorkflowService workflows;
     private final HttpClient http;
     private final ObjectMapper mapper;
+    private final PeerSecretCrypto crypto;
 
     public WorkflowPeerController(final JdbcTemplate jdbc,
                                     final CaptureWorkflowService workflows,
                                     final HttpClient http,
-                                    final ObjectMapper mapper) {
+                                    final ObjectMapper mapper,
+                                    final PeerSecretCrypto crypto) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.workflows = Objects.requireNonNull(workflows, "workflows");
         this.http = Objects.requireNonNull(http, "http");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
+        this.crypto = Objects.requireNonNull(crypto, "crypto");
     }
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> list() {
         final List<Map<String, Object>> rows = jdbc.query(
                 "SELECT peer_id, display_name, base_url, added_at, added_by, "
-                        + "last_push_at, last_push_status, auth_username "
+                        + "last_push_at, last_push_status, auth_username, "
+                        + "direct_import "
                         + "FROM der.workflow_peer ORDER BY added_at DESC",
                 (rs, i) -> {
                     final Map<String, Object> m = new LinkedHashMap<>();
@@ -79,6 +84,9 @@ public class WorkflowPeerController {
                     // §2.3.35 — surface the username only; the password
                     // stays server-side (never exposed over the API).
                     m.put("authUsername", rs.getString("auth_username"));
+                    // §2.3.40 — trust toggle. When true, pushes skip
+                    // the receiver's inbox.
+                    m.put("directImport", rs.getBoolean("direct_import"));
                     return m;
                 });
         return ResponseEntity.ok(Map.of("peers", rows));
@@ -107,12 +115,35 @@ public class WorkflowPeerController {
                 id, body.displayName.trim(),
                 body.baseUrl.trim().replaceAll("/$", ""),
                 principal.userId(),
-                user, pass);
+                user, crypto.encrypt(pass));
         return ResponseEntity.ok(Map.of(
                 "peerId", id.toString(),
                 "displayName", body.displayName.trim(),
                 "baseUrl", body.baseUrl.trim(),
                 "authUsername", user == null ? "" : user));
+    }
+
+    /** §2.3.40 — flip the trust toggle. {@code direct_import=true}
+     *  makes subsequent pushes skip the receiver's inbox. */
+    @PostMapping(path = "/{peerId}/trust",
+                 consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> setTrust(final Authentication auth,
+            @PathVariable final UUID peerId,
+            @RequestBody final TrustBody body) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final boolean trusted = body != null && body.directImport;
+        final int n = jdbc.update(
+                "UPDATE der.workflow_peer SET direct_import = ? WHERE peer_id = ?",
+                trusted, peerId);
+        return n == 0 ? ResponseEntity.notFound().build()
+                : ResponseEntity.ok(Map.of("peerId", peerId.toString(),
+                                              "directImport", trusted));
+    }
+
+    public static final class TrustBody {
+        public boolean directImport;
     }
 
     /** §2.3.35 — set / clear the stored service-account credentials
@@ -133,7 +164,7 @@ public class WorkflowPeerController {
         final int n = jdbc.update(
                 "UPDATE der.workflow_peer SET auth_username = ?, auth_password = ? "
                         + "WHERE peer_id = ?",
-                user, pass, peerId);
+                user, crypto.encrypt(pass), peerId);
         return n == 0 ? ResponseEntity.notFound().build()
                 : ResponseEntity.ok(Map.of("peerId", peerId.toString(),
                                              "authUsername", user == null ? "" : user));
@@ -156,13 +187,14 @@ public class WorkflowPeerController {
             return ResponseEntity.status(401).build();
         }
         final List<Map<String, Object>> peers = jdbc.query(
-                "SELECT base_url, auth_username, auth_password "
+                "SELECT base_url, auth_username, auth_password, direct_import "
                         + "FROM der.workflow_peer WHERE peer_id = ?",
                 (rs, i) -> {
                     final Map<String, Object> m = new LinkedHashMap<>();
                     m.put("baseUrl", rs.getString(1));
                     m.put("authUsername", rs.getString(2));
                     m.put("authPassword", rs.getString(3));
+                    m.put("directImport", rs.getBoolean(4));
                     return m;
                 },
                 peerId);
@@ -171,7 +203,9 @@ public class WorkflowPeerController {
         }
         final String base = (String) peers.get(0).get("baseUrl");
         final String authUser = (String) peers.get(0).get("authUsername");
-        final String authPass = (String) peers.get(0).get("authPassword");
+        final String authPass = crypto.decrypt(
+                (String) peers.get(0).get("authPassword"));
+        final boolean directImport = Boolean.TRUE.equals(peers.get(0).get("directImport"));
         final CaptureWorkflow w = workflows.get(workflowId)
                 .orElse(null);
         if (w == null) {
@@ -213,16 +247,16 @@ public class WorkflowPeerController {
                         .orElse(null);
             }
             final String body = mapper.writeValueAsString(canonical);
-            // §2.3.38 — default to inbox mode so pushes don't silently
-            // overwrite the receiver's workflow catalogue. Receivers can
-            // still opt out of inbox mode by not having the inbox table
-            // (older edges) — the receiver falls back to direct import.
+            // §2.3.38 — default inbox mode. §2.3.40 — trusted peers
+            // (direct_import=true) skip the inbox and apply directly.
             final String fromLabel = "peer-" + peerId.toString().substring(0, 8);
-            final HttpRequest.Builder reqB = HttpRequest.newBuilder()
-                    .uri(URI.create(base + "/edge-api/v1/workflows/import"
-                            + "?inbox=true&fromLabel="
+            final String query = directImport
+                    ? ""
+                    : "?inbox=true&fromLabel="
                             + java.net.URLEncoder.encode(fromLabel,
-                                    StandardCharsets.UTF_8)))
+                                    StandardCharsets.UTF_8);
+            final HttpRequest.Builder reqB = HttpRequest.newBuilder()
+                    .uri(URI.create(base + "/edge-api/v1/workflows/import" + query))
                     .timeout(Duration.ofSeconds(30))
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")

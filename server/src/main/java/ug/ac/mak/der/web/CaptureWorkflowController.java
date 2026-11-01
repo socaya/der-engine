@@ -33,6 +33,7 @@ import ug.ac.mak.der.workflow.CaptureWorkflowRun;
 import ug.ac.mak.der.workflow.CaptureWorkflowService;
 import ug.ac.mak.der.workflow.CaptureWorkflowStep;
 import ug.ac.mak.der.workflow.ProgressiveValidator;
+import ug.ac.mak.der.workflow.WorkflowInboxStream;
 import ug.ac.mak.der.workflow.WorkflowPinningService;
 import ug.ac.mak.der.fleet.UserPreferenceService;
 import ug.ac.mak.der.workflow.WorkflowQueueStream;
@@ -52,6 +53,7 @@ public class CaptureWorkflowController {
     private final WorkflowPinningService pinning;
     private final UserPreferenceService prefs;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final WorkflowInboxStream inboxStream;
     private final com.fasterxml.jackson.databind.ObjectMapper mapper
             = new com.fasterxml.jackson.databind.ObjectMapper();
     /** §2.3.31 — pref key for the operator's preferred device.
@@ -67,7 +69,8 @@ public class CaptureWorkflowController {
                                        final WorkflowQueueStream queueStream,
                                        final WorkflowPinningService pinning,
                                        final UserPreferenceService prefs,
-                                       final org.springframework.jdbc.core.JdbcTemplate jdbc) {
+                                       final org.springframework.jdbc.core.JdbcTemplate jdbc,
+                                       final WorkflowInboxStream inboxStream) {
         this.svc = Objects.requireNonNull(svc, "svc");
         this.importer = Objects.requireNonNull(importer, "importer");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
@@ -77,6 +80,21 @@ public class CaptureWorkflowController {
         this.pinning = Objects.requireNonNull(pinning, "pinning");
         this.prefs = Objects.requireNonNull(prefs, "prefs");
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+        this.inboxStream = Objects.requireNonNull(inboxStream, "inboxStream");
+    }
+
+    /** §2.3.41 — inbox SSE endpoint. */
+    @GetMapping(path = "/import-inbox/stream",
+                produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter
+            inboxStream(final Authentication authentication) {
+        if (!(authentication instanceof EdgeUserPrincipal)) {
+            final var em = new org.springframework.web.servlet
+                    .mvc.method.annotation.SseEmitter(0L);
+            em.completeWithError(new SecurityException("unauthenticated"));
+            return em;
+        }
+        return inboxStream.register();
     }
 
     /** §37–§42 — read the workflow's pin. {@code snapshotId=null}
@@ -333,6 +351,7 @@ public class CaptureWorkflowController {
                     importId, principal.userId(), fromLabel,
                     body.displayName(), body.boundMetadataKind(),
                     body.boundMetadataId(), payload);
+                inboxStream.notifyUpdate("import.received");
                 return ResponseEntity.ok(Map.of(
                         "status", "PENDING_REVIEW",
                         "importId", importId.toString(),
@@ -403,6 +422,7 @@ public class CaptureWorkflowController {
                             + "    decided_by = ?, accepted_workflow_id = ? "
                             + "WHERE import_id = ?",
                     principal.userId(), result.workflow().workflowId(), importId);
+            inboxStream.notifyUpdate("import.accepted");
             return ResponseEntity.ok(Map.of(
                     "importId", importId.toString(),
                     "workflowId", result.workflow().workflowId().toString(),
@@ -428,9 +448,12 @@ public class CaptureWorkflowController {
                         + "    decided_by = ?, decision_note = ? "
                         + "WHERE import_id = ? AND status = 'PENDING'",
                 principal.userId(), note, importId);
-        return n == 0 ? ResponseEntity.notFound().build()
-                : ResponseEntity.ok(Map.of("importId", importId.toString(),
-                                             "status", "REJECTED"));
+        if (n == 0) {
+            return ResponseEntity.notFound().build();
+        }
+        inboxStream.notifyUpdate("import.rejected");
+        return ResponseEntity.ok(Map.of("importId", importId.toString(),
+                                          "status", "REJECTED"));
     }
 
     /** §2.3.39 — compute a step-level diff between an inbox PENDING

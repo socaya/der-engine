@@ -1051,6 +1051,15 @@ export interface WorkflowPeer {
   lastPushStatus: string | null;
   /** §2.3.35 — service account username (password never leaves server). */
   authUsername: string | null;
+  /** §2.3.40 — true → push skips the receiver's inbox. */
+  directImport?: boolean;
+}
+
+export function setWorkflowPeerTrust(peerId: string,
+                                       directImport: boolean): Promise<unknown> {
+  return request('POST',
+    `/edge-api/v1/workflows/peers/${peerId}/trust`,
+    { directImport });
 }
 
 export function listWorkflowPeers(): Promise<{ peers: WorkflowPeer[] }> {

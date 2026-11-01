@@ -280,3 +280,22 @@ export function runValidation(runId: string): Promise<{
   return request<{ runId: string; errorCount: number; issues: ValidationIssue[] }>(
     'GET', `/edge-api/v1/workflows/runs/${runId}/validation`);
 }
+
+/** §2.3.43 — pull a program's tracked-entity-attribute UID list from
+ *  the DHIS2 proxy so EnrollmentCreate can render the right inputs
+ *  without the operator having to paste them into the URL. */
+export async function programTrackedEntityAttributes(programId: string):
+    Promise<string[]> {
+  const r = await fetch(
+    `/api/programs/${programId}?fields=id,programTrackedEntityAttributes`,
+    { credentials: 'include', headers: { Accept: 'application/json' } });
+  if (!r.ok) return [];
+  const body = await r.json() as {
+    programTrackedEntityAttributes?: Array<{
+      trackedEntityAttribute?: { id: string };
+    }>;
+  };
+  return (body.programTrackedEntityAttributes ?? [])
+    .map((p) => p.trackedEntityAttribute?.id)
+    .filter((id): id is string => !!id);
+}

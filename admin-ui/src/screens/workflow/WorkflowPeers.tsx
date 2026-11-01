@@ -11,6 +11,7 @@ export interface WorkflowPeersProps {
   api?: Pick<typeof edgeApi, 'listWorkflowPeers' | 'addWorkflowPeer'
                              | 'deleteWorkflowPeer' | 'pushWorkflowToPeer'
                              | 'setWorkflowPeerCredentials'
+                             | 'setWorkflowPeerTrust'
                              | 'listWorkflows'>;
 }
 
@@ -198,6 +199,7 @@ export function WorkflowPeers({ api = edgeApi }:
                   <th>Peer</th>
                   <th>Base URL</th>
                   <th>Auth</th>
+                  <th>Trust</th>
                   <th>Added</th>
                   <th>Last push</th>
                   <th>Push a workflow</th>
@@ -262,6 +264,27 @@ export function WorkflowPeers({ api = edgeApi }:
                           </button>
                         </div>
                       </details>
+                    </td>
+                    <td>
+                      <label style={{ display: 'inline-flex', alignItems: 'center',
+                                       gap: 6, fontSize: 12, cursor: 'pointer' }}>
+                        <input type="checkbox"
+                                data-test={`peers-row-${p.peerId}-trust`}
+                                checked={p.directImport === true}
+                                disabled={busy === p.peerId + ':trust'}
+                                onChange={async (e) => {
+                                  setBusy(p.peerId + ':trust');
+                                  try {
+                                    await api.setWorkflowPeerTrust(p.peerId, e.target.checked);
+                                    await reload();
+                                  } catch (err) {
+                                    setError(err instanceof Error ? err.message : String(err));
+                                  } finally {
+                                    setBusy(null);
+                                  }
+                                }} />
+                        <span>{p.directImport ? 'direct' : 'via inbox'}</span>
+                      </label>
                     </td>
                     <td className="ea-text-muted" style={{ fontSize: 12 }}>
                       {new Date(p.addedAt).toLocaleDateString()}

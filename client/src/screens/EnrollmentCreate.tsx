@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@dhis2/ui';
+import * as edgeApi from '../api/edgeApi';
 import { ErrorBlock, LocallyCommittedPill, OfflineBanner } from '../components/ScreenStates';
 import { useRunValidation } from '../hooks/useRunValidation';
 import { RunValidationBanner } from '../components/RunValidationBanner';
@@ -21,11 +22,24 @@ export function EnrollmentCreate({ submit }: EnrollmentCreateProps = {}): JSX.El
   const { program = '' } = useParams();
   const [params] = useSearchParams();
   const runId = params.get('runId');
-  const attributeUids = useMemo(() => {
+  const explicitAttrs = useMemo(() => {
     const raw = params.get('attributes');
-    if (!raw) return [] as string[];
+    if (!raw) return null as string[] | null;
     return raw.split(',').map((s) => s.trim()).filter((s) => s !== '');
   }, [params]);
+  const [metadataAttrs, setMetadataAttrs] = useState<string[] | null>(null);
+  // §2.3.43 — when the URL doesn't carry an explicit attribute list,
+  // pull the program's TEA UIDs from the DHIS2 metadata proxy so the
+  // operator doesn't have to paste them.
+  useEffect(() => {
+    if (explicitAttrs != null || !program) return;
+    let cancelled = false;
+    edgeApi.programTrackedEntityAttributes(program)
+      .then((ids) => { if (!cancelled) setMetadataAttrs(ids); })
+      .catch(() => { if (!cancelled) setMetadataAttrs([]); });
+    return () => { cancelled = true; };
+  }, [explicitAttrs, program]);
+  const attributeUids = explicitAttrs ?? metadataAttrs ?? [];
   const [orgUnit, setOrgUnit] = useState('');
   const [tet, setTet] = useState('');
   const [enrolledAt, setEnrolledAt] = useState(new Date().toISOString().slice(0, 10));
