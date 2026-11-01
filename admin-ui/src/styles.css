@@ -185,8 +185,12 @@ code{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,mon
   z-index:20;
 }
 .ea-sidebar-brand{
-  display:flex;align-items:center;justify-content:center;
-  padding:8px 16px;
+  /* §2.3.78 — left-align the brand so the DER mark reads from the
+     start of the sidebar; `overflow:hidden` clips any trailing
+     whitespace baked into the SVG and the scale-up below makes the
+     mark more visible without changing the topbar height. */
+  display:flex;align-items:center;justify-content:flex-start;
+  padding:4px 10px 4px 14px;
   border-bottom:1px solid var(--der-sidebar-border);
   height:var(--topbar-h);
   min-height:var(--topbar-h);
@@ -194,16 +198,22 @@ code{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,mon
   overflow:hidden;
 }
 .ea-sidebar-logo-img{
-  max-height:calc(var(--topbar-h) - 8px);
-  max-width:calc(100% - 8px);
-  object-fit:contain;object-position:center;
+  height:calc(var(--topbar-h) - 10px);
+  width:auto;max-width:none;
+  object-fit:contain;object-position:left center;
   display:block;
+  /* The exact-SVG assets have a small internal margin; a mild scale
+     with left-origin pushes the mark toward the sidebar edge and
+     keeps the wordmark fully visible. The container clips the
+     overflow on the right. */
+  transform:scale(1.15);
+  transform-origin:left center;
 }
 .ea-sidebar-logo-img-sm{
   display:none;
-  max-height:calc(var(--topbar-h) - 8px);
-  max-width:calc(100% - 8px);
-  object-fit:contain;object-position:center;
+  height:calc(var(--topbar-h) - 14px);
+  width:auto;max-width:none;
+  object-fit:contain;object-position:left center;
 }
 
 .ea-sidebar-nav{

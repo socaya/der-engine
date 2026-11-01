@@ -72,18 +72,19 @@ export function DerCard(props: Common & { der: DerNode }): JSX.Element {
                      style={{ pointerEvents: 'none' }}>
         <div style={{ padding: 10, position: 'relative', height: '100%',
                        display: 'flex', flexDirection: 'column',
-                       justifyContent: 'center', alignItems: 'flex-start' }}>
+                       justifyContent: 'center', alignItems: 'center' }}>
           <span style={{ position: 'absolute', top: 8, right: 10 }}>
             <NetworkStatusBadge status={der.status} />
           </span>
           <img src={DER_LOGO}
                alt={der.name}
                title={der.name}
-               style={{ height: 40, maxWidth: DER_W - 48,
+               style={{ height: 40, maxWidth: DER_W - 24,
                         width: 'auto', objectFit: 'contain',
                         display: 'block' }} />
           <div style={{ fontSize: 10.5, color: 'var(--der-ink-500)',
-                        marginTop: 4, letterSpacing: 0.2 }}>
+                        marginTop: 4, letterSpacing: 0.2,
+                        textAlign: 'center' }}>
             Facility Server · Edge Runtime
           </div>
         </div>
@@ -275,11 +276,12 @@ export function WanBubble(
                      style={{ pointerEvents: 'none' }}>
         <div style={{ padding: '6px 14px', position: 'relative',
                        height: '100%', display: 'flex',
-                       alignItems: 'center', justifyContent: 'space-between',
-                       gap: 10 }}>
+                       alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ position: 'absolute', top: 6, right: 14 }}>
+            <NetworkStatusBadge status={status} />
+          </span>
           <img src={DHIS2_LOGO} alt="DHIS2"
                style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
-          <NetworkStatusBadge status={status} />
         </div>
       </foreignObject>
     </g>
