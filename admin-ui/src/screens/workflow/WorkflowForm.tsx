@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import { HeroHeader } from '../../components/HeroHeader';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { UiIcon } from '../../components/UiIcon';
 import * as md from './wizardMetadata';
 import type {
   Breakable, FieldCandidate, MetadataOption, WizardWorkflowType,
@@ -246,6 +247,9 @@ export function WorkflowForm({ api = edgeApi }:
       o.displayName.toLowerCase().includes(q));
   }, [metadataOptions, metadataSearch]);
 
+  type TabId = 'settings' | 'target' | 'steps' | 'handover' | 'pin';
+  const [activeTab, setActiveTab] = useState<TabId>(editing ? 'settings' : 'target');
+
   const includedRows = rows.filter((r) => r.included);
   const canSave = name.trim() !== '' && chosenMetadata != null
                 && includedRows.length > 0;
@@ -463,14 +467,48 @@ export function WorkflowForm({ api = edgeApi }:
                      testId="wf-form-load-error">{loadError}</ErrorBlock>
       )}
 
-      <section className="ea-card ea-form-card ea-form-card--wide">
-        <form className="ea-form"
+      <section className="ea-card ea-form-card ea-form-card--wide ea-form-card--split">
+        <form className="ea-form ea-form--split"
               onSubmit={(e) => { e.preventDefault(); if (canSave) void doSave(); }}>
-          <div className="ea-form-section">
+          <nav className="ea-form-nav" role="tablist" aria-label="Workflow sections">
+            {([
+              { id: 'settings', label: 'Settings' },
+              { id: 'target',   label: 'DHIS2 target' },
+              { id: 'steps',    label: 'Service points',
+                                badge: includedRows.length || undefined },
+              { id: 'handover', label: 'Handover',
+                                badge: deps.length || undefined,
+                                disabled: includedRows.length === 0 },
+              ...(editing && snapshots.length > 0
+                ? [{ id: 'pin' as const, label: 'Metadata pin' }]
+                : []),
+            ] as { id: TabId; label: string; badge?: number; disabled?: boolean }[])
+              .map((t) => {
+                const active = activeTab === t.id;
+                return (
+                  <button key={t.id} type="button" role="tab"
+                           aria-selected={active}
+                           disabled={t.disabled}
+                           data-test={`wf-form-nav-${t.id}`}
+                           className={'ea-form-nav-item'
+                             + (active ? ' is-active' : '')}
+                           onClick={() => setActiveTab(t.id)}>
+                    <span>{t.label}</span>
+                    {t.badge !== undefined && (
+                      <span className="ea-form-nav-badge">{t.badge}</span>
+                    )}
+                  </button>
+                );
+              })}
+          </nav>
+          <div className="ea-form-panel">
+
+          <div className="ea-form-section"
+               hidden={activeTab !== 'settings'}>
             <div className="ea-form-section-head">
-              <h2>Workflow settings</h2>
-              <p>Name, status, approval rule, and the device that owns
-                 steps you don't explicitly route elsewhere.</p>
+              <h2>Settings</h2>
+              <p>Name, status and the default role/device for steps you
+                 don't explicitly route elsewhere.</p>
             </div>
             <div className="ea-form-grid">
               <label className="ea-field">
@@ -517,11 +555,12 @@ export function WorkflowForm({ api = edgeApi }:
             </div>
           </div>
 
-          <div className="ea-form-section">
+          <div className="ea-form-section"
+               hidden={activeTab !== 'target'}>
             <div className="ea-form-section-head">
               <h2>DHIS2 target</h2>
-              <p>Which DHIS2 object the workflow captures into. Pick a
-                 type first, then the specific dataset or program.</p>
+              <p>What this workflow captures. Pick a type, then the dataset
+                 or program to bind.</p>
             </div>
             <div className="ea-form-grid">
               <label className="ea-field">
@@ -595,19 +634,14 @@ export function WorkflowForm({ api = edgeApi }:
           </div>
 
           {chosenMetadata && (
-            <div className="ea-form-section">
+            <div className="ea-form-section"
+                 hidden={activeTab !== 'steps'}>
               <div className="ea-form-section-head">
-                <h2>Workflow steps · service points</h2>
-                <p>Each ticked row becomes a service point in the flow.
-                   The <strong>Handover to (device)</strong> is the
-                   station that will pick that step up in its
-                   <em>My queue</em>; leave as <em>Any</em> to pool it
-                   to anyone holding the role. The <strong>Kind</strong>
-                   chip reflects the DHIS2 hierarchy. The
-                   <strong>Role</strong> is one of the three DER capture
-                   roles (<code>OPERATOR</code>, <code>REVIEWER</code>,
-                   <code>ADMIN</code>) defined server-side in
-                   <code>CaptureWorkflowStep.OwnerRole</code>.</p>
+                <h2>Service points</h2>
+                <p>Tick each service point the workflow should cover.
+                   Set the role expected to capture it and the device
+                   that should see it in <em>My queue</em>. Use ↑ / ↓
+                   to put the steps in the order they happen.</p>
               </div>
               {breakables == null ? (
                 <LoadingBlock testId="wf-form-breakables-loading" />
@@ -623,19 +657,14 @@ export function WorkflowForm({ api = edgeApi }:
           )}
 
           {chosenMetadata && includedRows.length >= 1 && (
-            <div className="ea-form-section">
+            <div className="ea-form-section"
+                 hidden={activeTab !== 'handover'}>
               <div className="ea-form-section-head">
-                <h2>Handover sequence · service-point flow</h2>
-                <p>Default order is the row order above (reorder with
-                   ↑ / ↓ in the # column): each step opens once the one
-                   immediately above completes. <strong>Explicit
-                   dependencies</strong> override that default for
-                   non-linear flows — e.g. a step that must wait on
-                   <em>two</em> predecessors (join), a parallel branch
-                   that converges later, or a step that may open after
-                   any one of several earlier steps. If your flow is
-                   strictly top-to-bottom you don't need to add any
-                   rules here.</p>
+                <h2>Handover</h2>
+                <p>Preview of how work flows between service points.
+                   Each step opens when the one before it completes.
+                   Add explicit rules only when the flow isn't linear —
+                   joins, parallel branches, or skipped predecessors.</p>
               </div>
               <HandoverFlowPreview rows={includedRows} devices={devices} />
               {includedRows.length >= 2 && (
@@ -648,13 +677,14 @@ export function WorkflowForm({ api = edgeApi }:
           )}
 
           {editing && snapshots.length > 0 && (
-            <div className="ea-form-section">
+            <div className="ea-form-section"
+                 hidden={activeTab !== 'pin'}>
               <div className="ea-form-section-head">
                 <h2>Metadata pin</h2>
-                <p>Freeze this workflow's schema to a specific metadata
-                   snapshot so upstream DHIS2 changes don't break it in
-                   the field. Default (<em>Follow live mirror</em>)
-                   tracks whatever the current snapshot is.</p>
+                <p>Freeze this workflow to a specific metadata snapshot
+                   so upstream DHIS2 changes can't break it in the
+                   field. Leave on <em>Follow live mirror</em> to track
+                   the current snapshot.</p>
               </div>
               <div className="ea-form-grid">
                 <label className="ea-field">
@@ -692,7 +722,8 @@ export function WorkflowForm({ api = edgeApi }:
                          testId="wf-form-save-error">{saveError}</ErrorBlock>
           )}
 
-          <div className="ea-form-footer">
+          </div>
+          <div className="ea-form-footer ea-form-footer--split">
             <Link to="/workflows" className="ea-btn ea-btn--ghost">Cancel</Link>
             <button type="submit"
                      className="ea-btn ea-btn--primary"
@@ -797,12 +828,15 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
                       </span>
                       {(r.breakable.sectionKind === 'PROGRAM_STAGE'
                         || r.breakable.sectionKind === 'PROGRAM_STAGE_SECTION') && (
-                        <span className={'ea-chip ea-chip--'
-                          + (r.breakable.repeatable ? 'info' : 'neutral')}
+                        <span className="ea-wf-steps-repeat-icon"
+                              aria-label={r.breakable.repeatable
+                                ? 'Repeatable stage'
+                                : 'Captured once'}
                               title={r.breakable.repeatable
-                                ? 'Program stage can be captured multiple times per enrolment'
-                                : 'Program stage is captured once per enrolment'}>
-                          {r.breakable.repeatable ? 'Repeats' : 'Once'}
+                                ? 'Captured multiple times per enrolment'
+                                : 'Captured once per enrolment'}>
+                          <UiIcon icon={r.breakable.repeatable
+                                        ? 'refresh' : 'event'} size={14} />
                         </span>
                       )}
                     </div>
@@ -932,8 +966,11 @@ function HandoverFlowPreview({ rows, devices }: {
               {(r.breakable.sectionKind === 'PROGRAM_STAGE'
                 || r.breakable.sectionKind === 'PROGRAM_STAGE_SECTION')
                 && r.breakable.repeatable && (
-                <span className="ea-chip ea-chip--info"
-                      title="Captured multiple times per enrolment">Repeats</span>
+                <span className="ea-wf-steps-repeat-icon"
+                      aria-label="Repeatable stage"
+                      title="Captured multiple times per enrolment">
+                  <UiIcon icon="refresh" size={14} />
+                </span>
               )}
               <span className="ea-text-muted">
                 → {r.ownerDeviceId == null

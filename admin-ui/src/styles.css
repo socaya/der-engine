@@ -2257,7 +2257,11 @@ kbd{
 .ea-wf-steps-ord-moves .ea-icon-btn:disabled{opacity:0.3;cursor:not-allowed}
 .ea-wf-steps-ord-sub{color:var(--der-ink-500);font-size:11px}
 .ea-wf-steps-col-kind{width:200px}
-.ea-wf-steps-kind-cell{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.ea-wf-steps-kind-cell{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ea-wf-steps-repeat-icon{
+  display:inline-flex;align-items:center;color:var(--der-ink-500);
+}
+.ea-wf-steps-repeat-icon:hover{color:var(--der-ink-900)}
 .ea-wf-steps-col-fields{width:72px;text-align:right}
 .ea-wf-steps-table .ea-wf-steps-col-fields{text-align:right}
 .ea-wf-steps-table td:last-child{text-align:right}
@@ -2299,6 +2303,62 @@ kbd{
 /* Workflow module uses a wide form card so the Steps table has room
    for the Kind / Role / Handover-to columns + inline field editor. */
 .ea-form-card--wide{max-width:none}
+
+/* Split layout — vertical inner-sidebar nav on the left, section panel
+   on the right. Used by the WorkflowForm so the long record-management
+   form has a scannable navigation column instead of a stack of
+   sections. */
+.ea-form-card--split{padding:0;display:flex;flex-direction:column}
+.ea-form--split{
+  display:grid;grid-template-columns:220px 1fr;align-items:stretch;
+  min-height:360px;
+}
+.ea-form-nav{
+  display:flex;flex-direction:column;gap:2px;padding:16px 10px;
+  border-right:1px solid var(--der-border);
+  background:var(--der-raised-weak,transparent);
+}
+.ea-form-nav-item{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:8px 12px;border:none;background:transparent;
+  text-align:left;color:var(--der-ink-700);font-size:13px;font-weight:500;
+  border-radius:6px;cursor:pointer;
+}
+.ea-form-nav-item:hover:not(:disabled):not(.is-active){
+  background:var(--der-raised);color:var(--der-ink-900);
+}
+.ea-form-nav-item.is-active{
+  background:var(--der-navy-700);color:#fff;
+}
+.ea-form-nav-item:disabled{opacity:0.4;cursor:not-allowed}
+.ea-form-nav-badge{
+  background:var(--der-ink-100);color:var(--der-ink-700);
+  font-size:11px;font-weight:600;padding:1px 7px;border-radius:10px;
+  min-width:16px;text-align:center;
+}
+.ea-form-nav-item.is-active .ea-form-nav-badge{
+  background:rgba(255,255,255,0.2);color:#fff;
+}
+.ea-form-panel{
+  display:flex;flex-direction:column;min-width:0;
+  /* make sure the panel takes the right column fully */
+}
+.ea-form-panel > .ea-form-section{
+  border-bottom:none;
+}
+.ea-form-footer--split{
+  grid-column:1 / -1;
+  border-top:1px solid var(--der-border);
+  padding:12px 16px;
+  background:var(--der-raised-weak,transparent);
+}
+
+@media(max-width:900px){
+  .ea-form--split{grid-template-columns:1fr}
+  .ea-form-nav{flex-direction:row;flex-wrap:wrap;overflow-x:auto;
+    border-right:none;border-bottom:1px solid var(--der-border);
+    padding:8px}
+}
 
 /* Handover flow preview — service-point chain under Dependencies. */
 .ea-wf-flow{
