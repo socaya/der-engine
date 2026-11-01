@@ -1593,7 +1593,7 @@ kbd{
 }
 
 /* Dense table (used in Queues / Metadata / History / Data mockups) */
-.ea-table--dense th, .ea-table--dense td{padding:5px;font-size:14px;line-height:1.45}
+.ea-table--dense th, .ea-table--dense td{padding:3px 8px;font-size:13px;line-height:1.3}
 .ea-table--dense thead th{font-size:13px}
 .ea-table--dense tbody td{color:var(--der-ink-900)}
 .ea-table--dense tbody tr{min-height:28px}
@@ -2235,22 +2235,31 @@ kbd{
 
 /* Steps + fields tables share one compact tabular idiom matching the
    rest of DER's record-management modules. No cards, no inner
-   borders, every cell left-aligned. Hierarchy indicated by
-   progressive indentation + three distinct background tints:
+   borders, no coloured backgrounds behind header or body rows.
+   Hierarchy indicated by progressive indentation + three distinct
+   tints on nested-content rows:
      level 0 (service point)      transparent
      level 1 (section)            rgba(29,78,216,0.045)
      level 2 (parent fields)      rgba(29,78,216,0.025)
      level 2 (section fields)     rgba(29,78,216,0.055) */
-.ea-wf-steps-table{border-collapse:collapse}
-.ea-wf-steps-table th{
-  text-align:left;font-weight:600;
-  padding:4px 8px;border-bottom:1px solid var(--der-border);
+.ea-wf-steps-table{
+  border-collapse:collapse;background:transparent;
+  table-layout:fixed;
 }
-.ea-wf-steps-table td{
-  text-align:left;vertical-align:middle;padding:3px 8px;
-  border-top:1px solid var(--der-border-subtle);
+.ea-main .ea-wf-steps-table thead th{
+  text-align:left;font-weight:600;background:transparent;
+  padding:2px 8px;border:none;border-bottom:1px solid var(--der-border-subtle);
+  position:static;letter-spacing:0;text-transform:none;
+  color:var(--der-ink-500);font-size:11px;
 }
-.ea-wf-steps-table tbody tr:first-child > td{border-top:none}
+.ea-main .ea-wf-steps-table tbody td{
+  text-align:left;vertical-align:middle;padding:2px 8px;
+  background:transparent;border:none;
+}
+.ea-main .ea-wf-steps-table tbody tr:not(.ea-wf-steps-fields-row) + tr:not(.ea-wf-steps-fields-row) > td{
+  border-top:1px solid rgba(0,0,0,0.04);
+}
+.ea-main .ea-wf-steps-table tbody tr:hover td{background:transparent}
 .ea-wf-steps-col-include{width:64px}
 .ea-wf-steps-col-role{width:110px}
 .ea-wf-steps-col-device{width:150px}
@@ -2289,18 +2298,20 @@ kbd{
 tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
 
 /* Section rows (level 1) — distinct tint + indented chevron. */
-tr.is-nested > td{background:rgba(29,78,216,0.045)}
-tr.is-nested .ea-wf-steps-sp-expand{padding-left:28px}
+.ea-main .ea-wf-steps-table tbody tr.is-nested > td{
+  background:rgba(29,78,216,0.045);
+}
+.ea-main .ea-wf-steps-table tbody tr.is-nested .ea-wf-steps-sp-expand{padding-left:28px}
 
 /* Fields panel for a top-level service point (level 2 fields). */
-.ea-wf-steps-fields-row > td{
+.ea-main .ea-wf-steps-table tbody tr.ea-wf-steps-fields-row > td{
   background:rgba(29,78,216,0.025);
   padding:4px 8px 8px 32px;
-  border-top:none;
+  border:none;
 }
 /* Fields panel for a section (level 2 under a section — darker tint
    + deeper indent so the double-nesting is obvious). */
-tr.is-nested + .ea-wf-steps-fields-row > td{
+.ea-main .ea-wf-steps-table tbody tr.is-nested + tr.ea-wf-steps-fields-row > td{
   background:rgba(29,78,216,0.055);
   padding-left:60px;
 }
@@ -2331,16 +2342,19 @@ tr.is-nested + .ea-wf-steps-fields-row > td{
 .ea-wf-fields-bulk{display:flex;gap:4px}
 .ea-wf-fields-table{
   width:100%;margin:0;background:transparent;border-collapse:collapse;
+  table-layout:fixed;
 }
-.ea-wf-fields-table th{
+.ea-main .ea-wf-fields-table thead th{
   text-align:left;font-weight:600;font-size:11px;
-  padding:2px 8px;color:var(--der-ink-500);
-  border-bottom:1px solid var(--der-border-subtle);
+  padding:1px 8px;color:var(--der-ink-500);
+  background:transparent;border:none;
+  position:static;letter-spacing:0;text-transform:none;
 }
-.ea-wf-fields-table td{
-  text-align:left;vertical-align:middle;padding:2px 8px;
-  border-top:1px solid rgba(0,0,0,0.04);
+.ea-main .ea-wf-fields-table tbody td{
+  text-align:left;vertical-align:middle;padding:1px 8px;
+  background:transparent;border:none;
 }
+.ea-main .ea-wf-fields-table tbody tr:hover td{background:transparent}
 .ea-wf-fields-table tbody tr:first-child > td{border-top:none}
 .ea-wf-fields-col-include{width:56px}
 .ea-wf-fields-col-include input{margin:0}
