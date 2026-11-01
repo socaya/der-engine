@@ -27,6 +27,12 @@ export interface WanInfo {
   centralDhis2Available: boolean;
   internetAvailable: boolean;
   lastProbeAt: string | null;
+  /** True when the configured DHIS2 Central URL is a local endpoint
+   *  (loopback / der.local / *.local). Admin UI uses this to decide
+   *  whether to auto-engage the Internet Simulate control; on real
+   *  pilot deployments it stays off so the display reflects the
+   *  actual probe. */
+  centralIsLocal?: boolean;
 }
 
 export interface DeviceNode {

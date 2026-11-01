@@ -64,7 +64,8 @@ function useRuntimeMode(): { mode: RuntimeMode; label: string; sub: string; deta
  *
  * - Flat quiet surfaces per §3 (no gradient blocks, no bright
  *   decorative cards).
- * - Approved DER logo asset served from /admin/der-logo.png.
+ * - Approved DER logo SVG served from /admin/assets/der-logo.svg
+ *   (icon-only variant at /admin/assets/der-icon.svg).
  * - 10 nav groups from the registry; capability-gap items shown
  *   greyed with a "n/a" badge.
  * - Responsive: labels hidden on ≤1024 px, drawer on ≤768 px.
@@ -272,14 +273,14 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
         <aside className="ea-sidebar" data-test="sidebar" aria-label="Primary navigation">
           <div className="ea-sidebar-brand">
             <img
-              src="/admin/der-logo.png"
+              src="/admin/assets/der-logo.svg"
               alt="DER — DHIS2 Edge Runtime"
               className="ea-sidebar-logo-img"
               width="140"
               height="40"
             />
             <img
-              src="/admin/der-logo-short.png"
+              src="/admin/assets/der-icon.svg"
               alt="DER"
               className="ea-sidebar-logo-img-sm"
               width="36"
@@ -317,7 +318,7 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
         )}
         {onSignIn && (
           <Link to="/" className="ea-brand" data-test="brand" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
-            <img src="/admin/der-logo.png" alt="DER — DHIS2 Edge Runtime" style={{ height: 36 }} />
+            <img src="/admin/assets/der-logo.svg" alt="DER — DHIS2 Edge Runtime" style={{ height: 36 }} />
           </Link>
         )}
         {!onSignIn && (

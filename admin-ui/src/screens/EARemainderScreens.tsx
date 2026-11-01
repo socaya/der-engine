@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { HeroHeader } from '../components/HeroHeader';
 import { UiIcon } from '../components/UiIcon';
+import { getSimulateMode, setSimulateMode, subscribeSimulateMode,
+         type SimulateMode } from '../features/demo/simulateStore';
 
 /**
  * Phase 06 Release 3 — EA-19..36 admin screens.
@@ -462,7 +464,55 @@ export function EASettings({ api = edgeApi }: {
             ))}
           </div>
         </div>
+
+        <InternetSimulatePreference />
       </section>
+    </div>
+  );
+}
+
+/** §2.3.74 — operator-controlled mode for the Internet node's
+ *  simulator on the Workspace topology. Persisted locally via
+ *  simulateStore; dashboard reacts live. */
+function InternetSimulatePreference(): JSX.Element {
+  const mode = useSyncExternalStore(subscribeSimulateMode, getSimulateMode);
+  const options: Array<{ v: SimulateMode; label: string; hint: string }> = [
+    { v: 'auto', label: 'Auto',
+      hint: 'Simulate only when DHIS2 Central is a local URL (dev/CI).' },
+    { v: 'on', label: 'Always on',
+      hint: 'Always cycle the Internet state — useful for walkthroughs.' },
+    { v: 'off', label: 'Off',
+      hint: 'Never simulate — show the live server probe truthfully.' },
+  ];
+  return (
+    <div className="ea-form-section">
+      <div className="ea-form-section-head">
+        <h2>Demo &amp; simulation</h2>
+        <p>Internet simulator on the Workspace topology. When engaged
+          the Internet node cycles ON/OFF on a random schedule
+          (up 25–60 s, down 6–15 s) to depict the edge-first
+          offline-capable behaviour on dev or demo rigs where DHIS2
+          Central is co-located with DER.</p>
+      </div>
+      <div className="ea-flag-list" role="radiogroup"
+           aria-label="Internet simulator mode">
+        {options.map((opt) => (
+          <label key={opt.v} className="ea-flag-row">
+            <input
+              type="radio"
+              name="internet-sim-mode"
+              value={opt.v}
+              data-test={`ea36-sim-${opt.v}`}
+              checked={mode === opt.v}
+              onChange={() => setSimulateMode(opt.v)}
+            />
+            <span className="ea-flag-name">{opt.label}</span>
+            <span className="ea-field-hint" style={{ marginLeft: 8 }}>
+              {opt.hint}
+            </span>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

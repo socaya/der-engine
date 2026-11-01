@@ -59,6 +59,7 @@ export type UiIconId =
   | 'access-point'    // broadcast tower
   | 'ethernet'        // RJ-45 jack
   | 'firewall'        // brick wall
+  | 'router'          // network switch / Internet gateway (box with 4 arrows + ports)
   | 'peer'            // two nodes
   | 'route'           // branching path
   | 'download'        // down arrow into tray
@@ -177,6 +178,11 @@ export function UiIcon(
       return <svg {...common}><rect x="4" y="8" width="16" height="10" rx="1.5" /><path d="M8 18v2M10.5 18v2M13.5 18v2M16 18v2" /><path d="M4 8l2-3h12l2 3" /></svg>;
     case 'firewall':
       return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="1" /><path d="M3 9h18M3 14h18" /><path d="M8 4v5M13 9v5M6 14v6M11 14v6M16 14v6M14 4v5M18 4v5" /></svg>;
+    case 'router':
+      // Switch/router: a slim rack-style box with four port LEDs on top
+      // and bidirectional traffic arrows on the sides so the glyph reads
+      // as "network gateway" instead of a generic device.
+      return <svg {...common}><rect x="3" y="11" width="18" height="7" rx="1.2" /><circle cx="7" cy="14.5" r="0.7" fill="currentColor" stroke="none" /><circle cx="10" cy="14.5" r="0.7" fill="currentColor" stroke="none" /><circle cx="13" cy="14.5" r="0.7" fill="currentColor" stroke="none" /><circle cx="16" cy="14.5" r="0.7" fill="currentColor" stroke="none" /><path d="M8 11V7m0 0l-2 2m2-2l2 2M16 11V7m0 0l-2 2m2-2l2 2" /></svg>;
     case 'peer':
       return <svg {...common}><circle cx="6" cy="6" r="2.5" /><circle cx="18" cy="18" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.3 6h7.4M18 8.5v7M8.3 18h7.4M6 15.5v-7" /></svg>;
     case 'route':

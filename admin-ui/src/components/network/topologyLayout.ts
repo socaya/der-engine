@@ -94,11 +94,18 @@ export function ringLayout<T>(nodes: T[], radius: number,
   });
 }
 
-/** WAN (central DHIS2) sits directly above DER on the vertical
- *  centreline — the DER↔DHIS2 sync edge is the primary backbone of
- *  the facility, so it reads as the dominant uplink in the view.
+/** WAN (central DHIS2) sits at the top of the vertical centreline.
  *  Devices + peers avoid the top-centre arc (see DEVICE_SLOTS) so
- *  this straight vertical edge is never crossed. */
+ *  no edge crosses the DER-Internet-DHIS2 column. */
 export function wanPosition(): Point {
-  return { x: CENTRE.x, y: CENTRE.y - 290 };
+  return { x: CENTRE.x, y: CENTRE.y - 310 };
+}
+
+/** Internet gateway bubble between DER and the central DHIS2 cloud.
+ *  §2.3.71 — admins can tell at a glance whether the local Internet
+ *  uplink is up (green dot) or down (red); when down, no particles
+ *  flow on the DER↔Internet or Internet↔DHIS2 edges but the device-
+ *  LAN edges keep animating so data capture obviously continues. */
+export function internetPosition(): Point {
+  return { x: CENTRE.x, y: CENTRE.y - 165 };
 }

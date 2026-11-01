@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import ug.ac.mak.der.device.DeviceAdjacencyService;
 import ug.ac.mak.der.device.DeviceService;
 import ug.ac.mak.der.device.EdgeDevice;
+import ug.ac.mak.der.dhis2.Dhis2ConnectionConfig;
+import ug.ac.mak.der.dhis2.Dhis2ConnectionConfigRepository;
 
 /** §2.2.7 Mesh topology — combines facility devices + peer edges + WAN state
  *  into one view the admin UI renders as a live topology.
@@ -34,6 +36,7 @@ public class NetworkTopologyService {
     private final NetworkService network;
     private final ObjectProvider<DeviceService> devices;
     private final ObjectProvider<DeviceAdjacencyService> adjacencies;
+    private final ObjectProvider<Dhis2ConnectionConfigRepository> dhis2Config;
     private final JdbcTemplate jdbc;
 
     public NetworkTopologyService(final NetworkCaService ca,
@@ -41,12 +44,14 @@ public class NetworkTopologyService {
                                     final NetworkService network,
                                     final ObjectProvider<DeviceService> devices,
                                     final ObjectProvider<DeviceAdjacencyService> adjacencies,
+                                    final ObjectProvider<Dhis2ConnectionConfigRepository> dhis2Config,
                                     final JdbcTemplate jdbc) {
         this.ca = Objects.requireNonNull(ca, "ca");
         this.networkRepo = Objects.requireNonNull(networkRepo, "networkRepo");
         this.network = Objects.requireNonNull(network, "network");
         this.devices = Objects.requireNonNull(devices, "devices");
         this.adjacencies = Objects.requireNonNull(adjacencies, "adjacencies");
+        this.dhis2Config = Objects.requireNonNull(dhis2Config, "dhis2Config");
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 
@@ -66,6 +71,15 @@ public class NetworkTopologyService {
         wan.put("internetAvailable", status.internetAvailable());
         wan.put("lastProbeAt", status.lastProbeAt() == null ? null
                 : status.lastProbeAt().toString());
+        // §2.3.73 — tells the admin UI whether DHIS2 Central is a
+        // local-only endpoint (loopback / der.local / *.local).
+        // Dev + CI setups put both DHIS2 and DER on the same machine
+        // so the probe is always "up" and the admin can't see what a
+        // real uplink drop looks like; when centralIsLocal is true the
+        // UI defaults the Internet node's Simulate control to ON so a
+        // realistic cycle is depicted. In pilot deployments where
+        // DHIS2 Central is a remote URL the UI shows the actual probe.
+        wan.put("centralIsLocal", centralIsLocal());
 
         final Map<String, Object> der = new LinkedHashMap<>();
         der.put("id", "der");
@@ -239,5 +253,32 @@ public class NetworkTopologyService {
         } catch (Exception ex) {
             return 0L;
         }
+    }
+
+    /** True when the configured DHIS2 Central base URL points at a local
+     *  endpoint — loopback, der.local, or any *.local hostname. Used by
+     *  the admin UI to decide whether to default the Internet node's
+     *  Simulate control to ON (so a dev/CI box without a real uplink
+     *  still demonstrates the edge-first offline-capable behaviour). */
+    private boolean centralIsLocal() {
+        final Dhis2ConnectionConfigRepository repo = dhis2Config.getIfAvailable();
+        if (repo == null) {
+            return false;
+        }
+        final Dhis2ConnectionConfig cfg;
+        try {
+            cfg = repo.read();
+        } catch (Exception ex) {
+            return false;
+        }
+        if (cfg == null || cfg.baseUrl() == null) {
+            return false;
+        }
+        final String url = cfg.baseUrl().toLowerCase(java.util.Locale.ROOT);
+        return url.contains("://localhost")
+            || url.contains("://127.0.0.1")
+            || url.contains("://[::1]")
+            || url.contains("://der.local")
+            || url.matches(".*://[^/]*\\.local(:|/|$).*");
     }
 }
