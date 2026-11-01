@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
+import { HeroHeader } from '../../components/HeroHeader';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -67,11 +68,8 @@ export function SnapshotList({ api = edgeApi }:
   const latest = snapshots[0];
   return (
     <div className="ea-screen" data-test="snapshots-root">
-      <header className="ea-screen-header">
-        <div className="ea-screen-header-text">
-          <h1 data-test="snapshots-heading">Snapshots</h1>
-        </div>
-      </header>
+      <HeroHeader title="Snapshots" />
+      <h1 className="ea-visually-hidden" data-test="snapshots-heading">Snapshots</h1>
 
       <table className="ea-table ea-table--dense" data-test="snapshots-table">
         <thead>

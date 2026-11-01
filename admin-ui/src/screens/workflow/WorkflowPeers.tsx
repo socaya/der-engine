@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import * as edgeApi from '../../api/edgeApi';
+import { HeroHeader } from '../../components/HeroHeader';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -120,11 +121,8 @@ export function WorkflowPeers({ api = edgeApi }:
   }
   return (
     <div className="ea-screen" data-test="peers-root">
-      <header className="ea-screen-header">
-        <div className="ea-screen-header-text">
-          <h1 data-test="peers-heading">Peers</h1>
-        </div>
-      </header>
+      <HeroHeader title="Peers" />
+      <h1 className="ea-visually-hidden" data-test="peers-heading">Peers</h1>
 
       <section className="ea-card ea-form-card">
         <div className="ea-form-section">
@@ -204,13 +202,13 @@ export function WorkflowPeers({ api = edgeApi }:
                     <td style={{ fontSize: 12 }}>
                       {p.authUsername ? (
                         <span data-test={`peers-row-${p.peerId}-auth`}>
-                          <span className="ea-pill ea-pill--success">signed in</span>
-                          <span className="ea-mono" style={{ marginLeft: 6 }}>
+                          <span className="ea-chip ea-chip--success">signed in</span>
+                          <span className="ea-mono ea-peer-auth-user">
                             {p.authUsername}
                           </span>
                         </span>
                       ) : (
-                        <span className="ea-pill ea-pill--muted"
+                        <span className="ea-chip ea-chip--neutral"
                                data-test={`peers-row-${p.peerId}-auth-none`}>
                           anonymous
                         </span>

@@ -13,7 +13,7 @@
  * old cache on first activation.
  */
 
-const SW_VERSION = 'der-admin-v2.3.46';
+const SW_VERSION = 'der-admin-v2.3.47';
 const SHELL_CACHE = `${SW_VERSION}-shell`;
 const DATA_CACHE  = `${SW_VERSION}-data`;
 
@@ -58,9 +58,18 @@ self.addEventListener('fetch', (event) => {
   // Never cache SSE
   if (req.headers.get('accept')?.includes('text/event-stream')) return;
 
-  // Shell: cache-first for the admin app shell + hashed assets
-  if (url.pathname.startsWith('/admin/')) {
+  // Hashed assets are immutable — cache-first is safe.
+  if (url.pathname.startsWith('/admin/assets/')) {
     event.respondWith(cacheFirst(req, SHELL_CACHE));
+    return;
+  }
+  // index.html and the admin shell must track the latest deploy, so
+  // use network-first with cache fallback for offline. Avoids stale
+  // bundles sticking across releases.
+  if (url.pathname === '/admin' || url.pathname === '/admin/'
+      || url.pathname === '/admin/index.html'
+      || url.pathname.startsWith('/admin/')) {
+    event.respondWith(networkFirst(req, SHELL_CACHE));
     return;
   }
 
@@ -82,6 +91,21 @@ async function cacheFirst(req, cacheName) {
     return resp;
   } catch (ex) {
     // Fall back to the shell root so SPA routing works offline
+    const shellFallback = await cache.match('/admin/');
+    if (shellFallback) return shellFallback;
+    return new Response('offline', { status: 503, statusText: 'Offline' });
+  }
+}
+
+async function networkFirst(req, cacheName) {
+  const cache = await caches.open(cacheName);
+  try {
+    const resp = await fetch(req);
+    if (resp.ok) cache.put(req, resp.clone()).catch(() => undefined);
+    return resp;
+  } catch (ex) {
+    const cached = await cache.match(req);
+    if (cached) return cached;
     const shellFallback = await cache.match('/admin/');
     if (shellFallback) return shellFallback;
     return new Response('offline', { status: 503, statusText: 'Offline' });

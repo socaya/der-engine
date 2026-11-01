@@ -68,10 +68,10 @@ export function WorkflowQueue({ api = edgeApi }:
 
   return (
     <div className="ea-screen" data-test="queue-root">
-      <HeroHeader title="My work" />
+      <HeroHeader title="My queue" />
+      <h1 className="ea-visually-hidden" data-test="queue-heading">My queue</h1>
 
-      <div style={{ display: 'flex', gap: 'var(--sp-4)', alignItems: 'center',
-                     flexWrap: 'wrap', margin: 'var(--sp-3) 0' }}>
+      <div className="ea-queue-controls">
         <div className="ea-queue-tabs" data-test="queue-tabs" role="tablist">
           <TabBtn label={`All (${rows.length})`} value="ALL" current={filter} onPick={setFilter} />
           <TabBtn label={`Ready (${readyCount})`} value="READY" current={filter} onPick={setFilter} />
@@ -142,15 +142,15 @@ export function WorkflowQueue({ api = edgeApi }:
                 <td>
                   {r.validationErrorCount > 0 ? (
                     <Link to={`/workflows/runs/${r.runId}/validation`}
-                          className="ea-pill ea-pill--error"
+                          className="ea-chip ea-chip--danger"
                           data-test={`queue-row-${r.runId}-${r.stepId}-issues`}>
                       {r.validationErrorCount} issue{r.validationErrorCount === 1 ? '' : 's'}
                     </Link>
                   ) : (
-                    <span className="ea-text-muted" style={{ fontSize: 12 }}>—</span>
+                    <span className="ea-text-muted">—</span>
                   )}
                 </td>
-                <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                <td className="ea-text-muted">
                   {new Date(r.runUpdatedAt).toLocaleString()}
                 </td>
                 <td>
@@ -171,7 +171,7 @@ export function WorkflowQueue({ api = edgeApi }:
 
 function ReadinessPill({ readiness }: { readiness: 'READY' | 'BLOCKED' }): JSX.Element {
   return (
-    <span className={`ea-pill ea-pill--${readiness === 'READY' ? 'success' : 'muted'}`}
+    <span className={`ea-chip ea-chip--${readiness === 'READY' ? 'success' : 'neutral'}`}
            data-test={`queue-pill-${readiness.toLowerCase()}`}>
       {readiness === 'READY' ? 'Ready' : 'Blocked'}
     </span>

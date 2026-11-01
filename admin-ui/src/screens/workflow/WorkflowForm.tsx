@@ -8,13 +8,6 @@ import type {
   Breakable, FieldCandidate, MetadataOption, WizardWorkflowType,
 } from './wizardMetadata';
 
-/**
- * §2.3.46 — flat single-page admin form that replaces the wizard
- * + tabbed detail page. Create and edit both land on this screen;
- * the only difference is edit mode preloads existing state + shows
- * the metadata-pin + runs link.
- */
-
 type FieldReq = 'REQUIRED' | 'OPTIONAL';
 
 interface StepRow {
@@ -71,7 +64,6 @@ export function WorkflowForm({ api = edgeApi }:
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Devices + snapshots (edit mode).
   useEffect(() => {
     api.listDevices().then((d) => setDevices(d.devices ?? []))
       .catch(() => undefined);
@@ -85,7 +77,6 @@ export function WorkflowForm({ api = edgeApi }:
       .catch(() => undefined);
   }, [editing, workflowId]);
 
-  // Edit mode prefill.
   useEffect(() => {
     if (!editing) return;
     let cancelled = false;
@@ -202,7 +193,6 @@ export function WorkflowForm({ api = edgeApi }:
     return () => { cancelled = true; };
   }, [api, editing, workflowId]);
 
-  // Load metadata options when type picked.
   useEffect(() => {
     if (type === null) return;
     setMetadataOptions(null);
@@ -214,7 +204,6 @@ export function WorkflowForm({ api = edgeApi }:
       .catch((e) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, [type]);
 
-  // Load breakables when a metadata item is picked in CREATE mode.
   useEffect(() => {
     if (editing) return;
     if (type === null || chosenMetadata === null) return;
@@ -387,13 +376,15 @@ export function WorkflowForm({ api = edgeApi }:
   return (
     <div className="ea-screen" data-test="wf-form-root">
       <HeroHeader
-        title={editing ? name || 'Edit workflow' : 'New workflow'}
+        title={editing ? (name || 'Workflow') : 'New workflow'}
         actions={
           <>
-            <Link to="/workflows" className="ea-btn ea-btn--ghost">← Back</Link>
+            <Link to="/workflows" className="ea-btn ea-btn--ghost ea-btn--sm">
+              ← Workflows
+            </Link>
             {editing && (
               <Link to={`/workflows/${workflowId}/advanced`}
-                     className="ea-btn ea-btn--ghost"
+                     className="ea-btn ea-btn--ghost ea-btn--sm"
                      data-test="wf-form-advanced">
                 Advanced JSON
               </Link>
@@ -468,6 +459,7 @@ export function WorkflowForm({ api = edgeApi }:
                 <span className="ea-field-label">Type</span>
                 <select className="ea-input" data-test="wf-form-type"
                          value={type ?? ''}
+                         disabled={editing}
                          onChange={(e) => {
                            setType(e.target.value as WizardWorkflowType);
                            if (!editing) {
@@ -488,8 +480,10 @@ export function WorkflowForm({ api = edgeApi }:
                     {type === 'AGGREGATE' ? 'DataSet' : 'Program'}
                   </span>
                   {chosenMetadata && !editing ? (
-                    <div className="ea-wf-form-chosen" data-test="wf-form-chosen">
-                      <span>{chosenMetadata.displayName}</span>
+                    <div className="ea-field-chosen" data-test="wf-form-chosen">
+                      <span className="ea-field-chosen-name">
+                        {chosenMetadata.displayName}
+                      </span>
                       <button type="button"
                                className="ea-btn ea-btn--ghost ea-btn--sm"
                                onClick={() => setChosenMetadata(null)}>Change</button>
@@ -599,24 +593,20 @@ export function WorkflowForm({ api = edgeApi }:
                          testId="wf-form-save-error">{saveError}</ErrorBlock>
           )}
 
-          <div className="ea-form-section">
-            <div className="ea-form-footer">
-              <Link to="/workflows" className="ea-btn ea-btn--ghost">Cancel</Link>
-              <button type="submit"
-                       className="ea-btn ea-btn--primary"
-                       data-test="wf-form-save"
-                       disabled={!canSave || saving}>
-                {saving ? 'Saving…' : (editing ? 'Save' : 'Create')}
-              </button>
-            </div>
+          <div className="ea-form-footer">
+            <Link to="/workflows" className="ea-btn ea-btn--ghost">Cancel</Link>
+            <button type="submit"
+                     className="ea-btn ea-btn--primary"
+                     data-test="wf-form-save"
+                     disabled={!canSave || saving}>
+              {saving ? 'Saving…' : (editing ? 'Save changes' : 'Create workflow')}
+            </button>
           </div>
         </form>
       </section>
     </div>
   );
 }
-
-/* ─── sub-components ──────────────────────────────────────────── */
 
 function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }: {
     rows: StepRow[];
@@ -629,14 +619,15 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
 }): JSX.Element {
   return (
     <div className="ea-table-wrap">
-      <table className="ea-table ea-table--dense" data-test="wf-form-steps">
+      <table className="ea-table ea-table--dense ea-wf-steps-table"
+             data-test="wf-form-steps">
         <thead>
           <tr>
-            <th aria-label="expand" style={{ width: 24 }} />
-            <th>Include</th>
+            <th className="ea-wf-steps-col-include">Include</th>
             <th>Section / stage</th>
-            <th>Role</th>
-            <th>Device</th>
+            <th className="ea-wf-steps-col-role">Role</th>
+            <th className="ea-wf-steps-col-device">Device</th>
+            <th className="ea-wf-steps-col-fields">Fields</th>
           </tr>
         </thead>
         <tbody>
@@ -648,28 +639,19 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
                      className={(r.included ? '' : 'is-dim')
                        + (r.breakable.parentId ? ' is-nested' : '')}>
                   <td>
-                    <button type="button" className="ea-icon-btn"
-                             data-test={`wf-form-row-${i}-expand`}
-                             disabled={!r.included}
-                             onClick={() => onExpand(i)}>
-                      {r.expanded ? '▾' : '▸'}
-                    </button>
-                  </td>
-                  <td>
                     <input type="checkbox"
                             data-test={`wf-form-row-${i}-include`}
                             checked={r.included}
                             onChange={(e) => onUpdate(i, { included: e.target.checked })} />
                   </td>
-                  <td style={r.breakable.parentId ? { paddingLeft: 24 } : undefined}>
+                  <td className={r.breakable.parentId ? 'ea-wf-steps-nested' : undefined}>
                     <div>{r.breakable.parentId ? '↳ ' : ''}{r.breakable.displayName}</div>
                     {summary && (
-                      <div className="ea-text-muted"
-                            style={{ fontSize: 11 }}>{summary}</div>
+                      <div className="ea-text-muted ea-wf-steps-summary">{summary}</div>
                     )}
                   </td>
                   <td>
-                    <select className="ea-input" style={{ fontSize: 12, padding: '3px 6px' }}
+                    <select className="ea-input ea-input--sm"
                              data-test={`wf-form-row-${i}-role`}
                              value={r.ownerRole} disabled={!r.included}
                              onChange={(e) => onUpdate(i,
@@ -680,7 +662,7 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
                     </select>
                   </td>
                   <td>
-                    <select className="ea-input" style={{ fontSize: 12, padding: '3px 6px' }}
+                    <select className="ea-input ea-input--sm"
                              data-test={`wf-form-row-${i}-device`}
                              value={r.ownerDeviceId ?? ''}
                              disabled={!r.included}
@@ -688,7 +670,7 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
                                ownerDeviceId: e.target.value === '' ? null
                                  : e.target.value,
                              })}>
-                      <option value="">any</option>
+                      <option value="">Any</option>
                       {devices.map((d) => (
                         <option key={d.deviceId} value={d.deviceId}>
                           {d.displayName ?? d.deviceId.slice(0, 12)}
@@ -696,32 +678,39 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
                       ))}
                     </select>
                   </td>
+                  <td>
+                    <button type="button"
+                             className="ea-btn ea-btn--ghost ea-btn--sm"
+                             data-test={`wf-form-row-${i}-expand`}
+                             disabled={!r.included}
+                             onClick={() => onExpand(i)}>
+                      {r.expanded ? 'Hide' : 'Edit'}
+                    </button>
+                  </td>
                 </tr>
               ),
               r.expanded && r.included && (
                 <tr key={`${r.breakable.id}-fields`}
+                     className="ea-wf-steps-fields-row"
                      data-test={`wf-form-row-${i}-fields`}>
-                  <td></td>
-                  <td colSpan={4} style={{ background: 'var(--der-raised)',
-                                             padding: 10 }}>
+                  <td colSpan={5}>
                     {r.fieldCandidates == null ? (
-                      <span className="ea-text-muted" style={{ fontSize: 12 }}>Loading…</span>
+                      <span className="ea-text-muted">Loading…</span>
                     ) : r.fieldCandidates.length === 0 ? (
-                      <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                      <span className="ea-text-muted">
                         No fields mirrored. Save without selection to capture all.
                       </span>
                     ) : (
                       <>
-                        <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                        <div className="ea-wf-fields-actions">
+                          <button type="button"
+                                   className="ea-btn ea-btn--ghost ea-btn--sm"
                                    onClick={() => onBulkField(i, true)}>All</button>
-                          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                          <button type="button"
+                                   className="ea-btn ea-btn--ghost ea-btn--sm"
                                    onClick={() => onBulkField(i, false)}>None</button>
                         </div>
-                        <ul style={{ listStyle: 'none', padding: 0, margin: 0,
-                                      display: 'grid',
-                                      gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))',
-                                      gap: '4px 12px' }}>
+                        <ul className="ea-wf-fields-grid">
                           {r.fieldCandidates.map((f) => {
                             const sel = r.fieldSelection[f.id];
                             const included = sel?.included ?? false;
@@ -729,19 +718,17 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
                                          ?? (f.compulsory ? 'REQUIRED' : 'OPTIONAL');
                             return (
                               <li key={f.id}
-                                   data-test={`wf-form-row-${i}-field-${f.id}`}
-                                   style={{ display: 'flex', alignItems: 'center',
-                                              gap: 6, fontSize: 13 }}>
+                                   className="ea-wf-fields-item"
+                                   data-test={`wf-form-row-${i}-field-${f.id}`}>
                                 <input type="checkbox"
                                         data-test={`wf-form-row-${i}-field-${f.id}-include`}
                                         checked={included}
                                         onChange={(e) => onField(i, f.id,
                                           { included: e.target.checked,
                                             requirement: req as FieldReq })} />
-                                <span style={{ flex: 1 }}>{f.displayName}</span>
+                                <span className="ea-wf-fields-name">{f.displayName}</span>
                                 {included && (
-                                  <select className="ea-input"
-                                           style={{ fontSize: 11, padding: '2px 4px' }}
+                                  <select className="ea-input ea-input--sm"
                                            value={req}
                                            onChange={(e) => onField(i, f.id,
                                              { included: true,
@@ -803,20 +790,17 @@ function DependencyEditor({ rows, deps, setDeps, onTouched, depsTouched }: {
     onTouched();
   }
   return (
-    <div>
+    <div className="ea-wf-deps">
       {!depsTouched && (
-        <p className="ea-field-hint" style={{ margin: '0 0 8px' }}>
+        <p className="ea-field-hint">
           Default: each step waits for the one above it.
         </p>
       )}
       {deps.length > 0 && (
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0,
-                      display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <ul className="ea-wf-deps-list">
           {deps.map((d, i) => (
-            <li key={i} data-test={`wf-form-dep-${i}`}
-                 style={{ display: 'flex', gap: 8, alignItems: 'center',
-                           flexWrap: 'wrap', fontSize: 13 }}>
-              <select className="ea-input" style={{ maxWidth: 240 }}
+            <li key={i} className="ea-wf-deps-item" data-test={`wf-form-dep-${i}`}>
+              <select className="ea-input ea-input--sm"
                        value={d.fromBreakableId}
                        onChange={(e) => updateDep(i, { fromBreakableId: e.target.value })}>
                 {picked.map((r) => (
@@ -826,7 +810,7 @@ function DependencyEditor({ rows, deps, setDeps, onTouched, depsTouched }: {
                 ))}
               </select>
               <span className="ea-text-muted">completes before</span>
-              <select className="ea-input" style={{ maxWidth: 240 }}
+              <select className="ea-input ea-input--sm"
                        value={d.toBreakableId}
                        onChange={(e) => updateDep(i, { toBreakableId: e.target.value })}>
                 {picked.map((r) => (
@@ -841,9 +825,8 @@ function DependencyEditor({ rows, deps, setDeps, onTouched, depsTouched }: {
           ))}
         </ul>
       )}
-      <button type="button" className="ea-btn ea-btn--sm"
+      <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                data-test="wf-form-dep-add"
-               style={{ marginTop: 8 }}
                disabled={picked.length < 2}
                onClick={addDep}>
         + Add dependency

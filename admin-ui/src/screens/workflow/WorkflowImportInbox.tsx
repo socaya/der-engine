@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import * as edgeApi from '../../api/edgeApi';
+import { HeroHeader } from '../../components/HeroHeader';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -100,11 +101,8 @@ export function WorkflowImportInbox({ api = edgeApi }:
   }
   return (
     <div className="ea-screen" data-test="inbox-root">
-      <header className="ea-screen-header">
-        <div className="ea-screen-header-text">
-          <h1 data-test="inbox-heading">Inbox</h1>
-        </div>
-      </header>
+      <HeroHeader title="Import inbox" />
+      <h1 className="ea-visually-hidden" data-test="inbox-heading">Import inbox</h1>
 
       <div className="ea-queue-tabs" data-test="inbox-tabs">
         {(['PENDING', 'ACCEPTED', 'REJECTED', 'ALL'] as const).map((v) => (
@@ -149,10 +147,10 @@ export function WorkflowImportInbox({ api = edgeApi }:
                   {e.boundKind}:{e.boundId}
                 </td>
                 <td>
-                  <span className={'ea-pill ea-pill--'
+                  <span className={'ea-chip ea-chip--'
                     + (e.status === 'ACCEPTED' ? 'success'
-                    : e.status === 'REJECTED' ? 'error'
-                    : 'muted')}>
+                    : e.status === 'REJECTED' ? 'danger'
+                    : 'neutral')}>
                     {e.status}
                   </span>
                 </td>

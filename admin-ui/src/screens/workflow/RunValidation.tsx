@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
+import { HeroHeader } from '../../components/HeroHeader';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -43,18 +44,17 @@ export function RunValidation({ api = edgeApi, runId: propRunId }:
 
   return (
     <div className="ea-screen" data-test="validation-root">
-      <header className="ea-screen-header">
-        <div className="ea-screen-header-text">
-          <h1 data-test="validation-heading">
-            Validation · <code className="ea-mono">{runId.slice(0, 8)}</code>
-          </h1>
-        </div>
-        <div className="ea-screen-header-right">
+      <HeroHeader
+        title={`Validation · ${runId.slice(0, 8)}`}
+        actions={
           <Link to="/workflows/queue" className="ea-btn ea-btn--ghost ea-btn--sm">
-            ← Back to queue
+            ← My queue
           </Link>
-        </div>
-      </header>
+        }
+      />
+      <h1 className="ea-visually-hidden" data-test="validation-heading">
+        Validation {runId.slice(0, 8)}
+      </h1>
 
       {data.issues.length === 0 ? (
         <EmptyBlock title="Nothing to flag" testId="validation-empty">
