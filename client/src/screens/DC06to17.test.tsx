@@ -199,6 +199,45 @@ describe('EnrollmentCreate DC-13', () => {
     await userEvent.click(screen.getByTestId('enroll-submit'));
     await waitFor(() => expect(screen.getByTestId('enroll-error')).toBeInTheDocument());
   });
+
+  it('program-rule actions: hidden attribute + ASSIGN prefill + submit shape',
+      async () => {
+    const edgeApi = await import('../api/edgeApi');
+    const submit = vi.fn().mockResolvedValue({});
+    vi.spyOn(edgeApi, 'runValidation').mockResolvedValue({
+      runId: 'r1', errorCount: 0,
+      issues: [
+        { issueId: 'h', runId: 'r1', stepId: null,
+          code: 'PROGRAM_RULE_HIDEFIELD', severity: 'INFO',
+          message: "Attribute 'TEA_HIDE' hidden",
+          fieldRef: 'TEA_HIDE' },
+        { issueId: 'a', runId: 'r1', stepId: null,
+          code: 'PROGRAM_RULE_ASSIGN', severity: 'INFO',
+          message: "Rule 'X' suggests value 'auto' for field 'TEA_AUTO'.",
+          fieldRef: 'TEA_AUTO' },
+      ],
+    });
+    renderWithProviders(<EnrollmentCreate submit={submit} />,
+      { route: '/tracker/P/enroll?runId=r1&attributes=TEA_HIDE,TEA_AUTO,TEA_OPEN' });
+    await waitFor(() =>
+      expect(screen.getByTestId('enroll-attr-hidden-TEA_HIDE')).toBeInTheDocument());
+    // Auto-fill reflects suggestion.
+    expect((screen.getByTestId('enroll-attr-input-TEA_AUTO') as HTMLInputElement).value)
+      .toBe('auto');
+    expect(screen.getByTestId('enroll-attr-hint-TEA_AUTO')).toBeInTheDocument();
+    // Operator fills the open attribute.
+    await userEvent.type(screen.getByTestId('enroll-attr-input-TEA_OPEN'), 'manual');
+    await userEvent.type(screen.getByTestId('enroll-tet'), 'TET');
+    await userEvent.type(screen.getByTestId('enroll-orgunit'), 'OU');
+    await userEvent.click(screen.getByTestId('enroll-submit'));
+    await waitFor(() => expect(submit).toHaveBeenCalled());
+    const body = submit.mock.calls[0][0] as { trackedEntities: {
+        attributes: { attribute: string; value: string }[] }[] };
+    const uids = body.trackedEntities[0].attributes.map((a) => a.attribute);
+    expect(uids).toContain('TEA_AUTO');
+    expect(uids).toContain('TEA_OPEN');
+    expect(uids).not.toContain('TEA_HIDE');
+  });
 });
 
 describe('ScheduledEvents DC-15', () => {
