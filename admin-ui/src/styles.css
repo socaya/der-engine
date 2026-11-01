@@ -2389,9 +2389,41 @@ tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
 .ea-peer-auth-user{margin-left:6px}
 .ea-metadata-filter{margin-bottom:6px}
 
+/* Single-field searchable metadata combo — one input that filters a
+   dropdown list on focus; replaces the old filter+select pair. */
+.ea-metadata-combo{position:relative;width:100%}
+.ea-metadata-combo-input{position:relative;display:flex;align-items:center}
+.ea-metadata-combo-input input{width:100%;padding-right:28px}
+.ea-metadata-combo-clear{
+  position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  background:transparent;border:none;cursor:pointer;
+  color:var(--der-ink-500);font-size:16px;line-height:1;
+  padding:2px 6px;border-radius:3px;
+}
+.ea-metadata-combo-clear:hover{color:var(--der-ink-900);background:var(--der-raised)}
+.ea-metadata-combo-list{
+  list-style:none;margin:2px 0 0;padding:4px 0;
+  position:absolute;top:100%;left:0;right:0;
+  background:var(--der-canvas);border:1px solid var(--der-border);
+  border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.08);
+  max-height:280px;overflow-y:auto;z-index:30;
+}
+.ea-metadata-combo-opt{
+  padding:4px 10px;font-size:13px;cursor:pointer;color:var(--der-ink-900);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.ea-metadata-combo-opt.is-active{background:rgba(29,78,216,0.08)}
+.ea-metadata-combo-opt.is-chosen{font-weight:600;color:var(--der-navy-700)}
+.ea-metadata-combo-empty{
+  padding:6px 10px;font-size:12px;color:var(--der-ink-500);
+}
+
 /* Workflow module uses a wide form card so the Steps table has room
-   for the Kind / Role / Handover-to columns + inline field editor. */
-.ea-form-card--wide{max-width:none}
+   for the Role / Handover-to columns + inline field editor. Cap at
+   1400px (matches the baseline DER readable-width cap used elsewhere)
+   so super-wide monitors don't stretch the table — the standard
+   .ea-main-inner padding handles the content-area side margins. */
+.ea-form-card--wide{max-width:1400px}
 
 /* Flat layout — full-width stacked sections, no inner nav rail.
    Overrides the base .ea-form-section 220/1fr grid so each section's
@@ -2405,11 +2437,15 @@ tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
 }
 .ea-form--flat .ea-form-section{
   display:block;grid-template-columns:none;
-  padding:var(--sp-5) var(--sp-5);
+  padding:var(--sp-4);
   border-bottom:1px solid var(--der-border-subtle);
 }
 .ea-form--flat .ea-form-section:last-of-type{border-bottom:none}
 .ea-form--flat .ea-form-section-head{margin-bottom:var(--sp-3)}
+
+@media(max-width:768px){
+  .ea-form--flat .ea-form-section{padding:var(--sp-3)}
+}
 
 /* Handover flow preview — service-point chain under Dependencies. */
 .ea-wf-flow{

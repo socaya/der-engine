@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import { HeroHeader } from '../../components/HeroHeader';
@@ -226,13 +226,6 @@ export function WorkflowForm({ api = edgeApi }:
       .catch((e) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, [editing, type, chosenMetadata]);
 
-  const filteredOptions = useMemo(() => {
-    if (metadataOptions == null) return null;
-    const q = metadataSearch.trim().toLowerCase();
-    if (q === '') return metadataOptions;
-    return metadataOptions.filter((o) =>
-      o.displayName.toLowerCase().includes(q));
-  }, [metadataOptions, metadataSearch]);
 
 
   const includedRows = rows.filter((r) => r.included);
@@ -553,40 +546,14 @@ export function WorkflowForm({ api = edgeApi }:
                             data-test="wf-form-chosen-locked"
                             value={chosenMetadata.displayName}
                             readOnly disabled />
-                  ) : filteredOptions == null ? (
-                    <span className="ea-field-hint">Loading…</span>
                   ) : (
-                    <>
-                      {(metadataOptions ?? []).length > 12 && (
-                        <input className="ea-input ea-input--sm ea-metadata-filter"
-                                type="search"
-                                data-test="wf-form-metadata-search"
-                                placeholder={`Filter ${(metadataOptions ?? []).length} ${type === 'AGGREGATE' ? 'datasets' : 'programs'}…`}
-                                value={metadataSearch}
-                                onChange={(e) => setMetadataSearch(e.target.value)} />
-                      )}
-                      <select className="ea-input"
-                               data-test="wf-form-metadata-list"
-                               value={chosenMetadata?.id ?? ''}
-                               onChange={(e) => {
-                                 const o = (metadataOptions ?? [])
-                                   .find((x) => x.id === e.target.value);
-                                 setChosenMetadata(o ?? null);
-                               }}>
-                        <option value="">
-                          — pick {type === 'AGGREGATE' ? 'dataset' : 'program'} —
-                        </option>
-                        {filteredOptions
-                          .slice()
-                          .sort((a, b) => a.displayName.localeCompare(b.displayName))
-                          .map((o) => (
-                            <option key={o.id} value={o.id}>{o.displayName}</option>
-                          ))}
-                      </select>
-                      {filteredOptions.length === 0 && metadataSearch.trim() !== '' && (
-                        <span className="ea-field-hint">No matches.</span>
-                      )}
-                    </>
+                    <MetadataCombo
+                      kind={type}
+                      options={metadataOptions}
+                      search={metadataSearch}
+                      onSearch={setMetadataSearch}
+                      value={chosenMetadata}
+                      onPick={setChosenMetadata} />
                   )}
                 </label>
               )}
@@ -789,6 +756,122 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
           })()}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function MetadataCombo({ kind, options, search, onSearch, value, onPick }: {
+  kind: WizardWorkflowType;
+  options: MetadataOption[] | null;
+  search: string;
+  onSearch: (s: string) => void;
+  value: MetadataOption | null;
+  onPick: (o: MetadataOption | null) => void;
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [activeIx, setActiveIx] = useState(0);
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  // Close on outside click.
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent): void => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    if (options == null) return [];
+    const q = search.trim().toLowerCase();
+    const sorted = options.slice()
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    if (q === '') return sorted;
+    return sorted.filter((o) => o.displayName.toLowerCase().includes(q));
+  }, [options, search]);
+
+  const label = kind === 'AGGREGATE' ? 'dataset' : 'program';
+  const inputValue = open ? search : (value?.displayName ?? '');
+
+  function pick(o: MetadataOption): void {
+    onPick(o);
+    onSearch('');
+    setOpen(false);
+  }
+  function clear(): void {
+    onPick(null);
+    onSearch('');
+    setOpen(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  return (
+    <div ref={wrapRef} className="ea-metadata-combo" data-test="wf-form-metadata-combo">
+      <div className="ea-metadata-combo-input">
+        <input ref={inputRef}
+               className="ea-input"
+               type="text"
+               role="combobox"
+               aria-expanded={open}
+               aria-autocomplete="list"
+               data-test="wf-form-metadata-search"
+               placeholder={options == null ? 'Loading…'
+                 : `Search ${options.length} ${label}${options.length === 1 ? '' : 's'}…`}
+               value={inputValue}
+               disabled={options == null}
+               onFocus={() => setOpen(true)}
+               onChange={(e) => { onSearch(e.target.value); setOpen(true);
+                                  setActiveIx(0); }}
+               onKeyDown={(e) => {
+                 if (!open) {
+                   if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                     setOpen(true); e.preventDefault();
+                   }
+                   return;
+                 }
+                 if (e.key === 'ArrowDown') {
+                   setActiveIx((i) => Math.min(filtered.length - 1, i + 1));
+                   e.preventDefault();
+                 } else if (e.key === 'ArrowUp') {
+                   setActiveIx((i) => Math.max(0, i - 1));
+                   e.preventDefault();
+                 } else if (e.key === 'Enter') {
+                   if (filtered[activeIx]) pick(filtered[activeIx]);
+                   e.preventDefault();
+                 } else if (e.key === 'Escape') {
+                   setOpen(false); e.preventDefault();
+                 }
+               }} />
+        {value != null && !open && (
+          <button type="button"
+                   className="ea-metadata-combo-clear"
+                   aria-label="Clear selection"
+                   title="Clear selection"
+                   onClick={clear}>×</button>
+        )}
+      </div>
+      {open && options != null && (
+        <ul className="ea-metadata-combo-list"
+             role="listbox"
+             data-test="wf-form-metadata-list">
+          {filtered.length === 0 ? (
+            <li className="ea-metadata-combo-empty">No matches.</li>
+          ) : filtered.slice(0, 200).map((o, i) => (
+            <li key={o.id}
+                 role="option"
+                 aria-selected={i === activeIx}
+                 className={'ea-metadata-combo-opt'
+                   + (i === activeIx ? ' is-active' : '')
+                   + (o.id === value?.id ? ' is-chosen' : '')}
+                 onMouseEnter={() => setActiveIx(i)}
+                 onMouseDown={(e) => { e.preventDefault(); pick(o); }}>
+              {o.displayName}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
