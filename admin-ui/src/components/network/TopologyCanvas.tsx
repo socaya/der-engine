@@ -34,6 +34,26 @@ export function TopologyCanvas(props: Props): JSX.Element {
   deviceLaid.forEach((d) => { pos[d.node.id] = { x: d.x, y: d.y }; });
   // Peers deliberately not laid out (see note above).
 
+  // §2.3.70 — flow resolution. An enrolled APPROVED device whose
+  // heartbeat is stale still participates in the workflow fabric;
+  // its device-DER edge gets a dim slow flow so admins see the
+  // device is part of the fleet. SUSPENDED/REVOKED devices show no
+  // flow at all; devices with a live heartbeat get the normal
+  // status-based animation.
+  const deviceById: Record<string, DeviceNode> = {};
+  devices.forEach((d) => { deviceById[d.id] = d; });
+  function resolveFlow(c: Connection): 'full' | 'dim' | 'none' {
+    const targetDev = deviceById[c.target];
+    const sourceDev = deviceById[c.source];
+    if (c.status === 'online') return 'full';
+    if (c.status === 'degraded') return 'dim';
+    // Edge is offline — fall back to deviceStatus if either endpoint
+    // is an approved device so the fleet connectivity still reads.
+    if (targetDev?.deviceStatus === 'APPROVED'
+        || sourceDev?.deviceStatus === 'APPROVED') return 'dim';
+    return 'none';
+  }
+
   const isSel = (kind: SelectedNode['kind'], id: string): boolean =>
     selected !== null && selected.kind === kind
       && (kind === 'der' ? true
@@ -54,7 +74,16 @@ export function TopologyCanvas(props: Props): JSX.Element {
                             x2={wanPos.x} y2={wanPos.y}
                             type="wan" status={wan.status} />
         {connections
-          .filter((c) => c.type !== 'p2p')
+          // §2.3.70 — pilot scope is Devices → DER → DHIS2 for the
+          // edge-to-edge layer. We drop EDGE-level peer links only
+          // (DER-to-peer, where source or target is a `peer-*` node);
+          // device-to-device p2p adjacencies between facility devices
+          // remain visible so admins see short-range links (e.g. WiFi
+          // Direct, BT) between stations.
+          .filter((c) =>
+            !(c.source === 'der' && c.target.startsWith('peer-'))
+            && !c.source.startsWith('peer-')
+            && !c.target.startsWith('peer-'))
           .map((c, i) => {
             const a = pos[c.source];
             const b = pos[c.target];
@@ -62,7 +91,8 @@ export function TopologyCanvas(props: Props): JSX.Element {
             return (
               <NetworkConnection key={`e${i}`}
                                   x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                                  type={c.type} status={c.status} />
+                                  type={c.type} status={c.status}
+                                  flow={resolveFlow(c)} />
             );
           })}
 

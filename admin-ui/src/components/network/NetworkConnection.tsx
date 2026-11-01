@@ -6,6 +6,14 @@ interface Props {
   x2: number; y2: number;
   type: ConnectionType;
   status: NodeStatus;
+  /** Explicit override on how to animate flow regardless of the raw
+   *  `status`. Lets the caller signal "device is part of the fleet
+   *  so draw a slow dim flow" even when the heartbeat is stale.
+   *  Defaults to a status-based mapping:
+   *     online   → 'full'
+   *     degraded → 'dim'
+   *     offline  → 'none' */
+  flow?: 'full' | 'dim' | 'none';
 }
 
 /** A single edge between two nodes. Colour, dash pattern, animation
@@ -24,11 +32,16 @@ interface Props {
  *   - **offline / degraded** — status tone trumps all, dashed, no
  *     particle (eye lands on the warning line, not a stale flow). */
 export function NetworkConnection(
-  { x1, y1, x2, y2, type, status }: Props
+  { x1, y1, x2, y2, type, status, flow }: Props
 ): JSX.Element {
-  const online = status !== 'offline' && status !== 'degraded';
+  const resolvedFlow: 'full' | 'dim' | 'none' = flow
+    ?? (status === 'online' ? 'full'
+        : status === 'degraded' ? 'dim'
+        : 'none');
+  const online = resolvedFlow !== 'none';
+  const dim = resolvedFlow === 'dim';
   const style = edgeStyle(type);
-  const dashed = !online || style.dashed;
+  const dashed = status === 'offline' || status === 'degraded' || style.dashed;
 
   const stroke =
       status === 'offline'  ? statusFill('offline')
@@ -61,9 +74,12 @@ export function NetworkConnection(
 
   // Animation duration proportional to length so dots travel at a
   // uniform visual speed, modulated by per-type cadence multiplier
-  // (WiFi fastest → fastest, WAN slowest → slowest).
+  // (WiFi fastest → fastest, WAN slowest → slowest). Dim flows run
+  // ~1.6× slower so they read as "available but idle" vs active sync.
   const baseDur = Math.max(1.5, len / 80);
-  const dur = `${(baseDur * style.cadence).toFixed(1)}s`;
+  const flowFactor = dim ? 1.6 : 1.0;
+  const dur = `${(baseDur * style.cadence * flowFactor).toFixed(1)}s`;
+  const particleOpacity = dim ? 0.4 : 1;
 
   // Second particle on WAN (bidirectional feel) and shifted phase.
   const particles = online ? style.particles : 0;
@@ -87,10 +103,12 @@ export function NetworkConnection(
           Each extra particle starts with a phase offset so they
           spread along the edge instead of stacking. */}
       {Array.from({ length: particles }).map((_, i) => (
-        <circle key={`fwd-${i}`} r={type === 'wan' ? 3 : 2.5} fill={stroke}>
+        <circle key={`fwd-${i}`} r={type === 'wan' ? 3 : 2.5}
+                 fill={stroke}
+                 opacity={particleOpacity}>
           <animateMotion dur={dur}
                            repeatCount="indefinite"
-                           begin={`${(-baseDur * style.cadence * i) / particles}s`}
+                           begin={`${(-baseDur * style.cadence * flowFactor * i) / particles}s`}
                            path={`M ${sx} ${sy} L ${ex} ${ey}`}
                            rotate="auto" />
         </circle>
@@ -103,10 +121,10 @@ export function NetworkConnection(
       {online && Array.from({ length: style.reverseParticles }).map((_, i) => (
         <circle key={`rev-${i}`} r={type === 'wan' ? 2.5 : 2}
                  fill={stroke}
-                 opacity={0.75}>
+                 opacity={particleOpacity * 0.75}>
           <animateMotion dur={dur}
                            repeatCount="indefinite"
-                           begin={`${(-baseDur * style.cadence * i) / Math.max(1, style.reverseParticles) - baseDur * style.cadence * 0.5}s`}
+                           begin={`${(-baseDur * style.cadence * flowFactor * i) / Math.max(1, style.reverseParticles) - baseDur * style.cadence * flowFactor * 0.5}s`}
                            path={`M ${ex} ${ey} L ${sx} ${sy}`}
                            rotate="auto" />
         </circle>
