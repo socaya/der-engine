@@ -411,8 +411,10 @@ export function WorkflowMonitoring({ api = edgeApi }:
                       <Link to={`/workflows/${b.workflowId}`}>{b.workflowName ?? '—'}</Link>
                     </div>
                   </td>
-                  <td className="ea-mono ea-text-muted" style={{ fontSize: 12 }}>
-                    {b.businessKey}
+                  <td className="ea-mono" style={{ fontSize: 12 }}>
+                    <Link to={`/workflows/monitoring/runs/${b.runId}`}>
+                      {b.businessKey}
+                    </Link>
                   </td>
                   <td>
                     {b.blockedBy.length === 0
@@ -462,7 +464,9 @@ export function WorkflowMonitoring({ api = edgeApi }:
                       {i.severity}
                     </Status>
                   </td>
-                  <td>{i.message}</td>
+                  <td>
+                    <Link to={`/workflows/monitoring/runs/${i.runId}`}>{i.message}</Link>
+                  </td>
                   <td className="ea-text-muted" style={{ fontSize: 12 }}>
                     {i.stepName ?? '—'}
                     <br/>
@@ -509,8 +513,10 @@ export function WorkflowMonitoring({ api = edgeApi }:
                   <td>
                     <Link to={`/workflows/${c.workflowId}`}>{c.workflowName ?? '—'}</Link>
                   </td>
-                  <td className="ea-mono ea-text-muted" style={{ fontSize: 12 }}>
-                    {c.businessKey}
+                  <td className="ea-mono" style={{ fontSize: 12 }}>
+                    <Link to={`/workflows/monitoring/runs/${c.runId}`}>
+                      {c.businessKey}
+                    </Link>
                   </td>
                   <td className="ea-text-muted">{c.category}</td>
                   <td className="ea-text-muted" title={c.detectedAt}>
@@ -559,8 +565,10 @@ export function WorkflowMonitoring({ api = edgeApi }:
                       <Link to={`/workflows/${d.workflowId}`}>{d.workflowName ?? '—'}</Link>
                     </div>
                   </td>
-                  <td className="ea-mono ea-text-muted" style={{ fontSize: 12 }}>
-                    {d.businessKey}
+                  <td className="ea-mono" style={{ fontSize: 12 }}>
+                    <Link to={`/workflows/monitoring/runs/${d.runId}`}>
+                      {d.businessKey}
+                    </Link>
                   </td>
                   <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
                     {d.fieldCount}
@@ -617,7 +625,9 @@ export function WorkflowMonitoring({ api = edgeApi }:
                     <span style={{ fontWeight: 500 }}>{f.stepName ?? '—'}</span>
                     <div className="ea-text-muted" style={{ fontSize: 11 }}>
                       <Link to={`/workflows/${f.workflowId}`}>{f.workflowName ?? '—'}</Link>
-                      {' · '}<span className="ea-mono">{f.businessKey}</span>
+                      {' · '}
+                      <Link to={`/workflows/monitoring/runs/${f.runId}`}
+                             className="ea-mono">{f.businessKey}</Link>
                     </div>
                   </td>
                   <td className="ea-text-muted">

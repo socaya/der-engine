@@ -215,6 +215,159 @@ public class WorkflowActivityController {
         return ResponseEntity.ok(body);
     }
 
+    /** §2.3.66 — admin-side run detail. One call returns everything an
+     *  admin needs to troubleshoot a specific run without visiting the
+     *  operator UI: run header, per-step readiness + timestamps + the
+     *  contribution payload (if any), plus open issues and conflicts
+     *  scoped to the run. */
+    @GetMapping("/runs/{runId}")
+    public ResponseEntity<Map<String, Object>> runDetail(final Authentication auth,
+            @org.springframework.web.bind.annotation.PathVariable final UUID runId) {
+        requireAdmin(auth);
+
+        final List<Map<String, Object>> runRows = jdbc.query(
+                "SELECT run_id, workflow_id, workflow_version, business_key, "
+              + "       state, created_at, updated_at, created_by "
+              + "  FROM der.capture_workflow_run WHERE run_id = ?",
+                (rs, i) -> {
+                    final UUID workflowId = (UUID) rs.getObject("workflow_id");
+                    final Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("runId", rs.getObject("run_id").toString());
+                    m.put("workflowId", workflowId.toString());
+                    m.put("workflowName", lookupWorkflowName(workflowId));
+                    m.put("workflowVersion", rs.getInt("workflow_version"));
+                    m.put("businessKey", rs.getString("business_key"));
+                    m.put("state", rs.getString("state"));
+                    m.put("createdAt", rs.getTimestamp("created_at").toInstant().toString());
+                    m.put("updatedAt", rs.getTimestamp("updated_at").toInstant().toString());
+                    final UUID createdBy = (UUID) rs.getObject("created_by");
+                    m.put("createdBy", createdBy == null ? null : createdBy.toString());
+                    return m;
+                }, runId);
+        if (runRows.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        final Map<String, Object> run = runRows.get(0);
+        final UUID workflowId = UUID.fromString((String) run.get("workflowId"));
+        final Optional<CaptureWorkflow> w = workflows.get(workflowId);
+
+        // Per-step state: pick the latest transition row per step,
+        // fall back to BLOCKED when no transition recorded yet.
+        final Map<UUID, Map<String, Object>> latestByStep = new LinkedHashMap<>();
+        jdbc.query(
+                "SELECT DISTINCT ON (step_id) step_id, to_state, transitioned_at, "
+              + "       actor_device_id "
+              + "  FROM der.capture_workflow_step_transition "
+              + " WHERE run_id = ? "
+              + " ORDER BY step_id, transitioned_at DESC, transition_id DESC",
+                (rs, i) -> {
+                    final UUID stepId = (UUID) rs.getObject("step_id");
+                    final Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("state", rs.getString("to_state"));
+                    m.put("stateAt",
+                        rs.getTimestamp("transitioned_at").toInstant().toString());
+                    final UUID aDev = (UUID) rs.getObject("actor_device_id");
+                    m.put("actorDeviceId", aDev == null ? null : aDev.toString());
+                    latestByStep.put(stepId, m);
+                    return null;
+                }, runId);
+        // Contributions grouped by step.
+        final Map<UUID, Map<String, Object>> contributionByStep = new LinkedHashMap<>();
+        jdbc.query(
+                "SELECT step_id, payload, submitted_at, submitted_by, "
+              + "       submitted_device_id "
+              + "  FROM der.capture_workflow_step_contribution "
+              + " WHERE run_id = ? "
+              + " ORDER BY submitted_at ASC",
+                (rs, i) -> {
+                    final UUID stepId = (UUID) rs.getObject("step_id");
+                    final UUID dev = (UUID) rs.getObject("submitted_device_id");
+                    final UUID by = (UUID) rs.getObject("submitted_by");
+                    final Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("payload", rs.getString("payload"));
+                    m.put("submittedAt",
+                        rs.getTimestamp("submitted_at").toInstant().toString());
+                    m.put("submittedBy", by == null ? null : by.toString());
+                    m.put("submittedDeviceId", dev == null ? null : dev.toString());
+                    m.put("submittedDeviceName", dev == null ? null
+                        : devices.findById(dev).map((d) -> d.displayName()).orElse(null));
+                    contributionByStep.put(stepId, m);
+                    return null;
+                }, runId);
+
+        final List<Map<String, Object>> steps = new java.util.ArrayList<>();
+        if (w.isPresent()) {
+            for (final CaptureWorkflowStep s : w.get().steps()) {
+                final Map<String, Object> m = new LinkedHashMap<>();
+                m.put("stepId", s.stepId().toString());
+                m.put("stepName", s.displayName());
+                m.put("ordinal", s.ordinal());
+                m.put("ownerRole", s.ownerRole().name());
+                final UUID dev = s.ownerDeviceId();
+                m.put("ownerDeviceId", dev == null ? null : dev.toString());
+                m.put("ownerDeviceName", dev == null ? null
+                    : devices.findById(dev).map((d) -> d.displayName()).orElse(null));
+                final Map<String, Object> last = latestByStep.get(s.stepId());
+                final String state = last == null ? "BLOCKED" : (String) last.get("state");
+                m.put("state", state);
+                m.put("stateAt", last == null ? null : last.get("stateAt"));
+                m.put("contribution", contributionByStep.get(s.stepId()));
+                // Blocking predecessors — only meaningful when BLOCKED.
+                if ("BLOCKED".equals(state)) {
+                    m.put("blockedBy", blockingPredecessors(workflowId, runId, s.stepId()));
+                } else {
+                    m.put("blockedBy", List.of());
+                }
+                steps.add(m);
+            }
+        }
+
+        // Open issues scoped to this run.
+        final List<Map<String, Object>> issues = jdbc.query(
+                "SELECT issue_id, step_id, code, severity, message, field_ref, "
+              + "       detected_at "
+              + "  FROM der.workflow_validation_issue WHERE run_id = ? "
+              + " ORDER BY severity DESC, detected_at DESC",
+                (rs, i) -> {
+                    final UUID stepId = (UUID) rs.getObject("step_id");
+                    final Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("issueId", rs.getObject("issue_id").toString());
+                    m.put("stepId", stepId == null ? null : stepId.toString());
+                    m.put("stepName", stepId == null ? null
+                        : lookupStepName(workflowId, stepId));
+                    m.put("code", rs.getString("code"));
+                    m.put("severity", rs.getString("severity"));
+                    m.put("message", rs.getString("message"));
+                    m.put("fieldRef", rs.getString("field_ref"));
+                    m.put("detectedAt",
+                        rs.getTimestamp("detected_at").toInstant().toString());
+                    return m;
+                }, runId);
+
+        // Conflicts scoped to this run.
+        final List<Map<String, Object>> conflictRows = jdbc.query(
+                "SELECT conflict_id, category, identity_key, status, detected_at "
+              + "  FROM der.workflow_conflict WHERE run_id = ? "
+              + " ORDER BY detected_at DESC",
+                (rs, i) -> {
+                    final Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("conflictId", rs.getObject("conflict_id").toString());
+                    m.put("category", rs.getString("category"));
+                    m.put("identityKey", rs.getString("identity_key"));
+                    m.put("status", rs.getString("status"));
+                    m.put("detectedAt",
+                        rs.getTimestamp("detected_at").toInstant().toString());
+                    return m;
+                }, runId);
+
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("run", run);
+        body.put("steps", steps);
+        body.put("issues", issues);
+        body.put("conflicts", conflictRows);
+        return ResponseEntity.ok(body);
+    }
+
     /** §2.3.62 — draft data captured so far across in-flight runs.
      *  Each row is one contribution (one completed step on one run),
      *  payload surfaced as a trimmed preview so admins can see what

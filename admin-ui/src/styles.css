@@ -2508,6 +2508,26 @@ tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
 }
 .ea-wf-flow-arrow{color:var(--der-ink-500);font-size:16px;flex-shrink:0}
 
+/* Admin-side run detail contributions. */
+.ea-wf-run-contribs{display:flex;flex-direction:column;gap:var(--sp-3)}
+.ea-wf-run-contrib{
+  border:1px solid var(--der-border-subtle);border-radius:4px;
+  overflow:hidden;background:var(--der-raised-weak,var(--der-canvas));
+}
+.ea-wf-run-contrib-head{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 10px;border-bottom:1px solid var(--der-border-subtle);
+  background:var(--der-canvas);
+}
+.ea-wf-run-contrib-step{font-weight:500;color:var(--der-ink-900)}
+.ea-wf-run-contrib-payload{
+  margin:0;padding:10px;font-size:11px;line-height:1.4;
+  font-family:var(--font-mono,ui-monospace,monospace);
+  color:var(--der-ink-700);background:transparent;
+  overflow-x:auto;white-space:pre;
+  max-height:360px;
+}
+
 /* WorkflowMonitoring — vertical inner-sidebar nav + content panel.
    Groups the 11 monitoring panels into 5 scannable sections so an
    admin isn't scrolling through everything. Matches the DER split-

@@ -1158,6 +1158,60 @@ export function getWorkflowDrafts(limit = 50):
     `/edge-api/v1/workflows/activity/drafts?limit=${limit}`);
 }
 
+/** §2.3.66 — admin-side single-run detail. */
+export interface AdminRunDetail {
+  run: {
+    runId: string; workflowId: string; workflowName: string | null;
+    workflowVersion: number;
+    businessKey: string;
+    state: 'OPEN' | 'AWAITING' | 'COMPLETED' | 'REJECTED';
+    createdAt: string; updatedAt: string;
+    createdBy: string | null;
+  };
+  steps: AdminRunStep[];
+  issues: AdminRunIssue[];
+  conflicts: AdminRunConflict[];
+}
+export interface AdminRunStep {
+  stepId: string;
+  stepName: string;
+  ordinal: number;
+  ownerRole: 'ADMIN' | 'OPERATOR' | 'REVIEWER';
+  ownerDeviceId: string | null;
+  ownerDeviceName: string | null;
+  state: 'BLOCKED' | 'READY' | 'IN_PROGRESS' | 'COMPLETE';
+  stateAt: string | null;
+  contribution: {
+    payload: string;
+    submittedAt: string;
+    submittedBy: string | null;
+    submittedDeviceId: string | null;
+    submittedDeviceName: string | null;
+  } | null;
+  blockedBy: { stepId: string; stepName: string | null }[];
+}
+export interface AdminRunIssue {
+  issueId: string;
+  stepId: string | null;
+  stepName: string | null;
+  code: string;
+  severity: 'ERROR' | 'WARNING' | 'INFO';
+  message: string;
+  fieldRef: string | null;
+  detectedAt: string;
+}
+export interface AdminRunConflict {
+  conflictId: string;
+  category: string;
+  identityKey: string;
+  status: string;
+  detectedAt: string;
+}
+export function getAdminRunDetail(runId: string): Promise<AdminRunDetail> {
+  return request('GET',
+    `/edge-api/v1/workflows/activity/runs/${encodeURIComponent(runId)}`);
+}
+
 export function workflowQueue(opts?: {
   deviceId?: string;
   allDevices?: boolean;

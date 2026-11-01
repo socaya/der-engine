@@ -24,6 +24,7 @@ import { WorkflowPeers } from './screens/workflow/WorkflowPeers';
 import { WorkflowImportInbox } from './screens/workflow/WorkflowImportInbox';
 import { WorkflowActivity } from './screens/workflow/WorkflowActivity';
 import { WorkflowMonitoring } from './screens/workflow/WorkflowMonitoring';
+import { WorkflowRunDetail } from './screens/workflow/WorkflowRunDetail';
 import { WorkflowPeerExchange } from './screens/workflow/WorkflowPeerExchange';
 import { RunValidation } from './screens/workflow/RunValidation';
 import { SnapshotList } from './screens/metadata/SnapshotList';
@@ -166,6 +167,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EACaptureWorkflowList /></RequireAuth>} />
           <Route path="/workflows/monitoring"
                  element={<RequireAuth><WorkflowMonitoring /></RequireAuth>} />
+          <Route path="/workflows/monitoring/runs/:runId"
+                 element={<RequireAuth><WorkflowRunDetail /></RequireAuth>} />
           <Route path="/workflows/peer-exchange"
                  element={<RequireAuth><WorkflowPeerExchange /></RequireAuth>} />
           <Route path="/workflows/new"
