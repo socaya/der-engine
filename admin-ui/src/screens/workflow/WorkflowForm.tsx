@@ -221,15 +221,19 @@ export function WorkflowForm({ api = edgeApi }:
     loader
       .then((bs) => {
         setBreakables(bs);
-        setRows(bs.map((b) => ({
+        const seeded = bs.map((b) => ({
           breakable: b,
           included: bs.length <= 6,
           ownerDeviceId: null,
-          ownerRole: 'OPERATOR',
+          ownerRole: 'OPERATOR' as const,
           fieldCandidates: null,
           fieldSelection: {},
           expanded: false,
-        })));
+        }));
+        setRows(seeded);
+        seeded.forEach((r, i) => {
+          if (r.included) prefetchAllFields(i);
+        });
       })
       .catch((e) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, [editing, type, chosenMetadata]);
@@ -268,6 +272,40 @@ export function WorkflowForm({ api = edgeApi }:
       }
       return copy;
     });
+    // Eagerly load + auto-select all fields when a step is first ticked,
+    // so saving without opening the Fields editor still captures the
+    // full set. User can narrow later via Edit.
+    if (patch.included === true) {
+      prefetchAllFields(ix);
+    }
+  }
+  function prefetchAllFields(ix: number): void {
+    setRows((prev) => {
+      if (prev[ix].fieldCandidates != null) return prev;
+      md.listFieldCandidates(prev[ix].breakable)
+        .then((fields) => setRows((p) => {
+          const next = [...p];
+          const existingSel = next[ix].fieldSelection;
+          const seeded: Record<string, { included: boolean; requirement: FieldReq }> = {};
+          fields.forEach((f) => {
+            seeded[f.id] = existingSel[f.id] ?? {
+              included: true,
+              requirement: f.compulsory ? 'REQUIRED' : 'OPTIONAL',
+            };
+          });
+          Object.entries(existingSel).forEach(([k, v]) => {
+            if (!(k in seeded)) seeded[k] = v;
+          });
+          next[ix] = { ...next[ix], fieldCandidates: fields, fieldSelection: seeded };
+          return next;
+        }))
+        .catch(() => setRows((p) => {
+          const next = [...p];
+          next[ix] = { ...next[ix], fieldCandidates: [] };
+          return next;
+        }));
+      return prev;
+    });
   }
   function toggleExpand(ix: number): void {
     setRows((prev) => {
@@ -283,7 +321,7 @@ export function WorkflowForm({ api = edgeApi }:
             const seeded: Record<string, { included: boolean; requirement: FieldReq }> = {};
             fields.forEach((f) => {
               seeded[f.id] = existingSel[f.id] ?? {
-                included: f.compulsory,
+                included: true,
                 requirement: f.compulsory ? 'REQUIRED' : 'OPTIONAL',
               };
             });
