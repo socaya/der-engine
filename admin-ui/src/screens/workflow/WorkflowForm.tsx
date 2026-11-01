@@ -449,7 +449,7 @@ export function WorkflowForm({ api = edgeApi }:
               <label className="ea-field">
                 <span className="ea-field-label">Name</span>
                 <input className="ea-input" type="text" data-test="wf-form-name"
-                        value={name} placeholder="e.g. Monthly ANC report"
+                        value={name} placeholder="Workflow name"
                         onChange={(e) => setName(e.target.value)} />
               </label>
               <label className="ea-field">
@@ -571,18 +571,15 @@ export function WorkflowForm({ api = edgeApi }:
             <div className="ea-form-section">
               <div className="ea-form-section-head">
                 <h2>Workflow steps · service points</h2>
-                <p>Model the clinic flow — e.g. <em>Registration → Triage
-                   → Consultation → Lab → Pharmacy → Billing</em>. Each
-                   ticked row is a service point; the <strong>Handover
-                   to (device)</strong> is the station that will pick it
-                   up in its <em>My queue</em>. Leave the device as
-                   <em>Any</em> to pool it to anyone holding the role.
-                   The <strong>Kind</strong> chip reflects the DHIS2
-                   hierarchy (program stage, stage section, dataset
-                   section, event). The <strong>Role</strong> is one of
-                   the three DER capture roles —
-                   <code>OPERATOR</code>, <code>REVIEWER</code>,
-                   <code>ADMIN</code> — defined server-side in
+                <p>Each ticked row becomes a service point in the flow.
+                   The <strong>Handover to (device)</strong> is the
+                   station that will pick that step up in its
+                   <em>My queue</em>; leave as <em>Any</em> to pool it
+                   to anyone holding the role. The <strong>Kind</strong>
+                   chip reflects the DHIS2 hierarchy. The
+                   <strong>Role</strong> is one of the three DER capture
+                   roles (<code>OPERATOR</code>, <code>REVIEWER</code>,
+                   <code>ADMIN</code>) defined server-side in
                    <code>CaptureWorkflowStep.OwnerRole</code>.</p>
               </div>
               {breakables == null ? (
@@ -601,12 +598,10 @@ export function WorkflowForm({ api = edgeApi }:
             <div className="ea-form-section">
               <div className="ea-form-section-head">
                 <h2>Handover sequence · service-point flow</h2>
-                <p>How work flows between service points — e.g.
-                   <em> Registration → Triage → Consultation → Lab →
-                   Pharmacy → Billing</em>. Default is top-to-bottom:
-                   each ticked step opens once the one above completes.
-                   Add explicit rules only when a step should open
-                   out-of-order or wait on a sibling.</p>
+                <p>How work flows between the ticked service points.
+                   Default is top-to-bottom: each step opens once the
+                   one above completes. Add explicit rules only when a
+                   step should open out-of-order or wait on a sibling.</p>
               </div>
               <HandoverFlowPreview rows={includedRows} devices={devices} />
               {includedRows.length >= 2 && (
