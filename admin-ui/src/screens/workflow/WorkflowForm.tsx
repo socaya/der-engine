@@ -9,7 +9,7 @@ import type {
   Breakable, FieldCandidate, MetadataOption, WizardWorkflowType,
 } from './wizardMetadata';
 
-type FieldReq = 'REQUIRED' | 'OPTIONAL';
+type FieldReq = 'REQUIRED' | 'OPTIONAL' | 'READONLY' | 'HIDDEN';
 
 interface StepRow {
   breakable: Breakable;
@@ -144,7 +144,7 @@ export function WorkflowForm({ api = edgeApi }:
           existing?.fields?.forEach((f) => {
             selection[f.fieldRef] = {
               included: true,
-              requirement: f.requirement === 'REQUIRED' ? 'REQUIRED' : 'OPTIONAL',
+              requirement: coerceReq(f.requirement),
             };
           });
           return {
@@ -164,7 +164,7 @@ export function WorkflowForm({ api = edgeApi }:
             s.fields?.forEach((f) => {
               selection[f.fieldRef] = {
                 included: true,
-                requirement: f.requirement === 'REQUIRED' ? 'REQUIRED' : 'OPTIONAL',
+                requirement: coerceReq(f.requirement),
               };
             });
             const kind = (s.sectionKind ?? 'DATASET_SECTION') as Breakable['sectionKind'];
@@ -903,44 +903,73 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
                     ) : (
                       <>
                         <div className="ea-wf-fields-actions">
-                          <button type="button"
-                                   className="ea-btn ea-btn--ghost ea-btn--sm"
-                                   onClick={() => onBulkField(i, true)}>All</button>
-                          <button type="button"
-                                   className="ea-btn ea-btn--ghost ea-btn--sm"
-                                   onClick={() => onBulkField(i, false)}>None</button>
+                          <span className="ea-text-muted ea-wf-fields-count">
+                            {r.fieldCandidates.length} field{r.fieldCandidates.length === 1 ? '' : 's'}
+                            {' · '}
+                            {Object.values(r.fieldSelection)
+                              .filter((s) => s.included).length} included
+                          </span>
+                          <div className="ea-wf-fields-bulk">
+                            <button type="button"
+                                     className="ea-btn ea-btn--ghost ea-btn--sm"
+                                     onClick={() => onBulkField(i, true)}>Include all</button>
+                            <button type="button"
+                                     className="ea-btn ea-btn--ghost ea-btn--sm"
+                                     onClick={() => onBulkField(i, false)}>Clear</button>
+                          </div>
                         </div>
-                        <ul className="ea-wf-fields-grid">
-                          {r.fieldCandidates.map((f) => {
-                            const sel = r.fieldSelection[f.id];
-                            const included = sel?.included ?? false;
-                            const req = sel?.requirement
-                                         ?? (f.compulsory ? 'REQUIRED' : 'OPTIONAL');
-                            return (
-                              <li key={f.id}
-                                   className="ea-wf-fields-item"
-                                   data-test={`wf-form-row-${i}-field-${f.id}`}>
-                                <input type="checkbox"
-                                        data-test={`wf-form-row-${i}-field-${f.id}-include`}
-                                        checked={included}
-                                        onChange={(e) => onField(i, f.id,
-                                          { included: e.target.checked,
-                                            requirement: req as FieldReq })} />
-                                <span className="ea-wf-fields-name">{f.displayName}</span>
-                                {included && (
-                                  <select className="ea-input ea-input--sm"
-                                           value={req}
-                                           onChange={(e) => onField(i, f.id,
-                                             { included: true,
-                                               requirement: e.target.value as FieldReq })}>
-                                    <option value="REQUIRED">Required</option>
-                                    <option value="OPTIONAL">Optional</option>
-                                  </select>
-                                )}
-                              </li>
-                            );
-                          })}
-                        </ul>
+                        <table className="ea-table ea-table--dense ea-wf-fields-table">
+                          <thead>
+                            <tr>
+                              <th className="ea-wf-fields-col-include">Include</th>
+                              <th>Field</th>
+                              <th className="ea-wf-fields-col-req">Behaviour</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {r.fieldCandidates.map((f) => {
+                              const sel = r.fieldSelection[f.id];
+                              const included = sel?.included ?? false;
+                              const req: FieldReq = sel?.requirement
+                                           ?? (f.compulsory ? 'REQUIRED' : 'OPTIONAL');
+                              return (
+                                <tr key={f.id}
+                                     className={included ? '' : 'is-dim'}
+                                     data-test={`wf-form-row-${i}-field-${f.id}`}>
+                                  <td className="ea-wf-fields-col-include">
+                                    <input type="checkbox"
+                                            data-test={`wf-form-row-${i}-field-${f.id}-include`}
+                                            checked={included}
+                                            onChange={(e) => onField(i, f.id,
+                                              { included: e.target.checked, requirement: req })} />
+                                  </td>
+                                  <td>
+                                    <div className="ea-wf-fields-name">{f.displayName}</div>
+                                    {f.compulsory && (
+                                      <div className="ea-text-muted ea-wf-fields-hint">
+                                        Mandatory upstream in DHIS2
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td>
+                                    <select className="ea-input ea-input--sm"
+                                             data-test={`wf-form-row-${i}-field-${f.id}-req`}
+                                             value={req}
+                                             disabled={!included}
+                                             onChange={(e) => onField(i, f.id,
+                                               { included: true,
+                                                 requirement: e.target.value as FieldReq })}>
+                                      <option value="REQUIRED">Required</option>
+                                      <option value="OPTIONAL">Optional</option>
+                                      <option value="READONLY">Read-only</option>
+                                      <option value="HIDDEN">Hidden</option>
+                                    </select>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </>
                     )}
                   </td>
@@ -999,6 +1028,12 @@ function HandoverFlowPreview({ rows, devices }: {
       ))}
     </ol>
   );
+}
+
+function coerceReq(v: string | undefined): FieldReq {
+  if (v === 'REQUIRED' || v === 'OPTIONAL'
+      || v === 'READONLY' || v === 'HIDDEN') return v;
+  return 'OPTIONAL';
 }
 
 function kindLabel(k: Breakable['sectionKind']): string {
