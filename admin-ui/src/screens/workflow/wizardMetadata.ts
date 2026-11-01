@@ -70,6 +70,8 @@ async function programTeaFields(programId: string): Promise<FieldCandidate[]> {
   try {
     const prog = await dhisGet<{
       programTrackedEntityAttributes?: {
+        displayName?: string;
+        name?: string;
         trackedEntityAttribute?: { id: string; displayName?: string };
         mandatory?: boolean;
       }[];
@@ -78,7 +80,10 @@ async function programTeaFields(programId: string): Promise<FieldCandidate[]> {
       .filter((p) => p.trackedEntityAttribute?.id != null)
       .map((p) => ({
         id: p.trackedEntityAttribute!.id,
-        displayName: p.trackedEntityAttribute!.displayName
+        // Display name sits on the pTEA wrapper (not on the nested
+        // TEA ref). Fall back to name / id if the wrapper is bare.
+        displayName: p.displayName ?? p.name
+                     ?? p.trackedEntityAttribute!.displayName
                      ?? p.trackedEntityAttribute!.id,
         compulsory: p.mandatory === true,
       }));
@@ -89,23 +94,33 @@ async function programTeaFields(programId: string): Promise<FieldCandidate[]> {
 
 async function programSectionTeaFields(programId: string,
     sectionId: string): Promise<FieldCandidate[]> {
+  let sectionTeaIds: string[] = [];
   try {
-    const prog = await dhisGet<{
-      programSections?: {
-        id: string;
-        trackedEntityAttributes?: { id: string; displayName?: string }[];
-      }[];
-    }>(`/api/programs/${encodeURIComponent(programId)}`);
-    const sec = (prog.programSections ?? []).find((s) => s.id === sectionId);
-    const tea = sec?.trackedEntityAttributes ?? [];
-    if (tea.length > 0) {
-      return tea.map((t) => ({ id: t.id,
-        displayName: t.displayName ?? t.id, compulsory: false }));
-    }
-    return programTeaFields(programId);
+    const section = await dhisGet<{
+      trackedEntityAttributes?: { id: string }[];
+    }>(`/api/programSections/${encodeURIComponent(sectionId)}`);
+    sectionTeaIds = (section.trackedEntityAttributes ?? [])
+      .map((t) => t.id)
+      .filter(Boolean);
   } catch {
-    return [];
+    sectionTeaIds = [];
   }
+  const programTeas = await programTeaFields(programId);
+  if (sectionTeaIds.length === 0) return programTeas;
+  const want = new Set(sectionTeaIds);
+  // Preserve the section's attribute order over the program's.
+  const byId = new Map(programTeas.map((f) => [f.id, f] as const));
+  const out: FieldCandidate[] = [];
+  for (const id of sectionTeaIds) {
+    const hit = byId.get(id);
+    if (hit) out.push(hit);
+  }
+  // Append any that only appear in the section definition (edge case).
+  for (const f of programTeas) {
+    if (!want.has(f.id)) continue;
+    if (!out.some((x) => x.id === f.id)) out.push(f);
+  }
+  return out;
 }
 
 interface DhisListResponse<T> {
@@ -222,8 +237,7 @@ async function fetchEnrolmentBreakables(programId: string): Promise<Breakable[]>
     id: string;
     displayName?: string;
     programType?: string;
-    programSections?: { id: string; displayName: string;
-                         sortOrder?: number }[];
+    programSections?: { id: string }[];
   };
   try {
     prog = await dhisGet<typeof prog>(
@@ -239,13 +253,37 @@ async function fetchEnrolmentBreakables(programId: string): Promise<Breakable[]>
     displayName: 'Enrolment',
     sectionKind: 'ENROLLMENT_FORM',
   });
-  const sections = (prog.programSections ?? [])
-    .slice()
+
+  // The mirrored program payload only lists programSection UIDs
+  // (no displayName). Pull the full section list from the catalog
+  // and filter by program.id to resolve names + sortOrder.
+  const sectionIds = new Set(
+    (prog.programSections ?? []).map((s) => s.id).filter(Boolean),
+  );
+  if (sectionIds.size === 0) return out;
+  type SectionRow = {
+    id: string;
+    displayName?: string;
+    name?: string;
+    program?: { id: string };
+    sortOrder?: number;
+  };
+  let rows: SectionRow[] = [];
+  try {
+    const resp = await dhisGet<DhisListResponse<SectionRow>>(
+      '/api/programSections?pageSize=500',
+    );
+    rows = (resp.programSections as SectionRow[] | undefined) ?? [];
+  } catch {
+    rows = [];
+  }
+  const scoped = rows
+    .filter((s) => s.program?.id === programId && sectionIds.has(s.id))
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-  for (const s of sections) {
+  for (const s of scoped) {
     out.push({
       id: s.id,
-      displayName: s.displayName,
+      displayName: s.displayName ?? s.name ?? s.id,
       sectionKind: 'PROGRAM_SECTION',
       parentId: programId,
     });

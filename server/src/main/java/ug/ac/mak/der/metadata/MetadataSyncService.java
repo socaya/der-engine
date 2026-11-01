@@ -260,6 +260,7 @@ public class MetadataSyncService {
             "categoryCombos", "categoryOptions", "categoryOptionGroups",
             "categoryOptionGroupSets",
             "programIndicators", "programRuleVariables",
+            "programSections",
             "programStageSections", "programNotificationTemplates",
             "relationshipTypes",
             // Analytics & reporting
