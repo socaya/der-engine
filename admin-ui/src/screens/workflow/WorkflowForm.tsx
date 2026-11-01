@@ -1020,11 +1020,11 @@ function renderFieldsPanel(args: {
                                   { included: e.target.checked, requirement: req })} />
                       </td>
                       <td>
-                        <div className="ea-wf-fields-name">{f.displayName}</div>
+                        <span className="ea-wf-fields-name">{f.displayName}</span>
                         {f.compulsory && (
-                          <div className="ea-text-muted ea-wf-fields-hint">
-                            Mandatory upstream in DHIS2
-                          </div>
+                          <span className="ea-wf-fields-mandatory"
+                                title="Mandatory upstream in DHIS2"
+                                aria-label="Mandatory upstream in DHIS2">*</span>
                         )}
                       </td>
                       <td>

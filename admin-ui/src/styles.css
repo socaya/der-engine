@@ -2348,7 +2348,10 @@ tr.is-nested + .ea-wf-steps-fields-row > td{
 .ea-wf-fields-col-role{width:110px}
 .ea-wf-fields-col-dev{width:180px}
 .ea-wf-fields-name{color:var(--der-ink-900);font-size:13px;text-align:left}
-.ea-wf-fields-hint{font-size:11px;margin-top:1px}
+.ea-wf-fields-mandatory{
+  color:var(--der-danger-ink);font-weight:700;
+  margin-left:4px;cursor:help;
+}
 .ea-wf-fields-table .is-dim td{color:var(--der-ink-500)}
 .ea-wf-fields-table .is-dim select{opacity:0.6}
 
