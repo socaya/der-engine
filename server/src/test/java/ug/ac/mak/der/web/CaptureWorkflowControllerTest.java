@@ -48,6 +48,7 @@ class CaptureWorkflowControllerTest {
     @MockBean ug.ac.mak.der.workflow.WorkflowQueueStream queueStream;
     @MockBean ug.ac.mak.der.workflow.WorkflowPinningService pinning;
     @MockBean ug.ac.mak.der.fleet.UserPreferenceService prefs;
+    @MockBean org.springframework.jdbc.core.JdbcTemplate jdbcForInbox;
 
     private final Instant NOW = Instant.parse("2026-10-22T00:00:00Z");
 

@@ -1084,6 +1084,38 @@ export function pushWorkflowToPeer(peerId: string, workflowId: string):
     `/edge-api/v1/workflows/peers/${peerId}/push/${workflowId}`);
 }
 
+/** §2.3.38 — receive-side import inbox. */
+export interface ImportInboxEntry {
+  importId: string;
+  receivedAt: string;
+  fromLabel: string | null;
+  displayName: string;
+  boundKind: string;
+  boundId: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  decidedAt: string | null;
+  decidedBy: string | null;
+  decisionNote: string | null;
+  acceptedWorkflowId: string | null;
+}
+
+export function listImportInbox(status?: 'PENDING' | 'ACCEPTED' | 'REJECTED'):
+    Promise<{ entries: ImportInboxEntry[] }> {
+  const q = status ? `?status=${status}` : '';
+  return request('GET', '/edge-api/v1/workflows/import-inbox' + q);
+}
+
+export function acceptImport(importId: string): Promise<unknown> {
+  return request('POST',
+    `/edge-api/v1/workflows/import-inbox/${importId}/accept`);
+}
+
+export function rejectImport(importId: string, note?: string): Promise<unknown> {
+  return request('POST',
+    `/edge-api/v1/workflows/import-inbox/${importId}/reject`,
+    { note: note ?? '' });
+}
+
 /** Progressive-validation issues on a run (spec §36). */
 export interface ValidationIssue {
   issueId: string;

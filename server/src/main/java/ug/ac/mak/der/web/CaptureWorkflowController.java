@@ -50,6 +50,9 @@ public class CaptureWorkflowController {
     private final WorkflowQueueStream queueStream;
     private final WorkflowPinningService pinning;
     private final UserPreferenceService prefs;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final com.fasterxml.jackson.databind.ObjectMapper mapper
+            = new com.fasterxml.jackson.databind.ObjectMapper();
     /** §2.3.31 — pref key for the operator's preferred device.
      *  When set, GET /queue auto-filters to it unless the caller
      *  supplies an explicit ?deviceId=. */
@@ -62,7 +65,8 @@ public class CaptureWorkflowController {
                                        final ProgressiveValidator validator,
                                        final WorkflowQueueStream queueStream,
                                        final WorkflowPinningService pinning,
-                                       final UserPreferenceService prefs) {
+                                       final UserPreferenceService prefs,
+                                       final org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.svc = Objects.requireNonNull(svc, "svc");
         this.importer = Objects.requireNonNull(importer, "importer");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
@@ -71,6 +75,7 @@ public class CaptureWorkflowController {
         this.queueStream = Objects.requireNonNull(queueStream, "queueStream");
         this.pinning = Objects.requireNonNull(pinning, "pinning");
         this.prefs = Objects.requireNonNull(prefs, "prefs");
+        this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 
     /** §37–§42 — read the workflow's pin. {@code snapshotId=null}
@@ -305,9 +310,37 @@ public class CaptureWorkflowController {
             final Authentication authentication,
             @org.springframework.web.bind.annotation.RequestParam(
                     name = "dryRun", defaultValue = "false") final boolean dryRun,
+            @org.springframework.web.bind.annotation.RequestParam(
+                    name = "inbox", defaultValue = "false") final boolean toInbox,
+            @org.springframework.web.bind.annotation.RequestParam(
+                    name = "fromLabel", required = false) final String fromLabel,
             @RequestBody final CaptureWorkflowImportService.CanonicalWorkflow body) {
         if (!(authentication instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
+        }
+        // §2.3.38 — inbox mode. Park the canonical doc as PENDING; an
+        // operator on this edge reviews + accepts via /import-inbox.
+        if (toInbox) {
+            final UUID importId = UUID.randomUUID();
+            try {
+                final String payload = mapper.writeValueAsString(body);
+                inboxJdbc().update(
+                    "INSERT INTO der.workflow_import_inbox "
+                            + "(import_id, received_by, from_label, display_name, "
+                            + " bound_kind, bound_id, canonical_json, status) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, CAST(? AS jsonb), 'PENDING')",
+                    importId, principal.userId(), fromLabel,
+                    body.displayName(), body.boundMetadataKind(),
+                    body.boundMetadataId(), payload);
+                return ResponseEntity.ok(Map.of(
+                        "status", "PENDING_REVIEW",
+                        "importId", importId.toString(),
+                        "displayName", body.displayName()));
+            } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException ex) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "code", "INBOX_WRITE_FAILED",
+                        "message", ex.getMessage()));
+            }
         }
         try {
             final CaptureWorkflowImportService.ImportResult result =
@@ -321,6 +354,100 @@ public class CaptureWorkflowController {
             return ResponseEntity.badRequest().body(Map.of(
                     "code", "WORKFLOW_IMPORT_INVALID", "message", ex.getMessage()));
         }
+    }
+
+    private org.springframework.jdbc.core.JdbcTemplate inboxJdbc() {
+        return jdbc;
+    }
+
+    /** §2.3.38 — list pending (default) / all import inbox rows. */
+    @GetMapping("/import-inbox")
+    public ResponseEntity<Map<String, Object>> inboxList(
+            @org.springframework.web.bind.annotation.RequestParam(
+                    name = "status", required = false) final String status) {
+        final String sql = status == null
+                ? "SELECT * FROM der.workflow_import_inbox "
+                        + "ORDER BY received_at DESC LIMIT 200"
+                : "SELECT * FROM der.workflow_import_inbox "
+                        + "WHERE status = ? ORDER BY received_at DESC LIMIT 200";
+        final List<Map<String, Object>> rows = status == null
+                ? jdbc.query(sql, (rs, i) -> inboxRow(rs))
+                : jdbc.query(sql, (rs, i) -> inboxRow(rs), status);
+        return ResponseEntity.ok(Map.of("entries", rows));
+    }
+
+    @PostMapping("/import-inbox/{importId}/accept")
+    public ResponseEntity<Map<String, Object>> inboxAccept(
+            final Authentication auth,
+            @PathVariable final UUID importId) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final List<String> payloads = jdbc.queryForList(
+                "SELECT canonical_json::text FROM der.workflow_import_inbox "
+                        + "WHERE import_id = ? AND status = 'PENDING'",
+                String.class, importId);
+        if (payloads.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            final CaptureWorkflowImportService.CanonicalWorkflow doc =
+                    mapper.readValue(payloads.get(0),
+                            CaptureWorkflowImportService.CanonicalWorkflow.class);
+            final CaptureWorkflowImportService.ImportResult result =
+                    importer.importWorkflow(doc, false, principal.userId());
+            jdbc.update(
+                    "UPDATE der.workflow_import_inbox "
+                            + "SET status = 'ACCEPTED', decided_at = now(), "
+                            + "    decided_by = ?, accepted_workflow_id = ? "
+                            + "WHERE import_id = ?",
+                    principal.userId(), result.workflow().workflowId(), importId);
+            return ResponseEntity.ok(Map.of(
+                    "importId", importId.toString(),
+                    "workflowId", result.workflow().workflowId().toString(),
+                    "warnings", result.warnings()));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INBOX_ACCEPT_FAILED", "message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/import-inbox/{importId}/reject")
+    public ResponseEntity<Map<String, Object>> inboxReject(
+            final Authentication auth,
+            @PathVariable final UUID importId,
+            @RequestBody(required = false) final Map<String, String> body) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final String note = body == null ? null : body.get("note");
+        final int n = jdbc.update(
+                "UPDATE der.workflow_import_inbox "
+                        + "SET status = 'REJECTED', decided_at = now(), "
+                        + "    decided_by = ?, decision_note = ? "
+                        + "WHERE import_id = ? AND status = 'PENDING'",
+                principal.userId(), note, importId);
+        return n == 0 ? ResponseEntity.notFound().build()
+                : ResponseEntity.ok(Map.of("importId", importId.toString(),
+                                             "status", "REJECTED"));
+    }
+
+    private Map<String, Object> inboxRow(final java.sql.ResultSet rs)
+            throws java.sql.SQLException {
+        final Map<String, Object> m = new LinkedHashMap<>();
+        m.put("importId", rs.getString("import_id"));
+        m.put("receivedAt", rs.getTimestamp("received_at").toInstant().toString());
+        m.put("fromLabel", rs.getString("from_label"));
+        m.put("displayName", rs.getString("display_name"));
+        m.put("boundKind", rs.getString("bound_kind"));
+        m.put("boundId", rs.getString("bound_id"));
+        m.put("status", rs.getString("status"));
+        final var decidedAt = rs.getTimestamp("decided_at");
+        m.put("decidedAt", decidedAt == null ? null : decidedAt.toInstant().toString());
+        m.put("decidedBy", rs.getString("decided_by"));
+        m.put("decisionNote", rs.getString("decision_note"));
+        m.put("acceptedWorkflowId", rs.getString("accepted_workflow_id"));
+        return m;
     }
 
     private static Map<String, Object> toCanonicalJson(final CaptureWorkflow w) {

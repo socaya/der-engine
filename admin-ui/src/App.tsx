@@ -21,6 +21,7 @@ import { SignIn } from './screens/SignIn';
 import { WorkflowWizard } from './screens/workflow/WorkflowWizard';
 import { WorkflowQueue } from './screens/workflow/WorkflowQueue';
 import { WorkflowPeers } from './screens/workflow/WorkflowPeers';
+import { WorkflowImportInbox } from './screens/workflow/WorkflowImportInbox';
 import { RunValidation } from './screens/workflow/RunValidation';
 import { SnapshotList } from './screens/metadata/SnapshotList';
 import { SnapshotDiff } from './screens/metadata/SnapshotDiff';
@@ -168,6 +169,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><WorkflowQueue /></RequireAuth>} />
           <Route path="/workflows/peers"
                  element={<RequireAuth><WorkflowPeers /></RequireAuth>} />
+          <Route path="/workflows/import-inbox"
+                 element={<RequireAuth><WorkflowImportInbox /></RequireAuth>} />
           <Route path="/workflows/runs/:runId/validation"
                  element={<RequireAuth><RunValidation /></RequireAuth>} />
           <Route path="/metadata/snapshots"

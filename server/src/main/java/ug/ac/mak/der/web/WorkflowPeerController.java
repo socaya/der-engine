@@ -213,8 +213,16 @@ public class WorkflowPeerController {
                         .orElse(null);
             }
             final String body = mapper.writeValueAsString(canonical);
+            // §2.3.38 — default to inbox mode so pushes don't silently
+            // overwrite the receiver's workflow catalogue. Receivers can
+            // still opt out of inbox mode by not having the inbox table
+            // (older edges) — the receiver falls back to direct import.
+            final String fromLabel = "peer-" + peerId.toString().substring(0, 8);
             final HttpRequest.Builder reqB = HttpRequest.newBuilder()
-                    .uri(URI.create(base + "/edge-api/v1/workflows/import"))
+                    .uri(URI.create(base + "/edge-api/v1/workflows/import"
+                            + "?inbox=true&fromLabel="
+                            + java.net.URLEncoder.encode(fromLabel,
+                                    StandardCharsets.UTF_8)))
                     .timeout(Duration.ofSeconds(30))
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
