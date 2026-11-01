@@ -2237,6 +2237,9 @@ kbd{
 .ea-wf-steps-col-include{width:72px}
 .ea-wf-steps-col-role{width:120px}
 .ea-wf-steps-col-device{width:160px}
+.ea-wf-steps-col-order{width:36px;text-align:center}
+.ea-wf-steps-ord{text-align:center;color:var(--der-ink-500);
+  font-variant-numeric:tabular-nums;font-weight:600}
 .ea-wf-steps-col-kind{width:160px}
 .ea-wf-steps-col-fields{width:72px;text-align:right}
 .ea-wf-steps-table .ea-wf-steps-col-fields{text-align:right}
@@ -2279,3 +2282,29 @@ kbd{
 /* Workflow module uses a wide form card so the Steps table has room
    for the Kind / Role / Handover-to columns + inline field editor. */
 .ea-form-card--wide{max-width:none}
+
+/* Handover flow preview — service-point chain under Dependencies. */
+.ea-wf-flow{
+  list-style:none;margin:0 0 12px;padding:0;
+  display:flex;flex-wrap:wrap;gap:12px;align-items:stretch;
+}
+.ea-wf-flow-step{
+  display:flex;align-items:center;gap:10px;flex:0 0 auto;
+}
+.ea-wf-flow-step-num{
+  width:24px;height:24px;border-radius:50%;
+  background:var(--der-navy-700);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:600;flex-shrink:0;
+}
+.ea-wf-flow-step-body{
+  display:flex;flex-direction:column;gap:2px;
+  padding:6px 10px;border:1px solid var(--der-border);
+  border-radius:6px;background:var(--der-raised);
+  min-width:140px;
+}
+.ea-wf-flow-step-title{font-weight:500;font-size:13px;color:var(--der-ink-900)}
+.ea-wf-flow-step-meta{
+  display:flex;gap:6px;align-items:center;font-size:11px;
+}
+.ea-wf-flow-arrow{color:var(--der-ink-500);font-size:16px;flex-shrink:0}

@@ -570,18 +570,20 @@ export function WorkflowForm({ api = edgeApi }:
           {chosenMetadata && (
             <div className="ea-form-section">
               <div className="ea-form-section-head">
-                <h2>Capture steps · owner device &amp; role</h2>
-                <p>Each ticked row becomes a step. The <strong>Kind</strong>
-                   column reflects the DHIS2 hierarchy (program stage, stage
-                   section, dataset section, event). The <strong>Role</strong>
-                   is one of the three DER capture roles —
-                   <code>OPERATOR</code> (field capture),
-                   <code>REVIEWER</code> (sign-off), <code>ADMIN</code>
-                   (configuration) — defined in
-                   <code>CaptureWorkflowStep.OwnerRole</code> on the server.
-                   <strong>Handover to</strong> is the device that will see
-                   this step in <em>My queue</em>; leave as <em>Any</em> to
-                   pool to anyone holding the role.</p>
+                <h2>Workflow steps · service points</h2>
+                <p>Model the clinic flow — e.g. <em>Registration → Triage
+                   → Consultation → Lab → Pharmacy → Billing</em>. Each
+                   ticked row is a service point; the <strong>Handover
+                   to (device)</strong> is the station that will pick it
+                   up in its <em>My queue</em>. Leave the device as
+                   <em>Any</em> to pool it to anyone holding the role.
+                   The <strong>Kind</strong> chip reflects the DHIS2
+                   hierarchy (program stage, stage section, dataset
+                   section, event). The <strong>Role</strong> is one of
+                   the three DER capture roles —
+                   <code>OPERATOR</code>, <code>REVIEWER</code>,
+                   <code>ADMIN</code> — defined server-side in
+                   <code>CaptureWorkflowStep.OwnerRole</code>.</p>
               </div>
               {breakables == null ? (
                 <LoadingBlock testId="wf-form-breakables-loading" />
@@ -595,19 +597,24 @@ export function WorkflowForm({ api = edgeApi }:
             </div>
           )}
 
-          {chosenMetadata && includedRows.length >= 2 && (
+          {chosenMetadata && includedRows.length >= 1 && (
             <div className="ea-form-section">
               <div className="ea-form-section-head">
-                <h2>Step order (handover sequence)</h2>
-                <p>Which step must complete before the next one opens.
-                   Default is top-to-bottom: each step waits for the one
-                   above it. Add explicit rules only if a step should
-                   open out-of-order or wait on a sibling.</p>
+                <h2>Handover sequence · service-point flow</h2>
+                <p>How work flows between service points — e.g.
+                   <em> Registration → Triage → Consultation → Lab →
+                   Pharmacy → Billing</em>. Default is top-to-bottom:
+                   each ticked step opens once the one above completes.
+                   Add explicit rules only when a step should open
+                   out-of-order or wait on a sibling.</p>
               </div>
-              <DependencyEditor rows={rows} deps={deps}
-                                 setDeps={setDeps}
-                                 onTouched={() => setDepsTouched(true)}
-                                 depsTouched={depsTouched} />
+              <HandoverFlowPreview rows={includedRows} devices={devices} />
+              {includedRows.length >= 2 && (
+                <DependencyEditor rows={rows} deps={deps}
+                                   setDeps={setDeps}
+                                   onTouched={() => setDepsTouched(true)}
+                                   depsTouched={depsTouched} />
+              )}
             </div>
           )}
 
@@ -686,8 +693,9 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
              data-test="wf-form-steps">
         <thead>
           <tr>
+            <th className="ea-wf-steps-col-order">#</th>
             <th className="ea-wf-steps-col-include">Include</th>
-            <th>Section / stage</th>
+            <th>Service point</th>
             <th className="ea-wf-steps-col-kind">Kind</th>
             <th className="ea-wf-steps-col-role">Role</th>
             <th className="ea-wf-steps-col-device">Handover to (device)</th>
@@ -695,13 +703,20 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
           </tr>
         </thead>
         <tbody>
-          {rows.flatMap((r, i) => {
-            const summary = fieldSummary(r);
-            return [
+          {(() => {
+            let ordinal = 0;
+            return rows.flatMap((r, i) => {
+              const summary = fieldSummary(r);
+              if (r.included) ordinal += 1;
+              const stepNumber = r.included ? ordinal : null;
+              return [
               (
                 <tr key={r.breakable.id} data-test={`wf-form-row-${i}`}
                      className={(r.included ? '' : 'is-dim')
                        + (r.breakable.parentId ? ' is-nested' : '')}>
+                  <td className="ea-wf-steps-ord">
+                    {stepNumber == null ? '—' : stepNumber}
+                  </td>
                   <td>
                     <input type="checkbox"
                             data-test={`wf-form-row-${i}-include`}
@@ -762,7 +777,7 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
                 <tr key={`${r.breakable.id}-fields`}
                      className="ea-wf-steps-fields-row"
                      data-test={`wf-form-row-${i}-fields`}>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     {r.fieldCandidates == null ? (
                       <span className="ea-text-muted">Loading…</span>
                     ) : r.fieldCandidates.length === 0 ? (
@@ -816,10 +831,42 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
                 </tr>
               ),
             ].filter(Boolean);
-          })}
+            });
+          })()}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function HandoverFlowPreview({ rows, devices }: {
+    rows: StepRow[];
+    devices: edgeApi.EdgeDeviceRow[];
+}): JSX.Element {
+  const deviceById = new Map(devices.map((d) => [d.deviceId,
+    d.displayName ?? d.deviceId.slice(0, 8)]));
+  return (
+    <ol className="ea-wf-flow" data-test="wf-form-flow">
+      {rows.map((r, i) => (
+        <li key={r.breakable.id} className="ea-wf-flow-step">
+          <div className="ea-wf-flow-step-num">{i + 1}</div>
+          <div className="ea-wf-flow-step-body">
+            <div className="ea-wf-flow-step-title">
+              {r.breakable.displayName}
+            </div>
+            <div className="ea-wf-flow-step-meta">
+              <span className="ea-chip ea-chip--neutral">{r.ownerRole}</span>
+              <span className="ea-text-muted">
+                → {r.ownerDeviceId == null
+                   ? 'Any device'
+                   : deviceById.get(r.ownerDeviceId) ?? r.ownerDeviceId.slice(0, 8)}
+              </span>
+            </div>
+          </div>
+          {i < rows.length - 1 && <span className="ea-wf-flow-arrow">→</span>}
+        </li>
+      ))}
+    </ol>
   );
 }
 
