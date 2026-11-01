@@ -36,12 +36,6 @@ interface WorkflowLevel {
   defaultDeviceId: string | null;
 }
 
-interface DepRow {
-  fromBreakableId: string;
-  toBreakableId: string;
-  kind: 'COMPLETES_BEFORE';
-}
-
 export interface WorkflowFormProps {
   api?: Pick<typeof edgeApi, 'saveWorkflow' | 'listDevices' | 'getWorkflow'>;
 }
@@ -65,8 +59,6 @@ export function WorkflowForm({ api = edgeApi }:
   const [wfLevel, setWfLevel] = useState<WorkflowLevel>({
     enabled: true, requiresApproval: false, defaultDeviceId: null,
   });
-  const [deps, setDeps] = useState<DepRow[]>([]);
-  const [depsTouched, setDepsTouched] = useState(false);
   const [snapshots, setSnapshots] = useState<edgeApi.MetadataSnapshot[]>([]);
   const [pinnedSnapshotId, setPinnedSnapshotId] = useState<number | null>(null);
   const [pinSaving, setPinSaving] = useState(false);
@@ -112,22 +104,6 @@ export function WorkflowForm({ api = edgeApi }:
           requiresApproval: w.requiresApproval ?? false,
           defaultDeviceId: w.defaultDeviceId ?? null,
         });
-        if (w.dependencies && w.dependencies.length > 0) {
-          const stepRefById = new Map(w.steps.map((s) => [s.stepId, s.sectionRef]));
-          const prefilled: DepRow[] = [];
-          w.dependencies.forEach((d) => {
-            const from = stepRefById.get(d.dependsOnStepId);
-            const to = stepRefById.get(d.stepId);
-            if (from && to) {
-              prefilled.push({ fromBreakableId: from, toBreakableId: to,
-                                 kind: 'COMPLETES_BEFORE' });
-            }
-          });
-          if (prefilled.length > 0) {
-            setDeps(prefilled);
-            setDepsTouched(true);
-          }
-        }
         let bs: Breakable[];
         try {
           if (detected.type === 'AGGREGATE') {
@@ -441,12 +417,7 @@ export function WorkflowForm({ api = edgeApi }:
               ownerDeviceId: s.ownerDeviceId ?? null,
             })),
         })),
-        explicitDependencies: depsTouched
-          ? deps.filter((d) => {
-              const ids = new Set(includedRows.map((r) => r.breakable.id));
-              return ids.has(d.fromBreakableId) && ids.has(d.toBreakableId);
-            })
-          : undefined,
+        explicitDependencies: undefined,
       });
       const saved = await api.saveWorkflow(payload);
       navigate(editing ? '/workflows' : `/workflows/${saved.workflowId}`);
@@ -648,18 +619,12 @@ export function WorkflowForm({ api = edgeApi }:
             <div className="ea-form-section">
               <div className="ea-form-section-head">
                 <h2>Handover</h2>
-                <p>Preview of how work flows between service points.
-                   Each step opens when the one before it completes.
-                   Add explicit rules only when the flow isn't linear —
-                   joins, parallel branches, or skipped predecessors.</p>
+                <p>How work flows between the ticked service points.
+                   Each step opens once the one immediately above
+                   completes — reorder with the ↑ / ↓ controls in the
+                   Service points table.</p>
               </div>
               <HandoverFlowPreview rows={includedRows} devices={devices} />
-              {includedRows.length >= 2 && (
-                <DependencyEditor rows={rows} deps={deps}
-                                   setDeps={setDeps}
-                                   onTouched={() => setDepsTouched(true)}
-                                   depsTouched={depsTouched} />
-              )}
             </div>
           )}
 
@@ -1170,75 +1135,3 @@ function fieldSummary(row: StepRow): string | null {
   return `${total} field${total === 1 ? '' : 's'}, ${req} required`;
 }
 
-function DependencyEditor({ rows, deps, setDeps, onTouched, depsTouched }: {
-    rows: StepRow[];
-    deps: DepRow[];
-    setDeps: (next: DepRow[]) => void;
-    onTouched: () => void;
-    depsTouched: boolean;
-}): JSX.Element {
-  const picked = rows.filter((r) => r.included);
-  function addDep(): void {
-    if (picked.length < 2) return;
-    setDeps([...deps, {
-      fromBreakableId: picked[0].breakable.id,
-      toBreakableId:  picked[1].breakable.id,
-      kind: 'COMPLETES_BEFORE',
-    }]);
-    onTouched();
-  }
-  function updateDep(i: number, patch: Partial<DepRow>): void {
-    const copy = [...deps];
-    copy[i] = { ...copy[i], ...patch };
-    setDeps(copy);
-    onTouched();
-  }
-  function removeDep(i: number): void {
-    setDeps(deps.filter((_, j) => j !== i));
-    onTouched();
-  }
-  return (
-    <div className="ea-wf-deps">
-      {!depsTouched && (
-        <p className="ea-field-hint">
-          Default: each step waits for the one above it.
-        </p>
-      )}
-      {deps.length > 0 && (
-        <ul className="ea-wf-deps-list">
-          {deps.map((d, i) => (
-            <li key={i} className="ea-wf-deps-item" data-test={`wf-form-dep-${i}`}>
-              <select className="ea-input ea-input--sm"
-                       value={d.fromBreakableId}
-                       onChange={(e) => updateDep(i, { fromBreakableId: e.target.value })}>
-                {picked.map((r) => (
-                  <option key={r.breakable.id} value={r.breakable.id}>
-                    {r.breakable.displayName}
-                  </option>
-                ))}
-              </select>
-              <span className="ea-text-muted">completes before</span>
-              <select className="ea-input ea-input--sm"
-                       value={d.toBreakableId}
-                       onChange={(e) => updateDep(i, { toBreakableId: e.target.value })}>
-                {picked.map((r) => (
-                  <option key={r.breakable.id} value={r.breakable.id}>
-                    {r.breakable.displayName}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                       onClick={() => removeDep(i)}>Remove</button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-               data-test="wf-form-dep-add"
-               disabled={picked.length < 2}
-               onClick={addDep}>
-        + Add dependency
-      </button>
-    </div>
-  );
-}
