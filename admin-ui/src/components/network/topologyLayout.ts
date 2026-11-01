@@ -23,16 +23,20 @@ export const PEER_CARD = { w: 170, h: 78 };
 
 /* ─── Device slots ─────────────────────────────────────────── */
 
-/** Six canonical slots matching the reference image. Positions are
- *  centre-coordinates of the device card. Order is: 0 top, 1 upper-right,
- *  2 lower-right, 3 bottom, 4 lower-left, 5 upper-left. */
+/** Six canonical slots arranged around DER on the lateral + southern
+ *  arc. The top-centre position is deliberately reserved for the WAN
+ *  (DHIS2 Central) node so the DER↔WAN sync line travels straight
+ *  up without crossing any device edge (§2.3.68 — "No line MUST
+ *  cross over the DHIS2 central instance linkage between DER and
+ *  DHIS2"). Order: 0 upper-right, 1 right, 2 lower-right,
+ *  3 lower-left, 4 left, 5 upper-left. */
 export const DEVICE_SLOTS: Point[] = [
-  { x: CENTRE.x,       y: CENTRE.y - 230 }, // 0 top-centre
-  { x: CENTRE.x + 290, y: CENTRE.y - 125 }, // 1 upper-right
-  { x: CENTRE.x + 290, y: CENTRE.y + 125 }, // 2 lower-right
-  { x: CENTRE.x,       y: CENTRE.y + 230 }, // 3 bottom-centre
-  { x: CENTRE.x - 290, y: CENTRE.y + 125 }, // 4 lower-left
-  { x: CENTRE.x - 290, y: CENTRE.y - 125 }, // 5 upper-left
+  { x: CENTRE.x + 210, y: CENTRE.y - 200 }, // 0 upper-right
+  { x: CENTRE.x + 300, y: CENTRE.y        }, // 1 east
+  { x: CENTRE.x + 210, y: CENTRE.y + 200 }, // 2 lower-right
+  { x: CENTRE.x - 210, y: CENTRE.y + 200 }, // 3 lower-left
+  { x: CENTRE.x - 300, y: CENTRE.y        }, // 4 west
+  { x: CENTRE.x - 210, y: CENTRE.y - 200 }, // 5 upper-left
 ];
 
 export function layoutDevices<T>(nodes: T[]): LaidOutNode<T>[] {
@@ -49,16 +53,16 @@ export function layoutDevices<T>(nodes: T[]): LaidOutNode<T>[] {
 
 /* ─── Peer slots ───────────────────────────────────────────── */
 
-/** Peer edges sit outside the device ring so cards never overlap. The
- *  slots are chosen to fall BETWEEN device slots (angular offset ~30°)
- *  — radius 400 keeps them well clear of the device ring at 290. */
+/** Peer edges sit outside the device ring + south of DER so cards
+ *  never overlap and no peer line crosses the DER↔DHIS2 vertical
+ *  sync edge. Peer slots live on the lateral + southern arc only. */
 export const PEER_SLOTS: Point[] = [
-  { x: CENTRE.x + 400, y: CENTRE.y        }, // east
-  { x: CENTRE.x - 400, y: CENTRE.y        }, // west
-  { x: CENTRE.x + 340, y: CENTRE.y - 240  }, // ne corner
-  { x: CENTRE.x - 340, y: CENTRE.y + 240  }, // sw corner
-  { x: CENTRE.x + 340, y: CENTRE.y + 240  }, // se corner
-  { x: CENTRE.x - 340, y: CENTRE.y - 240  }, // nw corner
+  { x: CENTRE.x + 420, y: CENTRE.y - 80  }, // east
+  { x: CENTRE.x - 420, y: CENTRE.y - 80  }, // west
+  { x: CENTRE.x + 360, y: CENTRE.y + 260 }, // se corner
+  { x: CENTRE.x - 360, y: CENTRE.y + 260 }, // sw corner
+  { x: CENTRE.x + 170, y: CENTRE.y + 320 }, // south-se
+  { x: CENTRE.x - 170, y: CENTRE.y + 320 }, // south-sw
 ];
 
 export function layoutPeers<T>(nodes: T[]): LaidOutNode<T>[] {
@@ -90,8 +94,11 @@ export function ringLayout<T>(nodes: T[], radius: number,
   });
 }
 
-/** WAN cloud sits above-right of the DER centre so the DER↔WAN line
- *  never crosses the top-centre or upper-right device slots. */
+/** WAN (central DHIS2) sits directly above DER on the vertical
+ *  centreline — the DER↔DHIS2 sync edge is the primary backbone of
+ *  the facility, so it reads as the dominant uplink in the view.
+ *  Devices + peers avoid the top-centre arc (see DEVICE_SLOTS) so
+ *  this straight vertical edge is never crossed. */
 export function wanPosition(): Point {
-  return { x: CENTRE.x + 300, y: CENTRE.y - 320 };
+  return { x: CENTRE.x, y: CENTRE.y - 290 };
 }

@@ -8,38 +8,35 @@ interface Props {
   status: NodeStatus;
 }
 
-/** A single edge between two nodes.
+/** A single edge between two nodes. Colour, dash pattern, animation
+ *  speed, and particle density all vary by {@link ConnectionType} so
+ *  admins can tell traffic classes apart at a glance:
  *
- *  - LAN / Wi-Fi : solid grey line
- *  - P2P         : dashed grey line
- *  - WAN         : thicker blue line (DER ↔ central DHIS2) — distinct
- *                   from facility edges so operators spot WAN state
- *                   at a glance
- *  - any status offline / degraded promotes the stroke to the status
- *    tone, so an unhealthy link reads first on colour.
- *
- *  §2.3.68 — healthy edges get an arrow-head mid-line + an animated
- *  dot traveling from source to destination so admins can see data
- *  flow at a glance. Direction is drawn as DER → endpoint (device /
- *  peer / WAN) which matches how DER publishes outbound traffic;
- *  bidirectional reality is understood from context. */
+ *   - **wan**  (DER ↔ central DHIS2) — bold navy, thick solid line.
+ *     This is the sync backbone; 2 particles travel slowly along it
+ *     to signal the dominant uplink.
+ *   - **p2p** (DER ↔ peer edge) — teal, dashed line. 1 particle at
+ *     peer-exchange speed (slower cadence than LAN).
+ *   - **wifi** — amber, solid line. 1 particle at WiFi cadence
+ *     (fastest — many short bursts).
+ *   - **ethernet** — forest-green, solid line. 1 particle at LAN
+ *     cadence.
+ *   - **offline / degraded** — status tone trumps all, dashed, no
+ *     particle (eye lands on the warning line, not a stale flow). */
 export function NetworkConnection(
   { x1, y1, x2, y2, type, status }: Props
 ): JSX.Element {
-  const isWan = type === 'wan';
-  const dashed = (!isWan && type === 'p2p')
-    || status === 'offline'
-    || status === 'degraded';
   const online = status !== 'offline' && status !== 'degraded';
+  const style = edgeStyle(type);
+  const dashed = !online || style.dashed;
 
   const stroke =
       status === 'offline'  ? statusFill('offline')
     : status === 'degraded' ? statusFill('degraded')
-    : isWan                 ? 'var(--der-primary-ink, #2563eb)'
-    : 'var(--der-ink-300, #cbd5e1)';
+    : style.colour;
 
-  const strokeWidth = isWan ? 2.5 : 1.5;
-  const dashArray = dashed ? '6 4' : undefined;
+  const strokeWidth = style.width;
+  const dashArray = dashed ? style.dashArray : undefined;
 
   // Direction: edges originate from (x1,y1) which is always DER in
   // TopologyCanvas's layout, pointing outward to (x2,y2).
@@ -55,7 +52,7 @@ export function NetworkConnection(
   const ey = y2 - (dy / len) * inset;
 
   // Arrow head glyph — small triangle at the end of the line.
-  const headSize = isWan ? 7 : 5;
+  const headSize = type === 'wan' ? 7 : 5;
   const ang = Math.atan2(ey - sy, ex - sx);
   const ah1x = ex - headSize * Math.cos(ang - Math.PI / 6);
   const ah1y = ey - headSize * Math.sin(ang - Math.PI / 6);
@@ -63,8 +60,13 @@ export function NetworkConnection(
   const ah2y = ey - headSize * Math.sin(ang + Math.PI / 6);
 
   // Animation duration proportional to length so dots travel at a
-  // uniform visual speed across short + long edges.
-  const dur = `${Math.max(1.5, len / 80).toFixed(1)}s`;
+  // uniform visual speed, modulated by per-type cadence multiplier
+  // (WiFi fastest → fastest, WAN slowest → slowest).
+  const baseDur = Math.max(1.5, len / 80);
+  const dur = `${(baseDur * style.cadence).toFixed(1)}s`;
+
+  // Second particle on WAN (bidirectional feel) and shifted phase.
+  const particles = online ? style.particles : 0;
 
   return (
     <g aria-hidden="true">
@@ -81,17 +83,65 @@ export function NetworkConnection(
                  strokeWidth={strokeWidth}
                  strokeLinecap="round"
                  strokeLinejoin="round" />
-      {/* Animated data-flow dot — only when the link is online. The
-          dot travels from source → endpoint and loops; multiple
-          edges stay roughly in sync via `begin="0s"`. */}
-      {online && (
-        <circle r={isWan ? 3 : 2.5} fill={stroke}>
+      {/* Animated data-flow particles — count varies per type.
+          Each extra particle starts with a phase offset so they
+          spread along the edge instead of stacking. */}
+      {Array.from({ length: particles }).map((_, i) => (
+        <circle key={i} r={type === 'wan' ? 3 : 2.5} fill={stroke}>
           <animateMotion dur={dur}
                            repeatCount="indefinite"
+                           begin={`${(-baseDur * style.cadence * i) / particles}s`}
                            path={`M ${sx} ${sy} L ${ex} ${ey}`}
                            rotate="auto" />
         </circle>
-      )}
+      ))}
     </g>
   );
+}
+
+interface EdgeStyle {
+  colour: string;
+  width: number;
+  dashed: boolean;
+  dashArray: string;
+  cadence: number;    // 1.0 = baseline length-based duration; higher = slower
+  particles: number;  // # of animated dots along the edge
+}
+
+/** Edge styling table — different traffic classes read as different
+ *  colours + cadences so admins recognise DER↔DHIS2 sync, peer
+ *  exchange, and local LAN/WiFi at a glance. */
+function edgeStyle(type: ConnectionType): EdgeStyle {
+  switch (type) {
+    case 'wan':
+      return {
+        colour: 'var(--der-primary-ink, #1d4ed8)',
+        width: 2.5, dashed: false, dashArray: '6 4',
+        cadence: 1.3, particles: 2,
+      };
+    case 'p2p':
+      return {
+        colour: 'var(--der-teal-ink, #0d9488)',
+        width: 1.75, dashed: true, dashArray: '6 4',
+        cadence: 1.1, particles: 1,
+      };
+    case 'wifi':
+      return {
+        colour: 'var(--der-warning-ink, #b45309)',
+        width: 1.5, dashed: false, dashArray: '4 4',
+        cadence: 0.8, particles: 1,
+      };
+    case 'ethernet':
+      return {
+        colour: 'var(--der-success-ink, #0f766e)',
+        width: 1.5, dashed: false, dashArray: '4 4',
+        cadence: 0.9, particles: 1,
+      };
+    default:
+      return {
+        colour: 'var(--der-ink-300, #cbd5e1)',
+        width: 1.5, dashed: false, dashArray: '4 4',
+        cadence: 1.0, particles: 1,
+      };
+  }
 }
