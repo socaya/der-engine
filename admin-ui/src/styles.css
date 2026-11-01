@@ -2309,7 +2309,9 @@ tr.is-nested .ea-wf-steps-sp-expand{padding-left:22px}
 .ea-wf-fields-table th{text-align:left;font-weight:600}
 .ea-wf-fields-col-include{width:72px;text-align:center}
 .ea-wf-fields-col-include input{margin:0}
-.ea-wf-fields-col-req{width:160px}
+.ea-wf-fields-col-req{width:140px}
+.ea-wf-fields-col-role{width:120px}
+.ea-wf-fields-col-dev{width:200px}
 .ea-wf-fields-table td{vertical-align:middle}
 .ea-wf-fields-name{color:var(--der-ink-900);font-size:13px}
 .ea-wf-fields-hint{font-size:11px;margin-top:2px}

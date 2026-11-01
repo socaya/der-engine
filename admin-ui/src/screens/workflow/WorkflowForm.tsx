@@ -10,6 +10,15 @@ import type {
 } from './wizardMetadata';
 
 type FieldReq = 'REQUIRED' | 'OPTIONAL' | 'READONLY' | 'HIDDEN';
+type OwnerRole = 'OPERATOR' | 'REVIEWER' | 'ADMIN';
+
+interface FieldSel {
+  included: boolean;
+  requirement: FieldReq;
+  /** V066 — per-field handover overrides. Null → inherit from the step. */
+  ownerRole?: OwnerRole | null;
+  ownerDeviceId?: string | null;
+}
 
 interface StepRow {
   breakable: Breakable;
@@ -17,7 +26,7 @@ interface StepRow {
   ownerDeviceId: string | null;
   ownerRole: 'OPERATOR' | 'REVIEWER' | 'ADMIN';
   fieldCandidates: FieldCandidate[] | null;
-  fieldSelection: Record<string, { included: boolean; requirement: FieldReq }>;
+  fieldSelection: Record<string, FieldSel>;
   expanded: boolean;
 }
 
@@ -140,11 +149,13 @@ export function WorkflowForm({ api = edgeApi }:
           .map((s) => [s.sectionRef, s] as const));
         const prefilled: StepRow[] = bs.map((b) => {
           const existing = bySectionRef.get(b.id);
-          const selection: Record<string, { included: boolean; requirement: FieldReq }> = {};
+          const selection: Record<string, FieldSel> = {};
           existing?.fields?.forEach((f) => {
             selection[f.fieldRef] = {
               included: true,
               requirement: coerceReq(f.requirement),
+              ownerRole: (f.ownerRole as OwnerRole | null) ?? null,
+              ownerDeviceId: f.ownerDeviceId ?? null,
             };
           });
           return {
@@ -160,7 +171,7 @@ export function WorkflowForm({ api = edgeApi }:
         const seenRefs = new Set(bs.map((b) => b.id));
         w.steps.forEach((s) => {
           if (!seenRefs.has(s.sectionRef ?? '')) {
-            const selection: Record<string, { included: boolean; requirement: FieldReq }> = {};
+            const selection: Record<string, FieldSel> = {};
             s.fields?.forEach((f) => {
               selection[f.fieldRef] = {
                 included: true,
@@ -295,7 +306,7 @@ export function WorkflowForm({ api = edgeApi }:
         .then((fields) => setRows((p) => {
           const next = [...p];
           const existingSel = next[ix].fieldSelection;
-          const seeded: Record<string, { included: boolean; requirement: FieldReq }> = {};
+          const seeded: Record<string, FieldSel> = {};
           fields.forEach((f) => {
             seeded[f.id] = existingSel[f.id] ?? {
               included: true,
@@ -327,7 +338,7 @@ export function WorkflowForm({ api = edgeApi }:
           .then((fields) => setRows((p) => {
             const next = [...p];
             const existingSel = next[ix].fieldSelection;
-            const seeded: Record<string, { included: boolean; requirement: FieldReq }> = {};
+            const seeded: Record<string, FieldSel> = {};
             fields.forEach((f) => {
               seeded[f.id] = existingSel[f.id] ?? {
                 included: true,
@@ -350,7 +361,7 @@ export function WorkflowForm({ api = edgeApi }:
     });
   }
   function updateFieldSelection(ix: number, fieldId: string,
-                                 next: { included: boolean; requirement: FieldReq }): void {
+                                 next: FieldSel): void {
     setRows((prev) => {
       const copy = [...prev];
       copy[ix] = { ...copy[ix],
@@ -390,11 +401,14 @@ export function WorkflowForm({ api = edgeApi }:
       const copy = [...prev];
       const row = copy[ix];
       const candidates = row.fieldCandidates ?? [];
-      const next: Record<string, { included: boolean; requirement: FieldReq }> = {};
+      const next: Record<string, FieldSel> = {};
       candidates.forEach((f) => {
+        const existing = row.fieldSelection[f.id];
         next[f.id] = {
+          ...existing,
           included: selected,
-          requirement: f.compulsory ? 'REQUIRED' : 'OPTIONAL',
+          requirement: existing?.requirement
+            ?? (f.compulsory ? 'REQUIRED' : 'OPTIONAL'),
         };
       });
       copy[ix] = { ...row, fieldSelection: next };
@@ -421,7 +435,11 @@ export function WorkflowForm({ api = edgeApi }:
           ownerRole: r.ownerRole,
           fields: Object.entries(r.fieldSelection)
             .filter(([, s]) => s.included)
-            .map(([fieldRef, s]) => ({ fieldRef, requirement: s.requirement })),
+            .map(([fieldRef, s]) => ({
+              fieldRef, requirement: s.requirement,
+              ownerRole: s.ownerRole ?? null,
+              ownerDeviceId: s.ownerDeviceId ?? null,
+            })),
         })),
         explicitDependencies: depsTouched
           ? deps.filter((d) => {
@@ -711,7 +729,7 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
     onUpdate: (ix: number, patch: Partial<StepRow>) => void;
     onExpand: (ix: number) => void;
     onField: (ix: number, id: string,
-              next: { included: boolean; requirement: FieldReq }) => void;
+              next: FieldSel) => void;
     onBulkField: (ix: number, selected: boolean) => void;
     onMove: (ix: number, direction: -1 | 1) => void;
 }): JSX.Element {
@@ -782,20 +800,20 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField, o
                   }));
                   if (c.expanded) {
                     out.push(renderFieldsPanel({
-                      row: c, ix: ci, onField, onBulkField,
+                      row: c, ix: ci, devices, onField, onBulkField,
                     }));
                   }
                 }
                 if (!hasChildren) {
                   out.push(renderFieldsPanel({
-                    row: r, ix: i, onField, onBulkField,
+                    row: r, ix: i, devices, onField, onBulkField,
                   }));
                 } else if (r.included) {
                   // Parent-with-children + ticked (whole-parent capture)
                   // → append the parent's full field panel below sections
                   // so operator can refine the capture.
                   out.push(renderFieldsPanel({
-                    row: r, ix: i, onField, onBulkField,
+                    row: r, ix: i, devices, onField, onBulkField,
                   }));
                 }
               }
@@ -978,11 +996,12 @@ function renderRow(args: {
 
 function renderFieldsPanel(args: {
   row: StepRow; ix: number;
+  devices: edgeApi.EdgeDeviceRow[];
   onField: (ix: number, id: string,
-            next: { included: boolean; requirement: FieldReq }) => void;
+            next: FieldSel) => void;
   onBulkField: (ix: number, selected: boolean) => void;
 }): JSX.Element {
-  const { row: r, ix: i, onField, onBulkField } = args;
+  const { row: r, ix: i, devices, onField, onBulkField } = args;
   return (
     <tr key={`${r.breakable.id}-fields`}
          className="ea-wf-steps-fields-row"
@@ -1018,6 +1037,8 @@ function renderFieldsPanel(args: {
                   <th className="ea-wf-fields-col-include">Include</th>
                   <th>Field</th>
                   <th className="ea-wf-fields-col-req">Behaviour</th>
+                  <th className="ea-wf-fields-col-role">Role</th>
+                  <th className="ea-wf-fields-col-dev">Handover to (device)</th>
                 </tr>
               </thead>
               <tbody>
@@ -1051,12 +1072,44 @@ function renderFieldsPanel(args: {
                                  value={req}
                                  disabled={!included}
                                  onChange={(e) => onField(i, f.id,
-                                   { included: true,
+                                   { ...sel, included: true,
                                      requirement: e.target.value as FieldReq })}>
                           <option value="REQUIRED">Required</option>
                           <option value="OPTIONAL">Optional</option>
                           <option value="READONLY">Read-only</option>
                           <option value="HIDDEN">Hidden</option>
+                        </select>
+                      </td>
+                      <td>
+                        <select className="ea-input ea-input--sm"
+                                 data-test={`wf-form-row-${i}-field-${f.id}-role`}
+                                 value={sel?.ownerRole ?? ''}
+                                 disabled={!included}
+                                 onChange={(e) => onField(i, f.id,
+                                   { ...sel, included: true, requirement: req,
+                                     ownerRole: e.target.value === ''
+                                       ? null : e.target.value as OwnerRole })}>
+                          <option value="">Inherit</option>
+                          <option value="OPERATOR">Operator</option>
+                          <option value="REVIEWER">Reviewer</option>
+                          <option value="ADMIN">Admin</option>
+                        </select>
+                      </td>
+                      <td>
+                        <select className="ea-input ea-input--sm"
+                                 data-test={`wf-form-row-${i}-field-${f.id}-device`}
+                                 value={sel?.ownerDeviceId ?? ''}
+                                 disabled={!included}
+                                 onChange={(e) => onField(i, f.id,
+                                   { ...sel, included: true, requirement: req,
+                                     ownerDeviceId: e.target.value === ''
+                                       ? null : e.target.value })}>
+                          <option value="">Inherit</option>
+                          {devices.map((d) => (
+                            <option key={d.deviceId} value={d.deviceId}>
+                              {d.displayName ?? d.deviceId.slice(0, 12)}
+                            </option>
+                          ))}
                         </select>
                       </td>
                     </tr>

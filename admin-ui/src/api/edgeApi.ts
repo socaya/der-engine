@@ -907,6 +907,10 @@ export type SectionKind =
 export interface CaptureWorkflowField {
   fieldRef: string;
   requirement: FieldRequirement;
+  /** V066 — per-field handover override. Null → inherit from the
+   *  parent step. */
+  ownerRole?: OwnerRole | null;
+  ownerDeviceId?: string | null;
 }
 
 export interface CaptureWorkflowStep {

@@ -116,8 +116,12 @@ public class CaptureWorkflowRepository {
                     s.sectionKind().name(), s.sectionRef());
             for (final CaptureWorkflowField f : s.fields()) {
                 jdbc.update("INSERT INTO der.capture_workflow_field "
-                                + "(step_id, field_ref, requirement) VALUES (?, ?, ?)",
-                        s.stepId(), f.fieldRef(), f.requirement().name());
+                                + "(step_id, field_ref, requirement, "
+                                + " owner_role, owner_device_id) "
+                                + "VALUES (?, ?, ?, ?, ?)",
+                        s.stepId(), f.fieldRef(), f.requirement().name(),
+                        f.ownerRole() == null ? null : f.ownerRole().name(),
+                        f.ownerDeviceId());
             }
         }
         for (final CaptureWorkflowDependency d : w.dependencies()) {
@@ -233,14 +237,21 @@ public class CaptureWorkflowRepository {
                 (ResultSet rs, int row) -> {
                     final UUID stepId = (UUID) rs.getObject("step_id");
                     final List<CaptureWorkflowField> fields = jdbc.query(
-                            "SELECT step_id, field_ref, requirement "
+                            "SELECT step_id, field_ref, requirement, "
+                                    + " owner_role, owner_device_id "
                                     + "FROM der.capture_workflow_field WHERE step_id = ? "
                                     + "ORDER BY field_ref ASC",
-                            (fr, fi) -> new CaptureWorkflowField(
-                                    (UUID) fr.getObject("step_id"),
-                                    fr.getString("field_ref"),
-                                    CaptureWorkflowField.Requirement.valueOf(
-                                            fr.getString("requirement"))),
+                            (fr, fi) -> {
+                                final String ownerRole = fr.getString("owner_role");
+                                return new CaptureWorkflowField(
+                                        (UUID) fr.getObject("step_id"),
+                                        fr.getString("field_ref"),
+                                        CaptureWorkflowField.Requirement.valueOf(
+                                                fr.getString("requirement")),
+                                        ownerRole == null ? null
+                                            : CaptureWorkflowStep.OwnerRole.valueOf(ownerRole),
+                                        (UUID) fr.getObject("owner_device_id"));
+                            },
                             stepId);
                     return new CaptureWorkflowStep(stepId,
                             (UUID) rs.getObject("workflow_id"),

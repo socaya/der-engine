@@ -370,9 +370,16 @@ export function buildWorkflowPayload(opts: {
     ownerDeviceId: string | null;
     ownerRole: 'OPERATOR' | 'REVIEWER' | 'ADMIN';
     /** Per-step field selection. Empty → "capture everything in the
-     *  section/stage" (server treats fields=[] as unscoped). */
-    fields?: { fieldRef: string;
-                 requirement: 'REQUIRED' | 'OPTIONAL' | 'READONLY' | 'HIDDEN' }[];
+     *  section/stage" (server treats fields=[] as unscoped). V066
+     *  adds optional per-field ownerRole / ownerDeviceId overrides
+     *  so a single data element / TEA can be handed off to a
+     *  different device than its containing step. */
+    fields?: {
+      fieldRef: string;
+      requirement: 'REQUIRED' | 'OPTIONAL' | 'READONLY' | 'HIDDEN';
+      ownerRole?: 'OPERATOR' | 'REVIEWER' | 'ADMIN' | null;
+      ownerDeviceId?: string | null;
+    }[];
   }[];
   /** Explicit dependencies, keyed by breakable id. Omit to fall back
    *  to the historical linear chain built from step order. */

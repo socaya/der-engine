@@ -636,8 +636,17 @@ public class CaptureWorkflowController {
         m.put("ownerRole", s.ownerRole().name());
         m.put("ownerDeviceId", s.ownerDeviceId() == null ? null : s.ownerDeviceId().toString());
         m.put("stepKind", s.stepKind().name());
-        m.put("fields", s.fields().stream().map(f -> Map.of(
-                "fieldRef", f.fieldRef(), "requirement", f.requirement().name())).toList());
+        m.put("fields", s.fields().stream().map(f -> fieldMap(f)).toList());
+        return m;
+    }
+
+    private static Map<String, Object> fieldMap(final CaptureWorkflowField f) {
+        final Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("fieldRef", f.fieldRef());
+        m.put("requirement", f.requirement().name());
+        m.put("ownerRole", f.ownerRole() == null ? null : f.ownerRole().name());
+        m.put("ownerDeviceId", f.ownerDeviceId() == null ? null
+                : f.ownerDeviceId().toString());
         return m;
     }
 
@@ -677,7 +686,11 @@ public class CaptureWorkflowController {
                         for (final FieldRequest f : s.fields()) {
                             fields.add(new CaptureWorkflowField(stepId, f.fieldRef(),
                                     CaptureWorkflowField.Requirement.valueOf(
-                                            f.requirement().toUpperCase(java.util.Locale.ROOT))));
+                                            f.requirement().toUpperCase(java.util.Locale.ROOT)),
+                                    f.ownerRole() == null ? null
+                                        : CaptureWorkflowStep.OwnerRole.valueOf(
+                                            f.ownerRole().toUpperCase(java.util.Locale.ROOT)),
+                                    f.ownerDeviceId()));
                         }
                     }
                     final CaptureWorkflowStep.SectionKind sk = s.sectionKind() == null
@@ -755,8 +768,7 @@ public class CaptureWorkflowController {
         m.put("stepKind", s.stepKind().name());
         m.put("sectionKind", s.sectionKind().name());
         m.put("sectionRef", s.sectionRef());
-        m.put("fields", s.fields().stream().map(f -> Map.of(
-                "fieldRef", f.fieldRef(), "requirement", f.requirement().name())).toList());
+        m.put("fields", s.fields().stream().map(f -> fieldMap(f)).toList());
         return m;
     }
 
@@ -840,7 +852,9 @@ public class CaptureWorkflowController {
 
     public record FieldRequest(
             @JsonProperty("fieldRef") String fieldRef,
-            @JsonProperty("requirement") String requirement) { }
+            @JsonProperty("requirement") String requirement,
+            @JsonProperty("ownerRole") String ownerRole,
+            @JsonProperty("ownerDeviceId") UUID ownerDeviceId) { }
 
     public record DependencyRequest(
             @JsonProperty("stepId") UUID stepId,
