@@ -29,19 +29,6 @@ export interface WorkflowMonitoringProps {
                              | 'getWorkflowDrafts'>;
 }
 
-function SummaryTile({ label, value, tone }: {
-  label: string;
-  value: number;
-  tone: 'info' | 'warning' | 'danger' | 'neutral';
-}): JSX.Element {
-  return (
-    <div className={'ea-wf-monitor-tile ea-wf-monitor-tile--' + tone}>
-      <div className="ea-wf-monitor-tile-value">{value}</div>
-      <div className="ea-wf-monitor-tile-label">{label}</div>
-    </div>
-  );
-}
-
 function PrefetchReadinessTable({ devices }: {
   devices: edgeApi.EdgeDeviceRow[];
 }): JSX.Element {
@@ -324,6 +311,12 @@ export function WorkflowMonitoring({ api = edgeApi }:
             <span>·</span>
             <span>Blocked {bold(totalBlocked)}</span>
             <span>·</span>
+            <span>Completed 24 h {bold(summary?.completedLast24h ?? 0)}</span>
+            <span>·</span>
+            <span>Errors {bold(summary?.openErrorIssues ?? 0)}</span>
+            <span>·</span>
+            <span>Conflicts {bold(summary?.openConflicts ?? 0)}</span>
+            <span>·</span>
             <span>Workflows {bold(byWorkflow.length)}</span>
             <span>·</span>
             <span>Devices {bold(byDevice.length)}</span>
@@ -346,22 +339,6 @@ export function WorkflowMonitoring({ api = edgeApi }:
       {err && (
         <ErrorBlock title="Could not load monitoring data"
                      testId="wf-monitor-error">{err}</ErrorBlock>
-      )}
-
-      {summary && (
-        <div className="ea-wf-monitor-summary" data-test="wf-monitor-summary">
-          <SummaryTile label="Completed · last 24 h"
-                        value={summary.completedLast24h} tone="info" />
-          <SummaryTile label="Blocked right now"
-                        value={summary.currentlyBlocked}
-                        tone={summary.currentlyBlocked > 0 ? 'warning' : 'neutral'} />
-          <SummaryTile label="Error issues open"
-                        value={summary.openErrorIssues}
-                        tone={summary.openErrorIssues > 0 ? 'danger' : 'neutral'} />
-          <SummaryTile label="Conflicts pending"
-                        value={summary.openConflicts}
-                        tone={summary.openConflicts > 0 ? 'danger' : 'neutral'} />
-        </div>
       )}
 
       <Panel title="Blockages — review and troubleshoot"
