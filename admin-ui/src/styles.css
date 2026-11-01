@@ -2237,6 +2237,7 @@ kbd{
 .ea-wf-steps-col-include{width:72px}
 .ea-wf-steps-col-role{width:120px}
 .ea-wf-steps-col-device{width:160px}
+.ea-wf-steps-col-kind{width:160px}
 .ea-wf-steps-col-fields{width:72px;text-align:right}
 .ea-wf-steps-table .ea-wf-steps-col-fields{text-align:right}
 .ea-wf-steps-table td:last-child{text-align:right}
@@ -2274,3 +2275,7 @@ kbd{
 }
 .ea-peer-auth-user{margin-left:6px}
 .ea-metadata-filter{margin-bottom:6px}
+
+/* Workflow module uses a wide form card so the Steps table has room
+   for the Kind / Role / Handover-to columns + inline field editor. */
+.ea-form-card--wide{max-width:none}

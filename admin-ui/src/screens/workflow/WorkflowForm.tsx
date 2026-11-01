@@ -120,12 +120,15 @@ export function WorkflowForm({ api = edgeApi }:
         }
         let bs: Breakable[];
         try {
-          bs = detected.type === 'AGGREGATE'
-            ? await md.listDataSetSections(w.boundMetadataId)
-            : detected.type === 'EVENT'
-              ? [{ id: w.boundMetadataId, displayName: 'Whole event',
-                   sectionKind: 'EVENT_INSTANCE' as const }]
-              : await md.listProgramStages(w.boundMetadataId);
+          if (detected.type === 'AGGREGATE') {
+            bs = await md.listDataSetSections(w.boundMetadataId);
+          } else {
+            bs = await md.listProgramStages(w.boundMetadataId);
+            if (bs.length === 0 && detected.type === 'EVENT') {
+              bs = [{ id: w.boundMetadataId, displayName: 'Whole event',
+                       sectionKind: 'EVENT_INSTANCE' as const }];
+            }
+          }
         } catch {
           bs = [];
         }
@@ -210,13 +213,11 @@ export function WorkflowForm({ api = edgeApi }:
     setBreakables(null);
     const loader = type === 'AGGREGATE'
       ? md.listDataSetSections(chosenMetadata.id)
-      : type === 'EVENT'
-        ? Promise.resolve<Breakable[]>([
-            { id: chosenMetadata.id,
-              displayName: 'Whole event',
-              sectionKind: 'EVENT_INSTANCE' },
-          ])
-        : md.listProgramStages(chosenMetadata.id);
+      : md.listProgramStages(chosenMetadata.id)
+          .then((bs) => bs.length > 0 ? bs : (type === 'EVENT'
+            ? [{ id: chosenMetadata.id, displayName: 'Whole event',
+                 sectionKind: 'EVENT_INSTANCE' as const }]
+            : []));
     loader
       .then((bs) => {
         setBreakables(bs);
@@ -397,7 +398,7 @@ export function WorkflowForm({ api = edgeApi }:
                      testId="wf-form-load-error">{loadError}</ErrorBlock>
       )}
 
-      <section className="ea-card ea-form-card">
+      <section className="ea-card ea-form-card ea-form-card--wide">
         <form className="ea-form"
               onSubmit={(e) => { e.preventDefault(); if (canSave) void doSave(); }}>
           <div className="ea-form-section">
@@ -532,11 +533,17 @@ export function WorkflowForm({ api = edgeApi }:
             <div className="ea-form-section">
               <div className="ea-form-section-head">
                 <h2>Capture steps · owner device &amp; role</h2>
-                <p>Each ticked section becomes a step. The device + role
-                   picked here is the <strong>handover target</strong> —
-                   who picks up that step in their “My queue”. Leave the
-                   device as <em>Any</em> to pool it to anyone with the
-                   role.</p>
+                <p>Each ticked row becomes a step. The <strong>Kind</strong>
+                   column reflects the DHIS2 hierarchy (program stage, stage
+                   section, dataset section, event). The <strong>Role</strong>
+                   is one of the three DER capture roles —
+                   <code>OPERATOR</code> (field capture),
+                   <code>REVIEWER</code> (sign-off), <code>ADMIN</code>
+                   (configuration) — defined in
+                   <code>CaptureWorkflowStep.OwnerRole</code> on the server.
+                   <strong>Handover to</strong> is the device that will see
+                   this step in <em>My queue</em>; leave as <em>Any</em> to
+                   pool to anyone holding the role.</p>
               </div>
               {breakables == null ? (
                 <LoadingBlock testId="wf-form-breakables-loading" />
@@ -643,6 +650,7 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
           <tr>
             <th className="ea-wf-steps-col-include">Include</th>
             <th>Section / stage</th>
+            <th className="ea-wf-steps-col-kind">Kind</th>
             <th className="ea-wf-steps-col-role">Role</th>
             <th className="ea-wf-steps-col-device">Handover to (device)</th>
             <th className="ea-wf-steps-col-fields">Fields</th>
@@ -667,6 +675,11 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
                     {summary && (
                       <div className="ea-text-muted ea-wf-steps-summary">{summary}</div>
                     )}
+                  </td>
+                  <td>
+                    <span className={'ea-chip ea-chip--' + kindTone(r.breakable.sectionKind)}>
+                      {kindLabel(r.breakable.sectionKind)}
+                    </span>
                   </td>
                   <td>
                     <select className="ea-input ea-input--sm"
@@ -711,7 +724,7 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
                 <tr key={`${r.breakable.id}-fields`}
                      className="ea-wf-steps-fields-row"
                      data-test={`wf-form-row-${i}-fields`}>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     {r.fieldCandidates == null ? (
                       <span className="ea-text-muted">Loading…</span>
                     ) : r.fieldCandidates.length === 0 ? (
@@ -770,6 +783,26 @@ function StepsTable({ rows, devices, onUpdate, onExpand, onField, onBulkField }:
       </table>
     </div>
   );
+}
+
+function kindLabel(k: Breakable['sectionKind']): string {
+  switch (k) {
+    case 'PROGRAM_STAGE':         return 'Program stage';
+    case 'PROGRAM_STAGE_SECTION': return 'Stage section';
+    case 'DATASET_SECTION':       return 'Dataset section';
+    case 'EVENT_INSTANCE':        return 'Event';
+    default:                      return k;
+  }
+}
+
+function kindTone(k: Breakable['sectionKind']): string {
+  switch (k) {
+    case 'PROGRAM_STAGE':         return 'info';
+    case 'PROGRAM_STAGE_SECTION': return 'neutral';
+    case 'DATASET_SECTION':       return 'info';
+    case 'EVENT_INSTANCE':        return 'info';
+    default:                      return 'neutral';
+  }
 }
 
 function fieldSummary(row: StepRow): string | null {
