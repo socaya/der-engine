@@ -27,7 +27,7 @@ class ReferralInboxRepositoryTest {
         return new ReferralInboxEntry(UUID.randomUUID(),
                 ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE,
                 "src-ref", "ou-dest", "{}", NOW,
-                ReferralInboxEntry.Status.PENDING, null, null);
+                ReferralInboxEntry.Status.PENDING, null, null, null);
     }
 
     @Test

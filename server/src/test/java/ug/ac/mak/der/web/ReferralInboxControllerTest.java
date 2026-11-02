@@ -62,7 +62,7 @@ class ReferralInboxControllerTest {
         when(repo.findPending(anyInt())).thenReturn(List.of(new ReferralInboxEntry(
                 UUID.randomUUID(), ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE,
                 "ref-1", "ou-dest", "{}", NOW,
-                ReferralInboxEntry.Status.PENDING, null, null)));
+                ReferralInboxEntry.Status.PENDING, null, null, null)));
         mockMvc.perform(get("/edge-api/v1/referral/inbox").with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries[0].kind").value("AGGREGATE_DATA_VALUE"))
@@ -91,7 +91,7 @@ class ReferralInboxControllerTest {
         final UUID id = UUID.randomUUID();
         when(repo.findById(id)).thenReturn(java.util.Optional.of(new ReferralInboxEntry(
                 id, ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE, "r", "ou", "{}",
-                NOW, ReferralInboxEntry.Status.PENDING, null, null)));
+                NOW, ReferralInboxEntry.Status.PENDING, null, null, null)));
         when(repo.markResolved(org.mockito.ArgumentMatchers.eq(id),
                 org.mockito.ArgumentMatchers.eq(ReferralInboxEntry.Status.ACCEPTED),
                 org.mockito.ArgumentMatchers.any(UUID.class),
@@ -109,7 +109,7 @@ class ReferralInboxControllerTest {
         final UUID id = UUID.randomUUID();
         when(repo.findById(id)).thenReturn(java.util.Optional.of(new ReferralInboxEntry(
                 id, ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE, "r", "ou", "{}",
-                NOW, ReferralInboxEntry.Status.PENDING, null, null)));
+                NOW, ReferralInboxEntry.Status.PENDING, null, null, null)));
         when(ingest.ingest(org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(UUID.class),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
@@ -133,7 +133,7 @@ class ReferralInboxControllerTest {
         final UUID id = UUID.randomUUID();
         when(repo.findById(id)).thenReturn(java.util.Optional.of(new ReferralInboxEntry(
                 id, ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE, "r", "ou", "{}",
-                NOW, ReferralInboxEntry.Status.ACCEPTED, UUID.randomUUID(), NOW)));
+                NOW, ReferralInboxEntry.Status.ACCEPTED, UUID.randomUUID(), NOW, null)));
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .post("/edge-api/v1/referral/inbox/" + id + "/accept")
                         .with(as(EdgeRole.ADMIN)))

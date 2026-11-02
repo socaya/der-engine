@@ -6,6 +6,7 @@ import {
   entityTypeIcon, entityTypeLabel, operatorState, operatorStateTone,
   DrawerTabs, JsonViewer, SyncStatusBar, Spinner, useTriggerAndWatch,
   BackLink, RowMenu, ScopedFilterChip, Status,
+  JOURNAL_ENTITY_TYPES,
   type OperatorState, type SyncStatusTone, type RowMenuItem,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
@@ -50,7 +51,14 @@ export function MockupDataQueues(): JSX.Element {
   const items = useMemo(() => (ops ?? []).map((o) => ({
     op: o, state: operatorState(o.state),
   })), [ops]);
-  const types = useMemo(() => Array.from(new Set(items.map((i) => i.op.entityType))).sort(), [items]);
+  // §2.3.111 R-AG — always offer every DER-supported data type in
+  // the filter dropdown, even when the current queue has zero rows
+  // for that type. Operators selecting an empty bucket get a clear
+  // "no matching rows" state instead of a missing option.
+  const types = useMemo(() => Array.from(new Set([
+    ...JOURNAL_ENTITY_TYPES,
+    ...items.map((i) => i.op.entityType),
+  ])).sort(), [items]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items.filter((i) => {

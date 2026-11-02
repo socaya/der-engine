@@ -122,6 +122,10 @@ public class ReferralInboxController {
         m.put("boundOrgUnit", e.boundOrgUnit());
         m.put("discoveredAt", e.discoveredAt().toString());
         m.put("status", e.status().name());
+        // §2.3.110 R-AE — present when the referral has been ACCEPTED
+        // on or after V081. Enables the "Workflows › View ingest run
+        // ↗" affordance in MockupReferralDetail.
+        m.put("ingestRunId", e.ingestRunId() == null ? null : e.ingestRunId().toString());
         return m;
     }
 }

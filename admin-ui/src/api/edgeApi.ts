@@ -1035,6 +1035,10 @@ export interface ReferralInboxRow {
   boundOrgUnit: string;
   discoveredAt: string;
   status: 'PENDING' | 'ACCEPTED' | 'DISMISSED';
+  /** §2.3.110 R-AE — present on ACCEPTED rows ingested on/after V081.
+   *  Drives the "Workflows › View ingest run ↗" affordance in the
+   *  Referral detail drawer. */
+  ingestRunId?: string | null;
 }
 
 export function listReferralInbox(limit = 100):

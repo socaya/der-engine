@@ -644,6 +644,19 @@ const ENTITY_TYPE_LABEL: Readonly<Record<string, string>> = {
   ORG_UNIT: 'Organisation unit',
 };
 
+/** §2.3.111 R-AG — canonical list of entity types DER journals and
+ *  pushes to Central. Mirrors
+ *  {@code OperationJournalEntry.EntityType} on the server. Used by
+ *  the Data overview and the Data Queue filter so operators always
+ *  see every supported type — even when zero rows exist locally. */
+export const JOURNAL_ENTITY_TYPES: ReadonlyArray<string> = [
+  'AGGREGATE_DATA_VALUE',
+  'EVENT',
+  'TRACKED_ENTITY',
+  'ENROLLMENT',
+  'PROGRAM_STAGE_EVENT',
+];
+
 type EntityIconId = import('../components/UiIcon').UiIconId;
 
 const ENTITY_TYPE_ICON: Readonly<Record<string, EntityIconId>> = {

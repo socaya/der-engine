@@ -46,7 +46,7 @@ public class ReferralInboxRepository {
         try {
             return java.util.Optional.ofNullable(jdbc.queryForObject(
                     "SELECT inbox_id, kind, source_ref, bound_org_unit, payload::text AS payload, "
-                            + "discovered_at, status, resolved_by, resolved_at "
+                            + "discovered_at, status, resolved_by, resolved_at, ingest_run_id "
                             + "FROM der.referral_inbox WHERE inbox_id = ?",
                     mapper(), inboxId));
         } catch (org.springframework.dao.EmptyResultDataAccessException ex) {
@@ -77,6 +77,19 @@ public class ReferralInboxRepository {
                 status.name(), actor, Timestamp.from(at), inboxId);
     }
 
+    /** §2.3.110 R-AE — thread the ingest workflow-run id onto the row
+     *  so the admin UI can drill from a referral into the run that
+     *  produced the local record(s). Called immediately after the
+     *  ingest service persists the local write. */
+    public int setIngestRunId(final UUID inboxId, final UUID ingestRunId) {
+        Objects.requireNonNull(inboxId, "inboxId");
+        Objects.requireNonNull(ingestRunId, "ingestRunId");
+        return jdbc.update(
+                "UPDATE der.referral_inbox SET ingest_run_id = ? "
+              + "WHERE inbox_id = ? AND ingest_run_id IS NULL",
+                ingestRunId, inboxId);
+    }
+
     private RowMapper<ReferralInboxEntry> mapper() {
         return (ResultSet rs, int row) -> new ReferralInboxEntry(
                 (UUID) rs.getObject("inbox_id"),
@@ -88,6 +101,7 @@ public class ReferralInboxRepository {
                 ReferralInboxEntry.Status.valueOf(rs.getString("status")),
                 (UUID) rs.getObject("resolved_by"),
                 rs.getTimestamp("resolved_at") == null ? null
-                        : rs.getTimestamp("resolved_at").toInstant());
+                        : rs.getTimestamp("resolved_at").toInstant(),
+                (UUID) rs.getObject("ingest_run_id"));
     }
 }

@@ -38,15 +38,21 @@ public class ReferralIngestService {
     private final ObjectProvider<EventService> events;
     private final SystemWorkflowService systemWorkflows;
     private final ObjectMapper mapper;
+    /** §2.3.110 R-AE — threads the ingest run id back onto the
+     *  inbox row so {@code MockupReferralDetail} can offer a
+     *  "Workflows › View ingest run ↗" drill. */
+    private final ReferralInboxRepository inbox;
 
     public ReferralIngestService(final AggregateDataValueService aggregate,
                                    final ObjectProvider<EventService> events,
                                    final SystemWorkflowService systemWorkflows,
-                                   final ObjectMapper mapper) {
+                                   final ObjectMapper mapper,
+                                   final ReferralInboxRepository inbox) {
         this.aggregate = Objects.requireNonNull(aggregate, "aggregate");
         this.events = Objects.requireNonNull(events, "events");
         this.systemWorkflows = Objects.requireNonNull(systemWorkflows, "systemWorkflows");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
+        this.inbox = Objects.requireNonNull(inbox, "inbox");
     }
 
     public boolean ingest(final ReferralInboxEntry entry, final UUID actor,
@@ -101,6 +107,7 @@ public class ReferralIngestService {
                 text(root, "dataSet"),
                 runId);
         aggregate.submit(List.of(input), actor, ip, userAgent);
+        inbox.setIngestRunId(entry.inboxId(), runId);
         return true;
     }
 
@@ -145,6 +152,7 @@ public class ReferralIngestService {
                 entry.boundOrgUnit(), occurredAt, status,
                 text(root, "attributeOptionCombo"), values, null, runId);
         svc.submit(List.of(input), actor, ip, userAgent);
+        inbox.setIngestRunId(entry.inboxId(), runId);
         return true;
     }
 

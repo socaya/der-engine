@@ -69,7 +69,7 @@ public class ReferralInboxScanner {
                 final int rows = inbox.insertIfAbsent(new ReferralInboxEntry(
                         UUID.randomUUID(), c.kind(), c.sourceRef(), b.orgUnitId(),
                         c.payloadJson(), now,
-                        ReferralInboxEntry.Status.PENDING, null, null));
+                        ReferralInboxEntry.Status.PENDING, null, null, null));
                 inserted += rows;
             } catch (RuntimeException ex) {
                 LOG.warn("referral scanner: insertIfAbsent failed for {}: {}",

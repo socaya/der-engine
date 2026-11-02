@@ -4,7 +4,12 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Row in {@code der.referral_inbox}. ADR-0027 alpha.4+. */
+/** Row in {@code der.referral_inbox}. ADR-0027 alpha.4+.
+ *
+ *  §2.3.110 R-AE — {@code ingestRunId} added so the admin UI can
+ *  drill from a referral into the system workflow run that produced
+ *  the local record(s). NULL for PENDING / DISMISSED rows and for
+ *  historical ACCEPTED rows that pre-date V081. */
 public record ReferralInboxEntry(
         UUID inboxId,
         Kind kind,
@@ -14,7 +19,8 @@ public record ReferralInboxEntry(
         Instant discoveredAt,
         Status status,
         UUID resolvedBy,
-        Instant resolvedAt
+        Instant resolvedAt,
+        UUID ingestRunId
 ) {
 
     public ReferralInboxEntry {

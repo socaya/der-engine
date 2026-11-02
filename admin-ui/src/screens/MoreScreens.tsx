@@ -1303,22 +1303,38 @@ export function MockupReferralDetail(): JSX.Element {
         title={`${entityTypeLabel(row.kind)} · ${row.sourceRef}`}
         statusLabel={humaniseState(row.status)}
         subtitle={<span>Received {fmtDate(row.discoveredAt)} · {fmtAgo(row.discoveredAt)}</span>}
-        actions={row.status === 'PENDING' ? (
+        actions={
           <>
-            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                    onClick={() => {
-                      confirmThenRun(
-                        `Accept referral "${row.sourceRef}" and import it locally?`,
-                        () => { accept().catch(() => undefined); });
-                    }}>Accept referral</button>
-            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
-                    onClick={() => {
-                      confirmThenRun(
-                        `Dismiss referral "${row.sourceRef}"? It will be marked as handled on this edge.`,
-                        () => { dismiss().catch(() => undefined); });
-                    }}>Dismiss</button>
+            {row.status === 'PENDING' && (
+              <>
+                <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                        onClick={() => {
+                          confirmThenRun(
+                            `Accept referral "${row.sourceRef}" and import it locally?`,
+                            () => { accept().catch(() => undefined); });
+                        }}>Accept referral</button>
+                <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
+                        onClick={() => {
+                          confirmThenRun(
+                            `Dismiss referral "${row.sourceRef}"? It will be marked as handled on this edge.`,
+                            () => { dismiss().catch(() => undefined); });
+                        }}>Dismiss</button>
+              </>
+            )}
+            {/* §2.3.110 R-AE — once ingested, offer a labelled drill
+                into the workflow run that produced the local
+                record(s). Omitted for pre-V081 historical rows
+                (ingestRunId null) and for DISMISSED. */}
+            {row.status === 'ACCEPTED' && row.ingestRunId && (
+              <Link to={`/workflows/monitoring/runs/${row.ingestRunId}`}
+                     className="ea-btn ea-btn--ghost ea-btn--sm"
+                     title="Open the workflow run that ingested this referral"
+                     data-test="referral-view-ingest-run">
+                Workflows › View ingest run ↗
+              </Link>
+            )}
           </>
-        ) : undefined}
+        }
       />
       <Panel title="Referral">
         <dl className="ea-def-list">

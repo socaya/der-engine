@@ -4,6 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import {
   OuPicker, useOuContext, Panel, fmtDate, fmtAgo,
   SyncStatusBar, entityTypeIcon, entityTypeLabel, RowMenu,
+  JOURNAL_ENTITY_TYPES,
   type RowMenuItem,
 } from './shared';
 import { LoadingBlock } from '../components/ScreenStates';
@@ -50,7 +51,17 @@ export function MockupDataManagement(): JSX.Element {
     if (!stats) return [];
     const lastSuccess = jobs?.find((j) => j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS');
     const updated = lastSuccess?.startedAt ?? si?.timestamp ?? new Date().toISOString();
-    return Object.entries(stats).map(([typeKey, states]) => {
+    // §2.3.111 R-AG — iterate the canonical type list rather than
+    // Object.entries(stats), so every DER-supported data type is
+    // present on the overview even when zero local rows exist.
+    // Keep any extra types observed in stats (future compatibility).
+    const observed = new Set(Object.keys(stats));
+    const all = Array.from(new Set([
+      ...JOURNAL_ENTITY_TYPES,
+      ...observed,
+    ]));
+    return all.map((typeKey) => {
+      const states = stats[typeKey] ?? {};
       const total = Object.values(states).reduce((a, b) => a + b, 0);
       const pending = (states.PENDING ?? 0) + (states.IN_FLIGHT ?? 0) + (states.RETRYABLE ?? 0);
       return {
