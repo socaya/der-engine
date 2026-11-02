@@ -49,7 +49,7 @@ class OperationJournalRepositoryTest {
                 eq(e.operationId()), eq("AGGREGATE_DATA_VALUE"), eq("k"),
                 anyString(), eq("PENDING"), eq(0), eq((Object) null),
                 eq(e.submittedBy()), any(Timestamp.class), any(Timestamp.class),
-                eq((Object) null));
+                eq((Object) null), eq((Object) null));
     }
 
     @Test
