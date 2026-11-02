@@ -35,15 +35,21 @@ public class DataPullService {
     private final CentralReachabilityGate reachability;
     private final Clock clock;
     private final AggregatePuller aggregatePuller;
+    private final EventPuller eventPuller;
+    private final TrackerPuller trackerPuller;
 
     public DataPullService(final DataPullCursorRepository cursors,
                              final CentralReachabilityGate reachability,
                              final Clock clock,
-                             final AggregatePuller aggregatePuller) {
+                             final AggregatePuller aggregatePuller,
+                             final EventPuller eventPuller,
+                             final TrackerPuller trackerPuller) {
         this.cursors = Objects.requireNonNull(cursors, "cursors");
         this.reachability = Objects.requireNonNull(reachability, "reachability");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.aggregatePuller = Objects.requireNonNull(aggregatePuller, "aggregatePuller");
+        this.eventPuller = Objects.requireNonNull(eventPuller, "eventPuller");
+        this.trackerPuller = Objects.requireNonNull(trackerPuller, "trackerPuller");
     }
 
     /**
@@ -97,8 +103,8 @@ public class DataPullService {
                 .map(DataPullCursor::lastPulledAt).orElse(null);
         return switch (entityType) {
             case AGGREGATE -> aggregatePuller.pull(orgUnitUid, since);
-            case EVENT     -> new PullerResult(0, 0, Instant.now(clock), null);
-            case TRACKER   -> new PullerResult(0, 0, Instant.now(clock), null);
+            case EVENT     -> eventPuller.pull(orgUnitUid, since);
+            case TRACKER   -> trackerPuller.pull(orgUnitUid, since);
         };
     }
 
