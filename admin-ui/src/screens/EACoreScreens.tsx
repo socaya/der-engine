@@ -769,8 +769,11 @@ export function EAJobsList({ api = edgeApi }:
             <button type="button" onClick={() => { reload().catch(() => undefined); }} data-test="ea06-refresh">
               Refresh
             </button>
+            {/* §2.3.107 R-AB — explicit module prefix so operators
+                see this leaves the current (Integration/Scheduler)
+                screen for the Sync module's job-trigger surface. */}
             <Link to="/sync/jobs/trigger" className="ea-link-btn" data-test="ea06-trigger-link">
-              Trigger a job
+              Sync › Trigger a job
             </Link>
           </>
         }

@@ -90,6 +90,14 @@ function WorkflowDesignerRoute(): JSX.Element {
   return <EACaptureWorkflowDesigner workflowId={id} />;
 }
 
+/** §2.3.106 R-AA — preserve :operationId when forwarding bookmarks
+ *  from the pre-move /sync/data/:operationId URL to its new home
+ *  under /data/queue. */
+function SyncDataLegacyRedirect(): JSX.Element {
+  const { operationId = '' } = useParams();
+  return <Navigate to={`/data/queue/${operationId}`} replace />;
+}
+
 
 /**
  * DER administration console. Routed shell with 36 EA-* screens.
@@ -265,10 +273,15 @@ export default function App(): JSX.Element {
           <Route path="/sync" element={<RequireAuth><MockupSyncOverview /></RequireAuth>} />
           <Route path="/sync/history" element={<RequireAuth><MockupSyncHistory /></RequireAuth>} />
           <Route path="/sync/history/:runId" element={<RequireAuth><MockupSyncHistoryDetail /></RequireAuth>} />
-          <Route path="/sync/queues" element={<Navigate to="/sync/data" replace />} />
+          <Route path="/sync/queues" element={<Navigate to="/data/queue" replace />} />
           <Route path="/sync/metadata" element={<RequireAuth><CapMetadataSync /></RequireAuth>} />
-          <Route path="/sync/data" element={<RequireAuth><MockupDataQueues /></RequireAuth>} />
-          <Route path="/sync/data/:operationId" element={<RequireAuth><MockupDataDetail /></RequireAuth>} />
+          {/* §2.3.106 R-AA — Data Queue lives under Data (operators think
+              of outbound records as data, not as a sync-worker detail).
+              /sync/data redirects to the new canonical path. */}
+          <Route path="/sync/data" element={<Navigate to="/data/queue" replace />} />
+          <Route path="/sync/data/:operationId" element={<SyncDataLegacyRedirect />} />
+          <Route path="/data/queue" element={<RequireAuth><MockupDataQueues /></RequireAuth>} />
+          <Route path="/data/queue/:operationId" element={<RequireAuth><MockupDataDetail /></RequireAuth>} />
           <Route path="/sync/schedule" element={<RequireAuth><CapSyncSchedule /></RequireAuth>} />
           <Route path="/sync/settings" element={<RequireAuth><CapSyncSettings /></RequireAuth>} />
           <Route path="/workflows/runs" element={<RequireAuth><CapWorkflowRuns /></RequireAuth>} />

@@ -8,6 +8,7 @@ import {
   DrawerTabs, JsonViewer, parseOperationIds, SyncStatusBar,
   Breadcrumbs, RowMenu,
   Status,
+  RelatedMenu,
   type RowMenuItem,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
@@ -273,15 +274,14 @@ export function MockupSyncHistoryDetail(): JSX.Element {
           </>
         }
         actions={
-          // §2.3.79 — soft round-trip exit to Workflows. Journal ops
-          // don't yet carry workflow_run_id (follow-up noted) so we
-          // link to the Monitoring index; admins filter manually.
-          <Link to="/workflows/monitoring"
-                 className="ea-btn ea-btn--ghost ea-btn--sm"
-                 title="Open Workflow monitoring">
-            <UiIcon icon="analytics" size={14} />
-            <span>Workflow monitoring</span>
-          </Link>
+          // §2.3.107 R-AB — the pre-R-AB header had a hidden
+          // "Workflow monitoring" primary button on a Sync screen.
+          // Jumps to Workflows now live in a disclosed Related menu
+          // so the module boundary is explicit.
+          <RelatedMenu dataTest="sync-history-related" items={[
+            { label: 'Workflow monitoring', module: 'Workflows',
+              to: '/workflows/monitoring' },
+          ]} />
         }
       />
 
@@ -452,7 +452,7 @@ export function MockupSyncHistoryDetail(): JSX.Element {
                         <span className="ea-chip ea-chip--info" style={{ marginLeft: 'auto' }}>
                           {humaniseState(op.state)}
                         </span>
-                        <Link to={`/sync/data/${op.operationId}`} className="ea-link-btn"
+                        <Link to={`/data/queue/${op.operationId}`} className="ea-link-btn"
                               style={{ fontSize: 11 }}>
                           Open record →
                         </Link>

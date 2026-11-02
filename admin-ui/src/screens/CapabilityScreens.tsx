@@ -4,7 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, ScopedFilterChip, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status, useCentralReachable } from './shared';
+import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, ScopedFilterChip, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status, useCentralReachable, RelatedMenu } from './shared';
 import { UiIcon } from '../components/UiIcon';
 
 /**
@@ -1315,20 +1315,14 @@ export function CapSyncSettings(): JSX.Element {
             Batch size, retry delay, back-off and request timeout are managed
             via scheduler cron expressions.
           </p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Link to="/sync/schedule" className="ea-btn ea-btn--ghost ea-btn--sm">
-              <UiIcon icon="schedule" size={14} />
-              <span>Open Schedule</span>
-            </Link>
-            <Link to="/settings" className="ea-btn ea-btn--ghost ea-btn--sm">
-              <UiIcon icon="settings" size={14} />
-              <span>Open fine-grained Settings</span>
-            </Link>
-            <Link to="/sync/history" className="ea-btn ea-btn--ghost ea-btn--sm">
-              <UiIcon icon="history" size={14} />
-              <span>Open Sync history</span>
-            </Link>
-          </div>
+          {/* §2.3.107 R-AB — all three jumps leave this (Integration /
+              DHIS2 Compat) screen for other modules. One disclosed
+              Related menu replaces three unlabelled primary buttons. */}
+          <RelatedMenu dataTest="dhis2-compat-related" items={[
+            { label: 'Open schedule',  module: 'Sync',     to: '/sync/schedule' },
+            { label: 'Open Sync history', module: 'Sync',  to: '/sync/history' },
+            { label: 'Fine-grained settings', module: 'Settings', to: '/settings' },
+          ]} />
         </div>
       </section>
     </div>

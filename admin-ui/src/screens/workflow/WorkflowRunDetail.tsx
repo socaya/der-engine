@@ -101,7 +101,7 @@ export function WorkflowRunDetail(): JSX.Element {
                 list visually (chip surfaces at the top); server-side
                 filtering lands with R-A-data when operation_journal
                 grows workflow_run_id. */}
-            <Link to={`/sync/data?workflowRunId=${encodeURIComponent(runId)}`}
+            <Link to={`/data/queue?workflowRunId=${encodeURIComponent(runId)}`}
                    className="ea-btn ea-btn--ghost ea-btn--sm"
                    title="Open Sync Data queue scoped to this run">
               <UiIcon icon="data-queue" size={14} />
@@ -313,7 +313,7 @@ export function WorkflowRunDetail(): JSX.Element {
 }
 
 /** §2.3.101 R-L — closes the loop between workflow runs and
- *  /sync/data. Lists every operation_journal row this run produced,
+ *  /data/queue. Lists every operation_journal row this run produced,
  *  with current state + the DHIS2 endpoint it will land on.
  *
  *  §2.3.102 R-N + R-Q — state-chip filter + inline Retry per row. */

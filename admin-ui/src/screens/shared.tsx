@@ -1081,6 +1081,86 @@ export interface RowMenuItem {
   readonly disabled?: boolean;
 }
 
+/** §2.3.107 R-AB — labelled "Related" dropdown used in screen
+ *  headers to disclose cross-module navigation. Operators should
+ *  never jump to another module via a hidden primary button; this
+ *  component makes every cross-module jump explicit + labelled.
+ *
+ *  Styling matches RowMenu (same {@code <details>} pattern) but with
+ *  a visible pill button instead of a {@code ⋮} kebab.
+ *
+ *  Each item may carry a {@code module} label — shown as a dim prefix
+ *  in the dropdown ({@code "Sync › Settings"}) so the operator sees
+ *  which module they're about to enter. */
+export interface RelatedMenuItem {
+  readonly label: string;
+  readonly to: string;
+  readonly module?: string;    // 'Sync' | 'Workflows' | 'Access' | ...
+  readonly disabled?: boolean;
+}
+
+export function RelatedMenu(
+  { items, label = 'Related', dataTest }:
+    { items: ReadonlyArray<RelatedMenuItem>;
+      label?: string;
+      dataTest?: string }
+): JSX.Element {
+  const stop = (e: ReactMouseEvent): void => { e.stopPropagation(); };
+  return (
+    <details className="ea-related-menu"
+             onClick={stop}
+             data-test={dataTest ?? 'related-menu'}
+             style={{ position: 'relative', display: 'inline-block' }}>
+      <summary
+        aria-label={label}
+        className="ea-btn ea-btn--ghost ea-btn--sm"
+        style={{
+          listStyle: 'none', cursor: 'pointer', userSelect: 'none',
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+        }}>
+        <span>{label}</span>
+        <span aria-hidden="true" style={{ fontSize: 10 }}>▾</span>
+      </summary>
+      <div role="menu"
+           style={{
+             position: 'absolute', right: 0, top: 'calc(100% + 4px)',
+             zIndex: 50, minWidth: 240,
+             background: 'white',
+             border: '1px solid var(--der-border)',
+             boxShadow: '0 4px 12px rgba(15, 28, 46, 0.08)',
+             padding: 4,
+           }}>
+        {items.map((it, i) => {
+          const style: CSSProperties = {
+            display: 'flex', alignItems: 'baseline', gap: 6,
+            width: '100%', textAlign: 'left',
+            padding: '8px 12px',
+            background: 'none', border: 'none',
+            fontSize: 13,
+            cursor: it.disabled ? 'not-allowed' : 'pointer',
+            color: it.disabled ? 'var(--der-ink-300)'
+                 : 'var(--der-ink-900)',
+            textDecoration: 'none',
+          };
+          const content = (
+            <>
+              {it.module && (
+                <span style={{ color: 'var(--der-ink-500)', fontSize: 11 }}>
+                  {it.module} ›
+                </span>
+              )}
+              <span>{it.label}</span>
+            </>
+          );
+          return it.disabled
+            ? <span key={i} role="menuitem" style={style} aria-disabled="true">{content}</span>
+            : <Link key={i} to={it.to} role="menuitem" style={style}>{content}</Link>;
+        })}
+      </div>
+    </details>
+  );
+}
+
 /** Per-row context menu rendered as a native `<details>` dropdown
  *  anchored to a `⋮` kebab icon. Sits in the last column, far right. */
 export function RowMenu({ items, label = 'Actions' }: {

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
-  Panel, fmtDate, fmtAgo, usePaged, TablePager, SyncStatusBar,
+  Panel, fmtDate, fmtAgo, usePaged, TablePager, SyncStatusBar, RelatedMenu,
   Status, RowMenu, confirmThenRun, useCentralReachable,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
@@ -130,6 +130,13 @@ export function NetworkOverview(): JSX.Element {
               <UiIcon icon="settings" size={14} />
               <span>Settings</span>
             </Link>
+            {/* §2.3.107 R-AB — cross-module jumps are now disclosed
+                behind a labelled Related menu instead of hidden
+                primary buttons / clickable facet cards. */}
+            <RelatedMenu dataTest="network-related" items={[
+              { label: 'Sync worker settings', module: 'Sync', to: '/sync/settings' },
+              { label: 'Network audit events', module: 'Security', to: '/audit/events?category=network' },
+            ]} />
           </>
         }
       />
@@ -171,7 +178,9 @@ export function NetworkOverview(): JSX.Element {
           label="Central DHIS2"
           value={centralReachable ? 'Connected' : 'Unreachable'}
           sub={ping.latencyMs != null ? `probe ${ping.latencyMs} ms` : 'probing…'}
-          to="/sync/settings"
+          /* §2.3.107 R-AB — card is status-only; the "Sync worker
+             settings" jump moved to the header Related menu so the
+             cross-module nav is explicit, not hidden in a facet. */
         />
         <NetFacetCard
           icon="peer" tone={peerCount && peerCount > 0 ? 'info' : 'muted'}
@@ -238,12 +247,13 @@ export function NetworkOverview(): JSX.Element {
 
 function NetFacetCard({ icon, tone, label, value, sub, to }: {
   icon: Parameters<typeof UiIcon>[0]['icon']; tone: 'success' | 'warning' | 'danger' | 'info' | 'muted';
-  label: string; value: string; sub: string; to: string;
+  label: string; value: string; sub: string;
+  /** §2.3.107 R-AB — optional. Omit to render a status-only card
+   *  (no cross-module jump); provide for an intra-Network drill. */
+  to?: string;
 }): JSX.Element {
-  return (
-    <Link to={to} className="ea-net-facet"
-          data-tone={tone}
-          data-test={`net-facet-${label.toLowerCase().replace(/\s+/g, '-')}`}>
+  const body = (
+    <>
       <div className="ea-net-facet-icon" aria-hidden="true">
         <UiIcon icon={icon} size={22} />
       </div>
@@ -252,7 +262,21 @@ function NetFacetCard({ icon, tone, label, value, sub, to }: {
         <div className="ea-net-facet-value">{value}</div>
         <div className="ea-net-facet-sub">{sub}</div>
       </div>
-    </Link>
+    </>
+  );
+  const testId = `net-facet-${label.toLowerCase().replace(/\s+/g, '-')}`;
+  if (to) {
+    return (
+      <Link to={to} className="ea-net-facet" data-tone={tone} data-test={testId}>
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <div className="ea-net-facet ea-net-facet--static"
+         data-tone={tone} data-test={testId}>
+      {body}
+    </div>
   );
 }
 

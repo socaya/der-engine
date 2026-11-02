@@ -11,7 +11,7 @@ import {
 import { UiIcon } from '../components/UiIcon';
 import { LoadingBlock } from '../components/ScreenStates';
 
-/** `/admin/sync/data` — operator-facing outbound journal table. Full
+/** `/admin/data/queue` — operator-facing outbound journal table. Full
  *  width, no side drawer. Row click navigates to the per-record
  *  details page. */
 export function MockupDataQueues(): JSX.Element {
@@ -90,7 +90,7 @@ export function MockupDataQueues(): JSX.Element {
   function rowMenuFor(op: edgeApi.JournalOperation): ReadonlyArray<RowMenuItem> {
     const state = operatorState(op.state);
     const items: RowMenuItem[] = [
-      { label: 'Open details', to: `/sync/data/${op.operationId}` },
+      { label: 'Open details', to: `/data/queue/${op.operationId}` },
     ];
     if (state === 'Retrying' || state === 'Rejected' || state === 'Waiting') {
       items.push({
@@ -225,7 +225,7 @@ export function MockupDataQueues(): JSX.Element {
               <tbody>
                 {paged.rows.map(({ op, state }) => (
                   <tr key={op.operationId}
-                      onClick={() => navigate(`/sync/data/${op.operationId}`)}
+                      onClick={() => navigate(`/data/queue/${op.operationId}`)}
                       data-test={`data-row-${op.operationId}`}>
                     <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true"
                         title={entityTypeLabel(op.entityType)}>
@@ -256,7 +256,7 @@ export function MockupDataQueues(): JSX.Element {
   );
 }
 
-/** `/admin/sync/data/:operationId` — per-record details page.
+/** `/admin/data/queue/:operationId` — per-record details page.
  *  Replaces the former right-side drawer. */
 export function MockupDataDetail(): JSX.Element {
   const { operationId } = useParams<{ operationId: string }>();
@@ -280,7 +280,7 @@ export function MockupDataDetail(): JSX.Element {
 
   if (err) return (
     <div className="ea-screen" data-test="sync-data-detail-err">
-      <BackLink to="/sync/data" label="Back to Data" />
+      <BackLink to="/data/queue" label="Back to Data" />
       <SyncStatusBar tone="danger" title="Record not found" statusLabel="Error"
                      subtitle={<span>{err}</span>} />
     </div>
@@ -297,7 +297,7 @@ export function MockupDataDetail(): JSX.Element {
   const parsedResponse = parseResponseBody(op.lastError);
   return (
     <div className="ea-screen" data-test="sync-data-detail">
-      <BackLink to="/sync/data" label="Back to Data" />
+      <BackLink to="/data/queue" label="Back to Data" />
       <SyncStatusBar
         tone={operatorStateTone(state) === 'muted' ? 'muted' : operatorStateTone(state)}
         title={entityTypeLabel(op.entityType)}

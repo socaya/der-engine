@@ -175,7 +175,7 @@ export function DataTracker(): JSX.Element {
               <UiIcon icon="external" size={14} />
               <span>Ready for Central</span>
             </button>
-            <Link to="/sync/data"
+            <Link to="/data/queue"
                    className="ea-btn ea-btn--ghost ea-btn--sm">
               <UiIcon icon="data-queue" size={14} />
               <span>Sync queue</span>
@@ -472,11 +472,11 @@ function chipShape(state: edgeApi.LocalDataSyncState, operationId: string | null
     label: string; to?: string } {
   switch (state) {
     case 'PENDING':
-      return { tone: 'info', label: 'Pending push', to: '/sync/data' };
+      return { tone: 'info', label: 'Pending push', to: '/data/queue' };
     case 'IN_FLIGHT':
-      return { tone: 'info', label: 'Sending…', to: '/sync/data' };
+      return { tone: 'info', label: 'Sending…', to: '/data/queue' };
     case 'RETRYABLE':
-      return { tone: 'warning', label: 'Retrying', to: '/sync/data' };
+      return { tone: 'warning', label: 'Retrying', to: '/data/queue' };
     case 'CENTRAL_ACCEPTED':
       return { tone: 'success', label: 'Synced' };
     case 'CENTRAL_REJECTED':
@@ -486,7 +486,7 @@ function chipShape(state: edgeApi.LocalDataSyncState, operationId: string | null
       return { tone: 'warning', label: 'Conflict',
                to: operationId ? `/sync/attention/${operationId}` : '/sync/attention' };
     case 'REQUIRES_APPROVAL':
-      return { tone: 'warning', label: 'Approval', to: '/sync/data' };
+      return { tone: 'warning', label: 'Approval', to: '/data/queue' };
     case 'QUARANTINED':
       return { tone: 'danger', label: 'Quarantined',
                to: operationId ? `/sync/attention/${operationId}` : '/sync/attention' };

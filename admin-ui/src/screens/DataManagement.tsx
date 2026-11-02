@@ -23,7 +23,7 @@ interface DataRow {
  * Shows what's captured on this edge grouped by data type with counts.
  * Links to the capture surfaces (DHIS2 Core apps) + the Sync module's
  * data table where the per-record view lives. No fake tabs, no overlap
- * with /sync/data. */
+ * with /data/queue. */
 export function MockupDataManagement(): JSX.Element {
   const navigate = useNavigate();
   const [ctx] = useOuContext();
@@ -95,7 +95,7 @@ export function MockupDataManagement(): JSX.Element {
 
       <Panel title="Captured data by type"
              action={
-               <Link to="/sync/data" className="ea-link-btn" style={{ fontSize: 12 }}>
+               <Link to="/data/queue" className="ea-link-btn" style={{ fontSize: 12 }}>
                  Open full records view →
                </Link>
              }>
@@ -113,7 +113,7 @@ export function MockupDataManagement(): JSX.Element {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}
-                    onClick={() => navigate(`/sync/data?type=${encodeURIComponent(r.typeKey)}`)}
+                    onClick={() => navigate(`/data/queue?type=${encodeURIComponent(r.typeKey)}`)}
                     data-test={`data-type-row-${r.typeKey}`}>
                   <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true"
                       title={r.type}>
@@ -146,7 +146,7 @@ export function MockupDataManagement(): JSX.Element {
 
 function rowMenuForType(typeKey: string): ReadonlyArray<RowMenuItem> {
   const items: RowMenuItem[] = [
-    { label: 'Open records', to: `/sync/data?type=${encodeURIComponent(typeKey)}` },
+    { label: 'Open records', to: `/data/queue?type=${encodeURIComponent(typeKey)}` },
   ];
   if (typeKey === 'AGGREGATE_DATA_VALUE') {
     items.push({ label: 'Open aggregate capture', to: '/data/aggregate' });

@@ -7,6 +7,7 @@ import {
   metadataResourceForEntity, dataModuleRouteForEntity,
   dataModuleLabelForEntity, ScopedFilterChip,
   SyncStatusBar, BackLink, Breadcrumbs, RowMenu, confirmThenRun, Status,
+  RelatedMenu,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -141,20 +142,22 @@ export function MockupDriftInspector(): JSX.Element {
         )}
       </Panel>
 
+      {/* §2.3.107 R-AB — the two cross-module jumps (Metadata Sync,
+          Sync History) move into a labelled Related menu so the
+          operator sees which module they're entering before clicking.
+          The intra-module link (Metadata browser) stays as a plain
+          button alongside. */}
       <Panel title="Related">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: 14 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap',
+                       padding: 14, alignItems: 'center' }}>
           <Link to="/dhis2/metadata" className="ea-btn ea-btn--ghost ea-btn--sm">
             <UiIcon icon="metadata" size={14} />
             <span>Metadata browser</span>
           </Link>
-          <Link to="/sync/metadata" className="ea-btn ea-btn--ghost ea-btn--sm">
-            <UiIcon icon="pull" size={14} />
-            <span>Metadata sync</span>
-          </Link>
-          <Link to="/sync/history" className="ea-btn ea-btn--ghost ea-btn--sm">
-            <UiIcon icon="history" size={14} />
-            <span>Sync history</span>
-          </Link>
+          <RelatedMenu dataTest="metadata-related" items={[
+            { label: 'Metadata sync', module: 'Sync', to: '/sync/metadata' },
+            { label: 'Sync history',  module: 'Sync', to: '/sync/history' },
+          ]} />
         </div>
       </Panel>
     </div>
@@ -806,7 +809,7 @@ function DeviceRelatedActivity(
   { device }: { device: edgeApi.EdgeDeviceRow }
 ): JSX.Element {
   const links: Array<{ to: string; label: string; hint: string; icon: 'data-queue' | 'attention' | 'analytics' | 'tei' }> = [
-    { to: '/sync/data',            icon: 'data-queue',
+    { to: '/data/queue',            icon: 'data-queue',
       label: 'Sync queue',
       hint:  'Pending contributions awaiting push to DHIS2 Central.' },
     { to: '/sync/attention',       icon: 'attention',

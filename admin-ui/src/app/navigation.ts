@@ -92,7 +92,9 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       /* §9.2 operator terminology */
       { id: 'sync-overview', label: 'Overview', to: '/sync', status: 'implemented', tabIcon: 'overview' },
       { id: 'sync-metadata', label: 'Metadata Sync', to: '/sync/metadata', status: 'implemented', tabIcon: 'metadata' },
-      { id: 'sync-data', label: 'Data Queue', to: '/sync/data', status: 'implemented', tabIcon: 'data-queue' },
+      /* §2.3.106 R-AA — Data Queue moved to the Data group where
+       * operators look for data records. /sync/data redirects to
+       * /data/queue. */
       { id: 'sync-attention', label: 'Attention', to: '/sync/attention', status: 'implemented', tabIcon: 'attention' },
       { id: 'sync-worker', label: 'Sync Worker', to: '/sync/worker', status: 'implemented', tabIcon: 'worker' },
       { id: 'sync-schedule', label: 'Schedule', to: '/sync/schedule', status: 'implemented', tabIcon: 'schedule' },
@@ -169,6 +171,10 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'aggregate', label: 'Aggregate', to: '/data/aggregate', status: 'implemented' },
       { id: 'events', label: 'Events', to: '/data/events', status: 'implemented' },
       { id: 'tracker', label: 'Tracker', to: '/data/tracker', status: 'implemented' },
+      /* §2.3.106 R-AA — the outbound queue is still data; it just
+       * shows per-row sync state alongside the record. Lives here
+       * rather than under Sync. */
+      { id: 'data-queue', label: 'Queue', to: '/data/queue', status: 'implemented', tabIcon: 'data-queue' },
       { id: 'drafts', label: 'Drafts', to: '/data/drafts', status: 'implemented' },
       /* Referrals are patient data flowing between facilities (DHIS2
        * Tracker relationship pattern, ADR-0027) — belongs with
