@@ -16,6 +16,7 @@ import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 
 import ug.ac.mak.der.network.CentralReachabilityGate;
+import ug.ac.mak.der.workflows.tracker.TrackerGraphReconciler;
 
 class DataPullServiceTest {
 
@@ -24,6 +25,13 @@ class DataPullServiceTest {
 
     private CentralReachabilityGate reachable() {
         return new CentralReachabilityGate(clock);
+    }
+
+    private TrackerGraphReconciler reconcilerStub() {
+        final var rec = mock(TrackerGraphReconciler.class);
+        when(rec.reconcile())
+                .thenReturn(new TrackerGraphReconciler.ReconcileReport(0, 0));
+        return rec;
     }
 
     private CentralReachabilityGate offline() {
@@ -36,7 +44,7 @@ class DataPullServiceTest {
     @Test
     void offlineReachabilityShortCircuitsAndMarksNoCursor() {
         final DataPullCursorRepository cursors = mock(DataPullCursorRepository.class);
-        final var svc = new DataPullService(cursors, offline(), clock, mock(AggregatePuller.class), mock(EventPuller.class), mock(TrackerPuller.class));
+        final var svc = new DataPullService(cursors, offline(), clock, mock(AggregatePuller.class), mock(EventPuller.class), mock(TrackerPuller.class), reconcilerStub());
         final var out = svc.pullAll("ou1");
         assertThat(out.note()).isEqualTo("skipped: central unreachable");
         assertThat(out.aggregatePulled()).isZero();
@@ -56,7 +64,8 @@ class DataPullServiceTest {
         when(agg.pull(anyString(), any())).thenReturn(empty);
         when(evt.pull(anyString(), any())).thenReturn(empty);
         when(trk.pull(anyString(), any())).thenReturn(empty);
-        final var svc = new DataPullService(cursors, reachable(), clock, agg, evt, trk);
+        final var svc = new DataPullService(cursors, reachable(), clock, agg, evt, trk,
+                reconcilerStub());
         svc.pullAll("ou1");
         /* Service must advance each cursor with a timestamp so the
          * next tick's watermark reflects "pulled through now, no
@@ -69,7 +78,7 @@ class DataPullServiceTest {
     @Test
     void pullerExceptionMarksFailureNotSuccess() {
         final DataPullCursorRepository cursors = mock(DataPullCursorRepository.class);
-        final var svc = new DataPullService(cursors, reachable(), clock, mock(AggregatePuller.class), mock(EventPuller.class), mock(TrackerPuller.class)) {
+        final var svc = new DataPullService(cursors, reachable(), clock, mock(AggregatePuller.class), mock(EventPuller.class), mock(TrackerPuller.class), reconcilerStub()) {
             @Override
             DataPullService.PullerResult pullOne(final DataPullCursor.EntityType entityType,
                                                     final String orgUnitUid) {
@@ -93,7 +102,7 @@ class DataPullServiceTest {
     void outcomeAggregatesPerEntityCounters() {
         final DataPullCursorRepository cursors = mock(DataPullCursorRepository.class);
         when(cursors.findAll()).thenReturn(java.util.List.of());
-        final var svc = new DataPullService(cursors, reachable(), clock, mock(AggregatePuller.class), mock(EventPuller.class), mock(TrackerPuller.class)) {
+        final var svc = new DataPullService(cursors, reachable(), clock, mock(AggregatePuller.class), mock(EventPuller.class), mock(TrackerPuller.class), reconcilerStub()) {
             @Override
             DataPullService.PullerResult pullOne(final DataPullCursor.EntityType entityType,
                                                     final String orgUnitUid) {

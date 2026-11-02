@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import ug.ac.mak.der.network.CentralReachabilityGate;
+import ug.ac.mak.der.workflows.tracker.TrackerGraphReconciler;
 
 /**
  * ADR-0034 — orchestrates the three per-entity pullers (aggregate /
@@ -37,19 +38,22 @@ public class DataPullService {
     private final AggregatePuller aggregatePuller;
     private final EventPuller eventPuller;
     private final TrackerPuller trackerPuller;
+    private final TrackerGraphReconciler trackerReconciler;
 
     public DataPullService(final DataPullCursorRepository cursors,
                              final CentralReachabilityGate reachability,
                              final Clock clock,
                              final AggregatePuller aggregatePuller,
                              final EventPuller eventPuller,
-                             final TrackerPuller trackerPuller) {
+                             final TrackerPuller trackerPuller,
+                             final TrackerGraphReconciler trackerReconciler) {
         this.cursors = Objects.requireNonNull(cursors, "cursors");
         this.reachability = Objects.requireNonNull(reachability, "reachability");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.aggregatePuller = Objects.requireNonNull(aggregatePuller, "aggregatePuller");
         this.eventPuller = Objects.requireNonNull(eventPuller, "eventPuller");
         this.trackerPuller = Objects.requireNonNull(trackerPuller, "trackerPuller");
+        this.trackerReconciler = Objects.requireNonNull(trackerReconciler, "trackerReconciler");
     }
 
     /**
@@ -87,6 +91,15 @@ public class DataPullService {
                 cursors.markFailure(et, orgUnitUid, ex.getMessage());
             }
         }
+        /* Phase 10.1 — after the tracker puller has drained its
+         * batch, run the graph reconciler to catch orphans central
+         * split across pages or that central deleted. Orphans
+         * surface as CONFLICT_REVIEW rows + TRACKER_ORPHAN_DETECTED
+         * audit entries. We count them into `conflicts` so the pull
+         * outcome aggregates the operator-attention total across
+         * both pull-time collisions and post-pull graph issues. */
+        final TrackerGraphReconciler.ReconcileReport report = trackerReconciler.reconcile();
+        conflicts += report.total();
         return new PullOutcome(orgUnitUid, aggregate, events, tracker, conflicts, null);
     }
 

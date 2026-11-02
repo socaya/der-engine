@@ -81,6 +81,28 @@ public class TrackerEventRepository {
                 rowMapper(), enrollmentUid);
     }
 
+    /**
+     * Phase 10.1 — tracker events whose {@code enrollment_uid} does
+     * not match any row in {@code edge_enrollment}. Produced by
+     * inbound pulls that landed a stage event before its parent
+     * enrollment, or by a cross-edge referral delivery where the
+     * destination's enrollment is still in flight.
+     */
+    public List<TrackerEvent> findOrphans(final int limit) {
+        return jdbc.query(
+                "SELECT ev.event_uid, ev.enrollment_uid, ev.program_uid, "
+                        + "ev.program_stage_uid, ev.org_unit_uid, ev.status, "
+                        + "ev.occurred_date, ev.data_values::text AS data_values, "
+                        + "ev.stored_by_dhis2_uid, ev.created_by, ev.created_at, "
+                        + "ev.updated_at, ev.version, ev.workflow_run_id "
+                        + "FROM der.edge_tracker_event ev "
+                        + "LEFT JOIN der.edge_enrollment en "
+                        + "       ON en.enrollment_uid = ev.enrollment_uid "
+                        + "WHERE ev.enrollment_uid IS NOT NULL AND en.enrollment_uid IS NULL "
+                        + "ORDER BY ev.updated_at DESC LIMIT ?",
+                rowMapper(), Math.max(1, Math.min(limit, 500)));
+    }
+
     public int delete(final String uid) {
         return jdbc.update("DELETE FROM der.edge_tracker_event WHERE event_uid = ?", uid);
     }

@@ -73,6 +73,23 @@ public class EnrollmentRepository {
         return jdbc.update("DELETE FROM der.edge_enrollment WHERE enrollment_uid = ?", uid);
     }
 
+    /**
+     * Phase 10.1 — enrollments whose {@code tei_uid} does not match
+     * any row in {@code tracked_entity}. Produced by inbound pulls
+     * that landed an enrolment before its parent TEI (central may
+     * split them across two /api/tracker ticks), or by a central
+     * cascade delete DER hasn't picked up yet.
+     */
+    public List<Enrollment> findOrphans(final int limit) {
+        return jdbc.query(
+                "SELECT en.* FROM der.edge_enrollment en "
+                        + "LEFT JOIN der.tracked_entity te "
+                        + "       ON te.tei_uid = en.tei_uid "
+                        + "WHERE te.tei_uid IS NULL "
+                        + "ORDER BY en.updated_at DESC LIMIT ?",
+                mapper(), Math.max(1, Math.min(limit, 500)));
+    }
+
     private static RowMapper<Enrollment> mapper() {
         return (ResultSet rs, int n) -> new Enrollment(
                 rs.getString("enrollment_uid"),
