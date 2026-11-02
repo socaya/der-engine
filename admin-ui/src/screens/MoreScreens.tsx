@@ -516,8 +516,20 @@ export function MockupWorkerHealth(): JSX.Element {
             {attention > 0 && (
               <>
                 <span>·</span>
+                {/* §2.3.108 R-AC — count stays as status text; the
+                    cross-module jump moves to an explicit "Open in
+                    Sync" link so interactivity + target are both
+                    visible, not inferred from blue text on a number. */}
                 <span>Needs attention{' '}
-                  <Link to="/sync/attention">{attention.toLocaleString()}</Link>
+                  <strong style={{ color: 'var(--der-danger-ink)' }}>
+                    {attention.toLocaleString()}
+                  </strong>
+                  {' '}·{' '}
+                  <Link to="/sync/attention" className="ea-link-btn"
+                        style={{ fontSize: 11 }}
+                        title="Open attention queue in Sync module">
+                    Sync › Open attention →
+                  </Link>
                 </span>
               </>
             )}

@@ -398,19 +398,26 @@ function TrackerTable(
                 )}
               </td>
               <td title={r.workflowRunId
-                          ? `${r.workflowKind ?? 'USER'} · ${r.workflowBusinessKey ?? ''}`
+                          ? `Open workflow run in Workflows module — `
+                            + `${r.workflowKind ?? 'USER'} · ${r.workflowBusinessKey ?? ''}`
                           : '(no workflow run attached)'}>
                 {r.workflowRunId ? (
+                  /* §2.3.108 R-AC — explicit ↗ disclosure. */
                   <Link to={`/workflows/monitoring/runs/${r.workflowRunId}`}
                         style={{ textDecoration: 'none',
-                                  color: 'var(--der-primary-ink)' }}>
+                                  color: 'var(--der-primary-ink)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center', gap: 4 }}>
                     {r.workflowKind === 'SYSTEM' && (
                       <span className="ea-chip ea-chip--neutral"
-                            style={{ marginRight: 6 }}>SYS</span>
+                            style={{ marginRight: 2 }}>SYS</span>
                     )}
                     <span style={{ fontSize: 12 }}>
                       {r.workflowName ?? r.workflowRunId.slice(0, 8)}
                     </span>
+                    <span aria-hidden="true"
+                          style={{ fontSize: 10,
+                                    color: 'var(--der-ink-500)' }}>↗</span>
                   </Link>
                 ) : (
                   <span className="ea-text-muted"
