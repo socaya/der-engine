@@ -27,7 +27,9 @@ export type TabIconId =
   | 'schedule' | 'history' | 'settings' | 'drift' | 'health'
   | 'storage' | 'diagnostics' | 'analytics' | 'evaluation'
   | 'audit' | 'backup' | 'restore' | 'recovery'
-  | 'wifi' | 'access-point' | 'ethernet' | 'firewall' | 'peer' | 'tei' | 'activity' | 'route';
+  | 'wifi' | 'access-point' | 'ethernet' | 'firewall' | 'peer' | 'tei' | 'activity' | 'route'
+  // §2.3.119 R-AP — Data sub-tabs
+  | 'aggregate' | 'event' | 'edit' | 'referral' | 'cog';
 
 export interface NavItem {
   readonly id: string;
@@ -169,21 +171,25 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     primaryId: 'data-overview',
     icon: 'database',
     items: [
-      { id: 'data-overview', label: 'Overview', to: '/data', status: 'implemented' },
-      { id: 'aggregate', label: 'Aggregate', to: '/data/aggregate', status: 'implemented' },
-      { id: 'events', label: 'Events', to: '/data/events', status: 'implemented' },
-      { id: 'tracker', label: 'Tracker', to: '/data/tracker', status: 'implemented' },
+      /* §2.3.119 R-AP — every Data sub-tab now carries a DER glyph
+       * so the sub-nav strip reads as a visual legend rather than
+       * labels only. Icons match the entity vocabulary used across
+       * the Data detail screens. */
+      { id: 'data-overview', label: 'Overview', to: '/data', status: 'implemented', tabIcon: 'overview' },
+      { id: 'aggregate', label: 'Aggregate', to: '/data/aggregate', status: 'implemented', tabIcon: 'aggregate' },
+      { id: 'events', label: 'Events', to: '/data/events', status: 'implemented', tabIcon: 'event' },
+      { id: 'tracker', label: 'Tracker', to: '/data/tracker', status: 'implemented', tabIcon: 'tei' },
       /* §2.3.106 R-AA — the outbound queue is still data; it just
        * shows per-row sync state alongside the record. Lives here
        * rather than under Sync. */
       { id: 'data-queue', label: 'Queue', to: '/data/queue', status: 'implemented', tabIcon: 'data-queue' },
-      { id: 'drafts', label: 'Drafts', to: '/data/drafts', status: 'implemented' },
+      { id: 'drafts', label: 'Drafts', to: '/data/drafts', status: 'implemented', tabIcon: 'edit' },
       /* Referrals are patient data flowing between facilities (DHIS2
        * Tracker relationship pattern, ADR-0027) — belongs with
        * Tracker data, not with workflow definitions. */
-      { id: 'referral-inbox', label: 'Referrals', to: '/referral/inbox', status: 'contextual' },
-      { id: 'referral-history', label: 'Referral history', to: '/referral/history', status: 'contextual' },
-      { id: 'maintenance', label: 'Maintenance', to: '/data/maintenance', status: 'implemented' },
+      { id: 'referral-inbox', label: 'Referrals', to: '/referral/inbox', status: 'contextual', tabIcon: 'referral' },
+      { id: 'referral-history', label: 'Referral history', to: '/referral/history', status: 'contextual', tabIcon: 'history' },
+      { id: 'maintenance', label: 'Maintenance', to: '/data/maintenance', status: 'implemented', tabIcon: 'cog' },
     ],
   },
   /* Administration — merges Users + Devices + DHIS2 mappings per §28. */

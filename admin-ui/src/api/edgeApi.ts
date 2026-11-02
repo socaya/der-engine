@@ -919,6 +919,16 @@ export function scopeAudit(sampleLimit = 5): Promise<ScopeAuditSnapshot> {
     `/edge-api/v1/admin/ops/scope/audit?sampleLimit=${sampleLimit}`);
 }
 
+/** §2.3.119 R-AP — delete processed (CENTRAL_ACCEPTED /
+ *  CENTRAL_REJECTED) operation_journal rows older than N days. Pass
+ *  0 to purge every terminal row now. Returns the number of rows
+ *  purged. */
+export function purgeTerminalJournalRows(olderThanDays: number):
+    Promise<{ rowsPurged: number; cutoff: string }> {
+  return request('POST',
+    `/edge-api/v1/admin/ops/journal/purge?olderThanDays=${olderThanDays}`);
+}
+
 /** §2.3.105 R-Y — bulk force-retry a specific list of operation ids
  *  (used by the per-stream Retry button inside the TEI drawer). The
  *  server silently skips ids already in terminal/pending states;

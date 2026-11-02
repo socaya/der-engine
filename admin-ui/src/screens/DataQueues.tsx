@@ -26,7 +26,11 @@ export function MockupDataQueues(): JSX.Element {
 
   const [query, setQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
-  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  // §2.3.119 R-AP — queue defaults to Active (not Sent) so operators
+  // see outstanding work by default. Switching to Sent surfaces
+  // history; ALL shows everything.
+  const [filterStatus, setFilterStatus] = useState<string>('ACTIVE');
+  const [purging, setPurging] = useState(false);
   const push = useTriggerAndWatch();
 
   async function reload(): Promise<void> {
@@ -65,7 +69,13 @@ export function MockupDataQueues(): JSX.Element {
       if (q && !i.op.entityRef.toLowerCase().includes(q)
             && !i.op.operationId.toLowerCase().includes(q)) return false;
       if (filterType !== 'ALL' && i.op.entityType !== filterType) return false;
-      if (filterStatus !== 'ALL' && i.state !== filterStatus) return false;
+      // §2.3.119 R-AP — "ACTIVE" is a synthetic bucket: everything
+      // except terminal success. Operators see work-to-do by
+      // default; switch to "Sent" to inspect successfully-synced
+      // history, or "ALL" to see everything.
+      if (filterStatus === 'ACTIVE' && i.state === 'Sent') return false;
+      if (filterStatus !== 'ALL' && filterStatus !== 'ACTIVE'
+            && i.state !== filterStatus) return false;
       return true;
     });
   }, [items, query, filterType, filterStatus]);
@@ -199,6 +209,7 @@ export function MockupDataQueues(): JSX.Element {
                  </select>
                  <select className="ea-input" style={{ maxWidth: 150 }} value={filterStatus}
                          onChange={(e) => setFilterStatus(e.target.value)}>
+                   <option value="ACTIVE">Active (hide Sent)</option>
                    <option value="ALL">All statuses</option>
                    {(['Waiting', 'Sending', 'Sent', 'Retrying', 'Rejected', 'Needs attention'] as OperatorState[])
                      .map((s) => <option key={s} value={s}>{s}</option>)}
@@ -208,6 +219,32 @@ export function MockupDataQueues(): JSX.Element {
                    <UiIcon icon="refresh" size={14} />
                    <span>Refresh</span>
                  </button>
+                 {/* §2.3.119 R-AP — "Clean processed" purges every
+                     terminal row (CENTRAL_ACCEPTED / CENTRAL_REJECTED)
+                     via the existing /admin/ops/journal/purge endpoint
+                     with olderThanDays=0. State-gated: only shown
+                     when at least one Sent row exists. */}
+                 {stateCounts.Sent > 0 && (
+                   <button type="button"
+                            className="ea-btn ea-btn--ghost ea-btn--sm"
+                            data-test="data-queue-purge"
+                            disabled={purging}
+                            onClick={() => {
+                              const ok = window.confirm(
+                                `Delete ${stateCounts.Sent} successfully-synced record(s) from the local queue?\n\n`
+                                + 'Rejected rows are also purged. The data remains on Central DHIS2 — '
+                                + 'this only clears the local sync-queue history. There is no undo.');
+                              if (!ok) return;
+                              setPurging(true);
+                              edgeApi.purgeTerminalJournalRows(0)
+                                .then(() => reload())
+                                .catch(() => undefined)
+                                .finally(() => setPurging(false));
+                            }}>
+                     <UiIcon icon="trash" size={14} />
+                     <span>{purging ? 'Cleaning…' : `Clean processed (${stateCounts.Sent})`}</span>
+                   </button>
+                 )}
                </>
              }>
         {filtered.length === 0 ? (

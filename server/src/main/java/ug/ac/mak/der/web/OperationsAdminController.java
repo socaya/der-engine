@@ -296,7 +296,9 @@ public class OperationsAdminController {
             return ResponseEntity.status(503).body(Map.of(
                     "code", "JOURNAL_UNAVAILABLE", "message", "journal not wired"));
         }
-        final int capped = Math.max(1, days);
+        // §2.3.119 R-AP — allow days=0 (purge every terminal row now)
+        // so operators can clear the processed queue list in one click.
+        final int capped = Math.max(0, days);
         final Instant cutoff = Instant.now(clock).minus(capped, java.time.temporal.ChronoUnit.DAYS);
         final int purged = jr.purgeTerminalBefore(cutoff);
         audit.append(new AuditEvent("JOURNAL_RETENTION_PURGE",

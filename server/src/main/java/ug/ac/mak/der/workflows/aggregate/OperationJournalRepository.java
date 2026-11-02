@@ -75,9 +75,14 @@ public class OperationJournalRepository {
     public Optional<OperationJournalEntry> findById(final UUID operationId) {
         try {
             return Optional.ofNullable(jdbc.queryForObject(
+                    // §2.3.119 R-AP — the rowMapper reads workflow_run_id;
+                    // the SELECT was missing it, so queryForObject failed
+                    // with BadSqlGrammarException on every GET
+                    // /journal/operations/{opId} lookup (visible in the
+                    // UI as a 404 "Record not found · invalid credentials").
                     "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
                             + "attempt_count, last_error, submitted_by, created_at, updated_at, "
-                            + "next_hop_org_unit_uid "
+                            + "next_hop_org_unit_uid, workflow_run_id "
                             + "FROM der.operation_journal WHERE operation_id = ?",
                     rowMapper(),
                     operationId
