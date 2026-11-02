@@ -81,6 +81,26 @@ public class SchedulerConfig {
     }
 
     @Bean
+    public JobDetail referralEscalationJobDetail() {
+        return JobBuilder.newJob(ReferralEscalationJob.class)
+                .withIdentity(ReferralEscalationJob.JOB_NAME)
+                .storeDurably()
+                .requestRecovery()
+                .build();
+    }
+
+    @Bean
+    public Trigger referralEscalationTrigger(final JobDetail referralEscalationJobDetail,
+                                                @Value("${der.referral.escalation.cron:0 */5 * * * ?}")
+                                                final String cron) {
+        return TriggerBuilder.newTrigger()
+                .forJob(referralEscalationJobDetail)
+                .withIdentity(ReferralEscalationJob.JOB_NAME + "_TRIGGER")
+                .withSchedule(CronScheduleBuilder.cronSchedule(cron))
+                .build();
+    }
+
+    @Bean
     public JobDetail dataPullJobDetail() {
         return JobBuilder.newJob(DataPullJob.class)
                 .withIdentity(DataPullJob.JOB_NAME)

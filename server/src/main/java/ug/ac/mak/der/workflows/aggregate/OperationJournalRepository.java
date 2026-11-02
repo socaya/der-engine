@@ -332,6 +332,60 @@ public class OperationJournalRepository {
                 operationId);
     }
 
+    /**
+     * Phase 10.3.2 — rows picked up by the referral escalation
+     * scanner. A row is "past due" when the next_hop was set and
+     * the row hasn't been acked in {@code threshold}. Rows already
+     * escalated are excluded so the job alerts at most once per
+     * row (narrower partial index backs this scan).
+     *
+     * <p>Returns a sliver of each row (just operation_id +
+     * next_hop_org_unit_uid + updated_at) because the escalation
+     * audit event doesn't need the full payload — keeps the
+     * batch cheap for the scheduled job.</p>
+     */
+    public List<ReferralOutstandingRow> findOutstandingReferralsPastDue(
+            final Instant olderThan, final int limit) {
+        Objects.requireNonNull(olderThan, "olderThan");
+        return jdbc.query(
+                "SELECT operation_id, next_hop_org_unit_uid, updated_at "
+                        + "FROM der.operation_journal "
+                        + "WHERE next_hop_org_unit_uid IS NOT NULL "
+                        + "  AND referral_delivered_at IS NULL "
+                        + "  AND referral_escalated_at IS NULL "
+                        + "  AND updated_at < ? "
+                        + "ORDER BY updated_at ASC LIMIT ?",
+                (ResultSet rs, int n) -> new ReferralOutstandingRow(
+                        rs.getObject("operation_id", UUID.class),
+                        rs.getString("next_hop_org_unit_uid"),
+                        rs.getTimestamp("updated_at").toInstant()),
+                java.sql.Timestamp.from(olderThan),
+                Math.max(1, Math.min(limit, 500)));
+    }
+
+    /**
+     * Phase 10.3.2 — flag the referral row as escalated so the next
+     * scheduled scan skips it. Idempotent: a row already escalated
+     * stays at its original escalation timestamp.
+     */
+    public int markReferralEscalated(final UUID operationId, final Instant at) {
+        Objects.requireNonNull(operationId, "operationId");
+        return jdbc.update(
+                "UPDATE der.operation_journal "
+                        + "SET referral_escalated_at = ?, updated_at = now() "
+                        + "WHERE operation_id = ? "
+                        + "  AND next_hop_org_unit_uid IS NOT NULL "
+                        + "  AND referral_delivered_at IS NULL "
+                        + "  AND referral_escalated_at IS NULL",
+                java.sql.Timestamp.from(at == null ? Instant.now() : at),
+                operationId);
+    }
+
+    /** Slim projection returned by
+     *  {@link #findOutstandingReferralsPastDue(Instant, int)}. */
+    public record ReferralOutstandingRow(UUID operationId, String nextHopOrgUnitUid,
+                                            Instant updatedAt) { }
+
     public int markNextHop(final UUID operationId, final String nextHopOrgUnitUid) {
         Objects.requireNonNull(operationId, "operationId");
         return jdbc.update(

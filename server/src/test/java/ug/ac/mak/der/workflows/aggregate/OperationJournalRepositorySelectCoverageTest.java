@@ -125,6 +125,23 @@ class OperationJournalRepositorySelectCoverageTest {
                     || upper.contains("MIN(")) {
                 continue;
             }
+            /* Phase 10.3.2 — only guard SELECTs that feed the
+             * shared rowMapper(). A SELECT followed by an inline
+             * lambda row mapper (e.g. "(ResultSet rs, int n) ->
+             * ...") is intentionally a slim projection for a
+             * dedicated purpose — the escalation scanner's
+             * (operation_id, next_hop_org_unit_uid, updated_at)
+             * tuple being the first example — and does NOT need
+             * to carry every column the shared mapper reads. We
+             * detect this by searching the ~400 characters after
+             * the SELECT literal for a reference to rowMapper().
+             * No match → inline mapper → skip. */
+            final int tailStart = m.end();
+            final int tailEnd = Math.min(src.length(), tailStart + 500);
+            final String tail = src.substring(tailStart, tailEnd);
+            if (!tail.contains("rowMapper(")) {
+                continue;
+            }
             // Grab the comma-separated column list between SELECT
             // and FROM, then the simple column names.
             final int selectIdx = full.indexOf("SELECT ");
