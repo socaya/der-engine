@@ -71,6 +71,21 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/edge-api/v1/system/health").permitAll()
                         .requestMatchers("/edge-api/v1/auth/sign-in").permitAll()
+                        /* §2.3.120 R-AQ — Spring forwards uncaught
+                         * controller exceptions to /error. Without
+                         * permitAll here the internal forward is
+                         * seen by this filter chain as an anonymous
+                         * request and the authentication entry
+                         * point rewrites the response to 401,
+                         * masking the real 500 + its payload (we
+                         * hit this during the queue-detail 404
+                         * debugging in 2.3.119). permitAll on /error
+                         * lets DispatcherServlet's default error
+                         * controller run with the actual status.
+                         * This is safe: /error only ever renders
+                         * for errors raised by other requests which
+                         * already enforce their own auth. */
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         // §2 Observability — Prometheus scrape endpoint.
                         // Operators restrict reach via nginx / firewall;

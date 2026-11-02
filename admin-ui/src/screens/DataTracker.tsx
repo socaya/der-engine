@@ -436,12 +436,22 @@ function TrackerTable(
               <td>
                 <button type="button"
                          className="ea-btn ea-btn--ghost ea-btn--sm"
-                         onClick={() => setLineage({
-                           kind: r.kind === 'TEI'        ? 'tei'
-                               : r.kind === 'ENROLLMENT' ? 'enrollment'
-                               :                           'tracker-event',
-                           id: r.rowId,
-                         })}
+                         onClick={(e) => {
+                           /* §2.3.120 R-AQ — stop the click bubbling
+                            * up to the row's onClick navigate(). The
+                            * row's own .closest('a,button') guard
+                            * should also catch it, but belt +
+                            * suspenders eliminates any ordering race
+                            * between React's delegated handlers and
+                            * the state update. */
+                           e.stopPropagation();
+                           setLineage({
+                             kind: r.kind === 'TEI'        ? 'tei'
+                                 : r.kind === 'ENROLLMENT' ? 'enrollment'
+                                 :                           'tracker-event',
+                             id: r.rowId,
+                           });
+                         }}
                          data-test={`data-tracker-lineage-${r.rowId}`}>
                   Lineage
                 </button>

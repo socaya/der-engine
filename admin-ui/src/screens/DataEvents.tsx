@@ -355,7 +355,11 @@ function EventsTable(
               <td>
                 <button type="button"
                          className="ea-btn ea-btn--ghost ea-btn--sm"
-                         onClick={() => setLineageId(r.eventId)}
+                         onClick={(e) => {
+                           /* §2.3.120 R-AQ — see DataTracker.tsx. */
+                           e.stopPropagation();
+                           setLineageId(r.eventId);
+                         }}
                          data-test={`data-events-lineage-${r.eventId}`}>
                   Lineage
                 </button>

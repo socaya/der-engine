@@ -346,7 +346,11 @@ function AggregateTable(
               <td>
                 <button type="button"
                          className="ea-btn ea-btn--ghost ea-btn--sm"
-                         onClick={() => setLineageId(r.valueId)}
+                         onClick={(e) => {
+                           /* §2.3.120 R-AQ — see DataTracker.tsx. */
+                           e.stopPropagation();
+                           setLineageId(r.valueId);
+                         }}
                          data-test={`data-aggregate-lineage-${r.valueId}`}>
                   Lineage
                 </button>

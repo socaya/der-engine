@@ -310,6 +310,39 @@ public class OperationsAdminController {
     }
 
     /**
+     * §2.3.120 R-AQ — expose the most recent JOURNAL_RETENTION_PURGE
+     * audit event so the queue UI can render a "last cleaned
+     * {timestamp} · {n} rows" chip in the header. We pull from the
+     * audit log rather than keeping a dedicated column so there is
+     * exactly one authoritative record of what was purged and when.
+     */
+    @GetMapping(path = "/journal/last-purge")
+    public ResponseEntity<Map<String, Object>> lastPurge(final Authentication authentication) {
+        if (!(authentication instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final var rows = audit.findRecent("JOURNAL_RETENTION_PURGE", null, 1);
+        if (rows.isEmpty()) {
+            return ResponseEntity.ok(Map.of("observedAt", "", "rowsPurged", 0, "olderThanDays", 0));
+        }
+        final var row = rows.get(0);
+        int rowsPurged = 0;
+        int olderThanDays = 0;
+        try {
+            final var detail = mapper.readTree(row.detailJson());
+            rowsPurged = detail.path("rowsPurged").asInt(0);
+            olderThanDays = detail.path("olderThanDays").asInt(0);
+        } catch (Exception ignored) {
+            // Audit payload is operator-visible best-effort data —
+            // malformed detail shouldn't null the chip, callers tolerate 0.
+        }
+        return ResponseEntity.ok(Map.of(
+                "observedAt", row.observedAt().toString(),
+                "rowsPurged", rowsPurged,
+                "olderThanDays", olderThanDays));
+    }
+
+    /**
      * FR-05-10/11: move a drift-affected journal entry to
      * {@code CONFLICT_REVIEW} so the drain worker does not retry
      * against stale metadata definitions.

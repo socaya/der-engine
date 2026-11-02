@@ -31,19 +31,27 @@ export function MockupDataQueues(): JSX.Element {
   // history; ALL shows everything.
   const [filterStatus, setFilterStatus] = useState<string>('ACTIVE');
   const [purging, setPurging] = useState(false);
+  // §2.3.120 R-AQ — surface the last-cleaned timestamp so operators
+  // know when the processed-row history was last pruned (locally or
+  // by the retention cron). Empty observedAt = "never cleaned".
+  const [lastPurge, setLastPurge] = useState<
+    { observedAt: string; rowsPurged: number; olderThanDays: number } | null
+  >(null);
   const push = useTriggerAndWatch();
 
   async function reload(): Promise<void> {
-    const [a, b, c, d] = await Promise.allSettled([
+    const [a, b, c, d, e] = await Promise.allSettled([
       edgeApi.listJournalOperations(200),
       edgeApi.systemInfo(),
       edgeApi.workerHealth(),
       edgeApi.listJobs(50),
+      edgeApi.fetchLastJournalPurge(),
     ]);
     if (a.status === 'fulfilled') setOps(a.value);
     if (b.status === 'fulfilled') setSysInfo(b.value);
     if (c.status === 'fulfilled') setWorker(c.value);
     if (d.status === 'fulfilled') setJobs(d.value);
+    if (e.status === 'fulfilled') setLastPurge(e.value);
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
   useEffect(() => {
@@ -157,6 +165,14 @@ export function MockupDataQueues(): JSX.Element {
             <span>Sent <strong>{stateCounts.Sent}</strong></span>
             {stateCounts.Retrying > 0 && (<><span>·</span><span>Retrying <strong>{stateCounts.Retrying}</strong></span></>)}
             {needsAttention > 0 && (<><span>·</span><span>Needs attention <strong style={{ color: 'var(--der-danger-ink)' }}>{needsAttention}</strong></span></>)}
+            {lastPurge?.observedAt && (<>
+              <span>·</span>
+              <span data-test="data-last-cleaned">
+                Last cleaned{' '}
+                <strong style={{ color: 'var(--der-ink-900)' }}>{fmtAgo(lastPurge.observedAt)}</strong>
+                {lastPurge.rowsPurged > 0 && (<> · {lastPurge.rowsPurged} row{lastPurge.rowsPurged === 1 ? '' : 's'}</>)}
+              </span>
+            </>)}
           </>
         }
         actions={

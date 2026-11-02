@@ -929,6 +929,14 @@ export function purgeTerminalJournalRows(olderThanDays: number):
     `/edge-api/v1/admin/ops/journal/purge?olderThanDays=${olderThanDays}`);
 }
 
+/** §2.3.120 R-AQ — last successful JOURNAL_RETENTION_PURGE audit event
+ *  so the queue header can render "last cleaned <ago> · <n> rows".
+ *  observedAt is empty string when no purge has ever run. */
+export function fetchLastJournalPurge():
+    Promise<{ observedAt: string; rowsPurged: number; olderThanDays: number }> {
+  return request('GET', '/edge-api/v1/admin/ops/journal/last-purge');
+}
+
 /** §2.3.105 R-Y — bulk force-retry a specific list of operation ids
  *  (used by the per-stream Retry button inside the TEI drawer). The
  *  server silently skips ids already in terminal/pending states;
