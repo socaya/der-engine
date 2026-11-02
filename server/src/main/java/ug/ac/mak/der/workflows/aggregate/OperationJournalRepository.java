@@ -260,6 +260,29 @@ public class OperationJournalRepository {
         );
     }
 
+    /**
+     * ADR-0034 — the latest journal row for a given
+     * (entity_type, entity_ref) pair. The inbound-pull merger uses
+     * the result's state to pick between "overwrite" (terminal
+     * local row) and "raise conflict" (non-terminal local row).
+     */
+    public Optional<OperationJournalEntry> findLatestByEntityRef(
+            final OperationJournalEntry.EntityType entityType, final String entityRef) {
+        try {
+            return Optional.ofNullable(jdbc.queryForObject(
+                    "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
+                            + "attempt_count, last_error, submitted_by, created_at, updated_at, "
+                            + "next_hop_org_unit_uid, workflow_run_id "
+                            + "FROM der.operation_journal "
+                            + "WHERE entity_type = ? AND entity_ref = ? "
+                            + "ORDER BY updated_at DESC LIMIT 1",
+                    rowMapper(),
+                    entityType.name(), entityRef));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
     public int countByState(final OperationJournalEntry.State state) {
         final Integer n = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM der.operation_journal WHERE state = ?",

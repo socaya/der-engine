@@ -134,6 +134,35 @@ public class AggregateDataValueRepository {
         return jdbc.query(sql.toString(), rowMapper(), args.toArray());
     }
 
+    /**
+     * ADR-0034 — look up a local row by its compound-key coordinates
+     * so the inbound pull can tell "central's row collides with ours"
+     * (merge path) from "central knows a row we don't have yet"
+     * (insert path).
+     */
+    public Optional<AggregateDataValue> findByCompoundKey(
+            final String dataElementUid, final String orgUnitUid,
+            final String periodIso, final String categoryOptionComboUid,
+            final String attributeOptionComboUid) {
+        try {
+            return Optional.ofNullable(jdbc.queryForObject(
+                    "SELECT value_id, data_element_uid, org_unit_uid, period_iso, "
+                            + "category_option_combo_uid, attribute_option_combo_uid, "
+                            + "value_text, comment, submitted_by, submitted_at, "
+                            + "value_version, data_set_uid, workflow_run_id "
+                            + "FROM der.aggregate_data_value "
+                            + "WHERE data_element_uid = ? AND org_unit_uid = ? "
+                            + "  AND period_iso = ? "
+                            + "  AND category_option_combo_uid = ? "
+                            + "  AND attribute_option_combo_uid = ?",
+                    rowMapper(),
+                    dataElementUid, orgUnitUid, periodIso,
+                    categoryOptionComboUid, attributeOptionComboUid));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
     public List<AggregateDataValue> findRecentByUser(final UUID userId, final int limit) {
         final int capped = Math.max(1, Math.min(limit, 100));
         return jdbc.query(

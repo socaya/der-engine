@@ -34,13 +34,16 @@ public class DataPullService {
     private final DataPullCursorRepository cursors;
     private final CentralReachabilityGate reachability;
     private final Clock clock;
+    private final AggregatePuller aggregatePuller;
 
     public DataPullService(final DataPullCursorRepository cursors,
                              final CentralReachabilityGate reachability,
-                             final Clock clock) {
+                             final Clock clock,
+                             final AggregatePuller aggregatePuller) {
         this.cursors = Objects.requireNonNull(cursors, "cursors");
         this.reachability = Objects.requireNonNull(reachability, "reachability");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.aggregatePuller = Objects.requireNonNull(aggregatePuller, "aggregatePuller");
     }
 
     /**
@@ -82,17 +85,21 @@ public class DataPullService {
     }
 
     /**
-     * Puller stub — delegated to the per-entity {@code Puller}
-     * implementation registered in Phase 09.3 / 09.4. For the
-     * skeleton slice we return an empty result so the orchestration
-     * contract is exercised without any central round-trip.
+     * Dispatches to the per-entity puller. AGGREGATE lands in Phase
+     * 09.3 (now); EVENT + TRACKER stay as empty stubs until 09.4.
      *
-     * <p>Package-private so the test suite can swap it; the real
-     * implementation lives in {@link AggregatePuller} etc.</p>
+     * <p>Package-private so the test suite can swap it with an
+     * override when exercising orchestration contract behaviour.</p>
      */
     PullerResult pullOne(final DataPullCursor.EntityType entityType,
                           final String orgUnitUid) {
-        return new PullerResult(0, 0, Instant.now(clock), null);
+        final Instant since = cursors.findByScope(entityType, orgUnitUid)
+                .map(DataPullCursor::lastPulledAt).orElse(null);
+        return switch (entityType) {
+            case AGGREGATE -> aggregatePuller.pull(orgUnitUid, since);
+            case EVENT     -> new PullerResult(0, 0, Instant.now(clock), null);
+            case TRACKER   -> new PullerResult(0, 0, Instant.now(clock), null);
+        };
     }
 
     public List<DataPullCursor> cursors() {

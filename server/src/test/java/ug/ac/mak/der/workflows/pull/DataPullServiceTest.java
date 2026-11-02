@@ -36,7 +36,7 @@ class DataPullServiceTest {
     @Test
     void offlineReachabilityShortCircuitsAndMarksNoCursor() {
         final DataPullCursorRepository cursors = mock(DataPullCursorRepository.class);
-        final var svc = new DataPullService(cursors, offline(), clock);
+        final var svc = new DataPullService(cursors, offline(), clock, mock(AggregatePuller.class));
         final var out = svc.pullAll("ou1");
         assertThat(out.note()).isEqualTo("skipped: central unreachable");
         assertThat(out.aggregatePulled()).isZero();
@@ -49,12 +49,14 @@ class DataPullServiceTest {
     @Test
     void successfulPullAdvancesCursorForEveryEntityType() {
         final DataPullCursorRepository cursors = mock(DataPullCursorRepository.class);
-        final var svc = new DataPullService(cursors, reachable(), clock);
+        final AggregatePuller agg = mock(AggregatePuller.class);
+        when(agg.pull(anyString(), any()))
+                .thenReturn(new DataPullService.PullerResult(0, 0, NOW, null));
+        final var svc = new DataPullService(cursors, reachable(), clock, agg);
         svc.pullAll("ou1");
-        /* The skeleton puller returns an empty result for every
-         * entity type; the service must still advance each cursor
-         * with the current clock so the next tick's watermark
-         * reflects "pulled through now, no new rows". */
+        /* Service must advance each cursor with a timestamp so the
+         * next tick's watermark reflects "pulled through now, no
+         * new rows". */
         for (final var et : DataPullCursor.EntityType.values()) {
             verify(cursors).markSuccess(eq(et), eq("ou1"), any(Instant.class), any());
         }
@@ -63,7 +65,7 @@ class DataPullServiceTest {
     @Test
     void pullerExceptionMarksFailureNotSuccess() {
         final DataPullCursorRepository cursors = mock(DataPullCursorRepository.class);
-        final var svc = new DataPullService(cursors, reachable(), clock) {
+        final var svc = new DataPullService(cursors, reachable(), clock, mock(AggregatePuller.class)) {
             @Override
             DataPullService.PullerResult pullOne(final DataPullCursor.EntityType entityType,
                                                     final String orgUnitUid) {
@@ -87,7 +89,7 @@ class DataPullServiceTest {
     void outcomeAggregatesPerEntityCounters() {
         final DataPullCursorRepository cursors = mock(DataPullCursorRepository.class);
         when(cursors.findAll()).thenReturn(java.util.List.of());
-        final var svc = new DataPullService(cursors, reachable(), clock) {
+        final var svc = new DataPullService(cursors, reachable(), clock, mock(AggregatePuller.class)) {
             @Override
             DataPullService.PullerResult pullOne(final DataPullCursor.EntityType entityType,
                                                     final String orgUnitUid) {
