@@ -308,6 +308,30 @@ public class OperationJournalRepository {
         }
     }
 
+    /**
+     * Phase 10.3 — ADR-0027 D-RHO-4 referral ack. Stamps the row's
+     * {@code referral_delivered_at} + {@code referral_receipt_id} iff
+     * the row is actually a referral (next_hop set) AND hasn't been
+     * acked yet. Returns the number of rows updated (0 or 1) so
+     * callers can distinguish "ok, delivered just now" from "already
+     * delivered" / "not a referral".
+     */
+    public int markReferralDelivered(final UUID operationId, final String receiptId,
+                                        final Instant deliveredAt) {
+        Objects.requireNonNull(operationId, "operationId");
+        return jdbc.update(
+                "UPDATE der.operation_journal "
+                        + "SET referral_delivered_at = ?, "
+                        + "    referral_receipt_id = ?, "
+                        + "    updated_at = now() "
+                        + "WHERE operation_id = ? "
+                        + "  AND next_hop_org_unit_uid IS NOT NULL "
+                        + "  AND referral_delivered_at IS NULL",
+                java.sql.Timestamp.from(deliveredAt == null ? Instant.now() : deliveredAt),
+                receiptId == null || receiptId.isBlank() ? null : receiptId.trim(),
+                operationId);
+    }
+
     public int markNextHop(final UUID operationId, final String nextHopOrgUnitUid) {
         Objects.requireNonNull(operationId, "operationId");
         return jdbc.update(
