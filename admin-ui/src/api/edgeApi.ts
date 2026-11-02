@@ -73,6 +73,28 @@ async function request<T>(
     return (text ? JSON.parse(text) : undefined) as T;
   }
   if (response.status === 401) {
+    /* §2.3.122 R-AQ/followup — "all buttons dead" bug fix.
+     * When a server-side session expires mid-use (TTL hit, DER
+     * restart, admin kick), every subsequent click fetches 401 but
+     * React still thinks state=AUTHENTICATED, so no component
+     * redirects. User sees a page that *looks* authenticated but
+     * every interaction silently fails — including the Logout
+     * button, since AdminShell doesn't re-check session before
+     * rendering. Here we force a one-shot redirect to /sign-in on
+     * the first mid-session 401, so the user lands on a page
+     * where they can actually recover.
+     *
+     * We skip this redirect for the auth probe endpoints (session,
+     * sign-in, sign-out) because those paths own the auth lifecycle
+     * themselves — redirecting on their 401 would create a loop. */
+    const isAuthProbe =
+      path.endsWith('/auth/session')
+      || path.endsWith('/auth/sign-in')
+      || path.endsWith('/auth/sign-out');
+    if (!isAuthProbe && typeof window !== 'undefined'
+        && window.location.pathname !== '/admin/sign-in') {
+      window.location.replace('/admin/sign-in?reason=session-expired');
+    }
     throw new EdgeApiError(401, 'INVALID_CREDENTIALS', 'invalid credentials');
   }
   if (response.status === 429) {

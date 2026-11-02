@@ -437,13 +437,6 @@ function TrackerTable(
                 <button type="button"
                          className="ea-btn ea-btn--ghost ea-btn--sm"
                          onClick={(e) => {
-                           /* §2.3.120 R-AQ — stop the click bubbling
-                            * up to the row's onClick navigate(). The
-                            * row's own .closest('a,button') guard
-                            * should also catch it, but belt +
-                            * suspenders eliminates any ordering race
-                            * between React's delegated handlers and
-                            * the state update. */
                            e.stopPropagation();
                            setLineage({
                              kind: r.kind === 'TEI'        ? 'tei'

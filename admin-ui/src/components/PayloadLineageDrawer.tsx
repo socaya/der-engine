@@ -30,6 +30,17 @@ export function PayloadLineageDrawer(
   const [retryBusy, setRetryBusy] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  /* §2.3.122 R-AQ/followup — document-level Escape handler so the
+   * key works even if the drawer backdrop never got keyboard
+   * focus. Idempotent — cleaned up on unmount. */
+  useEffect(() => {
+    function onKey(e: KeyboardEvent): void {
+      if (e.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   useEffect(() => {
     let alive = true;
     const loader
@@ -88,7 +99,16 @@ export function PayloadLineageDrawer(
            justifyContent: 'flex-end',
            background: 'rgba(15, 23, 42, 0.45)',
          }}
-         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+         /* §2.3.122 R-AQ/followup — backdrop click-to-close removed.
+          * Operators reported "Lineage not opening"; actual behaviour
+          * was open-then-immediate-close triggered by a second click
+          * landing on the backdrop (dark area around the right-side
+          * panel). On mice that chatter or trackpads where a single
+          * tap sometimes registers twice, this looked like no
+          * reaction. Esc + the Close button are the only ways to
+          * dismiss now. */
+         onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+         tabIndex={-1}>
       <div style={{
              background: 'var(--der-raised)',
              width: 'min(680px, 94vw)',

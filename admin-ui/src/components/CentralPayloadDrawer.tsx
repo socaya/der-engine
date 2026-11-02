@@ -34,6 +34,15 @@ export function CentralPayloadDrawer(
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  /* §2.3.122 R-AQ/followup — document-level Escape handler. */
+  useEffect(() => {
+    function onKey(e: KeyboardEvent): void {
+      if (e.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   useEffect(() => {
     let alive = true;
     const opts = {
@@ -76,9 +85,12 @@ export function CentralPayloadDrawer(
            justifyContent: 'flex-end',
            background: 'rgba(15, 23, 42, 0.45)',
          }}
-         onClick={(e) => {
-           if (e.target === e.currentTarget) onClose();
-         }}>
+         /* §2.3.122 R-AQ/followup — see PayloadLineageDrawer.tsx:
+          *   backdrop click-to-close removed to prevent the
+          *   open-then-immediate-close race on chatty mice /
+          *   trackpads. Esc + explicit Close button only. */
+         onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+         tabIndex={-1}>
       <div style={{
              background: 'var(--der-raised)',
              width: 'min(620px, 92vw)',

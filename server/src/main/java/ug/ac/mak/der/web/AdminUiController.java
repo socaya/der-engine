@@ -57,6 +57,25 @@ public class AdminUiController {
                 .build();
     }
 
+    /* §2.3.122 R-AQ/followup — browsers fetch /favicon.ico by default
+     * on every page load, regardless of the <link rel="icon"> in the
+     * SPA shell. The admin-ui dist ships the DER icon as favicon.svg;
+     * serve the same bytes under both /favicon.ico and /favicon.svg
+     * (and under /admin/favicon.svg via the SPA mapping) so neither
+     * the browser's implicit fetch nor the explicit link ends in a
+     * 403/404 noise storm in DevTools. */
+    @GetMapping({ "/favicon.ico", "/favicon.svg" })
+    public ResponseEntity<byte[]> favicon() throws IOException {
+        final ResponseEntity<byte[]> cp = serveFromClasspath("favicon.svg");
+        if (cp != null) {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType("image/svg+xml"))
+                    .cacheControl(CacheControl.maxAge(java.time.Duration.ofHours(1)))
+                    .body(cp.getBody());
+        }
+        return ResponseEntity.notFound().build();
+    }
+
     @GetMapping("/admin/**")
     public ResponseEntity<byte[]> serve(final HttpServletRequest request) throws IOException {
         final String uri = request.getRequestURI();

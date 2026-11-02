@@ -86,6 +86,17 @@ public class SecurityConfig {
                          * for errors raised by other requests which
                          * already enforce their own auth. */
                         .requestMatchers("/error").permitAll()
+                        /* §2.3.122 R-AQ/followup — browsers fetch
+                         * /favicon.ico by default on every page load,
+                         * even when the HTML <head> declares a
+                         * different favicon link. Without this permit
+                         * the request falls into
+                         * .anyRequest().authenticated() and returns
+                         * 403 for authenticated users (no handler
+                         * exists) or 401 for anonymous — a stream of
+                         * noise in DevTools either way. Icon content
+                         * is public. */
+                        .requestMatchers("/favicon.ico", "/favicon.svg").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         // §2 Observability — Prometheus scrape endpoint.
                         // Operators restrict reach via nginx / firewall;
