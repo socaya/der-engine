@@ -1165,9 +1165,14 @@ export function RelatedMenu(
               <span>{it.label}</span>
             </>
           );
+          // §2.3.112 R-AI — every cross-module Link rendered by this
+          // menu carries data-cross-module so the regression guard
+          // in scripts/lint/check_cross_module.sh can distinguish
+          // disclosed jumps from hidden ones.
           return it.disabled
             ? <span key={i} role="menuitem" style={style} aria-disabled="true">{content}</span>
-            : <Link key={i} to={it.to} role="menuitem" style={style}>{content}</Link>;
+            : <Link key={i} to={it.to} role="menuitem" style={style}
+                     data-cross-module={it.module ?? 'unspecified'}>{content}</Link>;
         })}
       </div>
     </details>

@@ -1183,7 +1183,10 @@ export function CapDataExchange(): JSX.Element {
   return (
     <div className="ea-screen">
       <p className="ea-text-muted" style={{ margin: 0 }}>
-        The Data page has moved. <Link to="/sync/data">Open the new Data page →</Link>
+        The Data page has moved. <Link to="/data/queue"
+                                        data-cross-module="Data">
+          Open the Data queue →
+        </Link>
       </p>
     </div>
   );
@@ -1236,7 +1239,8 @@ export function CapSyncSettings(): JSX.Element {
         }
         actions={
           <>
-            <Link to="/dhis2/connection" className="ea-btn ea-btn--ghost ea-btn--sm">
+            <Link to="/dhis2/connection" className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="DHIS2">
               <UiIcon icon="edit" size={14} />
               <span>Open DHIS2 configuration</span>
             </Link>
@@ -1676,7 +1680,7 @@ export function CapWorkflowRuns(): JSX.Element {
         subtitle={
           scopedWorkflow ? (
             <>
-              <Link to="/workflows">← Back to workflows</Link>
+              <Link to="/workflows" data-cross-module="Workflows">← Back to workflows</Link>
               <span>·</span>
               <span>Runs for <strong style={{ color: 'var(--der-ink-900)' }}>{scopedWorkflow.displayName}</strong></span>
             </>
@@ -1763,7 +1767,7 @@ export function CapStepAssignments(): JSX.Element {
         subtitle={
           scopedWorkflow ? (
             <>
-              <Link to="/workflows">← Back to workflows</Link>
+              <Link to="/workflows" data-cross-module="Workflows">← Back to workflows</Link>
               <span>·</span>
               <span>Role assignments for <strong style={{ color: 'var(--der-ink-900)' }}>{scopedWorkflow.displayName}</strong></span>
             </>

@@ -206,7 +206,7 @@ export function NetworkOverview(): JSX.Element {
       )}
 
       <Panel title={`Live activity · ${events.length} events`}
-             action={<Link to="/audit/events?category=network" className="ea-link-btn">View all →</Link>}>
+             action={<Link to="/audit/events?category=network" className="ea-link-btn" data-cross-module="Security">View all →</Link>}>
         {events.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
             No network events yet.
@@ -1509,7 +1509,9 @@ export function NetworkSecurity(): JSX.Element {
               <UiIcon icon="download" size={14} />
               <span>Download policy</span>
             </button>
-            <Link to="/audit/events?category=network" className="ea-btn ea-btn--ghost ea-btn--sm">
+            <Link to="/audit/events?category=network"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Security">
               <UiIcon icon="audit" size={14} />
               <span>View audit</span>
             </Link>
@@ -1782,7 +1784,9 @@ export function NetworkDiagnostics(): JSX.Element {
               <UiIcon icon="trash" size={14} />
               <span>Clear events</span>
             </button>
-            <Link to="/audit/events?category=network" className="ea-btn ea-btn--ghost ea-btn--sm">
+            <Link to="/audit/events?category=network"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Security">
               <UiIcon icon="audit" size={14} />
               <span>Full audit</span>
             </Link>

@@ -150,7 +150,8 @@ export function MockupDriftInspector(): JSX.Element {
       <Panel title="Related">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap',
                        padding: 14, alignItems: 'center' }}>
-          <Link to="/dhis2/metadata" className="ea-btn ea-btn--ghost ea-btn--sm">
+          <Link to="/dhis2/metadata" className="ea-btn ea-btn--ghost ea-btn--sm"
+                 data-cross-module="DHIS2">
             <UiIcon icon="metadata" size={14} />
             <span>Metadata browser</span>
           </Link>
@@ -527,7 +528,8 @@ export function MockupWorkerHealth(): JSX.Element {
                   {' '}·{' '}
                   <Link to="/sync/attention" className="ea-link-btn"
                         style={{ fontSize: 11 }}
-                        title="Open attention queue in Sync module">
+                        title="Open attention queue in Sync module"
+                        data-cross-module="Sync">
                     Sync › Open attention →
                   </Link>
                 </span>
@@ -1114,7 +1116,8 @@ export function MockupApprovalDetail(): JSX.Element {
                 <Link to={to}
                        className="ea-btn ea-btn--ghost ea-btn--sm"
                        title={`Open the ${label.toLowerCase()} in the Data module`}
-                       data-test="approval-view-record">
+                       data-test="approval-view-record"
+                       data-cross-module="Data">
                   Data › View {label.toLowerCase()} ↗
                 </Link>
               );
@@ -1329,7 +1332,8 @@ export function MockupReferralDetail(): JSX.Element {
               <Link to={`/workflows/monitoring/runs/${row.ingestRunId}`}
                      className="ea-btn ea-btn--ghost ea-btn--sm"
                      title="Open the workflow run that ingested this referral"
-                     data-test="referral-view-ingest-run">
+                     data-test="referral-view-ingest-run"
+                     data-cross-module="Workflows">
                 Workflows › View ingest run ↗
               </Link>
             )}
@@ -1650,10 +1654,12 @@ export function MockupAuditEvents(): JSX.Element {
           }
           actions={
             <>
-              <Link to="/audit/events" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <Link to="/audit/events" className="ea-btn ea-btn--ghost ea-btn--sm"
+                     data-cross-module="Security">
                 <UiIcon icon="refresh" size={14} /><span>Clear filter</span>
               </Link>
-              <Link to="/network/diagnostics" className="ea-btn ea-btn--ghost ea-btn--sm">
+              <Link to="/network/diagnostics" className="ea-btn ea-btn--ghost ea-btn--sm"
+                     data-cross-module="Network">
                 <UiIcon icon="diagnostics" size={14} /><span>Diagnostics</span>
               </Link>
             </>

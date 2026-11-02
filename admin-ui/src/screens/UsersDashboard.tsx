@@ -48,7 +48,8 @@ export function MockupUsersDashboard(): JSX.Element {
           </>
         }
         actions={
-          <Link to="/provisioning/users/new" className="ea-btn ea-btn--primary ea-btn--sm">
+          <Link to="/provisioning/users/new" className="ea-btn ea-btn--primary ea-btn--sm"
+                 data-cross-module="Access">
             <UiIcon icon="plus" size={14} />
             <span>Add user</span>
           </Link>

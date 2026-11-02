@@ -86,22 +86,30 @@ class ReferralInboxControllerTest {
         org.mockito.Mockito.verify(repo).findPending(5);
     }
 
+    /** §2.3.112 R-AH — V045 made ingest mandatory on accept: a false
+     *  return from the service surfaces 502 INGEST_REJECTED and the
+     *  inbox entry is left PENDING for retry. Previously this test
+     *  asserted 200 + ingested==false, which hasn't been reachable
+     *  since the V045 rework (the test was stale and red on main).
+     *  Rewritten to pin the current contract. */
     @Test
-    void acceptMarksAccepted() throws Exception {
+    void acceptSurfaces502WhenIngestRejects() throws Exception {
         final UUID id = UUID.randomUUID();
         when(repo.findById(id)).thenReturn(java.util.Optional.of(new ReferralInboxEntry(
                 id, ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE, "r", "ou", "{}",
                 NOW, ReferralInboxEntry.Status.PENDING, null, null, null)));
-        when(repo.markResolved(org.mockito.ArgumentMatchers.eq(id),
-                org.mockito.ArgumentMatchers.eq(ReferralInboxEntry.Status.ACCEPTED),
-                org.mockito.ArgumentMatchers.any(UUID.class),
-                org.mockito.ArgumentMatchers.any(Instant.class))).thenReturn(1);
+        // Default mock behaviour: ingest.ingest(...) returns false.
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .post("/edge-api/v1/referral/inbox/" + id + "/accept")
                         .with(as(EdgeRole.ADMIN)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("ACCEPTED"))
-                .andExpect(jsonPath("$.ingested").value(false));
+                .andExpect(status().is(502))
+                .andExpect(jsonPath("$.code").value("INGEST_REJECTED"));
+        // Inbox entry must NOT be marked resolved on a 502.
+        org.mockito.Mockito.verify(repo, org.mockito.Mockito.never())
+                .markResolved(org.mockito.ArgumentMatchers.any(UUID.class),
+                               org.mockito.ArgumentMatchers.any(),
+                               org.mockito.ArgumentMatchers.any(UUID.class),
+                               org.mockito.ArgumentMatchers.any(Instant.class));
     }
 
     @Test

@@ -406,12 +406,14 @@ function MetadataHealthSummary(
       </div>
       <div className="ea-screen-header-right">
         <Link to="/dhis2/metadata-sync" className="ea-btn ea-btn--primary ea-btn--sm"
-              data-test="metadata-action-sync">
+              data-test="metadata-action-sync"
+              data-cross-module="DHIS2">
           <UiIcon icon="pull" size={14} />
           <span>Metadata sync</span>
         </Link>
         <Link to="/dhis2/metadata-drift" className="ea-btn ea-btn--sm"
-              data-test="metadata-action-drift">
+              data-test="metadata-action-drift"
+              data-cross-module="DHIS2">
           <UiIcon icon="drift" size={14} />
           <span>Metadata drift</span>
         </Link>

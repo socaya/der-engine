@@ -224,7 +224,8 @@ export function EAUsersList({ api = edgeApi }:
         subtitle="Operators and administrators provisioned on this edge."
         lastFetched={lastFetched}
         actions={
-          <Link to="/provisioning/users/new" className="ea-btn ea-btn--primary" data-test="ea02-new">
+          <Link to="/provisioning/users/new" className="ea-btn ea-btn--primary"
+                 data-test="ea02-new" data-cross-module="Access">
             + Add user
           </Link>
         }
@@ -375,7 +376,8 @@ export function EAUserCreate({ api = edgeApi }:
         title="Add user"
         subtitle="Provision an operator or administrator account on this edge."
         actions={
-          <Link to="/provisioning/users" className="ea-btn ea-btn--ghost">← Back to users</Link>
+          <Link to="/provisioning/users" className="ea-btn ea-btn--ghost"
+                 data-cross-module="Access">← Back to users</Link>
         }
       />
       <div data-test="ea03-header" hidden />
@@ -511,7 +513,8 @@ export function EAUserCreate({ api = edgeApi }:
           </div>
 
           <div className="ea-form-actions">
-            <Link to="/provisioning/users" className="ea-btn ea-btn--ghost">Cancel</Link>
+            <Link to="/provisioning/users" className="ea-btn ea-btn--ghost"
+                   data-cross-module="Access">Cancel</Link>
             <button
               type="submit"
               className="ea-btn ea-btn--primary"
@@ -772,7 +775,9 @@ export function EAJobsList({ api = edgeApi }:
             {/* §2.3.107 R-AB — explicit module prefix so operators
                 see this leaves the current (Integration/Scheduler)
                 screen for the Sync module's job-trigger surface. */}
-            <Link to="/sync/jobs/trigger" className="ea-link-btn" data-test="ea06-trigger-link">
+            <Link to="/sync/jobs/trigger" className="ea-link-btn"
+                   data-test="ea06-trigger-link"
+                   data-cross-module="Sync">
               Sync › Trigger a job
             </Link>
           </>
@@ -1502,7 +1507,7 @@ export function EACaptureWorkflowList({ api = edgeApi }:
         }
         actions={
           <Link to="/workflows/new" className="ea-btn ea-btn--primary ea-btn--sm"
-                data-test="cwf01-new">
+                data-test="cwf01-new" data-cross-module="Workflows">
             <UiIcon icon="plus" size={14} />
             <span>New workflow</span>
           </Link>

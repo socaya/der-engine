@@ -404,6 +404,7 @@ function TrackerTable(
                 {r.workflowRunId ? (
                   /* §2.3.108 R-AC — explicit ↗ disclosure. */
                   <Link to={`/workflows/monitoring/runs/${r.workflowRunId}`}
+                        data-cross-module="Workflows"
                         style={{ textDecoration: 'none',
                                   color: 'var(--der-primary-ink)',
                                   display: 'inline-flex',

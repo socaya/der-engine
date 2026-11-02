@@ -334,7 +334,8 @@ export function MockupDataDetail(): JSX.Element {
               </button>
             )}
             {state === 'Needs attention' && (
-              <Link to="/sync/attention" className="ea-btn ea-btn--primary ea-btn--sm">
+              <Link to="/sync/attention" className="ea-btn ea-btn--primary ea-btn--sm"
+                     data-cross-module="Sync">
                 Open attention item
               </Link>
             )}

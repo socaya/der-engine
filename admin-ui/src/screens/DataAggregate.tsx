@@ -302,6 +302,7 @@ function AggregateTable(
                      jump explicit; title discloses "Open workflow run
                      in Workflows module" for keyboard + screen-reader. */
                   <Link to={`/workflows/monitoring/runs/${r.workflowRunId}`}
+                        data-cross-module="Workflows"
                         style={{ textDecoration: 'none',
                                   color: 'var(--der-primary-ink)',
                                   display: 'inline-flex',

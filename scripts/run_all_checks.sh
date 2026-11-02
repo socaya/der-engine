@@ -165,6 +165,10 @@ for app in admin-ui client; do
   run_step "${app}-lint"      bash -c "cd ${app} && npm run --silent lint"
   run_step "${app}-build"     bash -c "cd ${app} && npm run --silent build"
   run_step "${app}-coverage"  bash -c "cd ${app} && npm run --silent test:coverage"
+  # §2.3.112 R-AI — cross-module nav regression guard (admin-ui only).
+  if [[ "${app}" == "admin-ui" ]]; then
+    run_step "${app}-cross-module-lint" bash -c "scripts/lint/check_cross_module.sh ${app}/src"
+  fi
 
   [[ -d "${app}/coverage" ]] && cp -R "${app}/coverage" "${COV_DIR}/${app}/vitest"
 
