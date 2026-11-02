@@ -902,6 +902,23 @@ export function retryOperation(operationId: string):
     `/edge-api/v1/admin/ops/journal/${encodeURIComponent(operationId)}/retry`);
 }
 
+/** §2.3.116 R-AM — scope-drift audit snapshot. Counts of locally-
+ *  stored rows whose org_unit_uid is outside the edge's bound
+ *  subtree, bucketed by entity type. Returns empty snapshot when
+ *  the edge is unbound. */
+export interface ScopeAuditSnapshot {
+  boundOrgUnitId: string | null;
+  boundOrgUnitPath: string | null;
+  total: number;
+  countsByEntityType: Record<string, number>;
+  samplesByEntityType: Record<string, Array<Record<string, unknown>>>;
+}
+
+export function scopeAudit(sampleLimit = 5): Promise<ScopeAuditSnapshot> {
+  return request('GET',
+    `/edge-api/v1/admin/ops/scope/audit?sampleLimit=${sampleLimit}`);
+}
+
 /** §2.3.105 R-Y — bulk force-retry a specific list of operation ids
  *  (used by the per-stream Retry button inside the TEI drawer). The
  *  server silently skips ids already in terminal/pending states;

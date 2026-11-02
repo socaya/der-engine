@@ -21,6 +21,7 @@ export function MockupDashboard(): JSX.Element {
   const [activity, setActivity] = useState<edgeApi.ActivityEntry[] | null>(null);
   const [devices, setDevices] = useState<edgeApi.EdgeDeviceRow[] | null>(null);
   const [workflows, setWorkflows] = useState<edgeApi.CaptureWorkflowSummary[] | null>(null);
+  const [scope, setScope] = useState<edgeApi.ScopeAuditSnapshot | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,6 +30,9 @@ export function MockupDashboard(): JSX.Element {
       edgeApi.listJobs(50), edgeApi.listConflicts(50),
       edgeApi.recentActivity(10), edgeApi.listDevices(),
       edgeApi.listWorkflows(),
+      // §2.3.116 R-AM — scope drift tile. Sample 0 to keep the
+      // Dashboard payload small; the tile only needs counts.
+      edgeApi.scopeAudit(0),
     ]).then((r) => {
       if (r[0].status === 'fulfilled') setH(r[0].value);
       if (r[1].status === 'fulfilled') setSi(r[1].value);
@@ -38,6 +42,7 @@ export function MockupDashboard(): JSX.Element {
       if (r[5].status === 'fulfilled') setActivity(r[5].value.entries);
       if (r[6].status === 'fulfilled') setDevices(r[6].value.devices);
       if (r[7].status === 'fulfilled') setWorkflows(r[7].value.workflows);
+      if (r[8].status === 'fulfilled') setScope(r[8].value);
       const first = r.find((x) => x.status === 'rejected');
       if (first && first.status === 'rejected') {
         setErr(first.reason instanceof Error ? first.reason.message : String(first.reason));
@@ -179,6 +184,50 @@ export function MockupDashboard(): JSX.Element {
               <li><Dot tone="warning" /><span>Medium priority</span><strong>{medC}</strong></li>
               <li><Dot tone="muted" /><span>Low priority</span><strong>{lowC}</strong></li>
             </ul>
+          </Panel>
+
+          {/* §2.3.116 R-AM — scope drift tile. Shows the number of
+              locally-stored rows whose org_unit_uid is outside the
+              edge's bound subtree, bucketed by entity type. The
+              server-side ScopeDriftJob emits SCOPE_DRIFT_DETECTED
+              audit events every 15 min when total > 0; this tile
+              surfaces the current count so operators can triage. */}
+          <Panel title="Scope drift"
+                  action={<Link to="/journal/conflicts?category=scope"
+                                 className="ea-link-btn"
+                                 data-cross-module="Security">
+                            View audit →
+                          </Link>}>
+            {scope === null ? (
+              <p className="ea-text-muted" style={{ margin: 0 }}>Loading…</p>
+            ) : scope.boundOrgUnitId === null ? (
+              <p className="ea-text-muted" style={{ margin: 0 }}>
+                Edge is unbound — bind an OU for scope checks.
+              </p>
+            ) : scope.total === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Dot tone="success" />
+                <span>All local rows match the bound OU subtree.</span>
+              </div>
+            ) : (
+              <>
+                <div className="ea-dash-conflict-total"
+                     style={{ color: 'var(--der-warning-ink)' }}>
+                  {scope.total}
+                </div>
+                <ul className="ea-dash-priority-list">
+                  {Object.entries(scope.countsByEntityType)
+                    .filter(([, n]) => n > 0)
+                    .map(([k, n]) => (
+                      <li key={k}>
+                        <Dot tone="warning" />
+                        <span>{k.replace(/_/g, ' ').toLowerCase()}</span>
+                        <strong>{n}</strong>
+                      </li>
+                    ))}
+                </ul>
+              </>
+            )}
           </Panel>
 
           <Panel title="Edge Workflows" action={<Link to="/workflows" className="ea-link-btn">View All</Link>}>

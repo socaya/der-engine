@@ -29,9 +29,25 @@
 
 set -euo pipefail
 
+# §2.3.116 R-AM — --clean purges previously-seeded rows via psql
+# using the UIDs we recorded in SEED_LOG. Idempotent reseed.
+MODE="seed"
+if [[ "${1:-}" == "--clean" ]]; then
+  MODE="clean"
+fi
+
 DER_URL="${DER_URL:-http://localhost:8085}"
 DER_USER="${DER_USER:-der-admin}"
 DER_PASS="${DER_PASS:-OY2/uIass26KcwqwMIc+UjqlBDNDU4ER}"
+
+# PG direct connection — only used by --clean. Matches the smoke
+# script envs.
+PG_HOST="${PG_HOST:-localhost}"
+PG_USER="${PG_USER:-der}"
+PG_PASS="${PG_PASS:-der_phase01_devonly}"
+PG_DB="${PG_DB:-der}"
+
+SEED_LOG="${SEED_LOG:-/tmp/der-seed-log.jsonl}"
 
 # ---- metadata UIDs (override via env for your instance) ----
 # Aggregate: dataset ANC 1st visit · DE ANC 1 · period 2026Q1 · value 17.
@@ -66,12 +82,85 @@ trap cleanup EXIT
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { log "FAIL: $*"; exit 1; }
 
+# §2.3.116 R-AM — append a seed-log entry for later --clean passes.
+record_seed() {
+  local kind="$1"; local uid="$2"; local ou="$3"
+  printf '{"ts":"%s","kind":"%s","uid":"%s","orgUnit":"%s"}\n' \
+    "$(date -u +%FT%TZ)" "$kind" "$uid" "$ou" >> "$SEED_LOG"
+}
+
+run_clean() {
+  if [[ ! -s "$SEED_LOG" ]]; then
+    log "no prior seeds in $SEED_LOG — nothing to clean"
+    return 0
+  fi
+  log "purging prior seeds from $SEED_LOG via psql"
+  # Collect per-kind UID lists.
+  declare -a aggregate_cmt tei enr trk_evt evt
+  while IFS= read -r line; do
+    local kind uid
+    kind=$(printf '%s' "$line" | sed -nE 's/.*"kind":"([^"]+)".*/\1/p')
+    uid=$(printf '%s'  "$line" | sed -nE 's/.*"uid":"([^"]+)".*/\1/p')
+    case "$kind" in
+      aggregate) aggregate_cmt+=("$uid") ;;
+      tei)       tei+=("$uid") ;;
+      enrol)     enr+=("$uid") ;;
+      trk_evt)   trk_evt+=("$uid") ;;
+      evt)       evt+=("$uid") ;;
+    esac
+  done < "$SEED_LOG"
+
+  export PGPASSWORD="$PG_PASS"
+  local in_list=''
+  if (( ${#aggregate_cmt[@]} )); then
+    # Aggregate seeds carry a well-known comment prefix.
+    psql -h "$PG_HOST" -U "$PG_USER" -d "$PG_DB" -c \
+      "DELETE FROM der.aggregate_data_value \
+       WHERE comment = 'seeded by scripts/seeds/seed_bound_ou_data.sh'" \
+      >/dev/null && log "cleaned aggregate seeds"
+  fi
+  if (( ${#evt[@]} )); then
+    in_list=$(IFS=,; printf "'%s'" "${evt[*]/,/','}")
+    psql -h "$PG_HOST" -U "$PG_USER" -d "$PG_DB" -c \
+      "DELETE FROM der.event_data_value WHERE event_id::text IN ($in_list)" \
+      >/dev/null || true
+    psql -h "$PG_HOST" -U "$PG_USER" -d "$PG_DB" -c \
+      "DELETE FROM der.event WHERE event_id::text IN ($in_list)" \
+      >/dev/null && log "cleaned ${#evt[@]} event seed(s)"
+  fi
+  if (( ${#trk_evt[@]} )); then
+    in_list=$(IFS=,; printf "'%s'" "${trk_evt[*]/,/','}")
+    psql -h "$PG_HOST" -U "$PG_USER" -d "$PG_DB" -c \
+      "DELETE FROM der.edge_tracker_event WHERE event_uid IN ($in_list)" \
+      >/dev/null && log "cleaned ${#trk_evt[@]} tracker-event seed(s)"
+  fi
+  if (( ${#enr[@]} )); then
+    in_list=$(IFS=,; printf "'%s'" "${enr[*]/,/','}")
+    psql -h "$PG_HOST" -U "$PG_USER" -d "$PG_DB" -c \
+      "DELETE FROM der.edge_enrollment WHERE enrollment_uid IN ($in_list)" \
+      >/dev/null && log "cleaned ${#enr[@]} enrolment seed(s)"
+  fi
+  if (( ${#tei[@]} )); then
+    in_list=$(IFS=,; printf "'%s'" "${tei[*]/,/','}")
+    psql -h "$PG_HOST" -U "$PG_USER" -d "$PG_DB" -c \
+      "DELETE FROM der.tracked_entity WHERE tei_uid IN ($in_list)" \
+      >/dev/null && log "cleaned ${#tei[@]} TEI seed(s)"
+  fi
+  : > "$SEED_LOG"
+  log "clean complete; $SEED_LOG truncated"
+}
+
 # DHIS2 UID: 11 chars, first alphabetic, remainder alphanumeric.
 dhis_uid() {
   local first="$(LC_ALL=C tr -dc 'A-Za-z' < /dev/urandom | head -c 1)"
   local rest="$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 10)"
   printf '%s%s' "$first" "$rest"
 }
+
+if [[ "$MODE" == "clean" ]]; then
+  run_clean
+  exit 0
+fi
 
 # ---- 1. Sign in ----
 log "signing in to DER as $DER_USER at $DER_URL"
@@ -110,6 +199,7 @@ http=$(curl -sk -b "$cookie_jar" -o /tmp/agg-seed.json -w '%{http_code}' \
   "$DER_URL/api/dataValueSets")
 [[ "$http" == "200" ]] || { cat /tmp/agg-seed.json >&2; die "aggregate seed HTTP $http"; }
 log "aggregate seeded → $(head -c 200 /tmp/agg-seed.json)…"
+record_seed aggregate "$DATA_ELEMENT|$ORG_UNIT|$PERIOD" "$ORG_UNIT"
 
 # ---- 4. Seed single event (DHIS2 passthrough @ /api/events) ----
 log "seeding event: program=$EVENT_PROGRAM stage=$EVENT_STAGE"
@@ -136,6 +226,7 @@ http=$(curl -sk -b "$cookie_jar" -o /tmp/evt-seed.json -w '%{http_code}' \
   "$DER_URL/api/events")
 [[ "$http" == "200" ]] || { cat /tmp/evt-seed.json >&2; die "event seed HTTP $http"; }
 log "event seeded → $EVT_UID"
+record_seed evt "$EVT_UID" "$ORG_UNIT"
 
 # ---- 5. Seed tracker TEI + enrolment + stage event ----
 TEI_UID="$(dhis_uid)"
@@ -153,6 +244,7 @@ http=$(curl -sk -b "$cookie_jar" -o /tmp/tei-seed.json -w '%{http_code}' \
   -H 'Content-Type: application/json' -X POST --data-raw "$tei_body" \
   "$DER_URL/edge-api/v1/tracked-entities")
 [[ "$http" == "200" ]] || { cat /tmp/tei-seed.json >&2; die "TEI seed HTTP $http"; }
+record_seed tei "$TEI_UID" "$ORG_UNIT"
 
 ENR_UID="$(dhis_uid)"
 enr_body=$(cat <<JSON
@@ -170,6 +262,7 @@ http=$(curl -sk -b "$cookie_jar" -o /tmp/enr-seed.json -w '%{http_code}' \
   -H 'Content-Type: application/json' -X POST --data-raw "$enr_body" \
   "$DER_URL/edge-api/v1/tracker/enrollments")
 [[ "$http" == "200" ]] || { cat /tmp/enr-seed.json >&2; die "enrolment seed HTTP $http"; }
+record_seed enrol "$ENR_UID" "$ORG_UNIT"
 
 TRK_EVT_UID="$(dhis_uid)"
 trk_evt_body=$(cat <<JSON
@@ -189,6 +282,7 @@ http=$(curl -sk -b "$cookie_jar" -o /tmp/trk-evt-seed.json -w '%{http_code}' \
   -H 'Content-Type: application/json' -X POST --data-raw "$trk_evt_body" \
   "$DER_URL/edge-api/v1/tracker/events")
 [[ "$http" == "200" ]] || { cat /tmp/trk-evt-seed.json >&2; die "tracker event seed HTTP $http"; }
+record_seed trk_evt "$TRK_EVT_UID" "$ORG_UNIT"
 
 log "tracker chain seeded → TEI=$TEI_UID enrol=$ENR_UID stageEvt=$TRK_EVT_UID"
 log ""

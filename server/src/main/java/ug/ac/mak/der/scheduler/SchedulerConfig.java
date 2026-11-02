@@ -159,4 +159,26 @@ public class SchedulerConfig {
                 .withSchedule(CronScheduleBuilder.cronSchedule(cron))
                 .build();
     }
+
+    /** §2.3.116 R-AM — scope-drift audit. Default every 15 minutes;
+     *  override via {@code der.scope.drift.cron}. */
+    @Bean
+    public JobDetail scopeDriftJobDetail() {
+        return JobBuilder.newJob(ScopeDriftJob.class)
+                .withIdentity(ScopeDriftJob.JOB_NAME)
+                .storeDurably()
+                .requestRecovery()
+                .build();
+    }
+
+    @Bean
+    public Trigger scopeDriftTrigger(final JobDetail scopeDriftJobDetail,
+                                      @Value("${der.scope.drift.cron:0 */15 * * * ?}")
+                                      final String cron) {
+        return TriggerBuilder.newTrigger()
+                .forJob(scopeDriftJobDetail)
+                .withIdentity(ScopeDriftJob.JOB_NAME + "_TRIGGER")
+                .withSchedule(CronScheduleBuilder.cronSchedule(cron))
+                .build();
+    }
 }
