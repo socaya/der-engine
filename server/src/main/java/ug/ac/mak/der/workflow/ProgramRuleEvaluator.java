@@ -58,8 +58,13 @@ import ug.ac.mak.der.metadata.MirroredProgramRuleAction;
  *       the targeted field must be present in the merged payload or we
  *       emit a {@code PROGRAM_RULE_SETMANDATORYFIELD} ERROR. Bridges
  *       §35 into §36.</li>
+ *   <li>Phase 10.2 extended the per-action issue surface so
+ *       {@code HIDESECTION} and {@code CREATEEVENT} carry the
+ *       target {@code programStageSection} / {@code programStage}
+ *       UID in {@code suggestedField}, letting the client act
+ *       deterministically instead of just surfacing a vague cue.</li>
  *   <li>Other action types ({@code HIDEFIELD}, {@code ASSIGN},
- *       {@code CREATEEVENT}, {@code HIDESECTION}, …) are not yet
+ *       …) are not yet
  *       enforced at the server; they will land as a follow-up once a
  *       client-side surface exists to hide/assign fields.</li>
  * </ul>
@@ -301,8 +306,10 @@ public class ProgramRuleEvaluator {
                 textIssue(runId, rule, action, ProgressiveValidator.Severity.WARNING);
             case "SETMANDATORYFIELD" ->
                 mandatoryIssue(runId, rule, action, values);
-            case "HIDEFIELD", "HIDESECTION" ->
+            case "HIDEFIELD" ->
                 hideIssue(runId, rule, action);
+            case "HIDESECTION" ->
+                hideSectionIssue(runId, rule, action);
             case "ASSIGN" ->
                 assignIssue(runId, rule, action, values);
             case "CREATEEVENT" ->
@@ -370,22 +377,72 @@ public class ProgramRuleEvaluator {
                 suggested);
     }
 
-    /** §2.3.28 — CREATEEVENT. INFO cue that a follow-up event should
-     *  be created once the current contribution finalises. The flat
-     *  merge model doesn't itself create events; the client picks up
-     *  the cue and schedules one. */
+    /** §2.3.28 — CREATEEVENT. ADR-0007 phase-10.2 extension: the issue
+     *  now carries the target {@code programStage} UID (extracted from
+     *  the action payload) as its {@code suggestedField} so the
+     *  capture-workflow runner can spawn a follow-up event in the
+     *  right stage without re-fetching the rule from the mirror.
+     *  Content falls through as the free-text instruction (e.g.
+     *  "schedule a follow-up visit in 7 days"). */
     private ProgressiveValidator.Issue createEventIssue(final UUID runId,
                                                            final MirroredProgramRule rule,
                                                            final MirroredProgramRuleAction action) {
+        final String stageUid = refFromPayload(action, "programStage");
         return new ProgressiveValidator.Issue(
                 UUID.randomUUID(), runId, null,
                 "PROGRAM_RULE_CREATEEVENT",
                 ProgressiveValidator.Severity.INFO,
                 "Rule '" + rule.displayName() + "' asks for a follow-up event "
+                        + (stageUid == null ? "" : "in stage " + stageUid + " ")
                         + (action.content() == null || action.content().isBlank()
                             ? "to be created."
                             : "to be created: " + action.content()),
-                action.dataElementUid());
+                stageUid);
+    }
+
+    /** §2.3.28 — HIDESECTION. ADR-0007 phase-10.2 extension: issue
+     *  carries the target {@code programStageSection} UID extracted
+     *  from the action payload. The client resolves the section →
+     *  fields via the metadata mirror and hides every nested data
+     *  element. Does not gate completion — equivalent to a batched
+     *  HIDEFIELD. */
+    private ProgressiveValidator.Issue hideSectionIssue(final UUID runId,
+                                                           final MirroredProgramRule rule,
+                                                           final MirroredProgramRuleAction action) {
+        final String sectionUid = refFromPayload(action, "programStageSection");
+        if (sectionUid == null) {
+            /* Fall back to the single-field semantics if central
+             * omitted the section ref — a defensive path for
+             * malformed rule definitions. */
+            return hideIssue(runId, rule, action);
+        }
+        return new ProgressiveValidator.Issue(
+                UUID.randomUUID(), runId, null,
+                "PROGRAM_RULE_HIDESECTION",
+                ProgressiveValidator.Severity.INFO,
+                "Section '" + sectionUid + "' should be hidden ("
+                        + rule.displayName() + ").",
+                sectionUid);
+    }
+
+    /** Pull a {@code <key>.id} string from the action's raw payload
+     *  JSON. DHIS2 ships the referenced object either as a bare
+     *  string ({@code "programStage": "uid"}) or as a nested object
+     *  ({@code "programStage": {"id": "uid"}}); handle both. */
+    private static String refFromPayload(final MirroredProgramRuleAction action,
+                                            final String key) {
+        if (action.payload() == null) {
+            return null;
+        }
+        final com.fasterxml.jackson.databind.JsonNode node = action.payload().get(key);
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isTextual()) {
+            return node.asText();
+        }
+        final com.fasterxml.jackson.databind.JsonNode id = node.get("id");
+        return id == null || id.isNull() ? null : id.asText();
     }
 
     private ProgressiveValidator.Issue textIssue(final UUID runId,
