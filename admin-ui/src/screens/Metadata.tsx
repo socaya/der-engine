@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import * as edgeApi from '../api/edgeApi';
 import {
   Panel, Dot, fmtDate, TablePager, BackLink, RowMenu,
+  DrawerTabs, JsonViewer,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -442,20 +443,21 @@ function MetadataDetail({ sel, tab, setTab }: {
     <>
       <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600 }}>{sel.name || '(unnamed)'}</h3>
       <div className="ea-text-muted" style={{ fontSize: 13, marginBottom: 10 }}>{sel.type}</div>
-      <div className="ea-section-tabs" style={{ marginBottom: 10 }}>
-        <button type="button"
-                className={'ea-section-tab' + (tab === 'summary' ? ' ea-section-tab--active' : '')}
-                onClick={() => setTab('summary')}>Summary</button>
-        <button type="button"
-                className={'ea-section-tab' + (tab === 'relationships' ? ' ea-section-tab--active' : '')}
-                onClick={() => setTab('relationships')}>Relationships{rels.length > 0 ? ` (${rels.length})` : ''}</button>
-        <button type="button"
-                className={'ea-section-tab' + (tab === 'rules' ? ' ea-section-tab--active' : '')}
-                onClick={() => setTab('rules')}>Rules{rules.length > 0 ? ` (${rules.length})` : ''}</button>
-        <button type="button"
-                className={'ea-section-tab' + (tab === 'raw' ? ' ea-section-tab--active' : '')}
-                onClick={() => setTab('raw')} title="Diagnostic — full payload">Raw JSON</button>
-      </div>
+      {/* §2.3.118 R-AO — standardised DrawerTabs (role=tablist +
+          aria-selected + numeric badges) instead of the ad-hoc
+          button strip. Matches every other DER drawer. */}
+      <DrawerTabs
+        active={tab}
+        onChange={(id) => setTab(id as 'summary' | 'relationships' | 'rules' | 'raw')}
+        tabs={[
+          { id: 'summary',       label: 'Summary' },
+          { id: 'relationships', label: 'Relationships',
+            badge: rels.length  > 0 ? rels.length  : undefined },
+          { id: 'rules',         label: 'Rules',
+            badge: rules.length > 0 ? rules.length : undefined },
+          { id: 'raw',           label: 'Raw JSON' },
+        ]}
+      />
       {tab === 'summary' && (
         <>
           <dl className="ea-def-list">
@@ -474,82 +476,224 @@ function MetadataDetail({ sel, tab, setTab }: {
       )}
       {tab === 'relationships' && (
         rels.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0, fontSize: 14 }}>
+          <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
             No related metadata references on this record.
           </p>
         ) : (
-          <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 14 }}>
-            {rels.map((r) => (
-              <li key={r.field + ':' + r.id} style={{ marginBottom: 4 }}>
-                <span className="ea-text-muted">{r.field}:</span>{' '}
-                <span className="ea-mono" style={{ fontSize: 13 }}>{r.id}</span>
-                {r.name && <> — {r.name}</>}
-              </li>
-            ))}
-          </ul>
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense"
+                   data-test="meta-relationships">
+              <thead><tr>
+                <th style={{ width: 180 }}>Field</th>
+                <th>Name</th>
+                <th style={{ width: 140 }}>UID</th>
+                <th style={{ width: 50, textAlign: 'right' }}></th>
+              </tr></thead>
+              <tbody>
+                {rels.map((r, i) => {
+                  const to = r.targetResource
+                    ? `/dhis2/metadata/${r.targetResource}/${encodeURIComponent(r.id)}`
+                    : null;
+                  const idCell = to ? (
+                    <Link to={to} className="ea-mono"
+                           title={`Open ${r.field} in Metadata browser`}
+                           style={{ fontSize: 11,
+                                     color: 'var(--der-primary-ink)',
+                                     textDecoration: 'none' }}>
+                      {r.id}
+                    </Link>
+                  ) : (
+                    <span className="ea-mono" style={{ fontSize: 11 }}>
+                      {r.id}
+                    </span>
+                  );
+                  return (
+                    <tr key={r.field + ':' + r.id + ':' + i}>
+                      <td className="ea-text-muted"
+                          style={{ fontSize: 12 }}>
+                        {r.field}
+                      </td>
+                      <td>{r.name ?? <span className="ea-text-muted"
+                                           style={{ fontStyle: 'italic' }}>
+                                       —
+                                     </span>}</td>
+                      <td>{idCell}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        {to && (
+                          <Link to={to}
+                                 className="ea-link-btn"
+                                 title="Open in Metadata browser"
+                                 style={{ fontSize: 10 }}>↗</Link>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )
       )}
       {tab === 'rules' && (
         rules.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0, fontSize: 14 }}>
+          <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
             No program rules, validation rules or rule actions on this record.
           </p>
         ) : (
-          <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 14 }}>
-            {rules.map((r, i) => (
-              <li key={i} style={{ marginBottom: 4 }}>
-                <span className="ea-text-muted">{r.kind}:</span>{' '}
-                <span className="ea-mono" style={{ fontSize: 13 }}>{r.expression}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense"
+                   data-test="meta-rules">
+              <thead><tr>
+                <th style={{ width: 140 }}>Kind</th>
+                <th>Expression</th>
+              </tr></thead>
+              <tbody>
+                {rules.map((r, i) => (
+                  <tr key={i}>
+                    <td>
+                      <span className="ea-chip ea-chip--neutral"
+                            style={{ fontSize: 11 }}>
+                        {r.kind}
+                      </span>
+                    </td>
+                    <td>
+                      <pre className="ea-mono"
+                           style={{ margin: 0,
+                                     fontSize: 11, lineHeight: 1.5,
+                                     whiteSpace: 'pre-wrap',
+                                     wordBreak: 'break-word',
+                                     background: 'var(--der-canvas, #f8fafc)',
+                                     padding: '4px 8px',
+                                     border: '1px solid var(--der-border-subtle)',
+                                     borderRadius: 4 }}>
+                        {r.expression || '(empty)'}
+                      </pre>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )
       )}
       {tab === 'raw' && (
         <>
-          <p className="ea-text-muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
-            Diagnostic view of the full mirrored payload. Prefer the Summary / Relationships / Rules tabs for operator work.
+          <p className="ea-text-muted" style={{ margin: '0 0 8px', fontSize: 12 }}>
+            Diagnostic view of the full mirrored payload. Prefer the
+            Summary / Relationships / Rules tabs for operator work.
           </p>
-          <pre className="ea-log-tail" style={{
-            fontSize: 12,
-            height: 'calc(100vh - 320px)',
-            minHeight: 320,
-            maxHeight: 'none',
-          }}>
-{JSON.stringify(raw, null, 2)}
-          </pre>
+          {/* §2.3.118 R-AO — DER's JsonViewer (syntax-coloured +
+              copy button) instead of a raw <pre>. Matches other
+              DER drawers that expose payloads. */}
+          <JsonViewer value={raw}
+                       label={`${sel.type} · ${sel.id}`} />
         </>
       )}
     </>
   );
 }
 
-interface RelRef { field: string; id: string; name?: string }
+/** §2.3.118 R-AO — a relationship on a metadata record. {@code
+ *  targetResource} is the admin-UI route segment for the referenced
+ *  object (e.g. {@code "dataElements"}), used to construct a
+ *  drill-down Link to {@code /dhis2/metadata/<target>/<id>}. Null
+ *  when we can't infer the type (operator sees UID only). */
+interface RelRef {
+  field: string;
+  id: string;
+  name?: string;
+  targetResource: string | null;
+}
+
+/** Map a DHIS2 field name (or array name) to the admin-UI metadata
+ *  resource segment. Covers the fields DER actually surfaces; falls
+ *  back to null for anything else (then the UI renders a plain UID
+ *  without a drill link). */
+function resourceForRef(field: string): string | null {
+  switch (field) {
+    case 'dataElement':
+    case 'dataElements':                      return 'dataElements';
+    case 'dataSet':                           return 'dataSets';
+    case 'program':                           return 'programs';
+    case 'programStage':
+    case 'programStages':                     return 'programStages';
+    case 'programStageSections':              return 'programStageSections';
+    case 'trackedEntityType':
+    case 'trackedEntityTypes':                return 'trackedEntityTypes';
+    case 'trackedEntityAttribute':
+    case 'trackedEntityAttributes':
+    case 'programTrackedEntityAttributes':    return 'trackedEntityAttributes';
+    case 'organisationUnit':
+    case 'organisationUnits':                 return 'organisationUnits';
+    case 'optionSet':                         return 'optionSets';
+    case 'option':
+    case 'options':                           return 'options';
+    case 'categoryCombo':
+    case 'categoryCombos':                    return 'categoryCombos';
+    case 'categoryOption':
+    case 'categoryOptions':                   return 'categoryOptions';
+    case 'categoryOptionCombo':
+    case 'categoryOptionCombos':              return 'categoryOptionCombos';
+    case 'legendSet':                         return 'legendSets';
+    case 'indicator':                         return 'indicators';
+    case 'indicatorType':                     return 'indicatorTypes';
+    case 'programIndicator':
+    case 'programIndicators':                 return 'programIndicators';
+    case 'validationRule':                    return 'validationRules';
+    case 'programRule':
+    case 'programRules':                      return 'programRules';
+    case 'programRuleVariables':              return 'programRuleVariables';
+    case 'user':
+    case 'users':                             return 'users';
+    case 'userGroup':
+    case 'userGroups':                        return 'userGroups';
+    case 'userRole':
+    case 'userRoles':                         return 'userRoles';
+    case 'parent':                            return 'organisationUnits';
+    case 'children':                          return 'organisationUnits';
+    default:                                  return null;
+  }
+}
 
 function extractRelationships(raw: Record<string, unknown>): RelRef[] {
   const out: RelRef[] = [];
   const refFields = [
-    'programType', 'categoryCombo', 'trackedEntityType', 'program',
+    'categoryCombo', 'trackedEntityType', 'program',
     'programStage', 'dataSet', 'optionSet', 'legendSet', 'organisationUnit',
+    'parent', 'indicatorType', 'dataElement', 'trackedEntityAttribute',
   ];
   for (const f of refFields) {
     const v = raw[f] as Record<string, unknown> | undefined;
     if (v && typeof v === 'object' && typeof v.id === 'string') {
-      out.push({ field: f, id: v.id, name: (v.displayName ?? v.name) as string | undefined });
+      out.push({
+        field: f,
+        id: v.id,
+        name: (v.displayName ?? v.name) as string | undefined,
+        targetResource: resourceForRef(f),
+      });
     }
   }
   const arrFields = ['programStages', 'dataElements', 'organisationUnits',
-    'trackedEntityAttributes', 'programIndicators', 'programTrackedEntityAttributes'];
+    'trackedEntityAttributes', 'programIndicators', 'programTrackedEntityAttributes',
+    'programStageSections', 'categoryOptions', 'options', 'userGroups'];
   for (const f of arrFields) {
     const v = raw[f];
     if (Array.isArray(v)) {
       for (const item of v.slice(0, 10)) {
         if (item && typeof item === 'object' && 'id' in item && typeof (item as { id: unknown }).id === 'string') {
           const r = item as Record<string, unknown>;
-          out.push({ field: f, id: r.id as string, name: (r.displayName ?? r.name) as string | undefined });
+          out.push({
+            field: f,
+            id: r.id as string,
+            name: (r.displayName ?? r.name) as string | undefined,
+            targetResource: resourceForRef(f),
+          });
         }
       }
-      if (v.length > 10) out.push({ field: f, id: `…${v.length - 10} more`, name: undefined });
+      if (v.length > 10) {
+        out.push({ field: f, id: `…${v.length - 10} more`,
+                   name: undefined, targetResource: null });
+      }
     }
   }
   return out;
