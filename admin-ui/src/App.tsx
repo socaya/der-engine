@@ -274,7 +274,10 @@ export default function App(): JSX.Element {
           <Route path="/sync/history" element={<RequireAuth><MockupSyncHistory /></RequireAuth>} />
           <Route path="/sync/history/:runId" element={<RequireAuth><MockupSyncHistoryDetail /></RequireAuth>} />
           <Route path="/sync/queues" element={<Navigate to="/data/queue" replace />} />
-          <Route path="/sync/metadata" element={<RequireAuth><CapMetadataSync /></RequireAuth>} />
+          {/* §2.3.117 R-AN — /sync/metadata and /dhis2/metadata-sync
+              both rendered CapMetadataSync. Canonicalised under the
+              DHIS2 Integration group; /sync/metadata redirects. */}
+          <Route path="/sync/metadata" element={<Navigate to="/dhis2/metadata-sync" replace />} />
           {/* §2.3.106 R-AA — Data Queue lives under Data (operators think
               of outbound records as data, not as a sync-worker detail).
               /sync/data redirects to the new canonical path. */}

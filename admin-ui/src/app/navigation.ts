@@ -91,7 +91,9 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       /* §9.2 operator terminology */
       { id: 'sync-overview', label: 'Overview', to: '/sync', status: 'implemented', tabIcon: 'overview' },
-      { id: 'sync-metadata', label: 'Metadata Sync', to: '/sync/metadata', status: 'implemented', tabIcon: 'metadata' },
+      /* §2.3.117 R-AN — Metadata Sync moved under DHIS2 Integration
+       * group (/dhis2/metadata-sync). The /sync/metadata route still
+       * works but redirects to the canonical path. */
       /* §2.3.106 R-AA — Data Queue moved to the Data group where
        * operators look for data records. /sync/data redirects to
        * /data/queue. */

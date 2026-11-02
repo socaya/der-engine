@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
@@ -457,14 +457,20 @@ function MetadataDetail({ sel, tab, setTab }: {
                 onClick={() => setTab('raw')} title="Diagnostic — full payload">Raw JSON</button>
       </div>
       {tab === 'summary' && (
-        <dl className="ea-def-list">
-          <div className="ea-def-row"><dt>ID</dt><dd className="ea-mono">{sel.id}</dd></div>
-          <div className="ea-def-row"><dt>Resource</dt><dd className="ea-mono">{sel.resource}</dd></div>
-          <div className="ea-def-row"><dt>Code</dt><dd className="ea-mono">{sel.code ?? '—'}</dd></div>
-          <div className="ea-def-row"><dt>Short name</dt><dd>{sel.shortName ?? '—'}</dd></div>
-          <div className="ea-def-row"><dt>Last updated</dt>
-            <dd className="ea-mono">{sel.lastUpdated ? fmtDate(sel.lastUpdated) : '—'}</dd></div>
-        </dl>
+        <>
+          <dl className="ea-def-list">
+            <div className="ea-def-row"><dt>ID</dt><dd className="ea-mono">{sel.id}</dd></div>
+            <div className="ea-def-row"><dt>Resource</dt><dd className="ea-mono">{sel.resource}</dd></div>
+            <div className="ea-def-row"><dt>Code</dt><dd className="ea-mono">{sel.code ?? '—'}</dd></div>
+            <div className="ea-def-row"><dt>Short name</dt><dd>{sel.shortName ?? '—'}</dd></div>
+            <div className="ea-def-row"><dt>Last updated</dt>
+              <dd className="ea-mono">{sel.lastUpdated ? fmtDate(sel.lastUpdated) : '—'}</dd></div>
+            {/* §2.3.117 R-AN — type-specific field extraction so the
+                Summary tab tells the operator what matters for each
+                DHIS2 object kind, not just the generic five rows. */}
+            <TypeSpecificSummary resource={sel.resource} raw={raw} />
+          </dl>
+        </>
       )}
       {tab === 'relationships' && (
         rels.length === 0 ? (
@@ -571,4 +577,169 @@ function extractRules(raw: Record<string, unknown>): RuleRef[] {
     }
   }
   return out;
+}
+
+/* §2.3.117 R-AN — Type-specific Summary rows per DHIS2 metadata kind.
+ *
+ * The generic Summary tab always shows ID / Resource / Code / Short
+ * name / Last updated. For known resource kinds we add the fields an
+ * operator actually looks at — valueType on a dataElement, periodType
+ * on a dataSet, programType + stage count on a program, etc. Falls
+ * back to a no-op when the resource isn't in the table below. */
+function TypeSpecificSummary(
+  { resource, raw }: { resource: string; raw: Record<string, unknown> | undefined },
+): JSX.Element {
+  if (!raw) return <></>;
+  const rows: Array<[string, ReactNode]> = [];
+  const str = (k: string): string | undefined => {
+    const v = raw[k];
+    return typeof v === 'string' && v.length > 0 ? v : undefined;
+  };
+  const bool = (k: string): boolean | undefined => {
+    const v = raw[k];
+    return typeof v === 'boolean' ? v : undefined;
+  };
+  const num = (k: string): number | undefined => {
+    const v = raw[k];
+    return typeof v === 'number' ? v : undefined;
+  };
+  const ref = (k: string): string | undefined => {
+    const v = raw[k];
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const r = v as { id?: string; displayName?: string; name?: string };
+      if (r.id) return `${r.displayName ?? r.name ?? ''} (${r.id})`.trim();
+    }
+    return undefined;
+  };
+  const arrLen = (k: string): number | undefined => {
+    const v = raw[k];
+    return Array.isArray(v) ? v.length : undefined;
+  };
+  const push = (label: string, val: ReactNode): void => {
+    if (val === undefined || val === null || val === '') return;
+    rows.push([label, val]);
+  };
+  const yesNo = (b: boolean | undefined): string | undefined =>
+      b === undefined ? undefined : b ? 'Yes' : 'No';
+
+  switch (resource) {
+    case 'dataElements':
+      push('Value type',       str('valueType'));
+      push('Aggregation type', str('aggregationType'));
+      push('Domain type',      str('domainType'));
+      push('Category combo',   ref('categoryCombo'));
+      push('Zero is significant', yesNo(bool('zeroIsSignificant')));
+      push('Option set',       ref('optionSet'));
+      push('URL',              str('url'));
+      break;
+    case 'dataSets':
+      push('Period type',     str('periodType'));
+      push('Category combo',  ref('categoryCombo'));
+      push('Data elements',   arrLen('dataSetElements'));
+      push('Org units',       arrLen('organisationUnits'));
+      push('Form type',       str('formType'));
+      push('Expiry days',     num('expiryDays'));
+      push('Open future periods', num('openFuturePeriods'));
+      break;
+    case 'programs':
+      push('Program type',    str('programType'));
+      push('TE type',         ref('trackedEntityType'));
+      push('Program stages',  arrLen('programStages'));
+      push('Program rule variables', arrLen('programRuleVariables'));
+      push('Only enroll once', yesNo(bool('onlyEnrollOnce')));
+      push('Display front page list', yesNo(bool('displayFrontPageList')));
+      break;
+    case 'programStages':
+      push('Program',             ref('program'));
+      push('Repeatable',          yesNo(bool('repeatable')));
+      push('Auto-generate event', yesNo(bool('autoGenerateEvent')));
+      push('Stage data elements', arrLen('programStageDataElements'));
+      push('Program stage sections', arrLen('programStageSections'));
+      push('Open after enrollment', yesNo(bool('openAfterEnrollment')));
+      break;
+    case 'programStageSections':
+      push('Program stage',  ref('programStage'));
+      push('Data elements',  arrLen('dataElements'));
+      push('Sort order',     num('sortOrder'));
+      break;
+    case 'organisationUnits':
+      push('Level',          num('level'));
+      push('Path',           str('path'));
+      push('Parent',         ref('parent'));
+      push('Open since',     str('openingDate'));
+      push('Closed since',   str('closedDate'));
+      break;
+    case 'organisationUnitLevels':
+      push('Level',          num('level'));
+      push('Offline levels', num('offlineLevels'));
+      break;
+    case 'trackedEntityTypes':
+      push('Attributes',      arrLen('trackedEntityTypeAttributes'));
+      push('Min attrs required for search', num('minAttributesRequiredToSearch'));
+      push('Allow audit log',  yesNo(bool('allowAuditLog')));
+      break;
+    case 'trackedEntityAttributes':
+      push('Value type',  str('valueType'));
+      push('Unique',      yesNo(bool('unique')));
+      push('Option set',  ref('optionSet'));
+      push('Pattern',     str('pattern'));
+      push('Confidential', yesNo(bool('confidential')));
+      break;
+    case 'optionSets':
+      push('Value type', str('valueType'));
+      push('Options',    arrLen('options'));
+      break;
+    case 'categoryCombos':
+      push('Data dimension type', str('dataDimensionType'));
+      push('Categories',          arrLen('categories'));
+      push('Category option combos', arrLen('categoryOptionCombos'));
+      break;
+    case 'categoryOptionCombos':
+      push('Category combo', ref('categoryCombo'));
+      push('Category options', arrLen('categoryOptions'));
+      break;
+    case 'validationRules':
+      push('Operator',    str('operator'));
+      push('Period type', str('periodType'));
+      push('Importance',  str('importance'));
+      break;
+    case 'programRules':
+      push('Program',       ref('program'));
+      push('Priority',      num('priority'));
+      push('Rule actions',  arrLen('programRuleActions'));
+      break;
+    case 'programRuleVariables':
+      push('Program',    ref('program'));
+      push('Source',     str('programRuleVariableSourceType'));
+      push('Data element', ref('dataElement'));
+      push('TE attribute', ref('trackedEntityAttribute'));
+      break;
+    case 'indicators':
+      push('Numerator',   str('numerator'));
+      push('Denominator', str('denominator'));
+      push('Indicator type', ref('indicatorType'));
+      break;
+    case 'userGroups':
+      push('Members',      arrLen('users'));
+      push('Managed by',   arrLen('managedByGroups'));
+      break;
+    case 'userRoles':
+      push('Authorities',   arrLen('authorities'));
+      push('Users',         arrLen('users'));
+      break;
+    default:
+      return <></>;
+  }
+
+  if (rows.length === 0) return <></>;
+  return (
+    <>
+      {rows.map(([label, val]) => (
+        <div key={label} className="ea-def-row">
+          <dt>{label}</dt>
+          <dd>{val}</dd>
+        </div>
+      ))}
+    </>
+  );
 }

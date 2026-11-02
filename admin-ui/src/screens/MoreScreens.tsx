@@ -156,7 +156,7 @@ export function MockupDriftInspector(): JSX.Element {
             <span>Metadata browser</span>
           </Link>
           <RelatedMenu dataTest="metadata-related" items={[
-            { label: 'Metadata sync', module: 'Sync', to: '/sync/metadata' },
+            { label: 'Metadata sync', module: 'DHIS2', to: '/dhis2/metadata-sync' },
             { label: 'Sync history',  module: 'Sync', to: '/sync/history' },
           ]} />
         </div>
