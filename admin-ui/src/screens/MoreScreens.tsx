@@ -1089,6 +1089,36 @@ export function MockupApprovalDetail(): JSX.Element {
                         `Reject ${entityTypeLabel(row.entityType)} "${row.entityRef}"? The record will not be sent to Central DHIS2.`,
                         () => { reject().catch(() => undefined); });
                     }}>Reject</button>
+            {/* §2.3.109 R-AD — labelled cross-module drill. Operators
+                were previously approving/rejecting records they
+                couldn't inspect. Route per entity type where a
+                dedicated page exists; fall back to /data/queue for
+                enrolment / stage-event where there's no dedicated
+                route today. "Data › " prefix discloses the module
+                boundary per the R-AB rule. */}
+            {(() => {
+              const et = row.entityType;
+              const ref = row.entityRef;
+              const to
+                = et === 'EVENT'           ? `/data/events/${ref}`
+                : et === 'TRACKED_ENTITY'  ? `/data/tracker/tei/${ref}`
+                :                            `/data/queue/${row.operationId}`;
+              const label
+                = et === 'EVENT'          ? 'Event'
+                : et === 'TRACKED_ENTITY' ? 'Tracked entity'
+                : et === 'ENROLLMENT'     ? 'Enrolment'
+                : et === 'PROGRAM_STAGE_EVENT' ? 'Stage event'
+                : et === 'AGGREGATE_DATA_VALUE' ? 'Data value'
+                :                                'Operation';
+              return (
+                <Link to={to}
+                       className="ea-btn ea-btn--ghost ea-btn--sm"
+                       title={`Open the ${label.toLowerCase()} in the Data module`}
+                       data-test="approval-view-record">
+                  Data › View {label.toLowerCase()} ↗
+                </Link>
+              );
+            })()}
           </>
         }
       />
