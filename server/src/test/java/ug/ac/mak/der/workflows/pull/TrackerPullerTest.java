@@ -111,11 +111,16 @@ class TrackerPullerTest {
         when(jr.findLatestByEntityRef(
                 org.mockito.ArgumentMatchers.eq(
                         OperationJournalEntry.EntityType.ENROLLMENT), anyString()))
+                /* Phase 10.4 distinguishes system-origin PENDING
+                 * (null submittedBy = shadow, overwrite) from
+                 * operator-origin PENDING (real UUID = conflict).
+                 * This case tests the operator path, so stamp a
+                 * real actor UUID. */
                 .thenReturn(Optional.of(new OperationJournalEntry(UUID.randomUUID(),
                         OperationJournalEntry.EntityType.ENROLLMENT, "ENRAAAAAAAA",
                         mapper.createObjectNode(),
                         OperationJournalEntry.State.PENDING,
-                        0, null, null, NOW, NOW, null, null)));
+                        0, null, UUID.randomUUID(), NOW, NOW, null, null)));
         when(teis.findById(anyString())).thenReturn(Optional.empty());
         when(evts.findById(anyString())).thenReturn(Optional.empty());
         when(teis.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -188,5 +193,94 @@ class TrackerPullerTest {
         /* Of the three lastUpdated timestamps in the bundle, the
          * stage event's is the newest → that must be the watermark. */
         assertThat(r.watermark()).isEqualTo(Instant.parse("2026-11-02T09:00:00Z"));
+    }
+
+    // -------- Phase 10.4 — TEI continuity across edges ----------
+
+    private OperationJournalEntry nonTerminalJournal(final OperationJournalEntry.EntityType et,
+                                                       final String ref, final UUID submittedBy) {
+        return new OperationJournalEntry(UUID.randomUUID(), et, ref,
+                mapper.createObjectNode(), OperationJournalEntry.State.PENDING,
+                0, null, submittedBy, NOW, NOW, null, null);
+    }
+
+    @Test
+    void systemOriginPendingEnrolmentIsOverwrittenAsShadow() throws Exception {
+        /* Setup: enrolment has a non-terminal journal row with
+         * submittedBy = null (system origin — created by referral
+         * intake or an earlier central pull). The new continuity
+         * logic must treat this as a shadow: central's version
+         * wins; TRACKER_SHADOW_OVERWRITTEN audit fires. */
+        final var teis = mock(TrackedEntityRepository.class);
+        final var enrols = mock(EnrollmentRepository.class);
+        final var evts = mock(TrackerEventRepository.class);
+        final var jr = mock(OperationJournalRepository.class);
+        final var ar = mock(SecurityAuditRepository.class);
+        when(jr.findLatestByEntityRef(any(), anyString())).thenReturn(Optional.empty());
+        when(jr.findLatestByEntityRef(
+                org.mockito.ArgumentMatchers.eq(
+                        OperationJournalEntry.EntityType.ENROLLMENT), anyString()))
+                .thenReturn(Optional.of(nonTerminalJournal(
+                        OperationJournalEntry.EntityType.ENROLLMENT, "ENRAAAAAAAA",
+                        null)));
+        when(teis.findById(anyString())).thenReturn(Optional.empty());
+        when(enrols.findById("ENRAAAAAAAA")).thenReturn(Optional.of(
+                new Enrollment("ENRAAAAAAAA", "TEIAAAAAAAA", "prog1", "ou1",
+                        Enrollment.Status.ACTIVE,
+                        java.time.LocalDate.parse("2026-09-01"), null, null,
+                        new UUID(0L, 0L), NOW, NOW, 1, null)));
+        when(evts.findById(anyString())).thenReturn(Optional.empty());
+        when(teis.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(enrols.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(evts.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        final var r = build(teis, enrols, evts, jr, ar, bundle()).pull("ou1", null);
+        /* The enrolment should be upserted (not raised as conflict),
+         * so rowsPulled = 3 (TEI + enrol + stage event). Conflicts
+         * stays zero because the system-origin PENDING is a shadow,
+         * not an operator-pending edit. */
+        assertThat(r.rowsPulled()).isEqualTo(3);
+        assertThat(r.conflicts()).isZero();
+        verify(enrols).upsert(any(Enrollment.class));
+        verify(jr, never()).insert(any());
+        /* Audit: exactly one TRACKER_SHADOW_OVERWRITTEN for the
+         * enrolment. TEI + stage event were fresh inserts
+         * (no existing row), so no overwrite audit fires. */
+        verify(ar).append(
+                org.mockito.ArgumentMatchers.argThat(
+                        (AuditEvent e) -> "TRACKER_SHADOW_OVERWRITTEN".equals(e.eventType())),
+                any());
+    }
+
+    @Test
+    void operatorOriginPendingEnrolmentStillRaisesConflict() throws Exception {
+        /* Setup: enrolment has a non-terminal journal row with a
+         * real operator UUID in submittedBy. The continuity logic
+         * must leave the existing behaviour alone — operator-pending
+         * edits still raise CONFLICT_REVIEW on central-pull. */
+        final var teis = mock(TrackedEntityRepository.class);
+        final var enrols = mock(EnrollmentRepository.class);
+        final var evts = mock(TrackerEventRepository.class);
+        final var jr = mock(OperationJournalRepository.class);
+        final var ar = mock(SecurityAuditRepository.class);
+        when(jr.findLatestByEntityRef(any(), anyString())).thenReturn(Optional.empty());
+        when(jr.findLatestByEntityRef(
+                org.mockito.ArgumentMatchers.eq(
+                        OperationJournalEntry.EntityType.ENROLLMENT), anyString()))
+                .thenReturn(Optional.of(nonTerminalJournal(
+                        OperationJournalEntry.EntityType.ENROLLMENT, "ENRAAAAAAAA",
+                        UUID.randomUUID())));
+        when(teis.findById(anyString())).thenReturn(Optional.empty());
+        when(evts.findById(anyString())).thenReturn(Optional.empty());
+        when(teis.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(evts.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        final var r = build(teis, enrols, evts, jr, ar, bundle()).pull("ou1", null);
+        /* Operator-pending enrol => conflict raised; TEI + stage
+         * event pulled normally. Matches the pre-10.4 baseline. */
+        assertThat(r.rowsPulled()).isEqualTo(2);
+        assertThat(r.conflicts()).isEqualTo(1);
+        verify(enrols, never()).upsert(any());
+        verify(jr).insert(any(OperationJournalEntry.class));
     }
 }

@@ -145,6 +145,7 @@ public class TrackerPuller {
                     "centralTei", node);
             return new MergeOutcome(false, 1, watermark);
         }
+        final boolean overwritingShadow = decision == MergeDecision.PROCEED_OVERWRITE_SHADOW;
         final Optional<TrackedEntity> existing = teis.findById(teiUid);
         final boolean wasOverwrite = existing.isPresent();
         final Map<String, String> attrs = new LinkedHashMap<>();
@@ -166,7 +167,9 @@ public class TrackerPuller {
                 watermark != null ? watermark : now,
                 existing.map(e -> e.teiVersion() + 1).orElse(1),
                 null));
-        if (wasOverwrite) {
+        if (overwritingShadow) {
+            auditShadowOverwrite("TRACKED_ENTITY", teiUid);
+        } else if (wasOverwrite) {
             auditOverwrite("TRACKED_ENTITY", teiUid);
         }
         return new MergeOutcome(true, 0, watermark);
@@ -198,6 +201,7 @@ public class TrackerPuller {
                     "centralEnrolment", node);
             return new MergeOutcome(false, 1, watermark);
         }
+        final boolean overwritingShadow = decision == MergeDecision.PROCEED_OVERWRITE_SHADOW;
         final Optional<Enrollment> existing = enrols.findById(uid);
         final boolean wasOverwrite = existing.isPresent();
         final Instant now = Instant.now(clock);
@@ -212,7 +216,9 @@ public class TrackerPuller {
                 watermark != null ? watermark : now,
                 existing.map(e -> e.version() + 1).orElse(1),
                 null));
-        if (wasOverwrite) {
+        if (overwritingShadow) {
+            auditShadowOverwrite("ENROLLMENT", uid);
+        } else if (wasOverwrite) {
             auditOverwrite("ENROLLMENT", uid);
         }
         return new MergeOutcome(true, 0, watermark);
@@ -244,6 +250,7 @@ public class TrackerPuller {
                     "centralStageEvent", node);
             return new MergeOutcome(false, 1, watermark);
         }
+        final boolean overwritingShadow = decision == MergeDecision.PROCEED_OVERWRITE_SHADOW;
         final Optional<TrackerEvent> existing = stageEvents.findById(uid);
         final boolean wasOverwrite = existing.isPresent();
         final Map<String, Object> values = new LinkedHashMap<>();
@@ -268,7 +275,9 @@ public class TrackerPuller {
                 watermark != null ? watermark : now,
                 existing.map(e -> e.version() + 1).orElse(1),
                 null));
-        if (wasOverwrite) {
+        if (overwritingShadow) {
+            auditShadowOverwrite("PROGRAM_STAGE_EVENT", uid);
+        } else if (wasOverwrite) {
             auditOverwrite("PROGRAM_STAGE_EVENT", uid);
         }
         return new MergeOutcome(true, 0, watermark);
@@ -276,8 +285,34 @@ public class TrackerPuller {
 
     // ------------- shared merge-decision logic ----------------
 
-    private enum MergeDecision { PROCEED, RAISE_CONFLICT, NOOP_CONFLICT_REVIEW }
+    private enum MergeDecision { PROCEED, PROCEED_OVERWRITE_SHADOW,
+                                   RAISE_CONFLICT, NOOP_CONFLICT_REVIEW }
 
+    /** Phase 10.4 — TEI continuity across edges.
+     *
+     *  <p>The pull puller previously treated every non-terminal
+     *  journal state as "operator-pending → raise conflict". That
+     *  misclassifies shadows: a shadow row carries submittedBy =
+     *  null (system origin) because it was created by the referral
+     *  intake or an earlier central pull, not by an operator. On
+     *  the next central pull, we WANT central to overwrite the
+     *  shadow rather than drop a CONFLICT_REVIEW on an operator
+     *  who never touched the row.</p>
+     *
+     *  <p>The three operator-vs-shadow outcomes are now
+     *  distinguished:</p>
+     *  <ul>
+     *    <li>no journal row OR journal row terminal → {@link
+     *      MergeDecision#PROCEED} (unchanged).</li>
+     *    <li>journal row non-terminal AND submittedBy IS NULL →
+     *      {@link MergeDecision#PROCEED_OVERWRITE_SHADOW}. Central
+     *      wins; emit TRACKER_SHADOW_OVERWRITTEN audit event.</li>
+     *    <li>journal row non-terminal AND submittedBy present →
+     *      {@link MergeDecision#RAISE_CONFLICT}. Operator-created
+     *      edit; preserve it, central value lands in the attention
+     *      queue.</li>
+     *  </ul>
+     */
     private MergeDecision decide(final OperationJournalEntry.EntityType et, final String ref) {
         final Optional<OperationJournalEntry> row = journal.findLatestByEntityRef(et, ref);
         if (row.isEmpty()) {
@@ -291,7 +326,11 @@ public class TrackerPuller {
                 || s == OperationJournalEntry.State.CENTRAL_REJECTED) {
             return MergeDecision.PROCEED;
         }
-        return MergeDecision.RAISE_CONFLICT;
+        /* Non-terminal: differentiate system-origin shadows from
+         * operator-pending edits by the journal row's submittedBy. */
+        return row.get().submittedBy() == null
+                ? MergeDecision.PROCEED_OVERWRITE_SHADOW
+                : MergeDecision.RAISE_CONFLICT;
     }
 
     private void raiseConflict(final OperationJournalEntry.EntityType entityType,
@@ -314,6 +353,19 @@ public class TrackerPuller {
     private void auditOverwrite(final String entityType, final String ref) {
         audit.append(new AuditEvent(
                 "DATA_PULL_OVERWRITE",
+                AuditEvent.Outcome.SUCCESS,
+                null, null, null, null,
+                Map.of("entityType", entityType, "ref", ref)),
+                Instant.now(clock));
+    }
+
+    /** Phase 10.4 — distinct from DATA_PULL_OVERWRITE so operators
+     *  grepping the audit feed can tell "central replaced a shadow
+     *  I never touched" from "central replaced a row I had
+     *  previously accepted". */
+    private void auditShadowOverwrite(final String entityType, final String ref) {
+        audit.append(new AuditEvent(
+                "TRACKER_SHADOW_OVERWRITTEN",
                 AuditEvent.Outcome.SUCCESS,
                 null, null, null, null,
                 Map.of("entityType", entityType, "ref", ref)),
