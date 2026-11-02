@@ -7,8 +7,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -23,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.attribution.CapturedByResolver;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
+import ug.ac.mak.der.workflow.SystemWorkflowService;
 import ug.ac.mak.der.workflows.tracker.Enrollment;
 import ug.ac.mak.der.workflows.tracker.EnrollmentRepository;
 import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository;
+import ug.ac.mak.der.workflows.tracker.TrackerService;
 
 /**
  * FR-08-06..12 tracker enrollment lifecycle. Enforces FK integrity
@@ -40,21 +45,28 @@ public class EnrollmentController {
     private final EnrollmentRepository repo;
     private final TrackedEntityRepository teiRepo;
     private final CapturedByResolver captorResolver;
+    private final TrackerService trackerService;
+    private final SystemWorkflowService systemWorkflows;
     private final Clock clock;
 
     public EnrollmentController(final EnrollmentRepository repo,
                                   final TrackedEntityRepository teiRepo,
                                   final CapturedByResolver captorResolver,
+                                  final TrackerService trackerService,
+                                  final SystemWorkflowService systemWorkflows,
                                   final Clock clock) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.teiRepo = Objects.requireNonNull(teiRepo, "teiRepo");
         this.captorResolver = Objects.requireNonNull(captorResolver, "captorResolver");
+        this.trackerService = Objects.requireNonNull(trackerService, "trackerService");
+        this.systemWorkflows = Objects.requireNonNull(systemWorkflows, "systemWorkflows");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> upsert(final Authentication authentication,
-                                                        @RequestBody final UpsertRequest body) {
+                                                        @RequestBody final UpsertRequest body,
+                                                        final HttpServletRequest http) {
         if (!(authentication instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
         }
@@ -81,17 +93,26 @@ public class EnrollmentController {
         }
         final Instant now = Instant.now(clock);
         final String storedBy = captorResolver.storedByFor(principal.userId()).orElse(null);
+        // §2.3.89 R-C/3 — auto-wrap into TRACKER_CAPTURE system run
+        // (one run per program/orgUnit/submitter so TEI + enrolment +
+        // first visit by the same operator share a run).
+        final UUID runId = systemWorkflows.ensureTrackerCaptureRun(
+                body.programUid(), body.orgUnitUid(), principal.userId());
         final Enrollment e;
         try {
             e = new Enrollment(body.enrollmentUid(), body.teiUid(),
                     body.programUid(), body.orgUnitUid(), status,
                     body.enrollmentDate(), body.incidentDate(), storedBy,
-                    principal.userId(), now, now, 1);
+                    principal.userId(), now, now, 1, runId);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of(
                     "code", "ENROLLMENT_INVALID", "message", ex.getMessage()));
         }
-        repo.upsert(e);
+        // §2.3.96 R-D/tracker-svc — service handles upsert + outbox
+        // + audit in one @Transactional unit.
+        trackerService.upsertEnrollment(e, principal.userId(),
+                http == null ? null : http.getRemoteAddr(),
+                http == null ? null : http.getHeader(HttpHeaders.USER_AGENT));
         return ResponseEntity.ok(toJson(e));
     }
 

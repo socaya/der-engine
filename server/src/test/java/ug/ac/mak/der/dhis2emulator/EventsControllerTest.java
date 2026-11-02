@@ -46,6 +46,7 @@ class EventsControllerTest {
     @Autowired MockMvc mockMvc;
     @MockBean EventService service;
     @MockBean Dhis2CompatibilityEngine engine;
+    @MockBean ug.ac.mak.der.workflow.SystemWorkflowService systemWorkflows;
 
     @org.springframework.boot.test.context.TestConfiguration
     static class Config {

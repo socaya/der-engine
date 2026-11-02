@@ -35,7 +35,7 @@ class EventRepositoryTest {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(jdbc.queryForObject(anyString(), eq(Integer.class),
                 any(), any(), anyString(), anyString(), anyString(),
-                any(Timestamp.class), anyString(), anyString(), any())).thenReturn(5);
+                any(Timestamp.class), anyString(), anyString(), any(), any())).thenReturn(5);
         final Event stored = new EventRepository(jdbc).upsert(sample());
         assertThat(stored.eventVersion()).isEqualTo(5);
     }

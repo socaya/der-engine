@@ -44,6 +44,7 @@ class DataValueSetsControllerTest {
     @Autowired MockMvc mockMvc;
     @MockBean AggregateDataValueService service;
     @MockBean AggregateDataValueRepository values;
+    @MockBean ug.ac.mak.der.workflow.SystemWorkflowService systemWorkflows;
 
     @org.springframework.boot.test.context.TestConfiguration
     static class Config {
@@ -51,6 +52,12 @@ class DataValueSetsControllerTest {
         Clock testClock() {
             return Clock.fixed(Instant.parse("2026-10-22T12:00:00Z"), ZoneOffset.UTC);
         }
+    }
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubSystemWorkflows() {
+        when(systemWorkflows.ensureWebAppCaptureRun(anyString(), anyString(), anyString(), any()))
+                .thenReturn(UUID.fromString("00000000-0000-0000-0000-000000000A01"));
     }
 
     private RequestPostProcessor as() {
@@ -66,7 +73,7 @@ class DataValueSetsControllerTest {
     void successfulSubmitReturnsImportSummary() throws Exception {
         when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new AggregateDataValueService.ImportSummary(2, 0, List.of()));
-        final String body = "{\"orgUnit\":\"ou-default\",\"period\":\"2026Q1\","
+        final String body = "{\"dataSet\":\"DS12345\",\"orgUnit\":\"ou-default\",\"period\":\"2026Q1\","
                 + "\"dataValues\":["
                 + "{\"dataElement\":\"de1\",\"value\":\"1\"},"
                 + "{\"dataElement\":\"de2\",\"value\":\"2\",\"orgUnit\":\"ou-override\"}"
@@ -97,7 +104,7 @@ class DataValueSetsControllerTest {
         mockMvc.perform(post("/api/dataValueSets").with(as())
                         .header("X-DER-Referral-Next-Hop", "ou-dest")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"orgUnit\":\"ou-src\",\"period\":\"2026Q1\","
+                        .content("{\"dataSet\":\"DS12345\",\"orgUnit\":\"ou-src\",\"period\":\"2026Q1\","
                                 + "\"dataValues\":[{\"dataElement\":\"de1\",\"value\":\"1\"}]}"))
                 .andExpect(status().isOk());
         final org.mockito.ArgumentCaptor<String> next =
@@ -113,7 +120,8 @@ class DataValueSetsControllerTest {
                 new AggregateDataValueService.ImportSummary(
                         1, 1,
                         List.of(new AggregateDataValueService.Conflict("de|ou|2026Q1|def|def", "value is required"))));
-        final String body = "{\"dataValues\":[{\"dataElement\":\"de\",\"orgUnit\":\"ou\",\"period\":\"2026Q1\",\"value\":\"x\"}]}";
+        final String body = "{\"dataSet\":\"DS12345\",\"dataValues\":"
+                + "[{\"dataElement\":\"de\",\"orgUnit\":\"ou\",\"period\":\"2026Q1\",\"value\":\"x\"}]}";
         mockMvc.perform(post("/api/dataValueSets").with(as())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -154,7 +162,7 @@ class DataValueSetsControllerTest {
     void perRowCombosOverrideEnvelope() throws Exception {
         when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new AggregateDataValueService.ImportSummary(1, 0, List.of()));
-        final String body = "{\"orgUnit\":\"ou\",\"period\":\"2026Q1\","
+        final String body = "{\"dataSet\":\"DS12345\",\"orgUnit\":\"ou\",\"period\":\"2026Q1\","
                 + "\"categoryOptionCombo\":\"coc-default\","
                 + "\"attributeOptionCombo\":\"aoc-default\","
                 + "\"dataValues\":[{\"dataElement\":\"de\",\"value\":\"1\","
@@ -176,7 +184,7 @@ class DataValueSetsControllerTest {
     void perRowDefaultsFromEnvelopeArePassedThrough() throws Exception {
         when(service.submit(any(), any(), anyString(), any(), any())).thenReturn(
                 new AggregateDataValueService.ImportSummary(1, 0, List.of()));
-        final String body = "{\"orgUnit\":\"ou-default\",\"period\":\"2026Q1\","
+        final String body = "{\"dataSet\":\"DS12345\",\"orgUnit\":\"ou-default\",\"period\":\"2026Q1\","
                 + "\"categoryOptionCombo\":\"coc-default\","
                 + "\"attributeOptionCombo\":\"aoc-default\","
                 + "\"dataValues\":[{\"dataElement\":\"de1\",\"value\":\"1\"}]}";
@@ -198,7 +206,8 @@ class DataValueSetsControllerTest {
         when(values.findByFilter(anyString(), anyString(), any(Integer.class)))
                 .thenReturn(List.of(new ug.ac.mak.der.workflows.aggregate.AggregateDataValue(
                         UUID.randomUUID(), "de1", "ou1", "2026Q1", "HllvX50cXC0", "HllvX50cXC0",
-                        "42", null, UUID.randomUUID(), Instant.parse("2026-10-22T12:00:00Z"), 1)));
+                        "42", null, UUID.randomUUID(), Instant.parse("2026-10-22T12:00:00Z"), 1,
+                        "DS12345")));
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .get("/api/dataValueSets?orgUnit=ou1&period=2026Q1&limit=100").with(as()))
                 .andExpect(status().isOk())

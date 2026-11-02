@@ -112,7 +112,9 @@ public class AggregateDataValueService {
                     input.comment(),
                     actingUser,
                     now,
-                    1
+                    1,
+                    input.dataSetUid(),
+                    input.workflowRunId()
             );
             final AggregateDataValue stored = values.upsert(toStore);
             final OperationJournalEntry entry = new OperationJournalEntry(
@@ -137,7 +139,8 @@ public class AggregateDataValueService {
                     now,
                     now,
                     nextHopOrgUnitUid == null || nextHopOrgUnitUid.isBlank()
-                            ? null : nextHopOrgUnitUid.trim()
+                            ? null : nextHopOrgUnitUid.trim(),
+                    stored.workflowRunId()
             );
             journal.insert(entry);
             if (approvals.requiresApproval(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)) {
@@ -171,6 +174,12 @@ public class AggregateDataValueService {
         }
         if (input.value() == null || input.value().isBlank()) {
             return Optional.of("value is required");
+        }
+        if (input.dataSetUid() == null || input.dataSetUid().isBlank()) {
+            // §2.3.84 — DER policy: every aggregate value must declare
+            // its originating dataSet so facility analytics can roll
+            // up by dataset without re-deriving mirror metadata.
+            return Optional.of("dataSet is required");
         }
         final Optional<MirroredDataElement> de = metadata.findDataElement(input.dataElementUid());
         if (de.isEmpty()) {
@@ -242,8 +251,32 @@ public class AggregateDataValueService {
             String categoryOptionComboUid,
             String attributeOptionComboUid,
             String value,
-            String comment
+            String comment,
+            /** §2.3.84 — dataSet UID from the dataValueSets envelope.
+             *  Required: callers that don't name a dataset get a
+             *  structured 400 at {@link #validate}. The DHIS2
+             *  dataValueSets envelope always carries dataSet when
+             *  posted by Capture apps; ad-hoc writes must name one. */
+            String dataSetUid,
+            /** §2.3.85 — Capture workflow run that produced this
+             *  input, if any. Nullable: ad-hoc writes (direct
+             *  dataValueSets POST without a run context) pass null.
+             *  Set via {@link #submitForRun} to tag the lineage. */
+            UUID workflowRunId
     ) {
+        /** Convenience ctor — nulls {@link #workflowRunId}, used by
+         *  the DHIS2-emulator write path which carries no workflow
+         *  context today. */
+        public DataValueInput(final String dataElementUid, final String orgUnitUid,
+                               final String periodIso,
+                               final String categoryOptionComboUid,
+                               final String attributeOptionComboUid,
+                               final String value, final String comment,
+                               final String dataSetUid) {
+            this(dataElementUid, orgUnitUid, periodIso,
+                 categoryOptionComboUid, attributeOptionComboUid,
+                 value, comment, dataSetUid, null);
+        }
         public String compoundKey() {
             return dataElementUid + '|' + orgUnitUid + '|' + periodIso
                     + '|' + (categoryOptionComboUid == null ? AggregateDataValue.DEFAULT_COC : categoryOptionComboUid)

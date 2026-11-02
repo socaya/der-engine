@@ -34,12 +34,18 @@ import {
   CapCentralConnection, CapOrgUnitBinding, CapProgramRules,
   CapMetadataSync, CapSyncSchedule, CapSyncSettings,
   CapWorkflowRuns, CapStepAssignments, CapReferralHistory,
-  CapAggregate, CapEvents, CapTracker, CapDrafts, CapMaintenance,
+  CapDrafts, CapMaintenance,
   CapUserMappings, CapRoles, CapSessions, CapCredentials,
   CapDeviceEnrolment, CapOwnership, CapConnections, CapDeviceDiagnostics,
   CapOperatorMetrics, CapServiceHealth, CapStorage,
   CapProvisioningSetup, CapReleases, CapNetwork,
 } from './screens/CapabilityScreens';
+import { DataAggregate } from './screens/DataAggregate';
+import { DataAggregateDetail } from './screens/DataAggregateDetail';
+import { DataEvents } from './screens/DataEvents';
+import { DataEventDetail } from './screens/DataEventDetail';
+import { DataTracker } from './screens/DataTracker';
+import { DataTeiDetail } from './screens/DataTeiDetail';
 import { MockupDashboard } from './screens/Dashboard';
 import { MockupSystemOverview } from './screens/SystemOverview';
 import { MockupSyncOverview } from './screens/SyncOverview';
@@ -269,9 +275,15 @@ export default function App(): JSX.Element {
           <Route path="/workflows/assignments" element={<RequireAuth><CapStepAssignments /></RequireAuth>} />
           <Route path="/referral/history" element={<RequireAuth><CapReferralHistory /></RequireAuth>} />
           <Route path="/data" element={<RequireAuth><MockupDataManagement /></RequireAuth>} />
-          <Route path="/data/aggregate" element={<RequireAuth><CapAggregate /></RequireAuth>} />
-          <Route path="/data/events" element={<RequireAuth><CapEvents /></RequireAuth>} />
-          <Route path="/data/tracker" element={<RequireAuth><CapTracker /></RequireAuth>} />
+          <Route path="/data/aggregate" element={<RequireAuth><DataAggregate /></RequireAuth>} />
+          <Route path="/data/aggregate/:valueId"
+                 element={<RequireAuth><DataAggregateDetail /></RequireAuth>} />
+          <Route path="/data/events" element={<RequireAuth><DataEvents /></RequireAuth>} />
+          <Route path="/data/events/:eventId"
+                 element={<RequireAuth><DataEventDetail /></RequireAuth>} />
+          <Route path="/data/tracker" element={<RequireAuth><DataTracker /></RequireAuth>} />
+          <Route path="/data/tracker/tei/:teiUid"
+                 element={<RequireAuth><DataTeiDetail /></RequireAuth>} />
           <Route path="/data/drafts" element={<RequireAuth><CapDrafts /></RequireAuth>} />
           <Route path="/data/maintenance" element={<RequireAuth><CapMaintenance /></RequireAuth>} />
           <Route path="/access/mappings" element={<RequireAuth><CapUserMappings /></RequireAuth>} />

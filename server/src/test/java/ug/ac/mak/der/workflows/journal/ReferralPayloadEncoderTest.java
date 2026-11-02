@@ -101,12 +101,17 @@ class ReferralPayloadEncoderTest {
         assertThat(notes.get(1).get("value").asText()).isEqualTo("[DER-next-hop:ou-dest]");
     }
 
+    /** §2.3.95 R-D/sync-worker-tracker — enrolment payloads are now
+     *  wrapped in the DHIS2 {@code /api/tracker} envelope, so the
+     *  referral note sits on the inner enrolment object. */
     @Test
     void enrollmentPushesNote() throws Exception {
         final String body = encoder.body(entry(
                 OperationJournalEntry.EntityType.ENROLLMENT,
                 "{\"enrollment\":\"e1\"}", "ou-dest"));
-        assertThat(mapper.readTree(body).get("notes").size()).isEqualTo(1);
+        final JsonNode root = mapper.readTree(body);
+        assertThat(root.get("enrollments").size()).isEqualTo(1);
+        assertThat(root.get("enrollments").get(0).get("notes").size()).isEqualTo(1);
     }
 
     @Test
@@ -114,7 +119,9 @@ class ReferralPayloadEncoderTest {
         final String body = encoder.body(entry(
                 OperationJournalEntry.EntityType.TRACKED_ENTITY,
                 "{}", "ou-dest"));
-        assertThat(mapper.readTree(body).get("notes").size()).isEqualTo(1);
+        final JsonNode root = mapper.readTree(body);
+        assertThat(root.get("trackedEntities").size()).isEqualTo(1);
+        assertThat(root.get("trackedEntities").get(0).get("notes").size()).isEqualTo(1);
     }
 
     @Test
@@ -122,7 +129,9 @@ class ReferralPayloadEncoderTest {
         final String body = encoder.body(entry(
                 OperationJournalEntry.EntityType.PROGRAM_STAGE_EVENT,
                 "{}", "ou-dest"));
-        assertThat(mapper.readTree(body).get("notes").size()).isEqualTo(1);
+        final JsonNode root = mapper.readTree(body);
+        assertThat(root.get("events").size()).isEqualTo(1);
+        assertThat(root.get("events").get(0).get("notes").size()).isEqualTo(1);
     }
 
     @Test

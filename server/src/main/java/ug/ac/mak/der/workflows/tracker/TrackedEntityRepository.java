@@ -34,15 +34,18 @@ public class TrackedEntityRepository {
         jdbc.update(
                 "INSERT INTO der.tracked_entity "
                         + "(tei_uid, tracked_entity_type, org_unit_uid, attributes, "
-                        + " created_by, created_at, updated_at, tei_version) "
-                        + "VALUES (?, ?, ?, CAST(? AS jsonb), ?, ?, ?, ?) "
+                        + " created_by, created_at, updated_at, tei_version, workflow_run_id) "
+                        + "VALUES (?, ?, ?, CAST(? AS jsonb), ?, ?, ?, ?, ?) "
                         + "ON CONFLICT (tei_uid) DO UPDATE SET "
                         + "  attributes = EXCLUDED.attributes, "
                         + "  updated_at = EXCLUDED.updated_at, "
-                        + "  tei_version = der.tracked_entity.tei_version + 1",
+                        + "  tei_version = der.tracked_entity.tei_version + 1, "
+                        + "  workflow_run_id = COALESCE(EXCLUDED.workflow_run_id, "
+                        + "                              der.tracked_entity.workflow_run_id)",
                 tei.teiUid(), tei.trackedEntityType(), tei.orgUnitUid(), attrJson,
                 tei.createdBy(), Timestamp.from(tei.createdAt()),
-                Timestamp.from(tei.updatedAt()), tei.teiVersion());
+                Timestamp.from(tei.updatedAt()), tei.teiVersion(),
+                tei.workflowRunId());
         return tei;
     }
 
@@ -53,7 +56,7 @@ public class TrackedEntityRepository {
         try {
             return Optional.ofNullable(jdbc.queryForObject(
                     "SELECT tei_uid, tracked_entity_type, org_unit_uid, attributes::text AS attributes, "
-                            + "created_by, created_at, updated_at, tei_version "
+                            + "created_by, created_at, updated_at, tei_version, workflow_run_id "
                             + "FROM der.tracked_entity WHERE tei_uid = ?",
                     mapper(), teiUid));
         } catch (EmptyResultDataAccessException ex) {
@@ -72,7 +75,7 @@ public class TrackedEntityRepository {
         final int capped = Math.max(1, Math.min(limit, 200));
         final StringBuilder sql = new StringBuilder(
                 "SELECT tei_uid, tracked_entity_type, org_unit_uid, attributes::text AS attributes, "
-                        + "created_by, created_at, updated_at, tei_version "
+                        + "created_by, created_at, updated_at, tei_version, workflow_run_id "
                         + "FROM der.tracked_entity WHERE 1=1");
         final List<Object> args = new java.util.ArrayList<>();
         if (type != null) {
@@ -121,11 +124,27 @@ public class TrackedEntityRepository {
                 (UUID) rs.getObject("created_by"),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant(),
-                rs.getInt("tei_version"));
+                rs.getInt("tei_version"),
+                rs.getObject("workflow_run_id", UUID.class));
     }
 
     public record TrackedEntity(String teiUid, String trackedEntityType,
                                   String orgUnitUid, Map<String, String> attributes,
                                   UUID createdBy, Instant createdAt, Instant updatedAt,
-                                  int teiVersion) { }
+                                  int teiVersion,
+                                  /** §2.3.89 R-C/3 — capture workflow run that
+                                   *  produced this TEI. See
+                                   *  {@link Enrollment#workflowRunId()}. */
+                                  UUID workflowRunId) {
+
+        /** Back-compat ctor — nulls {@link #workflowRunId}. */
+        public TrackedEntity(final String teiUid, final String trackedEntityType,
+                               final String orgUnitUid,
+                               final Map<String, String> attributes,
+                               final UUID createdBy, final Instant createdAt,
+                               final Instant updatedAt, final int teiVersion) {
+            this(teiUid, trackedEntityType, orgUnitUid, attributes, createdBy,
+                 createdAt, updatedAt, teiVersion, null);
+        }
+    }
 }

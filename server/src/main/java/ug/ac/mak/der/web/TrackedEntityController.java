@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -20,8 +22,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.security.EdgeUserPrincipal;
+import ug.ac.mak.der.workflow.SystemWorkflowService;
 import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository;
 import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository.TrackedEntity;
+import ug.ac.mak.der.workflows.tracker.TrackerService;
 
 /**
  * FR-08-01 (create/update) + FR-08-02 (search). Minimal tracker TEI
@@ -35,17 +39,31 @@ import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository.TrackedEntity;
 public class TrackedEntityController {
 
     private final TrackedEntityRepository repo;
+    private final TrackerService trackerService;
+    private final SystemWorkflowService systemWorkflows;
     private final Clock clock;
 
-    public TrackedEntityController(final TrackedEntityRepository repo, final Clock clock) {
+    public TrackedEntityController(final TrackedEntityRepository repo,
+                                     final TrackerService trackerService,
+                                     final SystemWorkflowService systemWorkflows,
+                                     final Clock clock) {
         this.repo = Objects.requireNonNull(repo, "repo");
+        this.trackerService = Objects.requireNonNull(trackerService, "trackerService");
+        this.systemWorkflows = Objects.requireNonNull(systemWorkflows, "systemWorkflows");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
-    /** FR-08-01: create or update a TEI with required attributes + stable UID. */
+    /** FR-08-01: create or update a TEI with required attributes + stable UID.
+     *
+     *  §2.3.96 R-D/tracker-svc — thin controller: validate body +
+     *  derive the TRACKER_CAPTURE system run, then delegate the
+     *  storage + journal insert to {@link TrackerService} which
+     *  wraps them in one {@code @Transactional} unit so partial
+     *  failures can't leave an orphaned row. */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> upsert(final Authentication authentication,
-                                                        @RequestBody final TeiRequest body) {
+                                                        @RequestBody final TeiRequest body,
+                                                        final HttpServletRequest http) {
         if (!(authentication instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
         }
@@ -59,10 +77,16 @@ public class TrackedEntityController {
                 ? java.util.UUID.randomUUID().toString()
                 : body.teiUid().trim();
         final Instant now = Instant.now(clock);
-        final TrackedEntity stored = repo.upsert(new TrackedEntity(
-                teiUid, body.trackedEntityType(), body.orgUnit(),
-                body.attributes() == null ? Map.of() : body.attributes(),
-                principal.userId(), now, now, 1));
+        final java.util.UUID runId = systemWorkflows.ensureTrackerCaptureRun(
+                "_TEI_", body.orgUnit(), principal.userId());
+        final TrackedEntity stored = trackerService.upsertTei(
+                new TrackedEntity(
+                    teiUid, body.trackedEntityType(), body.orgUnit(),
+                    body.attributes() == null ? Map.of() : body.attributes(),
+                    principal.userId(), now, now, 1, runId),
+                principal.userId(),
+                http == null ? null : http.getRemoteAddr(),
+                http == null ? null : http.getHeader(HttpHeaders.USER_AGENT));
         return ResponseEntity.ok(toJson(stored));
     }
 

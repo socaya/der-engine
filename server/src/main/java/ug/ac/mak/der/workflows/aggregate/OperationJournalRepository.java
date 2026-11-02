@@ -38,8 +38,8 @@ public class OperationJournalRepository {
                 "INSERT INTO der.operation_journal "
                         + "(operation_id, entity_type, entity_ref, payload_json, state, "
                         + " attempt_count, last_error, submitted_by, created_at, updated_at, "
-                        + " next_hop_org_unit_uid) "
-                        + "VALUES (?, ?, ?, CAST(? AS jsonb), ?, ?, ?, ?, ?, ?, ?)",
+                        + " next_hop_org_unit_uid, workflow_run_id) "
+                        + "VALUES (?, ?, ?, CAST(? AS jsonb), ?, ?, ?, ?, ?, ?, ?, ?)",
                 entry.operationId(),
                 entry.entityType().name(),
                 entry.entityRef(),
@@ -50,7 +50,8 @@ public class OperationJournalRepository {
                 entry.submittedBy(),
                 Timestamp.from(entry.createdAt()),
                 Timestamp.from(entry.updatedAt()),
-                entry.nextHopOrgUnitUid()
+                entry.nextHopOrgUnitUid(),
+                entry.workflowRunId()
         );
         return entry;
     }
@@ -103,7 +104,7 @@ public class OperationJournalRepository {
         return jdbc.query(
                 "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
                         + "attempt_count, last_error, submitted_by, created_at, updated_at, "
-                        + "next_hop_org_unit_uid "
+                        + "next_hop_org_unit_uid, workflow_run_id "
                         + "FROM der.operation_journal oj "
                         + "WHERE state = 'PENDING' "
                         + "  AND (requires_approval = FALSE OR approved_at IS NOT NULL) "
@@ -143,6 +144,73 @@ public class OperationJournalRepository {
                 reason, operationId);
     }
 
+    /** §2.3.105 R-Y — bulk force-retry by operation id. Used by the
+     *  per-stream retry button inside the TEI payload-lineage drawer
+     *  where the admin targets specific operation ids rather than a
+     *  whole workflow run. Semantics match {@link #requeuePending}
+     *  per row. */
+    public int requeuePendingByIds(final List<UUID> operationIds) {
+        Objects.requireNonNull(operationIds, "operationIds");
+        if (operationIds.isEmpty()) {
+            return 0;
+        }
+        final String placeholders = operationIds.stream()
+                .map(id -> "?").reduce((a, b) -> a + "," + b).orElse("?");
+        final Object[] args = operationIds.toArray();
+        return jdbc.update(
+                "UPDATE der.operation_journal "
+              + "SET state = 'PENDING', last_error = NULL, updated_at = now() "
+              + "WHERE operation_id IN (" + placeholders + ") "
+              + "  AND state IN ('RETRYABLE','CENTRAL_REJECTED','CONFLICT_REVIEW',"
+              + "                 'QUARANTINED','UNKNOWN_OUTCOME')",
+                args);
+    }
+
+    /** §2.3.103 R-T — bulk force-retry for a workflow run, optionally
+     *  scoped to a set of states. Returns the number of rows moved
+     *  back to PENDING. Semantics match {@link #requeuePending} per
+     *  row (preserve attempt_count, clear last_error, only touch
+     *  non-terminal non-pending states). */
+    public int requeuePendingByRun(final UUID workflowRunId,
+                                     final List<String> states) {
+        Objects.requireNonNull(workflowRunId, "workflowRunId");
+        final List<String> defaulted = (states == null || states.isEmpty())
+                ? List.of("RETRYABLE","CENTRAL_REJECTED","CONFLICT_REVIEW",
+                          "QUARANTINED","UNKNOWN_OUTCOME")
+                : states;
+        final String placeholders = defaulted.stream()
+                .map(s -> "?").reduce((a, b) -> a + "," + b).orElse("?");
+        final Object[] args = new Object[1 + defaulted.size()];
+        args[0] = workflowRunId;
+        for (int i = 0; i < defaulted.size(); i++) {
+            args[i + 1] = defaulted.get(i);
+        }
+        return jdbc.update(
+                "UPDATE der.operation_journal "
+              + "SET state = 'PENDING', last_error = NULL, updated_at = now() "
+              + "WHERE workflow_run_id = ? "
+              + "  AND state IN (" + placeholders + ")",
+                args);
+    }
+
+    /** §2.3.102 R-Q — force-retry a single operation.
+     *
+     *  Resets {@code state} to {@code PENDING} and clears {@code
+     *  last_error} so the next drain tick picks the row up again.
+     *  Attempt count is preserved so operators can see how many times
+     *  the row has already been through the sync worker (useful when
+     *  debugging whack-a-mole conflicts). */
+    public int requeuePending(final UUID operationId) {
+        Objects.requireNonNull(operationId, "operationId");
+        return jdbc.update(
+                "UPDATE der.operation_journal "
+              + "SET state = 'PENDING', last_error = NULL, updated_at = now() "
+              + "WHERE operation_id = ? "
+              + "  AND state IN ('RETRYABLE','CENTRAL_REJECTED','CONFLICT_REVIEW',"
+              + "                 'QUARANTINED','UNKNOWN_OUTCOME')",
+                operationId);
+    }
+
     /**
      * FR-09-10 journal retention. Deletes rows in a terminal state
      * (CENTRAL_ACCEPTED, CENTRAL_REJECTED) older than the cutoff.
@@ -165,7 +233,7 @@ public class OperationJournalRepository {
         return jdbc.query(
                 "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
                         + "attempt_count, last_error, submitted_by, created_at, updated_at, "
-                        + "next_hop_org_unit_uid "
+                        + "next_hop_org_unit_uid, workflow_run_id "
                         + "FROM der.operation_journal "
                         + "ORDER BY updated_at DESC LIMIT ?",
                 rowMapper(),
@@ -178,7 +246,7 @@ public class OperationJournalRepository {
         return jdbc.query(
                 "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
                         + "attempt_count, last_error, submitted_by, created_at, updated_at, "
-                        + "next_hop_org_unit_uid "
+                        + "next_hop_org_unit_uid, workflow_run_id "
                         + "FROM der.operation_journal WHERE state = ? "
                         + "ORDER BY created_at ASC LIMIT ?",
                 rowMapper(),
@@ -232,7 +300,26 @@ public class OperationJournalRepository {
                 rs.getObject("submitted_by", UUID.class),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant(),
-                rs.getString("next_hop_org_unit_uid")
+                rs.getString("next_hop_org_unit_uid"),
+                rs.getObject("workflow_run_id", UUID.class)
         );
+    }
+
+    /** §2.3.85 — paged listing filtered by {@code workflow_run_id}.
+     *  Null workflowRunId returns the most-recent entries unfiltered. */
+    public List<OperationJournalEntry> findByWorkflowRun(final UUID workflowRunId,
+                                                           final int limit) {
+        final int capped = Math.max(1, Math.min(limit, 500));
+        if (workflowRunId == null) {
+            return findRecent(capped);
+        }
+        return jdbc.query(
+                "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
+              + "attempt_count, last_error, submitted_by, created_at, updated_at, "
+              + "next_hop_org_unit_uid, workflow_run_id "
+              + "FROM der.operation_journal "
+              + "WHERE workflow_run_id = ? "
+              + "ORDER BY created_at DESC LIMIT ?",
+                rowMapper(), workflowRunId, capped);
     }
 }

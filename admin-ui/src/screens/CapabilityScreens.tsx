@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status, useCentralReachable } from './shared';
+import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, ScopedFilterChip, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status, useCentralReachable } from './shared';
 import { UiIcon } from '../components/UiIcon';
 
 /**
@@ -1987,13 +1987,22 @@ export function CapTracker(): JSX.Element {
 }
 
 export function CapDrafts(): JSX.Element {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const workflowRunId = searchParams.get('workflowRunId');
   const [rows, setRows] = useState<edgeApi.DraftRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   async function reload(): Promise<void> {
-    try { const r = await edgeApi.listDrafts(); setRows(r.drafts); }
+    try {
+      const r = await edgeApi.listDrafts({
+        workflowRunId: workflowRunId ?? undefined,
+      });
+      setRows(r.drafts);
+    }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
-  useEffect(() => { reload().catch(() => undefined); }, []);
+  useEffect(() => { reload().catch(() => undefined);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */ },
+    [workflowRunId]);
   async function remove(id: string): Promise<void> {
     try { await edgeApi.deleteDraft(id); await reload(); }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
@@ -2002,6 +2011,19 @@ export function CapDrafts(): JSX.Element {
   if (!rows) return <LoadingBlock testId="loading" />;
   return (
     <div className="ea-screen" data-test="cap-drafts">
+      {workflowRunId && (
+        <ScopedFilterChip
+          label={`Workflow run ${workflowRunId.slice(0, 8)}`}
+          openTo={`/workflows/monitoring/runs/${encodeURIComponent(workflowRunId)}`}
+          openLabel="Open run"
+          onClear={() => {
+            const next = new URLSearchParams(searchParams);
+            next.delete('workflowRunId');
+            setSearchParams(next, { replace: true });
+          }}
+          hint="Draft-level filtering lands with R-A-data (drafts.workflow_run_id)."
+        />
+      )}
       <SyncStatusBar
         tone={rows.length === 0 ? 'success' : 'info'}
         title="Drafts"

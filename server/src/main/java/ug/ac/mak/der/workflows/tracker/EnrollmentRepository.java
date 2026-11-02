@@ -28,19 +28,21 @@ public class EnrollmentRepository {
                 "INSERT INTO der.edge_enrollment "
                         + "(enrollment_uid, tei_uid, program_uid, org_unit_uid, status, "
                         + "enrollment_date, incident_date, stored_by_dhis2_uid, "
-                        + "created_by, created_at, updated_at, version) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                        + "created_by, created_at, updated_at, version, workflow_run_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
                         + "ON CONFLICT (enrollment_uid) DO UPDATE SET "
                         + "status = EXCLUDED.status, incident_date = EXCLUDED.incident_date, "
                         + "stored_by_dhis2_uid = EXCLUDED.stored_by_dhis2_uid, "
                         + "updated_at = EXCLUDED.updated_at, "
-                        + "version = der.edge_enrollment.version + 1",
+                        + "version = der.edge_enrollment.version + 1, "
+                        + "workflow_run_id = COALESCE(EXCLUDED.workflow_run_id, "
+                        + "                            der.edge_enrollment.workflow_run_id)",
                 e.enrollmentUid(), e.teiUid(), e.programUid(), e.orgUnitUid(),
                 e.status().name(), java.sql.Date.valueOf(e.enrollmentDate()),
                 e.incidentDate() == null ? null : java.sql.Date.valueOf(e.incidentDate()),
                 e.storedByDhis2Uid(), e.createdBy(),
                 Timestamp.from(e.createdAt()), Timestamp.from(e.updatedAt()),
-                e.version());
+                e.version(), e.workflowRunId());
         return e;
     }
 
@@ -85,6 +87,7 @@ public class EnrollmentRepository {
                 rs.getObject("created_by", UUID.class),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant(),
-                rs.getInt("version"));
+                rs.getInt("version"),
+                rs.getObject("workflow_run_id", UUID.class));
     }
 }

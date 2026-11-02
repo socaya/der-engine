@@ -128,6 +128,13 @@ public class CompatibilityController {
                 endpoints.put(id.name(), row);
             });
             caps.put("endpointPolicies", endpoints);
+            // §2.3.101 R-M — binding kinds the connected Central
+            // advertises. Pre-2.40 Centrals don't surface
+            // programSection / dataSetSection / TEA via the modern
+            // metadata API, so a workflow bound to one would be
+            // unreachable. We advertise the full catalogue for 2.44+;
+            // older profiles will prune this list in a later pass.
+            caps.put("supportedBindingKinds", supportedBindingKindsFor(s.profileName()));
             return new CompatSnapshotView(
                     "OK",
                     s.snapshotId(),
@@ -144,6 +151,31 @@ public class CompatibilityController {
         static CompatSnapshotView unavailable(final String msg) {
             return new CompatSnapshotView(
                     "UNAVAILABLE", null, null, null, null, null, null, null, Map.of(), msg);
+        }
+
+        /** DHIS2 2.44 (and all forward) support every DER capture-form
+         *  binding kind. Older profiles get a conservative subset so
+         *  operators can't save a workflow Central would reject. The
+         *  SYSTEM sentinel is always included — it's internal. */
+        private static List<String> supportedBindingKindsFor(final String profileName) {
+            final List<String> all = List.of(
+                    "DATA_SET", "DATA_SET_SECTION", "DATA_ELEMENT",
+                    "PROGRAM", "PROGRAM_SECTION",
+                    "PROGRAM_STAGE", "PROGRAM_STAGE_SECTION",
+                    "TRACKED_ENTITY_TYPE", "TRACKED_ENTITY_ATTRIBUTE",
+                    "SYSTEM");
+            if (profileName == null) {
+                return all;
+            }
+            // Pre-2.40 Centrals lack a stable programSection / section
+            // metadata surface. Only the long-standing kinds are safe.
+            if (profileName.contains("2.3") || profileName.contains("2.37")
+                    || profileName.contains("2.38") || profileName.contains("2.39")) {
+                return List.of("DATA_SET", "DATA_ELEMENT",
+                               "PROGRAM", "PROGRAM_STAGE", "PROGRAM_STAGE_SECTION",
+                               "TRACKED_ENTITY_TYPE", "SYSTEM");
+            }
+            return all;
         }
     }
 

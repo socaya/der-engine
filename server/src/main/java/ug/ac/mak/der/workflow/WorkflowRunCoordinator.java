@@ -443,10 +443,24 @@ public class WorkflowRunCoordinator {
 
     private static OperationJournalEntry.EntityType entityTypeFor(final CaptureWorkflow w) {
         return switch (w.boundMetadataKind()) {
-            case DATA_SET -> OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE;
-            case PROGRAM -> OperationJournalEntry.EntityType.TRACKED_ENTITY;
+            case DATA_SET, DATA_SET_SECTION, DATA_ELEMENT ->
+                OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE;
+            // §2.3.98 R-F — tracker-side bindings all surface the
+            // enrolment envelope. The journal routes to TRACKED_ENTITY
+            // / ENROLLMENT / PROGRAM_STAGE_EVENT separately per row,
+            // so this coarse mapping is only used for workflows
+            // whose compiler produces an enrolment-shaped bundle.
+            case PROGRAM, PROGRAM_SECTION,
+                 TRACKED_ENTITY_TYPE, TRACKED_ENTITY_ATTRIBUTE ->
+                OperationJournalEntry.EntityType.TRACKED_ENTITY;
             case PROGRAM_STAGE, PROGRAM_STAGE_SECTION ->
                 OperationJournalEntry.EntityType.PROGRAM_STAGE_EVENT;
+            // SYSTEM workflows don't drain into the journal via the
+            // coordinator — they wrap writes that already carry their
+            // own entity-type (aggregate / event / TEI etc). We never
+            // reach this branch at runtime; the compiler just needs
+            // exhaustive coverage.
+            case SYSTEM -> OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE;
         };
     }
 

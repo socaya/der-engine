@@ -23,7 +23,20 @@ public record AggregateDataValue(
         String comment,
         UUID submittedBy,
         Instant submittedAt,
-        int valueVersion
+        int valueVersion,
+        /** §2.3.84 — DHIS2 dataSet UID this value was captured through.
+         *  Required: every DER aggregate value must declare its
+         *  dataset so facility-local analytics can roll up / filter
+         *  by dataset without re-deriving the mapping at read time.
+         *  DHIS2 Central doesn't require this (a data element can be
+         *  in several datasets); DER chooses to pin it. */
+        String dataSetUid,
+        /** §2.3.85 — Capture workflow run that produced this value,
+         *  if any. Nullable: ad-hoc writes (Data Entry web app,
+         *  dataValueSets POST without a run context) stay untagged.
+         *  Workflow-driven writes carry the run id so admins can
+         *  trace a value back to the run that captured it. */
+        UUID workflowRunId
 ) {
 
     public static final String DEFAULT_COC = "HllvX50cXC0";
@@ -36,11 +49,15 @@ public record AggregateDataValue(
         Objects.requireNonNull(valueText, "valueText");
         Objects.requireNonNull(submittedBy, "submittedBy");
         Objects.requireNonNull(submittedAt, "submittedAt");
+        Objects.requireNonNull(dataSetUid, "dataSetUid");
         if (categoryOptionComboUid == null || categoryOptionComboUid.isBlank()) {
             categoryOptionComboUid = DEFAULT_COC;
         }
         if (attributeOptionComboUid == null || attributeOptionComboUid.isBlank()) {
             attributeOptionComboUid = DEFAULT_COC;
+        }
+        if (dataSetUid.isBlank()) {
+            throw new IllegalArgumentException("dataSetUid must not be blank");
         }
         if (valueText.isBlank()) {
             throw new IllegalArgumentException("valueText must not be blank");
@@ -51,6 +68,22 @@ public record AggregateDataValue(
         if (valueVersion < 1) {
             throw new IllegalArgumentException("valueVersion must be >= 1");
         }
+    }
+
+    /** Backward-compat ctor — defaults {@link #workflowRunId} to null
+     *  so ad-hoc writers that don't carry workflow context compile
+     *  unchanged. */
+    public AggregateDataValue(final UUID valueId,
+                                final String dataElementUid, final String orgUnitUid,
+                                final String periodIso,
+                                final String categoryOptionComboUid,
+                                final String attributeOptionComboUid,
+                                final String valueText, final String comment,
+                                final UUID submittedBy, final Instant submittedAt,
+                                final int valueVersion, final String dataSetUid) {
+        this(valueId, dataElementUid, orgUnitUid, periodIso,
+             categoryOptionComboUid, attributeOptionComboUid, valueText,
+             comment, submittedBy, submittedAt, valueVersion, dataSetUid, null);
     }
 
     /** DHIS2-style compound-key string, used for audit + sync-status lookups. */

@@ -50,11 +50,20 @@ public record CaptureWorkflow(
         dependencies = dependencies == null ? List.of() : List.copyOf(dependencies);
     }
 
-    /** V045 — four parent-unit kinds across aggregate + tracker + event. */
+    /** V045 — four parent-unit kinds across aggregate + tracker + event,
+     *  plus V073's SYSTEM slot used by server-managed workflows
+     *  (WEB_APP_CAPTURE, REFERRAL_INGEST, CENTRAL_DOWNLOAD,
+     *  EVENT_CAPTURE, TRACKER_CAPTURE). */
     public enum BindingKind {
         DATA_SET,
+        DATA_SET_SECTION,
+        DATA_ELEMENT,
         PROGRAM,
+        PROGRAM_SECTION,
         PROGRAM_STAGE,
-        PROGRAM_STAGE_SECTION
+        PROGRAM_STAGE_SECTION,
+        TRACKED_ENTITY_TYPE,
+        TRACKED_ENTITY_ATTRIBUTE,
+        SYSTEM
     }
 }

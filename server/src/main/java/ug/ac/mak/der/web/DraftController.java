@@ -36,11 +36,23 @@ public class DraftController {
     }
 
     @GetMapping
-    public ResponseEntity<Map<String, Object>> list(final Authentication authentication) {
+    public ResponseEntity<Map<String, Object>> list(final Authentication authentication,
+                                                      @org.springframework.web.bind.annotation.RequestParam(
+                                                          name = "workflowRunId", required = false)
+                                                      final String workflowRunIdParam) {
         if (!(authentication instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
         }
-        final List<Draft> rows = drafts.findByOwner(principal.userId());
+        UUID runFilter = null;
+        if (workflowRunIdParam != null && !workflowRunIdParam.isBlank()) {
+            try {
+                runFilter = UUID.fromString(workflowRunIdParam);
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "workflowRunId must be a UUID"));
+            }
+        }
+        final List<Draft> rows = drafts.findByOwner(principal.userId(), runFilter);
         return ResponseEntity.ok(Map.of("drafts", rows.stream().map(DraftController::toJson).toList()));
     }
 

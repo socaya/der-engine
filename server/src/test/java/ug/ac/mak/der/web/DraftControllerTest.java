@@ -66,7 +66,7 @@ class DraftControllerTest {
     @Test
     void listOk() throws Exception {
         final UUID uid = UUID.randomUUID();
-        when(drafts.findByOwner(uid)).thenReturn(List.of(sample(uid)));
+        when(drafts.findByOwner(uid, null)).thenReturn(List.of(sample(uid)));
         mockMvc.perform(get("/edge-api/v1/drafts").with(as(uid)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.drafts[0].kind").value("AGGREGATE"));

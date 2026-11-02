@@ -28,21 +28,22 @@ class AggregateDataValueRepositoryTest {
     private AggregateDataValue sample() {
         return new AggregateDataValue(
                 UUID.randomUUID(), "de", "ou", "2026Q1", "coc", "aoc", "1", "note",
-                UUID.randomUUID(), NOW, 1);
+                UUID.randomUUID(), NOW, 1, "DS12345");
     }
 
     @Test
     void upsertUsesReturningClause() {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
         final AggregateDataValue in = sample();
-        when(jdbc.queryForObject(anyString(), any(RowMapper.class), any(), any(), any(), any(), any(),
+        when(jdbc.queryForObject(anyString(), any(RowMapper.class),
+                any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any(), any(), any())).thenReturn(in);
         final AggregateDataValueRepository repo = new AggregateDataValueRepository(jdbc);
         final AggregateDataValue out = repo.upsert(in);
         assertThat(out).isEqualTo(in);
         final ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
         verify(jdbc).queryForObject(sql.capture(), any(RowMapper.class),
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
         assertThat(sql.getValue()).contains("ON CONFLICT").contains("RETURNING");
     }
 
@@ -69,6 +70,8 @@ class AggregateDataValueRepositoryTest {
         when(rs.getObject("submitted_by", UUID.class)).thenReturn(UUID.randomUUID());
         when(rs.getTimestamp("submitted_at")).thenReturn(Timestamp.from(NOW));
         when(rs.getInt("value_version")).thenReturn(2);
+        when(rs.getString("data_set_uid")).thenReturn("DS12345");
+        when(rs.getObject("workflow_run_id", UUID.class)).thenReturn(null);
         when(jdbc.queryForObject(anyString(), any(RowMapper.class), any(UUID.class)))
                 .thenAnswer(inv -> ((RowMapper<?>) inv.getArgument(1)).mapRow(rs, 1));
         final var opt = new AggregateDataValueRepository(jdbc).findById(UUID.randomUUID());

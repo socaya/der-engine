@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
   Panel, Dot, fmtDate, TablePager, BackLink, RowMenu,
@@ -107,8 +107,22 @@ interface MetaRow {
 
 export function MockupMetadata(): JSX.Element {
   const navigate = useNavigate();
-  const [tabKey, setTabKey] = useState<string>(RESOURCES[0].key);
-  const [activeDomain, setActiveDomain] = useState<string>(DOMAIN_GROUPS[0].domain);
+  const [searchParams] = useSearchParams();
+  // §2.3.80 R-B/1 — deep-link from Sync Attention: a `?resource=X`
+  // query param preselects that resource and its parent domain so
+  // the admin lands on the exact schema that failed to sync.
+  const initialResource = searchParams.get('resource');
+  const initialResourceEntry = initialResource
+    ? RESOURCES.find((r) => r.key === initialResource) ?? null
+    : null;
+  const initialDomain = initialResourceEntry
+    ? DOMAIN_GROUPS.find((g) =>
+        g.resources.some((r) => r.key === initialResourceEntry.key))?.domain
+    : null;
+  const [tabKey, setTabKey] = useState<string>(
+    initialResourceEntry?.key ?? RESOURCES[0].key);
+  const [activeDomain, setActiveDomain] = useState<string>(
+    initialDomain ?? DOMAIN_GROUPS[0].domain);
   const [rows, setRows] = useState<MetaRow[] | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [err, setErr] = useState<string | null>(null);

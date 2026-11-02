@@ -156,7 +156,7 @@ public class EventService {
         final Event event = new Event(input.eventId(), input.enrollmentId(),
                 input.programUid(), input.programStageUid(), input.orgUnitUid(),
                 input.occurredAt(), input.status(), input.attributeOptionComboUid(),
-                submittedBy, 1, values);
+                submittedBy, 1, values, input.workflowRunId());
         final Event stored = events.upsert(event);
         final JsonNode payload = toJson(stored);
         final OperationJournalEntry entry = new OperationJournalEntry(UUID.randomUUID(),
@@ -164,7 +164,8 @@ public class EventService {
                 payload, OperationJournalEntry.State.PENDING, 0, null, submittedBy,
                 Instant.now(clock), Instant.now(clock),
                 nextHopOrgUnitUid == null || nextHopOrgUnitUid.isBlank()
-                        ? null : nextHopOrgUnitUid.trim());
+                        ? null : nextHopOrgUnitUid.trim(),
+                stored.workflowRunId());
         journal.insert(entry);
         if (approvals.requiresApproval(OperationJournalEntry.EntityType.EVENT)) {
             journal.markRequiresApproval(entry.operationId());
@@ -240,17 +241,35 @@ public class EventService {
             Event.Status status,
             String attributeOptionComboUid,
             Map<String, String> dataValues,
-            Integer expectedVersion
+            Integer expectedVersion,
+            /** §2.3.87 R-C/2 — capture workflow run that originated
+             *  this event. Nullable: ad-hoc writes without a workflow
+             *  context pass null; the DHIS2-emulator layer auto-wraps
+             *  passthroughs in a system run before invoking submit. */
+            UUID workflowRunId
     ) {
 
-        /** Backwards-compat 9-arg ctor; expected-version check disabled. */
+        /** Backwards-compat 9-arg ctor; expected-version check disabled.
+         *  Nulls workflow run. */
         public EventInput(final UUID eventId, final UUID enrollmentId,
                            final String programUid, final String programStageUid,
                            final String orgUnitUid, final Instant occurredAt,
                            final Event.Status status, final String attributeOptionComboUid,
                            final Map<String, String> dataValues) {
             this(eventId, enrollmentId, programUid, programStageUid, orgUnitUid,
-                    occurredAt, status, attributeOptionComboUid, dataValues, null);
+                    occurredAt, status, attributeOptionComboUid, dataValues, null, null);
+        }
+
+        /** 10-arg ctor with expected-version; nulls workflow run. */
+        public EventInput(final UUID eventId, final UUID enrollmentId,
+                           final String programUid, final String programStageUid,
+                           final String orgUnitUid, final Instant occurredAt,
+                           final Event.Status status, final String attributeOptionComboUid,
+                           final Map<String, String> dataValues,
+                           final Integer expectedVersion) {
+            this(eventId, enrollmentId, programUid, programStageUid, orgUnitUid,
+                    occurredAt, status, attributeOptionComboUid, dataValues,
+                    expectedVersion, null);
         }
 
         public EventInput {

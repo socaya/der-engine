@@ -215,4 +215,89 @@ class JournalPublisherTest {
         // assert the publish happened without failure.
         assertThat(cap.getValue().uri().getPath()).contains("/api/dataValueSets");
     }
+
+    /* ---------- §2.3.96 R-D/tracker-async — async job polling ---------- */
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void trackerJobPollsAndClassifiesOk() throws Exception {
+        // 1. POST /api/tracker → async job response.
+        // 2. First poll → log still running.
+        // 3. Second poll → log completed.
+        // 4. GET /report → "status": "OK".
+        final HttpClient http = mock(HttpClient.class);
+        final HttpResponse post = mock(HttpResponse.class);
+        when(post.statusCode()).thenReturn(200);
+        when(post.body()).thenReturn(
+            "{\"response\":{\"id\":\"job-abc\",\"responseType\":\"TrackerJob\"}}");
+        final HttpResponse pollRunning = mock(HttpResponse.class);
+        when(pollRunning.statusCode()).thenReturn(200);
+        when(pollRunning.body()).thenReturn(
+            "[{\"completed\":false,\"message\":\"Loading\"}]");
+        final HttpResponse pollDone = mock(HttpResponse.class);
+        when(pollDone.statusCode()).thenReturn(200);
+        when(pollDone.body()).thenReturn(
+            "[{\"completed\":true,\"message\":\"Import complete\"}]");
+        final HttpResponse report = mock(HttpResponse.class);
+        when(report.statusCode()).thenReturn(200);
+        when(report.body()).thenReturn(
+            "{\"status\":\"OK\",\"stats\":{\"created\":1}}");
+        when(http.send(any(HttpRequest.class), any()))
+            .thenReturn(post, pollRunning, pollDone, report);
+        final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
+        when(engine.capabilities()).thenReturn(caps());
+        final JournalPublisher p = new JournalPublisher(http,
+            props("http://x/dhis"), engine, encoder(), mapper);
+        final JournalPublisher.PublishResult r = p.publish(
+            entry(OperationJournalEntry.EntityType.TRACKED_ENTITY));
+        assertThat(r.terminal()).isEqualTo(JournalPublisher.TerminalState.ACCEPTED);
+        assertThat(r.body()).contains("\"status\":\"OK\"");
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void trackerJobErrorStatusClassifiesConflict() throws Exception {
+        final HttpClient http = mock(HttpClient.class);
+        final HttpResponse post = mock(HttpResponse.class);
+        when(post.statusCode()).thenReturn(200);
+        when(post.body()).thenReturn("{\"response\":{\"id\":\"job-xyz\"}}");
+        final HttpResponse pollDone = mock(HttpResponse.class);
+        when(pollDone.statusCode()).thenReturn(200);
+        when(pollDone.body()).thenReturn(
+            "[{\"completed\":true,\"message\":\"Import complete\"}]");
+        final HttpResponse report = mock(HttpResponse.class);
+        when(report.statusCode()).thenReturn(200);
+        when(report.body()).thenReturn(
+            "{\"status\":\"ERROR\",\"validationReport\":{\"errorReports\":[{\"message\":\"bad TEI\"}]}}");
+        when(http.send(any(HttpRequest.class), any()))
+            .thenReturn(post, pollDone, report);
+        final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
+        when(engine.capabilities()).thenReturn(caps());
+        final JournalPublisher p = new JournalPublisher(http,
+            props("http://x/dhis"), engine, encoder(), mapper);
+        final JournalPublisher.PublishResult r = p.publish(
+            entry(OperationJournalEntry.EntityType.ENROLLMENT));
+        assertThat(r.terminal())
+            .isEqualTo(JournalPublisher.TerminalState.CONFLICT);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void trackerInlineSummaryFallsBackToClassicClassify() throws Exception {
+        // Central may answer synchronously (no response.id) for very
+        // small batches; publisher classifies the HTTP status normally.
+        final HttpClient http = mock(HttpClient.class);
+        final HttpResponse resp = mock(HttpResponse.class);
+        when(resp.statusCode()).thenReturn(200);
+        when(resp.body()).thenReturn(
+            "{\"status\":\"OK\",\"stats\":{\"created\":1}}");
+        when(http.send(any(HttpRequest.class), any())).thenReturn(resp);
+        final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
+        when(engine.capabilities()).thenReturn(caps());
+        final JournalPublisher p = new JournalPublisher(http,
+            props("http://x/dhis"), engine, encoder(), mapper);
+        assertThat(p.publish(entry(OperationJournalEntry.EntityType.TRACKED_ENTITY))
+                .terminal())
+            .isEqualTo(JournalPublisher.TerminalState.ACCEPTED);
+    }
 }

@@ -14,11 +14,19 @@ import java.util.UUID;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import ug.ac.mak.der.workflow.SystemWorkflowService;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValueService;
 
 class ReferralIngestServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-10-23T00:00:00Z");
+
+    private SystemWorkflowService sw() {
+        final SystemWorkflowService m = mock(SystemWorkflowService.class);
+        org.mockito.Mockito.when(m.ensureReferralIngestRun(any(String.class), any(UUID.class)))
+                .thenReturn(UUID.fromString("00000000-0000-0000-0000-000000000A02"));
+        return m;
+    }
 
     private ReferralInboxEntry entry(final ReferralInboxEntry.Kind kind, final String json) {
         return new ReferralInboxEntry(UUID.randomUUID(), kind, "ref", "ou-dest",
@@ -28,7 +36,7 @@ class ReferralIngestServiceTest {
     @Test
     void ingestAggregateCallsSubmit() {
         final AggregateDataValueService agg = mock(AggregateDataValueService.class);
-        final ReferralIngestService svc = new ReferralIngestService(agg, noEvents(), new ObjectMapper());
+        final ReferralIngestService svc = new ReferralIngestService(agg, noEvents(), sw(), new ObjectMapper());
         final boolean ok = svc.ingest(entry(
                 ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE,
                 "{\"dataElement\":\"de\",\"orgUnit\":\"ou-src\",\"period\":\"2026Q1\","
@@ -53,7 +61,7 @@ class ReferralIngestServiceTest {
                 ReferralInboxEntry.Kind.EVENT,
                 ReferralInboxEntry.Kind.ENROLLMENT,
                 ReferralInboxEntry.Kind.TRACKED_ENTITY}) {
-            final ReferralIngestService svc = new ReferralIngestService(agg, noEvents(), new ObjectMapper());
+            final ReferralIngestService svc = new ReferralIngestService(agg, noEvents(), sw(), new ObjectMapper());
             assertThat(svc.ingest(entry(k, "{}"), UUID.randomUUID(), null, null)).isFalse();
         }
         verify(agg, never()).submit(any(), any(), any(), any());
@@ -62,7 +70,7 @@ class ReferralIngestServiceTest {
     @Test
     void malformedPayloadSkips() {
         final AggregateDataValueService agg = mock(AggregateDataValueService.class);
-        final ReferralIngestService svc = new ReferralIngestService(agg, noEvents(), new ObjectMapper());
+        final ReferralIngestService svc = new ReferralIngestService(agg, noEvents(), sw(), new ObjectMapper());
         assertThat(svc.ingest(entry(
                 ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE, "not json"),
                 UUID.randomUUID(), null, null)).isFalse();
@@ -72,7 +80,7 @@ class ReferralIngestServiceTest {
     @Test
     void nonObjectPayloadSkips() {
         final AggregateDataValueService agg = mock(AggregateDataValueService.class);
-        final ReferralIngestService svc = new ReferralIngestService(agg, noEvents(), new ObjectMapper());
+        final ReferralIngestService svc = new ReferralIngestService(agg, noEvents(), sw(), new ObjectMapper());
         assertThat(svc.ingest(entry(
                 ReferralInboxEntry.Kind.AGGREGATE_DATA_VALUE, "[]"),
                 UUID.randomUUID(), null, null)).isFalse();
@@ -81,7 +89,7 @@ class ReferralIngestServiceTest {
     @Test
     void nullEntryRejected() {
         final ReferralIngestService svc = new ReferralIngestService(
-                mock(AggregateDataValueService.class), noEvents(), new ObjectMapper());
+                mock(AggregateDataValueService.class), noEvents(), sw(), new ObjectMapper());
         assertThatThrownBy(() -> svc.ingest(null, UUID.randomUUID(), null, null))
                 .isInstanceOf(NullPointerException.class);
     }
@@ -96,7 +104,7 @@ class ReferralIngestServiceTest {
                         org.mockito.Mockito.mock(
                                 org.springframework.beans.factory.ObjectProvider.class);
         org.mockito.Mockito.when(provider.getIfAvailable()).thenReturn(ev);
-        final ReferralIngestService svc = new ReferralIngestService(agg, provider, new ObjectMapper());
+        final ReferralIngestService svc = new ReferralIngestService(agg, provider, sw(), new ObjectMapper());
         final boolean ok = svc.ingest(new ReferralInboxEntry(UUID.randomUUID(),
                 ReferralInboxEntry.Kind.EVENT, "ref", "ou-dest",
                 "{\"event\":\"" + UUID.randomUUID() + "\","
@@ -119,7 +127,7 @@ class ReferralIngestServiceTest {
                                 org.springframework.beans.factory.ObjectProvider.class);
         org.mockito.Mockito.when(provider.getIfAvailable()).thenReturn(null);
         final ReferralIngestService svc = new ReferralIngestService(
-                mock(AggregateDataValueService.class), provider, new ObjectMapper());
+                mock(AggregateDataValueService.class), provider, sw(), new ObjectMapper());
         assertThat(svc.ingest(new ReferralInboxEntry(UUID.randomUUID(),
                 ReferralInboxEntry.Kind.EVENT, "r", "ou", "{\"program\":\"p\",\"programStage\":\"ps\"}",
                 NOW, ReferralInboxEntry.Status.PENDING, null, null),
@@ -136,7 +144,7 @@ class ReferralIngestServiceTest {
                                 org.springframework.beans.factory.ObjectProvider.class);
         org.mockito.Mockito.when(provider.getIfAvailable()).thenReturn(ev);
         final ReferralIngestService svc = new ReferralIngestService(
-                mock(AggregateDataValueService.class), provider, new ObjectMapper());
+                mock(AggregateDataValueService.class), provider, sw(), new ObjectMapper());
         assertThat(svc.ingest(new ReferralInboxEntry(UUID.randomUUID(),
                 ReferralInboxEntry.Kind.EVENT, "r", "ou", "{\"programStage\":\"ps\"}",
                 NOW, ReferralInboxEntry.Status.PENDING, null, null),

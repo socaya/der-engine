@@ -16,6 +16,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 
+import ug.ac.mak.der.workflow.SystemWorkflowService;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValueService;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValueService.DataValueInput;
 import ug.ac.mak.der.workflows.events.Event;
@@ -35,13 +36,16 @@ public class ReferralIngestService {
 
     private final AggregateDataValueService aggregate;
     private final ObjectProvider<EventService> events;
+    private final SystemWorkflowService systemWorkflows;
     private final ObjectMapper mapper;
 
     public ReferralIngestService(final AggregateDataValueService aggregate,
                                    final ObjectProvider<EventService> events,
+                                   final SystemWorkflowService systemWorkflows,
                                    final ObjectMapper mapper) {
         this.aggregate = Objects.requireNonNull(aggregate, "aggregate");
         this.events = Objects.requireNonNull(events, "events");
+        this.systemWorkflows = Objects.requireNonNull(systemWorkflows, "systemWorkflows");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
     }
 
@@ -81,6 +85,11 @@ public class ReferralIngestService {
 
     private boolean ingestAggregate(final ReferralInboxEntry entry, final JsonNode root,
                                       final UUID actor, final String ip, final String userAgent) {
+        // §2.3.85 — tag the ingested row with a system workflow run
+        // scoped to this inbox entry so the admin can trace the write
+        // back to the referral it came from.
+        final UUID runId = systemWorkflows.ensureReferralIngestRun(
+                entry.inboxId().toString(), actor);
         final DataValueInput input = new DataValueInput(
                 text(root, "dataElement"),
                 entry.boundOrgUnit(),
@@ -88,7 +97,9 @@ public class ReferralIngestService {
                 text(root, "categoryOptionCombo"),
                 text(root, "attributeOptionCombo"),
                 text(root, "value"),
-                text(root, "comment"));
+                text(root, "comment"),
+                text(root, "dataSet"),
+                runId);
         aggregate.submit(List.of(input), actor, ip, userAgent);
         return true;
     }
@@ -125,10 +136,14 @@ public class ReferralIngestService {
                 }
             }
         }
+        // §2.3.87 — tag the event with the referral-ingest system run
+        // so lineage ties the event back to the inbox entry.
+        final UUID runId = systemWorkflows.ensureReferralIngestRun(
+                entry.inboxId().toString(), actor);
         final EventService.EventInput input = new EventService.EventInput(
                 eventId, enrollmentId, program, programStage,
                 entry.boundOrgUnit(), occurredAt, status,
-                text(root, "attributeOptionCombo"), values);
+                text(root, "attributeOptionCombo"), values, null, runId);
         svc.submit(List.of(input), actor, ip, userAgent);
         return true;
     }

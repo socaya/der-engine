@@ -235,8 +235,12 @@ export interface DraftRow {
   updatedAt: string;
 }
 
-export function listDrafts(): Promise<{ drafts: DraftRow[] }> {
-  return request<{ drafts: DraftRow[] }>('GET', '/edge-api/v1/drafts');
+export function listDrafts(opts?: { workflowRunId?: string }):
+Promise<{ drafts: DraftRow[] }> {
+  const qs = opts?.workflowRunId
+    ? `?workflowRunId=${encodeURIComponent(opts.workflowRunId)}`
+    : '';
+  return request<{ drafts: DraftRow[] }>('GET', `/edge-api/v1/drafts${qs}`);
 }
 
 export function saveDraft(draft: Omit<DraftRow, 'draftId' | 'updatedAt'>): Promise<DraftRow> {
@@ -368,6 +372,559 @@ export function fetchJournalOperation(operationId: string): Promise<JournalOpera
 export function listJournalOperations(limit = 100): Promise<JournalOperation[]> {
   return request<JournalOperation[]>('GET',
     `/edge-api/v1/journal/operations?limit=${limit}`);
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Data module — §2.3.81 R-C/1 — local aggregate browse.
+// ──────────────────────────────────────────────────────────────────
+
+/** Row-level sync state as returned by the DER data endpoints. Mirrors
+ *  the OperationJournalEntry state machine on the server, with the
+ *  extra `LOCAL_ONLY` value when there's no matching outbox row. */
+export type LocalDataSyncState =
+  | 'LOCAL_ONLY'
+  | 'PENDING'
+  | 'IN_FLIGHT'
+  | 'RETRYABLE'
+  | 'CENTRAL_ACCEPTED'
+  | 'CENTRAL_REJECTED'
+  | 'CONFLICT_REVIEW'
+  | 'REQUIRES_APPROVAL'
+  | 'QUARANTINED'
+  | 'UNKNOWN_OUTCOME';
+
+export interface LocalAggregateRow {
+  valueId: string;
+  dataElementUid: string;
+  orgUnitUid: string;
+  periodIso: string;
+  categoryOptionComboUid: string;
+  attributeOptionComboUid: string;
+  valueText: string;
+  comment: string | null;
+  submittedBy: string | null;
+  submittedAt: string | null;
+  valueVersion: number;
+  /** §2.3.83 — DHIS2 dataSet UID this value was captured through.
+   *  Nullable: pre-V069 rows + ad-hoc writes without an envelope
+   *  dataset. */
+  dataSetUid: string | null;
+  /** Resolved display name from `metadata_data_set`; null when the
+   *  dataset is unknown or the tag is missing. */
+  dataSetName: string | null;
+  /** §2.3.85 — capture workflow run that produced this value. For
+   *  DHIS2 Data Entry web app passthroughs the server auto-wraps the
+   *  write in a SYSTEM workflow run so this is populated for every
+   *  new write. */
+  workflowRunId: string | null;
+  workflowName: string | null;
+  workflowBusinessKey: string | null;
+  /** 'USER' for operator-authored workflows, 'SYSTEM' for the DER-
+   *  managed ones (web-app passthrough, referral ingest, etc.). */
+  workflowKind: 'USER' | 'SYSTEM' | null;
+  /** null when the local row exists but no journal entry does yet. */
+  syncState: LocalDataSyncState | null;
+  operationId: string | null;
+}
+
+export interface LocalAggregatePipeline {
+  captured: number;    // total rows in aggregate_data_value
+  inJournal: number;   // PENDING + IN_FLIGHT + RETRYABLE
+  pendingPush: number; // PENDING + RETRYABLE
+  synced: number;      // CENTRAL_ACCEPTED
+  attention: number;   // CONFLICT_REVIEW + CENTRAL_REJECTED
+}
+
+/** §2.3.89 R-C/3 — Local Tracker browse row (TEI / enrolment /
+ *  tracker event discriminated by `kind`). */
+export interface LocalTrackerRow {
+  kind: 'TEI' | 'ENROLLMENT' | 'EVENT';
+  rowId: string;
+  teiUid?: string | null;
+  enrollmentUid?: string | null;
+  eventUid?: string | null;
+  teType?: string | null;
+  teTypeName?: string | null;
+  programUid?: string | null;
+  programName?: string | null;
+  programStageUid?: string | null;
+  programStageName?: string | null;
+  orgUnitUid?: string | null;
+  status?: string | null;
+  enrollmentDate?: string | null;
+  occurredDate?: string | null;
+  createdAt?: string | null;
+  sortTs?: string | null;
+  version: number;
+  workflowRunId: string | null;
+  workflowName: string | null;
+  workflowBusinessKey: string | null;
+  workflowKind: 'USER' | 'SYSTEM' | null;
+  /** §2.3.94 R-C/3.2 — latest operation_journal state for this
+   *  tracker row; null when no outbox entry exists yet (either a
+   *  pre-R-C/3.2 write or a CENTRAL_DOWNLOAD-only row). */
+  syncState: LocalDataSyncState | null;
+  operationId: string | null;
+}
+
+export function listLocalTracker(opts?: {
+  kind?: 'TEI' | 'ENROLLMENT' | 'EVENT';
+  program?: string;
+  orgUnit?: string;
+  teiUid?: string;
+  workflowRunId?: string;
+  workflowId?: string;
+  occurredFrom?: string;
+  occurredTo?: string;
+  limit?: number;
+}): Promise<{ rows: LocalTrackerRow[]; limit: number }> {
+  const q = new URLSearchParams();
+  if (opts?.kind)          q.set('kind', opts.kind);
+  if (opts?.program)       q.set('program', opts.program);
+  if (opts?.orgUnit)       q.set('orgUnit', opts.orgUnit);
+  if (opts?.teiUid)        q.set('teiUid', opts.teiUid);
+  if (opts?.workflowRunId) q.set('workflowRunId', opts.workflowRunId);
+  if (opts?.workflowId)    q.set('workflowId', opts.workflowId);
+  if (opts?.occurredFrom)  q.set('occurredFrom', opts.occurredFrom);
+  if (opts?.occurredTo)    q.set('occurredTo', opts.occurredTo);
+  if (opts?.limit)         q.set('limit', String(opts.limit));
+  const qs = q.toString();
+  return request('GET',
+    `/edge-api/v1/data/tracker${qs ? '?' + qs : ''}`);
+}
+
+/** §2.3.87 R-C/2 — Local Events browse row. */
+export interface LocalEventRow {
+  eventId: string;
+  enrollmentId: string | null;
+  programUid: string;
+  programName: string | null;
+  programStageUid: string;
+  programStageName: string | null;
+  orgUnitUid: string;
+  occurredAt: string | null;
+  status: 'ACTIVE' | 'COMPLETED' | 'VISITED' | 'SCHEDULE' | 'OVERDUE' | 'SKIPPED';
+  eventVersion: number;
+  dataValueCount: number;
+  workflowRunId: string | null;
+  workflowName: string | null;
+  workflowBusinessKey: string | null;
+  workflowKind: 'USER' | 'SYSTEM' | null;
+  syncState: LocalDataSyncState | null;
+  operationId: string | null;
+}
+
+export function listLocalEvents(opts?: {
+  program?: string;
+  programStage?: string;
+  orgUnit?: string;
+  status?: string;
+  workflowRunId?: string;
+  workflowId?: string;
+  occurredFrom?: string;
+  occurredTo?: string;
+  limit?: number;
+}): Promise<{ rows: LocalEventRow[]; limit: number }> {
+  const q = new URLSearchParams();
+  if (opts?.program)        q.set('program', opts.program);
+  if (opts?.programStage)   q.set('programStage', opts.programStage);
+  if (opts?.orgUnit)        q.set('orgUnit', opts.orgUnit);
+  if (opts?.status)         q.set('status', opts.status);
+  if (opts?.workflowRunId)  q.set('workflowRunId', opts.workflowRunId);
+  if (opts?.workflowId)     q.set('workflowId', opts.workflowId);
+  if (opts?.occurredFrom)   q.set('occurredFrom', opts.occurredFrom);
+  if (opts?.occurredTo)     q.set('occurredTo', opts.occurredTo);
+  if (opts?.limit)          q.set('limit', String(opts.limit));
+  const qs = q.toString();
+  return request('GET',
+    `/edge-api/v1/data/events${qs ? '?' + qs : ''}`);
+}
+
+/** §2.3.86 R-C/1.4 — pull existing aggregate values from Central
+ *  DHIS2 into DER's local store. Returns the system-workflow run
+ *  that owns the pulled rows + import counters. */
+export interface PullAggregateResult {
+  runId: string;
+  imported: number;
+  ignored: number;
+  errors: Array<{ key: string; reason: string }>;
+}
+
+export function pullAggregateFromCentral(req: {
+  dataSet: string;
+  orgUnit: string;
+  period: string;
+}): Promise<PullAggregateResult> {
+  return request('POST', '/edge-api/v1/data/aggregate/pull-from-central', req);
+}
+
+/** §2.3.91 R-C/2.1 — pull existing events from Central DHIS2 into
+ *  DER's local store. Returns the CENTRAL_DOWNLOAD system workflow
+ *  run that owns the pulled rows. */
+export interface PullEventsResult {
+  runId: string;
+  imported: number;
+  ignored: number;
+  errors: Array<{ key: string; reason: string }>;
+}
+
+export function pullEventsFromCentral(req: {
+  program: string;
+  programStage?: string;
+  orgUnit: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<PullEventsResult> {
+  return request('POST', '/edge-api/v1/data/events/pull-from-central', req);
+}
+
+/** §2.3.93 R-C/3.1 — pull TEIs + enrolments + stage events cascaded
+ *  from Central DHIS2 into DER's local tracker tables. */
+export interface PullTrackerResult {
+  runId: string;
+  teis: number;
+  enrolments: number;
+  events: number;
+  errors: number;
+  errorDetails: Array<{ key: string; reason: string }>;
+}
+
+export function pullTrackerFromCentral(req: {
+  program: string;
+  orgUnit: string;
+}): Promise<PullTrackerResult> {
+  return request('POST', '/edge-api/v1/data/tracker/pull-from-central', req);
+}
+
+/** §2.3.92 R-C/2.2 — row-detail types for the Data module. */
+export interface JournalHistoryEntry {
+  operationId: string;
+  state: LocalDataSyncState;
+  attemptCount: number;
+  lastError: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  nextHopOrgUnitUid: string | null;
+}
+
+export interface LocalAggregateDetail {
+  row: LocalAggregateRow & {
+    dataElementName: string | null;
+    orgUnitName: string | null;
+    submittedByUsername: string | null;
+    comment: string | null;
+  };
+  journal: JournalHistoryEntry[];
+}
+
+export function getLocalAggregate(valueId: string): Promise<LocalAggregateDetail> {
+  return request('GET',
+    `/edge-api/v1/data/aggregate/${encodeURIComponent(valueId)}`);
+}
+
+export interface LocalEventDataValue {
+  dataElementUid: string;
+  dataElementName: string | null;
+  valueText: string;
+}
+
+export interface LocalEventDetail {
+  row: LocalEventRow & {
+    orgUnitName: string | null;
+    createdBy: string | null;
+    createdByUsername: string | null;
+  };
+  dataValues: LocalEventDataValue[];
+  journal: JournalHistoryEntry[];
+}
+
+export function getLocalEvent(eventId: string): Promise<LocalEventDetail> {
+  return request('GET',
+    `/edge-api/v1/data/events/${encodeURIComponent(eventId)}`);
+}
+
+export interface LocalTeiDetail {
+  tei: {
+    teiUid: string;
+    teType: string;
+    teTypeName: string | null;
+    orgUnitUid: string;
+    orgUnitName: string | null;
+    attributes: string;            // JSON string of attribute map
+    createdAt: string | null;
+    updatedAt: string | null;
+    version: number;
+    workflowRunId: string | null;
+    workflowName: string | null;
+    workflowBusinessKey: string | null;
+    workflowKind: 'USER' | 'SYSTEM' | null;
+  };
+  enrolments: Array<{
+    enrollmentUid: string;
+    programUid: string;
+    programName: string | null;
+    orgUnitUid: string;
+    status: string;
+    enrollmentDate: string | null;
+    incidentDate: string | null;
+    updatedAt: string | null;
+    version: number;
+    workflowRunId: string | null;
+    workflowName: string | null;
+    workflowKind: 'USER' | 'SYSTEM' | null;
+  }>;
+  trackerEvents: Array<{
+    eventUid: string;
+    enrollmentUid: string | null;
+    programUid: string;
+    programName: string | null;
+    programStageUid: string;
+    programStageName: string | null;
+    orgUnitUid: string;
+    status: string;
+    occurredDate: string | null;
+    updatedAt: string | null;
+    version: number;
+  }>;
+}
+
+export function getLocalTei(teiUid: string): Promise<LocalTeiDetail> {
+  return request('GET',
+    `/edge-api/v1/data/tracker/tei/${encodeURIComponent(teiUid)}`);
+}
+
+export function listLocalAggregate(opts?: {
+  orgUnit?: string;
+  period?: string;
+  dataElement?: string;
+  dataSet?: string;
+  workflowRunId?: string;
+  workflowId?: string;
+  limit?: number;
+}): Promise<{ rows: LocalAggregateRow[]; limit: number; pipeline: LocalAggregatePipeline }> {
+  const q = new URLSearchParams();
+  if (opts?.orgUnit)       q.set('orgUnit', opts.orgUnit);
+  if (opts?.period)        q.set('period', opts.period);
+  if (opts?.dataElement)   q.set('dataElement', opts.dataElement);
+  if (opts?.dataSet)       q.set('dataSet', opts.dataSet);
+  if (opts?.workflowRunId) q.set('workflowRunId', opts.workflowRunId);
+  if (opts?.workflowId)    q.set('workflowId', opts.workflowId);
+  if (opts?.limit)         q.set('limit', String(opts.limit));
+  const qs = q.toString();
+  return request('GET',
+    `/edge-api/v1/data/aggregate${qs ? '?' + qs : ''}`);
+}
+
+/** §2.3.97 R-E — "Ready for Central" payload previews.
+ *
+ *  The DER sync worker compiles workflow-captured rows into a DHIS2
+ *  2.44-shaped envelope before POSTing. These three endpoints return
+ *  the exact envelope that the next drain tick would push for the
+ *  given workflow definition (or specific run) — only rows that are
+ *  not yet synced (PENDING / RETRYABLE / un-journalled) are included.
+ */
+export interface CentralPayloadPreview<E> {
+  endpoint: string;        // '/api/dataValueSets' | '/api/events' | '/api/tracker'
+  httpMethod: 'POST';
+  count: number;
+  counts?: { trackedEntities: number; enrollments: number; events: number };
+  payload: E;
+}
+
+export function previewAggregatePayload(opts: {
+  workflowId?: string;
+  workflowRunId?: string;
+  limit?: number;
+}): Promise<CentralPayloadPreview<{
+  dataValues: Array<{
+    dataElement: string;
+    orgUnit: string;
+    period: string;
+    categoryOptionCombo: string;
+    attributeOptionCombo: string;
+    value: string;
+    comment?: string;
+  }>;
+}>> {
+  const q = new URLSearchParams();
+  if (opts.workflowId)    q.set('workflowId', opts.workflowId);
+  if (opts.workflowRunId) q.set('workflowRunId', opts.workflowRunId);
+  if (opts.limit)         q.set('limit', String(opts.limit));
+  return request('GET',
+    `/edge-api/v1/data/aggregate/payload?${q.toString()}`);
+}
+
+export function previewEventsPayload(opts: {
+  workflowId?: string;
+  workflowRunId?: string;
+  limit?: number;
+}): Promise<CentralPayloadPreview<{
+  events: Array<Record<string, unknown>>;
+}>> {
+  const q = new URLSearchParams();
+  if (opts.workflowId)    q.set('workflowId', opts.workflowId);
+  if (opts.workflowRunId) q.set('workflowRunId', opts.workflowRunId);
+  if (opts.limit)         q.set('limit', String(opts.limit));
+  return request('GET',
+    `/edge-api/v1/data/events/payload?${q.toString()}`);
+}
+
+export function previewTrackerPayload(opts: {
+  workflowId?: string;
+  workflowRunId?: string;
+  limit?: number;
+}): Promise<CentralPayloadPreview<{
+  trackedEntities: Array<Record<string, unknown>>;
+  enrollments: Array<Record<string, unknown>>;
+  events: Array<Record<string, unknown>>;
+}>> {
+  const q = new URLSearchParams();
+  if (opts.workflowId)    q.set('workflowId', opts.workflowId);
+  if (opts.workflowRunId) q.set('workflowRunId', opts.workflowRunId);
+  if (opts.limit)         q.set('limit', String(opts.limit));
+  return request('GET',
+    `/edge-api/v1/data/tracker/payload?${q.toString()}`);
+}
+
+/** §2.3.101 R-K — per-row payload lineage.
+ *
+ *  Each endpoint returns the single-row DHIS2 envelope (what Central
+ *  would receive if the sync worker pushed only this row) + the full
+ *  operation_journal history for the row's entity_ref. The admin UI
+ *  renders this in a drawer that opens from a Data table row. */
+export interface JournalEntry {
+  operationId: string;
+  state: LocalDataSyncState;
+  attemptCount: number;
+  lastError: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  nextHopOrgUnitUid: string | null;
+}
+
+export interface RowPayloadLineage<E> {
+  endpoint: string;
+  httpMethod: 'POST';
+  counts?: { trackedEntities: number; enrollments: number; events: number };
+  payload: E;
+  journal: JournalEntry[];
+  /** §2.3.105 R-Z — every single-row endpoint now also returns a
+   *  stream-bucketed view keyed by the parent entity-type label
+   *  ("dataValues", "events", "enrollments", "trackedEntity") so the
+   *  drawer renders a consistent heading structure. The TEI drawer
+   *  gets all three tracker keys populated; the per-row drawers get
+   *  one. */
+  journalByStream?: Partial<{
+    trackedEntity: JournalEntry[];
+    enrollments:   JournalEntry[];
+    events:        JournalEntry[];
+    dataValues:    JournalEntry[];
+  }>;
+}
+
+export function aggregateRowPayload(valueId: string):
+    Promise<RowPayloadLineage<{ dataValues: Array<Record<string, unknown>> }>> {
+  return request('GET',
+    `/edge-api/v1/data/aggregate/${encodeURIComponent(valueId)}/payload`);
+}
+
+export function eventRowPayload(eventId: string):
+    Promise<RowPayloadLineage<{ events: Array<Record<string, unknown>> }>> {
+  return request('GET',
+    `/edge-api/v1/data/events/${encodeURIComponent(eventId)}/payload`);
+}
+
+export function teiRowPayload(teiUid: string):
+    Promise<RowPayloadLineage<{
+      trackedEntities: Array<Record<string, unknown>>;
+      enrollments: Array<Record<string, unknown>>;
+      events: Array<Record<string, unknown>>;
+    }>> {
+  return request('GET',
+    `/edge-api/v1/data/tracker/tei/${encodeURIComponent(teiUid)}/payload`);
+}
+
+export function enrollmentRowPayload(enrollmentUid: string):
+    Promise<RowPayloadLineage<{ enrollments: Array<Record<string, unknown>> }>> {
+  return request('GET',
+    `/edge-api/v1/data/tracker/enrollment/${encodeURIComponent(enrollmentUid)}/payload`);
+}
+
+export function trackerEventRowPayload(eventUid: string):
+    Promise<RowPayloadLineage<{ events: Array<Record<string, unknown>> }>> {
+  return request('GET',
+    `/edge-api/v1/data/tracker/event/${encodeURIComponent(eventUid)}/payload`);
+}
+
+/** §2.3.101 R-L — outbound bundle manifest for one workflow run.
+ *  Lists every operation_journal row produced by the run with its
+ *  current state + target DHIS2 endpoint. */
+export interface WorkflowRunManifest {
+  runId: string;
+  total: number;
+  /** §2.3.102 R-N — when the client passes ?state=, these two show
+   *  the applied filter + the row count after filtering. Counts
+   *  above remain unfiltered so the chip strip still works. */
+  filteredState: string | null;
+  filteredTotal: number;
+  countsByEntityType: Record<string, number>;
+  countsByState: Record<string, number>;
+  operations: Array<{
+    operationId: string;
+    entityType: 'AGGREGATE_DATA_VALUE' | 'EVENT' | 'TRACKED_ENTITY'
+                 | 'ENROLLMENT' | 'PROGRAM_STAGE_EVENT';
+    entityRef: string;
+    state: LocalDataSyncState;
+    attemptCount: number;
+    lastError: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+    endpoint: string | null;
+  }>;
+}
+
+export function workflowRunManifest(
+  runId: string,
+  opts?: { state?: string | ReadonlyArray<string> },
+): Promise<WorkflowRunManifest> {
+  const s = opts?.state;
+  const csv = Array.isArray(s) ? s.join(',') : (s as string | undefined);
+  const q = csv ? `?state=${encodeURIComponent(csv)}` : '';
+  return request('GET',
+    `/edge-api/v1/workflows/runs/${encodeURIComponent(runId)}/manifest${q}`);
+}
+
+/** §2.3.102 R-Q — force-retry a single operation. Returns new state
+ *  (PENDING) on success; throws if the op can't be retried. */
+export function retryOperation(operationId: string):
+    Promise<{ operationId: string; state: 'PENDING' }> {
+  return request('POST',
+    `/edge-api/v1/admin/ops/journal/${encodeURIComponent(operationId)}/retry`);
+}
+
+/** §2.3.105 R-Y — bulk force-retry a specific list of operation ids
+ *  (used by the per-stream Retry button inside the TEI drawer). The
+ *  server silently skips ids already in terminal/pending states;
+ *  `rowsRequeued` reflects what actually moved. */
+export function retryBatch(operationIds: ReadonlyArray<string>):
+    Promise<{ requested: number; rowsRequeued: number }> {
+  return request('POST',
+    '/edge-api/v1/admin/ops/journal/retry-batch',
+    { operationIds });
+}
+
+/** §2.3.103 R-T — bulk force-retry every retryable operation for one
+ *  workflow run, optionally scoped to a comma-separated list of
+ *  states. Returns the number of rows moved back to PENDING. */
+export function retryRun(
+  workflowRunId: string,
+  states?: ReadonlyArray<string>,
+): Promise<{ workflowRunId: string; rowsRequeued: number }> {
+  const q = new URLSearchParams();
+  q.set('workflowRunId', workflowRunId);
+  if (states && states.length > 0) q.set('state', states.join(','));
+  return request('POST',
+    `/edge-api/v1/admin/ops/journal/retry-run?${q.toString()}`);
 }
 
 /** Backlog breakdown by entity type (every known type, with state counts). */
@@ -935,7 +1492,17 @@ export interface CaptureWorkflowDependency {
 export interface CaptureWorkflowSummary {
   workflowId: string;
   displayName: string;
-  boundMetadataKind: 'DATA_SET' | 'PROGRAM' | 'PROGRAM_STAGE' | 'PROGRAM_STAGE_SECTION';
+  boundMetadataKind:
+    | 'DATA_SET'
+    | 'DATA_SET_SECTION'
+    | 'DATA_ELEMENT'
+    | 'PROGRAM'
+    | 'PROGRAM_SECTION'
+    | 'PROGRAM_STAGE'
+    | 'PROGRAM_STAGE_SECTION'
+    | 'TRACKED_ENTITY_TYPE'
+    | 'TRACKED_ENTITY_ATTRIBUTE'
+    | 'SYSTEM';
   boundMetadataId: string;
   enabled: boolean;
   version: number;
@@ -1464,7 +2031,17 @@ export function setWorkflowPin(workflowId: string,
 export interface CanonicalWorkflow {
   schemaVersion: number;
   displayName: string;
-  boundMetadataKind: 'DATA_SET' | 'PROGRAM' | 'PROGRAM_STAGE' | 'PROGRAM_STAGE_SECTION';
+  boundMetadataKind:
+    | 'DATA_SET'
+    | 'DATA_SET_SECTION'
+    | 'DATA_ELEMENT'
+    | 'PROGRAM'
+    | 'PROGRAM_SECTION'
+    | 'PROGRAM_STAGE'
+    | 'PROGRAM_STAGE_SECTION'
+    | 'TRACKED_ENTITY_TYPE'
+    | 'TRACKED_ENTITY_ATTRIBUTE'
+    | 'SYSTEM';
   boundMetadataId: string;
   enabled: boolean;
   steps: Array<{

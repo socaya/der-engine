@@ -22,7 +22,11 @@ public record OperationJournalEntry(
         UUID submittedBy,
         Instant createdAt,
         Instant updatedAt,
-        String nextHopOrgUnitUid
+        String nextHopOrgUnitUid,
+        /** §2.3.85 — Capture workflow run that produced this outbox
+         *  entry. Nullable: pre-R-C/1.3 rows have none; new writes
+         *  always carry one once every write path is wrapped. */
+        UUID workflowRunId
 ) {
 
     public OperationJournalEntry(final UUID operationId, final EntityType entityType,
@@ -31,7 +35,19 @@ public record OperationJournalEntry(
                                    final String lastError, final UUID submittedBy,
                                    final Instant createdAt, final Instant updatedAt) {
         this(operationId, entityType, entityRef, payload, state, attemptCount,
-                lastError, submittedBy, createdAt, updatedAt, null);
+                lastError, submittedBy, createdAt, updatedAt, null, null);
+    }
+
+    /** Backward-compat ctor — includes referral tag, nulls
+     *  {@link #workflowRunId}. */
+    public OperationJournalEntry(final UUID operationId, final EntityType entityType,
+                                   final String entityRef, final JsonNode payload,
+                                   final State state, final int attemptCount,
+                                   final String lastError, final UUID submittedBy,
+                                   final Instant createdAt, final Instant updatedAt,
+                                   final String nextHopOrgUnitUid) {
+        this(operationId, entityType, entityRef, payload, state, attemptCount,
+                lastError, submittedBy, createdAt, updatedAt, nextHopOrgUnitUid, null);
     }
 
     public OperationJournalEntry {

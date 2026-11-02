@@ -50,6 +50,21 @@ public class DraftRepository {
                 rowMapper(), ownerId);
     }
 
+    /** §2.3.88 R-C/2.3 — scoped listing used by the cross-module
+     *  Drafts chip filter from Workflow Monitoring. Null runId falls
+     *  back to the full owner view. */
+    public List<Draft> findByOwner(final UUID ownerId, final UUID workflowRunId) {
+        if (workflowRunId == null) {
+            return findByOwner(ownerId);
+        }
+        return jdbc.query(
+                "SELECT draft_id, owner_id, kind, title, payload::text AS payload, "
+                        + "created_at, updated_at FROM der.draft "
+                        + "WHERE owner_id = ? AND workflow_run_id = ? "
+                        + "ORDER BY updated_at DESC",
+                rowMapper(), ownerId, workflowRunId);
+    }
+
     public Optional<Draft> findById(final UUID draftId) {
         try {
             return Optional.ofNullable(jdbc.queryForObject(

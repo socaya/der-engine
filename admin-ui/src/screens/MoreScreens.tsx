@@ -4,7 +4,9 @@ import * as edgeApi from '../api/edgeApi';
 import {
   Panel, fmtDate, fmtAgo, fmtBytes, useOuContext, OuPicker,
   usePaged, TablePager, humaniseState, entityTypeIcon, entityTypeLabel,
-  SyncStatusBar, BackLink, RowMenu, confirmThenRun, Status,
+  metadataResourceForEntity, dataModuleRouteForEntity,
+  dataModuleLabelForEntity, ScopedFilterChip,
+  SyncStatusBar, BackLink, Breadcrumbs, RowMenu, confirmThenRun, Status,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -220,6 +222,8 @@ function priorityFor(r: edgeApi.ConflictRow): 'High' | 'Medium' | 'Low' {
 
 export function MockupConflictList(): JSX.Element {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const workflowRunId = searchParams.get('workflowRunId');
   const [rows, setRows] = useState<edgeApi.ConflictRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -241,6 +245,19 @@ export function MockupConflictList(): JSX.Element {
 
   return (
     <div className="ea-screen">
+      {workflowRunId && (
+        <ScopedFilterChip
+          label={`Workflow run ${workflowRunId.slice(0, 8)}`}
+          openTo={`/workflows/monitoring/runs/${encodeURIComponent(workflowRunId)}`}
+          openLabel="Open run"
+          onClear={() => {
+            const next = new URLSearchParams(searchParams);
+            next.delete('workflowRunId');
+            setSearchParams(next, { replace: true });
+          }}
+          hint="Row-level filtering lands with R-A-data (operation_journal.workflow_run_id)."
+        />
+      )}
       <SyncStatusBar
         tone={rows.length === 0 ? 'success' : 'warning'}
         title="Needs your attention"
@@ -377,6 +394,44 @@ export function MockupConflictDetail(): JSX.Element {
                     }}>
               Reject
             </button>
+            {/* §2.3.80 R-B/1 — deep-link to the DHIS2 metadata schema
+                that defines this entity. Resolves nothing for generic
+                METADATA ops (returns null), so we only render when a
+                mapping exists. */}
+            {(() => {
+              const res = metadataResourceForEntity(row.entityType);
+              if (!res) return null;
+              return (
+                <Link to={`/dhis2/metadata?resource=${res}`}
+                       className="ea-btn ea-btn--ghost ea-btn--sm"
+                       title={`Open DHIS2 metadata · ${res}`}>
+                  <UiIcon icon="metadata" size={14} />
+                  <span>DHIS2 metadata</span>
+                </Link>
+              );
+            })()}
+            {/* §2.3.91 R-D/1 — backlink to the Data module where the
+                failing row lives locally. For TEI/enrolment ops we
+                carry the entityRef as a teiUid so the Tracker browse
+                opens scoped. */}
+            {(() => {
+              const route = dataModuleRouteForEntity(row.entityType);
+              if (!route) return null;
+              const et = row.entityType?.toUpperCase() ?? '';
+              let to = route;
+              if (et === 'TRACKED_ENTITY' || et === 'TRACKED_ENTITY_INSTANCE'
+                  || et === 'TEI') {
+                to = `${route}?teiUid=${encodeURIComponent(row.entityRef)}`;
+              }
+              return (
+                <Link to={to}
+                       className="ea-btn ea-btn--ghost ea-btn--sm"
+                       title={`Open the Data module row that produced this operation`}>
+                  <UiIcon icon="activity" size={14} />
+                  <span>{dataModuleLabelForEntity(row.entityType)}</span>
+                </Link>
+              );
+            })()}
           </>
         }
       />
@@ -662,44 +717,59 @@ export function MockupDeviceDetail(): JSX.Element {
   if (err) return <ErrorBlock title="Could not load device" testId="err-device-detail">{err}</ErrorBlock>;
   if (!device) return <LoadingBlock testId="loading" />;
 
+  const tone = device.status === 'APPROVED' ? 'success'
+             : device.status === 'PENDING'  ? 'warning' : 'danger';
+  const shortId = device.deviceId.slice(0, 8);
+  const displayLabel = device.displayName
+                        ? `${device.displayName} · ${shortId}`
+                        : `Device ${shortId}`;
   return (
     <div className="ea-screen" data-test="device-detail">
-      <BackLink to="/devices" label="Back to Devices" />
-      <header className="ea-screen-header">
-        <div className="ea-screen-header-text">
-          <h1 style={{ margin: 0 }}>Device</h1>
-          <div className="ea-screen-header-sub">
+      <Breadcrumbs
+        testId="device-detail-crumbs"
+        items={[
+          { label: 'Devices', to: '/devices' },
+          { label: displayLabel },
+        ]} />
+      <SyncStatusBar
+        tone={tone}
+        title={device.displayName ?? 'Device'}
+        statusLabel={device.status}
+        subtitle={
+          <>
             <span className="ea-mono">{device.deviceId}</span>
-            <span>·</span>
-            <Status tone={
-              device.status === 'APPROVED' ? 'success'
-              : device.status === 'PENDING' ? 'warning' : 'danger'}>
-              {device.status}
-            </Status>
-          </div>
-        </div>
-        <div className="ea-screen-header-right">
-          {device.status === 'PENDING' && (
-            <button type="button" className="ea-btn ea-btn--primary" disabled={busy}
-                    onClick={() => { act(`Approve device ${device.deviceId.slice(0, 12)}…? It will be allowed to sync data to this edge.`, edgeApi.approveDevice); }}>
-              Approve
+            {device.lastSeenAt && (
+              <>
+                <span>·</span>
+                <span>Last seen {fmtAgo(device.lastSeenAt)}</span>
+              </>
+            )}
+          </>
+        }
+        actions={
+          <>
+            {device.status === 'PENDING' && (
+              <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" disabled={busy}
+                      onClick={() => { act(`Approve device ${device.deviceId.slice(0, 12)}…? It will be allowed to sync data to this edge.`, edgeApi.approveDevice); }}>
+                Approve
+              </button>
+            )}
+            {device.status === 'APPROVED' && (
+              <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" disabled={busy}
+                      onClick={() => { act(`Suspend device ${device.deviceId.slice(0, 12)}…? It will keep its enrolment but stop accepting new sessions.`, edgeApi.suspendDevice); }}>
+                Suspend
+              </button>
+            )}
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger" disabled={busy}
+                    onClick={() => { act(`Revoke device ${device.deviceId.slice(0, 12)}…? Its credentials will be invalidated — it will need to re-enrol to come back.`, edgeApi.revokeDevice); }}>
+              Revoke
             </button>
-          )}
-          {device.status === 'APPROVED' && (
-            <button type="button" className="ea-btn ea-btn--ghost" disabled={busy}
-                    onClick={() => { act(`Suspend device ${device.deviceId.slice(0, 12)}…? It will keep its enrolment but stop accepting new sessions.`, edgeApi.suspendDevice); }}>
-              Suspend
+            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={() => navigate('/devices')}>
+              Close
             </button>
-          )}
-          <button type="button" className="ea-btn ea-btn--ghost ea-btn--danger" disabled={busy}
-                  onClick={() => { act(`Revoke device ${device.deviceId.slice(0, 12)}…? Its credentials will be invalidated — it will need to re-enrol to come back.`, edgeApi.revokeDevice); }}>
-            Revoke
-          </button>
-          <button type="button" className="ea-btn ea-btn--ghost" onClick={() => navigate('/devices')}>
-            Close
-          </button>
-        </div>
-      </header>
+          </>
+        }
+      />
       <section className="ea-panel">
         <dl className="ea-def-list">
           <div className="ea-def-row"><dt>Device ID</dt><dd className="ea-mono">{device.deviceId}</dd></div>
@@ -719,7 +789,74 @@ export function MockupDeviceDetail(): JSX.Element {
         </dl>
       </section>
       <DeviceProfileEditor device={device} onSaved={() => { reload().catch(() => undefined); }} />
+      <DeviceRelatedActivity device={device} />
     </div>
+  );
+}
+
+/** §2.3.79 — soft cross-link panel on the device detail page.
+ *  Journal ops and workflow runs don't yet carry a device-id column
+ *  we can filter on from the client, so for now this panel lists
+ *  the obvious outbound destinations (Sync queue, Attention,
+ *  Workflow monitoring, Network client row) that an admin would
+ *  typically open next after inspecting a device. Data-driven
+ *  filters are a follow-up once operation_journal grows
+ *  `submitted_device_id`. */
+function DeviceRelatedActivity(
+  { device }: { device: edgeApi.EdgeDeviceRow }
+): JSX.Element {
+  const links: Array<{ to: string; label: string; hint: string; icon: 'data-queue' | 'attention' | 'analytics' | 'tei' }> = [
+    { to: '/sync/data',            icon: 'data-queue',
+      label: 'Sync queue',
+      hint:  'Pending contributions awaiting push to DHIS2 Central.' },
+    { to: '/sync/attention',       icon: 'attention',
+      label: 'Sync attention',
+      hint:  'Unresolved conflicts and failures requiring review.' },
+    { to: '/workflows/monitoring', icon: 'analytics',
+      label: 'Workflow monitoring',
+      hint:  'Workflow activity feed; find runs this device contributed to.' },
+    { to: '/network/clients',      icon: 'tei',
+      label: 'Network client row',
+      hint:  'LAN view: IP, trust, last-seen on the facility network.' },
+  ];
+  return (
+    <Panel title="Related activity">
+      <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}
+         data-test="device-related-activity">
+        Quick exits to where this device’s traffic appears across the
+        other modules. Deep filtering by device id will follow once
+        the journal schema carries it.
+      </p>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0,
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                    gap: 10 }}>
+        {links.map((l) => (
+          <li key={l.to}>
+            <Link to={l.to}
+                  className="ea-card ea-card--interactive"
+                  data-test={`device-link-${l.icon}`}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: 10,
+                            padding: 12, textDecoration: 'none',
+                            color: 'var(--der-ink-900)',
+                            border: '1px solid var(--der-border)',
+                            borderRadius: 6, background: 'var(--der-raised)' }}>
+              <UiIcon icon={l.icon} size={18} />
+              <span style={{ display: 'block' }}>
+                <strong style={{ display: 'block', fontSize: 13 }}>{l.label}</strong>
+                <span style={{ display: 'block', fontSize: 11,
+                                 color: 'var(--der-ink-500)', marginTop: 2 }}>
+                  {l.hint}
+                </span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <p className="ea-text-muted" style={{ margin: '12px 0 0', fontSize: 11 }}>
+        Device id: <span className="ea-mono">{device.deviceId}</span>
+      </p>
+    </Panel>
   );
 }
 

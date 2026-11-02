@@ -333,6 +333,137 @@ public class OperationsAdminController {
     }
 
     /**
+     * §2.3.102 R-Q — Force-retry a single operation. Resets state to
+     * PENDING + clears last_error so the next drain tick picks it up.
+     * Only accepted on non-terminal non-pending states (RETRYABLE,
+     * CENTRAL_REJECTED, CONFLICT_REVIEW, QUARANTINED, UNKNOWN_OUTCOME);
+     * otherwise 409 so operators can't retry an already-synced row.
+     */
+    @PostMapping(path = "/journal/{opId}/retry")
+    public ResponseEntity<Map<String, Object>> retryOperation(
+            final Authentication authentication,
+            @PathVariable("opId") final java.util.UUID opId) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final OperationJournalRepository jr = journal.getIfAvailable();
+        if (jr == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "code", "JOURNAL_UNAVAILABLE", "message", "journal not wired"));
+        }
+        final int n = jr.requeuePending(opId);
+        if (n == 0) {
+            return ResponseEntity.status(409).body(Map.of(
+                    "code", "RETRY_NOT_APPLICABLE",
+                    "message", "operation not found or in a terminal/already-pending state"));
+        }
+        audit.append(new AuditEvent("JOURNAL_RETRY",
+                AuditEvent.Outcome.SUCCESS, principal.userId(), null, null, null,
+                Map.of("opId", opId.toString())),
+                Instant.now(clock));
+        return ResponseEntity.ok(Map.of(
+                "operationId", opId.toString(),
+                "state", "PENDING"));
+    }
+
+    /**
+     * §2.3.103 R-T — Bulk force-retry every retryable operation for
+     * one workflow run, optionally scoped to a comma-separated list
+     * of states (defaults to the five retry-eligible states). Returns
+     * the number of rows moved back to PENDING.
+     *
+     * <p>Example:
+     * {@code POST /admin/ops/journal/retry-run?workflowRunId=<uuid>
+     *                                             &state=CENTRAL_REJECTED}</p>
+     */
+    @PostMapping(path = "/journal/retry-run")
+    public ResponseEntity<Map<String, Object>> retryRun(
+            final Authentication authentication,
+            @RequestParam("workflowRunId") final java.util.UUID workflowRunId,
+            @RequestParam(value = "state", required = false) final String stateCsv) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final OperationJournalRepository jr = journal.getIfAvailable();
+        if (jr == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "code", "JOURNAL_UNAVAILABLE", "message", "journal not wired"));
+        }
+        final java.util.List<String> states = new java.util.ArrayList<>();
+        if (stateCsv != null && !stateCsv.isBlank()) {
+            for (final String s : stateCsv.split(",")) {
+                final String t = s.trim();
+                if (!t.isEmpty()) {
+                    states.add(t);
+                }
+            }
+        }
+        final int n = jr.requeuePendingByRun(workflowRunId, states);
+        audit.append(new AuditEvent("JOURNAL_RETRY_RUN",
+                AuditEvent.Outcome.SUCCESS, principal.userId(), null, null, null,
+                Map.of("workflowRunId", workflowRunId.toString(),
+                       "states", states.isEmpty() ? "<default>" : String.join(",", states),
+                       "rowsRequeued", String.valueOf(n))),
+                Instant.now(clock));
+        return ResponseEntity.ok(Map.of(
+                "workflowRunId", workflowRunId.toString(),
+                "rowsRequeued", n));
+    }
+
+    /**
+     * §2.3.105 R-Y — Bulk force-retry by operation id. Used by the
+     * per-stream retry button inside the TEI payload-lineage drawer
+     * where the operator targets a scoped set of ops rather than a
+     * whole workflow run. Request body:
+     *
+     * <pre>{@code {"operationIds": ["<uuid>", "<uuid>", ...]}}</pre>
+     *
+     * Returns the number of rows actually moved to PENDING (op ids
+     * already in a terminal/pending state are silently skipped).
+     */
+    @PostMapping(path = "/journal/retry-batch", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> retryBatch(
+            final Authentication authentication,
+            @RequestBody final RetryBatchRequest body) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (body == null || body.operationIds() == null || body.operationIds().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "OPERATION_IDS_REQUIRED",
+                    "message", "operationIds[] is required"));
+        }
+        final OperationJournalRepository jr = journal.getIfAvailable();
+        if (jr == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "code", "JOURNAL_UNAVAILABLE", "message", "journal not wired"));
+        }
+        final java.util.List<java.util.UUID> ids = new java.util.ArrayList<>();
+        for (final String s : body.operationIds()) {
+            try {
+                ids.add(java.util.UUID.fromString(s));
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "code", "OPERATION_ID_INVALID",
+                        "message", "not a UUID: " + s));
+            }
+        }
+        final int n = jr.requeuePendingByIds(ids);
+        audit.append(new AuditEvent("JOURNAL_RETRY_BATCH",
+                AuditEvent.Outcome.SUCCESS, principal.userId(), null, null, null,
+                Map.of("operationCount", String.valueOf(ids.size()),
+                       "rowsRequeued", String.valueOf(n))),
+                Instant.now(clock));
+        return ResponseEntity.ok(Map.of(
+                "requested", ids.size(),
+                "rowsRequeued", n));
+    }
+
+    public record RetryBatchRequest(
+            @com.fasterxml.jackson.annotation.JsonProperty("operationIds")
+                java.util.List<String> operationIds) { }
+
+    /**
      * FR-01-10: decommission — disable all other users, request a
      * final evidence-export backup, record a terminal audit event.
      * Body must carry {@code confirm=="CONFIRMED"}.

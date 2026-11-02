@@ -7,8 +7,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -22,9 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.attribution.CapturedByResolver;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
+import ug.ac.mak.der.workflow.SystemWorkflowService;
 import ug.ac.mak.der.workflows.tracker.EnrollmentRepository;
 import ug.ac.mak.der.workflows.tracker.TrackerEvent;
 import ug.ac.mak.der.workflows.tracker.TrackerEventRepository;
+import ug.ac.mak.der.workflows.tracker.TrackerService;
 
 /** FR-08-10: tracker-stage event lifecycle. */
 @RestController
@@ -35,21 +40,28 @@ public class TrackerEventController {
     private final TrackerEventRepository repo;
     private final EnrollmentRepository enrollments;
     private final CapturedByResolver captorResolver;
+    private final TrackerService trackerService;
+    private final SystemWorkflowService systemWorkflows;
     private final Clock clock;
 
     public TrackerEventController(final TrackerEventRepository repo,
                                     final EnrollmentRepository enrollments,
                                     final CapturedByResolver captorResolver,
+                                    final TrackerService trackerService,
+                                    final SystemWorkflowService systemWorkflows,
                                     final Clock clock) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.enrollments = Objects.requireNonNull(enrollments, "enrollments");
         this.captorResolver = Objects.requireNonNull(captorResolver, "captorResolver");
+        this.trackerService = Objects.requireNonNull(trackerService, "trackerService");
+        this.systemWorkflows = Objects.requireNonNull(systemWorkflows, "systemWorkflows");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> upsert(final Authentication authentication,
-                                                        @RequestBody final UpsertRequest body) {
+                                                        @RequestBody final UpsertRequest body,
+                                                        final HttpServletRequest http) {
         if (!(authentication instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
         }
@@ -77,18 +89,28 @@ public class TrackerEventController {
         }
         final Instant now = Instant.now(clock);
         final String storedBy = captorResolver.storedByFor(principal.userId()).orElse(null);
+        // §2.3.89 R-C/3 — tracker stage events auto-wrap into the
+        // same TRACKER_CAPTURE scope as their parent enrolment, so
+        // the whole workflow (TEI → enrol → events) rolls up under a
+        // single run per (program, orgUnit, submitter).
+        final UUID runId = systemWorkflows.ensureTrackerCaptureRun(
+                body.programUid(), body.orgUnitUid(), principal.userId());
         final TrackerEvent e;
         try {
             e = new TrackerEvent(body.eventUid(), body.enrollmentUid(),
                     body.programUid(), body.programStageUid(), body.orgUnitUid(),
                     status, body.occurredDate(),
                     body.dataValues() == null ? Map.of() : body.dataValues(),
-                    storedBy, principal.userId(), now, now, 1);
+                    storedBy, principal.userId(), now, now, 1, runId);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of(
                     "code", "EVENT_INVALID", "message", ex.getMessage()));
         }
-        repo.upsert(e);
+        // §2.3.96 R-D/tracker-svc — service handles upsert + outbox
+        // + audit in one @Transactional unit.
+        trackerService.upsertEvent(e, principal.userId(),
+                http == null ? null : http.getRemoteAddr(),
+                http == null ? null : http.getHeader(HttpHeaders.USER_AGENT));
         return ResponseEntity.ok(toJson(e));
     }
 

@@ -51,7 +51,7 @@ class AggregateDataValueServiceTest {
 
     private AggregateDataValueService.DataValueInput validInput(final String value) {
         return new AggregateDataValueService.DataValueInput(
-                "de", "ou", "2026Q1", "coc", "aoc", value, "note");
+                "de", "ou", "2026Q1", "coc", "aoc", value, "note", "DS12345");
     }
 
     @Test
@@ -109,14 +109,17 @@ class AggregateDataValueServiceTest {
 
         final List<AggregateDataValueService.DataValueInput> bad = java.util.Arrays.asList(
                 null,
-                new AggregateDataValueService.DataValueInput("", "ou", "2026Q1", "c", "a", "1", null),
-                new AggregateDataValueService.DataValueInput(null, "ou", "2026Q1", "c", "a", "1", null),
-                new AggregateDataValueService.DataValueInput("de", "", "2026Q1", "c", "a", "1", null),
-                new AggregateDataValueService.DataValueInput("de", null, "2026Q1", "c", "a", "1", null),
-                new AggregateDataValueService.DataValueInput("de", "ou", "", "c", "a", "1", null),
-                new AggregateDataValueService.DataValueInput("de", "ou", null, "c", "a", "1", null),
-                new AggregateDataValueService.DataValueInput("de", "ou", "2026Q1", "c", "a", "", null),
-                new AggregateDataValueService.DataValueInput("de", "ou", "2026Q1", "c", "a", null, null)
+                new AggregateDataValueService.DataValueInput("", "ou", "2026Q1", "c", "a", "1", null, "DS12345"),
+                new AggregateDataValueService.DataValueInput(null, "ou", "2026Q1", "c", "a", "1", null, "DS12345"),
+                new AggregateDataValueService.DataValueInput("de", "", "2026Q1", "c", "a", "1", null, "DS12345"),
+                new AggregateDataValueService.DataValueInput("de", null, "2026Q1", "c", "a", "1", null, "DS12345"),
+                new AggregateDataValueService.DataValueInput("de", "ou", "", "c", "a", "1", null, "DS12345"),
+                new AggregateDataValueService.DataValueInput("de", "ou", null, "c", "a", "1", null, "DS12345"),
+                new AggregateDataValueService.DataValueInput("de", "ou", "2026Q1", "c", "a", "", null, "DS12345"),
+                new AggregateDataValueService.DataValueInput("de", "ou", "2026Q1", "c", "a", null, null, "DS12345"),
+                // §2.3.84 — dataSet is required.
+                new AggregateDataValueService.DataValueInput("de", "ou", "2026Q1", "c", "a", "1", null, null),
+                new AggregateDataValueService.DataValueInput("de", "ou", "2026Q1", "c", "a", "1", null, "  ")
         );
 
         final var summary = svc.submit(bad, UUID.randomUUID(), null, null);
@@ -133,7 +136,7 @@ class AggregateDataValueServiceTest {
         final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
         final AggregateDataValueService svc = service(values, journal, metadataWith("NUMBER"), audit);
         final var noComment = new AggregateDataValueService.DataValueInput(
-                "de", "ou", "2026Q1", "coc", "aoc", "1", null);
+                "de", "ou", "2026Q1", "coc", "aoc", "1", null, "DS12345");
         final var summary = svc.submit(java.util.List.of(noComment), UUID.randomUUID(), null, null);
         assertThat(summary.imported()).isEqualTo(1);
     }
@@ -200,7 +203,7 @@ class AggregateDataValueServiceTest {
     @Test
     void inputCompoundKeyUsesDefaultsWhenCombosNull() {
         final var input = new AggregateDataValueService.DataValueInput(
-                "de", "ou", "2026Q1", null, null, "1", null);
+                "de", "ou", "2026Q1", null, null, "1", null, "DS12345");
         assertThat(input.compoundKey())
                 .isEqualTo("de|ou|2026Q1|" + AggregateDataValue.DEFAULT_COC
                         + '|' + AggregateDataValue.DEFAULT_COC);

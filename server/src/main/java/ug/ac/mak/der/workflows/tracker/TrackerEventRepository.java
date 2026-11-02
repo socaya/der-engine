@@ -34,20 +34,23 @@ public class TrackerEventRepository {
                 "INSERT INTO der.edge_tracker_event "
                         + "(event_uid, enrollment_uid, program_uid, program_stage_uid, "
                         + "org_unit_uid, status, occurred_date, data_values, "
-                        + "stored_by_dhis2_uid, created_by, created_at, updated_at, version) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb), ?, ?, ?, ?, ?) "
+                        + "stored_by_dhis2_uid, created_by, created_at, updated_at, version, "
+                        + "workflow_run_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb), ?, ?, ?, ?, ?, ?) "
                         + "ON CONFLICT (event_uid) DO UPDATE SET "
                         + "status = EXCLUDED.status, "
                         + "data_values = EXCLUDED.data_values, "
                         + "stored_by_dhis2_uid = EXCLUDED.stored_by_dhis2_uid, "
                         + "updated_at = EXCLUDED.updated_at, "
-                        + "version = der.edge_tracker_event.version + 1",
+                        + "version = der.edge_tracker_event.version + 1, "
+                        + "workflow_run_id = COALESCE(EXCLUDED.workflow_run_id, "
+                        + "                            der.edge_tracker_event.workflow_run_id)",
                 e.eventUid(), e.enrollmentUid(), e.programUid(), e.programStageUid(),
                 e.orgUnitUid(), e.status().name(),
                 java.sql.Date.valueOf(e.occurredDate()), dvJson,
                 e.storedByDhis2Uid(), e.createdBy(),
                 Timestamp.from(e.createdAt()), Timestamp.from(e.updatedAt()),
-                e.version());
+                e.version(), e.workflowRunId());
         return e;
     }
 
@@ -57,7 +60,8 @@ public class TrackerEventRepository {
                     "SELECT event_uid, enrollment_uid, program_uid, program_stage_uid, "
                             + "org_unit_uid, status, occurred_date, "
                             + "data_values::text AS data_values, "
-                            + "stored_by_dhis2_uid, created_by, created_at, updated_at, version "
+                            + "stored_by_dhis2_uid, created_by, created_at, updated_at, version, "
+                        + "workflow_run_id "
                             + "FROM der.edge_tracker_event WHERE event_uid = ?",
                     rowMapper(), uid));
         } catch (EmptyResultDataAccessException ex) {
@@ -70,7 +74,8 @@ public class TrackerEventRepository {
                 "SELECT event_uid, enrollment_uid, program_uid, program_stage_uid, "
                         + "org_unit_uid, status, occurred_date, "
                         + "data_values::text AS data_values, "
-                        + "stored_by_dhis2_uid, created_by, created_at, updated_at, version "
+                        + "stored_by_dhis2_uid, created_by, created_at, updated_at, version, "
+                        + "workflow_run_id "
                         + "FROM der.edge_tracker_event WHERE enrollment_uid = ? "
                         + "ORDER BY occurred_date DESC",
                 rowMapper(), enrollmentUid);
@@ -109,7 +114,8 @@ public class TrackerEventRepository {
                     rs.getObject("created_by", UUID.class),
                     rs.getTimestamp("created_at").toInstant(),
                     rs.getTimestamp("updated_at").toInstant(),
-                    rs.getInt("version"));
+                    rs.getInt("version"),
+                    rs.getObject("workflow_run_id", UUID.class));
         };
     }
 }

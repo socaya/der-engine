@@ -18,7 +18,12 @@ public record Enrollment(
         UUID createdBy,
         Instant createdAt,
         Instant updatedAt,
-        int version
+        int version,
+        /** §2.3.89 R-C/3 — capture workflow run that produced this
+         *  enrollment. Nullable at the record level; the DB enforces
+         *  NOT NULL after V078 so the controller layer must thread a
+         *  run id (SYS TRACKER_CAPTURE auto-wrap handles passthrough). */
+        UUID workflowRunId
 ) {
 
     public Enrollment {
@@ -34,6 +39,18 @@ public record Enrollment(
         if (!enrollmentUid.matches("^[A-Za-z][A-Za-z0-9]{10}$")) {
             throw new IllegalArgumentException("enrollmentUid must be 11-char DHIS2 UID");
         }
+    }
+
+    /** Back-compat ctor — nulls {@link #workflowRunId}. */
+    public Enrollment(final String enrollmentUid, final String teiUid,
+                        final String programUid, final String orgUnitUid,
+                        final Status status, final LocalDate enrollmentDate,
+                        final LocalDate incidentDate, final String storedByDhis2Uid,
+                        final UUID createdBy, final Instant createdAt,
+                        final Instant updatedAt, final int version) {
+        this(enrollmentUid, teiUid, programUid, orgUnitUid, status, enrollmentDate,
+             incidentDate, storedByDhis2Uid, createdBy, createdAt, updatedAt,
+             version, null);
     }
 
     public enum Status { ACTIVE, COMPLETED, CANCELLED }

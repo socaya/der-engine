@@ -663,6 +663,76 @@ const ENTITY_TYPE_ICON: Readonly<Record<string, EntityIconId>> = {
   ORG_UNIT: 'org-unit',
 };
 
+/** §2.3.80 R-B/1 — entityType → DHIS2 metadata resource key.
+ *  Used by Sync Attention conflict detail to deep-link to the
+ *  schema that defines the entity that failed to sync. The ids
+ *  are DHIS2 Web-API resource names so they also work with the
+ *  mirror browser at `/dhis2/metadata?resource=…`. Returns null
+ *  when the entity has no meaningful metadata counterpart (e.g.
+ *  generic METADATA ops). */
+const ENTITY_METADATA_RESOURCE: Readonly<Record<string, string>> = {
+  DATA_ELEMENT:              'dataElements',
+  AGGREGATE:                 'dataSets',
+  AGGREGATE_DATA_VALUE:      'dataSets',
+  DATA_VALUE_SET:            'dataSets',
+  EVENT:                     'programs',
+  PROGRAM_STAGE_EVENT:       'programStages',
+  ENROLLMENT:                'programs',
+  TRACKED_ENTITY:            'trackedEntityTypes',
+  TRACKED_ENTITY_INSTANCE:   'trackedEntityTypes',
+  TEI:                       'trackedEntityTypes',
+  REFERRAL:                  'relationshipTypes',
+  PROGRAM:                   'programs',
+  ORG_UNIT:                  'organisationUnits',
+};
+
+export function metadataResourceForEntity(
+  entityType: string | null | undefined
+): string | null {
+  if (!entityType) return null;
+  return ENTITY_METADATA_RESOURCE[entityType.toUpperCase()] ?? null;
+}
+
+/** §2.3.91 R-D/1 — entityType → Data module list route for the Sync
+ *  Attention backlink. Lets an admin troubleshooting a conflict jump
+ *  straight to the local data table that holds the failing row:
+ *   - AGGREGATE_DATA_VALUE / AGGREGATE / DATA_VALUE_SET → /data/aggregate
+ *   - EVENT                                             → /data/events
+ *   - TRACKED_ENTITY_* / ENROLLMENT / PROGRAM_STAGE_EVENT → /data/tracker
+ *  Returns null for entity kinds with no local-store counterpart
+ *  (e.g. METADATA ops). */
+const ENTITY_DATA_ROUTE: Readonly<Record<string, string>> = {
+  AGGREGATE_DATA_VALUE:      '/data/aggregate',
+  AGGREGATE:                 '/data/aggregate',
+  DATA_VALUE_SET:            '/data/aggregate',
+  EVENT:                     '/data/events',
+  PROGRAM_STAGE_EVENT:       '/data/tracker',
+  ENROLLMENT:                '/data/tracker',
+  TRACKED_ENTITY:            '/data/tracker',
+  TRACKED_ENTITY_INSTANCE:   '/data/tracker',
+  TEI:                       '/data/tracker',
+};
+
+export function dataModuleRouteForEntity(
+  entityType: string | null | undefined
+): string | null {
+  if (!entityType) return null;
+  return ENTITY_DATA_ROUTE[entityType.toUpperCase()] ?? null;
+}
+
+/** Humanised module label for the "Open in Data" button. */
+export function dataModuleLabelForEntity(
+  entityType: string | null | undefined
+): string {
+  const route = dataModuleRouteForEntity(entityType);
+  switch (route) {
+    case '/data/aggregate': return 'Open in Aggregate';
+    case '/data/events':    return 'Open in Events';
+    case '/data/tracker':   return 'Open in Tracker';
+    default:                return 'Open in Data';
+  }
+}
+
 /** Humanise an entityType enum value. */
 export function entityTypeLabel(type: string | null | undefined): string {
   if (!type) return 'Operation';
@@ -898,6 +968,108 @@ export function BackLink({ to, label }: { to: string; label: string }): JSX.Elem
           }}>
       ← {label}
     </Link>
+  );
+}
+
+/** §2.3.80 R-B/2 + R-B/3 — a persistent chip rendered under the
+ *  SyncStatusBar when a list screen (Sync Data, Sync Attention,
+ *  Drafts) is reached via a cross-module filter URL
+ *  (`?workflowRunId=…`). Shows the originating context, offers a
+ *  one-click return to the originating page, and a Clear button
+ *  to drop the filter. The chip is purely a UX surface for now —
+ *  server-side filter columns land with R-A-data; until then we
+ *  render a quiet "data-driven filter pending" note so admins
+ *  know the destination list isn't yet narrowed. */
+export function ScopedFilterChip(
+  { label, openTo, openLabel, onClear, hint }:
+    { label: string;
+      openTo: string;
+      openLabel: string;
+      onClear(): void;
+      hint?: string }
+): JSX.Element {
+  return (
+    <div className="ea-scope-chip"
+         role="status"
+         data-test="scoped-filter-chip"
+         style={{
+           display: 'flex', alignItems: 'center', flexWrap: 'wrap',
+           gap: 10, marginBottom: 10, padding: '8px 12px',
+           border: '1px solid var(--der-primary-ink, #2563eb)',
+           background: 'var(--der-primary-wash, #eff6ff)',
+           borderRadius: 6, fontSize: 12,
+           color: 'var(--der-ink-900)',
+         }}>
+      <span style={{ fontWeight: 600 }}>Scope:</span>
+      <span>{label}</span>
+      <Link to={openTo}
+            className="ea-btn ea-btn--ghost ea-btn--sm"
+            style={{ marginLeft: 'auto' }}>
+        {openLabel}
+      </Link>
+      <button type="button"
+              className="ea-btn ea-btn--ghost ea-btn--sm"
+              data-test="scoped-filter-clear"
+              onClick={onClear}>
+        Clear
+      </button>
+      {hint && (
+        <div style={{ flexBasis: '100%', color: 'var(--der-ink-500)',
+                        fontSize: 11, marginTop: 2 }}>
+          {hint}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export interface BreadcrumbItem {
+  readonly label: string;
+  /** Omit on the current (last) page item. Non-last items without `to`
+   *  render as muted labels (useful for grouping concepts that aren't
+   *  routes, e.g. "Monitoring" when there's no `/monitoring` route). */
+  readonly to?: string;
+}
+
+/** Breadcrumb trail rendered above a detail page's status bar. §2.3.79
+ *  — introduced to give drill-down pages (/workflows/monitoring/runs/*,
+ *  /sync/history/*, /devices/*) explicit section context so a user
+ *  arriving via a direct URL can navigate without guessing. */
+export function Breadcrumbs(
+  { items, testId }: { items: ReadonlyArray<BreadcrumbItem>; testId?: string }
+): JSX.Element {
+  return (
+    <nav aria-label="Breadcrumb"
+         data-test={testId}
+         className="ea-breadcrumbs"
+         style={{
+           display: 'flex', alignItems: 'center', flexWrap: 'wrap',
+           gap: 6, marginBottom: 8, fontSize: 12,
+           color: 'var(--der-ink-500)',
+         }}>
+      {items.map((item, i) => {
+        const last = i === items.length - 1;
+        return (
+          <span key={`${item.label}-${i}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {item.to && !last ? (
+              <Link to={item.to}
+                    style={{ color: 'var(--der-ink-500)', textDecoration: 'none' }}>
+                {item.label}
+              </Link>
+            ) : (
+              <span style={{
+                      color: last ? 'var(--der-ink-900)' : undefined,
+                      fontWeight: last ? 500 : undefined,
+                    }}>
+                {item.label}
+              </span>
+            )}
+            {!last && <span aria-hidden="true" style={{ opacity: 0.5 }}>›</span>}
+          </span>
+        );
+      })}
+    </nav>
   );
 }
 

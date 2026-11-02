@@ -28,20 +28,26 @@ public class EventRepository {
 
     @Transactional
     public Event upsert(final Event in) {
+        // §2.3.87 — workflow_run_id persisted alongside the event.
+        // COALESCE on UPDATE keeps a previously-set run tag intact
+        // when a re-capture comes in without one (same guard pattern
+        // as data_set_uid on aggregate).
         final Integer version = jdbc.queryForObject(
                 "INSERT INTO der.event (event_id, enrollment_id, program_uid, program_stage_uid, "
                         + "org_unit_uid, occurred_at, status, attribute_option_combo_uid, "
-                        + "created_by, event_version) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1) "
+                        + "created_by, event_version, workflow_run_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?) "
                         + "ON CONFLICT (event_id) DO UPDATE SET "
                         + "occurred_at = EXCLUDED.occurred_at, status = EXCLUDED.status, "
                         + "attribute_option_combo_uid = EXCLUDED.attribute_option_combo_uid, "
-                        + "event_version = der.event.event_version + 1 "
+                        + "event_version = der.event.event_version + 1, "
+                        + "workflow_run_id = COALESCE(EXCLUDED.workflow_run_id, "
+                        + "                            der.event.workflow_run_id) "
                         + "RETURNING event_version",
                 Integer.class,
                 in.eventId(), in.enrollmentId(), in.programUid(), in.programStageUid(),
                 in.orgUnitUid(), Timestamp.from(in.occurredAt()), in.status().name(),
-                in.attributeOptionComboUid(), in.createdBy());
+                in.attributeOptionComboUid(), in.createdBy(), in.workflowRunId());
         jdbc.update("DELETE FROM der.event_data_value WHERE event_id = ?", in.eventId());
         for (final Map.Entry<String, String> dv : in.dataValues().entrySet()) {
             jdbc.update(
@@ -51,7 +57,8 @@ public class EventRepository {
         }
         return new Event(in.eventId(), in.enrollmentId(), in.programUid(), in.programStageUid(),
                 in.orgUnitUid(), in.occurredAt(), in.status(), in.attributeOptionComboUid(),
-                in.createdBy(), version == null ? 1 : version, in.dataValues());
+                in.createdBy(), version == null ? 1 : version, in.dataValues(),
+                in.workflowRunId());
     }
 
     public Optional<Event> findById(final UUID eventId) {
@@ -59,7 +66,8 @@ public class EventRepository {
         try {
             base = jdbc.queryForObject(
                     "SELECT event_id, enrollment_id, program_uid, program_stage_uid, org_unit_uid, "
-                            + "occurred_at, status, attribute_option_combo_uid, created_by, event_version "
+                            + "occurred_at, status, attribute_option_combo_uid, created_by, event_version, "
+                        + "workflow_run_id "
                             + "FROM der.event WHERE event_id = ?",
                     rowMapper(Map.of()), eventId);
         } catch (EmptyResultDataAccessException ex) {
@@ -72,7 +80,8 @@ public class EventRepository {
                                                 final int limit) {
         final List<Event> rows = jdbc.query(
                 "SELECT event_id, enrollment_id, program_uid, program_stage_uid, org_unit_uid, "
-                        + "occurred_at, status, attribute_option_combo_uid, created_by, event_version "
+                        + "occurred_at, status, attribute_option_combo_uid, created_by, event_version, "
+                        + "workflow_run_id "
                         + "FROM der.event WHERE program_uid = ? AND org_unit_uid = ? "
                         + "ORDER BY occurred_at DESC LIMIT ?",
                 rowMapper(Map.of()), programUid, orgUnitUid, Math.max(1, Math.min(500, limit)));
@@ -86,7 +95,8 @@ public class EventRepository {
     public List<Event> findForEnrollment(final UUID enrollmentId) {
         final List<Event> rows = jdbc.query(
                 "SELECT event_id, enrollment_id, program_uid, program_stage_uid, org_unit_uid, "
-                        + "occurred_at, status, attribute_option_combo_uid, created_by, event_version "
+                        + "occurred_at, status, attribute_option_combo_uid, created_by, event_version, "
+                        + "workflow_run_id "
                         + "FROM der.event WHERE enrollment_id = ? ORDER BY occurred_at",
                 rowMapper(Map.of()), enrollmentId);
         final List<Event> out = new ArrayList<>(rows.size());
@@ -111,7 +121,8 @@ public class EventRepository {
                 }, base.eventId());
         return new Event(base.eventId(), base.enrollmentId(), base.programUid(),
                 base.programStageUid(), base.orgUnitUid(), base.occurredAt(), base.status(),
-                base.attributeOptionComboUid(), base.createdBy(), base.eventVersion(), values);
+                base.attributeOptionComboUid(), base.createdBy(), base.eventVersion(), values,
+                base.workflowRunId());
     }
 
     private RowMapper<Event> rowMapper(final Map<String, String> values) {
@@ -126,6 +137,7 @@ public class EventRepository {
                 rs.getString("attribute_option_combo_uid"),
                 (UUID) rs.getObject("created_by"),
                 rs.getInt("event_version"),
-                values);
+                values,
+                (UUID) rs.getObject("workflow_run_id"));
     }
 }

@@ -5,7 +5,8 @@ import {
   OuPicker, useOuContext, Panel, fmtDate, fmtDur, fmtAgo, usePaged, TablePager,
   humaniseJob, humaniseState, humaniseTrigger, relatedLinksForJob, syncActivityShape,
   parseByType, detailEntries, entityTypeIcon, entityTypeLabel,
-  DrawerTabs, JsonViewer, parseOperationIds, SyncStatusBar, BackLink, RowMenu,
+  DrawerTabs, JsonViewer, parseOperationIds, SyncStatusBar,
+  Breadcrumbs, RowMenu,
   Status,
   type RowMenuItem,
 } from './shared';
@@ -231,7 +232,13 @@ export function MockupSyncHistoryDetail(): JSX.Element {
 
   if (err) return (
     <div className="ea-screen">
-      <BackLink to="/sync/history" label="Back to Sync history" />
+      <Breadcrumbs
+        testId="sync-history-detail-crumbs"
+        items={[
+          { label: 'Sync',    to: '/sync' },
+          { label: 'History', to: '/sync/history' },
+          { label: runId ? `Run ${runId}` : 'Run' },
+        ]} />
       <SyncStatusBar tone="danger" title="Run not found" statusLabel="Error"
                      subtitle={<span>{err}</span>} />
     </div>
@@ -245,7 +252,13 @@ export function MockupSyncHistoryDetail(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="sync-history-detail">
-      <BackLink to="/sync/history" label="Back to Sync history" />
+      <Breadcrumbs
+        testId="sync-history-detail-crumbs"
+        items={[
+          { label: 'Sync',    to: '/sync' },
+          { label: 'History', to: '/sync/history' },
+          { label: `${shape.category} · Run ${sel.runId}` },
+        ]} />
       <SyncStatusBar
         tone={ok ? 'success' : failed ? 'danger' : 'info'}
         title={shape.category}
@@ -258,6 +271,17 @@ export function MockupSyncHistoryDetail(): JSX.Element {
             <span>·</span>
             <span>{fmtDate(sel.startedAt)}</span>
           </>
+        }
+        actions={
+          // §2.3.79 — soft round-trip exit to Workflows. Journal ops
+          // don't yet carry workflow_run_id (follow-up noted) so we
+          // link to the Monitoring index; admins filter manually.
+          <Link to="/workflows/monitoring"
+                 className="ea-btn ea-btn--ghost ea-btn--sm"
+                 title="Open Workflow monitoring">
+            <UiIcon icon="analytics" size={14} />
+            <span>Workflow monitoring</span>
+          </Link>
         }
       />
 

@@ -306,6 +306,112 @@ public class CaptureWorkflowController {
         return ResponseEntity.ok(Map.of("contributions", rows));
     }
 
+    /** §2.3.101 R-L — Outbound bundle manifest.
+     *
+     *  Returns the full picture of what Central will receive from this
+     *  run: counts per entity type + every operation_journal row with
+     *  its current state and target DHIS2 endpoint. The admin UI
+     *  renders this as a panel on the run-detail page, closing the
+     *  loop between workflow runs → outbound bundles → operation IDs
+     *  surfaced in /sync/data. */
+    @GetMapping("/runs/{runId}/manifest")
+    public ResponseEntity<Map<String, Object>> manifestForRun(
+            @PathVariable("runId") final UUID runId,
+            @org.springframework.web.bind.annotation.RequestParam(
+                    name = "state", required = false) final String stateFilter) {
+        // §2.3.102 R-N / §2.3.103 R-S — ?state accepts a comma-
+        // separated list (e.g. ?state=PENDING,RETRYABLE) for the
+        // multi-select chip toggle. Counts are always computed
+        // against the *unfiltered* set so the chip strip still tells
+        // the operator what else is there.
+        final List<String> stateSet = new ArrayList<>();
+        if (stateFilter != null && !stateFilter.isBlank()) {
+            for (final String s : stateFilter.split(",")) {
+                final String t = s.trim();
+                if (!t.isEmpty()) {
+                    stateSet.add(t);
+                }
+            }
+        }
+        final String operationsSql;
+        final Object[] args;
+        if (stateSet.isEmpty()) {
+            operationsSql = "SELECT operation_id, entity_type, entity_ref, state, "
+                    + "       attempt_count, last_error, created_at, updated_at "
+                    + "FROM der.operation_journal "
+                    + "WHERE workflow_run_id = ? "
+                    + "ORDER BY created_at ASC";
+            args = new Object[]{ runId };
+        } else {
+            final String placeholders = stateSet.stream()
+                    .map(s -> "?").reduce((a, b) -> a + "," + b).orElse("?");
+            operationsSql = "SELECT operation_id, entity_type, entity_ref, state, "
+                    + "       attempt_count, last_error, created_at, updated_at "
+                    + "FROM der.operation_journal "
+                    + "WHERE workflow_run_id = ? AND state IN (" + placeholders + ") "
+                    + "ORDER BY created_at ASC";
+            final Object[] combined = new Object[1 + stateSet.size()];
+            combined[0] = runId;
+            for (int i = 0; i < stateSet.size(); i++) {
+                combined[i + 1] = stateSet.get(i);
+            }
+            args = combined;
+        }
+        final List<Map<String, Object>> operations = jdbc.query(operationsSql,
+                (java.sql.ResultSet rs, int i) -> {
+                    final Map<String, Object> m = new LinkedHashMap<>();
+                    final String entityType = rs.getString("entity_type");
+                    m.put("operationId", rs.getString("operation_id"));
+                    m.put("entityType",  entityType);
+                    m.put("entityRef",   rs.getString("entity_ref"));
+                    m.put("state",       rs.getString("state"));
+                    m.put("attemptCount", rs.getInt("attempt_count"));
+                    m.put("lastError",   rs.getString("last_error"));
+                    m.put("createdAt",   rs.getTimestamp("created_at").toInstant().toString());
+                    m.put("updatedAt",   rs.getTimestamp("updated_at").toInstant().toString());
+                    m.put("endpoint",    manifestEndpointFor(entityType));
+                    return m;
+                }, args);
+
+        // §2.3.102 R-N — counts always reflect the whole run (not the
+        // filtered subset) so the chip strip always offers the full
+        // picture, even when the admin has narrowed the list.
+        final List<Map<String, String>> all = jdbc.query(
+                "SELECT entity_type, state FROM der.operation_journal "
+              + "WHERE workflow_run_id = ?",
+                (java.sql.ResultSet rs, int i) -> Map.of(
+                    "entityType", rs.getString("entity_type"),
+                    "state",      rs.getString("state")),
+                runId);
+        final Map<String, Integer> counts = new LinkedHashMap<>();
+        final Map<String, Integer> stateCounts = new LinkedHashMap<>();
+        for (final Map<String, String> row : all) {
+            counts.merge(row.get("entityType"), 1, Integer::sum);
+            stateCounts.merge(row.get("state"), 1, Integer::sum);
+        }
+
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("runId", runId.toString());
+        body.put("total", all.size());
+        body.put("filteredState", stateFilter);
+        body.put("filteredTotal", operations.size());
+        body.put("countsByEntityType", counts);
+        body.put("countsByState",      stateCounts);
+        body.put("operations",         operations);
+        return ResponseEntity.ok(body);
+    }
+
+    private static String manifestEndpointFor(final String entityType) {
+        return switch (entityType) {
+            case "AGGREGATE_DATA_VALUE" -> "/api/dataValueSets";
+            case "EVENT"                -> "/api/events";
+            case "TRACKED_ENTITY",
+                 "ENROLLMENT",
+                 "PROGRAM_STAGE_EVENT"  -> "/api/tracker";
+            default                      -> null;
+        };
+    }
+
     private static Map<String, Object> contributionJson(final CaptureWorkflowContribution c) {
         final Map<String, Object> m = new LinkedHashMap<>();
         m.put("contributionId", c.contributionId().toString());
@@ -794,6 +900,13 @@ public class CaptureWorkflowController {
                     || section == CaptureWorkflowStep.SectionKind.COC_SPLIT
                     || section == CaptureWorkflowStep.SectionKind.DATASET_ELEMENT
                     || section == CaptureWorkflowStep.SectionKind.PERIOD_SCOPE;
+            case DATA_SET_SECTION -> section == CaptureWorkflowStep.SectionKind.DATA_ELEMENT_GROUP
+                    || section == CaptureWorkflowStep.SectionKind.COC_SPLIT
+                    || section == CaptureWorkflowStep.SectionKind.DATASET_ELEMENT
+                    || section == CaptureWorkflowStep.SectionKind.PERIOD_SCOPE;
+            case DATA_ELEMENT -> section == CaptureWorkflowStep.SectionKind.DATASET_ELEMENT
+                    || section == CaptureWorkflowStep.SectionKind.COC_SPLIT
+                    || section == CaptureWorkflowStep.SectionKind.PERIOD_SCOPE;
             case PROGRAM -> section == CaptureWorkflowStep.SectionKind.PROGRAM_STAGE
                     || section == CaptureWorkflowStep.SectionKind.PROGRAM_STAGE_SECTION
                     || section == CaptureWorkflowStep.SectionKind.TEI_ATTRIBUTE_GROUP
@@ -803,11 +916,24 @@ public class CaptureWorkflowController {
                     || section == CaptureWorkflowStep.SectionKind.TEI_TYPE_ATTRIBUTES
                     || section == CaptureWorkflowStep.SectionKind.RELATIONSHIP
                     || section == CaptureWorkflowStep.SectionKind.EVENT_INSTANCE;
+            case PROGRAM_SECTION -> section == CaptureWorkflowStep.SectionKind.TEI_ATTRIBUTE_GROUP
+                    || section == CaptureWorkflowStep.SectionKind.TEI_TYPE_ATTRIBUTES
+                    || section == CaptureWorkflowStep.SectionKind.ENROLLMENT_FORM;
             case PROGRAM_STAGE -> section == CaptureWorkflowStep.SectionKind.PROGRAM_STAGE_SECTION
                     || section == CaptureWorkflowStep.SectionKind.DATA_ELEMENT_GROUP
                     || section == CaptureWorkflowStep.SectionKind.EVENT_INSTANCE;
             case PROGRAM_STAGE_SECTION -> section == CaptureWorkflowStep.SectionKind.DATA_ELEMENT_GROUP
                     || section == CaptureWorkflowStep.SectionKind.EVENT_INSTANCE;
+            case TRACKED_ENTITY_TYPE -> section == CaptureWorkflowStep.SectionKind.TEI_TYPE_ATTRIBUTES
+                    || section == CaptureWorkflowStep.SectionKind.TEI_ATTRIBUTE_GROUP
+                    || section == CaptureWorkflowStep.SectionKind.RELATIONSHIP;
+            case TRACKED_ENTITY_ATTRIBUTE ->
+                    section == CaptureWorkflowStep.SectionKind.TEI_TYPE_ATTRIBUTES
+                    || section == CaptureWorkflowStep.SectionKind.TEI_ATTRIBUTE_GROUP;
+            // SYSTEM workflows are server-managed (web-app passthrough,
+            // referral, central-download, event/tracker auto-wraps) and
+            // don't expose user-authored sections — nothing to validate.
+            case SYSTEM -> true;
         };
     }
 

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.security.EdgeUserPrincipal;
+import ug.ac.mak.der.workflow.SystemWorkflowService;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValue;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValueRepository;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValueService;
@@ -46,13 +47,16 @@ public class DataValueSetsController {
 
     private final AggregateDataValueService service;
     private final AggregateDataValueRepository values;
+    private final SystemWorkflowService systemWorkflows;
     private final Clock clock;
 
     public DataValueSetsController(final AggregateDataValueService service,
                                     final AggregateDataValueRepository values,
+                                    final SystemWorkflowService systemWorkflows,
                                     final Clock clock) {
         this.service = service;
         this.values = values;
+        this.systemWorkflows = systemWorkflows;
         this.clock = clock;
     }
 
@@ -97,10 +101,27 @@ public class DataValueSetsController {
             return ResponseEntity.badRequest().body(summary(0, 0, List.of(
                     Map.of("object", "root", "value", "dataValues array is required"))));
         }
+        // §2.3.84 — DER requires a dataSet on every envelope.
+        if (body.dataSet() == null || body.dataSet().isBlank()) {
+            return ResponseEntity.badRequest().body(summary(0, 0, List.of(
+                    Map.of("object", "dataSet",
+                            "value", "dataSet is required (DER policy)"))));
+        }
         final String defaultCoc = body.categoryOptionCombo() == null
                 ? AggregateDataValue.DEFAULT_COC : body.categoryOptionCombo();
         final String defaultAoc = body.attributeOptionCombo() == null
                 ? AggregateDataValue.DEFAULT_COC : body.attributeOptionCombo();
+        // §2.3.85 — DHIS2 Data Entry web app passthrough gets wrapped
+        // in a per-(dataSet, orgUnit, period, submitter) system
+        // workflow run so every row carries workflow lineage. The run
+        // is upserted — parallel captures for the same cell share it.
+        final String envelopeDataSet = body.dataSet();
+        final String envelopeOrgUnit = body.orgUnit() == null ? "" : body.orgUnit();
+        final String envelopePeriod  = body.period()  == null ? "" : body.period();
+        final java.util.UUID webAppRunId = (envelopeOrgUnit.isBlank() || envelopePeriod.isBlank())
+                ? null
+                : systemWorkflows.ensureWebAppCaptureRun(
+                        envelopeDataSet, envelopeOrgUnit, envelopePeriod, principal.userId());
         final List<DataValueInput> inputs = new ArrayList<>(body.dataValues().size());
         for (final DataValueRow row : body.dataValues()) {
             inputs.add(new DataValueInput(
@@ -110,7 +131,9 @@ public class DataValueSetsController {
                     row.categoryOptionCombo() != null ? row.categoryOptionCombo() : defaultCoc,
                     row.attributeOptionCombo() != null ? row.attributeOptionCombo() : defaultAoc,
                     row.value(),
-                    row.comment()
+                    row.comment(),
+                    envelopeDataSet,
+                    webAppRunId
             ));
         }
         final AggregateDataValueService.ImportSummary result = service.submit(

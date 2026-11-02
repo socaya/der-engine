@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ug.ac.mak.der.dhis2.compatibility.CapabilityFlags;
 import ug.ac.mak.der.dhis2.compatibility.Dhis2CompatibilityEngine;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
+import ug.ac.mak.der.workflow.SystemWorkflowService;
 import ug.ac.mak.der.workflows.events.Event;
 import ug.ac.mak.der.workflows.events.EventService;
 
@@ -41,13 +42,16 @@ public class EventsController {
 
     private final EventService service;
     private final Dhis2CompatibilityEngine engine;
+    private final SystemWorkflowService systemWorkflows;
     private final Clock clock;
 
     public EventsController(final EventService service,
                              final Dhis2CompatibilityEngine engine,
+                             final SystemWorkflowService systemWorkflows,
                              final Clock clock) {
         this.service = service;
         this.engine = engine;
+        this.systemWorkflows = systemWorkflows;
         this.clock = clock;
     }
 
@@ -86,9 +90,28 @@ public class EventsController {
             return ResponseEntity.badRequest().body(summary(0, 0,
                     List.of(Map.of("object", "root", "value", "events array is required")), shape));
         }
+        // §2.3.87 R-C/2 — passthrough events get wrapped in a per
+        // (program, programStage, orgUnit, submitter) EVENT_CAPTURE
+        // system run so each input carries workflow lineage. We derive
+        // the scope from the first well-formed row; mixed-scope batches
+        // all share one run (operators rarely post across multiple
+        // forms in one call).
+        UUID eventRunId = null;
+        for (final EventRow row : rows) {
+            if (row != null
+                    && row.program() != null && !row.program().isBlank()
+                    && row.programStage() != null && !row.programStage().isBlank()
+                    && row.orgUnit() != null && !row.orgUnit().isBlank()) {
+                eventRunId = systemWorkflows.ensureEventCaptureRun(
+                        row.program(), row.programStage(), row.orgUnit(),
+                        principal.userId());
+                break;
+            }
+        }
+        final UUID runId = eventRunId;
         final List<EventService.EventInput> inputs = new ArrayList<>(rows.size());
         for (final EventRow row : rows) {
-            inputs.add(toInput(row));
+            inputs.add(toInputWithRun(row, runId));
         }
         final EventService.EventImportResult result = service.submit(inputs, principal.userId(),
                 http.getRemoteAddr(), http.getHeader(HttpHeaders.USER_AGENT),
@@ -138,6 +161,17 @@ public class EventsController {
         }
         return new EventService.EventInput(eventId, enrollmentId, row.program(), row.programStage(),
                 row.orgUnit(), occurred, status, row.attributeOptionCombo(), values);
+    }
+
+    private EventService.EventInput toInputWithRun(final EventRow row,
+                                                     final UUID workflowRunId) {
+        final EventService.EventInput base = toInput(row);
+        return new EventService.EventInput(
+                base.eventId(), base.enrollmentId(),
+                base.programUid(), base.programStageUid(),
+                base.orgUnitUid(), base.occurredAt(), base.status(),
+                base.attributeOptionComboUid(), base.dataValues(),
+                base.expectedVersion(), workflowRunId);
     }
 
     private Map<String, Object> summary(final int imported, final int ignored,

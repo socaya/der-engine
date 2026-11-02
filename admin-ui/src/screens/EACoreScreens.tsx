@@ -1617,6 +1617,10 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
   const [displayName, setDisplayName] = useState('');
   const [boundMetadataKind, setBoundMetadataKind] =
     useState<edgeApi.CanonicalWorkflow['boundMetadataKind']>('DATA_SET');
+  // §2.3.101 R-M — binding kinds advertised by the connected Central.
+  // Null = loading; empty = compat unavailable (full catalogue shown).
+  const [supportedKinds, setSupportedKinds]
+    = useState<ReadonlyArray<string> | null>(null);
   const [boundMetadataId, setBoundMetadataId] = useState('');
   const [enabled, setEnabled] = useState(true);
   /* V045 — workflow-level approval + default assignee. */
@@ -1635,6 +1639,27 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
   const [importText, setImportText] = useState('');
   const [importWarnings, setImportWarnings] = useState<string[] | null>(null);
   const [exportJson, setExportJson] = useState<string | null>(null);
+
+  // §2.3.101 R-M — fetch compat capability list once on mount. If
+  // Central isn't reachable the dropdown falls back to the full
+  // catalogue (operators save at their own risk).
+  useEffect(() => {
+    let alive = true;
+    edgeApi.compat()
+      .then((snap) => {
+        if (!alive) return;
+        const caps = snap.capabilities as
+            Record<string, unknown> | undefined;
+        const kinds = caps?.supportedBindingKinds;
+        if (Array.isArray(kinds)) {
+          setSupportedKinds(kinds as string[]);
+        } else {
+          setSupportedKinds([]);
+        }
+      })
+      .catch(() => { if (alive) setSupportedKinds([]); });
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -1746,10 +1771,38 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
         <select data-test="cwf02-binding-kind" value={boundMetadataKind}
           onChange={(e) => { setBoundMetadataKind(
             e.target.value as edgeApi.CanonicalWorkflow['boundMetadataKind']); }}>
-          <option value="DATA_SET">Dataset (aggregate)</option>
-          <option value="PROGRAM">Program (tracker or event-only)</option>
-          <option value="PROGRAM_STAGE">Program stage</option>
-          <option value="PROGRAM_STAGE_SECTION">Program-stage section</option>
+          {(() => {
+            const supports = (k: string): boolean =>
+                supportedKinds === null                 // still loading
+                || supportedKinds.length === 0          // compat unavailable
+                || supportedKinds.includes(k);
+            return (
+              <>
+                <optgroup label="Aggregate">
+                  {supports('DATA_SET') &&
+                    <option value="DATA_SET">Dataset</option>}
+                  {supports('DATA_SET_SECTION') &&
+                    <option value="DATA_SET_SECTION">Dataset section</option>}
+                  {supports('DATA_ELEMENT') &&
+                    <option value="DATA_ELEMENT">Data element</option>}
+                </optgroup>
+                <optgroup label="Events / Tracker">
+                  {supports('PROGRAM') &&
+                    <option value="PROGRAM">Program (tracker or event-only)</option>}
+                  {supports('PROGRAM_SECTION') &&
+                    <option value="PROGRAM_SECTION">Program section (enrolment attribute group)</option>}
+                  {supports('PROGRAM_STAGE') &&
+                    <option value="PROGRAM_STAGE">Program stage</option>}
+                  {supports('PROGRAM_STAGE_SECTION') &&
+                    <option value="PROGRAM_STAGE_SECTION">Program-stage section</option>}
+                  {supports('TRACKED_ENTITY_TYPE') &&
+                    <option value="TRACKED_ENTITY_TYPE">Tracked-entity type</option>}
+                  {supports('TRACKED_ENTITY_ATTRIBUTE') &&
+                    <option value="TRACKED_ENTITY_ATTRIBUTE">Tracked-entity attribute (TEA)</option>}
+                </optgroup>
+              </>
+            );
+          })()}
         </select>
       </label>
       <label>

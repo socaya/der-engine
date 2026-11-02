@@ -72,8 +72,10 @@ public class WorkflowCompiler {
 
         try {
             switch (workflow.boundMetadataKind()) {
-                case DATA_SET -> compileDataSet(root, ordered, byStep, consumedSteps, consumedIds);
-                case PROGRAM, PROGRAM_STAGE, PROGRAM_STAGE_SECTION ->
+                case DATA_SET, DATA_SET_SECTION, DATA_ELEMENT ->
+                    compileDataSet(root, ordered, byStep, consumedSteps, consumedIds);
+                case PROGRAM, PROGRAM_SECTION, PROGRAM_STAGE, PROGRAM_STAGE_SECTION,
+                     TRACKED_ENTITY_TYPE, TRACKED_ENTITY_ATTRIBUTE ->
                     compileProgram(workflow, root, ordered, byStep, consumedSteps, consumedIds);
                 default -> throw new IllegalStateException("unsupported binding: "
                         + workflow.boundMetadataKind());

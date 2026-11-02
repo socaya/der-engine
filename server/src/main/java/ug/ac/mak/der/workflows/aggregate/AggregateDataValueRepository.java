@@ -37,22 +37,35 @@ public class AggregateDataValueRepository {
      * exactly one row.</p>
      */
     public AggregateDataValue upsert(final AggregateDataValue in) {
+        // §2.3.83 — data_set_uid is persisted on both INSERT and
+        // UPDATE paths so a re-capture via a different form keeps the
+        // most recent originating dataset. When the envelope omits it
+        // the column stays null (nothing clobbered).
+        // §2.3.85 — workflow_run_id persisted alongside data_set_uid.
+        // A null in the UPDATE envelope doesn't clobber a previously
+        // set run id (same COALESCE guard as the dataset tag).
         final AggregateDataValue returned = jdbc.queryForObject(
                 "INSERT INTO der.aggregate_data_value "
                         + "(value_id, data_element_uid, org_unit_uid, period_iso, "
                         + " category_option_combo_uid, attribute_option_combo_uid, "
-                        + " value_text, comment, submitted_by, submitted_at, value_version) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1) "
+                        + " value_text, comment, submitted_by, submitted_at, value_version, "
+                        + " data_set_uid, workflow_run_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?) "
                         + "ON CONFLICT (data_element_uid, org_unit_uid, period_iso, "
                         + "              category_option_combo_uid, attribute_option_combo_uid) "
                         + "DO UPDATE SET value_text = EXCLUDED.value_text, "
                         + "              comment = EXCLUDED.comment, "
                         + "              submitted_by = EXCLUDED.submitted_by, "
                         + "              submitted_at = EXCLUDED.submitted_at, "
-                        + "              value_version = der.aggregate_data_value.value_version + 1 "
+                        + "              value_version = der.aggregate_data_value.value_version + 1, "
+                        + "              data_set_uid = COALESCE(EXCLUDED.data_set_uid, "
+                        + "                                       der.aggregate_data_value.data_set_uid), "
+                        + "              workflow_run_id = COALESCE(EXCLUDED.workflow_run_id, "
+                        + "                                       der.aggregate_data_value.workflow_run_id) "
                         + "RETURNING value_id, data_element_uid, org_unit_uid, period_iso, "
                         + "          category_option_combo_uid, attribute_option_combo_uid, "
-                        + "          value_text, comment, submitted_by, submitted_at, value_version",
+                        + "          value_text, comment, submitted_by, submitted_at, "
+                        + "          value_version, data_set_uid, workflow_run_id",
                 rowMapper(),
                 in.valueId(),
                 in.dataElementUid(),
@@ -63,7 +76,9 @@ public class AggregateDataValueRepository {
                 in.valueText(),
                 in.comment(),
                 in.submittedBy(),
-                Timestamp.from(in.submittedAt())
+                Timestamp.from(in.submittedAt()),
+                in.dataSetUid(),
+                in.workflowRunId()
         );
         return Objects.requireNonNull(returned, "RETURNING must yield a row");
     }
@@ -73,7 +88,8 @@ public class AggregateDataValueRepository {
             return Optional.ofNullable(jdbc.queryForObject(
                     "SELECT value_id, data_element_uid, org_unit_uid, period_iso, "
                             + "category_option_combo_uid, attribute_option_combo_uid, "
-                            + "value_text, comment, submitted_by, submitted_at, value_version "
+                            + "value_text, comment, submitted_by, submitted_at, "
+                            + "value_version, data_set_uid, workflow_run_id "
                             + "FROM der.aggregate_data_value WHERE value_id = ?",
                     rowMapper(),
                     valueId
@@ -144,7 +160,9 @@ public class AggregateDataValueRepository {
                 rs.getString("comment"),
                 rs.getObject("submitted_by", UUID.class),
                 rs.getTimestamp("submitted_at").toInstant(),
-                rs.getInt("value_version")
+                rs.getInt("value_version"),
+                rs.getString("data_set_uid"),
+                rs.getObject("workflow_run_id", UUID.class)
         );
     }
 }

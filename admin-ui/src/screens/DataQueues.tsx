@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
   Panel, fmtDate, fmtAgo, usePaged, TablePager,
   entityTypeIcon, entityTypeLabel, operatorState, operatorStateTone,
   DrawerTabs, JsonViewer, SyncStatusBar, Spinner, useTriggerAndWatch,
-  BackLink, RowMenu, Status,
+  BackLink, RowMenu, ScopedFilterChip, Status,
   type OperatorState, type SyncStatusTone, type RowMenuItem,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
@@ -16,6 +16,8 @@ import { LoadingBlock } from '../components/ScreenStates';
  *  details page. */
 export function MockupDataQueues(): JSX.Element {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const workflowRunId = searchParams.get('workflowRunId');
   const [ops, setOps] = useState<edgeApi.JournalOperation[] | null>(null);
   const [sysInfo, setSysInfo] = useState<edgeApi.SystemInfo | null>(null);
   const [worker, setWorker] = useState<edgeApi.WorkerHealth | null>(null);
@@ -105,6 +107,19 @@ export function MockupDataQueues(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="sync-data">
+      {workflowRunId && (
+        <ScopedFilterChip
+          label={`Workflow run ${workflowRunId.slice(0, 8)}`}
+          openTo={`/workflows/monitoring/runs/${encodeURIComponent(workflowRunId)}`}
+          openLabel="Open run"
+          onClear={() => {
+            const next = new URLSearchParams(searchParams);
+            next.delete('workflowRunId');
+            setSearchParams(next, { replace: true });
+          }}
+          hint="Row-level filtering lands with R-A-data (operation_journal.workflow_run_id)."
+        />
+      )}
       <SyncStatusBar
         tone={tone}
         title="Data"
