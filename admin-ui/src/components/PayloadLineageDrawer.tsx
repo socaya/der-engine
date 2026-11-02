@@ -277,7 +277,11 @@ function JournalGroup(
             <th>State</th>
             <th style={{ textAlign: 'right' }}>Att.</th>
             <th>Updated</th>
-            <th>Error</th>
+            {/* §2.3.113 R-AJ — the column was labelled "Error" but
+                the stored value is the last Central response
+                (OK envelope on success, error envelope on reject).
+                Renamed + rendered expandably. */}
+            <th>Response</th>
           </tr></thead>
           <tbody>
             {entries.map((j) => (
@@ -294,14 +298,8 @@ function JournalGroup(
                 <td className="ea-text-muted" style={{ fontSize: 11 }}>
                   {j.updatedAt?.slice(0, 19).replace('T', ' ') ?? '—'}
                 </td>
-                <td style={{ fontSize: 11,
-                              color: j.lastError ? 'var(--der-danger-ink)' : 'inherit',
-                              maxWidth: 240,
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis' }}
-                    title={j.lastError ?? ''}>
-                  {j.lastError ?? '—'}
+                <td style={{ fontSize: 11, maxWidth: 360 }}>
+                  <ResponseCell state={j.state} lastError={j.lastError} />
                 </td>
               </tr>
             ))}
@@ -310,4 +308,92 @@ function JournalGroup(
       )}
     </>
   );
+}
+
+/** §2.3.113 R-AJ — expandable Central-response cell.
+ *
+ *  The server stores Central's response envelope in `last_error`
+ *  regardless of outcome (OK on success, error on reject), so the
+ *  cell can't just render the raw text with danger styling. This
+ *  component:
+ *
+ *   - renders a short status summary line (parsing the envelope
+ *     when possible),
+ *   - tones it muted / danger based on the operation's state,
+ *   - exposes the full JSON via a `<details>` disclosure so
+ *     operators can always see Central's exact body without hover-
+ *     dependent tooltips, truncation, or a modal.
+ */
+function ResponseCell(
+  { state, lastError }:
+    { state: string; lastError: string | null },
+): JSX.Element {
+  if (!lastError) {
+    return <span className="ea-text-muted">—</span>;
+  }
+  const bad = state === 'CENTRAL_REJECTED'
+            || state === 'CONFLICT_REVIEW'
+            || state === 'QUARANTINED'
+            || state === 'UNKNOWN_OUTCOME';
+  const summary = summariseEnvelope(lastError, bad);
+  return (
+    <details>
+      <summary style={{ cursor: 'pointer',
+                         color: bad ? 'var(--der-danger-ink)'
+                                    : 'var(--der-ink-500)',
+                         listStyle: 'revert',
+                         whiteSpace: 'nowrap',
+                         overflow: 'hidden',
+                         textOverflow: 'ellipsis',
+                         maxWidth: 360,
+                         display: 'inline-block' }}
+                title="Click to show the full Central response">
+        {summary}
+      </summary>
+      <pre className="ea-mono"
+           style={{ marginTop: 6,
+                     padding: 8,
+                     background: 'var(--der-canvas, #f8fafc)',
+                     border: '1px solid var(--der-border)',
+                     borderRadius: 4,
+                     fontSize: 10, lineHeight: 1.4,
+                     whiteSpace: 'pre-wrap',
+                     wordBreak: 'break-word',
+                     maxWidth: 480,
+                     maxHeight: 220,
+                     overflow: 'auto' }}>
+        {prettyJson(lastError)}
+      </pre>
+    </details>
+  );
+}
+
+/** Best-effort one-line summary of a Central response envelope.
+ *  Falls back to the raw string if parsing fails. */
+function summariseEnvelope(raw: string, bad: boolean): string {
+  try {
+    const o = JSON.parse(raw) as Record<string, unknown>;
+    const status = (o.httpStatus as string | undefined)
+                ?? (o.status as string | undefined);
+    const code = o.httpStatusCode as number | undefined;
+    const message = o.message as string | undefined;
+    const prefix = bad ? 'Rejected' : 'OK';
+    const parts: string[] = [prefix];
+    if (code) parts.push(String(code));
+    if (status && status !== 'OK') parts.push(status);
+    if (message) parts.push('· ' + message);
+    return parts.join(' ');
+  } catch {
+    return raw.length > 120 ? raw.slice(0, 117) + '…' : raw;
+  }
+}
+
+/** Pretty-print JSON for the expanded body; fallback to the raw
+ *  string if it isn't JSON. */
+function prettyJson(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
 }
