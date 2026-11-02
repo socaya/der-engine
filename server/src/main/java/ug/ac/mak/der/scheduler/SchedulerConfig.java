@@ -81,6 +81,26 @@ public class SchedulerConfig {
     }
 
     @Bean
+    public JobDetail dataPullJobDetail() {
+        return JobBuilder.newJob(DataPullJob.class)
+                .withIdentity(DataPullJob.JOB_NAME)
+                .storeDurably()
+                .requestRecovery()
+                .build();
+    }
+
+    @Bean
+    public Trigger dataPullTrigger(final JobDetail dataPullJobDetail,
+                                      @Value("${der.data.pull.cron:0 */5 * * * ?}")
+                                      final String cron) {
+        return TriggerBuilder.newTrigger()
+                .forJob(dataPullJobDetail)
+                .withIdentity(DataPullJob.JOB_NAME + "_TRIGGER")
+                .withSchedule(CronScheduleBuilder.cronSchedule(cron))
+                .build();
+    }
+
+    @Bean
     public JobDetail journalDrainJobDetail() {
         return JobBuilder.newJob(JournalDrainJob.class)
                 .withIdentity(JournalDrainJob.JOB_NAME)

@@ -1695,3 +1695,43 @@ function JsonNode({ value, depth, maxDepth, path }: {
   }
   return <span>{String(value)}</span>;
 }
+
+/** Phase 09.5 — ADR-0034 "last pulled {ago}" chip. One instance per
+ *  entity type (AGGREGATE / EVENT / TRACKER); the component fetches
+ *  /data/pull/cursors once on mount and renders the one row that
+ *  matches the current entityType scope. Silently hides when the
+ *  puller has never run (no cursor row) so fresh installs don't
+ *  stare at an empty "Last pulled —" placeholder. */
+export function LastPulledChip(
+  { entityType }: { entityType: 'AGGREGATE' | 'EVENT' | 'TRACKER' },
+): JSX.Element | null {
+  const [row, setRow] = useState<edgeApi.DataPullCursorRow | null>(null);
+  useEffect(() => {
+    let alive = true;
+    edgeApi.fetchDataPullCursors()
+      .then((r) => {
+        if (!alive) return;
+        const match = r.cursors.find((c) => c.entityType === entityType);
+        setRow(match ?? null);
+      })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [entityType]);
+  if (!row || !row.lastPulledAt) return null;
+  const warn = row.consecutiveFailures > 0;
+  return (
+    <span data-test={`last-pulled-${entityType.toLowerCase()}`}
+          title={row.lastError
+            ? `Last pull error: ${row.lastError}`
+            : `Watermark advanced at ${row.lastPulledAt}`}
+          style={{ color: warn ? 'var(--der-warning-ink)' : 'var(--der-ink-500)' }}>
+      Last pulled{' '}
+      <strong style={{ color: warn ? 'var(--der-warning-ink)' : 'var(--der-ink-900)' }}>
+        {fmtAgo(row.lastPulledAt)}
+      </strong>
+      {warn && (
+        <> · <span>{row.consecutiveFailures} failure{row.consecutiveFailures === 1 ? '' : 's'}</span></>
+      )}
+    </span>
+  );
+}

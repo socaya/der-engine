@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
-  Breadcrumbs, Panel, ScopedFilterChip, SyncStatusBar,
+  Breadcrumbs, LastPulledChip, Panel, ScopedFilterChip, SyncStatusBar,
   fmtAgo, usePaged, TablePager,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -151,6 +151,7 @@ export function DataTracker(): JSX.Element {
             <span>Captured locally first — TEIs, enrolments and
               tracker-stage events, synced to DHIS2 Central by the
               sync worker.</span>
+            {' '}<LastPulledChip entityType="TRACKER" />
           </>
         }
         actions={

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
-  Breadcrumbs, Panel, ScopedFilterChip, SyncStatusBar,
+  Breadcrumbs, LastPulledChip, Panel, ScopedFilterChip, SyncStatusBar,
   fmtAgo, usePaged, TablePager,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -127,6 +127,7 @@ export function DataEvents(): JSX.Element {
             <span>Captured locally first — synced to DHIS2 Central
               by the sync worker. Includes single-events and
               tracker-program events.</span>
+            {' '}<LastPulledChip entityType="EVENT" />
           </>
         }
         actions={

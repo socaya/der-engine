@@ -989,6 +989,22 @@ export function fetchLastJournalPurge():
   return request('GET', '/edge-api/v1/admin/ops/journal/last-purge');
 }
 
+/** Phase 09.5 — ADR-0034 inbound-pull cursors. One row per
+ *  (entity_type, org_unit_uid). lastPulledAt is null before the
+ *  puller has ever advanced. */
+export interface DataPullCursorRow {
+  entityType: 'AGGREGATE' | 'EVENT' | 'TRACKER';
+  orgUnitUid: string;
+  lastPulledAt: string | null;
+  lastCursor: string | null;
+  consecutiveFailures: number;
+  lastError: string | null;
+  updatedAt: string;
+}
+export function fetchDataPullCursors(): Promise<{ cursors: DataPullCursorRow[] }> {
+  return request('GET', '/edge-api/v1/data/pull/cursors');
+}
+
 /** §2.3.105 R-Y — bulk force-retry a specific list of operation ids
  *  (used by the per-stream Retry button inside the TEI drawer). The
  *  server silently skips ids already in terminal/pending states;
