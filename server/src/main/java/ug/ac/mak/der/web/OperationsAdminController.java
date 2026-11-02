@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import ug.ac.mak.der.orgunit.ScopeAuditService;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.EdgeUser;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
@@ -64,18 +65,22 @@ public class OperationsAdminController {
     private final ObjectMapper mapper;
     private final Clock clock;
 
+    private final ObjectProvider<ScopeAuditService> scopeAudit;
+
     public OperationsAdminController(final EdgeUserRepository users,
                                       final ObjectProvider<BackupRepository> backups,
                                       final ObjectProvider<OperationJournalRepository> journal,
                                       final SecurityAuditRepository audit,
                                       final ObjectMapper mapper,
-                                      final Clock clock) {
+                                      final Clock clock,
+                                      final ObjectProvider<ScopeAuditService> scopeAudit) {
         this.users = Objects.requireNonNull(users, "users");
         this.backups = Objects.requireNonNull(backups, "backups");
         this.journal = Objects.requireNonNull(journal, "journal");
         this.audit = Objects.requireNonNull(audit, "audit");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.scopeAudit = Objects.requireNonNull(scopeAudit, "scopeAudit");
     }
 
     /** FR-15-06: user scope viewer. */
@@ -462,6 +467,47 @@ public class OperationsAdminController {
     public record RetryBatchRequest(
             @com.fasterxml.jackson.annotation.JsonProperty("operationIds")
                 java.util.List<String> operationIds) { }
+
+    /**
+     * §2.3.115 R-AL — scope audit: locally-stored rows whose
+     * {@code org_unit_uid} is outside the edge's bound OU subtree.
+     *
+     * <p>Returns:
+     * <ul>
+     *   <li>{@code boundOrgUnitId} / {@code boundOrgUnitPath} —
+     *       the current binding (null when unbound; in that case
+     *       counts + samples are both empty).</li>
+     *   <li>{@code total} + {@code countsByEntityType} — row counts
+     *       outside the subtree, bucketed by {@link
+     *       ug.ac.mak.der.workflows.aggregate.OperationJournalEntry
+     *       .EntityType}.</li>
+     *   <li>{@code samplesByEntityType} — up to {@code sampleLimit}
+     *       example rows per type (default 5, max 50).</li>
+     * </ul>
+     */
+    @GetMapping(path = "/scope/audit")
+    public ResponseEntity<Map<String, Object>> scopeAuditSnapshot(
+            final Authentication authentication,
+            @RequestParam(value = "sampleLimit", defaultValue = "5") final int sampleLimit) {
+        if (!(authentication instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final ScopeAuditService svc = scopeAudit.getIfAvailable();
+        if (svc == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "code", "SCOPE_AUDIT_UNAVAILABLE",
+                    "message", "scope audit requires an orgUnit binding service"));
+        }
+        final int capped = Math.max(0, Math.min(sampleLimit, 50));
+        final var snap = svc.audit(capped);
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("boundOrgUnitId",    snap.boundOrgUnitId());
+        body.put("boundOrgUnitPath",  snap.boundOrgUnitPath());
+        body.put("total",             snap.total());
+        body.put("countsByEntityType", snap.countsByEntityType());
+        body.put("samplesByEntityType", snap.samplesByEntityType());
+        return ResponseEntity.ok(body);
+    }
 
     /**
      * FR-01-10: decommission — disable all other users, request a

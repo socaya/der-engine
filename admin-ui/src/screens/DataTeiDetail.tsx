@@ -4,6 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import {
   Breadcrumbs, Panel, SyncStatusBar,
   fmtAgo, fmtDate,
+  isInEdgeOrgUnitScope, OutOfScopeBanner,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { UiIcon } from '../components/UiIcon';
@@ -60,16 +61,11 @@ export function DataTeiDetail(): JSX.Element {
   const t = detail.tei;
   const attrEntries = Object.entries(attrs);
 
-  // §2.3.114 R-AK — OU-scope check: is this TEI's org unit inside
-  // the edge's bound subtree? The server's EdgeOrgUnitBinding carries
-  // a `/`-joined path; a row's OU is in-scope if it appears in that
-  // path (or if the edge is unbound — then every row is in-scope).
+  // §2.3.114 R-AK → §2.3.115 R-AL shared helpers.
   const edgeOuId   = edgeOu?.orgUnitId   ?? null;
   const edgeOuName = edgeOu?.orgUnitDisplayName ?? null;
   const edgeOuPath = edgeOu?.orgUnitPath ?? null;
-  const inScope    = !edgeOuId
-                 || !edgeOuPath
-                 || edgeOuPath.split('/').some((seg) => seg === t.orgUnitUid);
+  const inScope    = isInEdgeOrgUnitScope(t.orgUnitUid, edgeOuPath);
   const scopeTone: 'info' | 'warning' = inScope ? 'info' : 'warning';
 
   return (
@@ -133,29 +129,12 @@ export function DataTeiDetail(): JSX.Element {
       />
 
       {!inScope && (
-        <div data-test="tei-out-of-scope"
-             style={{
-               padding: '10px 14px', marginBottom: 10,
-               background: 'var(--der-warning-wash, #fff7ed)',
-               border: '1px solid var(--der-warning-ink, #c2410c)',
-               borderRadius: 6, fontSize: 12,
-               color: 'var(--der-ink-900)',
-             }}>
-          <strong>Out-of-scope record.</strong>{' '}
-          This TEI is captured at <strong>{t.orgUnitName ?? t.orgUnitUid}</strong>
-          {' '}({t.orgUnitUid}), which is outside the OU this edge is
-          bound to{' '}
-          (<strong>{edgeOuName ?? edgeOuId}</strong>
-          {edgeOuId ? ` · ${edgeOuId}` : ''}).{' '}
-          Possible causes: data from a previous OU binding, a referral
-          ingested before the current binding, or a bypass of the OU
-          scope interceptor. The row is still shown so operators can
-          triage; it will keep syncing to Central with its stored OU.{' '}
-          <Link to="/integration/organisation-unit"
-                 data-cross-module="Settings">
-            Change edge OU binding →
-          </Link>
-        </div>
+        <OutOfScopeBanner
+          rowOrgUnit={t.orgUnitUid}
+          rowOrgUnitName={t.orgUnitName}
+          edgeOuId={edgeOuId}
+          edgeOuName={edgeOuName}
+          entityKindLabel="TEI" />
       )}
 
       <Panel title="Tracked entity">

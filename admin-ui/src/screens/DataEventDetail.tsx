@@ -4,10 +4,12 @@ import * as edgeApi from '../api/edgeApi';
 import {
   Breadcrumbs, Panel, SyncStatusBar,
   fmtDate, fmtAgo,
+  isInEdgeOrgUnitScope, OutOfScopeBanner,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { UiIcon } from '../components/UiIcon';
 import { DefRow, WorkflowRunLink, JournalPanel } from './DataAggregateDetail';
+import { useOrgUnit } from '../components/OrgUnitContext';
 
 /**
  * §2.3.92 R-C/2.2 — `/data/events/:eventId`: full row detail for one
@@ -19,6 +21,7 @@ export function DataEventDetail(): JSX.Element {
   const [detail, setDetail]
     = useState<edgeApi.LocalEventDetail | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const { binding: edgeOu } = useOrgUnit();
 
   useEffect(() => {
     edgeApi.getLocalEvent(eventId)
@@ -44,6 +47,13 @@ export function DataEventDetail(): JSX.Element {
   }
 
   const r = detail.row;
+  // §2.3.115 R-AL — scope-check mirror.
+  const edgeOuId   = edgeOu?.orgUnitId   ?? null;
+  const edgeOuName = edgeOu?.orgUnitDisplayName ?? null;
+  const edgeOuPath = edgeOu?.orgUnitPath ?? null;
+  const inScope    = isInEdgeOrgUnitScope(r.orgUnitUid, edgeOuPath);
+  const scopeTone: 'success' | 'info' | 'warning' = !inScope ? 'warning'
+      : r.status === 'COMPLETED' ? 'success' : 'info';
   return (
     <div className="ea-screen" data-test="data-event-detail">
       <Breadcrumbs items={[
@@ -54,9 +64,9 @@ export function DataEventDetail(): JSX.Element {
                    : r.eventId.slice(0, 8) },
       ]} />
       <SyncStatusBar
-        tone={r.status === 'COMPLETED' ? 'success' : 'info'}
+        tone={scopeTone}
         title={r.programStageName ?? r.programName ?? 'Event'}
-        statusLabel={r.status}
+        statusLabel={inScope ? r.status : 'Out of bound OU'}
         subtitle={
           <>
             <span>Local event</span>
@@ -68,6 +78,14 @@ export function DataEventDetail(): JSX.Element {
             )}
             <span>·</span>
             <span>{r.orgUnitName ?? r.orgUnitUid}</span>
+            {!inScope && (
+              <>
+                <span>·</span>
+                <span style={{ color: 'var(--der-warning-ink)' }}>
+                  Edge is bound to <strong>{edgeOuName ?? edgeOuId}</strong>
+                </span>
+              </>
+            )}
           </>
         }
         actions={
@@ -78,6 +96,15 @@ export function DataEventDetail(): JSX.Element {
           </Link>
         }
       />
+
+      {!inScope && (
+        <OutOfScopeBanner
+          rowOrgUnit={r.orgUnitUid}
+          rowOrgUnitName={r.orgUnitName}
+          edgeOuId={edgeOuId}
+          edgeOuName={edgeOuName}
+          entityKindLabel="event" />
+      )}
 
       <Panel title="Row">
         <dl className="ea-def-list">

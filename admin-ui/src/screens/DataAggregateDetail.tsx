@@ -4,9 +4,11 @@ import * as edgeApi from '../api/edgeApi';
 import {
   Breadcrumbs, Panel, SyncStatusBar,
   fmtDate, fmtAgo,
+  isInEdgeOrgUnitScope, OutOfScopeBanner,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { UiIcon } from '../components/UiIcon';
+import { useOrgUnit } from '../components/OrgUnitContext';
 
 /**
  * §2.3.92 R-C/2.2 — `/data/aggregate/:valueId`: full row detail for
@@ -20,6 +22,7 @@ export function DataAggregateDetail(): JSX.Element {
   const [detail, setDetail]
     = useState<edgeApi.LocalAggregateDetail | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const { binding: edgeOu } = useOrgUnit();
 
   useEffect(() => {
     edgeApi.getLocalAggregate(valueId)
@@ -45,6 +48,11 @@ export function DataAggregateDetail(): JSX.Element {
   }
 
   const r = detail.row;
+  // §2.3.115 R-AL — same scope-check pattern as DataTeiDetail.
+  const edgeOuId   = edgeOu?.orgUnitId   ?? null;
+  const edgeOuName = edgeOu?.orgUnitDisplayName ?? null;
+  const edgeOuPath = edgeOu?.orgUnitPath ?? null;
+  const inScope    = isInEdgeOrgUnitScope(r.orgUnitUid, edgeOuPath);
   return (
     <div className="ea-screen" data-test="data-aggregate-detail">
       <Breadcrumbs items={[
@@ -53,9 +61,9 @@ export function DataAggregateDetail(): JSX.Element {
         { label: r.dataElementName ?? r.dataElementUid },
       ]} />
       <SyncStatusBar
-        tone="info"
+        tone={inScope ? 'info' : 'warning'}
         title={r.dataElementName ?? 'Aggregate value'}
-        statusLabel={`v${r.valueVersion}`}
+        statusLabel={inScope ? `v${r.valueVersion}` : 'Out of bound OU'}
         subtitle={
           <>
             <span>Local aggregate value</span>
@@ -63,6 +71,14 @@ export function DataAggregateDetail(): JSX.Element {
             <span>{r.periodIso}</span>
             <span>·</span>
             <span>{r.orgUnitName ?? r.orgUnitUid}</span>
+            {!inScope && (
+              <>
+                <span>·</span>
+                <span style={{ color: 'var(--der-warning-ink)' }}>
+                  Edge is bound to <strong>{edgeOuName ?? edgeOuId}</strong>
+                </span>
+              </>
+            )}
           </>
         }
         actions={
@@ -73,6 +89,15 @@ export function DataAggregateDetail(): JSX.Element {
           </Link>
         }
       />
+
+      {!inScope && (
+        <OutOfScopeBanner
+          rowOrgUnit={r.orgUnitUid}
+          rowOrgUnitName={r.orgUnitName}
+          edgeOuId={edgeOuId}
+          edgeOuName={edgeOuName}
+          entityKindLabel="data value" />
+      )}
 
       <Panel title="Row">
         <dl className="ea-def-list">

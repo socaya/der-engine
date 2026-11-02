@@ -657,6 +657,66 @@ export const JOURNAL_ENTITY_TYPES: ReadonlyArray<string> = [
   'PROGRAM_STAGE_EVENT',
 ];
 
+/** §2.3.115 R-AL — row-vs-binding scope check.
+ *
+ *  A row is in-scope when its {@code orgUnitUid} is referenced by any
+ *  segment of the edge's bound-OU path (which is a `/`-joined chain
+ *  like {@code /root/region/district/facility}). Unbound edges — or
+ *  edges without a resolved path — treat every row as in-scope.
+ *
+ *  Shared between {@code DataTeiDetail}, {@code DataEventDetail},
+ *  {@code DataAggregateDetail}, and the Dashboard scope-audit tile. */
+export function isInEdgeOrgUnitScope(
+  rowOrgUnitUid: string | null | undefined,
+  edgeOrgUnitPath: string | null | undefined,
+): boolean {
+  if (!edgeOrgUnitPath) return true;
+  if (!rowOrgUnitUid)   return true;
+  return edgeOrgUnitPath.split('/').some((seg) => seg === rowOrgUnitUid);
+}
+
+/** §2.3.115 R-AL — the labelled warning banner rendered when a detail
+ *  page's row sits outside the edge's bound OU subtree. Factored out
+ *  so every row-detail screen shows the same copy / affordance. */
+export function OutOfScopeBanner(
+  { rowOrgUnit, rowOrgUnitName, edgeOuName, edgeOuId,
+    entityKindLabel }:
+    {
+      rowOrgUnit: string;
+      rowOrgUnitName: string | null;
+      edgeOuName: string | null;
+      edgeOuId: string | null;
+      entityKindLabel: string;    // "TEI" | "event" | "data value"
+    },
+): JSX.Element {
+  return (
+    <div data-test="row-out-of-scope"
+         style={{
+           padding: '10px 14px', marginBottom: 10,
+           background: 'var(--der-warning-wash, #fff7ed)',
+           border: '1px solid var(--der-warning-ink, #c2410c)',
+           borderRadius: 6, fontSize: 12,
+           color: 'var(--der-ink-900)',
+         }}>
+      <strong>Out-of-scope record.</strong>{' '}
+      This {entityKindLabel} is captured at
+      {' '}<strong>{rowOrgUnitName ?? rowOrgUnit}</strong>
+      {' '}({rowOrgUnit}), which is outside the OU this edge is bound
+      to{' '}
+      (<strong>{edgeOuName ?? edgeOuId}</strong>
+      {edgeOuId ? ` · ${edgeOuId}` : ''}).{' '}
+      Possible causes: data from a previous OU binding, a referral
+      ingested before the current binding, or a bypass of the OU
+      scope interceptor. The row is still shown so operators can
+      triage; it will keep syncing to Central with its stored OU.{' '}
+      <Link to="/integration/organisation-unit"
+             data-cross-module="Settings">
+        Change edge OU binding →
+      </Link>
+    </div>
+  );
+}
+
 type EntityIconId = import('../components/UiIcon').UiIconId;
 
 const ENTITY_TYPE_ICON: Readonly<Record<string, EntityIconId>> = {

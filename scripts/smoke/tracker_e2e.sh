@@ -31,7 +31,10 @@ PG_DB="${PG_DB:-der}"
 PG_HOST="${PG_HOST:-localhost}"
 
 TE_TYPE="${TE_TYPE:-mxs9pVJzjeG}"
-ORG_UNIT="${ORG_UNIT:-nKz5rXN02cd}"
+# §2.3.115 R-AL — ORG_UNIT defaults to the edge's bound OU (read
+# below after sign-in). Setting ORG_UNIT in env overrides and skips
+# the auto-detect, so operators can still deliberately smoke an
+# out-of-scope OU to exercise the warning banners.
 POLL_MAX=60
 POLL_INTERVAL=1
 
@@ -49,6 +52,20 @@ http=$(curl -sk -c "$cookie_jar" -o /dev/null -w '%{http_code}' \
   --data-raw "{\"username\":\"$DER_USER\",\"password\":\"$DER_PASS\"}" \
   "$DER_URL/edge-api/v1/auth/sign-in")
 [[ "$http" == "200" ]] || die "sign-in returned HTTP $http"
+
+# ---------- 1a. Resolve ORG_UNIT from the edge's bound OU ----------
+# Only auto-detect if the operator didn't set ORG_UNIT in env.
+if [[ -z "${ORG_UNIT:-}" ]]; then
+  bound_json=$(curl -sk -b "$cookie_jar" "$DER_URL/edge-api/v1/system/org-unit")
+  bound_id=$(printf '%s' "$bound_json" \
+                | sed -nE 's/.*"orgUnitId":"([^"]+)".*/\1/p')
+  if [[ -n "$bound_id" ]]; then
+    ORG_UNIT="$bound_id"
+    log "ORG_UNIT auto-detected from bound OU → $ORG_UNIT"
+  else
+    die "ORG_UNIT not set and edge is unbound; set ORG_UNIT=<uid> explicitly"
+  fi
+fi
 
 # ---------- 2. POST a tracked entity ----------
 TEI_UID="SMOKE$(date +%s | tr -d '\n' | tail -c 6)"
