@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import ug.ac.mak.der.dhis2.Dhis2CompatibilityGuard;
 import ug.ac.mak.der.dhis2.Dhis2ReferenceClient;
 import ug.ac.mak.der.dhis2.Dhis2Version;
+import ug.ac.mak.der.network.CentralReachabilityGate;
 
 @WebMvcTest(Dhis2CompatibilityController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -25,6 +26,10 @@ class Dhis2CompatibilityControllerTest {
 
     @MockBean
     private Dhis2CompatibilityGuard guard;
+    @MockBean
+    private Dhis2ReferenceClient dhis2;
+    @MockBean
+    private CentralReachabilityGate reachability;
 
     @Test
     void okResponseIncludesObservedAndPinnedVersions() throws Exception {

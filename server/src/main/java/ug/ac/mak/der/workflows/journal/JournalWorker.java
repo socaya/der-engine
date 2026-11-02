@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import ug.ac.mak.der.network.CentralReachabilityGate;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 
@@ -29,6 +30,8 @@ public class JournalWorker {
     private final JournalPublisher publisher;
     private final JdbcTemplate jdbc;
     private final JournalWorkerConfig.JournalWorkerSettings settings;
+    private final CentralReachabilityGate reachability;
+    private volatile int skippedUnreachableTotal;
 
     private volatile Instant lastTick;
     private volatile int lastBatchSize;
@@ -36,11 +39,13 @@ public class JournalWorker {
     public JournalWorker(final OperationJournalRepository journal,
                           final JournalPublisher publisher,
                           final JdbcTemplate jdbc,
-                          final JournalWorkerConfig.JournalWorkerSettings settings) {
+                          final JournalWorkerConfig.JournalWorkerSettings settings,
+                          final CentralReachabilityGate reachability) {
         this.journal = Objects.requireNonNull(journal, "journal");
         this.publisher = Objects.requireNonNull(publisher, "publisher");
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.settings = Objects.requireNonNull(settings, "settings");
+        this.reachability = Objects.requireNonNull(reachability, "reachability");
     }
 
     public DrainOutcome drainBatch() {
@@ -48,6 +53,18 @@ public class JournalWorker {
         if (!settings.enabled().get()) {
             lastBatchSize = 0;
             return new DrainOutcome(0, 0, 0, 0, 0, Map.of(), List.of(), "disabled");
+        }
+        /* Phase 08 — reachability gate. When central is OFFLINE,
+         * short-circuit before building a batch so we don't march
+         * dozens of PENDING rows through IN_FLIGHT → RETRYABLE each
+         * tick, inflating attempt counts for the duration of the
+         * outage. Operators and metrics see "skipped: unreachable"
+         * instead of noise. */
+        if (!reachability.shouldDrain()) {
+            lastBatchSize = 0;
+            skippedUnreachableTotal++;
+            return new DrainOutcome(0, 0, 0, 0, 0, Map.of(), List.of(),
+                    "skipped: central unreachable");
         }
         final List<OperationJournalEntry> pending =
                 journal.findPendingReadyToDrain(settings.batchSize());
@@ -112,6 +129,13 @@ public class JournalWorker {
 
     public boolean enabled() {
         return settings.enabled().get();
+    }
+
+    /** Phase 08 — count of drain ticks short-circuited because the
+     *  reachability gate reported OFFLINE. Surfaced on the admin UI
+     *  worker-health page + exported as a counter metric. */
+    public int skippedUnreachableTotal() {
+        return skippedUnreachableTotal;
     }
 
     private void flipToInFlight(final java.util.UUID id) {

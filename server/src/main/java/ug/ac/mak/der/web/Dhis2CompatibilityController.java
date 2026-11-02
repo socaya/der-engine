@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ug.ac.mak.der.dhis2.Dhis2CompatibilityGuard;
 import ug.ac.mak.der.dhis2.Dhis2ReferenceClient;
 import ug.ac.mak.der.dhis2.Dhis2Version;
+import ug.ac.mak.der.network.CentralReachabilityGate;
 
 /**
  * Phase 01 diagnostic endpoint. Returns the current state of the DHIS2
@@ -29,6 +30,7 @@ public class Dhis2CompatibilityController {
 
     private final Dhis2CompatibilityGuard guard;
     private final Dhis2ReferenceClient dhis2;
+    private final CentralReachabilityGate reachability;
 
     /** Cached last ping result. Shared across threads via AtomicReference so a
      *  burst of UI polls doesn't fan out to Central — a single stored probe
@@ -37,9 +39,11 @@ public class Dhis2CompatibilityController {
     private static final long PING_TTL_MS = 10_000L;
 
     public Dhis2CompatibilityController(final Dhis2CompatibilityGuard guard,
-                                         final Dhis2ReferenceClient dhis2) {
+                                         final Dhis2ReferenceClient dhis2,
+                                         final CentralReachabilityGate reachability) {
         this.guard = guard;
         this.dhis2 = dhis2;
+        this.reachability = reachability;
     }
 
     @GetMapping("/compatibility")
@@ -102,6 +106,10 @@ public class Dhis2CompatibilityController {
         final PingSnapshot snap = new PingSnapshot(reachable, observedVersion,
                 rttMs, Instant.now().toString(), System.currentTimeMillis(), message);
         lastPing.set(snap);
+        /* Phase 08 — feed the reachability gate so the sync drain,
+         * UI topbar and metrics all read from a single source of
+         * truth instead of racing each other with stale snapshots. */
+        reachability.observe(reachable);
         return ResponseEntity.ok(snap);
     }
 
@@ -113,6 +121,31 @@ public class Dhis2CompatibilityController {
             @JsonProperty(access = JsonProperty.Access.WRITE_ONLY) long probedAtMillis,
             @JsonProperty("message") String message
     ) {}
+
+    /** Phase 08 — current authoritative reachability state + the
+     *  consecutive-sample counters that drove the last transition.
+     *  Admin UI uses this to render the topbar badge in the correct
+     *  tone (success / warning / danger) and to show "offline since
+     *  X" when draining is paused. */
+    @GetMapping("/reachability")
+    public ResponseEntity<ReachabilityStatus> reachabilityStatus() {
+        final CentralReachabilityGate.Snapshot s = reachability.current();
+        return ResponseEntity.ok(new ReachabilityStatus(
+                s.state().name(),
+                s.since().toString(),
+                s.consecutiveSuccess(),
+                s.consecutiveFailure(),
+                reachability.shouldDrain()
+        ));
+    }
+
+    public record ReachabilityStatus(
+            @JsonProperty("state") String state,
+            @JsonProperty("since") String since,
+            @JsonProperty("consecutiveSuccess") int consecutiveSuccess,
+            @JsonProperty("consecutiveFailure") int consecutiveFailure,
+            @JsonProperty("drainsAllowed") boolean drainsAllowed
+    ) { }
 
     public record CompatibilityStatus(
             @JsonProperty("status") String status,

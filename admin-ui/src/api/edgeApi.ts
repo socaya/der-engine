@@ -323,6 +323,20 @@ export function dhis2Ping(): Promise<PingSnapshot> {
   return request<PingSnapshot>('GET', '/edge-api/v1/dhis2/ping');
 }
 
+/** Phase 08 — authoritative central reachability state. Replaces the
+ *  "advisory" PingSnapshot for anything that needs a stable signal
+ *  (sync-drain gate, topbar badge tone, operator "offline since X"). */
+export interface ReachabilityStatus {
+  state: 'REACHABLE' | 'DEGRADED' | 'OFFLINE';
+  since: string;
+  consecutiveSuccess: number;
+  consecutiveFailure: number;
+  drainsAllowed: boolean;
+}
+export function reachabilityStatus(): Promise<ReachabilityStatus> {
+  return request<ReachabilityStatus>('GET', '/edge-api/v1/dhis2/reachability');
+}
+
 export function compatHistory(limit = 20): Promise<{ snapshots: CompatSnapshot[] }> {
   return request('GET', `/edge-api/v1/compat/history?limit=${limit}`);
 }
