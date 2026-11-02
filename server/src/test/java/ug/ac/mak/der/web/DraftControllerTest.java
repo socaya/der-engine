@@ -30,8 +30,10 @@ import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeSession;
 import ug.ac.mak.der.security.EdgeUser;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
+import ug.ac.mak.der.workflows.aggregate.AggregateDataValueService;
 import ug.ac.mak.der.workflows.drafts.Draft;
 import ug.ac.mak.der.workflows.drafts.DraftRepository;
+import ug.ac.mak.der.workflows.events.EventService;
 
 @WebMvcTest(DraftController.class)
 @ActiveProfiles("test")
@@ -40,6 +42,8 @@ class DraftControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean DraftRepository drafts;
+    @MockBean AggregateDataValueService aggregates;
+    @MockBean EventService events;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -172,5 +176,122 @@ class DraftControllerTest {
         when(drafts.delete(own.draftId(), uid)).thenReturn(1);
         mockMvc.perform(delete("/edge-api/v1/drafts/" + own.draftId()).with(as(uid)))
                 .andExpect(status().isNoContent());
+    }
+
+    // -------- Phase 07.1 — publish ----------
+
+    @Test
+    void publishUnauth() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/drafts/" + UUID.randomUUID() + "/publish"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void publishNotFound() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        when(drafts.findById(any(UUID.class))).thenReturn(Optional.empty());
+        mockMvc.perform(post("/edge-api/v1/drafts/" + UUID.randomUUID() + "/publish")
+                        .with(as(uid)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void publishForeignReturnsNotFound() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final Draft foreign = sample(UUID.randomUUID());
+        when(drafts.findById(foreign.draftId())).thenReturn(Optional.of(foreign));
+        mockMvc.perform(post("/edge-api/v1/drafts/" + foreign.draftId() + "/publish")
+                        .with(as(uid)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void publishUnpublishableKindRejected() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final Draft d = new Draft(UUID.randomUUID(), uid, "tracker-tei",
+                "T", mapper.createObjectNode(),
+                Instant.parse("2026-10-22T00:00:00Z"),
+                Instant.parse("2026-10-22T00:00:00Z"));
+        when(drafts.findById(d.draftId())).thenReturn(Optional.of(d));
+        mockMvc.perform(post("/edge-api/v1/drafts/" + d.draftId() + "/publish")
+                        .with(as(uid)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("DRAFT_KIND_NOT_PUBLISHABLE"));
+    }
+
+    @Test
+    void publishAggregateRejectedWhenPayloadMissingInputsArray() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final Draft d = new Draft(UUID.randomUUID(), uid, "aggregate",
+                "T", mapper.createObjectNode(), // {} — no "inputs"
+                Instant.parse("2026-10-22T00:00:00Z"),
+                Instant.parse("2026-10-22T00:00:00Z"));
+        when(drafts.findById(d.draftId())).thenReturn(Optional.of(d));
+        mockMvc.perform(post("/edge-api/v1/drafts/" + d.draftId() + "/publish")
+                        .with(as(uid)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("DRAFT_PAYLOAD_INVALID"));
+    }
+
+    @Test
+    void publishAggregateConsumesDraftOnFullAcceptance() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final com.fasterxml.jackson.databind.node.ObjectNode payload = mapper.createObjectNode();
+        payload.putArray("inputs").addObject()
+                .put("dataElementUid", "de123")
+                .put("orgUnitUid", "ou42")
+                .put("periodIso", "2026W44")
+                .put("categoryOptionComboUid", "coc1")
+                .put("attributeOptionComboUid", "aoc1")
+                .put("value", "7")
+                .put("comment", "")
+                .put("dataSetUid", "ds1");
+        final Draft d = new Draft(UUID.randomUUID(), uid, "aggregate",
+                "weekly totals", payload,
+                Instant.parse("2026-10-22T00:00:00Z"),
+                Instant.parse("2026-10-22T00:00:00Z"));
+        when(drafts.findById(d.draftId())).thenReturn(Optional.of(d));
+        when(aggregates.submit(any(), any(), any(), any())).thenReturn(
+                new AggregateDataValueService.ImportSummary(1, 0, List.of()));
+        mockMvc.perform(post("/edge-api/v1/drafts/" + d.draftId() + "/publish")
+                        .with(as(uid)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imported").value(1))
+                .andExpect(jsonPath("$.ignored").value(0))
+                .andExpect(jsonPath("$.draftConsumed").value(true));
+        // deletion delegated to repo on full acceptance
+        org.mockito.Mockito.verify(drafts).delete(d.draftId(), uid);
+    }
+
+    @Test
+    void publishAggregateKeepsDraftWhenPartialReject() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final com.fasterxml.jackson.databind.node.ObjectNode payload = mapper.createObjectNode();
+        payload.putArray("inputs").addObject()
+                .put("dataElementUid", "deBAD")
+                .put("orgUnitUid", "ou42")
+                .put("periodIso", "2026W44")
+                .put("categoryOptionComboUid", "coc1")
+                .put("attributeOptionComboUid", "aoc1")
+                .put("value", "7")
+                .put("comment", "")
+                .put("dataSetUid", "ds1");
+        final Draft d = new Draft(UUID.randomUUID(), uid, "aggregate",
+                "weekly totals", payload,
+                Instant.parse("2026-10-22T00:00:00Z"),
+                Instant.parse("2026-10-22T00:00:00Z"));
+        when(drafts.findById(d.draftId())).thenReturn(Optional.of(d));
+        when(aggregates.submit(any(), any(), any(), any())).thenReturn(
+                new AggregateDataValueService.ImportSummary(0, 1, List.of(
+                        new AggregateDataValueService.Conflict("deBAD|ou42|2026W44",
+                                "data element not in mirror"))));
+        mockMvc.perform(post("/edge-api/v1/drafts/" + d.draftId() + "/publish")
+                        .with(as(uid)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imported").value(0))
+                .andExpect(jsonPath("$.ignored").value(1))
+                .andExpect(jsonPath("$.draftConsumed").value(false));
+        org.mockito.Mockito.verify(drafts, org.mockito.Mockito.never())
+                .delete(any(UUID.class), any(UUID.class));
     }
 }

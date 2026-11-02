@@ -2005,6 +2005,23 @@ export function CapDrafts(): JSX.Element {
     try { await edgeApi.deleteDraft(id); await reload(); }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
+  /* Phase 07.1 — publish a draft into the outbound journal. Only
+   * draft kinds "aggregate" and "event" are publishable server-side;
+   * other kinds return DRAFT_KIND_NOT_PUBLISHABLE which we surface
+   * as a non-blocking error chip. */
+  async function publish(id: string, kind: string): Promise<void> {
+    try {
+      const r = await edgeApi.publishDraft(id);
+      await reload();
+      if (!r.draftConsumed) {
+        setErr(`Draft kept — ${r.conflicts.length} row${r.conflicts.length === 1 ? '' : 's'} rejected`);
+      } else {
+        setErr(null);
+      }
+    } catch (e) {
+      setErr(`Publish failed (${kind}): ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
   if (err && !rows) return <ErrorBlock title="Drafts load failed" testId="err-drafts-load-failed">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
   return (
@@ -2034,7 +2051,7 @@ export function CapDrafts(): JSX.Element {
         </EmptyBlock>
       ) : (
         <Panel title={`${rows.length} draft${rows.length === 1 ? '' : 's'}`}>
-          <DraftsTable rows={rows} remove={remove} />
+          <DraftsTable rows={rows} remove={remove} publish={publish} />
         </Panel>
       )}
     </div>
@@ -2042,7 +2059,11 @@ export function CapDrafts(): JSX.Element {
 }
 
 function DraftsTable(
-  { rows, remove }: { rows: ReadonlyArray<edgeApi.DraftRow>; remove: (id: string) => Promise<unknown> }
+  { rows, remove, publish }: {
+    rows: ReadonlyArray<edgeApi.DraftRow>;
+    remove: (id: string) => Promise<unknown>;
+    publish: (id: string, kind: string) => Promise<unknown>;
+  }
 ): JSX.Element {
   const paged = usePaged(rows, 25);
   return (
@@ -2063,7 +2084,16 @@ function DraftsTable(
                 {humaniseState(d.kind)}
               </span></td>
               <td>{d.title ?? <span className="ea-text-muted">Untitled draft</span>}</td>
-              <td>
+              <td style={{ display: 'flex', gap: 6 }}>
+                {(d.kind === 'aggregate' || d.kind === 'event') && (
+                  <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                          data-test={`draft-publish-${d.draftId}`}
+                          onClick={() => {
+                            publish(d.draftId, d.kind).catch(() => undefined);
+                          }}>
+                    Publish
+                  </button>
+                )}
                 <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
                         onClick={() => {
                           confirmThenRun(

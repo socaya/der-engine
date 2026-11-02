@@ -273,6 +273,22 @@ export function deleteDraft(draftId: string): Promise<void> {
   return request<void>('DELETE', `/edge-api/v1/drafts/${draftId}`);
 }
 
+/** Phase 07.1 — publish a draft into the outbound journal. Shape of
+ *  `conflicts` matches the server's import-summary conflicts list
+ *  ({key, reason} for aggregate; {eventId, reason} for event). */
+export interface DraftPublishResult {
+  draftId: string;
+  kind: string;
+  imported: number;
+  ignored?: number;
+  conflicts: Array<Record<string, string>>;
+  draftConsumed: boolean;
+}
+export function publishDraft(draftId: string): Promise<DraftPublishResult> {
+  return request<DraftPublishResult>('POST',
+    `/edge-api/v1/drafts/${encodeURIComponent(draftId)}/publish`);
+}
+
 // ---- Admin-ui additions (EA-01..18) ----
 
 export interface CompatSnapshot {
