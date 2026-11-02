@@ -3,11 +3,13 @@ import { Link, useParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
   Breadcrumbs, Panel, SyncStatusBar,
-  fmtAgo,
+  fmtAgo, fmtDate,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { UiIcon } from '../components/UiIcon';
 import { DefRow, WorkflowRunLink } from './DataAggregateDetail';
+import { PayloadLineageDrawer } from '../components/PayloadLineageDrawer';
+import { useOrgUnit } from '../components/OrgUnitContext';
 
 /**
  * §2.3.92 R-C/2.2 — `/data/tracker/tei/:teiUid`: full detail for one
@@ -19,6 +21,8 @@ export function DataTeiDetail(): JSX.Element {
   const [detail, setDetail]
     = useState<edgeApi.LocalTeiDetail | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [lineageOpen, setLineageOpen] = useState(false);
+  const { binding: edgeOu } = useOrgUnit();
 
   useEffect(() => {
     edgeApi.getLocalTei(teiUid)
@@ -56,8 +60,24 @@ export function DataTeiDetail(): JSX.Element {
   const t = detail.tei;
   const attrEntries = Object.entries(attrs);
 
+  // §2.3.114 R-AK — OU-scope check: is this TEI's org unit inside
+  // the edge's bound subtree? The server's EdgeOrgUnitBinding carries
+  // a `/`-joined path; a row's OU is in-scope if it appears in that
+  // path (or if the edge is unbound — then every row is in-scope).
+  const edgeOuId   = edgeOu?.orgUnitId   ?? null;
+  const edgeOuName = edgeOu?.orgUnitDisplayName ?? null;
+  const edgeOuPath = edgeOu?.orgUnitPath ?? null;
+  const inScope    = !edgeOuId
+                 || !edgeOuPath
+                 || edgeOuPath.split('/').some((seg) => seg === t.orgUnitUid);
+  const scopeTone: 'info' | 'warning' = inScope ? 'info' : 'warning';
+
   return (
     <div className="ea-screen" data-test="data-tei-detail">
+      {lineageOpen && (
+        <PayloadLineageDrawer kind="tei" rowId={t.teiUid}
+                               onClose={() => setLineageOpen(false)} />
+      )}
       <Breadcrumbs items={[
         { label: 'Data',    to: '/data' },
         { label: 'Tracker', to: '/data/tracker' },
@@ -65,9 +85,9 @@ export function DataTeiDetail(): JSX.Element {
         { label: t.teiUid },
       ]} />
       <SyncStatusBar
-        tone="info"
+        tone={scopeTone}
         title={t.teTypeName ?? t.teType ?? 'Tracked entity'}
-        statusLabel={`v${t.version}`}
+        statusLabel={inScope ? `v${t.version}` : 'Out of bound OU'}
         subtitle={
           <>
             <span className="ea-mono">{t.teiUid}</span>
@@ -79,10 +99,25 @@ export function DataTeiDetail(): JSX.Element {
                 <span>Updated {fmtAgo(t.updatedAt)}</span>
               </>
             )}
+            {!inScope && (
+              <>
+                <span>·</span>
+                <span style={{ color: 'var(--der-warning-ink)' }}>
+                  Edge is bound to <strong>{edgeOuName ?? edgeOuId}</strong>
+                </span>
+              </>
+            )}
           </>
         }
         actions={
           <>
+            <button type="button"
+                     className="ea-btn ea-btn--primary ea-btn--sm"
+                     onClick={() => setLineageOpen(true)}
+                     data-test="tei-lineage-open">
+              <UiIcon icon="external" size={14} />
+              <span>Lineage</span>
+            </button>
             <Link to={`/data/tracker?teiUid=${encodeURIComponent(t.teiUid)}`}
                    className="ea-btn ea-btn--ghost ea-btn--sm">
               <UiIcon icon="tei" size={14} />
@@ -97,6 +132,32 @@ export function DataTeiDetail(): JSX.Element {
         }
       />
 
+      {!inScope && (
+        <div data-test="tei-out-of-scope"
+             style={{
+               padding: '10px 14px', marginBottom: 10,
+               background: 'var(--der-warning-wash, #fff7ed)',
+               border: '1px solid var(--der-warning-ink, #c2410c)',
+               borderRadius: 6, fontSize: 12,
+               color: 'var(--der-ink-900)',
+             }}>
+          <strong>Out-of-scope record.</strong>{' '}
+          This TEI is captured at <strong>{t.orgUnitName ?? t.orgUnitUid}</strong>
+          {' '}({t.orgUnitUid}), which is outside the OU this edge is
+          bound to{' '}
+          (<strong>{edgeOuName ?? edgeOuId}</strong>
+          {edgeOuId ? ` · ${edgeOuId}` : ''}).{' '}
+          Possible causes: data from a previous OU binding, a referral
+          ingested before the current binding, or a bypass of the OU
+          scope interceptor. The row is still shown so operators can
+          triage; it will keep syncing to Central with its stored OU.{' '}
+          <Link to="/integration/organisation-unit"
+                 data-cross-module="Settings">
+            Change edge OU binding →
+          </Link>
+        </div>
+      )}
+
       <Panel title="Tracked entity">
         <dl className="ea-def-list">
           <DefRow label="Type">
@@ -110,24 +171,62 @@ export function DataTeiDetail(): JSX.Element {
               : <span className="ea-mono">{t.teType}</span>}
           </DefRow>
           <DefRow label="Org unit">
-            {t.orgUnitName
-              ? <>
-                  <div>{t.orgUnitName}</div>
-                  <div className="ea-mono ea-text-muted" style={{ fontSize: 10 }}>
-                    {t.orgUnitUid}
-                  </div>
-                </>
-              : <span className="ea-mono">{t.orgUnitUid}</span>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div>
+                {t.orgUnitName
+                  ? <>
+                      <div>{t.orgUnitName}</div>
+                      <div className="ea-mono ea-text-muted" style={{ fontSize: 10 }}>
+                        {t.orgUnitUid}
+                      </div>
+                    </>
+                  : <span className="ea-mono">{t.orgUnitUid}</span>}
+              </div>
+              {!inScope && (
+                <span className="ea-chip ea-chip--warning"
+                      title={edgeOuName ?? edgeOuId ?? 'edge unbound'}>
+                  Out of bound OU
+                </span>
+              )}
+            </div>
           </DefRow>
-          <DefRow label="Workflow run (origin)">
+          <DefRow label="Capture workflow">
             <WorkflowRunLink
               runId={t.workflowRunId}
               name={t.workflowName}
               bk={t.workflowBusinessKey}
               kind={t.workflowKind} />
           </DefRow>
-          <DefRow label="TEI UID">
+          <DefRow label="DHIS2 UID">
             <span className="ea-mono" style={{ fontSize: 11 }}>{t.teiUid}</span>
+          </DefRow>
+          <DefRow label="Timeline">
+            <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap',
+                           fontSize: 12 }}>
+              <span>
+                <span className="ea-text-muted">Created </span>
+                <span className="ea-mono">
+                  {t.createdAt ? fmtDate(t.createdAt) : '—'}
+                </span>
+              </span>
+              <span>
+                <span className="ea-text-muted">Updated </span>
+                <span className="ea-mono">
+                  {t.updatedAt ? fmtDate(t.updatedAt) : '—'}
+                </span>
+                {t.updatedAt && (
+                  <span className="ea-text-muted">
+                    {' '}· {fmtAgo(t.updatedAt)}
+                  </span>
+                )}
+              </span>
+              <span>
+                <span className="ea-text-muted">Version </span>
+                <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {t.version}
+                </strong>
+              </span>
+            </div>
           </DefRow>
         </dl>
       </Panel>
