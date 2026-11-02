@@ -166,8 +166,13 @@ for app in admin-ui client; do
   run_step "${app}-build"     bash -c "cd ${app} && npm run --silent build"
   run_step "${app}-coverage"  bash -c "cd ${app} && npm run --silent test:coverage"
   # §2.3.112 R-AI — cross-module nav regression guard (admin-ui only).
+  # Phase 07.3 adds a companion target-resolution lint so a disclosed
+  # cross-module Link whose target has no matching <Route path> fails
+  # the gate instead of 404'ing at runtime.
   if [[ "${app}" == "admin-ui" ]]; then
     run_step "${app}-cross-module-lint" bash -c "scripts/lint/check_cross_module.sh ${app}/src"
+    run_step "${app}-cross-module-targets-lint" \
+      bash -c "python3 scripts/lint/check_cross_module_targets.py ${app}/src"
   fi
 
   [[ -d "${app}/coverage" ]] && cp -R "${app}/coverage" "${COV_DIR}/${app}/vitest"

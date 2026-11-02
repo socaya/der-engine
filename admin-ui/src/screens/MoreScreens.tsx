@@ -1101,10 +1101,18 @@ export function MockupApprovalDetail(): JSX.Element {
             {(() => {
               const et = row.entityType;
               const ref = row.entityRef;
+              /* Phase 07.3 — PROGRAM_STAGE_EVENT and EVENT share
+               * the same /data/events detail route (both keyed on
+               * event UID); AGGREGATE_DATA_VALUE's entityRef is a
+               * compound key not a valueId, so it still falls back
+               * to /data/queue/{operationId}. ENROLLMENT has no
+               * dedicated detail page today — queue fallback until
+               * Phase 10 ships an enrolment route. */
               const to
-                = et === 'EVENT'           ? `/data/events/${ref}`
-                : et === 'TRACKED_ENTITY'  ? `/data/tracker/tei/${ref}`
-                :                            `/data/queue/${row.operationId}`;
+                = et === 'EVENT'              ? `/data/events/${ref}`
+                : et === 'PROGRAM_STAGE_EVENT' ? `/data/events/${ref}`
+                : et === 'TRACKED_ENTITY'     ? `/data/tracker/tei/${ref}`
+                :                               `/data/queue/${row.operationId}`;
               const label
                 = et === 'EVENT'          ? 'Event'
                 : et === 'TRACKED_ENTITY' ? 'Tracked entity'
