@@ -24,11 +24,8 @@ function stubAll(): void {
              buildTime: 'now', dirty: false },
     apps: { installed: 0, enabled: 0, items: [] },
   } as unknown as edgeApi.SystemInfo);
-  vi.spyOn(edgeApi, 'journalStatsByType').mockResolvedValue({
-    byType: {}, totals: { pending: 0, inFlight: 0, central_accepted: 0,
-      conflict: 0, failed_retryable: 0, failed_terminal: 0 },
-    windowStart: 'now',
-  } as unknown as edgeApi.JournalStatsByType);
+  vi.spyOn(edgeApi, 'journalStatsByType').mockResolvedValue(
+    {} as unknown as edgeApi.JournalStatsByType);
   vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([]);
   vi.spyOn(edgeApi, 'listDrafts').mockResolvedValue({ drafts: [] });
 }
@@ -50,5 +47,65 @@ describe('MockupDataManagement', () => {
     stubAll();
     renderWithProviders(<MockupDataManagement />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
+  });
+
+  it('empty records → "No records yet" status label + muted tone', async () => {
+    stubAll();
+    renderWithProviders(<MockupDataManagement />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByText(/No records yet/)).toBeInTheDocument());
+  });
+
+  it('populated byType → "N captured" surfaces with totals + per-type rows', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'journalStatsByType').mockResolvedValue({
+      AGGREGATE_DATA_VALUE: {
+        PENDING: 3, IN_FLIGHT: 0, CENTRAL_ACCEPTED: 120,
+        RETRYABLE: 2,
+      },
+      EVENT: {
+        PENDING: 0, CENTRAL_ACCEPTED: 42,
+      },
+    } as unknown as edgeApi.JournalStatsByType);
+    renderWithProviders(<MockupDataManagement />, { authApi });
+    await waitFor(() =>
+      expect(screen.getAllByText(/captured/).length)
+        .toBeGreaterThan(0));
+    /* Per-type rows render. */
+    expect(screen.getByTestId('data-type-row-AGGREGATE_DATA_VALUE'))
+      .toBeInTheDocument();
+    expect(screen.getByTestId('data-type-row-EVENT')).toBeInTheDocument();
+    /* Waiting-to-send surfaces in both subtitle + column header. */
+    expect(screen.getAllByText(/Waiting to send/).length)
+      .toBeGreaterThan(0);
+  });
+
+  it('populated drafts → drafts link surfaces in the subtitle', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'listDrafts').mockResolvedValue({
+      drafts: [
+        { draftId: 'd-1', kind: 'AGGREGATE', title: 't',
+          state: 'DRAFT', createdAt: 'now' },
+        { draftId: 'd-2', kind: 'EVENT', title: 't',
+          state: 'DRAFT', createdAt: 'now' },
+      ],
+    } as never);
+    renderWithProviders(<MockupDataManagement />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByText(/Drafts/)).toBeInTheDocument());
+    /* Count surfaces. */
+    expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  it('rejected probes keep the component on the LoadingBlock (si+stats guard)', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockRejectedValue(new Error('x'));
+    vi.spyOn(edgeApi, 'journalStatsByType').mockRejectedValue(new Error('x'));
+    vi.spyOn(edgeApi, 'listJobs').mockRejectedValue(new Error('x'));
+    vi.spyOn(edgeApi, 'listDrafts').mockRejectedValue(new Error('x'));
+    renderWithProviders(<MockupDataManagement />, { authApi });
+    /* Promise.allSettled swallows; si/stats stay null → LoadingBlock
+     * remains. */
+    await Promise.resolve();
+    expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 });
