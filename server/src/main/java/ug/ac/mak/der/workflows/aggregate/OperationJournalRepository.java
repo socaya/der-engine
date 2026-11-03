@@ -568,6 +568,47 @@ public class OperationJournalRepository {
     /** Phase 13.4 — projection for the conflict-detail central-value view. */
     public record ConflictPayloadRow(String lastResponseJson, String lastError) { }
 
+    /**
+     * ADR-0035 — pull/write interlock. Probes whether an advisory
+     * row-level lock on the {@code operation_journal} row can be
+     * acquired via {@code SELECT ... FOR UPDATE SKIP LOCKED}.
+     * Returns true when the row is currently uncontended (or
+     * doesn't exist, which is equally safe); false when some other
+     * transaction holds a lock on the row and the caller should
+     * defer processing to the next tick.
+     *
+     * <p>Semantics: this is a point-in-time probe, not a long-held
+     * lock. The caller doesn't need to be inside a transaction;
+     * the Postgres row lock we observe is held by whoever's
+     * running the UPDATE on the row (typically the drain worker
+     * mid-publish). We only care whether that other party is
+     * active <em>right now</em> — the correctness guarantee comes
+     * from the serial order: if the drain is holding the row, we
+     * defer; if we race the drain's commit, the next tick's probe
+     * sees it in its new terminal state and the three-way merge
+     * routes correctly.</p>
+     *
+     * <p>Called by the three pullers before applying a central-wins
+     * overwrite. The drain worker doesn't need to call this
+     * explicitly because its own {@code UPDATE} on the row takes
+     * the implicit lock.</p>
+     */
+    public boolean tryLockRowForPublish(final UUID operationId) {
+        Objects.requireNonNull(operationId, "operationId");
+        final Integer existing = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM der.operation_journal WHERE operation_id = ?",
+                Integer.class, operationId);
+        if (existing == null || existing == 0) {
+            return true;
+        }
+        final List<Integer> locked = jdbc.query(
+                "SELECT 1 FROM der.operation_journal "
+                        + "WHERE operation_id = ? FOR UPDATE SKIP LOCKED",
+                (ResultSet rs, int n) -> rs.getInt(1),
+                operationId);
+        return !locked.isEmpty();
+    }
+
     public int markNextHop(final UUID operationId, final String nextHopOrgUnitUid) {
         Objects.requireNonNull(operationId, "operationId");
         return jdbc.update(

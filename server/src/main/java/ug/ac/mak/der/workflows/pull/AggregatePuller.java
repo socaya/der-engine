@@ -146,6 +146,18 @@ public class AggregatePuller {
             raiseConflict(compoundKey, dv);
             return new MergeOutcome(Action.CONFLICT, watermark);
         }
+        /* ADR-0035 — pull/write interlock. Before we overwrite the
+         * aggregate value row, probe whether the drain worker is
+         * currently publishing this row. If yes, defer to the next
+         * tick — avoids the drift scenario where we overwrite the
+         * mirror while the drain is mid-POST with the operator's
+         * value. */
+        if (journalRow.isPresent()
+                && !journal.tryLockRowForPublish(journalRow.get().operationId())) {
+            LOG.info("deferring aggregate overwrite for {} — drain holds the lock",
+                    compoundKey);
+            return new MergeOutcome(Action.NOOP, watermark);
+        }
         // Terminal OR not-yet-journalled: upsert central's version
         // locally. upsert() handles both the first-insert case (no
         // existing row -> version=1) and the overwrite case (bumps

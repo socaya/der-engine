@@ -128,6 +128,13 @@ public class EventPuller {
             raiseConflict(eventUid, node);
             return new MergeOutcome(Action.CONFLICT, watermark);
         }
+        /* ADR-0035 — pull/write interlock. See AggregatePuller. */
+        if (journalRow.isPresent()
+                && !journal.tryLockRowForPublish(journalRow.get().operationId())) {
+            LOG.info("deferring event overwrite for {} — drain holds the lock",
+                    eventUid);
+            return new MergeOutcome(Action.NOOP, watermark);
+        }
         final Optional<Event> existing = events.findById(eventId);
         final boolean wasOverwrite = existing.isPresent();
         final Event centralView = toLocal(eventId, node, existing.orElse(null), watermark);

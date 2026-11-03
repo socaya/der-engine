@@ -90,6 +90,7 @@ class EventPullerTest {
         when(jr.findLatestByEntityRef(any(), anyString()))
                 .thenReturn(Optional.of(journalRow(OperationJournalEntry.State.CENTRAL_ACCEPTED,
                         id.toString())));
+        when(jr.tryLockRowForPublish(any())).thenReturn(true);
         when(evts.findById(id)).thenReturn(Optional.of(sampleLocal(id)));
         when(evts.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
 

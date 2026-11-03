@@ -88,6 +88,7 @@ class AggregatePullerTest {
         final var audit = mock(SecurityAuditRepository.class);
         when(journal.findLatestByEntityRef(any(), anyString()))
                 .thenReturn(Optional.of(terminalJournal(OperationJournalEntry.State.CENTRAL_ACCEPTED)));
+        when(journal.tryLockRowForPublish(any())).thenReturn(true);
         when(values.findByCompoundKey(anyString(), anyString(), anyString(),
                 anyString(), anyString()))
                 .thenReturn(Optional.of(existingLocal("de1", "oldVal")));
@@ -179,6 +180,29 @@ class AggregatePullerTest {
         final var result = build(values, journal, audit, three).pull("ou1", null);
         assertThat(result.rowsPulled()).isEqualTo(3);
         assertThat(result.watermark()).isEqualTo(Instant.parse("2026-11-02T11:30:00Z"));
+    }
+
+    @Test
+    void drainHoldingLockDefersOverwriteWithoutRaisingConflict() throws Exception {
+        /* ADR-0035 — a central-wins overwrite must be deferred (not
+         * raised as a conflict) when the drain worker holds the row
+         * lock mid-publish. The next pull tick retries; the race
+         * window closes without silent drift. */
+        final var values = mock(AggregateDataValueRepository.class);
+        final var journal = mock(OperationJournalRepository.class);
+        final var audit = mock(SecurityAuditRepository.class);
+        when(journal.findLatestByEntityRef(any(), anyString()))
+                .thenReturn(Optional.of(terminalJournal(OperationJournalEntry.State.CENTRAL_ACCEPTED)));
+        when(journal.tryLockRowForPublish(any())).thenReturn(false);
+
+        final var result = build(values, journal, audit,
+                oneDataValue("de1", "centralVal", "2026-11-02T09:00:00Z"))
+                .pull("ou1", null);
+        assertThat(result.rowsPulled()).isZero();
+        assertThat(result.conflicts()).isZero();
+        verify(values, never()).upsert(any());
+        verify(journal, never()).insert(any());
+        verify(audit, never()).append(any(AuditEvent.class), any(java.time.Instant.class));
     }
 
     @Test
