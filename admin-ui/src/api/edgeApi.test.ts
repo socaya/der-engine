@@ -228,3 +228,235 @@ describe('edgeApi defaults', () => {
     expect(JSON.parse(init.body as string)).toEqual({ outcome: 'REJECTED' });
   });
 });
+
+/* Batch request-wrapper tests for untested helpers. */
+describe('edgeApi wrappers — batch coverage', () => {
+  it('signIn POSTs credentials to /auth/login', async () => {
+    fetchMock.mockResolvedValue(respond(200, { userId: 'u1' }));
+    await api.signIn('alice', 'password');
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/auth/sign-in');
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string))
+      .toEqual({ username: 'alice', password: 'password' });
+  });
+
+  it('signOut POSTs to /auth/logout', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.signOut();
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/auth/sign-out');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('session GETs /auth/session', async () => {
+    fetchMock.mockResolvedValue(respond(200, { userId: 'u1' }));
+    await api.session();
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/auth/session');
+  });
+
+  it('triggerMetadataSync POSTs to /sync/metadata', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.triggerMetadataSync();
+    expect(fetchMock.mock.calls[0]![0])
+      .toBe('/edge-api/v1/sync/metadata');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('compat GETs /compat', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.compat();
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/compat');
+  });
+
+  it('dhis2Ping GETs /dhis2/ping', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.dhis2Ping();
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/dhis2/ping');
+  });
+
+  it('refreshCompat POSTs to /compat/refresh', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.refreshCompat();
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/compat/refresh');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('drift GETs /sync/drift (with refresh query)', async () => {
+    fetchMock.mockResolvedValue(respond(200, { snapshots: [] }));
+    await api.drift();
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('/edge-api/v1/sync/drift');
+  });
+
+  it('getJobRun GETs /sync/jobs/<runId>', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.getJobRun(42);
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/sync/jobs/42');
+  });
+
+  it('triggerJob POSTs to /sync/jobs/<name>/trigger', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.triggerJob('JOURNAL_WORKER_DRAIN');
+    expect(fetchMock.mock.calls[0]![0])
+      .toBe('/edge-api/v1/sync/jobs/JOURNAL_WORKER_DRAIN/trigger');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('fetchJournalOperation GETs /journal/operations/<id>', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.fetchJournalOperation('op-123');
+    expect(fetchMock.mock.calls[0]![0])
+      .toBe('/edge-api/v1/journal/operations/op-123');
+  });
+
+  it('retryOperation POSTs to /admin/ops/journal/<id>/retry', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.retryOperation('op-xyz');
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('/op-xyz');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('listDrafts GETs /drafts', async () => {
+    fetchMock.mockResolvedValue(respond(200, { drafts: [] }));
+    await api.listDrafts();
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/drafts');
+  });
+
+  it('deleteDraft DELETEs /drafts/<id>', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.deleteDraft('d-1');
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/drafts/d-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
+  });
+
+  it('publishDraft POSTs to /drafts/<id>/publish', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.publishDraft('d-1');
+    expect(fetchMock.mock.calls[0]![0])
+      .toBe('/edge-api/v1/drafts/d-1/publish');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('cancelDraftSchedule DELETEs the draft schedule', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.cancelDraftSchedule('d-1');
+    expect(fetchMock.mock.calls[0]![0])
+      .toBe('/edge-api/v1/drafts/d-1/schedule');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
+  });
+
+  it('listConflicts respects a custom limit', async () => {
+    fetchMock.mockResolvedValue(respond(200, []));
+    await api.listConflicts(25);
+    expect(fetchMock.mock.calls[0]![0])
+      .toBe('/edge-api/v1/journal/conflicts?limit=25');
+  });
+
+  it('listJobs respects a custom limit', async () => {
+    fetchMock.mockResolvedValue(respond(200, []));
+    await api.listJobs(10);
+    expect(fetchMock.mock.calls[0]![0])
+      .toBe('/edge-api/v1/sync/jobs?limit=10');
+  });
+
+  it('listLocalAggregate builds querystring from filter fields', async () => {
+    fetchMock.mockResolvedValue(respond(200, { pipeline: {}, rows: [] }));
+    await api.listLocalAggregate({
+      period: '202411', dataSet: 'ds-1',
+      workflowRunId: 'wfr-1', limit: 200,
+    });
+    const url = fetchMock.mock.calls[0]![0] as string;
+    expect(url).toContain('period=202411');
+    expect(url).toContain('dataSet=ds-1');
+    expect(url).toContain('workflowRunId=wfr-1');
+    expect(url).toContain('limit=200');
+  });
+
+  it('getLocalAggregate GETs the value id', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.getLocalAggregate('val-1');
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('/edge-api/v1/data/aggregate/val-1');
+  });
+
+  it('getLocalEvent GETs the event id', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.getLocalEvent('ev-1');
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('/edge-api/v1/data/events/ev-1');
+  });
+
+  it('getLocalTei GETs the tei uid', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.getLocalTei('tei-1');
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('/edge-api/v1/data/tracker/tei/tei-1');
+  });
+
+  it('listLocalEvents builds querystring from filter fields', async () => {
+    fetchMock.mockResolvedValue(respond(200, { rows: [] }));
+    await api.listLocalEvents({
+      program: 'PROG-1', programStage: 'PS-1',
+      status: 'ACTIVE', limit: 100,
+    });
+    const url = fetchMock.mock.calls[0]![0] as string;
+    expect(url).toContain('program=PROG-1');
+    expect(url).toContain('programStage=PS-1');
+    expect(url).toContain('status=ACTIVE');
+    expect(url).toContain('limit=100');
+  });
+
+  it('listLocalTracker builds querystring with kind + program filters', async () => {
+    fetchMock.mockResolvedValue(respond(200, { rows: [] }));
+    await api.listLocalTracker({
+      kind: 'TEI', program: 'PROG-1', limit: 50,
+    });
+    const url = fetchMock.mock.calls[0]![0] as string;
+    expect(url).toContain('kind=TEI');
+    expect(url).toContain('program=PROG-1');
+    expect(url).toContain('limit=50');
+  });
+
+  it('aggregateRowPayload GETs the row-payload endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.aggregateRowPayload('val-1');
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('/edge-api/v1/data/aggregate/val-1/payload');
+  });
+
+  it('eventRowPayload GETs the event payload endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.eventRowPayload('ev-1');
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('/edge-api/v1/data/events/ev-1/payload');
+  });
+
+  it('teiRowPayload GETs the tei payload endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.teiRowPayload('tei-1');
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('/edge-api/v1/data/tracker/tei/tei-1/payload');
+  });
+
+  it('listJournalOperations respects a custom limit', async () => {
+    fetchMock.mockResolvedValue(respond(200, []));
+    await api.listJournalOperations(42);
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('/edge-api/v1/journal/operations?limit=42');
+  });
+
+  it('metadataList GETs the resource endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.metadataList('dataSets');
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('/dataSets');
+  });
+
+  it('reachabilityStatus GETs /dhis2/reachability', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.reachabilityStatus();
+    expect(fetchMock.mock.calls[0]![0])
+      .toBe('/edge-api/v1/dhis2/reachability');
+  });
+});
