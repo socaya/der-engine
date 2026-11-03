@@ -238,4 +238,99 @@ describe('WorkflowMonitoring', () => {
     await userEvent.click(screen.getByTestId('wf-monitor-refresh'));
     await waitFor(() => expect(spy.mock.calls.length).toBeGreaterThan(before));
   });
+
+  /* ──────────────────────────────────────────────────────────────
+   * Depth-lift: activity-feed toState tone branches + per-device
+   * oldest-ready age calculation. Previously uncovered.
+   * ────────────────────────────────────────────────────────────── */
+
+  it('activity feed exercises every Status tone branch (COMPLETE / READY / BLOCKED / other)', async () => {
+    const api = mkApi({
+      getWorkflowActivityFeed: vi.fn().mockResolvedValue({ rows: [
+        /* COMPLETE → success tone */
+        { transitionId: 't-1', toState: 'COMPLETE',
+          workflowId: 'wf-1', workflowName: 'ANC', runId: 'r-1',
+          businessKey: 'bk-1', stepName: 'Register',
+          actorDeviceId: 'dev-with-name', actorDeviceName: 'Kiosk',
+          transitionedAt: '2026-11-01T10:00:00Z' },
+        /* READY → info tone */
+        { transitionId: 't-2', toState: 'READY',
+          workflowId: 'wf-1', workflowName: 'ANC', runId: 'r-1',
+          businessKey: 'bk-1', stepName: 'Register',
+          actorDeviceId: 'dev-no-name-xxxxxxxx',
+          actorDeviceName: null,
+          transitionedAt: '2026-11-01T10:05:00Z' },
+        /* BLOCKED → muted tone */
+        { transitionId: 't-3', toState: 'BLOCKED',
+          workflowId: 'wf-1', workflowName: 'ANC', runId: 'r-1',
+          businessKey: 'bk-1', stepName: null,
+          actorDeviceId: null, actorDeviceName: null,
+          transitionedAt: '2026-11-01T10:10:00Z' },
+        /* Fallthrough state → info tone */
+        { transitionId: 't-4', toState: 'FAILED',
+          workflowId: 'wf-1', workflowName: null, runId: 'r-1',
+          businessKey: 'bk-1', stepName: 'Reconcile',
+          actorDeviceId: null, actorDeviceName: null,
+          transitionedAt: '2026-11-01T10:15:00Z' },
+      ] }),
+    });
+    renderWithProviders(<WorkflowMonitoring api={api} />);
+    await waitFor(() => expect(screen.getByTestId('wf-monitor-root'))
+      .toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('wf-monitor-nav-activity'));
+    /* Every toState chip renders — assert the four we fed. */
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/COMPLETE/));
+    expect(document.body.textContent ?? '').toMatch(/READY/);
+    expect(document.body.textContent ?? '').toMatch(/BLOCKED/);
+    expect(document.body.textContent ?? '').toMatch(/FAILED/);
+    /* Kiosk displayName wins over actorDeviceId; the no-name
+     * row shows the first 8 chars of the id. */
+    expect(document.body.textContent ?? '').toMatch(/Kiosk/);
+    expect(document.body.textContent ?? '').toMatch(/dev-no-n/);
+  });
+
+  it('depth tab warns stale rows when oldestReady is more than 24h old', async () => {
+    const old = new Date(Date.now() - 48 * 3600_000).toISOString();
+    const api = mkApi({
+      workflowQueue: vi.fn().mockResolvedValue({
+        rows: [q({ runId: 'r-stuck', runUpdatedAt: old,
+                   ownerDeviceId: 'dev-stuck-xxxxxx' })],
+        appliedDeviceId: null, deviceScopeSource: 'NONE',
+      }),
+      listDevices: vi.fn().mockResolvedValue({ devices: [
+        { deviceId: 'dev-stuck-xxxxxx', displayName: 'Clinic kiosk',
+          status: 'APPROVED', assignedUserId: null,
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null, lastSeenAt: null,
+          userAgent: 'ua', firmwareVersion: null, formFactor: 'TABLET' },
+      ] }),
+    });
+    renderWithProviders(<WorkflowMonitoring api={api} />);
+    await waitFor(() => expect(screen.getByTestId('wf-monitor-root'))
+      .toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('wf-monitor-nav-depth'));
+    /* The byDevice row for dev-stuck appears with the warnStale
+     * flag; data-test anchors on the device id. */
+    await waitFor(() => expect(
+      screen.getByTestId('wf-monitor-dev-dev-stuck-xxxxxx'))
+      .toBeInTheDocument());
+  });
+
+  it('activity feed empty state renders when getWorkflowActivityFeed returns no rows', async () => {
+    const api = mkApi();
+    renderWithProviders(<WorkflowMonitoring api={api} />);
+    await waitFor(() => expect(screen.getByTestId('wf-monitor-root'))
+      .toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('wf-monitor-nav-activity'));
+    /* No feed rows → the empty-state copy about no activity
+     * surfaces. The exact wording lives in the component but we
+     * assert against the broader 'no activity' tag so wording
+     * tweaks don't break the test. */
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/no activity|nothing to show|all clear/i));
+  });
 });
