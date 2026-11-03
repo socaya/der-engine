@@ -515,4 +515,55 @@ describe('MockupMetadataDetail', () => {
     expect(screen.getByText('Category combo')).toBeInTheDocument();
     expect(screen.getByText('Category options')).toBeInTheDocument();
   });
+
+  it('trackedEntityAttributes detail surfaces valueType/unique/optionSet/pattern/confidential', async () => {
+    vi.mocked(mockedApi.metadataList).mockResolvedValue(
+      listResponse('trackedEntityAttributes', [
+        makeItem('TEA-1', {
+          valueType: 'TEXT', unique: true,
+          optionSet: { id: 'OS-1', displayName: 'Sex' },
+          pattern: 'TEI-\\d+', confidential: false,
+        }),
+      ]) as never);
+    renderDetail('trackedEntityAttributes', 'TEA-1');
+    await waitFor(() =>
+      expect(screen.getByTestId('meta-detail')).toBeInTheDocument());
+    expect(screen.getByText('Value type')).toBeInTheDocument();
+    expect(screen.getByText('Unique')).toBeInTheDocument();
+    expect(screen.getByText('Option set')).toBeInTheDocument();
+    expect(screen.getByText('Pattern')).toBeInTheDocument();
+    expect(screen.getByText('Confidential')).toBeInTheDocument();
+  });
+
+  it('optionSets detail surfaces valueType + options count', async () => {
+    vi.mocked(mockedApi.metadataList).mockResolvedValue(
+      listResponse('optionSets', [
+        makeItem('OS-1', {
+          valueType: 'TEXT',
+          options: [{ id: 'o-1' }, { id: 'o-2' }, { id: 'o-3' }],
+        }),
+      ]) as never);
+    renderDetail('optionSets', 'OS-1');
+    await waitFor(() =>
+      expect(screen.getByTestId('meta-detail')).toBeInTheDocument());
+    expect(screen.getByText('Value type')).toBeInTheDocument();
+    expect(screen.getByText('Options')).toBeInTheDocument();
+  });
+
+  it('categoryCombos detail surfaces data dimension / categories / COC counts', async () => {
+    vi.mocked(mockedApi.metadataList).mockResolvedValue(
+      listResponse('categoryCombos', [
+        makeItem('CC-1', {
+          dataDimensionType: 'DISAGGREGATION',
+          categories: [{ id: 'c-1' }, { id: 'c-2' }],
+          categoryOptionCombos: [{ id: 'coc-1' }, { id: 'coc-2' }],
+        }),
+      ]) as never);
+    renderDetail('categoryCombos', 'CC-1');
+    await waitFor(() =>
+      expect(screen.getByTestId('meta-detail')).toBeInTheDocument());
+    expect(screen.getByText('Data dimension type')).toBeInTheDocument();
+    expect(screen.getByText('Categories')).toBeInTheDocument();
+    expect(screen.getByText('Category option combos')).toBeInTheDocument();
+  });
 });
