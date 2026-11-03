@@ -132,6 +132,51 @@ describe('shared.describeCron', () => {
     expect(describeCron(null).length).toBeGreaterThan(0);
     expect(describeCron('garbage').length).toBeGreaterThan(0);
   });
+
+  it('empty / null returns "Not scheduled"', () => {
+    expect(describeCron(null)).toBe('Not scheduled');
+    expect(describeCron(undefined)).toBe('Not scheduled');
+    expect(describeCron('')).toBe('Not scheduled');
+  });
+
+  it('short expr (<6 parts) returns "Custom schedule"', () => {
+    expect(describeCron('0 0 *')).toBe('Custom schedule');
+  });
+
+  it('every-minute "*/1" variant returns "Every minute"', () => {
+    expect(describeCron('0 */1 * * * ?')).toBe('Every minute');
+  });
+
+  it('every-N-minutes returns pluralised label', () => {
+    expect(describeCron('0 */5 * * * ?')).toBe('Every 5 minutes');
+    expect(describeCron('0 */15 * * * ?')).toBe('Every 15 minutes');
+  });
+
+  it('every-hour "*/1" returns "Every hour"', () => {
+    expect(describeCron('0 0 */1 * * ?')).toBe('Every hour');
+  });
+
+  it('every-N-hours returns pluralised label', () => {
+    expect(describeCron('0 0 */2 * * ?')).toBe('Every 2 hours');
+    expect(describeCron('0 0 */6 * * ?')).toBe('Every 6 hours');
+  });
+
+  it('daily HH:MM pattern surfaces formatted time', () => {
+    expect(describeCron('0 30 2 * * ?')).toBe('Daily at 02:30');
+    expect(describeCron('0 0 14 * * ?')).toBe('Daily at 14:00');
+  });
+
+  it('day-of-week "*" also matches the common patterns', () => {
+    expect(describeCron('0 */5 * * * *')).toBe('Every 5 minutes');
+    expect(describeCron('0 0 2 * * *')).toBe('Daily at 02:00');
+  });
+
+  it('non-matching pattern falls through to "Custom schedule"', () => {
+    /* Day-of-month restricted (not *) → custom. */
+    expect(describeCron('0 0 2 15 * ?')).toBe('Custom schedule');
+    /* Month restricted → custom. */
+    expect(describeCron('0 */5 * * JAN ?')).toBe('Custom schedule');
+  });
 });
 
 describe('shared.relatedLinksForJob', () => {
