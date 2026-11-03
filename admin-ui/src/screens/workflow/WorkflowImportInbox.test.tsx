@@ -212,4 +212,81 @@ describe('WorkflowImportInbox', () => {
     // when embedded (it stays as the visually-hidden h1 only).
     expect(screen.getAllByText(/Import inbox/i)).toHaveLength(1);
   });
+
+  it('acceptImport rejection surfaces the error in lastResult', async () => {
+    const api = {
+      listImportInbox: vi.fn().mockResolvedValue({ entries: [pending()] }),
+      acceptImport: vi.fn().mockRejectedValue(new Error('accept denied')),
+      rejectImport: vi.fn(),
+      importInboxDiff: vi.fn(),
+    };
+    renderWithProviders(<WorkflowImportInbox api={api as never} />);
+    await waitFor(() =>
+      expect(screen.getByTestId('inbox-row-imp-1-accept'))
+        .toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('inbox-row-imp-1-accept'));
+    await waitFor(() =>
+      expect(screen.getByTestId('inbox-last-result'))
+        .toHaveTextContent(/accept denied/));
+  });
+
+  it('rejectImport rejection surfaces the error in lastResult', async () => {
+    const api = {
+      listImportInbox: vi.fn().mockResolvedValue({ entries: [pending()] }),
+      acceptImport: vi.fn(),
+      rejectImport: vi.fn().mockRejectedValue(new Error('reject denied')),
+      importInboxDiff: vi.fn(),
+    };
+    renderWithProviders(<WorkflowImportInbox api={api as never} />);
+    await waitFor(() =>
+      expect(screen.getByTestId('inbox-row-imp-1-reject'))
+        .toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('inbox-row-imp-1-reject'));
+    await waitFor(() =>
+      expect(screen.getByTestId('inbox-last-result'))
+        .toHaveTextContent(/reject denied/));
+  });
+
+  it('importInboxDiff rejection removes the loading state + surfaces error', async () => {
+    const api = {
+      listImportInbox: vi.fn().mockResolvedValue({ entries: [pending()] }),
+      acceptImport: vi.fn(), rejectImport: vi.fn(),
+      importInboxDiff: vi.fn().mockRejectedValue(new Error('diff failed')),
+    };
+    renderWithProviders(<WorkflowImportInbox api={api as never} />);
+    await waitFor(() =>
+      expect(screen.getByTestId('inbox-row-imp-1-review'))
+        .toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('inbox-row-imp-1-review'));
+    await waitFor(() =>
+      expect(screen.getByTestId('inbox-last-result'))
+        .toHaveTextContent(/diff failed/));
+  });
+
+  it('clicking review twice toggles the diff off', async () => {
+    const api = {
+      listImportInbox: vi.fn().mockResolvedValue({ entries: [pending()] }),
+      acceptImport: vi.fn(), rejectImport: vi.fn(),
+      importInboxDiff: vi.fn().mockResolvedValue({
+        importId: 'imp-1',
+        incoming: { displayName: 'ANC v2', boundKind: 'PROGRAM',
+                     boundId: 'p1', stepCount: 1 },
+        matchStrategy: 'NEW',
+        summary: 'NEW_WORKFLOW',
+      }),
+    };
+    renderWithProviders(<WorkflowImportInbox api={api as never} />);
+    await waitFor(() =>
+      expect(screen.getByTestId('inbox-row-imp-1-review'))
+        .toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('inbox-row-imp-1-review'));
+    await waitFor(() =>
+      expect(screen.getByTestId('inbox-diff-new'))
+        .toBeInTheDocument());
+    /* Second click toggles diff off. */
+    await user.click(screen.getByTestId('inbox-row-imp-1-review'));
+    await waitFor(() =>
+      expect(screen.queryByTestId('inbox-diff-new')).toBeNull());
+  });
 });
