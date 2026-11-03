@@ -6,12 +6,12 @@ sub-directory keyed on its slice number.
 
 ## Sub-slices
 
-| Slice | Artifact                        | Evidence folder             |
-|------:|---------------------------------|------------------------------|
-| 11.1  | Journal state-machine recovery  | `11.1-journal-recovery/`     |
-| 11.2  | 72h soak with central flap      | `11.2-soak-72h/` (TBD)       |
-| 11.3  | NFR-15/17/18/29 sweep           | `11.3-nfr-sweep/` (TBD)      |
-| 11.4  | der-1.0.0 release notes + tag   | `11.4-release/` (TBD)        |
+| Slice | Artifact                        | Evidence folder             | Status |
+|------:|---------------------------------|------------------------------|---|
+| 11.1  | Journal state-machine recovery  | `11.1-journal-recovery/`     | ✅ shipped |
+| 11.2  | 72h soak with central flap      | `11.2-soak-72h/`             | 🧰 orchestrator ready (`scripts/evaluation/soak_72h.sh`); pilot run pending |
+| 11.3  | NFR-15/17/18/29 sweep           | `11.3-nfr-sweep/`            | 🧰 script ready (`scripts/evaluation/nfr_sweep.sh`); pilot run pending |
+| 11.4  | der-1.0.0 release notes + tag   | `11.4-release/`              | 🧰 draft ready (`docs/releases/der-1.0.0.md`); awaits 11.2 + 11.3 evidence |
 
 ## Related — Phase 12 landed extensions (code only, no pilot hardware)
 
