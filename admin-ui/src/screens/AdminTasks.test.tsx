@@ -119,4 +119,74 @@ describe('MockupAdminTasks', () => {
     expect(await screen.findByLabelText('server log tail'))
       .toHaveTextContent('boot complete');
   });
+
+  it('adminLogs NO_LOG_FILE status surfaces the no-file hint', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
+    vi.spyOn(edgeApi, 'adminLogs').mockResolvedValue({
+      status: 'NO_LOG_FILE',
+      path: '/var/log/missing.log',
+      entries: [], totalLines: 0,
+    } as unknown as LifecycleLogs);
+    renderWithProviders(<MockupAdminTasks />, { authApi });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /^load$/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/No log file at/)).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/missing\.log/);
+  });
+
+  it('adminLogs error status surfaces path + error message', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
+    vi.spyOn(edgeApi, 'adminLogs').mockResolvedValue({
+      status: 'IO_ERROR',
+      path: '/var/log/der.log',
+      error: 'Permission denied',
+      entries: [], totalLines: 0,
+    } as unknown as LifecycleLogs);
+    renderWithProviders(<MockupAdminTasks />, { authApi });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /^load$/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/Could not read/)).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/Permission denied/);
+  });
+
+  it('adminLogs rejection surfaces the error block', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
+    vi.spyOn(edgeApi, 'adminLogs').mockRejectedValue(
+      new Error('log fetch denied'));
+    renderWithProviders(<MockupAdminTasks />, { authApi });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /^load$/i }));
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/log fetch denied/));
+  });
+
+  it('Shutdown connection-drop (EDGE_UNREACHABLE) → "process is exiting" hint', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
+    vi.spyOn(edgeApi, 'adminShutdown').mockRejectedValue(
+      new Error('EDGE_UNREACHABLE: socket closed'));
+    renderWithProviders(<MockupAdminTasks />, { authApi });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /^shut down$/i }));
+    await user.click(await screen.findByRole('button',
+      { name: /yes, shut down der/i }));
+    await waitFor(() =>
+      expect(document.body.textContent ?? '')
+        .toMatch(/process is exiting/));
+  });
+
+  it('Shutdown generic error surfaces the error inline', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
+    vi.spyOn(edgeApi, 'adminShutdown').mockRejectedValue(
+      new Error('generic shutdown error'));
+    renderWithProviders(<MockupAdminTasks />, { authApi });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /^shut down$/i }));
+    await user.click(await screen.findByRole('button',
+      { name: /yes, shut down der/i }));
+    await waitFor(() =>
+      expect(document.body.textContent ?? '')
+        .toMatch(/generic shutdown error/));
+  });
 });
