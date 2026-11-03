@@ -183,6 +183,34 @@ describe('DataTracker', () => {
       .toBeInTheDocument();
   });
 
+  it('chipToneForKind + chipToneForStatus arms — every arm surfaces via populated row', async () => {
+    vi.spyOn(edgeApi, 'listLocalTracker').mockResolvedValue({
+      rows: [
+        { ...trackerRow, rowId: 'r-tei', kind: 'TEI',      status: 'COMPLETED' },
+        { ...trackerRow, rowId: 'r-enr', kind: 'ENROLLMENT', status: 'ACTIVE' },
+        { ...trackerRow, rowId: 'r-ev',  kind: 'EVENT',    status: 'OVERDUE' },
+        { ...trackerRow, rowId: 'r-weird', kind: 'OTHER' as unknown as 'TEI',
+          status: 'SKIPPED' },
+        { ...trackerRow, rowId: 'r-sched', kind: 'EVENT',  status: 'SCHEDULED' },
+        { ...trackerRow, rowId: 'r-vis',   kind: 'EVENT',  status: 'VISITED' },
+        { ...trackerRow, rowId: 'r-cnc',   kind: 'EVENT',  status: 'CANCELLED' },
+        { ...trackerRow, rowId: 'r-mysb',  kind: 'EVENT',  status: 'UNKNOWN_X' },
+      ],
+    } as never);
+    renderWithProviders(<DataTracker />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-tracker-row-r-tei'))
+        .toBeInTheDocument());
+    /* Status labels surface across all arms. */
+    expect(screen.getAllByText('COMPLETED').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('ACTIVE').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('OVERDUE').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('SKIPPED').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('SCHEDULED').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('VISITED').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('CANCELLED').length).toBeGreaterThan(0);
+  });
+
   it('row with null workflow + null program names falls back to UID', async () => {
     vi.spyOn(edgeApi, 'listLocalTracker').mockResolvedValue({
       rows: [{

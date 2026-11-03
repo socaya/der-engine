@@ -186,6 +186,32 @@ describe('DataEvents', () => {
     expect(screen.getByTestId('data-events-row-ev-1')).toBeInTheDocument();
   });
 
+  it('chipToneForStatus arms — rows with each status surface their tone', async () => {
+    vi.spyOn(edgeApi, 'listLocalEvents').mockResolvedValue({
+      rows: [
+        { ...eventRow, eventId: 'e-done',   status: 'COMPLETED' },
+        { ...eventRow, eventId: 'e-active', status: 'ACTIVE' },
+        { ...eventRow, eventId: 'e-over',   status: 'OVERDUE' },
+        { ...eventRow, eventId: 'e-skip',   status: 'SKIPPED' },
+        { ...eventRow, eventId: 'e-sched',  status: 'SCHEDULE' },
+        { ...eventRow, eventId: 'e-vis',    status: 'VISITED' },
+        { ...eventRow, eventId: 'e-weird',  status: 'MYSTERY' },
+      ],
+    } as never);
+    renderWithProviders(<DataEvents />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-events-row-e-done'))
+        .toBeInTheDocument());
+    /* All seven status labels surface. */
+    expect(screen.getAllByText('COMPLETED').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('ACTIVE').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('OVERDUE').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('SKIPPED').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('SCHEDULE').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('VISITED').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('MYSTERY').length).toBeGreaterThan(0);
+  });
+
   it('row with null workflow + null program names falls back to UID', async () => {
     vi.spyOn(edgeApi, 'listLocalEvents').mockResolvedValue({
       rows: [
