@@ -112,10 +112,16 @@ export default defineConfig({
          * coverage to 77.52 / 74.73 / 61.44 / 77.52. All seven
          * net-new tested components clear 100% lines. Ratchet
          * one point below each. */
-        lines: 76,
-        branches: 73,
-        functions: 60,
-        statements: 76,
+        /* der-2.3.123 round-39 ratchet: six further new test files
+         * (SystemInformation, StepsEditor, validate, DepsEditor,
+         * RecentActivity, KeyboardShortcuts) added 65 tests
+         * crossing 1000-test milestone. Measured coverage
+         * 78.48 / 75.71 / 62.92 / 78.48. All six net-new tested
+         * modules clear 97%+ lines. Ratchet one point below each. */
+        lines: 77,
+        branches: 74,
+        functions: 61,
+        statements: 77,
       },
     },
   },
