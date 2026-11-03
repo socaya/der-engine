@@ -245,6 +245,82 @@ public class DraftController {
         return ResponseEntity.ok(body);
     }
 
+    /**
+     * Phase 14.5b — bulk draft publish. Operators approving a batch of
+     * drafts (e.g. end-of-day weekly aggregate totals captured across
+     * 20 forms) call this once with every draft id, get a per-draft
+     * result array back, and move on. Max 100 entries; partial-success
+     * semantics — one draft failure doesn't abort the batch.
+     */
+    @PostMapping("/publish-batch")
+    public ResponseEntity<Map<String, Object>> publishBatch(final Authentication authentication,
+                                                              @RequestBody final BatchPublishRequest body,
+                                                              final HttpServletRequest http) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (body == null || body.draftIds() == null || body.draftIds().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "BATCH_EMPTY",
+                    "message", "draftIds[] required"));
+        }
+        if (body.draftIds().size() > 100) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "BATCH_TOO_LARGE",
+                    "message", "max 100 drafts per batch"));
+        }
+        final List<Map<String, Object>> results = new java.util.ArrayList<>();
+        int consumed = 0;
+        int kept = 0;
+        for (final UUID draftId : body.draftIds()) {
+            final Map<String, Object> row = new LinkedHashMap<>();
+            row.put("draftId", draftId == null ? null : draftId.toString());
+            if (draftId == null) {
+                row.put("status", "FAILED");
+                row.put("error", "null draftId");
+                results.add(row);
+                continue;
+            }
+            try {
+                final ResponseEntity<Map<String, Object>> single =
+                        publish(authentication, draftId, http);
+                final Map<String, Object> singleBody = single.getBody();
+                if (single.getStatusCode().is2xxSuccessful() && singleBody != null) {
+                    row.put("status", "PUBLISHED");
+                    row.put("imported", singleBody.get("imported"));
+                    row.put("conflicts", singleBody.get("conflicts"));
+                    row.put("draftConsumed", singleBody.get("draftConsumed"));
+                    if (Boolean.TRUE.equals(singleBody.get("draftConsumed"))) {
+                        consumed++;
+                    } else {
+                        kept++;
+                    }
+                } else {
+                    row.put("status", "FAILED");
+                    row.put("httpStatus", single.getStatusCode().value());
+                    if (singleBody != null) {
+                        row.put("error", singleBody.getOrDefault("message", singleBody));
+                    }
+                    kept++;
+                }
+            } catch (RuntimeException ex) {
+                row.put("status", "FAILED");
+                row.put("error", ex.getMessage());
+                kept++;
+            }
+            results.add(row);
+        }
+        final Map<String, Object> response = new LinkedHashMap<>();
+        response.put("consumed", consumed);
+        response.put("kept", kept);
+        response.put("results", results);
+        return ResponseEntity.ok(response);
+    }
+
+    public record BatchPublishRequest(
+            @JsonProperty("draftIds") List<UUID> draftIds
+    ) { }
+
     private ResponseEntity<Map<String, Object>> trackerPayloadInvalid(
             final String kind, final String expectedShape) {
         return ResponseEntity.badRequest().body(Map.of(

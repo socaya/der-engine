@@ -267,6 +267,29 @@ class DraftControllerTest {
     }
 
     @Test
+    void publishBatchRequiresNonEmptyDraftIds() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/drafts/publish-batch").with(as(UUID.randomUUID()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"draftIds\":[]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BATCH_EMPTY"));
+    }
+
+    @Test
+    void publishBatchRejectsOver100Entries() throws Exception {
+        final StringBuilder sb = new StringBuilder("{\"draftIds\":[");
+        for (int i = 0; i < 101; i++) {
+            if (i > 0) sb.append(',');
+            sb.append("\"").append(UUID.randomUUID()).append("\"");
+        }
+        sb.append("]}");
+        mockMvc.perform(post("/edge-api/v1/drafts/publish-batch").with(as(UUID.randomUUID()))
+                        .contentType(MediaType.APPLICATION_JSON).content(sb.toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BATCH_TOO_LARGE"));
+    }
+
+    @Test
     void publishTrackerRejectionKeepsDraftAndReturns409() throws Exception {
         final UUID uid = UUID.randomUUID();
         final com.fasterxml.jackson.databind.node.ObjectNode payload = mapper.createObjectNode();
