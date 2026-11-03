@@ -62,4 +62,80 @@ describe('DataAggregateDetail', () => {
       expect(screen.getByTestId('data-aggregate-detail')).toBeInTheDocument());
     expect(screen.getByText(/No outbox entries yet/)).toBeInTheDocument();
   });
+
+  /* ──────────────────────────────────────────────────────────────
+   * Depth-lift: JournalPanel + WorkflowRunLink branch arms.
+   * Previously uncovered — the single journalEntry fixture only
+   * exercised the CENTRAL_ACCEPTED tone + null nextHop + updatedAt
+   * path.
+   * ────────────────────────────────────────────────────────────── */
+
+  it('journal with distinct states exercises every chip-tone arm', async () => {
+    /* Six entries spanning CENTRAL_ACCEPTED, PENDING, IN_FLIGHT,
+     * CONFLICT_REVIEW, FAILED_RETRYABLE, FAILED_TERMINAL — one
+     * per tone that toneForState() emits. Also flexes the
+     * nextHopOrgUnitUid alt-render on the IN_FLIGHT row and the
+     * lastError fallback on the FAILED rows. */
+    vi.spyOn(edgeApi, 'getLocalAggregate').mockResolvedValue({
+      row,
+      journal: [
+        { operationId: 'op-acc', state: 'CENTRAL_ACCEPTED',
+          attemptCount: 1, lastError: null, nextHopOrgUnitUid: null,
+          updatedAt: '2026-11-02T00:00:00Z',
+          createdAt: '2026-11-01T00:00:00Z' },
+        { operationId: 'op-pending', state: 'PENDING',
+          attemptCount: 0, lastError: null, nextHopOrgUnitUid: null,
+          updatedAt: '2026-11-02T00:00:00Z',
+          createdAt: '2026-11-01T00:00:00Z' },
+        { operationId: 'op-inflight', state: 'IN_FLIGHT',
+          attemptCount: 2, lastError: null,
+          nextHopOrgUnitUid: 'OU-nexthop-xxxx',
+          updatedAt: null,
+          createdAt: '2026-11-01T00:00:00Z' },
+        { operationId: 'op-conflict', state: 'CONFLICT_REVIEW',
+          attemptCount: 3, lastError: 'duplicate key',
+          nextHopOrgUnitUid: null,
+          updatedAt: '2026-11-02T00:00:00Z',
+          createdAt: '2026-11-01T00:00:00Z' },
+        { operationId: 'op-retry', state: 'FAILED_RETRYABLE',
+          attemptCount: 2, lastError: 'timeout',
+          nextHopOrgUnitUid: null,
+          updatedAt: '2026-11-02T00:00:00Z',
+          createdAt: '2026-11-01T00:00:00Z' },
+        { operationId: 'op-fail', state: 'FAILED_TERMINAL',
+          attemptCount: 5, lastError: 'rejected by central',
+          nextHopOrgUnitUid: null,
+          updatedAt: null, createdAt: null },
+      ],
+    } as never);
+    renderWithProviders(<DataAggregateDetail />,
+      { route: '/data/aggregate/val-1' });
+    const tbl = await screen.findByTestId('journal-history');
+    expect(tbl).toBeInTheDocument();
+    /* Exact body matches on the lastError / nextHopOrgUnitUid
+     * fallbacks assert the branches rendered. */
+    expect(screen.getByText(/duplicate key/)).toBeInTheDocument();
+    expect(screen.getByText(/timeout/)).toBeInTheDocument();
+    expect(screen.getByText(/rejected by central/)).toBeInTheDocument();
+    expect(screen.getByText('OU-nexthop-xxxx')).toBeInTheDocument();
+  });
+
+  it('workflow-run lineage renders the SYS chip for SYSTEM workflows and a truncated runId when name is null', async () => {
+    vi.spyOn(edgeApi, 'getLocalAggregate').mockResolvedValue({
+      /* workflowKind: 'SYSTEM' + workflowName: null →
+       * WorkflowRunLink shows the SYS chip + the first 8 chars
+       * of the runId. */
+      row: { ...row, workflowKind: 'SYSTEM', workflowName: null,
+             workflowBusinessKey: null,
+             workflowRunId: 'runid-abcdef12-rest-of-the-uuid' },
+      journal: [],
+    } as never);
+    renderWithProviders(<DataAggregateDetail />,
+      { route: '/data/aggregate/val-1' });
+    await waitFor(() =>
+      expect(screen.getByTestId('data-aggregate-detail')).toBeInTheDocument());
+    /* SYS chip surfaces + the truncated runId. */
+    expect(screen.getByText('SYS')).toBeInTheDocument();
+    expect(screen.getByText('runid-ab')).toBeInTheDocument();
+  });
 });
