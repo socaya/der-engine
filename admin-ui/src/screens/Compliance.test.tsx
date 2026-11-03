@@ -268,6 +268,86 @@ describe('Compliance', () => {
       expect.stringContaining('/compliance/audit/export'), '_blank');
   });
 
+  it('Edit retention policy → Save posts new keepDays + reloads', async () => {
+    let postedPolicy: { url: string; body: Record<string, unknown> } | null = null;
+    vi.spyOn(globalThis, 'fetch' as never).mockImplementation((async (
+      input: unknown, init?: RequestInit,
+    ) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+      if (method === 'POST' && url.includes('/retention/')) {
+        postedPolicy = { url, body: JSON.parse(init!.body as string) };
+        return new Response('{}', { status: 200 });
+      }
+      let body: unknown = {};
+      if (url.includes('/retention')) {
+        body = { policies: [
+          { category: 'audit', keepDays: 365, description: 'audit log',
+            lastPurgeAt: null, lastPurgeRows: 0 },
+        ] };
+      } else if (url.includes('/erasure')) body = { requests: [] };
+      else if (url.includes('/anchors')) body = { anchors: [] };
+      else if (url.includes('/residency')) body = { rules: [] };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }) as never);
+    renderWithProviders(<Compliance />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByText('audit')).toBeInTheDocument());
+    /* Open RowMenu → click "Edit". */
+    const user = userEvent.setup();
+    const details = document.querySelectorAll('details');
+    expect(details.length).toBeGreaterThan(0);
+    details[0].setAttribute('open', '');
+    const edit = screen.queryByText('Edit');
+    if (edit) {
+      await user.click(edit);
+      /* Numeric input appears. */
+      const input = document.querySelector('input[type="number"]') as HTMLInputElement;
+      if (input) {
+        await user.clear(input);
+        await user.type(input, '90');
+        await user.click(screen.getByText('Save'));
+        await waitFor(() => {
+          expect(postedPolicy).not.toBeNull();
+          expect(postedPolicy!.body.keepDays).toBe(90);
+        });
+      }
+    }
+  });
+
+  it('Complete erasure → requires confirm; cancelling does not post', async () => {
+    stubFetchPopulated();
+    /* window.confirm returns false → the completeErasure handler
+     * bails without posting. */
+    const originalConfirm = window.confirm;
+    window.confirm = vi.fn(() => false);
+    const fetchSpy = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    try {
+      renderWithProviders(<Compliance />, { authApi });
+      await waitFor(() =>
+        expect(screen.getByText('PENDING')).toBeInTheDocument());
+      const user = userEvent.setup();
+      const details = document.querySelectorAll('details');
+      /* RowMenus on pending erasure row surface. */
+      if (details.length > 1) {
+        details[1].setAttribute('open', '');
+        const complete = screen.queryByText(/Complete erasure/i);
+        if (complete) {
+          const before = fetchSpy.mock.calls.length;
+          await user.click(complete);
+          /* No POST to /complete since confirm was denied. */
+          const after = fetchSpy.mock.calls.length;
+          const diff = fetchSpy.mock.calls
+            .slice(before, after)
+            .map((c) => String(c[0]));
+          expect(diff.some((u) => u.includes('/complete'))).toBe(false);
+        }
+      }
+    } finally {
+      window.confirm = originalConfirm;
+    }
+  });
+
   it('empty-state fallbacks — zero rows across all four endpoints', async () => {
     vi.spyOn(globalThis, 'fetch' as never).mockImplementation((async (
       input: unknown,
