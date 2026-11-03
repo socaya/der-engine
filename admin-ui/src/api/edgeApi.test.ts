@@ -669,4 +669,154 @@ describe('edgeApi wrappers — batch coverage', () => {
     await api.getWorkflow('wf-1');
     expect(fetchMock.mock.calls[0]![0]).toContain('wf-1');
   });
+
+  it('deleteWorkflow DELETEs by id', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.deleteWorkflow('wf-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
+    expect(fetchMock.mock.calls[0]![0]).toContain('wf-1');
+  });
+
+  it('listWorkflowRuns GETs the runs endpoint for a workflowId', async () => {
+    fetchMock.mockResolvedValue(respond(200, { runs: [] }));
+    await api.listWorkflowRuns('wf-1');
+    expect(fetchMock.mock.calls[0]![0]).toContain('run');
+    expect(fetchMock.mock.calls[0]![0]).toContain('wf-1');
+  });
+
+  it('listDevices GETs the devices endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { devices: [] }));
+    await api.listDevices();
+    expect(fetchMock.mock.calls[0]![0]).toContain('device');
+  });
+
+  it('approveDevice POSTs to the approve endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.approveDevice('d-1');
+    expect(fetchMock.mock.calls[0]![0]).toContain('d-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('suspendDevice POSTs to the suspend endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.suspendDevice('d-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('revokeDevice POSTs to the revoke endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.revokeDevice('d-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('deleteDevice DELETEs by id', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.deleteDevice('d-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
+  });
+
+  it('analyticsSummary GETs the analytics endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.analyticsSummary();
+    expect(fetchMock.mock.calls[0]![0]).toContain('analytics');
+  });
+
+  it('analyticsRejections GETs the rejections endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.analyticsRejections();
+    expect(fetchMock.mock.calls[0]![0]).toContain('rejection');
+  });
+
+  it('listAuditEvents GETs audit events + accepts limit', async () => {
+    fetchMock.mockResolvedValue(respond(200, { events: [] }));
+    await api.listAuditEvents({ limit: 25 });
+    expect(fetchMock.mock.calls[0]![0]).toContain('audit');
+    expect(fetchMock.mock.calls[0]![0]).toContain('limit=25');
+  });
+
+  it('verifyAuditChain GETs verify endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.verifyAuditChain();
+    expect(fetchMock.mock.calls[0]![0]).toContain('verif');
+  });
+
+  it('networkStatus GETs network status', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkStatus();
+    expect(fetchMock.mock.calls[0]![0]).toContain('network');
+  });
+
+  it('networkInterfaces GETs the interfaces endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkInterfaces();
+    expect(fetchMock.mock.calls[0]![0]).toContain('interface');
+  });
+
+  it('networkAccessPoint GETs the AP endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkAccessPoint();
+    expect(fetchMock.mock.calls[0]![0]).toContain('access');
+  });
+
+  it('networkClients GETs the clients endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { clients: [] }));
+    await api.networkClients();
+    expect(fetchMock.mock.calls[0]![0]).toContain('client');
+  });
+
+  it('networkPeers GETs the peers endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { peers: [] }));
+    await api.networkPeers();
+    expect(fetchMock.mock.calls[0]![0]).toContain('peer');
+  });
+
+  it('networkEvents GETs the events endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { events: [] }));
+    await api.networkEvents(5);
+    expect(fetchMock.mock.calls[0]![0]).toContain('event');
+  });
+
+  it('networkApStart POSTs to the start endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkApStart();
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+    expect(fetchMock.mock.calls[0]![0]).toContain('start');
+  });
+
+  it('networkApStop POSTs to the stop endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkApStop();
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+    expect(fetchMock.mock.calls[0]![0]).toContain('stop');
+  });
+
+  it('listWorkflowPeers GETs the peers endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { peers: [] }));
+    await api.listWorkflowPeers();
+    expect(fetchMock.mock.calls[0]![0]).toContain('peer');
+  });
+
+  it('listImportInbox GETs the import inbox', async () => {
+    fetchMock.mockResolvedValue(respond(200, { entries: [] }));
+    await api.listImportInbox();
+    expect(fetchMock.mock.calls[0]![0]).toContain('import');
+  });
+
+  it('runValidation GETs validation for a runId', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.runValidation('run-1');
+    expect(fetchMock.mock.calls[0]![0]).toContain('run-1');
+  });
+
+  it('listSnapshots GETs the snapshots endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { snapshots: [] }));
+    await api.listSnapshots();
+    expect(fetchMock.mock.calls[0]![0]).toContain('snapshot');
+  });
+
+  it('readAllUserPrefs GETs the prefs endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.readAllUserPrefs();
+    expect(fetchMock.mock.calls[0]![0]).toContain('pref');
+  });
 });
