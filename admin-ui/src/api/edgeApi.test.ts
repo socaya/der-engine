@@ -459,4 +459,214 @@ describe('edgeApi wrappers — batch coverage', () => {
     expect(fetchMock.mock.calls[0]![0])
       .toBe('/edge-api/v1/dhis2/reachability');
   });
+
+  it('scopeAudit GETs the scope-audit endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.scopeAudit();
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('scope');
+  });
+
+  it('fetchLastJournalPurge GETs the last-purge endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, null));
+    await api.fetchLastJournalPurge();
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('purge');
+  });
+
+  it('fetchDataPullCursors GETs the cursors endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { cursors: [] }));
+    await api.fetchDataPullCursors();
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('cursor');
+  });
+
+  it('retryBatch POSTs an array of operation ids', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.retryBatch(['op-1', 'op-2']);
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string))
+      .toMatchObject({ operationIds: ['op-1', 'op-2'] });
+  });
+
+  it('retryRun POSTs to the run retry endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.retryRun('run-1');
+    expect(fetchMock.mock.calls[0]![0]).toContain('run-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('journalStatsByType GETs the stats endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.journalStatsByType();
+    expect(fetchMock.mock.calls[0]![0])
+      .toContain('journal');
+  });
+
+  it('listReferralInbox GETs /referrals/inbox', async () => {
+    fetchMock.mockResolvedValue(respond(200, { entries: [] }));
+    await api.listReferralInbox();
+    expect(fetchMock.mock.calls[0]![0]).toContain('referral');
+  });
+
+  it('acceptReferralInbox POSTs to accept endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.acceptReferralInbox('inbox-1');
+    expect(fetchMock.mock.calls[0]![0]).toContain('inbox-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('workerHealth GETs the worker status endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.workerHealth();
+    expect(fetchMock.mock.calls[0]![0]).toContain('worker');
+  });
+
+  it('pauseWorker POSTs to the pause endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.pauseWorker();
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+    expect(fetchMock.mock.calls[0]![0]).toContain('pause');
+  });
+
+  it('resumeWorker POSTs to the resume endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.resumeWorker();
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+    expect(fetchMock.mock.calls[0]![0]).toContain('resume');
+  });
+
+  it('listUsers GETs the users endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { users: [] }));
+    await api.listUsers();
+    expect(fetchMock.mock.calls[0]![0]).toContain('user');
+  });
+
+  it('listApps GETs the apps endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { apps: [] }));
+    await api.listApps();
+    expect(fetchMock.mock.calls[0]![0]).toContain('app');
+  });
+
+  it('setAppEnabled POSTs enabled state', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.setAppEnabled('app-1', true);
+    expect(fetchMock.mock.calls[0]![0]).toContain('app-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('listBackups GETs the backups endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { runs: [] }));
+    await api.listBackups();
+    expect(fetchMock.mock.calls[0]![0]).toContain('backup');
+  });
+
+  it('requestBackup POSTs a backup kind', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.requestBackup('FULL');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+    expect(fetchMock.mock.calls[0]![0]).toContain('backup');
+  });
+
+  it('listRestores GETs the restores endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { runs: [] }));
+    await api.listRestores();
+    expect(fetchMock.mock.calls[0]![0]).toContain('restore');
+  });
+
+  it('diagnostics GETs the diagnostics endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.diagnostics();
+    expect(fetchMock.mock.calls[0]![0]).toContain('diagnost');
+  });
+
+  it('systemInfo GETs /system/info', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.systemInfo();
+    expect(fetchMock.mock.calls[0]![0]).toBe('/edge-api/v1/system/info');
+  });
+
+  it('readSettings GETs /settings', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.readSettings();
+    expect(fetchMock.mock.calls[0]![0]).toContain('setting');
+  });
+
+  it('saveSettings PUTs settings body', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.saveSettings({ foo: 'bar' } as never);
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(init.method).toMatch(/PUT|POST/);
+    expect(JSON.parse(init.body as string)).toEqual({ foo: 'bar' });
+  });
+
+  it('listOrgUnitLevels GETs /organisationUnitLevels', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.listOrgUnitLevels();
+    expect(fetchMock.mock.calls[0]![0]).toContain('organisationUnitLevels');
+  });
+
+  it('adminShutdown POSTs to the shutdown endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.adminShutdown();
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+    expect(fetchMock.mock.calls[0]![0]).toContain('shutdown');
+  });
+
+  it('adminRestart POSTs to the restart endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.adminRestart();
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+    expect(fetchMock.mock.calls[0]![0]).toContain('restart');
+  });
+
+  it('adminClearSessions POSTs to the clear-sessions endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.adminClearSessions();
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+    expect(fetchMock.mock.calls[0]![0]).toContain('session');
+  });
+
+  it('adminLogs GETs the log tail endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { entries: [] }));
+    await api.adminLogs(50);
+    expect(fetchMock.mock.calls[0]![0]).toContain('log');
+  });
+
+  it('getOrgUnitBinding GETs the org-unit endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.getOrgUnitBinding();
+    expect(fetchMock.mock.calls[0]![0]).toContain('org-unit');
+  });
+
+  it('bindOrgUnit POSTs the orgUnit id', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.bindOrgUnit('OU-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('listOrgUnits GETs the OU list', async () => {
+    fetchMock.mockResolvedValue(respond(200, { items: [] }));
+    await api.listOrgUnits();
+    expect(fetchMock.mock.calls[0]![0]).toContain('organisation');
+  });
+
+  it('listPendingApprovals GETs the approvals endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { rows: [] }));
+    await api.listPendingApprovals();
+    expect(fetchMock.mock.calls[0]![0]).toContain('approval');
+  });
+
+  it('listWorkflows GETs the workflows endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { workflows: [] }));
+    await api.listWorkflows();
+    expect(fetchMock.mock.calls[0]![0]).toContain('workflow');
+  });
+
+  it('getWorkflow GETs by id', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.getWorkflow('wf-1');
+    expect(fetchMock.mock.calls[0]![0]).toContain('wf-1');
+  });
 });
