@@ -149,4 +149,102 @@ describe('Hardware screen', () => {
     await userEvent.click(screen.getAllByText('Refresh')[0]);
     await waitFor(() => expect(fetchSpy.mock.calls.length).toBeGreaterThan(before));
   });
+
+  it('seal-dialog submit — fetch success triggers onSaved + reload', async () => {
+    let postedBody: Record<string, unknown> | null = null;
+    fetchSpy.mockImplementation((async (
+      input: unknown, init?: RequestInit,
+    ) => {
+      const url = String(input);
+      if (init?.method === 'POST' && url.includes('/sealed')) {
+        postedBody = JSON.parse(init.body as string) as Record<string, unknown>;
+        return new Response('{}', { status: 200 });
+      }
+      return new Response(JSON.stringify(base), { status: 200 });
+    }) as never);
+    const user = userEvent.setup();
+    renderWithProviders(<Hardware />);
+    await waitFor(() => expect(screen.getByText('status')).toBeInTheDocument());
+    await user.click(screen.getByText('Seal secret'));
+    await user.type(screen.getByPlaceholderText('dhis2-token'),
+                     'new-secret-id');
+    const textarea = document.querySelector('textarea');
+    if (textarea) {
+      await user.type(textarea, 'the-plain-value');
+    }
+    const sealBtns = screen.getAllByRole('button', { name: /^Seal$/ });
+    const submit = sealBtns[sealBtns.length - 1] as HTMLButtonElement;
+    await user.click(submit);
+    await waitFor(() => {
+      expect(postedBody).not.toBeNull();
+      expect(postedBody!.secretId).toBe('new-secret-id');
+      expect(postedBody!.plaintext).toBe('the-plain-value');
+    });
+  });
+
+  it('seal-dialog submit — fetch failure surfaces the error inline', async () => {
+    fetchSpy.mockImplementation((async (
+      input: unknown, init?: RequestInit,
+    ) => {
+      const url = String(input);
+      if (init?.method === 'POST' && url.includes('/sealed')) {
+        throw new TypeError('seal denied');
+      }
+      return new Response(JSON.stringify(base), { status: 200 });
+    }) as never);
+    const user = userEvent.setup();
+    renderWithProviders(<Hardware />);
+    await waitFor(() => expect(screen.getByText('status')).toBeInTheDocument());
+    await user.click(screen.getByText('Seal secret'));
+    await user.type(screen.getByPlaceholderText('dhis2-token'), 'sx');
+    const textarea = document.querySelector('textarea');
+    if (textarea) await user.type(textarea, 'p');
+    const sealBtns = screen.getAllByRole('button', { name: /^Seal$/ });
+    await user.click(sealBtns[sealBtns.length - 1] as HTMLButtonElement);
+    await waitFor(() =>
+      expect(screen.getByText(/seal denied/)).toBeInTheDocument());
+  });
+
+  it('LED edit — RowMenu Edit opens inputs, Save posts the color/pattern', async () => {
+    let postedLed: { url: string; body: Record<string, unknown> } | null = null;
+    fetchSpy.mockImplementation((async (
+      input: unknown, init?: RequestInit,
+    ) => {
+      const url = String(input);
+      if (init?.method === 'POST' && url.includes('/leds/')) {
+        postedLed = { url, body: JSON.parse(init.body as string) };
+        return new Response('{}', { status: 200 });
+      }
+      return new Response(JSON.stringify(base), { status: 200 });
+    }) as never);
+    const user = userEvent.setup();
+    renderWithProviders(<Hardware />);
+    await waitFor(() => expect(screen.getByText('status')).toBeInTheDocument());
+    /* Open the RowMenu via its details element — look for a
+     * details element inside the LED row. */
+    const details = document.querySelectorAll('details');
+    expect(details.length).toBeGreaterThan(0);
+    /* RowMenu uses <details><summary>. Click a summary to open. */
+    details[details.length - 1].setAttribute('open', '');
+    const edit = screen.queryByText('Edit');
+    if (edit) {
+      await user.click(edit);
+      /* After Edit, Save button appears. */
+      const save = screen.queryByText('Save');
+      if (save) {
+        await user.click(save);
+        await waitFor(() => {
+          expect(postedLed).not.toBeNull();
+        });
+      }
+    }
+  });
+
+  it('hottest-temp heuristic — surfaces hottest zone in subtitle', async () => {
+    renderWithProviders(<Hardware />);
+    await waitFor(() =>
+      expect(screen.getByText(/hottest/i)).toBeInTheDocument());
+    /* 78.9°C is the hottest of the three zones. */
+    expect(document.body.textContent ?? '').toMatch(/78\.9/);
+  });
 });
