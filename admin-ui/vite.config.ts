@@ -97,10 +97,14 @@ export default defineConfig({
          * ScreenHeader) added 36 tests and lifted measured
          * coverage to 73.58 / 70.89 / 57.76 / 73.58. Ratchet
          * thresholds one point below each for safety margin. */
-        lines: 72,
-        branches: 69,
-        functions: 56,
-        statements: 72,
+        /* der-2.3.123 round-22 ratchet: three further depth-lifts
+         * (AdminShell, DataEvents, DataTracker) added 30 tests
+         * and lifted measured coverage to 74.84 / 72.33 / 59.11 /
+         * 74.84. Ratchet one point below each. */
+        lines: 73,
+        branches: 70,
+        functions: 57,
+        statements: 73,
       },
     },
   },
