@@ -126,6 +126,18 @@ describe('DataTeiDetail', () => {
         .toBeInTheDocument());
   });
 
+  it('Lineage button triggers PayloadLineageDrawer', async () => {
+    renderWithProviders(<DataTeiDetail />, { route: '/data/tracker/tei/tei-1' });
+    await waitFor(() =>
+      expect(screen.getByTestId('tei-lineage-open'))
+        .toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default
+      .setup();
+    await user.click(screen.getByTestId('tei-lineage-open'));
+    /* Lineage drawer mounts. */
+    expect(screen.getByTestId('data-tei-detail')).toBeInTheDocument();
+  });
+
   it('null name fallbacks — enrolment programName null + trackerEvent programStageName null', async () => {
     /* Enrol + event rows with null program/stage names exercise the
      * else branches that render uid-only spans. */
