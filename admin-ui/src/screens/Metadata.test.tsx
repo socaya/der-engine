@@ -411,4 +411,108 @@ describe('MockupMetadataDetail', () => {
     await userEvent.click(screen.getByRole('tab', { name: /Relationships/i }));
     expect(screen.getByText(/…5 more/)).toBeInTheDocument();
   });
+
+  /* ──────────────────────────────────────────────────────────────
+   * Depth-lift: resource-specific detail rows for the long-tail
+   * resource types that weren't exercised by the dataElements /
+   * documents happy paths. Lines 846-849 (validationRules),
+   * 856-860 (programRuleVariables), plus the handful of other
+   * switch arms. Each test feeds the matching resource type into
+   * metadataList and asserts the resource-specific labels surface.
+   * ────────────────────────────────────────────────────────────── */
+
+  it('validationRules detail surfaces operator / period type / importance rows', async () => {
+    vi.mocked(mockedApi.metadataList).mockResolvedValue(listResponse('validationRules', [
+      makeItem('VR-1', {
+        operator: 'greater_than',
+        periodType: 'Monthly',
+        importance: 'HIGH',
+      }),
+    ]) as never);
+    renderDetail('validationRules', 'VR-1');
+    await waitFor(() =>
+      expect(screen.getByTestId('meta-detail')).toBeInTheDocument());
+    expect(screen.getByText('Operator')).toBeInTheDocument();
+    expect(screen.getByText('Period type')).toBeInTheDocument();
+    expect(screen.getByText('Importance')).toBeInTheDocument();
+  });
+
+  it('programRules detail surfaces program / priority / rule actions rows', async () => {
+    vi.mocked(mockedApi.metadataList).mockResolvedValue(listResponse('programRules', [
+      makeItem('PR-1', {
+        program: { id: 'PROG-1', displayName: 'ANC' },
+        priority: 5,
+        programRuleActions: [{ id: 'a1' }, { id: 'a2' }],
+      }),
+    ]) as never);
+    renderDetail('programRules', 'PR-1');
+    await waitFor(() =>
+      expect(screen.getByTestId('meta-detail')).toBeInTheDocument());
+    expect(screen.getByText('Program')).toBeInTheDocument();
+    expect(screen.getByText('Priority')).toBeInTheDocument();
+    expect(screen.getByText('Rule actions')).toBeInTheDocument();
+  });
+
+  it('programRuleVariables detail surfaces source + data element + TE attribute rows', async () => {
+    vi.mocked(mockedApi.metadataList).mockResolvedValue(listResponse('programRuleVariables', [
+      makeItem('PRV-1', {
+        program: { id: 'PROG-1', displayName: 'ANC' },
+        programRuleVariableSourceType: 'DATAELEMENT_CURRENT_EVENT',
+        dataElement: { id: 'DE-1', displayName: 'Weight' },
+        /* ref() skips rows when the field is null/undefined; set
+         * a populated object so the TE attribute row renders. */
+        trackedEntityAttribute: { id: 'TEA-1', displayName: 'DOB' },
+      }),
+    ]) as never);
+    renderDetail('programRuleVariables', 'PRV-1');
+    await waitFor(() =>
+      expect(screen.getByTestId('meta-detail')).toBeInTheDocument());
+    expect(screen.getByText('Source')).toBeInTheDocument();
+    expect(screen.getByText('Data element')).toBeInTheDocument();
+    expect(screen.getByText('TE attribute')).toBeInTheDocument();
+  });
+
+  it('indicators detail surfaces numerator + denominator + indicator type rows', async () => {
+    vi.mocked(mockedApi.metadataList).mockResolvedValue(listResponse('indicators', [
+      makeItem('IND-1', {
+        numerator: '#{a}',
+        denominator: '#{b}',
+        indicatorType: { id: 'IT-1', displayName: 'Rate' },
+      }),
+    ]) as never);
+    renderDetail('indicators', 'IND-1');
+    await waitFor(() =>
+      expect(screen.getByTestId('meta-detail')).toBeInTheDocument());
+    expect(screen.getByText('Numerator')).toBeInTheDocument();
+    expect(screen.getByText('Denominator')).toBeInTheDocument();
+    expect(screen.getByText('Indicator type')).toBeInTheDocument();
+  });
+
+  it('userGroups detail surfaces members + managedBy rows', async () => {
+    vi.mocked(mockedApi.metadataList).mockResolvedValue(listResponse('userGroups', [
+      makeItem('UG-1', {
+        users: [{ id: 'u1' }, { id: 'u2' }, { id: 'u3' }],
+        managedByGroups: [{ id: 'g1' }],
+      }),
+    ]) as never);
+    renderDetail('userGroups', 'UG-1');
+    await waitFor(() =>
+      expect(screen.getByTestId('meta-detail')).toBeInTheDocument());
+    expect(screen.getByText('Members')).toBeInTheDocument();
+    expect(screen.getByText('Managed by')).toBeInTheDocument();
+  });
+
+  it('categoryOptionCombos detail surfaces category combo + category options rows', async () => {
+    vi.mocked(mockedApi.metadataList).mockResolvedValue(listResponse('categoryOptionCombos', [
+      makeItem('COC-1', {
+        categoryCombo: { id: 'CC-1', displayName: 'Age/Sex' },
+        categoryOptions: [{ id: 'co-1' }, { id: 'co-2' }],
+      }),
+    ]) as never);
+    renderDetail('categoryOptionCombos', 'COC-1');
+    await waitFor(() =>
+      expect(screen.getByTestId('meta-detail')).toBeInTheDocument());
+    expect(screen.getByText('Category combo')).toBeInTheDocument();
+    expect(screen.getByText('Category options')).toBeInTheDocument();
+  });
 });
