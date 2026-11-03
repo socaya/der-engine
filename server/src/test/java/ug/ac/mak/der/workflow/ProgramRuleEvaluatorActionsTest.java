@@ -120,6 +120,41 @@ class ProgramRuleEvaluatorActionsTest {
         assertThat(issue.fieldRef()).isEqualTo("STGnest12345");
     }
 
+    private ProgressiveValidator.Issue invokeDisplay(final ProgramRuleEvaluator ev,
+                                                       final MirroredProgramRule r,
+                                                       final MirroredProgramRuleAction a) throws Exception {
+        final Method m = ProgramRuleEvaluator.class.getDeclaredMethod(
+                "displayIssue", UUID.class, MirroredProgramRule.class,
+                MirroredProgramRuleAction.class);
+        m.setAccessible(true);
+        return (ProgressiveValidator.Issue) m.invoke(ev, UUID.randomUUID(), r, a);
+    }
+
+    @Test
+    void displayTextEmitsInfoIssueWithContent() throws Exception {
+        final JsonNode payload = mapper.createObjectNode();
+        final var a = new MirroredProgramRuleAction("actUid", "ruleUid",
+                "DISPLAYTEXT", null, null, null,
+                "Report cases weekly even if zero", payload);
+        final var issue = invokeDisplay(build(), rule(), a);
+        assertThat(issue).isNotNull();
+        assertThat(issue.code()).isEqualTo("PROGRAM_RULE_DISPLAYTEXT");
+        assertThat(issue.severity()).isEqualTo(ProgressiveValidator.Severity.INFO);
+        assertThat(issue.message()).contains("Report cases weekly");
+    }
+
+    @Test
+    void displayKeyValuePairEmitsInfoIssue() throws Exception {
+        final JsonNode payload = mapper.createObjectNode();
+        final var a = new MirroredProgramRuleAction("actUid", "ruleUid",
+                "DISPLAYKEYVALUEPAIR", "DE_target_12", null, null,
+                "Last immunisation date", payload);
+        final var issue = invokeDisplay(build(), rule(), a);
+        assertThat(issue).isNotNull();
+        assertThat(issue.code()).isEqualTo("PROGRAM_RULE_DISPLAYKEYVALUEPAIR");
+        assertThat(issue.fieldRef()).isEqualTo("DE_target_12");
+    }
+
     @Test
     void createEventWithoutRefLeavesSuggestedFieldNullButKeepsMessage() throws Exception {
         /* Central-side rule without a programStage ref — rare but

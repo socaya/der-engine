@@ -63,8 +63,20 @@ import ug.ac.mak.der.metadata.MirroredProgramRuleAction;
  *       target {@code programStageSection} / {@code programStage}
  *       UID in {@code suggestedField}, letting the client act
  *       deterministically instead of just surfacing a vague cue.</li>
- *   <li>Other action types ({@code HIDEFIELD}, {@code ASSIGN},
- *       …) are not yet
+ *   <li>Phase 12.2 added {@code DISPLAYTEXT} +
+ *       {@code DISPLAYKEYVALUEPAIR} handlers so these DHIS2 rule
+ *       actions emit an INFO issue carrying the action's
+ *       {@code content} / {@code data} payload instead of silently
+ *       falling through. Closes a form-rendering gap operators hit
+ *       whenever central ships a program with text-display rules.</li>
+ *   <li>All seven ADR-0007 actions ({@code SHOWERROR},
+ *       {@code SHOWWARNING}, {@code SETMANDATORYFIELD},
+ *       {@code HIDEFIELD}, {@code HIDESECTION}, {@code ASSIGN},
+ *       {@code CREATEEVENT}) are now implemented. Actions outside
+ *       ADR-0007 scope ({@code SENDMESSAGE},
+ *       {@code SCHEDULEMESSAGE}, {@code HIDEOPTION}, …) fall
+ *       through to {@code null} and are explicitly non-goals until a
+ *       successor ADR extends the taxonomy.</
  *       enforced at the server; they will land as a follow-up once a
  *       client-side surface exists to hide/assign fields.</li>
  * </ul>
@@ -314,6 +326,8 @@ public class ProgramRuleEvaluator {
                 assignIssue(runId, rule, action, values);
             case "CREATEEVENT" ->
                 createEventIssue(runId, rule, action);
+            case "DISPLAYTEXT", "DISPLAYKEYVALUEPAIR" ->
+                displayIssue(runId, rule, action);
             default -> null;
         };
     }
@@ -398,6 +412,28 @@ public class ProgramRuleEvaluator {
                             ? "to be created."
                             : "to be created: " + action.content()),
                 stageUid);
+    }
+
+    /** Phase 12.2 — DHIS2 {@code DISPLAYTEXT} / {@code DISPLAYKEYVALUEPAIR}.
+     *  Both emit a form-time INFO cue carrying the rule's content.
+     *  DISPLAYTEXT shows a free-text message under the triggering
+     *  field; DISPLAYKEYVALUEPAIR shows a labelled lookup. Previously
+     *  both fell through to {@code default -> null}, so forms shipped
+     *  with these rules rendered without the instructional text —
+     *  silent data-quality degradation. */
+    private ProgressiveValidator.Issue displayIssue(final UUID runId,
+                                                       final MirroredProgramRule rule,
+                                                       final MirroredProgramRuleAction action) {
+        final String message = action.content() == null || action.content().isBlank()
+                ? "Rule '" + rule.displayName() + "' triggered"
+                : action.content();
+        return new ProgressiveValidator.Issue(
+                UUID.randomUUID(), runId, null,
+                "PROGRAM_RULE_" + action.actionType(),
+                ProgressiveValidator.Severity.INFO,
+                message,
+                action.dataElementUid() != null ? action.dataElementUid()
+                        : action.trackedEntityAttributeUid());
     }
 
     /** §2.3.28 — HIDESECTION. ADR-0007 phase-10.2 extension: issue
