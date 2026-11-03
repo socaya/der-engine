@@ -127,10 +127,15 @@ export default defineConfig({
          * AdminTasks, DataAggregateDetail + DataTeiDetail null-name
          * tests) added 49 tests. Measured coverage 79.98 / 77.11
          * / 64.45 / 79.98. Ratchet one point below each. */
-        lines: 79,
-        branches: 76,
-        functions: 63,
-        statements: 79,
+        /* der-2.3.123 round-54 ratchet: four further depth-lifts
+         * (Workspace, WorkflowActivity, WorkflowImportInbox) +
+         * crossed the 1100-test + 80%-lines milestones. Measured
+         * coverage 80.02 / 77.34 / 64.45 / 80.02. Ratchet one
+         * point below each. */
+        lines: 80,
+        branches: 77,
+        functions: 64,
+        statements: 80,
       },
     },
   },
