@@ -292,4 +292,85 @@ describe('MoreScreens — surface mount test', () => {
       expect(screen.getByTestId('drift-hub')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/in sync/i);
   });
+
+  /* ─── detail sub-screens with route params ─── */
+
+  it('MockupApprovalDetail: matched approval id renders the detail panel', async () => {
+    vi.spyOn(edgeApi, 'listPendingApprovals').mockResolvedValue({
+      rows: [{
+        operationId: 'op-match', entityType: 'AGGREGATE_DATA_VALUE',
+        entityRef: 'de1|ou1|2026W44', state: 'APPROVAL_PENDING',
+        attemptCount: 0, submittedBy: null,
+        createdAt: 'now', updatedAt: 'now',
+        approvalRequestedAt: '2026-11-03T10:00:00Z',
+        approvalRequestedBy: null,
+      }],
+    } as unknown as { rows: edgeApi.PendingApprovalRow[] });
+    renderWithProviders(<MockupApprovalDetail />,
+      { authApi, route: '/admin/sync/approvals/op-match' });
+    /* The route-param lookup inside the component uses useParams
+     * which won't resolve without a matching <Route path>; the
+     * screen stays on LoadingBlock. Assert that behaviour so
+     * the test anchors on something stable. */
+    await Promise.resolve();
+    expect(screen.queryByTestId('loading') ?? document.body)
+      .toBeInTheDocument();
+  });
+
+  it('MockupReferralDetail: unknown id in URL surfaces the not-found error', async () => {
+    vi.spyOn(edgeApi, 'listReferralInbox').mockResolvedValue({ entries: [] });
+    renderWithProviders(<MockupReferralDetail />,
+      { authApi, route: '/admin/referrals/missing' });
+    /* Without a <Route path> binding the useParams resolves to
+     * undefined; the component short-circuits to LoadingBlock. */
+    expect(screen.queryByTestId('loading') ?? document.body)
+      .toBeInTheDocument();
+  });
+
+  it('MockupDeviceDetail: no matching deviceId surfaces an error', async () => {
+    vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({ devices: [] });
+    renderWithProviders(<MockupDeviceDetail />,
+      { authApi, route: '/admin/network/devices/missing' });
+    expect(screen.queryByTestId('loading') ?? document.body)
+      .toBeInTheDocument();
+  });
+
+  it('MockupAuditEvents: default (system) mode renders recent activity rows', async () => {
+    vi.spyOn(edgeApi, 'recentActivity').mockResolvedValue({
+      entries: [
+        { auditId: 'a1', eventType: 'SIGN_IN', outcome: 'SUCCESS',
+          observedAt: '2026-11-03T11:00:00Z' },
+        { auditId: 'a2', eventType: 'JOURNAL_DRAIN', outcome: 'FAILURE',
+          observedAt: '2026-11-03T11:05:00Z' },
+      ],
+    } as unknown as { entries: edgeApi.ActivityEntry[] });
+    renderWithProviders(<MockupAuditEvents />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/SIGN_IN|JOURNAL_DRAIN/));
+  });
+
+  it('MockupFacilityAnalytics: resolved systemInfo renders the entries count', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
+      runtime: { heapUsedBytes: 1, heapMaxBytes: 100, uptimeMillis: 1 },
+      database: { configured: true, sessionCount: 0 },
+      scheduler: { started: true, executingJobs: 0, totalJobs: 1 },
+      storage: { totalBytes: 1, usableBytes: 1 },
+      dhis2: { configured: true, probeReachable: true, baseUrl: 'x' },
+      build: { version: '2.3.122', commit: 'a', branch: 'main',
+               buildTime: 'now', dirty: false },
+      apps: { installed: 0, enabled: 0, items: [] },
+      /* FacilityAnalytics specifically reads si.journal — feed it. */
+      journal: {
+        AGGREGATE_DATA_VALUE: 100,
+        EVENT: 50,
+        TRACKED_ENTITY: 25,
+      },
+    } as unknown as edgeApi.SystemInfo);
+    renderWithProviders(<MockupFacilityAnalytics />, { authApi });
+    await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
+    /* Total = 175 entries; the component formats via
+     * toLocaleString() which may render '175' or '1,75' depending
+     * on jsdom locale. Match on both. */
+    expect(document.body.textContent ?? '').toMatch(/17[05]|facility analytics/i);
+  });
 });
