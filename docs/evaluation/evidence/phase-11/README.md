@@ -13,6 +13,26 @@ sub-directory keyed on its slice number.
 | 11.3  | NFR-15/17/18/29 sweep           | `11.3-nfr-sweep/` (TBD)      |
 | 11.4  | der-1.0.0 release notes + tag   | `11.4-release/` (TBD)        |
 
+## Related — Phase 12 landed extensions (code only, no pilot hardware)
+
+Phase 12 shipped incremental hardening against the Phase 11 gap
+register:
+
+- 12.1 Continuous IN_FLIGHT reaper (not just boot-time) — closes
+  the steady-state version of the same durability gap 11.1
+  addressed for crashes.
+- 12.2 DISPLAYTEXT / DISPLAYKEYVALUEPAIR rule actions +
+  javadoc cleanup.
+- 12.3 Prometheus counters for drain + pull + reap + referral.
+- 12.4 Orphan auto-healing in TrackerGraphReconciler.
+- 12.5 Phase 10 consolidated evidence doc +
+  `docs/security/role-capability-matrix.md` +
+  `docs/operations/admin-endpoints-guide.md`.
+
+See `docs/implementation_status.md` for the full gap register and
+`docs/evaluation/evidence/phase-10/` for the tracker-lifecycle
+consolidated evidence.
+
 ## 11.1 — Journal recovery (shipped)
 
 - Added `OperationJournalRepository.requeueOrphanedInFlight` and
