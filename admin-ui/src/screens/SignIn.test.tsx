@@ -129,4 +129,35 @@ describe('SignIn (Atlaskit)', () => {
     await waitFor(() =>
       expect(screen.getByTestId('sign-in-error')).toHaveTextContent(/unreachable/i));
   });
+
+  it('EDGE_DOWN state from session probe surfaces the edge-down banner', async () => {
+    const api = {
+      session: vi.fn().mockRejectedValue(
+        new EdgeApiError(0, 'EDGE_UNREACHABLE', 'down')),
+      signIn: vi.fn().mockResolvedValue(user()),
+      signOut: vi.fn().mockResolvedValue(undefined),
+    };
+    renderAt('/sign-in', api);
+    await waitFor(() =>
+      expect(screen.getByTestId('sign-in-edge-down'))
+        .toBeInTheDocument());
+    expect(screen.getByTestId('sign-in-edge-down-inner'))
+      .toHaveTextContent(/DER server/);
+  });
+
+  it('empty credentials — submit does not navigate when both blank', async () => {
+    const api = {
+      session: vi.fn().mockRejectedValue(
+        new EdgeApiError(401, 'INVALID_CREDENTIALS', 'needed')),
+      signIn: vi.fn().mockResolvedValue(user()),
+      signOut: vi.fn().mockResolvedValue(undefined),
+    };
+    renderAt('/sign-in', api);
+    await waitFor(() =>
+      expect(screen.getByTestId('sign-in')).toBeInTheDocument());
+    /* Click submit with empty fields — handler short-circuits without
+     * calling signIn. */
+    fireEvent.click(submitButton());
+    expect(api.signIn).not.toHaveBeenCalled();
+  });
 });
