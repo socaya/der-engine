@@ -148,7 +148,7 @@ export function MockupCompatMatrix(): JSX.Element {
              action={<span className="ea-text-muted">from the latest probe</span>}>
         {!snap.capabilities ? (
           <p className="ea-text-muted" style={{ margin: 0 }}>
-            Probe hasn't returned a capabilities snapshot yet.
+            Probe hasn&apos;t returned a capabilities snapshot yet.
           </p>
         ) : (
           <div className="ea-table-wrap">

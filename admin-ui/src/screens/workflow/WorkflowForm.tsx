@@ -473,7 +473,7 @@ export function WorkflowForm({ api = edgeApi }:
             <div className="ea-form-section-head">
               <h2>Settings</h2>
               <p>Name, status and the default role/device for steps you
-                 don't explicitly route elsewhere.</p>
+                 don&apos;t explicitly route elsewhere.</p>
             </div>
             <div className="ea-form-grid">
               <label className="ea-field">
@@ -623,7 +623,7 @@ export function WorkflowForm({ api = edgeApi }:
               <div className="ea-form-section-head">
                 <h2>Metadata pin</h2>
                 <p>Freeze this workflow to a specific metadata snapshot
-                   so upstream DHIS2 changes can't break it in the
+                   so upstream DHIS2 changes can&apos;t break it in the
                    field. Leave on <em>Follow live mirror</em> to track
                    the current snapshot.</p>
               </div>

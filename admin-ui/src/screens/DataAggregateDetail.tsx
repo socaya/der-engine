@@ -230,7 +230,7 @@ export function JournalPanel(
           No outbox entries yet — this row has never been queued for
           Central DHIS2. It may be a brand-new local write, or it may
           have been pulled down from Central and attached to its
-          CENTRAL_DOWNLOAD system workflow run (which doesn't journal).
+          CENTRAL_DOWNLOAD system workflow run (which doesn&apos;t journal).
         </p>
       ) : (
         <div className="ea-table-wrap">

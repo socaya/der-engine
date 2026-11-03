@@ -52,6 +52,8 @@ export function WorkflowQueue({ api = edgeApi }:
       es.close();
       window.clearInterval(safetyNet);
     };
+    // Why: reload closes over state; re-run only when api/deviceId changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, deviceId]);
 
   if (error) {

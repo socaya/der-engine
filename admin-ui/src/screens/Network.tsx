@@ -556,7 +556,7 @@ function QrEnrolDialog({ onClose }: { onClose: () => void }): JSX.Element {
         )}
         {err && (
           <div className="ea-text-muted" style={{ margin: '12px 0 0', fontSize: 12 }}>
-            Couldn't load QR — {err}
+            Couldn&apos;t load QR — {err}
           </div>
         )}
         <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--der-raised)',
@@ -1397,7 +1397,7 @@ function PeerDialog({ mode, peer, onClose, onSaved }: {
           {mode === 'edit' ? 'Edit WireGuard peer' : 'Add WireGuard peer'}
         </h3>
         <p className="ea-text-muted" style={{ margin: '0 0 14px', fontSize: 13 }}>
-          The peer's WireGuard public key + reachable endpoint are
+          The peer&apos;s WireGuard public key + reachable endpoint are
           required. Connection is established after you click Connect
           on the Peers row.
         </p>
@@ -1606,7 +1606,7 @@ function TlsCertPanel(): JSX.Element {
       {err ? (
         <p className="ea-text-muted" style={{ margin: 0, padding: 10,
                                               color: 'var(--der-danger-ink)' }}>
-          Couldn't load TLS state — {err}
+          Couldn&apos;t load TLS state — {err}
         </p>
       ) : !tls ? (
         <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>Loading…</p>

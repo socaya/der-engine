@@ -64,8 +64,8 @@ export function MockupDriftInspector(): JSX.Element {
             <span>Central → DER (one-way)</span>
             <InfoPopover label="About metadata drift">
               <p>
-                DHIS2 is the source of truth. This probe hashes DER's
-                mirrored resources against Central's.
+                DHIS2 is the source of truth. This probe hashes DER&apos;s
+                mirrored resources against Central&apos;s.
               </p>
               <p>
                 A mismatch simply means the next metadata-sync pull will
@@ -501,8 +501,8 @@ function CentralValuePanel(
     <Panel title="Side-by-side payload">
       {!hasCentral && (
         <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
-          Central hasn't produced a response for this row yet — the conflict was
-          raised at pull time (central's version differs from the operator's
+          Central hasn&apos;t produced a response for this row yet — the conflict was
+          raised at pull time (central&apos;s version differs from the operator&apos;s
           in-flight edit) rather than at drain time (central rejected the push).
           Only the local payload shown.
         </p>
@@ -807,7 +807,9 @@ export function MockupDeviceDetail(): JSX.Element {
       setDevice(d);
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
-  useEffect(() => { reload().catch(() => undefined); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [deviceId]);
+  // Why: reload closes over state; re-run only when deviceId changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { reload().catch(() => undefined); }, [deviceId]);
 
   function act(effect: string, fn: (id: string) => Promise<unknown>): void {
     if (!device) return;
@@ -1051,7 +1053,7 @@ export function MockupApprovalQueue(): JSX.Element {
         tone={rows.length === 0 ? 'success' : 'warning'}
         title="Approvals"
         statusLabel={rows.length === 0 ? 'All clear' : `${rows.length} pending`}
-        subtitle={<span>Captured records waiting for an approver's decision before they sync.</span>}
+        subtitle={<span>Captured records waiting for an approver&apos;s decision before they sync.</span>}
       />
       <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} pending`}>
         {rows.length === 0 ? (
@@ -1698,6 +1700,8 @@ export function MockupAuditEvents(): JSX.Element {
       }
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
+  // Why: reload closes over state; re-run only when networkMode changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [networkMode]);
 
   // Hooks must stay above every early-return. Compute both filtered

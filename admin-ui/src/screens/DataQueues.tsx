@@ -532,7 +532,7 @@ function ResponseSummary({ parsed, raw, isError }: {
                 {total === 0 && okStatus && (
                   <div className="ea-text-muted"
                        style={{ marginTop: 6, fontSize: 11, lineHeight: 1.5 }}>
-                    Central DHIS2 accepted the request (HTTP 200) but didn't
+                    Central DHIS2 accepted the request (HTTP 200) but didn&apos;t
                     change any records — the data was already present or
                     matched an existing value.
                   </div>

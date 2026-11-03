@@ -76,6 +76,8 @@ export function EABackupList({ api = edgeApi }: {
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load().catch(() => undefined); }, [api]);
   async function trigger(kind: 'AUDIT' | 'FULL'): Promise<void> {
     try { await api.requestBackup(kind); await load(); } catch (err) {
@@ -124,6 +126,8 @@ export function EARestoreList({ api = edgeApi }: {
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load().catch(() => undefined); }, [api]);
   async function trigger(): Promise<void> {
     try { await api.requestRestore(source); await load(); } catch (err) {
@@ -222,6 +226,8 @@ export function EAAppsList({ api = edgeApi }: {
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [api]);
   async function toggle(row: edgeApi.InstalledAppRow): Promise<void> {
     try { await api.setAppEnabled(row.appId, !row.enabled); await reload(); } catch (err) {

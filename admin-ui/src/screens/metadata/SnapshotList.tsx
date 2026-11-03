@@ -31,6 +31,8 @@ export function SnapshotList({ api = edgeApi }:
 
   useEffect(() => {
     reload().catch(() => undefined);
+    // Why: reload closes over state; re-run only when api changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api]);
 
   async function doRetire(id: number): Promise<void> {

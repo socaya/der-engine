@@ -16,6 +16,7 @@ function Harness({ runId }: { runId: string }): JSX.Element {
         {[...state.assignedValues.entries()].map(([k, v]) => `${k}=${v}`).sort().join(';')}
       </span>
       <span data-test="cues">{state.createEventCues.length}</span>
+      <span data-test="hook-err">{state.error ?? ''}</span>
     </div>
   );
 }
@@ -55,6 +56,21 @@ describe('useRunValidation', () => {
     render(<Harness runId="" />);
     // No fetch should happen; nothing explodes.
     await act(async () => undefined);
+  });
+
+  it('captures a stringified error message when the fetch rejects (Error)',
+      async () => {
+    vi.spyOn(edgeApi, 'runValidation').mockRejectedValue(new Error('nope'));
+    render(<Harness runId="r-err" />);
+    await waitFor(() =>
+      expect(screen.getByTestId('hook-err').textContent).toBe('nope'));
+  });
+
+  it('stringifies non-Error rejections', async () => {
+    vi.spyOn(edgeApi, 'runValidation').mockRejectedValue('plain');
+    render(<Harness runId="r-str" />);
+    await waitFor(() =>
+      expect(screen.getByTestId('hook-err').textContent).toBe('plain'));
   });
 
   it('falls back to message-text parsing when suggestedValue missing', async () => {

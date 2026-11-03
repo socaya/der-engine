@@ -397,6 +397,105 @@ describe('EventList — empty response falls back', () => {
   });
 });
 
+describe('EventNew — program-rule actions', () => {
+  it('hides the data-element row and skips its value on HIDEFIELD', async () => {
+    const edgeApi = await import('../api/edgeApi');
+    const submit = vi.fn().mockResolvedValue({});
+    vi.spyOn(edgeApi, 'runValidation').mockResolvedValue({
+      runId: 'r1', errorCount: 0,
+      issues: [
+        { issueId: 'h', runId: 'r1', stepId: null,
+          code: 'PROGRAM_RULE_HIDEFIELD', severity: 'INFO',
+          message: "Field 'DE_HIDE' should be hidden",
+          fieldRef: 'DE_HIDE' },
+      ],
+    });
+    renderWithProviders(<EventNew submit={submit}
+      api={{ health: vi.fn().mockResolvedValue(h()), listEvents: vi.fn() } as never} />,
+      { route: '/programs/P/events/new?runId=r1' });
+    await waitFor(() => expect(edgeApi.runValidation).toHaveBeenCalled());
+    await userEvent.type(screen.getByTestId('event-new-orgunit'), 'OU');
+    await userEvent.type(screen.getByTestId('event-new-stage'), 'PS');
+    await userEvent.type(screen.getByTestId('event-new-de'), 'DE_HIDE');
+    await waitFor(() =>
+      expect(screen.getByTestId('event-new-de-hidden')).toBeInTheDocument());
+    expect(screen.queryByTestId('event-new-value')).toBeNull();
+    await userEvent.click(screen.getByTestId('event-new-submit'));
+    await waitFor(() => expect(submit).toHaveBeenCalled());
+    const body = submit.mock.calls[0][0] as
+      { events: { dataValues: { dataElement: string }[] }[] };
+    expect(body.events[0].dataValues).toEqual([]);
+  });
+
+  it('pre-fills the input and shows the suggested-by-rule hint on ASSIGN',
+      async () => {
+    const edgeApi = await import('../api/edgeApi');
+    const submit = vi.fn().mockResolvedValue({});
+    vi.spyOn(edgeApi, 'runValidation').mockResolvedValue({
+      runId: 'r2', errorCount: 0,
+      issues: [
+        { issueId: 'a', runId: 'r2', stepId: null,
+          code: 'PROGRAM_RULE_ASSIGN', severity: 'INFO',
+          message: "Rule 'X' suggests value 'auto' for field 'DE_ASSIGN'.",
+          fieldRef: 'DE_ASSIGN', suggestedValue: 'auto' },
+      ],
+    });
+    renderWithProviders(<EventNew submit={submit}
+      api={{ health: vi.fn().mockResolvedValue(h()), listEvents: vi.fn() } as never} />,
+      { route: '/programs/P/events/new?runId=r2' });
+    await waitFor(() => expect(edgeApi.runValidation).toHaveBeenCalled());
+    await userEvent.type(screen.getByTestId('event-new-orgunit'), 'OU');
+    await userEvent.type(screen.getByTestId('event-new-stage'), 'PS');
+    await userEvent.type(screen.getByTestId('event-new-de'), 'DE_ASSIGN');
+    await waitFor(() =>
+      expect((screen.getByTestId('event-new-value') as HTMLInputElement).value)
+        .toBe('auto'));
+    expect(screen.getByTestId('event-new-value-hint')).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('event-new-submit'));
+    await waitFor(() => expect(submit).toHaveBeenCalled());
+    const body = submit.mock.calls[0][0] as
+      { events: { dataValues: { dataElement: string; value: string }[] }[] };
+    expect(body.events[0].dataValues).toEqual([
+      { dataElement: 'DE_ASSIGN', value: 'auto' },
+    ]);
+  });
+});
+
+describe('EnrollmentCreate — metadata attribute discovery', () => {
+  it('falls back to programTrackedEntityAttributes when no attributes param', async () => {
+    const edgeApi = await import('../api/edgeApi');
+    vi.spyOn(edgeApi, 'programTrackedEntityAttributes')
+      .mockResolvedValue(['TEA_X', 'TEA_Y']);
+    const submit = vi.fn().mockResolvedValue({});
+    renderWithProviders(
+      <Routes>
+        <Route path="/tracker/:program/enroll"
+               element={<EnrollmentCreate submit={submit} />} />
+      </Routes>,
+      { route: '/tracker/P1/enroll' });
+    await waitFor(() =>
+      expect(screen.getByTestId('enroll-attr-input-TEA_X')).toBeInTheDocument());
+    expect(screen.getByTestId('enroll-attr-input-TEA_Y')).toBeInTheDocument();
+    expect(edgeApi.programTrackedEntityAttributes).toHaveBeenCalledWith('P1');
+  });
+
+  it('swallows a metadata fetch rejection and leaves the attribute list empty',
+      async () => {
+    const edgeApi = await import('../api/edgeApi');
+    vi.spyOn(edgeApi, 'programTrackedEntityAttributes')
+      .mockRejectedValue(new Error('boom'));
+    renderWithProviders(
+      <Routes>
+        <Route path="/tracker/:program/enroll"
+               element={<EnrollmentCreate submit={vi.fn()} />} />
+      </Routes>,
+      { route: '/tracker/P2/enroll' });
+    await waitFor(() =>
+      expect(edgeApi.programTrackedEntityAttributes).toHaveBeenCalled());
+    expect(screen.queryByTestId('enroll-attrs')).toBeNull();
+  });
+});
+
 describe('Drafts — alternate error-type branches', () => {
   it('listDrafts rejecting a non-Error renders the stringified error', async () => {
     const api = {

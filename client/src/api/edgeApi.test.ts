@@ -262,6 +262,70 @@ describe('edgeApi device helpers', () => {
   });
 });
 
+describe('edgeApi.runValidation', () => {
+  it('GETs /edge-api/v1/workflows/runs/{id}/validation', async () => {
+    fetchMock.mockResolvedValue(respond(200, {
+      runId: 'r1', errorCount: 0, issues: [],
+    }));
+    const r = await api.runValidation('r1');
+    expect(r.runId).toBe('r1');
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/edge-api/v1/workflows/runs/r1/validation');
+    expect(init.method).toBe('GET');
+  });
+});
+
+function jsonRespond(status: number, body: unknown): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+    text: async () => JSON.stringify(body),
+  } as unknown as Response;
+}
+
+describe('edgeApi.programTrackedEntityAttributes', () => {
+  it('maps the DHIS2 metadata response to a flat UID list', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {
+      programTrackedEntityAttributes: [
+        { trackedEntityAttribute: { id: 'TEA_A' } },
+        { trackedEntityAttribute: { id: 'TEA_B' } },
+      ],
+    }));
+    const ids = await api.programTrackedEntityAttributes('P1');
+    expect(ids).toEqual(['TEA_A', 'TEA_B']);
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/api/programs/P1?fields=id,programTrackedEntityAttributes');
+    expect((init as RequestInit).credentials).toBe('include');
+    expect((init.headers as Record<string, string>)['Accept'])
+      .toBe('application/json');
+  });
+
+  it('returns an empty list on HTTP error', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(500, { error: 'boom' }));
+    const ids = await api.programTrackedEntityAttributes('P-missing');
+    expect(ids).toEqual([]);
+  });
+
+  it('skips entries whose nested trackedEntityAttribute is missing', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {
+      programTrackedEntityAttributes: [
+        { trackedEntityAttribute: { id: 'TEA_OK' } },
+        { trackedEntityAttribute: {} },
+        {},
+      ],
+    }));
+    const ids = await api.programTrackedEntityAttributes('P2');
+    expect(ids).toEqual(['TEA_OK']);
+  });
+
+  it('handles a body without the programTrackedEntityAttributes array', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {}));
+    const ids = await api.programTrackedEntityAttributes('P3');
+    expect(ids).toEqual([]);
+  });
+});
+
 describe('edgeApi device header (ADR-0023)', () => {
   it('attaches X-DER-Device-Id when a device is enrolled', async () => {
     window.localStorage.setItem('der_device_id', 'dvc-1');

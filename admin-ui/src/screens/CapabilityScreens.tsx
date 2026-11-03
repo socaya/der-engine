@@ -528,6 +528,10 @@ export function CapOrgUnitBinding(): JSX.Element {
   useEffect(() => {
     const h = setTimeout(() => { loadOus().catch(() => undefined); }, 250);
     return () => clearTimeout(h);
+    // Why: loadOus closes over current filter state; re-running it on filter
+    // change is the intent — we don't want to re-create the debounce when the
+    // function identity flips.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, filterLevel, filterGroup, filterGroupSet]);
 
   // Resolve each UID in the binding path to a displayName so the breadcrumb

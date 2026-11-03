@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode, type MouseEvent as ReactMouseEvent
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { useOrgUnit } from '../components/OrgUnitContext';
+import type { UiIconId } from '../components/UiIcon';
 
 /**
  * Mockup-matched helpers used across the Dashboard, Overview, Sync,
@@ -553,7 +554,7 @@ export type SyncActivityDirection = 'in' | 'out' | 'two-way' | 'local';
 
 export interface SyncActivityShape {
   readonly category: string;      // "Metadata pull" / "Data push" / "Referral check" / "Analytics" / etc.
-  readonly icon: import('../components/UiIcon').UiIconId;  // Line-SVG id resolved via <UiIcon>.
+  readonly icon: UiIconId;  // Line-SVG id resolved via <UiIcon>.
   readonly direction: SyncActivityDirection;
   readonly directionArrow: string;      // "←", "→", "↔", "·"
   readonly directionLabel: string;      // "Central → DER" etc.
@@ -717,7 +718,7 @@ export function OutOfScopeBanner(
   );
 }
 
-type EntityIconId = import('../components/UiIcon').UiIconId;
+type EntityIconId = UiIconId;
 
 const ENTITY_TYPE_ICON: Readonly<Record<string, EntityIconId>> = {
   AGGREGATE_DATA_VALUE: 'aggregate',
@@ -1636,7 +1637,7 @@ function JsonNode({ value, depth, maxDepth, path }: {
     return <span style={{ color: '#999' }}>null</span>;
   }
   if (typeof value === 'string') {
-    return <span style={{ color: '#047857' }}>"{value}"</span>;
+    return <span style={{ color: '#047857' }}>&quot;{value}&quot;</span>;
   }
   if (typeof value === 'number') {
     return <span style={{ color: '#b45309' }}>{String(value)}</span>;
@@ -1682,7 +1683,7 @@ function JsonNode({ value, depth, maxDepth, path }: {
           <>
             {entries.map(([k, v]) => (
               <div key={k} style={{ paddingLeft: 14 }}>
-                {indent}  <span style={{ color: '#1d4ed8' }}>"{k}"</span>:{' '}
+                {indent}  <span style={{ color: '#1d4ed8' }}>&quot;{k}&quot;</span>:{' '}
                 <JsonNode value={v} depth={depth + 1} maxDepth={maxDepth}
                           path={`${path}.${k}`} />
               </div>

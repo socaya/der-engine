@@ -70,6 +70,8 @@ export function WorkflowActivity({ api = edgeApi }:
       setErr(e instanceof Error ? e.message : String(e));
     }
   }
+  // Why: reload is a stable closure; run once on mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, []);
 
   if (c == null && err == null) return <LoadingBlock testId="wf-activity-loading" />;

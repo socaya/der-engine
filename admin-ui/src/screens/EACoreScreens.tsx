@@ -54,6 +54,8 @@ export function EASetupWelcome({ api = edgeApi }:
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [api]);
 
   async function doBind(): Promise<void> {
@@ -104,7 +106,7 @@ export function EASetupWelcome({ api = edgeApi }:
         <section className="ea-ou-picker" data-test="ea01-orgunit-picker">
           <h2>Bind this edge to an orgUnit</h2>
           <p>
-            This edge isn't bound yet. Writes are rejected until an admin
+            This edge isn&apos;t bound yet. Writes are rejected until an admin
             picks the orgUnit this device will capture against.
           </p>
           {orgUnits.length === 0
@@ -552,6 +554,8 @@ export function EACompatInspector({ api = edgeApi }:
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load().catch(() => undefined); }, [api]);
   async function doRefresh(): Promise<void> {
     setRefreshing(true);
@@ -595,6 +599,8 @@ export function EACompatHistory({ api = edgeApi }:
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [api]);
 
   const paged = usePaged(rows ?? [], 50);
@@ -706,6 +712,8 @@ export function EAJobsList({ api = edgeApi }:
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [api]);
 
   const toggleSort = (col: typeof sortCol): void => {
@@ -973,6 +981,8 @@ export function EADriftInspector({ api = edgeApi }:
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(false).catch(() => undefined); }, [api]);
   if (error) return <ErrorBlock title="Drift failed" testId="ea08-error">{error}</ErrorBlock>;
   if (!data) return <LoadingBlock testId="ea08-loading" />;
@@ -1041,6 +1051,8 @@ export function EAConflictList({ api = edgeApi }:
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [api]);
   if (error) return <ErrorBlock title="Conflicts failed" testId="ea10-error">{error}</ErrorBlock>;
   if (rows === null) return <LoadingBlock testId="ea10-loading" />;
@@ -1151,6 +1163,8 @@ export function EAWorkerHealth({ api = edgeApi }:
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load().catch(() => undefined); }, [api]);
   async function toggle(): Promise<void> {
     try {
@@ -1283,6 +1297,8 @@ export function EAApprovalQueue({ api = edgeApi }:
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [api]);
 
   async function doApprove(opId: string): Promise<void> {
@@ -1419,6 +1435,8 @@ export function EACaptureWorkflowList({ api = edgeApi }:
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [api]);
 
   async function remove(id: string): Promise<void> {
@@ -1846,7 +1864,7 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
       {devices.length > 0 && (
         <details className="ea-cwf-device-ref" data-test="cwf02-devices">
           <summary>Enrolled devices ({devices.length}) — paste UUID into
-            a step's <code>ownerDeviceId</code> to bind it (ADR-0022)</summary>
+            a step&apos;s <code>ownerDeviceId</code> to bind it (ADR-0022)</summary>
           <ul>
             {devices.map((d) => (
               <li key={d.deviceId} data-test={`cwf02-device-${d.deviceId}`}>
@@ -1970,6 +1988,8 @@ export function EADeviceFleet({ api = edgeApi }:
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [api]);
 
   async function act(id: string,
@@ -2071,6 +2091,8 @@ export function EAFacilityAnalytics({ api = edgeApi }:
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [api]);
 
   async function doRefresh(): Promise<void> {
@@ -2230,6 +2252,8 @@ export function EAReferralInbox({ api = edgeApi }:
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  // Why: load/reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [api]);
 
   async function resolve(inboxId: string, action: 'accept' | 'dismiss'): Promise<void> {

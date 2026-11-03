@@ -408,7 +408,7 @@ function OutboundBundlePanel({ runId }: { runId: string }): JSX.Element {
         <p className="ea-text-muted"
            data-test="wf-run-manifest-empty"
            style={{ fontSize: 12 }}>
-          This run hasn't produced any outbox entries yet.
+          This run hasn&apos;t produced any outbox entries yet.
         </p>
       </Panel>
     );

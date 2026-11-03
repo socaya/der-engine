@@ -1,11 +1,12 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Mock AuthContext so AuthProvider doesn't do its real session probe —
 // RequireAuth sees AUTHENTICATED immediately.
 vi.mock('./auth/AuthContext', () => ({
-  AuthProvider: ({ children }: { children: import('react').ReactNode }) => <>{children}</>,
+  AuthProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
   useAuth: () => ({
     state: { status: 'AUTHENTICATED', user: {
       userId: 'u', username: 'a', displayName: 'A', roles: ['ADMIN'], expiresAt: 'x',
@@ -75,7 +76,7 @@ vi.mock('./screens/EARemainderScreens', () => ({
 
 // RequireAuth passes through unconditionally thanks to the mocked useAuth.
 vi.mock('./components/RequireAuth', () => ({
-  RequireAuth: ({ children }: { children: import('react').ReactNode }) => <>{children}</>,
+  RequireAuth: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 async function renderAt(route: string): Promise<void> {

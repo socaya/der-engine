@@ -43,6 +43,8 @@ export function WorkflowImportInbox({ api = edgeApi, embedded = false }:
     es.addEventListener('inbox.updated',
       () => { reload().catch(() => undefined); });
     return () => { es.close(); };
+    // Why: reload closes over current filter; re-run only when api/filter changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, filter]);
 
   async function accept(id: string): Promise<void> {

@@ -47,6 +47,8 @@ export function WorkflowPeers({ api = edgeApi, embedded = false }:
     }
   }
 
+  // Why: reload closes over state; re-run only when api changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [api]);
 
   async function addPeer(): Promise<void> {

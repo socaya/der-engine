@@ -46,7 +46,7 @@ export function OnboardingTour(): JSX.Element | null {
         <>
           <p>
             The <strong>Overview</strong> page is the always-on health dashboard.
-            Green dots → everything's fine. Yellow / red → operator attention
+            Green dots → everything&apos;s fine. Yellow / red → operator attention
             needed.
           </p>
           <p>
@@ -76,7 +76,7 @@ export function OnboardingTour(): JSX.Element | null {
       body: (
         <>
           <p>
-            Under <strong>Security &amp; Audit</strong> you'll find the audit
+            Under <strong>Security &amp; Audit</strong> you&apos;ll find the audit
             trail, Compliance (retention + right-to-erasure + audit anchors),
             Backup, Restore and Recovery. The scheduled backup verifier runs
             every Sunday 04:00.
@@ -95,7 +95,7 @@ export function OnboardingTour(): JSX.Element | null {
             Keep an eye on the top bar — a red dot means central DHIS2 is
             unreachable; DER keeps running regardless. Workflows under
             <strong> Workflows</strong> or <strong>Data</strong> are where
-            you'll spend most of your day.
+            you&apos;ll spend most of your day.
           </p>
           <p>
             Need help? Every page has a Diagnostics action in the top-right.

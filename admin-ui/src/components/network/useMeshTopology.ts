@@ -46,7 +46,6 @@ export function useMeshTopology(refreshMs = 15000): State & { reload(): Promise<
       mounted.current = false;
       clearInterval(t);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshMs]);
 
   return { ...state, reload };
