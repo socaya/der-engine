@@ -125,4 +125,34 @@ describe('DataTeiDetail', () => {
       expect(screen.getByText(/no stage events recorded/i))
         .toBeInTheDocument());
   });
+
+  it('null name fallbacks — enrolment programName null + trackerEvent programStageName null', async () => {
+    /* Enrol + event rows with null program/stage names exercise the
+     * else branches that render uid-only spans. */
+    vi.spyOn(edgeApi, 'getLocalTei').mockResolvedValue({
+      tei: { ...tei, orgUnitName: null },
+      enrolments: [{
+        enrollmentUid: 'ENR-null', programUid: 'PROG-null',
+        programName: null, status: 'ACTIVE',
+        enrollmentDate: '2026-10-01', incidentDate: null,
+        enrollmentVersion: 1,
+        workflowRunId: null, workflowKind: null,
+        workflowName: null, workflowBusinessKey: null,
+      }],
+      trackerEvents: [{
+        eventUid: 'EV-null', enrollmentUid: 'ENR-null',
+        programUid: 'P1', programName: null,
+        programStageUid: 'ST-null', programStageName: null,
+        status: 'ACTIVE', occurredDate: null,
+        updatedAt: null, version: 1,
+      }],
+    } as never);
+    renderWithProviders(<DataTeiDetail />, { route: '/data/tracker/tei/tei-1' });
+    await waitFor(() =>
+      expect(screen.getByTestId('data-tei-detail')).toBeInTheDocument());
+    /* UID fallbacks surface. */
+    expect(screen.getAllByText('OU-1').length).toBeGreaterThan(0);
+    expect(screen.getByText('PROG-null')).toBeInTheDocument();
+    expect(screen.getByText('ST-null')).toBeInTheDocument();
+  });
 });

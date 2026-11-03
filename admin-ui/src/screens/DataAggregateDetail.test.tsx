@@ -120,6 +120,32 @@ describe('DataAggregateDetail', () => {
     expect(screen.getByText('OU-nexthop-xxxx')).toBeInTheDocument();
   });
 
+  it('null name fallbacks render UID-only for dataElement/dataSet/orgUnit', async () => {
+    /* Nulls on all three name fields trigger the "else" branch
+     * in each DefRow — render the uid in mono directly instead
+     * of a two-line name+uid. */
+    vi.spyOn(edgeApi, 'getLocalAggregate').mockResolvedValue({
+      row: {
+        ...row,
+        dataElementName: null,
+        dataSetName: null, dataSetUid: null,
+        orgUnitName: null,
+        comment: null,
+      },
+      journal: [],
+    } as never);
+    renderWithProviders(<DataAggregateDetail />,
+      { route: '/data/aggregate/val-1' });
+    await waitFor(() =>
+      expect(screen.getByTestId('data-aggregate-detail'))
+        .toBeInTheDocument());
+    /* dataElement UID + orgUnit UID surface as mono spans. */
+    expect(screen.getAllByText('DE-1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('OU-1').length).toBeGreaterThan(0);
+    /* dataSetUid null → em-dash fallback. */
+    expect(document.body.textContent ?? '').toMatch(/—/);
+  });
+
   it('workflow-run lineage renders the SYS chip for SYSTEM workflows and a truncated runId when name is null', async () => {
     vi.spyOn(edgeApi, 'getLocalAggregate').mockResolvedValue({
       /* workflowKind: 'SYSTEM' + workflowName: null →
