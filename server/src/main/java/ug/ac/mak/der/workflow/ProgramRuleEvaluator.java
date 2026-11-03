@@ -220,7 +220,54 @@ public class ProgramRuleEvaluator {
             auditRulesEvaluated(runId, workflow.boundMetadataId(), firedRuleUids,
                     issues.size());
         }
+        /* E8 — cross-rule conflict detection. Two rules both
+         * ASSIGN different values to the same field produce silent
+         * undefined behaviour (last-rule-wins depends on the
+         * mirror's rule ordering). Surface as WARNING so the
+         * operator can disable one of the conflicting rules. */
+        issues.addAll(detectRuleConflicts(runId, issues));
         return issues;
+    }
+
+    /** E8 — scan the just-emitted issue list for cross-rule
+     *  conflicts and append WARNING-severity notices. Only ASSIGN
+     *  conflicts flagged — HIDEFIELD / HIDESECTION / mandatory are
+     *  idempotent so stacking them is harmless. Package-private so
+     *  a dedicated test can exercise the detector without wiring
+     *  the full evaluate() pipeline.
+     */
+    List<ProgressiveValidator.Issue> detectRuleConflicts(final UUID runId,
+                                                            final List<ProgressiveValidator.Issue> issues) {
+        if (issues.size() < 2) {
+            return List.of();
+        }
+        final java.util.Map<String, java.util.Set<String>> assignedPerField =
+                new java.util.HashMap<>();
+        for (final ProgressiveValidator.Issue i : issues) {
+            if (!"PROGRAM_RULE_ASSIGN".equals(i.code())
+                    || i.fieldRef() == null || i.suggestedValue() == null) {
+                continue;
+            }
+            assignedPerField
+                    .computeIfAbsent(i.fieldRef(), k -> new java.util.HashSet<>())
+                    .add(i.suggestedValue());
+        }
+        final List<ProgressiveValidator.Issue> out = new ArrayList<>();
+        for (final var e : assignedPerField.entrySet()) {
+            if (e.getValue().size() < 2) {
+                continue;
+            }
+            out.add(new ProgressiveValidator.Issue(
+                    UUID.randomUUID(), runId, null,
+                    "PROGRAM_RULE_CONFLICT",
+                    ProgressiveValidator.Severity.WARNING,
+                    "Multiple rules assign conflicting values to field '"
+                            + e.getKey() + "': "
+                            + String.join(", ", new java.util.TreeSet<>(e.getValue()))
+                            + ". One rule should be disabled.",
+                    e.getKey()));
+        }
+        return out;
     }
 
     /** Phase 14.1 — emit one WORKFLOW_RUN_RULES_EVALUATED audit event

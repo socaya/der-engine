@@ -156,6 +156,55 @@ class ProgramRuleEvaluatorActionsTest {
         assertThat(issue.fieldRef()).isEqualTo("DE_target_12");
     }
 
+    // -------- E8 — rule conflict detection ----------
+
+    @Test
+    void conflictingAssignsOnSameFieldEmitWarning() {
+        final UUID runId = UUID.randomUUID();
+        final var issues = java.util.List.of(
+            new ProgressiveValidator.Issue(UUID.randomUUID(), runId, null,
+                "PROGRAM_RULE_ASSIGN", ProgressiveValidator.Severity.INFO,
+                "msg1", "DEabc123", "7"),
+            new ProgressiveValidator.Issue(UUID.randomUUID(), runId, null,
+                "PROGRAM_RULE_ASSIGN", ProgressiveValidator.Severity.INFO,
+                "msg2", "DEabc123", "9"));
+        final var out = build().detectRuleConflicts(runId, issues);
+        assertThat(out).hasSize(1);
+        assertThat(out.get(0).code()).isEqualTo("PROGRAM_RULE_CONFLICT");
+        assertThat(out.get(0).severity()).isEqualTo(ProgressiveValidator.Severity.WARNING);
+        assertThat(out.get(0).fieldRef()).isEqualTo("DEabc123");
+        assertThat(out.get(0).message()).contains("7").contains("9");
+    }
+
+    @Test
+    void redundantAssignsWithSameValueDoNotEmitConflict() {
+        final UUID runId = UUID.randomUUID();
+        final var issues = java.util.List.of(
+            new ProgressiveValidator.Issue(UUID.randomUUID(), runId, null,
+                "PROGRAM_RULE_ASSIGN", ProgressiveValidator.Severity.INFO,
+                "msg1", "DEabc123", "7"),
+            new ProgressiveValidator.Issue(UUID.randomUUID(), runId, null,
+                "PROGRAM_RULE_ASSIGN", ProgressiveValidator.Severity.INFO,
+                "msg2", "DEabc123", "7"));
+        assertThat(build().detectRuleConflicts(runId, issues)).isEmpty();
+    }
+
+    @Test
+    void hideSectionDuplicatesDoNotEmitConflict() {
+        /* HIDEFIELD / HIDESECTION / SETMANDATORYFIELD are idempotent
+         * so two rules targeting the same ref produce no operator
+         * ambiguity — don't noise-raise. */
+        final UUID runId = UUID.randomUUID();
+        final var issues = java.util.List.of(
+            new ProgressiveValidator.Issue(UUID.randomUUID(), runId, null,
+                "PROGRAM_RULE_HIDESECTION", ProgressiveValidator.Severity.INFO,
+                "msg1", "SECabc123"),
+            new ProgressiveValidator.Issue(UUID.randomUUID(), runId, null,
+                "PROGRAM_RULE_HIDESECTION", ProgressiveValidator.Severity.INFO,
+                "msg2", "SECabc123"));
+        assertThat(build().detectRuleConflicts(runId, issues)).isEmpty();
+    }
+
     @Test
     void createEventWithoutRefLeavesSuggestedFieldNullButKeepsMessage() throws Exception {
         /* Central-side rule without a programStage ref — rare but
