@@ -122,10 +122,15 @@ export default defineConfig({
          * (PayloadLineageDrawer, topologyLayout, Network depth-lift)
          * added 41 tests. Measured coverage 79.67 / 76.61 / 63.96
          * / 79.67. Ratchet one point below each. */
-        lines: 78,
-        branches: 75,
-        functions: 62,
-        statements: 78,
+        /* der-2.3.123 round-50 ratchet: seven further commits
+         * (navigation, Hardware, SystemOverview, simulateStore,
+         * AdminTasks, DataAggregateDetail + DataTeiDetail null-name
+         * tests) added 49 tests. Measured coverage 79.98 / 77.11
+         * / 64.45 / 79.98. Ratchet one point below each. */
+        lines: 79,
+        branches: 76,
+        functions: 63,
+        statements: 79,
       },
     },
   },
