@@ -1,0 +1,19 @@
+
+[1m== Pre-flight — DER up on http://localhost:8085 ==[0m
+  [0;32mOK[0m    DER reachable
+
+[1m== Seed 3 IN_FLIGHT rows ==[0m
+  [0;32mOK[0m    seeded 3 IN_FLIGHT rows
+
+[1m== Chaos — SIGKILL running DER ==[0m
+  [0;32mOK[0m    DER PID 72552 killed; port 8085 released
+
+[1m== Reboot DER ==[0m
+  [0;32mOK[0m    DER back up
+
+[1m== Assert reaper did its job ==[0m
+  [0;32mOK[0m    0 rows stuck in IN_FLIGHT
+  [0;32mOK[0m    3 rows back to PENDING with attempt_count incremented and reaped marker
+  [0;32mOK[0m    cleanup done
+
+=== chaos_journal_recovery: PASS ===

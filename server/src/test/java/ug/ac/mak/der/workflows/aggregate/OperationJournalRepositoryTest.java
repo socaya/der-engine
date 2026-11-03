@@ -198,6 +198,16 @@ class OperationJournalRepositoryTest {
     }
 
     @Test
+    void requeueOrphanedInFlightIssuesCorrectUpdate() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.update(anyString())).thenReturn(3);
+        assertThat(new OperationJournalRepository(jdbc, json).requeueOrphanedInFlight())
+                .isEqualTo(3);
+        verify(jdbc).update(
+                org.mockito.ArgumentMatchers.contains("WHERE state = 'IN_FLIGHT'"));
+    }
+
+    @Test
     void entryConvenienceConstructorNullsNextHop() {
         final OperationJournalEntry e = new OperationJournalEntry(
                 UUID.randomUUID(),

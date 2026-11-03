@@ -386,6 +386,31 @@ public class OperationJournalRepository {
     public record ReferralOutstandingRow(UUID operationId, String nextHopOrgUnitUid,
                                             Instant updatedAt) { }
 
+    /**
+     * Phase 11.1 — boot-time reaper. Any row left in {@code IN_FLIGHT}
+     * at startup is from a drain that DER killed before the state
+     * machine completed (SIGKILL, host crash, container OOM).
+     * Resets them back to {@code PENDING} with {@code attempt_count +
+     * 1} and a {@code reaped} marker in {@code last_error} so
+     * operators can see post-mortem which rows got requeued.
+     *
+     * <p>Returns the number of rows requeued — zero on every normal
+     * startup, non-zero only after an abnormal termination. Called
+     * exactly once per boot from
+     * {@code JournalInFlightReaperRunner}; the drain worker then
+     * picks the rows up on its next tick.</p>
+     */
+    public int requeueOrphanedInFlight() {
+        return jdbc.update(
+                "UPDATE der.operation_journal "
+                        + "SET state = 'PENDING', "
+                        + "    attempt_count = attempt_count + 1, "
+                        + "    last_error = COALESCE(last_error || ' | ', '') "
+                        + "        || 'reaped at ' || now() || ': DER restart during drain', "
+                        + "    updated_at = now() "
+                        + "WHERE state = 'IN_FLIGHT'");
+    }
+
     public int markNextHop(final UUID operationId, final String nextHopOrgUnitUid) {
         Objects.requireNonNull(operationId, "operationId");
         return jdbc.update(
