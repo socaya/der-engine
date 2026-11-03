@@ -1,4 +1,4 @@
-import * as edgeApi from '../../api/edgeApi';
+import type * as edgeApi from '../../api/edgeApi';
 
 export type WizardWorkflowType = 'AGGREGATE' | 'EVENT' | 'TRACKER';
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import {
-  DhisPeriodType, PERIOD_TYPES, recentPeriods,
+import type {
+  DhisPeriodType} from '../lib/dhis2Periods';
+import { PERIOD_TYPES, recentPeriods,
 } from '../lib/dhis2Periods';
 
 /**
