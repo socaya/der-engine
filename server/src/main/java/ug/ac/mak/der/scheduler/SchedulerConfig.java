@@ -241,4 +241,26 @@ public class SchedulerConfig {
                 .withSchedule(CronScheduleBuilder.cronSchedule(cron))
                 .build();
     }
+
+    /** E6 — matured scheduled-draft tick. Every minute by default;
+     *  override via {@code der.drafts.scheduled.cron}. */
+    @Bean
+    public JobDetail scheduledDraftPublishJobDetail() {
+        return JobBuilder.newJob(ScheduledDraftPublishJob.class)
+                .withIdentity(ScheduledDraftPublishJob.JOB_NAME)
+                .storeDurably()
+                .requestRecovery()
+                .build();
+    }
+
+    @Bean
+    public Trigger scheduledDraftPublishTrigger(final JobDetail scheduledDraftPublishJobDetail,
+                                                   @Value("${der.drafts.scheduled.cron:0 * * * * ?}")
+                                                   final String cron) {
+        return TriggerBuilder.newTrigger()
+                .forJob(scheduledDraftPublishJobDetail)
+                .withIdentity(ScheduledDraftPublishJob.JOB_NAME + "_TRIGGER")
+                .withSchedule(CronScheduleBuilder.cronSchedule(cron))
+                .build();
+    }
 }

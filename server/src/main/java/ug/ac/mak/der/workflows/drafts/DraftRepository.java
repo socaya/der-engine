@@ -81,6 +81,72 @@ public class DraftRepository {
                 draftId, ownerId);
     }
 
+    /**
+     * E6 — mark a draft to be published automatically at or after
+     * {@code publishAt}. Returns the number of rows updated: 0 means
+     * either no such draft or owner mismatch (caller treats both as
+     * 404). Caller is responsible for rejecting past timestamps —
+     * the repository itself accepts whatever is handed to it so a
+     * backfill or re-schedule for "the past" is still mechanically
+     * possible if a controller intentionally allows it.
+     */
+    public int markScheduled(final UUID draftId, final UUID ownerId, final Instant publishAt) {
+        Objects.requireNonNull(draftId, "draftId");
+        Objects.requireNonNull(ownerId, "ownerId");
+        Objects.requireNonNull(publishAt, "publishAt");
+        return jdbc.update(
+                "UPDATE der.draft SET scheduled_publish_at = ? "
+                        + "WHERE draft_id = ? AND owner_id = ?",
+                Timestamp.from(publishAt), draftId, ownerId);
+    }
+
+    /** Cancel a pending schedule without deleting the draft itself. */
+    public int clearSchedule(final UUID draftId, final UUID ownerId) {
+        Objects.requireNonNull(draftId, "draftId");
+        Objects.requireNonNull(ownerId, "ownerId");
+        return jdbc.update(
+                "UPDATE der.draft SET scheduled_publish_at = NULL "
+                        + "WHERE draft_id = ? AND owner_id = ?",
+                draftId, ownerId);
+    }
+
+    /**
+     * Read-only variant used by the Quartz tick — the scheduler needs
+     * {@code (draftId, ownerId, scheduledAt)} but not the full payload
+     * which would be an expensive JSON parse per row.
+     */
+    public List<ScheduledDraftRef> findMaturedScheduled(final Instant now, final int limit) {
+        Objects.requireNonNull(now, "now");
+        final int capped = Math.max(1, Math.min(limit, 500));
+        return jdbc.query(
+                "SELECT draft_id, owner_id, scheduled_publish_at FROM der.draft "
+                        + "WHERE scheduled_publish_at IS NOT NULL "
+                        + "  AND scheduled_publish_at <= ? "
+                        + "ORDER BY scheduled_publish_at ASC "
+                        + "LIMIT " + capped,
+                (ResultSet rs, int row) -> new ScheduledDraftRef(
+                        (UUID) rs.getObject("draft_id"),
+                        (UUID) rs.getObject("owner_id"),
+                        rs.getTimestamp("scheduled_publish_at").toInstant()),
+                Timestamp.from(now));
+    }
+
+    /** Look up a single draft's current schedule timestamp (if any). */
+    public Optional<Instant> findScheduledAt(final UUID draftId) {
+        Objects.requireNonNull(draftId, "draftId");
+        try {
+            final Timestamp ts = jdbc.queryForObject(
+                    "SELECT scheduled_publish_at FROM der.draft WHERE draft_id = ?",
+                    Timestamp.class, draftId);
+            return Optional.ofNullable(ts).map(Timestamp::toInstant);
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    /** Lightweight schedule row used by the Quartz tick. */
+    public record ScheduledDraftRef(UUID draftId, UUID ownerId, Instant scheduledAt) { }
+
     private RowMapper<Draft> rowMapper() {
         return (ResultSet rs, int row) -> new Draft(
                 (UUID) rs.getObject("draft_id"),

@@ -398,4 +398,125 @@ class DraftControllerTest {
         org.mockito.Mockito.verify(drafts, org.mockito.Mockito.never())
                 .delete(any(UUID.class), any(UUID.class));
     }
+
+    // -------- E6 — schedule publishing --------
+
+    @Test
+    void scheduleUnauth() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/drafts/" + UUID.randomUUID() + "/schedule")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"publishAt\":\"2027-01-01T00:00:00Z\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void scheduleRejectsMissingPublishAt() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/drafts/" + UUID.randomUUID() + "/schedule")
+                        .with(as(UUID.randomUUID()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SCHEDULE_PAYLOAD_INVALID"));
+    }
+
+    @Test
+    void scheduleRejectsBadIsoFormat() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/drafts/" + UUID.randomUUID() + "/schedule")
+                        .with(as(UUID.randomUUID()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"publishAt\":\"not an iso timestamp\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SCHEDULE_PAYLOAD_INVALID"));
+    }
+
+    @Test
+    void scheduleRejectsPastTimestamp() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        /* Older than the 5-second grace. */
+        final String past = Instant.now().minusSeconds(300).toString();
+        mockMvc.perform(post("/edge-api/v1/drafts/" + UUID.randomUUID() + "/schedule")
+                        .with(as(uid))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"publishAt\":\"" + past + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SCHEDULE_IN_PAST"));
+    }
+
+    @Test
+    void scheduleNotFoundWhenMissing() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final UUID did = UUID.randomUUID();
+        when(drafts.findById(did)).thenReturn(Optional.empty());
+        mockMvc.perform(post("/edge-api/v1/drafts/" + did + "/schedule").with(as(uid))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"publishAt\":\"2027-01-01T00:00:00Z\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void scheduleRejectsWrongOwner() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final Draft d = sample(UUID.randomUUID() /* someone else */);
+        when(drafts.findById(d.draftId())).thenReturn(Optional.of(d));
+        mockMvc.perform(post("/edge-api/v1/drafts/" + d.draftId() + "/schedule")
+                        .with(as(uid))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"publishAt\":\"2027-01-01T00:00:00Z\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void scheduleAcceptedPersists() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final Draft d = sample(uid);
+        when(drafts.findById(d.draftId())).thenReturn(Optional.of(d));
+        when(drafts.markScheduled(eq(d.draftId()), eq(uid), any())).thenReturn(1);
+        final String ts = "2030-01-01T00:00:00Z";
+        mockMvc.perform(post("/edge-api/v1/drafts/" + d.draftId() + "/schedule")
+                        .with(as(uid))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"publishAt\":\"" + ts + "\"}"))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("SCHEDULED"))
+                .andExpect(jsonPath("$.scheduledPublishAt").value(ts));
+    }
+
+    @Test
+    void scheduleRaceDeletedBetweenReadAndUpdate() throws Exception {
+        /* findById returns the draft but markScheduled affects 0 rows
+         * because another request deleted the row between the two
+         * statements. We should 404 — the operator sees the same
+         * outcome whether the race happens or not. */
+        final UUID uid = UUID.randomUUID();
+        final Draft d = sample(uid);
+        when(drafts.findById(d.draftId())).thenReturn(Optional.of(d));
+        when(drafts.markScheduled(eq(d.draftId()), eq(uid), any())).thenReturn(0);
+        mockMvc.perform(post("/edge-api/v1/drafts/" + d.draftId() + "/schedule")
+                        .with(as(uid))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"publishAt\":\"2030-01-01T00:00:00Z\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void cancelScheduleOk() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final Draft d = sample(uid);
+        when(drafts.findById(d.draftId())).thenReturn(Optional.of(d));
+        when(drafts.clearSchedule(d.draftId(), uid)).thenReturn(1);
+        mockMvc.perform(delete("/edge-api/v1/drafts/" + d.draftId() + "/schedule")
+                        .with(as(uid)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SCHEDULE_CLEARED"));
+    }
+
+    @Test
+    void cancelScheduleRequiresOwnerMatch() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final Draft d = sample(UUID.randomUUID());
+        when(drafts.findById(d.draftId())).thenReturn(Optional.of(d));
+        mockMvc.perform(delete("/edge-api/v1/drafts/" + d.draftId() + "/schedule")
+                        .with(as(uid)))
+                .andExpect(status().isNotFound());
+    }
 }

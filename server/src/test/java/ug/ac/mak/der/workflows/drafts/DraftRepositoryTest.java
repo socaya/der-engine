@@ -159,4 +159,106 @@ class DraftRepositoryTest {
         assertThat(a.draftId()).isNotEqualTo(b.draftId());
         assertThat(a.ownerId()).isEqualTo(oid);
     }
+
+    // -------- E6 — scheduling helpers --------
+
+    @Test
+    void markScheduledWritesTimestamp() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final UUID did = UUID.randomUUID();
+        final UUID oid = UUID.randomUUID();
+        final Instant at = Instant.parse("2027-01-01T00:00:00Z");
+        when(jdbc.update(anyString(), any(Timestamp.class), eq(did), eq(oid))).thenReturn(1);
+        assertThat(new DraftRepository(jdbc, mapper).markScheduled(did, oid, at)).isEqualTo(1);
+    }
+
+    @Test
+    void markScheduledRejectsNullArgs() {
+        final DraftRepository repo = new DraftRepository(mock(JdbcTemplate.class), mapper);
+        final UUID any = UUID.randomUUID();
+        final Instant t = Instant.now();
+        assertThatThrownBy(() -> repo.markScheduled(null, any, t))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> repo.markScheduled(any, null, t))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> repo.markScheduled(any, any, null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void clearScheduleUpdatesRow() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final UUID did = UUID.randomUUID();
+        final UUID oid = UUID.randomUUID();
+        when(jdbc.update(anyString(), eq(did), eq(oid))).thenReturn(1);
+        assertThat(new DraftRepository(jdbc, mapper).clearSchedule(did, oid)).isEqualTo(1);
+    }
+
+    @Test
+    void clearScheduleRejectsNullArgs() {
+        final DraftRepository repo = new DraftRepository(mock(JdbcTemplate.class), mapper);
+        final UUID any = UUID.randomUUID();
+        assertThatThrownBy(() -> repo.clearSchedule(null, any))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> repo.clearSchedule(any, null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void findMaturedScheduledMapsRows() throws Exception {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final ResultSet rs = mock(ResultSet.class);
+        final UUID did = UUID.randomUUID();
+        final UUID oid = UUID.randomUUID();
+        when(rs.getObject("draft_id")).thenReturn(did);
+        when(rs.getObject("owner_id")).thenReturn(oid);
+        when(rs.getTimestamp("scheduled_publish_at")).thenReturn(Timestamp.from(NOW));
+        when(jdbc.query(anyString(), any(RowMapper.class), any(Timestamp.class)))
+                .thenAnswer(inv -> List.of(
+                        ((RowMapper<?>) inv.getArgument(1)).mapRow(rs, 1)));
+        final List<DraftRepository.ScheduledDraftRef> out =
+                new DraftRepository(jdbc, mapper).findMaturedScheduled(NOW, 50);
+        assertThat(out).hasSize(1);
+        assertThat(out.get(0).draftId()).isEqualTo(did);
+        assertThat(out.get(0).ownerId()).isEqualTo(oid);
+    }
+
+    @Test
+    void findMaturedClampsLimit() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.query(anyString(), any(RowMapper.class), any(Timestamp.class)))
+                .thenReturn(List.of());
+        /* Over cap collapses to 500; zero/negative clamp to >= 1. The
+         * assertion is just that the call doesn't throw and returns
+         * the empty mock list — the clamp is a size-only concern. */
+        new DraftRepository(jdbc, mapper).findMaturedScheduled(NOW, 9999);
+        new DraftRepository(jdbc, mapper).findMaturedScheduled(NOW, 0);
+    }
+
+    @Test
+    void findScheduledAtPresent() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), eq(Timestamp.class), any(UUID.class)))
+                .thenReturn(Timestamp.from(NOW));
+        assertThat(new DraftRepository(jdbc, mapper)
+                .findScheduledAt(UUID.randomUUID())).contains(NOW);
+    }
+
+    @Test
+    void findScheduledAtAbsentWhenMissingRow() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), eq(Timestamp.class), any(UUID.class)))
+                .thenThrow(new EmptyResultDataAccessException(1));
+        assertThat(new DraftRepository(jdbc, mapper)
+                .findScheduledAt(UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void findScheduledAtAbsentWhenColumnNull() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), eq(Timestamp.class), any(UUID.class)))
+                .thenReturn(null);
+        assertThat(new DraftRepository(jdbc, mapper)
+                .findScheduledAt(UUID.randomUUID())).isEmpty();
+    }
 }

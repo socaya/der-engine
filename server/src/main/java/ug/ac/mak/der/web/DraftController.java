@@ -148,14 +148,24 @@ public class DraftController {
         final Draft draft = row.get();
         final String ip = http.getRemoteAddr();
         final String ua = http.getHeader("User-Agent");
+        return publishCore(draft, principal.userId(), ip, ua);
+    }
 
+    /**
+     * Package-private so the {@link ug.ac.mak.der.scheduler.ScheduledDraftPublishJob}
+     * can reuse the same dispatch without a servlet request. Marked
+     * {@code public} for Spring MVC — the surrounding controller
+     * annotations already prevent external routing to it.
+     */
+    public ResponseEntity<Map<String, Object>> publishCore(
+            final Draft draft, final UUID actingUser, final String ip, final String ua) {
         return switch (draft.kind()) {
-            case "aggregate" -> publishAggregate(draft, principal.userId(), ip, ua);
-            case "event"     -> publishEvent(draft, principal.userId(), ip, ua);
+            case "aggregate" -> publishAggregate(draft, actingUser, ip, ua);
+            case "event"     -> publishEvent(draft, actingUser, ip, ua);
             case "tracker-tei",
                  "tracker-enrollment",
                  "tracker-event"
-                             -> publishTracker(draft, principal.userId(), ip, ua);
+                             -> publishTracker(draft, actingUser, ip, ua);
             default -> ResponseEntity.badRequest().body(Map.of(
                     "code", "DRAFT_KIND_NOT_PUBLISHABLE",
                     "kind", draft.kind(),
@@ -319,6 +329,81 @@ public class DraftController {
 
     public record BatchPublishRequest(
             @JsonProperty("draftIds") List<UUID> draftIds
+    ) { }
+
+    /**
+     * E6 — schedule a draft for automatic publishing at
+     * {@code publishAt}. The timestamp must be no more than five
+     * seconds in the past (small clock-skew grace); otherwise the
+     * request is rejected so the operator doesn't accidentally queue
+     * a submission "for yesterday" which would then be published on
+     * the very next tick with semantics indistinguishable from a
+     * plain POST /publish.
+     *
+     * <p>Returns 202 Accepted — the draft is still parked at that
+     * point; the scheduler ticks every minute (configurable).</p>
+     */
+    @PostMapping(path = "/{id}/schedule", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> schedule(final Authentication authentication,
+                                                          @PathVariable("id") final UUID id,
+                                                          @RequestBody final SchedulePublishRequest body) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (body == null || body.publishAt() == null || body.publishAt().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "SCHEDULE_PAYLOAD_INVALID",
+                    "message", "publishAt required (ISO-8601 UTC)"));
+        }
+        final java.time.Instant publishAt;
+        try {
+            publishAt = java.time.Instant.parse(body.publishAt());
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "SCHEDULE_PAYLOAD_INVALID",
+                    "message", "publishAt must be ISO-8601 UTC (e.g. "
+                            + "2026-12-01T06:30:00Z)"));
+        }
+        if (publishAt.isBefore(java.time.Instant.now().minusSeconds(5))) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "SCHEDULE_IN_PAST",
+                    "message", "publishAt must not be in the past — use "
+                            + "POST /{id}/publish for immediate send"));
+        }
+        final Optional<Draft> row = drafts.findById(id);
+        if (row.isEmpty() || !row.get().ownerId().equals(principal.userId())) {
+            return ResponseEntity.notFound().build();
+        }
+        final int touched = drafts.markScheduled(id, principal.userId(), publishAt);
+        if (touched == 0) {
+            /* race — someone just deleted it */
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.accepted().body(Map.of(
+                "draftId", id.toString(),
+                "scheduledPublishAt", publishAt.toString(),
+                "status", "SCHEDULED"));
+    }
+
+    /** Cancel a pending schedule. Idempotent — repeated calls return 200. */
+    @DeleteMapping("/{id}/schedule")
+    public ResponseEntity<Map<String, Object>> cancelSchedule(final Authentication authentication,
+                                                                 @PathVariable("id") final UUID id) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final Optional<Draft> row = drafts.findById(id);
+        if (row.isEmpty() || !row.get().ownerId().equals(principal.userId())) {
+            return ResponseEntity.notFound().build();
+        }
+        drafts.clearSchedule(id, principal.userId());
+        return ResponseEntity.ok(Map.of(
+                "draftId", id.toString(),
+                "status", "SCHEDULE_CLEARED"));
+    }
+
+    public record SchedulePublishRequest(
+            @JsonProperty("publishAt") String publishAt
     ) { }
 
     private ResponseEntity<Map<String, Object>> trackerPayloadInvalid(
