@@ -81,7 +81,7 @@ class ReferralAckControllerTest {
     void firstAckStampsReferralAndAuditsAsSuccess() throws Exception {
         stubClock();
         final UUID opId = UUID.randomUUID();
-        when(journal.markReferralDelivered(eq(opId), anyString(), any())).thenReturn(1);
+        when(journal.markReferralDelivered(eq(opId), anyString(), any(), any())).thenReturn(1);
         mockMvc.perform(post("/edge-api/v1/referrals/ack").with(asOperator())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"operationId\":\"" + opId + "\","
@@ -89,7 +89,7 @@ class ReferralAckControllerTest {
                                 + "\"destinationOrgUnit\":\"OU-DEST\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.duplicate").value(false));
-        verify(journal).markReferralDelivered(eq(opId), eq("edge-B/42"), any());
+        verify(journal).markReferralDelivered(eq(opId), eq("edge-B/42"), any(), any());
         verify(audit).append(
                 org.mockito.ArgumentMatchers.argThat(
                         (AuditEvent e) -> "REFERRAL_DELIVERED".equals(e.eventType())),
@@ -100,7 +100,7 @@ class ReferralAckControllerTest {
     void duplicateAckReturns200AndAuditsAsDuplicate() throws Exception {
         stubClock();
         final UUID opId = UUID.randomUUID();
-        when(journal.markReferralDelivered(eq(opId), anyString(), any())).thenReturn(0);
+        when(journal.markReferralDelivered(eq(opId), anyString(), any(), any())).thenReturn(0);
         mockMvc.perform(post("/edge-api/v1/referrals/ack").with(asOperator())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"operationId\":\"" + opId + "\","
@@ -110,6 +110,49 @@ class ReferralAckControllerTest {
         verify(audit).append(
                 org.mockito.ArgumentMatchers.argThat(
                         (AuditEvent e) -> "REFERRAL_ACK_DUPLICATE".equals(e.eventType())),
+                any());
+    }
+
+    // ------- Phase 14.2 — hop cross-check ----------
+
+    @Test
+    void mismatchedDestinationOrgUnitRejectsWith403AndAuditsAsMisroute() throws Exception {
+        stubClock();
+        final UUID opId = UUID.randomUUID();
+        when(journal.markReferralDelivered(eq(opId), anyString(), any(), eq("WRONG-OU")))
+                .thenReturn(0);
+        when(journal.findReferralHopState(eq(opId)))
+                .thenReturn(new ug.ac.mak.der.workflows.aggregate.OperationJournalRepository
+                        .ReferralHopState("CORRECT-OU", false));
+        mockMvc.perform(post("/edge-api/v1/referrals/ack").with(asOperator())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"operationId\":\"" + opId + "\","
+                                + "\"receiptId\":\"evil-edge/1\","
+                                + "\"destinationOrgUnit\":\"WRONG-OU\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("REFERRAL_ACK_MISROUTE"));
+        verify(audit).append(
+                org.mockito.ArgumentMatchers.argThat(
+                        (AuditEvent e) -> "REFERRAL_ACK_MISROUTE".equals(e.eventType())),
+                any());
+    }
+
+    @Test
+    void matchedDestinationOrgUnitSucceedsAndAuditsAsDelivered() throws Exception {
+        stubClock();
+        final UUID opId = UUID.randomUUID();
+        when(journal.markReferralDelivered(eq(opId), anyString(), any(), eq("CORRECT-OU")))
+                .thenReturn(1);
+        mockMvc.perform(post("/edge-api/v1/referrals/ack").with(asOperator())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"operationId\":\"" + opId + "\","
+                                + "\"receiptId\":\"edge-B/42\","
+                                + "\"destinationOrgUnit\":\"CORRECT-OU\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.duplicate").value(false));
+        verify(audit).append(
+                org.mockito.ArgumentMatchers.argThat(
+                        (AuditEvent e) -> "REFERRAL_DELIVERED".equals(e.eventType())),
                 any());
     }
 }

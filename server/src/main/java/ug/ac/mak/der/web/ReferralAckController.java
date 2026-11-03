@@ -77,15 +77,22 @@ public class ReferralAckController {
                     "message", "operationId is required"));
         }
         final Instant now = Instant.now(clock);
+        final String destOu = body.destinationOrgUnit() == null
+                ? null : body.destinationOrgUnit().trim();
+        /* Phase 14.2 — hop-aware ack. When the destination edge
+         * supplies destinationOrgUnit we require it to match the
+         * origin's next_hop_org_unit_uid. Mismatches never flip
+         * referral_delivered_at. */
         final int updated = journal.markReferralDelivered(body.operationId(),
-                body.receiptId(), now);
+                body.receiptId(), now,
+                destOu == null || destOu.isBlank() ? null : destOu);
         final Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("operationId", body.operationId().toString());
         if (body.receiptId() != null && !body.receiptId().isBlank()) {
             detail.put("receiptId", body.receiptId().trim());
         }
-        if (body.destinationOrgUnit() != null && !body.destinationOrgUnit().isBlank()) {
-            detail.put("destinationOrgUnit", body.destinationOrgUnit().trim());
+        if (destOu != null && !destOu.isBlank()) {
+            detail.put("destinationOrgUnit", destOu);
         }
         if (updated == 1) {
             audit.append(new AuditEvent(
@@ -100,13 +107,31 @@ public class ReferralAckController {
                     "deliveredAt", now.toString(),
                     "duplicate", false));
         }
-        /* updated == 0 covers two cases:
-         *   (1) operation isn't a referral (next_hop null) — misroute
-         *   (2) referral already acked earlier (idempotent replay)
-         * Both are safe no-ops; audit as duplicate so the trail shows
-         * the ack arrived and was accepted at the HTTP layer. The
-         * destination doesn't need to distinguish; it already did its
-         * part. */
+        /* Phase 14.2 — updated=0 covers three cases now:
+         *   (1) row doesn't exist, OR row isn't a referral — misroute
+         *   (2) row IS a referral but hop mismatches destinationOrgUnit
+         *       — potential compromise; log + 403
+         *   (3) row IS a referral AND hop matches but it's already
+         *       delivered — idempotent replay
+         * Case (2) gets a dedicated REFERRAL_ACK_MISROUTE audit so
+         * a security-aware operator can grep for it. */
+        if (destOu != null && !destOu.isBlank()) {
+            final var state = journal.findReferralHopState(body.operationId());
+            if (state != null && state.nextHopOrgUnitUid() != null
+                    && !state.nextHopOrgUnitUid().equals(destOu)
+                    && !state.alreadyDelivered()) {
+                detail.put("expectedNextHop", state.nextHopOrgUnitUid());
+                audit.append(new AuditEvent(
+                        "REFERRAL_ACK_MISROUTE",
+                        AuditEvent.Outcome.DENIED,
+                        principal.userId(), null,
+                        http.getRemoteAddr(), http.getHeader("User-Agent"),
+                        detail), now);
+                return ResponseEntity.status(403).body(Map.of(
+                        "code", "REFERRAL_ACK_MISROUTE",
+                        "message", "destinationOrgUnit does not match the origin's next_hop"));
+            }
+        }
         audit.append(new AuditEvent(
                 "REFERRAL_ACK_DUPLICATE",
                 AuditEvent.Outcome.SUCCESS,

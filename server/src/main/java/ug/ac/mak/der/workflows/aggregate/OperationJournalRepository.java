@@ -309,6 +309,33 @@ public class OperationJournalRepository {
     }
 
     /**
+     * Phase 14.2 — read-only lookup of the next-hop + delivery state
+     * for a journal row. The {@link ReferralAckController} uses this
+     * to classify a failed {@link #markReferralDelivered} UPDATE:
+     * no row = not-a-referral; already-delivered = replay;
+     * next-hop mismatch = possible misroute.
+     *
+     * <p>Returns null when the operation id doesn't exist at all.</p>
+     */
+    public ReferralHopState findReferralHopState(final UUID operationId) {
+        Objects.requireNonNull(operationId, "operationId");
+        try {
+            return jdbc.queryForObject(
+                    "SELECT next_hop_org_unit_uid, referral_delivered_at "
+                            + "FROM der.operation_journal WHERE operation_id = ?",
+                    (ResultSet rs, int n) -> new ReferralHopState(
+                            rs.getString("next_hop_org_unit_uid"),
+                            rs.getTimestamp("referral_delivered_at") != null),
+                    operationId);
+        } catch (EmptyResultDataAccessException ex) {
+            return null;
+        }
+    }
+
+    /** Phase 14.2 — tiny projection used by the ack misroute detector. */
+    public record ReferralHopState(String nextHopOrgUnitUid, boolean alreadyDelivered) { }
+
+    /**
      * Phase 10.3 — ADR-0027 D-RHO-4 referral ack. Stamps the row's
      * {@code referral_delivered_at} + {@code referral_receipt_id} iff
      * the row is actually a referral (next_hop set) AND hasn't been
@@ -318,18 +345,47 @@ public class OperationJournalRepository {
      */
     public int markReferralDelivered(final UUID operationId, final String receiptId,
                                         final Instant deliveredAt) {
+        return markReferralDelivered(operationId, receiptId, deliveredAt, null);
+    }
+
+    /**
+     * Phase 14.2 — hop-aware variant. When {@code expectedNextHop}
+     * is non-null, the UPDATE additionally requires
+     * {@code next_hop_org_unit_uid = ?} so a destination edge can't
+     * ack a row that wasn't actually routed to it. The
+     * {@link ReferralAckController} calls this with the
+     * destination-supplied {@code destinationOrgUnit} to catch
+     * compromised-OPERATOR misroute attempts.
+     */
+    public int markReferralDelivered(final UUID operationId, final String receiptId,
+                                        final Instant deliveredAt,
+                                        final String expectedNextHop) {
         Objects.requireNonNull(operationId, "operationId");
+        if (expectedNextHop == null || expectedNextHop.isBlank()) {
+            return jdbc.update(
+                    "UPDATE der.operation_journal "
+                            + "SET referral_delivered_at = ?, "
+                            + "    referral_receipt_id = ?, "
+                            + "    updated_at = now() "
+                            + "WHERE operation_id = ? "
+                            + "  AND next_hop_org_unit_uid IS NOT NULL "
+                            + "  AND referral_delivered_at IS NULL",
+                    java.sql.Timestamp.from(deliveredAt == null ? Instant.now() : deliveredAt),
+                    receiptId == null || receiptId.isBlank() ? null : receiptId.trim(),
+                    operationId);
+        }
         return jdbc.update(
                 "UPDATE der.operation_journal "
                         + "SET referral_delivered_at = ?, "
                         + "    referral_receipt_id = ?, "
                         + "    updated_at = now() "
                         + "WHERE operation_id = ? "
-                        + "  AND next_hop_org_unit_uid IS NOT NULL "
+                        + "  AND next_hop_org_unit_uid = ? "
                         + "  AND referral_delivered_at IS NULL",
                 java.sql.Timestamp.from(deliveredAt == null ? Instant.now() : deliveredAt),
                 receiptId == null || receiptId.isBlank() ? null : receiptId.trim(),
-                operationId);
+                operationId,
+                expectedNextHop.trim());
     }
 
     /**
