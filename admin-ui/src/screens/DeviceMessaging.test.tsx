@@ -213,6 +213,92 @@ describe('DeviceMessaging', () => {
     });
   });
 
+  it('PublishDialog — submit happy path calls messagingPublish + onSaved', async () => {
+    stubAll();
+    const publish = vi.spyOn(edgeApi, 'messagingPublish').mockResolvedValue(
+      { messageId: 'msg-new' } as never);
+    renderWithProviders(<DeviceMessaging />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Publish$/ }))
+        .toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /^Publish$/ }));
+    /* Dialog mounts → Publish-form submit button appears. */
+    const dialogButtons = screen.getAllByRole('button',
+      { name: /^Publish$/ });
+    const submit = dialogButtons[dialogButtons.length - 1];
+    await user.click(submit);
+    await waitFor(() => expect(publish).toHaveBeenCalled());
+    const call = publish.mock.calls[0][0];
+    expect(call.channel).toBe('broadcast');
+    expect(call.fromDeviceId).toBe('ADMIN-UI');
+    expect(call.messageType).toBe('STOCK_ALERT');
+    /* TTL default = 60 min = 3600 seconds. */
+    expect(call.ttlSeconds).toBe(3600);
+  });
+
+  it('PublishDialog — invalid JSON payload surfaces the parse error', async () => {
+    stubAll();
+    const publish = vi.spyOn(edgeApi, 'messagingPublish').mockResolvedValue(
+      { messageId: 'msg' } as never);
+    renderWithProviders(<DeviceMessaging />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Publish$/ }))
+        .toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /^Publish$/ }));
+    /* Replace payload textarea content with invalid JSON. */
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+    await user.clear(textarea);
+    await user.type(textarea, 'not json {{');
+    const dialogButtons = screen.getAllByRole('button',
+      { name: /^Publish$/ });
+    const submit = dialogButtons[dialogButtons.length - 1];
+    await user.click(submit);
+    /* Error surfaces, messagingPublish not called. */
+    await waitFor(() =>
+      expect(document.body.textContent ?? '')
+        .toMatch(/Unexpected token|JSON/i));
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it('PublishDialog — ttlMinutes=0 omits ttlSeconds from the payload', async () => {
+    stubAll();
+    const publish = vi.spyOn(edgeApi, 'messagingPublish').mockResolvedValue(
+      { messageId: 'msg' } as never);
+    renderWithProviders(<DeviceMessaging />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Publish$/ }))
+        .toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /^Publish$/ }));
+    /* Set TTL input to 0. */
+    const ttlInput = document.querySelector(
+      'input[type="number"]') as HTMLInputElement;
+    await user.clear(ttlInput);
+    await user.type(ttlInput, '0');
+    const dialogButtons = screen.getAllByRole('button',
+      { name: /^Publish$/ });
+    await user.click(dialogButtons[dialogButtons.length - 1]);
+    await waitFor(() => expect(publish).toHaveBeenCalled());
+    const call = publish.mock.calls[0][0];
+    expect(call.ttlSeconds).toBeUndefined();
+  });
+
+  it('PublishDialog — Cancel closes without posting', async () => {
+    stubAll();
+    const publish = vi.spyOn(edgeApi, 'messagingPublish');
+    renderWithProviders(<DeviceMessaging />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Publish$/ }))
+        .toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /^Publish$/ }));
+    /* Dialog mounted — click Cancel. */
+    await user.click(screen.getByRole('button', { name: /^Cancel$/ }));
+    expect(publish).not.toHaveBeenCalled();
+  });
+
   it('Refresh button triggers reload (second call to messagingStats)', async () => {
     stubAll();
     renderWithProviders(<DeviceMessaging />, { authApi });
