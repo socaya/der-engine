@@ -439,6 +439,50 @@ public class OperationJournalRepository {
                 java.sql.Timestamp.from(olderThan));
     }
 
+    /**
+     * Phase 12.4 — orphan conflict query used by
+     * {@code TrackerGraphReconciler} to find rows it can
+     * auto-heal when a prior-pulled orphan's parent lands on a
+     * subsequent tick.
+     *
+     * <p>Scopes to {@code CONFLICT_REVIEW} rows whose
+     * {@code last_error} starts with the orphan marker so other
+     * conflict types (approval, publish-time rejection) aren't
+     * mistakenly auto-closed by this path.</p>
+     */
+    public List<OperationJournalEntry> findOrphanConflicts(
+            final OperationJournalEntry.EntityType entityType, final int limit) {
+        return jdbc.query(
+                "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
+                        + "attempt_count, last_error, submitted_by, created_at, updated_at, "
+                        + "next_hop_org_unit_uid, workflow_run_id "
+                        + "FROM der.operation_journal "
+                        + "WHERE state = 'CONFLICT_REVIEW' "
+                        + "  AND entity_type = ? "
+                        + "  AND last_error LIKE '%references%not in the local mirror' "
+                        + "ORDER BY updated_at DESC LIMIT ?",
+                rowMapper(), entityType.name(), Math.max(1, Math.min(limit, 500)));
+    }
+
+    /**
+     * Phase 12.4 — close an auto-healed orphan with a resolution
+     * rationale. Idempotent: once resolved, subsequent calls are
+     * no-ops (resolved_at gates the WHERE).
+     */
+    public int markOrphanAutoHealed(final UUID operationId, final String rationale) {
+        Objects.requireNonNull(operationId, "operationId");
+        return jdbc.update(
+                "UPDATE der.operation_journal "
+                        + "SET state = 'CENTRAL_ACCEPTED', "
+                        + "    resolved_at = now(), "
+                        + "    resolution_rationale = ?, "
+                        + "    updated_at = now() "
+                        + "WHERE operation_id = ? "
+                        + "  AND state = 'CONFLICT_REVIEW' "
+                        + "  AND resolved_at IS NULL",
+                rationale, operationId);
+    }
+
     public int markNextHop(final UUID operationId, final String nextHopOrgUnitUid) {
         Objects.requireNonNull(operationId, "operationId");
         return jdbc.update(

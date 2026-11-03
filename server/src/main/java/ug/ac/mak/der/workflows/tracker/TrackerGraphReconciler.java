@@ -53,6 +53,7 @@ public class TrackerGraphReconciler {
 
     private static final int BATCH_LIMIT = 200;
 
+    private final TrackedEntityRepository teis;
     private final EnrollmentRepository enrols;
     private final TrackerEventRepository stageEvents;
     private final OperationJournalRepository journal;
@@ -60,12 +61,14 @@ public class TrackerGraphReconciler {
     private final ObjectMapper mapper;
     private final Clock clock;
 
-    public TrackerGraphReconciler(final EnrollmentRepository enrols,
+    public TrackerGraphReconciler(final TrackedEntityRepository teis,
+                                     final EnrollmentRepository enrols,
                                      final TrackerEventRepository stageEvents,
                                      final OperationJournalRepository journal,
                                      final SecurityAuditRepository audit,
                                      final ObjectMapper mapper,
                                      final Clock clock) {
+        this.teis = Objects.requireNonNull(teis, "teis");
         this.enrols = Objects.requireNonNull(enrols, "enrols");
         this.stageEvents = Objects.requireNonNull(stageEvents, "stageEvents");
         this.journal = Objects.requireNonNull(journal, "journal");
@@ -76,6 +79,27 @@ public class TrackerGraphReconciler {
 
     public ReconcileReport reconcile() {
         final Instant now = Instant.now(clock);
+        /* Phase 12.4 — pass 1: auto-heal orphans from prior ticks
+         * whose parent has since landed in the mirror. Done BEFORE
+         * raising new orphans so a parent that arrived in the same
+         * pull batch as its child doesn't get queued-then-healed
+         * in the same reconcile tick (we'd be writing the same row
+         * twice for no reason). */
+        final int healedEnrolments = autoHealOrphans(
+                OperationJournalEntry.EntityType.ENROLLMENT,
+                /* parentFound = */ ref -> enrols.findById(ref)
+                        .map(e -> e.teiUid())
+                        .map(uid -> teis.findById(uid).isPresent())
+                        .orElse(false));
+        final int healedEvents = autoHealOrphans(
+                OperationJournalEntry.EntityType.PROGRAM_STAGE_EVENT,
+                ref -> stageEvents.findById(ref)
+                        .map(ev -> ev.enrollmentUid())
+                        .filter(u -> u != null && !u.isBlank())
+                        .map(uid -> enrols.findById(uid).isPresent())
+                        .orElse(false));
+
+        /* Pass 2: raise fresh orphan conflicts. */
         int orphanEnrolments = 0;
         int orphanEvents = 0;
         for (final Enrollment e : enrols.findOrphans(BATCH_LIMIT)) {
@@ -97,12 +121,43 @@ public class TrackerGraphReconciler {
                     now);
             orphanEvents++;
         }
-        if (orphanEnrolments + orphanEvents > 0) {
-            LOG.info("TrackerGraphReconciler raised {} enrolment + {} event orphan conflicts",
-                    orphanEnrolments, orphanEvents);
+        if (orphanEnrolments + orphanEvents + healedEnrolments + healedEvents > 0) {
+            LOG.info("TrackerGraphReconciler: raised {}+{} orphan conflicts, "
+                    + "auto-healed {}+{} prior orphans",
+                    orphanEnrolments, orphanEvents, healedEnrolments, healedEvents);
         }
-        return new ReconcileReport(orphanEnrolments, orphanEvents);
+        return new ReconcileReport(orphanEnrolments, orphanEvents,
+                healedEnrolments, healedEvents);
     }
+
+    /** Phase 12.4 — per-entity-type auto-heal pass. Returns the
+     *  count of conflict rows resolved by this tick. */
+    private int autoHealOrphans(final OperationJournalEntry.EntityType entityType,
+                                   final java.util.function.Predicate<String> parentFound) {
+        int healed = 0;
+        for (final OperationJournalEntry row :
+                journal.findOrphanConflicts(entityType, BATCH_LIMIT)) {
+            if (!parentFound.test(row.entityRef())) {
+                continue;
+            }
+            final int updated = journal.markOrphanAutoHealed(
+                    row.operationId(),
+                    "auto-healed: parent landed in local mirror on subsequent pull");
+            if (updated == 0) {
+                continue;
+            }
+            healed++;
+            audit.append(new AuditEvent(
+                    "TRACKER_ORPHAN_AUTOHEALED",
+                    AuditEvent.Outcome.SUCCESS,
+                    null, null, null, null,
+                    Map.of("entityType", entityType.name(),
+                            "entityRef", row.entityRef())),
+                    Instant.now(clock));
+        }
+        return healed;
+    }
+
 
     private void raiseOrphanConflict(final OperationJournalEntry.EntityType entityType,
                                         final String entityRef,
@@ -131,8 +186,15 @@ public class TrackerGraphReconciler {
     }
 
     /** One reconcile tick's outcome; wired into the admin UI
-     *  via the data-pull job's run detail JSON. */
-    public record ReconcileReport(int orphanEnrolments, int orphanEvents) {
+     *  via the data-pull job's run detail JSON. Phase 12.4 extended
+     *  with auto-heal counters so the pull-job detail reflects both
+     *  work raised AND work closed per tick. */
+    public record ReconcileReport(int orphanEnrolments, int orphanEvents,
+                                     int healedEnrolments, int healedEvents) {
+        /** Pre-12.4 ctor used by existing tests; defaults heals to 0. */
+        public ReconcileReport(final int orphanEnrolments, final int orphanEvents) {
+            this(orphanEnrolments, orphanEvents, 0, 0);
+        }
         public int total() {
             return orphanEnrolments + orphanEvents;
         }
