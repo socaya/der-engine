@@ -28,11 +28,13 @@ public class CaptureWorkflowService {
     public CaptureWorkflowService(final CaptureWorkflowRepository repo,
                                     final CaptureWorkflowContributionRepository contributions) {
         this.repo = Objects.requireNonNull(repo, "repo");
-        this.contributions = Objects.requireNonNull(contributions, "contributions");
+        this.contributions = contributions;
     }
 
     /** Legacy single-arg ctor kept for tests that predate 2.3.11 and
-     *  don't exercise the contribution-lookup methods. */
+     *  don't exercise the contribution-lookup methods. {@code
+     *  contributionsForRun} already null-guards the field, so a null
+     *  value here is safe for every method except that one lookup. */
     public CaptureWorkflowService(final CaptureWorkflowRepository repo) {
         this(repo, null);
     }

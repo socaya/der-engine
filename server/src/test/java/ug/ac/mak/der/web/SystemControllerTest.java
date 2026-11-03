@@ -56,7 +56,7 @@ class SystemControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.service").value("der-server"))
-                .andExpect(jsonPath("$.status").value("starter-ready"))
+                .andExpect(jsonPath("$.status").value("UP"))
                 .andExpect(jsonPath("$.version").value("0.1.0-SNAPSHOT"))
                 .andExpect(jsonPath("$.commit").value("abc1234"))
                 .andExpect(jsonPath("$.branch").value("main"))

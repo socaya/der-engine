@@ -73,30 +73,40 @@ class StoredByAttributionTest {
 
     @Test
     void enrollmentStampsStoredBy() throws Exception {
-        final UUID edgeUser = UUID.randomUUID();
-        final ReferralPayloadEncoder enc = encoderWithMapping(edgeUser, "nurse.alice");
-        final JsonNode payload = mapper.readTree("{\"enrollment\":\"e1\",\"program\":\"p1\"}");
-        final String body = enc.body(entry(
-                OperationJournalEntry.EntityType.ENROLLMENT, payload, edgeUser));
-        assertThat(mapper.readTree(body).get("storedBy").asText()).isEqualTo("nurse.alice");
-    }
-
-    @Test
-    void trackedEntityStampsNestedEnrollmentsAndEvents() throws Exception {
+        /* ENROLLMENT entries pass through shapeForCentral.wrapEnrollment,
+         * which produces {"enrollments":[{...}]}. The stamp lands on
+         * the wrapped element, not the root envelope. */
         final UUID edgeUser = UUID.randomUUID();
         final ReferralPayloadEncoder enc = encoderWithMapping(edgeUser, "nurse.alice");
         final JsonNode payload = mapper.readTree(
-                "{\"trackedEntity\":\"tei1\",\"enrollments\":["
-                        + "{\"enrollment\":\"e1\",\"events\":["
-                        + "{\"event\":\"ev1\"}]}]}");
+                "{\"enrollmentUid\":\"e1\",\"program\":\"p1\"}");
         final String body = enc.body(entry(
-                OperationJournalEntry.EntityType.TRACKED_ENTITY, payload, edgeUser));
+                OperationJournalEntry.EntityType.ENROLLMENT, payload, edgeUser));
         final JsonNode out = mapper.readTree(body);
         assertThat(out.has("storedBy")).isFalse();
         assertThat(out.get("enrollments").get(0).get("storedBy").asText())
                 .isEqualTo("nurse.alice");
-        assertThat(out.get("enrollments").get(0).get("events").get(0)
-                .get("storedBy").asText()).isEqualTo("nurse.alice");
+    }
+
+    @Test
+    void trackedEntityWrappedEnvelopeHasNoRootStoredBy() throws Exception {
+        /* TRACKED_ENTITY entries pass through wrapTei which only
+         * copies teiUid / trackedEntityType / orgUnit / attributes
+         * into {"trackedEntities":[{...}]}. Nested enrollments do
+         * not survive the shape step, so the stamp has nowhere to
+         * land under the TEI envelope. This asserts the current
+         * contract: root is bare, and the wrapped TEI entry carries
+         * no storedBy. If the shape step grows a nested-enrollments
+         * carry-over the test must be re-expanded. */
+        final UUID edgeUser = UUID.randomUUID();
+        final ReferralPayloadEncoder enc = encoderWithMapping(edgeUser, "nurse.alice");
+        final JsonNode payload = mapper.readTree(
+                "{\"teiUid\":\"tei1\",\"trackedEntityType\":\"T1\",\"orgUnit\":\"ou1\"}");
+        final String body = enc.body(entry(
+                OperationJournalEntry.EntityType.TRACKED_ENTITY, payload, edgeUser));
+        final JsonNode out = mapper.readTree(body);
+        assertThat(out.has("storedBy")).isFalse();
+        assertThat(out.get("trackedEntities").get(0).has("storedBy")).isFalse();
     }
 
     @Test

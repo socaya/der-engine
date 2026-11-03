@@ -29,7 +29,9 @@ public class ReferralInboxPollJob implements Job {
     @Override
     public void execute(final JobExecutionContext context) throws JobExecutionException {
         final long t0 = System.nanoTime();
-        final String trigger = context.getMergedJobDataMap().getString("triggeredBy");
+        final org.quartz.JobDataMap data = context == null
+                ? null : context.getMergedJobDataMap();
+        final String trigger = data == null ? null : data.getString("triggeredBy");
         final String triggeredBy = trigger == null || trigger.isBlank() ? "SCHEDULED" : trigger;
         final Long runId = runs == null ? null : runs.insertStart(JOB_NAME, triggeredBy);
         try {

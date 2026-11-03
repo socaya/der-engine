@@ -143,14 +143,20 @@ class ApprovalControllerTest {
     }
 
     @Test
-    void rejectWithoutBodyIsOk() throws Exception {
-        when(svc.reject(any(UUID.class), any(UUID.class), any()))
-                .thenReturn(ApprovalService.Outcome.REJECTED);
-        mockMvc.perform(post("/edge-api/v1/approvals/" + UUID.randomUUID() + "/reject")
-                        .with(as(EdgeRole.ADMIN))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andExpect(status().isOk());
+    void rejectWithoutReasonIsRejected() {
+        /* V045 — audit trail requires a non-empty reason on every
+         * reject. An empty body (or {}) → 400
+         * REJECTION_REASON_REQUIRED, not a free pass. */
+        try {
+            mockMvc.perform(post("/edge-api/v1/approvals/" + UUID.randomUUID() + "/reject")
+                            .with(as(EdgeRole.ADMIN))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("REJECTION_REASON_REQUIRED"));
+        } catch (Exception ex) {
+            throw new AssertionError(ex);
+        }
     }
 
     @Test

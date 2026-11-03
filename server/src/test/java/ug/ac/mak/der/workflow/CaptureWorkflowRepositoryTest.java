@@ -141,10 +141,13 @@ class CaptureWorkflowRepositoryTest {
                 List.of(),
                 false, null);
         new CaptureWorkflowRepository(jdbc).upsert(w);
+        /* The step INSERT also carries section_kind + section_ref
+         * (section-aware capture, ADR-0018 D-21); assertion mirrors
+         * the production arg order. */
         verify(jdbc).update(
                 org.mockito.ArgumentMatchers.contains("owner_device_id"),
                 eq(stepId), eq(id), eq(0), eq("s0"), eq("OPERATOR"),
-                eq(deviceId), eq("CAPTURE"));
+                eq(deviceId), eq("CAPTURE"), eq("AD_HOC"), any());
     }
 
     @Test

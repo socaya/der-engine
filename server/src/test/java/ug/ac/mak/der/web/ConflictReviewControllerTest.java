@@ -41,6 +41,7 @@ class ConflictReviewControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean ConflictReviewService service;
+    @MockBean ug.ac.mak.der.workflows.aggregate.OperationJournalRepository journal;
 
     private final ObjectMapper mapper = new ObjectMapper();
 

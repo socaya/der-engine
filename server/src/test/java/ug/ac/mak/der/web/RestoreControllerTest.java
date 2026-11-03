@@ -97,14 +97,14 @@ class RestoreControllerTest {
                         .content("{\"kind\":\"LOCAL\",\"source\":\"src.dump\"}"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.kind").value("LOCAL"));
-        verify(scheduler).triggerJob(any(org.quartz.JobKey.class));
+        verify(scheduler).triggerJob(any(org.quartz.JobKey.class), any(org.quartz.JobDataMap.class));
     }
 
     @Test
     void requestSwallowsSchedulerException() throws Exception {
         when(repo.insert(any())).thenReturn(sample(RestoreRun.Status.REQUESTED));
         doThrow(new org.quartz.SchedulerException("boom"))
-                .when(scheduler).triggerJob(any(org.quartz.JobKey.class));
+                .when(scheduler).triggerJob(any(org.quartz.JobKey.class), any(org.quartz.JobDataMap.class));
         mockMvc.perform(post("/edge-api/v1/restore/request")
                         .with(as(EdgeRole.ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)

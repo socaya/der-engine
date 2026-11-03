@@ -110,10 +110,21 @@ class CaptureWorkflowRecordsTest {
 
     @Test
     void enumValuesSurface() {
+        /* BindingKind grew to cover section-level + element-level
+         * bindings (ADR-0018 D-21). Assertion lists every expected
+         * value explicitly so a future enum-shrink or rename trips
+         * this test instead of silently drifting. */
         assertThat(CaptureWorkflow.BindingKind.values())
                 .containsExactly(CaptureWorkflow.BindingKind.DATA_SET,
+                        CaptureWorkflow.BindingKind.DATA_SET_SECTION,
+                        CaptureWorkflow.BindingKind.DATA_ELEMENT,
                         CaptureWorkflow.BindingKind.PROGRAM,
-                        CaptureWorkflow.BindingKind.PROGRAM_STAGE);
+                        CaptureWorkflow.BindingKind.PROGRAM_SECTION,
+                        CaptureWorkflow.BindingKind.PROGRAM_STAGE,
+                        CaptureWorkflow.BindingKind.PROGRAM_STAGE_SECTION,
+                        CaptureWorkflow.BindingKind.TRACKED_ENTITY_TYPE,
+                        CaptureWorkflow.BindingKind.TRACKED_ENTITY_ATTRIBUTE,
+                        CaptureWorkflow.BindingKind.SYSTEM);
         assertThat(CaptureWorkflowStep.OwnerRole.values()).hasSize(3);
         assertThat(CaptureWorkflowStep.StepKind.values()).hasSize(4);
         assertThat(CaptureWorkflowField.Requirement.values()).hasSize(4);

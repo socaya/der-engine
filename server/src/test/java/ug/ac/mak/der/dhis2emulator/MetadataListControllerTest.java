@@ -45,6 +45,7 @@ class MetadataListControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean MetadataMirrorRepository mirror;
+    @MockBean org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private RequestPostProcessor as() {
         final Instant now = Instant.now();

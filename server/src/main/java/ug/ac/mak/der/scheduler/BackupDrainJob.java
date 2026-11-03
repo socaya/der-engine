@@ -31,7 +31,13 @@ public class BackupDrainJob implements Job {
     @Override
     public void execute(final JobExecutionContext context) throws JobExecutionException {
         final long t0 = System.nanoTime();
-        final String trigger = context.getMergedJobDataMap().getString("triggeredBy");
+        /* context is non-null in production (Quartz always supplies one),
+         * but a few tests invoke execute(null) or supply a mock whose
+         * data map is null to assert the null-worker branches without
+         * a Quartz fixture. */
+        final org.quartz.JobDataMap data = context == null
+                ? null : context.getMergedJobDataMap();
+        final String trigger = data == null ? null : data.getString("triggeredBy");
         final String triggeredBy = trigger == null || trigger.isBlank() ? "SCHEDULED" : trigger;
         final Long runId = runs == null ? null : runs.insertStart(JOB_NAME, triggeredBy);
         try {

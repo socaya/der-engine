@@ -60,6 +60,8 @@ class EdgeDeviceRepositoryTest {
         when(rs.getString("user_agent")).thenReturn("chrome");
         when(rs.getString("firmware_version")).thenReturn(null);
         when(rs.getString("status")).thenReturn("APPROVED");
+        when(rs.getString("display_name")).thenReturn("Front desk tablet");
+        when(rs.getString("form_factor")).thenReturn("TABLET");
         when(jdbc.queryForObject(anyString(), any(RowMapper.class), eq(id)))
                 .thenAnswer(inv -> ((RowMapper<?>) inv.getArgument(1)).mapRow(rs, 1));
         final EdgeDevice d = new EdgeDeviceRepository(jdbc).findById(id).orElseThrow();

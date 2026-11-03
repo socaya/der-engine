@@ -79,14 +79,14 @@ class BackupControllerTest {
                         .content("{\"kind\":\"FULL\"}"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.runId").value(5));
-        verify(scheduler).triggerJob(any(org.quartz.JobKey.class));
+        verify(scheduler).triggerJob(any(org.quartz.JobKey.class), any(org.quartz.JobDataMap.class));
     }
 
     @Test
     void requestSwallowsSchedulerException() throws Exception {
         when(repo.insert(any())).thenReturn(sample(BackupRun.Status.REQUESTED));
         doThrow(new org.quartz.SchedulerException("boom"))
-                .when(scheduler).triggerJob(any(org.quartz.JobKey.class));
+                .when(scheduler).triggerJob(any(org.quartz.JobKey.class), any(org.quartz.JobDataMap.class));
         mockMvc.perform(post("/edge-api/v1/backup/request")
                         .with(as(EdgeRole.ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
