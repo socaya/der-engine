@@ -60,4 +60,152 @@ describe('MockupDataQueues', () => {
      * state is the same LoadingBlock as the list. */
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
+
+  it('populated backlog renders rows + all-sent status tone', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'listJournalOperations').mockResolvedValue([
+      /* All ACCEPTED → 'Sent' operator state → "All sent" label. */
+      { operationId: 'op-ok-1', entityType: 'DATA_VALUE',
+        entityRef: 'VAL-1', state: 'CENTRAL_ACCEPTED',
+        attemptCount: 1, lastError: null, nextHopOrgUnitUid: null,
+        createdAt: '2026-11-01T00:00:00Z',
+        updatedAt: '2026-11-02T00:00:00Z' },
+    ] as unknown as edgeApi.JournalOperation[]);
+    renderWithProviders(<MockupDataQueues />, { authApi });
+    /* The default filter ('ACTIVE') hides Sent rows. Switch to ALL
+     * so the row renders. */
+    const user = (await import('@testing-library/user-event')).default
+      .setup();
+    await waitFor(() =>
+      expect(screen.getByTestId('sync-data')).toBeInTheDocument());
+    /* Status label: no attention, no unsent, worker enabled, central
+     * reachable → "All sent" success tone. */
+    expect(screen.getByText('All sent')).toBeInTheDocument();
+    /* Select the ALL filter to show the single ACCEPTED row. */
+    const selects = document.querySelectorAll('select');
+    /* second select = status filter (first is type). */
+    await user.selectOptions(selects[1], 'ALL');
+    await waitFor(() =>
+      expect(screen.getByTestId('data-row-op-ok-1'))
+        .toBeInTheDocument());
+    /* 'Clean processed' button surfaces when at least one Sent row. */
+    expect(screen.getByTestId('data-queue-purge')).toBeInTheDocument();
+  });
+
+  it('paused worker → status label "Paused" + muted tone', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
+      enabled: false, probeTimestamp: 'now',
+      backlog: {}, lastTick: null, lastBatchSize: 0,
+    } as unknown as edgeApi.WorkerHealth);
+    renderWithProviders(<MockupDataQueues />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByText('Paused')).toBeInTheDocument());
+    /* Push button disabled when worker paused. */
+    expect(screen.getByTestId('data-push')).toBeDisabled();
+  });
+
+  it('central unreachable → status label "Central unavailable" + warning tone', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
+      runtime: { heapUsedBytes: 1, heapMaxBytes: 100, uptimeMillis: 1 },
+      database: { configured: true, sessionCount: 0 },
+      scheduler: { started: true, executingJobs: 0, totalJobs: 1 },
+      storage: { totalBytes: 1, usableBytes: 1 },
+      dhis2: { configured: true, probeReachable: false, baseUrl: 'x' },
+      build: { version: '2.3.122', commit: 'a', branch: 'main',
+               buildTime: 'now', dirty: false },
+      apps: { installed: 0, enabled: 0, items: [] },
+    } as unknown as edgeApi.SystemInfo);
+    renderWithProviders(<MockupDataQueues />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByText('Central unavailable')).toBeInTheDocument());
+  });
+
+  it('backlog with Needs attention → danger tone label + attention count', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'listJournalOperations').mockResolvedValue([
+      { operationId: 'op-conflict-1', entityType: 'DATA_VALUE',
+        entityRef: 'VAL-1', state: 'CONFLICT_REVIEW',
+        attemptCount: 7, lastError: 'bad', nextHopOrgUnitUid: null,
+        createdAt: 'now', updatedAt: 'now' },
+      { operationId: 'op-conflict-2', entityType: 'EVENT',
+        entityRef: 'EV-1', state: 'CENTRAL_REJECTED',
+        attemptCount: 3, lastError: 'rej', nextHopOrgUnitUid: null,
+        createdAt: 'now', updatedAt: 'now' },
+    ] as unknown as edgeApi.JournalOperation[]);
+    renderWithProviders(<MockupDataQueues />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '')
+        .toMatch(/\d need[s]? attention/));
+  });
+
+  it('unsent-only backlog → "N waiting" info tone', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'listJournalOperations').mockResolvedValue([
+      { operationId: 'op-pend', entityType: 'DATA_VALUE',
+        entityRef: 'VAL-1', state: 'PENDING',
+        attemptCount: 0, lastError: null, nextHopOrgUnitUid: null,
+        createdAt: 'now', updatedAt: 'now' },
+      { operationId: 'op-pend-2', entityType: 'DATA_VALUE',
+        entityRef: 'VAL-2', state: 'RETRYABLE',
+        attemptCount: 1, lastError: 'r', nextHopOrgUnitUid: null,
+        createdAt: 'now', updatedAt: 'now' },
+    ] as unknown as edgeApi.JournalOperation[]);
+    renderWithProviders(<MockupDataQueues />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '')
+        .toMatch(/2 waiting/));
+  });
+
+  it('filter — searching for a non-existent id surfaces the "no matches" branch', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'listJournalOperations').mockResolvedValue([
+      { operationId: 'op-active', entityType: 'DATA_VALUE',
+        entityRef: 'VAL-1', state: 'PENDING',
+        attemptCount: 0, lastError: null, nextHopOrgUnitUid: null,
+        createdAt: 'now', updatedAt: 'now' },
+    ] as unknown as edgeApi.JournalOperation[]);
+    renderWithProviders(<MockupDataQueues />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('data-row-op-active'))
+        .toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default
+      .setup();
+    await user.type(screen.getByPlaceholderText(/Search record/i),
+                     'nonexistent-id');
+    await waitFor(() =>
+      expect(document.body.textContent ?? '')
+        .toMatch(/No records match the current filters/));
+  });
+
+  it('empty-backlog state surfaces when items.length === 0', async () => {
+    stubAll();
+    renderWithProviders(<MockupDataQueues />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '')
+        .toMatch(/outbound queue is empty/));
+  });
+
+  it('last-cleaned chip surfaces when fetchLastJournalPurge returns a row', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'fetchLastJournalPurge').mockResolvedValue({
+      observedAt: '2026-11-02T10:00:00Z',
+      rowsPurged: 12,
+      olderThanDays: 0,
+    } as never);
+    renderWithProviders(<MockupDataQueues />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('data-last-cleaned')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/12 row/);
+  });
+
+  it('workflowRunId URL filter surfaces the scoped-filter chip', async () => {
+    stubAll();
+    renderWithProviders(<MockupDataQueues />,
+      { authApi, route: '/admin/data/queue?workflowRunId=wfr-abcdef12' });
+    await waitFor(() =>
+      expect(screen.getByText(/Workflow run wfr-abcd/i))
+        .toBeInTheDocument());
+  });
 });
