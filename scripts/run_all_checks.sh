@@ -145,6 +145,23 @@ else
   skip_step "dhis2-live-probe" "DER_DHIS2_CENTRAL_URL not set"
 fi
 
+# Optional: chaos tests — opt-in because they need a live Postgres + port 8085
+# idle (so the harness can bind). The two chaos scripts cover
+# Phase 11.1 journal state-machine recovery (SIGKILL mid-drain) and
+# Phase 13.1.2 ADR-0035 pull/write interlock (SELECT FOR UPDATE SKIP
+# LOCKED contract).
+if [[ "${DER_RUN_CHAOS:-false}" == "true" ]]; then
+  if [[ -f scripts/evaluation/chaos_journal_recovery.sh ]]; then
+    run_step "chaos-journal-recovery" bash scripts/evaluation/chaos_journal_recovery.sh
+  fi
+  if [[ -f scripts/evaluation/chaos_pull_write_interlock.sh ]]; then
+    run_step "chaos-pull-write-interlock" bash scripts/evaluation/chaos_pull_write_interlock.sh
+  fi
+else
+  skip_step "chaos-journal-recovery" "DER_RUN_CHAOS not set to true (needs live PG + jar)"
+  skip_step "chaos-pull-write-interlock" "DER_RUN_CHAOS not set to true (needs live PG)"
+fi
+
 # Optional: OWASP dependency-check — opt-in because it needs network for NVD data.
 if [[ "${DER_RUN_DEPENDENCY_CHECK:-false}" == "true" ]]; then
   run_step "server-dependency-check" bash -c "cd server && ./mvnw -q org.owasp:dependency-check-maven:check"
