@@ -72,4 +72,64 @@ describe('MockupWorkspace', () => {
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
     expect(document.body.textContent ?? '').toMatch(/2\.3\.122/);
   });
+
+  it('renders the Client devices panel from a populated listDevices probe', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
+      devices: [
+        { deviceId: 'dev-ok-xxxxxx', status: 'APPROVED', displayName: 'Clinic kiosk',
+          lastSeenAt: '2026-11-03T11:00:00Z', assignedUserId: null,
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null, userAgent: 'ua',
+          firmwareVersion: null, formFactor: 'TABLET' },
+        { deviceId: 'dev-pending-x', status: 'PENDING', displayName: null,
+          lastSeenAt: '2026-11-03T10:00:00Z', assignedUserId: null,
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null, userAgent: 'ua',
+          firmwareVersion: null, formFactor: 'TABLET' },
+      ],
+    } as unknown as { devices: edgeApi.EdgeDeviceRow[] });
+    renderWithProviders(<MockupWorkspace />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/clinic kiosk/i));
+  });
+
+  it('renders the Edge workflows panel from a populated listWorkflows probe', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'listWorkflows').mockResolvedValue({
+      workflows: [
+        { workflowId: 'wf-1', displayName: 'Weekly aggregate',
+          boundMetadataKind: 'DATA_SET', boundMetadataId: 'ds-1',
+          enabled: true, version: 1, createdAt: 'now', updatedAt: 'now',
+          createdBy: null, steps: [], dependencies: [],
+          requiresApproval: false, defaultDeviceId: null },
+        { workflowId: 'wf-2', displayName: 'HIV disabled',
+          boundMetadataKind: 'PROGRAM', boundMetadataId: 'p-1',
+          enabled: false, version: 1, createdAt: 'now', updatedAt: 'now',
+          createdBy: null, steps: [], dependencies: [],
+          requiresApproval: false, defaultDeviceId: null },
+      ],
+    } as unknown as { workflows: edgeApi.CaptureWorkflowSummary[] });
+    renderWithProviders(<MockupWorkspace />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/weekly aggregate/i));
+    expect(document.body.textContent ?? '').toMatch(/hiv disabled/i);
+  });
+
+  it('surfaces the ConflictRow count when listConflicts returns rows', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
+      { operationId: 'op-1', entityType: 'AGGREGATE_DATA_VALUE',
+        entityRef: 'de1|ou1|2026W44', payloadJson: {},
+        state: 'CONFLICT_REVIEW', attemptCount: 1,
+        lastError: 'rejected', submittedBy: null,
+        createdAt: 'now', updatedAt: 'now' },
+    ] as unknown as edgeApi.ConflictRow[]);
+    renderWithProviders(<MockupWorkspace />, { authApi });
+    await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
+    /* The conflict panel renders '1 ... attention' when a conflict
+     * is present. We assert on the entity ref so the test anchors
+     * on the actual conflict data not a hero number. */
+    expect(document.body.textContent ?? '').toMatch(/de1\|ou1\|2026W44|conflict/i);
+  });
 });

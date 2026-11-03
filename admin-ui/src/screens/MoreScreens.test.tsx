@@ -102,4 +102,48 @@ describe('MoreScreens — surface mount test', () => {
     renderWithProviders(<MockupWorkerHealth />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
   });
+
+  it('MockupConflictList renders ErrorBlock when listConflicts rejects', async () => {
+    vi.spyOn(edgeApi, 'listConflicts').mockRejectedValue(new Error('rejected'));
+    renderWithProviders(<MockupConflictList />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('err-conflicts'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('err-conflicts')).toHaveTextContent(/rejected/i);
+  });
+
+  it('MockupConflictList renders rows from a populated listConflicts probe', async () => {
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
+      { operationId: 'op-1', entityType: 'AGGREGATE_DATA_VALUE',
+        entityRef: 'de1|ou1|2026W44', payloadJson: {},
+        state: 'CONFLICT_REVIEW', attemptCount: 1,
+        lastError: 'central rejected', submittedBy: null,
+        createdAt: 'now', updatedAt: 'now',
+        nextHopOrgUnitUid: null },
+    ] as unknown as edgeApi.ConflictRow[]);
+    renderWithProviders(<MockupConflictList />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/de1\|ou1\|2026W44/));
+  });
+
+  it('MockupDeviceFleet renders a populated listDevices probe', async () => {
+    vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
+      devices: [
+        { deviceId: 'dev-approved-123456', status: 'APPROVED',
+          displayName: 'Clinic kiosk', formFactor: 'TABLET',
+          lastSeenAt: '2026-11-03T11:00:00Z', assignedUserId: null,
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null, userAgent: 'ua',
+          firmwareVersion: null },
+        { deviceId: 'dev-pending-xyzabc', status: 'PENDING',
+          displayName: null, formFactor: 'MOBILE',
+          lastSeenAt: '2026-11-03T10:00:00Z', assignedUserId: null,
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null, userAgent: 'ua',
+          firmwareVersion: null },
+      ],
+    } as unknown as { devices: edgeApi.EdgeDeviceRow[] });
+    renderWithProviders(<MockupDeviceFleet />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/clinic kiosk/i));
+  });
 });

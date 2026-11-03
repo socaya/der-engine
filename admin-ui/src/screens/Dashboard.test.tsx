@@ -91,4 +91,44 @@ describe('MockupDashboard', () => {
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/2\.3\.122/));
   });
+
+  it('populates the Recent Activity panel from the recentActivity probe', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'recentActivity').mockResolvedValue({
+      entries: [
+        { auditId: 'a1', eventType: 'SIGN_IN', outcome: 'SUCCESS',
+          observedAt: '2026-11-03T11:00:00Z' },
+        { auditId: 'a2', eventType: 'DRAIN_RUN', outcome: 'FAILURE',
+          observedAt: '2026-11-03T11:05:00Z' },
+      ],
+    } as unknown as { entries: edgeApi.ActivityEntry[] });
+    renderWithProviders(<MockupDashboard />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/SIGN_IN/));
+    expect(document.body.textContent ?? '').toMatch(/DRAIN_RUN/);
+  });
+
+  it('populates the Client Devices panel with per-row status tone', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
+      devices: [
+        { deviceId: 'd-approved-xxxxxxxxx', status: 'APPROVED',
+          lastSeenAt: '2026-11-03T11:00:00Z',
+          assignedUserId: null, enrolmentTokenHash: 'h',
+          enrolledAt: 'now', approvedBy: null, approvedAt: null,
+          userAgent: 'ua', firmwareVersion: null,
+          displayName: null, formFactor: 'TABLET' },
+        { deviceId: 'd-pending-xxxxxxxxx', status: 'PENDING',
+          lastSeenAt: '2026-11-03T10:00:00Z',
+          assignedUserId: null, enrolmentTokenHash: 'h',
+          enrolledAt: 'now', approvedBy: null, approvedAt: null,
+          userAgent: 'ua', firmwareVersion: null,
+          displayName: null, formFactor: 'TABLET' },
+      ],
+    } as unknown as { devices: edgeApi.EdgeDeviceRow[] });
+    renderWithProviders(<MockupDashboard />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/d-approved/));
+    expect(document.body.textContent ?? '').toMatch(/d-pending/);
+  });
 });

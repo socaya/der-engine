@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { MockupUsersDashboard, MockupUserDetail } from './UsersDashboard';
 import * as edgeApi from '../api/edgeApi';
@@ -72,11 +73,66 @@ describe('MockupUsersDashboard', () => {
     });
   });
 
+  /* MockupUserDetail reads :userId from the route params; without a
+   * matched route the param stays undefined and the useEffect
+   * short-circuits. Wrap in a Routes/Route block so useParams
+   * returns the id. */
+  function detailWithRoute(): JSX.Element {
+    return (
+      <Routes>
+        <Route path="/provisioning/users/:userId" element={<MockupUserDetail />} />
+      </Routes>
+    );
+  }
+
   it('MockupUserDetail renders LoadingBlock while listUsers is pending', () => {
     vi.spyOn(edgeApi, 'listUsers').mockImplementation(
       () => new Promise(() => undefined));
-    renderWithProviders(<MockupUserDetail />,
-      { authApi, route: '/admin/provisioning/users/u-1' });
+    renderWithProviders(detailWithRoute(),
+      { authApi, route: '/provisioning/users/u-1' });
     expect(screen.getByTestId('loading')).toBeInTheDocument();
+  });
+
+  it('MockupUserDetail shows ErrorBlock when the user is not found', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({ users: [] });
+    renderWithProviders(detailWithRoute(),
+      { authApi, route: '/provisioning/users/u-missing' });
+    await waitFor(() => expect(screen.getByTestId('err-user-detail'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('err-user-detail'))
+      .toHaveTextContent(/not found/i);
+  });
+
+  it('MockupUserDetail renders the matched user and switches tabs', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-live', username: 'alice',
+                            displayName: 'Alice', roles: ['ADMIN'] })],
+    });
+    renderWithProviders(detailWithRoute(),
+      { authApi, route: '/provisioning/users/u-live' });
+    await waitFor(() => expect(screen.getByTestId('user-detail'))
+      .toBeInTheDocument());
+    const user = userEvent.setup();
+    /* The screen opens on the Details tab; swap to Permissions
+     * to exercise the role-based bullet-list render path. */
+    await user.click(screen.getByRole('button', { name: /permissions/i }));
+    expect(screen.getByText(/manage users, apps, settings/i))
+      .toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /activity/i }));
+    expect(screen.getByText(/per-user activity not yet exposed/i))
+      .toBeInTheDocument();
+  });
+
+  it('MockupUsersDashboard renders Pending / Verified attention chips per row', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture()],
+    });
+    renderWithProviders(<MockupUsersDashboard />, { authApi });
+    await waitFor(() => expect(screen.getByText('nurse.alice'))
+      .toBeInTheDocument());
+    /* Every row gets a Pending/Verified chip + the "Unmapped"
+     * placeholder. Assert the Unmapped chip surfaces as the
+     * strongest signal for the row-render path. */
+    expect(screen.getAllByText(/unmapped/i).length).toBeGreaterThan(0);
   });
 });
