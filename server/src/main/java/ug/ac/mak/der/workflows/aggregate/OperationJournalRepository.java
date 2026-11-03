@@ -539,6 +539,35 @@ public class OperationJournalRepository {
                 rationale, operationId);
     }
 
+    /**
+     * Phase 13.4 — raw {@code last_response} JSON blob for a journal
+     * row. The admin UI conflict-detail screen renders this
+     * side-by-side with the local payload so the operator can see
+     * the central value that triggered the conflict without having
+     * to query the DB directly.
+     *
+     * <p>Returns the record carrying both {@code last_response} and
+     * {@code last_error} as nullable strings. Null when the
+     * operation id doesn't exist.</p>
+     */
+    public ConflictPayloadRow findConflictPayload(final UUID operationId) {
+        Objects.requireNonNull(operationId, "operationId");
+        try {
+            return jdbc.queryForObject(
+                    "SELECT last_response::text AS last_response, last_error "
+                            + "FROM der.operation_journal WHERE operation_id = ?",
+                    (ResultSet rs, int n) -> new ConflictPayloadRow(
+                            rs.getString("last_response"),
+                            rs.getString("last_error")),
+                    operationId);
+        } catch (EmptyResultDataAccessException ex) {
+            return null;
+        }
+    }
+
+    /** Phase 13.4 — projection for the conflict-detail central-value view. */
+    public record ConflictPayloadRow(String lastResponseJson, String lastError) { }
+
     public int markNextHop(final UUID operationId, final String nextHopOrgUnitUid) {
         Objects.requireNonNull(operationId, "operationId");
         return jdbc.update(

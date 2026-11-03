@@ -17,9 +17,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 import ug.ac.mak.der.workflows.journal.ConflictReviewService;
 
 /** ADR-0009 admin surface for conflict review. */
@@ -28,9 +31,59 @@ import ug.ac.mak.der.workflows.journal.ConflictReviewService;
 public class ConflictReviewController {
 
     private final ConflictReviewService service;
+    private final OperationJournalRepository journal;
+    private final ObjectMapper mapper;
 
-    public ConflictReviewController(final ConflictReviewService service) {
+    public ConflictReviewController(final ConflictReviewService service,
+                                       final OperationJournalRepository journal,
+                                       final ObjectMapper mapper) {
         this.service = Objects.requireNonNull(service, "service");
+        this.journal = Objects.requireNonNull(journal, "journal");
+        this.mapper = Objects.requireNonNull(mapper, "mapper");
+    }
+
+    /**
+     * Phase 13.4 — central-side payload for one conflict row. The
+     * admin UI conflict-detail screen renders this side-by-side
+     * with the local payload so the operator can compare before
+     * resolving.
+     *
+     * <p>{@code lastResponse} is returned as a parsed JsonNode so
+     * the admin UI's JsonViewer can render it directly; falls back
+     * to {@code null} when central's response wasn't valid JSON or
+     * the row has never been published.</p>
+     */
+    @GetMapping("/{id}/central-response")
+    public ResponseEntity<java.util.Map<String, Object>> centralResponse(
+            final Authentication authentication,
+            @PathVariable("id") final UUID id) {
+        if (!(authentication instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final OperationJournalRepository.ConflictPayloadRow row =
+                journal.findConflictPayload(id);
+        if (row == null) {
+            return ResponseEntity.notFound().build();
+        }
+        JsonNode parsed = null;
+        if (row.lastResponseJson() != null && !row.lastResponseJson().isBlank()) {
+            try {
+                parsed = mapper.readTree(row.lastResponseJson());
+            } catch (Exception ex) {
+                /* Non-JSON last_response (shouldn't happen — the
+                 * publisher always writes a JSON object — but defensive
+                 * if a bad write ever slips through). Fall through to
+                 * returning the raw string in lastResponseRaw. */
+            }
+        }
+        final java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("operationId", id.toString());
+        body.put("lastResponse", parsed);
+        if (parsed == null) {
+            body.put("lastResponseRaw", row.lastResponseJson());
+        }
+        body.put("lastError", row.lastError());
+        return ResponseEntity.ok(body);
     }
 
     @GetMapping

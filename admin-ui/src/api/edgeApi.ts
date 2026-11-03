@@ -401,6 +401,20 @@ export function listConflicts(limit = 100): Promise<ConflictRow[]> {
   return request<ConflictRow[]>('GET', `/edge-api/v1/journal/conflicts?limit=${limit}`);
 }
 
+/** Phase 13.4 — central-side payload for one conflict row.
+ *  `lastResponse` is pre-parsed JSON when central responded with
+ *  valid JSON; falls back to `lastResponseRaw` otherwise. */
+export interface ConflictCentralResponse {
+  operationId: string;
+  lastResponse: Record<string, unknown> | null;
+  lastResponseRaw?: string | null;
+  lastError?: string | null;
+}
+export function fetchConflictCentralResponse(opId: string): Promise<ConflictCentralResponse> {
+  return request<ConflictCentralResponse>('GET',
+    `/edge-api/v1/journal/conflicts/${encodeURIComponent(opId)}/central-response`);
+}
+
 /** Full journal operation entry (includes payload JSON). */
 export interface JournalOperation {
   operationId: string;

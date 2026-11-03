@@ -463,7 +463,94 @@ export function MockupConflictDetail(): JSX.Element {
             <dd className="ea-mono" style={{ fontSize: 10 }}>{row.operationId}</dd></div>
         </dl>
       </Panel>
+      <CentralValuePanel operationId={row.operationId} localPayload={row.payload} />
     </div>
+  );
+}
+
+/** Phase 13.4 — side-by-side payload comparison. Local payload left,
+ *  central's response right. Collapses gracefully when central has
+ *  never responded (fresh CONFLICT_REVIEW from pull-time collision
+ *  rather than drain-time rejection). */
+function CentralValuePanel(
+  { operationId, localPayload }:
+    { operationId: string; localPayload: Record<string, unknown> | null | undefined },
+): JSX.Element | null {
+  const [central, setCentral] = useState<edgeApi.ConflictCentralResponse | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    edgeApi.fetchConflictCentralResponse(operationId)
+      .then((r) => { if (alive) setCentral(r); })
+      .catch((e) => { if (alive) setErr(e instanceof Error ? e.message : String(e)); });
+    return () => { alive = false; };
+  }, [operationId]);
+  if (err) return (
+    <Panel title="Central value" >
+      <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>Failed to load: {err}</p>
+    </Panel>
+  );
+  if (!central) return (
+    <Panel title="Central value">
+      <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>Loading…</p>
+    </Panel>
+  );
+  const hasCentral = central.lastResponse != null
+    || (central.lastResponseRaw != null && central.lastResponseRaw.length > 0);
+  return (
+    <Panel title="Side-by-side payload">
+      {!hasCentral && (
+        <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
+          Central hasn't produced a response for this row yet — the conflict was
+          raised at pull time (central's version differs from the operator's
+          in-flight edit) rather than at drain time (central rejected the push).
+          Only the local payload shown.
+        </p>
+      )}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: hasCentral ? '1fr 1fr' : '1fr',
+        gap: 12, marginTop: 12,
+      }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4,
+                         color: 'var(--der-ink-500)',
+                         textTransform: 'uppercase' }}>Local</div>
+          <pre className="ea-mono" style={{ fontSize: 11, lineHeight: 1.4,
+                                              background: 'var(--der-canvas, #f8fafc)',
+                                              padding: 10, borderRadius: 6,
+                                              border: '1px solid var(--der-border)',
+                                              whiteSpace: 'pre-wrap',
+                                              wordBreak: 'break-word',
+                                              margin: 0 }}>
+            {JSON.stringify(localPayload ?? {}, null, 2)}
+          </pre>
+        </div>
+        {hasCentral && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4,
+                           color: 'var(--der-ink-500)',
+                           textTransform: 'uppercase' }}>Central</div>
+            <pre className="ea-mono" style={{ fontSize: 11, lineHeight: 1.4,
+                                                background: 'var(--der-canvas, #f8fafc)',
+                                                padding: 10, borderRadius: 6,
+                                                border: '1px solid var(--der-border)',
+                                                whiteSpace: 'pre-wrap',
+                                                wordBreak: 'break-word',
+                                                margin: 0 }}>
+              {central.lastResponse != null
+                ? JSON.stringify(central.lastResponse, null, 2)
+                : central.lastResponseRaw}
+            </pre>
+          </div>
+        )}
+      </div>
+      {central.lastError && (
+        <p style={{ marginTop: 12, fontSize: 12, color: 'var(--der-ink-700)' }}>
+          <strong>Last error:</strong> {central.lastError}
+        </p>
+      )}
+    </Panel>
   );
 }
 
