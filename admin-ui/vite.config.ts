@@ -101,10 +101,15 @@ export default defineConfig({
          * (AdminShell, DataEvents, DataTracker) added 30 tests
          * and lifted measured coverage to 74.84 / 72.33 / 59.11 /
          * 74.84. Ratchet one point below each. */
-        lines: 73,
-        branches: 70,
-        functions: 57,
-        statements: 73,
+        /* der-2.3.123 round-27 ratchet: four further depth-lifts
+         * (Compliance, DataQueues, DeviceMessaging, DateRangePicker)
+         * added 36 tests and lifted measured coverage to
+         * 76.69 / 73.39 / 60.49 / 76.69. Functions crossed 60%.
+         * Ratchet 1-2 points below each. */
+        lines: 75,
+        branches: 72,
+        functions: 59,
+        statements: 75,
       },
     },
   },
