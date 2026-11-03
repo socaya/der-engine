@@ -92,10 +92,15 @@ export default defineConfig({
          * Branches dropped 71.62 to 68.5. Rather than roll back
          * the line win, drop the branch threshold to 68 — one
          * point below current. The line gain stays enforced. */
-        lines: 70,
-        branches: 68,
-        functions: 55,
-        statements: 70,
+        /* der-2.3.123 round-18 ratchet: five further depth-lifts
+         * (Dashboard, DataAggregate, HealthCards, PeriodPicker,
+         * ScreenHeader) added 36 tests and lifted measured
+         * coverage to 73.58 / 70.89 / 57.76 / 73.58. Ratchet
+         * thresholds one point below each for safety margin. */
+        lines: 72,
+        branches: 69,
+        functions: 56,
+        statements: 72,
       },
     },
   },
