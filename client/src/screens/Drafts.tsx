@@ -22,6 +22,10 @@ export function Drafts({ api = edgeApi }: DraftsProps = {}): JSX.Element {
     }
   }
 
+  // reload closes over api; exhaustive-deps would want reload itself,
+  // but that creates a new function identity each render. Depending
+  // on api alone is correct — the reload body only references api.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload().catch(() => undefined); }, [api]);
 
   async function remove(draftId: string): Promise<void> {

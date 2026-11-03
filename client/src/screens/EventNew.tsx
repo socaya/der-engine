@@ -88,7 +88,7 @@ export function EventNew({ api = edgeApi, submit }: EventNewProps = {}): JSX.Ele
       {deHidden ? (
         <p className="der-field" data-test="event-new-de-hidden"
             style={{ color: '#5a6a85' }}>
-          Field '{dataElement}' hidden by program rule — value won't be submitted.
+          Field &apos;{dataElement}&apos; hidden by program rule — value won&apos;t be submitted.
         </p>
       ) : (
         <label className="der-field">

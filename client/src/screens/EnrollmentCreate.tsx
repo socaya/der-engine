@@ -118,7 +118,7 @@ export function EnrollmentCreate({ submit }: EnrollmentCreateProps = {}): JSX.El
                 <p key={uid} className="der-field"
                    data-test={`enroll-attr-hidden-${uid}`}
                    style={{ color: '#5a6a85', margin: '4px 0' }}>
-                  Attribute '{uid}' hidden by program rule — value won't be submitted.
+                  Attribute &apos;{uid}&apos; hidden by program rule — value won&apos;t be submitted.
                 </p>
               );
             }
