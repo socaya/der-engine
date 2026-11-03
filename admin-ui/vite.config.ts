@@ -132,10 +132,16 @@ export default defineConfig({
          * crossed the 1100-test + 80%-lines milestones. Measured
          * coverage 80.02 / 77.34 / 64.45 / 80.02. Ratchet one
          * point below each. */
-        lines: 80,
-        branches: 77,
+        /* der-2.3.123 round-65 ratchet: twelve further commits
+         * (shared.describeCron, AlertStack, TopologyCanvas,
+         * Breadcrumbs, ActiveJobsWatcher, Sparkline, NavIcon,
+         * Metadata depth, OrgUnitContext, SignIn, UiIcon,
+         * RunValidation) added 103 tests. Measured coverage
+         * 81.08 / 78.01 / 64.96 / 81.08. Ratchet one point below. */
+        lines: 81,
+        branches: 78,
         functions: 64,
-        statements: 80,
+        statements: 81,
       },
     },
   },
