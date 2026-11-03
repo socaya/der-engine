@@ -81,6 +81,26 @@ public class SchedulerConfig {
     }
 
     @Bean
+    public JobDetail stuckInFlightReaperJobDetail() {
+        return JobBuilder.newJob(StuckInFlightReaperJob.class)
+                .withIdentity(StuckInFlightReaperJob.JOB_NAME)
+                .storeDurably()
+                .requestRecovery()
+                .build();
+    }
+
+    @Bean
+    public Trigger stuckInFlightReaperTrigger(final JobDetail stuckInFlightReaperJobDetail,
+                                                 @Value("${der.journal.inflight-reaper.cron:0 */5 * * * ?}")
+                                                 final String cron) {
+        return TriggerBuilder.newTrigger()
+                .forJob(stuckInFlightReaperJobDetail)
+                .withIdentity(StuckInFlightReaperJob.JOB_NAME + "_TRIGGER")
+                .withSchedule(CronScheduleBuilder.cronSchedule(cron))
+                .build();
+    }
+
+    @Bean
     public JobDetail referralEscalationJobDetail() {
         return JobBuilder.newJob(ReferralEscalationJob.class)
                 .withIdentity(ReferralEscalationJob.JOB_NAME)

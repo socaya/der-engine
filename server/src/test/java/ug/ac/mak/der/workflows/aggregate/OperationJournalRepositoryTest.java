@@ -208,6 +208,18 @@ class OperationJournalRepositoryTest {
     }
 
     @Test
+    void requeueStuckInFlightUsesTimestampCutoff() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.update(anyString(), any(Object[].class))).thenReturn(2);
+        final java.time.Instant cutoff = java.time.Instant.parse("2026-11-03T09:50:00Z");
+        assertThat(new OperationJournalRepository(jdbc, json).requeueStuckInFlight(cutoff))
+                .isEqualTo(2);
+        verify(jdbc).update(
+                org.mockito.ArgumentMatchers.contains("updated_at < ?"),
+                any(Object[].class));
+    }
+
+    @Test
     void entryConvenienceConstructorNullsNextHop() {
         final OperationJournalEntry e = new OperationJournalEntry(
                 UUID.randomUUID(),

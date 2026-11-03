@@ -411,6 +411,34 @@ public class OperationJournalRepository {
                         + "WHERE state = 'IN_FLIGHT'");
     }
 
+    /**
+     * Phase 12.1 — continuous (runtime) reaper. The boot-time reaper
+     * only catches rows stuck IN_FLIGHT by a crash. A row stuck
+     * during steady-state (publisher thread died, DB tx hung, worker
+     * paused and un-paused) stays IN_FLIGHT forever since the
+     * drain's {@code WHERE state = 'PENDING'} scan never sees it.
+     *
+     * <p>This method requeues rows that have been IN_FLIGHT longer
+     * than {@code olderThan}. Called from a scheduled job every N
+     * minutes.</p>
+     *
+     * @param olderThan rows with updated_at &lt; this timestamp are reaped
+     * @return number of rows requeued
+     */
+    public int requeueStuckInFlight(final Instant olderThan) {
+        Objects.requireNonNull(olderThan, "olderThan");
+        return jdbc.update(
+                "UPDATE der.operation_journal "
+                        + "SET state = 'PENDING', "
+                        + "    attempt_count = attempt_count + 1, "
+                        + "    last_error = COALESCE(last_error || ' | ', '') "
+                        + "        || 'reaped at ' || now() || ': stuck in IN_FLIGHT past "
+                        + "runtime threshold', "
+                        + "    updated_at = now() "
+                        + "WHERE state = 'IN_FLIGHT' AND updated_at < ?",
+                java.sql.Timestamp.from(olderThan));
+    }
+
     public int markNextHop(final UUID operationId, final String nextHopOrgUnitUid) {
         Objects.requireNonNull(operationId, "operationId");
         return jdbc.update(
