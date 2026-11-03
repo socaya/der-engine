@@ -280,4 +280,51 @@ describe('DataAggregate', () => {
       .toBeInTheDocument();
     expect(screen.getByTestId('pull-submit')).toBeDisabled();
   });
+
+  it('Pull-from-Central dialog — period input setPeriod branch fires', async () => {
+    renderWithProviders(<DataAggregate />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-aggregate')).toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('data-aggregate-pull-open'));
+    const period = screen.getByTestId('pull-period') as HTMLInputElement;
+    await user.type(period, '2026Q4');
+    expect(period.value).toBe('2026Q4');
+  });
+
+  it('limit filter — selecting 50 narrows the list', async () => {
+    renderWithProviders(<DataAggregate />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-aggregate-table')).toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.selectOptions(
+      screen.getByTestId('data-aggregate-limit'), '50');
+    await waitFor(() =>
+      expect(edgeApi.listLocalAggregate).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 50 })));
+  });
+
+  it('search filter — typing narrows + clearing restores all rows', async () => {
+    vi.spyOn(edgeApi, 'listLocalAggregate').mockResolvedValue({
+      pipeline,
+      rows: [
+        { ...rowAggregate, valueId: 'v-a', valueText: 'apple' },
+        { ...rowAggregate, valueId: 'v-b', valueText: 'banana' },
+      ],
+    } as never);
+    renderWithProviders(<DataAggregate />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-aggregate-row-v-a'))
+        .toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.type(screen.getByTestId('data-aggregate-search'), 'apple');
+    await waitFor(() => {
+      expect(screen.queryByTestId('data-aggregate-row-v-b')).toBeNull();
+    });
+    /* Clear search → all rows surface again. */
+    await user.clear(screen.getByTestId('data-aggregate-search'));
+    await waitFor(() =>
+      expect(screen.getByTestId('data-aggregate-row-v-b'))
+        .toBeInTheDocument());
+  });
 });
