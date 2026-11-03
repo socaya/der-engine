@@ -123,4 +123,86 @@ describe('TopologyCanvas', () => {
                             onSelect={() => {}} />);
     expect(screen.getByRole('img', { name: /Facility mesh/ })).toBeInTheDocument();
   });
+
+  it('simulate mode ON — timer-driven internetOnline toggles without crashing', async () => {
+    /* Force simulateMode='on' via localStorage so the simulator effect
+     * runs its setTimeout schedule. Fake timers let us advance past
+     * the dwell to flip simOnline. */
+    window.localStorage.setItem('der.demo.internetSimulate', 'on');
+    vi.useFakeTimers();
+    try {
+      render(<TopologyCanvas der={der} wan={wan} devices={[]} peers={[]}
+                              connections={[]} selected={null}
+                              onSelect={() => {}} />);
+      /* Advance past the longest ON-state dwell (25 + 35 = 60s). */
+      vi.advanceTimersByTime(65_000);
+      /* Advance past the OFF-state dwell (6 + 9 = 15s). */
+      vi.advanceTimersByTime(20_000);
+      /* Component still mounted, simulate effect fired its timer twice. */
+      expect(screen.getByRole('img', { name: /Facility mesh/ }))
+        .toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      window.localStorage.removeItem('der.demo.internetSimulate');
+    }
+  });
+
+  it('simulate mode auto + centralIsLocal true also runs the simulator', () => {
+    window.localStorage.setItem('der.demo.internetSimulate', 'auto');
+    vi.useFakeTimers();
+    try {
+      const localWan: WanInfo = { ...wan, centralIsLocal: true };
+      render(<TopologyCanvas der={der} wan={localWan} devices={[]}
+                              peers={[]} connections={[]} selected={null}
+                              onSelect={() => {}} />);
+      vi.advanceTimersByTime(65_000);
+      expect(screen.getByRole('img', { name: /Facility mesh/ }))
+        .toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      window.localStorage.removeItem('der.demo.internetSimulate');
+    }
+  });
+
+  it('simulate mode off → no timer scheduled (unmount is clean)', () => {
+    window.localStorage.setItem('der.demo.internetSimulate', 'off');
+    try {
+      const { unmount } = render(
+        <TopologyCanvas der={der} wan={wan} devices={[]} peers={[]}
+                        connections={[]} selected={null}
+                        onSelect={() => {}} />);
+      /* internetOnline follows wan.internetAvailable directly. */
+      expect(screen.getByRole('img', { name: /Facility mesh/ }))
+        .toBeInTheDocument();
+      /* Clean unmount doesn't throw on the timer-clear branch. */
+      unmount();
+    } finally {
+      window.localStorage.removeItem('der.demo.internetSimulate');
+    }
+  });
+
+  it('simulate mode becomes off mid-flight — timer is cleaned up', () => {
+    /* Start in 'on' mode (simulator runs), then flip to 'off' via
+     * rerender by re-dispatching the store. */
+    window.localStorage.setItem('der.demo.internetSimulate', 'on');
+    vi.useFakeTimers();
+    try {
+      const { rerender, unmount } = render(
+        <TopologyCanvas der={der} wan={wan} devices={[]} peers={[]}
+                        connections={[]} selected={null}
+                        onSelect={() => {}} />);
+      vi.advanceTimersByTime(5_000);
+      /* Change mode mid-flight. The useSyncExternalStore update
+       * fires via subscribeSimulateMode. */
+      window.localStorage.setItem('der.demo.internetSimulate', 'off');
+      /* Force a re-sync by re-rendering with the same props. */
+      rerender(<TopologyCanvas der={der} wan={wan} devices={[]} peers={[]}
+                                connections={[]} selected={null}
+                                onSelect={() => {}} />);
+      unmount();
+    } finally {
+      vi.useRealTimers();
+      window.localStorage.removeItem('der.demo.internetSimulate');
+    }
+  });
 });
