@@ -106,10 +106,16 @@ export default defineConfig({
          * added 36 tests and lifted measured coverage to
          * 76.69 / 73.39 / 60.49 / 76.69. Functions crossed 60%.
          * Ratchet 1-2 points below each. */
-        lines: 75,
-        branches: 72,
-        functions: 59,
-        statements: 75,
+        /* der-2.3.123 round-32 ratchet: four further new test files
+         * (WorkflowPicker, MetadataPicker, SystemComponents,
+         * CentralPayloadDrawer) added 39 tests and lifted measured
+         * coverage to 77.52 / 74.73 / 61.44 / 77.52. All seven
+         * net-new tested components clear 100% lines. Ratchet
+         * one point below each. */
+        lines: 76,
+        branches: 73,
+        functions: 60,
+        statements: 76,
       },
     },
   },
