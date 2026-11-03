@@ -174,35 +174,39 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/no referrals|no pending|empty|all clear/i);
   });
 
-  it('MockupBackupList renders populated backup rows', async () => {
+  it('MockupBackupList renders populated backup rows (every status + kind pair)', async () => {
+    /* BackupRow is {runId, requestedAt, kind, status, message?}
+     * — four statuses (REQUESTED / QUEUED / SUCCESS / FAILED)
+     * and two kinds (AUDIT / FULL). Feed one of each so the
+     * table body exercises every chip-tone arm. */
     vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([
-      { backupId: 'bk-full-1', kind: 'FULL', status: 'SUCCEEDED',
-        startedAt: '2026-11-03T10:00:00Z', completedAt: '2026-11-03T10:01:00Z',
-        requestedBy: null, requestedAt: 'now',
-        destinationPath: '/tmp/bk-full-1',
-        sizeBytes: 10_000_000, errorMessage: null },
-      { backupId: 'bk-audit-1', kind: 'AUDIT', status: 'FAILED',
-        startedAt: '2026-11-03T09:00:00Z', completedAt: '2026-11-03T09:00:30Z',
-        requestedBy: null, requestedAt: 'now',
-        destinationPath: '/tmp/bk-audit-1',
-        sizeBytes: null, errorMessage: 'disk full' },
-    ] as unknown as edgeApi.BackupRow[]);
+      { runId: 1, kind: 'FULL',  status: 'SUCCESS',
+        requestedAt: '2026-11-03T10:00:00Z' },
+      { runId: 2, kind: 'AUDIT', status: 'FAILED',
+        requestedAt: '2026-11-03T09:00:00Z', message: 'disk full' },
+      { runId: 3, kind: 'FULL',  status: 'QUEUED',
+        requestedAt: '2026-11-03T08:00:00Z' },
+      { runId: 4, kind: 'AUDIT', status: 'REQUESTED',
+        requestedAt: '2026-11-03T07:00:00Z' },
+    ] as edgeApi.BackupRow[]);
     renderWithProviders(<MockupBackupList />, { authApi });
     await waitFor(() =>
-      expect(document.body.textContent ?? '').toMatch(/bk-full-1|FULL/i));
-    expect(document.body.textContent ?? '').toMatch(/disk full|FAILED/i);
+      expect(document.body.textContent ?? '').toMatch(/FULL|AUDIT/));
+    expect(document.body.textContent ?? '').toMatch(/disk full|FAILED/);
+    expect(document.body.textContent ?? '').toMatch(/SUCCESS|QUEUED|REQUESTED/);
   });
 
   it('MockupRestoreList renders populated restore rows', async () => {
     vi.spyOn(edgeApi, 'listRestores').mockResolvedValue([
-      { restoreId: 'rs-1', kind: 'LOCAL', status: 'SUCCEEDED',
-        startedAt: '2026-11-03T08:00:00Z', completedAt: '2026-11-03T08:05:00Z',
-        requestedBy: null, requestedAt: 'now',
-        sourcePath: '/tmp/bk-full-1', errorMessage: null },
-    ] as unknown as edgeApi.RestoreRow[]);
+      { runId: 1, source: 'bk-full-1', status: 'SUCCESS',
+        requestedAt: '2026-11-03T08:00:00Z' },
+      { runId: 2, source: 'bk-audit-1', status: 'FAILED',
+        requestedAt: '2026-11-03T07:00:00Z', message: 'bad manifest' },
+    ] as edgeApi.RestoreRow[]);
     renderWithProviders(<MockupRestoreList />, { authApi });
     await waitFor(() =>
-      expect(document.body.textContent ?? '').toMatch(/rs-1|LOCAL|SUCCEEDED/i));
+      expect(document.body.textContent ?? '').toMatch(/bk-full-1|bk-audit-1/));
+    expect(document.body.textContent ?? '').toMatch(/SUCCESS|FAILED/);
   });
 
   it('MockupCompatInspector renders details from a resolved compat probe', async () => {
@@ -247,5 +251,45 @@ describe('MoreScreens — surface mount test', () => {
     /* The disabled-worker branch surfaces 'Resume' as the action
      * verb; the enabled branch is already covered elsewhere. */
     expect(document.body.textContent ?? '').toMatch(/resume|disabled|paused/i);
+  });
+
+  it('MockupDriftInspector renders the perEntity breakdown and totals', async () => {
+    vi.spyOn(edgeApi, 'drift').mockResolvedValue({
+      status: 'OK',
+      fingerprintFrom: 'from-aaa',
+      fingerprintTo:   'to-bbb',    /* unequal → warning tone */
+      snapshotFrom: 440, snapshotTo: 441,
+      capturedAt: 'now',
+      perEntity: {
+        dataElements: {
+          added:   [{ id: 'de-add',  displayName: 'New DE' }],
+          removed: [{ id: 'de-rm',   displayName: 'Old DE' }],
+          changed: [{ id: 'de-chg',  displayName: 'Changed DE' }],
+        },
+        organisationUnits: {
+          added: [], removed: [],
+          changed: [{ id: 'ou-chg', displayName: 'Rebranded OU' }],
+        },
+      },
+    } as unknown as edgeApi.DriftResponse);
+    renderWithProviders(<MockupDriftInspector />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('drift-hub')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/dataElements|organisationUnits/);
+    expect(document.body.textContent ?? '').toMatch(/drift detected/i);
+  });
+
+  it('MockupDriftInspector in-sync branch renders the success tone + \'In sync\' label', async () => {
+    vi.spyOn(edgeApi, 'drift').mockResolvedValue({
+      status: 'OK',
+      fingerprintFrom: 'same', fingerprintTo: 'same',  /* equal */
+      snapshotFrom: 441, snapshotTo: 441,
+      capturedAt: 'now',
+      perEntity: {},
+    } as unknown as edgeApi.DriftResponse);
+    renderWithProviders(<MockupDriftInspector />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('drift-hub')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/in sync/i);
   });
 });
