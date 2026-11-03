@@ -255,6 +255,14 @@ export interface DraftRow {
   title: string;
   payload: Record<string, unknown>;
   updatedAt: string;
+  /** E6 — present when the draft is scheduled for auto-publish. */
+  scheduledPublishAt?: string | null;
+  /** V072 — the workflow run that created this draft, when the
+   *  draft came from a workflow step. Null for ad-hoc captures. */
+  workflowRunId?: string | null;
+  /** Server attribution — set on every draft, used by the UI. */
+  ownerId?: string;
+  createdAt?: string;
 }
 
 export function listDrafts(opts?: { workflowRunId?: string }):
@@ -287,6 +295,57 @@ export interface DraftPublishResult {
 export function publishDraft(draftId: string): Promise<DraftPublishResult> {
   return request<DraftPublishResult>('POST',
     `/edge-api/v1/drafts/${encodeURIComponent(draftId)}/publish`);
+}
+
+/** E6 — schedule a draft for auto-publish at a future ISO-8601 UTC
+ *  timestamp. Server rejects timestamps older than 5s past.
+ *  Response is 202 Accepted; the draft stays until the scheduler
+ *  tick picks it up. */
+export interface DraftScheduleResult {
+  draftId: string;
+  scheduledPublishAt: string;
+  status: 'SCHEDULED';
+}
+export function scheduleDraftPublish(
+  draftId: string,
+  publishAt: string,
+): Promise<DraftScheduleResult> {
+  return request<DraftScheduleResult>('POST',
+    `/edge-api/v1/drafts/${encodeURIComponent(draftId)}/schedule`,
+    { publishAt });
+}
+
+/** E6 — cancel a pending schedule without discarding the draft. */
+export interface DraftScheduleCancelResult {
+  draftId: string;
+  status: 'SCHEDULE_CLEARED';
+}
+export function cancelDraftSchedule(draftId: string):
+Promise<DraftScheduleCancelResult> {
+  return request<DraftScheduleCancelResult>('DELETE',
+    `/edge-api/v1/drafts/${encodeURIComponent(draftId)}/schedule`);
+}
+
+/** Phase 14.5b — bulk publish. Server accepts up to 100 draftIds
+ *  and returns per-row results. One failure doesn't abort the batch. */
+export interface DraftPublishBatchRow {
+  draftId: string | null;
+  status: 'PUBLISHED' | 'FAILED';
+  imported?: number;
+  conflicts?: Array<Record<string, string>>;
+  draftConsumed?: boolean;
+  error?: string;
+  httpStatus?: number;
+}
+export interface DraftPublishBatchResult {
+  consumed: number;
+  kept: number;
+  results: DraftPublishBatchRow[];
+}
+export function publishDraftsBatch(draftIds: ReadonlyArray<string>):
+Promise<DraftPublishBatchResult> {
+  return request<DraftPublishBatchResult>('POST',
+    '/edge-api/v1/drafts/publish-batch', { draftIds });
 }
 
 // ---- Admin-ui additions (EA-01..18) ----

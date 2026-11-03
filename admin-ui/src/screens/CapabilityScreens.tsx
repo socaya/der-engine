@@ -1988,46 +1988,146 @@ export function CapTracker(): JSX.Element {
     title="Tracker" desc="Tracked-entity capture and dashboards." />;
 }
 
+/* ────────────────────────────────────────────────────────────────
+ * CapDrafts — Data › Drafts & pending.
+ *
+ * Comprehensive admin surface for the /edge-api/v1/drafts resource.
+ * Covers every draft kind the server accepts (aggregate, event,
+ * tracker-tei, tracker-enrollment, tracker-event), the E6 scheduling
+ * surface, and the Phase 14.5b bulk-publish endpoint.
+ * ──────────────────────────────────────────────────────────────── */
+
+/** Human-readable labels for every publishable draft kind. */
+const DRAFT_KINDS: ReadonlyArray<{ value: string; label: string; tone: 'info' | 'warning' | 'success' }> = [
+  { value: 'aggregate',          label: 'Aggregate',           tone: 'info' },
+  { value: 'event',              label: 'Event',               tone: 'info' },
+  { value: 'tracker-tei',        label: 'Tracker — TEI',       tone: 'warning' },
+  { value: 'tracker-enrollment', label: 'Tracker — Enrolment', tone: 'warning' },
+  { value: 'tracker-event',      label: 'Tracker — Event',     tone: 'warning' },
+];
+
+/** Server considers these publishable. Anything else gets a 400
+ *  DRAFT_KIND_NOT_PUBLISHABLE and we hide the publish button. */
+const PUBLISHABLE_KINDS = new Set(DRAFT_KINDS.map((k) => k.value));
+
+interface PublishError {
+  draftId: string;
+  message: string;
+}
+
 export function CapDrafts(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const workflowRunId = searchParams.get('workflowRunId');
   const [rows, setRows] = useState<edgeApi.DraftRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [perRowErrors, setPerRowErrors] = useState<ReadonlyArray<PublishError>>([]);
+  const [kindFilter, setKindFilter] = useState<string>('ALL');
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [previewDraft, setPreviewDraft] = useState<edgeApi.DraftRow | null>(null);
+  const [scheduleDraft, setScheduleDraft] = useState<edgeApi.DraftRow | null>(null);
+  const [busy, setBusy] = useState(false);
+
   async function reload(): Promise<void> {
     try {
-      const r = await edgeApi.listDrafts({
-        workflowRunId: workflowRunId ?? undefined,
-      });
+      const r = await edgeApi.listDrafts({ workflowRunId: workflowRunId ?? undefined });
       setRows(r.drafts);
+      /* Clear selections that reference drafts that have since
+       * drained — the operator shouldn't carry a stale checkbox
+       * state across a reload. */
+      setSelected((prev) => {
+        const nextIds = new Set(r.drafts.map((d) => d.draftId));
+        const kept = new Set<string>();
+        prev.forEach((id) => { if (nextIds.has(id)) kept.add(id); });
+        return kept;
+      });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
     }
-    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
+
   useEffect(() => { reload().catch(() => undefined);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */ },
     [workflowRunId]);
+
   async function remove(id: string): Promise<void> {
-    try { await edgeApi.deleteDraft(id); await reload(); }
+    try { await edgeApi.deleteDraft(id); await reload(); setErr(null); }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   }
-  /* Phase 07.1 — publish a draft into the outbound journal. Only
-   * draft kinds "aggregate" and "event" are publishable server-side;
-   * other kinds return DRAFT_KIND_NOT_PUBLISHABLE which we surface
-   * as a non-blocking error chip. */
-  async function publish(id: string, kind: string): Promise<void> {
+
+  /* Publish semantics: server rejects non-publishable kinds with 400
+   * DRAFT_KIND_NOT_PUBLISHABLE; publishable kinds with conflicts keep
+   * the draft and report per-row rejection reasons. */
+  async function publish(d: edgeApi.DraftRow): Promise<void> {
     try {
-      const r = await edgeApi.publishDraft(id);
+      const r = await edgeApi.publishDraft(d.draftId);
       await reload();
       if (!r.draftConsumed) {
-        setErr(`Draft kept — ${r.conflicts.length} row${r.conflicts.length === 1 ? '' : 's'} rejected`);
+        const n = r.conflicts.length;
+        setPerRowErrors((prev) => [
+          ...prev.filter((e) => e.draftId !== d.draftId),
+          { draftId: d.draftId,
+            message: `Draft kept — ${n} row${n === 1 ? '' : 's'} rejected by central or validation.` },
+        ]);
       } else {
-        setErr(null);
+        setPerRowErrors((prev) => prev.filter((e) => e.draftId !== d.draftId));
       }
     } catch (e) {
-      setErr(`Publish failed (${kind}): ${e instanceof Error ? e.message : String(e)}`);
+      setPerRowErrors((prev) => [
+        ...prev.filter((x) => x.draftId !== d.draftId),
+        { draftId: d.draftId,
+          message: `Publish failed (${d.kind}): ${e instanceof Error ? e.message : String(e)}` },
+      ]);
     }
   }
+
+  async function publishSelected(): Promise<void> {
+    if (selected.size === 0) return;
+    setBusy(true); setErr(null);
+    try {
+      const ids = Array.from(selected);
+      const r = await edgeApi.publishDraftsBatch(ids);
+      await reload();
+      const kept = r.results.filter((row) => row.status === 'FAILED'
+        || row.draftConsumed === false);
+      setPerRowErrors(kept.map((row) => ({
+        draftId: row.draftId ?? 'unknown',
+        message: row.error ?? `Draft kept — ${(row.conflicts ?? []).length} row(s) rejected.`,
+      })));
+      setSelected(new Set());
+    } catch (e) {
+      setErr(`Bulk publish failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function schedule(draftId: string, publishAt: string): Promise<void> {
+    try {
+      await edgeApi.scheduleDraftPublish(draftId, publishAt);
+      await reload();
+      setScheduleDraft(null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function cancelSchedule(draftId: string): Promise<void> {
+    try { await edgeApi.cancelDraftSchedule(draftId); await reload(); setErr(null); }
+    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+  }
+
   if (err && !rows) return <ErrorBlock title="Drafts load failed" testId="err-drafts-load-failed">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
+
+  const filtered = rows.filter((r) => {
+    if (kindFilter !== 'ALL' && r.kind !== kindFilter) return false;
+    if (search && !(r.title ?? '').toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+  const scheduledCount = rows.filter((r) => r.scheduledPublishAt).length;
+  const publishableFiltered = filtered.filter((r) => PUBLISHABLE_KINDS.has(r.kind));
+
   return (
     <div className="ea-screen" data-test="cap-drafts">
       {workflowRunId && (
@@ -2040,75 +2140,289 @@ export function CapDrafts(): JSX.Element {
             next.delete('workflowRunId');
             setSearchParams(next, { replace: true });
           }}
-          hint="Draft-level filtering lands with R-A-data (drafts.workflow_run_id)."
+          hint="Showing only drafts captured by this workflow run (via drafts.workflow_run_id)."
         />
       )}
       <SyncStatusBar
         tone={rows.length === 0 ? 'success' : 'info'}
-        title="Drafts"
-        statusLabel={rows.length === 0 ? 'All submitted' : `${rows.length} draft${rows.length === 1 ? '' : 's'}`}
-        subtitle={<span>Captures saved locally but not yet submitted to a workflow.</span>}
+        title="Drafts & pending"
+        statusLabel={rows.length === 0
+          ? 'All submitted'
+          : `${rows.length} draft${rows.length === 1 ? '' : 's'}${scheduledCount > 0 ? ` · ${scheduledCount} scheduled` : ''}`}
+        subtitle={
+          <span>
+            Captures saved locally but not yet submitted. Publish individually,
+            schedule for later (E6), or batch-select up to 100 for one-click
+            drain (Phase 14.5b).
+          </span>
+        }
       />
+
+      {err && (
+        <ErrorBlock title="Drafts action failed" testId="err-drafts-action-failed">
+          {err}
+        </ErrorBlock>
+      )}
+
       {rows.length === 0 ? (
         <EmptyBlock title="No drafts" testId="empty-no-drafts">
           Every local capture has either been submitted or discarded.
         </EmptyBlock>
       ) : (
-        <Panel title={`${rows.length} draft${rows.length === 1 ? '' : 's'}`}>
-          <DraftsTable rows={rows} remove={remove} publish={publish} />
-        </Panel>
+        <>
+          <Panel title="Filters">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                <span className="ea-text-muted">Kind</span>
+                <select data-test="drafts-kind-filter"
+                        value={kindFilter}
+                        onChange={(e) => setKindFilter(e.target.value)}
+                        className="ea-input">
+                  <option value="ALL">All ({rows.length})</option>
+                  {DRAFT_KINDS.map((k) => {
+                    const count = rows.filter((r) => r.kind === k.value).length;
+                    return (
+                      <option key={k.value} value={k.value} disabled={count === 0}>
+                        {k.label} ({count})
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, flex: '1 1 240px' }}>
+                <span className="ea-text-muted">Search title</span>
+                <input type="search" data-test="drafts-search"
+                       value={search}
+                       onChange={(e) => setSearch(e.target.value)}
+                       placeholder="Filter by title…"
+                       className="ea-input" style={{ flex: 1 }} />
+              </label>
+              <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                      data-test="drafts-refresh"
+                      onClick={() => { reload().catch(() => undefined); }}>
+                Refresh
+              </button>
+            </div>
+          </Panel>
+
+          {publishableFiltered.length > 0 && (
+            <div className="ea-toolbar"
+                 style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '12px 0' }}>
+              <button type="button"
+                      className="ea-btn ea-btn--primary"
+                      data-test="drafts-publish-selected"
+                      disabled={selected.size === 0 || busy}
+                      onClick={() => { publishSelected().catch(() => undefined); }}>
+                {busy ? 'Publishing…' : `Publish selected (${selected.size})`}
+              </button>
+              <button type="button"
+                      className="ea-btn ea-btn--ghost ea-btn--sm"
+                      data-test="drafts-select-all-publishable"
+                      disabled={publishableFiltered.length === 0}
+                      onClick={() => {
+                        setSelected((prev) => {
+                          const next = new Set(prev);
+                          publishableFiltered.forEach((d) => next.add(d.draftId));
+                          return next;
+                        });
+                      }}>
+                Select all publishable ({publishableFiltered.length})
+              </button>
+              <button type="button"
+                      className="ea-btn ea-btn--ghost ea-btn--sm"
+                      data-test="drafts-clear-selection"
+                      disabled={selected.size === 0}
+                      onClick={() => setSelected(new Set())}>
+                Clear selection
+              </button>
+              <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                Server batch cap: 100 drafts per request.
+              </span>
+            </div>
+          )}
+
+          <Panel title={`${filtered.length} draft${filtered.length === 1 ? '' : 's'}${filtered.length !== rows.length ? ` of ${rows.length}` : ''}`}>
+            <DraftsTable rows={filtered}
+                         selected={selected}
+                         toggleSelected={(id) => setSelected((prev) => {
+                           const next = new Set(prev);
+                           if (next.has(id)) next.delete(id); else next.add(id);
+                           return next;
+                         })}
+                         perRowErrors={perRowErrors}
+                         remove={remove}
+                         publish={publish}
+                         cancelSchedule={cancelSchedule}
+                         openPreview={setPreviewDraft}
+                         openSchedule={setScheduleDraft} />
+          </Panel>
+        </>
+      )}
+
+      {previewDraft && (
+        <DraftPreviewModal draft={previewDraft} onClose={() => setPreviewDraft(null)} />
+      )}
+      {scheduleDraft && (
+        <DraftScheduleModal draft={scheduleDraft}
+                            onCancel={() => setScheduleDraft(null)}
+                            onConfirm={(at) => { schedule(scheduleDraft.draftId, at).catch(() => undefined); }} />
       )}
     </div>
   );
 }
 
+/* ─── draft row kind pill ─── */
+
+function kindTone(kind: string): 'info' | 'warning' | 'muted' {
+  const entry = DRAFT_KINDS.find((k) => k.value === kind);
+  if (!entry) return 'muted';
+  return entry.tone === 'success' ? 'info' : entry.tone === 'warning' ? 'warning' : 'info';
+}
+
+function kindLabel(kind: string): string {
+  return DRAFT_KINDS.find((k) => k.value === kind)?.label ?? humaniseState(kind);
+}
+
+/* ─── drafts table ─── */
+
 function DraftsTable(
-  { rows, remove, publish }: {
+  { rows, selected, toggleSelected, perRowErrors, remove, publish, cancelSchedule,
+    openPreview, openSchedule }: {
     rows: ReadonlyArray<edgeApi.DraftRow>;
+    selected: Set<string>;
+    toggleSelected: (id: string) => void;
+    perRowErrors: ReadonlyArray<PublishError>;
     remove: (id: string) => Promise<unknown>;
-    publish: (id: string, kind: string) => Promise<unknown>;
+    publish: (d: edgeApi.DraftRow) => Promise<unknown>;
+    cancelSchedule: (id: string) => Promise<unknown>;
+    openPreview: (d: edgeApi.DraftRow) => void;
+    openSchedule: (d: edgeApi.DraftRow) => void;
   }
 ): JSX.Element {
   const paged = usePaged(rows, 25);
+  if (rows.length === 0) {
+    return (
+      <EmptyBlock title="No matches" testId="empty-drafts-filtered">
+        No drafts match the current filter.
+      </EmptyBlock>
+    );
+  }
   return (
     <div className="ea-table-wrap">
       <table className="ea-table ea-table--dense">
         <thead><tr>
+          <th style={{ width: 28 }}><span className="ea-visually-hidden">Select</span></th>
           <th>Updated</th>
           <th>Kind</th>
           <th>Title</th>
-          <th style={{ width: 90 }}>Action</th>
+          <th>Scheduled</th>
+          <th style={{ width: 240 }}>Actions</th>
         </tr></thead>
         <tbody>
-          {paged.rows.map((d) => (
-            <tr key={d.draftId}>
-              <td className="ea-text-muted"
-                  title={d.updatedAt}>{new Date(d.updatedAt).toLocaleString()}</td>
-              <td><span className="ea-chip ea-chip--neutral" title={d.kind}>
-                {humaniseState(d.kind)}
-              </span></td>
-              <td>{d.title ?? <span className="ea-text-muted">Untitled draft</span>}</td>
-              <td style={{ display: 'flex', gap: 6 }}>
-                {(d.kind === 'aggregate' || d.kind === 'event') && (
-                  <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                          data-test={`draft-publish-${d.draftId}`}
-                          onClick={() => {
-                            publish(d.draftId, d.kind).catch(() => undefined);
-                          }}>
-                    Publish
-                  </button>
+          {paged.rows.map((d) => {
+            const publishable = PUBLISHABLE_KINDS.has(d.kind);
+            const scheduled = Boolean(d.scheduledPublishAt);
+            const rowErr = perRowErrors.find((e) => e.draftId === d.draftId);
+            return (
+              <>
+                <tr key={d.draftId}
+                    data-test={`draft-row-${d.draftId}`}
+                    className={scheduled ? 'ea-row-highlight' : undefined}>
+                  <td>
+                    {publishable && (
+                      <input type="checkbox"
+                             data-test={`draft-select-${d.draftId}`}
+                             aria-label={`Select draft ${d.title ?? d.draftId}`}
+                             checked={selected.has(d.draftId)}
+                             onChange={() => toggleSelected(d.draftId)} />
+                    )}
+                  </td>
+                  <td className="ea-text-muted"
+                      title={d.updatedAt}>{new Date(d.updatedAt).toLocaleString()}</td>
+                  <td>
+                    <Status tone={kindTone(d.kind)}>{kindLabel(d.kind)}</Status>
+                  </td>
+                  <td>
+                    {d.title
+                      ? <strong>{d.title}</strong>
+                      : <span className="ea-text-muted">Untitled draft</span>}
+                    <div className="ea-text-muted ea-mono"
+                         style={{ fontSize: 11, marginTop: 2 }}>
+                      {d.draftId.slice(0, 8)}…
+                    </div>
+                  </td>
+                  <td>
+                    {scheduled
+                      ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <span className="ea-chip ea-chip--warning"
+                                data-test={`draft-scheduled-${d.draftId}`}
+                                title={d.scheduledPublishAt ?? ''}>
+                            Scheduled
+                          </span>
+                          <span className="ea-text-muted" style={{ fontSize: 11 }}>
+                            {d.scheduledPublishAt
+                              ? new Date(d.scheduledPublishAt).toLocaleString()
+                              : ''}
+                          </span>
+                        </div>
+                      )
+                      : <span className="ea-text-muted">—</span>}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {publishable && (
+                        <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                                data-test={`draft-publish-${d.draftId}`}
+                                onClick={() => { publish(d).catch(() => undefined); }}>
+                          Publish now
+                        </button>
+                      )}
+                      {publishable && !scheduled && (
+                        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                                data-test={`draft-schedule-${d.draftId}`}
+                                onClick={() => openSchedule(d)}>
+                          Schedule…
+                        </button>
+                      )}
+                      {publishable && scheduled && (
+                        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                                data-test={`draft-cancel-schedule-${d.draftId}`}
+                                onClick={() => { cancelSchedule(d.draftId).catch(() => undefined); }}>
+                          Cancel schedule
+                        </button>
+                      )}
+                      <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                              data-test={`draft-inspect-${d.draftId}`}
+                              onClick={() => openPreview(d)}>
+                        Inspect
+                      </button>
+                      <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
+                              data-test={`draft-discard-${d.draftId}`}
+                              onClick={() => {
+                                confirmThenRun(
+                                  `Discard draft "${d.title ?? 'Untitled'}"? The captured values will be lost.`,
+                                  () => { remove(d.draftId).catch(() => undefined); });
+                              }}>
+                        Discard
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {rowErr && (
+                  <tr key={`${d.draftId}-err`}>
+                    <td></td>
+                    <td colSpan={5}>
+                      <div className="ea-chip ea-chip--danger"
+                           data-test={`draft-row-error-${d.draftId}`}>
+                        {rowErr.message}
+                      </div>
+                    </td>
+                  </tr>
                 )}
-                <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
-                        onClick={() => {
-                          confirmThenRun(
-                            `Discard draft "${d.title ?? 'Untitled'}"? The captured values will be lost.`,
-                            () => { remove(d.draftId).catch(() => undefined); });
-                        }}>
-                  Discard
-                </button>
-              </td>
-            </tr>
-          ))}
+              </>
+            );
+          })}
         </tbody>
       </table>
       <TablePager {...paged.pagerProps} />
@@ -2116,86 +2430,344 @@ function DraftsTable(
   );
 }
 
+/* ─── payload preview modal ─── */
+
+function DraftPreviewModal({ draft, onClose }:
+  { draft: edgeApi.DraftRow; onClose: () => void }): JSX.Element {
+  return (
+    <div className="ea-modal-overlay"
+         data-test="draft-preview-modal"
+         onClick={onClose}
+         style={{ position: 'fixed', inset: 0, background: 'rgba(15,28,46,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  zIndex: 1000 }}>
+      <div className="ea-modal"
+           onClick={(e) => e.stopPropagation()}
+           style={{ background: 'var(--der-surface, #fff)',
+                    border: '1px solid var(--der-border, #d4dae2)',
+                    borderRadius: 8,
+                    padding: 24, maxWidth: 720, width: '90%',
+                    maxHeight: '85vh', overflow: 'auto',
+                    boxShadow: 'var(--el-3, 0 10px 30px rgba(15,28,46,0.18))' }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between',
+                         alignItems: 'center', margin: '0 0 16px' }}>
+          <h2 style={{ margin: 0, fontSize: 18 }}>
+            {draft.title ?? 'Untitled draft'}
+          </h2>
+          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-test="draft-preview-close"
+                  onClick={onClose}>Close</button>
+        </header>
+        <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr',
+                     gap: '6px 16px', fontSize: 13, margin: 0 }}>
+          <dt className="ea-text-muted">Kind</dt><dd style={{ margin: 0 }}>{kindLabel(draft.kind)}</dd>
+          <dt className="ea-text-muted">Draft id</dt>
+          <dd className="ea-mono" style={{ margin: 0 }}>{draft.draftId}</dd>
+          <dt className="ea-text-muted">Updated</dt>
+          <dd style={{ margin: 0 }}>{new Date(draft.updatedAt).toLocaleString()}</dd>
+          {draft.scheduledPublishAt && (
+            <>
+              <dt className="ea-text-muted">Scheduled at</dt>
+              <dd style={{ margin: 0 }}>
+                {new Date(draft.scheduledPublishAt).toLocaleString()}
+              </dd>
+            </>
+          )}
+        </dl>
+        <h3 style={{ marginTop: 16, fontSize: 14 }}>Payload</h3>
+        <pre data-test="draft-preview-payload"
+             style={{ maxHeight: 400, overflow: 'auto',
+                      background: 'var(--der-ink-50, #f5f7fa)',
+                      padding: 12, borderRadius: 6,
+                      fontSize: 12, lineHeight: 1.5,
+                      border: '1px solid var(--der-border, #e5e9ee)',
+                      margin: 0 }}>
+          {JSON.stringify(draft.payload, null, 2)}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+/* ─── schedule-at modal ─── */
+
+function DraftScheduleModal({ draft, onCancel, onConfirm }:
+  { draft: edgeApi.DraftRow; onCancel: () => void;
+    onConfirm: (iso: string) => void }): JSX.Element {
+  /* Local datetime input gives 'YYYY-MM-DDTHH:mm' (no timezone).
+   * Default: now + 1 hour, operator can edit. */
+  const defaultLocal = (() => {
+    const d = new Date(Date.now() + 3600 * 1000);
+    const pad = (n: number): string => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+           `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  })();
+  const [when, setWhen] = useState(defaultLocal);
+  const [err, setErr] = useState<string | null>(null);
+  function submit(): void {
+    if (!when) { setErr('Pick a date and time.'); return; }
+    const asDate = new Date(when);
+    if (Number.isNaN(asDate.getTime())) { setErr('Not a valid date-time.'); return; }
+    if (asDate.getTime() < Date.now() - 5000) {
+      setErr('The time must be at or after now (5-second grace).');
+      return;
+    }
+    onConfirm(asDate.toISOString());
+  }
+  return (
+    <div className="ea-modal-overlay"
+         data-test="draft-schedule-modal"
+         onClick={onCancel}
+         style={{ position: 'fixed', inset: 0, background: 'rgba(15,28,46,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  zIndex: 1000 }}>
+      <div className="ea-modal"
+           onClick={(e) => e.stopPropagation()}
+           style={{ background: 'var(--der-surface, #fff)',
+                    border: '1px solid var(--der-border, #d4dae2)',
+                    borderRadius: 8,
+                    padding: 24, maxWidth: 480, width: '90%',
+                    boxShadow: 'var(--el-3, 0 10px 30px rgba(15,28,46,0.18))' }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between',
+                         alignItems: 'center', margin: '0 0 16px' }}>
+          <h2 style={{ margin: 0, fontSize: 18 }}>Schedule publish</h2>
+          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                  onClick={onCancel}>Close</button>
+        </header>
+        <p style={{ margin: '0 0 12px', fontSize: 13 }}>
+          The <strong>{kindLabel(draft.kind)}</strong> draft
+          {draft.title ? <> &ldquo;{draft.title}&rdquo;</> : <> {draft.draftId.slice(0, 8)}</>}
+          {' '}will be auto-published by the scheduler at the
+          selected time. You can cancel before then from this list.
+        </p>
+        <label style={{ display: 'block', margin: '12px 0', fontSize: 13 }}>
+          <span className="ea-text-muted" style={{ display: 'block', marginBottom: 4 }}>
+            Publish at
+          </span>
+          <input type="datetime-local"
+                 data-test="draft-schedule-when"
+                 value={when}
+                 onChange={(e) => setWhen(e.target.value)}
+                 className="ea-input"
+                 style={{ display: 'block', width: '100%', padding: '6px 10px' }} />
+        </label>
+        {err && (
+          <div className="ea-chip ea-chip--danger"
+               data-test="draft-schedule-err"
+               style={{ margin: '8px 0' }}>
+            {err}
+          </div>
+        )}
+        <footer style={{ display: 'flex', justifyContent: 'flex-end', gap: 8,
+                         marginTop: 16, paddingTop: 12,
+                         borderTop: '1px solid var(--der-border, #e5e9ee)' }}>
+          <button type="button" className="ea-btn ea-btn--ghost"
+                  onClick={onCancel}>Cancel</button>
+          <button type="button" className="ea-btn ea-btn--primary"
+                  data-test="draft-schedule-submit"
+                  onClick={submit}>Schedule</button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * CapMaintenance — Data › Maintenance.
+ *
+ * One-off operator actions covering every Quartz job registered in
+ * SchedulerConfig plus backup + journal-worker + metadata-mirror
+ * controls. Jobs are grouped by purpose so an operator doesn't have
+ * to hunt through a flat list of 15 names.
+ * ──────────────────────────────────────────────────────────────── */
+
+interface MaintJob {
+  name: string;
+  label: string;
+  desc: string;
+}
+interface MaintGroup {
+  heading: string;
+  blurb: string;
+  jobs: ReadonlyArray<MaintJob>;
+}
+
+/** Full catalogue — one entry per Quartz job registered in
+ *  server/src/main/java/.../scheduler/SchedulerConfig.java. */
+const MAINT_GROUPS: ReadonlyArray<MaintGroup> = [
+  {
+    heading: 'DHIS2 synchronisation',
+    blurb: 'Mirror metadata, pull data back from Central, probe compatibility.',
+    jobs: [
+      { name: 'METADATA_SYNC',
+        label: 'Pull metadata',
+        desc: 'Mirror DHIS2 metadata (programs, data elements, orgUnits, rules).' },
+      { name: 'COMPAT_REFRESH',
+        label: 'Refresh compat snapshot',
+        desc: 'Re-probe DHIS2 version + API capabilities now.' },
+      { name: 'DRIFT_SNAPSHOT',
+        label: 'Snapshot drift',
+        desc: 'Diff the local mirror against Central and record a drift report.' },
+      { name: 'DATA_PULL',
+        label: 'Pull data from Central',
+        desc: 'ADR-0034 three-way merge of aggregate / event / tracker data.' },
+      { name: 'SCOPE_DRIFT',
+        label: 'Audit scope drift',
+        desc: '§2.3.116 R-AM — detect orgUnit-scope drift against the authoritative source.' },
+    ],
+  },
+  {
+    heading: 'Outbound journal',
+    blurb: 'Drive the write-through journal: drain, reap stuck rows, pick up matured scheduled drafts.',
+    jobs: [
+      { name: 'JOURNAL_WORKER_DRAIN',
+        label: 'Drain journal',
+        desc: 'Push every pending outbound record (aggregate / event / tracker / referral).' },
+      { name: 'STUCK_INFLIGHT_REAP',
+        label: 'Reap stuck IN_FLIGHT',
+        desc: 'Phase 12.1 — requeue rows left IN_FLIGHT past the publisher-stall deadline.' },
+      { name: 'SCHEDULED_DRAFT_PUBLISH',
+        label: 'Publish matured drafts',
+        desc: 'E6 — pick up every draft whose scheduled_publish_at is past-due.' },
+    ],
+  },
+  {
+    heading: 'Referral mesh',
+    blurb: 'Keep the cross-edge referral graph healthy.',
+    jobs: [
+      { name: 'REFERRAL_INBOX_POLL',
+        label: 'Poll referral inbox',
+        desc: 'Scan the inbox for pending cross-edge referrals addressed to this hop.' },
+      { name: 'REFERRAL_ESCALATION',
+        label: 'Escalate overdue referrals',
+        desc: 'Phase 10.3.2 — raise escalation on referrals past their ack deadline.' },
+    ],
+  },
+  {
+    heading: 'Housekeeping',
+    blurb: 'Analytics + backup drain + miscellany.',
+    jobs: [
+      { name: 'ANALYTICS_REFRESH',
+        label: 'Refresh analytics',
+        desc: 'Rebuild the local analytics / cross-module drill-path indices.' },
+      { name: 'BACKUP_DRAIN',
+        label: 'Drain backup queue',
+        desc: 'Pick up queued backup / restore requests and run them.' },
+    ],
+  },
+];
+
+const BACKUP_KINDS = [
+  { kind: 'AUDIT' as const,
+    label: 'Audit backup',
+    desc: 'Hash-chained audit log only — small, safe to run anytime.' },
+  { kind: 'FULL' as const,
+    label: 'Full backup',
+    desc: 'Database + metadata mirror + installed apps + Flyway history.' },
+];
+
 export function CapMaintenance(): JSX.Element {
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
   async function run(label: string, fn: () => Promise<unknown>): Promise<void> {
     setBusy(label); setErr(null); setMsg(null);
-    try { await fn(); setMsg(`${label}: queued.`); }
-    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
-    finally { setBusy(null); }
+    try {
+      await fn();
+      setMsg(`${label}: queued.`);
+    } catch (e) {
+      setErr(`${label}: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(null);
+    }
   }
-  const jobCatalogue: ReadonlyArray<{ name: string; label: string; desc: string }> = [
-    { name: 'METADATA_SYNC_FULL', label: 'Pull metadata',
-      desc: 'Mirror DHIS2 metadata (programs, data elements, OUs) now.' },
-    { name: 'AGGREGATE_DATA_PUSH', label: 'Push aggregate data',
-      desc: 'Send captured aggregate data values to Central DHIS2.' },
-    { name: 'JOURNAL_DRAIN', label: 'Drain journal',
-      desc: 'Push every pending outbound record (all types) now.' },
-  ];
+
   return (
     <div className="ea-screen" data-test="cap-maint">
       <SyncStatusBar
-        tone="muted"
+        tone={busy ? 'warning' : 'muted'}
         title="Maintenance"
-        statusLabel={busy ? 'Running' : 'Idle'}
-        subtitle={<span>One-off operator actions. Prefer the dedicated Sync pages for routine operations.</span>}
+        statusLabel={busy ?? 'Idle'}
+        subtitle={
+          <span>
+            One-off operator actions covering every scheduled job plus
+            backup trigger. Prefer the dedicated{' '}
+            <Link to="/admin/sync">Sync</Link> and{' '}
+            <Link to="/admin/sync/history">Sync history</Link> pages
+            for routine operations and live run status.
+          </span>
+        }
       />
-      {msg && <p className="ea-saved">{msg}</p>}
-      {err && <ErrorBlock title="Action failed" testId="err-action-failed">{err}</ErrorBlock>}
 
-      <Panel title="Trigger sync jobs">
-        <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
-          Manual trigger for the three main scheduler jobs. These normally
-          run on their schedule and are also exposed on the Sync pages.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                       gap: 8 }}>
-          {jobCatalogue.map((j) => (
-            <button key={j.name} type="button" className="ea-link-tile ea-link-tile--btn"
-                    disabled={busy === j.name}
-                    onClick={() => { run(j.label, () => edgeApi.triggerJob(j.name)).catch(() => undefined); }}>
-              <div className="ea-link-tile-icon" aria-hidden="true">▶</div>
-              <div className="ea-link-tile-body">
-                <div className="ea-link-tile-title">{j.label}</div>
-                <div className="ea-link-tile-desc">
-                  {busy === j.label ? 'Starting…' : j.desc}
+      {msg && (
+        <p className="ea-saved" data-test="maint-msg">{msg}</p>
+      )}
+      {err && (
+        <ErrorBlock title="Maintenance action failed" testId="err-action-failed">
+          {err}
+        </ErrorBlock>
+      )}
+
+      {MAINT_GROUPS.map((group) => (
+        <Panel key={group.heading} title={group.heading}>
+          <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
+            {group.blurb}
+          </p>
+          <div style={{ display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                        gap: 8 }}>
+            {group.jobs.map((j) => (
+              <button key={j.name} type="button"
+                      className="ea-link-tile ea-link-tile--btn"
+                      data-test={`maint-trigger-${j.name}`}
+                      disabled={busy === j.label}
+                      onClick={() => { run(j.label, () => edgeApi.triggerJob(j.name)).catch(() => undefined); }}>
+                <div className="ea-link-tile-icon" aria-hidden="true">▶</div>
+                <div className="ea-link-tile-body">
+                  <div className="ea-link-tile-title">{j.label}</div>
+                  <div className="ea-link-tile-desc">
+                    {busy === j.label ? 'Starting…' : j.desc}
+                  </div>
+                  <div className="ea-text-muted ea-mono"
+                       style={{ fontSize: 10, marginTop: 2 }}>
+                    {j.name}
+                  </div>
                 </div>
-                <div className="ea-text-muted ea-mono" style={{ fontSize: 10, marginTop: 2 }}>
-                  {j.name}
+              </button>
+            ))}
+          </div>
+        </Panel>
+      ))}
+
+      <Panel title="Backups">
+        <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
+          Request a snapshot of the audit log or the full edge state.
+          See <Link to="/admin/data/backup-pitr">Backup PITR</Link> for
+          plan + schedule management, and{' '}
+          <Link to="/admin/data/restore">Restore</Link> for pulling a
+          snapshot back from the archive.
+        </p>
+        <div style={{ display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                      gap: 8 }}>
+          {BACKUP_KINDS.map((b) => (
+            <button key={b.kind} type="button"
+                    className="ea-link-tile ea-link-tile--btn"
+                    data-test={`maint-backup-${b.kind}`}
+                    disabled={busy === b.label}
+                    onClick={() => { run(b.label, () => edgeApi.requestBackup(b.kind)).catch(() => undefined); }}>
+              <div className="ea-link-tile-icon" aria-hidden="true">⬇</div>
+              <div className="ea-link-tile-body">
+                <div className="ea-link-tile-title">{b.label}</div>
+                <div className="ea-link-tile-desc">{b.desc}</div>
+                <div className="ea-text-muted ea-mono"
+                     style={{ fontSize: 10, marginTop: 2 }}>
+                  POST /backup/request {b.kind}
                 </div>
               </div>
             </button>
           ))}
-        </div>
-      </Panel>
-
-      <Panel title="Backups">
-        <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
-          Create a snapshot of the audit log or the full edge state.
-          Full backups cover the database, metadata mirror and installed apps.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                       gap: 8 }}>
-          <button type="button" className="ea-link-tile ea-link-tile--btn"
-                  disabled={busy === 'AUDIT backup'}
-                  onClick={() => { run('AUDIT backup', () => edgeApi.requestBackup('AUDIT')).catch(() => undefined); }}>
-            <div className="ea-link-tile-icon" aria-hidden="true">⬇</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Audit backup</div>
-              <div className="ea-link-tile-desc">Hash-chained audit log only.</div>
-            </div>
-          </button>
-          <button type="button" className="ea-link-tile ea-link-tile--btn"
-                  disabled={busy === 'FULL backup'}
-                  onClick={() => { run('FULL backup', () => edgeApi.requestBackup('FULL')).catch(() => undefined); }}>
-            <div className="ea-link-tile-icon" aria-hidden="true">⬇</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Full backup</div>
-              <div className="ea-link-tile-desc">Database + metadata mirror + apps.</div>
-            </div>
-          </button>
         </div>
       </Panel>
     </div>
