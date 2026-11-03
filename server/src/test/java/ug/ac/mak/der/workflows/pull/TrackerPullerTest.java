@@ -82,6 +82,7 @@ class TrackerPullerTest {
         final var jr = mock(OperationJournalRepository.class);
         final var ar = mock(SecurityAuditRepository.class);
         when(jr.findLatestByEntityRef(any(), anyString())).thenReturn(Optional.empty());
+        when(jr.tryLockRowForPublish(any())).thenReturn(true);
         when(teis.findById(anyString())).thenReturn(Optional.empty());
         when(enrols.findById(anyString())).thenReturn(Optional.empty());
         when(evts.findById(anyString())).thenReturn(Optional.empty());
@@ -108,6 +109,7 @@ class TrackerPullerTest {
         final var ar = mock(SecurityAuditRepository.class);
         // All three families: journal empty EXCEPT ENROLLMENT which has PENDING
         when(jr.findLatestByEntityRef(any(), anyString())).thenReturn(Optional.empty());
+        when(jr.tryLockRowForPublish(any())).thenReturn(true);
         when(jr.findLatestByEntityRef(
                 org.mockito.ArgumentMatchers.eq(
                         OperationJournalEntry.EntityType.ENROLLMENT), anyString()))
@@ -150,6 +152,7 @@ class TrackerPullerTest {
                         mapper.createObjectNode(),
                         OperationJournalEntry.State.CENTRAL_ACCEPTED,
                         0, null, null, NOW, NOW, null, null)));
+        when(jr.tryLockRowForPublish(any())).thenReturn(true);
         when(teis.findById(anyString())).thenReturn(Optional.of(
                 new TrackedEntity("TEIAAAAAAAA", "typeA", "ou1",
                         java.util.Map.of(), UUID.randomUUID(), NOW, NOW, 1, null)));
@@ -182,6 +185,7 @@ class TrackerPullerTest {
         final var jr = mock(OperationJournalRepository.class);
         final var ar = mock(SecurityAuditRepository.class);
         when(jr.findLatestByEntityRef(any(), anyString())).thenReturn(Optional.empty());
+        when(jr.tryLockRowForPublish(any())).thenReturn(true);
         when(teis.findById(anyString())).thenReturn(Optional.empty());
         when(enrols.findById(anyString())).thenReturn(Optional.empty());
         when(evts.findById(anyString())).thenReturn(Optional.empty());
@@ -217,6 +221,7 @@ class TrackerPullerTest {
         final var jr = mock(OperationJournalRepository.class);
         final var ar = mock(SecurityAuditRepository.class);
         when(jr.findLatestByEntityRef(any(), anyString())).thenReturn(Optional.empty());
+        when(jr.tryLockRowForPublish(any())).thenReturn(true);
         when(jr.findLatestByEntityRef(
                 org.mockito.ArgumentMatchers.eq(
                         OperationJournalEntry.EntityType.ENROLLMENT), anyString()))
@@ -264,6 +269,7 @@ class TrackerPullerTest {
         final var jr = mock(OperationJournalRepository.class);
         final var ar = mock(SecurityAuditRepository.class);
         when(jr.findLatestByEntityRef(any(), anyString())).thenReturn(Optional.empty());
+        when(jr.tryLockRowForPublish(any())).thenReturn(true);
         when(jr.findLatestByEntityRef(
                 org.mockito.ArgumentMatchers.eq(
                         OperationJournalEntry.EntityType.ENROLLMENT), anyString()))
@@ -282,5 +288,36 @@ class TrackerPullerTest {
         assertThat(r.conflicts()).isEqualTo(1);
         verify(enrols, never()).upsert(any());
         verify(jr).insert(any(OperationJournalEntry.class));
+    }
+
+    // -------- Phase 13.1.1 — ADR-0035 interlock in TrackerPuller ----------
+
+    @Test
+    void drainHoldingLockDefersAllThreeFamiliesWithoutRaisingConflict() throws Exception {
+        /* All three families have terminal (CENTRAL_ACCEPTED) journal
+         * rows → would normally take the overwrite path. The drain
+         * is simulated as currently publishing all three, so
+         * tryLockRowForPublish returns false. Expected: zero upserts,
+         * zero conflicts, zero audit events — defer every row. */
+        final var teis = mock(TrackedEntityRepository.class);
+        final var enrols = mock(EnrollmentRepository.class);
+        final var evts = mock(TrackerEventRepository.class);
+        final var jr = mock(OperationJournalRepository.class);
+        final var ar = mock(SecurityAuditRepository.class);
+        when(jr.findLatestByEntityRef(any(), anyString())).thenAnswer(inv ->
+                Optional.of(new OperationJournalEntry(UUID.randomUUID(),
+                        inv.getArgument(0), inv.getArgument(1),
+                        mapper.createObjectNode(),
+                        OperationJournalEntry.State.CENTRAL_ACCEPTED,
+                        0, null, null, NOW, NOW, null, null)));
+        when(jr.tryLockRowForPublish(any())).thenReturn(false);
+
+        final var r = build(teis, enrols, evts, jr, ar, bundle()).pull("ou1", null);
+        assertThat(r.rowsPulled()).isZero();
+        assertThat(r.conflicts()).isZero();
+        verify(teis, never()).upsert(any());
+        verify(enrols, never()).upsert(any());
+        verify(evts, never()).upsert(any());
+        verify(ar, never()).append(any(AuditEvent.class), any(Instant.class));
     }
 }

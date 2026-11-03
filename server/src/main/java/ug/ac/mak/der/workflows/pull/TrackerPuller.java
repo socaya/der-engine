@@ -137,7 +137,8 @@ public class TrackerPuller {
         final Instant watermark = parseInstant(lu);
         final MergeDecision decision = decide(
                 OperationJournalEntry.EntityType.TRACKED_ENTITY, teiUid);
-        if (decision == MergeDecision.NOOP_CONFLICT_REVIEW) {
+        if (decision == MergeDecision.NOOP_CONFLICT_REVIEW
+                || decision == MergeDecision.DEFER_LOCKED) {
             return new MergeOutcome(false, 0, watermark);
         }
         if (decision == MergeDecision.RAISE_CONFLICT) {
@@ -193,7 +194,8 @@ public class TrackerPuller {
         final Instant watermark = parseInstant(lu);
         final MergeDecision decision = decide(
                 OperationJournalEntry.EntityType.ENROLLMENT, uid);
-        if (decision == MergeDecision.NOOP_CONFLICT_REVIEW) {
+        if (decision == MergeDecision.NOOP_CONFLICT_REVIEW
+                || decision == MergeDecision.DEFER_LOCKED) {
             return new MergeOutcome(false, 0, watermark);
         }
         if (decision == MergeDecision.RAISE_CONFLICT) {
@@ -242,7 +244,8 @@ public class TrackerPuller {
         final Instant watermark = parseInstant(lu);
         final MergeDecision decision = decide(
                 OperationJournalEntry.EntityType.PROGRAM_STAGE_EVENT, uid);
-        if (decision == MergeDecision.NOOP_CONFLICT_REVIEW) {
+        if (decision == MergeDecision.NOOP_CONFLICT_REVIEW
+                || decision == MergeDecision.DEFER_LOCKED) {
             return new MergeOutcome(false, 0, watermark);
         }
         if (decision == MergeDecision.RAISE_CONFLICT) {
@@ -286,7 +289,9 @@ public class TrackerPuller {
     // ------------- shared merge-decision logic ----------------
 
     private enum MergeDecision { PROCEED, PROCEED_OVERWRITE_SHADOW,
-                                   RAISE_CONFLICT, NOOP_CONFLICT_REVIEW }
+                                   RAISE_CONFLICT, NOOP_CONFLICT_REVIEW,
+                                   /** ADR-0035 — drain holds the row lock; defer to next tick. */
+                                   DEFER_LOCKED }
 
     /** Phase 10.4 — TEI continuity across edges.
      *
@@ -322,15 +327,28 @@ public class TrackerPuller {
         if (s == OperationJournalEntry.State.CONFLICT_REVIEW) {
             return MergeDecision.NOOP_CONFLICT_REVIEW;
         }
+        final MergeDecision pre;
         if (s == OperationJournalEntry.State.CENTRAL_ACCEPTED
                 || s == OperationJournalEntry.State.CENTRAL_REJECTED) {
-            return MergeDecision.PROCEED;
+            pre = MergeDecision.PROCEED;
+        } else {
+            /* Non-terminal: differentiate system-origin shadows from
+             * operator-pending edits by the journal row's submittedBy. */
+            pre = row.get().submittedBy() == null
+                    ? MergeDecision.PROCEED_OVERWRITE_SHADOW
+                    : MergeDecision.RAISE_CONFLICT;
         }
-        /* Non-terminal: differentiate system-origin shadows from
-         * operator-pending edits by the journal row's submittedBy. */
-        return row.get().submittedBy() == null
-                ? MergeDecision.PROCEED_OVERWRITE_SHADOW
-                : MergeDecision.RAISE_CONFLICT;
+        /* ADR-0035 — any decision that would overwrite the local row
+         * must first probe the drain's row lock. If the drain is
+         * publishing right now, defer to the next pull tick so we
+         * don't overwrite the mirror while the drain's POST is
+         * mid-flight. RAISE_CONFLICT and NOOP_CONFLICT_REVIEW don't
+         * touch the row, so no lock needed. */
+        if ((pre == MergeDecision.PROCEED || pre == MergeDecision.PROCEED_OVERWRITE_SHADOW)
+                && !journal.tryLockRowForPublish(row.get().operationId())) {
+            return MergeDecision.DEFER_LOCKED;
+        }
+        return pre;
     }
 
     private void raiseConflict(final OperationJournalEntry.EntityType entityType,
