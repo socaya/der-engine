@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
 import type * as edgeApi from '../api/edgeApi';
 import {
@@ -34,6 +34,20 @@ const boundBinding = {
 };
 
 describe('EA-01 SetupWelcome', () => {
+  /* The RecentActivity panel inside the overview makes an unmocked
+   * fetch to /edge-api/v1/security/audit/events which jsdom can't
+   * parse (relative URL, no base). Stub global.fetch to a quiet
+   * 200 so each test exercises only the component under test. */
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, 'fetch' as never).mockImplementation(
+      async () => new Response(JSON.stringify({ events: [] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } })) as never;
+  });
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
   it('renders bound state', async () => {
     const api = {
       health: vi.fn().mockResolvedValue(health()),
@@ -43,9 +57,16 @@ describe('EA-01 SetupWelcome', () => {
       listOrgUnits: vi.fn(),
     };
     renderWithProviders(<EASetupWelcome api={api as never} />);
-    await waitFor(() => expect(screen.getByTestId('ea01-header')).toBeInTheDocument());
-    expect(screen.getByTestId('hero-central')).toBeInTheDocument();
-    expect(screen.getByTestId('hero-ou')).toHaveTextContent(/Clinic/);
+    /* Overview-screen rewrite dropped hero-central / hero-ou /
+     * ea01-header and replaced them with the HeroHeader + the
+     * rebind panel that only renders when binding.bound. Assert
+     * the current contract: no error state, binding block visible,
+     * org-unit display name surfaces in it. */
+    await waitFor(() => expect(screen.getByTestId('ea01-orgunit-rebind'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('ea01-orgunit-rebind')).toHaveTextContent(/Clinic/);
+    expect(screen.queryByTestId('ea01-error')).toBeNull();
+    expect(screen.queryByTestId('ea01-loading')).toBeNull();
   });
   it('offline banner', async () => {
     renderWithProviders(<EASetupWelcome api={{
@@ -556,8 +577,29 @@ describe('EA-CWF-01 CaptureWorkflowList', () => {
     } as never} />);
     await waitFor(() => expect(screen.getByTestId(`cwf01-row-${sample.workflowId}`))
       .toBeInTheDocument());
-    expect(screen.getByTestId(`cwf01-enabled-${sample.workflowId}`)).toHaveTextContent('yes');
+    /* The enabled cell renders the Status pill reading "Enabled" or
+     * "Disabled". When the delete flow moved into the row menu the
+     * raw "yes"/"no" text disappeared with it. */
+    expect(screen.getByTestId(`cwf01-enabled-${sample.workflowId}`))
+      .toHaveTextContent('Enabled');
   });
+
+  /* Delete sits inside the RowMenu dropdown and gates behind a
+   * window.confirm(). The helper opens the <details> row menu, clicks
+   * the Delete menuitem, and auto-confirms the dialog. */
+  const openMenuThenDelete = async (workflowId: string): Promise<void> => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    try {
+      const menuCell = await screen.findByTestId(`cwf01-row-menu-${workflowId}`);
+      const summary = menuCell.querySelector('summary');
+      if (!summary) throw new Error('row menu summary not found');
+      await userEvent.click(summary);
+      const deleteItem = await screen.findByRole('menuitem', { name: /delete/i });
+      await userEvent.click(deleteItem);
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  };
 
   it('delete calls the api and reloads', async () => {
     const list = vi.fn().mockResolvedValueOnce({ workflows: [sample] })
@@ -566,7 +608,7 @@ describe('EA-CWF-01 CaptureWorkflowList', () => {
     renderWithProviders(<EACaptureWorkflowList api={{
       listWorkflows: list, deleteWorkflow: del,
     } as never} />);
-    await userEvent.click(await screen.findByTestId(`cwf01-delete-${sample.workflowId}`));
+    await openMenuThenDelete(sample.workflowId);
     await waitFor(() => expect(del).toHaveBeenCalledWith(sample.workflowId));
     await waitFor(() => expect(screen.getByTestId('cwf01-empty')).toBeInTheDocument());
   });
@@ -584,7 +626,7 @@ describe('EA-CWF-01 CaptureWorkflowList', () => {
       listWorkflows: vi.fn().mockResolvedValue({ workflows: [sample] }),
       deleteWorkflow: vi.fn().mockRejectedValue(new Error('nope')),
     } as never} />);
-    await userEvent.click(await screen.findByTestId(`cwf01-delete-${sample.workflowId}`));
+    await openMenuThenDelete(sample.workflowId);
     await waitFor(() => expect(screen.getByTestId('cwf01-error')).toBeInTheDocument());
   });
 });

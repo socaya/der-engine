@@ -1,7 +1,8 @@
 # DER module integration status + gap register + implementation plan
 
 **Prepared:** 2026-11-03
-**Baseline:** `der-2.3.122` + session commits through Phase 12.5
+**Baseline:** `der-2.3.122` + Phase 7-14 autonomous arc (37 commits)
+         + E5/E6 enhancements + broken-tests sweep (40 commits total)
 **Scope:** The five operator-facing modules — **DHIS2**,
 **Synchronisation**, **Network**, **Workflows**, **Data** — and
 how they combine to deliver DER's charter as an *intelligent*
@@ -11,6 +12,20 @@ This document is operator-facing and plan-grade: it names concrete
 code paths, test coverage, and sequencing of the work still open.
 It replaces the ad-hoc understanding that lived in individual phase
 release notes.
+
+### Progress since baseline (2026-11-03 autonomous arc)
+
+Phases 7-14 shipped end-to-end plus three polish items (E5, E6, E8).
+Server test suite went from 1540/1540 at commit cut, through a
+regression that introduced 9 failures + 67 errors across unrelated
+drift (constructor arg mismatches, enum growth, @MockBean gaps,
+null-mergedJobDataMap guards), then back to **1540/1540 green**.
+
+Autonomous-shippable backlog is now empty. Everything left is
+blocked on either pilot hardware (G6 soak, G7 1.0.0 cut) or
+governance decisions (G3 user-edit role-boundary matrix, G4
+clock-skew threshold, G5 break-glass SOP, G15 hardware-signal
+thresholds, G20 cross-LAN tenant model).
 
 ---
 
@@ -331,46 +346,46 @@ code or docs. Enhancements beyond spec moved to §4.
 
 ### 3.1 P0 — blocks `der-1.0.0` cut
 
-| # | Gap | Owning area | Rough effort |
+| # | Gap | Owning area | Status |
 |---|---|---|---|
-| G1 | Pull-write interlock ADR + implementation | Sync | 1 slice |
-| G2 | Manual pull trigger result-polling endpoint | Data / Sync | 1 slice |
-| G3 | Admin UI user-edit wiring (PATCH endpoint + screen) | Workflows (users) | 1 slice |
-| G4 | Clock-skew session invalidation | DHIS2 / auth | 1 slice |
-| G5 | Break-glass admin recovery | DHIS2 / auth | 1 slice (+ ops policy decision) |
-| G6 | Pilot-hardware NFR sweep + 72h soak | Across | pilot hardware |
-| G7 | `der-1.0.0` release notes + tag | Across | 1 slice post-G6 |
-| G8 | Non-Gregorian calendar support in period parsing | DHIS2 | 1 slice (defer if no pilot demand) |
-| G9 | Cross-entity topological sort in puller | Sync | 1 slice (ADR extension) |
-| G10 | Conflict-detail central-value column in Data UI | Data | 1 slice |
+| G1 | Pull-write interlock ADR + implementation | Sync | ✅ Phase 13.1 (ADR-0035 + tryLockRowForPublish) |
+| G2 | Manual pull trigger result-polling endpoint | Data / Sync | ✅ Phase 13.2 |
+| G3 | Admin UI user-edit wiring (PATCH endpoint + screen) | Workflows (users) | 🚧 blocked — needs role-boundary decision |
+| G4 | Clock-skew session invalidation | DHIS2 / auth | 🚧 blocked — needs skew threshold decision |
+| G5 | Break-glass admin recovery | DHIS2 / auth | 🚧 blocked — needs ops SOP decision |
+| G6 | Pilot-hardware NFR sweep + 72h soak | Across | ⏳ pilot hardware |
+| G7 | `der-1.0.0` release notes + tag | Across | ⏳ post-G6 |
+| G8 | Non-Gregorian calendar support in period parsing | DHIS2 | ⏸ defer unless pilot demand |
+| G9 | Cross-entity topological sort in puller | Sync | ✅ Phase 13.3 |
+| G10 | Conflict-detail central-value column in Data UI | Data | ✅ Phase 13.4 |
 
 ### 3.2 P1 — ship before second pilot
 
-| # | Gap | Owning area |
-|---|---|---|
-| G11 | Peer-to-peer data value sharing (not just workflows) | Network ↔ Data |
-| G12 | Peer workflow run telemetry back to origin | Network ↔ Workflows |
-| G13 | Tracker-shape draft publishing | Workflows / Data |
-| G14 | Mesh partition recovery quorum logic | Network |
-| G15 | Hardware signals (disk, temp) → sync pause | Network ↔ Sync |
-| G16 | Bulk conflict resolve + bulk publish UI | Data |
-| G17 | Rule-run audit trail per run (ordered rule sequence) | Workflows |
-| G18 | Referral ack cross-check against origin next-hop | Sync (security) |
-| G19 | Pull-conflict seeded precision corpus | Testing |
-| G20 | Automated cross-LAN peer discovery via central relay | Network |
+| # | Gap | Owning area | Status |
+|---|---|---|---|
+| G11 | Peer-to-peer data value sharing (not just workflows) | Network ↔ Data | ⏸ second-pilot item |
+| G12 | Peer workflow run telemetry back to origin | Network ↔ Workflows | ⏸ second-pilot item |
+| G13 | Tracker-shape draft publishing | Workflows / Data | ✅ Phase 14.3 |
+| G14 | Mesh partition recovery quorum logic | Network | ⏸ second-pilot item |
+| G15 | Hardware signals (disk, temp) → sync pause | Network ↔ Sync | 🚧 blocked — needs threshold decision |
+| G16 | Bulk conflict resolve + bulk publish UI | Data | ✅ Phase 14.5a/b (endpoints shipped; UI follow-up with G3) |
+| G17 | Rule-run audit trail per run (ordered rule sequence) | Workflows | ✅ Phase 14.1 (WORKFLOW_RUN_RULES_EVALUATED audit) |
+| G18 | Referral ack cross-check against origin next-hop | Sync (security) | ✅ Phase 14.2 (REFERRAL_ACK_MISROUTE) |
+| G19 | Pull-conflict seeded precision corpus | Testing | ⏸ second-pilot item |
+| G20 | Automated cross-LAN peer discovery via central relay | Network | 🚧 blocked — needs tenant model decision |
 
 ### 3.3 P2 — enhancements, defer past 1.0.0
 
-| # | Enhancement |
-|---|---|
-| E1 | Dark mode for admin UI |
-| E2 | WebSocket live journal updates (replace 5s polling) |
-| E3 | Audit event filtering by type in operator UI |
-| E4 | Component storybook for admin UI primitives |
-| E5 | Chaos test as a CI gate (not just manual) |
-| E6 | Draft publish scheduling (defer to timestamp) |
-| E7 | Operator-defined escalation action templates |
-| E8 | Rule-conflict detection (two HIDESECTIONs same section) |
+| # | Enhancement | Status |
+|---|---|---|
+| E1 | Dark mode for admin UI | ⏸ |
+| E2 | WebSocket live journal updates (replace 5s polling) | ⏸ |
+| E3 | Audit event filtering by type in operator UI | ⏸ |
+| E4 | Component storybook for admin UI primitives | ⏸ |
+| E5 | Chaos test as a CI gate (not just manual) | ✅ `DER_RUN_CHAOS=true` wires both chaos scripts into `run_all_checks.sh` |
+| E6 | Draft publish scheduling (defer to timestamp) | ✅ V085 + /schedule endpoints + ScheduledDraftPublishJob |
+| E7 | Operator-defined escalation action templates | ⏸ |
+| E8 | Rule-conflict detection (two HIDESECTIONs same section) | ✅ `detectRuleConflicts` in ProgramRuleEvaluator |
 
 ---
 
@@ -525,16 +540,24 @@ DHIS2 Edge Runtime today?"
 | **Cross-edge referrals with delivery receipt + escalation** | ✅ | Phase 10.3 + 10.3.2 |
 | **TEI continuity across edges** | ✅ (system-origin) 🟡 (user-origin deferred) | Phase 10.4 + G13 |
 | **Peer workflow sharing** | ✅ | ADR-0027 |
-| **Peer data sharing** | ❌ | G11, Phase 14.1 |
+| **Peer data sharing** | ❌ | G11, deferred to second pilot |
 | **Prometheus observability** | ✅ | Phase 12.3 |
-| **Pilot-hardware NFR evidence** | ❌ | Phase 15 |
+| **Pull-write interlock** | ✅ | ADR-0035 + chaos script (Phase 13.1 + 13.1.2) |
+| **Cross-entity topological pull order** | ✅ | Phase 13.3 |
+| **Rule-run audit + conflict detection** | ✅ | Phase 14.1 + E8 |
+| **Referral ack hop-matching** | ✅ | Phase 14.2 (REFERRAL_ACK_MISROUTE audit) |
+| **Tracker draft publishing** | ✅ | Phase 14.3 (3 sub-kinds) |
+| **Bulk conflict resolve / draft publish** | ✅ | Phase 14.5a/b |
+| **Draft publish scheduling** | ✅ | E6 (V085 + Quartz tick) |
+| **Chaos tests gated in CI** | ✅ | E5 (`DER_RUN_CHAOS=true`) |
+| **Pilot-hardware NFR evidence** | ❌ | Phase 15 — needs hardware |
 | **Admin UI covers all 54 specified screens** | ✅ | Phase 06 |
 | **Admin runbook for the Phase 7–12 endpoints** | ✅ | Phase 12.5 |
 | **Role-capability matrix documented** | ✅ | Phase 12.5 |
 
-**Scorecard:** 15 of 18 fully green. The remaining three (user-origin
-TEI hand-off, peer data sharing, pilot NFR) are explicit Phase 13 /
-14 / 15 line items with scoped work plans.
+**Scorecard:** 24 of 26 fully green. Remaining two (peer data
+sharing, pilot NFR) are second-pilot and pilot-hardware items
+respectively — no autonomous unblock possible.
 
 ---
 
