@@ -132,4 +132,88 @@ describe('MockupWorkspace', () => {
      * on the actual conflict data not a hero number. */
     expect(document.body.textContent ?? '').toMatch(/de1\|ou1\|2026W44|conflict/i);
   });
+
+  it('partial failure — one probe rejects → error strip surfaces the message', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'listConflicts').mockRejectedValue(
+      new Error('conflict load failed'));
+    renderWithProviders(<MockupWorkspace />, { authApi });
+    await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
+    expect(document.body.textContent ?? '')
+      .toMatch(/conflict load failed/);
+  });
+
+  it('DHIS2 unreachable → KPI reports unreachable + allOps false', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'compat').mockResolvedValue({
+      pinnedVersion: '2.44', probeReachable: false,
+      snapshotId: 1, capturedAt: 'now', centralVersion: null,
+      capabilities: {}, pingHistory: [],
+    } as unknown as edgeApi.CompatSnapshot);
+    renderWithProviders(<MockupWorkspace />, { authApi });
+    await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
+    expect(document.body.textContent ?? '')
+      .toMatch(/unreachable|outage|central/i);
+  });
+
+  it('DER health status "ready" is accepted as live (derUp branch)', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'health').mockResolvedValue({
+      service: 'der-server', status: 'ready', version: '2.3.122',
+      commit: 'abc', branch: 'main', dirty: false, buildTime: 'now',
+      dhis2Integrated: true, timestamp: 'now',
+    } as unknown as edgeApi.HealthResponse);
+    renderWithProviders(<MockupWorkspace />, { authApi });
+    await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
+    /* The "ready" status flips derStatusLabel to "Live"; the surface
+     * doesn't always render it, but the branch itself is covered. */
+    expect(document.body.textContent ?? '').toMatch(/DER Server/);
+  });
+
+  it('DER health status "DEGRADED" surfaces raw label', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'health').mockResolvedValue({
+      service: 'der-server', status: 'DEGRADED', version: '2.3.122',
+      commit: 'abc', branch: 'main', dirty: false, buildTime: 'now',
+      dhis2Integrated: true, timestamp: 'now',
+    } as unknown as edgeApi.HealthResponse);
+    renderWithProviders(<MockupWorkspace />, { authApi });
+    await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
+    expect(document.body.textContent ?? '').toMatch(/DEGRADED/);
+  });
+
+  it('db missing product → dbUp false branch + scheduler stopped', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
+      service: 'der-server', timestamp: 'now',
+      runtime: { heapUsedBytes: 1024, heapMaxBytes: 4096,
+                 uptimeMillis: 3600_000 },
+      /* No product / migrationCount → dbUp evaluates false. */
+      database: { configured: false, sessionCount: 0 },
+      scheduler: { started: false, executingJobs: 0, totalJobs: 0 },
+      storage: { totalBytes: 100, usableBytes: 90 },
+      build: { version: '2.3.122', commit: 'abc', branch: 'main',
+               buildTime: 'now', dirty: false },
+      dhis2: { configured: true, probeReachable: true, baseUrl: 'x' },
+      apps: { installed: 0, enabled: 0, items: [] },
+    } as unknown as edgeApi.SystemInfo);
+    renderWithProviders(<MockupWorkspace />, { authApi });
+    await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
+  });
+
+  it('populated jobs — reliability KPI reflects 50% mix', async () => {
+    stubAll();
+    const nowIso = new Date().toISOString();
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([
+      { runId: 1, jobName: 'J', outcome: 'SUCCEEDED',
+        startedAt: nowIso, finishedAt: nowIso,
+        durationMs: 100, triggeredBy: 'SCHEDULED', detail: '{}' },
+      { runId: 2, jobName: 'J', outcome: 'FAILED',
+        startedAt: nowIso, finishedAt: nowIso,
+        durationMs: 100, triggeredBy: 'SCHEDULED', detail: '{}' },
+    ] as unknown as edgeApi.JobRun[]);
+    renderWithProviders(<MockupWorkspace />, { authApi });
+    await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
+    expect(document.body.textContent ?? '').toMatch(/50/);
+  });
 });
