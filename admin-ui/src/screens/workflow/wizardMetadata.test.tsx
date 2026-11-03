@@ -255,3 +255,227 @@ describe('wizardMetadata.isWizardCompatible / WIZARD_NATIVE_KINDS', () => {
     expect(md.WIZARD_NATIVE_KINDS.has('PROGRAM_SECTION')).toBe(false);
   });
 });
+
+/* ──────────────────────────────────────────────────────────────
+ * Depth-lift: listProgramStages + fetchEnrolmentBreakables +
+ * listSectionsForStages. Previously uncovered (lines 188-323).
+ * All three hang off md.listProgramStages which fans out across
+ * four /api endpoints with branching per response. Each test
+ * stubs fetch with a per-path matcher so a single call drives
+ * the specific branch under test.
+ * ────────────────────────────────────────────────────────────── */
+
+describe('wizardMetadata.listProgramStages', () => {
+  it('event program (WITHOUT_REGISTRATION) returns stages without an enrolment row', async () => {
+    vi.spyOn(globalThis, 'fetch' as never).mockImplementation(stubFetch((p) => {
+      if (p.startsWith('/api/programStages')) {
+        return { ok: true, body: { programStages: [
+          { id: 'st-1', displayName: 'Visit 1', program: { id: 'p-ev' }, repeatable: false },
+          { id: 'st-x', displayName: 'Other',   program: { id: 'other-prog' } },
+        ] } };
+      }
+      if (p.startsWith('/api/programStageSections')) {
+        return { ok: true, body: { programStageSections: [] } };
+      }
+      if (p.startsWith('/api/programs/')) {
+        return { ok: true, body: { id: 'p-ev', programType: 'WITHOUT_REGISTRATION' } };
+      }
+      return { ok: false, status: 404 };
+    }) as never);
+    const out = await md.listProgramStages('p-ev');
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      id: 'st-1', displayName: 'Visit 1', sectionKind: 'PROGRAM_STAGE',
+    });
+  });
+
+  it('tracker program prepends an Enrolment row before each stage', async () => {
+    vi.spyOn(globalThis, 'fetch' as never).mockImplementation(stubFetch((p) => {
+      if (p.startsWith('/api/programStages')) {
+        return { ok: true, body: { programStages: [
+          { id: 'st-1', displayName: 'ANC-1', program: { id: 'p-tr' }, repeatable: true },
+        ] } };
+      }
+      if (p.startsWith('/api/programStageSections')) {
+        return { ok: true, body: { programStageSections: [] } };
+      }
+      if (p === '/api/programs/p-tr') {
+        return { ok: true, body: {
+          id: 'p-tr', programType: 'WITH_REGISTRATION',
+          programSections: [{ id: 'ps-demo' }, { id: 'ps-outcome' }],
+        } };
+      }
+      if (p.startsWith('/api/programSections')) {
+        return { ok: true, body: { programSections: [
+          { id: 'ps-demo',    displayName: 'Demographics',
+            program: { id: 'p-tr' }, sortOrder: 1 },
+          { id: 'ps-outcome', displayName: 'Outcome',
+            program: { id: 'p-tr' }, sortOrder: 2 },
+          { id: 'ps-foreign', displayName: 'Foreign',
+            program: { id: 'other-prog' }, sortOrder: 1 },
+        ] } };
+      }
+      return { ok: false, status: 404 };
+    }) as never);
+    const out = await md.listProgramStages('p-tr');
+    /* Enrolment + 2 program-sections, then the single stage. */
+    expect(out.map((b) => b.sectionKind)).toEqual([
+      'ENROLLMENT_FORM', 'PROGRAM_SECTION', 'PROGRAM_SECTION', 'PROGRAM_STAGE',
+    ]);
+    expect(out[0].displayName).toBe('Enrolment');
+    expect(out[1].displayName).toBe('Demographics');
+    expect(out[2].displayName).toBe('Outcome');
+    /* Stage inherits repeatable=true from its payload. */
+    const stageRow = out[3] as { repeatable?: boolean };
+    expect(stageRow.repeatable).toBe(true);
+  });
+
+  it('tracker program with no programSections returns Enrolment + stages only', async () => {
+    vi.spyOn(globalThis, 'fetch' as never).mockImplementation(stubFetch((p) => {
+      if (p.startsWith('/api/programStages')) {
+        return { ok: true, body: { programStages: [
+          { id: 'st-1', displayName: 'Visit', program: { id: 'p-tr' } },
+        ] } };
+      }
+      if (p.startsWith('/api/programStageSections')) {
+        return { ok: true, body: { programStageSections: [] } };
+      }
+      if (p.startsWith('/api/programs/')) {
+        return { ok: true, body: {
+          id: 'p-tr', programType: 'WITH_REGISTRATION',
+          programSections: [],
+        } };
+      }
+      return { ok: false, status: 404 };
+    }) as never);
+    const out = await md.listProgramStages('p-tr');
+    expect(out.map((b) => b.sectionKind)).toEqual(
+      ['ENROLLMENT_FORM', 'PROGRAM_STAGE']);
+  });
+
+  it('tracker program swallows a programSections fetch failure and returns stages only', async () => {
+    vi.spyOn(globalThis, 'fetch' as never).mockImplementation(stubFetch((p) => {
+      if (p.startsWith('/api/programStages')) {
+        return { ok: true, body: { programStages: [
+          { id: 'st-1', displayName: 'Visit', program: { id: 'p-tr' } },
+        ] } };
+      }
+      if (p.startsWith('/api/programStageSections')) {
+        return { ok: true, body: { programStageSections: [] } };
+      }
+      if (p.startsWith('/api/programs/')) {
+        return { ok: true, body: {
+          id: 'p-tr', programType: 'WITH_REGISTRATION',
+          programSections: [{ id: 'ps-x' }],
+        } };
+      }
+      if (p.startsWith('/api/programSections')) {
+        /* 500 → wizardMetadata catches the dhisGet reject + sets
+         * rows=[], so no PROGRAM_SECTION rows appear. The
+         * Enrolment row stays because it's emitted before the
+         * section fetch. */
+        return { ok: false, status: 500 };
+      }
+      return { ok: false, status: 404 };
+    }) as never);
+    const out = await md.listProgramStages('p-tr');
+    expect(out.map((b) => b.sectionKind)).toEqual(
+      ['ENROLLMENT_FORM', 'PROGRAM_STAGE']);
+  });
+
+  it('includes PROGRAM_STAGE_SECTION children indented under their stage', async () => {
+    vi.spyOn(globalThis, 'fetch' as never).mockImplementation(stubFetch((p) => {
+      if (p.startsWith('/api/programStages')) {
+        return { ok: true, body: { programStages: [
+          { id: 'st-1', displayName: 'Visit', program: { id: 'p-ev' }, repeatable: false },
+        ] } };
+      }
+      if (p.startsWith('/api/programStageSections')) {
+        return { ok: true, body: { programStageSections: [
+          { id: 'sec-a', displayName: 'Vitals',
+            programStage: { id: 'st-1' } },
+          { id: 'sec-foreign', displayName: 'Foreign',
+            programStage: { id: 'st-other' } },
+        ] } };
+      }
+      if (p.startsWith('/api/programs/')) {
+        return { ok: true, body: { id: 'p-ev', programType: 'WITHOUT_REGISTRATION' } };
+      }
+      return { ok: false, status: 404 };
+    }) as never);
+    const out = await md.listProgramStages('p-ev');
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ id: 'st-1', sectionKind: 'PROGRAM_STAGE' });
+    expect(out[1]).toMatchObject({
+      id: 'sec-a', sectionKind: 'PROGRAM_STAGE_SECTION', parentId: 'st-1',
+    });
+  });
+
+  it('tolerates a 500 on the enrolment-program fetch — treats program as event-shaped', async () => {
+    vi.spyOn(globalThis, 'fetch' as never).mockImplementation(stubFetch((p) => {
+      if (p.startsWith('/api/programStages')) {
+        return { ok: true, body: { programStages: [
+          { id: 'st-1', displayName: 'Visit', program: { id: 'p-ev' } },
+        ] } };
+      }
+      if (p.startsWith('/api/programStageSections')) {
+        return { ok: true, body: { programStageSections: [] } };
+      }
+      if (p.startsWith('/api/programs/')) {
+        /* fetchEnrolmentBreakables swallows the throw and returns
+         * []. No ENROLLMENT_FORM row prepended. */
+        return { ok: false, status: 500 };
+      }
+      return { ok: false, status: 404 };
+    }) as never);
+    const out = await md.listProgramStages('p-ev');
+    expect(out.map((b) => b.sectionKind)).toEqual(['PROGRAM_STAGE']);
+  });
+
+  it('returns [] when the stages endpoint returns no payload', async () => {
+    vi.spyOn(globalThis, 'fetch' as never).mockImplementation(stubFetch((p) => {
+      if (p.startsWith('/api/programStages')) return { ok: true, body: {} };
+      if (p.startsWith('/api/programStageSections')) return { ok: true, body: {} };
+      if (p.startsWith('/api/programs/')) {
+        return { ok: true, body: { id: 'p-ev', programType: 'WITHOUT_REGISTRATION' } };
+      }
+      return { ok: false, status: 404 };
+    }) as never);
+    expect(await md.listProgramStages('p-ev')).toEqual([]);
+  });
+
+  it('listSectionsForStages tolerates a stages-sections fetch rejection', async () => {
+    /* Covers the dhisGet failure branch inside
+     * listSectionsForStages — if the fetch rejects the function
+     * sets rows=[] and the main loop simply emits no child
+     * sections. The stage row still renders. */
+    vi.spyOn(globalThis, 'fetch' as never).mockImplementation(stubFetch((p) => {
+      if (p.startsWith('/api/programStages')) {
+        return { ok: true, body: { programStages: [
+          { id: 'st-1', displayName: 'Visit', program: { id: 'p-ev' } },
+        ] } };
+      }
+      if (p.startsWith('/api/programStageSections')) {
+        return { ok: false, status: 500 };
+      }
+      if (p.startsWith('/api/programs/')) {
+        return { ok: true, body: { id: 'p-ev', programType: 'WITHOUT_REGISTRATION' } };
+      }
+      return { ok: false, status: 404 };
+    }) as never);
+    const out = await md.listProgramStages('p-ev');
+    expect(out).toHaveLength(1);
+    expect(out[0].sectionKind).toBe('PROGRAM_STAGE');
+  });
+});
+
+describe('wizardMetadata.dhisGet error path', () => {
+  it('rejecting fetch (!r.ok) propagates a readable Error', async () => {
+    vi.spyOn(globalThis, 'fetch' as never).mockImplementation(stubFetch(() => ({
+      ok: false, status: 403, body: { message: 'forbidden' },
+    })) as never);
+    /* listDataSets uses dhisGet; a 403 should bubble as a thrown
+     * Error naming the path + status. */
+    await expect(md.listDataSets()).rejects.toThrow(/failed: 403/);
+  });
+});
