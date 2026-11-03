@@ -56,4 +56,73 @@ describe('DataTeiDetail', () => {
     await waitFor(() =>
       expect(screen.getByTestId('data-tei-detail')).toBeInTheDocument());
   });
+
+  it('renders tracker-events table with every chipToneForStatus arm', async () => {
+    /* Six event rows, each a different status so the chip-tone
+     * switch (lines 373-383) is driven through every arm:
+     * COMPLETED -> success, ACTIVE -> info, OVERDUE -> danger,
+     * SKIPPED / SCHEDULED -> warning, VISITED -> neutral,
+     * fallthrough -> neutral. */
+    vi.spyOn(edgeApi, 'getLocalTei').mockResolvedValue({
+      tei,
+      enrolments: [],
+      trackerEvents: [
+        { eventUid: 'EV-done',   enrollmentUid: 'ENR-1',
+          programUid: 'P1', programName: 'ANC',
+          programStageUid: 'ST1', programStageName: 'Visit 1',
+          status: 'COMPLETED', occurredDate: '2026-10-15',
+          updatedAt: '2026-10-16T00:00:00Z', version: 2 },
+        { eventUid: 'EV-active', enrollmentUid: 'ENR-1',
+          programUid: 'P1', programName: null,
+          programStageUid: 'ST2', programStageName: null,
+          status: 'ACTIVE', occurredDate: null,
+          updatedAt: null, version: 1 },
+        { eventUid: 'EV-overdue', enrollmentUid: 'ENR-1',
+          programUid: 'P1', programName: 'ANC',
+          programStageUid: 'ST1', programStageName: 'Visit 2',
+          status: 'OVERDUE', occurredDate: '2026-10-01',
+          updatedAt: '2026-10-02T00:00:00Z', version: 1 },
+        { eventUid: 'EV-skipped', enrollmentUid: null,
+          programUid: 'P1', programName: 'ANC',
+          programStageUid: 'ST1', programStageName: 'Visit 3',
+          status: 'SKIPPED', occurredDate: '2026-09-15',
+          updatedAt: '2026-09-16T00:00:00Z', version: 1 },
+        { eventUid: 'EV-sched',  enrollmentUid: 'ENR-1',
+          programUid: 'P1', programName: 'ANC',
+          programStageUid: 'ST1', programStageName: 'Visit 4',
+          status: 'SCHEDULED', occurredDate: '2026-11-01',
+          updatedAt: '2026-11-01T00:00:00Z', version: 1 },
+        { eventUid: 'EV-visited', enrollmentUid: 'ENR-1',
+          programUid: 'P1', programName: 'ANC',
+          programStageUid: 'ST1', programStageName: 'Visit 5',
+          status: 'VISITED', occurredDate: '2026-10-20',
+          updatedAt: '2026-10-21T00:00:00Z', version: 1 },
+        { eventUid: 'EV-weird', enrollmentUid: 'ENR-1',
+          programUid: 'P1', programName: 'ANC',
+          programStageUid: 'ST1', programStageName: 'Visit 6',
+          status: 'MYSTERY_STATE', occurredDate: '2026-10-20',
+          updatedAt: '2026-10-21T00:00:00Z', version: 1 },
+      ],
+    } as never);
+    renderWithProviders(<DataTeiDetail />, { route: '/data/tracker/tei/tei-1' });
+    const tbl = await screen.findByTestId('tei-tracker-events');
+    expect(tbl).toBeInTheDocument();
+    expect(screen.getByText('EV-done')).toBeInTheDocument();
+    expect(screen.getByText('EV-weird')).toBeInTheDocument();
+    expect(screen.getByText('COMPLETED')).toBeInTheDocument();
+    expect(screen.getByText('OVERDUE')).toBeInTheDocument();
+    expect(screen.getByText('VISITED')).toBeInTheDocument();
+  });
+
+  it('renders empty-state copy when trackerEvents is empty', async () => {
+    vi.spyOn(edgeApi, 'getLocalTei').mockResolvedValue({
+      tei,
+      enrolments: [],
+      trackerEvents: [],
+    } as never);
+    renderWithProviders(<DataTeiDetail />, { route: '/data/tracker/tei/tei-1' });
+    await waitFor(() =>
+      expect(screen.getByText(/no stage events recorded/i))
+        .toBeInTheDocument());
+  });
 });
