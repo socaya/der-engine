@@ -74,11 +74,21 @@ export default defineConfig({
       // the thresholds re-floor upward as each cluster lands under
       // Playwright. Target restoration: lines/statements 60 and
       // functions 65 by der-1.1.0, 85 and 90 by der-1.2.0.
+      //
+      // der-2.3.123 ratchet: six depth-lift passes since the
+      // measured-floor commit (579fd4f / fc0d69d / eb7ed11 /
+      // 0f41289 / 815b3c7 / 88ae2f8 / 228077b) grew the test
+      // count from 249 to 747 and lifted actual coverage to
+      // 67.80 / 70.53 / 56.27 / 67.80. Thresholds ratchet up to
+      // 65 / 70 / 55 / 65 — one point under measured so a single
+      // test deletion still falls under the floor, but the gate
+      // now catches a regression that drops a sub-screen below
+      // its current coverage.
       thresholds: {
-        lines: 20,
-        branches: 68,
-        functions: 32,
-        statements: 20,
+        lines: 65,
+        branches: 70,
+        functions: 55,
+        statements: 65,
       },
     },
   },
