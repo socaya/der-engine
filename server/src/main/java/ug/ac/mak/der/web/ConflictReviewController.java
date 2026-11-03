@@ -129,6 +129,99 @@ public class ConflictReviewController {
         }
     }
 
+    /**
+     * Phase 14.5a — bulk conflict resolve. Operators triaging a wave
+     * of orphan or metadata-drift conflicts don't want to click
+     * through each row one at a time. Accepts up to 100 entries;
+     * each applied through the same validated {@link
+     * ConflictReviewService#resolve} path as the single-row endpoint,
+     * so the per-row audit trail stays identical to a manual
+     * resolve.
+     *
+     * <p>Per-entry outcome returned as an array in the same order
+     * the client sent so UIs can display per-row success / failure
+     * without a second round-trip. Entries that fail
+     * (missing-row, concurrent-resolve, invalid outcome) don't
+     * abort the batch — the operator sees exactly which rows
+     * resolved and which need another look.</p>
+     */
+    @PostMapping("/resolve-batch")
+    public ResponseEntity<java.util.Map<String, Object>> resolveBatch(
+            final Authentication authentication,
+            @RequestBody final BatchRequest body) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).build();
+        }
+        if (body == null || body.entries() == null || body.entries().isEmpty()) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "code", "BATCH_EMPTY",
+                    "message", "entries[] required"));
+        }
+        if (body.entries().size() > 100) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "code", "BATCH_TOO_LARGE",
+                    "message", "max 100 entries per batch"));
+        }
+        final java.util.List<java.util.Map<String, Object>> results =
+                new java.util.ArrayList<>();
+        int ok = 0;
+        int failed = 0;
+        for (final BatchEntry e : body.entries()) {
+            final java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("operationId", e.operationId() == null ? null : e.operationId().toString());
+            if (e.operationId() == null || e.outcome() == null) {
+                row.put("status", "FAILED");
+                row.put("error", "operationId + outcome required");
+                failed++;
+                results.add(row);
+                continue;
+            }
+            final ConflictReviewService.Outcome outcome;
+            try {
+                outcome = ConflictReviewService.Outcome.valueOf(e.outcome());
+            } catch (IllegalArgumentException ex) {
+                row.put("status", "FAILED");
+                row.put("error", "outcome must be ACCEPTED or REJECTED");
+                failed++;
+                results.add(row);
+                continue;
+            }
+            try {
+                final Optional<OperationJournalEntry> out = service.resolve(
+                        e.operationId(), outcome, principal.userId(), e.rationale());
+                if (out.isPresent()) {
+                    row.put("status", "RESOLVED");
+                    row.put("newState", out.get().state().name());
+                    ok++;
+                } else {
+                    row.put("status", "FAILED");
+                    row.put("error", "operation not found");
+                    failed++;
+                }
+            } catch (IllegalStateException ex) {
+                row.put("status", "FAILED");
+                row.put("error", ex.getMessage());
+                failed++;
+            }
+            results.add(row);
+        }
+        final java.util.Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("resolved", ok);
+        response.put("failed", failed);
+        response.put("results", results);
+        return ResponseEntity.ok(response);
+    }
+
+    public record BatchRequest(@JsonProperty("entries") java.util.List<BatchEntry> entries) { }
+    public record BatchEntry(
+            @JsonProperty("operationId") UUID operationId,
+            @JsonProperty("outcome") String outcome,
+            @JsonProperty("rationale") String rationale
+    ) { }
+
     @PostMapping("/{id}/re-journal")
     public ResponseEntity<Object> reJournal(final Authentication authentication,
                                               @PathVariable("id") final UUID id) {
