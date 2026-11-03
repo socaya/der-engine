@@ -118,10 +118,14 @@ export default defineConfig({
          * crossing 1000-test milestone. Measured coverage
          * 78.48 / 75.71 / 62.92 / 78.48. All six net-new tested
          * modules clear 97%+ lines. Ratchet one point below each. */
-        lines: 77,
-        branches: 74,
-        functions: 61,
-        statements: 77,
+        /* der-2.3.123 round-43 ratchet: three further commits
+         * (PayloadLineageDrawer, topologyLayout, Network depth-lift)
+         * added 41 tests. Measured coverage 79.67 / 76.61 / 63.96
+         * / 79.67. Ratchet one point below each. */
+        lines: 78,
+        branches: 75,
+        functions: 62,
+        statements: 78,
       },
     },
   },
