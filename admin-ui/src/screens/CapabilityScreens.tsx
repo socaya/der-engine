@@ -2693,8 +2693,8 @@ export function CapMaintenance(): JSX.Element {
           <span>
             One-off operator actions covering every scheduled job plus
             backup trigger. Prefer the dedicated{' '}
-            <Link to="/admin/sync">Sync</Link> and{' '}
-            <Link to="/admin/sync/history">Sync history</Link> pages
+            <Link to="/sync" data-cross-module="admin">Sync</Link> and{' '}
+            <Link to="/sync/history" data-cross-module="admin">Sync history</Link> pages
             for routine operations and live run status.
           </span>
         }
@@ -2743,10 +2743,8 @@ export function CapMaintenance(): JSX.Element {
       <Panel title="Backups">
         <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
           Request a snapshot of the audit log or the full edge state.
-          See <Link to="/admin/data/backup-pitr">Backup PITR</Link> for
-          plan + schedule management, and{' '}
-          <Link to="/admin/data/restore">Restore</Link> for pulling a
-          snapshot back from the archive.
+          Successful runs land in the backup queue, drained by the
+          BACKUP_DRAIN job in the Housekeeping group above.
         </p>
         <div style={{ display: 'grid',
                       gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
