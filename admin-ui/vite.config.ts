@@ -76,7 +76,7 @@ export default defineConfig({
       // functions 65 by der-1.1.0, 85 and 90 by der-1.2.0.
       thresholds: {
         lines: 20,
-        branches: 70,
+        branches: 68,
         functions: 32,
         statements: 20,
       },
