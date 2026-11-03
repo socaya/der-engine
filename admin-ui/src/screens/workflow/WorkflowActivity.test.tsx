@@ -108,4 +108,81 @@ describe('WorkflowActivity', () => {
     expect(screen.getByTestId('wf-activity-root'))
       .toHaveTextContent(/1 blocked/);
   });
+
+  it('listWorkflows rejection is swallowed — component stays on the empty state', async () => {
+    /* All three parallel probes use Promise.allSettled so a rejection
+     * doesn't set err. The catalogue still renders with 0 workflows. */
+    const api = {
+      ...baseApi(),
+      listWorkflows: vi.fn().mockRejectedValue(new Error('load fail')),
+    };
+    renderWithProviders(<WorkflowActivity api={api as never} />);
+    await waitFor(() =>
+      expect(screen.getByTestId('wf-activity-catalogue'))
+        .toBeInTheDocument());
+    /* No error block — allSettled caught the rejection. */
+    expect(screen.queryByTestId('wf-activity-error')).toBeNull();
+  });
+
+  it('row with null updatedAt renders em-dash fallback', async () => {
+    const api = {
+      ...baseApi(),
+      listWorkflows: vi.fn().mockResolvedValue({
+        workflows: [
+          { workflowId: 'wf-null', displayName: 'No-timestamp',
+            boundMetadataKind: 'PROGRAM', enabled: true,
+            steps: [], dependencies: [],
+            updatedAt: null,  /* em-dash fallback branch */
+            version: 1, boundMetadataId: 'p1' } as never,
+        ],
+      }),
+    };
+    renderWithProviders(<WorkflowActivity api={api as never} />);
+    await waitFor(() =>
+      expect(screen.getByTestId('wf-activity-row-wf-null'))
+        .toBeInTheDocument());
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('workflow with absent steps count defaults to 0', async () => {
+    const api = {
+      ...baseApi(),
+      listWorkflows: vi.fn().mockResolvedValue({
+        workflows: [
+          { workflowId: 'wf-nostep', displayName: 'No steps',
+            boundMetadataKind: 'PROGRAM', enabled: true,
+            /* steps field entirely absent — ?.length ?? 0 arm. */
+            dependencies: [], updatedAt: '2026-11-03T12:00:00Z',
+            version: 1, boundMetadataId: 'p1' } as never,
+        ],
+      }),
+    };
+    renderWithProviders(<WorkflowActivity api={api as never} />);
+    await waitFor(() =>
+      expect(screen.getByTestId('wf-activity-row-wf-nostep'))
+        .toBeInTheDocument());
+  });
+
+  it('more than 8 workflows are truncated via slice(0, 8)', async () => {
+    const api = {
+      ...baseApi(),
+      listWorkflows: vi.fn().mockResolvedValue({
+        workflows: Array.from({ length: 12 }, (_, i) => ({
+          workflowId: `wf-${i}`, displayName: `WF ${i}`,
+          boundMetadataKind: 'PROGRAM', enabled: true,
+          steps: [], dependencies: [],
+          updatedAt: '2026-11-03T12:00:00Z',
+          version: 1, boundMetadataId: `p-${i}`,
+        }) as never),
+      }),
+    };
+    renderWithProviders(<WorkflowActivity api={api as never} />);
+    await waitFor(() =>
+      expect(screen.getByTestId('wf-activity-row-wf-0'))
+        .toBeInTheDocument());
+    /* First 8 rows surface, rest are truncated. */
+    expect(screen.getByTestId('wf-activity-row-wf-7'))
+      .toBeInTheDocument();
+    expect(screen.queryByTestId('wf-activity-row-wf-8')).toBeNull();
+  });
 });
