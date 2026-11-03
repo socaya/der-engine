@@ -103,15 +103,18 @@ public class ProgramRuleEvaluator {
     private final ObjectMapper mapper;
     private final JdbcTemplate jdbc;
     private final WorkflowPinningService pinning;
+    private final ug.ac.mak.der.security.SecurityAuditRepository audit;
 
     public ProgramRuleEvaluator(final ExtendedMirrorRepository mirror,
                                   final ObjectMapper mapper,
                                   final JdbcTemplate jdbc,
-                                  final WorkflowPinningService pinning) {
+                                  final WorkflowPinningService pinning,
+                                  final ug.ac.mak.der.security.SecurityAuditRepository audit) {
         this.mirror = Objects.requireNonNull(mirror, "mirror");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.pinning = Objects.requireNonNull(pinning, "pinning");
+        this.audit = Objects.requireNonNull(audit, "audit");
     }
 
     /**
@@ -182,6 +185,13 @@ public class ProgramRuleEvaluator {
         // Expose lastSeen to callD2 via thread-local so we don't have
         // to thread a context record through every helper.
         LAST_SEEN.set(lastSeenAll);
+        /* Phase 14.1 — ordered record of which rules fired on this
+         * evaluate() call. The post-loop audit event lets operators
+         * answer "what rules fired, in what order, on this run?"
+         * from the audit DB alone — previously they had to join
+         * workflow_validation_issue with mirrored_program_rule and
+         * guess the order from issue created_at timestamps. */
+        final List<String> firedRuleUids = new ArrayList<>();
         try {
         for (final MirroredProgramRule r : rules) {
             final Boolean fired;
@@ -195,6 +205,7 @@ public class ProgramRuleEvaluator {
             if (fired == null || !fired) {
                 continue;
             }
+            firedRuleUids.add(r.dhis2Uid());
             for (final MirroredProgramRuleAction a : r.actions()) {
                 final ProgressiveValidator.Issue issue = toIssue(runId, r, a, values);
                 if (issue != null) {
@@ -205,7 +216,35 @@ public class ProgramRuleEvaluator {
         } finally {
             LAST_SEEN.remove();
         }
+        if (!firedRuleUids.isEmpty()) {
+            auditRulesEvaluated(runId, workflow.boundMetadataId(), firedRuleUids,
+                    issues.size());
+        }
         return issues;
+    }
+
+    /** Phase 14.1 — emit one WORKFLOW_RUN_RULES_EVALUATED audit event
+     *  per evaluate() call that fired at least one rule. Carries the
+     *  ordered rule-id list so a post-mortem can replay the decision
+     *  path without reconstructing it from Issue timestamps. */
+    private void auditRulesEvaluated(final UUID runId, final String programUid,
+                                        final List<String> firedRuleUids,
+                                        final int issuesEmitted) {
+        try {
+            audit.append(new ug.ac.mak.der.security.AuditEvent(
+                    "WORKFLOW_RUN_RULES_EVALUATED",
+                    ug.ac.mak.der.security.AuditEvent.Outcome.SUCCESS,
+                    null, null, null, null,
+                    java.util.Map.of(
+                            "runId", String.valueOf(runId),
+                            "programUid", programUid == null ? "" : programUid,
+                            "firedRuleCount", String.valueOf(firedRuleUids.size()),
+                            "issuesEmitted", String.valueOf(issuesEmitted),
+                            "firedRuleUidsOrdered", String.join(",", firedRuleUids))),
+                    java.time.Instant.now());
+        } catch (RuntimeException ex) {
+            LOG.warn("Phase 14.1 rule audit emit failed: {}", ex.getMessage());
+        }
     }
 
     /** §2.3.31 — per-thread last-seen table used by d2:lastEventDate. */

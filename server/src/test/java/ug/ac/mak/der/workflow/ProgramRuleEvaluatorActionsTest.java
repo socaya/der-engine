@@ -29,7 +29,8 @@ class ProgramRuleEvaluatorActionsTest {
 
     private ProgramRuleEvaluator build() {
         return new ProgramRuleEvaluator(mock(ExtendedMirrorRepository.class),
-                mapper, mock(JdbcTemplate.class), mock(WorkflowPinningService.class));
+                mapper, mock(JdbcTemplate.class), mock(WorkflowPinningService.class),
+                mock(ug.ac.mak.der.security.SecurityAuditRepository.class));
     }
 
     private MirroredProgramRule rule() {
