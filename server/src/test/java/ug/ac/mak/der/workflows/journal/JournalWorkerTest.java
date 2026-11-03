@@ -56,7 +56,7 @@ class JournalWorkerTest {
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);
         final JournalPublisher pub = mock(JournalPublisher.class);
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        final JournalWorker worker = new JournalWorker(journal, pub, jdbc, settings(false), reachable());
+        final JournalWorker worker = new JournalWorker(journal, pub, jdbc, settings(false), reachable(), mock(ug.ac.mak.der.observability.DerMetrics.class));
         final var out = worker.drainBatch();
         assertThat(out.note()).isEqualTo("disabled");
     }
@@ -64,7 +64,7 @@ class JournalWorkerTest {
     @Test
     void pausedAndResumed() {
         final JournalWorker worker = new JournalWorker(mock(OperationJournalRepository.class),
-                mock(JournalPublisher.class), mock(JdbcTemplate.class), settings(true), reachable());
+                mock(JournalPublisher.class), mock(JdbcTemplate.class), settings(true), reachable(), mock(ug.ac.mak.der.observability.DerMetrics.class));
         worker.pause();
         assertThat(worker.enabled()).isFalse();
         worker.resume();
@@ -80,7 +80,7 @@ class JournalWorkerTest {
                 List.of(entry(OperationJournalEntry.State.PENDING)));
         when(pub.publish(any())).thenReturn(new JournalPublisher.PublishResult(200, "ok",
                 JournalPublisher.TerminalState.ACCEPTED));
-        final var out = new JournalWorker(journal, pub, jdbc, settings(true), reachable()).drainBatch();
+        final var out = new JournalWorker(journal, pub, jdbc, settings(true), reachable(), mock(ug.ac.mak.der.observability.DerMetrics.class)).drainBatch();
         assertThat(out.accepted()).isEqualTo(1);
     }
 
@@ -93,7 +93,7 @@ class JournalWorkerTest {
         when(pub.publish(any())).thenReturn(new JournalPublisher.PublishResult(400, "bad",
                 JournalPublisher.TerminalState.REJECTED));
         final var out = new JournalWorker(journal, pub, mock(JdbcTemplate.class),
-                settings(true), reachable()).drainBatch();
+                settings(true), reachable(), mock(ug.ac.mak.der.observability.DerMetrics.class)).drainBatch();
         assertThat(out.rejected()).isEqualTo(1);
     }
 
@@ -106,7 +106,7 @@ class JournalWorkerTest {
         when(pub.publish(any())).thenReturn(new JournalPublisher.PublishResult(409, "c",
                 JournalPublisher.TerminalState.CONFLICT));
         final var out = new JournalWorker(journal, pub, mock(JdbcTemplate.class),
-                settings(true), reachable()).drainBatch();
+                settings(true), reachable(), mock(ug.ac.mak.der.observability.DerMetrics.class)).drainBatch();
         assertThat(out.conflicts()).isEqualTo(1);
     }
 
@@ -119,7 +119,7 @@ class JournalWorkerTest {
         when(pub.publish(any())).thenReturn(new JournalPublisher.PublishResult(500, "server err",
                 JournalPublisher.TerminalState.RETRYABLE));
         final var out = new JournalWorker(journal, pub, mock(JdbcTemplate.class),
-                settings(true), reachable()).drainBatch();
+                settings(true), reachable(), mock(ug.ac.mak.der.observability.DerMetrics.class)).drainBatch();
         assertThat(out.retryable()).isEqualTo(1);
     }
 
@@ -129,14 +129,14 @@ class JournalWorkerTest {
         when(journal.findPendingReadyToDrain(anyInt())).thenReturn(
                 List.of(entry(OperationJournalEntry.State.IN_FLIGHT)));
         final var out = new JournalWorker(journal, mock(JournalPublisher.class),
-                mock(JdbcTemplate.class), settings(true), reachable()).drainBatch();
+                mock(JdbcTemplate.class), settings(true), reachable(), mock(ug.ac.mak.der.observability.DerMetrics.class)).drainBatch();
         assertThat(out.accepted()).isEqualTo(0);
     }
 
     @Test
     void computeBackoffExponentialWithJitter() {
         final JournalWorker worker = new JournalWorker(mock(OperationJournalRepository.class),
-                mock(JournalPublisher.class), mock(JdbcTemplate.class), settings(true), reachable());
+                mock(JournalPublisher.class), mock(JdbcTemplate.class), settings(true), reachable(), mock(ug.ac.mak.der.observability.DerMetrics.class));
         for (int attempt = 1; attempt <= 20; attempt++) {
             final long value = worker.computeBackoff(attempt);
             assertThat(value).isPositive();
@@ -148,7 +148,7 @@ class JournalWorkerTest {
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);
         when(journal.findPendingReadyToDrain(anyInt())).thenReturn(List.of());
         final JournalWorker worker = new JournalWorker(journal, mock(JournalPublisher.class),
-                mock(JdbcTemplate.class), settings(true), reachable());
+                mock(JdbcTemplate.class), settings(true), reachable(), mock(ug.ac.mak.der.observability.DerMetrics.class));
         worker.drainBatch();
         assertThat(worker.lastTick()).isNotNull();
         assertThat(worker.lastBatchSize()).isEqualTo(0);
@@ -160,7 +160,7 @@ class JournalWorkerTest {
         final JournalPublisher pub = mock(JournalPublisher.class);
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
         final JournalWorker worker = new JournalWorker(journal, pub, jdbc, settings(true),
-                offlineGate());
+                offlineGate(), mock(ug.ac.mak.der.observability.DerMetrics.class));
         final var out = worker.drainBatch();
         assertThat(out.note()).isEqualTo("skipped: central unreachable");
         assertThat(out.picked()).isZero();

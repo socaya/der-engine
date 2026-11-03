@@ -32,7 +32,7 @@ class ReferralEscalationServiceTest {
     private ReferralEscalationService build(final OperationJournalRepository jr,
                                               final SecurityAuditRepository ar,
                                               final Duration threshold) {
-        return new ReferralEscalationService(jr, ar, clock, threshold, 100);
+        return new ReferralEscalationService(jr, ar, clock, threshold, 100, mock(ug.ac.mak.der.observability.DerMetrics.class));
     }
 
     private ReferralOutstandingRow row(final String ou) {

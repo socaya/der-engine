@@ -43,6 +43,7 @@ class ReferralAckControllerTest {
     @MockBean OperationJournalRepository journal;
     @MockBean SecurityAuditRepository audit;
     @MockBean(name = "clock") Clock clock;
+    @MockBean ug.ac.mak.der.observability.DerMetrics metrics;
 
     private RequestPostProcessor asOperator() {
         final Instant now = Instant.parse("2026-11-02T10:00:00Z");

@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import ug.ac.mak.der.network.CentralReachabilityGate;
+import ug.ac.mak.der.observability.DerMetrics;
 import ug.ac.mak.der.workflows.tracker.TrackerGraphReconciler;
 
 /**
@@ -39,6 +40,7 @@ public class DataPullService {
     private final EventPuller eventPuller;
     private final TrackerPuller trackerPuller;
     private final TrackerGraphReconciler trackerReconciler;
+    private final DerMetrics metrics;
 
     public DataPullService(final DataPullCursorRepository cursors,
                              final CentralReachabilityGate reachability,
@@ -46,7 +48,8 @@ public class DataPullService {
                              final AggregatePuller aggregatePuller,
                              final EventPuller eventPuller,
                              final TrackerPuller trackerPuller,
-                             final TrackerGraphReconciler trackerReconciler) {
+                             final TrackerGraphReconciler trackerReconciler,
+                             final DerMetrics metrics) {
         this.cursors = Objects.requireNonNull(cursors, "cursors");
         this.reachability = Objects.requireNonNull(reachability, "reachability");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -54,6 +57,7 @@ public class DataPullService {
         this.eventPuller = Objects.requireNonNull(eventPuller, "eventPuller");
         this.trackerPuller = Objects.requireNonNull(trackerPuller, "trackerPuller");
         this.trackerReconciler = Objects.requireNonNull(trackerReconciler, "trackerReconciler");
+        this.metrics = Objects.requireNonNull(metrics, "metrics");
     }
 
     /**
@@ -85,10 +89,12 @@ public class DataPullService {
                 }
                 conflicts += r.conflicts();
                 cursors.markSuccess(et, orgUnitUid, r.watermark(), r.cursor());
+                metrics.pullOutcome(et.name(), "success");
             } catch (RuntimeException ex) {
                 LOG.warn("DataPullService.pullOne({}, {}) failed: {}", et, orgUnitUid,
                         ex.getMessage());
                 cursors.markFailure(et, orgUnitUid, ex.getMessage());
+                metrics.pullOutcome(et.name(), "failure");
             }
         }
         /* Phase 10.1 — after the tracker puller has drained its

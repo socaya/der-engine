@@ -9,6 +9,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import ug.ac.mak.der.observability.DerMetrics;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.SecurityAuditRepository;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
@@ -39,11 +40,14 @@ public class JournalInFlightReaperRunner {
 
     private final OperationJournalRepository journal;
     private final SecurityAuditRepository audit;
+    private final DerMetrics metrics;
 
     public JournalInFlightReaperRunner(final OperationJournalRepository journal,
-                                         final SecurityAuditRepository audit) {
+                                         final SecurityAuditRepository audit,
+                                         final DerMetrics metrics) {
         this.journal = Objects.requireNonNull(journal, "journal");
         this.audit = Objects.requireNonNull(audit, "audit");
+        this.metrics = Objects.requireNonNull(metrics, "metrics");
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -61,5 +65,6 @@ public class JournalInFlightReaperRunner {
                 null, null, null, null,
                 Map.of("rowsReaped", String.valueOf(reaped))),
                 java.time.Instant.now());
+        metrics.inflightReaped("boot", reaped);
     }
 }

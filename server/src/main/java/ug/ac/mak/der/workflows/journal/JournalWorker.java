@@ -15,6 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import ug.ac.mak.der.network.CentralReachabilityGate;
+import ug.ac.mak.der.observability.DerMetrics;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 
@@ -31,6 +32,7 @@ public class JournalWorker {
     private final JdbcTemplate jdbc;
     private final JournalWorkerConfig.JournalWorkerSettings settings;
     private final CentralReachabilityGate reachability;
+    private final DerMetrics metrics;
     private volatile int skippedUnreachableTotal;
 
     private volatile Instant lastTick;
@@ -40,12 +42,14 @@ public class JournalWorker {
                           final JournalPublisher publisher,
                           final JdbcTemplate jdbc,
                           final JournalWorkerConfig.JournalWorkerSettings settings,
-                          final CentralReachabilityGate reachability) {
+                          final CentralReachabilityGate reachability,
+                          final DerMetrics metrics) {
         this.journal = Objects.requireNonNull(journal, "journal");
         this.publisher = Objects.requireNonNull(publisher, "publisher");
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.settings = Objects.requireNonNull(settings, "settings");
         this.reachability = Objects.requireNonNull(reachability, "reachability");
+        this.metrics = Objects.requireNonNull(metrics, "metrics");
     }
 
     public DrainOutcome drainBatch() {
@@ -88,20 +92,24 @@ public class JournalWorker {
                     terminal(entry.operationId(), OperationJournalEntry.State.CENTRAL_ACCEPTED,
                             result);
                     accepted++;
+                    metrics.drainOutcome("accepted");
                 }
                 case REJECTED -> {
                     terminal(entry.operationId(), OperationJournalEntry.State.CENTRAL_REJECTED,
                             result);
                     rejected++;
+                    metrics.drainOutcome("rejected");
                 }
                 case CONFLICT -> {
                     terminal(entry.operationId(), OperationJournalEntry.State.CONFLICT_REVIEW,
                             result);
                     conflicts++;
+                    metrics.drainOutcome("conflict");
                 }
                 case RETRYABLE -> {
                     retry(entry.operationId(), entry.attemptCount() + 1, result);
                     retryable++;
+                    metrics.drainOutcome("retryable");
                 }
                 default -> throw new IllegalStateException("unknown terminal state: "
                         + result.terminal());

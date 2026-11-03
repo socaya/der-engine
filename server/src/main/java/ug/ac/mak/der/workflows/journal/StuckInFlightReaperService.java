@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import ug.ac.mak.der.observability.DerMetrics;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.SecurityAuditRepository;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
@@ -43,16 +44,19 @@ public class StuckInFlightReaperService {
     private final SecurityAuditRepository audit;
     private final Clock clock;
     private final Duration threshold;
+    private final DerMetrics metrics;
 
     public StuckInFlightReaperService(final OperationJournalRepository journal,
                                         final SecurityAuditRepository audit,
                                         final Clock clock,
                                         @Value("${der.journal.inflight-threshold:PT10M}")
-                                        final Duration threshold) {
+                                        final Duration threshold,
+                                        final DerMetrics metrics) {
         this.journal = Objects.requireNonNull(journal, "journal");
         this.audit = Objects.requireNonNull(audit, "audit");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.threshold = Objects.requireNonNull(threshold, "threshold");
+        this.metrics = Objects.requireNonNull(metrics, "metrics");
     }
 
     public int reapOnce() {
@@ -73,6 +77,7 @@ public class StuckInFlightReaperService {
                         "rowsReaped", String.valueOf(reaped),
                         "thresholdSeconds", String.valueOf(threshold.getSeconds()))),
                 Instant.now(clock));
+        metrics.inflightReaped("runtime", reaped);
         return reaped;
     }
 }

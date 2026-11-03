@@ -21,7 +21,7 @@ class JournalInFlightReaperRunnerTest {
         final var journal = mock(OperationJournalRepository.class);
         final var audit = mock(SecurityAuditRepository.class);
         when(journal.requeueOrphanedInFlight()).thenReturn(0);
-        new JournalInFlightReaperRunner(journal, audit).reapOnBoot();
+        new JournalInFlightReaperRunner(journal, audit, mock(ug.ac.mak.der.observability.DerMetrics.class)).reapOnBoot();
         verify(audit, never()).append(any(AuditEvent.class), any(Instant.class));
     }
 
@@ -30,7 +30,7 @@ class JournalInFlightReaperRunnerTest {
         final var journal = mock(OperationJournalRepository.class);
         final var audit = mock(SecurityAuditRepository.class);
         when(journal.requeueOrphanedInFlight()).thenReturn(5);
-        new JournalInFlightReaperRunner(journal, audit).reapOnBoot();
+        new JournalInFlightReaperRunner(journal, audit, mock(ug.ac.mak.der.observability.DerMetrics.class)).reapOnBoot();
         verify(audit).append(
                 org.mockito.ArgumentMatchers.argThat(
                         (AuditEvent e) -> "JOURNAL_INFLIGHT_REAPED".equals(e.eventType())

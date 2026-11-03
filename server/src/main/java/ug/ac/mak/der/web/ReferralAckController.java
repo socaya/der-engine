@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import ug.ac.mak.der.observability.DerMetrics;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.security.SecurityAuditRepository;
@@ -51,13 +52,16 @@ public class ReferralAckController {
     private final OperationJournalRepository journal;
     private final SecurityAuditRepository audit;
     private final Clock clock;
+    private final DerMetrics metrics;
 
     public ReferralAckController(final OperationJournalRepository journal,
                                    final SecurityAuditRepository audit,
-                                   final Clock clock) {
+                                   final Clock clock,
+                                   final DerMetrics metrics) {
         this.journal = Objects.requireNonNull(journal, "journal");
         this.audit = Objects.requireNonNull(audit, "audit");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.metrics = Objects.requireNonNull(metrics, "metrics");
     }
 
     @PostMapping(path = "/ack", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -90,6 +94,7 @@ public class ReferralAckController {
                     principal.userId(), null,
                     http.getRemoteAddr(), http.getHeader("User-Agent"),
                     detail), now);
+            metrics.referralDelivered();
             return ResponseEntity.ok(Map.of(
                     "operationId", body.operationId().toString(),
                     "deliveredAt", now.toString(),

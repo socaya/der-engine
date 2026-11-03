@@ -29,7 +29,7 @@ class StuckInFlightReaperServiceTest {
         final var jr = mock(OperationJournalRepository.class);
         final var ar = mock(SecurityAuditRepository.class);
         when(jr.requeueStuckInFlight(any())).thenReturn(0);
-        final int n = new StuckInFlightReaperService(jr, ar, clock, Duration.ofMinutes(10))
+        final int n = new StuckInFlightReaperService(jr, ar, clock, Duration.ofMinutes(10), mock(ug.ac.mak.der.observability.DerMetrics.class))
                 .reapOnce();
         assertThat(n).isZero();
         verify(ar, never()).append(any(AuditEvent.class), any(Instant.class));
@@ -40,7 +40,7 @@ class StuckInFlightReaperServiceTest {
         final var jr = mock(OperationJournalRepository.class);
         final var ar = mock(SecurityAuditRepository.class);
         when(jr.requeueStuckInFlight(any())).thenReturn(3);
-        final int n = new StuckInFlightReaperService(jr, ar, clock, Duration.ofMinutes(10))
+        final int n = new StuckInFlightReaperService(jr, ar, clock, Duration.ofMinutes(10), mock(ug.ac.mak.der.observability.DerMetrics.class))
                 .reapOnce();
         assertThat(n).isEqualTo(3);
         verify(ar).append(
@@ -55,7 +55,7 @@ class StuckInFlightReaperServiceTest {
         final var jr = mock(OperationJournalRepository.class);
         final var ar = mock(SecurityAuditRepository.class);
         when(jr.requeueStuckInFlight(any())).thenReturn(0);
-        new StuckInFlightReaperService(jr, ar, clock, Duration.ofMinutes(10)).reapOnce();
+        new StuckInFlightReaperService(jr, ar, clock, Duration.ofMinutes(10), mock(ug.ac.mak.der.observability.DerMetrics.class)).reapOnce();
         verify(jr).requeueStuckInFlight(eq(NOW.minus(Duration.ofMinutes(10))));
     }
 }
