@@ -28,6 +28,10 @@ import ug.ac.mak.der.workflows.aggregate.AggregateDataValueService;
 import ug.ac.mak.der.workflows.drafts.Draft;
 import ug.ac.mak.der.workflows.drafts.DraftRepository;
 import ug.ac.mak.der.workflows.events.EventService;
+import ug.ac.mak.der.workflows.tracker.Enrollment;
+import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository;
+import ug.ac.mak.der.workflows.tracker.TrackerEvent;
+import ug.ac.mak.der.workflows.tracker.TrackerService;
 
 /** DC-17 server surface — the signed-in user's drafts. */
 @RestController
@@ -37,15 +41,18 @@ public class DraftController {
     private final DraftRepository drafts;
     private final AggregateDataValueService aggregates;
     private final EventService events;
+    private final TrackerService tracker;
     private final ObjectMapper mapper;
 
     public DraftController(final DraftRepository drafts,
                             final AggregateDataValueService aggregates,
                             final EventService events,
+                            final TrackerService tracker,
                             final ObjectMapper mapper) {
         this.drafts = Objects.requireNonNull(drafts, "drafts");
         this.aggregates = Objects.requireNonNull(aggregates, "aggregates");
         this.events = Objects.requireNonNull(events, "events");
+        this.tracker = Objects.requireNonNull(tracker, "tracker");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
     }
 
@@ -145,12 +152,105 @@ public class DraftController {
         return switch (draft.kind()) {
             case "aggregate" -> publishAggregate(draft, principal.userId(), ip, ua);
             case "event"     -> publishEvent(draft, principal.userId(), ip, ua);
+            case "tracker-tei",
+                 "tracker-enrollment",
+                 "tracker-event"
+                             -> publishTracker(draft, principal.userId(), ip, ua);
             default -> ResponseEntity.badRequest().body(Map.of(
                     "code", "DRAFT_KIND_NOT_PUBLISHABLE",
                     "kind", draft.kind(),
-                    "message", "only aggregate + event drafts can be published today; "
-                            + "tracker drafts land in Phase 10"));
+                    "message", "unknown draft kind — supported: aggregate, event, "
+                            + "tracker-tei, tracker-enrollment, tracker-event"));
         };
+    }
+
+    /**
+     * Phase 14.3 — tracker draft publishing. Three sub-kinds mapping
+     * one-to-one onto {@link TrackerService}'s three upsert entry
+     * points:
+     * <ul>
+     *   <li>{@code tracker-tei} — payload {@code {tei: TrackedEntity}}
+     *     → {@link TrackerService#upsertTei}</li>
+     *   <li>{@code tracker-enrollment} — payload
+     *     {@code {enrollment: Enrollment}} →
+     *     {@link TrackerService#upsertEnrollment}</li>
+     *   <li>{@code tracker-event} — payload
+     *     {@code {event: TrackerEvent}} →
+     *     {@link TrackerService#upsertEvent}</li>
+     * </ul>
+     *
+     * <p>The three kinds are published separately rather than
+     * composed into one atomic bundle so operators can resume after
+     * a parent fails (e.g. tracker-tei saved, tracker-enrollment
+     * saved, operator fixes the event's broken dataElement value,
+     * re-publishes just the tracker-event). Graph constraints
+     * (enrol references existing TEI, event references existing
+     * enrol) are enforced by the TrackerService upserts
+     * themselves — not re-implemented here.</p>
+     */
+    private ResponseEntity<Map<String, Object>> publishTracker(
+            final Draft draft, final UUID actingUser, final String ip, final String ua) {
+        try {
+            switch (draft.kind()) {
+                case "tracker-tei" -> {
+                    final TrackedEntityRepository.TrackedEntity tei = mapper.convertValue(
+                            draft.payload().path("tei"),
+                            TrackedEntityRepository.TrackedEntity.class);
+                    if (tei == null) {
+                        return trackerPayloadInvalid("tracker-tei",
+                                "{\"tei\":TrackedEntity}");
+                    }
+                    tracker.upsertTei(tei, actingUser, ip, ua);
+                }
+                case "tracker-enrollment" -> {
+                    final Enrollment en = mapper.convertValue(
+                            draft.payload().path("enrollment"), Enrollment.class);
+                    if (en == null) {
+                        return trackerPayloadInvalid("tracker-enrollment",
+                                "{\"enrollment\":Enrollment}");
+                    }
+                    tracker.upsertEnrollment(en, actingUser, ip, ua);
+                }
+                case "tracker-event" -> {
+                    final TrackerEvent ev = mapper.convertValue(
+                            draft.payload().path("event"), TrackerEvent.class);
+                    if (ev == null) {
+                        return trackerPayloadInvalid("tracker-event",
+                                "{\"event\":TrackerEvent}");
+                    }
+                    tracker.upsertEvent(ev, actingUser, ip, ua);
+                }
+                default -> {
+                    /* unreachable — publish() filters above */
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "code", "DRAFT_KIND_NOT_PUBLISHABLE"));
+                }
+            }
+        } catch (RuntimeException ex) {
+            /* Validation / mirror / referential-integrity failure.
+             * Keep the draft so the operator can fix the problem; let
+             * them see the error so they know what to fix. */
+            return ResponseEntity.status(409).body(Map.of(
+                    "code", "DRAFT_TRACKER_REJECTED",
+                    "kind", draft.kind(),
+                    "message", String.valueOf(ex.getMessage())));
+        }
+        drafts.delete(draft.draftId(), actingUser);
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("draftId", draft.draftId().toString());
+        body.put("kind", draft.kind());
+        body.put("imported", 1);
+        body.put("conflicts", List.of());
+        body.put("draftConsumed", true);
+        return ResponseEntity.ok(body);
+    }
+
+    private ResponseEntity<Map<String, Object>> trackerPayloadInvalid(
+            final String kind, final String expectedShape) {
+        return ResponseEntity.badRequest().body(Map.of(
+                "code", "DRAFT_PAYLOAD_INVALID",
+                "kind", kind,
+                "message", kind + " draft payload must be " + expectedShape));
     }
 
     private ResponseEntity<Map<String, Object>> publishAggregate(

@@ -1,6 +1,7 @@
 package ug.ac.mak.der.web;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -44,6 +45,7 @@ class DraftControllerTest {
     @MockBean DraftRepository drafts;
     @MockBean AggregateDataValueService aggregates;
     @MockBean EventService events;
+    @MockBean ug.ac.mak.der.workflows.tracker.TrackerService tracker;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -208,7 +210,7 @@ class DraftControllerTest {
     @Test
     void publishUnpublishableKindRejected() throws Exception {
         final UUID uid = UUID.randomUUID();
-        final Draft d = new Draft(UUID.randomUUID(), uid, "tracker-tei",
+        final Draft d = new Draft(UUID.randomUUID(), uid, "some-future-kind",
                 "T", mapper.createObjectNode(),
                 Instant.parse("2026-10-22T00:00:00Z"),
                 Instant.parse("2026-10-22T00:00:00Z"));
@@ -217,6 +219,85 @@ class DraftControllerTest {
                         .with(as(uid)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("DRAFT_KIND_NOT_PUBLISHABLE"));
+    }
+
+    @Test
+    void publishTrackerTeiCallsTrackerServiceAndConsumesDraft() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final com.fasterxml.jackson.databind.node.ObjectNode payload = mapper.createObjectNode();
+        final com.fasterxml.jackson.databind.node.ObjectNode tei = payload.putObject("tei");
+        tei.put("teiUid", "TEIabc123def");
+        tei.put("trackedEntityType", "typeA");
+        tei.put("orgUnitUid", "ou1");
+        tei.putObject("attributes");
+        tei.put("createdBy", UUID.randomUUID().toString());
+        tei.put("createdAt", "2026-11-03T10:00:00Z");
+        tei.put("updatedAt", "2026-11-03T10:00:00Z");
+        tei.put("teiVersion", 1);
+
+        final Draft d = new Draft(UUID.randomUUID(), uid, "tracker-tei",
+                "test-tei", payload,
+                Instant.parse("2026-11-03T10:00:00Z"),
+                Instant.parse("2026-11-03T10:00:00Z"));
+        when(drafts.findById(d.draftId())).thenReturn(Optional.of(d));
+
+        mockMvc.perform(post("/edge-api/v1/drafts/" + d.draftId() + "/publish")
+                        .with(as(uid)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imported").value(1))
+                .andExpect(jsonPath("$.draftConsumed").value(true));
+        org.mockito.Mockito.verify(tracker).upsertTei(
+                any(ug.ac.mak.der.workflows.tracker.TrackedEntityRepository.TrackedEntity.class),
+                eq(uid), any(), any());
+        org.mockito.Mockito.verify(drafts).delete(d.draftId(), uid);
+    }
+
+    @Test
+    void publishTrackerRejectsPayloadWithoutExpectedKey() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final Draft d = new Draft(UUID.randomUUID(), uid, "tracker-event",
+                "no-event-key", mapper.createObjectNode(),
+                Instant.parse("2026-11-03T10:00:00Z"),
+                Instant.parse("2026-11-03T10:00:00Z"));
+        when(drafts.findById(d.draftId())).thenReturn(Optional.of(d));
+        mockMvc.perform(post("/edge-api/v1/drafts/" + d.draftId() + "/publish")
+                        .with(as(uid)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("DRAFT_PAYLOAD_INVALID"));
+    }
+
+    @Test
+    void publishTrackerRejectionKeepsDraftAndReturns409() throws Exception {
+        final UUID uid = UUID.randomUUID();
+        final com.fasterxml.jackson.databind.node.ObjectNode payload = mapper.createObjectNode();
+        final com.fasterxml.jackson.databind.node.ObjectNode tei = payload.putObject("tei");
+        tei.put("teiUid", "TEIabc123def");
+        tei.put("trackedEntityType", "typeA");
+        tei.put("orgUnitUid", "ou1");
+        tei.putObject("attributes");
+        tei.put("createdBy", UUID.randomUUID().toString());
+        tei.put("createdAt", "2026-11-03T10:00:00Z");
+        tei.put("updatedAt", "2026-11-03T10:00:00Z");
+        tei.put("teiVersion", 1);
+
+        final Draft d = new Draft(UUID.randomUUID(), uid, "tracker-tei",
+                "will-fail", payload,
+                Instant.parse("2026-11-03T10:00:00Z"),
+                Instant.parse("2026-11-03T10:00:00Z"));
+        when(drafts.findById(d.draftId())).thenReturn(Optional.of(d));
+        when(tracker.upsertTei(any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("orgUnit 'ou1' not in local mirror"));
+
+        mockMvc.perform(post("/edge-api/v1/drafts/" + d.draftId() + "/publish")
+                        .with(as(uid)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DRAFT_TRACKER_REJECTED"))
+                .andExpect(jsonPath("$.message").value(
+                        org.hamcrest.Matchers.containsString("not in local mirror")));
+        /* Draft must NOT be deleted on failure — operator fixes the
+         * underlying error and retries. */
+        org.mockito.Mockito.verify(drafts, org.mockito.Mockito.never())
+                .delete(any(UUID.class), any(UUID.class));
     }
 
     @Test
