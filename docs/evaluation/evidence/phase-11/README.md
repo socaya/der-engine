@@ -9,9 +9,9 @@ sub-directory keyed on its slice number.
 | Slice | Artifact                        | Evidence folder             | Status |
 |------:|---------------------------------|------------------------------|---|
 | 11.1  | Journal state-machine recovery  | `11.1-journal-recovery/`     | ✅ shipped |
-| 11.2  | 72h soak with central flap      | `11.2-soak-72h/`             | 🧰 orchestrator ready (`scripts/evaluation/soak_72h.sh`); pilot run pending |
-| 11.3  | NFR-15/17/18/29 sweep           | `11.3-nfr-sweep/`            | 🧰 script ready (`scripts/evaluation/nfr_sweep.sh`); pilot run pending |
-| 11.4  | der-1.0.0 release notes + tag   | `11.4-release/`              | 🧰 draft ready (`docs/releases/der-1.0.0.md`); awaits 11.2 + 11.3 evidence |
+| 11.2  | 72h soak with central flap      | `11.2-soak-72h/`             | ✅ orchestrator + docs shipped (`scripts/evaluation/soak_72h.sh`); pilot run pending |
+| 11.3  | NFR-15/16/17/18/19/20/29 sweep  | `11.3-nfr-sweep/`            | ✅ harness + budget comparators + synthetic e2e in gate (`test_nfr_sweep_e2e.py`); `11.3-nfr-sweep/README.md` lists pins + pass criteria; pilot run pending |
+| 11.4  | der-1.0.0 release notes + tag   | `11.4-release/`              | ✅ draft + gate-chain documentation at `11.4-release/README.md`; stable tag awaits 11.2 + 11.3 pilot evidence (no code change required) |
 
 ## Related — Phase 12 landed extensions (code only, no pilot hardware)
 

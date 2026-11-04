@@ -184,6 +184,13 @@ run_step "workflow-catalogue-tests" \
 run_step "workflow-catalogue-live" \
     python3 scripts/evaluation/check_workflow_regression.py
 
+# Phase 11.3 — synthetic NFR-sweep e2e. Exercises every pinned
+# budget comparator against a fabricated sweep report so a pin
+# tightening that would make the pins unreachable is caught at
+# gate-time instead of surfacing on a quarterly pilot run.
+run_step "nfr-sweep-synthetic-e2e" \
+    python3 scripts/evaluation/test_nfr_sweep_e2e.py
+
 # Collect server coverage report into the evidence bundle.
 if [[ -d server/target/site/jacoco ]]; then
   cp -R server/target/site/jacoco "${COV_DIR}/server/jacoco"
