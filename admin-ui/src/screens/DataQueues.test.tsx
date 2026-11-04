@@ -1,4 +1,5 @@
 import { screen, waitFor } from '@testing-library/react';
+import { Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { MockupDataQueues, MockupDataDetail } from './DataQueues';
@@ -207,5 +208,56 @@ describe('MockupDataQueues', () => {
     await waitFor(() =>
       expect(screen.getByText(/Workflow run wfr-abcd/i))
         .toBeInTheDocument());
+  });
+
+  it('MockupDataDetail — populated op renders the overview + response label', async () => {
+    vi.spyOn(edgeApi, 'fetchJournalOperation').mockResolvedValue({
+      operationId: 'op-1', entityType: 'DATA_VALUE',
+      entityRef: 'VAL-1', state: 'CENTRAL_ACCEPTED',
+      attemptCount: 1, lastError: '{"status":"SUCCESS"}',
+      nextHopOrgUnitUid: null,
+      createdAt: '2026-11-01T00:00:00Z',
+      updatedAt: '2026-11-02T00:00:00Z',
+      payload: { foo: 'bar' },
+    } as unknown as edgeApi.JournalOperation);
+    renderWithProviders(
+      <Routes><Route path="/admin/data/queue/:operationId"
+                      element={<MockupDataDetail />} /></Routes>,
+      { authApi, route: '/admin/data/queue/op-1' });
+    await waitFor(() =>
+      expect(screen.getByTestId('sync-data-detail')).toBeInTheDocument());
+    /* Entity ref surfaces in subtitle. */
+    expect(screen.getAllByText('VAL-1').length).toBeGreaterThan(0);
+  });
+
+  it('MockupDataDetail — fetchJournalOperation rejection renders error panel', async () => {
+    vi.spyOn(edgeApi, 'fetchJournalOperation').mockRejectedValue(
+      new Error('operation-not-found'));
+    renderWithProviders(
+      <Routes><Route path="/admin/data/queue/:operationId"
+                      element={<MockupDataDetail />} /></Routes>,
+      { authApi, route: '/admin/data/queue/op-x' });
+    await waitFor(() =>
+      expect(screen.getByTestId('sync-data-detail-err'))
+        .toBeInTheDocument());
+    expect(screen.getByText(/operation-not-found/)).toBeInTheDocument();
+  });
+
+  it('MockupDataDetail — error-state op uses "Last error" label', async () => {
+    vi.spyOn(edgeApi, 'fetchJournalOperation').mockResolvedValue({
+      operationId: 'op-fail', entityType: 'DATA_VALUE',
+      entityRef: 'VAL-1', state: 'CENTRAL_REJECTED',
+      attemptCount: 5, lastError: 'validation failed',
+      nextHopOrgUnitUid: null,
+      createdAt: '2026-11-01T00:00:00Z',
+      updatedAt: '2026-11-02T00:00:00Z',
+      payload: {},
+    } as unknown as edgeApi.JournalOperation);
+    renderWithProviders(
+      <Routes><Route path="/admin/data/queue/:operationId"
+                      element={<MockupDataDetail />} /></Routes>,
+      { authApi, route: '/admin/data/queue/op-fail' });
+    await waitFor(() =>
+      expect(screen.getByTestId('sync-data-detail')).toBeInTheDocument());
   });
 });
