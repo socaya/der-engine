@@ -340,7 +340,7 @@ in `traceability-matrix.csv` with its code path.
 | FR-01-04 | Verify time, DNS, certs, storage, DB, network | P0 | 🟡 PARTIAL | `SystemController` surfaces subset; FR-01-04 pre-flight bundle shipped partial |
 | FR-01-05 | Import authorised dependency set | P0 | ✅ DONE | ADR-0006; `MetadataSyncService` |
 | FR-01-06 | Seed authorised working records | P0 | ✅ DONE | `AggregateDataValueService.submit`; `EventService.submit` |
-| FR-01-07 | Site configuration — connectivity policies | P1 | ❌ PENDING | — (alpha.2 target) |
+| FR-01-07 | Site configuration — connectivity policies | P1 | ✅ DONE | New `SiteConfigController` at `/edge-api/v1/site/config` persists a whitelist of 7 site-level keys (display name, local base URL, time zone, connectivity policies: max concurrent sessions, max offline hours, online-window cron, VPN requirement) via `der.admin_setting`. GET returns defaults overlaid with stored values; POST rejects unknown keys and audits each change as `SITE_CONFIG_CHANGED`. Admin UI screen `MockupSiteConfig` on `/site/config` with inline save + audit cross-link. Linked from EASettings. |
 | FR-01-08 | Reproducible deployment — versioned install scripts | P1 | ❌ PENDING | — (alpha.2 target) |
 | FR-01-09 | Controlled upgrade + rollback | P1 | ❌ PENDING | — (alpha.2 target) |
 | FR-01-10 | Decommissioning — credential revocation + evidence export | P1 | ❌ PENDING | — (alpha.2 target) |

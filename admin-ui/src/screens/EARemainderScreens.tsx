@@ -421,11 +421,17 @@ export function EASettings({ api = edgeApi }: {
       />
       <h1 data-test="ea36-heading" className="ea-visually-hidden">Settings</h1>
 
-      <p style={{ marginTop: -4, marginBottom: 12, fontSize: 13 }}>
+      <p style={{ marginTop: -4, marginBottom: 12, fontSize: 13,
+                   display: 'flex', gap: 14, flexWrap: 'wrap' }}>
         <Link to="/configuration"
                className="ea-link-btn"
                data-test="ea36-config-editor-link">
           Operational configuration editor →
+        </Link>
+        <Link to="/site/config"
+               className="ea-link-btn"
+               data-test="ea36-site-config-link">
+          Site configuration (connectivity + time-zone) →
         </Link>
       </p>
 

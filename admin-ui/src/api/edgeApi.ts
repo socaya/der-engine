@@ -1366,6 +1366,27 @@ export function backupPitrWal(): Promise<WalSummary> {
   return request('GET', '/edge-api/v1/backup/pitr/wal');
 }
 
+/** FR-01-07 — Site configuration (connectivity policies + limits
+ *  + local URL + time-zone). Server endpoint is a single whitelist-
+ *  guarded settings block; the GET always includes defaults so a
+ *  fresh install's screen is never blank. */
+export interface SiteConfigResponse {
+  values: Record<string, string>;
+  defaults: Record<string, string>;
+  updatedBy: string | null;
+  updatedAt: string | null;
+}
+
+export function readSiteConfig(): Promise<SiteConfigResponse> {
+  return request('GET', '/edge-api/v1/site/config');
+}
+
+export function writeSiteConfig(
+  values: Record<string, string>,
+): Promise<SiteConfigResponse> {
+  return request('POST', '/edge-api/v1/site/config', { values });
+}
+
 /** FR-15-06 — User scope viewer.
  *
  *  Richer shape than `/provisioning/users`: adds origin (LOCAL vs

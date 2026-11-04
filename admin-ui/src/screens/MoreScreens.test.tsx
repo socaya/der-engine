@@ -22,6 +22,7 @@ import {
   MockupConfigEditor,
   MockupOperationalReport,
   MockupUserScope,
+  MockupSiteConfig,
 } from './MoreScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -1070,6 +1071,76 @@ describe('MoreScreens — surface mount test', () => {
     await waitFor(() =>
       expect(screen.getByTestId('err-user-scope')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/403 ADMIN required/);
+  });
+
+  it('MockupSiteConfig — FR-01-07 renders defaults + per-key save buttons', async () => {
+    vi.spyOn(edgeApi, 'readSiteConfig').mockResolvedValue({
+      values: {
+        'site.displayName': 'Kampala Clinic',
+        'site.localBaseUrl': 'https://clinic.local',
+        'site.timeZone': 'Africa/Kampala',
+        'site.connectivity.maxConcurrentSessions': '20',
+        'site.connectivity.maxOfflineHours': '72',
+        'site.connectivity.onlineWindowCron': '',
+        'site.connectivity.requireVpn': 'false',
+      },
+      defaults: {
+        'site.displayName': 'DER edge',
+        'site.localBaseUrl': 'https://der.local',
+        'site.timeZone': 'Africa/Kampala',
+        'site.connectivity.maxConcurrentSessions': '20',
+        'site.connectivity.maxOfflineHours': '72',
+        'site.connectivity.onlineWindowCron': '',
+        'site.connectivity.requireVpn': 'false',
+      },
+      updatedBy: 'u-admin',
+      updatedAt: '2026-11-03T10:00:00Z',
+    });
+    renderWithProviders(<MockupSiteConfig />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('site-config')).toBeInTheDocument());
+    expect(screen.getByTestId('site-input-site.displayName'))
+      .toHaveValue('Kampala Clinic');
+    expect(screen.getByTestId('site-input-site.timeZone'))
+      .toHaveValue('Africa/Kampala');
+    /* Save button disabled until the draft diverges. */
+    expect(screen.getByTestId('site-save-site.displayName')).toBeDisabled();
+  });
+
+  it('MockupSiteConfig — edit + Save invokes writeSiteConfig(key)', async () => {
+    vi.spyOn(edgeApi, 'readSiteConfig').mockResolvedValue({
+      values: { 'site.displayName': 'DER edge' },
+      defaults: { 'site.displayName': 'DER edge' },
+      updatedBy: null, updatedAt: null,
+    });
+    const writeSpy = vi.spyOn(edgeApi, 'writeSiteConfig').mockResolvedValue({
+      values: { 'site.displayName': 'Kampala Clinic' },
+      defaults: { 'site.displayName': 'DER edge' },
+      updatedBy: 'u-admin',
+      updatedAt: '2026-11-04T11:00:00Z',
+    });
+    renderWithProviders(<MockupSiteConfig />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('site-row-site.displayName'))
+        .toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const input = screen.getByTestId('site-input-site.displayName');
+    await user.clear(input);
+    await user.type(input, 'Kampala Clinic');
+    await user.click(screen.getByTestId('site-save-site.displayName'));
+    await waitFor(() =>
+      expect(writeSpy).toHaveBeenCalledWith({
+        'site.displayName': 'Kampala Clinic',
+      }));
+  });
+
+  it('MockupSiteConfig — readSiteConfig rejection surfaces err-site-config-load', async () => {
+    vi.spyOn(edgeApi, 'readSiteConfig')
+      .mockRejectedValue(new Error('403 forbidden'));
+    renderWithProviders(<MockupSiteConfig />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-site-config-load')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/403 forbidden/);
   });
 
   it('MockupUserScope — search filter with no matches surfaces empty hint', async () => {

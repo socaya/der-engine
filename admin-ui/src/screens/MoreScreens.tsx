@@ -2061,6 +2061,185 @@ export function MockupFacilityAnalytics(): JSX.Element {
 
 export { fmtBytes };
 
+/* ─── /site/config ────────────────────────────────────────────────── */
+/** FR-01-07 — Site configuration.
+ *
+ *  Narrow whitelist of operator-tunable site-level settings
+ *  (connectivity policies, limits, local URL, time-zone). Backed by
+ *  `/edge-api/v1/site/config` which persists via admin_setting (JSONB)
+ *  with audit on every write. The screen always renders every key
+ *  even on a fresh install — the server returns defaults so the
+ *  canvas is never blank. */
+const SITE_CONFIG_LABELS: Record<string, { label: string; hint?: string }> = {
+  'site.displayName':
+    { label: 'Display name',
+      hint: 'Shown in the admin shell topbar + support-bundle manifest.' },
+  'site.localBaseUrl':
+    { label: 'Local base URL',
+      hint: 'How connected devices reach this edge (e.g. https://der.local).' },
+  'site.timeZone':
+    { label: 'Time zone',
+      hint: 'IANA zone — drives report windows + scheduler cron expansion.' },
+  'site.connectivity.maxConcurrentSessions':
+    { label: 'Max concurrent sessions',
+      hint: 'Simultaneous logged-in operators the edge accepts.' },
+  'site.connectivity.maxOfflineHours':
+    { label: 'Max offline hours',
+      hint: 'How long the edge can run without Central before flagging staleness.' },
+  'site.connectivity.onlineWindowCron':
+    { label: 'Online-window cron',
+      hint: 'Optional cron for scheduled WAN windows. Blank = continuous.' },
+  'site.connectivity.requireVpn':
+    { label: 'Require VPN',
+      hint: 'When true, central-sync fails unless the WireGuard tunnel is up.' },
+};
+
+export function MockupSiteConfig(): JSX.Element {
+  const [data, setData] = useState<edgeApi.SiteConfigResponse | null>(null);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [err, setErr] = useState<string | null>(null);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function reload(): Promise<void> {
+    try {
+      const r = await edgeApi.readSiteConfig();
+      setData(r);
+      setDraft(r.values);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, []);
+
+  async function saveKey(key: string): Promise<void> {
+    setSavingKey(key); setErr(null); setMsg(null);
+    try {
+      await edgeApi.writeSiteConfig({ [key]: draft[key] ?? '' });
+      setMsg(`${key} saved.`);
+      setTimeout(() => setMsg((m) => (m?.startsWith(key) ? null : m)), 2500);
+      await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally { setSavingKey(null); }
+  }
+
+  if (err && !data) {
+    return <ErrorBlock title="Site config load failed"
+                        testId="err-site-config-load">{err}</ErrorBlock>;
+  }
+  if (!data) return <LoadingBlock testId="loading" />;
+
+  const entries = Object.entries(data.values);
+  const dirty = entries.filter(([k, v]) => draft[k] !== v);
+
+  return (
+    <div className="ea-screen" data-test="site-config">
+      <SyncStatusBar
+        tone={dirty.length > 0 ? 'warning' : 'info'}
+        title="Site configuration"
+        statusLabel={`${entries.length} settings`}
+        subtitle={
+          <>
+            <span>Site-level connectivity policies, limits, local URL and time-zone.</span>
+            {data.updatedAt && (<>
+              <span>·</span>
+              <span>Last changed <strong style={{ color: 'var(--der-ink-900)' }}>
+                {fmtAgo(data.updatedAt)}
+              </strong></span>
+            </>)}
+            {dirty.length > 0 && (<>
+              <span>·</span>
+              <span>
+                <strong style={{ color: 'var(--der-warning-ink)' }}>
+                  {dirty.length} unsaved change{dirty.length === 1 ? '' : 's'}
+                </strong>
+              </span>
+            </>)}
+          </>
+        }
+      />
+
+      {err && <ErrorBlock title="Save failed"
+                            testId="err-site-config-save">{err}</ErrorBlock>}
+      {msg && <p className="ea-saved" data-test="site-config-saved">{msg}</p>}
+
+      <Panel title="Settings">
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
+            <thead><tr>
+              <th>Setting</th><th>Value</th><th style={{ width: 120 }}></th>
+            </tr></thead>
+            <tbody>
+              {entries.map(([k, current]) => {
+                const next = draft[k] ?? '';
+                const changed = next !== current;
+                const saving = savingKey === k;
+                const meta = SITE_CONFIG_LABELS[k] ?? { label: k };
+                const isDefault = current === data.defaults[k];
+                return (
+                  <tr key={k} data-test={`site-row-${k}`}>
+                    <td>
+                      <div style={{ fontWeight: 500 }}>{meta.label}</div>
+                      <div className="ea-text-muted ea-mono"
+                           style={{ fontSize: 11 }}>
+                        {k}
+                      </div>
+                      {meta.hint && (
+                        <div className="ea-text-muted"
+                             style={{ fontSize: 12, marginTop: 2 }}>
+                          {meta.hint}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <input className="ea-input ea-mono" type="text"
+                             style={{ width: '100%', fontSize: 12 }}
+                             value={next}
+                             data-test={`site-input-${k}`}
+                             onChange={(e) => setDraft(
+                               (d) => ({ ...d, [k]: e.target.value }))} />
+                      {isDefault && (
+                        <span className="ea-text-muted" style={{ fontSize: 11 }}>
+                          (default)
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button type="button"
+                              className="ea-btn ea-btn--primary ea-btn--sm"
+                              disabled={!changed || saving}
+                              data-test={`site-save-${k}`}
+                              onClick={() => { saveKey(k).catch(() => undefined); }}>
+                        {saving ? 'Saving…' : 'Save'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      <Panel title="Audit"
+             action={
+               <Link to="/audit/events?eventType=SITE_CONFIG_CHANGED"
+                      className="ea-link-btn"
+                      data-cross-module="Security"
+                      data-test="site-config-open-audit">
+                 View SITE_CONFIG_CHANGED events →
+               </Link>
+             }>
+        <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
+          Every save is logged as <code>SITE_CONFIG_CHANGED</code> in the
+          security audit log with the changed-key payload.
+        </p>
+      </Panel>
+    </div>
+  );
+}
+
 /* ─── /users/scope ────────────────────────────────────────────────── */
 /** FR-15-06 — User scope viewer.
  *
