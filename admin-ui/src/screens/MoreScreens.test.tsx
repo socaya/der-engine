@@ -523,6 +523,80 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/Failed to load/);
   });
 
+  it('MockupApprovalDetail — EVENT entity renders Data-module cross-link to /data/events', async () => {
+    vi.spyOn(edgeApi, 'listPendingApprovals').mockResolvedValue({
+      rows: [{
+        operationId: 'op-ev-1', entityType: 'EVENT', entityRef: 'ev-abc',
+        state: 'APPROVAL_PENDING', attemptCount: 0, submittedBy: 'user1',
+        createdAt: '2026-11-03T10:00:00Z', updatedAt: 'now',
+        approvalRequestedAt: 'now', approvalRequestedBy: null,
+      }],
+    } as unknown as { rows: edgeApi.PendingApprovalRow[] });
+    renderWithProviders(
+      <Routes><Route path="/admin/sync/approvals/:operationId"
+                      element={<MockupApprovalDetail />} /></Routes>,
+      { authApi, route: '/admin/sync/approvals/op-ev-1' });
+    await waitFor(() =>
+      expect(screen.getByTestId('approval-view-record')).toBeInTheDocument());
+    expect(screen.getByTestId('approval-view-record'))
+      .toHaveAttribute('href', '/data/events/ev-abc');
+    expect(document.body.textContent ?? '').toMatch(/View event/i);
+  });
+
+  it('MockupApprovalDetail — TRACKED_ENTITY cross-link routes to /data/tracker/tei', async () => {
+    vi.spyOn(edgeApi, 'listPendingApprovals').mockResolvedValue({
+      rows: [{
+        operationId: 'op-tei-1', entityType: 'TRACKED_ENTITY',
+        entityRef: 'tei-xyz', state: 'APPROVAL_PENDING',
+        attemptCount: 0, submittedBy: null,
+        createdAt: 'now', updatedAt: 'now',
+        approvalRequestedAt: 'now', approvalRequestedBy: null,
+      }],
+    } as unknown as { rows: edgeApi.PendingApprovalRow[] });
+    renderWithProviders(
+      <Routes><Route path="/admin/sync/approvals/:operationId"
+                      element={<MockupApprovalDetail />} /></Routes>,
+      { authApi, route: '/admin/sync/approvals/op-tei-1' });
+    await waitFor(() =>
+      expect(screen.getByTestId('approval-view-record')).toBeInTheDocument());
+    expect(screen.getByTestId('approval-view-record'))
+      .toHaveAttribute('href', '/data/tracker/tei/tei-xyz');
+  });
+
+  it('MockupApprovalDetail — AGGREGATE falls back to /data/queue by operationId', async () => {
+    vi.spyOn(edgeApi, 'listPendingApprovals').mockResolvedValue({
+      rows: [{
+        operationId: 'op-agg-1', entityType: 'AGGREGATE_DATA_VALUE',
+        entityRef: 'de1|ou1|2026W44', state: 'APPROVAL_PENDING',
+        attemptCount: 0, submittedBy: null,
+        createdAt: 'now', updatedAt: 'now',
+        approvalRequestedAt: 'now', approvalRequestedBy: null,
+      }],
+    } as unknown as { rows: edgeApi.PendingApprovalRow[] });
+    renderWithProviders(
+      <Routes><Route path="/admin/sync/approvals/:operationId"
+                      element={<MockupApprovalDetail />} /></Routes>,
+      { authApi, route: '/admin/sync/approvals/op-agg-1' });
+    await waitFor(() =>
+      expect(screen.getByTestId('approval-view-record')).toBeInTheDocument());
+    expect(screen.getByTestId('approval-view-record'))
+      .toHaveAttribute('href', '/data/queue/op-agg-1');
+    expect(document.body.textContent ?? '').toMatch(/View data value/i);
+  });
+
+  it('MockupApprovalDetail — unmatched operationId renders the Not-found panel', async () => {
+    vi.spyOn(edgeApi, 'listPendingApprovals').mockResolvedValue({
+      rows: [],
+    } as unknown as { rows: edgeApi.PendingApprovalRow[] });
+    renderWithProviders(
+      <Routes><Route path="/admin/sync/approvals/:operationId"
+                      element={<MockupApprovalDetail />} /></Routes>,
+      { authApi, route: '/admin/sync/approvals/op-missing' });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '')
+        .toMatch(/Approval item not found/));
+  });
+
   it('MockupDeviceDetail — matched APPROVED device renders detail + Suspend action', async () => {
     vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
       devices: [
