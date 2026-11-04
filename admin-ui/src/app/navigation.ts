@@ -199,12 +199,18 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     primaryId: 'users',
     icon: 'users',
     items: [
+      /* Permissions-first ordering: Authorities are the atomic capabilities,
+       * Roles bundle authorities, Users are assigned roles.  Users surfaces
+       * both DHIS2 mappings + Sessions as contextual drills. */
+      { id: 'authorities', label: 'Authorities', to: '/access/authorities', status: 'implemented' },
+      { id: 'roles', label: 'Roles', to: '/access/roles', status: 'implemented' },
       { id: 'users', label: 'Users', to: '/provisioning/users', status: 'implemented' },
       { id: 'users-new', label: 'Add user', to: '/provisioning/users/new', status: 'contextual' },
-      { id: 'roles', label: 'Roles', to: '/access/roles', status: 'implemented' },
-      { id: 'authorities', label: 'Authorities', to: '/access/authorities', status: 'implemented' },
-      { id: 'mappings', label: 'DHIS2 mappings', to: '/access/mappings', status: 'implemented' },
-      { id: 'sessions', label: 'Sessions', to: '/access/sessions', status: 'implemented' },
+      /* DHIS2 mappings + Sessions moved to contextual (reachable from
+       * the Users dashboard status-bar); they're drills off the user
+       * list, not peer sub-modules of Users. */
+      { id: 'mappings', label: 'DHIS2 mappings', to: '/access/mappings', status: 'contextual' },
+      { id: 'sessions', label: 'Sessions', to: '/access/sessions', status: 'contextual' },
       { id: 'credentials', label: 'Credentials', to: '/access/credentials', status: 'implemented' },
       { id: 'devices', label: 'Devices', to: '/devices', status: 'implemented' },
       { id: 'enrolment', label: 'Device enrolment', to: '/devices/enrolment', status: 'implemented' },
