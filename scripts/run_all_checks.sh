@@ -145,6 +145,12 @@ run_step "deploy-lifecycle-smoke" bash scripts/deploy/_test_install_lifecycle.sh
 run_step "backup-integrity-comparator" \
     python3 scripts/evaluation/test_backup_integrity.py
 
+# FR-17-08 / NFR-18 — resource/latency/throughput sampler. Pure-function
+# percentile + throughput tests plus a short live smoke; the gate keeps
+# the math honest even when no evaluation campaign is running.
+run_step "resource-sampler-tests" \
+    python3 scripts/evaluation/test_resource_sampler.py
+
 # Collect server coverage report into the evidence bundle.
 if [[ -d server/target/site/jacoco ]]; then
   cp -R server/target/site/jacoco "${COV_DIR}/server/jacoco"
