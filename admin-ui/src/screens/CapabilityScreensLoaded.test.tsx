@@ -484,6 +484,64 @@ describe('CapSyncSchedule (loaded)', () => {
     expect(body).toMatch(/metadata|Metadata/);
   });
 
+  it('ScheduleRow — lastRun outcome arms: SUCCESS, FAILED, STARTED, PAUSED', async () => {
+    vi.spyOn(edgeApi, 'readSettings').mockResolvedValue({
+      cron: {
+        'sync.metadata':     '0 0 * * * ?',
+        'drift.snapshot':    '0 0 1 * * ?',
+        'journal.drain':     '0 */5 * * * ?',
+        'analytics.refresh': '0 */10 * * * ?',
+      },
+      featureFlags: {}, roles: [],
+    } as unknown as edgeApi.SettingsPayload);
+    vi.spyOn(edgeApi, 'listJobs').mockImplementation(async (_n, name) => {
+      switch (name) {
+        case 'METADATA_SYNC_FULL': return [{
+          runId: 1, jobName: 'METADATA_SYNC_FULL', outcome: 'SUCCEEDED',
+          startedAt: '2026-11-03T10:00:00Z', finishedAt: 'now',
+          durationMs: 10, triggeredBy: 'SCHEDULED', detail: '{}',
+        }] as edgeApi.JobRun[];
+        case 'DRIFT_SNAPSHOT': return [{
+          runId: 2, jobName: 'DRIFT_SNAPSHOT', outcome: 'FAILED',
+          startedAt: '2026-11-03T09:00:00Z', finishedAt: 'now',
+          durationMs: 10, triggeredBy: 'MANUAL', detail: '{}',
+        }] as edgeApi.JobRun[];
+        case 'JOURNAL_WORKER_DRAIN': return [{
+          runId: 3, jobName: 'JOURNAL_WORKER_DRAIN', outcome: 'STARTED',
+          startedAt: '2026-11-03T11:00:00Z', finishedAt: null,
+          durationMs: null, triggeredBy: 'SCHEDULED', detail: '{}',
+        }] as unknown as edgeApi.JobRun[];
+        default: return [] as edgeApi.JobRun[];
+      }
+    });
+    renderWithProviders(<CapSyncSchedule />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-schedule')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    /* The three outcome-arm labels should all surface. */
+    expect(body).toMatch(/Succeeded|Success/);
+    expect(body).toMatch(/Failed/);
+    expect(body).toMatch(/Running|Started/);
+    expect(body).toMatch(/Never run/);
+  });
+
+  it('ScheduleRow — clicking the row toggles the expression panel open', async () => {
+    vi.spyOn(edgeApi, 'readSettings').mockResolvedValue({
+      cron: { 'sync.metadata': '0 0 * * * ?' },
+      featureFlags: {}, roles: [],
+    } as unknown as edgeApi.SettingsPayload);
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([] as edgeApi.JobRun[]);
+    renderWithProviders(<CapSyncSchedule />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cron-row-sync.metadata'))
+        .toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.click(screen.getByTestId('cron-row-sync.metadata'));
+    await waitFor(() =>
+      expect(screen.getByTestId('cron-expr-sync.metadata'))
+        .toBeInTheDocument());
+  });
+
   it('empty cron settings surface the empty-schedule panel', async () => {
     vi.spyOn(edgeApi, 'readSettings').mockResolvedValue({
       cron: {}, featureFlags: {}, roles: [],

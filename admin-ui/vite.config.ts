@@ -188,10 +188,13 @@ export default defineConfig({
          * but diluted branches 81.01 → 80.89 (new tests exercise
          * long component bodies without proportional conditionals).
          * Keep the line gain, drop branches back one. */
-        lines: 88,
+        /* der-2.3.123 round-112 ratchet: MoreScreens.MockupDeviceDetail
+         * status-arm tests added 3 tests + 7.1 point line lift.
+         * Measured 89.13 / 80.98 / 74.36. Ratchet lines one point. */
+        lines: 89,
         branches: 80,
         functions: 74,
-        statements: 88,
+        statements: 89,
       },
     },
   },
