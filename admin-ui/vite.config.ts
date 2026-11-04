@@ -145,9 +145,13 @@ export default defineConfig({
          * ~115 fresh test cases) added 118 tests. Measured
          * coverage 82.23 / 78.30 / 70.34 / 82.23 — functions
          * crossed 70%. Ratchet 1-2 points below each. */
+        /* der-2.3.123 round-80 ratchet: fifth edgeApi wrapper
+         * batch (+38 tests) lifted functions sharply. Measured
+         * coverage 82.70 / 78.35 / 72.38 / 82.70. Ratchet
+         * functions threshold up 3 points to 72. */
         lines: 82,
         branches: 78,
-        functions: 69,
+        functions: 72,
         statements: 82,
       },
     },
