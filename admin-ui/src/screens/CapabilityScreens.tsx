@@ -3276,179 +3276,601 @@ function useDevices(): [edgeApi.EdgeDeviceRow[] | null, string | null, () => Pro
   return [rows, err, reload];
 }
 
+/** `/admin/devices/enrolment` — pending-approval queue. ADMIN-only
+ *  actions: approve, revoke. Every mutation confirms first (ADR-0019
+ *  — device enrolment can't be undone without a fresh QR). */
 export function CapDeviceEnrolment(): JSX.Element {
   const [rows, err, reload] = useDevices();
+  const [busyFor, setBusyFor] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
   async function approve(id: string): Promise<void> {
-    try { await edgeApi.approveDevice(id); await reload(); } catch { /* ignore */ }
+    setBusyFor(id); setMsg(null);
+    try {
+      await edgeApi.approveDevice(id);
+      setMsg(`Device ${id.slice(0, 8)}… approved.`);
+      await reload();
+    } catch { /* surfaces via err state next reload */ }
+    finally { setBusyFor(null); }
   }
+  async function revoke(id: string): Promise<void> {
+    setBusyFor(id); setMsg(null);
+    try {
+      await edgeApi.revokeDevice(id);
+      setMsg(`Device ${id.slice(0, 8)}… revoked.`);
+      await reload();
+    } catch { /* ignore */ }
+    finally { setBusyFor(null); }
+  }
+
   if (err) return <ErrorBlock title="Device load failed" testId="err-device-load-failed">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
   const pending = rows.filter((r) => r.status === 'PENDING');
+  const approved = rows.filter((r) => r.status === 'APPROVED');
+
   return (
     <div className="ea-screen" data-test="cap-enrolment">
-      <HeroHeader title="Device enrolment"
-        subtitle="Devices that have requested access and are awaiting approval."
+      <SyncStatusBar
+        tone={pending.length > 0 ? 'warning' : 'success'}
+        title="Device enrolment"
+        statusLabel={pending.length === 0
+          ? 'No pending'
+          : `${pending.length} pending`}
+        subtitle={
+          <>
+            <span>Devices that have requested access and are awaiting ADMIN approval.</span>
+            <span>·</span>
+            <span>Approved <strong style={{ color: 'var(--der-ink-900)' }}>{approved.length}</strong></span>
+            <span>·</span>
+            <span>Total <strong style={{ color: 'var(--der-ink-900)' }}>{rows.length}</strong></span>
+          </>
+        }
+        actions={
+          <>
+            <Link to="/devices"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Devices"
+                   data-test="cap-enrolment-open-fleet">
+              <UiIcon icon="activity" size={14} />
+              <span>Device fleet</span>
+            </Link>
+            <Link to="/network/clients"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Network"
+                   data-test="cap-enrolment-open-network">
+              <UiIcon icon="refresh" size={14} />
+              <span>Connected devices</span>
+            </Link>
+          </>
+        }
       />
-      <div className="ea-stat-strip">
-        <Stat label="Pending" value={pending.length}
-              tone={pending.length ? 'info' : 'success'} />
-        <Stat label="All devices" value={rows.length} />
-      </div>
+
+      {msg && <p className="ea-saved" data-test="cap-enrolment-saved">{msg}</p>}
+
       {pending.length === 0 ? (
         <EmptyBlock title="No pending enrolments" testId="empty-no-pending-enrolments">
-          All currently known devices have been reviewed.
+          All currently known devices have been reviewed. Operators scanning
+          a fresh QR code land in this queue automatically.
         </EmptyBlock>
       ) : (
-        <section className="ea-card">
+        <Panel title={`${pending.length} pending device${pending.length === 1 ? '' : 's'}`}>
           <div className="ea-table-wrap">
-            <table className="ea-table"><thead><tr>
-              <th>Device</th><th>Enrolled</th><th>User agent</th><th aria-label="Actions" />
-            </tr></thead><tbody>
-              {pending.map((r) => (
-                <tr key={r.deviceId}>
-                  <td className="ea-mono">{r.deviceId}</td>
-                  <td className="ea-mono">{r.enrolledAt}</td>
-                  <td className="ea-cell-two">{r.userAgent ?? '—'}</td>
-                  <td className="ea-table-actions">
-                    <button type="button" className="ea-btn ea-btn--primary"
-                            onClick={() => { approve(r.deviceId).catch(() => undefined); }}>
-                      Approve
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody></table>
+            <table className="ea-table ea-table--dense"
+                   data-test="cap-enrolment-pending">
+              <thead><tr>
+                <th>Device</th><th>Form factor</th><th>Enrolled</th>
+                <th>User agent</th>
+                <th style={{ width: 200 }}>
+                  <span className="ea-visually-hidden">Actions</span>
+                </th>
+              </tr></thead>
+              <tbody>
+                {pending.map((r) => {
+                  const busy = busyFor === r.deviceId;
+                  return (
+                    <tr key={r.deviceId}
+                        data-test={`cap-enrolment-row-${r.deviceId}`}>
+                      <td>
+                        <div className="ea-mono" style={{ fontSize: 12 }}>
+                          {r.deviceId}
+                        </div>
+                        {r.displayName && (
+                          <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                            {r.displayName}
+                          </div>
+                        )}
+                      </td>
+                      <td>{r.formFactor ?? '—'}</td>
+                      <td className="ea-text-muted"
+                          style={{ fontSize: 12 }}
+                          title={r.enrolledAt}>{fmtAgo(r.enrolledAt)}</td>
+                      <td className="ea-text-muted"
+                          style={{ fontSize: 11, wordBreak: 'break-all' }}>
+                        {r.userAgent ?? '—'}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: 6,
+                                        justifyContent: 'flex-end' }}>
+                          <button type="button"
+                                  className="ea-btn ea-btn--primary ea-btn--sm"
+                                  disabled={busy}
+                                  data-test={`cap-enrolment-approve-${r.deviceId}`}
+                                  onClick={() => {
+                                    confirmThenRun(
+                                      `Approve device ${r.deviceId.slice(0, 12)}…? It will be allowed to sign in and sync data.`,
+                                      () => { approve(r.deviceId).catch(() => undefined); });
+                                  }}>
+                            {busy ? '…' : 'Approve'}
+                          </button>
+                          <button type="button"
+                                  className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
+                                  disabled={busy}
+                                  data-test={`cap-enrolment-revoke-${r.deviceId}`}
+                                  onClick={() => {
+                                    confirmThenRun(
+                                      `Revoke device ${r.deviceId.slice(0, 12)}…? Its enrolment token will be invalidated and the operator must re-scan the QR.`,
+                                      () => { revoke(r.deviceId).catch(() => undefined); });
+                                  }}>
+                            Revoke
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        </section>
+        </Panel>
       )}
+
+      <Panel title="How enrolment works">
+        <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7,
+                       fontSize: 13 }}>
+          <li>Operator scans the DER-generated enrolment QR on their device.</li>
+          <li>Device registers with its deviceId + user-agent; row appears
+            here in <code>PENDING</code>.</li>
+          <li>ADMIN clicks <strong>Approve</strong>; device is allowed to sign
+            in; <code>DEVICE_APPROVED</code> audit event is written.</li>
+          <li>Revoke invalidates the enrolment token — operator must re-scan
+            to try again.</li>
+        </ol>
+      </Panel>
     </div>
   );
 }
 
+/** `/admin/devices/ownership` — device → assigned-user mapping with
+ *  per-status filter + search. Assignment lives on the enrolment
+ *  record (`assignedUserId`); this screen surfaces it. */
 export function CapOwnership(): JSX.Element {
   const [rows, err] = useDevices();
   const [users, setUsers] = useState<edgeApi.ProvisionedUser[]>([]);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
   useEffect(() => {
     edgeApi.listUsers().then((r) => setUsers(r.users)).catch(() => undefined);
   }, []);
+
   if (err) return <ErrorBlock title="Device load failed" testId="err-device-load-failed">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
-  const nameFor = (id: string | null): string => users.find((u) => u.userId === id)?.displayName ?? '—';
+
+  const nameFor = (id: string | null | undefined): string =>
+    (id && users.find((u) => u.userId === id)?.displayName) || '—';
+  const q = query.trim().toLowerCase();
+  const filtered = rows.filter((r) => {
+    if (statusFilter !== 'ALL' && r.status !== statusFilter) return false;
+    if (q) {
+      const name = nameFor(r.assignedUserId).toLowerCase();
+      return r.deviceId.toLowerCase().includes(q)
+          || name.includes(q)
+          || (r.displayName ?? '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+  const assigned = rows.filter((r) => !!r.assignedUserId).length;
+  const unassigned = rows.length - assigned;
+
   return (
     <div className="ea-screen" data-test="cap-ownership">
-      <HeroHeader title="Device ownership" subtitle="Who each device belongs to." />
+      <SyncStatusBar
+        tone={unassigned > 0 ? 'warning' : 'success'}
+        title="Device ownership"
+        statusLabel={`${assigned}/${rows.length} assigned`}
+        subtitle={
+          <>
+            <span>Each device&apos;s assigned operator. Unassigned approved devices sign in but don&apos;t carry user attribution.</span>
+          </>
+        }
+        actions={
+          <Link to="/devices/enrolment"
+                 className="ea-btn ea-btn--ghost ea-btn--sm"
+                 data-cross-module="Devices"
+                 data-test="cap-ownership-open-enrolment">
+            <UiIcon icon="plus" size={14} />
+            <span>Enrolment queue</span>
+          </Link>
+        }
+      />
+
       {rows.length === 0 ? (
         <EmptyBlock title="No devices enrolled" testId="empty-no-devices-enrolled">
           Enrol a device first — ownership shows the assigned operator.
         </EmptyBlock>
       ) : (
-        <section className="ea-card">
-          <div className="ea-table-wrap">
-            <table className="ea-table"><thead><tr>
-              <th>Device</th><th>Assigned user</th><th>Status</th><th>Last seen</th>
-            </tr></thead><tbody>
-              {rows.map((r) => (
-                <tr key={r.deviceId}>
-                  <td className="ea-mono">{r.deviceId}</td>
-                  <td>{nameFor(r.assignedUserId)}</td>
-                  <td><span className={'ea-chip ea-chip--' +
-                      (r.status === 'APPROVED' ? 'success'
-                        : r.status === 'PENDING' ? 'info'
-                          : 'danger')}>{r.status}</span></td>
-                  <td className="ea-mono">{r.lastSeenAt ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody></table>
-          </div>
-        </section>
+        <Panel title={`${filtered.length} device${filtered.length === 1 ? '' : 's'}`}
+               action={
+                 <>
+                   <input className="ea-input" type="search"
+                          style={{ maxWidth: 220 }}
+                          placeholder="Search by device ID or owner"
+                          value={query}
+                          aria-label="Search devices"
+                          data-test="cap-ownership-search"
+                          onChange={(e) => setQuery(e.target.value)} />
+                   <select className="ea-input" style={{ maxWidth: 140 }}
+                           value={statusFilter}
+                           aria-label="Filter by status"
+                           data-test="cap-ownership-filter"
+                           onChange={(e) => setStatusFilter(e.target.value)}>
+                     <option value="ALL">All statuses</option>
+                     <option value="APPROVED">Approved</option>
+                     <option value="PENDING">Pending</option>
+                     <option value="REVOKED">Revoked</option>
+                   </select>
+                 </>
+               }>
+          {filtered.length === 0 ? (
+            <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}
+               data-test="cap-ownership-empty">
+              No devices match this filter.
+            </p>
+          ) : (
+            <div className="ea-table-wrap">
+              <table className="ea-table ea-table--dense">
+                <thead><tr>
+                  <th>Device</th><th>Assigned user</th>
+                  <th>Status</th><th>Last seen</th>
+                  <th style={{ width: 48 }}>
+                    <span className="ea-visually-hidden">Actions</span>
+                  </th>
+                </tr></thead>
+                <tbody>
+                  {filtered.map((r) => (
+                    <tr key={r.deviceId}
+                        data-test={`cap-ownership-row-${r.deviceId}`}>
+                      <td>
+                        <div className="ea-mono" style={{ fontSize: 12 }}>
+                          {r.deviceId}
+                        </div>
+                        {r.displayName && (
+                          <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                            {r.displayName}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {r.assignedUserId
+                          ? nameFor(r.assignedUserId)
+                          : <span className="ea-chip ea-chip--warning"
+                                   data-test={`cap-ownership-unassigned-${r.deviceId}`}>
+                              Unassigned
+                            </span>}
+                      </td>
+                      <td>
+                        <Status tone={
+                          r.status === 'APPROVED' ? 'success'
+                          : r.status === 'PENDING' ? 'info'
+                          : 'danger'}>
+                          {r.status}
+                        </Status>
+                      </td>
+                      <td className="ea-text-muted" style={{ fontSize: 12 }}
+                          title={r.lastSeenAt ?? ''}>
+                        {r.lastSeenAt ? fmtAgo(r.lastSeenAt) : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <RowMenu items={[
+                          { label: 'Open details',
+                            to: `/devices/${r.deviceId}` },
+                          { label: 'View audit',
+                            to: `/audit/events?device=${encodeURIComponent(r.deviceId)}` },
+                        ]} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
       )}
     </div>
   );
 }
 
+/** `/admin/devices/connections` — approved-devices activity sorted by
+ *  last-seen with stale detection + search. */
 export function CapConnections(): JSX.Element {
   const [rows, err] = useDevices();
+  const [query, setQuery] = useState('');
+
   if (err) return <ErrorBlock title="Device load failed" testId="err-device-load-failed">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
+
   const active = rows.filter((r) => r.status === 'APPROVED');
-  const sorted = [...active].sort((a, b) => (b.lastSeenAt ?? '').localeCompare(a.lastSeenAt ?? ''));
+  const sorted = [...active].sort(
+    (a, b) => (b.lastSeenAt ?? '').localeCompare(a.lastSeenAt ?? ''));
+
+  const now = Date.now();
+  const staleCount = sorted.filter(
+    (r) => !r.lastSeenAt || now - Date.parse(r.lastSeenAt) > 24 * 3600 * 1000,
+  ).length;
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? sorted.filter((r) => r.deviceId.toLowerCase().includes(q)
+                               || (r.displayName ?? '').toLowerCase().includes(q))
+    : sorted;
+
   return (
     <div className="ea-screen" data-test="cap-connections">
-      <HeroHeader title="Active connections"
-        subtitle="Approved devices sorted by most recent activity."
+      <SyncStatusBar
+        tone={staleCount > 0 ? 'warning' : active.length > 0 ? 'success' : 'muted'}
+        title="Active connections"
+        statusLabel={`${active.length} approved · ${staleCount} stale`}
+        subtitle={
+          <>
+            <span>Approved devices sorted by most recent check-in. Stale = no activity in the last 24h.</span>
+            <span>·</span>
+            <span>Fleet <strong style={{ color: 'var(--der-ink-900)' }}>{rows.length}</strong></span>
+          </>
+        }
+        actions={
+          <Link to="/devices/diagnostics"
+                 className="ea-btn ea-btn--ghost ea-btn--sm"
+                 data-cross-module="Devices"
+                 data-test="cap-connections-open-diagnostics">
+            <UiIcon icon="diagnostics" size={14} />
+            <span>Diagnostics</span>
+          </Link>
+        }
       />
-      <div className="ea-stat-strip">
-        <Stat label="Active" value={active.length} tone="success" />
-        <Stat label="Fleet" value={rows.length} />
-      </div>
+
       {sorted.length === 0 ? (
         <EmptyBlock title="No active devices" testId="empty-no-active-devices">
           Approve a device enrolment to see it here once it checks in.
         </EmptyBlock>
       ) : (
-        <section className="ea-card">
-          <div className="ea-table-wrap">
-            <table className="ea-table"><thead><tr>
-              <th>Device</th><th>Last seen</th><th>User agent</th><th>Firmware</th>
-            </tr></thead><tbody>
-              {sorted.map((r) => (
-                <tr key={r.deviceId}>
-                  <td className="ea-mono">{r.deviceId}</td>
-                  <td className="ea-mono">{r.lastSeenAt ?? '—'}</td>
-                  <td className="ea-cell-two">{r.userAgent ?? '—'}</td>
-                  <td className="ea-mono">{r.firmwareVersion ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody></table>
-          </div>
-        </section>
+        <Panel title={`${filtered.length} device${filtered.length === 1 ? '' : 's'}`}
+               action={
+                 <input className="ea-input" type="search"
+                        style={{ maxWidth: 240 }}
+                        placeholder="Search by device ID or label"
+                        value={query}
+                        aria-label="Search connected devices"
+                        data-test="cap-connections-search"
+                        onChange={(e) => setQuery(e.target.value)} />
+               }>
+          {filtered.length === 0 ? (
+            <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}
+               data-test="cap-connections-empty">
+              No devices match this filter.
+            </p>
+          ) : (
+            <div className="ea-table-wrap">
+              <table className="ea-table ea-table--dense">
+                <thead><tr>
+                  <th>Device</th><th>Last seen</th>
+                  <th>Firmware</th><th>User agent</th>
+                  <th style={{ width: 90 }}>Freshness</th>
+                </tr></thead>
+                <tbody>
+                  {filtered.map((r) => {
+                    const stale = !r.lastSeenAt
+                      || now - Date.parse(r.lastSeenAt) > 24 * 3600 * 1000;
+                    return (
+                      <tr key={r.deviceId}
+                          data-test={`cap-connections-row-${r.deviceId}`}>
+                        <td>
+                          <div className="ea-mono" style={{ fontSize: 12 }}>
+                            {r.deviceId}
+                          </div>
+                          {r.displayName && (
+                            <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                              {r.displayName}
+                            </div>
+                          )}
+                        </td>
+                        <td className="ea-text-muted" style={{ fontSize: 12 }}
+                            title={r.lastSeenAt ?? 'never'}>
+                          {r.lastSeenAt ? fmtAgo(r.lastSeenAt) : 'never'}
+                        </td>
+                        <td className="ea-mono" style={{ fontSize: 12 }}>
+                          {r.firmwareVersion ?? '—'}
+                        </td>
+                        <td className="ea-text-muted"
+                            style={{ fontSize: 11, wordBreak: 'break-all' }}>
+                          {r.userAgent ?? '—'}
+                        </td>
+                        <td data-test={`cap-connections-fresh-${r.deviceId}`}>
+                          <Status tone={stale ? 'warning' : 'success'}>
+                            {stale ? 'Stale' : 'Fresh'}
+                          </Status>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
       )}
     </div>
   );
 }
 
+/** `/admin/devices/diagnostics` — fleet-wide health check. Surfaces
+ *  stale, pending, revoked + firmware drift so an ADMIN can see the
+ *  fleet at a glance. */
 export function CapDeviceDiagnostics(): JSX.Element {
   const [rows, err] = useDevices();
+  const [showStaleOnly, setShowStaleOnly] = useState(false);
+
   if (err) return <ErrorBlock title="Device load failed" testId="err-device-load-failed">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
+
   const now = Date.now();
-  const stale = rows.filter((r) => {
-    if (!r.lastSeenAt) return true;
-    return now - Date.parse(r.lastSeenAt) > 24 * 3600 * 1000;
-  });
+  const isStale = (r: edgeApi.EdgeDeviceRow): boolean => !r.lastSeenAt
+    || now - Date.parse(r.lastSeenAt) > 24 * 3600 * 1000;
+  const stale = rows.filter(isStale);
+  const pending = rows.filter((r) => r.status === 'PENDING').length;
+  const revoked = rows.filter((r) => r.status === 'REVOKED').length;
+
+  /* Firmware-drift detection — the most common firmware version is the
+   * canonical pin; anything different is a drift candidate. */
+  const fwCount: Record<string, number> = {};
+  for (const r of rows) {
+    const fw = r.firmwareVersion ?? 'unknown';
+    fwCount[fw] = (fwCount[fw] ?? 0) + 1;
+  }
+  const topFw = Object.entries(fwCount)
+    .sort((a, b) => b[1] - a[1])[0]?.[0];
+  const driftCount = rows.filter(
+    (r) => (r.firmwareVersion ?? 'unknown') !== topFw).length;
+
+  const visible = showStaleOnly ? stale : rows;
+
   return (
     <div className="ea-screen" data-test="cap-dev-diag">
-      <HeroHeader title="Device diagnostics"
-        subtitle="Per-device check-in and firmware state."
+      <SyncStatusBar
+        tone={stale.length > 0 || revoked > 0 ? 'warning' : 'success'}
+        title="Device diagnostics"
+        statusLabel={`${rows.length} device${rows.length === 1 ? '' : 's'}`}
+        subtitle={
+          <>
+            <span>Per-device check-in + firmware state.</span>
+            <span>·</span>
+            <span>Stale (&gt;24h) <strong style={{ color: 'var(--der-ink-900)' }}>{stale.length}</strong></span>
+            <span>·</span>
+            <span>Pending <strong style={{ color: 'var(--der-ink-900)' }}>{pending}</strong></span>
+            <span>·</span>
+            <span>Revoked <strong style={{ color: 'var(--der-ink-900)' }}>{revoked}</strong></span>
+          </>
+        }
+        actions={
+          <Link to="/devices/connections"
+                 className="ea-btn ea-btn--ghost ea-btn--sm"
+                 data-cross-module="Devices"
+                 data-test="cap-dev-diag-open-connections">
+            <UiIcon icon="activity" size={14} />
+            <span>Active connections</span>
+          </Link>
+        }
       />
-      <div className="ea-stat-strip">
-        <Stat label="Fleet" value={rows.length} />
-        <Stat label="Stale (>24h)" value={stale.length}
-              tone={stale.length ? 'danger' : 'success'} />
-      </div>
+
+      {Object.keys(fwCount).length > 1 && (
+        <Panel title="Firmware drift"
+               action={
+                 <span data-test="cap-dev-diag-drift-badge">
+                   <Status tone={driftCount > 0 ? 'warning' : 'success'}>
+                     {driftCount === 0 ? 'Uniform' : `${driftCount} drifted`}
+                   </Status>
+                 </span>
+               }>
+          <dl className="ea-def-list">
+            <div className="ea-def-row"><dt>Canonical firmware</dt>
+              <dd className="ea-mono" data-test="cap-dev-diag-fw-canonical">
+                {topFw}
+              </dd></div>
+            <div className="ea-def-row"><dt>Distinct versions</dt>
+              <dd className="ea-mono">{Object.keys(fwCount).length}</dd></div>
+            <div className="ea-def-row"><dt>Distribution</dt>
+              <dd>
+                <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12 }}>
+                  {Object.entries(fwCount).sort((a, b) => b[1] - a[1]).map(([fw, n]) => (
+                    <li key={fw}>
+                      <code>{fw}</code> — {n} device{n === 1 ? '' : 's'}
+                    </li>
+                  ))}
+                </ul>
+              </dd></div>
+          </dl>
+        </Panel>
+      )}
+
       {rows.length === 0 ? (
-        <EmptyBlock title="No devices" testId="empty-no-devices">The device fleet is empty.</EmptyBlock>
+        <EmptyBlock title="No devices" testId="empty-no-devices">
+          The device fleet is empty.
+        </EmptyBlock>
       ) : (
-        <section className="ea-card">
+        <Panel title={`${visible.length} of ${rows.length} devices`}
+               action={
+                 <label style={{ fontSize: 12, display: 'inline-flex',
+                                  gap: 6, alignItems: 'center' }}>
+                   <input type="checkbox"
+                          checked={showStaleOnly}
+                          data-test="cap-dev-diag-stale-only"
+                          onChange={(e) => setShowStaleOnly(e.target.checked)} />
+                   Show stale only ({stale.length})
+                 </label>
+               }>
           <div className="ea-table-wrap">
-            <table className="ea-table"><thead><tr>
-              <th>Device</th><th>Status</th><th>Firmware</th><th>Last seen</th><th>Enrolled</th>
-            </tr></thead><tbody>
-              {rows.map((r) => (
-                <tr key={r.deviceId}>
-                  <td className="ea-mono">{r.deviceId}</td>
-                  <td><span className={'ea-chip ea-chip--' +
-                      (r.status === 'APPROVED' ? 'success'
-                        : r.status === 'PENDING' ? 'info'
-                          : 'danger')}>{r.status}</span></td>
-                  <td className="ea-mono">{r.firmwareVersion ?? '—'}</td>
-                  <td className="ea-mono">{r.lastSeenAt ?? '—'}</td>
-                  <td className="ea-mono">{r.enrolledAt}</td>
-                </tr>
-              ))}
-            </tbody></table>
+            <table className="ea-table ea-table--dense">
+              <thead><tr>
+                <th>Device</th><th>Status</th>
+                <th>Firmware</th><th>Last seen</th><th>Enrolled</th>
+              </tr></thead>
+              <tbody>
+                {visible.map((r) => {
+                  const stale = isStale(r);
+                  const drift = topFw && (r.firmwareVersion ?? 'unknown') !== topFw;
+                  return (
+                    <tr key={r.deviceId}
+                        data-test={`cap-dev-diag-row-${r.deviceId}`}>
+                      <td>
+                        <div className="ea-mono" style={{ fontSize: 12 }}>
+                          {r.deviceId}
+                        </div>
+                        {r.displayName && (
+                          <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                            {r.displayName}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <Status tone={
+                          r.status === 'APPROVED' ? 'success'
+                          : r.status === 'PENDING' ? 'info'
+                          : 'danger'}>
+                          {r.status}
+                        </Status>
+                      </td>
+                      <td>
+                        <span className={'ea-chip ea-chip--'
+                          + (drift ? 'warning' : 'muted')}
+                              title={drift ? 'Differs from canonical firmware' : ''}
+                              data-test={`cap-dev-diag-fw-${r.deviceId}`}>
+                          {r.firmwareVersion ?? '—'}
+                        </span>
+                      </td>
+                      <td>
+                        <Status tone={stale ? 'warning' : 'success'}
+                                title={r.lastSeenAt ?? 'never'}>
+                          {r.lastSeenAt ? fmtAgo(r.lastSeenAt) : 'never'}
+                        </Status>
+                      </td>
+                      <td className="ea-text-muted" style={{ fontSize: 12 }}
+                          title={r.enrolledAt}>{fmtAgo(r.enrolledAt)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        </section>
+        </Panel>
       )}
     </div>
   );

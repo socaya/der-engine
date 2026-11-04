@@ -8,6 +8,8 @@ import {
   CapProgramRules, CapSyncOverview, CapSyncSchedule,
   CapOrgUnitBinding, CapSystemInformation, CapDashboard,
   CapRoles, CapSessions, CapCredentials,
+  CapDeviceEnrolment, CapOwnership, CapConnections,
+  CapDeviceDiagnostics,
 } from './CapabilityScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -806,5 +808,192 @@ describe('CapCredentials (enhanced)', () => {
       .toHaveAttribute('href', '/provisioning/users');
     expect(screen.getByTestId('cap-creds-min-length'))
       .toHaveTextContent('12');
+  });
+});
+
+describe('CapDeviceEnrolment (enhanced)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  function stubDevices(rows: Array<Partial<edgeApi.EdgeDeviceRow>>): void {
+    vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
+      devices: rows.map((r) => ({
+        deviceId: 'd-x', status: 'PENDING', displayName: null,
+        formFactor: 'TABLET', lastSeenAt: null,
+        assignedUserId: null, enrolmentTokenHash: 'h',
+        enrolledAt: '2026-11-03T10:00:00Z',
+        approvedBy: null, approvedAt: null,
+        userAgent: 'Mozilla/5.0', firmwareVersion: null, ...r,
+      })),
+    } as never);
+  }
+
+  it('populated pending queue renders rows with Approve + Revoke actions', async () => {
+    stubDevices([
+      { deviceId: 'dev-pending-1', status: 'PENDING' },
+      { deviceId: 'dev-approved-1', status: 'APPROVED' },
+    ]);
+    renderWithProviders(<CapDeviceEnrolment />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-enrolment')).toBeInTheDocument());
+    expect(screen.getByTestId('cap-enrolment-pending')).toBeInTheDocument();
+    expect(screen.getByTestId('cap-enrolment-approve-dev-pending-1'))
+      .toBeInTheDocument();
+    expect(screen.getByTestId('cap-enrolment-revoke-dev-pending-1'))
+      .toBeInTheDocument();
+    /* Only pending rows appear in the table. */
+    expect(screen.queryByTestId('cap-enrolment-row-dev-approved-1')).toBeNull();
+  });
+
+  it('no pending devices surfaces empty-no-pending-enrolments', async () => {
+    stubDevices([{ deviceId: 'dev-ok', status: 'APPROVED' }]);
+    renderWithProviders(<CapDeviceEnrolment />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('empty-no-pending-enrolments'))
+        .toBeInTheDocument());
+  });
+});
+
+describe('CapOwnership (enhanced)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('search + filter prune the row set', async () => {
+    vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
+      devices: [
+        { deviceId: 'dev-alice', status: 'APPROVED',
+          assignedUserId: 'u-alice', displayName: null,
+          formFactor: 'TABLET', lastSeenAt: 'now',
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null,
+          userAgent: 'x', firmwareVersion: null },
+        { deviceId: 'dev-bob', status: 'PENDING',
+          assignedUserId: null, displayName: null,
+          formFactor: 'MOBILE', lastSeenAt: null,
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null,
+          userAgent: 'x', firmwareVersion: null },
+      ],
+    } as never);
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [{ userId: 'u-alice', username: 'alice',
+                 displayName: 'Alice', roles: ['OPERATOR'] }],
+    } as unknown as { users: edgeApi.ProvisionedUser[] });
+    renderWithProviders(<CapOwnership />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-ownership')).toBeInTheDocument());
+    expect(screen.getByTestId('cap-ownership-row-dev-alice')).toBeInTheDocument();
+    expect(screen.getByTestId('cap-ownership-row-dev-bob')).toBeInTheDocument();
+    /* Status filter to APPROVED → bob disappears. */
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.selectOptions(
+      screen.getByTestId('cap-ownership-filter'), 'APPROVED');
+    await waitFor(() =>
+      expect(screen.queryByTestId('cap-ownership-row-dev-bob')).toBeNull());
+    /* Unassigned chip on bob would have been visible without filter. */
+  });
+});
+
+describe('CapConnections (enhanced)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('stale vs fresh freshness chips per device', async () => {
+    const soon = new Date(Date.now() - 1_000).toISOString();
+    const long = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+    vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
+      devices: [
+        { deviceId: 'dev-fresh', status: 'APPROVED',
+          assignedUserId: null, displayName: null,
+          formFactor: 'TABLET', lastSeenAt: soon,
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null,
+          userAgent: 'x', firmwareVersion: '1.0' },
+        { deviceId: 'dev-stale', status: 'APPROVED',
+          assignedUserId: null, displayName: null,
+          formFactor: 'TABLET', lastSeenAt: long,
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null,
+          userAgent: 'x', firmwareVersion: '1.0' },
+      ],
+    } as never);
+    renderWithProviders(<CapConnections />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-connections')).toBeInTheDocument());
+    expect(screen.getByTestId('cap-connections-fresh-dev-fresh'))
+      .toHaveTextContent('Fresh');
+    expect(screen.getByTestId('cap-connections-fresh-dev-stale'))
+      .toHaveTextContent('Stale');
+    expect(document.body.textContent ?? '').toMatch(/1 stale/);
+  });
+});
+
+describe('CapDeviceDiagnostics (enhanced)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('firmware drift surfaces when versions differ', async () => {
+    vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
+      devices: [
+        { deviceId: 'dev-a', status: 'APPROVED',
+          assignedUserId: null, displayName: null,
+          formFactor: 'TABLET', lastSeenAt: new Date().toISOString(),
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null,
+          userAgent: 'x', firmwareVersion: '1.0.0' },
+        { deviceId: 'dev-b', status: 'APPROVED',
+          assignedUserId: null, displayName: null,
+          formFactor: 'TABLET', lastSeenAt: new Date().toISOString(),
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null,
+          userAgent: 'x', firmwareVersion: '1.0.0' },
+        { deviceId: 'dev-old', status: 'APPROVED',
+          assignedUserId: null, displayName: null,
+          formFactor: 'TABLET', lastSeenAt: new Date().toISOString(),
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null,
+          userAgent: 'x', firmwareVersion: '0.9.0' },
+      ],
+    } as never);
+    renderWithProviders(<CapDeviceDiagnostics />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-dev-diag')).toBeInTheDocument());
+    expect(screen.getByTestId('cap-dev-diag-fw-canonical'))
+      .toHaveTextContent('1.0.0');
+    expect(screen.getByTestId('cap-dev-diag-drift-badge'))
+      .toHaveTextContent('1 drifted');
+    /* dev-old's firmware chip should carry the warning tone. */
+    expect(screen.getByTestId('cap-dev-diag-fw-dev-old'))
+      .toHaveClass('ea-chip--warning');
+  });
+
+  it('Show-stale-only checkbox prunes the table', async () => {
+    const now = new Date().toISOString();
+    const old = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+    vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
+      devices: [
+        { deviceId: 'dev-fresh', status: 'APPROVED',
+          assignedUserId: null, displayName: null,
+          formFactor: 'TABLET', lastSeenAt: now,
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null,
+          userAgent: 'x', firmwareVersion: '1.0' },
+        { deviceId: 'dev-stale', status: 'APPROVED',
+          assignedUserId: null, displayName: null,
+          formFactor: 'TABLET', lastSeenAt: old,
+          enrolmentTokenHash: 'h', enrolledAt: 'now',
+          approvedBy: null, approvedAt: null,
+          userAgent: 'x', firmwareVersion: '1.0' },
+      ],
+    } as never);
+    renderWithProviders(<CapDeviceDiagnostics />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-dev-diag-row-dev-fresh'))
+        .toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.click(screen.getByTestId('cap-dev-diag-stale-only'));
+    await waitFor(() =>
+      expect(screen.queryByTestId('cap-dev-diag-row-dev-fresh')).toBeNull());
+    expect(screen.getByTestId('cap-dev-diag-row-dev-stale')).toBeInTheDocument();
   });
 });
