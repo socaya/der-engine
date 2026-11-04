@@ -223,3 +223,140 @@ describe('NetworkOverview — loaded branches', () => {
   });
 });
 
+describe('NetworkAccessPoint — loaded branches', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const runningAp: edgeApi.AccessPointStatus = {
+    running: true, interface: 'wlan0', ssid: 'DER-pilot',
+    band: '5GHz', channel: 44, security: 'WPA3-SAE',
+    clients: 3, gateway: '10.88.0.1', subnet: '10.88.0.0/24',
+    dhcpActive: true, edgeId: 'edge-abc', startedAt: '2026-11-03T10:00:00Z',
+  };
+
+  it('running AP → "Running" label + Stop AP button visible', async () => {
+    vi.spyOn(edgeApi, 'networkAccessPoint').mockResolvedValue(runningAp);
+    renderWithProviders(<NetworkAccessPoint />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('network-ap')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/Running/);
+    expect(document.body.textContent ?? '').toMatch(/DER-pilot/);
+    expect(screen.getByRole('button', { name: /Stop AP/ })).toBeInTheDocument();
+  });
+
+  it('stopped AP → "Stopped" label + Start AP button visible', async () => {
+    vi.spyOn(edgeApi, 'networkAccessPoint').mockResolvedValue({
+      ...runningAp, running: false,
+    });
+    renderWithProviders(<NetworkAccessPoint />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('network-ap')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /Start AP/ })).toBeInTheDocument();
+  });
+
+  it('rejected AP probe → missing + empty-ap panel', async () => {
+    vi.spyOn(edgeApi, 'networkAccessPoint').mockRejectedValue(new Error('404'));
+    renderWithProviders(<NetworkAccessPoint />, { authApi });
+    await waitFor(() =>
+      expect(screen.queryByTestId('empty-ap')).toBeInTheDocument());
+  });
+
+  it('Edit AP opens the ApEditDialog', async () => {
+    vi.spyOn(edgeApi, 'networkAccessPoint').mockResolvedValue(runningAp);
+    renderWithProviders(<NetworkAccessPoint />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('network-ap')).toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.click(screen.getByRole('button', { name: /Edit AP/ }));
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/Edit Access Point/));
+  });
+
+  it('Show QR opens the QrEnrolDialog', async () => {
+    vi.spyOn(edgeApi, 'networkAccessPoint').mockResolvedValue(runningAp);
+    renderWithProviders(<NetworkAccessPoint />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('network-ap')).toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.click(screen.getByRole('button', { name: /Show QR/ }));
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/QR|enrol|Enrol/i));
+  });
+});
+
+describe('NetworkConnectedDevices — loaded branches', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const clientRow = (overrides: Partial<edgeApi.NetworkClient> = {})
+    : edgeApi.NetworkClient => ({
+    deviceId: 'dev-1', derDeviceId: null as unknown as string,
+    owner: 'Alice', hostname: null, ip: '10.88.0.11',
+    link: 'wifi', signalDbm: -55, trust: 'APPROVED',
+    lastSeenAt: '2026-11-03T11:00:00Z',
+    bytesTx: 100, bytesRx: 200,
+    ...overrides,
+  }) as edgeApi.NetworkClient;
+
+  it('populated client list → all trust-tone arms render', async () => {
+    vi.spyOn(edgeApi, 'networkClients').mockResolvedValue({
+      clients: [
+        clientRow({ deviceId: 'dev-approved', trust: 'APPROVED' }),
+        clientRow({ deviceId: 'dev-pending', trust: 'PENDING', owner: 'Bob' }),
+        clientRow({ deviceId: 'dev-blocked', trust: 'BLOCKED' }),
+        clientRow({ deviceId: 'dev-revoked', trust: 'REVOKED' }),
+        clientRow({ deviceId: 'dev-unknown', trust: 'UNKNOWN',
+                    link: 'ethernet', signalDbm: null }),
+      ],
+    });
+    renderWithProviders(<NetworkConnectedDevices />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('network-clients')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/dev-approved/);
+    expect(body).toMatch(/dev-pending/);
+    expect(body).toMatch(/dev-blocked/);
+    expect(body).toMatch(/Ethernet/);
+    expect(body).toMatch(/Pending/);
+  });
+
+  it('search-filter prunes the rendered client set', async () => {
+    vi.spyOn(edgeApi, 'networkClients').mockResolvedValue({
+      clients: [
+        clientRow({ deviceId: 'dev-alice', owner: 'Alice' }),
+        clientRow({ deviceId: 'dev-bob',   owner: 'Bob' }),
+      ],
+    });
+    renderWithProviders(<NetworkConnectedDevices />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/dev-alice/));
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const input = screen.getByPlaceholderText(/Search by ID/i);
+    await user.type(input, 'alice');
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').not.toMatch(/dev-bob/));
+  });
+
+  it('empty-client-list after rejection → empty-net-clients panel', async () => {
+    vi.spyOn(edgeApi, 'networkClients').mockRejectedValue(new Error('500'));
+    renderWithProviders(<NetworkConnectedDevices />, { authApi });
+    await waitFor(() =>
+      expect(screen.queryByTestId('empty-net-clients')).toBeInTheDocument());
+  });
+
+  it('empty filter → "No devices on the local network" message', async () => {
+    vi.spyOn(edgeApi, 'networkClients').mockResolvedValue({
+      clients: [clientRow({ deviceId: 'dev-only' })],
+    });
+    renderWithProviders(<NetworkConnectedDevices />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/dev-only/));
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const input = screen.getByPlaceholderText(/Search by ID/i);
+    await user.type(input, 'nonexistent');
+    await waitFor(() =>
+      expect(document.body.textContent ?? '')
+        .toMatch(/No devices on the local network/));
+  });
+});
+
