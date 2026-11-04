@@ -1232,4 +1232,244 @@ describe('edgeApi wrappers — batch coverage', () => {
     await api.deleteUserPref('k');
     expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
   });
+
+  it('previewAggregatePayload GETs preview endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.previewAggregatePayload({ limit: 10 });
+    expect(fetchMock.mock.calls[0]![0]).toContain('aggregate');
+  });
+
+  it('previewEventsPayload GETs preview endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.previewEventsPayload({ limit: 10 });
+    expect(fetchMock.mock.calls[0]![0]).toContain('event');
+  });
+
+  it('previewTrackerPayload GETs preview endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.previewTrackerPayload({ limit: 10 });
+    expect(fetchMock.mock.calls[0]![0]).toContain('tracker');
+  });
+
+  it('pullAggregateFromCentral POSTs the pull request', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.pullAggregateFromCentral({
+      dataSet: 'ds-1', orgUnit: 'OU-1', period: '202411',
+    });
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('pullEventsFromCentral POSTs the pull request', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.pullEventsFromCentral({
+      program: 'PROG-1', orgUnit: 'OU-1',
+    });
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('pullTrackerFromCentral POSTs the pull request', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.pullTrackerFromCentral({
+      program: 'PROG-1', orgUnit: 'OU-1',
+    });
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('purgeTerminalJournalRows POSTs the purge threshold', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.purgeTerminalJournalRows(7);
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('scheduleDraftPublish POSTs the publish schedule', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.scheduleDraftPublish('d-1', '2026-12-01T00:00:00Z');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('publishDraftsBatch POSTs the bulk publish request', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.publishDraftsBatch(['d-1', 'd-2']);
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('workflowRunManifest GETs the manifest endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.workflowRunManifest('run-1');
+    expect(fetchMock.mock.calls[0]![0]).toContain('run-1');
+  });
+
+  it('pushWorkflowToPeer POSTs the push request', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.pushWorkflowToPeer('wf-1', 'peer-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('setWorkflowPeerTrust POSTs the directImport flag', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.setWorkflowPeerTrust('peer-1', true);
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toMatch(/POST|PUT/);
+  });
+
+  it('setWorkflowPeerCredentials POSTs user + secret', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.setWorkflowPeerCredentials('peer-1', 'user', 'secret');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toMatch(/POST|PUT/);
+  });
+
+  it('snapshotResourceDiff GETs the diff endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.snapshotResourceDiff(1, 2, 'dataSets');
+    expect(fetchMock.mock.calls[0]![0]).toMatch(/dataSets|diff/);
+  });
+
+  it('updateDeviceProfile POSTs the profile', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.updateDeviceProfile('d-1', { displayName: 'Tab A' } as never);
+    expect(fetchMock.mock.calls[0]![0]).toContain('d-1');
+  });
+
+  it('networkApEdit POSTs the AP edit body', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkApEdit({ ssid: 'DER' } as never);
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toMatch(/POST|PUT/);
+  });
+
+  it('networkApRestart POSTs to the restart endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkApRestart();
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('networkApRotateKey POSTs to the rotate-key endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkApRotateKey();
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('networkApEnrolmentQr GETs the enrolment QR endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkApEnrolmentQr();
+    expect(fetchMock.mock.calls[0]![0]).toMatch(/qr|enrol/i);
+  });
+
+  it('networkDeviceApprove POSTs to the approve endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkDeviceApprove('d-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('networkDeviceRevoke POSTs to the revoke endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkDeviceRevoke('d-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('networkDeviceBlock POSTs to the block endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkDeviceBlock('d-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('networkDeviceUnblock POSTs to the unblock endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkDeviceUnblock('d-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('networkEnrolTokenIssue POSTs TTL + hint body', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkEnrolTokenIssue({ ttlSeconds: 3600 });
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('networkEnrolTokenRevoke DELETEs the token', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkEnrolTokenRevoke('tok-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
+  });
+
+  it('networkEventsClear DELETEs events', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkEventsClear();
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
+  });
+
+  it('networkImport POSTs the config bundle', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkImport({ ap: {} } as never);
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('networkInterfaceSetState POSTs the interface state change', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkInterfaceSetState('eth0', { state: 'up' });
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toMatch(/POST|PUT/);
+  });
+
+  it('networkLeasePin POSTs the pin body', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkLeasePin({ mac: 'aa:bb', ip: '10.0.0.5' });
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toMatch(/POST|PUT/);
+  });
+
+  it('networkLeaseDelete DELETEs a lease', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkLeaseDelete('lease-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
+  });
+
+  it('networkPeerAdd POSTs peer config', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkPeerAdd({ peerId: 'p1' } as never);
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('networkPeerConnect POSTs connect', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkPeerConnect('p1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('networkPeerDisconnect DELETEs the peer tunnel', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkPeerDisconnect('p1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
+  });
+
+  it('networkPeerRemove DELETEs a peer', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkPeerRemove('p1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
+  });
+
+  it('networkPolicyAdd POSTs a policy rule', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkPolicyAdd({ hostPattern: '*.x' } as never);
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('networkPolicyUpdate POSTs an update', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkPolicyUpdate('r-1', { allow: true } as never);
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toMatch(/POST|PUT/);
+  });
+
+  it('networkPolicyDelete DELETEs a policy', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkPolicyDelete('r-1');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
+  });
+
+  it('networkRoutes GETs the routes endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkRoutes();
+    expect(fetchMock.mock.calls[0]![0]).toContain('route');
+  });
+
+  it('networkSettingPut PUTs settings key + value', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkSettingPut('wan.mtu', '1500');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('PUT');
+  });
 });
