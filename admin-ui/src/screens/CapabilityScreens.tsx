@@ -2105,12 +2105,21 @@ export function CapReferralHistory(): JSX.Element {
   const accepted = rows.filter((r) => r.status === 'ACCEPTED').length;
   const dismissed = rows.filter((r) => r.status === 'DISMISSED').length;
   const pending = rows.filter((r) => r.status === 'PENDING').length;
+  const tone: 'muted' | 'info' | 'warning' = rows.length === 0
+    ? 'muted'
+    : pending > 0
+      ? 'warning'
+      : 'info';
   return (
     <div className="ea-screen" data-test="cap-ref-history">
       <SyncStatusBar
-        tone={rows.length === 0 ? 'muted' : 'info'}
+        tone={tone}
         title="Referral history"
-        statusLabel={`${rows.length} total`}
+        statusLabel={rows.length === 0
+          ? 'None received'
+          : pending > 0
+            ? `${pending} pending · ${rows.length} total`
+            : `${accepted} accepted · ${dismissed} dismissed`}
         subtitle={
           <>
             <span>Every referral this edge has received.</span>
@@ -2121,6 +2130,27 @@ export function CapReferralHistory(): JSX.Element {
             <span>·</span>
             <span>Pending <strong style={{ color: 'var(--der-ink-900)' }}>{pending}</strong></span>
           </>
+        }
+        actions={
+          pending > 0
+            ? (
+              <Link to="/referral/inbox"
+                    className="ea-btn ea-btn--primary ea-btn--sm"
+                    data-cross-module="Data"
+                    data-test="ref-hist-open-inbox">
+                <UiIcon icon="referral" size={14} />
+                <span>Handle pending ({pending})</span>
+              </Link>
+            )
+            : (
+              <Link to="/referral/inbox"
+                    className="ea-btn ea-btn--ghost ea-btn--sm"
+                    data-cross-module="Data"
+                    data-test="ref-hist-open-inbox">
+                <UiIcon icon="referral" size={14} />
+                <span>Inbox</span>
+              </Link>
+            )
         }
       />
       {rows.length === 0 ? (
@@ -2146,12 +2176,14 @@ function ReferralHistoryTable(
         </tr></thead>
         <tbody>
           {paged.rows.map((r) => (
-            <tr key={r.inboxId}>
+            <tr key={r.inboxId} data-test={`ref-hist-row-${r.inboxId}`}>
               <td className="ea-text-muted"
                   title={r.discoveredAt}>{new Date(r.discoveredAt).toLocaleString()}</td>
-              <td><span className="ea-chip ea-chip--info" title={r.kind}>{humaniseState(r.kind)}</span></td>
+              <td data-test={`ref-hist-kind-${r.inboxId}`}>
+                <Status tone="info" title={r.kind}>{humaniseState(r.kind)}</Status>
+              </td>
               <td className="ea-mono">{r.sourceRef}</td>
-              <td>
+              <td data-test={`ref-hist-status-${r.inboxId}`}>
                 <Status tone={
                   r.status === 'ACCEPTED' ? 'success'
                   : r.status === 'DISMISSED' ? 'muted' : 'warning'} title={r.status}>
@@ -2960,19 +2992,30 @@ export function CapMaintenance(): JSX.Element {
         tone={busy ? 'warning' : 'muted'}
         title="Maintenance"
         statusLabel={busy ?? 'Idle'}
-        subtitle={
-          <span>
-            One-off operator actions covering every scheduled job plus
-            backup trigger. Prefer the dedicated{' '}
-            <Link to="/sync" data-cross-module="admin">Sync</Link> and{' '}
-            <Link to="/sync/history" data-cross-module="admin">Sync history</Link> pages
-            for routine operations and live run status.
-          </span>
+        subtitle="One-off operator actions covering every scheduled job plus backup triggers.  Prefer the dedicated Sync + Sync history pages for routine runs and live status."
+        actions={
+          <>
+            <Link to="/sync"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Sync"
+                  data-test="maint-open-sync">
+              <UiIcon icon="overview" size={14} />
+              <span>Sync</span>
+            </Link>
+            <Link to="/sync/history"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Sync"
+                  data-test="maint-open-sync-history">
+              <UiIcon icon="history" size={14} />
+              <span>Sync history</span>
+            </Link>
+          </>
         }
       />
 
       {msg && (
-        <p className="ea-saved" data-test="maint-msg">{msg}</p>
+        <div className="ea-callout ea-callout--success"
+             data-test="maint-msg" role="status">{msg}</div>
       )}
       {err && (
         <ErrorBlock title="Maintenance action failed" testId="err-action-failed">

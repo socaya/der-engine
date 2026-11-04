@@ -307,6 +307,39 @@ describe('CapReferralHistory (loaded)', () => {
       expect(screen.getByTestId('err-referral-load-failed'))
         .toBeInTheDocument());
   });
+
+  it('pending referrals surface the primary \'Handle pending\' cross-link', async () => {
+    vi.spyOn(edgeApi, 'listReferralInbox').mockResolvedValue({
+      entries: [
+        { inboxId: 'ib-c', kind: 'EVENT', sourceRef: 'ev-3',
+          boundOrgUnit: 'ou-1', discoveredAt: '2026-11-03T08:00:00Z',
+          status: 'PENDING' },
+      ],
+    } as unknown as { entries: edgeApi.ReferralInboxRow[] });
+    renderWithProviders(<CapReferralHistory />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('ref-hist-open-inbox'))
+        .toBeInTheDocument());
+    expect(screen.getByTestId('ref-hist-open-inbox')).toHaveTextContent('Handle pending (1)');
+    /* Per-row kind column renders as Status chip (title-cased). */
+    expect(screen.getByTestId('ref-hist-kind-ib-c')).toHaveTextContent('Event');
+  });
+
+  it('no pending referrals downgrade the Inbox link to a ghost action', async () => {
+    vi.spyOn(edgeApi, 'listReferralInbox').mockResolvedValue({
+      entries: [
+        { inboxId: 'ib-a', kind: 'TRACKED_ENTITY', sourceRef: 'tei-1',
+          boundOrgUnit: 'ou-1', discoveredAt: '2026-11-03T10:00:00Z',
+          status: 'ACCEPTED' },
+      ],
+    } as unknown as { entries: edgeApi.ReferralInboxRow[] });
+    renderWithProviders(<CapReferralHistory />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('ref-hist-open-inbox')).toBeInTheDocument());
+    /* Not a primary-tone button now — just 'Inbox'. */
+    expect(screen.getByTestId('ref-hist-open-inbox').className).toContain('ea-btn--ghost');
+    expect(screen.getByTestId('ref-hist-open-inbox')).toHaveTextContent('Inbox');
+  });
 });
 
 describe('CapMetadataSync (loaded)', () => {
