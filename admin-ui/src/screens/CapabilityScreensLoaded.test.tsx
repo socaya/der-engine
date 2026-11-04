@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
 import {
   CapSyncHistory, CapDataQueues, CapWorkflowRuns,
+  CapStepAssignments, CapReferralHistory, CapMetadataSync,
 } from './CapabilityScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -205,5 +206,157 @@ describe('CapWorkflowRuns (loaded)', () => {
     renderWithProviders(<CapWorkflowRuns />, { authApi });
     await waitFor(() => expect(screen.getByTestId('err-runs-load-failed'))
       .toBeInTheDocument());
+  });
+});
+
+describe('CapStepAssignments (loaded)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('populated workflows + steps render the Assignments panel', async () => {
+    vi.spyOn(edgeApi, 'listWorkflows').mockResolvedValue({
+      workflows: [
+        { workflowId: 'wf-a', displayName: 'ANC visit',
+          boundMetadataKind: 'DATA_SET', boundMetadataId: 'ds-a',
+          enabled: true, version: 1, createdAt: 'now', updatedAt: 'now',
+          createdBy: null, requiresApproval: false, defaultDeviceId: null,
+          dependencies: [],
+          steps: [
+            { ordinal: 1, displayName: 'Register',
+              ownerRole: 'DATA_ENTRY', stepKind: 'CAPTURE',
+              ownerDeviceId: null },
+            { ordinal: 2, displayName: 'Review',
+              ownerRole: 'DATA_SUPERVISOR', stepKind: 'APPROVE',
+              ownerDeviceId: 'dev-abcdefgh-ij' },
+          ],
+        },
+      ],
+    } as unknown as { workflows: edgeApi.CaptureWorkflowSummary[] });
+    renderWithProviders(<CapStepAssignments />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-assignments')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/Register/);
+    expect(body).toMatch(/Review/);
+    expect(body).toMatch(/dev-abcd/);
+  });
+
+  it('empty workflow list surfaces the \'No steps defined\' empty-state', async () => {
+    vi.spyOn(edgeApi, 'listWorkflows').mockResolvedValue({ workflows: [] });
+    renderWithProviders(<CapStepAssignments />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('empty-no-workflows-defined'))
+        .toBeInTheDocument());
+  });
+
+  it('listWorkflows rejection surfaces ErrorBlock', async () => {
+    vi.spyOn(edgeApi, 'listWorkflows').mockRejectedValue(new Error('boom'));
+    renderWithProviders(<CapStepAssignments />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-workflow-load-failed'))
+        .toBeInTheDocument());
+  });
+});
+
+describe('CapReferralHistory (loaded)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('populated referrals render per-row status-tone arms', async () => {
+    vi.spyOn(edgeApi, 'listReferralInbox').mockResolvedValue({
+      entries: [
+        { inboxId: 'ib-a', kind: 'TRACKED_ENTITY', sourceRef: 'tei-1',
+          boundOrgUnit: 'ou-1', discoveredAt: '2026-11-03T10:00:00Z',
+          status: 'ACCEPTED' },
+        { inboxId: 'ib-b', kind: 'ENROLLMENT', sourceRef: 'enr-2',
+          boundOrgUnit: 'ou-1', discoveredAt: '2026-11-03T09:00:00Z',
+          status: 'DISMISSED' },
+        { inboxId: 'ib-c', kind: 'EVENT', sourceRef: 'ev-3',
+          boundOrgUnit: 'ou-1', discoveredAt: '2026-11-03T08:00:00Z',
+          status: 'PENDING' },
+      ],
+    } as unknown as { entries: edgeApi.ReferralInboxRow[] });
+    renderWithProviders(<CapReferralHistory />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-ref-history')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/tei-1/);
+    expect(body).toMatch(/enr-2/);
+    expect(body).toMatch(/ev-3/);
+    expect(body).toMatch(/Accepted/);
+  });
+
+  it('empty inbox surfaces \'No referrals yet\'', async () => {
+    vi.spyOn(edgeApi, 'listReferralInbox').mockResolvedValue({ entries: [] });
+    renderWithProviders(<CapReferralHistory />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('empty-no-referrals-yet'))
+        .toBeInTheDocument());
+  });
+
+  it('listReferralInbox rejection surfaces ErrorBlock', async () => {
+    vi.spyOn(edgeApi, 'listReferralInbox').mockRejectedValue(new Error('500'));
+    renderWithProviders(<CapReferralHistory />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-referral-load-failed'))
+        .toBeInTheDocument());
+  });
+});
+
+describe('CapMetadataSync (loaded)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const sysInfoOK = {
+    runtime: { heapUsedBytes: 1, heapMaxBytes: 100, uptimeMillis: 1 },
+    database: { configured: true, sessionCount: 0 },
+    scheduler: { started: true, executingJobs: 0, totalJobs: 1 },
+    storage: { totalBytes: 1, usableBytes: 1 },
+    dhis2: { configured: true, probeReachable: true,
+             baseUrl: 'x', centralVersion: '2.44',
+             probeDurationMs: 100 },
+    build: { version: '1', commit: 'a', branch: 'main',
+             buildTime: 'now', dirty: false },
+    apps: { installed: 0, enabled: 0, items: [] },
+  } as unknown as edgeApi.SystemInfo;
+
+  it('history + sysInfo populate Recent pulls table + lastOk → success tone', async () => {
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([
+      { runId: 10, jobName: 'METADATA_SYNC_FULL', outcome: 'SUCCEEDED',
+        startedAt: '2026-11-03T10:00:00Z',
+        finishedAt: '2026-11-03T10:01:00Z', durationMs: 60_000,
+        triggeredBy: 'SCHEDULED', detail: '{}' },
+      { runId: 11, jobName: 'METADATA_SYNC_FULL', outcome: 'FAILED',
+        startedAt: '2026-11-03T09:00:00Z',
+        finishedAt: '2026-11-03T09:00:10Z', durationMs: 10_000,
+        triggeredBy: 'MANUAL', detail: '{}' },
+    ] as edgeApi.JobRun[]);
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(sysInfoOK);
+    renderWithProviders(<CapMetadataSync />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-metadata-sync')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/Succeeded|Failed/));
+    expect(screen.getByTestId('trigger-run')).toBeInTheDocument();
+  });
+
+  it('empty history surfaces \'Never run on this edge\'', async () => {
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([] as edgeApi.JobRun[]);
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(sysInfoOK);
+    renderWithProviders(<CapMetadataSync />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/Never run on this edge/));
+  });
+
+  it('central unreachable renders the offline-first hint', async () => {
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([] as edgeApi.JobRun[]);
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
+      ...sysInfoOK,
+      dhis2: { ...(sysInfoOK.dhis2 as object), probeReachable: false } as never,
+    });
+    renderWithProviders(<CapMetadataSync />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '')
+        .toMatch(/Central DHIS2 is unavailable right now/));
   });
 });
