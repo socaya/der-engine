@@ -127,6 +127,11 @@ run_step "structure"                        python3 scripts/check_structure.py
 # ----- server --------------------------------------------------------------
 run_step "server-verify" bash -c "cd server && ./mvnw -q -Dder.dependency-check.skip=true verify"
 
+# NFR-23 — one-way package-separation guard. Rejects workflows → web,
+# metadata → workflows, security → web, dhis2 → workflows imports
+# outside the documented allowlist.
+run_step "server-separation-lint" bash scripts/lint/check_server_separation.sh
+
 # Collect server coverage report into the evidence bundle.
 if [[ -d server/target/site/jacoco ]]; then
   cp -R server/target/site/jacoco "${COV_DIR}/server/jacoco"
