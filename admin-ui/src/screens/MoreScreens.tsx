@@ -2322,7 +2322,10 @@ export function MockupSiteConfig(): JSX.Element {
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
             <thead><tr>
-              <th>Setting</th><th>Value</th><th style={{ width: 120 }}></th>
+              <th>Setting</th><th>Value</th>
+              <th style={{ width: 120 }}>
+                <span className="ea-visually-hidden">Actions</span>
+              </th>
             </tr></thead>
             <tbody>
               {entries.map(([k, current]) => {
@@ -2350,6 +2353,7 @@ export function MockupSiteConfig(): JSX.Element {
                       <input className="ea-input ea-mono" type="text"
                              style={{ width: '100%', fontSize: 12 }}
                              value={next}
+                             aria-label={`Value for ${meta.label}`}
                              data-test={`site-input-${k}`}
                              onChange={(e) => setDraft(
                                (d) => ({ ...d, [k]: e.target.value }))} />
@@ -2506,6 +2510,7 @@ export function MockupUserScope(): JSX.Element {
                         onChange={(e) => setQuery(e.target.value)} />
                  <select className="ea-input" style={{ maxWidth: 160 }}
                          value={filterRole}
+                         aria-label="Filter users by role"
                          data-test="user-scope-role-filter"
                          onChange={(e) => setFilterRole(e.target.value)}>
                    <option value="ALL">All roles</option>
@@ -2886,7 +2891,10 @@ export function MockupConfigEditor(): JSX.Element {
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
             <thead><tr>
-              <th>Key</th><th>Value</th><th style={{ width: 120 }}></th>
+              <th>Key</th><th>Value</th>
+              <th style={{ width: 120 }}>
+                <span className="ea-visually-hidden">Actions</span>
+              </th>
             </tr></thead>
             <tbody>
               {entries.map(([k, current]) => {
@@ -2900,6 +2908,7 @@ export function MockupConfigEditor(): JSX.Element {
                       <input className="ea-input ea-mono" type="text"
                              style={{ width: '100%', fontSize: 12 }}
                              value={next}
+                             aria-label={`Value for ${k}`}
                              data-test={`config-input-${k}`}
                              onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))} />
                     </td>
