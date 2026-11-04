@@ -60,17 +60,15 @@ describe('CapSyncHistory (loaded)', () => {
     renderWithProviders(<CapSyncHistory />, { authApi });
     await waitFor(() => expect(screen.getByTestId('cap-sync-history'))
       .toBeInTheDocument());
-    /* Each outcome string appears in both a filter chip and a
-     * table cell, so there are multiple matches. getAllByText
-     * accommodates both. */
-    expect(screen.getAllByText('SUCCEEDED').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('FAILED').length).toBeGreaterThan(0);
+    /* Outcome Status chips render title-cased labels. */
+    expect(screen.getAllByText('Succeeded').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Failed').length).toBeGreaterThan(0);
     expect(screen.getByText('SKIPPED')).toBeInTheDocument();
     /* durationMs=null → em-dash. */
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
-  it('filter chips narrow to the matching outcome, empty state when no matches', async () => {
+  it('outcome select narrows to the matching runs, empty state when no matches', async () => {
     stubJobs([
       { runId: 1, jobName: 'J1', outcome: 'SUCCEEDED',
         startedAt: 'now', finishedAt: 'now', durationMs: 1,
@@ -80,12 +78,12 @@ describe('CapSyncHistory (loaded)', () => {
     await waitFor(() => expect(screen.getByTestId('cap-sync-history'))
       .toBeInTheDocument());
     const user = userEvent.setup();
-    /* Click the FAILED chip — no runs match → empty-state. */
-    await user.click(screen.getByRole('button', { name: 'FAILED' }));
+    /* Filter to FAILED — no runs match → empty-state. */
+    await user.selectOptions(screen.getByTestId('cap-sync-history-filter'), 'FAILED');
     await waitFor(() => expect(screen.getByTestId('empty-no-runs-match'))
       .toBeInTheDocument());
     /* Back to ALL — the row returns. */
-    await user.click(screen.getByRole('button', { name: 'ALL' }));
+    await user.selectOptions(screen.getByTestId('cap-sync-history-filter'), 'ALL');
     await waitFor(() => expect(screen.getByText('J1')).toBeInTheDocument());
   });
 

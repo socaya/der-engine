@@ -882,37 +882,102 @@ export function CapSyncOverview(): JSX.Element {
   const succeeded = jobs?.filter((j) => j.outcome === 'SUCCEEDED').length ?? 0;
   const failed = jobs?.filter((j) => j.outcome === 'FAILED').length ?? 0;
   const backlog = w ? Object.values(w.backlog).reduce((a, b) => a + b, 0) : 0;
+
+  const tone: 'success' | 'info' | 'warning' | 'danger' | 'muted' = failed > 0
+    ? 'danger'
+    : backlog >= 100
+      ? 'warning'
+      : backlog > 0
+        ? 'info'
+        : jobs == null
+          ? 'muted'
+          : 'success';
+  const statusLabel = jobs == null
+    ? 'Loading'
+    : failed > 0
+      ? `${failed} failed run${failed === 1 ? '' : 's'}`
+      : backlog > 0
+        ? `${backlog} queued op${backlog === 1 ? '' : 's'}`
+        : 'Healthy';
+
   return (
     <div className="ea-screen" data-test="cap-sync-overview">
-      <HeroHeader title="Sync overview" subtitle="Live state of integration workers across this edge." />
+      <SyncStatusBar
+        tone={tone}
+        title="Sync overview"
+        statusLabel={statusLabel}
+        subtitle="Live state of the integration workers on this edge.  Scheduler job outcomes, journal backlog, and the latest metadata drift fingerprints at a glance."
+        actions={
+          <>
+            <Link to="/sync/history"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Sync"
+                  data-test="cap-sync-overview-open-history">
+              <UiIcon icon="history" size={14} />
+              <span>Full history</span>
+            </Link>
+            <Link to="/sync/worker"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Sync"
+                  data-test="cap-sync-overview-open-worker">
+              <UiIcon icon="worker" size={14} />
+              <span>Worker</span>
+            </Link>
+          </>
+        }
+      />
       {err && <ErrorBlock title="Partial load" testId="err-partial-load">{err}</ErrorBlock>}
-      <div className="ea-stat-strip">
-        <Stat label="Runs (last 50)" value={jobs?.length ?? 0} />
-        <Stat label="Succeeded" value={succeeded} tone="success" />
-        <Stat label="Failed" value={failed} tone={failed ? 'danger' : 'muted'} />
-        <Stat label="Journal backlog" value={backlog}
-              tone={backlog === 0 ? 'success' : backlog < 100 ? 'info' : 'danger'} />
-      </div>
-      <section className="ea-card ea-form-card">
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>Jump to</h2>
-            <p>Deep-dive into the specific sync surfaces.</p>
-          </div>
-          <div className="ea-tile-grid">
-            <LinkTile to="/sync/jobs" title="Jobs & history" desc="Last scheduled runs and their outcomes." />
-            <LinkTile to="/sync/drift" title="Metadata drift" desc="Compare mirrored metadata against central." />
-            <LinkTile to="/journal/conflicts" title="Conflicts" desc="Operations awaiting a reviewer decision." />
-            <LinkTile to="/journal/worker" title="Worker health" desc="Backlog by state and pause / resume." />
-          </div>
+
+      <Panel title="At a glance">
+        <div className="ea-stat-strip">
+          <Stat label="Runs (last 50)" value={jobs?.length ?? 0} />
+          <Stat label="Succeeded" value={succeeded} tone="success" />
+          <Stat label="Failed" value={failed} tone={failed ? 'danger' : 'muted'} />
+          <Stat label="Journal backlog" value={backlog}
+                tone={backlog === 0 ? 'success' : backlog < 100 ? 'info' : 'danger'} />
         </div>
-      </section>
+      </Panel>
+
+      <Panel title="Jump to"
+             action={
+               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                 Deep-dive into the specific sync surfaces
+               </span>
+             }>
+        <div className="ea-tile-grid">
+          <LinkTile to="/sync/history" title="Jobs &amp; history" desc="Last scheduled runs and their outcomes." />
+          <LinkTile to="/sync/drift" title="Metadata drift" desc="Compare mirrored metadata against central." />
+          <LinkTile to="/sync/attention" title="Attention" desc="Operations awaiting a reviewer decision." />
+          <LinkTile to="/sync/worker" title="Worker health" desc="Backlog by state and pause / resume." />
+        </div>
+      </Panel>
+
       {d && (
-        <DefinitionCard title="Drift at a glance" rows={[
-          ['Status', d.status ?? '—'],
-          ['Mirror fingerprint', <span key="f" className="ea-mono">{d.fingerprintFrom ?? '—'}</span>],
-          ['Central fingerprint', <span key="t" className="ea-mono">{d.fingerprintTo ?? '—'}</span>],
-        ]} />
+        <Panel title="Drift at a glance"
+               action={
+                 <span data-test="cap-sync-overview-drift-chip">
+                   {d.status === 'ok' || d.status === null
+                     ? <Status tone="success">In sync</Status>
+                     : d.status === 'drift'
+                       ? <Status tone="warning">Drift detected</Status>
+                       : <Status tone="muted">{d.status ?? 'Unknown'}</Status>}
+                 </span>
+               }>
+          <dl className="ea-def-list" data-test="cap-sync-overview-drift">
+            <div className="ea-def-row">
+              <dt>Status</dt>
+              <dd>{d.status ?? '—'}</dd>
+            </div>
+            <div className="ea-def-row">
+              <dt>Mirror fingerprint</dt>
+              <dd className="ea-mono">{d.fingerprintFrom ?? '—'}</dd>
+            </div>
+            <div className="ea-def-row">
+              <dt>Central fingerprint</dt>
+              <dd className="ea-mono">{d.fingerprintTo ?? '—'}</dd>
+            </div>
+          </dl>
+        </Panel>
       )}
     </div>
   );
@@ -929,41 +994,101 @@ export function CapSyncHistory(): JSX.Element {
   if (err) return <ErrorBlock title="History load failed" testId="err-history-load-failed">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
   const filtered = filter === 'ALL' ? rows : rows.filter((r) => r.outcome === filter);
+  const succeeded = rows.filter((r) => r.outcome === 'SUCCEEDED').length;
+  const failed = rows.filter((r) => r.outcome === 'FAILED').length;
+  const running = rows.length - succeeded - failed;
+
+  const tone: 'success' | 'warning' | 'danger' | 'info' | 'muted' = failed > 0
+    ? 'danger'
+    : running > 0
+      ? 'info'
+      : rows.length === 0
+        ? 'muted'
+        : 'success';
+  const statusLabel = rows.length === 0
+    ? 'No runs'
+    : failed > 0
+      ? `${failed} failed · ${succeeded} succeeded`
+      : `${succeeded} succeeded · ${running} running`;
+
   return (
     <div className="ea-screen" data-test="cap-sync-history">
-      <HeroHeader title="Sync history" subtitle="All recorded scheduler runs on this edge." />
-      <div className="ea-filter-chips" role="group" aria-label="Outcome filter">
-        {(['ALL', 'SUCCEEDED', 'FAILED'] as const).map((f) => (
-          <button key={f} type="button"
-                  className={'ea-filter-chip' + (filter === f ? ' ea-filter-chip--active' : '')}
-                  onClick={() => setFilter(f)}>
-            {f}
-          </button>
-        ))}
-      </div>
-      {filtered.length === 0 ? (
-        <EmptyBlock title="No runs match" testId="empty-no-runs-match">Change the filter to see other runs.</EmptyBlock>
-      ) : (
-        <section className="ea-card">
+      <SyncStatusBar
+        tone={tone}
+        title="Sync history"
+        statusLabel={statusLabel}
+        subtitle="Every scheduler run recorded on this edge (last 100).  Succeeded / Failed / Running shown as tone-coded Status chips; click through a failed row to inspect the outcome payload."
+        actions={
+          <>
+            <Link to="/sync"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Sync"
+                  data-test="cap-sync-history-open-overview">
+              <UiIcon icon="overview" size={14} />
+              <span>Overview</span>
+            </Link>
+            <Link to="/sync/schedule"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Sync"
+                  data-test="cap-sync-history-open-schedule">
+              <UiIcon icon="schedule" size={14} />
+              <span>Schedule</span>
+            </Link>
+          </>
+        }
+      />
+
+      <Panel title={`Runs (${filtered.length}${filter === 'ALL' ? '' : ' of ' + rows.length})`}
+             action={
+               <select aria-label="Filter runs by outcome"
+                       data-test="cap-sync-history-filter"
+                       value={filter}
+                       onChange={(e) => setFilter(e.target.value as typeof filter)}
+                       className="ea-input"
+                       style={{ width: 140 }}>
+                 <option value="ALL">All outcomes</option>
+                 <option value="SUCCEEDED">Succeeded</option>
+                 <option value="FAILED">Failed</option>
+               </select>
+             }>
+        {filtered.length === 0 ? (
+          <EmptyBlock title={rows.length === 0 ? 'No runs recorded' : 'No runs match the filter'}
+                      testId="empty-no-runs-match">
+            {rows.length === 0
+              ? 'The scheduler has not run any jobs yet on this edge.'
+              : 'Change the outcome filter to see other runs.'}
+          </EmptyBlock>
+        ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table"><thead><tr>
-              <th>Started</th><th>Job</th><th>Outcome</th><th>Duration</th><th>Triggered by</th>
-            </tr></thead><tbody>
-              {filtered.map((r) => (
-                <tr key={r.runId}>
-                  <td className="ea-mono">{r.startedAt}</td>
-                  <td>{r.jobName}</td>
-                  <td><span className={'ea-chip ea-chip--' +
-                      (r.outcome === 'SUCCEEDED' ? 'success'
-                        : r.outcome === 'FAILED' ? 'danger' : 'info')}>{r.outcome}</span></td>
-                  <td>{r.durationMs != null ? fmtDur(r.durationMs) : '—'}</td>
-                  <td>{r.triggeredBy}</td>
-                </tr>
-              ))}
-            </tbody></table>
+            <table className="ea-table ea-table--dense" data-test="cap-sync-history-table">
+              <thead><tr>
+                <th>Started</th>
+                <th>Job</th>
+                <th style={{ width: 130 }}>Outcome</th>
+                <th style={{ width: 100 }}>Duration</th>
+                <th>Triggered by</th>
+              </tr></thead>
+              <tbody>
+                {filtered.map((r) => (
+                  <tr key={r.runId} data-test={`cap-sync-history-row-${r.runId}`}>
+                    <td className="ea-mono">{r.startedAt}</td>
+                    <td>{r.jobName}</td>
+                    <td data-test={`cap-sync-history-outcome-${r.runId}`}>
+                      {r.outcome === 'SUCCEEDED'
+                        ? <Status tone="success">Succeeded</Status>
+                        : r.outcome === 'FAILED'
+                          ? <Status tone="danger">Failed</Status>
+                          : <Status tone="info">{r.outcome}</Status>}
+                    </td>
+                    <td>{r.durationMs != null ? fmtDur(r.durationMs) : '—'}</td>
+                    <td className="ea-text-muted">{r.triggeredBy}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </section>
-      )}
+        )}
+      </Panel>
     </div>
   );
 }
@@ -979,36 +1104,96 @@ export function CapDataQueues(): JSX.Element {
   if (!w) return <LoadingBlock testId="loading" />;
   const entries = Object.entries(w.backlog);
   const total = entries.reduce((a, [, v]) => a + v, 0);
+  const failed = w.backlog.FAILED ?? 0;
+
+  const tone: 'success' | 'warning' | 'danger' | 'info' | 'muted' = failed > 0
+    ? 'danger'
+    : !w.enabled
+      ? 'warning'
+      : total >= 100
+        ? 'warning'
+        : total > 0
+          ? 'info'
+          : 'success';
+  const statusLabel = !w.enabled
+    ? 'Worker paused'
+    : failed > 0
+      ? `${failed} FAILED · ${total} total`
+      : total === 0
+        ? 'Journal empty'
+        : `${total} op${total === 1 ? '' : 's'} pending`;
+
   return (
     <div className="ea-screen" data-test="cap-queues">
-      <HeroHeader title="Data queues" subtitle="Journal backlog by state." />
-      <div className="ea-stat-strip">
-        <Stat label="Worker" value={w.enabled ? 'RUNNING' : 'PAUSED'}
-              tone={w.enabled ? 'success' : 'muted'} />
-        <Stat label="Total backlog" value={total}
-              tone={total === 0 ? 'success' : total < 100 ? 'info' : 'danger'} />
-        <Stat label="Last tick" value={w.lastTick ?? '—'} />
-        <Stat label="Last batch" value={w.lastBatchSize} />
-      </div>
-      {entries.length === 0 ? (
-        <EmptyBlock title="Journal empty" testId="empty-journal-empty">Nothing pending in any state.</EmptyBlock>
-      ) : (
-        <section className="ea-card">
+      <SyncStatusBar
+        tone={tone}
+        title="Data queues"
+        statusLabel={statusLabel}
+        subtitle="Journal backlog broken down by state.  PENDING ops are waiting on a worker tick; FAILED ops need operator attention and will show up on /sync/attention."
+        actions={
+          <>
+            <Link to="/sync/worker"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Sync"
+                  data-test="cap-queues-open-worker">
+              <UiIcon icon="worker" size={14} />
+              <span>Worker</span>
+            </Link>
+            {failed > 0 && (
+              <Link to="/sync/attention"
+                    className="ea-btn ea-btn--ghost ea-btn--sm"
+                    data-cross-module="Sync"
+                    data-test="cap-queues-open-attention">
+                <UiIcon icon="attention" size={14} />
+                <span>Attention queue</span>
+              </Link>
+            )}
+          </>
+        }
+      />
+
+      <Panel title="Worker state">
+        <div className="ea-stat-strip">
+          <Stat label="Worker" value={w.enabled ? 'RUNNING' : 'PAUSED'}
+                tone={w.enabled ? 'success' : 'muted'} />
+          <Stat label="Total backlog" value={total}
+                tone={total === 0 ? 'success' : total < 100 ? 'info' : 'danger'} />
+          <Stat label="Last tick" value={w.lastTick ?? '—'} />
+          <Stat label="Last batch" value={w.lastBatchSize} />
+        </div>
+      </Panel>
+
+      <Panel title="Backlog by state">
+        {entries.length === 0 ? (
+          <EmptyBlock title="Journal empty" testId="empty-journal-empty">
+            Nothing pending in any state.
+          </EmptyBlock>
+        ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table"><thead><tr>
-              <th>State</th><th>Operations</th>
-            </tr></thead><tbody>
-              {entries.map(([k, v]) => (
-                <tr key={k}>
-                  <td><span className={'ea-chip ea-chip--' +
-                      (k === 'PENDING' ? 'info' : k === 'FAILED' ? 'danger' : 'success')}>{k}</span></td>
-                  <td className="ea-mono">{v}</td>
-                </tr>
-              ))}
-            </tbody></table>
+            <table className="ea-table ea-table--dense"
+                   data-test="cap-queues-backlog">
+              <thead><tr>
+                <th style={{ width: 140 }}>State</th>
+                <th style={{ textAlign: 'right' }}>Operations</th>
+              </tr></thead>
+              <tbody>
+                {entries.map(([k, v]) => (
+                  <tr key={k} data-test={`cap-queues-row-${k}`}>
+                    <td>
+                      {k === 'FAILED'
+                        ? <Status tone="danger">FAILED</Status>
+                        : k === 'PENDING'
+                          ? <Status tone="info">PENDING</Status>
+                          : <Status tone="success">{k}</Status>}
+                    </td>
+                    <td className="ea-mono" style={{ textAlign: 'right' }}>{v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </section>
-      )}
+        )}
+      </Panel>
     </div>
   );
 }
