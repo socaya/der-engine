@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { NAV_GROUPS, groupForRoute, type NavGroup } from '../app/navigation';
 import { NavIcon } from './NavIcon';
 import { SectionTabs } from './SectionTabs';
+import { ClockDriftBanner } from './ClockDriftBanner';
 import { OnboardingTour } from '../screens/OnboardingTour';
 import { useOrgUnit } from './OrgUnitContext';
 import * as edgeApi from '../api/edgeApi';
@@ -378,6 +379,11 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
           )}
         </div>
       </header>
+
+      {/* NFR-28: surface unsafe clock drift + time-zone mismatch above
+         the main content so operators see it on every page. Silent
+         no-op when the clocks agree. */}
+      {!onSignIn && <ClockDriftBanner />}
 
       <main id="ea-main" className="ea-main" data-der-app="admin-ui" tabIndex={-1}>
         <div className="ea-main-inner">

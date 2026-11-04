@@ -1366,6 +1366,39 @@ export function backupPitrWal(): Promise<WalSummary> {
   return request('GET', '/edge-api/v1/backup/pitr/wal');
 }
 
+/** NFR-28 — Clock-drift probe + report.
+ *
+ *  The server exposes its epoch-millis + time zone on GET, and accepts
+ *  a drift report via POST. A drift > unsafeDriftMillis (60s) triggers
+ *  a CLOCK_DRIFT_WARN audit event on the server. The UI polls on load
+ *  and renders a global banner when the delta is unsafe. */
+export interface ClockProbeResponse {
+  serverTime: string;
+  serverEpochMillis: number;
+  serverTimeZone: string;
+  systemTimeZone: string;
+  unsafeDriftMillis: number;
+  note: string;
+}
+
+export interface ClockReportResponse {
+  driftMillis: number;
+  unsafe: boolean;
+  serverEpochMillis: number;
+  unsafeDriftMillis: number;
+}
+
+export function clockProbe(): Promise<ClockProbeResponse> {
+  return request('GET', '/edge-api/v1/admin/metrics/clock');
+}
+
+export function clockReport(body: {
+  callerEpochMillis: number;
+  callerTimeZone?: string;
+}): Promise<ClockReportResponse> {
+  return request('POST', '/edge-api/v1/admin/metrics/clock/report', body);
+}
+
 /** FR-01-10 — Decommissioning.
  *
  *  Terminal. Disables every other user, requests a final FULL backup

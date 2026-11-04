@@ -4,19 +4,25 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import ug.ac.mak.der.security.EdgeUserRepository;
+import ug.ac.mak.der.security.AuditEvent;
+import ug.ac.mak.der.security.EdgeUserPrincipal;
+import ug.ac.mak.der.security.SecurityAuditRepository;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 
@@ -27,21 +33,35 @@ import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 @RestController
 @RequestMapping(path = "/edge-api/v1/admin/metrics",
         produces = MediaType.APPLICATION_JSON_VALUE)
-@ConditionalOnBean(EdgeUserRepository.class)
 public class OperatorMetricsController {
 
+    /** NFR-28: drift above this threshold is "unsafe" — emits an audit
+     *  event and surfaces to the operator in-UI. 60s matches the
+     *  tolerance Central DHIS2 allows on pushed submissions. */
+    static final long UNSAFE_DRIFT_MILLIS = 60_000L;
+
     private final ObjectProvider<OperationJournalRepository> journal;
+    private final SecurityAuditRepository audit;
     private final Clock clock;
 
     public OperatorMetricsController(final ObjectProvider<OperationJournalRepository> journal,
+                                      final SecurityAuditRepository audit,
                                       final Clock clock) {
         this.journal = Objects.requireNonNull(journal, "journal");
+        this.audit = Objects.requireNonNull(audit, "audit");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     /**
-     * FR-14-10 / NFR-28: clock drift probe. Caller compares
-     * `serverEpochMillis` against its local clock.
+     * FR-14-10 / NFR-28: clock + time-zone probe.
+     *
+     * <p>Response discloses both the server's current instant (so the
+     * caller can compute drift) and its configured time zone + the
+     * operating-system time-zone ID (so the caller can detect a
+     * mis-configured JVM that's running in UTC while the host is on
+     * Africa/Kampala). ADR-0003: DER documents these as the two
+     * authoritative time sources — operators should not depend on
+     * either their browser's clock or the DHIS2 Central clock.</p>
      */
     @GetMapping("/clock")
     public ResponseEntity<Map<String, Object>> clockProbe() {
@@ -49,9 +69,55 @@ public class OperatorMetricsController {
         return ResponseEntity.ok(Map.of(
                 "serverTime", now.toString(),
                 "serverEpochMillis", now.toEpochMilli(),
+                "serverTimeZone", clock.getZone().getId(),
+                "systemTimeZone", ZoneId.systemDefault().getId(),
+                "unsafeDriftMillis", UNSAFE_DRIFT_MILLIS,
                 "note", "Caller computes drift = abs(serverEpochMillis - callerEpochMillis). "
-                        + "DER emits a WARN audit event when drift exceeds 60s."));
+                        + "Report drift > unsafeDriftMillis via POST /clock/report."));
     }
+
+    /**
+     * NFR-28: drift-report sink. Caller POSTs its local epoch-millis
+     * (+ optional time-zone) and the server records a CLOCK_DRIFT_WARN
+     * audit event when the absolute drift exceeds UNSAFE_DRIFT_MILLIS.
+     * Benign drift (within tolerance) succeeds silently so the UI can
+     * ping this endpoint on page load without filling the audit log.
+     */
+    @PostMapping(path = "/clock/report", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> clockReport(
+            final Authentication authentication,
+            @RequestBody(required = false) final ClockReport body) {
+        if (body == null || body.callerEpochMillis() == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "CLOCK_REPORT_INVALID",
+                    "message", "callerEpochMillis is required"));
+        }
+        final long serverMs = Instant.now(clock).toEpochMilli();
+        final long drift = Math.abs(serverMs - body.callerEpochMillis());
+        final boolean unsafe = drift > UNSAFE_DRIFT_MILLIS;
+        if (unsafe && authentication instanceof EdgeUserPrincipal principal) {
+            final Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("driftMillis", String.valueOf(drift));
+            detail.put("serverEpochMillis", String.valueOf(serverMs));
+            detail.put("callerEpochMillis", String.valueOf(body.callerEpochMillis()));
+            if (body.callerTimeZone() != null) {
+                detail.put("callerTimeZone", body.callerTimeZone());
+            }
+            audit.append(new AuditEvent("CLOCK_DRIFT_WARN",
+                    AuditEvent.Outcome.SUCCESS, principal.userId(), null, null, null,
+                    detail),
+                    Instant.now(clock));
+        }
+        return ResponseEntity.ok(Map.of(
+                "driftMillis", drift,
+                "unsafe", unsafe,
+                "serverEpochMillis", serverMs,
+                "unsafeDriftMillis", UNSAFE_DRIFT_MILLIS));
+    }
+
+    public record ClockReport(
+            @JsonProperty("callerEpochMillis") Long callerEpochMillis,
+            @JsonProperty("callerTimeZone") String callerTimeZone) { }
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> metrics() {
