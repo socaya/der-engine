@@ -172,6 +172,87 @@ describe('DataTracker', () => {
     expect(screen.getByTestId('data-tracker')).toBeInTheDocument();
   });
 
+  /* Helper: fill a MetadataPicker. MetadataPicker only updates its
+   * parent's `value` via onChange(id) when a dropdown row is clicked,
+   * so typing alone doesn't suffice. Stub metadataList with matching
+   * rows + click the option. */
+  async function fillPicker(
+    user: ReturnType<typeof userEvent.setup>,
+    testId: string, resource: string, id: string, displayName: string,
+  ): Promise<void> {
+    vi.mocked(edgeApi.metadataList).mockResolvedValue({
+      resource, [resource]: [{ id, displayName, href: '/x' }],
+      serverTotal: 1,
+    } as never);
+    const input = screen.getByTestId(testId);
+    await user.click(input);
+    await waitFor(() =>
+      expect(screen.getByText(displayName)).toBeInTheDocument());
+    await user.click(screen.getByText(displayName));
+  }
+
+  it('Pull-from-Central dialog — submit happy path renders imported chip', async () => {
+    vi.spyOn(edgeApi, 'pullTrackerFromCentral').mockResolvedValue({
+      teis: 5, enrolments: 3, events: 7, errors: 0,
+      runId: 'wfr-pulled-tracker',
+    } as unknown as edgeApi.PullTrackerResult);
+    renderWithProviders(<DataTracker />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-tracker')).toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('data-tracker-pull-open'));
+    await fillPicker(user, 'pull-tracker-program', 'programs',
+                      'PROG-1', 'Immunization');
+    await fillPicker(user, 'pull-tracker-orgunit', 'organisationUnits',
+                      'OU-1', 'Clinic One');
+    const submit = screen.getByTestId('pull-tracker-submit');
+    await waitFor(() => expect(submit).not.toBeDisabled());
+    await user.click(submit);
+    await waitFor(() =>
+      expect(screen.getByTestId('pull-tracker-result'))
+        .toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/TEI/);
+  });
+
+  it('Pull-from-Central dialog — rejection surfaces error label', async () => {
+    vi.spyOn(edgeApi, 'pullTrackerFromCentral').mockRejectedValue(
+      new Error('central-unreachable'));
+    renderWithProviders(<DataTracker />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-tracker')).toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('data-tracker-pull-open'));
+    await fillPicker(user, 'pull-tracker-program', 'programs',
+                      'PROG-1', 'Immunization');
+    await fillPicker(user, 'pull-tracker-orgunit', 'organisationUnits',
+                      'OU-1', 'Clinic One');
+    await user.click(screen.getByTestId('pull-tracker-submit'));
+    await waitFor(() =>
+      expect(screen.getByTestId('pull-tracker-error'))
+        .toBeInTheDocument());
+  });
+
+  it('Pull-from-Central dialog — errors>0 branch surfaces the warning line', async () => {
+    vi.spyOn(edgeApi, 'pullTrackerFromCentral').mockResolvedValue({
+      teis: 2, enrolments: 1, events: 0, errors: 3,
+      runId: 'wfr-partial',
+    } as unknown as edgeApi.PullTrackerResult);
+    renderWithProviders(<DataTracker />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-tracker')).toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('data-tracker-pull-open'));
+    await fillPicker(user, 'pull-tracker-program', 'programs',
+                      'PROG-1', 'Immunization');
+    await fillPicker(user, 'pull-tracker-orgunit', 'organisationUnits',
+                      'OU-1', 'Clinic One');
+    await user.click(screen.getByTestId('pull-tracker-submit'));
+    await waitFor(() =>
+      expect(screen.getByTestId('pull-tracker-result'))
+        .toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/skipped/);
+  });
+
   it('Lineage button opens the payload-lineage drawer', async () => {
     renderWithProviders(<DataTracker />);
     await waitFor(() =>
