@@ -135,4 +135,60 @@ describe('MockupUsersDashboard', () => {
      * strongest signal for the row-render path. */
     expect(screen.getAllByText(/unmapped/i).length).toBeGreaterThan(0);
   });
+
+  it('?role= deep-link filters the list to users holding that role', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [
+        userFixture({ userId: 'u-1', username: 'nurse.alice', roles: ['OPERATOR'] }),
+        userFixture({ userId: 'u-2', username: 'der-admin', roles: ['ADMIN'] }),
+      ],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    renderWithProviders(<MockupUsersDashboard />, { authApi,
+      route: '/provisioning/users?role=ADMIN' });
+    await waitFor(() => expect(screen.getByText('der-admin'))
+      .toBeInTheDocument());
+    /* Operator-only user must be filtered out. */
+    expect(screen.queryByText('nurse.alice')).toBeNull();
+    /* ScopedFilterChip renders the active scope. */
+    expect(screen.getByTestId('scoped-filter-chip'))
+      .toHaveTextContent('role = ADMIN');
+  });
+
+  it('?role= is case-insensitive so custom role names round-trip', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [
+        userFixture({ userId: 'u-c', username: 'clerk.one',
+          roles: ['Clinical nurses'] as unknown as ProvisionedUser['roles'] }),
+        userFixture({ userId: 'u-a', username: 'der-admin', roles: ['ADMIN'] }),
+      ],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    renderWithProviders(<MockupUsersDashboard />, { authApi,
+      route: '/provisioning/users?role=clinical%20nurses' });
+    await waitFor(() => expect(screen.getByText('clerk.one'))
+      .toBeInTheDocument());
+    expect(screen.queryByText('der-admin')).toBeNull();
+  });
+
+  it('?mapped=no deep-link filters to users without a DHIS2 mapping', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [
+        userFixture({ userId: 'u-m', username: 'mapped.user' }),
+        userFixture({ userId: 'u-u', username: 'unmapped.user' }),
+      ],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
+      { edgeUserId: 'u-m', dhis2UserUid: 'UID-A', dhis2Username: 'mapped.c',
+        dhis2DisplayName: 'Mapped Central', mappedAt: 'now', mappedBy: 'admin',
+        lastVerifiedAt: null },
+    ]);
+    renderWithProviders(<MockupUsersDashboard />, { authApi,
+      route: '/provisioning/users?mapped=no' });
+    await waitFor(() => expect(screen.getByText('unmapped.user'))
+      .toBeInTheDocument());
+    expect(screen.queryByText('mapped.user')).toBeNull();
+    expect(screen.getByTestId('scoped-filter-chip'))
+      .toHaveTextContent('not mapped to DHIS2');
+  });
 });

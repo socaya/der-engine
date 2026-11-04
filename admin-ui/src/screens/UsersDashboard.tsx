@@ -1,16 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
   Panel, Dot, fmtDate, usePaged, TablePager,
-  SyncStatusBar, humaniseState, RowMenu, BackLink,
+  SyncStatusBar, humaniseState, RowMenu, BackLink, ScopedFilterChip,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
-/** `/admin/provisioning/users` — Users dashboard. */
+/** `/admin/provisioning/users` — Users dashboard.
+ *
+ *  Deep-link filters (support cross-module nav from the role catalogue
+ *  + DHIS2 mappings screen):
+ *    ?role=<ADMIN|OPERATOR|…|custom-role-name>  — filter by role grant
+ *    ?mapped=yes|no                             — filter by DHIS2 mapping state
+ */
 export function MockupUsersDashboard(): JSX.Element {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const roleFilter = searchParams.get('role');
+  const mappedFilter = searchParams.get('mapped'); // 'yes' | 'no' | null
   const [users, setUsers] = useState<edgeApi.ProvisionedUser[] | null>(null);
   /* Fold the DHIS2 mapping table in so the mapping column reflects
    * live state instead of a hard-coded "Unmapped". Non-fatal: if the
@@ -29,12 +38,30 @@ export function MockupUsersDashboard(): JSX.Element {
     }).catch(() => undefined);
   }, []);
 
+  function clearScopedFilters(): void {
+    const next = new URLSearchParams(searchParams);
+    next.delete('role');
+    next.delete('mapped');
+    setSearchParams(next, { replace: true });
+  }
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const base = users ?? [];
+    let base = users ?? [];
+    if (roleFilter) {
+      /* Case-insensitive match so both built-in enum keys (ADMIN) and
+       * custom role names (e.g. "Clinical nurses") route cleanly. */
+      const r = roleFilter.toLowerCase();
+      base = base.filter((u) => u.roles.some((x) => x.toLowerCase() === r));
+    }
+    if (mappedFilter === 'yes') {
+      base = base.filter((u) => mappings[u.userId] != null);
+    } else if (mappedFilter === 'no') {
+      base = base.filter((u) => mappings[u.userId] == null);
+    }
     return q ? base.filter((u) => u.username.toLowerCase().includes(q)
       || u.displayName.toLowerCase().includes(q)) : base;
-  }, [users, query]);
+  }, [users, mappings, query, roleFilter, mappedFilter]);
 
   const paged = usePaged(filtered, 50);
 
@@ -96,6 +123,19 @@ export function MockupUsersDashboard(): JSX.Element {
           </>
         }
       />
+
+      {(roleFilter || mappedFilter) && (
+        <ScopedFilterChip
+          label={[
+            roleFilter ? `role = ${roleFilter}` : null,
+            mappedFilter === 'yes' ? 'mapped to DHIS2' : null,
+            mappedFilter === 'no' ? 'not mapped to DHIS2' : null,
+          ].filter(Boolean).join(' · ')}
+          openTo={roleFilter ? '/access/roles' : '/access/dhis2-mappings'}
+          openLabel={roleFilter ? 'Open roles catalogue' : 'Open DHIS2 mappings'}
+          onClear={clearScopedFilters}
+        />
+      )}
 
       <Panel title={`${filtered.length} user${filtered.length === 1 ? '' : 's'}`}
              action={
