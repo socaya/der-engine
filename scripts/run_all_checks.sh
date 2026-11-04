@@ -132,6 +132,11 @@ run_step "server-verify" bash -c "cd server && ./mvnw -q -Dder.dependency-check.
 # outside the documented allowlist.
 run_step "server-separation-lint" bash scripts/lint/check_server_separation.sh
 
+# FR-01-08 / FR-01-09 — install/upgrade/rollback state-machine smoke.
+# Dummy tarballs in a tempdir; no systemd, no running DER. Verifies
+# idempotency, symlink flips, sha256 verification, rollback audit.
+run_step "deploy-lifecycle-smoke" bash scripts/deploy/_test_install_lifecycle.sh
+
 # Collect server coverage report into the evidence bundle.
 if [[ -d server/target/site/jacoco ]]; then
   cp -R server/target/site/jacoco "${COV_DIR}/server/jacoco"
