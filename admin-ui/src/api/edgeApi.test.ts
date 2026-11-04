@@ -819,4 +819,180 @@ describe('edgeApi wrappers — batch coverage', () => {
     await api.readAllUserPrefs();
     expect(fetchMock.mock.calls[0]![0]).toContain('pref');
   });
+
+  it('messagingStats GETs the stats endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.messagingStats();
+    expect(fetchMock.mock.calls[0]![0]).toContain('messaging');
+  });
+
+  it('messagingLog GETs the log endpoint with limit', async () => {
+    fetchMock.mockResolvedValue(respond(200, { messages: [] }));
+    await api.messagingLog(50);
+    expect(fetchMock.mock.calls[0]![0]).toContain('messaging');
+  });
+
+  it('messagingSubscriptions GETs the subscriptions endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { subscriptions: [] }));
+    await api.messagingSubscriptions();
+    expect(fetchMock.mock.calls[0]![0]).toContain('subscri');
+  });
+
+  it('messagingPublish POSTs the message body', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.messagingPublish({
+      channel: 'broadcast',
+      fromDeviceId: 'd-1',
+      messageType: 'STOCK',
+      payload: { ok: true },
+    });
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string))
+      .toMatchObject({ channel: 'broadcast' });
+  });
+
+  it('messagingUnsubscribe DELETEs the subscription', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.messagingUnsubscribe('d-1', 'broadcast');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
+  });
+
+  it('messagingKeys GETs the keys endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { keys: [] }));
+    await api.messagingKeys();
+    expect(fetchMock.mock.calls[0]![0]).toContain('key');
+  });
+
+  it('messagingDocuments GETs the docs endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { documents: [] }));
+    await api.messagingDocuments();
+    expect(fetchMock.mock.calls[0]![0]).toContain('doc');
+  });
+
+  it('messagingForwards GETs the forwards endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { forwards: [] }));
+    await api.messagingForwards(10);
+    expect(fetchMock.mock.calls[0]![0]).toContain('forward');
+  });
+
+  it('messagingStreamStats GETs the stream stats endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.messagingStreamStats();
+    expect(fetchMock.mock.calls[0]![0]).toContain('stream');
+  });
+
+  it('networkLeases GETs the leases endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { leases: [] }));
+    await api.networkLeases();
+    expect(fetchMock.mock.calls[0]![0]).toContain('lease');
+  });
+
+  it('networkEnrolTokens GETs tokens endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { tokens: [] }));
+    await api.networkEnrolTokens();
+    expect(fetchMock.mock.calls[0]![0]).toContain('token');
+  });
+
+  it('networkPolicy GETs the policy endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkPolicy();
+    expect(fetchMock.mock.calls[0]![0]).toContain('polic');
+  });
+
+  it('networkCa GETs the CA endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkCa();
+    expect(fetchMock.mock.calls[0]![0]).toContain('ca');
+  });
+
+  it('networkTls GETs the TLS endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkTls();
+    expect(fetchMock.mock.calls[0]![0]).toContain('tls');
+  });
+
+  it('networkMdns GETs the mDNS endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkMdns();
+    expect(fetchMock.mock.calls[0]![0]).toContain('mdns');
+  });
+
+  it('networkSettings GETs the settings endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkSettings();
+    expect(fetchMock.mock.calls[0]![0]).toContain('setting');
+  });
+
+  it('networkExport GETs the export endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkExport();
+    expect(fetchMock.mock.calls[0]![0]).toContain('export');
+  });
+
+  it('listWorkflowContributions GETs the contributions endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { rows: [] }));
+    await api.listWorkflowContributions('wf-1');
+    expect(fetchMock.mock.calls[0]![0]).toContain('wf-1');
+  });
+
+  it('getWorkflowMetrics GETs the metrics endpoint with window hours', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.getWorkflowMetrics(48);
+    expect(fetchMock.mock.calls[0]![0]).toContain('metrics');
+  });
+
+  it('listPrefetchPending GETs the prefetch pending endpoint for a device', async () => {
+    fetchMock.mockResolvedValue(respond(200, { deviceId: 'd-1', rows: [] }));
+    await api.listPrefetchPending('d-1');
+    expect(fetchMock.mock.calls[0]![0]).toContain('d-1');
+  });
+
+  it('getWorkflowActivityFeed GETs the activity feed', async () => {
+    fetchMock.mockResolvedValue(respond(200, { entries: [] }));
+    await api.getWorkflowActivityFeed();
+    expect(fetchMock.mock.calls[0]![0]).toContain('activit');
+  });
+
+  it('getWorkflowBlockages GETs the blockages endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { entries: [] }));
+    await api.getWorkflowBlockages();
+    expect(fetchMock.mock.calls[0]![0]).toContain('block');
+  });
+
+  it('getWorkflowIssues GETs the issues endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { issues: [] }));
+    await api.getWorkflowIssues();
+    expect(fetchMock.mock.calls[0]![0]).toContain('issue');
+  });
+
+  it('getWorkflowConflicts GETs the conflicts endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { conflicts: [] }));
+    await api.getWorkflowConflicts();
+    expect(fetchMock.mock.calls[0]![0]).toContain('conflict');
+  });
+
+  it('getWorkflowDrafts GETs the workflow drafts endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { drafts: [] }));
+    await api.getWorkflowDrafts();
+    expect(fetchMock.mock.calls[0]![0]).toContain('draft');
+  });
+
+  it('workflowQueue GETs the queue endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { rows: [] }));
+    await api.workflowQueue();
+    expect(fetchMock.mock.calls[0]![0]).toContain('queue');
+  });
+
+  it('getWorkflowActivitySummary GETs the summary endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.getWorkflowActivitySummary();
+    expect(fetchMock.mock.calls[0]![0]).toContain('summary');
+  });
+
+  it('exportWorkflow GETs the export endpoint for a workflowId', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.exportWorkflow('wf-1');
+    expect(fetchMock.mock.calls[0]![0]).toContain('wf-1');
+  });
 });
