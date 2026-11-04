@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { HeroHeader } from '../../components/HeroHeader';
-import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { EmptyBlock, ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { Panel, Status, SyncStatusBar } from '../shared';
+import { UiIcon } from '../../components/UiIcon';
 
 /**
  * §2.3.38 — operator reviews incoming workflow pushes from peers.
@@ -103,30 +105,78 @@ export function WorkflowImportInbox({ api = edgeApi, embedded = false }:
   if (entries == null) {
     return <LoadingBlock testId="inbox-loading" />;
   }
+  const pendingCount = entries.filter((e) => e.status === 'PENDING').length;
+  const acceptedCount = entries.filter((e) => e.status === 'ACCEPTED').length;
+  const rejectedCount = entries.filter((e) => e.status === 'REJECTED').length;
+  const tone: 'success' | 'info' | 'warning' | 'muted' = pendingCount > 0
+    ? 'warning'
+    : entries.length === 0
+      ? 'muted'
+      : 'success';
+  const statusLabel = pendingCount > 0
+    ? `${pendingCount} pending review`
+    : entries.length === 0
+      ? 'Nothing here'
+      : `${acceptedCount} accepted · ${rejectedCount} rejected`;
+
+  const tabs = (
+    <div className="ea-queue-tabs" data-test="inbox-tabs" role="tablist">
+      {(['PENDING', 'ACCEPTED', 'REJECTED', 'ALL'] as const).map((v) => (
+        <button key={v} type="button"
+                 className={'ea-queue-tab'
+                   + (filter === v ? ' is-active' : '')}
+                 data-test={`inbox-tab-${v.toLowerCase()}`}
+                 onClick={() => setFilter(v)}>
+          {v.charAt(0) + v.slice(1).toLowerCase()}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="ea-screen" data-test="inbox-root">
-      {!embedded && <HeroHeader title="Import inbox" />}
+      {!embedded && (
+        <SyncStatusBar
+          tone={tone}
+          title="Import inbox"
+          statusLabel={statusLabel}
+          subtitle="Workflow definitions pushed to this edge from peer edges.  Review each payload (the Review button shows the diff against the current catalogue), then Accept to import or Reject with an optional note."
+          actions={
+            <>
+              <Link to="/workflows/peers"
+                    className="ea-btn ea-btn--ghost ea-btn--sm"
+                    data-cross-module="Workflows"
+                    data-test="inbox-open-peers">
+                <UiIcon icon="peer" size={14} />
+                <span>Peers</span>
+              </Link>
+              <Link to="/workflows"
+                    className="ea-btn ea-btn--ghost ea-btn--sm"
+                    data-cross-module="Workflows"
+                    data-test="inbox-open-activity">
+                <UiIcon icon="overview" size={14} />
+                <span>Activity</span>
+              </Link>
+            </>
+          }
+        />
+      )}
       <h1 className="ea-visually-hidden" data-test="inbox-heading">Import inbox</h1>
 
-      <div className="ea-queue-tabs" data-test="inbox-tabs">
-        {(['PENDING', 'ACCEPTED', 'REJECTED', 'ALL'] as const).map((v) => (
-          <button key={v} type="button"
-                   className={'ea-queue-tab'
-                     + (filter === v ? ' is-active' : '')}
-                   data-test={`inbox-tab-${v.toLowerCase()}`}
-                   onClick={() => setFilter(v)}>
-            {v.charAt(0) + v.slice(1).toLowerCase()}
-          </button>
-        ))}
-      </div>
+      {lastResult && (
+        <div className="ea-callout ea-callout--success"
+             data-test="inbox-last-result" role="status">{lastResult}</div>
+      )}
 
-      {entries.length === 0 ? (
-        <p className="ea-text-muted" data-test="inbox-empty"
-            style={{ margin: 0 }}>
-          No entries at this filter.
-        </p>
-      ) : (
-        <table className="ea-table ea-table--dense" data-test="inbox-table">
+      <Panel title={`Entries (${entries.length})`}
+             action={tabs}>
+        {entries.length === 0 ? (
+          <EmptyBlock title="Nothing here" testId="inbox-empty">
+            No entries at the <strong>{filter.toLowerCase()}</strong> filter.
+          </EmptyBlock>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense" data-test="inbox-table">
           <thead>
             <tr>
               <th>Workflow</th>
@@ -150,13 +200,12 @@ export function WorkflowImportInbox({ api = edgeApi, embedded = false }:
                 <td className="ea-mono" style={{ fontSize: 12 }}>
                   {e.boundKind}:{e.boundId}
                 </td>
-                <td>
-                  <span className={'ea-chip ea-chip--'
-                    + (e.status === 'ACCEPTED' ? 'success'
-                    : e.status === 'REJECTED' ? 'danger'
-                    : 'neutral')}>
-                    {e.status}
-                  </span>
+                <td data-test={`inbox-row-${e.importId}-status`}>
+                  {e.status === 'ACCEPTED'
+                    ? <Status tone="success">Accepted</Status>
+                    : e.status === 'REJECTED'
+                      ? <Status tone="danger">Rejected</Status>
+                      : <Status tone="info">Pending</Status>}
                 </td>
                 <td>
                   {e.status === 'PENDING' ? (
@@ -211,13 +260,9 @@ export function WorkflowImportInbox({ api = edgeApi, embedded = false }:
             ].filter(Boolean))}
           </tbody>
         </table>
-      )}
-      {lastResult && (
-        <p className="ea-field-hint" data-test="inbox-last-result"
-            style={{ marginTop: 'var(--sp-2)' }}>
-          {lastResult}
-        </p>
-      )}
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }
