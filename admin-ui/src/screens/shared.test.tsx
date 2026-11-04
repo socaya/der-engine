@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import {
   fmtBytes, fmtDur, fmtAgo, fmtDate,
   humaniseJob, humaniseTrigger, humaniseState,
@@ -9,7 +10,9 @@ import {
   readOuContext, isInEdgeOrgUnitScope,
   metadataResourceForEntity, dataModuleRouteForEntity, dataModuleLabelForEntity,
   JOURNAL_ENTITY_TYPES,
+  LastPulledChip,
 } from './shared';
+import * as edgeApi from '../api/edgeApi';
 
 /* ────────────────────────────────────────────────────────────────
  * shared.tsx is the admin-ui's cross-cutting utility module (1738
@@ -319,5 +322,80 @@ describe('shared.metadataResourceForEntity + dataModuleRouteForEntity + dataModu
   it('dataModuleLabelForEntity returns a friendly label per known kind', () => {
     const label = dataModuleLabelForEntity('AGGREGATE_DATA_VALUE');
     expect(label === null || typeof label === 'string').toBe(true);
+  });
+});
+
+describe('LastPulledChip', () => {
+  it('no matching cursor → renders nothing', async () => {
+    vi.spyOn(edgeApi, 'fetchDataPullCursors').mockResolvedValue({
+      cursors: [],
+    } as never);
+    const { container } = render(<LastPulledChip entityType="AGGREGATE" />);
+    await waitFor(() => {
+      /* fetchDataPullCursors resolves → setRow(null) → returns null. */
+      expect(container.firstChild).toBeNull();
+    });
+  });
+
+  it('cursor with no lastPulledAt → renders nothing', async () => {
+    vi.spyOn(edgeApi, 'fetchDataPullCursors').mockResolvedValue({
+      cursors: [{ entityType: 'AGGREGATE', lastPulledAt: null,
+                   consecutiveFailures: 0, lastError: null }],
+    } as never);
+    const { container } = render(<LastPulledChip entityType="AGGREGATE" />);
+    /* fetchDataPullCursors resolves — microtask queue flushes. */
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('cursor with lastPulledAt + no failures → renders the "Last pulled" chip', async () => {
+    vi.spyOn(edgeApi, 'fetchDataPullCursors').mockResolvedValue({
+      cursors: [{ entityType: 'AGGREGATE',
+                   lastPulledAt: '2026-11-03T12:00:00Z',
+                   consecutiveFailures: 0, lastError: null }],
+    } as never);
+    render(<LastPulledChip entityType="AGGREGATE" />);
+    await waitFor(() =>
+      expect(screen.getByTestId('last-pulled-aggregate'))
+        .toBeInTheDocument());
+    expect(screen.getByText(/Last pulled/)).toBeInTheDocument();
+  });
+
+  it('cursor with failures → renders warning tone + failure count', async () => {
+    vi.spyOn(edgeApi, 'fetchDataPullCursors').mockResolvedValue({
+      cursors: [{ entityType: 'EVENT',
+                   lastPulledAt: '2026-11-03T12:00:00Z',
+                   consecutiveFailures: 3,
+                   lastError: 'central-unreachable' }],
+    } as never);
+    render(<LastPulledChip entityType="EVENT" />);
+    await waitFor(() =>
+      expect(screen.getByTestId('last-pulled-event'))
+        .toBeInTheDocument());
+    /* "3 failures" surfaces. */
+    expect(screen.getByText(/3 failures/)).toBeInTheDocument();
+  });
+
+  it('single failure uses singular "1 failure" label', async () => {
+    vi.spyOn(edgeApi, 'fetchDataPullCursors').mockResolvedValue({
+      cursors: [{ entityType: 'TRACKER',
+                   lastPulledAt: '2026-11-03T12:00:00Z',
+                   consecutiveFailures: 1,
+                   lastError: 'timeout' }],
+    } as never);
+    render(<LastPulledChip entityType="TRACKER" />);
+    await waitFor(() =>
+      expect(screen.getByText(/1 failure/)).toBeInTheDocument());
+    /* Not "failures" (plural). */
+    expect(screen.queryByText(/1 failures/)).toBeNull();
+  });
+
+  it('fetchDataPullCursors rejection is swallowed (no render)', async () => {
+    vi.spyOn(edgeApi, 'fetchDataPullCursors').mockRejectedValue(
+      new Error('cursors fetch fail'));
+    const { container } = render(<LastPulledChip entityType="AGGREGATE" />);
+    await new Promise((r) => setTimeout(r, 0));
+    /* Row stays null → nothing rendered. */
+    expect(container.firstChild).toBeNull();
   });
 });
