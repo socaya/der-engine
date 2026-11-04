@@ -21,6 +21,7 @@ import {
   MockupSupportBundle,
   MockupConfigEditor,
   MockupOperationalReport,
+  MockupUserScope,
 } from './MoreScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -989,6 +990,104 @@ describe('MoreScreens — surface mount test', () => {
     await waitFor(() =>
       expect(screen.getByTestId('err-ops-report')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/503 journal unavailable/);
+  });
+
+  it('MockupUserScope — FR-15-06 renders role matrix + stale-permission chip', async () => {
+    vi.spyOn(edgeApi, 'fetchUserScope').mockResolvedValue({
+      generatedAt: '2026-11-04T11:00:00Z',
+      users: [
+        /* Fresh ADMIN+OPERATOR: 6h old, not stale. */
+        { userId: 'u-admin', username: 'alice',
+          displayName: 'Alice Admin',
+          roles: ['ADMIN', 'OPERATOR'], origin: 'LOCAL',
+          disabled: false,
+          createdAt: '2026-10-01T00:00:00Z',
+          updatedAt: '2026-11-04T05:00:00Z',
+          permissionAgeHours: 6 },
+        /* VIEWER from DHIS2 with 200h old permission → stale. */
+        { userId: 'u-viewer', username: 'bob',
+          displayName: 'Bob Viewer',
+          roles: ['VIEWER'], origin: 'DHIS2',
+          disabled: false,
+          createdAt: '2026-10-01T00:00:00Z',
+          updatedAt: '2026-10-27T00:00:00Z',
+          permissionAgeHours: 200 },
+        /* Disabled + non-canonical role. */
+        { userId: 'u-dis', username: 'carol',
+          displayName: 'Carol Dis',
+          roles: ['ARCHIVIST'], origin: 'LOCAL',
+          disabled: true,
+          createdAt: '2026-10-01T00:00:00Z',
+          updatedAt: '2026-11-04T10:00:00Z',
+          permissionAgeHours: 1 },
+      ],
+    });
+    renderWithProviders(<MockupUserScope />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('user-scope')).toBeInTheDocument());
+    /* Alice has ADMIN + OPERATOR but not VIEWER. */
+    expect(screen.getByTestId('user-alice-ADMIN')).toHaveTextContent('✓');
+    expect(screen.getByTestId('user-alice-OPERATOR')).toHaveTextContent('✓');
+    expect(screen.getByTestId('user-alice-VIEWER')).toHaveTextContent('·');
+    /* Bob has only VIEWER + is stale (200h > 168h threshold). */
+    expect(screen.getByTestId('user-bob-VIEWER')).toHaveTextContent('✓');
+    expect(screen.getByTestId('user-age-bob')).toHaveTextContent('200h');
+    /* Carol has none of the canonical roles — ARCHIVIST surfaces in
+     * "Other roles". */
+    expect(screen.getByTestId('user-carol-ADMIN')).toHaveTextContent('·');
+    expect(document.body.textContent ?? '').toMatch(/ARCHIVIST/);
+    /* Status bar reflects 2 active / 3 total + 1 stale. */
+    expect(document.body.textContent ?? '').toMatch(/2\/3 active/);
+    expect(document.body.textContent ?? '').toMatch(/1 stale/);
+  });
+
+  it('MockupUserScope — role filter prunes rows to selected role', async () => {
+    vi.spyOn(edgeApi, 'fetchUserScope').mockResolvedValue({
+      generatedAt: 'now',
+      users: [
+        { userId: 'u-a', username: 'alice', displayName: 'A',
+          roles: ['ADMIN'], origin: 'LOCAL', disabled: false,
+          createdAt: 'now', updatedAt: 'now', permissionAgeHours: 1 },
+        { userId: 'u-b', username: 'bob', displayName: 'B',
+          roles: ['VIEWER'], origin: 'LOCAL', disabled: false,
+          createdAt: 'now', updatedAt: 'now', permissionAgeHours: 1 },
+      ],
+    });
+    renderWithProviders(<MockupUserScope />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('user-row-alice')).toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.selectOptions(screen.getByTestId('user-scope-role-filter'), 'VIEWER');
+    await waitFor(() =>
+      expect(screen.queryByTestId('user-row-alice')).toBeNull());
+    expect(screen.getByTestId('user-row-bob')).toBeInTheDocument();
+  });
+
+  it('MockupUserScope — fetchUserScope rejection surfaces err-user-scope', async () => {
+    vi.spyOn(edgeApi, 'fetchUserScope')
+      .mockRejectedValue(new Error('403 ADMIN required'));
+    renderWithProviders(<MockupUserScope />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-user-scope')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/403 ADMIN required/);
+  });
+
+  it('MockupUserScope — search filter with no matches surfaces empty hint', async () => {
+    vi.spyOn(edgeApi, 'fetchUserScope').mockResolvedValue({
+      generatedAt: 'now',
+      users: [
+        { userId: 'u-a', username: 'alice', displayName: 'A',
+          roles: ['ADMIN'], origin: 'LOCAL', disabled: false,
+          createdAt: 'now', updatedAt: 'now', permissionAgeHours: 1 },
+      ],
+    });
+    renderWithProviders(<MockupUserScope />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('user-row-alice')).toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.type(screen.getByTestId('user-scope-search'), 'zzz-nope');
+    await waitFor(() =>
+      expect(screen.getByTestId('user-scope-empty')).toBeInTheDocument());
   });
 
   it('MockupOperationalReport — no records yet renders the empty jobs hint', async () => {

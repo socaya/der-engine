@@ -48,11 +48,20 @@ export function MockupUsersDashboard(): JSX.Element {
           </>
         }
         actions={
-          <Link to="/provisioning/users/new" className="ea-btn ea-btn--primary ea-btn--sm"
-                 data-cross-module="Access">
-            <UiIcon icon="plus" size={14} />
-            <span>Add user</span>
-          </Link>
+          <>
+            <Link to="/users/scope"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Access"
+                   data-test="users-open-scope">
+              <UiIcon icon="activity" size={14} />
+              <span>Scope viewer</span>
+            </Link>
+            <Link to="/provisioning/users/new" className="ea-btn ea-btn--primary ea-btn--sm"
+                   data-cross-module="Access">
+              <UiIcon icon="plus" size={14} />
+              <span>Add user</span>
+            </Link>
+          </>
         }
       />
 

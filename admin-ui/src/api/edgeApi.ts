@@ -1366,6 +1366,31 @@ export function backupPitrWal(): Promise<WalSummary> {
   return request('GET', '/edge-api/v1/backup/pitr/wal');
 }
 
+/** FR-15-06 — User scope viewer.
+ *
+ *  Richer shape than `/provisioning/users`: adds origin (LOCAL vs
+ *  DHIS2), disabled flag, createdAt/updatedAt, and permissionAgeHours
+ *  so ADMINs can spot permissions that haven't been refreshed from
+ *  Central lately. */
+export interface EdgeUserScopeRow {
+  userId: string;
+  username: string;
+  displayName: string;
+  roles: string[];
+  origin: string;
+  disabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  permissionAgeHours: number;
+}
+
+export function fetchUserScope(): Promise<{
+  users: EdgeUserScopeRow[];
+  generatedAt: string;
+}> {
+  return request('GET', '/edge-api/v1/admin/ops/users/scope');
+}
+
 /** FR-15-10 — Operational report: local-only vs. central-confirmed.
  *
  *  Driven by OperationsAdminController. The important guarantee is
