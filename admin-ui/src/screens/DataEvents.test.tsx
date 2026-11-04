@@ -176,6 +176,60 @@ describe('DataEvents', () => {
     expect(screen.getByTestId('data-events')).toBeInTheDocument();
   });
 
+  async function fillPicker(
+    user: ReturnType<typeof userEvent.setup>,
+    testId: string, resource: string, id: string, displayName: string,
+  ): Promise<void> {
+    vi.mocked(edgeApi.metadataList).mockResolvedValue({
+      resource, [resource]: [{ id, displayName, href: '/x' }],
+      serverTotal: 1,
+    } as never);
+    await user.click(screen.getByTestId(testId));
+    await waitFor(() =>
+      expect(screen.getByText(displayName)).toBeInTheDocument());
+    await user.click(screen.getByText(displayName));
+  }
+
+  it('Pull-from-Central dialog — submit happy path renders imported chip', async () => {
+    vi.spyOn(edgeApi, 'pullEventsFromCentral').mockResolvedValue({
+      imported: 7, ignored: 1, runId: 'wfr-pulled-events',
+    } as unknown as edgeApi.PullEventsResult);
+    renderWithProviders(<DataEvents />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-events')).toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('data-events-pull-open'));
+    await fillPicker(user, 'pull-events-program', 'programs',
+                      'PROG-X', 'ANC Visit Program');
+    await fillPicker(user, 'pull-events-orgunit', 'organisationUnits',
+                      'OU-X', 'Pilot Clinic');
+    const submit = screen.getByTestId('pull-events-submit');
+    await waitFor(() => expect(submit).not.toBeDisabled());
+    await user.click(submit);
+    await waitFor(() =>
+      expect(screen.getByTestId('pull-events-result'))
+        .toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/Imported/);
+  });
+
+  it('Pull-from-Central dialog — rejection surfaces error label', async () => {
+    vi.spyOn(edgeApi, 'pullEventsFromCentral').mockRejectedValue(
+      new Error('central-down'));
+    renderWithProviders(<DataEvents />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-events')).toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('data-events-pull-open'));
+    await fillPicker(user, 'pull-events-program', 'programs',
+                      'PROG-X', 'ANC Visit Program');
+    await fillPicker(user, 'pull-events-orgunit', 'organisationUnits',
+                      'OU-X', 'Pilot Clinic');
+    await user.click(screen.getByTestId('pull-events-submit'));
+    await waitFor(() =>
+      expect(screen.getByTestId('pull-events-error'))
+        .toBeInTheDocument());
+  });
+
   it('Lineage button on a row opens the lineage drawer', async () => {
     renderWithProviders(<DataEvents />);
     await waitFor(() =>
