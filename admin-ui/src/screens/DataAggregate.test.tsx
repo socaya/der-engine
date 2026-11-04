@@ -281,6 +281,62 @@ describe('DataAggregate', () => {
     expect(screen.getByTestId('pull-submit')).toBeDisabled();
   });
 
+  async function fillPicker(
+    user: ReturnType<typeof userEvent.setup>,
+    testId: string, resource: string, id: string, displayName: string,
+  ): Promise<void> {
+    vi.mocked(edgeApi.metadataList).mockResolvedValue({
+      resource, [resource]: [{ id, displayName, href: '/x' }],
+      serverTotal: 1,
+    } as never);
+    await user.click(screen.getByTestId(testId));
+    await waitFor(() =>
+      expect(screen.getByText(displayName)).toBeInTheDocument());
+    await user.click(screen.getByText(displayName));
+  }
+
+  it('Pull-from-Central dialog — submit happy path renders imported chip', async () => {
+    vi.spyOn(edgeApi, 'pullAggregateFromCentral').mockResolvedValue({
+      imported: 7, ignored: 2, runId: 'wfr-pulled-agg',
+    } as unknown as edgeApi.PullAggregateResult);
+    renderWithProviders(<DataAggregate />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-aggregate')).toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('data-aggregate-pull-open'));
+    await fillPicker(user, 'pull-dataset', 'dataSets',
+                      'DS-X', 'Monthly Immunisation Report');
+    await fillPicker(user, 'pull-orgunit', 'organisationUnits',
+                      'OU-X', 'Facility Alpha');
+    await user.type(screen.getByTestId('pull-period'), '202411');
+    const submit = screen.getByTestId('pull-submit');
+    await waitFor(() => expect(submit).not.toBeDisabled());
+    await user.click(submit);
+    await waitFor(() =>
+      expect(screen.getByTestId('pull-result'))
+        .toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/Imported/);
+  });
+
+  it('Pull-from-Central dialog — rejection surfaces error label', async () => {
+    vi.spyOn(edgeApi, 'pullAggregateFromCentral').mockRejectedValue(
+      new Error('agg-pull-fail'));
+    renderWithProviders(<DataAggregate />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-aggregate')).toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('data-aggregate-pull-open'));
+    await fillPicker(user, 'pull-dataset', 'dataSets',
+                      'DS-X', 'Weekly Report');
+    await fillPicker(user, 'pull-orgunit', 'organisationUnits',
+                      'OU-X', 'Facility Beta');
+    await user.type(screen.getByTestId('pull-period'), '202411');
+    await user.click(screen.getByTestId('pull-submit'));
+    await waitFor(() =>
+      expect(screen.getByTestId('pull-error'))
+        .toBeInTheDocument());
+  });
+
   it('Pull-from-Central dialog — period input setPeriod branch fires', async () => {
     renderWithProviders(<DataAggregate />);
     await waitFor(() =>
