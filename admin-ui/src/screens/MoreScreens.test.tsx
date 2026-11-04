@@ -523,6 +523,62 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/Failed to load/);
   });
 
+  it('MockupDeviceDetail — matched APPROVED device renders detail + Suspend action', async () => {
+    vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
+      devices: [
+        { deviceId: 'dev-approved-ab12cd34', status: 'APPROVED',
+          displayName: 'Clinic kiosk', formFactor: 'TABLET',
+          lastSeenAt: '2026-11-03T11:00:00Z', assignedUserId: null,
+          enrolmentTokenHash: 'h', enrolledAt: '2026-11-01T00:00:00Z',
+          approvedBy: 'admin', approvedAt: '2026-11-01T01:00:00Z',
+          userAgent: 'Mozilla/5.0', firmwareVersion: '1.0.0' },
+      ],
+    } as unknown as { devices: edgeApi.EdgeDeviceRow[] });
+    renderWithProviders(
+      <Routes><Route path="/admin/network/connected/:deviceId"
+                      element={<MockupDeviceDetail />} /></Routes>,
+      { authApi, route: '/admin/network/connected/dev-approved-ab12cd34' });
+    await waitFor(() =>
+      expect(screen.getByTestId('device-detail')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/Clinic kiosk/);
+    expect(body).toMatch(/APPROVED/);
+    expect(body).toMatch(/Mozilla\/5\.0/);
+    expect(screen.getByRole('button', { name: /Suspend/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Revoke/ })).toBeInTheDocument();
+  });
+
+  it('MockupDeviceDetail — PENDING device surfaces the Approve button', async () => {
+    vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
+      devices: [
+        { deviceId: 'dev-pending-xyzabc', status: 'PENDING',
+          displayName: null, formFactor: 'MOBILE',
+          lastSeenAt: null, assignedUserId: null,
+          enrolmentTokenHash: 'h', enrolledAt: '2026-11-03T10:00:00Z',
+          approvedBy: null, approvedAt: null, userAgent: null,
+          firmwareVersion: null },
+      ],
+    } as unknown as { devices: edgeApi.EdgeDeviceRow[] });
+    renderWithProviders(
+      <Routes><Route path="/admin/network/connected/:deviceId"
+                      element={<MockupDeviceDetail />} /></Routes>,
+      { authApi, route: '/admin/network/connected/dev-pending-xyzabc' });
+    await waitFor(() =>
+      expect(screen.getByTestId('device-detail')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /Approve/ })).toBeInTheDocument();
+  });
+
+  it('MockupDeviceDetail — listDevices rejection surfaces err-device-detail', async () => {
+    vi.spyOn(edgeApi, 'listDevices').mockRejectedValue(new Error('500 upstream'));
+    renderWithProviders(
+      <Routes><Route path="/admin/network/connected/:deviceId"
+                      element={<MockupDeviceDetail />} /></Routes>,
+      { authApi, route: '/admin/network/connected/dev-any' });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-device-detail')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/500 upstream/);
+  });
+
   it('MockupAuditEvents — ?category=network switches to networkEvents + filter pills', async () => {
     vi.spyOn(edgeApi, 'networkEvents').mockResolvedValue({
       events: [
