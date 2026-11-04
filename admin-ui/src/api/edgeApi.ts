@@ -1306,6 +1306,57 @@ export function clearUserDhis2Mapping(
     `/edge-api/v1/admin/users/${encodeURIComponent(edgeUserId)}/dhis2-mapping`);
 }
 
+/** Dynamic role catalogue (V086 + RoleManagementController).  Admin-only. */
+export interface EdgeRoleDefinition {
+  roleId: string;
+  name: string;
+  description: string | null;
+  builtin: boolean;
+  builtinKey: string | null;
+  authorities: string[];
+  userCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EdgeAuthorityEntry {
+  authority: string;
+  module: string;
+  description: string;
+}
+
+export function listRoles(): Promise<EdgeRoleDefinition[]> {
+  return request<{ roles: EdgeRoleDefinition[] }>(
+    'GET', '/edge-api/v1/admin/roles',
+  ).then((r) => r.roles ?? []);
+}
+
+export function listAuthorityCatalog(): Promise<EdgeAuthorityEntry[]> {
+  return request<{ authorities: EdgeAuthorityEntry[] }>(
+    'GET', '/edge-api/v1/admin/roles/authorities/catalog',
+  ).then((r) => r.authorities ?? []);
+}
+
+export function createRole(
+  body: { name: string; description?: string | null; authorities: string[] },
+): Promise<EdgeRoleDefinition> {
+  return request<EdgeRoleDefinition>(
+    'POST', '/edge-api/v1/admin/roles', body);
+}
+
+export function updateRole(
+  roleId: string,
+  body: { name?: string | null; description?: string | null; authorities: string[] },
+): Promise<EdgeRoleDefinition> {
+  return request<EdgeRoleDefinition>(
+    'PUT', `/edge-api/v1/admin/roles/${encodeURIComponent(roleId)}`, body);
+}
+
+export function deleteRole(roleId: string): Promise<{ deleted: boolean }> {
+  return request<{ deleted: boolean }>(
+    'DELETE', `/edge-api/v1/admin/roles/${encodeURIComponent(roleId)}`);
+}
+
 // ---- Admin-ui additions for EA-19..36 ----
 
 export interface InstalledAppRow {

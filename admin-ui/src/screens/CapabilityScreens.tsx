@@ -4,7 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, ScopedFilterChip, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status, useCentralReachable, RelatedMenu, LocalVsCentralBadge } from './shared';
+import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, ScopedFilterChip, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status, useCentralReachable, RelatedMenu, LocalVsCentralBadge, type RowMenuItem } from './shared';
 import { UiIcon } from '../components/UiIcon';
 
 /**
@@ -2845,82 +2845,62 @@ export function CapUserMappings(): JSX.Element {
  *  ADMINs can see what each role actually unlocks without digging
  *  through SecurityConfig. The role set is intentionally fixed per
  *  §role-matrix.md — no inline role creation. */
-const DER_ROLES: ReadonlyArray<{
-  id: string; label: string; desc: string;
-}> = [
-  { id: 'ADMIN', label: 'Admin',
-    desc: 'Full control: provisioning, sync, apps, settings, recovery, decommission.' },
-  { id: 'OPERATOR', label: 'Operator',
-    desc: 'Captures data on the device; reads own drafts and recent runs.' },
-  { id: 'VIEWER', label: 'Viewer',
-    desc: 'Read-only access to dashboards + reports; cannot capture or publish.' },
-  { id: 'REVIEWER', label: 'Reviewer',
-    desc: 'Reviews pending approvals and conflicts; cannot change settings.' },
-];
-
-/** Capability matrix — one row per operator-visible capability,
- *  mapping to the roles that hold it. Kept in sync with
- *  SecurityConfig.java + docs/security/role-capability-matrix.md. */
-const CAPABILITY_MATRIX: ReadonlyArray<{
-  capability: string; roles: ReadonlyArray<string>;
-}> = [
-  { capability: 'Capture records (aggregate / event / tracker)', roles: ['ADMIN', 'OPERATOR'] },
-  { capability: 'Publish own drafts',                            roles: ['ADMIN', 'OPERATOR'] },
-  { capability: 'Resolve conflicts + approvals',                 roles: ['ADMIN', 'REVIEWER'] },
-  { capability: 'Trigger scheduled jobs (metadata sync, drain)', roles: ['ADMIN'] },
-  { capability: 'Read dashboards + operational reports',         roles: ['ADMIN', 'OPERATOR', 'VIEWER', 'REVIEWER'] },
-  { capability: 'Edit site configuration',                       roles: ['ADMIN'] },
-  { capability: 'Manage users + DHIS2 mappings',                 roles: ['ADMIN'] },
-  { capability: 'Approve / revoke devices',                      roles: ['ADMIN'] },
-  { capability: 'Request + download backups',                    roles: ['ADMIN'] },
-  { capability: 'Decommission the edge',                         roles: ['ADMIN'] },
-];
+type RoleEditorState =
+  | { kind: 'closed' }
+  | { kind: 'create' }
+  | { kind: 'edit'; role: edgeApi.EdgeRoleDefinition };
 
 export function CapRoles(): JSX.Element {
-  const [users, setUsers] = useState<edgeApi.ProvisionedUser[] | null>(null);
+  const [roles, setRoles] = useState<edgeApi.EdgeRoleDefinition[] | null>(null);
+  const [catalog, setCatalog] = useState<edgeApi.EdgeAuthorityEntry[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [editor, setEditor] = useState<RoleEditorState>({ kind: 'closed' });
 
-  useEffect(() => {
-    edgeApi.listUsers()
-      .then((r) => setUsers(r.users))
+  const refresh = (): void => {
+    Promise.all([edgeApi.listRoles(), edgeApi.listAuthorityCatalog()])
+      .then(([r, c]) => { setRoles(r); setCatalog(c); })
       .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
-  }, []);
+  };
+  useEffect(() => { refresh(); }, []);
 
-  if (err && !users) {
+  if (err && !roles) {
     return <ErrorBlock title="Roles load failed"
                         testId="err-roles-load-failed">{err}</ErrorBlock>;
   }
-
-  const safeUsers = users ?? [];
-  const countsByRole: Record<string, number> = {};
-  for (const r of DER_ROLES) countsByRole[r.id] = 0;
-  for (const u of safeUsers) {
-    for (const r of u.roles) {
-      countsByRole[r] = (countsByRole[r] ?? 0) + 1;
-    }
+  if (roles == null || catalog == null) {
+    return <LoadingBlock testId="loading-roles" />;
   }
-  const unassignedRoles = DER_ROLES.filter((r) => countsByRole[r.id] === 0);
+
+  // Hide SYNC_WORKER from the grantable set (internal only).
+  const visible = roles.filter((r) => r.builtinKey !== 'SYNC_WORKER');
+  const assignedCount = visible.reduce((s, r) => s + r.userCount, 0);
+  const customCount = visible.filter((r) => !r.builtin).length;
+
+  // Group authority catalog by module for the editor.
+  const authoritiesByModule = new Map<string, edgeApi.EdgeAuthorityEntry[]>();
+  for (const a of catalog) {
+    const list = authoritiesByModule.get(a.module) ?? [];
+    list.push(a);
+    authoritiesByModule.set(a.module, list);
+  }
 
   return (
     <div className="ea-screen" data-test="cap-roles">
       <SyncStatusBar
-        tone={unassignedRoles.length > 0 ? 'muted' : 'info'}
-        title="Roles & permissions"
-        statusLabel={users == null ? 'Loading'
-          : `${DER_ROLES.length} roles · ${safeUsers.length} user${safeUsers.length === 1 ? '' : 's'}`}
-        subtitle={
-          <>
-            <span>Fixed role set shipped with this DER build. Role editing is intentionally disabled — grant + revoke by editing the user.</span>
-            {unassignedRoles.length > 0 && (<>
-              <span>·</span>
-              <span>Unassigned: <strong style={{ color: 'var(--der-ink-700)' }}>
-                {unassignedRoles.map((r) => r.id).join(', ')}
-              </strong></span>
-            </>)}
-          </>
-        }
+        tone={customCount > 0 ? 'info' : 'muted'}
+        title="Roles &amp; permissions"
+        statusLabel={`${visible.length} role${visible.length === 1 ? '' : 's'} · ${customCount} custom · ${assignedCount} grant${assignedCount === 1 ? '' : 's'}`}
+        subtitle="Roles are dynamic.  Each role bundles authorities from the DER authority catalogue; built-in roles cannot be renamed or deleted but their authority lists remain editable."
         actions={
           <>
+            <button type="button"
+                    className="ea-btn ea-btn--primary ea-btn--sm"
+                    data-test="cap-roles-new"
+                    onClick={() => { setSaveMsg(null); setEditor({ kind: 'create' }); }}>
+              <UiIcon icon="plus" size={14} />
+              <span>New role</span>
+            </button>
             <Link to="/provisioning/users"
                    className="ea-btn ea-btn--ghost ea-btn--sm"
                    data-cross-module="Access"
@@ -2928,105 +2908,276 @@ export function CapRoles(): JSX.Element {
               <UiIcon icon="edit" size={14} />
               <span>Manage users</span>
             </Link>
-            <Link to="/users/scope"
-                   className="ea-btn ea-btn--ghost ea-btn--sm"
-                   data-cross-module="Access"
-                   data-test="cap-roles-open-scope">
-              <UiIcon icon="activity" size={14} />
-              <span>Scope viewer</span>
-            </Link>
           </>
         }
       />
 
+      {saveMsg && (
+        <div className="ea-callout ea-callout--success"
+             data-test="cap-roles-save-msg"
+             role="status">{saveMsg}</div>
+      )}
+      {err && roles && (
+        <div className="ea-callout ea-callout--danger"
+             data-test="cap-roles-save-err"
+             role="alert">{err}</div>
+      )}
+
       <Panel title="Roles">
-        <div style={{ display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                      gap: 10 }}>
-          {DER_ROLES.map((r) => {
-            const n = countsByRole[r.id] ?? 0;
-            return (
-              <div key={r.id}
-                   data-test={`cap-roles-card-${r.id}`}
-                   style={{
-                     padding: '12px 14px',
-                     border: '1px solid var(--der-border-subtle)',
-                     borderRadius: 6,
-                     background: 'var(--der-surface, white)',
-                   }}>
-                <div style={{ display: 'flex', alignItems: 'center',
-                                gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                  <span className="ea-chip ea-chip--primary" title={r.id}>{r.label}</span>
-                  <span className="ea-mono ea-text-muted" style={{ fontSize: 10 }}>{r.id}</span>
-                  <span className={'ea-chip ea-chip--'
-                    + (n === 0 ? 'muted' : 'info')}
-                        data-test={`cap-roles-count-${r.id}`}
-                        style={{ marginLeft: 'auto' }}>
-                    {n} user{n === 1 ? '' : 's'}
-                  </span>
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--der-ink-700)', lineHeight: 1.5 }}>
-                  {r.desc}
-                </div>
-                {n > 0 && (
-                  <div style={{ marginTop: 8 }}>
-                    <Link to={`/users/scope?filter=${r.id}`}
-                           className="ea-link-btn"
-                           data-cross-module="Access"
-                           data-test={`cap-roles-view-${r.id}`}
-                           style={{ fontSize: 12 }}>
-                      View {r.label.toLowerCase()}s →
-                    </Link>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        {visible.length === 0 ? (
+          <EmptyBlock title="No roles" testId="cap-roles-empty">
+            Create the first role to assign to users.
+          </EmptyBlock>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table" data-test="cap-roles-table">
+              <thead><tr>
+                <th>Role</th>
+                <th>Authorities</th>
+                <th style={{ width: 90, textAlign: 'right' }}>Users</th>
+                <th style={{ width: 160 }}>Type</th>
+                <th style={{ width: 40 }} aria-label="actions"></th>
+              </tr></thead>
+              <tbody>
+                {visible.map((r) => (
+                  <tr key={r.roleId} data-test={`cap-roles-row-${r.roleId}`}>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{r.name}</div>
+                      {r.description && (
+                        <div className="ea-text-muted" style={{ fontSize: 12 }}>
+                          {r.description}
+                        </div>
+                      )}
+                    </td>
+                    <td data-test={`cap-roles-auth-${r.roleId}`}>
+                      <span className="ea-chip ea-chip--muted">
+                        {r.authorities.length} authorit{r.authorities.length === 1 ? 'y' : 'ies'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}
+                        data-test={`cap-roles-userct-${r.roleId}`}>
+                      {r.userCount}
+                    </td>
+                    <td data-test={`cap-roles-type-${r.roleId}`}>
+                      {r.builtin
+                        ? <Status tone="info">Built-in</Status>
+                        : <Status tone="success">Custom</Status>}
+                    </td>
+                    <td>
+                      <RowMenu items={[
+                        { label: 'Edit',
+                          onSelect: () => { setSaveMsg(null); setEditor({ kind: 'edit', role: r }); } },
+                        ...(r.builtin ? [] : [{
+                          label: 'Delete',
+                          danger: true,
+                          onSelect: () => {
+                            confirmThenRun(
+                              r.userCount > 0
+                                ? `Delete role '${r.name}' — ${r.userCount} user${r.userCount === 1 ? '' : 's'} will lose the mapped authorities.`
+                                : `Delete role '${r.name}'.`,
+                              () => {
+                                edgeApi.deleteRole(r.roleId).then(() => {
+                                  setSaveMsg(`Deleted role '${r.name}'.`);
+                                  refresh();
+                                }).catch((e: unknown) => {
+                                  setErr(e instanceof Error ? e.message : String(e));
+                                });
+                              });
+                          },
+                        } as RowMenuItem]),
+                      ]} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Panel>
 
-      <Panel title="Capability matrix"
+      <Panel title="Authority catalogue"
              action={
                <span className="ea-text-muted" style={{ fontSize: 12 }}>
-                 Pinned to <code>docs/security/role-capability-matrix.md</code>
+                 {catalog.length} authorities · grouped by module
                </span>
              }>
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense"
-                 data-test="cap-roles-matrix">
+                 data-test="cap-roles-catalog">
             <thead><tr>
-              <th>Capability</th>
-              {DER_ROLES.map((r) => (
-                <th key={r.id} style={{ textAlign: 'center', width: 80 }}
-                    title={r.label}>
-                  {r.id}
-                </th>
-              ))}
+              <th style={{ width: 120 }}>Module</th>
+              <th style={{ width: 220 }}>Authority</th>
+              <th>Description</th>
             </tr></thead>
             <tbody>
-              {CAPABILITY_MATRIX.map((cap) => (
-                <tr key={cap.capability}
-                    data-test={`cap-roles-cap-${cap.capability.slice(0, 20).replace(/\W/g, '-')}`}>
-                  <td style={{ fontSize: 13 }}>{cap.capability}</td>
-                  {DER_ROLES.map((r) => {
-                    const has = cap.roles.includes(r.id);
-                    return (
-                      <td key={r.id} style={{ textAlign: 'center' }}>
-                        {has
-                          ? <span aria-label={`${r.label} has ${cap.capability}`}
-                                   style={{ color: 'var(--der-success-ink)',
-                                            fontWeight: 600 }}>✓</span>
-                          : <span aria-hidden="true"
-                                   className="ea-text-muted">·</span>}
-                      </td>
-                    );
-                  })}
+              {catalog.map((a) => (
+                <tr key={a.authority}
+                    data-test={`cap-roles-cat-${a.authority}`}>
+                  <td>{a.module}</td>
+                  <td><code>{a.authority}</code></td>
+                  <td>{a.description}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </Panel>
+
+      {editor.kind !== 'closed' && (
+        <RoleEditorDialog
+          state={editor}
+          catalog={catalog}
+          authoritiesByModule={authoritiesByModule}
+          onClose={() => setEditor({ kind: 'closed' })}
+          onSaved={(msg) => { setSaveMsg(msg); setEditor({ kind: 'closed' }); refresh(); }}
+          onError={(msg) => setErr(msg)}
+        />
+      )}
+    </div>
+  );
+}
+
+interface RoleEditorDialogProps {
+  state: Exclude<RoleEditorState, { kind: 'closed' }>;
+  catalog: edgeApi.EdgeAuthorityEntry[];
+  authoritiesByModule: Map<string, edgeApi.EdgeAuthorityEntry[]>;
+  onClose: () => void;
+  onSaved: (msg: string) => void;
+  onError: (msg: string) => void;
+}
+
+function RoleEditorDialog(props: RoleEditorDialogProps): JSX.Element {
+  const isEdit = props.state.kind === 'edit';
+  const initial = props.state.kind === 'edit' ? props.state.role : null;
+  const [name, setName] = useState<string>(initial?.name ?? '');
+  const [description, setDescription] = useState<string>(initial?.description ?? '');
+  const [selected, setSelected] = useState<Set<string>>(
+    new Set(initial?.authorities ?? []),
+  );
+  const [saving, setSaving] = useState(false);
+
+  const nameLocked = isEdit && (initial?.builtin ?? false);
+
+  const toggle = (authority: string): void => {
+    const next = new Set(selected);
+    if (next.has(authority)) next.delete(authority);
+    else next.add(authority);
+    setSelected(next);
+  };
+
+  const submit = async (): Promise<void> => {
+    if (!nameLocked && name.trim().length === 0) {
+      props.onError('Role name is required.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const authorities = Array.from(selected);
+      if (isEdit) {
+        await edgeApi.updateRole(initial!.roleId, {
+          name: nameLocked ? undefined : name.trim(),
+          description: description.trim() || null,
+          authorities,
+        });
+        props.onSaved(`Updated role '${initial!.name}'.`);
+      } else {
+        const created = await edgeApi.createRole({
+          name: name.trim(),
+          description: description.trim() || null,
+          authorities,
+        });
+        props.onSaved(`Created role '${created.name}'.`);
+      }
+    } catch (e: unknown) {
+      props.onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="ea-dialog-backdrop"
+         role="dialog"
+         aria-modal="true"
+         aria-label={isEdit ? 'Edit role' : 'Create role'}
+         data-test="cap-roles-editor">
+      <div className="ea-dialog ea-dialog--wide">
+        <h3 style={{ marginTop: 0 }}>{isEdit ? `Edit role '${initial!.name}'` : 'New role'}</h3>
+
+        <div style={{ display: 'grid', gap: 10 }}>
+          <label>
+            <span style={{ display: 'block', fontSize: 12, color: 'var(--der-ink-700)' }}>
+              Role name{nameLocked && ' (built-in — read only)'}
+            </span>
+            <input type="text"
+                   aria-label="Role name"
+                   data-test="cap-roles-editor-name"
+                   value={name}
+                   disabled={nameLocked}
+                   onChange={(e) => setName(e.target.value)}
+                   className="ea-input"
+                   style={{ width: '100%' }} />
+          </label>
+          <label>
+            <span style={{ display: 'block', fontSize: 12, color: 'var(--der-ink-700)' }}>
+              Description
+            </span>
+            <textarea aria-label="Role description"
+                      data-test="cap-roles-editor-desc"
+                      value={description}
+                      rows={2}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="ea-input"
+                      style={{ width: '100%' }} />
+          </label>
+        </div>
+
+        <h4 style={{ marginBottom: 6 }}>Authorities</h4>
+        <div style={{ display: 'grid', gap: 10 }}
+             data-test="cap-roles-editor-authorities">
+          {Array.from(props.authoritiesByModule.entries()).map(([module, entries]) => (
+            <div key={module}
+                 data-test={`cap-roles-editor-module-${module}`}
+                 style={{ border: '1px solid var(--der-border-subtle)',
+                          borderRadius: 6, padding: '8px 10px' }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>{module}</div>
+              <div style={{ display: 'grid', gap: 4 }}>
+                {entries.map((a) => (
+                  <label key={a.authority}
+                         style={{ display: 'flex', gap: 8, alignItems: 'flex-start',
+                                  fontSize: 13 }}>
+                    <input type="checkbox"
+                           aria-label={a.authority}
+                           data-test={`cap-roles-editor-auth-${a.authority}`}
+                           checked={selected.has(a.authority)}
+                           onChange={() => toggle(a.authority)} />
+                    <span>
+                      <code>{a.authority}</code>
+                      <span className="ea-text-muted" style={{ marginLeft: 6 }}>
+                        — {a.description}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-test="cap-roles-editor-cancel"
+                  onClick={props.onClose}>Cancel</button>
+          <button type="button"
+                  className="ea-btn ea-btn--primary ea-btn--sm"
+                  data-test="cap-roles-editor-save"
+                  disabled={saving}
+                  onClick={() => { void submit(); }}>
+            {saving ? 'Saving…' : (isEdit ? 'Save changes' : 'Create role')}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
