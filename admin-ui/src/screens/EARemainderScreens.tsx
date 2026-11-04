@@ -192,6 +192,13 @@ export function EAEvaluationReports({ api = edgeApi }: {
   return (
     <div className="ea-screen">
       <h1 data-test="ea27-heading">Evaluation reports</h1>
+      <p style={{ fontSize: 13 }}>
+        <Link to="/reports/operational"
+               className="ea-link-btn"
+               data-test="ea27-ops-report-link">
+          Operational report (local vs. central-confirmed) →
+        </Link>
+      </p>
       <section>
         <h2>Job outcomes (last {jobs.length})</h2>
         <ul data-test="ea27-job-totals">

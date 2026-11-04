@@ -1366,6 +1366,24 @@ export function backupPitrWal(): Promise<WalSummary> {
   return request('GET', '/edge-api/v1/backup/pitr/wal');
 }
 
+/** FR-15-10 — Operational report: local-only vs. central-confirmed.
+ *
+ *  Driven by OperationsAdminController. The important guarantee is
+ *  that `localOnly` never claims central authoritative acceptance —
+ *  it's PENDING + RETRYABLE only. Operators see at a glance how
+ *  much of the local state hasn't yet reached DHIS2 Central. */
+export interface OperationalReport {
+  generatedAt: string;
+  byState: Record<string, number>;
+  centralConfirmed: number;
+  localOnly: number;
+  note: string;
+}
+
+export function fetchOperationalReport(): Promise<OperationalReport> {
+  return request('GET', '/edge-api/v1/admin/ops/reports/operational');
+}
+
 /** FR-15-08 — Operational configuration editor.
  *
  *  OperationsAdminController exposes a whitelist of mutable runtime

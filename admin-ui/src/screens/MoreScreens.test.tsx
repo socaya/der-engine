@@ -20,6 +20,7 @@ import {
   MockupFacilityAnalytics,
   MockupSupportBundle,
   MockupConfigEditor,
+  MockupOperationalReport,
 } from './MoreScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -932,5 +933,78 @@ describe('MoreScreens — surface mount test', () => {
     renderWithProviders(<MockupConfigEditor />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('config-history-empty')).toBeInTheDocument());
+  });
+
+  it('MockupOperationalReport — FR-15-10 renders local/central split + journal by-state', async () => {
+    vi.spyOn(edgeApi, 'fetchOperationalReport').mockResolvedValue({
+      generatedAt: '2026-11-04T11:00:00Z',
+      byState: {
+        PENDING: 12, RETRYABLE: 3,
+        CENTRAL_ACCEPTED: 85, CENTRAL_REJECTED: 2,
+        CONFLICT_REVIEW: 1,
+      },
+      centralConfirmed: 85, localOnly: 15,
+      note: 'Local-only totals never claim central authoritative acceptance (FR-15-10).',
+    });
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([
+      { runId: 1, jobName: 'METADATA_SYNC_FULL', outcome: 'SUCCEEDED',
+        startedAt: 'now', finishedAt: 'now', durationMs: 10,
+        triggeredBy: 'SCHEDULED', detail: '{}' },
+      { runId: 2, jobName: 'JOURNAL_WORKER_DRAIN', outcome: 'FAILED',
+        startedAt: 'now', finishedAt: 'now', durationMs: 20,
+        triggeredBy: 'MANUAL', detail: '{}' },
+    ] as edgeApi.JobRun[]);
+    vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
+      enabled: true, probeTimestamp: 'now',
+      backlog: { PENDING: 12, RETRYABLE: 3 },
+    } as unknown as edgeApi.WorkerHealth);
+    renderWithProviders(<MockupOperationalReport />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('ops-report')).toBeInTheDocument());
+    expect(screen.getByTestId('ops-central-confirmed'))
+      .toHaveTextContent('85');
+    expect(screen.getByTestId('ops-local-only'))
+      .toHaveTextContent('15');
+    /* 85/(85+15) = 85% synchronised. */
+    expect(screen.getByTestId('ops-synced-pct'))
+      .toHaveTextContent('85%');
+    /* By-state table shows every configured state. */
+    expect(screen.getByTestId('ops-state-PENDING')).toBeInTheDocument();
+    expect(screen.getByTestId('ops-state-CENTRAL_ACCEPTED')).toBeInTheDocument();
+    /* Jobs panel splits succeeded + failed. */
+    expect(screen.getByTestId('ops-jobs-succeeded')).toHaveTextContent('1');
+    expect(screen.getByTestId('ops-jobs-failed')).toHaveTextContent('1');
+    /* Worker panel shows enabled + total backlog. */
+    expect(screen.getByTestId('ops-worker-backlog')).toHaveTextContent('15');
+  });
+
+  it('MockupOperationalReport — fetchOperationalReport rejection surfaces err-ops-report', async () => {
+    vi.spyOn(edgeApi, 'fetchOperationalReport')
+      .mockRejectedValue(new Error('503 journal unavailable'));
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([] as edgeApi.JobRun[]);
+    vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
+      enabled: true, probeTimestamp: 'now', backlog: {},
+    } as unknown as edgeApi.WorkerHealth);
+    renderWithProviders(<MockupOperationalReport />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-ops-report')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/503 journal unavailable/);
+  });
+
+  it('MockupOperationalReport — no records yet renders the empty jobs hint', async () => {
+    vi.spyOn(edgeApi, 'fetchOperationalReport').mockResolvedValue({
+      generatedAt: '2026-11-04T11:00:00Z',
+      byState: {}, centralConfirmed: 0, localOnly: 0,
+      note: '',
+    });
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([] as edgeApi.JobRun[]);
+    vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
+      enabled: true, probeTimestamp: 'now', backlog: {},
+    } as unknown as edgeApi.WorkerHealth);
+    renderWithProviders(<MockupOperationalReport />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('ops-jobs-empty')).toBeInTheDocument());
+    /* 0+0 split → status label "No records yet" + percentage stat shows em-dash. */
+    expect(screen.getByTestId('ops-synced-pct')).toHaveTextContent('—');
   });
 });

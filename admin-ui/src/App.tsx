@@ -66,7 +66,7 @@ import {
   MockupReferralInbox, MockupReferralDetail,
   MockupBackupList, MockupRestoreList, MockupCompatInspector,
   MockupAuditEvents, MockupFacilityAnalytics, MockupSupportBundle,
-  MockupConfigEditor,
+  MockupConfigEditor, MockupOperationalReport,
 } from './screens/MoreScreens';
 import {
   NetworkOverview, NetworkAccessPoint, NetworkConnectedDevices,
@@ -243,6 +243,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><MockupSupportBundle /></RequireAuth>} />
           <Route path="/configuration"
                  element={<RequireAuth><MockupConfigEditor /></RequireAuth>} />
+          <Route path="/reports/operational"
+                 element={<RequireAuth><MockupOperationalReport /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><EASettings /></RequireAuth>} />
           {/* Network module per docs/requirements/DER_Network_Module_Design_Specification.md. */}
           <Route path="/network" element={<RequireAuth><NetworkOverview /></RequireAuth>} />

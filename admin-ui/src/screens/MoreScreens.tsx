@@ -2061,6 +2061,217 @@ export function MockupFacilityAnalytics(): JSX.Element {
 
 export { fmtBytes };
 
+/* ─── /reports/operational ────────────────────────────────────────── */
+/** FR-15-10 — Operational report.
+ *
+ *  Central-vs-local operational picture for the facility. Reads
+ *  /admin/ops/reports/operational for the authoritative local-vs-
+ *  central split, then layers in the last-50 jobs summary + current
+ *  worker backlog so ADMINs get everything they need on one screen
+ *  without chasing between /sync/history and /journal/worker. */
+export function MockupOperationalReport(): JSX.Element {
+  const [report, setReport] = useState<edgeApi.OperationalReport | null>(null);
+  const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
+  const [worker, setWorker] = useState<edgeApi.WorkerHealth | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function reload(): Promise<void> {
+    setRefreshing(true);
+    try {
+      const [a, b, c] = await Promise.allSettled([
+        edgeApi.fetchOperationalReport(),
+        edgeApi.listJobs(50),
+        edgeApi.workerHealth(),
+      ]);
+      if (a.status === 'fulfilled') setReport(a.value);
+      else { setErr(a.reason instanceof Error ? a.reason.message : String(a.reason)); return; }
+      if (b.status === 'fulfilled') setJobs(b.value);
+      if (c.status === 'fulfilled') setWorker(c.value);
+    } finally { setRefreshing(false); }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, []);
+
+  if (err && !report) {
+    return <ErrorBlock title="Operational report failed"
+                        testId="err-ops-report">{err}</ErrorBlock>;
+  }
+  if (!report) return <LoadingBlock testId="loading" />;
+
+  const syncedPct = report.centralConfirmed + report.localOnly > 0
+    ? Math.round(100 * report.centralConfirmed
+                 / (report.centralConfirmed + report.localOnly))
+    : null;
+
+  const jobsSucceeded = jobs?.filter((j) =>
+    j.outcome === 'SUCCEEDED' || j.outcome === 'SUCCESS').length ?? 0;
+  const jobsFailed = jobs?.filter((j) =>
+    j.outcome === 'FAILED' || j.outcome === 'FAILURE').length ?? 0;
+  const workerEnabled = worker?.enabled ?? false;
+  const backlogTotal = worker
+    ? Object.values(worker.backlog).reduce((a, b) => a + b, 0) : 0;
+
+  return (
+    <div className="ea-screen" data-test="ops-report">
+      <SyncStatusBar
+        tone={report.localOnly > 0 ? 'warning' : 'success'}
+        title="Operational report"
+        statusLabel={
+          syncedPct == null ? 'No records yet'
+          : syncedPct === 100 ? 'Fully synchronised'
+          : `${syncedPct}% synchronised`
+        }
+        subtitle={
+          <>
+            <span>Local-vs-central reconciliation across captured records.</span>
+            <span>·</span>
+            <span>Generated <strong style={{ color: 'var(--der-ink-900)' }}>
+              {fmtAgo(report.generatedAt)}
+            </strong></span>
+          </>
+        }
+        actions={
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  disabled={refreshing}
+                  data-test="ops-report-refresh"
+                  onClick={() => { reload().catch(() => undefined); }}>
+            <UiIcon icon="refresh" size={14} />
+            <span>{refreshing ? 'Refreshing…' : 'Refresh'}</span>
+          </button>
+        }
+      />
+
+      <Panel title="Local vs. central">
+        <div className="ea-stat-strip">
+          <div className="ea-stat ea-stat--success">
+            <div className="ea-stat-value" data-test="ops-central-confirmed">
+              {report.centralConfirmed.toLocaleString()}
+            </div>
+            <div className="ea-stat-label">Central-confirmed</div>
+          </div>
+          <div className="ea-stat ea-stat--warning">
+            <div className="ea-stat-value" data-test="ops-local-only">
+              {report.localOnly.toLocaleString()}
+            </div>
+            <div className="ea-stat-label">Local-only (PENDING + RETRYABLE)</div>
+          </div>
+          <div className="ea-stat ea-stat--info">
+            <div className="ea-stat-value" data-test="ops-synced-pct">
+              {syncedPct == null ? '—' : `${syncedPct}%`}
+            </div>
+            <div className="ea-stat-label">Central reach</div>
+          </div>
+        </div>
+        <p className="ea-text-muted"
+           style={{ marginTop: 12, fontSize: 12, lineHeight: 1.5 }}
+           data-test="ops-note">
+          {report.note}
+        </p>
+      </Panel>
+
+      <Panel title="Journal by state"
+             action={
+               <Link to="/data/queue" className="ea-link-btn"
+                      data-cross-module="Data"
+                      data-test="ops-open-queue">
+                 Open queue →
+               </Link>
+             }>
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense" data-test="ops-by-state">
+            <thead><tr><th>State</th><th>Count</th></tr></thead>
+            <tbody>
+              {Object.entries(report.byState).map(([state, count]) => (
+                <tr key={state} data-test={`ops-state-${state}`}>
+                  <td>
+                    <Status tone={
+                      state === 'CENTRAL_ACCEPTED' ? 'success'
+                      : state === 'CENTRAL_REJECTED' || state === 'FAILED' ? 'danger'
+                      : state === 'PENDING' || state === 'RETRYABLE' || state === 'CONFLICT_REVIEW' ? 'warning'
+                      : 'info'}>
+                      {humaniseState(state)}
+                    </Status>
+                  </td>
+                  <td className="ea-mono">{count.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      <Panel title="Sync job outcomes (last 50 runs)"
+             action={
+               <Link to="/sync/history" className="ea-link-btn"
+                      data-cross-module="Sync"
+                      data-test="ops-open-history">
+                 Open sync history →
+               </Link>
+             }>
+        {!jobs ? (
+          <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
+            Loading…
+          </p>
+        ) : jobs.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}
+             data-test="ops-jobs-empty">
+            No scheduled jobs have run yet on this edge.
+          </p>
+        ) : (
+          <div className="ea-stat-strip">
+            <div className="ea-stat ea-stat--success">
+              <div className="ea-stat-value" data-test="ops-jobs-succeeded">
+                {jobsSucceeded}
+              </div>
+              <div className="ea-stat-label">Succeeded</div>
+            </div>
+            <div className="ea-stat ea-stat--danger">
+              <div className="ea-stat-value" data-test="ops-jobs-failed">
+                {jobsFailed}
+              </div>
+              <div className="ea-stat-label">Failed</div>
+            </div>
+            <div className="ea-stat ea-stat--muted">
+              <div className="ea-stat-value" data-test="ops-jobs-total">
+                {jobs.length}
+              </div>
+              <div className="ea-stat-label">Total runs captured</div>
+            </div>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Worker status"
+             action={
+               <Link to="/journal/worker" className="ea-link-btn"
+                      data-cross-module="Worker"
+                      data-test="ops-open-worker">
+                 Open worker →
+               </Link>
+             }>
+        {!worker ? (
+          <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
+            Loading…
+          </p>
+        ) : (
+          <dl className="ea-def-list">
+            <div className="ea-def-row"><dt>Worker</dt>
+              <dd data-test="ops-worker-enabled">
+                <Status tone={workerEnabled ? 'success' : 'warning'}>
+                  {workerEnabled ? 'Enabled' : 'Paused'}
+                </Status>
+              </dd></div>
+            <div className="ea-def-row"><dt>Backlog</dt>
+              <dd className="ea-mono" data-test="ops-worker-backlog">
+                {backlogTotal.toLocaleString()}
+              </dd></div>
+          </dl>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
 /* ─── /configuration ──────────────────────────────────────────────── */
 /** FR-15-08 — Operational configuration editor.
  *
