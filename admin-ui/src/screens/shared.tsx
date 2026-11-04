@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode, type MouseEvent as ReactMouseEvent, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type MouseEvent as ReactMouseEvent, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { useOrgUnit } from '../components/OrgUnitContext';
@@ -1286,21 +1286,133 @@ export function RelatedMenu(
   );
 }
 
-/** Per-row context menu rendered as a native `<details>` dropdown
- *  anchored to a `⋮` kebab icon. Sits in the last column, far right. */
+/** Per-row context menu, kebab-anchored.  Fully keyboard accessible:
+ *
+ *    Enter / Space on kebab   → open menu, focus first enabled item
+ *    ArrowDown / ArrowUp      → roving focus between enabled items
+ *    Home / End               → jump to first / last enabled item
+ *    Escape                   → close menu, return focus to kebab
+ *    Tab / Shift-Tab          → close menu, continue natural tab flow
+ *    Click outside            → close menu
+ *
+ *  Uses native `<details>` so form-level Enter still works, then
+ *  layers the ARIA + roving-focus behavior on top.
+ */
 export function RowMenu({ items, label = 'Actions' }: {
   items: ReadonlyArray<RowMenuItem>;
   label?: string;
 }): JSX.Element {
+  const detailsRef = useRef<HTMLDetailsElement | null>(null);
+  const summaryRef = useRef<HTMLElement | null>(null);
+  const itemRefs = useRef<Array<HTMLElement | null>>([]);
+  const [open, setOpen] = useState(false);
+
+  // Keep local open state in sync with the native <details> element so
+  // aria-expanded + outside-click handlers see fresh state.
+  useEffect(() => {
+    const el = detailsRef.current;
+    if (!el) return;
+    const sync = (): void => setOpen(el.open);
+    el.addEventListener('toggle', sync);
+    return () => el.removeEventListener('toggle', sync);
+  }, []);
+
+  const close = useCallback((returnFocus: boolean): void => {
+    const el = detailsRef.current;
+    if (!el) return;
+    el.open = false;
+    setOpen(false);
+    if (returnFocus) summaryRef.current?.focus();
+  }, []);
+
+  // Outside-click-to-close: only while open.
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (ev: MouseEvent): void => {
+      const el = detailsRef.current;
+      if (el && ev.target instanceof Node && !el.contains(ev.target)) {
+        close(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open, close]);
+
+  // When the menu opens, move focus to the first enabled item.
+  useEffect(() => {
+    if (!open) return;
+    const firstEnabled = itemRefs.current.find((el, i) =>
+      el != null && !items[i]?.disabled);
+    firstEnabled?.focus();
+  }, [open, items]);
+
+  function moveFocus(from: number, direction: 1 | -1 | 'first' | 'last'): void {
+    const enabledIdx = items
+      .map((it, i) => (it.disabled ? -1 : i))
+      .filter((i) => i >= 0);
+    if (enabledIdx.length === 0) return;
+    let targetIdx: number;
+    if (direction === 'first') {
+      targetIdx = enabledIdx[0];
+    } else if (direction === 'last') {
+      targetIdx = enabledIdx[enabledIdx.length - 1];
+    } else {
+      const pos = enabledIdx.indexOf(from);
+      const next = pos < 0
+        ? (direction === 1 ? enabledIdx[0] : enabledIdx[enabledIdx.length - 1])
+        : enabledIdx[(pos + direction + enabledIdx.length) % enabledIdx.length];
+      targetIdx = next;
+    }
+    itemRefs.current[targetIdx]?.focus();
+  }
+
+  function onItemKeyDown(i: number, e: ReactKeyboardEvent): void {
+    if (e.key === 'Escape') {
+      e.preventDefault(); e.stopPropagation();
+      close(true);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      moveFocus(i, 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      moveFocus(i, -1);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      moveFocus(i, 'first');
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      moveFocus(i, 'last');
+    } else if (e.key === 'Tab') {
+      // Let Tab/Shift-Tab leave the menu, but close it so focus
+      // doesn't land on a hidden item on the next render cycle.
+      close(false);
+    }
+  }
+
   // Stop the row-click handler from firing when the operator clicks
   // inside the menu or on the kebab.
   const stop = (e: ReactMouseEvent): void => { e.stopPropagation(); };
+
+  // Unique id so aria-controls on the summary can point at the menu.
+  const menuId = useRef(`ea-row-menu-${Math.random().toString(36).slice(2, 8)}`);
+
   return (
     <details className="ea-row-menu"
+             ref={detailsRef}
              onClick={stop}
              style={{ position: 'relative', display: 'inline-block' }}>
       <summary
+        ref={summaryRef as unknown as React.Ref<HTMLElement>}
         aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId.current}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && open) {
+            e.preventDefault();
+            close(true);
+          }
+        }}
         style={{
           listStyle: 'none', cursor: 'pointer', userSelect: 'none',
           width: 24, height: 24, borderRadius: 4,
@@ -1312,6 +1424,7 @@ export function RowMenu({ items, label = 'Actions' }: {
         ⋮
       </summary>
       <div role="menu"
+           id={menuId.current}
            style={{
              position: 'absolute', right: 0, top: 'calc(100% + 4px)',
              zIndex: 50, minWidth: 200,
@@ -1331,19 +1444,33 @@ export function RowMenu({ items, label = 'Actions' }: {
                  : 'var(--der-ink-900)',
             textDecoration: 'none',
           };
+          const setItemRef = (el: HTMLElement | null): void => {
+            itemRefs.current[i] = el;
+          };
+          const commonAriaProps = {
+            role: 'menuitem' as const,
+            tabIndex: -1,
+            onKeyDown: (e: ReactKeyboardEvent) => onItemKeyDown(i, e),
+          };
           if (it.to) {
             return (
-              <Link key={i} to={it.to} role="menuitem" style={style}>{it.label}</Link>
+              <Link key={i} to={it.to} style={style}
+                    ref={setItemRef as React.Ref<HTMLAnchorElement>}
+                    onClick={() => close(false)}
+                    {...commonAriaProps}>
+                {it.label}
+              </Link>
             );
           }
           return (
-            <button key={i} type="button" role="menuitem" style={style}
+            <button key={i} type="button" style={style}
+                    ref={setItemRef as React.Ref<HTMLButtonElement>}
                     disabled={it.disabled}
+                    aria-disabled={it.disabled}
+                    {...commonAriaProps}
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Close the menu by removing the open attribute.
-                      const details = (e.currentTarget.closest('details'));
-                      if (details) details.removeAttribute('open');
+                      close(false);
                       it.onSelect?.();
                     }}>
               {it.label}
