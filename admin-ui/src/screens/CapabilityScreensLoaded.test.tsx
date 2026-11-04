@@ -5,6 +5,7 @@ import { renderWithProviders } from '../test/renderWithProviders';
 import {
   CapSyncHistory, CapDataQueues, CapWorkflowRuns,
   CapStepAssignments, CapReferralHistory, CapMetadataSync,
+  CapProgramRules, CapSyncOverview,
 } from './CapabilityScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -358,5 +359,104 @@ describe('CapMetadataSync (loaded)', () => {
     await waitFor(() =>
       expect(document.body.textContent ?? '')
         .toMatch(/Central DHIS2 is unavailable right now/));
+  });
+});
+
+describe('CapProgramRules (loaded)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('populated metadataList renders the rules table', async () => {
+    vi.spyOn(edgeApi, 'metadataList').mockResolvedValue({
+      programRules: [
+        { id: 'pr-1', displayName: 'Hide weight on infants' },
+        { id: 'pr-2', displayName: 'Require consent' },
+      ],
+    } as never);
+    renderWithProviders(<CapProgramRules />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-rules')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/Hide weight on infants/);
+    expect(body).toMatch(/Require consent/);
+    expect(body).toMatch(/2 rules/);
+  });
+
+  it('empty rules list surfaces the empty-state', async () => {
+    vi.spyOn(edgeApi, 'metadataList').mockResolvedValue({
+      programRules: [],
+    } as never);
+    renderWithProviders(<CapProgramRules />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('empty-no-program-rules-mirrore'))
+        .toBeInTheDocument());
+  });
+
+  it('metadataList rejection surfaces the ErrorBlock', async () => {
+    vi.spyOn(edgeApi, 'metadataList').mockRejectedValue(new Error('500'));
+    renderWithProviders(<CapProgramRules />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-could-not-load-program-r'))
+        .toBeInTheDocument());
+  });
+});
+
+describe('CapSyncOverview (loaded)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('resolved jobs + worker + drift populate stat strip + drift card', async () => {
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([
+      { runId: 1, jobName: 'METADATA', outcome: 'SUCCEEDED',
+        startedAt: 'now', finishedAt: 'now', durationMs: 10,
+        triggeredBy: 'MANUAL', detail: '{}' },
+      { runId: 2, jobName: 'DRAIN', outcome: 'FAILED',
+        startedAt: 'now', finishedAt: 'now', durationMs: 10,
+        triggeredBy: 'SCHEDULED', detail: '{}' },
+    ] as edgeApi.JobRun[]);
+    vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
+      enabled: true, probeTimestamp: 'now',
+      backlog: { PENDING: 50, RETRYABLE: 60 },
+    } as unknown as edgeApi.WorkerHealth);
+    vi.spyOn(edgeApi, 'drift').mockResolvedValue({
+      status: 'IN_SYNC', fingerprintFrom: 'fp-a', fingerprintTo: 'fp-b',
+    } as unknown as edgeApi.DriftResponse);
+    renderWithProviders(<CapSyncOverview />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-sync-overview')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/Succeeded/);
+    expect(body).toMatch(/Failed/);
+    expect(body).toMatch(/fp-a/);
+    expect(body).toMatch(/fp-b/);
+    expect(body).toMatch(/Drift at a glance/);
+  });
+
+  it('listJobs rejection surfaces the Partial-load ErrorBlock', async () => {
+    vi.spyOn(edgeApi, 'listJobs').mockRejectedValue(new Error('upstream'));
+    vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
+      enabled: true, probeTimestamp: 'now', backlog: {},
+    } as unknown as edgeApi.WorkerHealth);
+    vi.spyOn(edgeApi, 'drift').mockResolvedValue({
+      status: 'IN_SYNC', fingerprintFrom: null, fingerprintTo: null,
+    } as unknown as edgeApi.DriftResponse);
+    renderWithProviders(<CapSyncOverview />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-partial-load')).toBeInTheDocument());
+  });
+
+  it('100+ backlog flips the Journal-backlog stat into danger tone', async () => {
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([] as edgeApi.JobRun[]);
+    vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
+      enabled: true, probeTimestamp: 'now',
+      backlog: { PENDING: 200, RETRYABLE: 50 },
+    } as unknown as edgeApi.WorkerHealth);
+    vi.spyOn(edgeApi, 'drift').mockResolvedValue({
+      status: 'IN_SYNC', fingerprintFrom: null, fingerprintTo: null,
+    } as unknown as edgeApi.DriftResponse);
+    renderWithProviders(<CapSyncOverview />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-sync-overview')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/250/);
   });
 });
