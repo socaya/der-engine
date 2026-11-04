@@ -1,5 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../test/renderWithProviders';
 import {
   MockupDriftInspector,
@@ -372,5 +373,67 @@ describe('MoreScreens — surface mount test', () => {
      * toLocaleString() which may render '175' or '1,75' depending
      * on jsdom locale. Match on both. */
     expect(document.body.textContent ?? '').toMatch(/17[05]|facility analytics/i);
+  });
+
+  it('MockupConflictList — all four problem-state branches + priorities', async () => {
+    /* Feed one row per problemFor() arm so lines 203-219 all run,
+     * including the two priority branches (attemptCount >=5 → High,
+     * >=2 → Medium). */
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
+      { operationId: 'op-rejected', entityType: 'EVENT', entityRef: 'ev-rej',
+        payloadJson: {}, state: 'CENTRAL_REJECTED', attemptCount: 3,
+        lastError: 'bad', submittedBy: null, createdAt: 'now',
+        updatedAt: 'now', nextHopOrgUnitUid: null },
+      { operationId: 'op-retry', entityType: 'TRACKED_ENTITY', entityRef: 'tei-r',
+        payloadJson: {}, state: 'RETRYABLE', attemptCount: 7,
+        lastError: 'net', submittedBy: null, createdAt: 'now',
+        updatedAt: 'now', nextHopOrgUnitUid: null },
+      { operationId: 'op-unknown', entityType: 'ENROLLMENT', entityRef: 'enr-u',
+        payloadJson: {}, state: 'UNKNOWN_OUTCOME', attemptCount: 1,
+        lastError: null, submittedBy: null, createdAt: 'now',
+        updatedAt: 'now', nextHopOrgUnitUid: null },
+      { operationId: 'op-other', entityType: 'RELATIONSHIP', entityRef: 'rel-x',
+        payloadJson: {}, state: 'SOMETHING_ELSE', attemptCount: 0,
+        lastError: null, submittedBy: null, createdAt: 'now',
+        updatedAt: 'now', nextHopOrgUnitUid: null },
+    ] as unknown as edgeApi.ConflictRow[]);
+    renderWithProviders(<MockupConflictList />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/Rejected by Central/));
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/Repeated sync failure/);
+    expect(body).toMatch(/Unconfirmed acknowledgement/);
+    expect(body).toMatch(/Needs review/);
+    expect(body).toMatch(/High/);
+    expect(body).toMatch(/Medium/);
+    expect(body).toMatch(/Low/);
+  });
+
+  it('MockupConflictList — ?workflowRunId=... shows ScopedFilterChip', async () => {
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([] as never);
+    renderWithProviders(<MockupConflictList />, {
+      authApi,
+      route: '/admin/sync/attention?workflowRunId=wfr-abcdef-1234',
+    });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/Workflow run wfr-abcd/));
+  });
+
+  it('MockupConflictDetail — matched id renders detail panel + priority tone', async () => {
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
+      { operationId: 'op-cd-1', entityType: 'AGGREGATE_DATA_VALUE',
+        entityRef: 'de-x|ou-y|2026W44', payloadJson: {},
+        state: 'CENTRAL_REJECTED', attemptCount: 6,
+        lastError: 'bad', submittedBy: null,
+        createdAt: 'now', updatedAt: 'now',
+        nextHopOrgUnitUid: null },
+    ] as unknown as edgeApi.ConflictRow[]);
+    renderWithProviders(
+      <Routes><Route path="/admin/sync/attention/:operationId"
+                      element={<MockupConflictDetail />} /></Routes>,
+      { authApi, route: '/admin/sync/attention/op-cd-1' });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/de-x\|ou-y/));
+    expect(document.body.textContent ?? '').toMatch(/High priority/);
   });
 });
