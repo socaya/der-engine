@@ -3173,16 +3173,19 @@ export function RoleEditorPage(): JSX.Element {
   );
 }
 
-/** `/access/authorities` — the authority catalogue as a first-class
- *  list screen.  Each row carries a context menu with "view roles
- *  granting it" (→ detail page) and "copy authority string". */
+/** `/access/authorities` — read-only authority reference.
+ *
+ *  Pure descriptive page: every authority is listed with what it
+ *  **allows** and what its **absence restricts** (the enforcement
+ *  clause), plus the count of visible roles that currently grant it.
+ *  No row menus, no edit paths — authorities themselves are immutable;
+ *  configuration happens on the Roles page. */
 export function CapAuthorities(): JSX.Element {
   const [catalog, setCatalog] = useState<edgeApi.EdgeAuthorityEntry[] | null>(null);
   const [roles, setRoles] = useState<edgeApi.EdgeRoleDefinition[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [search, setSearch] = useState<string>('');
   const [moduleFilter, setModuleFilter] = useState<string>('ALL');
-  const [copyMsg, setCopyMsg] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([edgeApi.listAuthorityCatalog(), edgeApi.listRoles()])
@@ -3215,16 +3218,9 @@ export function CapAuthorities(): JSX.Element {
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return a.authority.toLowerCase().includes(q)
-        || a.description.toLowerCase().includes(q);
+        || (a.allows ?? a.description).toLowerCase().includes(q)
+        || (a.restricts ?? '').toLowerCase().includes(q);
   });
-
-  const copyToClipboard = (s: string): void => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(s).then(() => {
-        setCopyMsg(`Copied '${s}' to clipboard.`);
-      }).catch(() => setCopyMsg(`Copy failed.`));
-    }
-  };
 
   return (
     <div className="ea-screen" data-test="cap-authorities">
@@ -3232,8 +3228,8 @@ export function CapAuthorities(): JSX.Element {
       <SyncStatusBar
         tone="info"
         title="Authority catalogue"
-        statusLabel={`${catalog.length} authorit${catalog.length === 1 ? 'y' : 'ies'} · ${modules.length} module${modules.length === 1 ? '' : 's'}`}
-        subtitle="Every capability DER's admin surface recognises.  Each authority is a der.module.verb string that path gates in SecurityConfig check.  Roles bundle authorities; users inherit via role grants."
+        statusLabel={`${catalog.length} authorit${catalog.length === 1 ? 'y' : 'ies'} · ${modules.length} module${modules.length === 1 ? '' : 's'} · read-only`}
+        subtitle="Reference view.  Authorities are fixed — they ship with DER and encode what each path gate in SecurityConfig checks.  Configuration (grant / revoke) happens on the Roles catalogue."
         actions={
           <Link to="/access/roles"
                 className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -3244,11 +3240,6 @@ export function CapAuthorities(): JSX.Element {
           </Link>
         }
       />
-      {copyMsg && (
-        <div className="ea-callout ea-callout--success"
-             data-test="cap-authorities-copy-msg"
-             role="status">{copyMsg}</div>
-      )}
       <Panel
         title="Authorities"
         action={
@@ -3285,9 +3276,9 @@ export function CapAuthorities(): JSX.Element {
               <thead><tr>
                 <th style={{ width: 110 }}>Module</th>
                 <th style={{ width: 260 }}>Authority</th>
-                <th>Description</th>
+                <th>Allows</th>
+                <th>Restricts (when absent)</th>
                 <th style={{ width: 90, textAlign: 'right' }}>Roles</th>
-                <th style={{ width: 40 }} aria-label="actions"></th>
               </tr></thead>
               <tbody>
                 {filtered.map((a) => {
@@ -3296,25 +3287,26 @@ export function CapAuthorities(): JSX.Element {
                     <tr key={a.authority}
                         data-test={`cap-authorities-row-${a.authority}`}>
                       <td>{a.module}</td>
-                      <td>
+                      <td data-test={`cap-authorities-name-${a.authority}`}>
                         <Link to={`/access/authorities/${encodeURIComponent(a.authority)}`}
+                               data-cross-module="Access"
                                data-test={`cap-authorities-link-${a.authority}`}
-                               style={{ color: 'var(--der-ink-900)', textDecoration: 'none' }}>
+                               style={{ color: 'var(--der-ink-900)',
+                                        textDecoration: 'none' }}>
                           <code>{a.authority}</code>
                         </Link>
                       </td>
-                      <td>{a.description}</td>
+                      <td data-test={`cap-authorities-allows-${a.authority}`}>
+                        {a.allows ?? a.description}
+                      </td>
+                      <td className="ea-text-muted"
+                          data-test={`cap-authorities-restricts-${a.authority}`}
+                          style={{ fontSize: 12 }}>
+                        {a.restricts ?? '—'}
+                      </td>
                       <td style={{ textAlign: 'right' }}
                           data-test={`cap-authorities-roles-${a.authority}`}>
                         {holding.length}
-                      </td>
-                      <td>
-                        <RowMenu items={[
-                          { label: 'View roles granting it',
-                            to: `/access/authorities/${encodeURIComponent(a.authority)}` },
-                          { label: 'Copy authority string',
-                            onSelect: () => copyToClipboard(a.authority) },
-                        ]} />
                       </td>
                     </tr>
                   );
@@ -3365,14 +3357,17 @@ export function AuthorityDetailPage(): JSX.Element {
     (r) => r.builtinKey !== 'SYNC_WORKER' && r.authorities.includes(authority),
   );
 
+  const allowsText = entry.allows ?? entry.description;
+  const restrictsText = entry.restricts ?? '';
+
   return (
     <div className="ea-screen" data-test="authority-detail">
       <AccessSubNav active="authorities" />
       <SyncStatusBar
         tone="info"
         title={authority}
-        statusLabel={`${entry.module} · ${holding.length} role${holding.length === 1 ? '' : 's'}`}
-        subtitle={entry.description}
+        statusLabel={`${entry.module} · ${holding.length} role${holding.length === 1 ? '' : 's'} · read-only`}
+        subtitle={allowsText}
         actions={
           <Link to="/access/authorities"
                 className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -3382,7 +3377,29 @@ export function AuthorityDetailPage(): JSX.Element {
           </Link>
         }
       />
-      <Panel title="Roles granting this authority">
+      <Panel title="What this authority controls">
+        <dl style={{ display: 'grid',
+                      gridTemplateColumns: '160px 1fr',
+                      gap: '6px 16px', margin: 0, fontSize: 13 }}
+            data-test="authority-detail-meta">
+          <dt className="ea-text-muted">Module</dt>
+          <dd style={{ margin: 0 }}>{entry.module}</dd>
+          <dt className="ea-text-muted">Allows</dt>
+          <dd style={{ margin: 0 }}
+              data-test="authority-detail-allows">{allowsText}</dd>
+          <dt className="ea-text-muted">Restricts (when absent)</dt>
+          <dd style={{ margin: 0 }}
+              data-test="authority-detail-restricts">
+            {restrictsText || '—'}
+          </dd>
+        </dl>
+      </Panel>
+      <Panel title="Roles granting this authority"
+             action={
+               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                 Informational — configure grants on the Roles catalogue
+               </span>
+             }>
         {holding.length === 0 ? (
           <EmptyBlock title="No role grants this authority"
                       testId="authority-detail-empty">
@@ -3396,7 +3413,6 @@ export function AuthorityDetailPage(): JSX.Element {
                 <th style={{ width: 110 }}>Type</th>
                 <th style={{ width: 120, textAlign: 'right' }}>Authorities</th>
                 <th style={{ width: 90, textAlign: 'right' }}>Users</th>
-                <th style={{ width: 40 }} aria-label="actions"></th>
               </tr></thead>
               <tbody>
                 {holding.map((r) => (
@@ -3415,14 +3431,6 @@ export function AuthorityDetailPage(): JSX.Element {
                           : <Status tone="success">Custom</Status>}</td>
                     <td style={{ textAlign: 'right' }}>{r.authorities.length}</td>
                     <td style={{ textAlign: 'right' }}>{r.userCount}</td>
-                    <td>
-                      <RowMenu items={[
-                        { label: 'Open role',
-                          to: `/access/roles/${encodeURIComponent(r.roleId)}` },
-                        { label: 'View users with this role',
-                          to: `/provisioning/users?role=${encodeURIComponent(r.builtinKey ?? r.name)}` },
-                      ]} />
-                    </td>
                   </tr>
                 ))}
               </tbody>

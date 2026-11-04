@@ -1322,7 +1322,12 @@ export interface EdgeRoleDefinition {
 export interface EdgeAuthorityEntry {
   authority: string;
   module: string;
+  /** @deprecated Older server builds only emit `description`; new builds
+   *  also emit `allows` + `restricts`.  Read `allows` first and fall
+   *  back to `description` when the field isn't present. */
   description: string;
+  allows?: string;
+  restricts?: string;
 }
 
 export function listRoles(): Promise<EdgeRoleDefinition[]> {

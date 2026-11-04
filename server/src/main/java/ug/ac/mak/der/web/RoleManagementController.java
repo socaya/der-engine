@@ -162,7 +162,11 @@ public class RoleManagementController {
             final Map<String, String> row = new LinkedHashMap<>();
             row.put("authority", a.authority());
             row.put("module", a.module());
-            row.put("description", a.description());
+            // `description` is kept for backward compatibility with older
+            // UI builds; new UI reads `allows` + `restricts`.
+            row.put("description", a.allows());
+            row.put("allows", a.allows());
+            row.put("restricts", a.restricts());
             entries.add(row);
         }
         return ResponseEntity.ok(Map.of("authorities", entries));
