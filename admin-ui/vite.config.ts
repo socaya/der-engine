@@ -191,8 +191,13 @@ export default defineConfig({
         /* der-2.3.123 round-112 ratchet: MoreScreens.MockupDeviceDetail
          * status-arm tests added 3 tests + 7.1 point line lift.
          * Measured 89.13 / 80.98 / 74.36. Ratchet lines one point. */
+        /* der-2.3.123 round-116 ratchet: three further commits
+         * (MoreScreens.ApprovalDetail cross-link arms, Network.TlsCert
+         * + PolicyDialog + MdnsPanel) added 9 tests, Network.tsx
+         * 66.95 → 72.56 (+5.6). Measured 89.83 / 81.39 / 74.28.
+         * Branches crossed 81%. Ratchet branches up one. */
         lines: 89,
-        branches: 80,
+        branches: 81,
         functions: 74,
         statements: 89,
       },

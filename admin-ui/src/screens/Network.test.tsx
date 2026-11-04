@@ -591,6 +591,28 @@ describe('NetworkDiagnostics — loaded branches', () => {
     expect(body).toMatch(/Device Approved|DEVICE_APPROVED/i);
   });
 
+  it('MdnsPanel — populated services render the services table', async () => {
+    vi.spyOn(edgeApi, 'networkStatus').mockResolvedValue({
+      state: 'CONNECTED', agentReachable: true,
+      lastTransition: 'now', localLanAvailable: true,
+    } as unknown as edgeApi.NetworkStatus);
+    vi.spyOn(edgeApi, 'networkEvents').mockResolvedValue({ events: [] } as never);
+    vi.spyOn(edgeApi, 'networkMdns').mockResolvedValue({
+      services: [
+        { type: '_http._tcp', host: 'der-edge-01.local',
+          port: 443, description: 'DER edge server' },
+        { type: '_ipp._tcp', host: 'printer.local',
+          port: 631, description: 'Internet Printing Protocol' },
+      ],
+    });
+    renderWithProviders(<NetworkDiagnostics />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/der-edge-01\.local/));
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/_http\._tcp/);
+    expect(body).toMatch(/printer\.local/);
+  });
+
   it('rejected networkStatus → missing + "Service pending" label', async () => {
     vi.spyOn(edgeApi, 'networkStatus').mockRejectedValue(new Error('404'));
     vi.spyOn(edgeApi, 'networkEvents').mockResolvedValue({ events: [] } as never);
