@@ -4662,45 +4662,106 @@ export function CapOperatorMetrics(): JSX.Element {
     acc[j.jobName] = b;
     return acc;
   }, {});
+  const totalFailed = jobs.filter((j) => j.outcome === 'FAILED').length;
+  const totalSucc = jobs.filter((j) => j.outcome === 'SUCCEEDED').length;
+  const overallRel = totalFailed + totalSucc > 0
+    ? Math.round((100 * totalSucc) / (totalSucc + totalFailed))
+    : null;
+  const tone: 'success' | 'info' | 'warning' | 'danger' | 'muted' =
+    overallRel == null
+      ? 'muted'
+      : overallRel >= 95
+        ? 'success'
+        : overallRel >= 80
+          ? 'info'
+          : overallRel >= 50
+            ? 'warning'
+            : 'danger';
+  const statusLabel = overallRel == null
+    ? 'No runs yet'
+    : `${overallRel}% reliability over last ${jobs.length}`;
+
   return (
     <div className="ea-screen" data-test="cap-metrics">
-      <HeroHeader title="Operator metrics"
-        subtitle="Capture throughput and worker reliability on this edge."
+      <SyncStatusBar
+        tone={tone}
+        title="Operator metrics"
+        statusLabel={statusLabel}
+        subtitle="Capture throughput and worker reliability on this edge.  Reliability = succeeded / (succeeded + failed) over the last 100 scheduler runs, grouped by job."
+        actions={
+          <>
+            <Link to="/monitoring/health"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="System"
+                  data-test="cap-metrics-open-health">
+              <UiIcon icon="health" size={14} />
+              <span>Service health</span>
+            </Link>
+            <Link to="/sync/history"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Sync"
+                  data-test="cap-metrics-open-history">
+              <UiIcon icon="history" size={14} />
+              <span>Sync history</span>
+            </Link>
+          </>
+        }
       />
-      <div className="ea-stat-strip">
-        <Stat label="Mapped users" value={si.attribution?.mappedUsers ?? '—'} />
-        <Stat label="Scheduler jobs" value={si.scheduler.totalJobs ?? '—'} />
-        <Stat label="Executing now" value={si.scheduler.executingJobs ?? 0}
-              tone={(si.scheduler.executingJobs ?? 0) > 0 ? 'info' : 'muted'} />
-      </div>
-      <section className="ea-card">
-        <div className="ea-card-toolbar">
-          <span className="ea-card-count">Job success / failure</span>
+      <Panel title="At a glance">
+        <div className="ea-stat-strip">
+          <Stat label="Mapped users" value={si.attribution?.mappedUsers ?? '—'} />
+          <Stat label="Scheduler jobs" value={si.scheduler.totalJobs ?? '—'} />
+          <Stat label="Executing now" value={si.scheduler.executingJobs ?? 0}
+                tone={(si.scheduler.executingJobs ?? 0) > 0 ? 'info' : 'muted'} />
+          <Stat label="Reliability" value={overallRel == null ? '—' : `${overallRel}%`}
+                tone={tone === 'muted' ? 'muted' : tone === 'danger' ? 'danger' : 'success'} />
         </div>
-        <div className="ea-table-wrap">
-          <table className="ea-table"><thead><tr>
-            <th>Job</th><th>Succeeded</th><th>Failed</th><th>Reliability</th>
-          </tr></thead><tbody>
-            {Object.entries(byJob).map(([name, b]) => {
-              const total = b.succ + b.fail;
-              const rel = total ? Math.round((100 * b.succ) / total) : null;
-              return (
-                <tr key={name}>
-                  <td className="ea-mono">{name}</td>
-                  <td>{b.succ}</td>
-                  <td>{b.fail}</td>
-                  <td>{rel == null ? '—' : (
-                    <span className={'ea-chip ea-chip--' +
-                        (rel >= 95 ? 'success' : rel >= 80 ? 'info' : 'danger')}>
-                      {rel}%
-                    </span>
-                  )}</td>
-                </tr>
-              );
-            })}
-          </tbody></table>
-        </div>
-      </section>
+      </Panel>
+      <Panel title="Job reliability"
+             action={
+               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                 Grouped by job name · last 100 runs
+               </span>
+             }>
+        {Object.keys(byJob).length === 0 ? (
+          <EmptyBlock title="No runs recorded" testId="cap-metrics-empty">
+            The scheduler has not completed any runs yet on this edge.
+          </EmptyBlock>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense" data-test="cap-metrics-table">
+              <thead><tr>
+                <th>Job</th>
+                <th style={{ width: 100, textAlign: 'right' }}>Succeeded</th>
+                <th style={{ width: 90, textAlign: 'right' }}>Failed</th>
+                <th style={{ width: 120 }}>Reliability</th>
+              </tr></thead>
+              <tbody>
+                {Object.entries(byJob).map(([name, b]) => {
+                  const total = b.succ + b.fail;
+                  const rel = total ? Math.round((100 * b.succ) / total) : null;
+                  return (
+                    <tr key={name} data-test={`cap-metrics-row-${name}`}>
+                      <td className="ea-mono">{name}</td>
+                      <td style={{ textAlign: 'right' }}>{b.succ}</td>
+                      <td style={{ textAlign: 'right' }}>{b.fail}</td>
+                      <td data-test={`cap-metrics-rel-${name}`}>
+                        {rel == null
+                          ? <span className="ea-text-muted">—</span>
+                          : rel >= 95
+                            ? <Status tone="success">{rel}%</Status>
+                            : rel >= 80
+                              ? <Status tone="info">{rel}%</Status>
+                              : <Status tone="danger">{rel}%</Status>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }
@@ -4722,44 +4783,81 @@ export function CapServiceHealth(): JSX.Element {
   if (!h || !si) return <LoadingBlock testId="loading" />;
   const dot = (ok: boolean | undefined): JSX.Element =>
     <Status tone={ok ? 'success' : 'danger'}>{ok ? 'OK' : 'FAIL'}</Status>;
+
+  const components = [
+    { name: 'DER service', ok: isDerUp(h.status),
+      detail: `v${si.build.version}`, mono: true },
+    { name: 'Database',
+      ok: si.database.configured && !si.database.probeError,
+      detail: si.database.probeError ?? si.database.product ?? '—' },
+    { name: 'Scheduler', ok: si.scheduler.started,
+      detail: si.scheduler.standbyMode ? 'standby' : 'running' },
+    { name: 'DHIS2 central', ok: si.dhis2.probeReachable,
+      detail: si.dhis2.reason ?? si.dhis2.centralVersion ?? '—' },
+    { name: 'Storage', ok: si.storage.status === 'OK',
+      detail: si.storage.status ?? '—' },
+  ];
+  const failingComponents = components.filter((c) => !c.ok);
+  const tone: 'success' | 'warning' | 'danger' = failingComponents.length === 0
+    ? 'success'
+    : failingComponents.length <= 2
+      ? 'warning'
+      : 'danger';
+  const statusLabel = failingComponents.length === 0
+    ? `All ${components.length} components OK`
+    : `${failingComponents.length} / ${components.length} failing`;
+
   return (
     <div className="ea-screen" data-test="cap-health">
-      <HeroHeader title="Service health"
-        subtitle={`Overall: ${h.status}. Component status captured at ${si.timestamp}.`}
+      <SyncStatusBar
+        tone={tone}
+        title="Service health"
+        statusLabel={statusLabel}
+        subtitle={`Component status captured at ${si.timestamp}.  Overall health: ${h.status}.`}
+        actions={
+          <>
+            <Link to="/monitoring/metrics"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="System"
+                  data-test="cap-health-open-metrics">
+              <UiIcon icon="analytics" size={14} />
+              <span>Metrics</span>
+            </Link>
+            <Link to="/monitoring/storage"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="System"
+                  data-test="cap-health-open-storage">
+              <UiIcon icon="storage" size={14} />
+              <span>Storage</span>
+            </Link>
+          </>
+        }
       />
-      <section className="ea-card">
+      <Panel title="Components"
+             action={
+               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                 {components.length} components probed
+               </span>
+             }>
         <div className="ea-table-wrap">
-          <table className="ea-table"><thead><tr>
-            <th>Component</th><th>Status</th><th>Detail</th>
-          </tr></thead><tbody>
-            <tr>
-              <td>DER service</td>
-              <td>{dot(isDerUp(h.status))}</td>
-              <td className="ea-mono">v{si.build.version}</td>
-            </tr>
-            <tr>
-              <td>Database</td>
-              <td>{dot(si.database.configured && !si.database.probeError)}</td>
-              <td className="ea-cell-two">{si.database.probeError ?? si.database.product ?? '—'}</td>
-            </tr>
-            <tr>
-              <td>Scheduler</td>
-              <td>{dot(si.scheduler.started)}</td>
-              <td>{si.scheduler.standbyMode ? 'standby' : 'running'}</td>
-            </tr>
-            <tr>
-              <td>DHIS2 central</td>
-              <td>{dot(si.dhis2.probeReachable)}</td>
-              <td className="ea-cell-two">{si.dhis2.reason ?? si.dhis2.centralVersion ?? '—'}</td>
-            </tr>
-            <tr>
-              <td>Storage</td>
-              <td>{dot(si.storage.status === 'OK')}</td>
-              <td>{si.storage.status ?? '—'}</td>
-            </tr>
-          </tbody></table>
+          <table className="ea-table ea-table--dense" data-test="cap-health-components">
+            <thead><tr>
+              <th>Component</th>
+              <th style={{ width: 90 }}>Status</th>
+              <th>Detail</th>
+            </tr></thead>
+            <tbody>
+              {components.map((c) => (
+                <tr key={c.name} data-test={`cap-health-row-${c.name.toLowerCase().replace(/\s+/g, '-')}`}>
+                  <td>{c.name}</td>
+                  <td>{dot(c.ok)}</td>
+                  <td className={c.mono ? 'ea-mono' : 'ea-cell-two'}>{c.detail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </section>
+      </Panel>
     </div>
   );
 }
@@ -4775,29 +4873,72 @@ export function CapStorage(): JSX.Element {
   if (!si) return <LoadingBlock testId="loading" />;
   const s = si.storage;
   const used = (s.totalBytes ?? 0) - (s.usableBytes ?? 0);
+  const tone: 'success' | 'warning' | 'danger' | 'muted' = s.status === 'OK'
+    ? 'success'
+    : s.status === 'WARN'
+      ? 'warning'
+      : s.status === 'REJECT'
+        ? 'danger'
+        : 'muted';
+  const statusLabel = s.status === 'OK'
+    ? 'Healthy'
+    : s.status === 'WARN'
+      ? 'Low space warning'
+      : s.status === 'REJECT'
+        ? 'Writes blocked'
+        : (s.status ?? 'Unknown');
+
   return (
     <div className="ea-screen" data-test="cap-storage">
-      <HeroHeader title="Storage"
-        subtitle="Disk usage on the volume backing the DER data root."
+      <SyncStatusBar
+        tone={tone}
+        title="Storage"
+        statusLabel={statusLabel}
+        subtitle="Disk usage on the volume backing the DER data root.  Writes are rejected when usable bytes fall below the REJECT threshold — operators should free space or extend the volume before that happens."
+        actions={
+          <Link to="/monitoring/health"
+                className="ea-btn ea-btn--ghost ea-btn--sm"
+                data-cross-module="System"
+                data-test="cap-storage-open-health">
+            <UiIcon icon="health" size={14} />
+            <span>Service health</span>
+          </Link>
+        }
       />
-      <div className="ea-stat-strip">
-        <Stat label="Status" value={s.status ?? '—'}
-              tone={s.status === 'OK' ? 'success'
-                : s.status === 'WARN' ? 'info'
-                  : s.status === 'REJECT' ? 'danger' : 'muted'} />
-        <Stat label="Used" value={fmtBytes(used)} />
-        <Stat label="Usable" value={fmtBytes(s.usableBytes)} />
-        <Stat label="Utilisation"
-              value={pct(s.usableBytes ?? 0, s.totalBytes ?? 0)}
-              tone={s.status === 'REJECT' ? 'danger'
-                : s.status === 'WARN' ? 'info' : 'success'} />
-      </div>
-      <DefinitionCard title="Thresholds" rows={[
-        ['Root', <span key="r" className="ea-mono">{s.root ?? '—'}</span>],
-        ['Total', fmtBytes(s.totalBytes)],
-        ['Warn below', fmtBytes(s.warnBytes)],
-        ['Reject below', fmtBytes(s.rejectBytes)],
-      ]} />
+      <Panel title="At a glance">
+        <div className="ea-stat-strip">
+          <Stat label="Status" value={s.status ?? '—'}
+                tone={s.status === 'OK' ? 'success'
+                  : s.status === 'WARN' ? 'info'
+                    : s.status === 'REJECT' ? 'danger' : 'muted'} />
+          <Stat label="Used" value={fmtBytes(used)} />
+          <Stat label="Usable" value={fmtBytes(s.usableBytes)} />
+          <Stat label="Utilisation"
+                value={pct(s.usableBytes ?? 0, s.totalBytes ?? 0)}
+                tone={s.status === 'REJECT' ? 'danger'
+                  : s.status === 'WARN' ? 'info' : 'success'} />
+        </div>
+      </Panel>
+      <Panel title="Thresholds">
+        <dl className="ea-def-list" data-test="cap-storage-thresholds">
+          <div className="ea-def-row">
+            <dt>Root</dt>
+            <dd className="ea-mono">{s.root ?? '—'}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>Total</dt>
+            <dd>{fmtBytes(s.totalBytes)}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>Warn below</dt>
+            <dd>{fmtBytes(s.warnBytes)}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>Reject below</dt>
+            <dd>{fmtBytes(s.rejectBytes)}</dd>
+          </div>
+        </dl>
+      </Panel>
     </div>
   );
 }

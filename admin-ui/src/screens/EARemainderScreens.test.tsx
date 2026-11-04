@@ -230,7 +230,11 @@ describe('EA-35 Diagnostics', () => {
         schedulerBacklog: 2, journalBacklog: { PENDING: 3 } }),
     } as never} />);
     await waitFor(() => expect(screen.getByTestId('ea35-mem')).toHaveTextContent('512'));
-    expect(screen.getByTestId('ea35-journal-PENDING')).toHaveTextContent('PENDING: 3');
+    /* Journal row now splits state (Status chip) and count (mono td);
+     * match either substring individually. */
+    const journalRow = screen.getByTestId('ea35-journal-PENDING');
+    expect(journalRow).toHaveTextContent('PENDING');
+    expect(journalRow).toHaveTextContent('3');
   });
   it('error', async () => {
     renderWithProviders(<EADiagnostics api={{

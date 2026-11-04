@@ -482,28 +482,101 @@ export function EADiagnostics({ api = edgeApi }: {
   }, [api]);
   if (error) return <ErrorBlock title="Diagnostics failed" testId="ea35-error">{error}</ErrorBlock>;
   if (!d) return <LoadingBlock testId="ea35-loading" />;
+
+  const journalEntries = Object.entries(d.journalBacklog ?? {});
+  const journalTotal = journalEntries.reduce((a, [, v]) => a + v, 0);
+  const failedBacklog = d.journalBacklog?.FAILED ?? 0;
+  const tone: 'success' | 'info' | 'warning' | 'danger' = failedBacklog > 0
+    ? 'danger'
+    : (d.schedulerBacklog ?? 0) > 50 || journalTotal >= 100
+      ? 'warning'
+      : (d.schedulerBacklog ?? 0) > 0 || journalTotal > 0
+        ? 'info'
+        : 'success';
+  const statusLabel = failedBacklog > 0
+    ? `${failedBacklog} failed op${failedBacklog === 1 ? '' : 's'}`
+    : journalTotal === 0 && (d.schedulerBacklog ?? 0) === 0
+      ? 'Idle'
+      : `${journalTotal} journal · ${d.schedulerBacklog ?? 0} scheduler`;
+
   return (
-    <div className="ea-screen">
-      <h1 data-test="ea35-heading">Diagnostics</h1>
-      <dl>
-        <dt>Memory (MiB)</dt><dd data-test="ea35-mem">{d.memoryMb}</dd>
-        <dt>Uptime (s)</dt><dd data-test="ea35-uptime">{d.uptimeSeconds}</dd>
-        <dt>Quartz backlog</dt><dd data-test="ea35-scheduler">{d.schedulerBacklog}</dd>
-      </dl>
-      <ul data-test="ea35-journal">
-        {Object.entries(d.journalBacklog ?? {}).map(([k, v]) => (
-          <li key={k}>
-            <span data-test={`ea35-journal-${k}`}>{k}: {v}</span>
-          </li>
-        ))}
-      </ul>
-      <p style={{ marginTop: 16, fontSize: 13 }}>
-        <Link to="/support-bundle"
-               className="ea-link-btn"
-               data-test="ea35-support-bundle-link">
-          Export support bundle →
-        </Link>
-      </p>
+    <div className="ea-screen" data-test="ea35">
+      <SyncStatusBar
+        tone={tone}
+        title="Diagnostics"
+        statusLabel={statusLabel}
+        subtitle="Point-in-time snapshot of the JVM + scheduler + journal.  Memory pressure, uptime, Quartz backlog and per-state journal counts in one place for operator triage."
+        actions={
+          <Link to="/support-bundle"
+                className="ea-btn ea-btn--primary ea-btn--sm"
+                data-test="ea35-support-bundle-link">
+            <UiIcon icon="download" size={14} />
+            <span>Export support bundle</span>
+          </Link>
+        }
+      />
+      <Panel title="Runtime"
+             action={
+               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                 Live from /edge-api/v1/system/diagnostics
+               </span>
+             }>
+        <dl className="ea-def-list" data-test="ea35-runtime">
+          <div className="ea-def-row">
+            <dt>Memory (MiB)</dt>
+            <dd data-test="ea35-mem" className="ea-mono">{d.memoryMb}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>Uptime (s)</dt>
+            <dd data-test="ea35-uptime" className="ea-mono">{d.uptimeSeconds}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>Quartz backlog</dt>
+            <dd data-test="ea35-scheduler">
+              {(d.schedulerBacklog ?? 0) === 0
+                ? <Status tone="success">0 pending</Status>
+                : <Status tone={(d.schedulerBacklog ?? 0) > 50 ? 'warning' : 'info'}>
+                    {d.schedulerBacklog} pending
+                  </Status>}
+            </dd>
+          </div>
+        </dl>
+      </Panel>
+      <Panel title="Journal backlog"
+             action={
+               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                 Total: <strong>{journalTotal}</strong>
+               </span>
+             }>
+        {journalEntries.length === 0 ? (
+          <EmptyBlock title="Journal empty" testId="ea35-journal-empty">
+            No pending operations in any journal state.
+          </EmptyBlock>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense" data-test="ea35-journal">
+              <thead><tr>
+                <th style={{ width: 140 }}>State</th>
+                <th style={{ textAlign: 'right' }}>Operations</th>
+              </tr></thead>
+              <tbody>
+                {journalEntries.map(([k, v]) => (
+                  <tr key={k} data-test={`ea35-journal-${k}`}>
+                    <td>
+                      {k === 'FAILED'
+                        ? <Status tone="danger">{k}</Status>
+                        : k === 'PENDING'
+                          ? <Status tone="info">{k}</Status>
+                          : <Status tone="success">{k}</Status>}
+                    </td>
+                    <td className="ea-mono" style={{ textAlign: 'right' }}>{v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }
