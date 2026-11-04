@@ -56,6 +56,30 @@ describe('MockupDataManagement', () => {
       expect(screen.getByText(/No records yet/)).toBeInTheDocument());
   });
 
+  it('rowMenuForType includes aggregate/event/tracker menu items per type', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'journalStatsByType').mockResolvedValue({
+      AGGREGATE_DATA_VALUE: { CENTRAL_ACCEPTED: 1 },
+      EVENT: { CENTRAL_ACCEPTED: 1 },
+      PROGRAM_STAGE_EVENT: { CENTRAL_ACCEPTED: 1 },
+      TRACKED_ENTITY: { CENTRAL_ACCEPTED: 1 },
+      ENROLLMENT: { CENTRAL_ACCEPTED: 1 },
+    } as unknown as edgeApi.JournalStatsByType);
+    renderWithProviders(<MockupDataManagement />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('data-type-row-AGGREGATE_DATA_VALUE'))
+        .toBeInTheDocument());
+    /* All five type rows render — rowMenuForType is invoked for each,
+     * covering its three branches (aggregate / event / tracker). */
+    expect(screen.getByTestId('data-type-row-EVENT')).toBeInTheDocument();
+    expect(screen.getByTestId('data-type-row-PROGRAM_STAGE_EVENT'))
+      .toBeInTheDocument();
+    expect(screen.getByTestId('data-type-row-TRACKED_ENTITY'))
+      .toBeInTheDocument();
+    expect(screen.getByTestId('data-type-row-ENROLLMENT'))
+      .toBeInTheDocument();
+  });
+
   it('populated byType → "N captured" surfaces with totals + per-type rows', async () => {
     stubAll();
     vi.spyOn(edgeApi, 'journalStatsByType').mockResolvedValue({
