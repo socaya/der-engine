@@ -54,7 +54,7 @@ import { MockupMetadata, MockupMetadataDetail } from './screens/Metadata';
 import { MockupDataManagement } from './screens/DataManagement';
 import { MockupDataQueues, MockupDataDetail } from './screens/DataQueues';
 import { MockupSyncHistory, MockupSyncHistoryDetail } from './screens/SyncHistory';
-import { MockupUsersDashboard, MockupUserDetail } from './screens/UsersDashboard';
+import { MockupUsersDashboard, MockupUserDetail, MockupUserDhis2Mapping } from './screens/UsersDashboard';
 import { MockupDhis2Overview } from './screens/Dhis2Overview';
 import { MockupWorkspace } from './screens/Workspace';
 import { MockupAdminTasks } from './screens/AdminTasks';
@@ -130,6 +130,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EAUserCreate /></RequireAuth>} />
           <Route path="/provisioning/users/:userId"
                  element={<RequireAuth><MockupUserDetail /></RequireAuth>} />
+          <Route path="/provisioning/users/:userId/dhis2-mapping"
+                 element={<RequireAuth><MockupUserDhis2Mapping /></RequireAuth>} />
           {/* der-2.0.17 — standard URL layout: /dhis2/* for every
               DHIS2-integration surface. Legacy paths kept as
               redirect-equivalent routes so bookmarks continue to work.

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../test/renderWithProviders';
-import { MockupUsersDashboard, MockupUserDetail } from './UsersDashboard';
+import { MockupUsersDashboard, MockupUserDetail, MockupUserDhis2Mapping } from './UsersDashboard';
 import * as edgeApi from '../api/edgeApi';
 import type { ProvisionedUser } from '../api/edgeApi';
 
@@ -190,5 +190,89 @@ describe('MockupUsersDashboard', () => {
     expect(screen.queryByText('mapped.user')).toBeNull();
     expect(screen.getByTestId('scoped-filter-chip'))
       .toHaveTextContent('not mapped to DHIS2');
+  });
+});
+
+describe('MockupUserDhis2Mapping (per-user route)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  function renderAt(path: string): void {
+    renderWithProviders(
+      <Routes>
+        <Route path="/provisioning/users/:userId/dhis2-mapping"
+               element={<MockupUserDhis2Mapping />} />
+      </Routes>,
+      { authApi, route: path },
+    );
+  }
+
+  it('shows an Unmapped status bar + Map button for a user with no mapping', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1', username: 'alice' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    await waitFor(() =>
+      expect(screen.getByTestId('user-dhis2-mapping')).toBeInTheDocument());
+    expect(screen.getByTestId('user-dhis2-mapping-edit'))
+      .toHaveTextContent('Map DHIS2 user');
+    expect(document.body.textContent ?? '').toMatch(/Unmapped/);
+  });
+
+  it('shows the current mapping + Edit / Clear actions when mapped', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1', username: 'alice' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
+      { edgeUserId: 'u-1', dhis2UserUid: 'ALICE123', dhis2Username: 'alice.c',
+        dhis2DisplayName: 'Alice Central', mappedAt: '2026-11-04T10:00:00Z',
+        mappedBy: 'admin', lastVerifiedAt: null },
+    ]);
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    await waitFor(() =>
+      expect(screen.getByTestId('user-dhis2-mapping-current'))
+        .toBeInTheDocument());
+    expect(screen.getByTestId('user-dhis2-mapping-current'))
+      .toHaveTextContent('alice.c');
+    expect(screen.getByTestId('user-dhis2-mapping-current'))
+      .toHaveTextContent('ALICE123');
+    expect(screen.getByTestId('user-dhis2-mapping-edit'))
+      .toHaveTextContent('Edit mapping');
+    expect(screen.getByTestId('user-dhis2-mapping-clear')).toBeInTheDocument();
+  });
+
+  it('Edit opens the form and Save calls setUserDhis2Mapping', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1', username: 'alice',
+                             displayName: 'Alice' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    const setSpy = vi.spyOn(edgeApi, 'setUserDhis2Mapping').mockResolvedValue({
+      edgeUserId: 'u-1', dhis2UserUid: 'ALICE123', dhis2Username: 'alice.c',
+      dhis2DisplayName: 'Alice Central', mappedAt: 'now', mappedBy: 'admin',
+      lastVerifiedAt: null,
+    });
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('user-dhis2-mapping-edit'));
+    await waitFor(() =>
+      expect(screen.getByTestId('user-dhis2-mapping-form')).toBeInTheDocument());
+    /* Username is seeded from the edge username. */
+    expect((screen.getByTestId('user-dhis2-mapping-input-username') as HTMLInputElement).value)
+      .toBe('alice');
+    await user.type(screen.getByTestId('user-dhis2-mapping-input-uid'), 'ALICE123');
+    await user.click(screen.getByTestId('user-dhis2-mapping-save'));
+    await waitFor(() => expect(setSpy).toHaveBeenCalledWith('u-1',
+      expect.objectContaining({ dhis2UserUid: 'ALICE123' })));
+  });
+
+  it('unknown user id surfaces the not-found ErrorBlock', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({ users: [] });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    renderAt('/provisioning/users/does-not-exist/dhis2-mapping');
+    await waitFor(() =>
+      expect(screen.getByTestId('err-user-mapping-not-found'))
+        .toBeInTheDocument());
   });
 });

@@ -210,7 +210,7 @@ export function MockupUsersDashboard(): JSX.Element {
                       <RowMenu items={[
                         { label: 'Open details', to: `/provisioning/users/${u.userId}` },
                         { label: mappings[u.userId] ? 'Edit DHIS2 mapping' : 'Map DHIS2 user',
-                          to: `/access/dhis2-mappings?user=${encodeURIComponent(u.userId)}` },
+                          to: `/provisioning/users/${encodeURIComponent(u.userId)}/dhis2-mapping` },
                       ]} />
                     </td>
                   </tr>
@@ -266,7 +266,12 @@ export function MockupUserDetail(): JSX.Element {
           </div>
         </div>
         <div className="ea-screen-header-right">
-          <button type="button" className="ea-btn ea-btn--primary">Validate mapping</button>
+          <Link to={`/provisioning/users/${encodeURIComponent(user.userId)}/dhis2-mapping`}
+                className="ea-btn ea-btn--primary"
+                data-test="user-detail-open-dhis2-mapping">
+            <UiIcon icon="metadata" size={14} />
+            <span>DHIS2 mapping</span>
+          </Link>
           <button type="button" className="ea-btn ea-btn--ghost">Reset login</button>
         </div>
       </header>
@@ -310,4 +315,275 @@ function initials(s: string): string {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
+
+/**
+ * `/provisioning/users/:userId/dhis2-mapping` — per-user mapping edit.
+ *
+ * Operators clicking 'Map DHIS2 user' / 'Edit DHIS2 mapping' from a
+ * user row land here (nested route under the user they started from)
+ * rather than on the global /access/dhis2-mappings list.  BackLink
+ * returns them to the user detail; after save, the panel refreshes
+ * in-place so the operator can see the updated mapping.
+ */
+export function MockupUserDhis2Mapping(): JSX.Element {
+  const { userId } = useParams<{ userId: string }>();
+  const [user, setUser] = useState<edgeApi.ProvisionedUser | null>(null);
+  const [mapping, setMapping] =
+    useState<edgeApi.EdgeUserDhis2Mapping | null>(null);
+  const [draft, setDraft] = useState<{
+    uid: string; username: string; displayName: string } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    setErr(null); setNotFound(false);
+    Promise.all([
+      edgeApi.listUsers(),
+      edgeApi.listUserDhis2Mappings(),
+    ]).then(([u, m]) => {
+      const row = u.users.find((x) => x.userId === userId);
+      if (!row) { setNotFound(true); return; }
+      setUser(row);
+      setMapping(m.find((x) => x.edgeUserId === userId) ?? null);
+    }).catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
+  }, [userId]);
+
+  async function save(): Promise<void> {
+    if (!draft || !userId) return;
+    setSaving(true); setErr(null); setMsg(null);
+    try {
+      const saved = await edgeApi.setUserDhis2Mapping(userId, {
+        dhis2UserUid: draft.uid.trim(),
+        dhis2Username: draft.username.trim(),
+        dhis2DisplayName: draft.displayName.trim() || null,
+      });
+      setMapping(saved);
+      setMsg(`Mapping saved — @${saved.dhis2Username}`);
+      setDraft(null);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally { setSaving(false); }
+  }
+
+  async function clearMapping(): Promise<void> {
+    if (!userId || !mapping) return;
+    setSaving(true); setErr(null); setMsg(null);
+    try {
+      await edgeApi.clearUserDhis2Mapping(userId);
+      setMapping(null);
+      setMsg('Mapping cleared.  Captured records will carry no DHIS2 attribution until a new mapping is set.');
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally { setSaving(false); }
+  }
+
+  if (notFound) {
+    return (
+      <ErrorBlock title="User not found"
+                   testId="err-user-mapping-not-found">
+        <span>No user with id <code>{userId}</code> on this edge.</span>
+        &nbsp;<Link to="/provisioning/users"
+                    data-cross-module="Access">Back to users</Link>.
+      </ErrorBlock>
+    );
+  }
+  if (err && !user) {
+    return <ErrorBlock title="DHIS2 mapping load failed"
+                        testId="err-user-mapping">{err}</ErrorBlock>;
+  }
+  if (!user) return <LoadingBlock testId="loading" />;
+
+  const mapped = mapping != null;
+  return (
+    <div className="ea-screen" data-test="user-dhis2-mapping">
+      <BackLink to={`/provisioning/users/${encodeURIComponent(user.userId)}`}
+                label="Back to user detail" />
+
+      <SyncStatusBar
+        tone={mapped ? 'success' : 'warning'}
+        title={`DHIS2 mapping — ${user.displayName}`}
+        statusLabel={mapped ? `Mapped to @${mapping!.dhis2Username}` : 'Unmapped'}
+        subtitle={
+          <>
+            <span>ADR-0032 attribution: every record this user captures
+              carries the mapped DHIS2 user&apos;s uid as <code>storedBy</code>
+              on publish.  Unmapped users can capture locally but their
+              records will not be attributed on central.</span>
+          </>
+        }
+        actions={
+          <>
+            <Link to="/access/dhis2-mappings"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Access"
+                  data-test="user-dhis2-mapping-open-list">
+              <UiIcon icon="metadata" size={14} />
+              <span>All mappings</span>
+            </Link>
+            {!draft && (
+              <button type="button"
+                      className="ea-btn ea-btn--primary ea-btn--sm"
+                      data-test="user-dhis2-mapping-edit"
+                      onClick={() => setDraft({
+                        uid: mapping?.dhis2UserUid ?? '',
+                        username: mapping?.dhis2Username ?? user.username,
+                        displayName: mapping?.dhis2DisplayName ?? user.displayName ?? '',
+                      })}>
+                <UiIcon icon="edit" size={14} />
+                <span>{mapped ? 'Edit mapping' : 'Map DHIS2 user'}</span>
+              </button>
+            )}
+          </>
+        }
+      />
+
+      {msg && (
+        <div className="ea-callout ea-callout--success"
+             data-test="user-dhis2-mapping-msg" role="status">{msg}</div>
+      )}
+      {err && (
+        <ErrorBlock title="Mapping action failed"
+                     testId="err-user-mapping-action">{err}</ErrorBlock>
+      )}
+
+      <Panel title="Edge user">
+        <dl className="ea-def-list" data-test="user-dhis2-mapping-edge">
+          <div className="ea-def-row">
+            <dt>Display name</dt>
+            <dd>{user.displayName}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>Username</dt>
+            <dd className="ea-mono">{user.username}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>User ID</dt>
+            <dd className="ea-mono" style={{ fontSize: 13 }}>{user.userId}</dd>
+          </div>
+        </dl>
+      </Panel>
+
+      <Panel title="DHIS2 mapping"
+             action={
+               mapped && !draft && (
+                 <button type="button"
+                         className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
+                         data-test="user-dhis2-mapping-clear"
+                         disabled={saving}
+                         onClick={() => {
+                           if (window.confirm(
+                             `Clear the DHIS2 mapping for @${user.username}?\n\n`
+                             + 'Future captured records will carry no central attribution until a new mapping is set.')) {
+                             void clearMapping();
+                           }
+                         }}>
+                   Clear mapping
+                 </button>
+               )
+             }>
+        {!mapped && !draft && (
+          <p className="ea-text-muted" style={{ margin: 0 }}>
+            No DHIS2 user is mapped to this edge user yet.  Click
+            <strong> Map DHIS2 user</strong> to pair them.
+          </p>
+        )}
+        {mapped && !draft && (
+          <dl className="ea-def-list" data-test="user-dhis2-mapping-current">
+            <div className="ea-def-row">
+              <dt>DHIS2 username</dt>
+              <dd className="ea-mono">{mapping!.dhis2Username}</dd>
+            </div>
+            <div className="ea-def-row">
+              <dt>DHIS2 uid</dt>
+              <dd className="ea-mono">{mapping!.dhis2UserUid}</dd>
+            </div>
+            <div className="ea-def-row">
+              <dt>DHIS2 display name</dt>
+              <dd>{mapping!.dhis2DisplayName ?? '—'}</dd>
+            </div>
+            <div className="ea-def-row">
+              <dt>Mapped at</dt>
+              <dd className="ea-mono">
+                {new Date(mapping!.mappedAt).toLocaleString()}
+              </dd>
+            </div>
+            <div className="ea-def-row">
+              <dt>Last verified</dt>
+              <dd className="ea-mono">
+                {mapping!.lastVerifiedAt
+                  ? new Date(mapping!.lastVerifiedAt).toLocaleString()
+                  : 'Never'}
+              </dd>
+            </div>
+          </dl>
+        )}
+        {draft && (
+          <div data-test="user-dhis2-mapping-form"
+               style={{ display: 'grid', gap: 12 }}>
+            <label>
+              <span style={{ display: 'block', fontSize: 12,
+                              color: 'var(--der-ink-700)', marginBottom: 4 }}>
+                DHIS2 uid
+              </span>
+              <input type="text"
+                     aria-label="DHIS2 uid"
+                     data-test="user-dhis2-mapping-input-uid"
+                     className="ea-input ea-mono"
+                     style={{ width: '100%' }}
+                     value={draft.uid}
+                     placeholder="11-character DHIS2 user uid"
+                     onChange={(e) => setDraft({ ...draft, uid: e.target.value })} />
+            </label>
+            <label>
+              <span style={{ display: 'block', fontSize: 12,
+                              color: 'var(--der-ink-700)', marginBottom: 4 }}>
+                DHIS2 username
+              </span>
+              <input type="text"
+                     aria-label="DHIS2 username"
+                     data-test="user-dhis2-mapping-input-username"
+                     className="ea-input"
+                     style={{ width: '100%' }}
+                     value={draft.username}
+                     onChange={(e) => setDraft({ ...draft, username: e.target.value })} />
+            </label>
+            <label>
+              <span style={{ display: 'block', fontSize: 12,
+                              color: 'var(--der-ink-700)', marginBottom: 4 }}>
+                DHIS2 display name (optional)
+              </span>
+              <input type="text"
+                     aria-label="DHIS2 display name"
+                     data-test="user-dhis2-mapping-input-display-name"
+                     className="ea-input"
+                     style={{ width: '100%' }}
+                     value={draft.displayName}
+                     onChange={(e) => setDraft({ ...draft, displayName: e.target.value })} />
+            </label>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button"
+                      className="ea-btn ea-btn--ghost ea-btn--sm"
+                      data-test="user-dhis2-mapping-cancel"
+                      disabled={saving}
+                      onClick={() => setDraft(null)}>Cancel</button>
+              <button type="button"
+                      className="ea-btn ea-btn--primary ea-btn--sm"
+                      data-test="user-dhis2-mapping-save"
+                      disabled={saving
+                        || draft.uid.trim().length === 0
+                        || draft.username.trim().length === 0}
+                      onClick={() => { void save(); }}>
+                {saving ? 'Saving…' : 'Save mapping'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
 export { fmtDate, Dot };
