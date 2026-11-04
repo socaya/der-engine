@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { HeroHeader } from '../components/HeroHeader';
@@ -354,6 +355,13 @@ export function EADiagnostics({ api = edgeApi }: {
           </li>
         ))}
       </ul>
+      <p style={{ marginTop: 16, fontSize: 13 }}>
+        <Link to="/support-bundle"
+               className="ea-link-btn"
+               data-test="ea35-support-bundle-link">
+          Export support bundle →
+        </Link>
+      </p>
     </div>
   );
 }

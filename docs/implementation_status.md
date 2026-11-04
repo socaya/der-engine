@@ -424,7 +424,7 @@ All **🧱 SCAFFOLD** per audit. Backup/restore workflow shipped (ADR-0012, V010
 | FR-15-06 | User scope viewer | P1 | ❌ PENDING | — (alpha.2 target) |
 | FR-15-07 | Backup tools — schedule + verify | P1 | ✅ DONE | `MockupBackupList` wires `backupVerifyStatus` + `backupVerifyHistory` + `backupVerifyRun` + `backupPitrWal` + schedule display from `readSettings().cron['backup.rotate']` |
 | FR-15-08 | Configuration editor + audit | P1 | ❌ PENDING | — (alpha.2 target) |
-| FR-15-09 | Support bundle — sanitised log export | P1 | ❌ PENDING | — (alpha.2 target) |
+| FR-15-09 | Support bundle — sanitised log export | P1 | ✅ DONE | `MockupSupportBundle` on `/support-bundle` drives `GET /edge-api/v1/admin/ops/support-bundle` (manifest + sanitised users + journal-recent). Server endpoint existed in OperationsAdminController; admin UI wiring landed. Deep-link from EADiagnostics. Each export logs `SUPPORT_BUNDLE_EXPORTED` audit event. |
 | FR-15-10 | Operational reports | P1 | ❌ PENDING | — (alpha.2 target) |
 
 ### FR-16 Security (12 items, all P0)

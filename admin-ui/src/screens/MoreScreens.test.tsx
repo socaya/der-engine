@@ -18,6 +18,7 @@ import {
   MockupCompatInspector,
   MockupAuditEvents,
   MockupFacilityAnalytics,
+  MockupSupportBundle,
 } from './MoreScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -809,5 +810,47 @@ describe('MoreScreens — surface mount test', () => {
       .not.toBeNull();
     expect(container.querySelector('[data-test="ea14-backlog-OTHER_STATE"]'))
       .not.toBeNull();
+  });
+
+  it('MockupSupportBundle — FR-15-09 download button invokes fetchSupportBundle + updates last-export', async () => {
+    const zipBlob = new Blob(['PKfake zip'],
+      { type: 'application/zip' });
+    const fetchSpy = vi.spyOn(edgeApi, 'fetchSupportBundle').mockResolvedValue({
+      blob: zipBlob,
+      filename: 'der-support-bundle-2026-11-04T10-00-00Z.zip',
+    });
+    /* downloadBlob internals call URL.createObjectURL + revokeObjectURL.
+     * jsdom doesn't implement them — stub both as no-ops so the anchor
+     * click path works and the deferred revoke timer no-ops. */
+    const createOrig = URL.createObjectURL;
+    (URL as unknown as { createObjectURL: typeof URL.createObjectURL })
+      .createObjectURL = (() => 'blob:test') as never;
+    (URL as unknown as { revokeObjectURL: typeof URL.revokeObjectURL })
+      .revokeObjectURL = (() => undefined) as never;
+    try {
+      renderWithProviders(<MockupSupportBundle />, { authApi });
+      expect(screen.getByTestId('support-bundle')).toBeInTheDocument();
+      const user = (await import('@testing-library/user-event')).default.setup();
+      await user.click(screen.getByTestId('support-bundle-download'));
+      await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+      await waitFor(() =>
+        expect(screen.getByTestId('support-bundle-filename'))
+          .toHaveTextContent(/der-support-bundle-2026-11-04/));
+      expect(screen.getByTestId('support-bundle-size'))
+        .toHaveTextContent(/B|KiB/);
+    } finally {
+      URL.createObjectURL = createOrig;
+    }
+  });
+
+  it('MockupSupportBundle — fetchSupportBundle rejection surfaces err-support-bundle', async () => {
+    vi.spyOn(edgeApi, 'fetchSupportBundle')
+      .mockRejectedValue(new Error('server 503'));
+    renderWithProviders(<MockupSupportBundle />, { authApi });
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.click(screen.getByTestId('support-bundle-download'));
+    await waitFor(() =>
+      expect(screen.getByTestId('err-support-bundle')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/server 503/);
   });
 });

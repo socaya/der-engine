@@ -2060,3 +2060,122 @@ export function MockupFacilityAnalytics(): JSX.Element {
 }
 
 export { fmtBytes };
+
+/* ─── /support-bundle ─────────────────────────────────────────────── */
+/** FR-15-09 — Support bundle export.
+ *
+ *  One-click download of a sanitised diagnostics ZIP (users roster +
+ *  pending-journal snapshot + manifest with host/Java/OS) from
+ *  /edge-api/v1/admin/ops/support-bundle. Drives a client-side download
+ *  via a Blob object URL so the ADMIN session cookie is used
+ *  transparently. Each export is server-side audit-logged as
+ *  SUPPORT_BUNDLE_EXPORTED. */
+export function MockupSupportBundle(): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [lastExport, setLastExport] = useState<{
+    filename: string; sizeBytes: number; downloadedAt: string;
+  } | null>(null);
+
+  async function download(): Promise<void> {
+    setBusy(true); setErr(null);
+    try {
+      const { blob, filename } = await edgeApi.fetchSupportBundle();
+      const url = URL.createObjectURL(blob);
+      try {
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+      } finally {
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      setLastExport({
+        filename, sizeBytes: blob.size,
+        downloadedAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="ea-screen" data-test="support-bundle">
+      <SyncStatusBar
+        tone="info"
+        title="Support bundle"
+        statusLabel={lastExport ? 'Ready' : 'Not yet exported'}
+        subtitle={
+          <>
+            <span>
+              Sanitised diagnostics bundle for sharing with DER support.
+              Includes build metadata, a snapshot of pending journal
+              operations, and the current users roster.
+            </span>
+            <span>·</span>
+            <span>
+              <strong style={{ color: 'var(--der-ink-900)' }}>No PHI / operational
+              data</strong> is included — only operator identities and
+              per-operation metadata.
+            </span>
+          </>
+        }
+        actions={
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  disabled={busy}
+                  data-test="support-bundle-download"
+                  onClick={() => { download().catch(() => undefined); }}>
+            <UiIcon icon="download" size={14} />
+            <span>{busy ? 'Preparing…' : 'Export support bundle'}</span>
+          </button>
+        }
+      />
+
+      {err && <ErrorBlock title="Support bundle export failed"
+                            testId="err-support-bundle">{err}</ErrorBlock>}
+
+      <Panel title="What's in the bundle">
+        <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7 }}>
+          <li><strong>manifest.json</strong> — generated-at timestamp,
+            generating user ID, hostname, Java + OS version</li>
+          <li><strong>users.json</strong> — sanitised users roster
+            (user IDs, display names, roles, origin, permission age).
+            <em> No password hashes or session tokens.</em></li>
+          <li><strong>journal-recent.json</strong> — the 50 most recent
+            pending operations (ID, entity type, state, attempt count,
+            created timestamp). <em>No payload content.</em></li>
+        </ul>
+      </Panel>
+
+      {lastExport && (
+        <Panel title="Last export">
+          <dl className="ea-def-list">
+            <div className="ea-def-row"><dt>File</dt>
+              <dd className="ea-mono" data-test="support-bundle-filename">
+                {lastExport.filename}
+              </dd></div>
+            <div className="ea-def-row"><dt>Size</dt>
+              <dd className="ea-mono" data-test="support-bundle-size">
+                {fmtBytes(lastExport.sizeBytes)}
+              </dd></div>
+            <div className="ea-def-row"><dt>Downloaded</dt>
+              <dd className="ea-mono">{fmtDate(lastExport.downloadedAt)}</dd></div>
+          </dl>
+        </Panel>
+      )}
+
+      <Panel title="Audit trail">
+        <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
+          Every export is logged to the DER security audit as
+          <code> SUPPORT_BUNDLE_EXPORTED</code>.{' '}
+          <Link to="/audit/events" className="ea-link-btn"
+                 data-cross-module="Security"
+                 data-test="support-bundle-audit-link">
+            View audit log →
+          </Link>
+        </p>
+      </Panel>
+    </div>
+  );
+}

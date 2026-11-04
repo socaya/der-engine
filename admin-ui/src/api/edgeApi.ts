@@ -1366,6 +1366,40 @@ export function backupPitrWal(): Promise<WalSummary> {
   return request('GET', '/edge-api/v1/backup/pitr/wal');
 }
 
+/** FR-15-09 — Support bundle: sanitised diagnostics zip.
+ *
+ *  The server returns application/zip (not JSON) so this bypasses the
+ *  generic request() helper and streams the response as a Blob. Returns
+ *  `{ blob, filename }` so the caller can drive a download via an
+ *  object-URL link. Throws EdgeApiError on non-2xx responses so the UI
+ *  can surface the failure consistently. */
+export async function fetchSupportBundle(): Promise<{
+  blob: Blob;
+  filename: string;
+}> {
+  const response = await fetch('/edge-api/v1/admin/ops/support-bundle', {
+    method: 'GET',
+    credentials: 'include',
+    headers: { Accept: 'application/zip' },
+  });
+  if (response.status === 401) {
+    throw new EdgeApiError(401, 'INVALID_CREDENTIALS', 'invalid credentials');
+  }
+  if (!response.ok) {
+    throw new EdgeApiError(
+      response.status, 'UNKNOWN',
+      `support bundle export failed with status ${response.status}`,
+    );
+  }
+  // Server sends Content-Disposition: attachment; filename="der-support-bundle-<ts>.zip"
+  const disp = response.headers.get('Content-Disposition') ?? '';
+  const match = disp.match(/filename="([^"]+)"/);
+  const filename = match?.[1]
+    ?? `der-support-bundle-${new Date().toISOString().replace(/:/g, '-')}.zip`;
+  const blob = await response.blob();
+  return { blob, filename };
+}
+
 export interface RestoreRow {
   runId: number;
   requestedAt: string;
