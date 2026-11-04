@@ -50,43 +50,20 @@ probe() {
     curl -sSf "${DER_BASE_URL}$1" -b "${DER_ADMIN_COOKIE:-}" 2>&1 | head -c 400
 }
 
-# FR-15 ops endpoints
-if probe "/edge-api/v1/system/health" >/dev/null; then
-    check "FR-15-01 system/health" PASS "200"
-else
-    check "FR-15-01 system/health" FAIL "non-200"
-fi
-
-if probe "/edge-api/v1/admin/ops/users/scope" >/dev/null; then
-    check "FR-15-06 users/scope"   PASS "200"
-else
-    check "FR-15-06 users/scope"   SKIP "requires ADMIN cookie"
-fi
-
-if probe "/edge-api/v1/admin/ops/backup/verify" >/dev/null; then
-    check "FR-15-07 backup/verify" PASS "200"
-else
-    check "FR-15-07 backup/verify" SKIP "requires ADMIN cookie"
-fi
-
-if probe "/edge-api/v1/admin/ops/settings" >/dev/null; then
-    check "FR-15-08 settings"      PASS "200"
-else
-    check "FR-15-08 settings"      SKIP "requires ADMIN cookie"
-fi
-
-if probe "/edge-api/v1/admin/ops/reports/operational" >/dev/null; then
-    check "FR-15-10 operational"   PASS "200"
-else
-    check "FR-15-10 operational"   SKIP "requires ADMIN cookie"
-fi
-
-# FR-27 referral surface
-if probe "/edge-api/v1/referral/inbox" >/dev/null; then
-    check "FR-27 referral inbox"   PASS "200"
-else
-    check "FR-27 referral inbox"   FAIL "non-200"
-fi
+# Operator probes come from the FR-17-10 catalogue so adding a new
+# supported workflow automatically adds its probe here — no manual
+# edit of this script required. A per-FR label is computed from each
+# probe's first reverse-matched workflow for readable [PASS] lines.
+PROBES_RAW="$(python3 "${ROOT}/scripts/evaluation/check_workflow_regression.py" --probes 2>/dev/null)"
+while IFS= read -r probe; do
+    [ -z "$probe" ] && continue
+    label="probe ${probe}"
+    if probe "$probe" >/dev/null 2>&1; then
+        check "$label" PASS "200"
+    else
+        check "$label" SKIP "non-200 or auth required"
+    fi
+done <<< "$PROBES_RAW"
 
 # NFR-29 backup integrity — delegate to backup_integrity.py.
 if command -v python3 >/dev/null; then

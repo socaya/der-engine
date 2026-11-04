@@ -1,0 +1,174 @@
+{
+  "_comment": "FR-17-10 — enumeration of the workflows DER declares as supported, each pinned to the server-side integration test(s) that cover it. The static checker walks this catalogue and asserts every referenced test file exists. The live regression suite (regression_suite.sh) consumes the operatorProbes list for endpoint reachability. Every FR referenced here MUST be marked DONE in implementation_status.md.",
+  "_pins": {
+    "updatedAt": "2026-11-04",
+    "updatePolicy": "Adding a workflow REQUIRES at least one backing test file. Removing a workflow REQUIRES an ADR + deprecation note in the release."
+  },
+
+  "workflows": [
+    {
+      "id": "aggregate-data-value",
+      "label": "Aggregate data value capture + sync",
+      "fr": ["FR-06"],
+      "tests": [
+        "workflows/aggregate/AggregateDataValueServiceTest.java",
+        "workflows/aggregate/AggregateDataValueRepositoryTest.java",
+        "workflows/aggregate/AggregateDataValueTest.java"
+      ],
+      "operatorProbes": ["/edge-api/v1/data/aggregate"]
+    },
+    {
+      "id": "event",
+      "label": "Event-only program event capture + sync",
+      "fr": ["FR-07"],
+      "tests": [
+        "workflows/events/EventServiceTest.java"
+      ],
+      "operatorProbes": ["/edge-api/v1/data/events"]
+    },
+    {
+      "id": "tracker-tei",
+      "label": "Tracked-entity-instance lifecycle",
+      "fr": ["FR-08"],
+      "tests": [
+        "workflows/tracker/TrackedEntityRepositoryTest.java"
+      ],
+      "operatorProbes": ["/edge-api/v1/data/tracker"]
+    },
+    {
+      "id": "tracker-enrollment",
+      "label": "Program-enrolment lifecycle",
+      "fr": ["FR-08"],
+      "tests": [
+        "workflows/tracker/EnrollmentTest.java"
+      ],
+      "operatorProbes": []
+    },
+    {
+      "id": "tracker-event",
+      "label": "Tracker stage-event lifecycle",
+      "fr": ["FR-08"],
+      "tests": [
+        "workflows/tracker/TrackerEventTest.java"
+      ],
+      "operatorProbes": []
+    },
+    {
+      "id": "tracker-relationship",
+      "label": "TEI / enrolment / event relationship integrity",
+      "fr": ["FR-08-06", "FR-08-10"],
+      "tests": [
+        "workflows/tracker/TrackerRelationshipTest.java"
+      ],
+      "operatorProbes": []
+    },
+    {
+      "id": "journal-publish",
+      "label": "Journal drain to Central with per-state transitions",
+      "fr": ["FR-11", "FR-12"],
+      "tests": [
+        "workflows/journal/JournalPublisherTest.java",
+        "workflows/journal/ReferralPayloadEncoderTest.java"
+      ],
+      "operatorProbes": ["/edge-api/v1/journal/worker"]
+    },
+    {
+      "id": "draft-publish",
+      "label": "Draft capture + manual + scheduled publish",
+      "fr": ["FR-14-03"],
+      "tests": [
+        "web/DraftControllerTest.java"
+      ],
+      "operatorProbes": ["/edge-api/v1/drafts"]
+    },
+    {
+      "id": "data-pull",
+      "label": "Inbound pull from Central with conflict detection",
+      "fr": ["FR-09"],
+      "tests": [
+        "workflows/pull/DataPullServiceTest.java",
+        "workflows/pull/AggregatePullerTest.java"
+      ],
+      "operatorProbes": ["/edge-api/v1/data/pull/cursors"]
+    },
+    {
+      "id": "referral",
+      "label": "Referral capture + inbox + delivery receipt",
+      "fr": ["FR-27"],
+      "tests": [
+        "workflows/referral/ReferralIngestServiceTest.java",
+        "workflows/referral/ReferralInboxRepositoryTest.java",
+        "workflows/referral/ReferralInboxScannerTest.java",
+        "workflows/referral/ReferralEscalationServiceTest.java",
+        "web/ReferralInboxControllerTest.java",
+        "web/ReferralAckControllerTest.java"
+      ],
+      "operatorProbes": ["/edge-api/v1/referral/inbox"]
+    },
+    {
+      "id": "backup-restore",
+      "label": "Backup round-trip + restore verification",
+      "fr": ["FR-15-07", "NFR-29"],
+      "tests": [
+        "web/BackupControllerTest.java",
+        "scheduler/BackupDrainJobTest.java",
+        "workflows/backup/BackupWorkerTest.java",
+        "workflows/backup/BackupRunTest.java",
+        "workflows/backup/BackupRepositoryTest.java",
+        "workflows/backup/BackupEncryptionTest.java"
+      ],
+      "operatorProbes": [
+        "/edge-api/v1/backup/runs",
+        "/edge-api/v1/backup/pitr/verify/status"
+      ]
+    },
+    {
+      "id": "metadata-sync",
+      "label": "DHIS2 metadata mirror + drift detection",
+      "fr": ["FR-05-10", "FR-05-11", "FR-05-12"],
+      "tests": [
+        "metadata/MetadataSyncServiceTest.java"
+      ],
+      "operatorProbes": ["/edge-api/v1/sync/metadata"]
+    },
+    {
+      "id": "capture-workflow",
+      "label": "Capture-workflow definition + runtime",
+      "fr": ["FR-19"],
+      "tests": [
+        "workflow/CaptureWorkflowServiceTest.java",
+        "workflow/CaptureWorkflowImportServiceTest.java"
+      ],
+      "operatorProbes": ["/edge-api/v1/workflows"]
+    },
+    {
+      "id": "org-unit-binding",
+      "label": "Org-unit binding + scope interceptor",
+      "fr": ["FR-02"],
+      "tests": [
+        "orgunit/OrgUnitBindingServiceTest.java"
+      ],
+      "operatorProbes": ["/edge-api/v1/orgunit/binding"]
+    },
+    {
+      "id": "device-registry",
+      "label": "Edge-device enrolment + revocation",
+      "fr": ["FR-01-01"],
+      "tests": [
+        "device/DeviceServiceTest.java"
+      ],
+      "operatorProbes": ["/edge-api/v1/devices"]
+    },
+    {
+      "id": "authentication",
+      "label": "Session authentication + MFA",
+      "fr": ["FR-02", "FR-16-02", "FR-16-03"],
+      "tests": [
+        "security/AuthenticationServiceTest.java",
+        "security/SessionValidationServiceTest.java",
+        "security/TotpServiceTest.java"
+      ],
+      "operatorProbes": ["/edge-api/v1/auth/session"]
+    }
+  ]
+}

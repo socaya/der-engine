@@ -175,6 +175,15 @@ run_step "bench-budget-comparator" \
 run_step "experiment-export-tests" \
     python3 scripts/evaluation/test_export_experiment.py
 
+# FR-17-10 — supported-workflows catalogue + checker tests. The
+# live-probe suite in scripts/evaluation/regression_suite.sh consumes
+# the same catalogue; gating the checker here means a deleted
+# backing test or a duplicate workflow id fails the build.
+run_step "workflow-catalogue-tests" \
+    python3 scripts/evaluation/test_check_workflow_regression.py
+run_step "workflow-catalogue-live" \
+    python3 scripts/evaluation/check_workflow_regression.py
+
 # Collect server coverage report into the evidence bundle.
 if [[ -d server/target/site/jacoco ]]; then
   cp -R server/target/site/jacoco "${COV_DIR}/server/jacoco"
