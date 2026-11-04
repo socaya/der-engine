@@ -436,4 +436,117 @@ describe('MoreScreens — surface mount test', () => {
       expect(document.body.textContent ?? '').toMatch(/de-x\|ou-y/));
     expect(document.body.textContent ?? '').toMatch(/High priority/);
   });
+
+  it('MockupConflictDetail — CentralValuePanel: side-by-side (lastResponse set)', async () => {
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
+      { operationId: 'op-cv-1', entityType: 'EVENT', entityRef: 'ev-x',
+        payloadJson: {}, state: 'CENTRAL_REJECTED', attemptCount: 1,
+        lastError: null, submittedBy: null, createdAt: 'now',
+        updatedAt: 'now', nextHopOrgUnitUid: null },
+    ] as unknown as edgeApi.ConflictRow[]);
+    vi.spyOn(edgeApi, 'fetchConflictCentralResponse').mockResolvedValue({
+      operationId: 'op-cv-1',
+      lastResponse: { status: 'ERROR', reason: 'ou-mismatch' },
+      lastResponseRaw: null,
+      lastError: 'validation failed',
+    } as unknown as edgeApi.ConflictCentralResponse);
+    renderWithProviders(
+      <Routes><Route path="/admin/sync/attention/:operationId"
+                      element={<MockupConflictDetail />} /></Routes>,
+      { authApi, route: '/admin/sync/attention/op-cv-1' });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/Side-by-side payload/));
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/ou-mismatch/);
+    expect(body).toMatch(/validation failed/);
+    expect(body).toMatch(/Last error/);
+  });
+
+  it('MockupConflictDetail — CentralValuePanel: raw-only branch (no parsed response)', async () => {
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
+      { operationId: 'op-cv-raw', entityType: 'EVENT', entityRef: 'ev-x',
+        payloadJson: {}, state: 'CENTRAL_REJECTED', attemptCount: 1,
+        lastError: null, submittedBy: null, createdAt: 'now',
+        updatedAt: 'now', nextHopOrgUnitUid: null },
+    ] as unknown as edgeApi.ConflictRow[]);
+    vi.spyOn(edgeApi, 'fetchConflictCentralResponse').mockResolvedValue({
+      operationId: 'op-cv-raw',
+      lastResponse: null,
+      lastResponseRaw: '<html>bad gateway</html>',
+      lastError: null,
+    } as unknown as edgeApi.ConflictCentralResponse);
+    renderWithProviders(
+      <Routes><Route path="/admin/sync/attention/:operationId"
+                      element={<MockupConflictDetail />} /></Routes>,
+      { authApi, route: '/admin/sync/attention/op-cv-raw' });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/bad gateway/));
+  });
+
+  it('MockupConflictDetail — CentralValuePanel: no-central-response branch', async () => {
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
+      { operationId: 'op-cv-none', entityType: 'EVENT', entityRef: 'ev-x',
+        payloadJson: { a: 1 }, state: 'CONFLICT_REVIEW', attemptCount: 1,
+        lastError: null, submittedBy: null, createdAt: 'now',
+        updatedAt: 'now', nextHopOrgUnitUid: null },
+    ] as unknown as edgeApi.ConflictRow[]);
+    vi.spyOn(edgeApi, 'fetchConflictCentralResponse').mockResolvedValue({
+      operationId: 'op-cv-none',
+      lastResponse: null,
+      lastResponseRaw: null,
+      lastError: null,
+    } as unknown as edgeApi.ConflictCentralResponse);
+    renderWithProviders(
+      <Routes><Route path="/admin/sync/attention/:operationId"
+                      element={<MockupConflictDetail />} /></Routes>,
+      { authApi, route: '/admin/sync/attention/op-cv-none' });
+    await waitFor(() =>
+      expect(document.body.textContent ?? "")
+        .toMatch(/Central hasn.t produced a response/));
+  });
+
+  it('MockupConflictDetail — CentralValuePanel: fetch rejection renders Failed-to-load', async () => {
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
+      { operationId: 'op-cv-fail', entityType: 'EVENT', entityRef: 'ev-x',
+        payloadJson: {}, state: 'CONFLICT_REVIEW', attemptCount: 1,
+        lastError: null, submittedBy: null, createdAt: 'now',
+        updatedAt: 'now', nextHopOrgUnitUid: null },
+    ] as unknown as edgeApi.ConflictRow[]);
+    vi.spyOn(edgeApi, 'fetchConflictCentralResponse')
+      .mockRejectedValue(new Error('upstream 500'));
+    renderWithProviders(
+      <Routes><Route path="/admin/sync/attention/:operationId"
+                      element={<MockupConflictDetail />} /></Routes>,
+      { authApi, route: '/admin/sync/attention/op-cv-fail' });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/upstream 500/));
+    expect(document.body.textContent ?? '').toMatch(/Failed to load/);
+  });
+
+  it('MockupWorkerHealth — Show breakdown reveals every backlog chip-tone arm', async () => {
+    vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
+      enabled: true,
+      lastRunAt: '2026-11-03T11:00:00Z',
+      lastBatchSize: 7,
+      probeTimestamp: 'now',
+      backlog: {
+        PENDING: 2, IN_FLIGHT: 1, RETRYABLE: 3,
+        CONFLICT_REVIEW: 1, CENTRAL_REJECTED: 1,
+        CENTRAL_ACCEPTED: 4, FAILED: 1, OTHER_STATE: 9,
+      },
+    } as unknown as edgeApi.WorkerHealth);
+    const { container } = renderWithProviders(<MockupWorkerHealth />, { authApi });
+    await waitFor(() =>
+      expect(container.querySelector('[data-test="ea14-show-breakdown"]'))
+        .not.toBeNull());
+    const btn = container.querySelector('[data-test="ea14-show-breakdown"]') as HTMLElement;
+    btn.click();
+    await waitFor(() =>
+      expect(container.querySelector('[data-test="ea14-backlog-FAILED"]'))
+        .not.toBeNull());
+    expect(container.querySelector('[data-test="ea14-backlog-CENTRAL_ACCEPTED"]'))
+      .not.toBeNull();
+    expect(container.querySelector('[data-test="ea14-backlog-OTHER_STATE"]'))
+      .not.toBeNull();
+  });
 });
