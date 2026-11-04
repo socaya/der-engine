@@ -154,10 +154,17 @@ export default defineConfig({
          * sweep. edgeApi.ts lines/functions now 98/98. Measured
          * coverage 83.12 / 78.43 / 74.89 / 83.12. Ratchet lines
          * + functions one point below each. */
-        lines: 83,
+        /* der-2.3.123 round-90 ratchet: five further commits
+         * (DataTracker + DataEvents + DataAggregate Pull dialog
+         * tests, CapabilityGap, DataQueues MockupDataDetail,
+         * DataManagement rowMenu branches, wizardMetadata
+         * PROGRAM_SECTION path) added ~17 tests. Measured coverage
+         * 84.09 / 78.90 / 75.54 / 84.09. Ratchet lines + functions
+         * one point below. */
+        lines: 84,
         branches: 78,
-        functions: 74,
-        statements: 83,
+        functions: 75,
+        statements: 84,
       },
     },
   },
