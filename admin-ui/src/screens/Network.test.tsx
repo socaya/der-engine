@@ -551,3 +551,42 @@ describe('NetworkDiagnostics — loaded branches', () => {
   });
 });
 
+describe('NetworkSettings — loaded branches', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('populated settings render key/value rows', async () => {
+    vi.spyOn(edgeApi, 'networkSettings').mockResolvedValue({
+      settings: {
+        'der.network.ap.ssid': 'DER-pilot',
+        'der.network.ap.channel': '44',
+        'der.network.lan.dhcp.start': '10.88.0.100',
+      },
+    } as never);
+    renderWithProviders(<NetworkSettings />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('network-settings')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/DER-pilot/);
+    expect(body).toMatch(/10\.88\.0\.100/);
+    expect(body).toMatch(/3 keys/);
+  });
+});
+
+describe('NetworkPeers — PeerDialog open paths', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('Add peer click surfaces the PeerDialog', async () => {
+    vi.spyOn(edgeApi, 'networkPeers').mockResolvedValue({ peers: [] });
+    renderWithProviders(<NetworkPeers />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('empty-net-peers')).toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.click(screen.getByRole('button', { name: /Add peer/ }));
+    await waitFor(() =>
+      expect(document.body.textContent ?? '')
+        .toMatch(/Add WireGuard peer/));
+  });
+});
+
