@@ -308,6 +308,35 @@ describe('DataTracker', () => {
         .toBeInTheDocument());
   });
 
+  it('workflow-run SYS kind + USER kind variants render per-arm', async () => {
+    vi.spyOn(edgeApi, 'listLocalTracker').mockResolvedValue({
+      rows: [
+        /* USER workflow with name set. */
+        { ...trackerRow, rowId: 'r-user',
+          workflowRunId: 'wfr-user',
+          workflowKind: 'USER',
+          workflowName: 'ANC visit' },
+        /* SYSTEM workflow → SYS chip surfaces. */
+        { ...trackerRow, rowId: 'r-sys',
+          workflowRunId: 'wfr-sys-abcdef',
+          workflowKind: 'SYSTEM',
+          workflowName: null },
+        /* null workflow → "—" fallback. */
+        { ...trackerRow, rowId: 'r-untagged',
+          workflowRunId: null, workflowKind: null,
+          workflowName: null },
+      ],
+    } as never);
+    renderWithProviders(<DataTracker />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data-tracker-row-r-user'))
+        .toBeInTheDocument());
+    /* Named USER workflow surfaces its name. */
+    expect(screen.getByText('ANC visit')).toBeInTheDocument();
+    /* SYS chip surfaces for the SYSTEM-kind row. */
+    expect(screen.getByText('SYS')).toBeInTheDocument();
+  });
+
   it('mixed-kind rows render per-kind counts in the status label', async () => {
     vi.spyOn(edgeApi, 'listLocalTracker').mockResolvedValue({
       rows: [
