@@ -157,6 +157,12 @@ run_step "resource-sampler-tests" \
 run_step "resource-budget-comparator" \
     python3 scripts/evaluation/test_check_resource_budget.py
 
+# NFR-15 / NFR-16 / NFR-19 — der_bench pure-function + stdlib-server
+# smoke. Covers percentile math, error classification, saturation
+# analysis. The live multi-concurrency run lives in nfr_sweep.sh.
+run_step "der-bench-tests" \
+    python3 scripts/evaluation/test_der_bench.py
+
 # Collect server coverage report into the evidence bundle.
 if [[ -d server/target/site/jacoco ]]; then
   cp -R server/target/site/jacoco "${COV_DIR}/server/jacoco"

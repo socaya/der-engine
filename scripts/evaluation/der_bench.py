@@ -49,6 +49,84 @@ class ConcurrencyResult:
     p95_ms: float
     p99_ms: float
     max_ms: float
+    errors: dict  # NFR-19 — categorised {HTTP_4XX, HTTP_5XX, TIMEOUT,
+                   #                 CONNECTION_REFUSED, OTHER} → int
+
+
+# NFR-19 — categorise failed samples so the saturation report
+# distinguishes "server rejected 500" from "ran out of sockets".
+ERROR_CLASSES = ("HTTP_4XX", "HTTP_5XX", "TIMEOUT",
+                   "CONNECTION_REFUSED", "OTHER")
+
+
+def classify_error(status: int, msg: Optional[str]) -> str:
+    """Pure classifier — maps a failed sample to one of
+    ERROR_CLASSES. Callable without the live bench."""
+    if 400 <= status < 500:
+        return "HTTP_4XX"
+    if 500 <= status < 600:
+        return "HTTP_5XX"
+    text = (msg or "").lower()
+    if "timed out" in text or "timeout" in text:
+        return "TIMEOUT"
+    if "refused" in text or "econnrefused" in text:
+        return "CONNECTION_REFUSED"
+    return "OTHER"
+
+
+def analyze_saturation(levels: List[dict]) -> dict:
+    """NFR-19 — turns the per-concurrency result table into a
+    reviewer-facing saturation summary.
+
+    * `peakConcurrency` — the concurrency at which throughput maxed.
+    * `peakThroughputRps` — that peak throughput.
+    * `saturatedAtConcurrency` — the first concurrency at which
+      throughput dropped below 95% of the peak (or None if no drop).
+    * `latencyInflectedAtConcurrency` — the first concurrency at which
+      p95 latency exceeds 2x the lowest-observed p95 (or None).
+    * `totalErrors` — sum of 'failed' across every level.
+    * `errorBreakdown` — merged per-class error counts across levels.
+    """
+    if not levels:
+        return {"peakConcurrency": None,
+                "peakThroughputRps": 0.0,
+                "saturatedAtConcurrency": None,
+                "latencyInflectedAtConcurrency": None,
+                "totalErrors": 0,
+                "errorBreakdown": {}}
+    peak_c = None
+    peak_tp = 0.0
+    for lvl in levels:
+        if lvl.get("throughput_rps", 0.0) > peak_tp:
+            peak_tp = float(lvl["throughput_rps"])
+            peak_c = lvl["concurrency"]
+    saturated_at = None
+    for lvl in levels:
+        if peak_tp > 0 and lvl.get("concurrency", 0) > (peak_c or 0) \
+                and float(lvl.get("throughput_rps", 0.0)) < 0.95 * peak_tp:
+            saturated_at = lvl["concurrency"]
+            break
+    p95s = [float(l.get("p95_ms", 0.0)) for l in levels
+                if float(l.get("p95_ms", 0.0)) > 0]
+    low_p95 = min(p95s) if p95s else 0.0
+    latency_inflected_at = None
+    for lvl in levels:
+        if low_p95 > 0 and float(lvl.get("p95_ms", 0.0)) > 2 * low_p95:
+            latency_inflected_at = lvl["concurrency"]
+            break
+    total_errors = sum(int(l.get("failed", 0)) for l in levels)
+    breakdown: dict = {}
+    for lvl in levels:
+        for cls, n in (lvl.get("errors") or {}).items():
+            breakdown[cls] = breakdown.get(cls, 0) + int(n)
+    return {
+        "peakConcurrency": peak_c,
+        "peakThroughputRps": round(peak_tp, 3),
+        "saturatedAtConcurrency": saturated_at,
+        "latencyInflectedAtConcurrency": latency_inflected_at,
+        "totalErrors": total_errors,
+        "errorBreakdown": breakdown,
+    }
 
 
 def _issue(url: str, method: str, body: Optional[bytes], headers: dict,
@@ -103,6 +181,10 @@ def run_concurrency(url: str, concurrency: int, duration_seconds: float,
     ok_latencies = [s.latency_ms for s in samples if s.ok]
     all_latencies = [s.latency_ms for s in samples]
     successful = sum(1 for s in samples if s.ok)
+    errors = {cls: 0 for cls in ERROR_CLASSES}
+    for s in samples:
+        if not s.ok:
+            errors[classify_error(s.status, s.error)] += 1
     return ConcurrencyResult(
         concurrency=concurrency,
         duration_seconds=round(actual, 3),
@@ -114,6 +196,7 @@ def run_concurrency(url: str, concurrency: int, duration_seconds: float,
         p95_ms=round(_percentile(ok_latencies, 95), 3),
         p99_ms=round(_percentile(ok_latencies, 99), 3),
         max_ms=round(max(all_latencies) if all_latencies else 0.0, 3),
+        errors=errors,
     )
 
 
@@ -150,6 +233,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                                    timeout=args.timeout_seconds,
                                    insecure=args.insecure)
         report["levels"].append(asdict(result))
+
+    # NFR-19 saturation summary over the per-level table.
+    report["saturation"] = analyze_saturation(report["levels"])
 
     json.dump(report, sys.stdout, indent=2, sort_keys=True)
     sys.stdout.write("\n")
