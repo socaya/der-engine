@@ -2061,6 +2061,174 @@ export function MockupFacilityAnalytics(): JSX.Element {
 
 export { fmtBytes };
 
+/* ─── /configuration ──────────────────────────────────────────────── */
+/** FR-15-08 — Operational configuration editor.
+ *
+ *  Edits runtime keys that OperationsAdminController whitelists for
+ *  mutation (crons + backup/TLS flags). Each save writes a
+ *  SETTINGS_CHANGED audit event server-side; this screen surfaces
+ *  those events alongside so ADMINs can see who changed what and
+ *  when without jumping to /audit/events. */
+export function MockupConfigEditor(): JSX.Element {
+  const [settings, setSettings] = useState<Record<string, string> | null>(null);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [history, setHistory] = useState<edgeApi.SecurityAuditEvent[]>([]);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function reload(): Promise<void> {
+    try {
+      const r = await edgeApi.readOpsSettings();
+      setSettings(r.settings);
+      setDraft(r.settings);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+    try {
+      setHistory(await edgeApi.securityAuditEvents({
+        eventType: 'SETTINGS_CHANGED', limit: 25,
+      }));
+    } catch { /* leave previous */ }
+  }
+  useEffect(() => { reload().catch(() => undefined); }, []);
+
+  async function saveKey(key: string): Promise<void> {
+    setSavingKey(key); setErr(null); setMsg(null);
+    try {
+      await edgeApi.writeOpsSetting(key, draft[key] ?? '');
+      setMsg(`${key} saved.`);
+      setTimeout(() => setMsg((m) => (m?.startsWith(key) ? null : m)), 2500);
+      await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally { setSavingKey(null); }
+  }
+
+  if (err && !settings) {
+    return <ErrorBlock title="Configuration load failed"
+                        testId="err-config-load">{err}</ErrorBlock>;
+  }
+  if (!settings) return <LoadingBlock testId="loading" />;
+
+  const entries = Object.entries(settings);
+  const dirty = entries.filter(([k, v]) => draft[k] !== v);
+
+  return (
+    <div className="ea-screen" data-test="config-editor">
+      <SyncStatusBar
+        tone={dirty.length > 0 ? 'warning' : 'info'}
+        title="Configuration"
+        statusLabel={`${entries.length} keys`}
+        subtitle={
+          <>
+            <span>Runtime-tunable DER settings with per-change audit trail.</span>
+            {dirty.length > 0 && (<>
+              <span>·</span>
+              <span>
+                <strong style={{ color: 'var(--der-warning-ink)' }}>
+                  {dirty.length} unsaved change{dirty.length === 1 ? '' : 's'}
+                </strong>
+              </span>
+            </>)}
+          </>
+        }
+      />
+
+      {err && <ErrorBlock title="Save failed" testId="err-config-save">{err}</ErrorBlock>}
+      {msg && <p className="ea-saved" data-test="config-saved">{msg}</p>}
+
+      <Panel title="Settings">
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
+            <thead><tr>
+              <th>Key</th><th>Value</th><th style={{ width: 120 }}></th>
+            </tr></thead>
+            <tbody>
+              {entries.map(([k, current]) => {
+                const next = draft[k] ?? '';
+                const changed = next !== current;
+                const saving = savingKey === k;
+                return (
+                  <tr key={k} data-test={`config-row-${k}`}>
+                    <td className="ea-mono" style={{ fontSize: 12 }}>{k}</td>
+                    <td>
+                      <input className="ea-input ea-mono" type="text"
+                             style={{ width: '100%', fontSize: 12 }}
+                             value={next}
+                             data-test={`config-input-${k}`}
+                             onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))} />
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button type="button"
+                              className="ea-btn ea-btn--primary ea-btn--sm"
+                              disabled={!changed || saving}
+                              data-test={`config-save-${k}`}
+                              onClick={() => { saveKey(k).catch(() => undefined); }}>
+                        {saving ? 'Saving…' : 'Save'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      <Panel title="Recent changes"
+             action={
+               <Link to="/audit/events?category=settings"
+                      className="ea-link-btn"
+                      data-cross-module="Security"
+                      data-test="config-open-audit">
+                 View full audit →
+               </Link>
+             }>
+        {history.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}
+             data-test="config-history-empty">
+            No settings changes recorded on this edge yet.
+          </p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense"
+                   data-test="config-history">
+              <thead><tr>
+                <th>When</th><th>Actor</th><th>Change</th><th>Outcome</th>
+              </tr></thead>
+              <tbody>
+                {history.map((e, i) => (
+                  <tr key={`${e.observedAt}-${i}`}>
+                    <td className="ea-mono" style={{ fontSize: 12 }}
+                        title={e.observedAt}>
+                      {fmtAgo(e.observedAt)}
+                    </td>
+                    <td className="ea-mono" style={{ fontSize: 12 }}>
+                      {e.actorUserId?.slice(0, 8) ?? '—'}
+                    </td>
+                    <td className="ea-mono" style={{ fontSize: 12,
+                                                      wordBreak: 'break-word' }}>
+                      {e.detail ?? '—'}
+                    </td>
+                    <td>
+                      <Status tone={
+                        e.outcome === 'SUCCESS' ? 'success'
+                        : e.outcome === 'FAILURE' ? 'danger' : 'info'}>
+                        {e.outcome}
+                      </Status>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
 /* ─── /support-bundle ─────────────────────────────────────────────── */
 /** FR-15-09 — Support bundle export.
  *

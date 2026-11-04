@@ -414,6 +414,14 @@ export function EASettings({ api = edgeApi }: {
       />
       <h1 data-test="ea36-heading" className="ea-visually-hidden">Settings</h1>
 
+      <p style={{ marginTop: -4, marginBottom: 12, fontSize: 13 }}>
+        <Link to="/configuration"
+               className="ea-link-btn"
+               data-test="ea36-config-editor-link">
+          Operational configuration editor →
+        </Link>
+      </p>
+
       {status === 'saved' && (
         <p data-test="ea36-saved" className="ea-saved">Settings saved.</p>
       )}

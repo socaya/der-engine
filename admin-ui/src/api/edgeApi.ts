@@ -1366,6 +1366,51 @@ export function backupPitrWal(): Promise<WalSummary> {
   return request('GET', '/edge-api/v1/backup/pitr/wal');
 }
 
+/** FR-15-08 — Operational configuration editor.
+ *
+ *  OperationsAdminController exposes a whitelist of mutable runtime
+ *  keys (referral/analytics crons, backup flags, TLS requirement).
+ *  Separate from /admin/settings which drives the generic
+ *  cron + featureFlags payload. */
+export interface OpsSettingsResponse {
+  settings: Record<string, string>;
+}
+
+export function readOpsSettings(): Promise<OpsSettingsResponse> {
+  return request('GET', '/edge-api/v1/admin/ops/settings');
+}
+
+export function writeOpsSetting(
+  key: string, value: string,
+): Promise<{ key: string; value: string }> {
+  return request('POST', '/edge-api/v1/admin/ops/settings', { key, value });
+}
+
+export interface SecurityAuditEvent {
+  eventType: string;
+  actorUserId: string | null;
+  subjectUserId: string | null;
+  clientIp: string | null;
+  userAgent: string | null;
+  outcome: string;
+  detail: string | null;
+  observedAt: string;
+}
+
+export function securityAuditEvents(opts: {
+  eventType?: string;
+  actorUserId?: string;
+  limit?: number;
+} = {}): Promise<SecurityAuditEvent[]> {
+  const q = new URLSearchParams();
+  if (opts.eventType) q.set('eventType', opts.eventType);
+  if (opts.actorUserId) q.set('actorUserId', opts.actorUserId);
+  q.set('limit', String(opts.limit ?? 100));
+  return request<{ events: SecurityAuditEvent[] }>(
+    'GET', `/edge-api/v1/security/audit/events?${q.toString()}`,
+  ).then((r) => r.events ?? []);
+}
+
 /** FR-15-09 — Support bundle: sanitised diagnostics zip.
  *
  *  The server returns application/zip (not JSON) so this bypasses the

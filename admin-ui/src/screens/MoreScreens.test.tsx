@@ -19,6 +19,7 @@ import {
   MockupAuditEvents,
   MockupFacilityAnalytics,
   MockupSupportBundle,
+  MockupConfigEditor,
 } from './MoreScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -852,5 +853,84 @@ describe('MoreScreens — surface mount test', () => {
     await waitFor(() =>
       expect(screen.getByTestId('err-support-bundle')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/server 503/);
+  });
+
+  it('MockupConfigEditor — FR-15-08 renders ops settings + recent audit history', async () => {
+    vi.spyOn(edgeApi, 'readOpsSettings').mockResolvedValue({
+      settings: {
+        'der.backup.enabled': 'true',
+        'der.backup.local.max-archives': '50',
+        'der.security.require-tls': 'false',
+      },
+    });
+    vi.spyOn(edgeApi, 'securityAuditEvents').mockResolvedValue([
+      { eventType: 'SETTINGS_CHANGED', actorUserId: 'a-b-c-d-e-f-g-h',
+        subjectUserId: null, clientIp: '10.88.0.11', userAgent: 'curl',
+        outcome: 'SUCCESS',
+        detail: '{"key":"der.backup.enabled","value":"true"}',
+        observedAt: '2026-11-03T10:00:00Z' },
+      { eventType: 'SETTINGS_CHANGED', actorUserId: 'a-b-c-d-e-f-g-h',
+        subjectUserId: null, clientIp: '10.88.0.11', userAgent: 'curl',
+        outcome: 'FAILURE',
+        detail: '{"key":"der.security.require-tls","value":"notabool"}',
+        observedAt: '2026-11-03T09:00:00Z' },
+    ]);
+    renderWithProviders(<MockupConfigEditor />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('config-editor')).toBeInTheDocument());
+    /* All three settings render rows + save buttons. */
+    expect(screen.getByTestId('config-row-der.backup.enabled'))
+      .toBeInTheDocument();
+    expect(screen.getByTestId('config-input-der.security.require-tls'))
+      .toHaveValue('false');
+    /* Audit history table renders with both arms. */
+    expect(screen.getByTestId('config-history')).toBeInTheDocument();
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/SUCCESS/);
+    expect(body).toMatch(/FAILURE/);
+    expect(body).toMatch(/der\.backup\.enabled/);
+  });
+
+  it('MockupConfigEditor — edit + Save invokes writeOpsSetting(key, nextValue)', async () => {
+    vi.spyOn(edgeApi, 'readOpsSettings').mockResolvedValue({
+      settings: { 'der.backup.enabled': 'true' },
+    });
+    vi.spyOn(edgeApi, 'securityAuditEvents').mockResolvedValue([]);
+    const writeSpy = vi.spyOn(edgeApi, 'writeOpsSetting').mockResolvedValue({
+      key: 'der.backup.enabled', value: 'false',
+    });
+    renderWithProviders(<MockupConfigEditor />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('config-row-der.backup.enabled'))
+        .toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const input = screen.getByTestId('config-input-der.backup.enabled');
+    /* Save button is disabled until the value actually changes. */
+    expect(screen.getByTestId('config-save-der.backup.enabled')).toBeDisabled();
+    await user.clear(input);
+    await user.type(input, 'false');
+    await user.click(screen.getByTestId('config-save-der.backup.enabled'));
+    await waitFor(() =>
+      expect(writeSpy).toHaveBeenCalledWith('der.backup.enabled', 'false'));
+  });
+
+  it('MockupConfigEditor — readOpsSettings rejection surfaces err-config-load', async () => {
+    vi.spyOn(edgeApi, 'readOpsSettings')
+      .mockRejectedValue(new Error('403 forbidden'));
+    vi.spyOn(edgeApi, 'securityAuditEvents').mockResolvedValue([]);
+    renderWithProviders(<MockupConfigEditor />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-config-load')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/403 forbidden/);
+  });
+
+  it('MockupConfigEditor — empty audit history renders the history-empty hint', async () => {
+    vi.spyOn(edgeApi, 'readOpsSettings').mockResolvedValue({
+      settings: { 'der.backup.enabled': 'true' },
+    });
+    vi.spyOn(edgeApi, 'securityAuditEvents').mockResolvedValue([]);
+    renderWithProviders(<MockupConfigEditor />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('config-history-empty')).toBeInTheDocument());
   });
 });
