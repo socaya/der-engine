@@ -177,10 +177,16 @@ export default defineConfig({
          * line denominator without new functions). Branches crossed
          * 80%. Ratchet lines one point, branches one point, drop
          * functions one point to re-floor at the dip. */
-        lines: 86,
-        branches: 80,
+        /* der-2.3.123 round-103 ratchet: three further depth-lifts
+         * (CapabilityScreens ProgramRules+SyncOverview,
+         * MoreScreens.AuditEvents network-mode, Network
+         * revokeObjectURL leak fix) added 11 tests. Measured
+         * coverage 87.24 / 81.01 / 74.84 / 87.24 — branches
+         * crossed 81%. Ratchet lines + branches one point. */
+        lines: 87,
+        branches: 81,
         functions: 74,
-        statements: 86,
+        statements: 87,
       },
     },
   },
