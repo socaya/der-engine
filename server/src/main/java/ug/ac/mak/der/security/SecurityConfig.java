@@ -119,14 +119,20 @@ public class SecurityConfig {
                         // + operator both need to see "central is down" when
                         // it's down. Full /dhis2/compat etc. remain admin-only.
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/edge-api/v1/dhis2/ping").authenticated()
-                        .requestMatchers("/edge-api/v1/dhis2/**").hasAuthority("der.dhis2.write")
-                        .requestMatchers("/edge-api/v1/provisioning/**").hasAuthority("der.users.write")
+                        .requestMatchers("/edge-api/v1/dhis2/**").hasAuthority("der.dhis2.connection.write")
+                        .requestMatchers("/edge-api/v1/provisioning/**").hasAuthority("der.users.create")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/sync/notify").authenticated()
-                        .requestMatchers("/edge-api/v1/sync/**").hasAuthority("der.sync.run")
-                        .requestMatchers("/edge-api/v1/backup/**").hasAuthority("der.backup.manage")
-                        .requestMatchers("/edge-api/v1/restore/**").hasAuthority("der.backup.manage")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/system/org-unit").hasAuthority("der.system.manage")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/approvals/**").hasAuthority("der.conflicts.resolve")
+                        // Fine-grained split: metadata sync vs inbound data pull are
+                        // separate authorities, but both fall under /sync/** paths.
+                        // SYNC_WORKER holds both; REVIEWER holds neither.
+                        .requestMatchers("/edge-api/v1/sync/metadata/**").hasAuthority("der.sync.metadata.run")
+                        .requestMatchers("/edge-api/v1/sync/data/**").hasAuthority("der.sync.data.run")
+                        .requestMatchers("/edge-api/v1/sync/drift/**").hasAuthority("der.sync.drift.resolve")
+                        .requestMatchers("/edge-api/v1/sync/**").hasAuthority("der.sync.read")
+                        .requestMatchers("/edge-api/v1/backup/**").hasAuthority("der.backup.trigger")
+                        .requestMatchers("/edge-api/v1/restore/**").hasAuthority("der.restore.execute")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/system/org-unit").hasAuthority("der.system.settings.write")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/approvals/**").hasAuthority("der.drafts.publish.any")
                         // §2.3.11 — workflow runs are operator-level:
                         //   open run / contribute / reject by any authenticated user
                         //   (device auth or operator session). CRUD on the
@@ -158,26 +164,25 @@ public class SecurityConfig {
                             "/edge-api/v1/workflows/prefetch/pending").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
                             "/edge-api/v1/workflows/prefetch/*/acked").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/workflows/**").hasAuthority("der.workflows.manage")
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/edge-api/v1/workflows/**").hasAuthority("der.workflows.manage")
-                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/workflows/**").hasAuthority("der.workflows.manage")
-                        // ADR-0019 device management:
-                        //   enrol + heartbeat are self-service for any authenticated user
-                        //   approve/suspend/revoke/delete + list need der.devices.manage
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/approve").hasAuthority("der.devices.manage")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/suspend").hasAuthority("der.devices.manage")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/revoke").hasAuthority("der.devices.manage")
-                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/devices/**").hasAuthority("der.devices.manage")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/analytics/refresh").hasAuthority("der.system.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/workflows/**").hasAuthority("der.workflows.catalogue.write")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/edge-api/v1/workflows/**").hasAuthority("der.workflows.catalogue.write")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/workflows/**").hasAuthority("der.workflows.catalogue.write")
+                        // ADR-0019 device management — each lifecycle verb is its own
+                        // authority so a role can hold "approve" without "revoke".
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/approve").hasAuthority("der.devices.approve")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/suspend").hasAuthority("der.devices.suspend")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/revoke").hasAuthority("der.devices.revoke")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/devices/**").hasAuthority("der.devices.decommission")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/analytics/refresh").hasAuthority("der.system.analytics.refresh")
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/edge-api/v1/security/audit/verify").hasAuthority("der.audit.read")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/journal/*/next-hop").hasAuthority("der.conflicts.resolve")
-                        .requestMatchers("/edge-api/v1/admin/ops/**").hasAuthority("der.system.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/journal/*/next-hop").hasAuthority("der.referrals.escalate")
+                        .requestMatchers("/edge-api/v1/admin/ops/**").hasAuthority("der.system.settings.write")
                         .requestMatchers("/edge-api/v1/admin/roles/**").hasAuthority("der.roles.write")
                         .requestMatchers("/edge-api/v1/admin/metrics").authenticated()
                         .requestMatchers("/edge-api/v1/tracked-entities", "/edge-api/v1/tracked-entities/**").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/aggregate/completion").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/accept").hasAuthority("der.referrals.manage")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/dismiss").hasAuthority("der.referrals.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/accept").hasAuthority("der.referrals.accept")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/dismiss").hasAuthority("der.referrals.dismiss")
                         // Phase N1-N5 Network module — reads for all authenticated
                         // users, writes gated to ADMIN. Device self-enrol +
                         // DHCP-lease ingest are authenticated-only (devices /
@@ -185,9 +190,17 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
                             "/edge-api/v1/network/enroll",
                             "/edge-api/v1/network/leases").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.POST,  "/edge-api/v1/network/**").hasAuthority("der.network.manage")
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT,   "/edge-api/v1/network/**").hasAuthority("der.network.manage")
-                        .requestMatchers(org.springframework.http.HttpMethod.DELETE,"/edge-api/v1/network/**").hasAuthority("der.network.manage")
+                        // Split: firewall/lease vs peer/topology.  Peer config is
+                        // day-to-day; firewall/lease is isolation-critical.
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,  "/edge-api/v1/network/firewall/**").hasAuthority("der.network.firewall.write")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT,   "/edge-api/v1/network/firewall/**").hasAuthority("der.network.firewall.write")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE,"/edge-api/v1/network/firewall/**").hasAuthority("der.network.firewall.write")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,  "/edge-api/v1/network/peers/**").hasAuthority("der.network.peer.write")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT,   "/edge-api/v1/network/peers/**").hasAuthority("der.network.peer.write")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE,"/edge-api/v1/network/peers/**").hasAuthority("der.network.peer.write")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,  "/edge-api/v1/network/**").hasAuthority("der.network.topology.write")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT,   "/edge-api/v1/network/**").hasAuthority("der.network.topology.write")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE,"/edge-api/v1/network/**").hasAuthority("der.network.topology.write")
                         .requestMatchers("/edge-api/v1/network/**").authenticated()
                         // Peer lifecycle — invite redeem is reachable
                         // from peer edges across the WireGuard tunnel
@@ -211,18 +224,18 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                             "/edge-api/v1/system/hardware/leds").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
-                            "/edge-api/v1/system/hardware/**").hasAuthority("der.system.manage")
+                            "/edge-api/v1/system/hardware/**").hasAuthority("der.system.hardware.write")
                         .requestMatchers("/edge-api/v1/system/hardware/**").authenticated()
                         // §6 Security hardening — read-only probes;
                         // Vault secret fetch is admin-only.
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
-                            "/edge-api/v1/security/hardening/vault/**").hasAuthority("der.system.manage")
+                            "/edge-api/v1/security/hardening/vault/**").hasAuthority("der.system.vault.read")
                         .requestMatchers("/edge-api/v1/security/hardening/**").authenticated()
                         // §8 Fleet view + per-operator preferences.
                         .requestMatchers("/edge-api/v1/fleet/**").authenticated()
                         .requestMatchers("/edge-api/v1/user-prefs/**").authenticated()
                         // §9 Testing harness — chaos / load / soak / golden.
-                        .requestMatchers("/edge-api/v1/testing/**").hasAuthority("der.system.manage")
+                        .requestMatchers("/edge-api/v1/testing/**").hasAuthority("der.system.testing.run")
                         // §10 Packaging — artefact registry + HW kit catalogue.
                         .requestMatchers("/edge-api/v1/packaging/**").authenticated()
                         // Phase N5 — DER-MSG v1 device-to-device bus.
@@ -238,7 +251,9 @@ public class SecurityConfig {
                         // §7 Compliance — retention, erasure, audit export.
                         // Writes require ADMIN; reads require session.
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
-                            "/edge-api/v1/compliance/**").hasAuthority("der.system.manage")
+                            "/edge-api/v1/compliance/**").hasAuthority("der.compliance.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/edge-api/v1/compliance/**").hasAuthority("der.compliance.read")
                         .requestMatchers("/edge-api/v1/compliance/**").authenticated()
                         .requestMatchers("/edge-api/v1/apps/**").authenticated()
                         .requestMatchers("/edge-api/v1/**").authenticated()
