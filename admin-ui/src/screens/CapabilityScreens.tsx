@@ -4972,35 +4972,64 @@ export function CapProvisioningSetup(): JSX.Element {
     { label: 'At least one OPERATOR account', done: users.some((u) => u.roles.includes('OPERATOR')) },
   ];
   const done = steps.filter((s) => s.done).length;
+  const todo = steps.length - done;
+  const tone: 'success' | 'info' | 'warning' = done === steps.length
+    ? 'success'
+    : done >= Math.ceil(steps.length / 2)
+      ? 'info'
+      : 'warning';
+  const statusLabel = done === steps.length
+    ? 'Ready to go'
+    : `${done} / ${steps.length} complete · ${todo} to go`;
+
   return (
     <div className="ea-screen" data-test="cap-setup">
-      <HeroHeader title="Provisioning setup"
-        subtitle="Checklist for bringing a new edge online."
+      <SyncStatusBar
+        tone={tone}
+        title="Provisioning setup"
+        statusLabel={statusLabel}
+        subtitle="Preconditions a new edge must satisfy before serving operators.  Each row probes a live endpoint (health, compat, org-unit binding, user roster)."
+        actions={
+          <>
+            <Link to="/provisioning/users"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Access"
+                  data-test="cap-setup-open-users">
+              <UiIcon icon="laptop" size={14} />
+              <span>Manage users</span>
+            </Link>
+            <Link to="/dhis2"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="DHIS2"
+                  data-test="cap-setup-open-dhis2">
+              <UiIcon icon="metadata" size={14} />
+              <span>DHIS2 wiring</span>
+            </Link>
+          </>
+        }
       />
-      <div className="ea-stat-strip">
-        <Stat label="Steps complete" value={`${done} / ${steps.length}`}
-              tone={done === steps.length ? 'success' : 'info'} />
-      </div>
-      <section className="ea-card ea-form-card">
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>Checklist</h2>
-            <p>Each row is a precondition for the device to serve operators safely.</p>
-          </div>
-          <ul className="ea-def-list">
-            {steps.map((s) => (
-              <li key={s.label} className="ea-def-row">
-                <dt>{s.label}</dt>
-                <dd>
-                  <span className={'ea-chip ea-chip--' + (s.done ? 'success' : 'muted')}>
-                    {s.done ? 'done' : 'todo'}
-                  </span>
-                </dd>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      <Panel title="Checklist"
+             action={
+               <span data-test="cap-setup-progress-chip">
+                 {done === steps.length
+                   ? <Status tone="success">Ready</Status>
+                   : <Status tone={tone}>{`${done} / ${steps.length}`}</Status>}
+               </span>
+             }>
+        <dl className="ea-def-list" data-test="cap-setup-checklist">
+          {steps.map((s) => (
+            <div key={s.label} className="ea-def-row"
+                 data-test={`cap-setup-step-${s.label.toLowerCase().replace(/\s+/g, '-')}`}>
+              <dt>{s.label}</dt>
+              <dd>
+                {s.done
+                  ? <Status tone="success">Done</Status>
+                  : <Status tone="muted">Todo</Status>}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </Panel>
     </div>
   );
 }
@@ -5014,47 +5043,162 @@ export function CapReleases(): JSX.Element {
   }, []);
   if (err) return <ErrorBlock title="Build info failed" testId="err-build-info-failed">{err}</ErrorBlock>;
   if (!si) return <LoadingBlock testId="loading" />;
+  const pinMismatch = si.dhis2.pinnedVersion != null
+    && si.dhis2.centralVersion != null
+    && si.dhis2.pinnedVersion !== si.dhis2.centralVersion;
+  const tone: 'success' | 'warning' | 'danger' = si.build.dirty
+    ? 'danger'
+    : pinMismatch
+      ? 'warning'
+      : 'success';
+  const statusLabel = si.build.dirty
+    ? 'Dirty build tree'
+    : pinMismatch
+      ? 'DHIS2 version mismatch'
+      : `v${si.build.version}`;
+
   return (
     <div className="ea-screen" data-test="cap-releases">
-      <HeroHeader title="Software & releases"
-        subtitle="What is running on this edge, and where it came from."
+      <SyncStatusBar
+        tone={tone}
+        title="Software &amp; releases"
+        statusLabel={statusLabel}
+        subtitle="Build identity and DHIS2 version pin for this edge.  Dirty-tree builds should only appear in dev — never in a tagged release."
+        actions={
+          <Link to="/diagnostics"
+                className="ea-btn ea-btn--ghost ea-btn--sm"
+                data-cross-module="System"
+                data-test="cap-releases-open-diagnostics">
+            <UiIcon icon="diagnostics" size={14} />
+            <span>Diagnostics</span>
+          </Link>
+        }
       />
-      <div className="ea-stat-strip">
-        <Stat label="DER" value={<span className="ea-mono">v{si.build.version}</span>} />
-        <Stat label="Branch" value={si.build.branch} />
-        <Stat label="Dirty tree" value={si.build.dirty ? 'yes' : 'no'}
-              tone={si.build.dirty ? 'danger' : 'success'} />
-      </div>
-      <DefinitionCard title="Build identity" rows={[
-        ['Commit', <span key="c" className="ea-mono">{si.build.commit}</span>],
-        ['Built at', si.build.buildTime],
-        ['DHIS2 pinned', si.dhis2.pinnedVersion ?? '—'],
-        ['DHIS2 observed', si.dhis2.centralVersion ?? '—'],
-      ]} />
+      <Panel title="At a glance">
+        <div className="ea-stat-strip">
+          <Stat label="DER" value={<span className="ea-mono">v{si.build.version}</span>} />
+          <Stat label="Branch" value={si.build.branch} />
+          <Stat label="Dirty tree" value={si.build.dirty ? 'yes' : 'no'}
+                tone={si.build.dirty ? 'danger' : 'success'} />
+        </div>
+      </Panel>
+      <Panel title="Build identity">
+        <dl className="ea-def-list" data-test="cap-releases-identity">
+          <div className="ea-def-row">
+            <dt>Commit</dt>
+            <dd className="ea-mono">{si.build.commit}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>Built at</dt>
+            <dd>{si.build.buildTime}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>DHIS2 pinned</dt>
+            <dd className="ea-mono">{si.dhis2.pinnedVersion ?? '—'}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>DHIS2 observed</dt>
+            <dd className="ea-mono">
+              {si.dhis2.centralVersion ?? '—'}
+              {pinMismatch && (
+                <span style={{ marginLeft: 8 }}>
+                  <Status tone="warning">Mismatch</Status>
+                </span>
+              )}
+            </dd>
+          </div>
+        </dl>
+      </Panel>
     </div>
   );
 }
 
 export function CapNetwork(): JSX.Element {
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
-  useEffect(() => { edgeApi.systemInfo().then(setSi).catch(() => undefined); }, []);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    edgeApi.systemInfo().then(setSi)
+      .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
+  }, []);
+  if (err && !si) {
+    return <ErrorBlock title="Network info failed"
+                        testId="err-network-load-failed">{err}</ErrorBlock>;
+  }
+  if (!si) return <LoadingBlock testId="loading" />;
+
+  const reachable = si.dhis2.probeReachable;
+  const tone: 'success' | 'warning' | 'danger' | 'muted' = si.dhis2.centralBaseUrl == null
+    ? 'muted'
+    : reachable
+      ? 'success'
+      : 'danger';
+  const statusLabel = si.dhis2.centralBaseUrl == null
+    ? 'DHIS2 not configured'
+    : reachable
+      ? 'Upstream reachable'
+      : 'Upstream unreachable';
+
   return (
     <div className="ea-screen" data-test="cap-network">
-      <HeroHeader title="Network / TLS"
-        subtitle="How this edge reaches DHIS2 and how it is reached in turn."
+      <SyncStatusBar
+        tone={tone}
+        title="Network / TLS"
+        statusLabel={statusLabel}
+        subtitle="How this edge reaches DHIS2 and how it is reached in turn.  TLS certificates are managed by the host reverse proxy, not DER itself."
+        actions={
+          <>
+            <Link to="/network/clients"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Network"
+                  data-test="cap-network-open-clients">
+              <UiIcon icon="ethernet" size={14} />
+              <span>LAN clients</span>
+            </Link>
+            <Link to="/dhis2"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="DHIS2"
+                  data-test="cap-network-open-dhis2">
+              <UiIcon icon="metadata" size={14} />
+              <span>DHIS2 wiring</span>
+            </Link>
+          </>
+        }
       />
-      <DefinitionCard title="Upstream" rows={[
-        ['DHIS2 base URL', <span key="u" className="ea-mono">{si?.dhis2.centralBaseUrl ?? '—'}</span>],
-        ['Reachable', si?.dhis2.probeReachable ? 'yes' : 'no'],
-      ]} />
-      <DefinitionCard title="Local service" rows={[
-        ['Hostname', si?.runtime.hostname ?? '—'],
-        ['Admin UI', <span key="a" className="ea-mono">/admin</span>],
-        ['Edge API', <span key="e" className="ea-mono">/edge-api/v1</span>],
-      ]} />
-      <p className="ea-field-hint" style={{ padding: '12px 16px' }}>
-        TLS certificates are managed by the host reverse proxy, not DER itself.
-      </p>
+      <Panel title="Upstream"
+             action={
+               <span data-test="cap-network-upstream-chip">
+                 {reachable
+                   ? <Status tone="success">Reachable</Status>
+                   : <Status tone="danger">Unreachable</Status>}
+               </span>
+             }>
+        <dl className="ea-def-list" data-test="cap-network-upstream">
+          <div className="ea-def-row">
+            <dt>DHIS2 base URL</dt>
+            <dd className="ea-mono">{si.dhis2.centralBaseUrl ?? '—'}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>Reachable</dt>
+            <dd>{reachable ? 'yes' : 'no'}</dd>
+          </div>
+        </dl>
+      </Panel>
+      <Panel title="Local service">
+        <dl className="ea-def-list" data-test="cap-network-local">
+          <div className="ea-def-row">
+            <dt>Hostname</dt>
+            <dd className="ea-mono">{si.runtime.hostname ?? '—'}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>Admin UI</dt>
+            <dd className="ea-mono">/admin</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>Edge API</dt>
+            <dd className="ea-mono">/edge-api/v1</dd>
+          </div>
+        </dl>
+      </Panel>
     </div>
   );
 }

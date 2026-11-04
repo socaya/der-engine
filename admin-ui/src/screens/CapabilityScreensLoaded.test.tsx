@@ -11,6 +11,8 @@ import {
   CapSessions, CapCredentials,
   CapDeviceEnrolment, CapOwnership, CapConnections,
   CapDeviceDiagnostics,
+  CapProvisioningSetup, CapReleases, CapNetwork,
+  CapServiceHealth, CapOperatorMetrics, CapStorage,
 } from './CapabilityScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -1234,5 +1236,153 @@ describe('CapDeviceDiagnostics (enhanced)', () => {
     await waitFor(() =>
       expect(screen.queryByTestId('cap-dev-diag-row-dev-fresh')).toBeNull());
     expect(screen.getByTestId('cap-dev-diag-row-dev-stale')).toBeInTheDocument();
+  });
+});
+
+describe('Settings cluster depth-lift', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const okHealth = { status: 'UP' } as unknown as edgeApi.HealthResponse;
+  const okCompat = { probeReachable: true } as unknown as edgeApi.CompatSnapshot;
+  const boundOu = { bound: true,
+    orgUnitId: 'o1', orgUnitDisplayName: 'Facility',
+    orgUnitPath: '/', boundAt: 'now', boundBy: 'admin',
+  } as unknown as edgeApi.OrgUnitBinding;
+
+  it('CapProvisioningSetup — all steps done surfaces Ready chip', async () => {
+    vi.spyOn(edgeApi, 'health').mockResolvedValue(okHealth);
+    vi.spyOn(edgeApi, 'compat').mockResolvedValue(okCompat);
+    vi.spyOn(edgeApi, 'getOrgUnitBinding').mockResolvedValue(boundOu);
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [
+        { userId: 'u1', username: 'a', displayName: 'A', roles: ['ADMIN'] },
+        { userId: 'u2', username: 'b', displayName: 'B', roles: ['OPERATOR'] },
+      ],
+    } as unknown as { users: edgeApi.ProvisionedUser[] });
+    renderWithProviders(<CapProvisioningSetup />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-setup'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('cap-setup-progress-chip')).toHaveTextContent('Ready');
+    /* 5 / 5 steps complete */
+    expect(screen.getByTestId('cap-setup-step-der-service-running'))
+      .toHaveTextContent('Done');
+  });
+
+  it('CapProvisioningSetup — missing admin + operator shows Todo chips', async () => {
+    vi.spyOn(edgeApi, 'health').mockResolvedValue(okHealth);
+    vi.spyOn(edgeApi, 'compat').mockResolvedValue(okCompat);
+    vi.spyOn(edgeApi, 'getOrgUnitBinding').mockResolvedValue({
+      ...boundOu, bound: false,
+    } as never);
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({ users: [] } as never);
+    renderWithProviders(<CapProvisioningSetup />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-setup'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('cap-setup-step-organisation-unit-bound'))
+      .toHaveTextContent('Todo');
+    expect(screen.getByTestId('cap-setup-step-at-least-one-admin-account'))
+      .toHaveTextContent('Todo');
+  });
+
+  const sampleSi = {
+    timestamp: '2026-11-04T10:00:00Z',
+    runtime: { hostname: 'der-01' },
+    build: { version: '2.3.122', branch: 'main', commit: 'abc123',
+             buildTime: '2026-11-04', dirty: false },
+    database: { configured: true, product: 'PostgreSQL 17',
+                probeError: null, sessionCount: 1 },
+    scheduler: { started: true, standbyMode: false, totalJobs: 5,
+                 executingJobs: 0 },
+    dhis2: { probeReachable: true, centralBaseUrl: 'http://localhost:8080/dhis',
+             pinnedVersion: '2.44-SNAPSHOT', centralVersion: '2.44-SNAPSHOT' },
+    storage: { status: 'OK', totalBytes: 1000, usableBytes: 800,
+               warnBytes: 100, rejectBytes: 50, root: '/var/lib/der' },
+    attribution: { mappedUsers: 3 },
+  } as unknown as edgeApi.SystemInfo;
+
+  it('CapReleases — clean tree + matching pin shows success tone', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(sampleSi);
+    renderWithProviders(<CapReleases />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-releases'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('cap-releases-identity')).toHaveTextContent('abc123');
+    expect(screen.getByTestId('cap-releases-identity')).toHaveTextContent('2.44-SNAPSHOT');
+  });
+
+  it('CapReleases — dirty tree flips the status bar to danger', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
+      ...sampleSi, build: { ...sampleSi.build, dirty: true },
+    } as never);
+    renderWithProviders(<CapReleases />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-releases'))
+      .toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/Dirty build tree/);
+  });
+
+  it('CapNetwork — reachable upstream surfaces Reachable chip', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(sampleSi);
+    renderWithProviders(<CapNetwork />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-network'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('cap-network-upstream-chip'))
+      .toHaveTextContent('Reachable');
+    expect(screen.getByTestId('cap-network-upstream'))
+      .toHaveTextContent('localhost:8080');
+  });
+
+  it('CapNetwork — unreachable upstream surfaces Unreachable chip', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
+      ...sampleSi, dhis2: { ...sampleSi.dhis2, probeReachable: false },
+    } as never);
+    renderWithProviders(<CapNetwork />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-network-upstream-chip'))
+      .toHaveTextContent('Unreachable'));
+  });
+
+  it('CapServiceHealth — all components OK', async () => {
+    vi.spyOn(edgeApi, 'health').mockResolvedValue(okHealth);
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(sampleSi);
+    renderWithProviders(<CapServiceHealth />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-health'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('cap-health-row-der-service')).toHaveTextContent('OK');
+    expect(screen.getByTestId('cap-health-row-dhis2-central')).toHaveTextContent('OK');
+  });
+
+  it('CapServiceHealth — failing database surfaces FAIL chip', async () => {
+    vi.spyOn(edgeApi, 'health').mockResolvedValue(okHealth);
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
+      ...sampleSi,
+      database: { ...sampleSi.database, probeError: 'connection refused' },
+    } as never);
+    renderWithProviders(<CapServiceHealth />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-health-row-database'))
+      .toHaveTextContent('FAIL'));
+  });
+
+  it('CapOperatorMetrics — aggregate reliability drives tone', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(sampleSi);
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([
+      { runId: 1, jobName: 'J', outcome: 'SUCCEEDED', startedAt: 'now',
+        finishedAt: 'now', durationMs: 1, triggeredBy: 'SCHEDULED', detail: '{}' },
+      { runId: 2, jobName: 'J', outcome: 'SUCCEEDED', startedAt: 'now',
+        finishedAt: 'now', durationMs: 1, triggeredBy: 'SCHEDULED', detail: '{}' },
+    ] as unknown as edgeApi.JobRun[]);
+    renderWithProviders(<CapOperatorMetrics />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-metrics'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('cap-metrics-rel-J')).toHaveTextContent('100%');
+  });
+
+  it('CapStorage — REJECT status flips to Writes blocked', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
+      ...sampleSi, storage: { ...sampleSi.storage, status: 'REJECT' },
+    } as never);
+    renderWithProviders(<CapStorage />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-storage'))
+      .toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/Writes blocked/);
+    expect(screen.getByTestId('cap-storage-thresholds')).toHaveTextContent('/var/lib/der');
   });
 });

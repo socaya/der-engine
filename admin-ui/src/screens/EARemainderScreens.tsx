@@ -2,7 +2,6 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates';
-import { HeroHeader } from '../components/HeroHeader';
 import { UiIcon } from '../components/UiIcon';
 import { Panel, SyncStatusBar, Status, confirmThenRun } from './shared';
 import { getSimulateMode, setSimulateMode, subscribeSimulateMode,
@@ -386,33 +385,42 @@ export function EAAppsList({ api = edgeApi }: {
   if (rows === null) return <LoadingBlock testId="ea31-loading" />;
   const enabled = rows.filter((r) => r.enabled).length;
   const disabled = rows.length - enabled;
+  const tone: 'success' | 'info' | 'muted' = rows.length === 0
+    ? 'muted'
+    : disabled > 0
+      ? 'info'
+      : 'success';
+  const statusLabel = rows.length === 0
+    ? 'No installed apps'
+    : `${rows.length} installed · ${enabled} enabled · ${disabled} disabled`;
+
   return (
-    <div className="ea-screen">
-      <HeroHeader
+    <div className="ea-screen" data-test="ea31">
+      <SyncStatusBar
+        tone={tone}
         title="Apps"
-        subtitle="Custom DHIS2 apps installed on this edge."
+        statusLabel={statusLabel}
+        subtitle="Custom DHIS2 apps installed on this edge.  Operators enable / disable per-app without re-installing; uninstall drops the app bundle entirely."
         actions={
-          <span className="ea-btn ea-btn--primary ea-btn--muted" aria-disabled="true" title="Install dialog — not yet available">
-            + Install app
-          </span>
+          <>
+            <span className="ea-btn ea-btn--primary ea-btn--sm ea-btn--muted"
+                  aria-disabled="true"
+                  data-test="ea31-install-disabled"
+                  title="Install dialog — not yet available">
+              <UiIcon icon="plus" size={14} />
+              <span>Install app</span>
+            </span>
+          </>
         }
       />
       <h1 data-test="ea31-heading" className="ea-visually-hidden">Installed apps</h1>
 
-      <section role="group" aria-label="App summary"
-               style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13,
-                        margin: '0 0 var(--sp-3)' }}>
-        <span>Installed <strong style={{ color: 'var(--der-ink-900)' }}>{rows.length}</strong></span>
-        <span>·</span>
-        <span style={{ color: 'var(--der-success-ink)' }}>Enabled <strong>{enabled}</strong></span>
-        <span>·</span>
-        <span className="ea-text-muted">Disabled <strong>{disabled}</strong></span>
-      </section>
-
       {rows.length === 0 ? (
-        <EmptyBlock title="No installed apps" testId="ea31-empty">
-          Install a custom DHIS2 app via the install dialog.
-        </EmptyBlock>
+        <Panel title="Apps">
+          <EmptyBlock title="No installed apps" testId="ea31-empty">
+            Install a custom DHIS2 app via the install dialog.
+          </EmptyBlock>
+        </Panel>
       ) : (
         <div className="ea-app-grid">
           {rows.map((r) => (
@@ -609,107 +617,132 @@ export function EASettings({ api = edgeApi }: {
   if (!s) return <LoadingBlock testId="ea36-loading" />;
   const cronEntries = Object.entries(s.cron ?? {});
   const flagEntries = Object.entries(s.featureFlags ?? {});
+  const enabledFlags = flagEntries.filter(([, v]) => v).length;
+  const tone: 'success' | 'info' | 'warning' | 'danger' = status === 'error'
+    ? 'danger'
+    : status === 'saving'
+      ? 'info'
+      : status === 'saved'
+        ? 'success'
+        : 'info';
+  const statusLabel = status === 'error'
+    ? 'Save failed'
+    : status === 'saving'
+      ? 'Saving…'
+      : status === 'saved'
+        ? 'Saved'
+        : `${cronEntries.length} cron · ${enabledFlags} / ${flagEntries.length} flags on`;
+
   return (
-    <div className="ea-screen">
-      <HeroHeader
+    <div className="ea-screen" data-test="ea36">
+      <SyncStatusBar
+        tone={tone}
         title="Settings"
-        subtitle="Scheduler overrides and feature toggles for this edge."
+        statusLabel={statusLabel}
+        subtitle="Scheduler overrides and feature toggles for this edge.  Cron rows use Quartz syntax; blank falls back to the compiled default."
         actions={
-          <button
-            type="button"
-            className="ea-btn ea-btn--primary ea-btn--sm"
-            data-test="ea36-save"
-            disabled={status === 'saving'}
-            onClick={() => { doSave().catch(() => undefined); }}
-          >
-            <UiIcon icon="refresh" size={14} />
-            <span>{status === 'saving' ? 'Saving…' : 'Save changes'}</span>
-          </button>
+          <>
+            <Link to="/configuration"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="System"
+                  data-test="ea36-config-editor-link">
+              <UiIcon icon="cog" size={14} />
+              <span>Operational config</span>
+            </Link>
+            <Link to="/site/config"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="System"
+                  data-test="ea36-site-config-link">
+              <UiIcon icon="settings" size={14} />
+              <span>Site config</span>
+            </Link>
+            <button
+              type="button"
+              className="ea-btn ea-btn--primary ea-btn--sm"
+              data-test="ea36-save"
+              disabled={status === 'saving'}
+              onClick={() => { doSave().catch(() => undefined); }}
+            >
+              <UiIcon icon="refresh" size={14} />
+              <span>{status === 'saving' ? 'Saving…' : 'Save changes'}</span>
+            </button>
+          </>
         }
       />
       <h1 data-test="ea36-heading" className="ea-visually-hidden">Settings</h1>
 
-      <p style={{ marginTop: -4, marginBottom: 12, fontSize: 13,
-                   display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-        <Link to="/configuration"
-               className="ea-link-btn"
-               data-test="ea36-config-editor-link">
-          Operational configuration editor →
-        </Link>
-        <Link to="/site/config"
-               className="ea-link-btn"
-               data-test="ea36-site-config-link">
-          Site configuration (connectivity + time-zone) →
-        </Link>
-      </p>
-
       {status === 'saved' && (
-        <p data-test="ea36-saved" className="ea-saved">Settings saved.</p>
+        <div className="ea-callout ea-callout--success"
+             data-test="ea36-saved" role="status">Settings saved.</div>
       )}
       {status === 'error' && error && (
         <ErrorBlock title="Save failed" testId="ea36-save-error">{error}</ErrorBlock>
       )}
 
-      <section className="ea-card ea-form-card">
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>Cron overrides</h2>
-            <p>Override the default schedule for background workers. Use
-              standard Quartz cron syntax. Leave blank to use defaults.</p>
-          </div>
-          <div className="ea-form-grid">
-            {cronEntries.length === 0 && (
-              <div className="ea-field-hint">No cron overrides defined.</div>
-            )}
-            {cronEntries.map(([k, v]) => (
-              <label key={k} className="ea-field">
-                <span className="ea-field-label">{k}</span>
-                <input
-                  className="ea-input ea-mono"
-                  data-test={`ea36-cron-${k}`}
-                  value={v}
-                  onChange={(e) => setS({
-                    ...s, cron: { ...s.cron, [k]: e.target.value },
-                  })}
-                  placeholder="0 */5 * * * ?"
-                />
-              </label>
-            ))}
-          </div>
+      <Panel title="Cron overrides"
+             action={
+               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                 Quartz syntax · blank = compiled default
+               </span>
+             }>
+        <div className="ea-form-grid">
+          {cronEntries.length === 0 && (
+            <div className="ea-field-hint">No cron overrides defined.</div>
+          )}
+          {cronEntries.map(([k, v]) => (
+            <label key={k} className="ea-field">
+              <span className="ea-field-label">{k}</span>
+              <input
+                className="ea-input ea-mono"
+                data-test={`ea36-cron-${k}`}
+                value={v}
+                onChange={(e) => setS({
+                  ...s, cron: { ...s.cron, [k]: e.target.value },
+                })}
+                placeholder="0 */5 * * * ?"
+              />
+            </label>
+          ))}
         </div>
+      </Panel>
 
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>Feature flags</h2>
-            <p>Experimental surfaces hidden by default. Enable only in
-              development or pilot environments.</p>
-          </div>
-          <div className="ea-flag-list">
-            {flagEntries.length === 0 && (
-              <div className="ea-field-hint">No feature flags defined.</div>
-            )}
-            {flagEntries.map(([k, v]) => (
-              <label key={k} className="ea-flag-row">
-                <input
-                  type="checkbox"
-                  className="ea-switch"
-                  data-test={`ea36-flag-${k}`}
-                  checked={v}
-                  onChange={(e) => setS({
-                    ...s, featureFlags: { ...s.featureFlags, [k]: e.target.checked },
-                  })}
-                />
-                <span className="ea-flag-name">{k}</span>
-                <span className={'ea-chip ea-chip--' + (v ? 'success' : 'neutral')}>
-                  {v ? 'on' : 'off'}
-                </span>
-              </label>
-            ))}
-          </div>
+      <Panel title="Feature flags"
+             action={
+               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                 {enabledFlags} / {flagEntries.length} enabled
+               </span>
+             }>
+        <p className="ea-field-hint" style={{ marginTop: 0, marginBottom: 10 }}>
+          Experimental surfaces hidden by default. Enable only in
+          development or pilot environments.
+        </p>
+        <div className="ea-flag-list">
+          {flagEntries.length === 0 && (
+            <div className="ea-field-hint">No feature flags defined.</div>
+          )}
+          {flagEntries.map(([k, v]) => (
+            <label key={k} className="ea-flag-row">
+              <input
+                type="checkbox"
+                className="ea-switch"
+                data-test={`ea36-flag-${k}`}
+                checked={v}
+                onChange={(e) => setS({
+                  ...s, featureFlags: { ...s.featureFlags, [k]: e.target.checked },
+                })}
+              />
+              <span className="ea-flag-name">{k}</span>
+              {v
+                ? <Status tone="success">On</Status>
+                : <Status tone="muted">Off</Status>}
+            </label>
+          ))}
         </div>
+      </Panel>
 
+      <Panel title="Demo &amp; simulation">
         <InternetSimulatePreference />
-      </section>
+      </Panel>
     </div>
   );
 }
@@ -728,15 +761,13 @@ function InternetSimulatePreference(): JSX.Element {
       hint: 'Never simulate — show the live server probe truthfully.' },
   ];
   return (
-    <div className="ea-form-section">
-      <div className="ea-form-section-head">
-        <h2>Demo &amp; simulation</h2>
-        <p>Internet simulator on the Workspace topology. When engaged
-          the Internet node cycles ON/OFF on a random schedule
-          (up 25–60 s, down 6–15 s) to depict the edge-first
-          offline-capable behaviour on dev or demo rigs where DHIS2
-          Central is co-located with DER.</p>
-      </div>
+    <>
+      <p className="ea-field-hint" style={{ marginTop: 0, marginBottom: 10 }}>
+        Internet simulator on the Workspace topology.  When engaged the
+        Internet node cycles ON/OFF on a random schedule (up 25–60 s,
+        down 6–15 s) to depict the edge-first offline-capable behaviour
+        on dev or demo rigs where DHIS2 Central is co-located with DER.
+      </p>
       <div className="ea-flag-list" role="radiogroup"
            aria-label="Internet simulator mode">
         {options.map((opt) => (
@@ -756,6 +787,6 @@ function InternetSimulatePreference(): JSX.Element {
           </label>
         ))}
       </div>
-    </div>
+    </>
   );
 }
