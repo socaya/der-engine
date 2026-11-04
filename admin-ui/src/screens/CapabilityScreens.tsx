@@ -2840,33 +2840,6 @@ export function CapUserMappings(): JSX.Element {
   );
 }
 
-/** Shared sub-navigation for the Access area — Roles catalogue vs
- *  Authorities catalogue.  Uses the standard `.ea-section-tabs`
- *  primitive (flat, bottom-bordered, no border-radius). */
-function AccessSubNav({ active }: { active: 'roles' | 'authorities' }): JSX.Element {
-  const tab = (to: string, id: 'roles' | 'authorities', label: string): JSX.Element => {
-    const isActive = active === id;
-    return (
-      <Link to={to}
-            data-test={`access-subnav-${id}`}
-            data-cross-module="Access"
-            aria-current={isActive ? 'page' : undefined}
-            className={'ea-section-tab' + (isActive ? ' ea-section-tab--active' : '')}>
-        {label}
-      </Link>
-    );
-  };
-  return (
-    <nav aria-label="Access sub-modules"
-         role="tablist"
-         data-test="access-subnav"
-         className="ea-section-tabs">
-      {tab('/access/roles', 'roles', 'Roles')}
-      {tab('/access/authorities', 'authorities', 'Authorities')}
-    </nav>
-  );
-}
-
 /** `/access/roles` — Role catalogue list view.
  *
  *  Table of every role (built-in or custom) with a per-row context
@@ -2912,8 +2885,7 @@ export function CapRoles(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="cap-roles">
-      <AccessSubNav active="roles" />
-      <SyncStatusBar
+<SyncStatusBar
         tone={customCount > 0 ? 'info' : 'muted'}
         title="Roles catalogue"
         statusLabel={`${visible.length} role${visible.length === 1 ? '' : 's'} · ${customCount} custom · ${assignedCount} grant${assignedCount === 1 ? '' : 's'}`}
@@ -3128,8 +3100,7 @@ export function RoleEditorPage(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="role-editor-page">
-      <AccessSubNav active="roles" />
-      <SyncStatusBar
+<SyncStatusBar
         tone="info"
         title={existing ? `Edit role: ${existing.name}` : 'New role'}
         statusLabel={existing
@@ -3219,8 +3190,7 @@ export function CapAuthorities(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="cap-authorities">
-      <AccessSubNav active="authorities" />
-      <SyncStatusBar
+<SyncStatusBar
         tone="info"
         title="Authority catalogue"
         statusLabel={`${catalog.length} authorit${catalog.length === 1 ? 'y' : 'ies'} · ${modules.length} module${modules.length === 1 ? '' : 's'} · read-only`}
@@ -3357,8 +3327,7 @@ export function AuthorityDetailPage(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="authority-detail">
-      <AccessSubNav active="authorities" />
-      <SyncStatusBar
+<SyncStatusBar
         tone="info"
         title={authority}
         statusLabel={`${entry.module} · ${holding.length} role${holding.length === 1 ? '' : 's'} · read-only`}
