@@ -151,6 +151,12 @@ run_step "backup-integrity-comparator" \
 run_step "resource-sampler-tests" \
     python3 scripts/evaluation/test_resource_sampler.py
 
+# NFR-18 — budget comparator unit tests. The live budget check runs
+# inside scripts/evaluation/nfr_sweep.sh; this ships the comparator
+# at gate-time so the limits can't rot silently.
+run_step "resource-budget-comparator" \
+    python3 scripts/evaluation/test_check_resource_budget.py
+
 # Collect server coverage report into the evidence bundle.
 if [[ -d server/target/site/jacoco ]]; then
   cp -R server/target/site/jacoco "${COV_DIR}/server/jacoco"

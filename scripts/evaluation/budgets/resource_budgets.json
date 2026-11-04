@@ -1,0 +1,32 @@
+{
+  "_comment": "NFR-18 — pinned pilot-site resource budgets. Every limit is a MAXIMUM; the check fails when the measured percentile exceeds the budget. Sources: single-tenant edge target hardware (4 vCPU, 4 GiB RAM, 64 GiB SSD) per docs/operations/component-and-portability.md §NFR-24.",
+  "_pins": {
+    "updatedAt": "2026-11-04",
+    "referenceHardware": "Ubuntu Server 24.04 LTS · 4 vCPU · 4 GiB RAM · 64 GiB SSD",
+    "updatePolicy": "Changing any limit requires an ADR + a dated evidence run under docs/evaluation/evidence/ showing the new limit is tight enough."
+  },
+
+  "cpuPct": {
+    "p50Max": 40.0,
+    "p95Max": 70.0,
+    "p99Max": 90.0
+  },
+
+  "rssMb": {
+    "p50Max": 1024.0,
+    "p95Max": 1536.0,
+    "p99Max": 2048.0
+  },
+
+  "latencyMs": {
+    "_endpoint": "/edge-api/v1/system/health",
+    "p50Max": 50.0,
+    "p95Max": 500.0,
+    "p99Max": 2000.0
+  },
+
+  "diskGrowthBytesPerHour": {
+    "_note": "Steady-state growth only — a backup/restore round-trip is expected to exceed this. Compute as total disk growth bytes / sample duration hours.",
+    "max": 52428800
+  }
+}

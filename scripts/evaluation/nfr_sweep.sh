@@ -61,6 +61,19 @@ python3 "${ROOT}/scripts/evaluation/backup_integrity.py" --dry-run \
 
 wait "${SAMPLER_PID}" 2>/dev/null || true
 
+# NFR-18 budget assertion. Reads the sampler output we just wrote and
+# asserts every pinned percentile respects the budget. Writes a
+# Markdown report + a structured JSON result alongside the evidence.
+echo "nfr-sweep: NFR-18 budget check"
+BUDGET_RC=0
+python3 "${ROOT}/scripts/evaluation/check_resource_budget.py" \
+    --report "${OUT_DIR}/resource-sample.json" \
+    --json-out "${OUT_DIR}/resource-budget-result.json" \
+    --out "${OUT_DIR}/resource-budget-report.md" || BUDGET_RC=$?
+if [[ "${BUDGET_RC}" -ne 0 ]]; then
+    echo "nfr-sweep: resource budget FAILED (rc=${BUDGET_RC}) — see ${OUT_DIR}/resource-budget-report.md"
+fi
+
 # Manifest.
 cat > "${OUT_DIR}/manifest.json" <<EOF
 {
@@ -75,3 +88,4 @@ cat > "${OUT_DIR}/manifest.json" <<EOF
 EOF
 
 echo "nfr-sweep: evidence bundled under ${OUT_DIR}"
+exit "${BUDGET_RC}"

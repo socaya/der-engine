@@ -469,7 +469,7 @@ All **🟡 PARTIAL** — ADR-0017 Phase 10 hardening (TLS enforce, PII mask, bac
 | NFR-15 | Measure p50/p95 latency at 5/10/20 users | P1 | ❌ PENDING | — (alpha.3 target; extend `der_bench.py`) |
 | NFR-16 | Sustained writes/s + reads/s under load | P1 | ❌ PENDING | — (alpha.3 target) |
 | NFR-17 | Time to stable central outcomes after restore | P0 | 🧱 SCAFFOLD | `scripts/evaluation/backlog_recovery.py` |
-| NFR-18 | CPU + memory + disk budgets | P1 | ❌ PENDING | — (alpha.3 target) |
+| NFR-18 | CPU + memory + disk budgets | P1 | ✅ DONE | New `scripts/evaluation/budgets/resource_budgets.json` encodes the pilot-site pins (CPU p95 70%, RSS p95 1.5 GiB, latency p95 500 ms on /system/health, disk 50 MiB/hr steady-state). New `scripts/evaluation/check_resource_budget.py` is a pure comparator that reads the sampler report + budgets and asserts per-percentile; emits Markdown + JSON evidence. Wired into `nfr_sweep.sh` as a hard assertion — sweep exits non-zero on budget violation. 10-test unit suite wired as `resource-budget-comparator` gate step. |
 | NFR-19 | 1/5/10/20 session concurrency harness | P1 | ❌ PENDING | — (alpha.3 target) |
 | NFR-20 | Operator-visible metrics | P1 | ❌ PENDING | — (alpha.3 target) |
 | NFR-21 | Every decision + privilege change audited + timestamped | P0 | 🧱 SCAFFOLD | ADR-0021 hash chain |
