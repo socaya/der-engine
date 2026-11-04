@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
-  Panel, Dot, fmtDate, usePaged, TablePager, Status,
+  Panel, Dot, fmtDate, usePaged, TablePager,
   SyncStatusBar, humaniseState, RowMenu, BackLink, ScopedFilterChip,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
+import { Dhis2UserPicker } from '../components/Dhis2UserPicker';
 
 /** `/admin/provisioning/users` — Users dashboard.
  *
@@ -336,12 +337,6 @@ export function MockupUserDhis2Mapping(): JSX.Element {
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
-  /* DHIS2 user picker state (only consulted while the edit form is open). */
-  const [search, setSearch] = useState<string>('');
-  const [candidates, setCandidates] =
-    useState<edgeApi.EdgeDhis2UserCandidate[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchErr, setSearchErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -386,35 +381,17 @@ export function MockupUserDhis2Mapping(): JSX.Element {
     } finally { setSaving(false); }
   }
 
-  /* Debounce + trigger the DHIS2 user search whenever the search box
-   * changes while the edit form is open.  Keeps the typeahead cheap
-   * on central and doesn't leak requests when the form closes. */
-  useEffect(() => {
-    if (!draft) return;
-    let cancelled = false;
-    const handle = window.setTimeout(() => {
-      setSearching(true); setSearchErr(null);
-      edgeApi.searchDhis2UserCandidates(search, 20)
-        .then((r) => { if (!cancelled) setCandidates(r.candidates); })
-        .catch((e: unknown) => {
-          if (!cancelled) {
-            setCandidates([]);
-            setSearchErr(e instanceof Error ? e.message : String(e));
-          }
-        })
-        .finally(() => { if (!cancelled) setSearching(false); });
-    }, 200);
-    return () => { cancelled = true; window.clearTimeout(handle); };
-  }, [draft, search]);
-
-  function pickCandidate(c: edgeApi.EdgeDhis2UserCandidate): void {
+  function pickCandidate(c: edgeApi.EdgeDhis2UserCandidate | null): void {
+    if (c == null) {
+      setDraft((prev) => prev ? { uid: '', username: '', displayName: '' } : prev);
+      return;
+    }
     if (c.id == null || c.username == null) return;
     setDraft({
       uid: c.id,
       username: c.username,
       displayName: c.displayName ?? '',
     });
-    setSearch('');
   }
 
   if (notFound) {
@@ -535,10 +512,23 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                )
              }>
         {!mapped && !draft && (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
-            No DHIS2 user is mapped to this edge user yet.  Click
-            <strong> Map DHIS2 user</strong> to pair them.
-          </p>
+          <div data-test="user-dhis2-mapping-empty"
+               className="ea-mapping-empty">
+            <p className="ea-text-muted ea-mapping-empty-copy">
+              No DHIS2 user is mapped to this edge user yet.  Pick a
+              DHIS2 Central user to attribute records this operator
+              captures.
+            </p>
+            <button type="button"
+                    className="ea-btn ea-btn--primary ea-btn--sm"
+                    data-test="user-dhis2-mapping-add"
+                    onClick={() => setDraft({
+                      uid: '', username: '', displayName: '',
+                    })}>
+              <UiIcon icon="plus" size={14} />
+              <span>Add mapping</span>
+            </button>
+          </div>
         )}
         {mapped && !draft && (
           <dl className="ea-def-list" data-test="user-dhis2-mapping-current">
@@ -572,86 +562,28 @@ export function MockupUserDhis2Mapping(): JSX.Element {
         )}
         {draft && (
           <div data-test="user-dhis2-mapping-form"
-               style={{ display: 'grid', gap: 12 }}>
-            {/* --- Picker: search DHIS2 central users ------------------- */}
-            <div>
-              <label>
-                <span style={{ display: 'block', fontSize: 12,
-                                color: 'var(--der-ink-700)', marginBottom: 4 }}>
-                  Search DHIS2 Central users
-                </span>
-                <input type="search"
-                       aria-label="Search DHIS2 users"
-                       data-test="user-dhis2-mapping-search"
-                       className="ea-input"
-                       style={{ width: '100%' }}
-                       value={search}
-                       placeholder="Type a name or username to query DHIS2…"
-                       onChange={(e) => setSearch(e.target.value)} />
+               className="ea-mapping-form">
+            <div className="ea-field">
+              <label className="ea-field-label"
+                     htmlFor="user-dhis2-mapping-picker-input">
+                DHIS2 Central user
               </label>
-              {searchErr && (
-                <div className="ea-callout ea-callout--danger"
-                     data-test="user-dhis2-mapping-search-err"
-                     role="alert"
-                     style={{ marginTop: 6 }}>
-                  DHIS2 user search failed: {searchErr}.  You can still
-                  type the uid + username below manually.
-                </div>
-              )}
-              {!searchErr && (
-                <div data-test="user-dhis2-mapping-picker"
-                     style={{ marginTop: 6, maxHeight: 220, overflow: 'auto',
-                              border: '1px solid var(--der-border-subtle)' }}>
-                  {searching && (
-                    <div className="ea-text-muted"
-                         style={{ padding: '8px 10px', fontSize: 12 }}>
-                      Searching DHIS2 Central…
-                    </div>
-                  )}
-                  {!searching && candidates.length === 0 && (
-                    <div className="ea-text-muted"
-                         style={{ padding: '8px 10px', fontSize: 12 }}>
-                      {search.trim()
-                        ? 'No DHIS2 users match this query.'
-                        : 'Start typing to search DHIS2 Central users.'}
-                    </div>
-                  )}
-                  {!searching && candidates.map((c) => (
-                    <button key={c.id ?? c.username ?? Math.random()}
-                            type="button"
-                            data-test={`user-dhis2-mapping-pick-${c.id}`}
-                            onClick={() => pickCandidate(c)}
-                            disabled={c.id == null || c.username == null}
-                            style={{
-                              display: 'flex', width: '100%',
-                              textAlign: 'left', gap: 10,
-                              padding: '8px 10px',
-                              background: draft.uid === c.id
-                                ? 'var(--der-surface-highlight, #eef3fb)'
-                                : 'white',
-                              border: 'none',
-                              borderBottom: '1px solid var(--der-border-subtle)',
-                              cursor: c.id ? 'pointer' : 'not-allowed',
-                            }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600 }}>
-                          {c.displayName ?? '(no display name)'}
-                        </div>
-                        <div className="ea-mono ea-text-muted"
-                             style={{ fontSize: 12 }}>
-                          @{c.username ?? '—'} · {c.id ?? 'no-uid'}
-                        </div>
-                      </div>
-                      {c.disabled && <Status tone="warning">Disabled</Status>}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <Dhis2UserPicker
+                dataTest="user-dhis2-mapping-picker"
+                value={draft.uid || null}
+                selectedLabel={draft.uid
+                  ? `@${draft.username}${draft.displayName ? ' — ' + draft.displayName : ''}`
+                  : null}
+                onChange={pickCandidate}
+              />
+              <span className="ea-field-hint">
+                Backed by <code>GET /api/users</code> on the bound
+                DHIS2 central.  If search fails you can paste the uid
+                below.
+              </span>
             </div>
 
-            {/* --- Chosen mapping (also editable as a safety net) ------- */}
-            <dl className="ea-def-list"
-                data-test="user-dhis2-mapping-chosen">
+            <dl className="ea-def-list" data-test="user-dhis2-mapping-chosen">
               <div className="ea-def-row">
                 <dt>DHIS2 uid</dt>
                 <dd>
@@ -659,9 +591,8 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                          aria-label="DHIS2 uid"
                          data-test="user-dhis2-mapping-input-uid"
                          className="ea-input ea-mono"
-                         style={{ width: '100%' }}
                          value={draft.uid}
-                         placeholder="Pick from the list above, or paste an 11-char uid"
+                         placeholder="Pick above, or paste an 11-char uid"
                          onChange={(e) => setDraft({ ...draft, uid: e.target.value })} />
                 </dd>
               </div>
@@ -672,7 +603,6 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                          aria-label="DHIS2 username"
                          data-test="user-dhis2-mapping-input-username"
                          className="ea-input"
-                         style={{ width: '100%' }}
                          value={draft.username}
                          onChange={(e) => setDraft({ ...draft, username: e.target.value })} />
                 </dd>
@@ -684,7 +614,6 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                          aria-label="DHIS2 display name"
                          data-test="user-dhis2-mapping-input-display-name"
                          className="ea-input"
-                         style={{ width: '100%' }}
                          value={draft.displayName}
                          placeholder="optional"
                          onChange={(e) => setDraft({ ...draft, displayName: e.target.value })} />
@@ -692,12 +621,12 @@ export function MockupUserDhis2Mapping(): JSX.Element {
               </div>
             </dl>
 
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div className="ea-mapping-form-actions">
               <button type="button"
                       className="ea-btn ea-btn--ghost ea-btn--sm"
                       data-test="user-dhis2-mapping-cancel"
                       disabled={saving}
-                      onClick={() => { setDraft(null); setSearch(''); }}>
+                      onClick={() => setDraft(null)}>
                 Cancel
               </button>
               <button type="button"

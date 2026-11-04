@@ -316,13 +316,15 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
       });
     renderAt('/provisioning/users/u-1/dhis2-mapping');
     const user = userEvent.setup();
-    await user.click(await screen.findByTestId('user-dhis2-mapping-edit'));
-    /* Picker is rendered; initial empty-query call fires. */
+    /* Empty state surfaces the inline Add button. */
+    await user.click(await screen.findByTestId('user-dhis2-mapping-add'));
+    /* Opening the picker fires the initial empty-query search. */
+    await user.click(screen.getByTestId('user-dhis2-mapping-picker-input'));
     await waitFor(() => expect(candidateSearch).toHaveBeenCalled());
-    const row = await screen.findByTestId('user-dhis2-mapping-pick-A1B2C3D4E5F');
+    const row = await screen.findByTestId('user-dhis2-mapping-picker-row-A1B2C3D4E5F');
     expect(row).toHaveTextContent('Alice Central');
-    /* The disabled Bob Central row carries a Status chip. */
-    expect(screen.getByTestId('user-dhis2-mapping-pick-Z9yT5w1Z9Kq'))
+    /* Disabled Bob Central row surfaces a Status warning chip. */
+    expect(screen.getByTestId('user-dhis2-mapping-picker-row-Z9yT5w1Z9Kq'))
       .toHaveTextContent('Disabled');
     await user.click(row);
     expect((screen.getByTestId('user-dhis2-mapping-input-uid') as HTMLInputElement).value)
@@ -333,7 +335,7 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
       .toBe('Alice Central');
   });
 
-  it('picker search failure surfaces a callout but keeps the inputs editable', async () => {
+  it('picker search failure surfaces a hint but keeps the inputs editable', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
       users: [userFixture({ userId: 'u-1' })],
     });
@@ -342,13 +344,29 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
       .mockRejectedValue(new Error('503 DHIS2 unreachable'));
     renderAt('/provisioning/users/u-1/dhis2-mapping');
     const user = userEvent.setup();
-    await user.click(await screen.findByTestId('user-dhis2-mapping-edit'));
+    await user.click(await screen.findByTestId('user-dhis2-mapping-add'));
+    await user.click(screen.getByTestId('user-dhis2-mapping-picker-input'));
+    /* Danger hint rendered inside the combobox menu. */
     await waitFor(() =>
-      expect(screen.getByTestId('user-dhis2-mapping-search-err'))
-        .toBeInTheDocument());
+      expect(document.body.textContent ?? '')
+        .toMatch(/DHIS2 search failed/));
     /* Operator can still type uid manually. */
     await user.type(screen.getByTestId('user-dhis2-mapping-input-uid'), 'MANUALUID12');
     expect((screen.getByTestId('user-dhis2-mapping-input-uid') as HTMLInputElement).value)
       .toBe('MANUALUID12');
+  });
+
+  it('empty-state exposes the inline Add mapping button', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    const btn = await screen.findByTestId('user-dhis2-mapping-add');
+    expect(btn).toHaveTextContent('Add mapping');
+    const user = userEvent.setup();
+    await user.click(btn);
+    await waitFor(() =>
+      expect(screen.getByTestId('user-dhis2-mapping-form')).toBeInTheDocument());
   });
 });
