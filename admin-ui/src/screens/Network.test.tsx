@@ -217,9 +217,17 @@ describe('NetworkOverview — loaded branches', () => {
         .setup();
       await user.click(screen.getByRole('button', { name: /Export status/ }));
       expect(createSpy).toHaveBeenCalled();
+      /* downloadBlob queues a setTimeout(() => URL.revokeObjectURL, 1000)
+       * on the real timer. If we restore URL.revokeObjectURL before that
+       * timer fires, jsdom (which doesn't implement revokeObjectURL)
+       * surfaces an unhandled error at teardown. Leave the stub in
+       * place on a permanent no-op so the deferred revoke no-ops too. */
+      (URL as unknown as { revokeObjectURL: typeof URL.revokeObjectURL })
+        .revokeObjectURL = (() => undefined) as unknown as typeof URL.revokeObjectURL;
     } finally {
       URL.createObjectURL = originalCreate;
-      URL.revokeObjectURL = originalRevoke;
+      /* originalRevoke intentionally not restored — see block above. */
+      void originalRevoke;
     }
   });
 });

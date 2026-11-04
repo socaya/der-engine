@@ -523,6 +523,62 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/Failed to load/);
   });
 
+  it('MockupAuditEvents — ?category=network switches to networkEvents + filter pills', async () => {
+    vi.spyOn(edgeApi, 'networkEvents').mockResolvedValue({
+      events: [
+        { eventId: 'ev-ok', eventType: 'AP_STARTED', actor: null,
+          deviceId: null, nodeId: null, interfaceName: 'wlan0',
+          outcome: 'SUCCESS', reason: null, correlationId: null,
+          observedAt: '2026-11-03T10:00:00Z' },
+        { eventId: 'ev-fail', eventType: 'WAN_LOST', actor: 'root',
+          deviceId: null, nodeId: null, interfaceName: 'eth0',
+          outcome: 'FAILURE', reason: 'link-down', correlationId: null,
+          observedAt: '2026-11-03T11:00:00Z' },
+      ],
+    } as never);
+    renderWithProviders(<MockupAuditEvents />, {
+      authApi, route: '/admin/audit/events?category=network',
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('audit-events')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/Network audit/);
+    expect(body).toMatch(/AP_STARTED/);
+    expect(body).toMatch(/WAN_LOST/);
+    expect(body).toMatch(/link-down/);
+  });
+
+  it('MockupAuditEvents — ?device=... narrows the networkEvents feed', async () => {
+    vi.spyOn(edgeApi, 'networkEvents').mockResolvedValue({
+      events: [
+        { eventId: 'ev-a', eventType: 'DEVICE_APPROVED', actor: null,
+          deviceId: 'dev-matcher', nodeId: null, interfaceName: null,
+          outcome: 'SUCCESS', reason: null, correlationId: null,
+          observedAt: '2026-11-03T10:00:00Z' },
+        { eventId: 'ev-b', eventType: 'DEVICE_REVOKED', actor: null,
+          deviceId: 'dev-other', nodeId: null, interfaceName: null,
+          outcome: 'SUCCESS', reason: null, correlationId: null,
+          observedAt: '2026-11-03T11:00:00Z' },
+      ],
+    } as never);
+    renderWithProviders(<MockupAuditEvents />, {
+      authApi, route: '/admin/audit/events?device=dev-matcher',
+    });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/DEVICE_APPROVED/));
+    expect(document.body.textContent ?? '').not.toMatch(/dev-other/);
+  });
+
+  it('MockupAuditEvents — networkEvents rejection renders ErrorBlock', async () => {
+    vi.spyOn(edgeApi, 'networkEvents').mockRejectedValue(new Error('500 bad'));
+    renderWithProviders(<MockupAuditEvents />, {
+      authApi, route: '/admin/audit/events?category=network',
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-audit')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/500 bad/);
+  });
+
   it('MockupWorkerHealth — Show breakdown reveals every backlog chip-tone arm', async () => {
     vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
       enabled: true,
