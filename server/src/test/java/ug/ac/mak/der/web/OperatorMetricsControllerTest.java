@@ -28,6 +28,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import ug.ac.mak.der.scheduler.ScheduledJobRepository;
+import ug.ac.mak.der.scheduler.ScheduledJobRun;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeSession;
@@ -46,6 +48,7 @@ class OperatorMetricsControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean OperationJournalRepository journal;
+    @MockBean ScheduledJobRepository scheduledJobs;
     @MockBean SecurityAuditRepository audit;
 
     @TestConfiguration
@@ -127,5 +130,53 @@ class OperatorMetricsControllerTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("CLOCK_REPORT_INVALID"));
+    }
+
+    // NFR-20 — operator-visible metrics contract. Every required key
+    // MUST be present on every call, even on a fresh install with no
+    // jobs run and an empty journal.
+
+    @Test
+    void nfr20ContractShapeOnFreshInstall() throws Exception {
+        org.mockito.Mockito.when(scheduledJobs.findLastSuccessful())
+                .thenReturn(java.util.Optional.empty());
+        mockMvc.perform(get("/edge-api/v1/admin/metrics"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.health.status").exists())
+                .andExpect(jsonPath("$.lastSuccessfulSyncAt").doesNotExist())
+                .andExpect(jsonPath("$.queueDepth").value(0))
+                .andExpect(jsonPath("$.rejections").value(0))
+                .andExpect(jsonPath("$.conflicts").value(0))
+                .andExpect(jsonPath("$.journal").exists())
+                .andExpect(jsonPath("$.process.uptimeMillis").exists());
+    }
+
+    @Test
+    void nfr20LastSuccessfulSyncIsExposedWhenAvailable() throws Exception {
+        final Instant started = Instant.parse("2026-11-03T10:00:00Z");
+        org.mockito.Mockito.when(scheduledJobs.findLastSuccessful())
+                .thenReturn(java.util.Optional.of(new ScheduledJobRun(
+                        42L, "METADATA_SYNC_FULL", started, started.plusSeconds(10),
+                        ScheduledJobRun.Outcome.SUCCESS, 10_000L, "{}",
+                        "SCHEDULED")));
+        mockMvc.perform(get("/edge-api/v1/admin/metrics"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastSuccessfulSyncAt")
+                        .value("2026-11-03T10:00:00Z"));
+    }
+
+    @Test
+    void nfr20RejectionsAndConflictsReflectJournalCounts() throws Exception {
+        org.mockito.Mockito.when(journal.countByState(
+                ug.ac.mak.der.workflows.aggregate.OperationJournalEntry.State.CENTRAL_REJECTED))
+                .thenReturn(3);
+        org.mockito.Mockito.when(journal.countByState(
+                ug.ac.mak.der.workflows.aggregate.OperationJournalEntry.State.CONFLICT_REVIEW))
+                .thenReturn(2);
+        mockMvc.perform(get("/edge-api/v1/admin/metrics"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rejections").value(3))
+                .andExpect(jsonPath("$.conflicts").value(2))
+                .andExpect(jsonPath("$.health.status").value("UP"));
     }
 }

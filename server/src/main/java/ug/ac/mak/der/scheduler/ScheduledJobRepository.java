@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -55,6 +56,20 @@ public class ScheduledJobRepository {
                         + "detail::text AS detail, triggered_by "
                         + "FROM der.scheduled_job_run ORDER BY started_at DESC LIMIT ?",
                 rowMapper(), capped);
+    }
+
+    /** NFR-20 — the most recent SUCCESS, regardless of job name, so
+     *  the operator-metrics endpoint can disclose "last successful
+     *  sync" without picking a specific job family. Returns empty
+     *  when the scheduler has never completed a run (fresh install). */
+    public Optional<ScheduledJobRun> findLastSuccessful() {
+        final List<ScheduledJobRun> rows = jdbc.query(
+                "SELECT run_id, job_name, started_at, finished_at, outcome, duration_ms, "
+                        + "detail::text AS detail, triggered_by "
+                        + "FROM der.scheduled_job_run WHERE outcome = 'SUCCESS' "
+                        + "ORDER BY started_at DESC LIMIT 1",
+                rowMapper());
+        return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
     }
 
     public List<ScheduledJobRun> findRecentForJob(final String jobName, final int limit) {

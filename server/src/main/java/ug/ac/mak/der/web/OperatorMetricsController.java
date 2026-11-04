@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import ug.ac.mak.der.scheduler.ScheduledJobRepository;
+import ug.ac.mak.der.scheduler.ScheduledJobRun;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.security.SecurityAuditRepository;
@@ -41,13 +43,16 @@ public class OperatorMetricsController {
     static final long UNSAFE_DRIFT_MILLIS = 60_000L;
 
     private final ObjectProvider<OperationJournalRepository> journal;
+    private final ObjectProvider<ScheduledJobRepository> scheduledJobs;
     private final SecurityAuditRepository audit;
     private final Clock clock;
 
     public OperatorMetricsController(final ObjectProvider<OperationJournalRepository> journal,
+                                      final ObjectProvider<ScheduledJobRepository> scheduledJobs,
                                       final SecurityAuditRepository audit,
                                       final Clock clock) {
         this.journal = Objects.requireNonNull(journal, "journal");
+        this.scheduledJobs = Objects.requireNonNull(scheduledJobs, "scheduledJobs");
         this.audit = Objects.requireNonNull(audit, "audit");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
@@ -119,6 +124,27 @@ public class OperatorMetricsController {
             @JsonProperty("callerEpochMillis") Long callerEpochMillis,
             @JsonProperty("callerTimeZone") String callerTimeZone) { }
 
+    /**
+     * NFR-20 — operator-visible metrics.
+     *
+     * <p>The response is the authoritative source of the operator
+     * dashboard. The following keys are the NFR-20 contract and
+     * MUST stay present (missing a required key is a regression —
+     * guarded by OperatorMetricsControllerTest#contractShape):</p>
+     *
+     * <ul>
+     *   <li>{@code health.status} — "UP" when the queue sampler can read
+     *       the journal, otherwise "DEGRADED"</li>
+     *   <li>{@code lastSuccessfulSyncAt} — ISO-8601 instant of the most
+     *       recent SUCCESS in {@code scheduled_job_run}, or null when
+     *       no successful sync has run on this edge</li>
+     *   <li>{@code queueDepth} — PENDING + RETRYABLE + IN_FLIGHT, scalar</li>
+     *   <li>{@code rejections} — CENTRAL_REJECTED count, scalar</li>
+     *   <li>{@code conflicts} — CONFLICT_REVIEW count, scalar</li>
+     *   <li>{@code journal} — map of every operator-visible state → count</li>
+     *   <li>{@code process} — uptime, heap, thread, processor counts</li>
+     * </ul>
+     */
     @GetMapping
     public ResponseEntity<Map<String, Object>> metrics() {
         final Map<String, Object> body = new LinkedHashMap<>();
@@ -136,6 +162,7 @@ public class OperatorMetricsController {
 
         // Queue / backlog metrics.
         final OperationJournalRepository jr = journal.getIfAvailable();
+        boolean journalHealthy = false;
         if (jr != null) {
             final Map<String, Integer> byState = new LinkedHashMap<>();
             for (final OperationJournalEntry.State s : OperationJournalEntry.State.values()) {
@@ -148,7 +175,37 @@ public class OperatorMetricsController {
                             OperationJournalEntry.State.RETRYABLE.name(), 0)
                     + byState.getOrDefault(
                             OperationJournalEntry.State.IN_FLIGHT.name(), 0));
+            // NFR-20 contract fields — surfaced at the top level so the
+            // dashboard doesn't have to hunt them inside journal.
+            body.put("rejections", byState.getOrDefault(
+                    OperationJournalEntry.State.CENTRAL_REJECTED.name(), 0));
+            body.put("conflicts", byState.getOrDefault(
+                    OperationJournalEntry.State.CONFLICT_REVIEW.name(), 0));
+            journalHealthy = true;
+        } else {
+            body.put("journal", Map.of());
+            body.put("queueDepth", 0);
+            body.put("rejections", 0);
+            body.put("conflicts", 0);
         }
+
+        // Last-successful-sync — hunts scheduled_job_run for the most
+        // recent SUCCESS. Null on a fresh install.
+        final ScheduledJobRepository sjr = scheduledJobs.getIfAvailable();
+        String lastOk = null;
+        if (sjr != null) {
+            lastOk = sjr.findLastSuccessful()
+                    .map(ScheduledJobRun::startedAt)
+                    .map(Instant::toString)
+                    .orElse(null);
+        }
+        body.put("lastSuccessfulSyncAt", lastOk);
+
+        // Health is derived — UP when the journal is reachable, DEGRADED
+        // when it isn't (so the operator dashboard can show a status
+        // badge without round-tripping to /system/health separately).
+        body.put("health", Map.of("status", journalHealthy ? "UP" : "DEGRADED"));
+
         return ResponseEntity.ok(body);
     }
 }
