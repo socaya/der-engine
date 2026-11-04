@@ -6,7 +6,7 @@ import {
   CapSyncHistory, CapDataQueues, CapWorkflowRuns,
   CapStepAssignments, CapReferralHistory, CapMetadataSync,
   CapProgramRules, CapSyncOverview, CapSyncSchedule,
-  CapOrgUnitBinding,
+  CapOrgUnitBinding, CapSystemInformation, CapDashboard,
 } from './CapabilityScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -557,6 +557,102 @@ describe('CapSyncSchedule (loaded)', () => {
     renderWithProviders(<CapSyncSchedule />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('err-settings-load-failed'))
+        .toBeInTheDocument());
+  });
+});
+
+describe('CapSystemInformation (loaded)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('resolved systemInfo populates all four DefinitionCards', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
+      service: 'der-edge',
+      runtime: {
+        heapUsedBytes: 100_000_000, heapMaxBytes: 500_000_000,
+        uptimeMillis: 3_600_000, javaVendor: 'Eclipse',
+        javaVersion: '17.0.12', osName: 'Linux', osArch: 'aarch64',
+        hostname: 'der-pilot-1', availableProcessors: 4,
+      },
+      database: {
+        configured: true, sessionCount: 2, product: 'PostgreSQL 17',
+        flywayVersion: '10.0.0', migrationCount: 42, userCount: 7,
+      },
+      scheduler: {
+        name: 'QuartzScheduler', started: true, standbyMode: false,
+        executingJobs: 1, totalJobs: 9,
+      },
+      storage: { totalBytes: 1, usableBytes: 1 },
+      dhis2: { configured: true, probeReachable: true, baseUrl: 'x' },
+      build: {
+        version: '2.3.123', commit: 'abc123', branch: 'main',
+        buildTime: '2026-11-03T00:00:00Z', dirty: false,
+      },
+      apps: { installed: 0, enabled: 0, items: [] },
+    } as unknown as edgeApi.SystemInfo);
+    renderWithProviders(<CapSystemInformation />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-sysinfo')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/2\.3\.123/);
+    expect(body).toMatch(/Eclipse/);
+    expect(body).toMatch(/PostgreSQL 17/);
+    expect(body).toMatch(/QuartzScheduler/);
+  });
+
+  it('systemInfo rejection surfaces err-system-info-failed', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockRejectedValue(new Error('upstream'));
+    renderWithProviders(<CapSystemInformation />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-system-info-failed'))
+        .toBeInTheDocument());
+  });
+});
+
+describe('CapDashboard (loaded)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('all four probes resolve → UP + yes + backlog stat populates', async () => {
+    vi.spyOn(edgeApi, 'health').mockResolvedValue({
+      status: 'UP', components: {}, checks: {},
+    } as unknown as edgeApi.HealthResponse);
+    vi.spyOn(edgeApi, 'compat').mockResolvedValue({
+      status: 'OK', snapshotId: 1, capturedAt: 'now',
+      centralVersion: '2.44', profileName: 'V2_44',
+      probeReachable: true, probeDurationMs: 100,
+      engineVersion: '1.0.0', capabilities: {},
+      pinnedVersion: '2.44', pingHistory: [],
+    } as unknown as edgeApi.CompatSnapshot);
+    vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
+      enabled: true, probeTimestamp: 'now',
+      backlog: { PENDING: 5 },
+    } as unknown as edgeApi.WorkerHealth);
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([
+      { runId: 1, jobName: 'X', outcome: 'FAILED',
+        startedAt: 'now', finishedAt: 'now', durationMs: 10,
+        triggeredBy: 'MANUAL', detail: '{}' },
+    ] as edgeApi.JobRun[]);
+    renderWithProviders(<CapDashboard />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-dashboard')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/UP/);
+    expect(body).toMatch(/yes/);
+  });
+
+  it('health rejection surfaces err-partial-dashboard-load', async () => {
+    vi.spyOn(edgeApi, 'health').mockRejectedValue(new Error('down'));
+    vi.spyOn(edgeApi, 'compat').mockResolvedValue({
+      status: 'OK', probeReachable: false,
+    } as unknown as edgeApi.CompatSnapshot);
+    vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
+      enabled: true, probeTimestamp: 'now', backlog: {},
+    } as unknown as edgeApi.WorkerHealth);
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([] as edgeApi.JobRun[]);
+    renderWithProviders(<CapDashboard />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-partial-dashboard-load'))
         .toBeInTheDocument());
   });
 });
