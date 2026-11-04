@@ -207,6 +207,12 @@ export default defineConfig({
          * closure surface. Drop functions one point to stay honest;
          * the next commit adding tests for device cluster + its own
          * handlers will lift it back. */
+        /* der-2.3.123 round-121 — admin devices cluster enhancements
+         * (CapDeviceEnrolment / CapOwnership / CapConnections /
+         * CapDeviceDiagnostics) added 8 tests exercising the new
+         * closures. Measured coverage 90.65 / 81.70 / 73.80 —
+         * thresholds stay at 90/81/73 (one point below measured on
+         * the two tightest dimensions). */
         lines: 90,
         branches: 81,
         functions: 73,
