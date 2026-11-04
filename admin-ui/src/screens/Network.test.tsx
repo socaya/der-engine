@@ -509,6 +509,55 @@ describe('NetworkSecurity — loaded branches', () => {
     expect(body).toMatch(/DENY/);
     expect(body).toMatch(/isolation/);
   });
+
+  it('TlsCertPanel — resolved networkTls renders every cert field', async () => {
+    vi.spyOn(edgeApi, 'networkPolicy').mockResolvedValue({ rules: [] });
+    const future = new Date();
+    future.setDate(future.getDate() + 90);
+    vi.spyOn(edgeApi, 'networkTls').mockResolvedValue({
+      subject: 'CN=der.local',
+      issuer: 'CN=DER-CA',
+      algorithm: 'ECDSA-P256',
+      fingerprint: 'AA:BB:CC:DD',
+      publicKeyBase64: 'A'.repeat(130),
+      notBefore: '2026-01-01T00:00:00Z',
+      notAfter: future.toISOString(),
+      san: ['der.local', '10.88.0.1'],
+      renewable: true,
+    } as unknown as edgeApi.NetworkTlsCert);
+    renderWithProviders(<NetworkSecurity />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/CN=der\.local/));
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/ECDSA-P256/);
+    expect(body).toMatch(/AA:BB:CC:DD/);
+    expect(body).toMatch(/days until expiry/);
+  });
+
+  it('TlsCertPanel — networkTls rejection surfaces the error hint', async () => {
+    vi.spyOn(edgeApi, 'networkPolicy').mockResolvedValue({ rules: [] });
+    vi.spyOn(edgeApi, 'networkTls').mockRejectedValue(new Error('tls 403'));
+    renderWithProviders(<NetworkSecurity />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '')
+        .toMatch(/Couldn.t load TLS state.*tls 403/s));
+  });
+
+  it('Add rule button opens the PolicyDialog', async () => {
+    vi.spyOn(edgeApi, 'networkPolicy').mockResolvedValue({ rules: [] });
+    vi.spyOn(edgeApi, 'networkTls').mockResolvedValue({
+      subject: 'x', issuer: 'y', algorithm: 'z', fingerprint: 'f',
+      publicKeyBase64: 'A', notBefore: 'now', notAfter: 'now',
+      san: [], renewable: true,
+    } as unknown as edgeApi.NetworkTlsCert);
+    renderWithProviders(<NetworkSecurity />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('network-security')).toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.click(screen.getByRole('button', { name: /Add rule/ }));
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/Add firewall rule/));
+  });
 });
 
 describe('NetworkDiagnostics — loaded branches', () => {
