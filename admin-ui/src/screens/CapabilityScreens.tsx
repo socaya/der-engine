@@ -284,39 +284,63 @@ export function CapCentralConnection(): JSX.Element {
   if (!si || !c || !cfg) return <LoadingBlock testId="loading" />;
   const reach = c.probeReachable;
 
+  const tone: 'success' | 'warning' | 'danger' | 'info' = refreshing
+    ? 'info'
+    : reach
+      ? 'success'
+      : (cfg.baseUrl ?? '').length === 0
+        ? 'warning'
+        : 'danger';
+  const statusLabel = refreshing
+    ? 'Probing…'
+    : reach
+      ? `Reachable · ${c.centralVersion ?? 'unknown version'}`
+      : (cfg.baseUrl ?? '').length === 0
+        ? 'Not configured'
+        : 'Unreachable';
+
   return (
     <div className="ea-screen" data-test="cap-connection">
-      <HeroHeader
+      <SyncStatusBar
+        tone={tone}
         title="Central connection"
-        subtitle="Edit the DHIS2 central-connection and compatibility policy for this edge. ADMIN only."
+        statusLabel={statusLabel}
+        subtitle="DHIS2 central-connection + compatibility policy for this edge.  Changes take effect on the next sync or probe.  ADMIN only."
         actions={
-          <div style={{ display: 'flex', gap: 8 }}>
+          <>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                    data-test="cap-connection-probe"
                     disabled={refreshing}
                     onClick={() => { refresh().catch(() => undefined); }}>
               <UiIcon icon="refresh" size={14} />
               <span>{refreshing ? 'Probing…' : 'Probe now'}</span>
             </button>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    data-test="cap-connection-save"
                     disabled={saving}
                     onClick={() => { save().catch(() => undefined); }}>
               {saving ? <span className="ea-btn-spinner" /> : <UiIcon icon="refresh" size={14} />}
               <span>{saving ? 'Saving…' : 'Save connection'}</span>
             </button>
-          </div>
+          </>
         }
       />
 
-      <div className="ea-stat-strip">
-        <Stat label="Reachable" value={reach ? 'yes' : 'no'}
-              tone={reach ? 'success' : 'danger'} />
-        <Stat label="Central version" value={c.centralVersion ?? '—'} />
-        <Stat label="Profile" value={c.profileName ?? '—'} />
-        <Stat label="Probe RTT"
-              value={si.dhis2.probeDurationMs != null ? `${si.dhis2.probeDurationMs} ms` : '—'} />
-      </div>
+      <Panel title="At a glance">
+        <div className="ea-stat-strip">
+          <Stat label="Reachable" value={reach ? 'yes' : 'no'}
+                tone={reach ? 'success' : 'danger'} />
+          <Stat label="Central version" value={c.centralVersion ?? '—'} />
+          <Stat label="Profile" value={c.profileName ?? '—'} />
+          <Stat label="Probe RTT"
+                value={si.dhis2.probeDurationMs != null ? `${si.dhis2.probeDurationMs} ms` : '—'} />
+        </div>
+      </Panel>
 
-      {msg && <p className="ea-saved">{msg}</p>}
+      {msg && (
+        <div className="ea-callout ea-callout--success"
+             data-test="cap-connection-msg" role="status">{msg}</div>
+      )}
       {err && <ErrorBlock title="Save failed" testId="err-conn-save">{err}</ErrorBlock>}
 
       <section className="ea-card ea-form-card">
@@ -812,6 +836,7 @@ function fmtBindAt(s: string): string {
 export function CapProgramRules(): JSX.Element {
   const [rows, setRows] = useState<edgeApi.MetadataListItem[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [search, setSearch] = useState<string>('');
   useEffect(() => {
     edgeApi.metadataList('programRules', { pageSize: 1000, page: 1 })
       .then((r) => {
@@ -820,39 +845,94 @@ export function CapProgramRules(): JSX.Element {
       })
       .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
   }, []);
-  const paged = usePaged(rows ?? [], 50);
+
+  const q = search.trim().toLowerCase();
+  const filtered = (rows ?? []).filter((r) =>
+    !q || (r.displayName ?? '').toLowerCase().includes(q)
+       || r.id.toLowerCase().includes(q));
+  const paged = usePaged(filtered, 50);
+
+  if (err && !rows) {
+    return <ErrorBlock title="Could not load program rules"
+                        testId="err-could-not-load-program-r">{err}</ErrorBlock>;
+  }
+  if (!rows) return <LoadingBlock testId="loading" />;
+
+  const tone: 'muted' | 'info' = rows.length === 0 ? 'muted' : 'info';
+  const statusLabel = rows.length === 0
+    ? 'No rules mirrored'
+    : `${rows.length} rule${rows.length === 1 ? '' : 's'}`;
+
   return (
     <div className="ea-screen" data-test="cap-rules">
-      <HeroHeader
+      <SyncStatusBar
+        tone={tone}
         title="Program rules"
-        subtitle="DHIS2 program rules mirrored from the central instance."
+        statusLabel={statusLabel}
+        subtitle="DHIS2 program rules mirrored from the central instance.  Rules are read-only on the edge — authored upstream in DHIS2 and pulled on the next metadata sync."
+        actions={
+          <>
+            <Link to="/dhis2/metadata-sync"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="DHIS2"
+                  data-test="cap-rules-open-metadata-sync">
+              <UiIcon icon="metadata" size={14} />
+              <span>Metadata sync</span>
+            </Link>
+            <Link to="/dhis2/metadata-drift"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="DHIS2"
+                  data-test="cap-rules-open-drift">
+              <UiIcon icon="drift" size={14} />
+              <span>Drift</span>
+            </Link>
+          </>
+        }
       />
-      {err && <ErrorBlock title="Could not load program rules" testId="err-could-not-load-program-r">{err}</ErrorBlock>}
-      {!rows && !err && <LoadingBlock testId="loading" />}
-      {rows && rows.length === 0 && (
-        <EmptyBlock title="No program rules mirrored" testId="empty-no-program-rules-mirrore">
-          Run a metadata sync to pull rules from the central DHIS2.
-        </EmptyBlock>
-      )}
-      {rows && rows.length > 0 && (
-        <section className="ea-card">
-          <div className="ea-card-toolbar">
-            <span className="ea-card-count">{rows.length} rules</span>
-          </div>
-          <div className="ea-table-wrap">
-            <table className="ea-table"><thead><tr>
-              <th>Name</th><th>ID</th>
-            </tr></thead><tbody>
-              {paged.rows.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.displayName ?? '—'}</td>
-                  <td className="ea-mono">{r.id}</td>
-                </tr>
-              ))}
-            </tbody></table>
-            <TablePager {...paged.pagerProps} />
-          </div>
-        </section>
+      {rows.length === 0 ? (
+        <Panel title="Program rules">
+          <EmptyBlock title="No program rules mirrored"
+                      testId="empty-no-program-rules-mirrore">
+            Run a metadata sync to pull rules from the central DHIS2.
+          </EmptyBlock>
+        </Panel>
+      ) : (
+        <Panel title={`Rules (${filtered.length}${q ? ' of ' + rows.length : ''})`}
+               action={
+                 <input type="search"
+                        aria-label="Filter program rules"
+                        data-test="cap-rules-search"
+                        placeholder="Search by name or id…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="ea-input"
+                        style={{ width: 240 }} />
+               }>
+          {filtered.length === 0 ? (
+            <EmptyBlock title="No rules match the search"
+                        testId="cap-rules-empty-filter">
+              Clear the search to see the full list of {rows.length} rules.
+            </EmptyBlock>
+          ) : (
+            <div className="ea-table-wrap">
+              <table className="ea-table ea-table--dense" data-test="cap-rules-table">
+                <thead><tr>
+                  <th>Name</th>
+                  <th style={{ width: 240 }}>ID</th>
+                </tr></thead>
+                <tbody>
+                  {paged.rows.map((r) => (
+                    <tr key={r.id} data-test={`cap-rules-row-${r.id}`}>
+                      <td>{r.displayName ?? '—'}</td>
+                      <td className="ea-mono">{r.id}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <TablePager {...paged.pagerProps} />
+            </div>
+          )}
+        </Panel>
       )}
     </div>
   );

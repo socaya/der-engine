@@ -1386,3 +1386,59 @@ describe('Settings cluster depth-lift', () => {
     expect(screen.getByTestId('cap-storage-thresholds')).toHaveTextContent('/var/lib/der');
   });
 });
+
+describe('DHIS2 cluster depth-lift', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('CapProgramRules — mirrored rules render in the table', async () => {
+    vi.spyOn(edgeApi, 'metadataList').mockResolvedValue({
+      programRules: [
+        { id: 'rule-a', displayName: 'Rule A' },
+        { id: 'rule-b', displayName: 'Rule B' },
+      ],
+    } as never);
+    renderWithProviders(<CapProgramRules />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-rules'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('cap-rules-row-rule-a')).toHaveTextContent('Rule A');
+    expect(screen.getByTestId('cap-rules-row-rule-b')).toHaveTextContent('Rule B');
+  });
+
+  it('CapProgramRules — search narrows to the matching rule', async () => {
+    vi.spyOn(edgeApi, 'metadataList').mockResolvedValue({
+      programRules: [
+        { id: 'rule-a', displayName: 'Vaccination coverage' },
+        { id: 'rule-b', displayName: 'Facility check-in' },
+      ],
+    } as never);
+    renderWithProviders(<CapProgramRules />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-rules-row-rule-a'))
+      .toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.type(screen.getByTestId('cap-rules-search'), 'vaccin');
+    await waitFor(() => expect(screen.queryByTestId('cap-rules-row-rule-b')).toBeNull());
+    expect(screen.getByTestId('cap-rules-row-rule-a')).toBeInTheDocument();
+  });
+
+  it('CapProgramRules — empty mirror surfaces the empty-state Panel', async () => {
+    vi.spyOn(edgeApi, 'metadataList').mockResolvedValue({ programRules: [] } as never);
+    renderWithProviders(<CapProgramRules />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('empty-no-program-rules-mirrore'))
+        .toBeInTheDocument());
+  });
+
+  it('CapProgramRules — unmatched search surfaces the filter-empty Panel', async () => {
+    vi.spyOn(edgeApi, 'metadataList').mockResolvedValue({
+      programRules: [{ id: 'rule-a', displayName: 'Rule A' }],
+    } as never);
+    renderWithProviders(<CapProgramRules />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('cap-rules-row-rule-a'))
+      .toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.type(screen.getByTestId('cap-rules-search'), 'nonsense');
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-rules-empty-filter')).toBeInTheDocument());
+  });
+});
