@@ -25,8 +25,11 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationFi
  *       Phase 06 revisits this when cross-origin admin tooling lands.</li>
  *   <li>{@code /edge-api/v1/system/health} and {@code /edge-api/v1/auth/sign-in}
  *       are open; everything else requires an {@link EdgeUserPrincipal}.</li>
- *   <li>{@code /edge-api/v1/dhis2/**} and {@code /edge-api/v1/provisioning/**}
- *       require the {@code ADMIN} role.</li>
+ *   <li>Path gates use {@code hasAuthority("der.<module>.<verb>")} drawn
+ *       from {@link AuthorityCatalog}.  Built-in roles (ADMIN / OPERATOR /
+ *       REVIEWER) carry the authority grants seeded by V086, so existing
+ *       deployments retain the previous role semantics while custom roles
+ *       are now first-class citizens of the gate.</li>
  *   <li>Anonymous access to a guarded endpoint returns {@code 401}, not {@code 403}.</li>
  * </ul>
  */
@@ -104,7 +107,7 @@ public class SecurityConfig {
                         // Operators restrict reach via nginx / firewall;
                         // the content is non-sensitive counter / gauge data.
                         .requestMatchers("/actuator/prometheus").permitAll()
-                        .requestMatchers("/actuator/metrics").hasRole("ADMIN")
+                        .requestMatchers("/actuator/metrics").hasAuthority("der.system.read")
                         // ADR-0033: admin UI static shell is public so the
                         // login screen renders; AuthContext inside the SPA
                         // then calls /edge-api/v1/auth/sign-in. All data
@@ -116,14 +119,14 @@ public class SecurityConfig {
                         // + operator both need to see "central is down" when
                         // it's down. Full /dhis2/compat etc. remain admin-only.
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/edge-api/v1/dhis2/ping").authenticated()
-                        .requestMatchers("/edge-api/v1/dhis2/**").hasRole("ADMIN")
-                        .requestMatchers("/edge-api/v1/provisioning/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/dhis2/**").hasAuthority("der.dhis2.write")
+                        .requestMatchers("/edge-api/v1/provisioning/**").hasAuthority("der.users.write")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/sync/notify").authenticated()
-                        .requestMatchers("/edge-api/v1/sync/**").hasRole("ADMIN")
-                        .requestMatchers("/edge-api/v1/backup/**").hasRole("ADMIN")
-                        .requestMatchers("/edge-api/v1/restore/**").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/system/org-unit").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/approvals/**").hasAnyRole("REVIEWER", "ADMIN")
+                        .requestMatchers("/edge-api/v1/sync/**").hasAuthority("der.sync.run")
+                        .requestMatchers("/edge-api/v1/backup/**").hasAuthority("der.backup.manage")
+                        .requestMatchers("/edge-api/v1/restore/**").hasAuthority("der.backup.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/system/org-unit").hasAuthority("der.system.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/approvals/**").hasAuthority("der.conflicts.resolve")
                         // §2.3.11 — workflow runs are operator-level:
                         //   open run / contribute / reject by any authenticated user
                         //   (device auth or operator session). CRUD on the
@@ -144,10 +147,10 @@ public class SecurityConfig {
                             "/edge-api/v1/workflows/import-inbox/stream").authenticated()
                         // §2.3.60 — admin-only metrics dashboard aggregation.
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
-                            "/edge-api/v1/workflows/metrics").hasRole("ADMIN")
+                            "/edge-api/v1/workflows/metrics").hasAuthority("der.workflows.read")
                         // §2.3.61 — admin troubleshooting feed/blockages/issues/conflicts.
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
-                            "/edge-api/v1/workflows/activity/**").hasRole("ADMIN")
+                            "/edge-api/v1/workflows/activity/**").hasAuthority("der.workflows.read")
                         // §2.3.60 — prefetch coordination (phase B).
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                             "/edge-api/v1/workflows/prefetch/stream").authenticated()
@@ -155,26 +158,26 @@ public class SecurityConfig {
                             "/edge-api/v1/workflows/prefetch/pending").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
                             "/edge-api/v1/workflows/prefetch/*/acked").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/workflows/**").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/edge-api/v1/workflows/**").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/workflows/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/workflows/**").hasAuthority("der.workflows.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/edge-api/v1/workflows/**").hasAuthority("der.workflows.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/workflows/**").hasAuthority("der.workflows.manage")
                         // ADR-0019 device management:
                         //   enrol + heartbeat are self-service for any authenticated user
-                        //   approve/suspend/revoke/delete + list are ADMIN
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/approve").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/suspend").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/revoke").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/devices/**").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/analytics/refresh").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/edge-api/v1/security/audit/verify").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/journal/*/next-hop").hasRole("ADMIN")
-                        .requestMatchers("/edge-api/v1/admin/ops/**").hasRole("ADMIN")
-                        .requestMatchers("/edge-api/v1/admin/roles/**").hasRole("ADMIN")
+                        //   approve/suspend/revoke/delete + list need der.devices.manage
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/approve").hasAuthority("der.devices.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/suspend").hasAuthority("der.devices.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/revoke").hasAuthority("der.devices.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/devices/**").hasAuthority("der.devices.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/analytics/refresh").hasAuthority("der.system.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/edge-api/v1/security/audit/verify").hasAuthority("der.audit.read")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/journal/*/next-hop").hasAuthority("der.conflicts.resolve")
+                        .requestMatchers("/edge-api/v1/admin/ops/**").hasAuthority("der.system.manage")
+                        .requestMatchers("/edge-api/v1/admin/roles/**").hasAuthority("der.roles.write")
                         .requestMatchers("/edge-api/v1/admin/metrics").authenticated()
                         .requestMatchers("/edge-api/v1/tracked-entities", "/edge-api/v1/tracked-entities/**").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/aggregate/completion").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/accept").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/dismiss").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/accept").hasAuthority("der.referrals.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/referral/inbox/*/dismiss").hasAuthority("der.referrals.manage")
                         // Phase N1-N5 Network module — reads for all authenticated
                         // users, writes gated to ADMIN. Device self-enrol +
                         // DHCP-lease ingest are authenticated-only (devices /
@@ -182,9 +185,9 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
                             "/edge-api/v1/network/enroll",
                             "/edge-api/v1/network/leases").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.POST,  "/edge-api/v1/network/**").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT,   "/edge-api/v1/network/**").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.DELETE,"/edge-api/v1/network/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,  "/edge-api/v1/network/**").hasAuthority("der.network.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT,   "/edge-api/v1/network/**").hasAuthority("der.network.manage")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE,"/edge-api/v1/network/**").hasAuthority("der.network.manage")
                         .requestMatchers("/edge-api/v1/network/**").authenticated()
                         // Peer lifecycle — invite redeem is reachable
                         // from peer edges across the WireGuard tunnel
@@ -208,18 +211,18 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                             "/edge-api/v1/system/hardware/leds").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
-                            "/edge-api/v1/system/hardware/**").hasRole("ADMIN")
+                            "/edge-api/v1/system/hardware/**").hasAuthority("der.system.manage")
                         .requestMatchers("/edge-api/v1/system/hardware/**").authenticated()
                         // §6 Security hardening — read-only probes;
                         // Vault secret fetch is admin-only.
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
-                            "/edge-api/v1/security/hardening/vault/**").hasRole("ADMIN")
+                            "/edge-api/v1/security/hardening/vault/**").hasAuthority("der.system.manage")
                         .requestMatchers("/edge-api/v1/security/hardening/**").authenticated()
                         // §8 Fleet view + per-operator preferences.
                         .requestMatchers("/edge-api/v1/fleet/**").authenticated()
                         .requestMatchers("/edge-api/v1/user-prefs/**").authenticated()
                         // §9 Testing harness — chaos / load / soak / golden.
-                        .requestMatchers("/edge-api/v1/testing/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/testing/**").hasAuthority("der.system.manage")
                         // §10 Packaging — artefact registry + HW kit catalogue.
                         .requestMatchers("/edge-api/v1/packaging/**").authenticated()
                         // Phase N5 — DER-MSG v1 device-to-device bus.
@@ -235,7 +238,7 @@ public class SecurityConfig {
                         // §7 Compliance — retention, erasure, audit export.
                         // Writes require ADMIN; reads require session.
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
-                            "/edge-api/v1/compliance/**").hasRole("ADMIN")
+                            "/edge-api/v1/compliance/**").hasAuthority("der.system.manage")
                         .requestMatchers("/edge-api/v1/compliance/**").authenticated()
                         .requestMatchers("/edge-api/v1/apps/**").authenticated()
                         .requestMatchers("/edge-api/v1/**").authenticated()

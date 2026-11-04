@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.AuthorityCatalog;
-import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.security.RoleDefinition;
 import ug.ac.mak.der.security.RoleDefinitionRepository;
@@ -184,10 +183,13 @@ public class RoleManagementController {
     }
 
     private ResponseEntity<Map<String, Object>> requireAdmin(final Authentication auth) {
-        if (!(auth instanceof EdgeUserPrincipal p)) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
-        if (!p.user().hasRole(EdgeRole.ADMIN)) {
+        final boolean allowed = auth.getAuthorities().stream()
+                .anyMatch(a -> AuthorityCatalog.ROLES_WRITE.authority().equals(a.getAuthority())
+                        || "ROLE_ADMIN".equals(a.getAuthority()));
+        if (!allowed) {
             return ResponseEntity.status(403).build();
         }
         return null;
