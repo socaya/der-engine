@@ -1459,33 +1459,81 @@ export function MockupReferralDetail(): JSX.Element {
 }
 
 /* ─── /backup ────────────────────────────────────────────────────── */
+/** FR-15-07 — Backup tools: schedule + verify + runs.
+ *
+ *  Server-side the pieces have shipped separately over several
+ *  alphas: BackupController (/edge-api/v1/backup/runs + /request),
+ *  BackupPitrController (/backup/pitr/wal + /verify/*), and the
+ *  BACKUP_ROUTINE_DRAIN cron driven by settings.cron['backup.rotate'].
+ *
+ *  This screen pulls them together into one operator surface:
+ *  the current schedule, latest WAL/PITR readiness, the most-recent
+ *  verification outcome, a Verify-now action, and the backup runs
+ *  table. */
 export function MockupBackupList(): JSX.Element {
   const [rows, setRows] = useState<edgeApi.BackupRow[] | null>(null);
+  const [verify, setVerify] = useState<edgeApi.BackupVerifyStatus | null>(null);
+  const [verifyHist, setVerifyHist] = useState<edgeApi.BackupVerifyRow[]>([]);
+  const [wal, setWal] = useState<edgeApi.WalSummary | null>(null);
+  const [settings, setSettings] = useState<edgeApi.SettingsPayload | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
   async function reload(): Promise<void> {
-    try { setRows(await edgeApi.listBackups()); }
-    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    const [a, b, c, d, e] = await Promise.allSettled([
+      edgeApi.listBackups(),
+      edgeApi.backupVerifyStatus(),
+      edgeApi.backupVerifyHistory(10),
+      edgeApi.backupPitrWal(),
+      edgeApi.readSettings(),
+    ]);
+    if (a.status === 'fulfilled') setRows(a.value);
+    else { setErr(a.reason instanceof Error ? a.reason.message : String(a.reason)); return; }
+    if (b.status === 'fulfilled') setVerify(b.value);
+    if (c.status === 'fulfilled') setVerifyHist(c.value);
+    if (d.status === 'fulfilled') setWal(d.value);
+    if (e.status === 'fulfilled') setSettings(e.value);
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
-  async function request(kind: 'AUDIT' | 'FULL'): Promise<void> {
+
+  async function requestBackupKind(kind: 'AUDIT' | 'FULL'): Promise<void> {
     setBusy(true);
     try { await edgeApi.requestBackup(kind); await reload(); } finally { setBusy(false); }
   }
+
+  async function runVerifyNow(backupId?: number): Promise<void> {
+    setVerifying(true);
+    try { await edgeApi.backupVerifyRun(backupId); await reload(); }
+    catch { /* verify failures surface in the history row */ }
+    finally { setVerifying(false); }
+  }
+
   if (err) return <ErrorBlock title="Backups failed" testId="err-backup">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
+
   const succ = rows.filter((r) => r.status === 'SUCCESS').length;
   const fail = rows.filter((r) => r.status === 'FAILED').length;
   const pend = rows.filter((r) => r.status === 'QUEUED' || r.status === 'REQUESTED').length;
+
+  const cron = settings?.cron?.['backup.rotate'] ?? null;
+  const lastSuccess = rows.find((r) => r.status === 'SUCCESS');
+  const verifyLast = verify?.lastRun ?? null;
+  const verifyOk = verifyLast?.outcome === 'PASSED' || verifyLast?.outcome === 'SUCCESS';
+  const verifyTone: 'success' | 'warning' | 'danger' | 'muted' =
+    !verifyLast ? 'muted'
+    : verifyOk ? 'success'
+    : 'danger';
+
   return (
-    <div className="ea-screen">
+    <div className="ea-screen" data-test="backup-tools">
       <SyncStatusBar
         tone={fail > 0 ? 'danger' : pend > 0 ? 'warning' : 'success'}
-        title="Backups"
+        title="Backup tools"
         statusLabel={`${rows.length} runs`}
         subtitle={
           <>
-            <span>Hash-chained audit log snapshots and full edge state exports.</span>
+            <span>Scheduled backups, point-in-time recovery, and automated restore verification.</span>
             <span>·</span>
             <span>Successful <strong style={{ color: 'var(--der-ink-900)' }}>{succ}</strong></span>
             {pend > 0 && (<><span>·</span><span>In flight <strong style={{ color: 'var(--der-ink-900)' }}>{pend}</strong></span></>)}
@@ -1495,16 +1543,127 @@ export function MockupBackupList(): JSX.Element {
         actions={
           <>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" disabled={busy}
-                    onClick={() => { request('AUDIT').catch(() => undefined); }}>
+                    data-test="backup-audit"
+                    onClick={() => { requestBackupKind('AUDIT').catch(() => undefined); }}>
               <UiIcon icon="plus" size={14} /><span>Audit backup</span>
             </button>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" disabled={busy}
-                    onClick={() => { request('FULL').catch(() => undefined); }}>
+                    data-test="backup-full"
+                    onClick={() => { requestBackupKind('FULL').catch(() => undefined); }}>
               <UiIcon icon="backup" size={14} /><span>Full backup</span>
             </button>
           </>
         }
       />
+
+      <Panel title="Schedule">
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>Backup cron</dt>
+            <dd className="ea-mono" data-test="backup-cron">{cron ?? '—'}</dd></div>
+          <div className="ea-def-row"><dt>Last successful backup</dt>
+            <dd>
+              {lastSuccess
+                ? <>{fmtDate(lastSuccess.requestedAt)} <span className="ea-text-muted">· {fmtAgo(lastSuccess.requestedAt)}</span></>
+                : <span className="ea-text-muted">never</span>}
+            </dd></div>
+          <div className="ea-def-row"><dt>Change schedule</dt>
+            <dd>
+              <Link to="/sync/schedule" className="ea-link-btn"
+                     data-cross-module="Schedule"
+                     data-test="backup-open-schedule">
+                Open Sync Schedule →
+              </Link>
+            </dd></div>
+        </dl>
+      </Panel>
+
+      <Panel title="PITR / WAL archive"
+             action={
+               wal && <Status tone={wal.walEnabled && wal.walDirExists ? 'success' : 'muted'}>
+                 {wal.walEnabled ? (wal.walDirExists ? 'Active' : 'Dir missing') : 'Disabled'}
+               </Status>
+             }>
+        {!wal ? (
+          <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>Loading…</p>
+        ) : (
+          <dl className="ea-def-list">
+            <div className="ea-def-row"><dt>WAL directory</dt>
+              <dd className="ea-mono" style={{ fontSize: 12 }}>{wal.walDirectory}</dd></div>
+            <div className="ea-def-row"><dt>Archived segments</dt>
+              <dd className="ea-mono" data-test="wal-segments">{wal.segmentCount ?? 0}</dd></div>
+            <div className="ea-def-row"><dt>Earliest archive</dt>
+              <dd className="ea-mono" style={{ fontSize: 12 }}>
+                {wal.earliestArchive ? fmtDate(wal.earliestArchive) : '—'}
+              </dd></div>
+            <div className="ea-def-row"><dt>Latest archive</dt>
+              <dd className="ea-mono" style={{ fontSize: 12 }}>
+                {wal.latestArchive ? fmtDate(wal.latestArchive) : '—'}
+              </dd></div>
+          </dl>
+        )}
+      </Panel>
+
+      <Panel title="Restore verification"
+             action={
+               <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                       disabled={verifying || !verify?.enabled || !lastSuccess}
+                       data-test="verify-now"
+                       title={!verify?.enabled
+                         ? 'Backup verification is disabled on this edge'
+                         : !lastSuccess ? 'No successful backup to verify yet' : ''}
+                       onClick={() => { runVerifyNow(lastSuccess?.runId).catch(() => undefined); }}>
+                 <UiIcon icon="refresh" size={14} />
+                 <span>{verifying ? 'Verifying…' : 'Verify now'}</span>
+               </button>
+             }>
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>Verification enabled</dt>
+            <dd data-test="verify-enabled">{verify?.enabled ? 'yes' : 'no'}</dd></div>
+          <div className="ea-def-row"><dt>pg_restore</dt>
+            <dd className="ea-mono" style={{ fontSize: 12 }}>
+              {verify?.pgRestore ?? <span className="ea-text-muted">not found</span>}
+            </dd></div>
+          <div className="ea-def-row"><dt>Last verify outcome</dt>
+            <dd data-test="verify-last-outcome">
+              <Status tone={verifyTone}>
+                {verifyLast?.outcome ?? 'never run'}
+              </Status>
+              {verifyLast && (
+                <span className="ea-text-muted" style={{ marginLeft: 8, fontSize: 12 }}>
+                  · {fmtAgo(verifyLast.verifiedAt)}
+                </span>
+              )}
+            </dd></div>
+        </dl>
+        {verifyHist.length > 0 && (
+          <div className="ea-table-wrap" style={{ marginTop: 10 }}>
+            <table className="ea-table ea-table--dense" data-test="verify-history">
+              <thead><tr>
+                <th>Verified</th><th>Backup run</th><th>Outcome</th>
+                <th>Duration</th><th>Reason</th>
+              </tr></thead>
+              <tbody>
+                {verifyHist.map((v) => (
+                  <tr key={v.verificationId}>
+                    <td className="ea-mono" style={{ fontSize: 12 }}>{fmtDate(v.verifiedAt)}</td>
+                    <td className="ea-mono">{v.backupRunId}</td>
+                    <td>
+                      <Status tone={
+                        v.outcome === 'PASSED' || v.outcome === 'SUCCESS' ? 'success'
+                        : 'danger'}>
+                        {v.outcome}
+                      </Status>
+                    </td>
+                    <td className="ea-mono">{v.durationMs} ms</td>
+                    <td className="ea-text-muted">{v.reason ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
       <Panel title="Backup runs">
         {rows.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0 }}>No backups yet. Trigger one via the buttons above.</p>

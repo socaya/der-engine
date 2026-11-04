@@ -175,6 +175,81 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/no referrals|no pending|empty|all clear/i);
   });
 
+  it('MockupBackupList — FR-15-07 Schedule + PITR + Verify sections populate', async () => {
+    vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([
+      { runId: 7, kind: 'FULL', status: 'SUCCESS',
+        requestedAt: '2026-11-03T10:00:00Z' },
+    ] as edgeApi.BackupRow[]);
+    vi.spyOn(edgeApi, 'backupVerifyStatus').mockResolvedValue({
+      enabled: true, pgRestore: '/usr/bin/pg_restore',
+      lastRun: { outcome: 'PASSED',
+                 verifiedAt: '2026-11-03T11:00:00Z',
+                 durationMs: 1200 },
+    } as edgeApi.BackupVerifyStatus);
+    vi.spyOn(edgeApi, 'backupVerifyHistory').mockResolvedValue([
+      { verificationId: 'v-1', backupRunId: 7,
+        verifiedAt: '2026-11-03T11:00:00Z', outcome: 'PASSED',
+        durationMs: 1200, shadowDbName: 'der_verify_shadow',
+        rowCounts: '{"x":1}', reason: null },
+      { verificationId: 'v-2', backupRunId: 6,
+        verifiedAt: '2026-11-02T11:00:00Z', outcome: 'FAILED',
+        durationMs: 800, shadowDbName: null,
+        rowCounts: null, reason: 'pg_restore exit 3' },
+    ] as edgeApi.BackupVerifyRow[]);
+    vi.spyOn(edgeApi, 'backupPitrWal').mockResolvedValue({
+      walEnabled: true, walDirectory: '/var/lib/der/wal',
+      walDirExists: true, segmentCount: 42,
+      earliestArchive: '2026-11-01T00:00:00Z',
+      latestArchive: '2026-11-03T12:00:00Z',
+      totalBytes: 42 * 16 * 1024 * 1024,
+    } as edgeApi.WalSummary);
+    vi.spyOn(edgeApi, 'readSettings').mockResolvedValue({
+      cron: { 'backup.rotate': '0 0 2 * * ?' },
+      featureFlags: {}, roles: [],
+    } as unknown as edgeApi.SettingsPayload);
+    renderWithProviders(<MockupBackupList />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('backup-tools')).toBeInTheDocument());
+    /* Schedule row reflects cron from readSettings. */
+    expect(screen.getByTestId('backup-cron')).toHaveTextContent('0 0 2 * * ?');
+    /* WAL segment count from pitr/wal. */
+    expect(screen.getByTestId('wal-segments')).toHaveTextContent('42');
+    /* Verify enabled + outcome + history table. */
+    expect(screen.getByTestId('verify-enabled')).toHaveTextContent('yes');
+    expect(screen.getByTestId('verify-last-outcome'))
+      .toHaveTextContent('PASSED');
+    expect(screen.getByTestId('verify-history')).toBeInTheDocument();
+    expect(document.body.textContent ?? '').toMatch(/pg_restore exit 3/);
+  });
+
+  it('MockupBackupList — Verify-now button triggers backupVerifyRun', async () => {
+    vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([
+      { runId: 7, kind: 'FULL', status: 'SUCCESS',
+        requestedAt: '2026-11-03T10:00:00Z' },
+    ] as edgeApi.BackupRow[]);
+    vi.spyOn(edgeApi, 'backupVerifyStatus').mockResolvedValue({
+      enabled: true, pgRestore: '/usr/bin/pg_restore', lastRun: null,
+    } as edgeApi.BackupVerifyStatus);
+    vi.spyOn(edgeApi, 'backupVerifyHistory').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'backupPitrWal').mockResolvedValue({
+      walEnabled: true, walDirectory: '/x', walDirExists: true,
+    } as edgeApi.WalSummary);
+    vi.spyOn(edgeApi, 'readSettings').mockResolvedValue({
+      cron: {}, featureFlags: {}, roles: [],
+    } as unknown as edgeApi.SettingsPayload);
+    const runSpy = vi.spyOn(edgeApi, 'backupVerifyRun').mockResolvedValue({
+      verificationId: 'v-new', backupRunId: 7,
+      verifiedAt: 'now', outcome: 'PASSED', durationMs: 500,
+      shadowDbName: 'der_verify_shadow', rowCounts: null, reason: null,
+    } as edgeApi.BackupVerifyRow);
+    renderWithProviders(<MockupBackupList />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('verify-now')).toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.click(screen.getByTestId('verify-now'));
+    await waitFor(() => expect(runSpy).toHaveBeenCalledWith(7));
+  });
+
   it('MockupBackupList renders populated backup rows (every status + kind pair)', async () => {
     /* BackupRow is {runId, requestedAt, kind, status, message?}
      * — four statuses (REQUESTED / QUEUED / SUCCESS / FAILED)

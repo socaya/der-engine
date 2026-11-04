@@ -1311,6 +1311,61 @@ export function requestBackup(kind: 'AUDIT' | 'FULL'): Promise<BackupRow> {
   return request<BackupRow>('POST', '/edge-api/v1/backup/request', { kind });
 }
 
+/** FR-15-07 — backup verification + PITR status. The server-side
+ *  BackupVerificationService + WalArchiveService shipped in an earlier
+ *  alpha; these wrappers expose them on the admin UI. */
+export interface BackupVerifyStatus {
+  enabled: boolean;
+  pgRestore: string | null;
+  lastRun: {
+    outcome: string;
+    verifiedAt: string;
+    durationMs: number;
+  } | null;
+}
+
+export interface BackupVerifyRow {
+  verificationId: string;
+  backupRunId: number;
+  verifiedAt: string;
+  outcome: string;
+  durationMs: number;
+  shadowDbName: string | null;
+  rowCounts: string | null;
+  reason: string | null;
+}
+
+export interface WalSummary {
+  walEnabled: boolean;
+  walDirectory: string;
+  walDirExists: boolean;
+  segmentCount?: number;
+  earliestArchive?: string | null;
+  latestArchive?: string | null;
+  totalBytes?: number;
+}
+
+export function backupVerifyStatus(): Promise<BackupVerifyStatus> {
+  return request('GET', '/edge-api/v1/backup/pitr/verify/status');
+}
+
+export function backupVerifyHistory(limit = 25): Promise<BackupVerifyRow[]> {
+  return request<{ history: BackupVerifyRow[] }>(
+    'GET', `/edge-api/v1/backup/pitr/verify/history?limit=${limit}`,
+  ).then((r) => r.history ?? []);
+}
+
+export function backupVerifyRun(backupId?: number): Promise<BackupVerifyRow> {
+  const q = backupId != null ? `?backupId=${backupId}` : '';
+  return request<BackupVerifyRow>(
+    'POST', `/edge-api/v1/backup/pitr/verify/run${q}`,
+  );
+}
+
+export function backupPitrWal(): Promise<WalSummary> {
+  return request('GET', '/edge-api/v1/backup/pitr/wal');
+}
+
 export interface RestoreRow {
   runId: number;
   requestedAt: string;
