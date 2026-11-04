@@ -28,6 +28,12 @@ class SessionCookieAuthenticationFilterTest {
             new SecurityProperties.SignIn(10, 5),
             new SecurityProperties.Bootstrap("", ""));
 
+    private static final RoleDefinitionRepository ROLES;
+    static {
+        ROLES = mock(RoleDefinitionRepository.class);
+        when(ROLES.findAuthoritiesForUser(any())).thenReturn(java.util.Set.of());
+    }
+
     @Test
     void bindsPrincipalWhenValidatorResolvesCookie() throws Exception {
         SecurityContextHolder.clearContext();
@@ -42,7 +48,7 @@ class SessionCookieAuthenticationFilterTest {
                 Instant.now().plusSeconds(60), null, null, null);
         when(validator.resolve("raw")).thenReturn(Optional.of(new SessionValidationService.Resolved(alice, s)));
 
-        new SessionCookieAuthenticationFilter(validator, PROPS).doFilter(req, resp, chain);
+        new SessionCookieAuthenticationFilter(validator, PROPS, ROLES).doFilter(req, resp, chain);
 
         assertThat(SecurityContextHolder.getContext().getAuthentication())
                 .isInstanceOf(EdgeUserPrincipal.class);
@@ -58,7 +64,7 @@ class SessionCookieAuthenticationFilterTest {
         final MockHttpServletResponse resp = new MockHttpServletResponse();
         final FilterChain chain = mock(FilterChain.class);
 
-        new SessionCookieAuthenticationFilter(validator, PROPS).doFilter(req, resp, chain);
+        new SessionCookieAuthenticationFilter(validator, PROPS, ROLES).doFilter(req, resp, chain);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         verify(chain).doFilter(req, resp);
     }
@@ -72,7 +78,7 @@ class SessionCookieAuthenticationFilterTest {
         final MockHttpServletResponse resp = new MockHttpServletResponse();
         final FilterChain chain = mock(FilterChain.class);
 
-        new SessionCookieAuthenticationFilter(validator, PROPS).doFilter(req, resp, chain);
+        new SessionCookieAuthenticationFilter(validator, PROPS, ROLES).doFilter(req, resp, chain);
         verify(validator, org.mockito.Mockito.never()).resolve(any());
     }
 
@@ -87,7 +93,7 @@ class SessionCookieAuthenticationFilterTest {
         final MockHttpServletResponse resp = new MockHttpServletResponse();
         final FilterChain chain = mock(FilterChain.class);
 
-        new SessionCookieAuthenticationFilter(validator, PROPS).doFilter(req, resp, chain);
+        new SessionCookieAuthenticationFilter(validator, PROPS, ROLES).doFilter(req, resp, chain);
         verify(validator, org.mockito.Mockito.never()).resolve(any());
     }
 
@@ -100,7 +106,7 @@ class SessionCookieAuthenticationFilterTest {
         final MockHttpServletResponse resp = new MockHttpServletResponse();
         final FilterChain chain = mock(FilterChain.class);
 
-        new SessionCookieAuthenticationFilter(validator, PROPS).doFilter(req, resp, chain);
+        new SessionCookieAuthenticationFilter(validator, PROPS, ROLES).doFilter(req, resp, chain);
         verify(validator, org.mockito.Mockito.never()).resolve(any());
     }
 
@@ -113,7 +119,7 @@ class SessionCookieAuthenticationFilterTest {
         final MockHttpServletResponse resp = new MockHttpServletResponse();
         final FilterChain chain = mock(FilterChain.class);
 
-        new SessionCookieAuthenticationFilter(validator, PROPS).doFilter(req, resp, chain);
+        new SessionCookieAuthenticationFilter(validator, PROPS, ROLES).doFilter(req, resp, chain);
         verify(validator, org.mockito.Mockito.never()).resolve(any());
         SecurityContextHolder.clearContext();
     }
@@ -128,7 +134,7 @@ class SessionCookieAuthenticationFilterTest {
         final MockHttpServletResponse resp = new MockHttpServletResponse();
         final FilterChain chain = mock(FilterChain.class);
 
-        new SessionCookieAuthenticationFilter(validator, PROPS).doFilter(req, resp, chain);
+        new SessionCookieAuthenticationFilter(validator, PROPS, ROLES).doFilter(req, resp, chain);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 }

@@ -25,11 +25,14 @@ public final class SessionCookieAuthenticationFilter extends OncePerRequestFilte
 
     private final SessionValidationService validator;
     private final SecurityProperties props;
+    private final RoleDefinitionRepository roleRepository;
 
     public SessionCookieAuthenticationFilter(final SessionValidationService validator,
-                                             final SecurityProperties props) {
+                                             final SecurityProperties props,
+                                             final RoleDefinitionRepository roleRepository) {
         this.validator = Objects.requireNonNull(validator, "validator");
         this.props = Objects.requireNonNull(props, "props");
+        this.roleRepository = Objects.requireNonNull(roleRepository, "roleRepository");
     }
 
     @Override
@@ -40,7 +43,10 @@ public final class SessionCookieAuthenticationFilter extends OncePerRequestFilte
             final Optional<String> cookie = readCookie(request);
             if (cookie.isPresent()) {
                 validator.resolve(cookie.get()).ifPresent(resolved -> {
-                    final EdgeUserPrincipal principal = new EdgeUserPrincipal(resolved.user(), resolved.session());
+                    final java.util.Set<String> authorities =
+                            roleRepository.findAuthoritiesForUser(resolved.user().userId());
+                    final EdgeUserPrincipal principal = new EdgeUserPrincipal(
+                            resolved.user(), resolved.session(), authorities);
                     SecurityContextHolder.getContext().setAuthentication(principal);
                 });
             }

@@ -1,8 +1,10 @@
 package ug.ac.mak.der.security;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
@@ -24,17 +26,40 @@ public final class EdgeUserPrincipal extends AbstractAuthenticationToken {
     private final transient EdgeSession session;
 
     public EdgeUserPrincipal(final EdgeUser user, final EdgeSession session) {
-        super(toAuthorities(user));
+        this(user, session, Set.of());
+    }
+
+    /**
+     * Constructor that also grants a set of DER authorities (strings prefixed
+     * {@code der.}) resolved from {@link RoleDefinitionRepository} for the
+     * user's role grants.  Role-based {@code hasRole(..)} rules continue to
+     * work via the {@code ROLE_X} authorities derived from
+     * {@link EdgeUser#roles()}.
+     */
+    public EdgeUserPrincipal(final EdgeUser user,
+                             final EdgeSession session,
+                             final Set<String> authorities) {
+        super(toAuthorities(user, authorities));
         this.user = Objects.requireNonNull(user, "user");
         this.session = Objects.requireNonNull(session, "session");
         setAuthenticated(true);
     }
 
-    private static Collection<? extends GrantedAuthority> toAuthorities(final EdgeUser user) {
+    private static Collection<? extends GrantedAuthority> toAuthorities(final EdgeUser user,
+                                                                        final Set<String> authorities) {
         Objects.requireNonNull(user, "user");
-        return user.roles().stream()
-                .map(r -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + r.name()))
-                .toList();
+        final List<GrantedAuthority> out = new ArrayList<>();
+        for (final EdgeRole r : user.roles()) {
+            out.add(new SimpleGrantedAuthority("ROLE_" + r.name()));
+        }
+        if (authorities != null) {
+            for (final String a : authorities) {
+                if (a != null && !a.isBlank()) {
+                    out.add(new SimpleGrantedAuthority(a));
+                }
+            }
+        }
+        return List.copyOf(out);
     }
 
     @Override

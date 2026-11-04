@@ -52,8 +52,10 @@ public class SecurityConfig {
 
     @Bean
     public SessionCookieAuthenticationFilter sessionCookieAuthenticationFilter(
-            final SessionValidationService validator, final SecurityProperties props) {
-        return new SessionCookieAuthenticationFilter(validator, props);
+            final SessionValidationService validator,
+            final SecurityProperties props,
+            final RoleDefinitionRepository roleRepository) {
+        return new SessionCookieAuthenticationFilter(validator, props, roleRepository);
     }
 
     @Bean
@@ -167,6 +169,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/edge-api/v1/security/audit/verify").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/journal/*/next-hop").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/admin/ops/**").hasRole("ADMIN")
+                        .requestMatchers("/edge-api/v1/admin/roles/**").hasRole("ADMIN")
                         .requestMatchers("/edge-api/v1/admin/metrics").authenticated()
                         .requestMatchers("/edge-api/v1/tracked-entities", "/edge-api/v1/tracked-entities/**").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/aggregate/completion").authenticated()

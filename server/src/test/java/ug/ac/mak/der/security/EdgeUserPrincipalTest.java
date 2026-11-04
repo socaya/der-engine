@@ -62,4 +62,33 @@ class EdgeUserPrincipalTest {
         assertThatThrownBy(() -> new EdgeUserPrincipal(u, null))
                 .isInstanceOf(NullPointerException.class).hasMessage("session");
     }
+
+    @Test
+    void grantsMappedAuthoritiesAlongsideRoles() {
+        final EdgeUser u = user(EnumSet.of(EdgeRole.ADMIN));
+        final EdgeUserPrincipal p = new EdgeUserPrincipal(u, session(u.userId()),
+                Set.of("der.users.read", "der.audit.read"));
+        assertThat(p.getAuthorities()).extracting(Object::toString)
+                .containsExactlyInAnyOrder("ROLE_ADMIN", "der.users.read", "der.audit.read");
+    }
+
+    @Test
+    void nullAuthoritiesCollapsesToRolesOnly() {
+        final EdgeUser u = user(EnumSet.of(EdgeRole.OPERATOR));
+        final EdgeUserPrincipal p = new EdgeUserPrincipal(u, session(u.userId()), null);
+        assertThat(p.getAuthorities()).extracting(Object::toString)
+                .containsExactly("ROLE_OPERATOR");
+    }
+
+    @Test
+    void blankAuthorityEntriesAreDropped() {
+        final EdgeUser u = user(EnumSet.of(EdgeRole.OPERATOR));
+        final java.util.Set<String> auths = new java.util.LinkedHashSet<>();
+        auths.add("der.users.read");
+        auths.add("");
+        auths.add(null);
+        final EdgeUserPrincipal p = new EdgeUserPrincipal(u, session(u.userId()), auths);
+        assertThat(p.getAuthorities()).extracting(Object::toString)
+                .containsExactlyInAnyOrder("ROLE_OPERATOR", "der.users.read");
+    }
 }
