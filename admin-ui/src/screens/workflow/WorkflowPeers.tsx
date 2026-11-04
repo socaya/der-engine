@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { HeroHeader } from '../../components/HeroHeader';
-import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { EmptyBlock, ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { Panel, Status, SyncStatusBar } from '../shared';
+import { UiIcon } from '../../components/UiIcon';
 
 /**
  * §62–§63 — manage peer edges that this edge can push workflow
@@ -124,67 +126,105 @@ export function WorkflowPeers({ api = edgeApi, embedded = false }:
   if (peers == null) {
     return <LoadingBlock testId="peers-loading" />;
   }
+  const lastPushFailed = peers.some((p) => p.lastPushStatus != null
+      && p.lastPushStatus !== 'OK' && p.lastPushStatus !== 'SUCCESS');
+  const peerTone: 'success' | 'info' | 'danger' | 'muted' = peers.length === 0
+    ? 'muted'
+    : lastPushFailed
+      ? 'danger'
+      : peers.some((p) => p.lastPushAt)
+        ? 'success'
+        : 'info';
+  const peerStatus = peers.length === 0
+    ? 'No peers registered'
+    : lastPushFailed
+      ? `${peers.length} peer${peers.length === 1 ? '' : 's'} · last push failed`
+      : `${peers.length} peer${peers.length === 1 ? '' : 's'} · ${workflows.length} shareable workflow${workflows.length === 1 ? '' : 's'}`;
+
   return (
     <div className="ea-screen" data-test="peers-root">
-      {!embedded && <HeroHeader title="Peers" />}
+      {!embedded && (
+        <SyncStatusBar
+          tone={peerTone}
+          title="Peers"
+          statusLabel={peerStatus}
+          subtitle="Sibling DER edges this edge can push workflow definitions to.  Direct-import peers skip the inbox review step and apply the payload on receipt; inbox peers land in the recipient's review queue."
+          actions={
+            <>
+              <Link to="/workflows/import-inbox"
+                    className="ea-btn ea-btn--ghost ea-btn--sm"
+                    data-cross-module="Workflows"
+                    data-test="peers-open-inbox">
+                <UiIcon icon="attention" size={14} />
+                <span>Import inbox</span>
+              </Link>
+              <Link to="/workflows"
+                    className="ea-btn ea-btn--ghost ea-btn--sm"
+                    data-cross-module="Workflows"
+                    data-test="peers-open-activity">
+                <UiIcon icon="overview" size={14} />
+                <span>Activity</span>
+              </Link>
+            </>
+          }
+        />
+      )}
       <h1 className="ea-visually-hidden" data-test="peers-heading">Peers</h1>
 
-      <section className="ea-card ea-form-card">
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>Add peer</h2>
-          </div>
-          <div className="ea-form-grid">
-            <label className="ea-field">
-              <span className="ea-field-label">Label</span>
-              <input className="ea-input" type="text" data-test="peers-new-name"
-                      value={newDisplay} placeholder="e.g. Nakivale clinic"
-                      onChange={(e) => setNewDisplay(e.target.value)} />
-            </label>
-            <label className="ea-field">
-              <span className="ea-field-label">Base URL</span>
-              <input className="ea-input" type="url" data-test="peers-new-url"
-                      value={newUrl} placeholder="https://der.nakivale.local"
-                      onChange={(e) => setNewUrl(e.target.value)} />
-            </label>
-            <label className="ea-field">
-              <span className="ea-field-label">Service-account username</span>
-              <input className="ea-input" type="text" data-test="peers-new-auth-user"
-                      value={newAuthUser} placeholder="der-peer"
-                      autoComplete="off"
-                      onChange={(e) => setNewAuthUser(e.target.value)} />
-            </label>
-            <label className="ea-field">
-              <span className="ea-field-label">Service-account password</span>
-              <input className="ea-input" type="password" data-test="peers-new-auth-pass"
-                      value={newAuthPass} autoComplete="new-password"
-                      onChange={(e) => setNewAuthPass(e.target.value)} />
-              <span className="ea-field-hint">
-                Stored plaintext in the pilot DB — rotate quarterly.
-              </span>
-            </label>
-          </div>
-          <div style={{ marginTop: 'var(--sp-2)' }}>
-            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                     data-test="peers-add"
-                     disabled={busy === 'add' || !newDisplay.trim() || !newUrl.trim()}
-                     onClick={() => { addPeer().catch(() => undefined); }}>
-              Add peer
-            </button>
-          </div>
+      {lastResult && (
+        <div className="ea-callout ea-callout--success"
+             data-test="peers-last-result" role="status">
+          Last push: {lastResult}
         </div>
-      </section>
+      )}
 
-      <section className="ea-card ea-form-card">
-        <div className="ea-form-section">
-          <div className="ea-form-section-head">
-            <h2>Registered peers</h2>
-          </div>
+      <Panel title="Add peer">
+        <div className="ea-form-grid">
+          <label className="ea-field">
+            <span className="ea-field-label">Label</span>
+            <input className="ea-input" type="text" data-test="peers-new-name"
+                    value={newDisplay} placeholder="e.g. Nakivale clinic"
+                    onChange={(e) => setNewDisplay(e.target.value)} />
+          </label>
+          <label className="ea-field">
+            <span className="ea-field-label">Base URL</span>
+            <input className="ea-input" type="url" data-test="peers-new-url"
+                    value={newUrl} placeholder="https://der.nakivale.local"
+                    onChange={(e) => setNewUrl(e.target.value)} />
+          </label>
+          <label className="ea-field">
+            <span className="ea-field-label">Service-account username</span>
+            <input className="ea-input" type="text" data-test="peers-new-auth-user"
+                    value={newAuthUser} placeholder="der-peer"
+                    autoComplete="off"
+                    onChange={(e) => setNewAuthUser(e.target.value)} />
+          </label>
+          <label className="ea-field">
+            <span className="ea-field-label">Service-account password</span>
+            <input className="ea-input" type="password" data-test="peers-new-auth-pass"
+                    value={newAuthPass} autoComplete="new-password"
+                    onChange={(e) => setNewAuthPass(e.target.value)} />
+            <span className="ea-field-hint">
+              Stored plaintext in the pilot DB — rotate quarterly.
+            </span>
+          </label>
+        </div>
+        <div style={{ marginTop: 'var(--sp-3)' }}>
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                   data-test="peers-add"
+                   disabled={busy === 'add' || !newDisplay.trim() || !newUrl.trim()}
+                   onClick={() => { addPeer().catch(() => undefined); }}>
+            <UiIcon icon="plus" size={14} />
+            <span>Add peer</span>
+          </button>
+        </div>
+      </Panel>
+
+      <Panel title={`Registered peers (${peers.length})`}>
           {peers.length === 0 ? (
-            <p className="ea-text-muted" data-test="peers-empty"
-                style={{ margin: 0 }}>
-              No peers registered yet.
-            </p>
+            <EmptyBlock title="No peers registered" testId="peers-empty">
+              Fill in the form above to register the first peer edge.
+            </EmptyBlock>
           ) : (
             <table className="ea-table ea-table--dense" data-test="peers-table">
               <thead>
@@ -207,15 +247,14 @@ export function WorkflowPeers({ api = edgeApi, embedded = false }:
                     <td style={{ fontSize: 12 }}>
                       {p.authUsername ? (
                         <span data-test={`peers-row-${p.peerId}-auth`}>
-                          <span className="ea-chip ea-chip--success">signed in</span>
+                          <Status tone="success">Signed in</Status>
                           <span className="ea-mono ea-peer-auth-user">
                             {p.authUsername}
                           </span>
                         </span>
                       ) : (
-                        <span className="ea-chip ea-chip--neutral"
-                               data-test={`peers-row-${p.peerId}-auth-none`}>
-                          anonymous
+                        <span data-test={`peers-row-${p.peerId}-auth-none`}>
+                          <Status tone="muted">Anonymous</Status>
                         </span>
                       )}
                       <details style={{ marginTop: 4 }}>
@@ -282,10 +321,20 @@ export function WorkflowPeers({ api = edgeApi, embedded = false }:
                     <td className="ea-text-muted" style={{ fontSize: 12 }}>
                       {new Date(p.addedAt).toLocaleDateString()}
                     </td>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}>
-                      {p.lastPushAt
-                        ? `${new Date(p.lastPushAt).toLocaleString()}${p.lastPushStatus ? ' · ' + p.lastPushStatus : ''}`
-                        : '—'}
+                    <td style={{ fontSize: 12 }}
+                        data-test={`peers-row-${p.peerId}-last-push`}>
+                      {p.lastPushAt ? (
+                        <>
+                          <div className="ea-text-muted">
+                            {new Date(p.lastPushAt).toLocaleString()}
+                          </div>
+                          {p.lastPushStatus && (
+                            p.lastPushStatus === 'OK' || p.lastPushStatus === 'SUCCESS'
+                              ? <Status tone="success">{p.lastPushStatus}</Status>
+                              : <Status tone="danger">{p.lastPushStatus}</Status>
+                          )}
+                        </>
+                      ) : <span className="ea-text-muted">—</span>}
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -326,14 +375,7 @@ export function WorkflowPeers({ api = edgeApi, embedded = false }:
               </tbody>
             </table>
           )}
-          {lastResult && (
-            <p className="ea-field-hint" data-test="peers-last-result"
-                style={{ marginTop: 'var(--sp-2)' }}>
-              Last push: {lastResult}
-            </p>
-          )}
-        </div>
-      </section>
+      </Panel>
     </div>
   );
 }

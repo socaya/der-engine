@@ -64,8 +64,9 @@ describe('WorkflowPeers screen', () => {
     await waitFor(() => expect(screen.getByTestId('peers-table')).toBeInTheDocument());
     expect(screen.getByText('Nakivale')).toBeInTheDocument();
     expect(screen.getByText('Kampala')).toBeInTheDocument();
-    expect(screen.getByText('signed in')).toBeInTheDocument();
-    expect(screen.getByText('anonymous')).toBeInTheDocument();
+    /* Auth state rendered as title-cased Status chips. */
+    expect(screen.getByText('Signed in')).toBeInTheDocument();
+    expect(screen.getByText('Anonymous')).toBeInTheDocument();
   });
   it('renders empty state when there are no peers', async () => {
     const api = mkApi({
