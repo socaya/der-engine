@@ -39,14 +39,14 @@ python3 "${ROOT}/scripts/evaluation/resource_sampler.py" \
     > "${OUT_DIR}/resource-sample.json" 2>/dev/null &
 SAMPLER_PID=$!
 
-# NFR-15/16/19 bench at each concurrency level.
-for LVL in 1 5 10 20; do
-    echo "nfr-sweep: bench health at c=${LVL}"
-    python3 "${ROOT}/scripts/evaluation/der_bench.py" \
-        --target "${DER_BASE_URL}/edge-api/v1/system/health" \
-        --concurrency "${LVL}" --duration "${DUR}" \
-        > "${OUT_DIR}/bench-health-${LVL}.json" 2>/dev/null || true
-done
+# NFR-15/16/19 bench across every concurrency level in one run so
+# the budget checker can see the full 1/5/10/20 table.
+echo "nfr-sweep: bench health across c=1,5,10,20"
+python3 "${ROOT}/scripts/evaluation/der_bench.py" \
+    --base-url "${DER_BASE_URL}" \
+    --path "/edge-api/v1/system/health" \
+    --concurrency "1,5,10,20" --duration-seconds "${DUR}" \
+    > "${OUT_DIR}/bench-health.json" 2>/dev/null || true
 
 # NFR-20 operator metrics snapshot (requires auth).
 if [[ -n "${DER_ADMIN_COOKIE:-}" ]]; then
@@ -64,7 +64,7 @@ wait "${SAMPLER_PID}" 2>/dev/null || true
 # NFR-18 budget assertion. Reads the sampler output we just wrote and
 # asserts every pinned percentile respects the budget. Writes a
 # Markdown report + a structured JSON result alongside the evidence.
-echo "nfr-sweep: NFR-18 budget check"
+echo "nfr-sweep: NFR-18 resource budget check"
 BUDGET_RC=0
 python3 "${ROOT}/scripts/evaluation/check_resource_budget.py" \
     --report "${OUT_DIR}/resource-sample.json" \
@@ -72,6 +72,23 @@ python3 "${ROOT}/scripts/evaluation/check_resource_budget.py" \
     --out "${OUT_DIR}/resource-budget-report.md" || BUDGET_RC=$?
 if [[ "${BUDGET_RC}" -ne 0 ]]; then
     echo "nfr-sweep: resource budget FAILED (rc=${BUDGET_RC}) — see ${OUT_DIR}/resource-budget-report.md"
+fi
+
+# NFR-15 / NFR-16 bench-budget assertion. Reads the per-concurrency
+# bench output + asserts latency ceilings and throughput floors at
+# every level.
+echo "nfr-sweep: NFR-15/16 bench budget check"
+BENCH_BUDGET_RC=0
+python3 "${ROOT}/scripts/evaluation/check_bench_budget.py" \
+    --report "${OUT_DIR}/bench-health.json" \
+    --json-out "${OUT_DIR}/bench-budget-result.json" \
+    --out "${OUT_DIR}/bench-budget-report.md" || BENCH_BUDGET_RC=$?
+if [[ "${BENCH_BUDGET_RC}" -ne 0 ]]; then
+    echo "nfr-sweep: bench budget FAILED (rc=${BENCH_BUDGET_RC}) — see ${OUT_DIR}/bench-budget-report.md"
+fi
+# Combine both exit codes so the sweep fails if either budget is broken.
+if [[ "${BENCH_BUDGET_RC}" -ne 0 && "${BUDGET_RC}" -eq 0 ]]; then
+    BUDGET_RC="${BENCH_BUDGET_RC}"
 fi
 
 # Manifest.

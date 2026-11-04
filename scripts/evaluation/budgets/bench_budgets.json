@@ -1,0 +1,38 @@
+{
+  "_comment": "NFR-15 (latency) + NFR-16 (throughput) — pinned pilot-site bench budgets. Every entry is a MAXIMUM for the latency/error dimensions and a MINIMUM for throughput. Per-concurrency overrides, when present, take precedence over the global ceiling.",
+  "_pins": {
+    "updatedAt": "2026-11-04",
+    "referenceHardware": "Ubuntu Server 24.04 LTS · 4 vCPU · 4 GiB RAM · 64 GiB SSD",
+    "endpoint": "/edge-api/v1/system/health (default bench target)",
+    "updatePolicy": "Changing any limit requires an ADR + a dated evidence run under docs/evaluation/evidence/ showing the new limit is tight enough. Per-concurrency overrides are REQUIRED when the global ceiling doesn't fit — don't loosen the global without documenting why."
+  },
+
+  "latencyMs": {
+    "_note": "Applies to every concurrency level unless overridden under perConcurrency. Aligns with NFR-18 resource-budget p95 ceiling.",
+    "p50Max": 50.0,
+    "p95Max": 500.0,
+    "p99Max": 2000.0,
+    "perConcurrency": {
+      "1":  {"p50Max": 20.0, "p95Max": 100.0},
+      "5":  {"p50Max": 40.0, "p95Max": 300.0},
+      "10": {"p50Max": 50.0, "p95Max": 500.0},
+      "20": {"p50Max": 100.0, "p95Max": 1000.0}
+    }
+  },
+
+  "throughputRps": {
+    "_note": "Sustained successful requests/second. Minimum MUST be met at every concurrency level — falling below is a saturation failure.",
+    "min": 10.0,
+    "perConcurrency": {
+      "1":  {"min": 5.0},
+      "5":  {"min": 20.0},
+      "10": {"min": 40.0},
+      "20": {"min": 50.0}
+    }
+  },
+
+  "errors": {
+    "_note": "No benign error rate at the pilot hardware target. Any failure is a regression — a slight allowance leaves room for transient DNS or socket exhaustion under the 20-user peak.",
+    "maxErrorRatePct": 1.0
+  }
+}

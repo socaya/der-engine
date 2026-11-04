@@ -163,6 +163,12 @@ run_step "resource-budget-comparator" \
 run_step "der-bench-tests" \
     python3 scripts/evaluation/test_der_bench.py
 
+# NFR-15 / NFR-16 — bench-budget comparator tests. The live assertion
+# runs inside nfr_sweep.sh against the bench output; this ships the
+# comparator at gate-time so the limits can't rot silently.
+run_step "bench-budget-comparator" \
+    python3 scripts/evaluation/test_check_bench_budget.py
+
 # Collect server coverage report into the evidence bundle.
 if [[ -d server/target/site/jacoco ]]; then
   cp -R server/target/site/jacoco "${COV_DIR}/server/jacoco"
