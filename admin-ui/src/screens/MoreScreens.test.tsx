@@ -23,6 +23,7 @@ import {
   MockupOperationalReport,
   MockupUserScope,
   MockupSiteConfig,
+  MockupDecommission,
 } from './MoreScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -1071,6 +1072,55 @@ describe('MoreScreens — surface mount test', () => {
     await waitFor(() =>
       expect(screen.getByTestId('err-user-scope')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/403 ADMIN required/);
+  });
+
+  it('MockupDecommission — FR-01-10 button stays disabled until DECOMMISSION is typed', async () => {
+    renderWithProviders(<MockupDecommission />, { authApi });
+    expect(screen.getByTestId('decommission')).toBeInTheDocument();
+    /* Disabled on empty input. */
+    expect(screen.getByTestId('decommission-run')).toBeDisabled();
+    const user = (await import('@testing-library/user-event')).default.setup();
+    /* Partial match → still disabled. */
+    await user.type(screen.getByTestId('decommission-input'), 'decommission');
+    expect(screen.getByTestId('decommission-run')).toBeDisabled();
+    /* Exact uppercase match → enabled. */
+    await user.clear(screen.getByTestId('decommission-input'));
+    await user.type(screen.getByTestId('decommission-input'), 'DECOMMISSION');
+    expect(screen.getByTestId('decommission-run')).toBeEnabled();
+  });
+
+  it('MockupDecommission — confirmed click posts to decommissionEdge + renders receipt', async () => {
+    const decomSpy = vi.spyOn(edgeApi, 'decommissionEdge').mockResolvedValue({
+      disabledUsers: 7,
+      finalBackupRequested: true,
+      actedBy: 'u-admin',
+    });
+    renderWithProviders(<MockupDecommission />, { authApi });
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.type(screen.getByTestId('decommission-input'), 'DECOMMISSION');
+    await user.click(screen.getByTestId('decommission-run'));
+    await waitFor(() => expect(decomSpy).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByTestId('decommission-receipt')).toBeInTheDocument());
+    expect(screen.getByTestId('decommission-disabled-users'))
+      .toHaveTextContent('7');
+    expect(screen.getByTestId('decommission-final-backup'))
+      .toHaveTextContent('yes');
+    /* Next-step cross-links present. */
+    expect(screen.getByTestId('decommission-open-backup')).toBeInTheDocument();
+    expect(screen.getByTestId('decommission-open-support')).toBeInTheDocument();
+  });
+
+  it('MockupDecommission — server rejection surfaces err-decommission', async () => {
+    vi.spyOn(edgeApi, 'decommissionEdge')
+      .mockRejectedValue(new Error('500 journal busy'));
+    renderWithProviders(<MockupDecommission />, { authApi });
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.type(screen.getByTestId('decommission-input'), 'DECOMMISSION');
+    await user.click(screen.getByTestId('decommission-run'));
+    await waitFor(() =>
+      expect(screen.getByTestId('err-decommission')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/500 journal busy/);
   });
 
   it('MockupSiteConfig — FR-01-07 renders defaults + per-key save buttons', async () => {

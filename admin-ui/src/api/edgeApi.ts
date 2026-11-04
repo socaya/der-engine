@@ -1366,6 +1366,24 @@ export function backupPitrWal(): Promise<WalSummary> {
   return request('GET', '/edge-api/v1/backup/pitr/wal');
 }
 
+/** FR-01-10 — Decommissioning.
+ *
+ *  Terminal. Disables every other user, requests a final FULL backup
+ *  (evidence export), and writes a DECOMMISSION audit event. The
+ *  server requires body.confirm === "CONFIRMED" as a safety check.
+ *  The acting ADMIN is intentionally NOT disabled so they can still
+ *  finish the physical handover + download the final backup. */
+export interface DecommissionResponse {
+  disabledUsers: number;
+  finalBackupRequested: boolean;
+  actedBy: string;
+}
+
+export function decommissionEdge(): Promise<DecommissionResponse> {
+  return request('POST', '/edge-api/v1/admin/ops/decommission',
+                   { confirm: 'CONFIRMED' });
+}
+
 /** FR-01-07 — Site configuration (connectivity policies + limits
  *  + local URL + time-zone). Server endpoint is a single whitelist-
  *  guarded settings block; the GET always includes defaults so a

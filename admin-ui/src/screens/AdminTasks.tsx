@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { Panel, fmtAgo, fmtDur, SyncStatusBar } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -205,6 +206,19 @@ export function MockupAdminTasks(): JSX.Element {
             <pre className="ea-log-tail" aria-label="server log tail">{logs.entries.join('\n')}</pre>
           </>
         )}
+      </Panel>
+
+      <Panel title="Decommission">
+        <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 13 }}>
+          Retire this edge entirely. Disables every other user, requests a
+          final backup for evidence export, and writes a terminal audit event.
+          Your own account stays active so you can download the final archive.
+        </p>
+        <Link to="/decommission"
+               className="ea-btn ea-btn--ghost ea-btn--danger ea-btn--sm"
+               data-test="admin-tasks-decommission">
+          Open decommission screen →
+        </Link>
       </Panel>
     </div>
   );

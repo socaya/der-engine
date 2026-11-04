@@ -2061,6 +2061,160 @@ export function MockupFacilityAnalytics(): JSX.Element {
 
 export { fmtBytes };
 
+/* ─── /decommission ──────────────────────────────────────────────── */
+/** FR-01-10 — Edge decommissioning.
+ *
+ *  Terminal operation. Operators arrive at this screen deliberately
+ *  (never on the default nav path) to retire this edge: disable every
+ *  other user, request a final FULL backup for evidence export, and
+ *  record a DECOMMISSION audit event. A typed-confirmation gate
+ *  ("DECOMMISSION") prevents accidental clicks; the acting ADMIN is
+ *  intentionally not disabled so they can still download the final
+ *  backup afterwards.
+ *
+ *  After success the screen flips to a receipt view with the counts
+ *  returned by the server + a deep-link to the backup list so the
+ *  operator can grab the archive the moment it completes. */
+const DECOMMISSION_WORD = 'DECOMMISSION';
+
+export function MockupDecommission(): JSX.Element {
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<edgeApi.DecommissionResponse | null>(null);
+
+  async function run(): Promise<void> {
+    setBusy(true); setErr(null);
+    try {
+      setReceipt(await edgeApi.decommissionEdge());
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(false); }
+  }
+
+  const ready = typed.trim() === DECOMMISSION_WORD && !busy && !receipt;
+
+  if (receipt) {
+    return (
+      <div className="ea-screen" data-test="decommission-receipt">
+        <SyncStatusBar
+          tone="danger"
+          title="Edge decommissioned"
+          statusLabel="Terminal"
+          subtitle={
+            <>
+              <span>This edge has been retired. Download the final backup
+              archive below before taking the host offline.</span>
+            </>
+          }
+        />
+        <Panel title="Decommission receipt">
+          <dl className="ea-def-list">
+            <div className="ea-def-row"><dt>Users disabled</dt>
+              <dd className="ea-mono"
+                  data-test="decommission-disabled-users">
+                {receipt.disabledUsers}
+              </dd></div>
+            <div className="ea-def-row"><dt>Final backup requested</dt>
+              <dd data-test="decommission-final-backup">
+                {receipt.finalBackupRequested ? 'yes' : 'no'}
+              </dd></div>
+            <div className="ea-def-row"><dt>Acted by</dt>
+              <dd className="ea-mono" style={{ fontSize: 12 }}>
+                {receipt.actedBy}
+              </dd></div>
+          </dl>
+        </Panel>
+        <Panel title="Next steps">
+          <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7 }}>
+            <li>
+              Wait for the final backup to reach <code>SUCCESS</code> on the{' '}
+              <Link to="/backup" data-cross-module="Backup"
+                     data-test="decommission-open-backup">Backup tools page</Link>.
+            </li>
+            <li>Download the archive from the row&apos;s actions menu.</li>
+            <li>
+              Capture a <Link to="/support-bundle"
+                                data-cross-module="SupportBundle"
+                                data-test="decommission-open-support">
+                support bundle
+              </Link> for the retention record.
+            </li>
+            <li>
+              Shut the edge down from <Link to="/admin-tasks"
+                                               data-cross-module="Lifecycle"
+                                               data-test="decommission-open-lifecycle">
+                Admin tasks
+              </Link>.
+            </li>
+          </ol>
+        </Panel>
+      </div>
+    );
+  }
+
+  return (
+    <div className="ea-screen" data-test="decommission">
+      <SyncStatusBar
+        tone="danger"
+        title="Decommission this edge"
+        statusLabel="Irreversible"
+        subtitle={
+          <>
+            <span>
+              Disables every other user, requests a final FULL backup as
+              an evidence export, and records a <code>DECOMMISSION</code>{' '}
+              audit event. Your own account is intentionally kept active so
+              you can download the final backup afterwards.
+            </span>
+          </>
+        }
+      />
+
+      {err && <ErrorBlock title="Decommission failed"
+                            testId="err-decommission">{err}</ErrorBlock>}
+
+      <Panel title="What happens">
+        <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7 }}>
+          <li>All other DER users (ADMIN + OPERATOR + VIEWER) are disabled.
+            They will not be able to sign in.</li>
+          <li>A final <strong>FULL</strong> backup is queued for evidence
+            export. The row appears in Backup tools once drained.</li>
+          <li>A terminal <code>DECOMMISSION</code> audit event is written
+            to the security log.</li>
+          <li>The edge continues to accept inbound reads for the acting
+            ADMIN account until the host is shut down manually.</li>
+        </ul>
+      </Panel>
+
+      <Panel title="Confirm">
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
+          Type <strong style={{ fontFamily: 'monospace' }}>
+            {DECOMMISSION_WORD}
+          </strong> in the box below and press <strong>Decommission</strong>{' '}
+          to proceed.
+        </p>
+        <div style={{ marginTop: 10, display: 'flex', gap: 10,
+                        alignItems: 'center', flexWrap: 'wrap' }}>
+          <input className="ea-input ea-mono" type="text"
+                 placeholder={DECOMMISSION_WORD}
+                 value={typed}
+                 data-test="decommission-input"
+                 onChange={(e) => setTyped(e.target.value)}
+                 style={{ maxWidth: 240 }} />
+          <button type="button"
+                  className="ea-btn ea-btn--danger ea-btn--sm"
+                  disabled={!ready}
+                  data-test="decommission-run"
+                  onClick={() => { run().catch(() => undefined); }}>
+            {busy ? 'Decommissioning…' : 'Decommission'}
+          </button>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 /* ─── /site/config ────────────────────────────────────────────────── */
 /** FR-01-07 — Site configuration.
  *
