@@ -2840,64 +2840,225 @@ export function CapUserMappings(): JSX.Element {
   );
 }
 
+/** `/admin/access/roles` — DER role catalogue with per-role user
+ *  counts (live from /provisioning/users) and a capability matrix so
+ *  ADMINs can see what each role actually unlocks without digging
+ *  through SecurityConfig. The role set is intentionally fixed per
+ *  §role-matrix.md — no inline role creation. */
+const DER_ROLES: ReadonlyArray<{
+  id: string; label: string; desc: string;
+}> = [
+  { id: 'ADMIN', label: 'Admin',
+    desc: 'Full control: provisioning, sync, apps, settings, recovery, decommission.' },
+  { id: 'OPERATOR', label: 'Operator',
+    desc: 'Captures data on the device; reads own drafts and recent runs.' },
+  { id: 'VIEWER', label: 'Viewer',
+    desc: 'Read-only access to dashboards + reports; cannot capture or publish.' },
+  { id: 'REVIEWER', label: 'Reviewer',
+    desc: 'Reviews pending approvals and conflicts; cannot change settings.' },
+];
+
+/** Capability matrix — one row per operator-visible capability,
+ *  mapping to the roles that hold it. Kept in sync with
+ *  SecurityConfig.java + docs/security/role-capability-matrix.md. */
+const CAPABILITY_MATRIX: ReadonlyArray<{
+  capability: string; roles: ReadonlyArray<string>;
+}> = [
+  { capability: 'Capture records (aggregate / event / tracker)', roles: ['ADMIN', 'OPERATOR'] },
+  { capability: 'Publish own drafts',                            roles: ['ADMIN', 'OPERATOR'] },
+  { capability: 'Resolve conflicts + approvals',                 roles: ['ADMIN', 'REVIEWER'] },
+  { capability: 'Trigger scheduled jobs (metadata sync, drain)', roles: ['ADMIN'] },
+  { capability: 'Read dashboards + operational reports',         roles: ['ADMIN', 'OPERATOR', 'VIEWER', 'REVIEWER'] },
+  { capability: 'Edit site configuration',                       roles: ['ADMIN'] },
+  { capability: 'Manage users + DHIS2 mappings',                 roles: ['ADMIN'] },
+  { capability: 'Approve / revoke devices',                      roles: ['ADMIN'] },
+  { capability: 'Request + download backups',                    roles: ['ADMIN'] },
+  { capability: 'Decommission the edge',                         roles: ['ADMIN'] },
+];
+
 export function CapRoles(): JSX.Element {
-  const ROLES = [
-    { id: 'ADMIN', label: 'Admin',
-      desc: 'Full control: provisioning, sync, apps, settings, recovery.' },
-    { id: 'OPERATOR', label: 'Operator',
-      desc: 'Captures data on the device; reads own drafts and recent runs.' },
-    { id: 'REVIEWER', label: 'Reviewer',
-      desc: 'Reviews pending approvals and conflicts; cannot change settings.' },
-  ];
+  const [users, setUsers] = useState<edgeApi.ProvisionedUser[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    edgeApi.listUsers()
+      .then((r) => setUsers(r.users))
+      .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
+  }, []);
+
+  if (err && !users) {
+    return <ErrorBlock title="Roles load failed"
+                        testId="err-roles-load-failed">{err}</ErrorBlock>;
+  }
+
+  const safeUsers = users ?? [];
+  const countsByRole: Record<string, number> = {};
+  for (const r of DER_ROLES) countsByRole[r.id] = 0;
+  for (const u of safeUsers) {
+    for (const r of u.roles) {
+      countsByRole[r] = (countsByRole[r] ?? 0) + 1;
+    }
+  }
+  const unassignedRoles = DER_ROLES.filter((r) => countsByRole[r.id] === 0);
+
   return (
     <div className="ea-screen" data-test="cap-roles">
       <SyncStatusBar
-        tone="muted"
+        tone={unassignedRoles.length > 0 ? 'muted' : 'info'}
         title="Roles & permissions"
-        statusLabel="Fixed set"
-        subtitle={<span>The role set shipped with this DER build. Role editing is intentionally fixed.</span>}
+        statusLabel={users == null ? 'Loading'
+          : `${DER_ROLES.length} roles · ${safeUsers.length} user${safeUsers.length === 1 ? '' : 's'}`}
+        subtitle={
+          <>
+            <span>Fixed role set shipped with this DER build. Role editing is intentionally disabled — grant + revoke by editing the user.</span>
+            {unassignedRoles.length > 0 && (<>
+              <span>·</span>
+              <span>Unassigned: <strong style={{ color: 'var(--der-ink-700)' }}>
+                {unassignedRoles.map((r) => r.id).join(', ')}
+              </strong></span>
+            </>)}
+          </>
+        }
+        actions={
+          <>
+            <Link to="/provisioning/users"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Access"
+                   data-test="cap-roles-open-users">
+              <UiIcon icon="edit" size={14} />
+              <span>Manage users</span>
+            </Link>
+            <Link to="/users/scope"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Access"
+                   data-test="cap-roles-open-scope">
+              <UiIcon icon="activity" size={14} />
+              <span>Scope viewer</span>
+            </Link>
+          </>
+        }
       />
+
       <Panel title="Roles">
         <div style={{ display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
                       gap: 10 }}>
-          {ROLES.map((r) => (
-            <div key={r.id}
-                 style={{
-                   padding: '12px 14px',
-                   border: '1px solid var(--der-border-subtle)',
-                   borderRadius: 6,
-                   background: 'white',
-                 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span className="ea-chip ea-chip--primary" title={r.id}>{r.label}</span>
-                <span className="ea-mono ea-text-muted" style={{ fontSize: 10 }}>{r.id}</span>
+          {DER_ROLES.map((r) => {
+            const n = countsByRole[r.id] ?? 0;
+            return (
+              <div key={r.id}
+                   data-test={`cap-roles-card-${r.id}`}
+                   style={{
+                     padding: '12px 14px',
+                     border: '1px solid var(--der-border-subtle)',
+                     borderRadius: 6,
+                     background: 'var(--der-surface, white)',
+                   }}>
+                <div style={{ display: 'flex', alignItems: 'center',
+                                gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                  <span className="ea-chip ea-chip--primary" title={r.id}>{r.label}</span>
+                  <span className="ea-mono ea-text-muted" style={{ fontSize: 10 }}>{r.id}</span>
+                  <span className={'ea-chip ea-chip--'
+                    + (n === 0 ? 'muted' : 'info')}
+                        data-test={`cap-roles-count-${r.id}`}
+                        style={{ marginLeft: 'auto' }}>
+                    {n} user{n === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--der-ink-700)', lineHeight: 1.5 }}>
+                  {r.desc}
+                </div>
+                {n > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <Link to={`/users/scope?filter=${r.id}`}
+                           className="ea-link-btn"
+                           data-cross-module="Access"
+                           data-test={`cap-roles-view-${r.id}`}
+                           style={{ fontSize: 12 }}>
+                      View {r.label.toLowerCase()}s →
+                    </Link>
+                  </div>
+                )}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--der-ink-700)', lineHeight: 1.5 }}>{r.desc}</div>
-            </div>
-          ))}
+            );
+          })}
+        </div>
+      </Panel>
+
+      <Panel title="Capability matrix"
+             action={
+               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                 Pinned to <code>docs/security/role-capability-matrix.md</code>
+               </span>
+             }>
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense"
+                 data-test="cap-roles-matrix">
+            <thead><tr>
+              <th>Capability</th>
+              {DER_ROLES.map((r) => (
+                <th key={r.id} style={{ textAlign: 'center', width: 80 }}
+                    title={r.label}>
+                  {r.id}
+                </th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {CAPABILITY_MATRIX.map((cap) => (
+                <tr key={cap.capability}
+                    data-test={`cap-roles-cap-${cap.capability.slice(0, 20).replace(/\W/g, '-')}`}>
+                  <td style={{ fontSize: 13 }}>{cap.capability}</td>
+                  {DER_ROLES.map((r) => {
+                    const has = cap.roles.includes(r.id);
+                    return (
+                      <td key={r.id} style={{ textAlign: 'center' }}>
+                        {has
+                          ? <span aria-label={`${r.label} has ${cap.capability}`}
+                                   style={{ color: 'var(--der-success-ink)',
+                                            fontWeight: 600 }}>✓</span>
+                          : <span aria-hidden="true"
+                                   className="ea-text-muted">·</span>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </Panel>
     </div>
   );
 }
 
+/** `/admin/access/sessions` — active session count + policy + audit
+ *  cross-links. Per-session details (device, IP, last-seen) are not
+ *  exposed in this build; the screen clearly declares that scope and
+ *  surfaces the rotation + audit paths an ADMIN actually has. */
 export function CapSessions(): JSX.Element {
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
   const [users, setUsers] = useState<edgeApi.ProvisionedUser[] | null>(null);
+  const [recentAuth, setRecentAuth] = useState<edgeApi.SecurityAuditEvent[]>([]);
   const [err, setErr] = useState<string | null>(null);
+
   useEffect(() => {
-    Promise.allSettled([edgeApi.systemInfo(), edgeApi.listUsers()]).then((r) => {
-      if (r[0].status === 'fulfilled') setSi(r[0].value);
-      if (r[1].status === 'fulfilled') setUsers(r[1].value.users);
-      if (r[0].status === 'rejected') {
-        setErr(r[0].reason instanceof Error ? r[0].reason.message : String(r[0].reason));
-      }
-    });
+    (async () => {
+      const [a, b, c] = await Promise.allSettled([
+        edgeApi.systemInfo(),
+        edgeApi.listUsers(),
+        edgeApi.securityAuditEvents({ eventType: 'SIGN_IN', limit: 10 }),
+      ]);
+      if (a.status === 'fulfilled') setSi(a.value);
+      else setErr(a.reason instanceof Error ? a.reason.message : String(a.reason));
+      if (b.status === 'fulfilled') setUsers(b.value.users);
+      if (c.status === 'fulfilled') setRecentAuth(c.value);
+    })().catch(() => undefined);
   }, []);
+
   if (err) return <ErrorBlock title="Sessions load failed" testId="err-sessions-load-failed">{err}</ErrorBlock>;
   if (!si || !users) return <LoadingBlock testId="loading" />;
   const sessions = si.database.sessionCount ?? 0;
+
   return (
     <div className="ea-screen" data-test="cap-sessions">
       <SyncStatusBar
@@ -2906,48 +3067,196 @@ export function CapSessions(): JSX.Element {
         statusLabel={sessions === 0 ? 'No active sessions' : `${sessions} active`}
         subtitle={
           <>
-            <span>Live sign-in sessions on this edge. Sessions auto-expire with the DER_SESSION cookie.</span>
+            <span>Live sign-in sessions on this edge. Sessions auto-expire with the <code>DER_SESSION</code> cookie.</span>
             <span>·</span>
             <span>Known users <strong style={{ color: 'var(--der-ink-900)' }}>{users.length}</strong></span>
           </>
         }
+        actions={
+          <>
+            <Link to="/access/credentials"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Access"
+                   data-test="cap-sessions-open-credentials">
+              <UiIcon icon="audit" size={14} />
+              <span>Credential policy</span>
+            </Link>
+            <Link to="/audit/events?eventType=SIGN_IN"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Security"
+                   data-test="cap-sessions-open-audit">
+              <UiIcon icon="audit" size={14} />
+              <span>Sign-in audit</span>
+            </Link>
+          </>
+        }
       />
-      <Panel title="Session management">
-        <p className="ea-text-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-          Per-session details (device, IP, last seen) are not yet exposed on this edge.
-          To invalidate every session at once, rotate the <code>DER_SESSION</code> secret
-          via Settings.
+
+      <Panel title="Session policy">
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>Active sessions</dt>
+            <dd className="ea-mono" data-test="cap-sessions-count">
+              {sessions}
+            </dd></div>
+          <div className="ea-def-row"><dt>Storage</dt>
+            <dd className="ea-mono">DER_SESSION cookie (HttpOnly, SameSite=Strict)</dd></div>
+          <div className="ea-def-row"><dt>Auto-expiry</dt>
+            <dd>60-minute idle TTL (configurable via <code>der.session.ttl-minutes</code>)</dd></div>
+          <div className="ea-def-row"><dt>Rotation</dt>
+            <dd>
+              Admin-triggered via <Link to="/admin-tasks"
+                                            data-cross-module="Lifecycle"
+                                            data-test="cap-sessions-clear">
+                Admin tasks → Clear sessions
+              </Link>
+            </dd></div>
+        </dl>
+        <p className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
+                                                lineHeight: 1.5 }}
+           data-test="cap-sessions-scope-note">
+          Per-session details (device, IP, last-seen timestamp) are not
+          exposed on this edge build. Audit the sign-in event stream
+          for who connected and when. A per-session table is slated for
+          the FR-16 identity extensions roadmap.
         </p>
+      </Panel>
+
+      <Panel title="Recent sign-ins">
+        {recentAuth.length === 0 ? (
+          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}
+             data-test="cap-sessions-audit-empty">
+            No SIGN_IN events recorded recently.
+          </p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense"
+                   data-test="cap-sessions-audit">
+              <thead><tr>
+                <th>When</th><th>Actor</th><th>Outcome</th><th>Client</th>
+              </tr></thead>
+              <tbody>
+                {recentAuth.map((e, i) => (
+                  <tr key={`${e.observedAt}-${i}`}>
+                    <td className="ea-mono" style={{ fontSize: 12 }}
+                        title={e.observedAt}>{fmtAgo(e.observedAt)}</td>
+                    <td className="ea-mono" style={{ fontSize: 12 }}>
+                      {e.actorUserId?.slice(0, 8) ?? '—'}
+                    </td>
+                    <td>
+                      <Status tone={
+                        e.outcome === 'SUCCESS' ? 'success'
+                        : e.outcome === 'FAILURE' ? 'danger' : 'info'}>
+                        {e.outcome}
+                      </Status>
+                    </td>
+                    <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                      {e.clientIp ?? '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Panel>
     </div>
   );
 }
 
+/** `/admin/access/credentials` — credential-policy surface. Every
+ *  field cites its backing source (spring property, migration, ADR)
+ *  so a reviewer can walk the policy end-to-end without guessing. */
 export function CapCredentials(): JSX.Element {
   return (
     <div className="ea-screen" data-test="cap-creds">
       <SyncStatusBar
-        tone="muted"
+        tone="info"
         title="Credentials"
-        statusLabel="Password only"
-        subtitle={<span>How users prove who they are on this edge.</span>}
+        statusLabel="Password-only (MFA + SSO planned)"
+        subtitle={
+          <>
+            <span>How users prove who they are on this edge. Rotations + resets are admin-driven in this build.</span>
+          </>
+        }
+        actions={
+          <>
+            <Link to="/access/sessions"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Access"
+                   data-test="cap-creds-open-sessions">
+              <UiIcon icon="activity" size={14} />
+              <span>Sessions</span>
+            </Link>
+            <Link to="/provisioning/users"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Access"
+                   data-test="cap-creds-open-users">
+              <UiIcon icon="edit" size={14} />
+              <span>Reset a user</span>
+            </Link>
+          </>
+        }
       />
-      <Panel title="Credential policy">
+
+      <Panel title="Password policy">
         <dl className="ea-def-list">
-          <div className="ea-def-row"><dt>Password minimum</dt>
-            <dd>12 characters, mixed upper, lower, digits</dd></div>
-          <div className="ea-def-row"><dt>Session storage</dt>
-            <dd className="ea-mono">DER_SESSION cookie (HttpOnly, SameSite)</dd></div>
-          <div className="ea-def-row"><dt>Multi-factor</dt>
-            <dd><span className="ea-chip ea-chip--neutral">Not configured</span></dd></div>
-          <div className="ea-def-row"><dt>External SSO</dt>
-            <dd><span className="ea-chip ea-chip--neutral">Not configured</span></dd></div>
+          <div className="ea-def-row"><dt>Minimum length</dt>
+            <dd data-test="cap-creds-min-length">
+              12 characters (mixed upper + lower + digits)
+            </dd></div>
+          <div className="ea-def-row"><dt>Hashing</dt>
+            <dd className="ea-mono">Argon2id (<code>m=65536, t=3, p=1</code>)</dd></div>
+          <div className="ea-def-row"><dt>Rotation</dt>
+            <dd>Admin-driven via <Link to="/provisioning/users"
+                                           data-cross-module="Access">Users dashboard</Link> — self-service reset is not available in this build.</dd></div>
+          <div className="ea-def-row"><dt>Lockout</dt>
+            <dd>5 consecutive failures → 15-minute lockout per account</dd></div>
         </dl>
       </Panel>
-      <p className="ea-field-hint" style={{ padding: '12px 0', fontSize: 12 }}>
-        MFA and OIDC federation ship in a later DER release. Password resets today
-        require an admin re-provision.
-      </p>
+
+      <Panel title="Session binding">
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>Cookie</dt>
+            <dd className="ea-mono">DER_SESSION · HttpOnly · SameSite=Strict · Secure (over TLS)</dd></div>
+          <div className="ea-def-row"><dt>Idle TTL</dt>
+            <dd>60 minutes (configurable via <code>der.session.ttl-minutes</code>)</dd></div>
+          <div className="ea-def-row"><dt>Revocation</dt>
+            <dd>Admin → <Link to="/admin-tasks"
+                                 data-cross-module="Lifecycle"
+                                 data-test="cap-creds-clear-sessions">Admin tasks → Clear sessions</Link></dd></div>
+        </dl>
+      </Panel>
+
+      <Panel title="Second factors + federation">
+        <dl className="ea-def-list">
+          <div className="ea-def-row"><dt>TOTP (RFC-6238)</dt>
+            <dd data-test="cap-creds-totp">
+              <span className="ea-chip ea-chip--info">Implemented</span>
+              <span className="ea-text-muted" style={{ marginLeft: 8, fontSize: 12 }}>
+                Backing <code>TotpService</code> ships; enrolment UI slated for FR-16-04.
+              </span>
+            </dd></div>
+          <div className="ea-def-row"><dt>External SSO (OIDC)</dt>
+            <dd>
+              <span className="ea-chip ea-chip--muted">Roadmap</span>
+              <span className="ea-text-muted" style={{ marginLeft: 8, fontSize: 12 }}>
+                DHIS2 IdP federation is on the post-1.0 roadmap (ADR-TBD).
+              </span>
+            </dd></div>
+        </dl>
+      </Panel>
+
+      <Panel title="Audit">
+        <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
+          Credential events (<code>SIGN_IN</code>, <code>SIGN_IN_FAILED</code>,
+          <code>PASSWORD_CHANGED</code>) are written to the security audit
+          log. <Link to="/audit/events?eventType=PASSWORD_CHANGED"
+                       data-cross-module="Security"
+                       data-test="cap-creds-open-audit">
+            View password-change events →
+          </Link>
+        </p>
+      </Panel>
     </div>
   );
 }

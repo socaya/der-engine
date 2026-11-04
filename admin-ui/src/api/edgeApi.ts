@@ -1271,6 +1271,41 @@ export function createUser(body: { username: string; displayName: string; passwo
   return request<ProvisionedUser>('POST', '/edge-api/v1/provisioning/users', body);
 }
 
+/** ADR-0032 — edge-user → DHIS2-user mapping. The server-side
+ *  controller (UserAttributionController) is ADMIN-only and audits
+ *  every mutation as USER_DHIS2_MAPPING_SET / USER_DHIS2_MAPPING_CLEARED. */
+export interface EdgeUserDhis2Mapping {
+  edgeUserId: string;
+  dhis2UserUid: string;
+  dhis2Username: string;
+  dhis2DisplayName: string | null;
+  mappedAt: string;
+  mappedBy: string;
+  lastVerifiedAt: string | null;
+}
+
+export function listUserDhis2Mappings(): Promise<EdgeUserDhis2Mapping[]> {
+  return request<{ mappings: EdgeUserDhis2Mapping[] }>(
+    'GET', '/edge-api/v1/admin/users/dhis2-mappings',
+  ).then((r) => r.mappings ?? []);
+}
+
+export function setUserDhis2Mapping(
+  edgeUserId: string,
+  body: { dhis2UserUid: string; dhis2Username: string; dhis2DisplayName?: string | null },
+): Promise<EdgeUserDhis2Mapping> {
+  return request('PUT',
+    `/edge-api/v1/admin/users/${encodeURIComponent(edgeUserId)}/dhis2-mapping`,
+    body);
+}
+
+export function clearUserDhis2Mapping(
+  edgeUserId: string,
+): Promise<{ cleared: boolean }> {
+  return request('DELETE',
+    `/edge-api/v1/admin/users/${encodeURIComponent(edgeUserId)}/dhis2-mapping`);
+}
+
 // ---- Admin-ui additions for EA-19..36 ----
 
 export interface InstalledAppRow {

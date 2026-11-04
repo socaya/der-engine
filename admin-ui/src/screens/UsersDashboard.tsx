@@ -12,10 +12,21 @@ import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 export function MockupUsersDashboard(): JSX.Element {
   const navigate = useNavigate();
   const [users, setUsers] = useState<edgeApi.ProvisionedUser[] | null>(null);
+  /* Fold the DHIS2 mapping table in so the mapping column reflects
+   * live state instead of a hard-coded "Unmapped". Non-fatal: if the
+   * mappings endpoint 403s (non-ADMIN session) we just render every
+   * row as Unmapped and the "Map DHIS2" action is still available. */
+  const [mappings, setMappings] = useState<
+    Record<string, edgeApi.EdgeUserDhis2Mapping>>({});
   const [query, setQuery] = useState('');
 
   useEffect(() => {
     edgeApi.listUsers().then((r) => setUsers(r.users)).catch(() => undefined);
+    edgeApi.listUserDhis2Mappings().then((rows) => {
+      const byUser: Record<string, edgeApi.EdgeUserDhis2Mapping> = {};
+      for (const r of rows) byUser[r.edgeUserId] = r;
+      setMappings(byUser);
+    }).catch(() => undefined);
   }, []);
 
   const filtered = useMemo(() => {
@@ -55,6 +66,13 @@ export function MockupUsersDashboard(): JSX.Element {
                    data-test="users-open-scope">
               <UiIcon icon="activity" size={14} />
               <span>Scope viewer</span>
+            </Link>
+            <Link to="/access/dhis2-mappings"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Access"
+                   data-test="users-open-mappings">
+              <UiIcon icon="metadata" size={14} />
+              <span>DHIS2 mappings</span>
             </Link>
             <Link to="/provisioning/users/new" className="ea-btn ea-btn--primary ea-btn--sm"
                    data-cross-module="Access">
@@ -107,7 +125,25 @@ export function MockupUsersDashboard(): JSX.Element {
                       ))}
                     </td>
                     <td>
-                      <span className="ea-chip ea-chip--neutral">Unmapped</span>
+                      {(() => {
+                        const m = mappings[u.userId];
+                        if (m) {
+                          return (
+                            <span className="ea-chip ea-chip--success"
+                                  title={`DHIS2 ${m.dhis2Username} · UID ${m.dhis2UserUid}`}
+                                  data-test={`users-mapping-${u.userId}`}>
+                              {m.dhis2Username}
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="ea-chip ea-chip--warning"
+                                title="No DHIS2 mapping — captures attribute as edge-system on Central"
+                                data-test={`users-unmapped-${u.userId}`}>
+                            Unmapped
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td>
                       <span className={'ea-chip ea-chip--' + (stale ? 'warning' : 'success')}
@@ -119,6 +155,8 @@ export function MockupUsersDashboard(): JSX.Element {
                     <td style={{ textAlign: 'right' }}>
                       <RowMenu items={[
                         { label: 'Open details', to: `/provisioning/users/${u.userId}` },
+                        { label: mappings[u.userId] ? 'Edit DHIS2 mapping' : 'Map DHIS2 user',
+                          to: '/access/dhis2-mappings' },
                       ]} />
                     </td>
                   </tr>

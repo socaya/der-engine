@@ -67,7 +67,7 @@ import {
   MockupBackupList, MockupRestoreList, MockupCompatInspector,
   MockupAuditEvents, MockupFacilityAnalytics, MockupSupportBundle,
   MockupConfigEditor, MockupOperationalReport, MockupUserScope,
-  MockupSiteConfig, MockupDecommission,
+  MockupSiteConfig, MockupDecommission, MockupDhis2Mappings,
 } from './screens/MoreScreens';
 import {
   NetworkOverview, NetworkAccessPoint, NetworkConnectedDevices,
@@ -320,6 +320,8 @@ export default function App(): JSX.Element {
           <Route path="/access/roles" element={<RequireAuth><CapRoles /></RequireAuth>} />
           <Route path="/access/sessions" element={<RequireAuth><CapSessions /></RequireAuth>} />
           <Route path="/access/credentials" element={<RequireAuth><CapCredentials /></RequireAuth>} />
+          <Route path="/access/dhis2-mappings"
+                 element={<RequireAuth><MockupDhis2Mappings /></RequireAuth>} />
           <Route path="/devices/enrolment" element={<RequireAuth><CapDeviceEnrolment /></RequireAuth>} />
           <Route path="/devices/ownership" element={<RequireAuth><CapOwnership /></RequireAuth>} />
           <Route path="/devices/connections" element={<RequireAuth><CapConnections /></RequireAuth>} />

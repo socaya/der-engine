@@ -7,6 +7,7 @@ import {
   CapStepAssignments, CapReferralHistory, CapMetadataSync,
   CapProgramRules, CapSyncOverview, CapSyncSchedule,
   CapOrgUnitBinding, CapSystemInformation, CapDashboard,
+  CapRoles, CapSessions, CapCredentials,
 } from './CapabilityScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -707,5 +708,103 @@ describe('CapOrgUnitBinding (loaded)', () => {
     renderWithProviders(<CapOrgUnitBinding />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('ou-rebind-form')).toBeInTheDocument());
+  });
+});
+
+describe('CapRoles (enhanced)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('per-role user counts + capability matrix check marks render', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [
+        { userId: 'u1', username: 'a', displayName: 'A', roles: ['ADMIN'] },
+        { userId: 'u2', username: 'b', displayName: 'B',
+          roles: ['OPERATOR', 'VIEWER'] },
+      ],
+    } as unknown as { users: edgeApi.ProvisionedUser[] });
+    renderWithProviders(<CapRoles />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-roles')).toBeInTheDocument());
+    /* Per-role counts: 1 admin, 1 operator, 1 viewer, 0 reviewer. */
+    expect(screen.getByTestId('cap-roles-count-ADMIN'))
+      .toHaveTextContent('1 user');
+    expect(screen.getByTestId('cap-roles-count-OPERATOR'))
+      .toHaveTextContent('1 user');
+    expect(screen.getByTestId('cap-roles-count-REVIEWER'))
+      .toHaveTextContent('0 users');
+    /* Capability matrix is present. */
+    expect(screen.getByTestId('cap-roles-matrix')).toBeInTheDocument();
+    /* "View admins →" link only appears when count > 0. */
+    expect(screen.getByTestId('cap-roles-view-ADMIN')).toBeInTheDocument();
+    expect(screen.queryByTestId('cap-roles-view-REVIEWER')).toBeNull();
+  });
+
+  it('listUsers rejection surfaces err-roles-load-failed', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockRejectedValue(new Error('403'));
+    renderWithProviders(<CapRoles />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-roles-load-failed')).toBeInTheDocument());
+  });
+});
+
+describe('CapSessions (enhanced)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('populated SIGN_IN audit renders the recent-sign-ins table', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
+      runtime: {}, database: { sessionCount: 3 }, scheduler: {},
+      storage: {}, dhis2: {}, build: {}, apps: {},
+    } as unknown as edgeApi.SystemInfo);
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [{ userId: 'u1', username: 'a', displayName: 'A',
+                 roles: ['ADMIN'] }],
+    } as unknown as { users: edgeApi.ProvisionedUser[] });
+    vi.spyOn(edgeApi, 'securityAuditEvents').mockResolvedValue([
+      { eventType: 'SIGN_IN', actorUserId: 'a-b-c-d-e', subjectUserId: null,
+        clientIp: '10.88.0.11', userAgent: 'curl',
+        outcome: 'SUCCESS', detail: '{}', observedAt: '2026-11-03T10:00:00Z' },
+      { eventType: 'SIGN_IN', actorUserId: 'a-b-c-d-e', subjectUserId: null,
+        clientIp: '10.88.0.11', userAgent: 'curl',
+        outcome: 'FAILURE', detail: '{"reason":"bad password"}',
+        observedAt: '2026-11-03T09:00:00Z' },
+    ]);
+    renderWithProviders(<CapSessions />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-sessions')).toBeInTheDocument());
+    expect(screen.getByTestId('cap-sessions-count')).toHaveTextContent('3');
+    expect(screen.getByTestId('cap-sessions-audit')).toBeInTheDocument();
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/SUCCESS/);
+    expect(body).toMatch(/FAILURE/);
+  });
+
+  it('empty audit renders the empty hint', async () => {
+    vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
+      runtime: {}, database: { sessionCount: 0 }, scheduler: {},
+      storage: {}, dhis2: {}, build: {}, apps: {},
+    } as unknown as edgeApi.SystemInfo);
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [],
+    } as unknown as { users: edgeApi.ProvisionedUser[] });
+    vi.spyOn(edgeApi, 'securityAuditEvents').mockResolvedValue([]);
+    renderWithProviders(<CapSessions />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-sessions-audit-empty')).toBeInTheDocument());
+  });
+});
+
+describe('CapCredentials (enhanced)', () => {
+  it('renders every policy panel with its cross-links', () => {
+    renderWithProviders(<CapCredentials />, { authApi });
+    expect(screen.getByTestId('cap-creds')).toBeInTheDocument();
+    expect(screen.getByTestId('cap-creds-totp')).toHaveTextContent('Implemented');
+    expect(screen.getByTestId('cap-creds-open-sessions'))
+      .toHaveAttribute('href', '/access/sessions');
+    expect(screen.getByTestId('cap-creds-open-users'))
+      .toHaveAttribute('href', '/provisioning/users');
+    expect(screen.getByTestId('cap-creds-min-length'))
+      .toHaveTextContent('12');
   });
 });

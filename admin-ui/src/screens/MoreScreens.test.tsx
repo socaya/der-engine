@@ -24,6 +24,7 @@ import {
   MockupUserScope,
   MockupSiteConfig,
   MockupDecommission,
+  MockupDhis2Mappings,
 } from './MoreScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -1226,5 +1227,73 @@ describe('MoreScreens — surface mount test', () => {
       expect(screen.getByTestId('ops-jobs-empty')).toBeInTheDocument());
     /* 0+0 split → status label "No records yet" + percentage stat shows em-dash. */
     expect(screen.getByTestId('ops-synced-pct')).toHaveTextContent('—');
+  });
+
+  it('MockupDhis2Mappings — renders per-user mapping status with Map action on unmapped rows', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [
+        { userId: 'u-alice', username: 'alice', displayName: 'Alice A',
+          roles: ['ADMIN'] },
+        { userId: 'u-bob', username: 'bob', displayName: 'Bob B',
+          roles: ['OPERATOR'] },
+      ],
+    } as unknown as { users: edgeApi.ProvisionedUser[] });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
+      { edgeUserId: 'u-alice', dhis2UserUid: 'xYZ12345678',
+        dhis2Username: 'alice.c', dhis2DisplayName: 'Alice Central',
+        mappedAt: '2026-11-03T10:00:00Z', mappedBy: 'admin',
+        lastVerifiedAt: null },
+    ]);
+    renderWithProviders(<MockupDhis2Mappings />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('dhis2-mappings')).toBeInTheDocument());
+    /* Alice mapped — Edit action. Bob unmapped — Map action. */
+    expect(screen.getByTestId('dhis2-mappings-edit-alice')).toHaveTextContent('Edit');
+    expect(screen.getByTestId('dhis2-mappings-edit-bob')).toHaveTextContent('Map');
+    expect(screen.getByTestId('dhis2-mappings-unmapped-bob')).toBeInTheDocument();
+    /* Alice has a Clear action; Bob doesn't (nothing to clear). */
+    expect(screen.getByTestId('dhis2-mappings-clear-alice')).toBeInTheDocument();
+    expect(screen.queryByTestId('dhis2-mappings-clear-bob')).toBeNull();
+    /* Status bar count — 1 unmapped. */
+    expect(document.body.textContent ?? '').toMatch(/1 unmapped/);
+  });
+
+  it('MockupDhis2Mappings — Map click opens the dialog and Save invokes setUserDhis2Mapping', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [{ userId: 'u-bob', username: 'bob', displayName: 'Bob',
+                 roles: ['OPERATOR'] }],
+    } as unknown as { users: edgeApi.ProvisionedUser[] });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    const setSpy = vi.spyOn(edgeApi, 'setUserDhis2Mapping').mockResolvedValue({
+      edgeUserId: 'u-bob', dhis2UserUid: 'BOBCENTR001',
+      dhis2Username: 'bob.c', dhis2DisplayName: 'Bob Central',
+      mappedAt: 'now', mappedBy: 'admin', lastVerifiedAt: null,
+    });
+    renderWithProviders(<MockupDhis2Mappings />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('dhis2-mappings-edit-bob')).toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.click(screen.getByTestId('dhis2-mappings-edit-bob'));
+    await waitFor(() =>
+      expect(screen.getByTestId('dhis2-mappings-dialog')).toBeInTheDocument());
+    /* Prefills username from edge username. */
+    expect(screen.getByTestId('dhis2-mappings-input-username'))
+      .toHaveValue('bob');
+    await user.type(screen.getByTestId('dhis2-mappings-input-uid'), 'BOBCENTR001');
+    await user.click(screen.getByTestId('dhis2-mappings-save'));
+    await waitFor(() =>
+      expect(setSpy).toHaveBeenCalledWith('u-bob', expect.objectContaining({
+        dhis2UserUid: 'BOBCENTR001',
+        dhis2Username: 'bob',
+      })));
+  });
+
+  it('MockupDhis2Mappings — listUsers rejection surfaces err-dhis2-mappings', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockRejectedValue(new Error('403 forbidden'));
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    renderWithProviders(<MockupDhis2Mappings />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-dhis2-mappings')).toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/403 forbidden/);
   });
 });
