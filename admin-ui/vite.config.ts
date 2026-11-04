@@ -196,10 +196,13 @@ export default defineConfig({
          * + PolicyDialog + MdnsPanel) added 9 tests, Network.tsx
          * 66.95 → 72.56 (+5.6). Measured 89.83 / 81.39 / 74.28.
          * Branches crossed 81%. Ratchet branches up one. */
-        lines: 89,
+        /* der-2.3.123 round-119 ratchet: CapSystemInformation+Dashboard
+         * + NetworkInterfaces leases rows. Lines crossed 90%: measured
+         * 90.05 / 81.66 / 74.29. Ratchet lines one point. */
+        lines: 90,
         branches: 81,
         functions: 74,
-        statements: 89,
+        statements: 90,
       },
     },
   },

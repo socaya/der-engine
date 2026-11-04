@@ -421,6 +421,30 @@ describe('NetworkInterfaces — loaded branches', () => {
       expect(screen.queryByTestId('empty-net-ifaces')).toBeInTheDocument());
   });
 
+  it('populated leases render per-row chip tones (STATIC vs DYNAMIC)', async () => {
+    vi.spyOn(edgeApi, 'networkInterfaces').mockResolvedValue({
+      interfaces: [iface()],
+    });
+    vi.spyOn(edgeApi, 'networkLeases').mockResolvedValue({
+      leases: [
+        { mac: 'aa:bb:cc:00:00:01', ip: '10.88.0.11',
+          hostname: 'client-a', issuedAt: '2026-11-03T10:00:00Z',
+          expiresAt: '2026-11-04T10:00:00Z', staticLease: false },
+        { mac: 'aa:bb:cc:00:00:02', ip: '10.88.0.12',
+          hostname: null, issuedAt: '2026-11-03T10:00:00Z',
+          expiresAt: null, staticLease: true },
+      ],
+    });
+    vi.spyOn(edgeApi, 'networkRoutes').mockResolvedValue({ routes: [] });
+    renderWithProviders(<NetworkInterfaces />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/aa:bb:cc:00:00:01/));
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/STATIC/);
+    expect(body).toMatch(/DYNAMIC/);
+    expect(body).toMatch(/client-a/);
+  });
+
   it('empty routes section shows the "No routes." muted hint', async () => {
     vi.spyOn(edgeApi, 'networkInterfaces').mockResolvedValue({
       interfaces: [iface()],
