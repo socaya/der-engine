@@ -1246,7 +1246,10 @@ export function CapDataQueues(): JSX.Element {
       <Panel title="Backlog by state">
         {entries.length === 0 ? (
           <EmptyBlock title="Journal empty" testId="empty-journal-empty">
-            Nothing pending in any state.
+            Every outbound operation has been accepted by DHIS2 central
+            — nothing left to drain.  New records captured on the
+            device land here first, then move to <strong>Sent</strong>
+            once the worker completes the push.
           </EmptyBlock>
         ) : (
           <div className="ea-table-wrap">
@@ -1965,7 +1968,12 @@ export function CapWorkflowRuns(): JSX.Element {
       />
       {runs.length === 0 ? (
         <EmptyBlock title="No runs recorded" testId="empty-no-runs-recorded">
-          Operators have not started any workflow yet, or no workflow is enabled.
+          No workflow run has been opened yet on this edge.  Operators
+          start runs from the mobile client; if the fleet reports
+          activity but nothing appears here, check that the workflow
+          catalogue entry is <strong>enabled</strong> on
+          <Link to="/workflows/manage" data-cross-module="Workflows"
+                 style={{ marginLeft: 4 }}>Workflow management</Link>.
         </EmptyBlock>
       ) : (
         <Panel title="Runs">
@@ -2154,7 +2162,12 @@ export function CapReferralHistory(): JSX.Element {
         }
       />
       {rows.length === 0 ? (
-        <EmptyBlock title="No referrals yet" testId="empty-no-referrals-yet">Nothing has been referred to this edge.</EmptyBlock>
+        <EmptyBlock title="No referrals yet" testId="empty-no-referrals-yet">
+          Patients and events referred to this edge from other
+          facilities land here.  The inbox scan runs every 10 minutes
+          by default; the first referral can also arrive instantly
+          over the peer-mesh HTTP channel.
+        </EmptyBlock>
       ) : (
         <Panel title="Referrals">
           <ReferralHistoryTable rows={rows} />
@@ -2605,8 +2618,10 @@ function DraftsTable(
   const paged = usePaged(rows, 25);
   if (rows.length === 0) {
     return (
-      <EmptyBlock title="No matches" testId="empty-drafts-filtered">
-        No drafts match the current filter.
+      <EmptyBlock title="No drafts match" testId="empty-drafts-filtered">
+        Clear the kind filter or the search box to see the full draft
+        list.  Every draft that lands here was captured locally and is
+        waiting for publish, schedule, or discard.
       </EmptyBlock>
     );
   }
@@ -4685,8 +4700,11 @@ export function CapDeviceDiagnostics(): JSX.Element {
       )}
 
       {rows.length === 0 ? (
-        <EmptyBlock title="No devices" testId="empty-no-devices">
-          The device fleet is empty.
+        <EmptyBlock title="No devices enrolled" testId="empty-no-devices">
+          Scan a device-enrolment QR code from the mobile client to
+          add the first device, or walk the operator through
+          <Link to="/devices/enrolment" data-cross-module="Access"
+                 style={{ marginLeft: 4 }}>Device enrolment</Link>.
         </EmptyBlock>
       ) : (
         <Panel title={`${visible.length} of ${rows.length} devices`}

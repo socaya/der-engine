@@ -171,8 +171,11 @@ export function WorkflowImportInbox({ api = edgeApi, embedded = false }:
       <Panel title={`Entries (${entries.length})`}
              action={tabs}>
         {entries.length === 0 ? (
-          <EmptyBlock title="Nothing here" testId="inbox-empty">
-            No entries at the <strong>{filter.toLowerCase()}</strong> filter.
+          <EmptyBlock title="No entries at this filter" testId="inbox-empty">
+            No inbox entries with status
+            <strong> {filter.toLowerCase()}</strong>.  Peers push new
+            definitions at any time; switch to <strong>All</strong> to
+            see every entry regardless of status.
           </EmptyBlock>
         ) : (
           <div className="ea-table-wrap">

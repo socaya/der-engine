@@ -234,8 +234,10 @@ export function EABackupList({ api = edgeApi }: {
         Request full backup
       </button>
       {rows.length === 0 ? (
-        <EmptyBlock title="No runs" testId="ea23-empty">
-          Nothing requested yet.
+        <EmptyBlock title="No backups yet" testId="ea23-empty">
+          Trigger a backup from this page or from the Maintenance
+          screen.  Successful runs land here with a download link;
+          failed runs surface the reason inline.
         </EmptyBlock>
       ) : (
         <ul>{rows.map((r) => (
@@ -282,8 +284,10 @@ export function EARestoreList({ api = edgeApi }: {
         Request restore
       </button>
       {rows.length === 0 ? (
-        <EmptyBlock title="No restores" testId="ea25-empty">
-          Nothing requested yet.
+        <EmptyBlock title="No restores yet" testId="ea25-empty">
+          Nothing has been restored on this edge.  Upload a backup
+          artefact and start a restore from the <strong>/restore</strong>
+          endpoint; history lands here with status + duration.
         </EmptyBlock>
       ) : (
         <ul>{rows.map((r) => (
@@ -418,7 +422,10 @@ export function EAAppsList({ api = edgeApi }: {
       {rows.length === 0 ? (
         <Panel title="Apps">
           <EmptyBlock title="No installed apps" testId="ea31-empty">
-            Install a custom DHIS2 app via the install dialog.
+            Custom DHIS2 apps appear here once their bundle has been
+            uploaded through the install endpoint.  The in-UI install
+            dialog is not yet wired (Phase 07); operators drop bundles
+            into <code>/var/lib/der/apps</code> for now.
           </EmptyBlock>
         </Panel>
       ) : (

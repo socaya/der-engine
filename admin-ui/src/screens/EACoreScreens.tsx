@@ -245,9 +245,11 @@ export function EAUsersList({ api = edgeApi }:
       </section>
 
       {users.length === 0 ? (
-        <EmptyBlock title="No users yet" testId="ea02-empty">
-          Bootstrap an ADMIN account via the environment variable, then add
-          operators here.
+        <EmptyBlock title="No users provisioned yet" testId="ea02-empty">
+          Bootstrap the first ADMIN account via the
+          <code> DER_BOOTSTRAP_ADMIN_USERNAME</code> + password
+          environment variables on the server, then sign in and add
+          operators here with <strong>New user</strong>.
         </EmptyBlock>
       ) : (
         <section className="ea-card">
@@ -829,7 +831,11 @@ export function EAJobsList({ api = edgeApi }:
         </div>
 
         {pageRows.length === 0
-          ? <EmptyBlock title="No runs match" testId="ea06-empty">Change the filter or clear it.</EmptyBlock>
+          ? <EmptyBlock title="No runs match the filter" testId="ea06-empty">
+              Switch to <strong>All</strong> or pick a different outcome
+              to see historical runs.  The scheduler records every run
+              it kicks off, succeeded or not.
+            </EmptyBlock>
           : <>
               <div className="ea-table-wrap">
                 <table data-test="ea06-table">
@@ -991,7 +997,9 @@ export function EADriftInspector({ api = edgeApi }:
       <div className="ea-screen">
         <HeroHeader title="Metadata drift" subtitle="No snapshot yet." />
         <EmptyBlock title="No drift snapshot" testId="ea08-empty">
-          Trigger a metadata sync first.
+          Drift is computed by diffing two metadata snapshots.  Trigger
+          a metadata sync (or wait for the scheduled one) so DER has at
+          least two snapshots to compare against central.
         </EmptyBlock>
       </div>
     );
@@ -1071,7 +1079,10 @@ export function EAConflictList({ api = edgeApi }:
       <section>
         {rows.length === 0
           ? <EmptyBlock title="No conflicts" testId="ea10-empty">
-              Nothing in CONFLICT_REVIEW state right now.
+              Nothing in the CONFLICT_REVIEW state right now.  Conflicts
+              appear when DER publishes an operation that DHIS2 central
+              rejects (ETag mismatch, stale value, etc.) and the
+              operator needs to pick between the two versions.
             </EmptyBlock>
           : (
             <div className="ea-table-wrap">
@@ -2012,7 +2023,10 @@ export function EADeviceFleet({ api = edgeApi }:
       <h1 data-test="dvc01-heading">Device fleet</h1>
       {rows.length === 0 ? (
         <EmptyBlock title="No devices enrolled" testId="dvc01-empty">
-          Devices appear here when their client calls <code>POST /devices/enroll</code>.
+          Devices appear here when a mobile client calls
+          <code> POST /devices/enroll</code> with a valid enrolment
+          token.  Generate a token from Device enrolment and scan its
+          QR code on the device.
         </EmptyBlock>
       ) : (
         <table className="ea-devices">
@@ -2450,8 +2464,11 @@ export function EAAuditEvents({ api = edgeApi }:
           </label>
         </div>
         {rows.length === 0
-          ? <EmptyBlock title="No events" testId="auditev-empty">
-              Audit events will show up here as the system runs.</EmptyBlock>
+          ? <EmptyBlock title="Audit stream empty" testId="auditev-empty">
+              Sign-in attempts, workflow transitions, device enrolments,
+              and config changes land here as the system runs.  Nothing
+              has been recorded yet on this edge.
+            </EmptyBlock>
           : <table data-test="auditev-table">
               <thead><tr>
                 <th>When</th><th>Event</th><th>Outcome</th><th>Actor</th><th>Detail</th>
