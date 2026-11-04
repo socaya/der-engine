@@ -1992,6 +1992,47 @@ kbd{
   .ea-def-row{grid-template-columns:1fr;gap:2px}
 }
 
+/* ─── Role editor (/access/roles/:roleId) ────────────────────── */
+.ea-role-editor{display:flex;flex-direction:column;gap:var(--sp-4)}
+.ea-role-editor-fields{
+  display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);
+}
+@media(max-width:800px){.ea-role-editor-fields{grid-template-columns:1fr}}
+.ea-role-editor-field{display:flex;flex-direction:column;gap:4px}
+.ea-role-editor-label{
+  font-size:13px;color:var(--der-ink-500);font-weight:500;
+}
+.ea-role-editor-footer{
+  display:flex;gap:8px;align-items:center;
+  padding-top:var(--sp-3);
+  border-top:1px solid var(--der-border-subtle);
+}
+.ea-role-editor-footer-actions{margin-left:auto;display:flex;gap:8px}
+
+.ea-role-auth-groups{display:flex;flex-direction:column;gap:var(--sp-3)}
+.ea-role-auth-group{
+  border:1px solid var(--der-border-subtle);
+  background:var(--der-surface);
+  padding:var(--sp-3) var(--sp-4);
+}
+.ea-role-auth-group-head{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:var(--sp-2);
+}
+.ea-role-auth-group-title{font-weight:600;color:var(--der-ink-900)}
+.ea-role-auth-group-head .ea-link-btn{margin-left:auto;font-size:13px}
+.ea-role-auth-grid{
+  display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));
+  gap:4px;
+}
+.ea-role-auth-item{
+  display:flex;gap:8px;align-items:flex-start;
+  padding:4px 0;font-size:13px;color:var(--der-ink-900);
+}
+.ea-role-auth-item input[type=checkbox]{margin-top:3px;flex-shrink:0}
+.ea-role-auth-item code{font-size:12px}
+.ea-role-auth-item-desc{display:block;font-size:12px}
+
 /* ============ M5 Settings module ============ */
 .ea-flag-list{display:flex;flex-direction:column;gap:var(--sp-1)}
 .ea-flag-row{

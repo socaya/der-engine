@@ -202,6 +202,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'users', label: 'Users', to: '/provisioning/users', status: 'implemented' },
       { id: 'users-new', label: 'Add user', to: '/provisioning/users/new', status: 'contextual' },
       { id: 'roles', label: 'Roles', to: '/access/roles', status: 'implemented' },
+      { id: 'authorities', label: 'Authorities', to: '/access/authorities', status: 'implemented' },
       { id: 'mappings', label: 'DHIS2 mappings', to: '/access/mappings', status: 'implemented' },
       { id: 'sessions', label: 'Sessions', to: '/access/sessions', status: 'implemented' },
       { id: 'credentials', label: 'Credentials', to: '/access/credentials', status: 'implemented' },

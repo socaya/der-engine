@@ -2841,31 +2841,26 @@ export function CapUserMappings(): JSX.Element {
 }
 
 /** Shared sub-navigation for the Access area — Roles catalogue vs
- *  Authorities catalogue.  Rendered at the top of each list / detail
- *  screen so operators can pivot between the two peer sub-modules. */
+ *  Authorities catalogue.  Uses the standard `.ea-section-tabs`
+ *  primitive (flat, bottom-bordered, no border-radius). */
 function AccessSubNav({ active }: { active: 'roles' | 'authorities' }): JSX.Element {
-  const tab = (to: string, id: 'roles' | 'authorities', label: string): JSX.Element => (
-    <Link to={to}
-          data-test={`access-subnav-${id}`}
-          data-cross-module="Access"
-          aria-current={active === id ? 'page' : undefined}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '6px 14px',
-            borderRadius: 999,
-            fontSize: 13, fontWeight: 600,
-            textDecoration: 'none',
-            background: active === id ? 'var(--der-surface-highlight, #eef3fb)' : 'transparent',
-            color: active === id ? 'var(--der-accent, #2563eb)' : 'var(--der-ink-700)',
-            border: '1px solid ' + (active === id ? 'var(--der-accent, #2563eb)' : 'var(--der-border-subtle)'),
-          }}>
-      {label}
-    </Link>
-  );
+  const tab = (to: string, id: 'roles' | 'authorities', label: string): JSX.Element => {
+    const isActive = active === id;
+    return (
+      <Link to={to}
+            data-test={`access-subnav-${id}`}
+            data-cross-module="Access"
+            aria-current={isActive ? 'page' : undefined}
+            className={'ea-section-tab' + (isActive ? ' ea-section-tab--active' : '')}>
+        {label}
+      </Link>
+    );
+  };
   return (
     <nav aria-label="Access sub-modules"
+         role="tablist"
          data-test="access-subnav"
-         style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+         className="ea-section-tabs">
       {tab('/access/roles', 'roles', 'Roles')}
       {tab('/access/authorities', 'authorities', 'Authorities')}
     </nav>
@@ -3378,20 +3373,21 @@ export function AuthorityDetailPage(): JSX.Element {
         }
       />
       <Panel title="What this authority controls">
-        <dl style={{ display: 'grid',
-                      gridTemplateColumns: '160px 1fr',
-                      gap: '6px 16px', margin: 0, fontSize: 13 }}
-            data-test="authority-detail-meta">
-          <dt className="ea-text-muted">Module</dt>
-          <dd style={{ margin: 0 }}>{entry.module}</dd>
-          <dt className="ea-text-muted">Allows</dt>
-          <dd style={{ margin: 0 }}
-              data-test="authority-detail-allows">{allowsText}</dd>
-          <dt className="ea-text-muted">Restricts (when absent)</dt>
-          <dd style={{ margin: 0 }}
-              data-test="authority-detail-restricts">
-            {restrictsText || '—'}
-          </dd>
+        <dl className="ea-def-list" data-test="authority-detail-meta">
+          <div className="ea-def-row">
+            <dt>Module</dt>
+            <dd>{entry.module}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>Allows</dt>
+            <dd data-test="authority-detail-allows">{allowsText}</dd>
+          </div>
+          <div className="ea-def-row">
+            <dt>Restricts (when absent)</dt>
+            <dd data-test="authority-detail-restricts">
+              {restrictsText || '—'}
+            </dd>
+          </div>
         </dl>
       </Panel>
       <Panel title="Roles granting this authority"
@@ -3530,12 +3526,11 @@ function RoleEditor(props: RoleEditorProps): JSX.Element {
           {authCount} / {props.catalog.length} authorit{authCount === 1 ? 'y' : 'ies'} selected
         </span>
       }>
-      <div data-test="cap-roles-editor" style={{ display: 'grid', gap: 14 }}>
+      <div data-test="cap-roles-editor" className="ea-role-editor">
         {/* --- Name + description ------------------------------------- */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <label>
-            <span style={{ display: 'block', fontSize: 12, color: 'var(--der-ink-700)',
-                            marginBottom: 2 }}>
+        <div className="ea-role-editor-fields">
+          <label className="ea-role-editor-field">
+            <span className="ea-role-editor-label">
               Role name{nameLocked && ' (built-in — read only)'}
             </span>
             <input type="text"
@@ -3544,45 +3539,35 @@ function RoleEditor(props: RoleEditorProps): JSX.Element {
                    value={name}
                    disabled={nameLocked}
                    onChange={(e) => setName(e.target.value)}
-                   className="ea-input"
-                   style={{ width: '100%' }} />
+                   className="ea-input" />
           </label>
-          <label>
-            <span style={{ display: 'block', fontSize: 12, color: 'var(--der-ink-700)',
-                            marginBottom: 2 }}>
-              Description
-            </span>
+          <label className="ea-role-editor-field">
+            <span className="ea-role-editor-label">Description</span>
             <input type="text"
                    aria-label="Role description"
                    data-test="cap-roles-editor-desc"
                    value={description}
                    onChange={(e) => setDescription(e.target.value)}
-                   className="ea-input"
-                   style={{ width: '100%' }} />
+                   className="ea-input" />
           </label>
         </div>
 
         {/* --- Authority groups --------------------------------------- */}
         <div data-test="cap-roles-editor-authorities"
-             style={{ display: 'grid', gap: 10 }}>
+             className="ea-role-auth-groups">
           {Array.from(props.authoritiesByModule.entries()).map(([module, entries]) => {
             const activeInGroup = entries.filter((e) => selected.has(e.authority)).length;
             return (
-              <div key={module}
-                   data-test={`cap-roles-editor-module-${module}`}
-                   style={{ border: '1px solid var(--der-border-subtle)',
-                            borderRadius: 6, padding: '10px 12px',
-                            background: 'var(--der-surface, white)' }}>
-                <div style={{ display: 'flex', alignItems: 'center',
-                               gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontWeight: 600 }}>{module}</span>
-                  <span className="ea-chip ea-chip--muted"
-                        style={{ fontSize: 11 }}>
+              <section key={module}
+                       className="ea-role-auth-group"
+                       data-test={`cap-roles-editor-module-${module}`}>
+                <header className="ea-role-auth-group-head">
+                  <span className="ea-role-auth-group-title">{module}</span>
+                  <span className="ea-chip ea-chip--muted">
                     {activeInGroup} / {entries.length}
                   </span>
                   <button type="button"
                           className="ea-link-btn"
-                          style={{ marginLeft: 'auto', fontSize: 12 }}
                           data-test={`cap-roles-editor-module-${module}-all`}
                           onClick={() => {
                             const next = new Set(selected);
@@ -3597,39 +3582,32 @@ function RoleEditor(props: RoleEditorProps): JSX.Element {
                       ? 'Clear all'
                       : 'Select all'}
                   </button>
-                </div>
-                <div style={{ display: 'grid',
-                               gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                               gap: 4 }}>
+                </header>
+                <div className="ea-role-auth-grid">
                   {entries.map((a) => (
                     <label key={a.authority}
-                           style={{ display: 'flex', gap: 8, alignItems: 'flex-start',
-                                    fontSize: 13, padding: '4px 0' }}>
+                           className="ea-role-auth-item">
                       <input type="checkbox"
                              aria-label={a.authority}
                              data-test={`cap-roles-editor-auth-${a.authority}`}
                              checked={selected.has(a.authority)}
-                             onChange={() => toggle(a.authority)}
-                             style={{ marginTop: 3 }} />
+                             onChange={() => toggle(a.authority)} />
                       <span>
-                        <code style={{ fontSize: 12 }}>{a.authority}</code>
-                        <span className="ea-text-muted"
-                              style={{ display: 'block', fontSize: 12 }}>
+                        <code>{a.authority}</code>
+                        <span className="ea-text-muted ea-role-auth-item-desc">
                           {a.description}
                         </span>
                       </span>
                     </label>
                   ))}
                 </div>
-              </div>
+              </section>
             );
           })}
         </div>
 
         {/* --- Footer: Save / Delete / Cancel --------------------------- */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center',
-                       paddingTop: 10,
-                       borderTop: '1px solid var(--der-border-subtle)' }}>
+        <div className="ea-role-editor-footer">
           {isEdit && props.existing && !props.existing.builtin && (
             <button type="button"
                     className="ea-btn ea-btn--danger ea-btn--sm"
@@ -3638,7 +3616,7 @@ function RoleEditor(props: RoleEditorProps): JSX.Element {
               Delete role
             </button>
           )}
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <div className="ea-role-editor-footer-actions">
             {!isEdit && (
               <button type="button"
                       className="ea-btn ea-btn--ghost ea-btn--sm"
