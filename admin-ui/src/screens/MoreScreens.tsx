@@ -732,6 +732,31 @@ export function MockupDeviceFleet(): JSX.Element {
             {suspended > 0 && (<><span>·</span><span>Suspended / revoked <strong style={{ color: 'var(--der-danger-ink)' }}>{suspended}</strong></span></>)}
           </>
         }
+        actions={
+          <>
+            <Link to="/devices/enrolment"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Access"
+                  data-test="dev-fleet-open-enrolment">
+              <UiIcon icon="enrollment" size={14} />
+              <span>Device enrolment</span>
+            </Link>
+            <Link to="/devices/diagnostics"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Access"
+                  data-test="dev-fleet-open-diagnostics">
+              <UiIcon icon="diagnostics" size={14} />
+              <span>Device diagnostics</span>
+            </Link>
+            <Link to="/devices/ownership"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Access"
+                  data-test="dev-fleet-open-ownership">
+              <UiIcon icon="worker" size={14} />
+              <span>Ownership</span>
+            </Link>
+          </>
+        }
       />
 
       <Panel title={`Devices (${rows.length})`}

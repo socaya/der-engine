@@ -29,7 +29,9 @@ export type TabIconId =
   | 'audit' | 'backup' | 'restore' | 'recovery'
   | 'wifi' | 'access-point' | 'ethernet' | 'firewall' | 'peer' | 'tei' | 'activity' | 'route'
   // §2.3.119 R-AP — Data sub-tabs
-  | 'aggregate' | 'event' | 'edit' | 'referral' | 'cog';
+  | 'aggregate' | 'event' | 'edit' | 'referral' | 'cog'
+  // Administration sub-tabs
+  | 'laptop' | 'tablet';
 
 export interface NavItem {
   readonly id: string;
@@ -200,22 +202,24 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     icon: 'users',
     items: [
       /* Permissions-first ordering: Authorities are the atomic capabilities,
-       * Roles bundle authorities, Users are assigned roles.  Users surfaces
-       * both DHIS2 mappings + Sessions as contextual drills. */
-      { id: 'authorities', label: 'Authorities', to: '/access/authorities', status: 'implemented' },
-      { id: 'roles', label: 'Roles', to: '/access/roles', status: 'implemented' },
-      { id: 'users', label: 'Users', to: '/provisioning/users', status: 'implemented' },
+       * Roles bundle authorities, Users are assigned roles.  Devices is
+       * the only other first-class sub-module — everything user-adjacent
+       * (DHIS2 mappings, Sessions, Credentials) surfaces from Users;
+       * everything device-adjacent (Device enrolment, Device diagnostics,
+       * Ownership, Connections) surfaces from Devices. */
+      { id: 'authorities', label: 'Authorities', to: '/access/authorities', status: 'implemented', tabIcon: 'audit' },
+      { id: 'roles', label: 'Roles', to: '/access/roles', status: 'implemented', tabIcon: 'worker' },
+      { id: 'users', label: 'Users', to: '/provisioning/users', status: 'implemented', tabIcon: 'laptop' },
+      { id: 'devices', label: 'Devices', to: '/devices', status: 'implemented', tabIcon: 'tablet' },
+      /* Contextual drills — kept as routes so direct URLs work but
+       * hidden from the Administration SectionTabs strip; reached from
+       * the Users / Devices dashboards. */
       { id: 'users-new', label: 'Add user', to: '/provisioning/users/new', status: 'contextual' },
-      /* DHIS2 mappings + Sessions moved to contextual (reachable from
-       * the Users dashboard status-bar); they're drills off the user
-       * list, not peer sub-modules of Users. */
       { id: 'mappings', label: 'DHIS2 mappings', to: '/access/mappings', status: 'contextual' },
       { id: 'sessions', label: 'Sessions', to: '/access/sessions', status: 'contextual' },
-      { id: 'credentials', label: 'Credentials', to: '/access/credentials', status: 'implemented' },
-      { id: 'devices', label: 'Devices', to: '/devices', status: 'implemented' },
-      { id: 'enrolment', label: 'Device enrolment', to: '/devices/enrolment', status: 'implemented' },
-      { id: 'device-diag', label: 'Device diagnostics', to: '/devices/diagnostics', status: 'implemented' },
-      /* Older per-page routes now reachable via Devices detail. */
+      { id: 'credentials', label: 'Credentials', to: '/access/credentials', status: 'contextual' },
+      { id: 'enrolment', label: 'Device enrolment', to: '/devices/enrolment', status: 'contextual' },
+      { id: 'device-diag', label: 'Device diagnostics', to: '/devices/diagnostics', status: 'contextual' },
       { id: 'ownership', label: 'Ownership', to: '/devices/ownership', status: 'contextual' },
       { id: 'connections', label: 'Connections', to: '/devices/connections', status: 'contextual' },
     ],

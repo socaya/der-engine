@@ -67,6 +67,13 @@ export function MockupUsersDashboard(): JSX.Element {
               <UiIcon icon="activity" size={14} />
               <span>Scope viewer</span>
             </Link>
+            <Link to="/access/credentials"
+                   className="ea-btn ea-btn--ghost ea-btn--sm"
+                   data-cross-module="Access"
+                   data-test="users-open-credentials">
+              <UiIcon icon="qr" size={14} />
+              <span>Credentials</span>
+            </Link>
             <Link to="/access/sessions"
                    className="ea-btn ea-btn--ghost ea-btn--sm"
                    data-cross-module="Access"
