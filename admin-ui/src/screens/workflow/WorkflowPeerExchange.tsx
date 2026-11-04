@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { HeroHeader } from '../../components/HeroHeader';
+import { Link } from 'react-router-dom';
+import { SyncStatusBar } from '../shared';
+import { UiIcon } from '../../components/UiIcon';
 import { WorkflowPeers } from './WorkflowPeers';
 import { WorkflowImportInbox } from './WorkflowImportInbox';
 
@@ -9,6 +11,13 @@ import { WorkflowImportInbox } from './WorkflowImportInbox';
  * Peers (outbound) + Import inbox (inbound) nav items into a
  * single screen with two tabs since they are two sides of the
  * same handshake.
+ *
+ * Lives under Network (§2.3.59 / ADR) because it rides the same
+ * peer-registry transport as the WireGuard peer list; the inner
+ * two components (WorkflowPeers, WorkflowImportInbox) already
+ * carry their own SyncStatusBars when rendered standalone, so
+ * they're wrapped in {@code embedded} mode here to suppress the
+ * duplicate chrome.
  */
 
 type Tab = 'outbound' | 'inbound';
@@ -17,16 +26,36 @@ export function WorkflowPeerExchange(): JSX.Element {
   const [active, setActive] = useState<Tab>('outbound');
   return (
     <div className="ea-screen" data-test="peer-exchange-root">
-      <HeroHeader
-        title="Peer exchange"
-        subtitle="Share workflow definitions with other DER edges"
+      <SyncStatusBar
+        tone="info"
+        title="Workflow sharing"
+        statusLabel={active === 'outbound' ? 'Outbound peers' : 'Inbound inbox'}
+        subtitle="Push workflow definitions to sibling DER edges, and review payloads arriving the other way.  Transport is the same peer registry used by WireGuard; trust decisions apply per peer."
+        actions={
+          <>
+            <Link to="/workflows/manage"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Workflows"
+                  data-test="peer-exchange-open-catalogue">
+              <UiIcon icon="metadata" size={14} />
+              <span>Workflow catalogue</span>
+            </Link>
+            <Link to="/network/peers"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Network"
+                  data-test="peer-exchange-open-wg-peers">
+              <UiIcon icon="peer" size={14} />
+              <span>WireGuard peers</span>
+            </Link>
+          </>
+        }
       />
       <h1 className="ea-visually-hidden" data-test="peer-exchange-heading">
-        Peer exchange
+        Workflow sharing
       </h1>
 
-      <div className="ea-section-tabs" role="tablist"
-            style={{ marginBottom: 12 }}>
+      <nav className="ea-section-tabs" role="tablist"
+           aria-label="Workflow sharing direction">
         <button type="button" role="tab" aria-selected={active === 'outbound'}
                  className={'ea-section-tab'
                    + (active === 'outbound' ? ' ea-section-tab--active' : '')}
@@ -41,7 +70,7 @@ export function WorkflowPeerExchange(): JSX.Element {
                  onClick={() => setActive('inbound')}>
           Inbound · Import inbox
         </button>
-      </div>
+      </nav>
 
       <div hidden={active !== 'outbound'}>
         <WorkflowPeers embedded />
