@@ -132,10 +132,18 @@ run_step "server-verify" bash -c "cd server && ./mvnw -q -Dder.dependency-check.
 # outside the documented allowlist.
 run_step "server-separation-lint" bash scripts/lint/check_server_separation.sh
 
+
+
 # FR-01-08 / FR-01-09 — install/upgrade/rollback state-machine smoke.
 # Dummy tarballs in a tempdir; no systemd, no running DER. Verifies
 # idempotency, symlink flips, sha256 verification, rollback audit.
 run_step "deploy-lifecycle-smoke" bash scripts/deploy/_test_install_lifecycle.sh
+
+# NFR-29 — backup-integrity fingerprint comparator unit tests. The
+# live round-trip belongs in the evaluation harness (needs running DER);
+# this ships the pure comparator at gate-time so it can't rot.
+run_step "backup-integrity-comparator" \
+    python3 scripts/evaluation/test_backup_integrity.py
 
 # Collect server coverage report into the evidence bundle.
 if [[ -d server/target/site/jacoco ]]; then
