@@ -767,7 +767,40 @@ describe('CapRoles (dynamic catalogue)', () => {
       expect(screen.getByTestId('err-roles-load-failed')).toBeInTheDocument());
   });
 
-  it('New role opens the editor and persists via createRole', async () => {
+  it('first role is auto-selected into the detail pane on load', async () => {
+    vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole, nursesRole]);
+    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
+    renderWithProviders(<CapRoles />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-roles-editor')).toBeInTheDocument());
+    /* Administrator comes first — its description pre-fills the editor. */
+    const descInput = screen.getByTestId('cap-roles-editor-desc') as HTMLInputElement;
+    expect(descInput.value).toBe('Full access');
+    /* Name input disabled because Administrator is built-in. */
+    const nameInput = screen.getByTestId('cap-roles-editor-name') as HTMLInputElement;
+    expect(nameInput.disabled).toBe(true);
+    /* Preselected authority. */
+    expect((screen.getByTestId('cap-roles-editor-auth-der.users.write') as HTMLInputElement).checked)
+      .toBe(true);
+  });
+
+  it('clicking a role in the list swaps the detail pane', async () => {
+    vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole, nursesRole]);
+    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
+    renderWithProviders(<CapRoles />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId(`cap-roles-row-${nursesRole.roleId}`)).toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId(`cap-roles-row-${nursesRole.roleId}`));
+    await waitFor(() => {
+      const nameInput = screen.getByTestId('cap-roles-editor-name') as HTMLInputElement;
+      /* Nurses is custom → name editable. */
+      expect(nameInput.disabled).toBe(false);
+      expect(nameInput.value).toBe('Nurses');
+    });
+  });
+
+  it('New role opens a blank editor and persists via createRole', async () => {
     vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole, nursesRole]);
     vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
     const create = vi.spyOn(edgeApi, 'createRole').mockResolvedValue({
@@ -779,8 +812,11 @@ describe('CapRoles (dynamic catalogue)', () => {
 
     const user = userEvent.setup();
     await user.click(screen.getByTestId('cap-roles-new'));
-    await waitFor(() =>
-      expect(screen.getByTestId('cap-roles-editor')).toBeInTheDocument());
+    await waitFor(() => {
+      const nameInput = screen.getByTestId('cap-roles-editor-name') as HTMLInputElement;
+      expect(nameInput.value).toBe('');
+      expect(nameInput.disabled).toBe(false);
+    });
     const nameInput = screen.getByTestId('cap-roles-editor-name') as HTMLInputElement;
     await user.type(nameInput, 'Clerks');
     await user.click(screen.getByTestId('cap-roles-editor-auth-der.users.read'));
@@ -792,26 +828,24 @@ describe('CapRoles (dynamic catalogue)', () => {
     expect(args.authorities).toContain('der.users.read');
   });
 
-  it('built-in editor keeps the name input disabled', async () => {
-    vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole]);
+  it('module Select-all toggles every authority in the group', async () => {
+    vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([nursesRole]);
     vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
     renderWithProviders(<CapRoles />, { authApi });
     await waitFor(() =>
-      expect(screen.getByTestId(`cap-roles-row-${adminRole.roleId}`)).toBeInTheDocument());
+      expect(screen.getByTestId('cap-roles-editor-module-Users')).toBeInTheDocument());
     const user = userEvent.setup();
-    const kebabButtons = screen.getAllByText('⋮');
-    await user.click(kebabButtons[0]);
-    await user.click(screen.getByText('Edit'));
-    await waitFor(() =>
-      expect(screen.getByTestId('cap-roles-editor')).toBeInTheDocument());
-    const nameInput = screen.getByTestId('cap-roles-editor-name') as HTMLInputElement;
-    expect(nameInput.disabled).toBe(true);
-    /* der.users.write is preselected because adminRole has it. */
+    /* der.users.read starts unchecked for nurses. */
+    expect((screen.getByTestId('cap-roles-editor-auth-der.users.read') as HTMLInputElement).checked)
+      .toBe(false);
+    await user.click(screen.getByTestId('cap-roles-editor-module-Users-all'));
+    expect((screen.getByTestId('cap-roles-editor-auth-der.users.read') as HTMLInputElement).checked)
+      .toBe(true);
     expect((screen.getByTestId('cap-roles-editor-auth-der.users.write') as HTMLInputElement).checked)
       .toBe(true);
   });
 
-  it('empty catalogue path shows the EmptyBlock', async () => {
+  it('empty-grantable path shows the no-roles EmptyBlock', async () => {
     vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([syncWorker]);
     vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
     renderWithProviders(<CapRoles />, { authApi });
