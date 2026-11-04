@@ -35,7 +35,8 @@ import {
   CapMetadataSync, CapSyncSchedule, CapSyncSettings,
   CapWorkflowRuns, CapStepAssignments, CapReferralHistory,
   CapDrafts, CapMaintenance,
-  CapUserMappings, CapRoles, CapSessions, CapCredentials,
+  CapUserMappings, CapRoles, RoleEditorPage, CapAuthorities, AuthorityDetailPage,
+  CapSessions, CapCredentials,
   CapDeviceEnrolment, CapOwnership, CapConnections, CapDeviceDiagnostics,
   CapOperatorMetrics, CapServiceHealth, CapStorage,
   CapProvisioningSetup, CapReleases, CapNetwork,
@@ -318,6 +319,11 @@ export default function App(): JSX.Element {
           <Route path="/data/maintenance" element={<RequireAuth><CapMaintenance /></RequireAuth>} />
           <Route path="/access/mappings" element={<RequireAuth><CapUserMappings /></RequireAuth>} />
           <Route path="/access/roles" element={<RequireAuth><CapRoles /></RequireAuth>} />
+          <Route path="/access/roles/new" element={<RequireAuth><RoleEditorPage /></RequireAuth>} />
+          <Route path="/access/roles/:roleId" element={<RequireAuth><RoleEditorPage /></RequireAuth>} />
+          <Route path="/access/authorities" element={<RequireAuth><CapAuthorities /></RequireAuth>} />
+          <Route path="/access/authorities/:authority"
+                 element={<RequireAuth><AuthorityDetailPage /></RequireAuth>} />
           <Route path="/access/sessions" element={<RequireAuth><CapSessions /></RequireAuth>} />
           <Route path="/access/credentials" element={<RequireAuth><CapCredentials /></RequireAuth>} />
           <Route path="/access/dhis2-mappings"

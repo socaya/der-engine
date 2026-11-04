@@ -7,7 +7,8 @@ import {
   CapStepAssignments, CapReferralHistory, CapMetadataSync,
   CapProgramRules, CapSyncOverview, CapSyncSchedule,
   CapOrgUnitBinding, CapSystemInformation, CapDashboard,
-  CapRoles, CapSessions, CapCredentials,
+  CapRoles, RoleEditorPage, CapAuthorities, AuthorityDetailPage,
+  CapSessions, CapCredentials,
   CapDeviceEnrolment, CapOwnership, CapConnections,
   CapDeviceDiagnostics,
 } from './CapabilityScreens';
@@ -767,82 +768,44 @@ describe('CapRoles (dynamic catalogue)', () => {
       expect(screen.getByTestId('err-roles-load-failed')).toBeInTheDocument());
   });
 
-  it('first role is auto-selected into the detail pane on load', async () => {
+  it('New role is a router link to /access/roles/new', async () => {
     vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole, nursesRole]);
-    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
     renderWithProviders(<CapRoles />, { authApi });
     await waitFor(() =>
-      expect(screen.getByTestId('cap-roles-editor')).toBeInTheDocument());
-    /* Administrator comes first — its description pre-fills the editor. */
-    const descInput = screen.getByTestId('cap-roles-editor-desc') as HTMLInputElement;
-    expect(descInput.value).toBe('Full access');
-    /* Name input disabled because Administrator is built-in. */
-    const nameInput = screen.getByTestId('cap-roles-editor-name') as HTMLInputElement;
-    expect(nameInput.disabled).toBe(true);
-    /* Preselected authority. */
-    expect((screen.getByTestId('cap-roles-editor-auth-der.users.write') as HTMLInputElement).checked)
-      .toBe(true);
+      expect(screen.getByTestId('cap-roles-new')).toBeInTheDocument());
+    const link = screen.getByTestId('cap-roles-new') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/access/roles/new');
   });
 
-  it('clicking a role in the list swaps the detail pane', async () => {
+  it('search filters the list to matching rows only', async () => {
     vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole, nursesRole]);
-    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
     renderWithProviders(<CapRoles />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId(`cap-roles-row-${nursesRole.roleId}`)).toBeInTheDocument());
     const user = userEvent.setup();
-    await user.click(screen.getByTestId(`cap-roles-row-${nursesRole.roleId}`));
-    await waitFor(() => {
-      const nameInput = screen.getByTestId('cap-roles-editor-name') as HTMLInputElement;
-      /* Nurses is custom → name editable. */
-      expect(nameInput.disabled).toBe(false);
-      expect(nameInput.value).toBe('Nurses');
-    });
+    await user.type(screen.getByTestId('cap-roles-search'), 'Nurses');
+    expect(screen.queryByTestId(`cap-roles-row-${adminRole.roleId}`)).toBeNull();
+    expect(screen.getByTestId(`cap-roles-row-${nursesRole.roleId}`)).toBeInTheDocument();
   });
 
-  it('New role opens a blank editor and persists via createRole', async () => {
+  it('type filter prunes the list to built-ins', async () => {
     vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole, nursesRole]);
-    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
-    const create = vi.spyOn(edgeApi, 'createRole').mockResolvedValue({
-      ...nursesRole, roleId: 'r-new', name: 'Clerks',
-    });
     renderWithProviders(<CapRoles />, { authApi });
     await waitFor(() =>
-      expect(screen.getByTestId('cap-roles-new')).toBeInTheDocument());
-
+      expect(screen.getByTestId(`cap-roles-row-${nursesRole.roleId}`)).toBeInTheDocument());
     const user = userEvent.setup();
-    await user.click(screen.getByTestId('cap-roles-new'));
-    await waitFor(() => {
-      const nameInput = screen.getByTestId('cap-roles-editor-name') as HTMLInputElement;
-      expect(nameInput.value).toBe('');
-      expect(nameInput.disabled).toBe(false);
-    });
-    const nameInput = screen.getByTestId('cap-roles-editor-name') as HTMLInputElement;
-    await user.type(nameInput, 'Clerks');
-    await user.click(screen.getByTestId('cap-roles-editor-auth-der.users.read'));
-    await user.click(screen.getByTestId('cap-roles-editor-save'));
-
-    await waitFor(() => expect(create).toHaveBeenCalled());
-    const args = create.mock.calls[0][0];
-    expect(args.name).toBe('Clerks');
-    expect(args.authorities).toContain('der.users.read');
+    await user.selectOptions(screen.getByTestId('cap-roles-filter'), 'BUILTIN');
+    expect(screen.getByTestId(`cap-roles-row-${adminRole.roleId}`)).toBeInTheDocument();
+    expect(screen.queryByTestId(`cap-roles-row-${nursesRole.roleId}`)).toBeNull();
   });
 
-  it('module Select-all toggles every authority in the group', async () => {
+  it('row link points at the detail page for that role', async () => {
     vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([nursesRole]);
-    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
     renderWithProviders(<CapRoles />, { authApi });
     await waitFor(() =>
-      expect(screen.getByTestId('cap-roles-editor-module-Users')).toBeInTheDocument());
-    const user = userEvent.setup();
-    /* der.users.read starts unchecked for nurses. */
-    expect((screen.getByTestId('cap-roles-editor-auth-der.users.read') as HTMLInputElement).checked)
-      .toBe(false);
-    await user.click(screen.getByTestId('cap-roles-editor-module-Users-all'));
-    expect((screen.getByTestId('cap-roles-editor-auth-der.users.read') as HTMLInputElement).checked)
-      .toBe(true);
-    expect((screen.getByTestId('cap-roles-editor-auth-der.users.write') as HTMLInputElement).checked)
-      .toBe(true);
+      expect(screen.getByTestId(`cap-roles-row-${nursesRole.roleId}`)).toBeInTheDocument());
+    const link = screen.getByTestId(`cap-roles-link-${nursesRole.roleId}`) as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe(`/access/roles/${nursesRole.roleId}`);
   });
 
   it('empty-grantable path shows the no-roles EmptyBlock', async () => {
@@ -851,6 +814,180 @@ describe('CapRoles (dynamic catalogue)', () => {
     renderWithProviders(<CapRoles />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('cap-roles-empty')).toBeInTheDocument());
+  });
+});
+
+describe('RoleEditorPage (routed)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const adminRole: edgeApi.EdgeRoleDefinition = {
+    roleId: 'role-admin', name: 'Administrator', description: 'Full access',
+    builtin: true, builtinKey: 'ADMIN',
+    authorities: ['der.users.read', 'der.users.write'],
+    userCount: 2,
+    createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+  };
+  const nursesRole: edgeApi.EdgeRoleDefinition = {
+    roleId: 'role-nurses', name: 'Nurses', description: 'Clinic nurses',
+    builtin: false, builtinKey: null,
+    authorities: ['der.drafts.read'],
+    userCount: 0,
+    createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+  };
+  const catalog: edgeApi.EdgeAuthorityEntry[] = [
+    { authority: 'der.users.read', module: 'Users', description: 'View users' },
+    { authority: 'der.users.write', module: 'Users', description: 'Write users' },
+    { authority: 'der.drafts.read', module: 'Drafts', description: 'View drafts' },
+    { authority: 'der.drafts.publish.own', module: 'Drafts', description: 'Publish own' },
+  ];
+
+  const renderAt = (path: string): void => {
+    // Dynamic import avoids top-of-file duplication of Routes/Route.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/consistent-type-imports
+    const { Routes, Route } = require('react-router-dom') as typeof import('react-router-dom');
+    renderWithProviders(
+      <Routes>
+        <Route path="/access/roles/:roleId" element={<RoleEditorPage />} />
+        <Route path="/access/roles/new" element={<RoleEditorPage />} />
+      </Routes>,
+      { authApi, route: path },
+    );
+  };
+
+  it('/new renders a blank editor', async () => {
+    vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole, nursesRole]);
+    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
+    renderAt('/access/roles/new');
+    await waitFor(() =>
+      expect(screen.getByTestId('role-editor-page')).toBeInTheDocument());
+    const nameInput = screen.getByTestId('cap-roles-editor-name') as HTMLInputElement;
+    expect(nameInput.value).toBe('');
+    expect(nameInput.disabled).toBe(false);
+  });
+
+  it('?copyFrom preseeds authorities from the source role', async () => {
+    vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole, nursesRole]);
+    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
+    renderAt(`/access/roles/new?copyFrom=${nursesRole.roleId}`);
+    await waitFor(() =>
+      expect(screen.getByTestId('role-editor-page')).toBeInTheDocument());
+    const nameInput = screen.getByTestId('cap-roles-editor-name') as HTMLInputElement;
+    expect(nameInput.value).toBe('Nurses (copy)');
+    /* der.drafts.read preselected because it was on nurses. */
+    expect((screen.getByTestId('cap-roles-editor-auth-der.drafts.read') as HTMLInputElement).checked)
+      .toBe(true);
+  });
+
+  it('existing-role route pre-fills the form', async () => {
+    vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole]);
+    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
+    renderAt(`/access/roles/${adminRole.roleId}`);
+    await waitFor(() =>
+      expect(screen.getByTestId('role-editor-page')).toBeInTheDocument());
+    const nameInput = screen.getByTestId('cap-roles-editor-name') as HTMLInputElement;
+    /* Admin is built-in → name locked. */
+    expect(nameInput.disabled).toBe(true);
+    expect(nameInput.value).toBe('Administrator');
+  });
+
+  it('unknown role id surfaces not-found error', async () => {
+    vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole]);
+    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
+    renderAt('/access/roles/does-not-exist');
+    await waitFor(() =>
+      expect(screen.getByTestId('err-role-not-found')).toBeInTheDocument());
+  });
+});
+
+describe('CapAuthorities + AuthorityDetailPage', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const adminRole: edgeApi.EdgeRoleDefinition = {
+    roleId: 'role-admin', name: 'Administrator', description: null,
+    builtin: true, builtinKey: 'ADMIN',
+    authorities: ['der.users.read', 'der.users.write'], userCount: 2,
+    createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+  };
+  const nursesRole: edgeApi.EdgeRoleDefinition = {
+    roleId: 'role-nurses', name: 'Nurses', description: null,
+    builtin: false, builtinKey: null,
+    authorities: ['der.drafts.read'], userCount: 1,
+    createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+  };
+  const syncWorker: edgeApi.EdgeRoleDefinition = {
+    roleId: 'role-sync', name: 'Sync worker', description: null,
+    builtin: true, builtinKey: 'SYNC_WORKER',
+    authorities: ['der.users.read'], userCount: 0,
+    createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+  };
+  const catalog: edgeApi.EdgeAuthorityEntry[] = [
+    { authority: 'der.users.read', module: 'Users', description: 'View users' },
+    { authority: 'der.users.write', module: 'Users', description: 'Write users' },
+    { authority: 'der.drafts.read', module: 'Drafts', description: 'View drafts' },
+  ];
+
+  it('lists every authority with its role-grant count (SYNC_WORKER excluded)', async () => {
+    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
+    vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole, nursesRole, syncWorker]);
+    renderWithProviders(<CapAuthorities />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-authorities')).toBeInTheDocument());
+    /* users.read is on admin + sync-worker; sync-worker is excluded → count 1. */
+    expect(screen.getByTestId('cap-authorities-roles-der.users.read'))
+      .toHaveTextContent('1');
+    /* users.write is on admin only. */
+    expect(screen.getByTestId('cap-authorities-roles-der.users.write'))
+      .toHaveTextContent('1');
+    /* drafts.read is on nurses only. */
+    expect(screen.getByTestId('cap-authorities-roles-der.drafts.read'))
+      .toHaveTextContent('1');
+  });
+
+  it('module filter prunes the authority list', async () => {
+    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
+    vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole, nursesRole]);
+    renderWithProviders(<CapAuthorities />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-authorities-table')).toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByTestId('cap-authorities-filter'), 'Drafts');
+    expect(screen.queryByTestId('cap-authorities-row-der.users.read')).toBeNull();
+    expect(screen.getByTestId('cap-authorities-row-der.drafts.read')).toBeInTheDocument();
+  });
+
+  it('AuthorityDetailPage lists the roles granting it', async () => {
+    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
+    vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([adminRole, nursesRole]);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/consistent-type-imports
+    const { Routes, Route } = require('react-router-dom') as typeof import('react-router-dom');
+    renderWithProviders(
+      <Routes>
+        <Route path="/access/authorities/:authority" element={<AuthorityDetailPage />} />
+      </Routes>,
+      { authApi, route: '/access/authorities/der.users.read' },
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('authority-detail')).toBeInTheDocument());
+    /* admin holds users.read → one role shown. */
+    expect(screen.getByTestId(`authority-detail-role-${adminRole.roleId}`)).toBeInTheDocument();
+    expect(screen.queryByTestId(`authority-detail-role-${nursesRole.roleId}`)).toBeNull();
+  });
+
+  it('unknown authority surfaces not-found', async () => {
+    vi.spyOn(edgeApi, 'listAuthorityCatalog').mockResolvedValue(catalog);
+    vi.spyOn(edgeApi, 'listRoles').mockResolvedValue([]);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/consistent-type-imports
+    const { Routes, Route } = require('react-router-dom') as typeof import('react-router-dom');
+    renderWithProviders(
+      <Routes>
+        <Route path="/access/authorities/:authority" element={<AuthorityDetailPage />} />
+      </Routes>,
+      { authApi, route: '/access/authorities/der.nonsense' },
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('err-authority-not-found')).toBeInTheDocument());
   });
 });
 

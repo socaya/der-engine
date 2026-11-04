@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
@@ -2840,38 +2840,55 @@ export function CapUserMappings(): JSX.Element {
   );
 }
 
-/** `/admin/access/roles` — DER role catalogue with per-role user
- *  counts (live from /provisioning/users) and a capability matrix so
- *  ADMINs can see what each role actually unlocks without digging
- *  through SecurityConfig. The role set is intentionally fixed per
- *  §role-matrix.md — no inline role creation. */
-/** Selection state for the two-pane role editor: nothing selected,
- *  a fresh "create new" draft, or an existing role picked from the list. */
-type RoleSelection =
-  | { kind: 'none' }
-  | { kind: 'create' }
-  | { kind: 'edit'; roleId: string };
+/** Shared sub-navigation for the Access area — Roles catalogue vs
+ *  Authorities catalogue.  Rendered at the top of each list / detail
+ *  screen so operators can pivot between the two peer sub-modules. */
+function AccessSubNav({ active }: { active: 'roles' | 'authorities' }): JSX.Element {
+  const tab = (to: string, id: 'roles' | 'authorities', label: string): JSX.Element => (
+    <Link to={to}
+          data-test={`access-subnav-${id}`}
+          data-cross-module="Access"
+          aria-current={active === id ? 'page' : undefined}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '6px 14px',
+            borderRadius: 999,
+            fontSize: 13, fontWeight: 600,
+            textDecoration: 'none',
+            background: active === id ? 'var(--der-surface-highlight, #eef3fb)' : 'transparent',
+            color: active === id ? 'var(--der-accent, #2563eb)' : 'var(--der-ink-700)',
+            border: '1px solid ' + (active === id ? 'var(--der-accent, #2563eb)' : 'var(--der-border-subtle)'),
+          }}>
+      {label}
+    </Link>
+  );
+  return (
+    <nav aria-label="Access sub-modules"
+         data-test="access-subnav"
+         style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+      {tab('/access/roles', 'roles', 'Roles')}
+      {tab('/access/authorities', 'authorities', 'Authorities')}
+    </nav>
+  );
+}
 
+/** `/access/roles` — Role catalogue list view.
+ *
+ *  Table of every role (built-in or custom) with a per-row context
+ *  menu (Edit → /access/roles/:id, Duplicate → preselects authorities,
+ *  Delete for custom roles, View users with this role).  "New role"
+ *  button in the status bar.  SYNC_WORKER is hidden (internal only).
+ */
 export function CapRoles(): JSX.Element {
   const [roles, setRoles] = useState<edgeApi.EdgeRoleDefinition[] | null>(null);
-  const [catalog, setCatalog] = useState<edgeApi.EdgeAuthorityEntry[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
-  const [selection, setSelection] = useState<RoleSelection>({ kind: 'none' });
+  const [search, setSearch] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'BUILTIN' | 'CUSTOM'>('ALL');
 
-  const refresh = (preserveSelection?: RoleSelection): void => {
-    Promise.all([edgeApi.listRoles(), edgeApi.listAuthorityCatalog()])
-      .then(([r, c]) => {
-        setRoles(r);
-        setCatalog(c);
-        // First load: auto-select the first visible role so the detail pane isn't empty.
-        if (preserveSelection === undefined) {
-          const firstVisible = r.find((x) => x.builtinKey !== 'SYNC_WORKER');
-          if (firstVisible) setSelection({ kind: 'edit', roleId: firstVisible.roleId });
-        } else {
-          setSelection(preserveSelection);
-        }
-      })
+  const refresh = (): void => {
+    edgeApi.listRoles()
+      .then((r) => setRoles(r))
       .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
   };
   useEffect(() => { refresh(); }, []);
@@ -2880,7 +2897,7 @@ export function CapRoles(): JSX.Element {
     return <ErrorBlock title="Roles load failed"
                         testId="err-roles-load-failed">{err}</ErrorBlock>;
   }
-  if (roles == null || catalog == null) {
+  if (roles == null) {
     return <LoadingBlock testId="loading-roles" />;
   }
 
@@ -2889,37 +2906,43 @@ export function CapRoles(): JSX.Element {
   const assignedCount = visible.reduce((s, r) => s + r.userCount, 0);
   const customCount = visible.filter((r) => !r.builtin).length;
 
-  const authoritiesByModule = new Map<string, edgeApi.EdgeAuthorityEntry[]>();
-  for (const a of catalog) {
-    const list = authoritiesByModule.get(a.module) ?? [];
-    list.push(a);
-    authoritiesByModule.set(a.module, list);
-  }
-
-  const selectedRole = selection.kind === 'edit'
-    ? visible.find((r) => r.roleId === selection.roleId) ?? null
-    : null;
+  const filtered = visible.filter((r) => {
+    if (typeFilter === 'BUILTIN' && !r.builtin) return false;
+    if (typeFilter === 'CUSTOM' && r.builtin) return false;
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return r.name.toLowerCase().includes(q)
+        || (r.description ?? '').toLowerCase().includes(q);
+  });
 
   return (
     <div className="ea-screen" data-test="cap-roles">
+      <AccessSubNav active="roles" />
       <SyncStatusBar
         tone={customCount > 0 ? 'info' : 'muted'}
-        title="Roles &amp; permissions"
+        title="Roles catalogue"
         statusLabel={`${visible.length} role${visible.length === 1 ? '' : 's'} · ${customCount} custom · ${assignedCount} grant${assignedCount === 1 ? '' : 's'}`}
         subtitle="Dynamic role catalogue.  Each role bundles authorities drawn from the DER authority catalogue.  Built-in roles cannot be renamed or deleted; their authority lists are still editable."
         actions={
           <>
-            <button type="button"
-                    className="ea-btn ea-btn--primary ea-btn--sm"
-                    data-test="cap-roles-new"
-                    onClick={() => { setSaveMsg(null); setErr(null); setSelection({ kind: 'create' }); }}>
+            <Link to="/access/roles/new"
+                  className="ea-btn ea-btn--primary ea-btn--sm"
+                  data-cross-module="Access"
+                  data-test="cap-roles-new">
               <UiIcon icon="plus" size={14} />
               <span>New role</span>
-            </button>
+            </Link>
+            <Link to="/access/authorities"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Access"
+                  data-test="cap-roles-open-authorities">
+              <UiIcon icon="activity" size={14} />
+              <span>Browse authorities</span>
+            </Link>
             <Link to="/provisioning/users"
-                   className="ea-btn ea-btn--ghost ea-btn--sm"
-                   data-cross-module="Access"
-                   data-test="cap-roles-open-users">
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Access"
+                  data-test="cap-roles-open-users">
               <UiIcon icon="edit" size={14} />
               <span>Manage users</span>
             </Link>
@@ -2938,126 +2961,474 @@ export function CapRoles(): JSX.Element {
              role="alert">{err}</div>
       )}
 
-      {visible.length === 0 ? (
-        <Panel title="Roles">
-          <EmptyBlock title="No roles" testId="cap-roles-empty">
-            Create the first role to assign to users.
+      <Panel
+        title="Roles"
+        action={
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="search"
+                   aria-label="Filter roles by name"
+                   data-test="cap-roles-search"
+                   placeholder="Search…"
+                   value={search}
+                   onChange={(e) => setSearch(e.target.value)}
+                   className="ea-input"
+                   style={{ width: 180 }} />
+            <select aria-label="Filter roles by type"
+                    data-test="cap-roles-filter"
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+                    className="ea-input"
+                    style={{ width: 130 }}>
+              <option value="ALL">All types</option>
+              <option value="BUILTIN">Built-in</option>
+              <option value="CUSTOM">Custom</option>
+            </select>
+          </div>
+        }>
+        {filtered.length === 0 ? (
+          <EmptyBlock title={visible.length === 0 ? 'No roles' : 'No roles match the filter'}
+                      testId="cap-roles-empty">
+            {visible.length === 0
+              ? 'Create the first role to assign to users.'
+              : 'Clear the search or type filter to see the full list.'}
           </EmptyBlock>
-        </Panel>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '280px minmax(0, 1fr)',
-                      gap: 16, alignItems: 'start' }}
-             data-test="cap-roles-split">
-          {/* --- Left: role list ------------------------------------------- */}
-          <Panel title="Roles">
-            <nav role="tablist"
-                 aria-label="Role list"
-                 data-test="cap-roles-list"
-                 style={{ display: 'block', margin: '-10px -14px -10px' }}>
-              {visible.map((r) => {
-                const active = selection.kind === 'edit' && selection.roleId === r.roleId;
-                return (
-                  <button key={r.roleId}
-                          type="button"
-                          role="tab"
-                          aria-selected={active}
-                          data-test={`cap-roles-row-${r.roleId}`}
-                          onClick={() => { setSaveMsg(null); setErr(null); setSelection({ kind: 'edit', roleId: r.roleId }); }}
-                          className={'ea-role-list-item' + (active ? ' ea-role-list-item--active' : '')}
-                          style={{
-                            display: 'block', width: '100%', textAlign: 'left',
-                            padding: '10px 12px',
-                            background: active ? 'var(--der-surface-highlight, #eef3fb)' : 'white',
-                            border: 'none',
-                            borderLeft: active ? '3px solid var(--der-accent, #2563eb)' : '3px solid transparent',
-                            borderBottom: '1px solid var(--der-border-subtle)',
-                            cursor: 'pointer',
-                          }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6,
-                                   marginBottom: 2 }}>
-                      <span style={{ fontWeight: 600, color: 'var(--der-ink-900)' }}>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table" data-test="cap-roles-table">
+              <thead><tr>
+                <th>Role</th>
+                <th style={{ width: 110 }}>Type</th>
+                <th style={{ width: 120, textAlign: 'right' }}>Authorities</th>
+                <th style={{ width: 90, textAlign: 'right' }}>Users</th>
+                <th style={{ width: 160 }}>Updated</th>
+                <th style={{ width: 40 }} aria-label="actions"></th>
+              </tr></thead>
+              <tbody>
+                {filtered.map((r) => (
+                  <tr key={r.roleId} data-test={`cap-roles-row-${r.roleId}`}>
+                    <td>
+                      <Link to={`/access/roles/${encodeURIComponent(r.roleId)}`}
+                             data-test={`cap-roles-link-${r.roleId}`}
+                             style={{ fontWeight: 600, color: 'var(--der-ink-900)',
+                                      textDecoration: 'none' }}>
                         {r.name}
-                      </span>
-                      <span style={{ marginLeft: 'auto' }}
-                            data-test={`cap-roles-type-${r.roleId}`}>
-                        {r.builtin
-                          ? <Status tone="info">Built-in</Status>
-                          : <Status tone="success">Custom</Status>}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--der-ink-500)' }}>
-                      <span data-test={`cap-roles-userct-${r.roleId}`}>
-                        {r.userCount} user{r.userCount === 1 ? '' : 's'}
-                      </span>
-                      <span style={{ margin: '0 6px' }}>·</span>
-                      <span data-test={`cap-roles-auth-${r.roleId}`}>
-                        {r.authorities.length} authorit{r.authorities.length === 1 ? 'y' : 'ies'}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </nav>
-          </Panel>
+                      </Link>
+                      {r.description && (
+                        <div className="ea-text-muted" style={{ fontSize: 12 }}>
+                          {r.description}
+                        </div>
+                      )}
+                    </td>
+                    <td data-test={`cap-roles-type-${r.roleId}`}>
+                      {r.builtin
+                        ? <Status tone="info">Built-in</Status>
+                        : <Status tone="success">Custom</Status>}
+                    </td>
+                    <td style={{ textAlign: 'right' }}
+                        data-test={`cap-roles-auth-${r.roleId}`}>
+                      {r.authorities.length}
+                    </td>
+                    <td style={{ textAlign: 'right' }}
+                        data-test={`cap-roles-userct-${r.roleId}`}>
+                      {r.userCount}
+                    </td>
+                    <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                      {r.updatedAt.replace('T', ' ').slice(0, 16)}
+                    </td>
+                    <td>
+                      <RowMenu items={[
+                        { label: 'Edit',
+                          to: `/access/roles/${encodeURIComponent(r.roleId)}` },
+                        { label: 'Duplicate',
+                          to: `/access/roles/new?copyFrom=${encodeURIComponent(r.roleId)}`,
+                          disabled: r.authorities.length === 0 },
+                        { label: 'View users with this role',
+                          to: `/provisioning/users?role=${encodeURIComponent(r.builtinKey ?? r.name)}` },
+                        { label: 'Delete',
+                          danger: true,
+                          disabled: r.builtin,
+                          onSelect: r.builtin ? undefined : () => {
+                            confirmThenRun(
+                              r.userCount > 0
+                                ? `Delete role '${r.name}' — ${r.userCount} user${r.userCount === 1 ? '' : 's'} will lose the mapped authorities.`
+                                : `Delete role '${r.name}'.`,
+                              () => {
+                                edgeApi.deleteRole(r.roleId).then(() => {
+                                  setSaveMsg(`Deleted role '${r.name}'.`);
+                                  refresh();
+                                }).catch((e: unknown) => {
+                                  setErr(e instanceof Error ? e.message : String(e));
+                                });
+                              });
+                          },
+                        },
+                      ]} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
 
-          {/* --- Right: detail / editor ----------------------------------- */}
-          {selection.kind === 'none' && (
-            <Panel title="Role details">
-              <EmptyBlock title="Nothing selected" testId="cap-roles-empty-detail">
-                Pick a role from the list on the left, or hit <strong>New role</strong>
-                 to start a custom role.
-              </EmptyBlock>
-            </Panel>
-          )}
-          {(selection.kind === 'create' || (selection.kind === 'edit' && selectedRole)) && (
-            <RoleEditor
-              key={selection.kind === 'edit' ? selection.roleId : 'create'}
-              existing={selection.kind === 'edit' ? selectedRole : null}
-              catalog={catalog}
-              authoritiesByModule={authoritiesByModule}
-              onSaved={(msg, savedRoleId) => {
-                setSaveMsg(msg);
-                refresh({ kind: 'edit', roleId: savedRoleId });
-              }}
-              onDeleted={(msg) => {
-                setSaveMsg(msg);
-                refresh();
-              }}
-              onError={(m) => setErr(m)}
-              onCancelCreate={() => {
-                if (selection.kind === 'create') setSelection({ kind: 'none' });
-              }}
-            />
-          )}
-        </div>
+/** `/access/roles/:roleId` + `/access/roles/new` — routed detail page
+ *  used for both create and edit.  Supports `?copyFrom=<roleId>` on the
+ *  create path to preselect authorities from an existing role. */
+export function RoleEditorPage(): JSX.Element {
+  const params = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const paramRoleId = params.roleId ?? '';
+  const isCreate = paramRoleId === '' || paramRoleId === 'new';
+  const copyFromId = searchParams.get('copyFrom');
+
+  const [roles, setRoles] = useState<edgeApi.EdgeRoleDefinition[] | null>(null);
+  const [catalog, setCatalog] = useState<edgeApi.EdgeAuthorityEntry[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([edgeApi.listRoles(), edgeApi.listAuthorityCatalog()])
+      .then(([r, c]) => { setRoles(r); setCatalog(c); })
+      .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
+  }, []);
+
+  if (err && !roles) {
+    return <ErrorBlock title="Role editor failed to load"
+                        testId="err-role-editor">{err}</ErrorBlock>;
+  }
+  if (roles == null || catalog == null) {
+    return <LoadingBlock testId="loading-role-editor" />;
+  }
+
+  const existing = isCreate
+    ? null
+    : (roles.find((r) => r.roleId === paramRoleId) ?? null);
+  if (!isCreate && !existing) {
+    return <ErrorBlock title="Role not found"
+                        testId="err-role-not-found">
+             <span>No role with id <code>{paramRoleId}</code>.</span>
+             &nbsp;<Link to="/access/roles"
+                         data-cross-module="Access">Back to roles</Link>.
+           </ErrorBlock>;
+  }
+
+  const seed = isCreate
+    ? (copyFromId ? roles.find((r) => r.roleId === copyFromId) ?? null : null)
+    : existing;
+  const seedAuthorities = seed?.authorities ?? [];
+  const copiedName = isCreate && copyFromId && seed
+    ? `${seed.name} (copy)`
+    : '';
+
+  const authoritiesByModule = new Map<string, edgeApi.EdgeAuthorityEntry[]>();
+  for (const a of catalog) {
+    const list = authoritiesByModule.get(a.module) ?? [];
+    list.push(a);
+    authoritiesByModule.set(a.module, list);
+  }
+
+  return (
+    <div className="ea-screen" data-test="role-editor-page">
+      <AccessSubNav active="roles" />
+      <SyncStatusBar
+        tone="info"
+        title={existing ? `Edit role: ${existing.name}` : 'New role'}
+        statusLabel={existing
+          ? (existing.builtin ? 'Built-in role' : `Custom role · ${existing.userCount} user${existing.userCount === 1 ? '' : 's'}`)
+          : 'Draft'}
+        subtitle={existing
+          ? 'Edit this role’s description + authority grants.  Built-in roles keep their name.'
+          : 'Create a role bundling a subset of the authority catalogue.'}
+        actions={
+          <Link to="/access/roles"
+                className="ea-btn ea-btn--ghost ea-btn--sm"
+                data-cross-module="Access"
+                data-test="role-editor-back">
+            ← Back to roles
+          </Link>
+        }
+      />
+      <RoleEditor
+        key={paramRoleId || 'new'}
+        existing={existing}
+        catalog={catalog}
+        authoritiesByModule={authoritiesByModule}
+        seedName={copiedName}
+        seedAuthorities={seedAuthorities}
+        onSaved={(_msg, savedRoleId) => navigate(`/access/roles/${encodeURIComponent(savedRoleId)}`)}
+        onDeleted={() => navigate('/access/roles')}
+        onError={(m) => setErr(m)}
+        onCancelCreate={() => navigate('/access/roles')}
+      />
+      {err && roles && (
+        <div className="ea-callout ea-callout--danger"
+             data-test="role-editor-err"
+             role="alert">{err}</div>
       )}
+    </div>
+  );
+}
 
-      <Panel title="Authority catalogue"
-             action={
-               <span className="ea-text-muted" style={{ fontSize: 12 }}>
-                 {catalog.length} authorities · grouped by module
-               </span>
-             }>
-        <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
-                 data-test="cap-roles-catalog">
-            <thead><tr>
-              <th style={{ width: 120 }}>Module</th>
-              <th style={{ width: 240 }}>Authority</th>
-              <th>Description</th>
-            </tr></thead>
-            <tbody>
-              {catalog.map((a) => (
-                <tr key={a.authority}
-                    data-test={`cap-roles-cat-${a.authority}`}>
-                  <td>{a.module}</td>
-                  <td><code>{a.authority}</code></td>
-                  <td>{a.description}</td>
-                </tr>
+/** `/access/authorities` — the authority catalogue as a first-class
+ *  list screen.  Each row carries a context menu with "view roles
+ *  granting it" (→ detail page) and "copy authority string". */
+export function CapAuthorities(): JSX.Element {
+  const [catalog, setCatalog] = useState<edgeApi.EdgeAuthorityEntry[] | null>(null);
+  const [roles, setRoles] = useState<edgeApi.EdgeRoleDefinition[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [search, setSearch] = useState<string>('');
+  const [moduleFilter, setModuleFilter] = useState<string>('ALL');
+  const [copyMsg, setCopyMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([edgeApi.listAuthorityCatalog(), edgeApi.listRoles()])
+      .then(([c, r]) => { setCatalog(c); setRoles(r); })
+      .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
+  }, []);
+
+  if (err && !catalog) {
+    return <ErrorBlock title="Authority catalogue load failed"
+                        testId="err-authorities-load-failed">{err}</ErrorBlock>;
+  }
+  if (catalog == null || roles == null) {
+    return <LoadingBlock testId="loading-authorities" />;
+  }
+
+  // Count how many visible roles hold each authority (SYNC_WORKER excluded).
+  const visibleRoles = roles.filter((r) => r.builtinKey !== 'SYNC_WORKER');
+  const rolesByAuthority = new Map<string, edgeApi.EdgeRoleDefinition[]>();
+  for (const r of visibleRoles) {
+    for (const a of r.authorities) {
+      const list = rolesByAuthority.get(a) ?? [];
+      list.push(r);
+      rolesByAuthority.set(a, list);
+    }
+  }
+
+  const modules = Array.from(new Set(catalog.map((a) => a.module)));
+  const filtered = catalog.filter((a) => {
+    if (moduleFilter !== 'ALL' && a.module !== moduleFilter) return false;
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return a.authority.toLowerCase().includes(q)
+        || a.description.toLowerCase().includes(q);
+  });
+
+  const copyToClipboard = (s: string): void => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(s).then(() => {
+        setCopyMsg(`Copied '${s}' to clipboard.`);
+      }).catch(() => setCopyMsg(`Copy failed.`));
+    }
+  };
+
+  return (
+    <div className="ea-screen" data-test="cap-authorities">
+      <AccessSubNav active="authorities" />
+      <SyncStatusBar
+        tone="info"
+        title="Authority catalogue"
+        statusLabel={`${catalog.length} authorit${catalog.length === 1 ? 'y' : 'ies'} · ${modules.length} module${modules.length === 1 ? '' : 's'}`}
+        subtitle="Every capability DER's admin surface recognises.  Each authority is a der.module.verb string that path gates in SecurityConfig check.  Roles bundle authorities; users inherit via role grants."
+        actions={
+          <Link to="/access/roles"
+                className="ea-btn ea-btn--ghost ea-btn--sm"
+                data-cross-module="Access"
+                data-test="cap-authorities-open-roles">
+            <UiIcon icon="activity" size={14} />
+            <span>Roles catalogue</span>
+          </Link>
+        }
+      />
+      {copyMsg && (
+        <div className="ea-callout ea-callout--success"
+             data-test="cap-authorities-copy-msg"
+             role="status">{copyMsg}</div>
+      )}
+      <Panel
+        title="Authorities"
+        action={
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="search"
+                   aria-label="Filter authorities"
+                   data-test="cap-authorities-search"
+                   placeholder="Search…"
+                   value={search}
+                   onChange={(e) => setSearch(e.target.value)}
+                   className="ea-input"
+                   style={{ width: 180 }} />
+            <select aria-label="Filter authorities by module"
+                    data-test="cap-authorities-filter"
+                    value={moduleFilter}
+                    onChange={(e) => setModuleFilter(e.target.value)}
+                    className="ea-input"
+                    style={{ width: 160 }}>
+              <option value="ALL">All modules</option>
+              {modules.map((m) => (
+                <option key={m} value={m}>{m}</option>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </select>
+          </div>
+        }>
+        {filtered.length === 0 ? (
+          <EmptyBlock title="No authorities match the filter"
+                      testId="cap-authorities-empty">
+            Clear the search or module filter to see the full list.
+          </EmptyBlock>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table" data-test="cap-authorities-table">
+              <thead><tr>
+                <th style={{ width: 110 }}>Module</th>
+                <th style={{ width: 260 }}>Authority</th>
+                <th>Description</th>
+                <th style={{ width: 90, textAlign: 'right' }}>Roles</th>
+                <th style={{ width: 40 }} aria-label="actions"></th>
+              </tr></thead>
+              <tbody>
+                {filtered.map((a) => {
+                  const holding = rolesByAuthority.get(a.authority) ?? [];
+                  return (
+                    <tr key={a.authority}
+                        data-test={`cap-authorities-row-${a.authority}`}>
+                      <td>{a.module}</td>
+                      <td>
+                        <Link to={`/access/authorities/${encodeURIComponent(a.authority)}`}
+                               data-test={`cap-authorities-link-${a.authority}`}
+                               style={{ color: 'var(--der-ink-900)', textDecoration: 'none' }}>
+                          <code>{a.authority}</code>
+                        </Link>
+                      </td>
+                      <td>{a.description}</td>
+                      <td style={{ textAlign: 'right' }}
+                          data-test={`cap-authorities-roles-${a.authority}`}>
+                        {holding.length}
+                      </td>
+                      <td>
+                        <RowMenu items={[
+                          { label: 'View roles granting it',
+                            to: `/access/authorities/${encodeURIComponent(a.authority)}` },
+                          { label: 'Copy authority string',
+                            onSelect: () => copyToClipboard(a.authority) },
+                        ]} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+/** `/access/authorities/:authority` — detail page for a single authority:
+ *  which roles grant it, and from there which users effectively hold it. */
+export function AuthorityDetailPage(): JSX.Element {
+  const params = useParams();
+  const authority = decodeURIComponent(params.authority ?? '');
+  const [catalog, setCatalog] = useState<edgeApi.EdgeAuthorityEntry[] | null>(null);
+  const [roles, setRoles] = useState<edgeApi.EdgeRoleDefinition[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([edgeApi.listAuthorityCatalog(), edgeApi.listRoles()])
+      .then(([c, r]) => { setCatalog(c); setRoles(r); })
+      .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
+  }, []);
+
+  if (err && !catalog) {
+    return <ErrorBlock title="Authority detail load failed"
+                        testId="err-authority-detail">{err}</ErrorBlock>;
+  }
+  if (catalog == null || roles == null) {
+    return <LoadingBlock testId="loading-authority-detail" />;
+  }
+
+  const entry = catalog.find((a) => a.authority === authority) ?? null;
+  if (!entry) {
+    return <ErrorBlock title="Authority not found"
+                        testId="err-authority-not-found">
+             <span>No authority named <code>{authority}</code>.</span>
+             &nbsp;<Link to="/access/authorities"
+                         data-cross-module="Access">Back to authorities</Link>.
+           </ErrorBlock>;
+  }
+
+  const holding = roles.filter(
+    (r) => r.builtinKey !== 'SYNC_WORKER' && r.authorities.includes(authority),
+  );
+
+  return (
+    <div className="ea-screen" data-test="authority-detail">
+      <AccessSubNav active="authorities" />
+      <SyncStatusBar
+        tone="info"
+        title={authority}
+        statusLabel={`${entry.module} · ${holding.length} role${holding.length === 1 ? '' : 's'}`}
+        subtitle={entry.description}
+        actions={
+          <Link to="/access/authorities"
+                className="ea-btn ea-btn--ghost ea-btn--sm"
+                data-cross-module="Access"
+                data-test="authority-detail-back">
+            ← Back to authorities
+          </Link>
+        }
+      />
+      <Panel title="Roles granting this authority">
+        {holding.length === 0 ? (
+          <EmptyBlock title="No role grants this authority"
+                      testId="authority-detail-empty">
+            Edit a role on the Roles catalogue to grant it.
+          </EmptyBlock>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table" data-test="authority-detail-roles">
+              <thead><tr>
+                <th>Role</th>
+                <th style={{ width: 110 }}>Type</th>
+                <th style={{ width: 120, textAlign: 'right' }}>Authorities</th>
+                <th style={{ width: 90, textAlign: 'right' }}>Users</th>
+                <th style={{ width: 40 }} aria-label="actions"></th>
+              </tr></thead>
+              <tbody>
+                {holding.map((r) => (
+                  <tr key={r.roleId} data-test={`authority-detail-role-${r.roleId}`}>
+                    <td>
+                      <Link to={`/access/roles/${encodeURIComponent(r.roleId)}`}
+                             data-cross-module="Access"
+                             style={{ fontWeight: 600,
+                                      color: 'var(--der-ink-900)',
+                                      textDecoration: 'none' }}>
+                        {r.name}
+                      </Link>
+                    </td>
+                    <td>{r.builtin
+                          ? <Status tone="info">Built-in</Status>
+                          : <Status tone="success">Custom</Status>}</td>
+                    <td style={{ textAlign: 'right' }}>{r.authorities.length}</td>
+                    <td style={{ textAlign: 'right' }}>{r.userCount}</td>
+                    <td>
+                      <RowMenu items={[
+                        { label: 'Open role',
+                          to: `/access/roles/${encodeURIComponent(r.roleId)}` },
+                        { label: 'View users with this role',
+                          to: `/provisioning/users?role=${encodeURIComponent(r.builtinKey ?? r.name)}` },
+                      ]} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Panel>
     </div>
   );
@@ -3067,6 +3438,8 @@ interface RoleEditorProps {
   existing: edgeApi.EdgeRoleDefinition | null;
   catalog: edgeApi.EdgeAuthorityEntry[];
   authoritiesByModule: Map<string, edgeApi.EdgeAuthorityEntry[]>;
+  seedName?: string;
+  seedAuthorities?: ReadonlyArray<string>;
   onSaved: (msg: string, roleId: string) => void;
   onDeleted: (msg: string) => void;
   onError: (msg: string) => void;
@@ -3077,10 +3450,12 @@ function RoleEditor(props: RoleEditorProps): JSX.Element {
   const isEdit = props.existing !== null;
   const nameLocked = isEdit && (props.existing?.builtin ?? false);
 
-  const [name, setName] = useState<string>(props.existing?.name ?? '');
+  const [name, setName] = useState<string>(
+    props.existing?.name ?? props.seedName ?? '',
+  );
   const [description, setDescription] = useState<string>(props.existing?.description ?? '');
   const [selected, setSelected] = useState<Set<string>>(
-    new Set(props.existing?.authorities ?? []),
+    new Set(props.existing?.authorities ?? props.seedAuthorities ?? []),
   );
   const [saving, setSaving] = useState(false);
 
