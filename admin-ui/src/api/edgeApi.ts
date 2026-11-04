@@ -1306,6 +1306,29 @@ export function clearUserDhis2Mapping(
     `/edge-api/v1/admin/users/${encodeURIComponent(edgeUserId)}/dhis2-mapping`);
 }
 
+/** DHIS2 Central user picker — proxies /api/users with match-anywhere
+ *  query + a compact field selector.  Operators type into the mapping
+ *  form's search box; results feed the typeahead dropdown. */
+export interface EdgeDhis2UserCandidate {
+  id: string | null;
+  username: string | null;
+  displayName: string | null;
+  disabled: boolean;
+}
+
+export function searchDhis2UserCandidates(q: string, pageSize?: number): Promise<{
+  candidates: EdgeDhis2UserCandidate[];
+  query: string;
+}> {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (pageSize) params.set('pageSize', String(pageSize));
+  const qs = params.toString();
+  return request('GET',
+    '/edge-api/v1/admin/users/dhis2-candidates'
+    + (qs ? `?${qs}` : ''));
+}
+
 /** Dynamic role catalogue (V086 + RoleManagementController).  Admin-only. */
 export interface EdgeRoleDefinition {
   roleId: string;

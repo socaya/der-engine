@@ -275,4 +275,80 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
       expect(screen.getByTestId('err-user-mapping-not-found'))
         .toBeInTheDocument());
   });
+
+  it('mapped-user Panel action surfaces a direct Edit button', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
+      { edgeUserId: 'u-1', dhis2UserUid: 'ALICE', dhis2Username: 'alice.c',
+        dhis2DisplayName: 'Alice Central', mappedAt: 'now', mappedBy: 'admin',
+        lastVerifiedAt: null },
+    ]);
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    await waitFor(() =>
+      expect(screen.getByTestId('user-dhis2-mapping-edit-panel'))
+        .toBeInTheDocument());
+    const user = userEvent.setup();
+    /* Clicking Edit on the Panel header opens the form. */
+    await user.click(screen.getByTestId('user-dhis2-mapping-edit-panel'));
+    await waitFor(() =>
+      expect(screen.getByTestId('user-dhis2-mapping-form')).toBeInTheDocument());
+    /* uid + username pre-fill from the existing mapping. */
+    expect((screen.getByTestId('user-dhis2-mapping-input-uid') as HTMLInputElement).value)
+      .toBe('ALICE');
+  });
+
+  it('DHIS2 picker surfaces search results and a click fills the form', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1', username: 'local.alice' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    const candidateSearch = vi.spyOn(edgeApi, 'searchDhis2UserCandidates')
+      .mockResolvedValue({
+        query: '',
+        candidates: [
+          { id: 'A1B2C3D4E5F', username: 'alice.c',
+            displayName: 'Alice Central', disabled: false },
+          { id: 'Z9yT5w1Z9Kq', username: 'bob.c',
+            displayName: 'Bob Central', disabled: true },
+        ],
+      });
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('user-dhis2-mapping-edit'));
+    /* Picker is rendered; initial empty-query call fires. */
+    await waitFor(() => expect(candidateSearch).toHaveBeenCalled());
+    const row = await screen.findByTestId('user-dhis2-mapping-pick-A1B2C3D4E5F');
+    expect(row).toHaveTextContent('Alice Central');
+    /* The disabled Bob Central row carries a Status chip. */
+    expect(screen.getByTestId('user-dhis2-mapping-pick-Z9yT5w1Z9Kq'))
+      .toHaveTextContent('Disabled');
+    await user.click(row);
+    expect((screen.getByTestId('user-dhis2-mapping-input-uid') as HTMLInputElement).value)
+      .toBe('A1B2C3D4E5F');
+    expect((screen.getByTestId('user-dhis2-mapping-input-username') as HTMLInputElement).value)
+      .toBe('alice.c');
+    expect((screen.getByTestId('user-dhis2-mapping-input-display-name') as HTMLInputElement).value)
+      .toBe('Alice Central');
+  });
+
+  it('picker search failure surfaces a callout but keeps the inputs editable', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'searchDhis2UserCandidates')
+      .mockRejectedValue(new Error('503 DHIS2 unreachable'));
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('user-dhis2-mapping-edit'));
+    await waitFor(() =>
+      expect(screen.getByTestId('user-dhis2-mapping-search-err'))
+        .toBeInTheDocument());
+    /* Operator can still type uid manually. */
+    await user.type(screen.getByTestId('user-dhis2-mapping-input-uid'), 'MANUALUID12');
+    expect((screen.getByTestId('user-dhis2-mapping-input-uid') as HTMLInputElement).value)
+      .toBe('MANUALUID12');
+  });
 });

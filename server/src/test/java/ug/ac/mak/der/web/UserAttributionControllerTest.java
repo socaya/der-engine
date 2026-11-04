@@ -30,6 +30,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import ug.ac.mak.der.attribution.EdgeUserDhis2Mapping;
 import ug.ac.mak.der.attribution.EdgeUserDhis2MappingRepository;
+import ug.ac.mak.der.dhis2.Dhis2ReferenceClient;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeSession;
@@ -46,6 +47,7 @@ class UserAttributionControllerTest {
     @MockBean EdgeUserDhis2MappingRepository repo;
     @MockBean SecurityAuditRepository audit;
     @MockBean Clock clock;
+    @MockBean Dhis2ReferenceClient dhis2;
 
     @org.junit.jupiter.api.BeforeEach
     void stubClock() {
@@ -163,5 +165,60 @@ class UserAttributionControllerTest {
         final UserAttributionController.MappingRequest r =
                 new UserAttributionController.MappingRequest(null, null, null);
         org.junit.jupiter.api.Assertions.assertNull(r.dhis2UserUid());
+    }
+
+    @Test
+    void candidatesHappyPath() throws Exception {
+        final com.fasterxml.jackson.databind.ObjectMapper om =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+        final com.fasterxml.jackson.databind.JsonNode body = om.readTree(
+                "{\"users\":["
+                        + "{\"id\":\"A1B2C3D4E5F\",\"username\":\"alice.c\","
+                        + "\"displayName\":\"Alice Central\",\"disabled\":false},"
+                        + "{\"id\":\"Z9yT5w1Z9Kq\",\"username\":\"der-admin-c\","
+                        + "\"displayName\":\"DER Admin (Central)\",\"disabled\":true}"
+                        + "]}");
+        when(dhis2.fetchJson(any(String.class))).thenReturn(body);
+        mockMvc.perform(get("/edge-api/v1/admin/users/dhis2-candidates")
+                        .param("q", "alice").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.query").value("alice"))
+                .andExpect(jsonPath("$.candidates[0].id").value("A1B2C3D4E5F"))
+                .andExpect(jsonPath("$.candidates[0].username").value("alice.c"))
+                .andExpect(jsonPath("$.candidates[0].disabled").value(false))
+                .andExpect(jsonPath("$.candidates[1].disabled").value(true));
+    }
+
+    @Test
+    void candidatesEmptyQueryDefaultsToPaged() throws Exception {
+        final com.fasterxml.jackson.databind.ObjectMapper om =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+        when(dhis2.fetchJson(any(String.class))).thenReturn(om.readTree("{\"users\":[]}"));
+        mockMvc.perform(get("/edge-api/v1/admin/users/dhis2-candidates").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.candidates").isArray())
+                .andExpect(jsonPath("$.query").value(""));
+    }
+
+    @Test
+    void candidatesDhis2Unreachable() throws Exception {
+        when(dhis2.fetchJson(any(String.class)))
+                .thenThrow(new Dhis2ReferenceClient.Dhis2UnreachableException(
+                        "central down", new RuntimeException("x")));
+        mockMvc.perform(get("/edge-api/v1/admin/users/dhis2-candidates")
+                        .param("q", "alice").with(as()))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("DHIS2_UNREACHABLE"));
+    }
+
+    @Test
+    void candidatesBadResponse() throws Exception {
+        when(dhis2.fetchJson(any(String.class)))
+                .thenThrow(new Dhis2ReferenceClient.Dhis2ResponseException(
+                        "bad json", new RuntimeException("x")));
+        mockMvc.perform(get("/edge-api/v1/admin/users/dhis2-candidates")
+                        .param("q", "alice").with(as()))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.code").value("DHIS2_RESPONSE_INVALID"));
     }
 }
