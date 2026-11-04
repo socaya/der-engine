@@ -210,6 +210,29 @@ describe('MockupDataQueues', () => {
         .toBeInTheDocument());
   });
 
+  it('?type=AGGREGATE_DATA_VALUE seeds the type-filter dropdown + filters rows', async () => {
+    stubAll();
+    vi.spyOn(edgeApi, 'listJournalOperations').mockResolvedValue([
+      { operationId: 'op-agg', entityType: 'AGGREGATE_DATA_VALUE',
+        entityRef: 'AGG-1', state: 'PENDING', attemptCount: 0,
+        lastError: null, nextHopOrgUnitUid: null,
+        createdAt: '2026-11-01T00:00:00Z', updatedAt: 'now' },
+      { operationId: 'op-ev', entityType: 'EVENT',
+        entityRef: 'EV-1', state: 'PENDING', attemptCount: 0,
+        lastError: null, nextHopOrgUnitUid: null,
+        createdAt: '2026-11-01T00:00:00Z', updatedAt: 'now' },
+    ] as unknown as edgeApi.JournalOperation[]);
+    renderWithProviders(<MockupDataQueues />,
+      { authApi, route: '/admin/data/queue?type=AGGREGATE_DATA_VALUE' });
+    await waitFor(() =>
+      expect(screen.getByTestId('data-row-op-agg')).toBeInTheDocument());
+    /* The EVENT row must be filtered out by the URL seed. */
+    expect(screen.queryByTestId('data-row-op-ev')).toBeNull();
+    /* The type-select reflects the URL seed. */
+    const typeSelect = document.querySelectorAll('select')[0] as HTMLSelectElement;
+    expect(typeSelect.value).toBe('AGGREGATE_DATA_VALUE');
+  });
+
   it('MockupDataDetail — populated op renders the overview + response label', async () => {
     vi.spyOn(edgeApi, 'fetchJournalOperation').mockResolvedValue({
       operationId: 'op-1', entityType: 'DATA_VALUE',

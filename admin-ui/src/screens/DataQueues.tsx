@@ -25,11 +25,23 @@ export function MockupDataQueues(): JSX.Element {
   const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
 
   const [query, setQuery] = useState('');
-  const [filterType, setFilterType] = useState<string>('ALL');
+  // Seed from ?type= so deep-links from the Data overview /admin/data
+  // land already-filtered (R-AT/§2.3.119). Dropdown changes write
+  // back to the URL so the filter state is bookmarkable.
+  const [filterType, setFilterType] = useState<string>(
+    () => searchParams.get('type') ?? 'ALL');
   // §2.3.119 R-AP — queue defaults to Active (not Sent) so operators
   // see outstanding work by default. Switching to Sent surfaces
   // history; ALL shows everything.
   const [filterStatus, setFilterStatus] = useState<string>('ACTIVE');
+
+  function updateFilterType(next: string): void {
+    setFilterType(next);
+    const nextParams = new URLSearchParams(searchParams);
+    if (next === 'ALL') nextParams.delete('type');
+    else nextParams.set('type', next);
+    setSearchParams(nextParams, { replace: true });
+  }
   const [purging, setPurging] = useState(false);
   // §2.3.120 R-AQ — surface the last-cleaned timestamp so operators
   // know when the processed-row history was last pruned (locally or
@@ -219,7 +231,7 @@ export function MockupDataQueues(): JSX.Element {
                         placeholder="Search record or operation ID"
                         value={query} onChange={(e) => setQuery(e.target.value)} />
                  <select className="ea-input" style={{ maxWidth: 160 }} value={filterType}
-                         onChange={(e) => setFilterType(e.target.value)}>
+                         onChange={(e) => updateFilterType(e.target.value)}>
                    <option value="ALL">All data types</option>
                    {types.map((t) => (<option key={t} value={t}>{entityTypeLabel(t)}</option>))}
                  </select>
