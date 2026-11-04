@@ -243,6 +243,66 @@ describe('MockupDataQueues', () => {
     expect(screen.getByText(/operation-not-found/)).toBeInTheDocument();
   });
 
+  it('MockupDataDetail — Payload tab renders JsonViewer panel', async () => {
+    vi.spyOn(edgeApi, 'fetchJournalOperation').mockResolvedValue({
+      operationId: 'op-payload', entityType: 'DATA_VALUE',
+      entityRef: 'VAL-1', state: 'CENTRAL_ACCEPTED',
+      attemptCount: 1, lastError: null,
+      nextHopOrgUnitUid: null,
+      createdAt: '2026-11-01T00:00:00Z',
+      updatedAt: '2026-11-02T00:00:00Z',
+      payload: { dataValues: [{ de: 'DE-1', value: '42' }] },
+    } as unknown as edgeApi.JournalOperation);
+    renderWithProviders(
+      <Routes><Route path="/admin/data/queue/:operationId"
+                      element={<MockupDataDetail />} /></Routes>,
+      { authApi, route: '/admin/data/queue/op-payload' });
+    await waitFor(() =>
+      expect(screen.getByTestId('sync-data-detail')).toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default
+      .setup();
+    /* Click Payload tab. */
+    await user.click(screen.getByRole('tab', { name: /Payload/i }));
+    /* Payload panel header surfaces. */
+    await waitFor(() =>
+      expect(screen.getByText(/Payload JSON/)).toBeInTheDocument());
+  });
+
+  it('MockupDataDetail — raw response toggle (Show full response)', async () => {
+    vi.spyOn(edgeApi, 'fetchJournalOperation').mockResolvedValue({
+      operationId: 'op-parsed', entityType: 'DATA_VALUE',
+      entityRef: 'VAL-1', state: 'CENTRAL_ACCEPTED',
+      attemptCount: 1,
+      lastError: JSON.stringify({
+        message: 'ok',
+        status: 'SUCCESS',
+        httpStatus: 'OK',
+        httpStatusCode: 200,
+        importCount: { imported: 1, updated: 0, ignored: 0, deleted: 0 },
+      }),
+      nextHopOrgUnitUid: null,
+      createdAt: '2026-11-01T00:00:00Z',
+      updatedAt: '2026-11-02T00:00:00Z',
+      payload: {},
+    } as unknown as edgeApi.JournalOperation);
+    renderWithProviders(
+      <Routes><Route path="/admin/data/queue/:operationId"
+                      element={<MockupDataDetail />} /></Routes>,
+      { authApi, route: '/admin/data/queue/op-parsed' });
+    await waitFor(() =>
+      expect(screen.getByTestId('sync-data-detail')).toBeInTheDocument());
+    const user = (await import('@testing-library/user-event')).default
+      .setup();
+    /* Toggle raw response on. */
+    await user.click(screen.getByText('Show full response'));
+    await waitFor(() =>
+      expect(screen.getByText('Hide full response')).toBeInTheDocument());
+    /* Toggle back off. */
+    await user.click(screen.getByText('Hide full response'));
+    await waitFor(() =>
+      expect(screen.getByText('Show full response')).toBeInTheDocument());
+  });
+
   it('MockupDataDetail — error-state op uses "Last error" label', async () => {
     vi.spyOn(edgeApi, 'fetchJournalOperation').mockResolvedValue({
       operationId: 'op-fail', entityType: 'DATA_VALUE',
