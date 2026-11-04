@@ -5,7 +5,8 @@ import { renderWithProviders } from '../test/renderWithProviders';
 import {
   CapSyncHistory, CapDataQueues, CapWorkflowRuns,
   CapStepAssignments, CapReferralHistory, CapMetadataSync,
-  CapProgramRules, CapSyncOverview,
+  CapProgramRules, CapSyncOverview, CapSyncSchedule,
+  CapOrgUnitBinding,
 } from './CapabilityScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -458,5 +459,99 @@ describe('CapSyncOverview (loaded)', () => {
     await waitFor(() =>
       expect(screen.getByTestId('cap-sync-overview')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/250/);
+  });
+});
+
+describe('CapSyncSchedule (loaded)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('populated cron settings render schedule rows + save button', async () => {
+    vi.spyOn(edgeApi, 'readSettings').mockResolvedValue({
+      cron: {
+        'der.sync.metadata.cron': '0 0 * * * ?',
+        'der.sync.drift.cron':    '0 0 1 * * ?',
+      },
+      featureFlags: {},
+      roles: [],
+    } as unknown as edgeApi.SettingsPayload);
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([] as edgeApi.JobRun[]);
+    renderWithProviders(<CapSyncSchedule />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('cap-schedule')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/2 scheduled flow/);
+    expect(body).toMatch(/metadata|Metadata/);
+  });
+
+  it('empty cron settings surface the empty-schedule panel', async () => {
+    vi.spyOn(edgeApi, 'readSettings').mockResolvedValue({
+      cron: {}, featureFlags: {}, roles: [],
+    } as unknown as edgeApi.SettingsPayload);
+    vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([] as edgeApi.JobRun[]);
+    renderWithProviders(<CapSyncSchedule />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('empty-schedule')).toBeInTheDocument());
+  });
+
+  it('readSettings rejection surfaces err-settings-load-failed', async () => {
+    vi.spyOn(edgeApi, 'readSettings').mockRejectedValue(new Error('500'));
+    renderWithProviders(<CapSyncSchedule />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('err-settings-load-failed'))
+        .toBeInTheDocument());
+  });
+});
+
+describe('CapOrgUnitBinding (loaded)', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  function stubFilters(): void {
+    vi.spyOn(edgeApi, 'listOrgUnitGroups').mockResolvedValue({
+      organisationUnitGroups: [],
+    } as never);
+    vi.spyOn(edgeApi, 'listOrgUnitGroupSets').mockResolvedValue({
+      organisationUnitGroupSets: [],
+    } as never);
+    vi.spyOn(edgeApi, 'listOrgUnitLevels').mockResolvedValue({
+      organisationUnitLevels: [
+        { level: 1, displayName: 'Country' },
+        { level: 2, displayName: 'District' },
+      ],
+    } as never);
+    vi.spyOn(edgeApi, 'listOrgUnits').mockResolvedValue({
+      organisationUnits: [],
+    } as never);
+  }
+
+  it('bound binding renders the binding card + breadcrumb path', async () => {
+    stubFilters();
+    vi.spyOn(edgeApi, 'getOrgUnitBinding').mockResolvedValue({
+      bound: true, orgUnitId: 'ou-leaf',
+      orgUnitDisplayName: 'Facility A',
+      orgUnitPath: '/ou-root/ou-district/ou-leaf',
+      boundAt: '2026-11-01T00:00:00Z', boundBy: 'admin',
+    } as unknown as edgeApi.OrgUnitBinding);
+    vi.spyOn(edgeApi, 'getOrganisationUnit').mockImplementation(async (uid: string) =>
+      ({ displayName: `OU ${uid.slice(-4)}` } as never));
+    renderWithProviders(<CapOrgUnitBinding />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('ou-binding-card')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/Facility A/);
+    expect(body).toMatch(/Bound/);
+    expect(body).toMatch(/Level 3/);
+  });
+
+  it('unbound binding surfaces the Not-bound empty-state + rebind form', async () => {
+    stubFilters();
+    vi.spyOn(edgeApi, 'getOrgUnitBinding').mockResolvedValue({
+      bound: false, orgUnitId: null, orgUnitDisplayName: null,
+      orgUnitPath: null, boundAt: null, boundBy: null,
+    } as unknown as edgeApi.OrgUnitBinding);
+    renderWithProviders(<CapOrgUnitBinding />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('ou-rebind-form')).toBeInTheDocument());
   });
 });
