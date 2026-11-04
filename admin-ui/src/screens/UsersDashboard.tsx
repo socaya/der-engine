@@ -170,7 +170,7 @@ export function MockupUsersDashboard(): JSX.Element {
                       <RowMenu items={[
                         { label: 'Open details', to: `/provisioning/users/${u.userId}` },
                         { label: mappings[u.userId] ? 'Edit DHIS2 mapping' : 'Map DHIS2 user',
-                          to: '/access/dhis2-mappings' },
+                          to: `/access/dhis2-mappings?user=${encodeURIComponent(u.userId)}` },
                       ]} />
                     </td>
                   </tr>

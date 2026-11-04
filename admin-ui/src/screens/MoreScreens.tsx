@@ -2097,6 +2097,8 @@ export { fmtBytes };
  *  ADMINs set / clear mappings inline. Every mutation lands a
  *  USER_DHIS2_MAPPING_SET / USER_DHIS2_MAPPING_CLEARED audit event. */
 export function MockupDhis2Mappings(): JSX.Element {
+  const [searchParams] = useSearchParams();
+  const focusUserId = searchParams.get('user');
   const [users, setUsers] = useState<edgeApi.ProvisionedUser[] | null>(null);
   const [mappings, setMappings] = useState<
     Record<string, edgeApi.EdgeUserDhis2Mapping>>({});
@@ -2116,11 +2118,27 @@ export function MockupDhis2Mappings(): JSX.Element {
       const byUser: Record<string, edgeApi.EdgeUserDhis2Mapping> = {};
       for (const row of m) byUser[row.edgeUserId] = row;
       setMappings(byUser);
+      // Deep-link: if ?user=<id> is set, pre-open the edit dialog for
+      // that user (either an existing mapping or a fresh one).
+      if (focusUserId) {
+        const user = u.users.find((x) => x.userId === focusUserId);
+        if (user) {
+          const existing = byUser[focusUserId];
+          setEditDraft({
+            edgeUserId: user.userId,
+            uid: existing?.dhis2UserUid ?? '',
+            username: existing?.dhis2Username ?? user.username,
+            displayName: existing?.dhis2DisplayName
+                           ?? user.displayName ?? '',
+          });
+        }
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
   }
-  useEffect(() => { reload().catch(() => undefined); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { reload().catch(() => undefined); }, [focusUserId]);
 
   async function save(): Promise<void> {
     if (!editDraft) return;

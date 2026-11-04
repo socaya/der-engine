@@ -1288,6 +1288,26 @@ describe('MoreScreens — surface mount test', () => {
       })));
   });
 
+  it('MockupDhis2Mappings — ?user= deep-link pre-opens the dialog for that user', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [
+        { userId: 'u-alice', username: 'alice', displayName: 'Alice', roles: ['ADMIN'] },
+        { userId: 'u-bob', username: 'bob', displayName: 'Bob', roles: ['OPERATOR'] },
+      ],
+    } as unknown as { users: edgeApi.ProvisionedUser[] });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
+      { edgeUserId: 'u-bob', dhis2UserUid: 'BOB123', dhis2Username: 'bob.c',
+        dhis2DisplayName: 'Bob Central', mappedAt: 'now', mappedBy: 'admin',
+        lastVerifiedAt: null },
+    ]);
+    renderWithProviders(<MockupDhis2Mappings />, { authApi, route: '/access/dhis2-mappings?user=u-bob' });
+    /* Dialog opens automatically; username is pre-filled from the existing mapping. */
+    await waitFor(() =>
+      expect(screen.getByTestId('dhis2-mappings-dialog')).toBeInTheDocument());
+    expect(screen.getByTestId('dhis2-mappings-input-username')).toHaveValue('bob.c');
+    expect(screen.getByTestId('dhis2-mappings-input-uid')).toHaveValue('BOB123');
+  });
+
   it('MockupDhis2Mappings — listUsers rejection surfaces err-dhis2-mappings', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockRejectedValue(new Error('403 forbidden'));
     vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
