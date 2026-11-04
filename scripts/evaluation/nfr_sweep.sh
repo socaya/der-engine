@@ -105,4 +105,18 @@ cat > "${OUT_DIR}/manifest.json" <<EOF
 EOF
 
 echo "nfr-sweep: evidence bundled under ${OUT_DIR}"
+
+# FR-17-09 — export the experiment bundle (config + inputs + outputs +
+# failures + manifest) into a reviewer-friendly subdir. Never fails
+# the sweep itself — a missing artefact degrades the bundle but
+# shouldn't mask an upstream budget failure.
+python3 "${ROOT}/scripts/evaluation/export_experiment.py" \
+    --sweep-dir "${OUT_DIR}" \
+    --out "${OUT_DIR}/experiment" \
+    --commit "${COMMIT}" \
+    --base-url "${DER_BASE_URL}" \
+    --duration-seconds "${DUR}" \
+    --concurrency "1,5,10,20" || \
+    echo "nfr-sweep: experiment export failed (non-fatal)"
+
 exit "${BUDGET_RC}"

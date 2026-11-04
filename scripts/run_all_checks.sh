@@ -169,6 +169,12 @@ run_step "der-bench-tests" \
 run_step "bench-budget-comparator" \
     python3 scripts/evaluation/test_check_bench_budget.py
 
+# FR-17-09 — experiment-export aggregation tests. Pure-function
+# coverage + an end-to-end bundle layout check (tempdir). The live
+# export runs inside nfr_sweep.sh at the end of each campaign.
+run_step "experiment-export-tests" \
+    python3 scripts/evaluation/test_export_experiment.py
+
 # Collect server coverage report into the evidence bundle.
 if [[ -d server/target/site/jacoco ]]; then
   cp -R server/target/site/jacoco "${COV_DIR}/server/jacoco"

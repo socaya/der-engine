@@ -443,7 +443,7 @@ All **🟡 PARTIAL** — ADR-0017 Phase 10 hardening (TLS enforce, PII mask, bac
 | FR-17-06 | Confirm journal survives restarts | P0 | 🧱 SCAFFOLD | — |
 | FR-17-07 | Compare central + local post-recovery | P0 | 🧱 SCAFFOLD | — |
 | FR-17-08 | Capture CPU/RAM/disk/latency/throughput | P1 | ✅ DONE | `scripts/evaluation/resource_sampler.py` extended: `probe_latency()` (GET /system/health round-trip), `probe_metrics()` (parsed /admin/metrics), per-interval throughput (CENTRAL_ACCEPTED deltas / Δt with regression-clamp + missing-counter resilience), `summarize()` with p50/p95/p99 for CPU/RSS/latency plus mean/peak throughput and total disk growth. 15 unit tests (`test_resource_sampler.py`) cover percentile + throughput + summarize, wired as `resource-sampler-tests` gate step. |
-| FR-17-09 | Export experiment config + inputs + outputs | P1 | ❌ PENDING | — (alpha.3 target) |
+| FR-17-09 | Export experiment config + inputs + outputs | P1 | ✅ DONE | New `scripts/evaluation/export_experiment.py` reads every nfr_sweep.sh artefact + the budget pins and writes a reviewer-friendly bundle under `experiment-<ts>-<commit>/` with four pieces: `config.json` (commit/baseUrl/duration/concurrency/hardware/inputsSummary), `failures.json` (aggregated resourceBudget + benchBudget + bench error rows + backup-integrity divergence with `anyFailure` flag), `inputs/` (budget pins copied verbatim), `outputs/` (every raw artefact), `manifest.json` (SHA-256 per file). Wired into `nfr_sweep.sh` as a non-fatal post-step. 9 unit tests cover pure aggregators + end-to-end bundle layout. Gate step `experiment-export-tests`. |
 | FR-17-10 | Regression suite for all supported workflows | P1 | ❌ PENDING | — (alpha.3 target) |
 
 ---
