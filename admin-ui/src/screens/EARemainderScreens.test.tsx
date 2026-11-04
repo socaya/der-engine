@@ -16,6 +16,8 @@ describe('EA-19 RecoveryTools', () => {
       drift: vi.fn().mockResolvedValue({}),
       listConflicts: vi.fn().mockResolvedValue([]),
     };
+    // The metadata resync is gated by confirmThenRun (destructive op).
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderWithProviders(<EARecoveryTools api={api as never} />);
     await userEvent.click(screen.getByTestId('ea19-metadata-resync'));
     await waitFor(() => expect(screen.getByTestId('ea19-metadata-status'))
@@ -33,9 +35,37 @@ describe('EA-19 RecoveryTools', () => {
       drift: vi.fn(),
       listConflicts: vi.fn(),
     };
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderWithProviders(<EARecoveryTools api={api as never} />);
     await userEvent.click(screen.getByTestId('ea19-metadata-resync'));
     await waitFor(() => expect(screen.getByTestId('ea19-error')).toBeInTheDocument());
+    /* Status chip flips to Error tone. */
+    expect(screen.getByTestId('ea19-metadata-status-chip')).toHaveTextContent('Error');
+  });
+
+  it('metadata-resync confirm declined is a no-op', async () => {
+    const api = {
+      triggerJob: vi.fn(),
+      drift: vi.fn(),
+      listConflicts: vi.fn(),
+    };
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderWithProviders(<EARecoveryTools api={api as never} />);
+    await userEvent.click(screen.getByTestId('ea19-metadata-resync'));
+    expect(api.triggerJob).not.toHaveBeenCalled();
+    expect(screen.getByTestId('ea19-metadata-status-chip')).toHaveTextContent('Idle');
+  });
+
+  it('drift run populates a last-run timestamp', async () => {
+    const api = {
+      triggerJob: vi.fn(),
+      drift: vi.fn().mockResolvedValue({}),
+      listConflicts: vi.fn(),
+    };
+    renderWithProviders(<EARecoveryTools api={api as never} />);
+    await userEvent.click(screen.getByTestId('ea19-drift-refresh'));
+    await waitFor(() =>
+      expect(screen.getByTestId('ea19-drift-last-run')).toBeInTheDocument());
   });
 });
 

@@ -4,6 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { HeroHeader } from '../components/HeroHeader';
 import { UiIcon } from '../components/UiIcon';
+import { Panel, SyncStatusBar, Status, confirmThenRun } from './shared';
 import { getSimulateMode, setSimulateMode, subscribeSimulateMode,
          type SimulateMode } from '../features/demo/simulateStore';
 
@@ -19,50 +20,184 @@ import { getSimulateMode, setSimulateMode, subscribeSimulateMode,
 export function EARecoveryTools({ api = edgeApi }: {
   api?: Pick<typeof edgeApi, 'triggerJob' | 'drift' | 'listConflicts'>;
 } = {}): JSX.Element {
-  const [status, setStatus] = useState<Record<string, string>>({});
+  type RunState = 'idle' | 'running' | 'done' | 'error';
+  const [status, setStatus] = useState<Record<string, RunState>>({});
   const [error, setError] = useState<string | null>(null);
+  const [lastRunAt, setLastRunAt] = useState<Record<string, string>>({});
+
   async function run(name: string, fn: () => Promise<unknown>): Promise<void> {
-    setStatus({ ...status, [name]: 'running' });
+    setStatus((s) => ({ ...s, [name]: 'running' }));
     setError(null);
     try {
       await fn();
-      setStatus({ ...status, [name]: 'done' });
+      setStatus((s) => ({ ...s, [name]: 'done' }));
+      setLastRunAt((s) => ({ ...s, [name]: new Date().toISOString() }));
     } catch (err) {
-      setStatus({ ...status, [name]: 'error' });
+      setStatus((s) => ({ ...s, [name]: 'error' }));
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+
+  const toneFor = (s: RunState): 'muted' | 'info' | 'success' | 'danger' => {
+    if (s === 'running') return 'info';
+    if (s === 'done') return 'success';
+    if (s === 'error') return 'danger';
+    return 'muted';
+  };
+  const labelFor = (s: RunState): string => {
+    if (s === 'running') return 'Running…';
+    if (s === 'done') return 'Done';
+    if (s === 'error') return 'Error';
+    return 'Idle';
+  };
+
+  const runningCount = Object.values(status).filter((s) => s === 'running').length;
+  const errorCount = Object.values(status).filter((s) => s === 'error').length;
+  const tone = errorCount > 0 ? 'danger' : runningCount > 0 ? 'info' : 'muted';
+  const statusLabel = runningCount > 0
+    ? `${runningCount} op${runningCount === 1 ? '' : 's'} running`
+    : errorCount > 0
+      ? `${errorCount} op${errorCount === 1 ? '' : 's'} failed`
+      : 'Idle';
+
   return (
-    <div className="ea-screen">
-      <h1 data-test="ea19-heading">Recovery tools</h1>
-      {error && <ErrorBlock title="Recovery op failed" testId="ea19-error">{error}</ErrorBlock>}
-      <ul>
-        <li>
-          <button type="button" data-test="ea19-metadata-resync"
-                  onClick={() => { run('metadata', () => api.triggerJob('METADATA_SYNC_FULL'))
-                    .catch(() => undefined); }}>
-            Trigger metadata resync
-          </button>
-          <span data-test="ea19-metadata-status">{status.metadata ?? 'idle'}</span>
-        </li>
-        <li>
-          <button type="button" data-test="ea19-drift-refresh"
-                  onClick={() => { run('drift', () => api.drift(true))
-                    .catch(() => undefined); }}>
-            Re-run drift
-          </button>
-          <span data-test="ea19-drift-status">{status.drift ?? 'idle'}</span>
-        </li>
-        <li>
-          <button type="button" data-test="ea19-conflicts-refresh"
-                  onClick={() => { run('conflicts', () => api.listConflicts())
-                    .catch(() => undefined); }}>
-            Refresh conflict list
-          </button>
-          <span data-test="ea19-conflicts-status">{status.conflicts ?? 'idle'}</span>
-        </li>
-      </ul>
+    <div className="ea-screen" data-test="ea19">
+      <SyncStatusBar
+        tone={tone}
+        title="Recovery tools"
+        statusLabel={statusLabel}
+        subtitle="Operator-triggered recovery operations.  Each action is idempotent — safe to re-run if it errors — but the first two are heavy (full metadata resync + drift re-run) and can take several minutes on a cold DER.  All runs are audited."
+        actions={
+          <>
+            <Link to="/monitoring/health"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="System"
+                  data-test="ea19-open-health">
+              <UiIcon icon="health" size={14} />
+              <span>System health</span>
+            </Link>
+            <Link to="/audit/events"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Security &amp; Audit"
+                  data-test="ea19-open-audit">
+              <UiIcon icon="audit" size={14} />
+              <span>Audit stream</span>
+            </Link>
+          </>
+        }
+      />
+
+      {error && (
+        <ErrorBlock title="Recovery op failed" testId="ea19-error">{error}</ErrorBlock>
+      )}
+
+      <RecoveryAction
+        testIdPrefix="ea19-metadata"
+        runTestId="ea19-metadata-resync"
+        title="Trigger full metadata resync"
+        description="Pulls the full metadata catalogue from DHIS2 and rewrites the DER mirror.  Use when drift keeps re-appearing or an upstream migration has shifted uid shapes.  Takes 30s–several minutes depending on catalogue size."
+        affects={['Metadata mirror', 'Program rules', 'TEI type attributes']}
+        state={status.metadata ?? 'idle'}
+        lastRunAt={lastRunAt.metadata}
+        toneFor={toneFor}
+        labelFor={labelFor}
+        onRun={() => {
+          confirmThenRun(
+            'Trigger a full metadata resync — DER will pause ingest + drain while the catalogue reloads.',
+            () => { run('metadata', () => api.triggerJob('METADATA_SYNC_FULL'))
+              .catch(() => undefined); });
+        }}
+      />
+      <RecoveryAction
+        testIdPrefix="ea19-drift"
+        runTestId="ea19-drift-refresh"
+        title="Re-run metadata drift"
+        description="Compares the local metadata mirror against DHIS2 central and refreshes the drift report.  Usually cheap; run after a central-side change if the drift dashboard is stale."
+        affects={['Drift findings', 'Drift report snapshot']}
+        state={status.drift ?? 'idle'}
+        lastRunAt={lastRunAt.drift}
+        toneFor={toneFor}
+        labelFor={labelFor}
+        onRun={() => { run('drift', () => api.drift(true)).catch(() => undefined); }}
+      />
+      <RecoveryAction
+        testIdPrefix="ea19-conflicts"
+        runTestId="ea19-conflicts-refresh"
+        title="Refresh conflict list"
+        description="Re-reads the journal conflict queue.  Non-destructive; does not resolve or re-run any conflict.  Equivalent to a cache-refresh on the Conflicts dashboard."
+        affects={['Conflict queue view (read-only)']}
+        state={status.conflicts ?? 'idle'}
+        lastRunAt={lastRunAt.conflicts}
+        toneFor={toneFor}
+        labelFor={labelFor}
+        onRun={() => { run('conflicts', () => api.listConflicts()).catch(() => undefined); }}
+      />
     </div>
+  );
+}
+
+function RecoveryAction({ testIdPrefix, runTestId, title, description, affects, state,
+                         lastRunAt, toneFor, labelFor, onRun }: {
+  testIdPrefix: string;
+  runTestId: string;
+  title: string;
+  description: string;
+  affects: ReadonlyArray<string>;
+  state: 'idle' | 'running' | 'done' | 'error';
+  lastRunAt?: string;
+  toneFor: (s: 'idle' | 'running' | 'done' | 'error')
+    => 'muted' | 'info' | 'success' | 'danger';
+  labelFor: (s: 'idle' | 'running' | 'done' | 'error') => string;
+  onRun: () => void;
+}): JSX.Element {
+  return (
+    <Panel
+      title={title}
+      action={
+        <span data-test={`${testIdPrefix}-status-chip`}>
+          <Status tone={toneFor(state)}>{labelFor(state)}</Status>
+        </span>
+      }>
+      <p style={{ margin: '0 0 10px', fontSize: 14, color: 'var(--der-ink-700)',
+                   lineHeight: 1.5 }}>
+        {description}
+      </p>
+      <dl className="ea-def-list">
+        <div className="ea-def-row">
+          <dt>Affects</dt>
+          <dd>
+            {affects.map((a, i) => (
+              <span key={a}>
+                {i > 0 && <span className="ea-text-muted"> · </span>}
+                {a}
+              </span>
+            ))}
+          </dd>
+        </div>
+        {lastRunAt && (
+          <div className="ea-def-row">
+            <dt>Last run</dt>
+            <dd className="ea-mono" data-test={`${testIdPrefix}-last-run`}>
+              {lastRunAt.replace('T', ' ').slice(0, 19)}Z
+            </dd>
+          </div>
+        )}
+      </dl>
+      <div style={{ marginTop: 10 }}>
+        <button type="button"
+                className="ea-btn ea-btn--primary ea-btn--sm"
+                data-test={runTestId}
+                disabled={state === 'running'}
+                onClick={onRun}>
+          {state === 'running' ? 'Running…' : 'Run'}
+        </button>
+        {/* Keep an invisible status span for the pre-existing test harness
+         *  which may still query `*-status` text content. */}
+        <span style={{ display: 'none' }} data-test={`${testIdPrefix}-status`}>
+          {state}
+        </span>
+      </div>
+    </Panel>
   );
 }
 

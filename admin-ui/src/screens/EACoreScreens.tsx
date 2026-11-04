@@ -2199,38 +2199,101 @@ export function EAAuditVerify({ api = edgeApi }:
     }
   }
 
+  const tone: 'success' | 'warning' | 'danger' | 'muted' | 'info' = busy
+    ? 'info'
+    : resp == null
+      ? 'muted'
+      : resp.ok
+        ? 'success'
+        : 'danger';
+  const statusLabel = busy
+    ? 'Verifying…'
+    : resp == null
+      ? 'Not yet verified'
+      : resp.ok
+        ? `OK · ${resp.totalRows} row${resp.totalRows === 1 ? '' : 's'}`
+        : `Broken · ${resp.totalRows} row${resp.totalRows === 1 ? '' : 's'} scanned`;
+
   return (
-    <div className="ea-screen">
-      <h1 data-test="aud01-heading">Verify audit chain</h1>
-      <p>Walks every row of <code>security_audit</code> and reports the
-        first hash-chain break (if any). ADMIN only.</p>
-      <button type="button" data-test="aud01-run"
-        disabled={busy}
-        onClick={() => { run().catch(() => undefined); }}>
-        {busy ? 'Verifying…' : 'Run verification'}
-      </button>
+    <div className="ea-screen" data-test="aud01">
+      <SyncStatusBar
+        tone={tone}
+        title="Verify audit chain"
+        statusLabel={statusLabel}
+        subtitle="Walks every row of security_audit, re-computes the per-row hash from (prev_hash, event, timestamp, actor), and reports the first chain break (if any).  The hash chain is the tamper-evidence spine; a break means an audit row was edited, re-ordered, or deleted out-of-band."
+        actions={
+          <>
+            <button type="button"
+                    className="ea-btn ea-btn--primary ea-btn--sm"
+                    data-test="aud01-run"
+                    disabled={busy}
+                    onClick={() => { run().catch(() => undefined); }}>
+              {busy ? 'Verifying…' : 'Run verification'}
+            </button>
+            <Link to="/audit/events"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Security &amp; Audit"
+                  data-test="aud01-open-events">
+              <UiIcon icon="audit" size={14} />
+              <span>Security events</span>
+            </Link>
+          </>
+        }
+      />
+
       {error && (
         <ErrorBlock title="Verify failed" testId="aud01-error">{error}</ErrorBlock>
       )}
+
+      {resp == null && !busy && !error && (
+        <Panel title="How verification works">
+          <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
+            <li>Streams every <code>security_audit</code> row in insertion order.</li>
+            <li>Re-hashes each row from the stored previous hash plus the
+              row payload.</li>
+            <li>Stops at the first mismatch and reports the audit id +
+              reason; otherwise reports <strong>OK</strong>.</li>
+            <li>Admin-only (der.audit.read). Does not modify any row.</li>
+          </ul>
+        </Panel>
+      )}
+
       {resp && (
-        <section className="ea-aud-result" data-test="aud01-result">
-          <dl>
-            <dt>Result</dt>
-            <dd data-test="aud01-status">
-              {resp.ok ? 'OK — chain intact' : 'BROKEN'}
-            </dd>
-            <dt>Rows checked</dt>
-            <dd data-test="aud01-total">{resp.totalRows}</dd>
+        <Panel title="Verification result"
+               action={
+                 <span data-test="aud01-status-chip">
+                   {resp.ok
+                     ? <Status tone="success">Chain intact</Status>
+                     : <Status tone="danger">Broken</Status>}
+                 </span>
+               }>
+          <dl className="ea-def-list" data-test="aud01-result">
+            <div className="ea-def-row">
+              <dt>Result</dt>
+              <dd data-test="aud01-status">
+                {resp.ok ? 'OK — chain intact' : 'BROKEN — chain discontinuity detected'}
+              </dd>
+            </div>
+            <div className="ea-def-row">
+              <dt>Rows checked</dt>
+              <dd data-test="aud01-total">{resp.totalRows}</dd>
+            </div>
             {!resp.ok && (
               <>
-                <dt>First broken audit_id</dt>
-                <dd data-test="aud01-break-id">{resp.firstBreakAuditId}</dd>
-                <dt>Reason</dt>
-                <dd data-test="aud01-break-reason">{resp.firstBreakReason}</dd>
+                <div className="ea-def-row">
+                  <dt>First broken audit_id</dt>
+                  <dd data-test="aud01-break-id">
+                    <code>{resp.firstBreakAuditId}</code>
+                  </dd>
+                </div>
+                <div className="ea-def-row">
+                  <dt>Reason</dt>
+                  <dd data-test="aud01-break-reason">{resp.firstBreakReason}</dd>
+                </div>
               </>
             )}
           </dl>
-        </section>
+        </Panel>
       )}
     </div>
   );

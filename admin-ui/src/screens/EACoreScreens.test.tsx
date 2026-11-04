@@ -1034,9 +1034,10 @@ describe('EA-ANA-01 FacilityAnalytics', () => {
 });
 
 describe('EA-AUD-01 AuditVerify', () => {
-  it('renders heading before run', () => {
+  it('renders the enhanced screen shell before run', () => {
     renderWithProviders(<EAAuditVerify api={{ verifyAuditChain: vi.fn() } as never} />);
-    expect(screen.getByTestId('aud01-heading')).toBeInTheDocument();
+    expect(screen.getByTestId('aud01')).toBeInTheDocument();
+    expect(screen.getByTestId('aud01-run')).toBeInTheDocument();
   });
 
   it('reports OK result', async () => {
@@ -1080,6 +1081,28 @@ describe('EA-AUD-01 AuditVerify', () => {
     } as never} />);
     await userEvent.click(screen.getByTestId('aud01-run'));
     await waitFor(() => expect(screen.getByTestId('aud01-error')).toBeInTheDocument());
+  });
+
+  it('OK run shows the success Status chip', async () => {
+    renderWithProviders(<EAAuditVerify api={{
+      verifyAuditChain: vi.fn().mockResolvedValue({
+        ok: true, totalRows: 100, firstBreakAuditId: null, firstBreakReason: null,
+      }),
+    } as never} />);
+    await userEvent.click(screen.getByTestId('aud01-run'));
+    await waitFor(() => expect(screen.getByTestId('aud01-status-chip'))
+      .toHaveTextContent('Chain intact'));
+  });
+
+  it('broken run shows the danger Status chip', async () => {
+    renderWithProviders(<EAAuditVerify api={{
+      verifyAuditChain: vi.fn().mockResolvedValue({
+        ok: false, totalRows: 100, firstBreakAuditId: 42, firstBreakReason: 'MISMATCH',
+      }),
+    } as never} />);
+    await userEvent.click(screen.getByTestId('aud01-run'));
+    await waitFor(() => expect(screen.getByTestId('aud01-status-chip'))
+      .toHaveTextContent('Broken'));
   });
 });
 
