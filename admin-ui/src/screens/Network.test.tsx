@@ -474,3 +474,72 @@ describe('NetworkPeers — loaded branches', () => {
   });
 });
 
+describe('NetworkSecurity — loaded branches', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('populated rules render every action-tone arm', async () => {
+    vi.spyOn(edgeApi, 'networkPolicy').mockResolvedValue({
+      rules: [
+        { id: 'r-allow', position: 1, sourceZone: 'client',
+          destinationZone: 'der', action: 'allow',
+          note: 'base policy', updatedAt: 'now' },
+        { id: 'r-ctrl', position: 2, sourceZone: 'client',
+          destinationZone: 'wan', action: 'controlled',
+          note: null, updatedAt: 'now' },
+        { id: 'r-deny', position: 3, sourceZone: 'client',
+          destinationZone: 'client', action: 'deny',
+          note: 'isolation', updatedAt: 'now' },
+      ] as unknown as edgeApi.NetworkPolicyRule[],
+    });
+    renderWithProviders(<NetworkSecurity />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('network-security')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/ALLOW/);
+    expect(body).toMatch(/CONTROLLED/);
+    expect(body).toMatch(/DENY/);
+    expect(body).toMatch(/isolation/);
+  });
+});
+
+describe('NetworkDiagnostics — loaded branches', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('CONNECTED status + events populate the probe path + feed', async () => {
+    vi.spyOn(edgeApi, 'networkStatus').mockResolvedValue({
+      state: 'CONNECTED',
+      agentReachable: true,
+      lastTransition: '2026-11-03T10:00:00Z',
+      localLanAvailable: true,
+    } as unknown as edgeApi.NetworkStatus);
+    vi.spyOn(edgeApi, 'networkEvents').mockResolvedValue({
+      events: [
+        { eventId: 'ev-1', eventType: 'AP_STARTED', actor: null,
+          deviceId: null, nodeId: null, interfaceName: 'wlan0',
+          outcome: 'SUCCESS', reason: null, correlationId: null,
+          observedAt: '2026-11-03T10:00:00Z' },
+        { eventId: 'ev-2', eventType: 'DEVICE_APPROVED', actor: 'admin',
+          deviceId: 'dev-ab', nodeId: null, interfaceName: null,
+          outcome: 'SUCCESS', reason: null, correlationId: null,
+          observedAt: '2026-11-03T10:05:00Z' },
+      ] as unknown as edgeApi.NetworkEvent[],
+    });
+    renderWithProviders(<NetworkDiagnostics />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('network-diagnostics')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/Ap Started|AP_STARTED/i);
+    expect(body).toMatch(/Device Approved|DEVICE_APPROVED/i);
+  });
+
+  it('rejected networkStatus → missing + "Service pending" label', async () => {
+    vi.spyOn(edgeApi, 'networkStatus').mockRejectedValue(new Error('404'));
+    vi.spyOn(edgeApi, 'networkEvents').mockResolvedValue({ events: [] } as never);
+    renderWithProviders(<NetworkDiagnostics />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/Service pending/));
+  });
+});
+
