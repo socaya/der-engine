@@ -161,10 +161,17 @@ export default defineConfig({
          * PROGRAM_SECTION path) added ~17 tests. Measured coverage
          * 84.09 / 78.90 / 75.54 / 84.09. Ratchet lines + functions
          * one point below. */
-        lines: 84,
-        branches: 78,
+        /* der-2.3.123 round-96 ratchet: four further depth-lifts
+         * (shared.LastPulledChip, MoreScreens.MockupConflictList,
+         * MoreScreens.CentralValuePanel + WorkerHealth breakdown,
+         * Network.AccessPoint + ConnectedDevices loaded branches)
+         * added 20 tests crossing 1500 total. Measured coverage
+         * 85.56 / 79.91 / 75.17 / 85.56 — lines crossed 85, branches
+         * crossed 79. Ratchet lines one point, branches one point. */
+        lines: 85,
+        branches: 79,
         functions: 75,
-        statements: 84,
+        statements: 85,
       },
     },
   },
