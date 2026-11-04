@@ -174,8 +174,9 @@ describe('DataAggregate', () => {
       .toBeInTheDocument();
     expect(screen.getByTestId('data-aggregate-chip-FUTURE_STATE'))
       .toBeInTheDocument();
-    /* Null-state row renders "Local only" chip. */
-    expect(screen.getByText('Local only')).toBeInTheDocument();
+    /* NFR-25: every non-accepted row now carries a Local-only badge
+     * alongside its state chip, so there are many instances. */
+    expect(screen.getAllByText('Local only').length).toBeGreaterThan(0);
   });
 
   it('row-level workflow-link branches — SYSTEM kind chip + untagged fallback', async () => {

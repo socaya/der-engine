@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
-  Breadcrumbs, LastPulledChip, Panel, ScopedFilterChip, SyncStatusBar,
+  Breadcrumbs, LastPulledChip, LocalVsCentralBadge,
+  Panel, ScopedFilterChip, SyncStatusBar,
   fmtAgo, usePaged, TablePager,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -389,8 +390,13 @@ function SyncStateChip(
   { row }: { row: edgeApi.LocalEventRow }
 ): JSX.Element {
   const state = row.syncState;
+  const badge = <LocalVsCentralBadge state={state} size="xs" />;
   if (state === null || state === undefined) {
-    return <span className="ea-chip ea-chip--neutral">Local only</span>;
+    return (
+      <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+        {badge}
+      </span>
+    );
   }
   const { tone, label, to } = chipShape(state, row.operationId);
   const chip = (
@@ -399,9 +405,16 @@ function SyncStateChip(
       {label}
     </span>
   );
+  const pair = (
+    <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center',
+                     flexWrap: 'wrap' }}>
+      {badge}
+      {chip}
+    </span>
+  );
   return to
-    ? <Link to={to} style={{ textDecoration: 'none' }}>{chip}</Link>
-    : chip;
+    ? <Link to={to} style={{ textDecoration: 'none' }}>{pair}</Link>
+    : pair;
 }
 
 function chipShape(state: edgeApi.LocalDataSyncState, operationId: string | null)

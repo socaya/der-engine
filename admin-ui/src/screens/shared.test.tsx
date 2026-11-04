@@ -11,6 +11,7 @@ import {
   metadataResourceForEntity, dataModuleRouteForEntity, dataModuleLabelForEntity,
   JOURNAL_ENTITY_TYPES,
   LastPulledChip,
+  isCentralAccepted, LocalVsCentralBadge,
 } from './shared';
 import * as edgeApi from '../api/edgeApi';
 
@@ -397,5 +398,68 @@ describe('LastPulledChip', () => {
     await new Promise((r) => setTimeout(r, 0));
     /* Row stays null → nothing rendered. */
     expect(container.firstChild).toBeNull();
+  });
+});
+
+describe('isCentralAccepted (NFR-25)', () => {
+  it('returns true only for CENTRAL_ACCEPTED', () => {
+    expect(isCentralAccepted('CENTRAL_ACCEPTED')).toBe(true);
+  });
+
+  it('returns false for every non-accepted state + null + undefined', () => {
+    const notAccepted = [
+      'LOCAL_ONLY', 'PENDING', 'IN_FLIGHT', 'RETRYABLE',
+      'CENTRAL_REJECTED', 'CONFLICT_REVIEW', 'REQUIRES_APPROVAL',
+      'QUARANTINED', 'UNKNOWN_OUTCOME',
+    ] as const;
+    for (const s of notAccepted) {
+      expect(isCentralAccepted(s)).toBe(false);
+    }
+    expect(isCentralAccepted(null)).toBe(false);
+    expect(isCentralAccepted(undefined)).toBe(false);
+  });
+});
+
+describe('LocalVsCentralBadge (NFR-25)', () => {
+  it('renders the on-central badge for CENTRAL_ACCEPTED', () => {
+    render(<LocalVsCentralBadge state="CENTRAL_ACCEPTED" />);
+    const badge = screen.getByTestId('local-vs-central-central');
+    expect(badge).toHaveTextContent('On Central');
+    expect(badge).toHaveClass('ea-chip--success');
+    expect(badge).toHaveAttribute('title',
+      expect.stringMatching(/authoritatively accepted/));
+  });
+
+  it('renders the local-only badge for PENDING (not yet accepted)', () => {
+    render(<LocalVsCentralBadge state="PENDING" />);
+    const badge = screen.getByTestId('local-vs-central-local');
+    expect(badge).toHaveTextContent('Local only');
+    expect(badge).toHaveClass('ea-chip--warning');
+  });
+
+  it('renders the local-only badge for null state', () => {
+    render(<LocalVsCentralBadge state={null} />);
+    expect(screen.getByTestId('local-vs-central-local'))
+      .toHaveTextContent('Local only');
+  });
+
+  it('renders the local-only badge for every non-accepted state', () => {
+    const notAccepted: Array<edgeApi.LocalDataSyncState> = [
+      'LOCAL_ONLY', 'IN_FLIGHT', 'RETRYABLE', 'CENTRAL_REJECTED',
+      'CONFLICT_REVIEW', 'REQUIRES_APPROVAL', 'QUARANTINED',
+      'UNKNOWN_OUTCOME',
+    ];
+    for (const s of notAccepted) {
+      const { unmount } = render(<LocalVsCentralBadge state={s} />);
+      expect(screen.getByTestId('local-vs-central-local'))
+        .toHaveTextContent('Local only');
+      unmount();
+    }
+  });
+
+  it('size=xs produces a smaller chip style', () => {
+    render(<LocalVsCentralBadge state="CENTRAL_ACCEPTED" size="xs" />);
+    const badge = screen.getByTestId('local-vs-central-central');
+    expect(badge).toHaveStyle({ fontSize: '10px' });
   });
 });

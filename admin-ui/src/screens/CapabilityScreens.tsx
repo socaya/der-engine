@@ -4,7 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
-import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, ScopedFilterChip, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status, useCentralReachable, RelatedMenu } from './shared';
+import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, ScopedFilterChip, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status, useCentralReachable, RelatedMenu, LocalVsCentralBadge } from './shared';
 import { UiIcon } from '../components/UiIcon';
 
 /**
@@ -2150,11 +2150,17 @@ export function CapDrafts(): JSX.Element {
           ? 'All submitted'
           : `${rows.length} draft${rows.length === 1 ? '' : 's'}${scheduledCount > 0 ? ` · ${scheduledCount} scheduled` : ''}`}
         subtitle={
-          <span>
-            Captures saved locally but not yet submitted. Publish individually,
-            schedule for later (E6), or batch-select up to 100 for one-click
-            drain (Phase 14.5b).
-          </span>
+          <>
+            <span>
+              Captures saved locally but not yet submitted. Publish individually,
+              schedule for later (E6), or batch-select up to 100 for one-click
+              drain (Phase 14.5b).
+            </span>
+            {rows.length > 0 && (<>
+              <span>·</span>
+              <LocalVsCentralBadge state={null} size="xs" />
+            </>)}
+          </>
         }
       />
 

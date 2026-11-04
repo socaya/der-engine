@@ -650,6 +650,52 @@ const ENTITY_TYPE_LABEL: Readonly<Record<string, string>> = {
  *  {@code OperationJournalEntry.EntityType} on the server. Used by
  *  the Data overview and the Data Queue filter so operators always
  *  see every supported type — even when zero rows exist locally. */
+/** NFR-25 — Central-acceptance predicate.
+ *
+ *  Users must be able to tell the difference between a record that
+ *  lives only on this edge and one that DHIS2 Central has
+ *  authoritatively accepted. Only CENTRAL_ACCEPTED counts as
+ *  "on Central" — every other state (PENDING, IN_FLIGHT, RETRYABLE,
+ *  CENTRAL_REJECTED, CONFLICT_REVIEW, REQUIRES_APPROVAL, QUARANTINED,
+ *  UNKNOWN_OUTCOME, LOCAL_ONLY, null) is treated as local-only
+ *  including the cases where central's answer isn't yet known, to
+ *  avoid falsely claiming central authoritative acceptance. */
+export function isCentralAccepted(
+  state: edgeApi.LocalDataSyncState | null | undefined,
+): boolean {
+  return state === 'CENTRAL_ACCEPTED';
+}
+
+/** NFR-25 — unambiguous "local vs. central" badge.
+ *
+ *  Pairs with the richer sync-state chip (chipShape) on data rows
+ *  so operators get the one-glance answer to "has this reached
+ *  Central?" without having to decode the state-machine vocabulary. */
+export function LocalVsCentralBadge(
+  { state, size = 'sm' }:
+    { state: edgeApi.LocalDataSyncState | null | undefined;
+      size?: 'sm' | 'xs' },
+): JSX.Element {
+  const onCentral = isCentralAccepted(state);
+  const tone = onCentral ? 'success' : 'warning';
+  const label = onCentral ? 'On Central' : 'Local only';
+  const title = onCentral
+    ? 'DHIS2 Central has authoritatively accepted this record.'
+    : 'This record lives only on this edge. '
+      + 'It has not yet been accepted by DHIS2 Central.';
+  const style = size === 'xs'
+    ? { fontSize: 10, padding: '1px 5px' }
+    : undefined;
+  return (
+    <span className={`ea-chip ea-chip--${tone}`}
+          title={title}
+          data-test={`local-vs-central-${onCentral ? 'central' : 'local'}`}
+          style={style}>
+      {label}
+    </span>
+  );
+}
+
 export const JOURNAL_ENTITY_TYPES: ReadonlyArray<string> = [
   'AGGREGATE_DATA_VALUE',
   'EVENT',

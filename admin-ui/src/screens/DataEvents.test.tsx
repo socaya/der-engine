@@ -148,7 +148,7 @@ describe('DataEvents', () => {
       .toBeInTheDocument();
     expect(screen.getByTestId('data-events-chip-FUTURE_STATE'))
       .toBeInTheDocument();
-    expect(screen.getByText('Local only')).toBeInTheDocument();
+    expect(screen.getAllByText('Local only').length).toBeGreaterThan(0);
   });
 
   it('Pull-from-Central dialog opens and closes without result', async () => {

@@ -476,7 +476,7 @@ All **🟡 PARTIAL** — ADR-0017 Phase 10 hardening (TLS enforce, PII mask, bac
 | NFR-22 | Pinned DHIS2 API versions documented | P0 | ✅ DONE | `docs/verification/compatibility/` |
 | NFR-23 | Component separation audit | P1 | ❌ PENDING | — (alpha.3 target: write audit doc) |
 | NFR-24 | Portability — reproducible reference Linux | P1 | ❌ PENDING | — (alpha.3 target: Dockerfile + run doc) |
-| NFR-25 | Users distinguish local vs. central-accepted | P1 | ❌ PENDING | — (alpha.3 target: UI badge on draft rows) |
+| NFR-25 | Users distinguish local vs. central-accepted | P1 | ✅ DONE | New `LocalVsCentralBadge` + `isCentralAccepted` helpers in `shared.tsx`. Every DataAggregate / DataEvents / DataTracker row now carries a leading "On Central" / "Local only" chip alongside the richer sync-state chip; Drafts screen status bar shows the same Local-only badge so operators get a one-glance answer to "has this reached Central?" without decoding state-machine vocabulary. Only CENTRAL_ACCEPTED counts as on-Central — every other state including UNKNOWN_OUTCOME is treated as local-only. |
 | NFR-26 | Semantic forms + keyboard nav + readable states | P2 | ❌ PENDING | — (alpha.3 target: axe sweep + fix) |
 | NFR-27 | Fixed-seed repeatable scenarios | P0 | 🧱 SCAFFOLD | `scripts/evaluation/run_phase_08.sh` |
 | NFR-28 | Document time source + detect clock drift | P1 | ❌ PENDING | — (alpha.3 target) |
