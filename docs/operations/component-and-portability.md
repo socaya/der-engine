@@ -57,43 +57,77 @@ ADR-0010).
 
 ## NFR-24 — portability
 
-Reference environment:
+DER is deployed **bare-metal / VM on reference Linux**. Container
+orchestration is intentionally out of scope — pilot sites run
+single-tenant edges where a systemd + nginx + Postgres stack is the
+operational baseline.
 
-- **OS:** Linux 6.x (tested on Ubuntu 22.04 LTS and Fedora 40).
-- **Java:** OpenJDK 21.0.4+ (any distribution; Temurin recommended).
-- **PostgreSQL:** 17.x with the following roles pre-provisioned:
-  `der_app` (owner), `der_ro` (optional read-only).
-- **Node:** 20.x LTS for building `client/` and `admin-ui/`.
-- **npm:** 10.x.
+### Reference environment (pinned)
 
-Reproducibility recipe:
+| Component      | Pinned version              | Source                                        |
+|---              |---                         |---                                            |
+| OS              | **Ubuntu Server 24.04 LTS** | Canonical ISO — `ubuntu-24.04-live-server-amd64.iso` |
+| Kernel          | Linux 6.8.x                 | shipped with 24.04                            |
+| Java            | **OpenJDK 21** (headless)   | `openjdk-21-jre-headless`                     |
+| PostgreSQL      | **17.x**                    | `postgresql-17` from the PGDG apt repo        |
+| nginx           | **1.24.x**                  | `nginx` from Ubuntu main                      |
+| nftables        | 1.0.9+                      | `nftables` from Ubuntu main                   |
+| Node (build-side) | **20.x LTS**              | `nodejs` from Ubuntu main                     |
+| npm             | **10.x**                    | ships with Node 20                            |
+| systemd         | 255.x                       | ships with 24.04                              |
 
+Known-good minor-version floor is enforced at install time by
+`deployment/pilot/install.sh`; newer minors of each component pass
+the gate but downgrade is not supported.
+
+### Reproducibility recipe (3 steps)
+
+Start from a fresh Ubuntu 24.04 LTS install (ISO install or cloud
+image). The three commands below take a bare host to a running
+DER edge:
+
+```bash
+# 1. Host prerequisites — Java, Postgres, nginx, nftables, support utils.
+#    Idempotent; records an audit manifest at /etc/der/bootstrap.manifest.json.
+sudo scripts/install/bootstrap-host.sh
+
+# 2. Build the three deliverables from the pinned source tree.
+./server/mvnw -f server/pom.xml -q package -DskipTests
+( cd client && npm ci && npm run build )
+( cd admin-ui && npm ci && npm run build )
+
+# 3. Lay out /opt/der + /etc/der + /var/lib/der, wire the systemd unit,
+#    configure nginx, bootstrap the Postgres role + schema.
+sudo deployment/pilot/install.sh
 ```
-# 1. Clone + build server.
-./mvnw -f server/pom.xml verify
 
-# 2. Build client PWA.
-(cd client && npm ci && npm run build)
+`bootstrap-host.sh --dry-run` prints the apt list without touching the
+system; this is the format you hand to an infosec reviewer before
+running on a real host. `bootstrap-host.sh --node` also installs the
+Node 20 toolchain when the build happens on the same host as the
+runtime.
 
-# 3. Build admin UI.
-(cd admin-ui && npm ci && npm run build)
+### Deployment artifacts under version control
 
-# 4. Initialise Postgres.
-createdb der
-psql -d der -c "CREATE SCHEMA der;"
+- `scripts/install/bootstrap-host.sh` — NFR-24 OS prerequisites (new).
+- `deployment/pilot/install.sh` — pilot deployer (FR-01-08).
+- `deployment/systemd/der.service.example` — systemd unit.
+- `deployment/postgresql/der-db-bootstrap.sql` — role + schema init.
+- `deployment/nginx/` — reverse-proxy site config + TLS sketches.
+- `deployment/pilot/nftables/`, `apparmor/`, `fail2ban/` — hardening.
+- `scripts/deploy/{install,upgrade,rollback}.sh` — artefact lifecycle.
 
-# 5. Boot server.
-java -jar server/target/der-server-*.jar
-```
+### Non-reference platforms
 
-A single `scripts/deploy/install.sh <version>` wraps steps 1–5 for
-operator machines (FR-01-08).
-
-Known deviations:
-- macOS works for development but is not a reference deployment
-  target. The `BackupEncryption` subprocess path assumes
-  `/usr/bin/openssl` availability — macOS ships 3.x by default.
-- Windows is unsupported.
+- **macOS** works as a dev loop (see `README.md` §Local DHIS2 2.44)
+  but is not a deployment target. `BackupEncryption` calls
+  `/usr/bin/openssl`; macOS ships OpenSSL 3.x, which is API-compatible
+  but the audit evidence for restore (NFR-29) is only captured on
+  the reference Linux build.
+- **Fedora / RHEL** — the DER code runs, but operators must substitute
+  `dnf` + the PGDG RPM repo for the `apt` lines in `bootstrap-host.sh`.
+  Tested informally on Fedora 40; not in CI.
+- **Windows** is unsupported.
 
 ## NFR-28 — time correctness
 
