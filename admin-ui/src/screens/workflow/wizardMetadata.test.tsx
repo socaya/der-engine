@@ -166,6 +166,51 @@ describe('wizardMetadata.listFieldCandidates', () => {
     expect(out).toHaveLength(2);
     expect(out[0]).toMatchObject({ id: 'tea-1', compulsory: true });
   });
+
+  it('PROGRAM_SECTION → intersects programTeaFields with section-declared TEAs', async () => {
+    vi.spyOn(globalThis, 'fetch' as never).mockImplementation(stubFetch((url) => {
+      if (url.includes('/api/programSections/')) {
+        return { ok: true, body: {
+          trackedEntityAttributes: [{ id: 'tea-2' }, { id: 'tea-1' }],
+        } };
+      }
+      /* programTeaFields (via /api/programs/<pid>). */
+      return { ok: true, body: { programTrackedEntityAttributes: [
+        { displayName: 'Given name', mandatory: true,
+          trackedEntityAttribute: { id: 'tea-1' } },
+        { displayName: 'Age', mandatory: false,
+          trackedEntityAttribute: { id: 'tea-2' } },
+        { displayName: 'Extra', mandatory: false,
+          trackedEntityAttribute: { id: 'tea-extra' } },
+      ] } };
+    }) as never);
+    const out = await md.listFieldCandidates({
+      id: 'section-1', displayName: 'Demo Section',
+      sectionKind: 'PROGRAM_SECTION',
+      parentId: 'p-1',
+    } as never);
+    /* Section declares [tea-2, tea-1] → that order; extras from the
+     * program (tea-extra) are NOT in the section, so filtered out. */
+    expect(out.map((f) => f.id)).toEqual(['tea-2', 'tea-1']);
+  });
+
+  it('PROGRAM_SECTION → programSection fetch rejection falls back to all programTeaFields', async () => {
+    vi.spyOn(globalThis, 'fetch' as never).mockImplementation(stubFetch((url) => {
+      if (url.includes('/api/programSections/')) {
+        return { ok: false, body: {} };
+      }
+      return { ok: true, body: { programTrackedEntityAttributes: [
+        { displayName: 'Given name', mandatory: true,
+          trackedEntityAttribute: { id: 'tea-1' } },
+      ] } };
+    }) as never);
+    const out = await md.listFieldCandidates({
+      id: 'section-1', displayName: 'Demo Section',
+      sectionKind: 'PROGRAM_SECTION',
+      parentId: 'p-1',
+    } as never);
+    expect(out.map((f) => f.id)).toEqual(['tea-1']);
+  });
 });
 
 describe('wizardMetadata.buildWorkflowPayload', () => {
