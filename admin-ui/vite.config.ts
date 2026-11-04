@@ -138,10 +138,17 @@ export default defineConfig({
          * Metadata depth, OrgUnitContext, SignIn, UiIcon,
          * RunValidation) added 103 tests. Measured coverage
          * 81.08 / 78.01 / 64.96 / 81.08. Ratchet one point below. */
-        lines: 81,
+        /* der-2.3.123 round-78 ratchet: thirteen further commits
+         * (DataManagement, i18n, DataTeiDetail, Compliance,
+         * DeviceMessaging, DataEvents+Tracker chip-tone arms,
+         * DataAggregate, 4× edgeApi wrapper batches totalling
+         * ~115 fresh test cases) added 118 tests. Measured
+         * coverage 82.23 / 78.30 / 70.34 / 82.23 — functions
+         * crossed 70%. Ratchet 1-2 points below each. */
+        lines: 82,
         branches: 78,
-        functions: 64,
-        statements: 81,
+        functions: 69,
+        statements: 82,
       },
     },
   },
