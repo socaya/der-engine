@@ -11,6 +11,7 @@ import {
   NetworkDiagnostics,
   NetworkSettings,
 } from './Network';
+import type { NetworkInterface, NetworkPeer, NetworkRoute } from '../api/edgeApi';
 import * as edgeApi from '../api/edgeApi';
 
 const authApi = {
@@ -357,6 +358,119 @@ describe('NetworkConnectedDevices — loaded branches', () => {
     await waitFor(() =>
       expect(document.body.textContent ?? '')
         .toMatch(/No devices on the local network/));
+  });
+});
+
+describe('NetworkInterfaces — loaded branches', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const iface = (overrides: Partial<NetworkInterface> = {}): NetworkInterface => ({
+    name: 'wlan0', kind: 'wifi', state: 'up',
+    address: '10.88.0.1', mac: 'aa:bb:cc:dd:ee:ff',
+    rxBytes: 100, txBytes: 50, linkSpeed: '150 Mbps',
+    purpose: 'local-ap', priority: 10,
+    ...overrides,
+  }) as NetworkInterface;
+
+  it('populated interfaces render every state-tone arm', async () => {
+    vi.spyOn(edgeApi, 'networkInterfaces').mockResolvedValue({
+      interfaces: [
+        iface({ name: 'wlan0', state: 'up' }),
+        iface({ name: 'eth0', kind: 'ethernet', state: 'degraded',
+                purpose: 'facility-lan' }),
+        iface({ name: 'wwan0', kind: 'cellular', state: 'down',
+                purpose: 'cellular-fallback' }),
+        iface({ name: 'lo', kind: 'loopback', state: 'unknown',
+                purpose: 'unknown' }),
+      ],
+    });
+    vi.spyOn(edgeApi, 'networkLeases').mockResolvedValue({ leases: [] });
+    vi.spyOn(edgeApi, 'networkRoutes').mockResolvedValue({
+      routes: [
+        { id: 'r1', destination: '0.0.0.0/0', gateway: '10.88.0.1',
+          interface: 'eth0', metric: 100, source: 'static', active: true },
+        { id: 'r2', destination: '10.88.0.0/24', gateway: null,
+          interface: 'wlan0', metric: 50, source: 'kernel', active: false },
+      ] as unknown as NetworkRoute[],
+    });
+    renderWithProviders(<NetworkInterfaces />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('network-interfaces')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/wlan0/);
+    expect(body).toMatch(/eth0/);
+    expect(body).toMatch(/wwan0/);
+    expect(body).toMatch(/0\.0\.0\.0\/0/);
+  });
+
+  it('rejected interfaces probe → empty-net-ifaces panel', async () => {
+    vi.spyOn(edgeApi, 'networkInterfaces').mockRejectedValue(new Error('500'));
+    vi.spyOn(edgeApi, 'networkLeases').mockResolvedValue({ leases: [] });
+    vi.spyOn(edgeApi, 'networkRoutes').mockResolvedValue({ routes: [] });
+    renderWithProviders(<NetworkInterfaces />, { authApi });
+    await waitFor(() =>
+      expect(screen.queryByTestId('empty-net-ifaces')).toBeInTheDocument());
+  });
+
+  it('empty routes section shows the "No routes." muted hint', async () => {
+    vi.spyOn(edgeApi, 'networkInterfaces').mockResolvedValue({
+      interfaces: [iface()],
+    });
+    vi.spyOn(edgeApi, 'networkLeases').mockResolvedValue({ leases: [] });
+    vi.spyOn(edgeApi, 'networkRoutes').mockResolvedValue({ routes: [] });
+    renderWithProviders(<NetworkInterfaces />, { authApi });
+    await waitFor(() =>
+      expect(document.body.textContent ?? '').toMatch(/No routes/));
+  });
+});
+
+describe('NetworkPeers — loaded branches', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const peer = (overrides: Partial<NetworkPeer> = {}): NetworkPeer => ({
+    id: 'p1', nodeId: 'node-a', siteId: 'site-1',
+    endpoint: '10.88.0.5:51820', state: 'CONNECTED',
+    lastHandshake: '2026-11-03T11:00:00Z',
+    rxBytes: 100, txBytes: 50, trust: 'TRUSTED',
+    ...overrides,
+  }) as NetworkPeer;
+
+  it('populated peers render every state + trust arm', async () => {
+    vi.spyOn(edgeApi, 'networkPeers').mockResolvedValue({
+      peers: [
+        peer({ id: 'p-conn', state: 'CONNECTED', trust: 'TRUSTED' }),
+        peer({ id: 'p-shake', nodeId: 'node-b', state: 'HANDSHAKING',
+               trust: 'UNVERIFIED', lastHandshake: null }),
+        peer({ id: 'p-err', nodeId: 'node-c', state: 'ERROR',
+               trust: 'REVOKED' }),
+        peer({ id: 'p-off', nodeId: 'node-d', state: 'DISCONNECTED',
+               trust: 'UNVERIFIED', siteId: null }),
+      ],
+    });
+    renderWithProviders(<NetworkPeers />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('network-peers')).toBeInTheDocument());
+    const body = document.body.textContent ?? '';
+    expect(body).toMatch(/node-a/);
+    expect(body).toMatch(/node-b/);
+    expect(body).toMatch(/HANDSHAKING/);
+    expect(body).toMatch(/REVOKED/);
+  });
+
+  it('rejected peers probe → empty-net-peers panel', async () => {
+    vi.spyOn(edgeApi, 'networkPeers').mockRejectedValue(new Error('404'));
+    renderWithProviders(<NetworkPeers />, { authApi });
+    await waitFor(() =>
+      expect(screen.queryByTestId('empty-net-peers')).toBeInTheDocument());
+  });
+
+  it('empty peers list → empty-net-peers panel', async () => {
+    vi.spyOn(edgeApi, 'networkPeers').mockResolvedValue({ peers: [] });
+    renderWithProviders(<NetworkPeers />, { authApi });
+    await waitFor(() =>
+      expect(screen.queryByTestId('empty-net-peers')).toBeInTheDocument());
   });
 });
 
