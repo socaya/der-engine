@@ -149,10 +149,15 @@ export default defineConfig({
          * batch (+38 tests) lifted functions sharply. Measured
          * coverage 82.70 / 78.35 / 72.38 / 82.70. Ratchet
          * functions threshold up 3 points to 72. */
-        lines: 82,
+        /* der-2.3.123 round-82 ratchet: sixth + final edgeApi
+         * wrapper batch (+39 tests) completed the full 206-export
+         * sweep. edgeApi.ts lines/functions now 98/98. Measured
+         * coverage 83.12 / 78.43 / 74.89 / 83.12. Ratchet lines
+         * + functions one point below each. */
+        lines: 83,
         branches: 78,
-        functions: 72,
-        statements: 82,
+        functions: 74,
+        statements: 83,
       },
     },
   },
