@@ -1775,26 +1775,12 @@ export function MockupBackupList(): JSX.Element {
         }
       />
 
-      <Panel title="Schedule">
-        <dl className="ea-def-list">
-          <div className="ea-def-row"><dt>Backup cron</dt>
-            <dd className="ea-mono" data-test="backup-cron">{cron ?? '—'}</dd></div>
-          <div className="ea-def-row"><dt>Last successful backup</dt>
-            <dd>
-              {lastSuccess
-                ? <>{fmtDate(lastSuccess.requestedAt)} <span className="ea-text-muted">· {fmtAgo(lastSuccess.requestedAt)}</span></>
-                : <span className="ea-text-muted">never</span>}
-            </dd></div>
-          <div className="ea-def-row"><dt>Change schedule</dt>
-            <dd>
-              <Link to="/sync/schedule" className="ea-link-btn"
-                     data-cross-module="Schedule"
-                     data-test="backup-open-schedule">
-                Open Sync Schedule →
-              </Link>
-            </dd></div>
-        </dl>
-      </Panel>
+      <BackupScheduleEditor
+        cron={cron}
+        lastSuccess={lastSuccess ?? null}
+        settings={settings}
+        onSaved={() => { void reload(); }}
+      />
 
       <Panel title="PITR / WAL archive"
              action={
@@ -1891,6 +1877,110 @@ export function MockupBackupList(): JSX.Element {
         )}
       </Panel>
     </div>
+  );
+}
+
+/** Inline cron editor for the backup rotation schedule. Lives on the
+ *  Backup page so admins never have to jump to the Sync scheduler to
+ *  change the backup cadence; posts to the same /admin/settings
+ *  endpoint but with just the backup.rotate key flipped. */
+function BackupScheduleEditor(
+  { cron, lastSuccess, settings, onSaved }:
+    { cron: string | null;
+      lastSuccess: edgeApi.BackupRow | null;
+      settings: edgeApi.SettingsPayload | null;
+      onSaved: () => void },
+): JSX.Element {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(cron ?? '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  function startEdit(): void {
+    setDraft(cron ?? '');
+    setErr(null);
+    setEditing(true);
+  }
+
+  async function save(): Promise<void> {
+    if (!settings) return;
+    setSaving(true); setErr(null);
+    try {
+      await edgeApi.saveSettings({
+        ...settings,
+        cron: { ...settings.cron, 'backup.rotate': draft.trim() },
+      });
+      setEditing(false);
+      onSaved();
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <Panel title="Backup schedule"
+           action={!editing && (
+             <button type="button"
+                     className="ea-btn ea-btn--ghost ea-btn--sm"
+                     data-test="backup-schedule-edit"
+                     disabled={!settings}
+                     onClick={startEdit}>
+               <UiIcon icon="edit" size={14} />
+               <span>Edit cron</span>
+             </button>
+           )}>
+      <dl className="ea-def-list">
+        <div className="ea-def-row">
+          <dt>Backup cron</dt>
+          <dd>
+            {editing ? (
+              <div className="ea-field" style={{ margin: 0 }}>
+                <input type="text"
+                       className="ea-input ea-mono"
+                       data-test="backup-cron-input"
+                       value={draft}
+                       autoFocus
+                       onChange={(e) => setDraft(e.target.value)} />
+                <span className="ea-field-hint">
+                  <code>seconds minutes hours day-of-month month day-of-week</code>
+                </span>
+              </div>
+            ) : (
+              <span className="ea-mono" data-test="backup-cron">{cron ?? '—'}</span>
+            )}
+          </dd>
+        </div>
+        <div className="ea-def-row">
+          <dt>Last successful backup</dt>
+          <dd>
+            {lastSuccess
+              ? <>{fmtDate(lastSuccess.requestedAt)}{' '}
+                  <span className="ea-text-muted">· {fmtAgo(lastSuccess.requestedAt)}</span></>
+              : <span className="ea-text-muted">never</span>}
+          </dd>
+        </div>
+      </dl>
+      {err && (
+        <div className="ea-callout ea-callout--danger" role="alert"
+             data-test="backup-schedule-err">{err}</div>
+      )}
+      {editing && (
+        <div className="ea-mapping-form-actions">
+          <button type="button"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-test="backup-schedule-cancel"
+                  disabled={saving}
+                  onClick={() => setEditing(false)}>Cancel</button>
+          <button type="button"
+                  className="ea-btn ea-btn--primary ea-btn--sm"
+                  data-test="backup-schedule-save"
+                  disabled={saving || draft.trim().length === 0}
+                  onClick={() => { void save(); }}>
+            {saving ? 'Saving…' : 'Save schedule'}
+          </button>
+        </div>
+      )}
+    </Panel>
   );
 }
 

@@ -260,6 +260,46 @@ describe('MoreScreens — surface mount test', () => {
     await waitFor(() => expect(runSpy).toHaveBeenCalledWith(7));
   });
 
+  it('MockupBackupList — inline cron editor saves the new value via /admin/settings', async () => {
+    vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'backupVerifyStatus').mockResolvedValue({
+      enabled: true, pgRestore: '/usr/local/bin/pg_restore', lastRun: null,
+    } as unknown as edgeApi.BackupVerifyStatus);
+    vi.spyOn(edgeApi, 'backupVerifyHistory').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'backupPitrWal').mockResolvedValue({
+      walEnabled: false, walDirectory: '/x',
+      walDirExists: false, segmentCount: 0,
+      earliestArchive: null, latestArchive: null,
+      totalBytes: 0,
+    } as edgeApi.WalSummary);
+    vi.spyOn(edgeApi, 'readSettings').mockResolvedValue({
+      cron: { 'backup.rotate': '0 0 2 * * ?', 'sync.metadata': '0 */5 * * * ?' },
+      featureFlags: {}, roles: [],
+    } as unknown as edgeApi.SettingsPayload);
+    const saveSpy = vi.spyOn(edgeApi, 'saveSettings').mockResolvedValue({
+      cron: { 'backup.rotate': '0 0 3 * * ?', 'sync.metadata': '0 */5 * * * ?' },
+      featureFlags: {}, roles: [],
+    } as unknown as edgeApi.SettingsPayload);
+    renderWithProviders(<MockupBackupList />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('backup-cron'))
+      .toHaveTextContent('0 0 2 * * ?'));
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.click(screen.getByTestId('backup-schedule-edit'));
+    const input = screen.getByTestId('backup-cron-input') as HTMLInputElement;
+    await user.clear(input);
+    await user.type(input, '0 0 3 * * ?');
+    await user.click(screen.getByTestId('backup-schedule-save'));
+    /* Save posts only the backup.rotate change; sync.metadata is
+     * preserved since the editor merges into the existing map. */
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cron: expect.objectContaining({
+          'backup.rotate': '0 0 3 * * ?',
+          'sync.metadata': '0 */5 * * * ?',
+        }),
+      })));
+  });
+
   it('MockupBackupList renders populated backup rows (every status + kind pair)', async () => {
     /* BackupRow is {runId, requestedAt, kind, status, message?}
      * — four statuses (REQUESTED / QUEUED / SUCCESS / FAILED)
