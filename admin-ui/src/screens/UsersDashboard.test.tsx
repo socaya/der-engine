@@ -420,6 +420,81 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
       })));
   });
 
+  it('typing a credential on the default radio sends the resolved authType, not null', async () => {
+    /* Regression: when the operator keeps the system-default auth type
+     * selected (draft.authType stays null to mean "inherit") and still
+     * types a credential, we must send the effective type so the server
+     * doesn't 400 with 'authType is required when credential is set'. */
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1', username: 'alice' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'getDhis2AuthTypeDefault').mockResolvedValue({
+      defaultAuthType: 'BASIC',
+    });
+    const setSpy = vi.spyOn(edgeApi, 'setUserDhis2Mapping').mockResolvedValue({
+      edgeUserId: 'u-1', dhis2UserUid: 'ALICE123456', dhis2Username: 'alice.c',
+      dhis2DisplayName: null, mappedAt: 'now', mappedBy: 'admin',
+      lastVerifiedAt: null, authType: 'BASIC', hasCredential: true,
+      credentialSetAt: 'now',
+    });
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('user-dhis2-mapping-edit'));
+    await waitFor(() =>
+      expect(screen.getByTestId('user-dhis2-mapping-form')).toBeInTheDocument());
+
+    /* Do not touch the radios — BASIC stays selected as the system default. */
+    await user.type(screen.getByTestId('user-dhis2-mapping-input-uid'), 'ALICE123456');
+    await user.type(screen.getByTestId('user-dhis2-mapping-credential'),
+      'operators-password');
+    await user.click(screen.getByTestId('user-dhis2-mapping-save'));
+
+    await waitFor(() => expect(setSpy).toHaveBeenCalledWith('u-1',
+      expect.objectContaining({
+        authType: 'BASIC',
+        credential: 'operators-password',
+      })));
+  });
+
+  it('saving with no credential leaves authType null so the stored secret is preserved', async () => {
+    /* Edits that touch only non-secret fields (display name, etc.) must
+     * NOT send a credential, and should leave authType null so the
+     * server's COALESCE keeps the existing envelope. */
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1', username: 'alice' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
+      { edgeUserId: 'u-1', dhis2UserUid: 'ALICE123456', dhis2Username: 'alice.c',
+        dhis2DisplayName: 'Alice Central',
+        mappedAt: '2026-11-04T10:00:00Z', mappedBy: 'admin',
+        lastVerifiedAt: null, authType: 'BASIC', hasCredential: true,
+        credentialSetAt: '2026-11-04T10:00:00Z' },
+    ]);
+    vi.spyOn(edgeApi, 'getDhis2AuthTypeDefault').mockResolvedValue({
+      defaultAuthType: 'BASIC',
+    });
+    const setSpy = vi.spyOn(edgeApi, 'setUserDhis2Mapping').mockResolvedValue({
+      edgeUserId: 'u-1', dhis2UserUid: 'ALICE123456', dhis2Username: 'alice.c',
+      dhis2DisplayName: 'Alice Renamed', mappedAt: 'now', mappedBy: 'admin',
+      lastVerifiedAt: null, authType: 'BASIC', hasCredential: true,
+      credentialSetAt: 'now',
+    });
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('user-dhis2-mapping-edit-panel'));
+    const dn = await screen.findByTestId('user-dhis2-mapping-input-display-name') as HTMLInputElement;
+    await user.clear(dn);
+    await user.type(dn, 'Alice Renamed');
+    await user.click(screen.getByTestId('user-dhis2-mapping-save'));
+    await waitFor(() => expect(setSpy).toHaveBeenCalledWith('u-1',
+      expect.objectContaining({
+        dhis2DisplayName: 'Alice Renamed',
+        authType: 'BASIC',
+        credential: null,
+      })));
+  });
+
   it('shows "Credential stored" status and placeholder encourages leaving the field blank when a credential is already sealed', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
       users: [userFixture({ userId: 'u-1', username: 'alice' })],

@@ -404,12 +404,19 @@ export function MockupUserDhis2Mapping(): JSX.Element {
     if (!draft || !userId) return;
     setSaving(true); setErr(null); setMsg(null);
     try {
+      /* If the operator typed a credential we must send an explicit
+       * authType (the server rejects credential-without-authType). When
+       * the radio is still on the system default, draft.authType is
+       * null (= inherit); resolve that to the effective type before
+       * sending so the credential doesn't get rejected. */
+      const hasCred = draft.credential.length > 0;
+      const effectiveAuthType = draft.authType ?? defaultAuthType;
       const saved = await edgeApi.setUserDhis2Mapping(userId, {
         dhis2UserUid: draft.uid.trim(),
         dhis2Username: draft.username.trim(),
         dhis2DisplayName: draft.displayName.trim() || null,
-        authType: draft.authType,
-        credential: draft.credential.length > 0 ? draft.credential : null,
+        authType: hasCred ? effectiveAuthType : draft.authType,
+        credential: hasCred ? draft.credential : null,
       });
       setMapping(saved);
       setMsg(`Mapping saved — @${saved.dhis2Username}`);

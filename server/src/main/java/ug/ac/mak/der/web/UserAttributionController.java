@@ -267,12 +267,16 @@ public class UserAttributionController {
                     "code", "UID_INVALID",
                     "message", "uid must be 11-char DHIS2 UID"));
         }
+        /* DHIS2's field sub-selector uses [...], but Java's HttpClient does
+         * not percent-encode those characters in a query string, and Tomcat
+         * on central 2.44 rejects the raw brackets with HTTP 400.  Encode
+         * them explicitly so the URI arrives on central as %5B / %5D. */
         final String path = "/api/users/" + uid + ".json?fields="
                 + "id,username,displayName,email,phoneNumber,disabled,"
                 + "created,lastUpdated,"
-                + "userCredentials[lastLogin,twoFactorEnabled],"
-                + "organisationUnits[id,displayName],"
-                + "userGroups[id,displayName]";
+                + "userCredentials%5BlastLogin,twoFactorEnabled%5D,"
+                + "organisationUnits%5Bid,displayName%5D,"
+                + "userGroups%5Bid,displayName%5D";
         try {
             final JsonNode body = dhis2.fetchJson(path);
             final Map<String, Object> out = new LinkedHashMap<>();
