@@ -464,6 +464,68 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/in sync/i);
   });
 
+  it('MockupDriftInspector — clicking an entity row expands the drill-down panel with the IDs', async () => {
+    vi.spyOn(edgeApi, 'drift').mockResolvedValue({
+      status: 'OK',
+      fingerprintFrom: 'a', fingerprintTo: 'b',
+      snapshotFrom: 441, snapshotTo: 442,
+      perEntity: {
+        dataElements: {
+          added: ['de-new-001', 'de-new-002'],
+          removed: ['de-gone-001'],
+          changed: ['de-chg-001', 'de-chg-002', 'de-chg-003'],
+        },
+        organisationUnits: { added: [], removed: [], changed: ['ou-1'] },
+      },
+    } as unknown as edgeApi.DriftResponse);
+    renderWithProviders(<MockupDriftInspector />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('drift-row-dataElements')).toBeInTheDocument());
+    /* Detail panel is hidden until a row is clicked. */
+    expect(screen.queryByTestId('drift-detail-dataElements')).toBeNull();
+    await userEvent.click(screen.getByTestId('drift-row-dataElements'));
+    await waitFor(() => expect(
+      screen.getByTestId('drift-detail-dataElements')).toBeInTheDocument());
+    expect(screen.getByTestId('drift-detail-added-id-de-new-001'))
+      .toBeInTheDocument();
+    expect(screen.getByTestId('drift-detail-removed-id-de-gone-001'))
+      .toBeInTheDocument();
+    expect(screen.getByTestId('drift-detail-changed-id-de-chg-003'))
+      .toBeInTheDocument();
+    /* The 'Open in metadata browser' link carries the resource hint. */
+    expect(screen.getByTestId('drift-detail-open-metadata'))
+      .toHaveAttribute('href', '/dhis2/metadata?resource=dataElements');
+    /* Click Close dismisses the panel. */
+    await userEvent.click(screen.getByTestId('drift-detail-close'));
+    expect(screen.queryByTestId('drift-detail-dataElements')).toBeNull();
+    /* Clicking a different row swaps expansion (exclusive). */
+    await userEvent.click(screen.getByTestId('drift-row-organisationUnits'));
+    await waitFor(() => expect(
+      screen.getByTestId('drift-detail-organisationUnits')).toBeInTheDocument());
+  });
+
+  it('MockupDriftInspector — truncates long id lists with a +N more indicator', async () => {
+    const manyIds = Array.from({ length: 28 }, (_, i) => `id-${i + 1}`);
+    vi.spyOn(edgeApi, 'drift').mockResolvedValue({
+      status: 'OK',
+      fingerprintFrom: 'a', fingerprintTo: 'b',
+      snapshotFrom: 441, snapshotTo: 442,
+      perEntity: {
+        dataElements: { added: manyIds, removed: [], changed: [] },
+      },
+    } as unknown as edgeApi.DriftResponse);
+    renderWithProviders(<MockupDriftInspector />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('drift-row-dataElements')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('drift-row-dataElements'));
+    expect(screen.getByTestId('drift-detail-added-id-id-20'))
+      .toBeInTheDocument();
+    /* Only the first 20 are rendered; id-21..id-28 are collapsed. */
+    expect(screen.queryByTestId('drift-detail-added-id-id-21')).toBeNull();
+    expect(screen.getByTestId('drift-detail-added-more'))
+      .toHaveTextContent('+8 more');
+  });
+
   /* ─── detail sub-screens with route params ─── */
 
   it('MockupApprovalDetail: matched approval id renders the detail panel', async () => {

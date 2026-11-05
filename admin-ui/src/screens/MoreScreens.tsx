@@ -25,6 +25,7 @@ export function MockupDriftInspector(): JSX.Element {
   const [d, setD] = useState<edgeApi.DriftResponse | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedEntity, setExpandedEntity] = useState<string | null>(null);
   async function reload(refresh = false): Promise<void> {
     try {
       setRefreshing(refresh);
@@ -43,6 +44,9 @@ export function MockupDriftInspector(): JSX.Element {
     net: v.added.length + v.removed.length + v.changed.length,
   }));
   const paged = usePaged(rowSummaries, 50);
+  const expanded = expandedEntity
+    ? d?.perEntity?.[expandedEntity] ?? null
+    : null;
 
   if (err) return <ErrorBlock title="Drift probe failed" testId="err-drift">{err}</ErrorBlock>;
   if (!d) return <LoadingBlock testId="loading" />;
@@ -121,26 +125,88 @@ export function MockupDriftInspector(): JSX.Element {
           <p className="ea-text-muted" style={{ margin: 0 }}>No per-entity drift recorded.</p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--selectable"
+                   data-test="drift-table">
               <thead><tr>
                 <th>Entity</th><th>Added</th><th>Removed</th><th>Changed</th><th>Net</th>
               </tr></thead>
               <tbody>
-                {paged.rows.map((r) => (
-                  <tr key={r.entity}>
-                    <td>{r.entity}</td>
-                    <td className="ea-mono" style={{ color: r.added ? 'var(--der-success-ink)' : undefined }}>{r.added}</td>
-                    <td className="ea-mono" style={{ color: r.removed ? 'var(--der-danger-ink)' : undefined }}>{r.removed}</td>
-                    <td className="ea-mono" style={{ color: r.changed ? 'var(--der-warning-ink)' : undefined }}>{r.changed}</td>
-                    <td className="ea-mono">{r.net}</td>
-                  </tr>
-                ))}
+                {paged.rows.map((r) => {
+                  const active = r.entity === expandedEntity;
+                  return (
+                    <tr key={r.entity}
+                        data-test={`drift-row-${r.entity}`}
+                        onClick={() => setExpandedEntity(active ? null : r.entity)}
+                        className={active ? 'ea-row-selected' : ''}
+                        style={{ cursor: 'pointer' }}>
+                      <td>{r.entity}</td>
+                      <td className="ea-mono" style={{ color: r.added ? 'var(--der-success-ink)' : undefined }}>{r.added}</td>
+                      <td className="ea-mono" style={{ color: r.removed ? 'var(--der-danger-ink)' : undefined }}>{r.removed}</td>
+                      <td className="ea-mono" style={{ color: r.changed ? 'var(--der-warning-ink)' : undefined }}>{r.changed}</td>
+                      <td className="ea-mono">{r.net}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             <TablePager {...paged.pagerProps} />
           </div>
         )}
       </Panel>
+
+      {expandedEntity && expanded && (
+        <Panel title={`Drift detail — ${expandedEntity}`}
+               action={
+                 <div style={{ display: 'flex', gap: 8 }}>
+                   <Link to={`/dhis2/metadata?resource=${encodeURIComponent(expandedEntity)}`}
+                         className="ea-btn ea-btn--ghost ea-btn--sm"
+                         data-cross-module="DHIS2"
+                         data-test="drift-detail-open-metadata">
+                     <UiIcon icon="metadata" size={14} />
+                     <span>Open in metadata browser</span>
+                   </Link>
+                   <button type="button"
+                           className="ea-btn ea-btn--ghost ea-btn--sm"
+                           data-test="drift-detail-close"
+                           onClick={() => setExpandedEntity(null)}>
+                     Close
+                   </button>
+                 </div>
+               }>
+          <dl className="ea-def-list"
+              data-test={`drift-detail-${expandedEntity}`}>
+            <div className="ea-def-row">
+              <dt>Snapshot pair</dt>
+              <dd className="ea-mono">
+                {d.snapshotFrom ?? '—'} → {d.snapshotTo ?? '—'}
+              </dd>
+            </div>
+            <div className="ea-def-row">
+              <dt>Reconciliation</dt>
+              <dd className="ea-text-muted">
+                Next metadata-sync pull reconciles these IDs. No write-back to Central.
+              </dd>
+            </div>
+          </dl>
+          <div className="ea-drift-detail-grid">
+            <DriftDetailColumn
+              title="Added"
+              tone="success"
+              ids={expanded.added}
+              testId="drift-detail-added" />
+            <DriftDetailColumn
+              title="Removed"
+              tone="danger"
+              ids={expanded.removed}
+              testId="drift-detail-removed" />
+            <DriftDetailColumn
+              title="Changed"
+              tone="warning"
+              ids={expanded.changed}
+              testId="drift-detail-changed" />
+          </div>
+        </Panel>
+      )}
 
       {/* §2.3.107 R-AB — the two cross-module jumps (Metadata Sync,
           Sync History) move into a labelled Related menu so the
@@ -161,6 +227,46 @@ export function MockupDriftInspector(): JSX.Element {
           ]} />
         </div>
       </Panel>
+    </div>
+  );
+}
+
+/** One column of the per-entity drift detail grid. Shows the first 20
+ *  IDs with a +N more collapse — avoids dumping 5000 dataElement UIDs
+ *  into the DOM on large drifts. */
+function DriftDetailColumn(
+  { title, tone, ids, testId }:
+    { title: string; tone: 'success' | 'danger' | 'warning';
+      ids: string[]; testId: string },
+): JSX.Element {
+  const limit = 20;
+  const shown = ids.slice(0, limit);
+  const overflow = Math.max(0, ids.length - limit);
+  return (
+    <div className="ea-drift-detail-col" data-test={testId}>
+      <div className="ea-subheading">
+        <Status tone={tone}>{title}</Status>
+        <span className="ea-text-muted"
+              style={{ marginLeft: 6, fontSize: 11 }}>
+          {ids.length}
+        </span>
+      </div>
+      {ids.length === 0 ? (
+        <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>
+          None.
+        </p>
+      ) : (
+        <ul className="ea-inline-list">
+          {shown.map((id) => (
+            <li key={id} className="ea-mono"
+                data-test={`${testId}-id-${id}`}>{id}</li>
+          ))}
+          {overflow > 0 && (
+            <li className="ea-text-muted"
+                data-test={`${testId}-more`}>+{overflow} more</li>
+          )}
+        </ul>
+      )}
     </div>
   );
 }
