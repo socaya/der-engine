@@ -1689,7 +1689,20 @@ export function MockupReferralDetail(): JSX.Element {
  *  the current schedule, latest WAL/PITR readiness, the most-recent
  *  verification outcome, a Verify-now action, and the backup runs
  *  table. */
+type BackupSection = 'schedule' | 'pitr' | 'verify' | 'runs';
+
 export function MockupBackupList(): JSX.Element {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sectionParam = searchParams.get('section');
+  const activeSection: BackupSection =
+    sectionParam === 'pitr' || sectionParam === 'verify' || sectionParam === 'runs'
+      ? sectionParam : 'schedule';
+  function goTo(section: BackupSection): void {
+    const next = new URLSearchParams(searchParams);
+    if (section === 'schedule') next.delete('section');
+    else next.set('section', section);
+    setSearchParams(next, { replace: true });
+  }
   const [rows, setRows] = useState<edgeApi.BackupRow[] | null>(null);
   const [verify, setVerify] = useState<edgeApi.BackupVerifyStatus | null>(null);
   const [verifyHist, setVerifyHist] = useState<edgeApi.BackupVerifyRow[]>([]);
@@ -1775,108 +1788,174 @@ export function MockupBackupList(): JSX.Element {
         }
       />
 
-      <BackupScheduleEditor
-        cron={cron}
-        lastSuccess={lastSuccess ?? null}
-        settings={settings}
-        onSaved={() => { void reload(); }}
-      />
+      <div className="ea-page-aside">
+        <nav className="ea-page-aside-nav"
+             aria-label="Backup sections"
+             data-test="backup-sections">
+          <BackupAsideItem
+            id="schedule"
+            label="Schedule"
+            icon="schedule"
+            active={activeSection === 'schedule'}
+            onClick={() => goTo('schedule')} />
+          <BackupAsideItem
+            id="pitr"
+            label="PITR / WAL"
+            icon="storage"
+            count={wal?.segmentCount ?? undefined}
+            active={activeSection === 'pitr'}
+            onClick={() => goTo('pitr')} />
+          <BackupAsideItem
+            id="verify"
+            label="Verification"
+            icon="diagnostics"
+            count={verifyHist.length || undefined}
+            active={activeSection === 'verify'}
+            onClick={() => goTo('verify')} />
+          <BackupAsideItem
+            id="runs"
+            label="Runs"
+            icon="history"
+            count={rows.length || undefined}
+            active={activeSection === 'runs'}
+            onClick={() => goTo('runs')} />
+        </nav>
+        <div className="ea-page-aside-body" data-test="backup-section-body">
+          {activeSection === 'schedule' && (
+            <BackupScheduleEditor
+              cron={cron}
+              lastSuccess={lastSuccess ?? null}
+              settings={settings}
+              onSaved={() => { void reload(); }}
+            />
+          )}
 
-      <Panel title="PITR / WAL archive"
-             action={
-               wal && <Status tone={wal.walEnabled && wal.walDirExists ? 'success' : 'muted'}>
-                 {wal.walEnabled ? (wal.walDirExists ? 'Active' : 'Dir missing') : 'Disabled'}
-               </Status>
-             }>
-        {!wal ? (
-          <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>Loading…</p>
-        ) : (
-          <dl className="ea-def-list">
-            <div className="ea-def-row"><dt>WAL directory</dt>
-              <dd className="ea-mono" style={{ fontSize: 12 }}>{wal.walDirectory}</dd></div>
-            <div className="ea-def-row"><dt>Archived segments</dt>
-              <dd className="ea-mono" data-test="wal-segments">{wal.segmentCount ?? 0}</dd></div>
-            <div className="ea-def-row"><dt>Earliest archive</dt>
-              <dd className="ea-mono" style={{ fontSize: 12 }}>
-                {wal.earliestArchive ? fmtDate(wal.earliestArchive) : '—'}
-              </dd></div>
-            <div className="ea-def-row"><dt>Latest archive</dt>
-              <dd className="ea-mono" style={{ fontSize: 12 }}>
-                {wal.latestArchive ? fmtDate(wal.latestArchive) : '—'}
-              </dd></div>
-          </dl>
-        )}
-      </Panel>
-
-      <Panel title="Restore verification"
-             action={
-               <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                       disabled={verifying || !verify?.enabled || !lastSuccess}
-                       data-test="verify-now"
-                       title={!verify?.enabled
-                         ? 'Backup verification is disabled on this edge'
-                         : !lastSuccess ? 'No successful backup to verify yet' : ''}
-                       onClick={() => { runVerifyNow(lastSuccess?.runId).catch(() => undefined); }}>
-                 <UiIcon icon="refresh" size={14} />
-                 <span>{verifying ? 'Verifying…' : 'Verify now'}</span>
-               </button>
-             }>
-        <dl className="ea-def-list">
-          <div className="ea-def-row"><dt>Verification enabled</dt>
-            <dd data-test="verify-enabled">{verify?.enabled ? 'yes' : 'no'}</dd></div>
-          <div className="ea-def-row"><dt>pg_restore</dt>
-            <dd className="ea-mono" style={{ fontSize: 12 }}>
-              {verify?.pgRestore ?? <span className="ea-text-muted">not found</span>}
-            </dd></div>
-          <div className="ea-def-row"><dt>Last verify outcome</dt>
-            <dd data-test="verify-last-outcome">
-              <Status tone={verifyTone}>
-                {verifyLast?.outcome ?? 'never run'}
-              </Status>
-              {verifyLast && (
-                <span className="ea-text-muted" style={{ marginLeft: 8, fontSize: 12 }}>
-                  · {fmtAgo(verifyLast.verifiedAt)}
-                </span>
+          {activeSection === 'pitr' && (
+            <Panel title="PITR / WAL archive"
+                   action={
+                     wal && <Status tone={wal.walEnabled && wal.walDirExists ? 'success' : 'muted'}>
+                       {wal.walEnabled ? (wal.walDirExists ? 'Active' : 'Dir missing') : 'Disabled'}
+                     </Status>
+                   }>
+              {!wal ? (
+                <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>Loading…</p>
+              ) : (
+                <dl className="ea-def-list">
+                  <div className="ea-def-row"><dt>WAL directory</dt>
+                    <dd className="ea-mono" style={{ fontSize: 12 }}>{wal.walDirectory}</dd></div>
+                  <div className="ea-def-row"><dt>Archived segments</dt>
+                    <dd className="ea-mono" data-test="wal-segments">{wal.segmentCount ?? 0}</dd></div>
+                  <div className="ea-def-row"><dt>Earliest archive</dt>
+                    <dd className="ea-mono" style={{ fontSize: 12 }}>
+                      {wal.earliestArchive ? fmtDate(wal.earliestArchive) : '—'}
+                    </dd></div>
+                  <div className="ea-def-row"><dt>Latest archive</dt>
+                    <dd className="ea-mono" style={{ fontSize: 12 }}>
+                      {wal.latestArchive ? fmtDate(wal.latestArchive) : '—'}
+                    </dd></div>
+                </dl>
               )}
-            </dd></div>
-        </dl>
-        {verifyHist.length > 0 && (
-          <div className="ea-table-wrap" style={{ marginTop: 10 }}>
-            <table className="ea-table ea-table--dense" data-test="verify-history">
-              <thead><tr>
-                <th>Verified</th><th>Backup run</th><th>Outcome</th>
-                <th>Duration</th><th>Reason</th>
-              </tr></thead>
-              <tbody>
-                {verifyHist.map((v) => (
-                  <tr key={v.verificationId}>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{fmtDate(v.verifiedAt)}</td>
-                    <td className="ea-mono">{v.backupRunId}</td>
-                    <td>
-                      <Status tone={
-                        v.outcome === 'PASSED' || v.outcome === 'SUCCESS' ? 'success'
-                        : 'danger'}>
-                        {v.outcome}
-                      </Status>
-                    </td>
-                    <td className="ea-mono">{v.durationMs} ms</td>
-                    <td className="ea-text-muted">{v.reason ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
+            </Panel>
+          )}
 
-      <Panel title="Backup runs">
-        {rows.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>No backups yet. Trigger one via the buttons above.</p>
-        ) : (
-          <BackupRunsTable rows={rows} />
-        )}
-      </Panel>
+          {activeSection === 'verify' && (
+            <Panel title="Restore verification"
+                   action={
+                     <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                             disabled={verifying || !verify?.enabled || !lastSuccess}
+                             data-test="verify-now"
+                             title={!verify?.enabled
+                               ? 'Backup verification is disabled on this edge'
+                               : !lastSuccess ? 'No successful backup to verify yet' : ''}
+                             onClick={() => { runVerifyNow(lastSuccess?.runId).catch(() => undefined); }}>
+                       <UiIcon icon="refresh" size={14} />
+                       <span>{verifying ? 'Verifying…' : 'Verify now'}</span>
+                     </button>
+                   }>
+              <dl className="ea-def-list">
+                <div className="ea-def-row"><dt>Verification enabled</dt>
+                  <dd data-test="verify-enabled">{verify?.enabled ? 'yes' : 'no'}</dd></div>
+                <div className="ea-def-row"><dt>pg_restore</dt>
+                  <dd className="ea-mono" style={{ fontSize: 12 }}>
+                    {verify?.pgRestore ?? <span className="ea-text-muted">not found</span>}
+                  </dd></div>
+                <div className="ea-def-row"><dt>Last verify outcome</dt>
+                  <dd data-test="verify-last-outcome">
+                    <Status tone={verifyTone}>
+                      {verifyLast?.outcome ?? 'never run'}
+                    </Status>
+                    {verifyLast && (
+                      <span className="ea-text-muted" style={{ marginLeft: 8, fontSize: 12 }}>
+                        · {fmtAgo(verifyLast.verifiedAt)}
+                      </span>
+                    )}
+                  </dd></div>
+              </dl>
+              {verifyHist.length > 0 && (
+                <div className="ea-table-wrap" style={{ marginTop: 10 }}>
+                  <table className="ea-table ea-table--dense" data-test="verify-history">
+                    <thead><tr>
+                      <th>Verified</th><th>Backup run</th><th>Outcome</th>
+                      <th>Duration</th><th>Reason</th>
+                    </tr></thead>
+                    <tbody>
+                      {verifyHist.map((v) => (
+                        <tr key={v.verificationId}>
+                          <td className="ea-mono" style={{ fontSize: 12 }}>{fmtDate(v.verifiedAt)}</td>
+                          <td className="ea-mono">{v.backupRunId}</td>
+                          <td>
+                            <Status tone={
+                              v.outcome === 'PASSED' || v.outcome === 'SUCCESS' ? 'success'
+                              : 'danger'}>
+                              {v.outcome}
+                            </Status>
+                          </td>
+                          <td className="ea-mono">{v.durationMs} ms</td>
+                          <td className="ea-text-muted">{v.reason ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
+          )}
+
+          {activeSection === 'runs' && (
+            <Panel title="Backup runs">
+              {rows.length === 0 ? (
+                <p className="ea-text-muted" style={{ margin: 0 }}>No backups yet.</p>
+              ) : (
+                <BackupRunsTable rows={rows} />
+              )}
+            </Panel>
+          )}
+        </div>
+      </div>
     </div>
+  );
+}
+
+function BackupAsideItem(
+  { id, label, icon, count, active, onClick }:
+    { id: string; label: string; icon: 'schedule' | 'storage' | 'diagnostics' | 'history';
+      count?: number; active: boolean; onClick: () => void },
+): JSX.Element {
+  return (
+    <button type="button"
+            className={'ea-page-aside-item'
+              + (active ? ' ea-page-aside-item--active' : '')}
+            aria-current={active ? 'page' : undefined}
+            data-test={`backup-section-${id}`}
+            onClick={onClick}>
+      <span className="ea-page-aside-icon">
+        <UiIcon icon={icon} size={14} />
+      </span>
+      <span className="ea-page-aside-label">{label}</span>
+      {count != null && count > 0 && (
+        <span className="ea-page-aside-count">{count}</span>
+      )}
+    </button>
   );
 }
 

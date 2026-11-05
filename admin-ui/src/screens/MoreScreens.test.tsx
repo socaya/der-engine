@@ -185,6 +185,40 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/no referrals|no pending|empty|all clear/i);
   });
 
+  it('MockupBackupList — section sidebar renders four items; ?section=runs deep-links', async () => {
+    vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([
+      { runId: 1, kind: 'FULL', status: 'SUCCESS',
+        requestedAt: '2026-11-03T10:00:00Z' },
+    ] as edgeApi.BackupRow[]);
+    vi.spyOn(edgeApi, 'backupVerifyStatus').mockResolvedValue({
+      enabled: false, pgRestore: null, lastRun: null,
+    } as unknown as edgeApi.BackupVerifyStatus);
+    vi.spyOn(edgeApi, 'backupVerifyHistory').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'backupPitrWal').mockResolvedValue({
+      walEnabled: false, walDirectory: '/x',
+      walDirExists: false, segmentCount: 0,
+      earliestArchive: null, latestArchive: null,
+      totalBytes: 0,
+    } as edgeApi.WalSummary);
+    vi.spyOn(edgeApi, 'readSettings').mockResolvedValue({
+      cron: {}, featureFlags: {}, roles: [],
+    } as unknown as edgeApi.SettingsPayload);
+    renderWithProviders(<MockupBackupList />, {
+      authApi, route: '/admin/backup?section=runs',
+    });
+    await waitFor(() => expect(screen.getByTestId('backup-sections'))
+      .toBeInTheDocument());
+    /* All four aside items render. */
+    expect(screen.getByTestId('backup-section-schedule')).toBeInTheDocument();
+    expect(screen.getByTestId('backup-section-pitr')).toBeInTheDocument();
+    expect(screen.getByTestId('backup-section-verify')).toBeInTheDocument();
+    expect(screen.getByTestId('backup-section-runs')).toBeInTheDocument();
+    /* ?section=runs started on Runs → the backup row is visible, the
+     * schedule editor is not. */
+    expect(document.body.textContent ?? '').toMatch(/FULL/);
+    expect(screen.queryByTestId('backup-cron')).toBeNull();
+  });
+
   it('MockupBackupList — FR-15-07 Schedule + PITR + Verify sections populate', async () => {
     vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([
       { runId: 7, kind: 'FULL', status: 'SUCCESS',
@@ -220,12 +254,17 @@ describe('MoreScreens — surface mount test', () => {
     renderWithProviders(<MockupBackupList />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('backup-tools')).toBeInTheDocument());
-    /* Schedule row reflects cron from readSettings. */
+    /* Default section is Schedule — cron reflected from readSettings. */
     expect(screen.getByTestId('backup-cron')).toHaveTextContent('0 0 2 * * ?');
-    /* WAL segment count from pitr/wal. */
-    expect(screen.getByTestId('wal-segments')).toHaveTextContent('42');
-    /* Verify enabled + outcome + history table. */
-    expect(screen.getByTestId('verify-enabled')).toHaveTextContent('yes');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    /* Flip to PITR section → wal-segments visible. */
+    await user.click(screen.getByTestId('backup-section-pitr'));
+    await waitFor(() =>
+      expect(screen.getByTestId('wal-segments')).toHaveTextContent('42'));
+    /* Flip to Verification section → verify-enabled + outcome + history. */
+    await user.click(screen.getByTestId('backup-section-verify'));
+    await waitFor(() =>
+      expect(screen.getByTestId('verify-enabled')).toHaveTextContent('yes'));
     expect(screen.getByTestId('verify-last-outcome'))
       .toHaveTextContent('PASSED');
     expect(screen.getByTestId('verify-history')).toBeInTheDocument();
@@ -254,8 +293,12 @@ describe('MoreScreens — surface mount test', () => {
     } as edgeApi.BackupVerifyRow);
     renderWithProviders(<MockupBackupList />, { authApi });
     await waitFor(() =>
-      expect(screen.getByTestId('verify-now')).toBeInTheDocument());
+      expect(screen.getByTestId('backup-tools')).toBeInTheDocument());
     const user = (await import('@testing-library/user-event')).default.setup();
+    /* Verify-now lives in the Verification section. */
+    await user.click(screen.getByTestId('backup-section-verify'));
+    await waitFor(() =>
+      expect(screen.getByTestId('verify-now')).toBeInTheDocument());
     await user.click(screen.getByTestId('verify-now'));
     await waitFor(() => expect(runSpy).toHaveBeenCalledWith(7));
   });
@@ -316,6 +359,11 @@ describe('MoreScreens — surface mount test', () => {
         requestedAt: '2026-11-03T07:00:00Z' },
     ] as edgeApi.BackupRow[]);
     renderWithProviders(<MockupBackupList />, { authApi });
+    await waitFor(() =>
+      expect(screen.getByTestId('backup-tools')).toBeInTheDocument());
+    /* Backup runs table lives in the Runs section. */
+    const user = (await import('@testing-library/user-event')).default.setup();
+    await user.click(screen.getByTestId('backup-section-runs'));
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/FULL|AUDIT/));
     expect(document.body.textContent ?? '').toMatch(/disk full|FAILED/);
