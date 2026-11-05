@@ -1581,52 +1581,6 @@ kbd{
 .ea-panel-body{padding:0}
 .ea-panel-body--flush{padding:0}
 
-/* Page sub-navigation sidebar — in-page vertical tab list used for
- * multi-section admin pages (Backup, etc). Mirrors the primary
- * sidebar visual language (compact rows, icon + label, active wash)
- * but scoped to the page content column. */
-.ea-page-aside{
-  display:grid;grid-template-columns:200px 1fr;gap:var(--sp-3);
-  align-items:flex-start;
-}
-.ea-page-aside-nav{
-  display:flex;flex-direction:column;gap:2px;
-  background:var(--der-surface);
-  border:1px solid var(--der-border-subtle);
-  border-radius:var(--r-lg);
-  box-shadow:var(--el-1);
-  padding:var(--sp-2);
-  position:sticky;top:calc(var(--topbar-h) + var(--sp-3));
-}
-.ea-page-aside-item{
-  display:flex;align-items:center;gap:8px;
-  padding:7px 10px;border-radius:var(--r-sm);
-  color:var(--der-ink-700);font-size:var(--fs-sm);
-  cursor:pointer;background:transparent;border:none;text-align:left;
-  width:100%;
-}
-.ea-page-aside-item:hover{background:var(--der-raised);color:var(--der-ink-900)}
-.ea-page-aside-item--active{
-  background:var(--der-primary-soft);color:var(--der-ink-900);font-weight:500;
-  box-shadow:inset 2px 0 0 var(--der-primary);
-}
-.ea-page-aside-item--active .ea-page-aside-icon{color:var(--der-primary)}
-.ea-page-aside-icon{color:var(--der-ink-400);flex:0 0 auto}
-.ea-page-aside-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ea-page-aside-count{
-  font-size:11px;color:var(--der-ink-400);background:var(--der-raised);
-  padding:1px 6px;border-radius:999px;
-}
-.ea-page-aside-item--active .ea-page-aside-count{
-  background:var(--der-surface);color:var(--der-ink-700);
-}
-.ea-page-aside-body{display:flex;flex-direction:column;gap:var(--sp-3);min-width:0}
-@media(max-width:900px){
-  .ea-page-aside{grid-template-columns:1fr}
-  .ea-page-aside-nav{position:static;flex-direction:row;overflow-x:auto}
-  .ea-page-aside-item{flex:0 0 auto}
-}
-
 /* Split layout with right drawer */
 .ea-split{
   display:grid;grid-template-columns:1fr 320px;gap:var(--sp-3);

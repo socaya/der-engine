@@ -1788,40 +1788,32 @@ export function MockupBackupList(): JSX.Element {
         }
       />
 
-      <div className="ea-page-aside">
-        <nav className="ea-page-aside-nav"
-             aria-label="Backup sections"
-             data-test="backup-sections">
-          <BackupAsideItem
-            id="schedule"
-            label="Schedule"
-            icon="schedule"
-            active={activeSection === 'schedule'}
-            onClick={() => goTo('schedule')} />
-          <BackupAsideItem
-            id="pitr"
-            label="PITR / WAL"
-            icon="storage"
-            count={wal?.segmentCount ?? undefined}
-            active={activeSection === 'pitr'}
-            onClick={() => goTo('pitr')} />
-          <BackupAsideItem
-            id="verify"
-            label="Verification"
-            icon="diagnostics"
-            count={verifyHist.length || undefined}
-            active={activeSection === 'verify'}
-            onClick={() => goTo('verify')} />
-          <BackupAsideItem
-            id="runs"
-            label="Runs"
-            icon="history"
-            count={rows.length || undefined}
-            active={activeSection === 'runs'}
-            onClick={() => goTo('runs')} />
-        </nav>
-        <div className="ea-page-aside-body" data-test="backup-section-body">
-          {activeSection === 'schedule' && (
+      <nav className="ea-section-tabs"
+           role="tablist"
+           aria-label="Backup sections"
+           data-test="backup-sections">
+        <BackupSectionTab
+          id="schedule" label="Schedule" icon="schedule"
+          active={activeSection === 'schedule'}
+          onClick={() => goTo('schedule')} />
+        <BackupSectionTab
+          id="pitr" label="PITR / WAL" icon="storage"
+          count={wal?.segmentCount ?? undefined}
+          active={activeSection === 'pitr'}
+          onClick={() => goTo('pitr')} />
+        <BackupSectionTab
+          id="verify" label="Verification" icon="diagnostics"
+          count={verifyHist.length || undefined}
+          active={activeSection === 'verify'}
+          onClick={() => goTo('verify')} />
+        <BackupSectionTab
+          id="runs" label="Runs" icon="history"
+          count={rows.length || undefined}
+          active={activeSection === 'runs'}
+          onClick={() => goTo('runs')} />
+      </nav>
+      <div data-test="backup-section-body">
+        {activeSection === 'schedule' && (
             <BackupScheduleEditor
               cron={cron}
               lastSuccess={lastSuccess ?? null}
@@ -1921,39 +1913,38 @@ export function MockupBackupList(): JSX.Element {
             </Panel>
           )}
 
-          {activeSection === 'runs' && (
-            <Panel title="Backup runs">
-              {rows.length === 0 ? (
-                <p className="ea-text-muted" style={{ margin: 0 }}>No backups yet.</p>
-              ) : (
-                <BackupRunsTable rows={rows} />
-              )}
-            </Panel>
-          )}
-        </div>
+        {activeSection === 'runs' && (
+          <Panel title="Backup runs">
+            {rows.length === 0 ? (
+              <p className="ea-text-muted" style={{ margin: 0 }}>No backups yet.</p>
+            ) : (
+              <BackupRunsTable rows={rows} />
+            )}
+          </Panel>
+        )}
       </div>
     </div>
   );
 }
 
-function BackupAsideItem(
+function BackupSectionTab(
   { id, label, icon, count, active, onClick }:
-    { id: string; label: string; icon: 'schedule' | 'storage' | 'diagnostics' | 'history';
+    { id: string; label: string;
+      icon: 'schedule' | 'storage' | 'diagnostics' | 'history';
       count?: number; active: boolean; onClick: () => void },
 ): JSX.Element {
   return (
     <button type="button"
-            className={'ea-page-aside-item'
-              + (active ? ' ea-page-aside-item--active' : '')}
-            aria-current={active ? 'page' : undefined}
+            role="tab"
+            className={'ea-section-tab'
+              + (active ? ' ea-section-tab--active' : '')}
+            aria-selected={active}
             data-test={`backup-section-${id}`}
             onClick={onClick}>
-      <span className="ea-page-aside-icon">
-        <UiIcon icon={icon} size={14} />
-      </span>
-      <span className="ea-page-aside-label">{label}</span>
+      <UiIcon icon={icon} size={14} />
+      <span>{label}</span>
       {count != null && count > 0 && (
-        <span className="ea-page-aside-count">{count}</span>
+        <span className="ea-text-muted" style={{ fontSize: 11 }}>· {count}</span>
       )}
     </button>
   );
