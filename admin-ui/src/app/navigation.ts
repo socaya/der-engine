@@ -234,6 +234,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'health', label: 'Health', to: '/monitoring/health', status: 'implemented', tabIcon: 'health' },
       { id: 'hardware', label: 'Hardware', to: '/system/hardware', status: 'implemented', tabIcon: 'storage' },
       { id: 'metrics', label: 'Metrics', to: '/monitoring/metrics', status: 'implemented', tabIcon: 'analytics' },
+      { id: 'metrics-operators', label: 'Operators', to: '/admin/metrics/operators', status: 'implemented', tabIcon: 'activity' },
       { id: 'storage', label: 'Storage', to: '/monitoring/storage', status: 'implemented', tabIcon: 'storage' },
       { id: 'diagnostics', label: 'Diagnostics', to: '/diagnostics', status: 'implemented', tabIcon: 'diagnostics' },
       { id: 'analytics', label: 'Analytics', to: '/analytics', status: 'implemented', tabIcon: 'analytics' },
