@@ -204,9 +204,6 @@ export function WorkflowPeers({ api = edgeApi, embedded = false }:
             <input className="ea-input" type="password" data-test="peers-new-auth-pass"
                     value={newAuthPass} autoComplete="new-password"
                     onChange={(e) => setNewAuthPass(e.target.value)} />
-            <span className="ea-field-hint">
-              Stored plaintext in the pilot DB — rotate quarterly.
-            </span>
           </label>
         </div>
         <div style={{ marginTop: 'var(--sp-3)' }}>

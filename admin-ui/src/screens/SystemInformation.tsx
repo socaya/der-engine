@@ -173,7 +173,7 @@ export function MockupSystemInformation(): JSX.Element {
       </div>
 
       {si.attribution && (
-        <Panel title="User attribution (ADR-0032)">
+        <Panel title="User attribution">
           <KvGrid rows={[
             ['Configured', si.attribution.configured ? 'yes' : 'no'],
             ['Mapped users', String(si.attribution.mappedUsers ?? '—')],

@@ -102,7 +102,6 @@ export function Compliance(): JSX.Element {
         tone={pending > 0 ? 'warning' : 'success'}
         title="Compliance"
         statusLabel={pending > 0 ? `${pending} pending erasure` : 'Nominal'}
-        subtitle={<span>Retention policies, right-to-erasure, audit tamper-detection, and data residency.</span>}
         actions={
           <>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"

@@ -384,9 +384,6 @@ export function CapCentralConnection(): JSX.Element {
                      placeholder={cfg.patTokenSet ? 'leave blank to keep ***' : 'd2pat_xxx…'}
                      value={draft.patToken === '***' ? '' : (draft.patToken ?? '')}
                      onChange={(e) => set('patToken', e.target.value)} />
-              <span className="ea-field-hint">
-                If set, DER prefers the PAT (Bearer) over username/password Basic auth.
-              </span>
             </label>
             <label className="ea-field">
               <span className="ea-field-label">Connect timeout (ms)</span>
@@ -400,7 +397,6 @@ export function CapCentralConnection(): JSX.Element {
         <div className="ea-form-section">
           <div className="ea-form-section-head">
             <h2>Compatibility</h2>
-            <p>ADR-0006 compatibility policy — hard floor, max tested version and probe strictness.</p>
           </div>
           <div className="ea-form-grid">
             <label className="ea-field">
@@ -3156,9 +3152,6 @@ export function CapUserMappings(): JSX.Element {
           </tbody></table>
         </div>
       </Panel>
-      <p className="ea-field-hint" style={{ padding: '12px 0', fontSize: 12 }}>
-        Direct DHIS2 user mapping is applied by sync and is not yet editable from this console.
-      </p>
     </div>
   );
 }

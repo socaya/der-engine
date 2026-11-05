@@ -80,7 +80,6 @@ export function EASetupWelcome({ api = edgeApi }:
     <div className="ea-screen ea-overview">
       <HeroHeader
         title="Setup overview"
-        subtitle="Monitor the health, status and performance of your DER environment."
         version={h.version}
         centralVersion={c.centralVersion ?? undefined}
         lastFetched={lastFetched}
@@ -775,7 +774,6 @@ export function EAJobsList({ api = edgeApi }:
     <div className="ea-screen">
       <HeroHeader
         title="Synchronisation jobs"
-        subtitle="Scheduled Quartz runs across metadata, journal drain, backup, analytics and referral polling."
         lastFetched={lastFetched}
         actions={
           <>
@@ -936,7 +934,6 @@ export function EAJobTrigger({ api = edgeApi }:
     <div className="ea-screen">
       <HeroHeader
         title="Trigger a job"
-        subtitle="Fire a scheduled sync job now instead of waiting for its cron window."
       />
       <section className="ea-trigger-card" data-test="ea07-card">
         <div className="ea-trigger-pick">
@@ -1068,7 +1065,6 @@ export function EAConflictList({ api = edgeApi }:
     <div className="ea-screen">
       <HeroHeader
         title="Conflicts to review"
-        subtitle="Journal entries that need an authorised reviewer before they can drain to central."
         lastFetched={lastFetched}
         actions={
           <button type="button" onClick={() => { reload().catch(() => undefined); }} data-test="ea10-refresh">
@@ -1202,7 +1198,6 @@ export function EAWorkerHealth({ api = edgeApi }:
     <div className="ea-screen">
       <HeroHeader
         title="Journal worker"
-        subtitle="Pulls pending operations out of the journal and attempts to deliver them to DHIS2 central."
         lastFetched={lastFetched}
         actions={
           <>
@@ -2234,7 +2229,6 @@ export function EAAuditVerify({ api = edgeApi }:
         tone={tone}
         title="Verify audit chain"
         statusLabel={statusLabel}
-        subtitle="Walks every row of security_audit, re-computes the per-row hash from (prev_hash, event, timestamp, actor), and reports the first chain break (if any).  The hash chain is the tamper-evidence spine; a break means an audit row was edited, re-ordered, or deleted out-of-band."
         actions={
           <>
             <button type="button"

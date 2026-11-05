@@ -259,9 +259,7 @@ export function MockupDataQueues(): JSX.Element {
                             disabled={purging}
                             onClick={() => {
                               const ok = window.confirm(
-                                `Delete ${stateCounts.Sent} successfully-synced record(s) from the local queue?\n\n`
-                                + 'Rejected rows are also purged. The data remains on Central DHIS2 — '
-                                + 'this only clears the local sync-queue history. There is no undo.');
+                                `Purge ${stateCounts.Sent} synced record(s) from the local queue?`);
                               if (!ok) return;
                               setPurging(true);
                               edgeApi.purgeTerminalJournalRows(0)

@@ -266,7 +266,6 @@ export function MockupConflictList(): JSX.Element {
         tone={rows.length === 0 ? 'success' : 'warning'}
         title="Needs your attention"
         statusLabel={rows.length === 0 ? 'All clear' : `${rows.length} item${rows.length === 1 ? '' : 's'}`}
-        subtitle={<span>Records that could not synchronise automatically and need a decision.</span>}
       />
 
       <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} attention item${rows.length === 1 ? '' : 's'}`}>
@@ -1078,7 +1077,6 @@ export function MockupApprovalQueue(): JSX.Element {
         tone={rows.length === 0 ? 'success' : 'warning'}
         title="Approvals"
         statusLabel={rows.length === 0 ? 'All clear' : `${rows.length} pending`}
-        subtitle={<span>Captured records waiting for an approver&apos;s decision before they sync.</span>}
       />
       <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} pending`}>
         {rows.length === 0 ? (
@@ -1753,7 +1751,6 @@ export function MockupRestoreList(): JSX.Element {
         tone="muted"
         title="Restore"
         statusLabel={`${rows.length} on record`}
-        subtitle={<span>Replay an audit log or full backup bundle to this edge.</span>}
       />
       <Panel title="Request a restore">
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
@@ -2191,8 +2188,6 @@ export function MockupDhis2Mappings(): JSX.Element {
           : `${unmapped} unmapped`}
         subtitle={
           <>
-            <span>Each edge user must map to a DHIS2 Central user so captured records carry the correct <code>storedBy</code> attribution (ADR-0032).</span>
-            <span>·</span>
             <span>Mapped <strong style={{ color: 'var(--der-ink-900)' }}>{mappedCount}</strong></span>
             <span>·</span>
             <span>Total <strong style={{ color: 'var(--der-ink-900)' }}>{users.length}</strong></span>

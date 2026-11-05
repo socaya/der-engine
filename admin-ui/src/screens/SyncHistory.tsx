@@ -64,7 +64,6 @@ export function MockupSyncHistory(): JSX.Element {
         tone="muted"
         title="Sync history"
         statusLabel={`${jobs.length} run${jobs.length === 1 ? '' : 's'}`}
-        subtitle={<span>Every scheduled and manual sync run on this edge.</span>}
       />
 
       <OuPicker ctx={ctx} />

@@ -158,9 +158,6 @@ export function MockupDhis2Overview(): JSX.Element {
                      placeholder={cfg.patTokenSet ? 'leave blank to keep ***' : 'd2pat_xxx…'}
                      value={draft.patToken === '***' ? '' : (draft.patToken ?? '')}
                      onChange={(e) => set('patToken', e.target.value)} />
-              <span className="ea-field-hint">
-                If set, DER prefers the PAT (Bearer) over username/password Basic auth.
-              </span>
             </label>
             <label className="ea-field">
               <span className="ea-field-label">Connect timeout (ms)</span>
@@ -174,7 +171,6 @@ export function MockupDhis2Overview(): JSX.Element {
         <div className="ea-form-section">
           <div className="ea-form-section-head">
             <h2>Compatibility</h2>
-            <p>ADR-0006 compatibility policy — hard floor, max tested version and probe strictness.</p>
           </div>
           <div className="ea-form-grid">
             <label className="ea-field">
@@ -269,7 +265,7 @@ export function MockupDhis2Overview(): JSX.Element {
             <div className="ea-link-tile-body">
               <div className="ea-link-tile-title">Compatibility</div>
               <div className="ea-link-tile-desc">
-                Live probe + ADR-0006 policy. Last probe {c.capturedAt ? fmtAgo(c.capturedAt) : '—'}.
+                Last probe {c.capturedAt ? fmtAgo(c.capturedAt) : '—'}.
               </div>
             </div>
           </Link>

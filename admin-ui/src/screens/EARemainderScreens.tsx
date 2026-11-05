@@ -719,10 +719,6 @@ export function EASettings({ api = edgeApi }: {
                  {enabledFlags} / {flagEntries.length} enabled
                </span>
              }>
-        <p className="ea-field-hint" style={{ marginTop: 0, marginBottom: 10 }}>
-          Experimental surfaces hidden by default. Enable only in
-          development or pilot environments.
-        </p>
         <div className="ea-flag-list">
           {flagEntries.length === 0 && (
             <div className="ea-field-hint">No feature flags defined.</div>
@@ -769,12 +765,6 @@ function InternetSimulatePreference(): JSX.Element {
   ];
   return (
     <>
-      <p className="ea-field-hint" style={{ marginTop: 0, marginBottom: 10 }}>
-        Internet simulator on the Workspace topology.  When engaged the
-        Internet node cycles ON/OFF on a random schedule (up 25–60 s,
-        down 6–15 s) to depict the edge-first offline-capable behaviour
-        on dev or demo rigs where DHIS2 Central is co-located with DER.
-      </p>
       <div className="ea-flag-list" role="radiogroup"
            aria-label="Internet simulator mode">
         {options.map((opt) => (

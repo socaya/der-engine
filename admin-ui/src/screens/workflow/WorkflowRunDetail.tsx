@@ -375,11 +375,7 @@ function OutboundBundlePanel({ runId }: { runId: string }): JSX.Element {
       const scope = stateFilter.length > 0
           ? stateFilter.join(', ')
           : 'all retry-eligible states';
-      const ok = window.confirm(
-          `Retry ${count} operations (${scope})?\n\n`
-          + 'This clears last_error on each and moves them back to '
-          + 'PENDING for the next drain tick. There is no un-retry — '
-          + 'rows will attempt sync again as if freshly captured.');
+      const ok = window.confirm(`Retry ${count} operations (${scope})?`);
       if (!ok) return;
     }
     doBulkRetry().catch(() => undefined);

@@ -66,7 +66,6 @@ export function Fleet(): JSX.Element {
         tone={peerCount === 0 ? 'muted' : peersUp24h > 0 ? 'success' : 'warning'}
         title="Fleet"
         statusLabel={`${edgeCount} edges · ${peersUp24h}/${peerCount} peers up 24 h`}
-        subtitle={<span>Every edge this edge knows about — this one in the centre, peers around it with 24-hour uptime.</span>}
         actions={
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                   aria-label="Refresh fleet"
