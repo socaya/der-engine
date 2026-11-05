@@ -103,24 +103,108 @@ describe('MockupUsersDashboard', () => {
       .toHaveTextContent(/not found/i);
   });
 
-  it('MockupUserDetail renders the matched user and switches tabs', async () => {
+  it('MockupUserDetail renders the matched user; Permissions tab lists derived authorities; Activity tab lists audit rows', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
       users: [userFixture({ userId: 'u-live', username: 'alice',
                             displayName: 'Alice', roles: ['ADMIN'] })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
+      { edgeUserId: 'u-live', dhis2UserUid: 'ALICE123456', dhis2Username: 'alice.c',
+        dhis2DisplayName: 'Alice Central',
+        mappedAt: '2026-11-04T10:00:00Z', mappedBy: 'admin',
+        lastVerifiedAt: null, authType: 'TOKEN',
+        hasCredential: true, credentialSetAt: '2026-11-04T10:00:00Z' },
+    ]);
+    vi.spyOn(edgeApi, 'getUserEffectiveAuthorities').mockResolvedValue({
+      userId: 'u-live',
+      authorities: ['der.dhis2.read', 'der.users.read', 'der.users.write',
+        'der.roles.read'],
+    });
+    vi.spyOn(edgeApi, 'listAuditEvents').mockResolvedValue({
+      count: 2,
+      events: [
+        { eventType: 'USER_SIGNED_IN', actorUserId: 'u-live',
+          subjectUserId: null, clientIp: '10.0.0.1', userAgent: 'curl',
+          outcome: 'SUCCESS', detail: '{}',
+          observedAt: '2026-11-05T09:00:00Z' },
+        { eventType: 'USER_DHIS2_MAPPING_SET', actorUserId: 'u-live',
+          subjectUserId: 'u-live', clientIp: null, userAgent: null,
+          outcome: 'SUCCESS', detail: '{}',
+          observedAt: '2026-11-05T09:05:00Z' },
+      ],
     });
     renderWithProviders(detailWithRoute(),
       { authApi, route: '/provisioning/users/u-live' });
     await waitFor(() => expect(screen.getByTestId('user-detail'))
       .toBeInTheDocument());
+    /* Details tab surfaces the DHIS2 mapping + credential status. */
+    expect(screen.getByTestId('user-detail-credential'))
+      .toHaveTextContent(/Stored/);
     const user = userEvent.setup();
-    /* The screen opens on the Details tab; swap to Permissions
-     * to exercise the role-based bullet-list render path. */
+    /* Permissions tab lists derived authorities grouped by module. */
     await user.click(screen.getByRole('button', { name: /permissions/i }));
-    expect(screen.getByText(/manage users, apps, settings/i))
+    await waitFor(() => expect(screen.getByTestId('user-detail-authorities'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('user-detail-auth-der.users.read'))
       .toBeInTheDocument();
+    expect(screen.getByTestId('user-detail-auth-mod-users'))
+      .toHaveTextContent(/users · 2/);
+    /* Activity tab lists audit rows for this user. */
     await user.click(screen.getByRole('button', { name: /activity/i }));
-    expect(screen.getByText(/per-user activity not yet exposed/i))
-      .toBeInTheDocument();
+    const activity = await screen.findByTestId('user-detail-activity');
+    expect(activity).toHaveTextContent('USER_SIGNED_IN');
+    expect(activity).toHaveTextContent('USER_DHIS2_MAPPING_SET');
+  });
+
+  it('MockupUserDetail Reset-login confirms, calls revokeUserSessions, shows count', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-live', username: 'alice',
+                            displayName: 'Alice', roles: ['ADMIN'] })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'getUserEffectiveAuthorities').mockResolvedValue({
+      userId: 'u-live', authorities: [],
+    });
+    vi.spyOn(edgeApi, 'listAuditEvents').mockResolvedValue({
+      count: 0, events: [],
+    });
+    const revoke = vi.spyOn(edgeApi, 'revokeUserSessions').mockResolvedValue({
+      userId: 'u-live', revokedCount: 2,
+    });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderWithProviders(detailWithRoute(),
+      { authApi, route: '/provisioning/users/u-live' });
+    await waitFor(() => expect(screen.getByTestId('user-detail-reset-login'))
+      .toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('user-detail-reset-login'));
+    await waitFor(() => expect(revoke).toHaveBeenCalledWith('u-live'));
+    await waitFor(() => expect(screen.getByTestId('user-detail-msg'))
+      .toHaveTextContent(/2 sessions revoked/));
+    confirmSpy.mockRestore();
+  });
+
+  it('MockupUserDetail Reset-login is a no-op when the operator cancels the confirm', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-live' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'getUserEffectiveAuthorities').mockResolvedValue({
+      userId: 'u-live', authorities: [],
+    });
+    vi.spyOn(edgeApi, 'listAuditEvents').mockResolvedValue({
+      count: 0, events: [],
+    });
+    const revoke = vi.spyOn(edgeApi, 'revokeUserSessions').mockResolvedValue({
+      userId: 'u-live', revokedCount: 0,
+    });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderWithProviders(detailWithRoute(),
+      { authApi, route: '/provisioning/users/u-live' });
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('user-detail-reset-login'));
+    expect(revoke).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
   });
 
   it('MockupUsersDashboard renders Pending / Verified attention chips per row', async () => {

@@ -27,12 +27,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.web.bind.annotation.PathVariable;
+
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.EdgeRole;
+import ug.ac.mak.der.security.EdgeSessionRepository;
 import ug.ac.mak.der.security.EdgeUser;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.security.EdgeUserRepository;
 import ug.ac.mak.der.security.PasswordHasher;
+import ug.ac.mak.der.security.RoleDefinitionRepository;
 import ug.ac.mak.der.security.SecurityAuditRepository;
 
 /**
@@ -54,15 +58,21 @@ public class ProvisioningController {
     private final PasswordHasher hasher;
     private final SecurityAuditRepository audit;
     private final Clock clock;
+    private final RoleDefinitionRepository roles;
+    private final EdgeSessionRepository sessions;
 
     public ProvisioningController(final EdgeUserRepository users,
                                    final PasswordHasher hasher,
                                    final SecurityAuditRepository audit,
-                                   final Clock clock) {
+                                   final Clock clock,
+                                   final RoleDefinitionRepository roles,
+                                   final EdgeSessionRepository sessions) {
         this.users = users;
         this.hasher = hasher;
         this.audit = audit;
         this.clock = clock;
+        this.roles = roles;
+        this.sessions = sessions;
     }
 
     @PostMapping(path = "/users", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -140,6 +150,62 @@ public class ProvisioningController {
         return ResponseEntity.status(501).body(new SyncResponse(
                 "NOT_IMPLEMENTED",
                 "User reconciliation from DHIS2 is a Phase 05 deliverable. Phase 02 provisions local users only."));
+    }
+
+    /**
+     * EA-27: resolved authorities a user currently carries via their roles
+     * (built-in + custom).  The UI derives the Permissions tab from this
+     * list rather than hardcoding a role→text mapping.
+     */
+    @GetMapping("/users/{id}/effective-authorities")
+    public ResponseEntity<Map<String, Object>> effectiveAuthorities(
+            @PathVariable("id") final UUID id,
+            final Authentication authentication) {
+        final EdgeUserPrincipal admin = asEdgePrincipal(authentication);
+        if (admin == null) {
+            return ResponseEntity.status(401).build();
+        }
+        if (users.findById(id).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        final List<String> auth = roles.findAuthoritiesForUser(id)
+                .stream().sorted().toList();
+        return ResponseEntity.ok(Map.of(
+                "userId", id.toString(),
+                "authorities", auth));
+    }
+
+    /**
+     * EA-27: admin-only "revoke all active sessions" so an operator who
+     * has lost their device, forgotten their password, or who needs to
+     * be force-logged-out can be reset without touching the DB.  The
+     * password itself is left in place; this just nukes DER_SESSION
+     * cookies so the user must sign in again.
+     */
+    @PostMapping("/users/{id}/revoke-sessions")
+    public ResponseEntity<Map<String, Object>> revokeSessions(
+            @PathVariable("id") final UUID id,
+            final Authentication authentication,
+            final HttpServletRequest http) {
+        final EdgeUserPrincipal admin = asEdgePrincipal(authentication);
+        if (admin == null) {
+            return ResponseEntity.status(401).build();
+        }
+        if (users.findById(id).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        final Instant now = Instant.now(clock);
+        final int revoked = sessions.revokeAllForUser(id, now);
+        audit.append(new AuditEvent(
+                "USER_SESSIONS_REVOKED",
+                AuditEvent.Outcome.SUCCESS,
+                admin.userId(), id,
+                http.getRemoteAddr(), http.getHeader(HttpHeaders.USER_AGENT),
+                Map.of("revokedCount", Integer.toString(revoked))
+        ), now);
+        return ResponseEntity.ok(Map.of(
+                "userId", id.toString(),
+                "revokedCount", revoked));
     }
 
     public record CreateUserRequest(

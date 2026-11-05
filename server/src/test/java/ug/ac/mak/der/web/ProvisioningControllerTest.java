@@ -30,10 +30,12 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeSession;
+import ug.ac.mak.der.security.EdgeSessionRepository;
 import ug.ac.mak.der.security.EdgeUser;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.security.EdgeUserRepository;
 import ug.ac.mak.der.security.PasswordHasher;
+import ug.ac.mak.der.security.RoleDefinitionRepository;
 import ug.ac.mak.der.security.SecurityAuditRepository;
 
 @WebMvcTest(ProvisioningController.class)
@@ -45,6 +47,8 @@ class ProvisioningControllerTest {
     @MockBean EdgeUserRepository users;
     @MockBean PasswordHasher hasher;
     @MockBean SecurityAuditRepository audit;
+    @MockBean RoleDefinitionRepository roles;
+    @MockBean EdgeSessionRepository sessions;
 
     @org.springframework.boot.test.context.TestConfiguration
     static class Config {
@@ -135,5 +139,59 @@ class ProvisioningControllerTest {
     void syncUsersAnonymousIs401() throws Exception {
         mockMvc.perform(post("/edge-api/v1/provisioning/sync-users"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void effectiveAuthoritiesReturnsSortedList() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(users.findById(id)).thenReturn(java.util.Optional.of(
+                new EdgeUser(id, "alice", "A", EdgeUser.Origin.BOOTSTRAP, null, false,
+                        EnumSet.of(EdgeRole.OPERATOR), Instant.now(), Instant.now())));
+        when(roles.findAuthoritiesForUser(id))
+                .thenReturn(java.util.Set.of("der.users.read", "der.dhis2.read", "der.drafts.read"));
+        mockMvc.perform(get("/edge-api/v1/provisioning/users/" + id + "/effective-authorities")
+                        .with(adminAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(id.toString()))
+                .andExpect(jsonPath("$.authorities[0]").value("der.dhis2.read"))
+                .andExpect(jsonPath("$.authorities[1]").value("der.drafts.read"))
+                .andExpect(jsonPath("$.authorities[2]").value("der.users.read"));
+    }
+
+    @Test
+    void effectiveAuthoritiesUnknownUserIs404() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(users.findById(id)).thenReturn(java.util.Optional.empty());
+        mockMvc.perform(get("/edge-api/v1/provisioning/users/" + id + "/effective-authorities")
+                        .with(adminAuth()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void revokeSessionsReportsCountAndAudits() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(users.findById(id)).thenReturn(java.util.Optional.of(
+                new EdgeUser(id, "alice", "A", EdgeUser.Origin.BOOTSTRAP, null, false,
+                        EnumSet.of(EdgeRole.OPERATOR), Instant.now(), Instant.now())));
+        when(sessions.revokeAllForUser(org.mockito.ArgumentMatchers.eq(id),
+                org.mockito.ArgumentMatchers.any(Instant.class))).thenReturn(3);
+        mockMvc.perform(post("/edge-api/v1/provisioning/users/" + id + "/revoke-sessions")
+                        .with(adminAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(id.toString()))
+                .andExpect(jsonPath("$.revokedCount").value(3));
+        /* Audit event emitted. */
+        org.mockito.Mockito.verify(audit).append(
+                org.mockito.ArgumentMatchers.argThat(e -> "USER_SESSIONS_REVOKED".equals(e.eventType())),
+                org.mockito.ArgumentMatchers.any(Instant.class));
+    }
+
+    @Test
+    void revokeSessionsUnknownUserIs404() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(users.findById(id)).thenReturn(java.util.Optional.empty());
+        mockMvc.perform(post("/edge-api/v1/provisioning/users/" + id + "/revoke-sessions")
+                        .with(adminAuth()))
+                .andExpect(status().isNotFound());
     }
 }

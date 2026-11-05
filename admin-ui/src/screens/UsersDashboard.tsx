@@ -6,7 +6,7 @@ import {
   SyncStatusBar, humaniseState, RowMenu, BackLink, ScopedFilterChip, Status,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
-import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
+import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { Dhis2UserPicker } from '../components/Dhis2UserPicker';
 
 /** `/admin/provisioning/users` — Users dashboard.
@@ -236,20 +236,62 @@ export function MockupUsersDashboard(): JSX.Element {
 export function MockupUserDetail(): JSX.Element {
   const { userId } = useParams<{ userId: string }>();
   const [user, setUser] = useState<edgeApi.ProvisionedUser | null>(null);
+  const [mapping, setMapping] =
+    useState<edgeApi.EdgeUserDhis2Mapping | null>(null);
+  const [auth, setAuth] = useState<string[] | null>(null);
+  const [events, setEvents] = useState<edgeApi.AuditEventRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
   const [tab, setTab] = useState<'details' | 'permissions' | 'history'>('details');
 
   useEffect(() => {
     if (!userId) return;
-    edgeApi.listUsers().then((r) => {
-      const u = r.users.find((x) => x.userId === userId);
-      if (!u) { setErr('User not found on this edge.'); return; }
-      setUser(u);
+    Promise.all([
+      edgeApi.listUsers(),
+      edgeApi.listUserDhis2Mappings().catch(() => []),
+      edgeApi.getUserEffectiveAuthorities(userId).catch(() =>
+        ({ userId, authorities: [] as string[] })),
+      edgeApi.listAuditEvents({ actorUserId: userId, limit: 50 }).catch(() =>
+        ({ count: 0, events: [] as edgeApi.AuditEventRow[] })),
+    ]).then(([u, m, a, e]) => {
+      const row = u.users.find((x) => x.userId === userId);
+      if (!row) { setErr('User not found on this edge.'); return; }
+      setUser(row);
+      setMapping(m.find((x) => x.edgeUserId === userId) ?? null);
+      setAuth(a.authorities);
+      setEvents(e.events);
     }).catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
   }, [userId]);
 
-  if (err) return <ErrorBlock title="Could not load user" testId="err-user-detail">{err}</ErrorBlock>;
+  async function resetLogin(): Promise<void> {
+    if (!userId || !user) return;
+    if (!window.confirm(
+      `Revoke every active sign-in session for @${user.username}?`)) return;
+    setResetting(true); setMsg(null); setErr(null);
+    try {
+      const r = await edgeApi.revokeUserSessions(userId);
+      setMsg(`${r.revokedCount} session${r.revokedCount === 1 ? '' : 's'} revoked.`);
+      /* Reload activity so the audit entry surfaces. */
+      const next = await edgeApi.listAuditEvents({ actorUserId: userId, limit: 50 });
+      setEvents(next.events);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally { setResetting(false); }
+  }
+
+  if (err && !user) return <ErrorBlock title="Could not load user" testId="err-user-detail">{err}</ErrorBlock>;
   if (!user) return <LoadingBlock testId="loading" />;
+
+  /* Group derived authorities by their module (first segment after
+   * 'der.') so the Permissions tab lists them in a scannable shape. */
+  const grouped: Record<string, string[]> = {};
+  (auth ?? []).forEach((a) => {
+    const parts = a.split('.');
+    const mod = parts.length >= 2 ? parts[1] : 'other';
+    (grouped[mod] = grouped[mod] ?? []).push(a);
+  });
+  const modules = Object.keys(grouped).sort();
 
   return (
     <div className="ea-screen" data-test="user-detail">
@@ -273,9 +315,22 @@ export function MockupUserDetail(): JSX.Element {
             <UiIcon icon="metadata" size={14} />
             <span>DHIS2 mapping</span>
           </Link>
-          <button type="button" className="ea-btn ea-btn--ghost">Reset login</button>
+          <button type="button" className="ea-btn ea-btn--ghost"
+                  data-test="user-detail-reset-login"
+                  disabled={resetting}
+                  onClick={() => { void resetLogin(); }}>
+            {resetting ? 'Revoking…' : 'Reset login'}
+          </button>
         </div>
       </header>
+      {msg && (
+        <div className="ea-callout ea-callout--success"
+             role="status"
+             data-test="user-detail-msg">{msg}</div>
+      )}
+      {err && (
+        <ErrorBlock title="Action failed" testId="err-user-detail-action">{err}</ErrorBlock>
+      )}
       <section className="ea-panel">
         <div className="ea-section-tabs" style={{ marginBottom: 10 }}>
           <button type="button" className={'ea-section-tab' + (tab === 'details' ? ' ea-section-tab--active' : '')} onClick={() => setTab('details')}>Details</button>
@@ -283,27 +338,103 @@ export function MockupUserDetail(): JSX.Element {
           <button type="button" className={'ea-section-tab' + (tab === 'history' ? ' ea-section-tab--active' : '')} onClick={() => setTab('history')}>Activity</button>
         </div>
         {tab === 'details' && (
-          <dl className="ea-def-list">
+          <dl className="ea-def-list" data-test="user-detail-dl">
             <div className="ea-def-row"><dt>User ID</dt>
               <dd className="ea-mono" style={{ fontSize: 13 }}>{user.userId}</dd></div>
             <div className="ea-def-row"><dt>Username</dt>
               <dd className="ea-mono">{user.username}</dd></div>
             <div className="ea-def-row"><dt>Display name</dt><dd>{user.displayName}</dd></div>
             <div className="ea-def-row"><dt>DHIS2 mapping</dt>
-              <dd><span className="ea-chip ea-chip--neutral">Unmapped</span></dd></div>
+              <dd>
+                {mapping
+                  ? <span className="ea-mono">@{mapping.dhis2Username} · {mapping.dhis2UserUid}</span>
+                  : <span className="ea-chip ea-chip--neutral">Unmapped</span>}
+              </dd></div>
+            {mapping && (
+              <>
+                <div className="ea-def-row"><dt>DHIS2 authentication</dt>
+                  <dd>{(mapping.authType ?? 'inherit') === 'TOKEN' ? 'Token' : 'Password'}</dd></div>
+                <div className="ea-def-row"><dt>Service credential</dt>
+                  <dd data-test="user-detail-credential">
+                    {mapping.hasCredential
+                      ? <Status tone="success">Stored</Status>
+                      : <Status tone="warning">Not set</Status>}
+                    {mapping.credentialSetAt && (
+                      <span className="ea-text-muted"
+                            style={{ marginLeft: 8, fontSize: 12 }}>
+                        {new Date(mapping.credentialSetAt).toLocaleString()}
+                      </span>
+                    )}
+                  </dd></div>
+              </>
+            )}
           </dl>
         )}
         {tab === 'permissions' && (
-          <ul style={{ listStyle: 'none', padding: 10, margin: 0, fontSize: 14 }}>
-            {user.roles.includes('ADMIN') && <li style={{ padding: '4px 0' }}>• Manage users, apps, settings, sync, recovery</li>}
-            {user.roles.includes('OPERATOR') && <li style={{ padding: '4px 0' }}>• Capture aggregate / event / tracker data</li>}
-            {user.roles.includes('REVIEWER') && <li style={{ padding: '4px 0' }}>• Review approvals and conflicts</li>}
-          </ul>
+          auth == null
+            ? <LoadingBlock testId="user-detail-auth-loading" />
+            : auth.length === 0
+              ? <EmptyBlock title="No authorities" testId="user-detail-auth-empty">
+                  This user holds no der.* authorities via their current roles.
+                </EmptyBlock>
+              : (
+                <div data-test="user-detail-authorities">
+                  {modules.map((mod) => (
+                    <div key={mod} style={{ marginBottom: 12 }}>
+                      <div className="ea-subheading"
+                           data-test={`user-detail-auth-mod-${mod}`}>
+                        {mod} · {grouped[mod].length}
+                      </div>
+                      <ul className="ea-inline-list" style={{ marginTop: 6 }}>
+                        {grouped[mod].map((a) => (
+                          <li key={a} className="ea-mono"
+                              data-test={`user-detail-auth-${a}`}>{a}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )
         )}
         {tab === 'history' && (
-          <p className="ea-text-muted" style={{ margin: 10, fontSize: 14 }}>
-            Per-user activity not yet exposed on this edge.
-          </p>
+          events == null
+            ? <LoadingBlock testId="user-detail-activity-loading" />
+            : events.length === 0
+              ? <EmptyBlock title="No activity recorded" testId="user-detail-activity-empty">
+                  Nothing in the last 50 security_audit rows for this user.
+                </EmptyBlock>
+              : (
+                <table className="ea-table ea-table--dense"
+                       data-test="user-detail-activity">
+                  <thead>
+                    <tr>
+                      <th>When</th>
+                      <th>Event</th>
+                      <th>Outcome</th>
+                      <th>Client</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {events.map((e, i) => (
+                      <tr key={i} data-test={`user-detail-activity-row-${i}`}>
+                        <td className="ea-mono" style={{ fontSize: 12 }}>
+                          {new Date(e.observedAt).toLocaleString()}
+                        </td>
+                        <td className="ea-mono">{e.eventType}</td>
+                        <td>
+                          <Status tone={e.outcome === 'SUCCESS' ? 'success'
+                            : e.outcome === 'ERROR' ? 'danger' : 'warning'}>
+                            {e.outcome}
+                          </Status>
+                        </td>
+                        <td className="ea-mono" style={{ fontSize: 12 }}>
+                          {e.clientIp ?? '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
         )}
       </section>
     </div>

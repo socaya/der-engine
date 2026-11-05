@@ -2802,6 +2802,20 @@ export function listAuditEvents(opts: {
     'GET', `/edge-api/v1/security/audit/events?${q.toString()}`);
 }
 
+/** EA-27: derived authorities a user holds via their role grants. */
+export function getUserEffectiveAuthorities(userId: string):
+    Promise<{ userId: string; authorities: string[] }> {
+  return request('GET',
+    `/edge-api/v1/provisioning/users/${encodeURIComponent(userId)}/effective-authorities`);
+}
+
+/** EA-27: nuke every active DER_SESSION for the user. Password is left intact. */
+export function revokeUserSessions(userId: string):
+    Promise<{ userId: string; revokedCount: number }> {
+  return request('POST',
+    `/edge-api/v1/provisioning/users/${encodeURIComponent(userId)}/revoke-sessions`);
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // Network module — docs/requirements/DER_Network_Module_Design_Specification.md
 // Thin client over /edge-api/v1/network/*. Server endpoints land in Phase N1-N3;
