@@ -40,6 +40,13 @@ export function Dhis2UserPicker(
   const [candidates, setCandidates] = useState<edgeApi.EdgeDhis2UserCandidate[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  /* Default to the bound-OU scope.  When the operator needs a user
+   * outside the bound unit (e.g. a visiting supervisor) they flip
+   * this toggle to broaden to the whole DHIS2 instance. */
+  const [scope, setScope] = useState<edgeApi.EdgeDhis2CandidateScope>('ou');
+  const [appliedScope, setAppliedScope] =
+      useState<edgeApi.EdgeDhis2CandidateScope>('ou');
+  const [boundOuLabel, setBoundOuLabel] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -64,8 +71,13 @@ export function Dhis2UserPicker(
     setLoading(true);
     setErr(null);
     const handle = window.setTimeout(() => {
-      edgeApi.searchDhis2UserCandidates(query, 20)
-        .then((r) => { if (!cancelled) setCandidates(r.candidates); })
+      edgeApi.searchDhis2UserCandidates(query, { pageSize: 20, scope })
+        .then((r) => {
+          if (cancelled) return;
+          setCandidates(r.candidates);
+          setAppliedScope(r.scope);
+          setBoundOuLabel(r.boundOrgUnitDisplayName ?? null);
+        })
         .catch((e: unknown) => {
           if (!cancelled) {
             setCandidates([]);
@@ -75,7 +87,7 @@ export function Dhis2UserPicker(
         .finally(() => { if (!cancelled) setLoading(false); });
     }, query ? 200 : 0);
     return () => { cancelled = true; window.clearTimeout(handle); };
-  }, [open, query]);
+  }, [open, query, scope]);
 
   function onInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
     if (e.key === 'Escape') {
@@ -122,6 +134,30 @@ export function Dhis2UserPicker(
         <div className="ea-combobox-menu"
              role="listbox"
              data-test={dataTest ? `${dataTest}-menu` : undefined}>
+          <div className="ea-combobox-scope" role="radiogroup"
+               aria-label="Candidate scope"
+               data-test={dataTest ? `${dataTest}-scope` : undefined}>
+            <button type="button"
+                    className={'ea-combobox-scope-btn'
+                      + (scope === 'ou' ? ' ea-combobox-scope-btn--active' : '')}
+                    aria-pressed={scope === 'ou'}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setScope('ou')}
+                    data-test={dataTest ? `${dataTest}-scope-ou` : undefined}>
+              {appliedScope === 'ou' && boundOuLabel
+                ? `At ${boundOuLabel}`
+                : 'At bound OU'}
+            </button>
+            <button type="button"
+                    className={'ea-combobox-scope-btn'
+                      + (scope === 'all' ? ' ea-combobox-scope-btn--active' : '')}
+                    aria-pressed={scope === 'all'}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setScope('all')}
+                    data-test={dataTest ? `${dataTest}-scope-all` : undefined}>
+              All users
+            </button>
+          </div>
           {/* Sticky summary row so operators always see the result count
            *  + the search context, even after scrolling the list. */}
           {!loading && !err && candidates.length > 0 && (

@@ -1,5 +1,6 @@
 package ug.ac.mak.der.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,6 +33,8 @@ import ug.ac.mak.der.attribution.EdgeUserDhis2Mapping;
 import ug.ac.mak.der.attribution.EdgeUserDhis2MappingRepository;
 import ug.ac.mak.der.dhis2.Dhis2ReferenceClient;
 import ug.ac.mak.der.ops.AdminSettingRepository;
+import ug.ac.mak.der.orgunit.EdgeOrgUnitBinding;
+import ug.ac.mak.der.orgunit.OrgUnitBindingService;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeSession;
@@ -52,6 +55,7 @@ class UserAttributionControllerTest {
     @MockBean Dhis2ReferenceClient dhis2;
     @MockBean AdminSettingRepository settings;
     @MockBean SecretEnvelope envelope;
+    @MockBean OrgUnitBindingService binding;
 
     @org.junit.jupiter.api.BeforeEach
     void stubClock() {
@@ -227,6 +231,64 @@ class UserAttributionControllerTest {
                         .param("q", "alice").with(as()))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.code").value("DHIS2_RESPONSE_INVALID"));
+    }
+
+    @Test
+    void candidatesDefaultScopeAppendsBoundOuFilter() throws Exception {
+        when(binding.current()).thenReturn(EdgeOrgUnitBinding.bound(
+                "HL2zXaIULBe", "Clinic A",
+                "/ZEzf44yY3Kd/T4LOE9sCy2R/QLtB3RDiv2c/HL2zXaIULBe",
+                UUID.randomUUID()));
+        final com.fasterxml.jackson.databind.ObjectMapper om =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+        when(dhis2.fetchJson(any(String.class)))
+                .thenReturn(om.readTree("{\"users\":[]}"));
+        mockMvc.perform(get("/edge-api/v1/admin/users/dhis2-candidates")
+                        .with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scope").value("ou"))
+                .andExpect(jsonPath("$.boundOrgUnitId").value("HL2zXaIULBe"))
+                .andExpect(jsonPath("$.boundOrgUnitDisplayName").value("Clinic A"));
+        /* The DHIS2 path must carry the path-prefix filter for the OU. */
+        final org.mockito.ArgumentCaptor<String> cap =
+                org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(dhis2).fetchJson(cap.capture());
+        assertThat(cap.getValue())
+                .contains("filter=organisationUnits.path:like:HL2zXaIULBe");
+    }
+
+    @Test
+    void candidatesScopeAllSkipsOuFilter() throws Exception {
+        when(binding.current()).thenReturn(EdgeOrgUnitBinding.bound(
+                "HL2zXaIULBe", "Clinic A",
+                "/ZEzf44yY3Kd/HL2zXaIULBe", UUID.randomUUID()));
+        final com.fasterxml.jackson.databind.ObjectMapper om =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+        when(dhis2.fetchJson(any(String.class)))
+                .thenReturn(om.readTree("{\"users\":[]}"));
+        mockMvc.perform(get("/edge-api/v1/admin/users/dhis2-candidates")
+                        .param("scope", "all").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scope").value("all"))
+                .andExpect(jsonPath("$.boundOrgUnitId").doesNotExist());
+        final org.mockito.ArgumentCaptor<String> cap =
+                org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(dhis2).fetchJson(cap.capture());
+        assertThat(cap.getValue()).doesNotContain("filter=organisationUnits");
+    }
+
+    @Test
+    void candidatesUnboundEdgeFallsBackToAll() throws Exception {
+        /* binding.current() returns null (Mockito default) → empty binding → scope reported as 'all'. */
+        final com.fasterxml.jackson.databind.ObjectMapper om =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+        when(dhis2.fetchJson(any(String.class)))
+                .thenReturn(om.readTree("{\"users\":[]}"));
+        mockMvc.perform(get("/edge-api/v1/admin/users/dhis2-candidates")
+                        .with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scope").value("all"))
+                .andExpect(jsonPath("$.boundOrgUnitId").doesNotExist());
     }
 
     @Test

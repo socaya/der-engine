@@ -30,10 +30,14 @@ import ug.ac.mak.der.attribution.EdgeUserDhis2Mapping;
 import ug.ac.mak.der.attribution.EdgeUserDhis2MappingRepository;
 import ug.ac.mak.der.dhis2.Dhis2ReferenceClient;
 import ug.ac.mak.der.ops.AdminSettingRepository;
+import ug.ac.mak.der.orgunit.EdgeOrgUnitBinding;
+import ug.ac.mak.der.orgunit.OrgUnitBindingService;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.security.SecretEnvelope;
 import ug.ac.mak.der.security.SecurityAuditRepository;
+
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * ADR-0032: admin-only maintenance of the edge-user ↔ DHIS2-user map.
@@ -54,19 +58,24 @@ public class UserAttributionController {
     private final Dhis2ReferenceClient dhis2;
     private final AdminSettingRepository settings;
     private final SecretEnvelope envelope;
+    /** Null on unbound dev instances (ConditionalOnBean). */
+    private final OrgUnitBindingService binding;
 
     public UserAttributionController(final EdgeUserDhis2MappingRepository repo,
                                        final SecurityAuditRepository audit,
                                        final Clock clock,
                                        final Dhis2ReferenceClient dhis2,
                                        final AdminSettingRepository settings,
-                                       final SecretEnvelope envelope) {
+                                       final SecretEnvelope envelope,
+                                       @Autowired(required = false)
+                                       final OrgUnitBindingService binding) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.audit = Objects.requireNonNull(audit, "audit");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.dhis2 = Objects.requireNonNull(dhis2, "dhis2");
         this.settings = Objects.requireNonNull(settings, "settings");
         this.envelope = Objects.requireNonNull(envelope, "envelope");
+        this.binding = binding;
     }
 
     @GetMapping("/dhis2-mappings")
@@ -185,38 +194,66 @@ public class UserAttributionController {
     public ResponseEntity<Map<String, Object>> candidates(
             @RequestParam(name = "q", required = false) final String q,
             @RequestParam(name = "pageSize", required = false, defaultValue = "20")
-            final int pageSize) {
+            final int pageSize,
+            @RequestParam(name = "scope", required = false, defaultValue = "ou")
+            final String scope) {
         final int size = Math.max(1, Math.min(100, pageSize));
-        final String path;
-        if (q != null && !q.isBlank()) {
-            path = "/api/users.json?fields=id,username,displayName,disabled"
-                    + "&pageSize=" + size
-                    + "&query=" + URLEncoder.encode(q.trim(), StandardCharsets.UTF_8);
-        } else {
-            path = "/api/users.json?fields=id,username,displayName,disabled"
-                    + "&pageSize=" + size;
+        /* scope=ou (default): restrict to users whose OU chain contains
+         * the bound orgUnit (= the bound OU or any descendant). DHIS2
+         * stores paths as "/ANCESTOR_UID/.../OWN_UID"; UIDs are random
+         * 11-char strings so a path:like:<boundOuId> filter uniquely
+         * picks the bound OU + descendants without collision.
+         *
+         * scope=all: no filter. Used when the operator needs to map an
+         * out-of-scope user (e.g. a visiting district supervisor).
+         *
+         * When the edge isn't bound yet we silently fall back to "all"
+         * since there is no OU to scope against. */
+        EdgeOrgUnitBinding currentBinding =
+                binding == null ? null : binding.current();
+        if (currentBinding == null) {
+            currentBinding = EdgeOrgUnitBinding.empty();
         }
+        final boolean wantOuScope = !"all".equalsIgnoreCase(scope);
+        final boolean ouScopeActive = wantOuScope && currentBinding.isBound();
+        final StringBuilder p = new StringBuilder(
+                "/api/users.json?fields=id,username,displayName,disabled")
+                .append("&pageSize=").append(size);
+        if (q != null && !q.isBlank()) {
+            p.append("&query=").append(
+                    URLEncoder.encode(q.trim(), StandardCharsets.UTF_8));
+        }
+        if (ouScopeActive) {
+            p.append("&filter=organisationUnits.path:like:")
+                    .append(URLEncoder.encode(currentBinding.orgUnitId(),
+                            StandardCharsets.UTF_8));
+        }
+        final String path = p.toString();
         try {
             final JsonNode body = dhis2.fetchJson(path);
             final JsonNode users = body.get("users");
-            if (users == null || !users.isArray()) {
-                return ResponseEntity.ok(Map.of(
-                        "candidates", List.of(),
-                        "query", q == null ? "" : q));
-            }
             final List<Map<String, Object>> rows = new ArrayList<>();
-            for (final JsonNode u : users) {
-                final Map<String, Object> entry = new LinkedHashMap<>();
-                entry.put("id", textOrNull(u.get("id")));
-                entry.put("username", textOrNull(u.get("username")));
-                entry.put("displayName", textOrNull(u.get("displayName")));
-                final JsonNode disabled = u.get("disabled");
-                entry.put("disabled", disabled != null && disabled.asBoolean(false));
-                rows.add(entry);
+            if (users != null && users.isArray()) {
+                for (final JsonNode u : users) {
+                    final Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("id", textOrNull(u.get("id")));
+                    entry.put("username", textOrNull(u.get("username")));
+                    entry.put("displayName", textOrNull(u.get("displayName")));
+                    final JsonNode disabled = u.get("disabled");
+                    entry.put("disabled", disabled != null && disabled.asBoolean(false));
+                    rows.add(entry);
+                }
             }
-            return ResponseEntity.ok(Map.of(
-                    "candidates", rows,
-                    "query", q == null ? "" : q));
+            final Map<String, Object> out = new LinkedHashMap<>();
+            out.put("candidates", rows);
+            out.put("query", q == null ? "" : q);
+            out.put("scope", ouScopeActive ? "ou" : "all");
+            if (ouScopeActive) {
+                out.put("boundOrgUnitId", currentBinding.orgUnitId());
+                out.put("boundOrgUnitDisplayName",
+                        currentBinding.orgUnitDisplayName());
+            }
+            return ResponseEntity.ok(out);
         } catch (Dhis2ReferenceClient.Dhis2UnreachableException ex) {
             return ResponseEntity.status(503).body(Map.of(
                     "code", "DHIS2_UNREACHABLE",

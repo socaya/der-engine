@@ -2072,10 +2072,29 @@ kbd{
   padding:5px 10px;font-size:11px;color:var(--der-ink-500);
   background:var(--der-raised);
   border-bottom:1px solid var(--der-border-subtle);
-  position:sticky;top:0;z-index:1;
+  position:sticky;top:34px;z-index:1;
   font-weight:500;
 }
 .ea-combobox-hint--danger{color:var(--der-danger-ink);background:transparent}
+.ea-combobox-scope{
+  display:flex;gap:0;
+  padding:4px;
+  background:var(--der-raised);
+  border-bottom:1px solid var(--der-border-subtle);
+  position:sticky;top:0;z-index:2;
+}
+.ea-combobox-scope-btn{
+  flex:1;padding:4px 10px;font-size:11px;
+  background:transparent;border:1px solid transparent;
+  color:var(--der-ink-500);cursor:pointer;
+  text-align:center;
+}
+.ea-combobox-scope-btn:hover{color:var(--der-ink-900)}
+.ea-combobox-scope-btn--active{
+  background:var(--der-surface);
+  border-color:var(--der-border-subtle);
+  color:var(--der-ink-900);font-weight:500;
+}
 /* Rows are plain single-line entries, no per-row borders.  The
  * hover highlight + the active-row wash are the only visual
  * separators, mirroring DHIS2's native option-list style. */

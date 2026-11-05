@@ -1353,13 +1353,25 @@ export interface EdgeDhis2UserCandidate {
   disabled: boolean;
 }
 
-export function searchDhis2UserCandidates(q: string, pageSize?: number): Promise<{
+export type EdgeDhis2CandidateScope = 'ou' | 'all';
+
+export interface EdgeDhis2CandidateResponse {
   candidates: EdgeDhis2UserCandidate[];
   query: string;
-}> {
+  /** Scope actually applied by the server — may differ from the
+   *  requested value when the edge is unbound (falls back to 'all'). */
+  scope: EdgeDhis2CandidateScope;
+  boundOrgUnitId?: string | null;
+  boundOrgUnitDisplayName?: string | null;
+}
+
+export function searchDhis2UserCandidates(q: string,
+    opts?: { pageSize?: number; scope?: EdgeDhis2CandidateScope }):
+    Promise<EdgeDhis2CandidateResponse> {
   const params = new URLSearchParams();
   if (q) params.set('q', q);
-  if (pageSize) params.set('pageSize', String(pageSize));
+  if (opts?.pageSize) params.set('pageSize', String(opts.pageSize));
+  if (opts?.scope) params.set('scope', opts.scope);
   const qs = params.toString();
   return request('GET',
     '/edge-api/v1/admin/users/dhis2-candidates'

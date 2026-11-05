@@ -307,6 +307,8 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
     const candidateSearch = vi.spyOn(edgeApi, 'searchDhis2UserCandidates')
       .mockResolvedValue({
         query: '',
+        scope: 'ou',
+        boundOrgUnitDisplayName: 'Clinic A',
         candidates: [
           { id: 'A1B2C3D4E5F', username: 'alice.c',
             displayName: 'Alice Central', disabled: false },
@@ -457,6 +459,48 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
       })));
   });
 
+  it('picker defaults to bound-OU scope and operator can broaden to all users', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1', username: 'alice' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'getDhis2AuthTypeDefault').mockResolvedValue({
+      defaultAuthType: 'BASIC',
+    });
+    const searchSpy = vi.spyOn(edgeApi, 'searchDhis2UserCandidates')
+      .mockResolvedValue({
+        query: '', scope: 'ou',
+        boundOrgUnitDisplayName: 'Mulago Hospital',
+        candidates: [
+          { id: 'OU1LocalUser', username: 'ou.nurse',
+            displayName: 'OU Nurse', disabled: false },
+        ],
+      });
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('user-dhis2-mapping-add'));
+    await user.click(screen.getByTestId('user-dhis2-mapping-picker-input'));
+    /* First probe is scope=ou. */
+    await waitFor(() => expect(searchSpy)
+      .toHaveBeenCalledWith('', expect.objectContaining({ scope: 'ou' })));
+    /* Scope chip surfaces the bound-OU display name. */
+    await waitFor(() => expect(screen.getByTestId('user-dhis2-mapping-picker-scope-ou'))
+      .toHaveTextContent(/Mulago Hospital/));
+    /* Operator broadens the scope. */
+    searchSpy.mockResolvedValue({
+      query: '', scope: 'all',
+      candidates: [
+        { id: 'OU1LocalUser', username: 'ou.nurse',
+          displayName: 'OU Nurse', disabled: false },
+        { id: 'DistrictMgr0', username: 'district.sup',
+          displayName: 'District Supervisor', disabled: false },
+      ],
+    });
+    await user.click(screen.getByTestId('user-dhis2-mapping-picker-scope-all'));
+    await waitFor(() => expect(searchSpy)
+      .toHaveBeenCalledWith('', expect.objectContaining({ scope: 'all' })));
+  });
+
   it('saving with no credential leaves authType null so the stored secret is preserved', async () => {
     /* Edits that touch only non-secret fields (display name, etc.) must
      * NOT send a credential, and should leave authType null so the
@@ -553,6 +597,7 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
     });
     vi.spyOn(edgeApi, 'searchDhis2UserCandidates').mockResolvedValue({
       query: '',
+      scope: 'ou',
       candidates: [
         { id: 'A1B2C3D4E5F', username: 'alice.c',
           displayName: 'Alice Central', disabled: false },
