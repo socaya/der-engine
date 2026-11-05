@@ -412,8 +412,7 @@ export function MockupUserDhis2Mapping(): JSX.Element {
         credential: draft.credential.length > 0 ? draft.credential : null,
       });
       setMapping(saved);
-      setMsg(`Mapping saved — @${saved.dhis2Username}`
-        + (draft.credential.length > 0 ? '  Credential sealed and stored.' : ''));
+      setMsg(`Mapping saved — @${saved.dhis2Username}`);
       setDraft(null);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -426,7 +425,7 @@ export function MockupUserDhis2Mapping(): JSX.Element {
     try {
       await edgeApi.clearUserDhis2Mapping(userId);
       setMapping(null);
-      setMsg('Mapping cleared.  Captured records will carry no DHIS2 attribution until a new mapping is set.');
+      setMsg('Mapping cleared.');
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally { setSaving(false); }
@@ -475,14 +474,6 @@ export function MockupUserDhis2Mapping(): JSX.Element {
         tone={mapped ? 'success' : 'warning'}
         title={`DHIS2 mapping — ${user.displayName}`}
         statusLabel={mapped ? `Mapped to @${mapping!.dhis2Username}` : 'Unmapped'}
-        subtitle={
-          <>
-            <span>ADR-0032 attribution: every record this user captures
-              carries the mapped DHIS2 user&apos;s uid as <code>storedBy</code>
-              on publish.  Unmapped users can capture locally but their
-              records will not be attributed on central.</span>
-          </>
-        }
         actions={
           <>
             <Link to="/access/dhis2-mappings"
@@ -560,8 +551,7 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                          disabled={saving}
                          onClick={() => {
                            if (window.confirm(
-                             `Clear the DHIS2 mapping for @${user.username}?\n\n`
-                             + 'Future captured records will carry no central attribution until a new mapping is set.')) {
+                             `Clear the DHIS2 mapping for @${user.username}?`)) {
                              void clearMapping();
                            }
                          }}>
@@ -574,9 +564,7 @@ export function MockupUserDhis2Mapping(): JSX.Element {
           <div data-test="user-dhis2-mapping-empty"
                className="ea-mapping-empty">
             <p className="ea-text-muted ea-mapping-empty-copy">
-              No DHIS2 user is mapped to this edge user yet.  Pick a
-              DHIS2 Central user to attribute records this operator
-              captures.
+              No DHIS2 user mapped.
             </p>
             <button type="button"
                     className="ea-btn ea-btn--primary ea-btn--sm"
@@ -621,30 +609,31 @@ export function MockupUserDhis2Mapping(): JSX.Element {
             <div className="ea-def-row">
               <dt>Authentication</dt>
               <dd>
-                {mapping!.authType
-                  ? (mapping!.authType === 'TOKEN'
-                    ? 'Personal access token (overrides system default)'
-                    : 'Basic password (overrides system default)')
-                  : (defaultAuthType === 'TOKEN'
-                    ? 'Personal access token (system default)'
-                    : 'Basic password (system default)')}
+                {((mapping!.authType ?? defaultAuthType) === 'TOKEN')
+                  ? 'Token' : 'Password'}
+                {mapping!.authType != null
+                    && mapping!.authType !== defaultAuthType && (
+                  <span className="ea-text-muted" style={{ marginLeft: 6 }}>
+                    (override)
+                  </span>
+                )}
               </dd>
             </div>
             <div className="ea-def-row">
-              <dt>Service credential</dt>
+              <dt>Credential</dt>
               <dd>
                 {mapping!.hasCredential
                   ? (
                     <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-                      <Status tone="success">Credential stored</Status>
-                      <span className="ea-text-muted" style={{ fontSize: 12 }}>
-                        {mapping!.credentialSetAt
-                          ? `set ${new Date(mapping!.credentialSetAt).toLocaleString()}`
-                          : ''}
-                      </span>
+                      <Status tone="success">Stored</Status>
+                      {mapping!.credentialSetAt && (
+                        <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                          {new Date(mapping!.credentialSetAt).toLocaleString()}
+                        </span>
+                      )}
                     </span>
                   )
-                  : <Status tone="warning">No credential — push blocked</Status>}
+                  : <Status tone="warning">Not set</Status>}
               </dd>
             </div>
           </dl>
@@ -665,11 +654,6 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                   : null}
                 onChange={pickCandidate}
               />
-              <span className="ea-field-hint">
-                Backed by <code>GET /api/users</code> on the bound
-                DHIS2 central.  If search fails you can paste the uid
-                below.
-              </span>
             </div>
 
             <dl className="ea-def-list" data-test="user-dhis2-mapping-chosen">
@@ -715,15 +699,13 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                        className="ea-mapping-details">
                 <h3 className="ea-subheading">DHIS2 user details</h3>
                 {userDetailsLoading && (
-                  <p className="ea-text-muted" data-test="user-dhis2-mapping-details-loading">
-                    Loading user details from DHIS2…
-                  </p>
+                  <p className="ea-text-muted"
+                     data-test="user-dhis2-mapping-details-loading">Loading…</p>
                 )}
                 {userDetailsErr && !userDetailsLoading && (
                   <div className="ea-callout ea-callout--warning"
                        data-test="user-dhis2-mapping-details-err" role="status">
-                    DHIS2 did not return details for this uid: {userDetailsErr}.
-                    You can still save the mapping with the fields above.
+                    {userDetailsErr}
                   </div>
                 )}
                 {userDetails && !userDetailsLoading && (
@@ -804,15 +786,10 @@ export function MockupUserDhis2Mapping(): JSX.Element {
             <section data-test="user-dhis2-mapping-creds"
                      className="ea-mapping-creds">
               <h3 className="ea-subheading">Service credentials</h3>
-              <p className="ea-text-muted" style={{ marginTop: 0 }}>
-                Stored sealed with AES-256-GCM.  The data-push worker uses
-                this credential to authenticate to DHIS2 as this user when
-                attributing outbound records.
-              </p>
 
               <fieldset className="ea-field"
                         data-test="user-dhis2-mapping-authtype">
-                <legend className="ea-field-label">Authentication type</legend>
+                <legend className="ea-field-label">Authentication</legend>
                 <div className="ea-radio-group">
                   {(['BASIC', 'TOKEN'] as const).map((t) => {
                     const effective = draft.authType ?? defaultAuthType;
@@ -831,10 +808,10 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                                  credential: '',
                                })} />
                         <span>
-                          {t === 'TOKEN' ? 'Personal access token' : 'Basic password'}
+                          {t === 'TOKEN' ? 'Token' : 'Password'}
                           {isDefault && (
                             <span className="ea-text-muted" style={{ marginLeft: 6 }}>
-                              (system default)
+                              (default)
                             </span>
                           )}
                         </span>
@@ -842,21 +819,13 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                     );
                   })}
                 </div>
-                {draft.authType != null && draft.authType !== defaultAuthType && (
-                  <span className="ea-field-hint"
-                        data-test="user-dhis2-mapping-authtype-override">
-                    Overrides system default
-                    ({defaultAuthType === 'TOKEN' ? 'PAT token' : 'basic password'}).
-                  </span>
-                )}
               </fieldset>
 
               <div className="ea-field">
                 <label className="ea-field-label"
                        htmlFor="user-dhis2-mapping-credential">
                   {(draft.authType ?? defaultAuthType) === 'TOKEN'
-                    ? 'Personal access token'
-                    : 'Password'}
+                    ? 'Token' : 'Password'}
                 </label>
                 <input type="password"
                        id="user-dhis2-mapping-credential"
@@ -864,17 +833,10 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                        className="ea-input ea-mono"
                        autoComplete="new-password"
                        placeholder={mapping?.hasCredential
-                         ? 'Leave blank to keep the stored secret'
-                         : ((draft.authType ?? defaultAuthType) === 'TOKEN'
-                           ? 'Paste the PAT token from DHIS2'
-                           : 'Enter the DHIS2 account password')}
+                         ? 'Leave blank to keep current'
+                         : ''}
                        value={draft.credential}
                        onChange={(e) => setDraft({ ...draft, credential: e.target.value })} />
-                <span className="ea-field-hint">
-                  {mapping?.hasCredential
-                    ? 'A credential is already sealed for this user.  Leave blank to keep it; type a new value to replace it.'
-                    : 'Required for outbound push.  Saved sealed (never echoed back by the API).'}
-                </span>
               </div>
             </section>
 

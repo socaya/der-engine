@@ -403,12 +403,10 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
     expect(basicRadio.checked).toBe(true);
     /* Operator picks the non-default. */
     await user.click(screen.getByTestId('user-dhis2-mapping-authtype-token'));
-    expect(screen.getByTestId('user-dhis2-mapping-authtype-override'))
-      .toHaveTextContent(/Overrides system default/);
+    expect((screen.getByTestId('user-dhis2-mapping-authtype-token') as HTMLInputElement)
+      .checked).toBe(true);
 
-    /* Credential input placeholder follows the chosen auth type. */
     const credInput = screen.getByTestId('user-dhis2-mapping-credential') as HTMLInputElement;
-    expect(credInput.placeholder).toMatch(/PAT token/);
 
     await user.type(screen.getByTestId('user-dhis2-mapping-input-uid'), 'ALICE123456');
     await user.type(credInput, 'pat-token-shhh');
@@ -441,14 +439,14 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
       expect(screen.getByTestId('user-dhis2-mapping-current'))
         .toBeInTheDocument());
     expect(screen.getByTestId('user-dhis2-mapping-current'))
-      .toHaveTextContent(/Credential stored/);
+      .toHaveTextContent(/Stored/);
     expect(screen.getByTestId('user-dhis2-mapping-current'))
-      .toHaveTextContent(/overrides system default/);
+      .toHaveTextContent(/override/);
 
     const user = userEvent.setup();
     await user.click(screen.getByTestId('user-dhis2-mapping-edit-panel'));
     const credInput = await screen.findByTestId('user-dhis2-mapping-credential') as HTMLInputElement;
-    expect(credInput.placeholder).toMatch(/Leave blank to keep the stored secret/);
+    expect(credInput.placeholder).toMatch(/Leave blank to keep current/);
   });
 
   it('unmapped user with no credential surfaces the "push blocked" warning', async () => {
@@ -467,7 +465,7 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
     renderAt('/provisioning/users/u-1/dhis2-mapping');
     await waitFor(() =>
       expect(screen.getByTestId('user-dhis2-mapping-current'))
-        .toHaveTextContent(/No credential/));
+        .toHaveTextContent(/Not set/));
   });
 
   it('after picker selection extended user details (email + orgUnit) are fetched and rendered', async () => {
