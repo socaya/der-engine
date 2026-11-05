@@ -693,6 +693,102 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/Failed to load/);
   });
 
+  it('MockupConflictDetail — strategy=ACCEPT: picker gates submit on rationale min-length, sends ACCEPTED with rationale', async () => {
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
+      { operationId: 'op-strat-1', entityType: 'EVENT', entityRef: 'ev-x',
+        payloadJson: {}, state: 'CENTRAL_REJECTED', attemptCount: 1,
+        lastError: null, submittedBy: null, createdAt: 'now',
+        updatedAt: 'now', nextHopOrgUnitUid: null },
+    ] as unknown as edgeApi.ConflictRow[]);
+    vi.spyOn(edgeApi, 'fetchConflictCentralResponse').mockResolvedValue({
+      operationId: 'op-strat-1', lastResponse: null, lastResponseRaw: null,
+      lastError: null,
+    });
+    const resolveSpy = vi.spyOn(edgeApi, 'resolveConflict').mockResolvedValue({});
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderWithProviders(
+      <Routes><Route path="/admin/sync/attention/:operationId"
+                      element={<MockupConflictDetail />} /></Routes>,
+      { authApi, route: '/admin/sync/attention/op-strat-1' });
+    await waitFor(() => expect(screen.getByTestId('conflict-detail'))
+      .toBeInTheDocument());
+    /* Submit is disabled with no strategy selected. */
+    expect((screen.getByTestId('conflict-submit') as HTMLButtonElement).disabled)
+      .toBe(true);
+    await userEvent.click(screen.getByTestId('conflict-strategy-accept'));
+    /* Still disabled — rationale is below 10 chars. */
+    expect((screen.getByTestId('conflict-submit') as HTMLButtonElement).disabled)
+      .toBe(true);
+    await userEvent.type(screen.getByTestId('conflict-rationale'),
+      'duplicate of op-earlier');
+    expect((screen.getByTestId('conflict-submit') as HTMLButtonElement).disabled)
+      .toBe(false);
+    /* Preview panel appears + reflects chosen strategy. */
+    expect(screen.getByTestId('conflict-preview'))
+      .toHaveTextContent(/applied without pushing/i);
+    await userEvent.click(screen.getByTestId('conflict-submit'));
+    await waitFor(() => expect(resolveSpy).toHaveBeenCalledWith(
+      'op-strat-1', 'ACCEPTED', 'duplicate of op-earlier'));
+    confirmSpy.mockRestore();
+  });
+
+  it('MockupConflictDetail — strategy=REJOURNAL: no rationale required, calls reJournalConflict', async () => {
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
+      { operationId: 'op-rej-1', entityType: 'AGGREGATE_DATA_VALUE',
+        entityRef: 'de|ou|p', payloadJson: {}, state: 'CENTRAL_REJECTED',
+        attemptCount: 1, lastError: null, submittedBy: null,
+        createdAt: 'now', updatedAt: 'now', nextHopOrgUnitUid: null },
+    ] as unknown as edgeApi.ConflictRow[]);
+    vi.spyOn(edgeApi, 'fetchConflictCentralResponse').mockResolvedValue({
+      operationId: 'op-rej-1', lastResponse: null, lastResponseRaw: null,
+      lastError: null,
+    });
+    const rejournalSpy = vi.spyOn(edgeApi, 'reJournalConflict')
+      .mockResolvedValue({});
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderWithProviders(
+      <Routes><Route path="/admin/sync/attention/:operationId"
+                      element={<MockupConflictDetail />} /></Routes>,
+      { authApi, route: '/admin/sync/attention/op-rej-1' });
+    await waitFor(() => expect(screen.getByTestId('conflict-detail'))
+      .toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('conflict-strategy-rejournal'));
+    /* Rationale textarea should NOT render for REJOURNAL. */
+    expect(screen.queryByTestId('conflict-rationale')).toBeNull();
+    expect((screen.getByTestId('conflict-submit') as HTMLButtonElement).disabled)
+      .toBe(false);
+    await userEvent.click(screen.getByTestId('conflict-submit'));
+    await waitFor(() => expect(rejournalSpy).toHaveBeenCalledWith('op-rej-1'));
+    confirmSpy.mockRestore();
+  });
+
+  it('MockupConflictDetail — cancelling the confirm leaves the server untouched', async () => {
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
+      { operationId: 'op-cancel', entityType: 'EVENT', entityRef: 'ev',
+        payloadJson: {}, state: 'CENTRAL_REJECTED', attemptCount: 1,
+        lastError: null, submittedBy: null, createdAt: 'now',
+        updatedAt: 'now', nextHopOrgUnitUid: null },
+    ] as unknown as edgeApi.ConflictRow[]);
+    vi.spyOn(edgeApi, 'fetchConflictCentralResponse').mockResolvedValue({
+      operationId: 'op-cancel', lastResponse: null, lastResponseRaw: null,
+      lastError: null,
+    });
+    const resolveSpy = vi.spyOn(edgeApi, 'resolveConflict').mockResolvedValue({});
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderWithProviders(
+      <Routes><Route path="/admin/sync/attention/:operationId"
+                      element={<MockupConflictDetail />} /></Routes>,
+      { authApi, route: '/admin/sync/attention/op-cancel' });
+    await waitFor(() => expect(screen.getByTestId('conflict-detail'))
+      .toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('conflict-strategy-reject'));
+    await userEvent.type(screen.getByTestId('conflict-rationale'),
+      'rejected after investigation');
+    await userEvent.click(screen.getByTestId('conflict-submit'));
+    expect(resolveSpy).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
   it('MockupApprovalDetail — EVENT entity renders Data-module cross-link to /data/events', async () => {
     vi.spyOn(edgeApi, 'listPendingApprovals').mockResolvedValue({
       rows: [{

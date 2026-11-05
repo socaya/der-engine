@@ -29,8 +29,6 @@ vi.mock('./screens/EACoreScreens', () => ({
   EAJobTrigger:        () => <div data-test="s-jobs-trigger">jobs-trigger</div>,
   EADriftInspector:    () => <div data-test="s-drift">drift</div>,
   EAConflictList:      () => <div data-test="s-conflicts">conflicts</div>,
-  EAConflictResolve:   ({ operationId }: { operationId: string }) =>
-    <div data-test="s-conflict-resolve">resolve-{operationId}</div>,
   EAWorkerHealth:      () => <div data-test="s-worker">worker</div>,
   EAMetadataOverview:  () => <div data-test="s-metadata">metadata</div>,
   EAApprovalQueue:     () => <div data-test="s-approvals">approvals</div>,
@@ -124,10 +122,14 @@ describe('App routing', () => {
     await waitFor(() => expect(screen.getByTestId(testId)).toBeInTheDocument());
   });
 
-  it('/conflicts/:id passes the id into the resolve screen', async () => {
+  it('/conflicts/:id forwards to the attention detail route', async () => {
     await renderAt('/conflicts/op-xyz');
-    await waitFor(() => expect(screen.getByTestId('s-conflict-resolve').textContent)
-      .toBe('resolve-op-xyz'));
+    /* MockupConflictDetail (real, not stubbed) mounts; its initial
+     * LoadingBlock or the detail root (data-test="conflict-detail")
+     * is enough to prove the Navigate happened. */
+    await waitFor(() => expect(
+      screen.queryByTestId('loading')
+      || screen.queryByTestId('conflict-detail')).toBeTruthy());
   });
 
   it('/workflows/:id/advanced passes the id into the designer', async () => {

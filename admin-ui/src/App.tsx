@@ -8,7 +8,7 @@ import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { ActiveJobsWatcher } from './components/ActiveJobsWatcher';
 import {
   EASetupWelcome, EAUsersList, EAUserCreate, EACompatInspector, EACompatHistory,
-  EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
+  EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList,
   EAWorkerHealth, EAMetadataOverview, EAApprovalQueue, EACaptureWorkflowList,
   EACaptureWorkflowDesigner, EADeviceFleet, EAFacilityAnalytics,
   EAAuditVerify, EAAuditEvents, EAReferralInbox,
@@ -83,9 +83,12 @@ import { Fleet } from './screens/Fleet';
 import { Testing } from './screens/Testing';
 import { Packaging } from './screens/Packaging';
 
-function ConflictResolveRoute(): JSX.Element {
+/** Legacy /conflicts/:id bookmarks forward to the rich
+ *  /sync/attention/:operationId detail where the real resolution flow
+ *  (strategy picker, rationale, preview) lives. */
+function ConflictBookmarkForward(): JSX.Element {
   const { id = '' } = useParams();
-  return <EAConflictResolve operationId={id} />;
+  return <Navigate to={`/sync/attention/${encodeURIComponent(id)}`} replace />;
 }
 
 function WorkflowDesignerRoute(): JSX.Element {
@@ -168,7 +171,7 @@ export default function App(): JSX.Element {
           <Route path="/journal/conflicts-legacy"
                  element={<RequireAuth><EAConflictList /></RequireAuth>} />
           <Route path="/conflicts/:id"
-                 element={<RequireAuth><ConflictResolveRoute /></RequireAuth>} />
+                 element={<ConflictBookmarkForward />} />
           <Route path="/sync/worker"
                  element={<RequireAuth><MockupWorkerHealth /></RequireAuth>} />
           <Route path="/journal/worker" element={<Navigate to="/sync/worker" replace />} />

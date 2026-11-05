@@ -5,7 +5,7 @@ import { renderWithProviders } from '../test/renderWithProviders';
 import type * as edgeApi from '../api/edgeApi';
 import {
   EASetupWelcome, EAUsersList, EAUserCreate, EACompatInspector, EACompatHistory,
-  EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList, EAConflictResolve,
+  EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList,
   EAWorkerHealth, EAMetadataOverview, EAApprovalQueue, EACaptureWorkflowList,
   EACaptureWorkflowDesigner, EADeviceFleet, EAFacilityAnalytics,
   EAAuditVerify, EAReferralInbox,
@@ -365,40 +365,9 @@ describe('EA-10 ConflictList', () => {
   });
 });
 
-describe('EA-11 ConflictResolve', () => {
-  it('resolves', async () => {
-    const api = { resolveConflict: vi.fn().mockResolvedValue({}),
-                  reJournalConflict: vi.fn() };
-    renderWithProviders(<EAConflictResolve api={api as never} operationId="op-1" />);
-    await userEvent.selectOptions(screen.getByTestId('ea11-outcome'), 'REJECTED');
-    await userEvent.type(screen.getByTestId('ea11-rationale'), 'bad');
-    await userEvent.click(screen.getByTestId('ea11-resolve'));
-    await waitFor(() => expect(screen.getByTestId('ea11-done')).toBeInTheDocument());
-    expect(api.resolveConflict).toHaveBeenCalledWith('op-1', 'REJECTED', 'bad');
-  });
-  it('re-journals', async () => {
-    const api = { resolveConflict: vi.fn(),
-                  reJournalConflict: vi.fn().mockResolvedValue({}) };
-    renderWithProviders(<EAConflictResolve api={api as never} operationId="op-1" />);
-    await userEvent.click(screen.getByTestId('ea11-rejournal'));
-    await waitFor(() => expect(screen.getByTestId('ea11-done')).toBeInTheDocument());
-  });
-  it('error paths', async () => {
-    renderWithProviders(<EAConflictResolve api={{
-      resolveConflict: vi.fn().mockRejectedValue(new Error('r')),
-      reJournalConflict: vi.fn(),
-    } as never} operationId="op-1" />);
-    await userEvent.click(screen.getByTestId('ea11-resolve'));
-    await waitFor(() => expect(screen.getByTestId('ea11-error')).toBeInTheDocument());
-
-    renderWithProviders(<EAConflictResolve api={{
-      resolveConflict: vi.fn(),
-      reJournalConflict: vi.fn().mockRejectedValue('x'),
-    } as never} operationId="op-1" />);
-    await userEvent.click(screen.getAllByTestId('ea11-rejournal')[1]);
-    await waitFor(() => expect(screen.getAllByTestId('ea11-error').length).toBeGreaterThanOrEqual(1));
-  });
-});
+/* EA-11 ConflictResolve stub removed: canonical surface is the rich
+ * MockupConflictDetail (routed at /sync/attention/:operationId),
+ * covered by MoreScreens.test.tsx. */
 
 describe('EA-14 WorkerHealth', () => {
   it('running + pause', async () => {

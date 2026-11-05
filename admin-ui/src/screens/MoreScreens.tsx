@@ -341,11 +341,33 @@ export function MockupConflictList(): JSX.Element {
 }
 
 /** `/admin/sync/attention/:operationId` */
+type ConflictStrategy = 'ACCEPT' | 'REJECT' | 'REJOURNAL';
+
+const STRATEGY_LABELS: Record<ConflictStrategy,
+    { title: string; summary: string }> = {
+  ACCEPT: {
+    title: 'Accept local',
+    summary: 'Mark the local version as applied without pushing it again. Central keeps whatever it currently has.',
+  },
+  REJECT: {
+    title: 'Reject local',
+    summary: 'Discard the local version. The record is marked as rejected and will not be retried.',
+  },
+  REJOURNAL: {
+    title: 'Retry (re-journal)',
+    summary: 'Clone this operation as a fresh PENDING entry so the sync worker tries again on the next drain tick.',
+  },
+};
+
 export function MockupConflictDetail(): JSX.Element {
   const { operationId } = useParams<{ operationId: string }>();
   const navigate = useNavigate();
   const [row, setRow] = useState<edgeApi.ConflictRow | null>(null);
+  const [strategy, setStrategy] = useState<ConflictStrategy | null>(null);
+  const [rationale, setRationale] = useState('');
+  const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [actionErr, setActionErr] = useState<string | null>(null);
   useEffect(() => {
     (async () => {
       try {
@@ -356,11 +378,37 @@ export function MockupConflictDetail(): JSX.Element {
       } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     })();
   }, [operationId]);
-  async function resolve(outcome: 'ACCEPTED' | 'REJECTED'): Promise<void> {
-    if (!row) return;
-    try { await edgeApi.resolveConflict(row.operationId, outcome); navigate('/sync/attention'); }
-    catch { /* ignore */ }
+
+  /* Rationale is required for the two finalising paths (ACCEPT/REJECT)
+   * because the DB stores it on resolve for operator-audit purposes.
+   * REJOURNAL ignores the rationale server-side, so we don't enforce it
+   * there. Min 10 chars to force a real explanation. */
+  function rationaleOk(): boolean {
+    if (strategy === 'REJOURNAL') return true;
+    return rationale.trim().length >= 10;
   }
+
+  async function submit(): Promise<void> {
+    if (!row || !strategy || !rationaleOk()) return;
+    const label = STRATEGY_LABELS[strategy].title.toLowerCase();
+    if (!window.confirm(
+      `${STRATEGY_LABELS[strategy].title} on `
+      + `${entityTypeLabel(row.entityType)} "${row.entityRef}"?\n\n`
+      + `This resolution is recorded in the audit log and ${label} cannot be undone.`)) return;
+    setBusy(true); setActionErr(null);
+    try {
+      if (strategy === 'REJOURNAL') {
+        await edgeApi.reJournalConflict(row.operationId);
+      } else {
+        const outcome = strategy === 'ACCEPT' ? 'ACCEPTED' : 'REJECTED';
+        await edgeApi.resolveConflict(row.operationId, outcome, rationale.trim());
+      }
+      navigate('/sync/attention');
+    } catch (e: unknown) {
+      setActionErr(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(false); }
+  }
+
   if (err) return (
     <div className="ea-screen">
       <BackLink to="/sync/attention" label="Back to attention list" />
@@ -372,7 +420,7 @@ export function MockupConflictDetail(): JSX.Element {
   const problem = problemFor(row);
   const prio = priorityFor(row);
   return (
-    <div className="ea-screen">
+    <div className="ea-screen" data-test="conflict-detail">
       <BackLink to="/sync/attention" label="Back to attention list" />
       <SyncStatusBar
         tone={prio === 'High' ? 'danger' : prio === 'Medium' ? 'warning' : 'info'}
@@ -381,22 +429,6 @@ export function MockupConflictDetail(): JSX.Element {
         subtitle={<span>{problem.label}</span>}
         actions={
           <>
-            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                    onClick={() => {
-                      confirmThenRun(
-                        `Accept the local version of ${entityTypeLabel(row.entityType)} "${row.entityRef}"? It will be queued for Central DHIS2.`,
-                        () => { resolve('ACCEPTED').catch(() => undefined); });
-                    }}>
-              Accept local version
-            </button>
-            <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
-                    onClick={() => {
-                      confirmThenRun(
-                        `Reject the local version of ${entityTypeLabel(row.entityType)} "${row.entityRef}"? The record will be dropped.`,
-                        () => { resolve('REJECTED').catch(() => undefined); });
-                    }}>
-              Reject
-            </button>
             {/* §2.3.80 R-B/1 — deep-link to the DHIS2 metadata schema
                 that defines this entity. Resolves nothing for generic
                 METADATA ops (returns null), so we only render when a
@@ -443,9 +475,67 @@ export function MockupConflictDetail(): JSX.Element {
         <p style={{ margin: 0, fontSize: 13, color: 'var(--der-ink-700)', lineHeight: 1.5 }}>
           {problem.summary}
         </p>
-        <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--der-ink-500)', lineHeight: 1.5 }}>
-          Accept the local version to send it to Central DHIS2 anyway, or reject it to drop the record.
-        </p>
+      </Panel>
+      <Panel title="Resolution">
+        {actionErr && (
+          <div className="ea-callout ea-callout--danger"
+               role="alert" data-test="conflict-resolve-err">{actionErr}</div>
+        )}
+        <fieldset className="ea-field" data-test="conflict-strategy">
+          <legend className="ea-field-label">Strategy</legend>
+          <div className="ea-radio-group">
+            {(['ACCEPT', 'REJECT', 'REJOURNAL'] as const).map((s) => (
+              <label key={s} className="ea-radio">
+                <input type="radio" name="conflict-strategy"
+                       data-test={`conflict-strategy-${s.toLowerCase()}`}
+                       value={s} checked={strategy === s}
+                       onChange={() => setStrategy(s)} />
+                <span>
+                  <strong>{STRATEGY_LABELS[s].title}</strong>
+                  <span className="ea-text-muted" style={{ marginLeft: 8 }}>
+                    — {STRATEGY_LABELS[s].summary}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        {strategy && strategy !== 'REJOURNAL' && (
+          <div className="ea-field">
+            <label className="ea-field-label" htmlFor="conflict-rationale">
+              Rationale
+            </label>
+            <textarea id="conflict-rationale"
+                      data-test="conflict-rationale"
+                      className="ea-input"
+                      rows={3}
+                      value={rationale}
+                      maxLength={2000}
+                      onChange={(e) => setRationale(e.target.value)} />
+            <span className="ea-field-hint">
+              {rationale.trim().length < 10
+                ? `Min 10 chars (${rationale.trim().length} entered).`
+                : `${rationale.trim().length} chars.`}
+            </span>
+          </div>
+        )}
+
+        {strategy && (
+          <div className="ea-callout ea-callout--info"
+               data-test="conflict-preview">
+            <strong>Preview:</strong> {STRATEGY_LABELS[strategy].summary}
+          </div>
+        )}
+
+        <div className="ea-mapping-form-actions">
+          <button type="button" className="ea-btn ea-btn--primary"
+                  data-test="conflict-submit"
+                  disabled={busy || strategy == null || !rationaleOk()}
+                  onClick={() => { submit().catch(() => undefined); }}>
+            {busy ? 'Submitting…' : 'Resolve conflict'}
+          </button>
+        </div>
       </Panel>
       <Panel title="Record">
         <dl className="ea-def-list">

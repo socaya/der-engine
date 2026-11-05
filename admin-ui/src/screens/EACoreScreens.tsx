@@ -1101,49 +1101,10 @@ export function EAConflictList({ api = edgeApi }:
   );
 }
 
-export function EAConflictResolve({ api = edgeApi, operationId }:
-    { api?: Pick<typeof edgeApi, 'resolveConflict' | 'reJournalConflict'>;
-      operationId: string } ): JSX.Element {
-  const [outcome, setOutcome] = useState<'ACCEPTED' | 'REJECTED'>('ACCEPTED');
-  const [rationale, setRationale] = useState('');
-  const [status, setStatus] = useState<'idle'|'working'|'done'|'error'>('idle');
-  const [error, setError] = useState<string | null>(null);
-  async function doResolve(): Promise<void> {
-    setStatus('working'); setError(null);
-    try { await api.resolveConflict(operationId, outcome, rationale); setStatus('done'); }
-    catch (err) { setStatus('error');
-      setError(err instanceof Error ? err.message : String(err)); }
-  }
-  async function doReJournal(): Promise<void> {
-    setStatus('working'); setError(null);
-    try { await api.reJournalConflict(operationId); setStatus('done'); }
-    catch (err) { setStatus('error');
-      setError(err instanceof Error ? err.message : String(err)); }
-  }
-  return (
-    <div className="ea-screen">
-      <h1 data-test="ea11-heading">Resolve conflict</h1>
-      <p data-test="ea11-id">{operationId}</p>
-      <label><span>Outcome</span>
-        <select data-test="ea11-outcome" value={outcome}
-                onChange={(e) => setOutcome(e.target.value as 'ACCEPTED' | 'REJECTED')}>
-          <option value="ACCEPTED">ACCEPTED</option>
-          <option value="REJECTED">REJECTED</option>
-        </select></label>
-      <label><span>Rationale</span>
-        <textarea data-test="ea11-rationale" value={rationale}
-                  onChange={(e) => setRationale(e.target.value)} /></label>
-      <button type="button" data-test="ea11-resolve" disabled={status === 'working'}
-              onClick={() => { doResolve().catch(() => undefined); }}>Resolve</button>
-      <button type="button" data-test="ea11-rejournal" disabled={status === 'working'}
-              onClick={() => { doReJournal().catch(() => undefined); }}>Re-journal</button>
-      {status === 'done' && <p data-test="ea11-done">Saved.</p>}
-      {status === 'error' && error && (
-        <ErrorBlock title="Conflict op failed" testId="ea11-error">{error}</ErrorBlock>
-      )}
-    </div>
-  );
-}
+/* EA-20/21/23 Conflict resolve: the rich MockupConflictDetail in
+ * MoreScreens.tsx (routed at /sync/attention/:operationId) is the
+ * canonical surface. The thin stub that once lived here, and its
+ * /conflicts/:id direct mount, have been removed. */
 
 // EA-14..17 Journal worker health + pause/resume ------------------
 export function EAWorkerHealth({ api = edgeApi }:
