@@ -216,7 +216,6 @@ export function MockupDhis2Overview(): JSX.Element {
         <div className="ea-form-section">
           <div className="ea-form-section-head">
             <h2>DHIS2 /api/** proxy</h2>
-            <p>Opt-in passthrough so custom DHIS2 apps running on DER can call analytics / dataStore / etc. straight through to central.</p>
           </div>
           <div className="ea-form-grid">
             <label className="ea-field">

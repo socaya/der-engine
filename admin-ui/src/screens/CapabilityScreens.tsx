@@ -146,7 +146,6 @@ export function CapDashboard(): JSX.Element {
     <div className="ea-screen" data-test="cap-dashboard">
       <HeroHeader
         title="Dashboard"
-        subtitle="At-a-glance picture of this edge: integration, sync, and recent activity."
         lastFetched={t}
       />
       {err && <ErrorBlock title="Partial dashboard load" testId="err-partial-dashboard-load">{err}</ErrorBlock>}
@@ -305,7 +304,6 @@ export function CapCentralConnection(): JSX.Element {
         tone={tone}
         title="Central connection"
         statusLabel={statusLabel}
-        subtitle="DHIS2 central-connection + compatibility policy for this edge.  Changes take effect on the next sync or probe.  ADMIN only."
         actions={
           <>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -448,7 +446,6 @@ export function CapCentralConnection(): JSX.Element {
         <div className="ea-form-section">
           <div className="ea-form-section-head">
             <h2>DHIS2 /api/** proxy</h2>
-            <p>Opt-in passthrough so custom DHIS2 apps running on DER can call analytics / dataStore / etc. straight through to central.</p>
           </div>
           <div className="ea-form-grid">
             <label className="ea-field">
@@ -865,7 +862,6 @@ export function CapProgramRules(): JSX.Element {
         tone={tone}
         title="Program rules"
         statusLabel={statusLabel}
-        subtitle="DHIS2 program rules mirrored from the central instance.  Rules are read-only on the edge — authored upstream in DHIS2 and pulled on the next metadata sync."
         actions={
           <>
             <Link to="/dhis2/metadata-sync"
@@ -982,7 +978,6 @@ export function CapSyncOverview(): JSX.Element {
         tone={tone}
         title="Sync overview"
         statusLabel={statusLabel}
-        subtitle="Live state of the integration workers on this edge.  Scheduler job outcomes, journal backlog, and the latest metadata drift fingerprints at a glance."
         actions={
           <>
             <Link to="/sync/history"
@@ -1093,7 +1088,6 @@ export function CapSyncHistory(): JSX.Element {
         tone={tone}
         title="Sync history"
         statusLabel={statusLabel}
-        subtitle="Every scheduler run recorded on this edge (last 100).  Succeeded / Failed / Running shown as tone-coded Status chips; click through a failed row to inspect the outcome payload."
         actions={
           <>
             <Link to="/sync"
@@ -1205,7 +1199,6 @@ export function CapDataQueues(): JSX.Element {
         tone={tone}
         title="Data queues"
         statusLabel={statusLabel}
-        subtitle="Journal backlog broken down by state.  PENDING ops are waiting on a worker tick; FAILED ops need operator attention and will show up on /sync/attention."
         actions={
           <>
             <Link to="/sync/worker"
@@ -1868,8 +1861,7 @@ function ScheduleRow({ cronKey, value, onChange, onRunNow, lastRun, flash }: {
                      onChange={(e) => onChange(e.target.value)}
                      onClick={(e) => e.stopPropagation()} />
               <span className="ea-field-hint">
-                Quartz syntax: <code>seconds minutes hours day-of-month month day-of-week</code>.
-                Click <strong>Save schedule</strong> above to apply.
+                <code>seconds minutes hours day-of-month month day-of-week</code>
               </span>
             </label>
           </td>
@@ -3003,7 +2995,6 @@ export function CapMaintenance(): JSX.Element {
         tone={busy ? 'warning' : 'muted'}
         title="Maintenance"
         statusLabel={busy ?? 'Idle'}
-        subtitle="One-off operator actions covering every scheduled job plus backup triggers.  Prefer the dedicated Sync + Sync history pages for routine runs and live status."
         actions={
           <>
             <Link to="/sync"
@@ -3205,7 +3196,6 @@ export function CapRoles(): JSX.Element {
         tone={customCount > 0 ? 'info' : 'muted'}
         title="Roles catalogue"
         statusLabel={`${visible.length} role${visible.length === 1 ? '' : 's'} · ${customCount} custom · ${assignedCount} grant${assignedCount === 1 ? '' : 's'}`}
-        subtitle="Dynamic role catalogue.  Each role bundles authorities drawn from the DER authority catalogue.  Built-in roles cannot be renamed or deleted; their authority lists are still editable."
         actions={
           <>
             <Link to="/access/roles/new"
@@ -3510,7 +3500,6 @@ export function CapAuthorities(): JSX.Element {
         tone="info"
         title="Authority catalogue"
         statusLabel={`${catalog.length} authorit${catalog.length === 1 ? 'y' : 'ies'} · ${modules.length} module${modules.length === 1 ? '' : 's'} · read-only`}
-        subtitle="Reference view.  Authorities are fixed — they ship with DER and encode what each path gate in SecurityConfig checks.  Configuration (grant / revoke) happens on the Roles catalogue."
         actions={
           <Link to="/access/roles"
                 className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -3675,12 +3664,7 @@ export function AuthorityDetailPage(): JSX.Element {
           </div>
         </dl>
       </Panel>
-      <Panel title="Roles granting this authority"
-             action={
-               <span className="ea-text-muted" style={{ fontSize: 12 }}>
-                 Informational — configure grants on the Roles catalogue
-               </span>
-             }>
+      <Panel title="Roles granting this authority">
         {holding.length === 0 ? (
           <EmptyBlock title="No role grants this authority"
                       testId="authority-detail-empty">
@@ -4821,7 +4805,6 @@ export function CapOperatorMetrics(): JSX.Element {
         tone={tone}
         title="Operator metrics"
         statusLabel={statusLabel}
-        subtitle="Capture throughput and worker reliability on this edge.  Reliability = succeeded / (succeeded + failed) over the last 100 scheduler runs, grouped by job."
         actions={
           <>
             <Link to="/monitoring/health"
@@ -5028,7 +5011,6 @@ export function CapStorage(): JSX.Element {
         tone={tone}
         title="Storage"
         statusLabel={statusLabel}
-        subtitle="Disk usage on the volume backing the DER data root.  Writes are rejected when usable bytes fall below the REJECT threshold — operators should free space or extend the volume before that happens."
         actions={
           <Link to="/monitoring/health"
                 className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -5122,7 +5104,6 @@ export function CapProvisioningSetup(): JSX.Element {
         tone={tone}
         title="Provisioning setup"
         statusLabel={statusLabel}
-        subtitle="Preconditions a new edge must satisfy before serving operators.  Each row probes a live endpoint (health, compat, org-unit binding, user roster)."
         actions={
           <>
             <Link to="/provisioning/users"
@@ -5197,7 +5178,6 @@ export function CapReleases(): JSX.Element {
         tone={tone}
         title="Software &amp; releases"
         statusLabel={statusLabel}
-        subtitle="Build identity and DHIS2 version pin for this edge.  Dirty-tree builds should only appear in dev — never in a tagged release."
         actions={
           <Link to="/diagnostics"
                 className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -5278,7 +5258,6 @@ export function CapNetwork(): JSX.Element {
         tone={tone}
         title="Network / TLS"
         statusLabel={statusLabel}
-        subtitle="How this edge reaches DHIS2 and how it is reached in turn.  TLS certificates are managed by the host reverse proxy, not DER itself."
         actions={
           <>
             <Link to="/network/clients"

@@ -140,7 +140,6 @@ export function WorkflowImportInbox({ api = edgeApi, embedded = false }:
           tone={tone}
           title="Import inbox"
           statusLabel={statusLabel}
-          subtitle="Workflow definitions pushed to this edge from peer edges.  Review each payload (the Review button shows the diff against the current catalogue), then Accept to import or Reject with an optional note."
           actions={
             <>
               <Link to="/workflows/peers"

@@ -148,7 +148,6 @@ export function WorkflowPeers({ api = edgeApi, embedded = false }:
           tone={peerTone}
           title="Peers"
           statusLabel={peerStatus}
-          subtitle="Sibling DER edges this edge can push workflow definitions to.  Direct-import peers skip the inbox review step and apply the payload on receipt; inbox peers land in the recipient's review queue."
           actions={
             <>
               <Link to="/workflows/import-inbox"

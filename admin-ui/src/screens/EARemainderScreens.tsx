@@ -65,7 +65,6 @@ export function EARecoveryTools({ api = edgeApi }: {
         tone={tone}
         title="Recovery tools"
         statusLabel={statusLabel}
-        subtitle="Operator-triggered recovery operations.  Each action is idempotent — safe to re-run if it errors — but the first two are heavy (full metadata resync + drift re-run) and can take several minutes on a cold DER.  All runs are audited."
         actions={
           <>
             <Link to="/monitoring/health"
@@ -308,7 +307,6 @@ export function EAAppsList({ api = edgeApi }: {
         tone={tone}
         title="Apps"
         statusLabel={statusLabel}
-        subtitle="Custom DHIS2 apps installed on this edge.  Operators enable / disable per-app without re-installing; uninstall drops the app bundle entirely."
         actions={
           <>
             <span className="ea-btn ea-btn--primary ea-btn--sm ea-btn--muted"
@@ -424,7 +422,6 @@ export function EADiagnostics({ api = edgeApi }: {
         tone={tone}
         title="Diagnostics"
         statusLabel={statusLabel}
-        subtitle="Point-in-time snapshot of the JVM + scheduler + journal.  Memory pressure, uptime, Quartz backlog and per-state journal counts in one place for operator triage."
         actions={
           <Link to="/support-bundle"
                 className="ea-btn ea-btn--primary ea-btn--sm"
@@ -550,7 +547,6 @@ export function EASettings({ api = edgeApi }: {
         tone={tone}
         title="Settings"
         statusLabel={statusLabel}
-        subtitle="Scheduler overrides and feature toggles for this edge.  Cron rows use Quartz syntax; blank falls back to the compiled default."
         actions={
           <>
             <Link to="/configuration"

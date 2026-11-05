@@ -84,7 +84,6 @@ export function Hardware(): JSX.Element {
         tone={watchdogOk ? 'success' : 'muted'}
         title="Hardware"
         statusLabel={data ? 'Live' : 'Loading…'}
-        subtitle={<span>systemd watchdog · thermal · UPS · status LEDs · TPM-sealed secrets.</span>}
         actions={
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                   onClick={() => { reload().catch(() => undefined); }}>

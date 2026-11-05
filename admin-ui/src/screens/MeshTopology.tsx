@@ -60,7 +60,6 @@ export function MeshTopology(): JSX.Element {
         statusLabel={summary
           ? `${summary.devicesOnline}/${summary.devices} devices · ${summary.peersConnected}/${summary.peers} peers · WAN ${summary.wanStatus}`
           : (loading ? 'loading…' : 'no topology data')}
-        subtitle={<span>DER Edge Runtime and connected LAN / peer devices.</span>}
         actions={
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 14 }}>
             <NetworkLegend />

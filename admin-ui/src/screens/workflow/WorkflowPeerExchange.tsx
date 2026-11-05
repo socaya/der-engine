@@ -30,7 +30,6 @@ export function WorkflowPeerExchange(): JSX.Element {
         tone="info"
         title="Workflow sharing"
         statusLabel={active === 'outbound' ? 'Outbound peers' : 'Inbound inbox'}
-        subtitle="Push workflow definitions to sibling DER edges, and review payloads arriving the other way.  Transport is the same peer registry used by WireGuard; trust decisions apply per peer."
         actions={
           <>
             <Link to="/workflows/manage"

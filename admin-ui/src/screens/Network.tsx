@@ -325,7 +325,6 @@ export function NetworkAccessPoint(): JSX.Element {
         tone={ap?.running ? 'success' : 'warning'}
         title="Access Point"
         statusLabel={ap?.running ? 'Running' : ap ? 'Stopped' : 'Not reporting'}
-        subtitle={<span>DER-hosted Wi-Fi Access Point for authorised devices.</span>}
         actions={
           <>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -955,7 +954,6 @@ export function NetworkInterfaces(): JSX.Element {
         tone={up > 0 ? 'success' : 'muted'}
         title="Interfaces"
         statusLabel={ifaces == null ? 'Loading' : `${up} up / ${ifaces.length}`}
-        subtitle={<span>Network interfaces reported by the DER Network Agent.</span>}
         actions={
           <>
             <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -1763,7 +1761,6 @@ export function NetworkDiagnostics(): JSX.Element {
         tone={status?.state === 'CONNECTED' ? 'success' : 'warning'}
         title="Network diagnostics"
         statusLabel={status?.state ? humanState(status.state) : missing ? 'Service pending' : 'Loading'}
-        subtitle={<span>Live probe path from a client through DER to Central DHIS2.</span>}
         actions={
           <>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
@@ -1996,7 +1993,6 @@ export function NetworkSettings(): JSX.Element {
         tone="info"
         title="Network settings"
         statusLabel={`${keys.length} keys`}
-        subtitle={<span>Live edit of DER network configuration. Changes persist to der.network_settings and are picked up on the next agent reconcile.</span>}
         actions={
           <>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" onClick={exportBundle}>

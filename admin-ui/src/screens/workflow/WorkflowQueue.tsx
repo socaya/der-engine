@@ -89,7 +89,6 @@ export function WorkflowQueue({ api = edgeApi }:
         tone={tone}
         title="My queue"
         statusLabel={statusLabel}
-        subtitle="Steps waiting on this operator across every workflow run.  Ready rows can be acted on immediately; Blocked rows are waiting for upstream steps or validation issues to clear."
         actions={
           <>
             <Link to="/workflows"
