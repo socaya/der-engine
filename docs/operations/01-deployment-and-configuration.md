@@ -31,5 +31,17 @@ openssl rand -base64 32
 
 Key rotation currently requires re-saving each mapping with the new key active (old ciphertext is not re-wrapped automatically). Keep the key out of the source tree; the standard DER layout places it in `/etc/der/application.yml` or the systemd unit's `EnvironmentFile`, mode 0600, owned by the service account.
 
+## Local dev: restart after gate rebuilds
+
+Spring Boot's fat-jar Launcher reads `server/target/der-server-<version>.jar` lazily — new classes load on first use. Running `scripts/run_all_checks.sh` (or any `./mvnw verify / package`) rewrites that file in place, which invalidates the open file handle in the running JVM. The server then appears UP on `/system/health` but 15-second hangs on any request that triggers a class load that wasn't resolved before the rebuild.
+
+`scripts/dev/restart_der_server.sh` copies the fresh jar to `~/.der/current-der-server.jar` before launching, so gate reruns of `server/target/...` never touch the file the running JVM holds open. Use it in place of `java -jar server/target/...` for local dev:
+
+```
+bash scripts/dev/restart_der_server.sh
+```
+
+It kills any existing DER java process, copies the latest jar, sources `.env.local`, launches in the background, waits for `/system/health` to respond, and prints the commit hash.
+
 ## Operational cautions
 Do not assume `.local` domain is universally discoverable; validate mDNS or managed DNS. Do not expose PostgreSQL to end-user devices. Do not let NGINX return central endpoints as a fallback during WAN outage without explicit semantics. Verify clock drift, certificate trust and credentials before proceeding.
