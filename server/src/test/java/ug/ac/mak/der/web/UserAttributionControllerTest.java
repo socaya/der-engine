@@ -31,11 +31,13 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import ug.ac.mak.der.attribution.EdgeUserDhis2Mapping;
 import ug.ac.mak.der.attribution.EdgeUserDhis2MappingRepository;
 import ug.ac.mak.der.dhis2.Dhis2ReferenceClient;
+import ug.ac.mak.der.ops.AdminSettingRepository;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeSession;
 import ug.ac.mak.der.security.EdgeUser;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
+import ug.ac.mak.der.security.SecretEnvelope;
 import ug.ac.mak.der.security.SecurityAuditRepository;
 
 @WebMvcTest(UserAttributionController.class)
@@ -48,6 +50,8 @@ class UserAttributionControllerTest {
     @MockBean SecurityAuditRepository audit;
     @MockBean Clock clock;
     @MockBean Dhis2ReferenceClient dhis2;
+    @MockBean AdminSettingRepository settings;
+    @MockBean SecretEnvelope envelope;
 
     @org.junit.jupiter.api.BeforeEach
     void stubClock() {
@@ -154,17 +158,20 @@ class UserAttributionControllerTest {
     @Test
     void mappingRequestRecord() {
         final UserAttributionController.MappingRequest r =
-                new UserAttributionController.MappingRequest("u", "n", "D");
+                new UserAttributionController.MappingRequest("u", "n", "D", "BASIC", "secret");
         org.junit.jupiter.api.Assertions.assertEquals("u", r.dhis2UserUid());
         org.junit.jupiter.api.Assertions.assertEquals("n", r.dhis2Username());
         org.junit.jupiter.api.Assertions.assertEquals("D", r.dhis2DisplayName());
+        org.junit.jupiter.api.Assertions.assertEquals("BASIC", r.authType());
+        org.junit.jupiter.api.Assertions.assertEquals("secret", r.credential());
     }
 
     @Test
     void mappingRequestNulls() {
         final UserAttributionController.MappingRequest r =
-                new UserAttributionController.MappingRequest(null, null, null);
+                new UserAttributionController.MappingRequest(null, null, null, null, null);
         org.junit.jupiter.api.Assertions.assertNull(r.dhis2UserUid());
+        org.junit.jupiter.api.Assertions.assertNull(r.authType());
     }
 
     @Test
@@ -220,5 +227,105 @@ class UserAttributionControllerTest {
                         .param("q", "alice").with(as()))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.code").value("DHIS2_RESPONSE_INVALID"));
+    }
+
+    @Test
+    void defaultAuthTypeReadsSettingOrFallsBack() throws Exception {
+        when(settings.read("dhis2.user_credentials.default_auth_type"))
+                .thenReturn(java.util.Optional.of(
+                        new ug.ac.mak.der.ops.AdminSettingRepository.Entry(
+                                "dhis2.user_credentials.default_auth_type",
+                                "\"TOKEN\"", UUID.randomUUID(),
+                                Instant.parse("2026-11-03T10:00:00Z"))));
+        mockMvc.perform(get("/edge-api/v1/admin/users/dhis2-auth-type-default").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.defaultAuthType").value("TOKEN"));
+
+        when(settings.read("dhis2.user_credentials.default_auth_type"))
+                .thenReturn(java.util.Optional.empty());
+        mockMvc.perform(get("/edge-api/v1/admin/users/dhis2-auth-type-default").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.defaultAuthType").value("BASIC"));
+    }
+
+    @Test
+    void userDetailsHappyPath() throws Exception {
+        final com.fasterxml.jackson.databind.ObjectMapper om =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+        final com.fasterxml.jackson.databind.JsonNode body = om.readTree(
+                "{\"id\":\"M5zQapPyTZI\",\"username\":\"alice.c\","
+                        + "\"displayName\":\"Alice Central\",\"email\":\"alice@dhis2.local\","
+                        + "\"disabled\":false,\"created\":\"2024-02-01T09:00:00Z\","
+                        + "\"userCredentials\":{\"lastLogin\":\"2026-11-04T10:00:00Z\","
+                        + "\"twoFactorEnabled\":true},"
+                        + "\"organisationUnits\":[{\"id\":\"ou-1\",\"displayName\":\"Facility A\"}],"
+                        + "\"userGroups\":[]}");
+        when(dhis2.fetchJson(any(String.class))).thenReturn(body);
+        mockMvc.perform(get("/edge-api/v1/admin/users/dhis2-user-details")
+                        .param("uid", "M5zQapPyTZI").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("alice.c"))
+                .andExpect(jsonPath("$.email").value("alice@dhis2.local"))
+                .andExpect(jsonPath("$.twoFactorEnabled").value(true))
+                .andExpect(jsonPath("$.organisationUnits[0].displayName").value("Facility A"))
+                .andExpect(jsonPath("$.userGroups").isArray());
+    }
+
+    @Test
+    void userDetailsRejectsBadUid() throws Exception {
+        mockMvc.perform(get("/edge-api/v1/admin/users/dhis2-user-details")
+                        .param("uid", "not-a-dhis2-uid").with(as()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UID_INVALID"));
+    }
+
+    @Test
+    void putWithAuthTypeAndCredentialSealsAndAudits() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(envelope.seal("my-pat-token")).thenReturn("env:v1:ciphertext");
+        when(repo.findByEdgeUser(id))
+                .thenReturn(java.util.Optional.of(new EdgeUserDhis2Mapping(
+                        id, "Abc12345678", "alice.c", "Alice Central",
+                        Instant.parse("2026-11-03T10:00:00Z"), UUID.randomUUID(),
+                        Instant.parse("2026-11-03T10:00:00Z"),
+                        EdgeUserDhis2Mapping.AuthType.TOKEN,
+                        "env:v1:ciphertext",
+                        Instant.parse("2026-11-03T10:00:00Z"), UUID.randomUUID())));
+        mockMvc.perform(put("/edge-api/v1/admin/users/" + id + "/dhis2-mapping")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dhis2UserUid\":\"Abc12345678\",\"dhis2Username\":\"alice.c\","
+                                + "\"authType\":\"TOKEN\",\"credential\":\"my-pat-token\"}")
+                        .with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authType").value("TOKEN"))
+                .andExpect(jsonPath("$.hasCredential").value(true));
+        /* envelope.seal was consulted — never log the cleartext. */
+        verify(envelope).seal("my-pat-token");
+    }
+
+    @Test
+    void putRejectsCredentialWithoutAuthType() throws Exception {
+        final UUID id = UUID.randomUUID();
+        mockMvc.perform(put("/edge-api/v1/admin/users/" + id + "/dhis2-mapping")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dhis2UserUid\":\"Abc12345678\",\"dhis2Username\":\"alice.c\","
+                                + "\"credential\":\"orphan-secret\"}")
+                        .with(as()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value(org.hamcrest.Matchers.containsString("authType")));
+    }
+
+    @Test
+    void putRejectsUnknownAuthType() throws Exception {
+        final UUID id = UUID.randomUUID();
+        mockMvc.perform(put("/edge-api/v1/admin/users/" + id + "/dhis2-mapping")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dhis2UserUid\":\"Abc12345678\",\"dhis2Username\":\"alice.c\","
+                                + "\"authType\":\"RANDOM\"}")
+                        .with(as()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value(org.hamcrest.Matchers.containsString("TOKEN or BASIC")));
     }
 }

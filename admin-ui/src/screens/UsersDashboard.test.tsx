@@ -181,7 +181,7 @@ describe('MockupUsersDashboard', () => {
     vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
       { edgeUserId: 'u-m', dhis2UserUid: 'UID-A', dhis2Username: 'mapped.c',
         dhis2DisplayName: 'Mapped Central', mappedAt: 'now', mappedBy: 'admin',
-        lastVerifiedAt: null },
+        lastVerifiedAt: null, authType: null, hasCredential: false, credentialSetAt: null },
     ]);
     renderWithProviders(<MockupUsersDashboard />, { authApi,
       route: '/provisioning/users?mapped=no' });
@@ -227,7 +227,7 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
     vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
       { edgeUserId: 'u-1', dhis2UserUid: 'ALICE123', dhis2Username: 'alice.c',
         dhis2DisplayName: 'Alice Central', mappedAt: '2026-11-04T10:00:00Z',
-        mappedBy: 'admin', lastVerifiedAt: null },
+        mappedBy: 'admin', lastVerifiedAt: null, authType: null, hasCredential: false, credentialSetAt: null },
     ]);
     renderAt('/provisioning/users/u-1/dhis2-mapping');
     await waitFor(() =>
@@ -251,7 +251,7 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
     const setSpy = vi.spyOn(edgeApi, 'setUserDhis2Mapping').mockResolvedValue({
       edgeUserId: 'u-1', dhis2UserUid: 'ALICE123', dhis2Username: 'alice.c',
       dhis2DisplayName: 'Alice Central', mappedAt: 'now', mappedBy: 'admin',
-      lastVerifiedAt: null,
+      lastVerifiedAt: null, authType: null, hasCredential: false, credentialSetAt: null,
     });
     renderAt('/provisioning/users/u-1/dhis2-mapping');
     const user = userEvent.setup();
@@ -283,7 +283,7 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
     vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
       { edgeUserId: 'u-1', dhis2UserUid: 'ALICE', dhis2Username: 'alice.c',
         dhis2DisplayName: 'Alice Central', mappedAt: 'now', mappedBy: 'admin',
-        lastVerifiedAt: null },
+        lastVerifiedAt: null, authType: null, hasCredential: false, credentialSetAt: null },
     ]);
     renderAt('/provisioning/users/u-1/dhis2-mapping');
     await waitFor(() =>
@@ -368,5 +368,169 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
     await user.click(btn);
     await waitFor(() =>
       expect(screen.getByTestId('user-dhis2-mapping-form')).toBeInTheDocument());
+  });
+
+  it('seeds auth-type radio from system default and sends per-mapping override', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1', username: 'alice' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'getDhis2AuthTypeDefault').mockResolvedValue({
+      defaultAuthType: 'BASIC',
+    });
+    vi.spyOn(edgeApi, 'getDhis2UserDetails').mockResolvedValue({
+      id: 'ALICE123456', username: 'alice.c', displayName: 'Alice Central',
+      email: 'alice@dhis2.local', phoneNumber: null, disabled: false,
+      created: null, lastUpdated: null, lastLogin: null, twoFactorEnabled: false,
+      organisationUnits: [], userGroups: [],
+    });
+    const setSpy = vi.spyOn(edgeApi, 'setUserDhis2Mapping').mockResolvedValue({
+      edgeUserId: 'u-1', dhis2UserUid: 'ALICE123456', dhis2Username: 'alice.c',
+      dhis2DisplayName: null, mappedAt: 'now', mappedBy: 'admin',
+      lastVerifiedAt: null, authType: 'TOKEN', hasCredential: true,
+      credentialSetAt: 'now',
+    });
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    const user = userEvent.setup();
+    /* Open the form via the main Edit button so username is seeded from
+     * the edge user. */
+    await user.click(await screen.findByTestId('user-dhis2-mapping-edit'));
+    await waitFor(() =>
+      expect(screen.getByTestId('user-dhis2-mapping-form')).toBeInTheDocument());
+
+    /* Default radio is pre-selected. */
+    const basicRadio = screen.getByTestId('user-dhis2-mapping-authtype-basic') as HTMLInputElement;
+    expect(basicRadio.checked).toBe(true);
+    /* Operator picks the non-default. */
+    await user.click(screen.getByTestId('user-dhis2-mapping-authtype-token'));
+    expect(screen.getByTestId('user-dhis2-mapping-authtype-override'))
+      .toHaveTextContent(/Overrides system default/);
+
+    /* Credential input placeholder follows the chosen auth type. */
+    const credInput = screen.getByTestId('user-dhis2-mapping-credential') as HTMLInputElement;
+    expect(credInput.placeholder).toMatch(/PAT token/);
+
+    await user.type(screen.getByTestId('user-dhis2-mapping-input-uid'), 'ALICE123456');
+    await user.type(credInput, 'pat-token-shhh');
+    await user.click(screen.getByTestId('user-dhis2-mapping-save'));
+
+    await waitFor(() => expect(setSpy).toHaveBeenCalledWith('u-1',
+      expect.objectContaining({
+        dhis2UserUid: 'ALICE123456',
+        authType: 'TOKEN',
+        credential: 'pat-token-shhh',
+      })));
+  });
+
+  it('shows "Credential stored" status and placeholder encourages leaving the field blank when a credential is already sealed', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1', username: 'alice' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
+      { edgeUserId: 'u-1', dhis2UserUid: 'ALICE123456', dhis2Username: 'alice.c',
+        dhis2DisplayName: 'Alice Central',
+        mappedAt: '2026-11-04T10:00:00Z', mappedBy: 'admin',
+        lastVerifiedAt: null, authType: 'TOKEN', hasCredential: true,
+        credentialSetAt: '2026-11-04T10:00:00Z' },
+    ]);
+    vi.spyOn(edgeApi, 'getDhis2AuthTypeDefault').mockResolvedValue({
+      defaultAuthType: 'BASIC',
+    });
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    await waitFor(() =>
+      expect(screen.getByTestId('user-dhis2-mapping-current'))
+        .toBeInTheDocument());
+    expect(screen.getByTestId('user-dhis2-mapping-current'))
+      .toHaveTextContent(/Credential stored/);
+    expect(screen.getByTestId('user-dhis2-mapping-current'))
+      .toHaveTextContent(/overrides system default/);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('user-dhis2-mapping-edit-panel'));
+    const credInput = await screen.findByTestId('user-dhis2-mapping-credential') as HTMLInputElement;
+    expect(credInput.placeholder).toMatch(/Leave blank to keep the stored secret/);
+  });
+
+  it('unmapped user with no credential surfaces the "push blocked" warning', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1', username: 'alice' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
+      { edgeUserId: 'u-1', dhis2UserUid: 'ALICE123456', dhis2Username: 'alice.c',
+        dhis2DisplayName: null, mappedAt: 'now', mappedBy: 'admin',
+        lastVerifiedAt: null, authType: null, hasCredential: false,
+        credentialSetAt: null },
+    ]);
+    vi.spyOn(edgeApi, 'getDhis2AuthTypeDefault').mockResolvedValue({
+      defaultAuthType: 'BASIC',
+    });
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    await waitFor(() =>
+      expect(screen.getByTestId('user-dhis2-mapping-current'))
+        .toHaveTextContent(/No credential/));
+  });
+
+  it('after picker selection extended user details (email + orgUnit) are fetched and rendered', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1', username: 'alice' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'getDhis2AuthTypeDefault').mockResolvedValue({
+      defaultAuthType: 'BASIC',
+    });
+    vi.spyOn(edgeApi, 'searchDhis2UserCandidates').mockResolvedValue({
+      query: '',
+      candidates: [
+        { id: 'A1B2C3D4E5F', username: 'alice.c',
+          displayName: 'Alice Central', disabled: false },
+      ],
+    });
+    const detailsSpy = vi.spyOn(edgeApi, 'getDhis2UserDetails').mockResolvedValue({
+      id: 'A1B2C3D4E5F', username: 'alice.c', displayName: 'Alice Central',
+      email: 'alice@dhis2.local', phoneNumber: '+256700000000',
+      disabled: false, created: '2024-01-01T00:00:00Z', lastUpdated: null,
+      lastLogin: '2026-11-04T09:00:00Z', twoFactorEnabled: true,
+      organisationUnits: [
+        { id: 'ou-1', displayName: 'Mulago Hospital' },
+        { id: 'ou-2', displayName: 'Butabika Hospital' },
+      ],
+      userGroups: [{ id: 'ug-1', displayName: 'Data entry clerks' }],
+    });
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('user-dhis2-mapping-add'));
+    await user.click(screen.getByTestId('user-dhis2-mapping-picker-input'));
+    const row = await screen.findByTestId('user-dhis2-mapping-picker-row-A1B2C3D4E5F');
+    await user.click(row);
+    await waitFor(() => expect(detailsSpy)
+      .toHaveBeenCalledWith('A1B2C3D4E5F'));
+    const detailsPanel = await screen.findByTestId('user-dhis2-mapping-details-dl');
+    expect(detailsPanel).toHaveTextContent('alice@dhis2.local');
+    expect(detailsPanel).toHaveTextContent('+256700000000');
+    expect(detailsPanel).toHaveTextContent('Mulago Hospital');
+    expect(detailsPanel).toHaveTextContent('Butabika Hospital');
+    expect(detailsPanel).toHaveTextContent('Data entry clerks');
+    expect(detailsPanel).toHaveTextContent(/2FA enabled/);
+  });
+
+  it('DHIS2 details fetch failure surfaces an inline warning but preserves the form', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [userFixture({ userId: 'u-1', username: 'alice' })],
+    });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'getDhis2AuthTypeDefault').mockResolvedValue({
+      defaultAuthType: 'BASIC',
+    });
+    vi.spyOn(edgeApi, 'getDhis2UserDetails')
+      .mockRejectedValue(new Error('503 DHIS2 unreachable'));
+    renderAt('/provisioning/users/u-1/dhis2-mapping');
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('user-dhis2-mapping-add'));
+    await user.type(screen.getByTestId('user-dhis2-mapping-input-uid'),
+      'A1B2C3D4E5F');
+    await waitFor(() =>
+      expect(screen.getByTestId('user-dhis2-mapping-details-err'))
+        .toHaveTextContent(/503 DHIS2 unreachable/));
+    expect(screen.getByTestId('user-dhis2-mapping-save')).toBeInTheDocument();
   });
 });

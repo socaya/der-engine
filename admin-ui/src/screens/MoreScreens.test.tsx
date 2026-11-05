@@ -1242,7 +1242,7 @@ describe('MoreScreens — surface mount test', () => {
       { edgeUserId: 'u-alice', dhis2UserUid: 'xYZ12345678',
         dhis2Username: 'alice.c', dhis2DisplayName: 'Alice Central',
         mappedAt: '2026-11-03T10:00:00Z', mappedBy: 'admin',
-        lastVerifiedAt: null },
+        lastVerifiedAt: null, authType: null, hasCredential: false, credentialSetAt: null },
     ]);
     renderWithProviders(<MockupDhis2Mappings />, { authApi });
     await waitFor(() =>
@@ -1268,6 +1268,7 @@ describe('MoreScreens — surface mount test', () => {
       edgeUserId: 'u-bob', dhis2UserUid: 'BOBCENTR001',
       dhis2Username: 'bob.c', dhis2DisplayName: 'Bob Central',
       mappedAt: 'now', mappedBy: 'admin', lastVerifiedAt: null,
+      authType: null, hasCredential: false, credentialSetAt: null,
     });
     renderWithProviders(<MockupDhis2Mappings />, { authApi });
     await waitFor(() =>
@@ -1298,7 +1299,7 @@ describe('MoreScreens — surface mount test', () => {
     vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
       { edgeUserId: 'u-bob', dhis2UserUid: 'BOB123', dhis2Username: 'bob.c',
         dhis2DisplayName: 'Bob Central', mappedAt: 'now', mappedBy: 'admin',
-        lastVerifiedAt: null },
+        lastVerifiedAt: null, authType: null, hasCredential: false, credentialSetAt: null },
     ]);
     renderWithProviders(<MockupDhis2Mappings />, { authApi, route: '/access/dhis2-mappings?user=u-bob' });
     /* Dialog opens automatically; username is pre-filled from the existing mapping. */

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import * as edgeApi from '../api/edgeApi';
 import {
   Panel, Dot, fmtDate, usePaged, TablePager,
-  SyncStatusBar, humaniseState, RowMenu, BackLink, ScopedFilterChip,
+  SyncStatusBar, humaniseState, RowMenu, BackLink, ScopedFilterChip, Status,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -326,17 +326,39 @@ function initials(s: string): string {
  * returns them to the user detail; after save, the panel refreshes
  * in-place so the operator can see the updated mapping.
  */
+interface MappingDraft {
+  uid: string;
+  username: string;
+  displayName: string;
+  /** null = inherit the system default; otherwise a per-mapping override. */
+  authType: edgeApi.EdgeDhis2AuthType | null;
+  /** New plaintext secret the operator typed; empty = don't touch stored secret. */
+  credential: string;
+}
+
 export function MockupUserDhis2Mapping(): JSX.Element {
   const { userId } = useParams<{ userId: string }>();
   const [user, setUser] = useState<edgeApi.ProvisionedUser | null>(null);
   const [mapping, setMapping] =
     useState<edgeApi.EdgeUserDhis2Mapping | null>(null);
-  const [draft, setDraft] = useState<{
-    uid: string; username: string; displayName: string } | null>(null);
+  const [draft, setDraft] = useState<MappingDraft | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  /* System-wide default auth type from
+   * admin_setting[dhis2.user_credentials.default_auth_type]. Used to seed
+   * new drafts + to render an "override" indicator when the operator
+   * picks a non-default per-mapping value. */
+  const [defaultAuthType, setDefaultAuthType] =
+    useState<edgeApi.EdgeDhis2AuthType | null>(null);
+  /* Extended selected-user details (email, phone, orgUnits, userGroups)
+   * fetched from DHIS2 central after the picker resolves a uid. Null
+   * while loading or when no user is selected yet. */
+  const [userDetails, setUserDetails] =
+    useState<edgeApi.EdgeDhis2UserDetails | null>(null);
+  const [userDetailsLoading, setUserDetailsLoading] = useState(false);
+  const [userDetailsErr, setUserDetailsErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -344,13 +366,39 @@ export function MockupUserDhis2Mapping(): JSX.Element {
     Promise.all([
       edgeApi.listUsers(),
       edgeApi.listUserDhis2Mappings(),
-    ]).then(([u, m]) => {
+      edgeApi.getDhis2AuthTypeDefault().catch(() => ({ defaultAuthType: 'BASIC' as const })),
+    ]).then(([u, m, d]) => {
       const row = u.users.find((x) => x.userId === userId);
       if (!row) { setNotFound(true); return; }
       setUser(row);
       setMapping(m.find((x) => x.edgeUserId === userId) ?? null);
+      setDefaultAuthType(d.defaultAuthType);
     }).catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
   }, [userId]);
+
+  /* When the draft has a uid we trust, fetch extended user details from
+   * DHIS2 central. Fires on picker select and on manual uid paste when
+   * the format matches. 400/503 are rendered inline, not fatal.
+   *
+   * eslint-disable-next-line react-hooks/exhaustive-deps —
+   *   keying off draft.uid alone is intentional: any other draft field
+   *   change (authType, credential) must not re-trigger a DHIS2 fetch. */
+  const draftUid = draft?.uid ?? '';
+  useEffect(() => {
+    if (!draftUid || !/^[A-Za-z][A-Za-z0-9]{10}$/.test(draftUid)) {
+      setUserDetails(null); setUserDetailsErr(null);
+      return;
+    }
+    let cancelled = false;
+    setUserDetailsLoading(true); setUserDetailsErr(null);
+    edgeApi.getDhis2UserDetails(draftUid)
+      .then((d) => { if (!cancelled) setUserDetails(d); })
+      .catch((e: unknown) => {
+        if (!cancelled) setUserDetailsErr(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => { if (!cancelled) setUserDetailsLoading(false); });
+    return () => { cancelled = true; };
+  }, [draftUid]);
 
   async function save(): Promise<void> {
     if (!draft || !userId) return;
@@ -360,9 +408,12 @@ export function MockupUserDhis2Mapping(): JSX.Element {
         dhis2UserUid: draft.uid.trim(),
         dhis2Username: draft.username.trim(),
         dhis2DisplayName: draft.displayName.trim() || null,
+        authType: draft.authType,
+        credential: draft.credential.length > 0 ? draft.credential : null,
       });
       setMapping(saved);
-      setMsg(`Mapping saved — @${saved.dhis2Username}`);
+      setMsg(`Mapping saved — @${saved.dhis2Username}`
+        + (draft.credential.length > 0 ? '  Credential sealed and stored.' : ''));
       setDraft(null);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -383,15 +434,19 @@ export function MockupUserDhis2Mapping(): JSX.Element {
 
   function pickCandidate(c: edgeApi.EdgeDhis2UserCandidate | null): void {
     if (c == null) {
-      setDraft((prev) => prev ? { uid: '', username: '', displayName: '' } : prev);
+      setDraft((prev) => prev
+        ? { ...prev, uid: '', username: '', displayName: '' }
+        : prev);
       return;
     }
     if (c.id == null || c.username == null) return;
-    setDraft({
-      uid: c.id,
-      username: c.username,
+    setDraft((prev) => ({
+      uid: c.id!,
+      username: c.username!,
       displayName: c.displayName ?? '',
-    });
+      authType: prev?.authType ?? null,
+      credential: prev?.credential ?? '',
+    }));
   }
 
   if (notFound) {
@@ -445,6 +500,8 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                         uid: mapping?.dhis2UserUid ?? '',
                         username: mapping?.dhis2Username ?? user.username,
                         displayName: mapping?.dhis2DisplayName ?? user.displayName ?? '',
+                        authType: mapping?.authType ?? null,
+                        credential: '',
                       })}>
                 <UiIcon icon="edit" size={14} />
                 <span>{mapped ? 'Edit mapping' : 'Map DHIS2 user'}</span>
@@ -491,6 +548,8 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                              uid: mapping!.dhis2UserUid,
                              username: mapping!.dhis2Username,
                              displayName: mapping!.dhis2DisplayName ?? '',
+                             authType: mapping!.authType,
+                             credential: '',
                            })}>
                      <UiIcon icon="edit" size={14} />
                      <span>Edit mapping</span>
@@ -524,6 +583,7 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                     data-test="user-dhis2-mapping-add"
                     onClick={() => setDraft({
                       uid: '', username: '', displayName: '',
+                      authType: null, credential: '',
                     })}>
               <UiIcon icon="plus" size={14} />
               <span>Add mapping</span>
@@ -556,6 +616,35 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                 {mapping!.lastVerifiedAt
                   ? new Date(mapping!.lastVerifiedAt).toLocaleString()
                   : 'Never'}
+              </dd>
+            </div>
+            <div className="ea-def-row">
+              <dt>Authentication</dt>
+              <dd>
+                {mapping!.authType
+                  ? (mapping!.authType === 'TOKEN'
+                    ? 'Personal access token (overrides system default)'
+                    : 'Basic password (overrides system default)')
+                  : (defaultAuthType === 'TOKEN'
+                    ? 'Personal access token (system default)'
+                    : 'Basic password (system default)')}
+              </dd>
+            </div>
+            <div className="ea-def-row">
+              <dt>Service credential</dt>
+              <dd>
+                {mapping!.hasCredential
+                  ? (
+                    <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                      <Status tone="success">Credential stored</Status>
+                      <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                        {mapping!.credentialSetAt
+                          ? `set ${new Date(mapping!.credentialSetAt).toLocaleString()}`
+                          : ''}
+                      </span>
+                    </span>
+                  )
+                  : <Status tone="warning">No credential — push blocked</Status>}
               </dd>
             </div>
           </dl>
@@ -620,6 +709,174 @@ export function MockupUserDhis2Mapping(): JSX.Element {
                 </dd>
               </div>
             </dl>
+
+            {draft.uid && (
+              <section data-test="user-dhis2-mapping-details"
+                       className="ea-mapping-details">
+                <h3 className="ea-subheading">DHIS2 user details</h3>
+                {userDetailsLoading && (
+                  <p className="ea-text-muted" data-test="user-dhis2-mapping-details-loading">
+                    Loading user details from DHIS2…
+                  </p>
+                )}
+                {userDetailsErr && !userDetailsLoading && (
+                  <div className="ea-callout ea-callout--warning"
+                       data-test="user-dhis2-mapping-details-err" role="status">
+                    DHIS2 did not return details for this uid: {userDetailsErr}.
+                    You can still save the mapping with the fields above.
+                  </div>
+                )}
+                {userDetails && !userDetailsLoading && (
+                  <dl className="ea-def-list"
+                      data-test="user-dhis2-mapping-details-dl">
+                    <div className="ea-def-row">
+                      <dt>Email</dt>
+                      <dd>{userDetails.email ?? <span className="ea-text-muted">—</span>}</dd>
+                    </div>
+                    <div className="ea-def-row">
+                      <dt>Phone</dt>
+                      <dd>{userDetails.phoneNumber ?? <span className="ea-text-muted">—</span>}</dd>
+                    </div>
+                    <div className="ea-def-row">
+                      <dt>Account status</dt>
+                      <dd>
+                        {userDetails.disabled
+                          ? <Status tone="danger">Disabled on DHIS2</Status>
+                          : <Status tone="success">Active</Status>}
+                        {userDetails.twoFactorEnabled && (
+                          <span style={{ marginLeft: 8 }}>
+                            <Status tone="info">2FA enabled</Status>
+                          </span>
+                        )}
+                      </dd>
+                    </div>
+                    <div className="ea-def-row">
+                      <dt>Last login</dt>
+                      <dd className="ea-mono">
+                        {userDetails.lastLogin
+                          ? new Date(userDetails.lastLogin).toLocaleString()
+                          : 'Never'}
+                      </dd>
+                    </div>
+                    <div className="ea-def-row">
+                      <dt>Org units ({userDetails.organisationUnits.length})</dt>
+                      <dd>
+                        {userDetails.organisationUnits.length === 0
+                          ? <span className="ea-text-muted">None assigned</span>
+                          : (
+                            <ul className="ea-inline-list">
+                              {userDetails.organisationUnits.slice(0, 8).map((ou) => (
+                                <li key={ou.id ?? ou.displayName}>{ou.displayName}</li>
+                              ))}
+                              {userDetails.organisationUnits.length > 8 && (
+                                <li className="ea-text-muted">
+                                  +{userDetails.organisationUnits.length - 8} more
+                                </li>
+                              )}
+                            </ul>
+                          )}
+                      </dd>
+                    </div>
+                    <div className="ea-def-row">
+                      <dt>User groups ({userDetails.userGroups.length})</dt>
+                      <dd>
+                        {userDetails.userGroups.length === 0
+                          ? <span className="ea-text-muted">None assigned</span>
+                          : (
+                            <ul className="ea-inline-list">
+                              {userDetails.userGroups.slice(0, 8).map((g) => (
+                                <li key={g.id ?? g.displayName}>{g.displayName}</li>
+                              ))}
+                              {userDetails.userGroups.length > 8 && (
+                                <li className="ea-text-muted">
+                                  +{userDetails.userGroups.length - 8} more
+                                </li>
+                              )}
+                            </ul>
+                          )}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+              </section>
+            )}
+
+            <section data-test="user-dhis2-mapping-creds"
+                     className="ea-mapping-creds">
+              <h3 className="ea-subheading">Service credentials</h3>
+              <p className="ea-text-muted" style={{ marginTop: 0 }}>
+                Stored sealed with AES-256-GCM.  The data-push worker uses
+                this credential to authenticate to DHIS2 as this user when
+                attributing outbound records.
+              </p>
+
+              <fieldset className="ea-field"
+                        data-test="user-dhis2-mapping-authtype">
+                <legend className="ea-field-label">Authentication type</legend>
+                <div className="ea-radio-group">
+                  {(['BASIC', 'TOKEN'] as const).map((t) => {
+                    const effective = draft.authType ?? defaultAuthType;
+                    const checked = effective === t;
+                    const isDefault = defaultAuthType === t;
+                    return (
+                      <label key={t} className="ea-radio">
+                        <input type="radio"
+                               name="user-dhis2-mapping-authtype"
+                               data-test={`user-dhis2-mapping-authtype-${t.toLowerCase()}`}
+                               value={t}
+                               checked={checked}
+                               onChange={() => setDraft({
+                                 ...draft,
+                                 authType: t === defaultAuthType ? null : t,
+                                 credential: '',
+                               })} />
+                        <span>
+                          {t === 'TOKEN' ? 'Personal access token' : 'Basic password'}
+                          {isDefault && (
+                            <span className="ea-text-muted" style={{ marginLeft: 6 }}>
+                              (system default)
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {draft.authType != null && draft.authType !== defaultAuthType && (
+                  <span className="ea-field-hint"
+                        data-test="user-dhis2-mapping-authtype-override">
+                    Overrides system default
+                    ({defaultAuthType === 'TOKEN' ? 'PAT token' : 'basic password'}).
+                  </span>
+                )}
+              </fieldset>
+
+              <div className="ea-field">
+                <label className="ea-field-label"
+                       htmlFor="user-dhis2-mapping-credential">
+                  {(draft.authType ?? defaultAuthType) === 'TOKEN'
+                    ? 'Personal access token'
+                    : 'Password'}
+                </label>
+                <input type="password"
+                       id="user-dhis2-mapping-credential"
+                       data-test="user-dhis2-mapping-credential"
+                       className="ea-input ea-mono"
+                       autoComplete="new-password"
+                       placeholder={mapping?.hasCredential
+                         ? 'Leave blank to keep the stored secret'
+                         : ((draft.authType ?? defaultAuthType) === 'TOKEN'
+                           ? 'Paste the PAT token from DHIS2'
+                           : 'Enter the DHIS2 account password')}
+                       value={draft.credential}
+                       onChange={(e) => setDraft({ ...draft, credential: e.target.value })} />
+                <span className="ea-field-hint">
+                  {mapping?.hasCredential
+                    ? 'A credential is already sealed for this user.  Leave blank to keep it; type a new value to replace it.'
+                    : 'Required for outbound push.  Saved sealed (never echoed back by the API).'}
+                </span>
+              </div>
+            </section>
 
             <div className="ea-mapping-form-actions">
               <button type="button"

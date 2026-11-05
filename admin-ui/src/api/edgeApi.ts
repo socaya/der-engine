@@ -1274,6 +1274,8 @@ export function createUser(body: { username: string; displayName: string; passwo
 /** ADR-0032 — edge-user → DHIS2-user mapping. The server-side
  *  controller (UserAttributionController) is ADMIN-only and audits
  *  every mutation as USER_DHIS2_MAPPING_SET / USER_DHIS2_MAPPING_CLEARED. */
+export type EdgeDhis2AuthType = 'TOKEN' | 'BASIC';
+
 export interface EdgeUserDhis2Mapping {
   edgeUserId: string;
   dhis2UserUid: string;
@@ -1282,6 +1284,26 @@ export interface EdgeUserDhis2Mapping {
   mappedAt: string;
   mappedBy: string;
   lastVerifiedAt: string | null;
+  /** Per-mapping override of the system default; null = inherit. */
+  authType: EdgeDhis2AuthType | null;
+  /** True iff an encrypted credential envelope is persisted for this user. */
+  hasCredential: boolean;
+  credentialSetAt: string | null;
+}
+
+export interface EdgeDhis2UserDetails {
+  id: string | null;
+  username: string | null;
+  displayName: string | null;
+  email: string | null;
+  phoneNumber: string | null;
+  disabled: boolean;
+  created: string | null;
+  lastUpdated: string | null;
+  lastLogin: string | null;
+  twoFactorEnabled: boolean;
+  organisationUnits: Array<{ id: string | null; displayName: string | null }>;
+  userGroups: Array<{ id: string | null; displayName: string | null }>;
 }
 
 export function listUserDhis2Mappings(): Promise<EdgeUserDhis2Mapping[]> {
@@ -1292,7 +1314,13 @@ export function listUserDhis2Mappings(): Promise<EdgeUserDhis2Mapping[]> {
 
 export function setUserDhis2Mapping(
   edgeUserId: string,
-  body: { dhis2UserUid: string; dhis2Username: string; dhis2DisplayName?: string | null },
+  body: {
+    dhis2UserUid: string;
+    dhis2Username: string;
+    dhis2DisplayName?: string | null;
+    authType?: EdgeDhis2AuthType | null;
+    credential?: string | null;
+  },
 ): Promise<EdgeUserDhis2Mapping> {
   return request('PUT',
     `/edge-api/v1/admin/users/${encodeURIComponent(edgeUserId)}/dhis2-mapping`,
@@ -1304,6 +1332,15 @@ export function clearUserDhis2Mapping(
 ): Promise<{ cleared: boolean }> {
   return request('DELETE',
     `/edge-api/v1/admin/users/${encodeURIComponent(edgeUserId)}/dhis2-mapping`);
+}
+
+export function getDhis2AuthTypeDefault(): Promise<{ defaultAuthType: EdgeDhis2AuthType }> {
+  return request('GET', '/edge-api/v1/admin/users/dhis2-auth-type-default');
+}
+
+export function getDhis2UserDetails(uid: string): Promise<EdgeDhis2UserDetails> {
+  return request('GET',
+    `/edge-api/v1/admin/users/dhis2-user-details?uid=${encodeURIComponent(uid)}`);
 }
 
 /** DHIS2 Central user picker — proxies /api/users with match-anywhere
