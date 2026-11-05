@@ -122,6 +122,15 @@ export function Dhis2UserPicker(
         <div className="ea-combobox-menu"
              role="listbox"
              data-test={dataTest ? `${dataTest}-menu` : undefined}>
+          {/* Sticky summary row so operators always see the result count
+           *  + the search context, even after scrolling the list. */}
+          {!loading && !err && candidates.length > 0 && (
+            <div className="ea-combobox-hint">
+              {candidates.length} match{candidates.length === 1 ? '' : 'es'}
+              {query.trim() ? ` for '${query.trim()}'` : ''}
+              {candidates.length === 20 && ' (first page — type to narrow)'}
+            </div>
+          )}
           {loading && (
             <div className="ea-combobox-hint">Searching DHIS2 Central…</div>
           )}
@@ -151,16 +160,15 @@ export function Dhis2UserPicker(
                       onClick={() => pick(c)}
                       className={'ea-combobox-row'
                         + (active ? ' ea-combobox-row--active' : '')}
+                      title={`${c.displayName ?? ''} · @${c.username ?? '?'} · ${c.id ?? '?'}`}
                       data-test={dataTest && c.id
                         ? `${dataTest}-row-${c.id}` : undefined}>
-                <div className="ea-combobox-row-body">
-                  <div className="ea-combobox-row-title">
-                    {c.displayName ?? '(no display name)'}
-                  </div>
-                  <div className="ea-combobox-row-meta ea-mono">
-                    @{c.username ?? '—'} · {c.id ?? 'no-uid'}
-                  </div>
-                </div>
+                <span className="ea-combobox-row-title">
+                  {c.displayName ?? '(no display name)'}
+                </span>
+                <span className="ea-combobox-row-meta ea-mono">
+                  @{c.username ?? '—'}
+                </span>
                 {c.disabled && <Status tone="warning">Disabled</Status>}
               </button>
             );
