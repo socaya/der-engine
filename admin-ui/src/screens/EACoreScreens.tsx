@@ -2135,18 +2135,27 @@ export function EAAuditVerify({ api = edgeApi }:
   const [resp, setResp] = useState<edgeApi.AuditChainVerifyResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [lastVerifiedAt, setLastVerifiedAt] = useState<Date | null>(null);
 
   async function run(): Promise<void> {
     setBusy(true);
     setError(null);
     try {
       setResp(await api.verifyAuditChain());
+      setLastVerifiedAt(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
   }
+
+  /* Auto-run once on mount so operators land on an answered page. The
+   * verification streams every security_audit row in insertion order
+   * and re-hashes each — negligible on a typical edge (< 10k rows) and
+   * worth the clarity. A Re-verify button lets them retry on demand. */
+  useEffect(() => { run().catch(() => undefined); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const tone: 'success' | 'warning' | 'danger' | 'muted' | 'info' = busy
     ? 'info'
@@ -2160,31 +2169,32 @@ export function EAAuditVerify({ api = edgeApi }:
     : resp == null
       ? 'Not yet verified'
       : resp.ok
-        ? `OK · ${resp.totalRows} row${resp.totalRows === 1 ? '' : 's'}`
-        : `Broken · ${resp.totalRows} row${resp.totalRows === 1 ? '' : 's'} scanned`;
+        ? `Intact · ${resp.totalRows.toLocaleString()} row${resp.totalRows === 1 ? '' : 's'}`
+        : `Broken · ${resp.totalRows.toLocaleString()} row${resp.totalRows === 1 ? '' : 's'} scanned`;
 
   return (
     <div className="ea-screen" data-test="aud01">
       <SyncStatusBar
         tone={tone}
-        title="Verify audit chain"
+        title="Hash chain integrity"
         statusLabel={statusLabel}
         actions={
           <>
+            <Link to="/audit/trail"
+                  className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Security &amp; Audit"
+                  data-test="aud01-open-trail">
+              <UiIcon icon="audit" size={14} />
+              <span>Audit trail</span>
+            </Link>
             <button type="button"
                     className="ea-btn ea-btn--primary ea-btn--sm"
                     data-test="aud01-run"
                     disabled={busy}
                     onClick={() => { run().catch(() => undefined); }}>
-              {busy ? 'Verifying…' : 'Run verification'}
+              <UiIcon icon="refresh" size={14} />
+              <span>{busy ? 'Verifying…' : 'Re-verify'}</span>
             </button>
-            <Link to="/audit/events"
-                  className="ea-btn ea-btn--ghost ea-btn--sm"
-                  data-cross-module="Security &amp; Audit"
-                  data-test="aud01-open-events">
-              <UiIcon icon="audit" size={14} />
-              <span>Security events</span>
-            </Link>
           </>
         }
       />
@@ -2204,32 +2214,55 @@ export function EAAuditVerify({ api = edgeApi }:
                }>
           <dl className="ea-def-list" data-test="aud01-result">
             <div className="ea-def-row">
-              <dt>Result</dt>
-              <dd data-test="aud01-status">
-                {resp.ok ? 'OK — chain intact' : 'BROKEN — chain discontinuity detected'}
-              </dd>
+              <dt>Rows checked</dt>
+              <dd className="ea-mono"
+                  data-test="aud01-total">{resp.totalRows.toLocaleString()}</dd>
             </div>
             <div className="ea-def-row">
-              <dt>Rows checked</dt>
-              <dd data-test="aud01-total">{resp.totalRows}</dd>
+              <dt>Last verified</dt>
+              <dd className="ea-mono" style={{ fontSize: 12 }}>
+                {lastVerifiedAt ? lastVerifiedAt.toLocaleString() : '—'}
+              </dd>
             </div>
             {!resp.ok && (
               <>
                 <div className="ea-def-row">
-                  <dt>First broken audit_id</dt>
+                  <dt>First broken row</dt>
                   <dd data-test="aud01-break-id">
-                    <code>{resp.firstBreakAuditId}</code>
+                    <code className="ea-mono">{resp.firstBreakAuditId}</code>
+                    {resp.firstBreakAuditId != null && (
+                      <>
+                        {' '}
+                        <Link to="/audit/trail"
+                              className="ea-link-btn"
+                              style={{ marginLeft: 8, fontSize: 12 }}
+                              data-cross-module="Security &amp; Audit"
+                              data-test="aud01-open-trail-at-break">
+                          View in audit trail →
+                        </Link>
+                      </>
+                    )}
                   </dd>
                 </div>
                 <div className="ea-def-row">
                   <dt>Reason</dt>
-                  <dd data-test="aud01-break-reason">{resp.firstBreakReason}</dd>
+                  <dd data-test="aud01-break-reason">
+                    <Status tone="danger">
+                      {resp.firstBreakReason === 'PREV_HASH_MISMATCH'
+                        ? 'Previous-hash mismatch'
+                        : resp.firstBreakReason === 'ROW_HASH_MISMATCH'
+                          ? 'Row-hash mismatch'
+                          : resp.firstBreakReason}
+                    </Status>
+                  </dd>
                 </div>
               </>
             )}
           </dl>
         </Panel>
       )}
+
+      {resp == null && !error && busy && <LoadingBlock testId="aud01-loading" />}
     </div>
   );
 }

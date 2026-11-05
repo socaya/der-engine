@@ -1003,37 +1003,42 @@ describe('EA-ANA-01 FacilityAnalytics', () => {
 });
 
 describe('EA-AUD-01 AuditVerify', () => {
-  it('renders the enhanced screen shell before run', () => {
-    renderWithProviders(<EAAuditVerify api={{ verifyAuditChain: vi.fn() } as never} />);
+  it('renders the screen shell with the Re-verify button', () => {
+    renderWithProviders(<EAAuditVerify api={{
+      verifyAuditChain: vi.fn().mockResolvedValue({
+        ok: true, totalRows: 0, firstBreakAuditId: null, firstBreakReason: null,
+      }),
+    } as never} />);
     expect(screen.getByTestId('aud01')).toBeInTheDocument();
     expect(screen.getByTestId('aud01-run')).toBeInTheDocument();
   });
 
-  it('reports OK result', async () => {
+  it('auto-runs on mount and reports OK result', async () => {
     renderWithProviders(<EAAuditVerify api={{
       verifyAuditChain: vi.fn().mockResolvedValue({
         ok: true, totalRows: 10, firstBreakAuditId: null, firstBreakReason: null,
       }),
     } as never} />);
-    await userEvent.click(screen.getByTestId('aud01-run'));
-    await waitFor(() => expect(screen.getByTestId('aud01-status'))
-      .toHaveTextContent('OK'));
+    /* Auto-run fires on mount — no click needed. */
+    await waitFor(() => expect(screen.getByTestId('aud01-status-chip'))
+      .toHaveTextContent(/Chain intact/));
     expect(screen.getByTestId('aud01-total')).toHaveTextContent('10');
   });
 
-  it('reports a break', async () => {
+  it('reports a break with humanised reason + deep-link into the trail', async () => {
     renderWithProviders(<EAAuditVerify api={{
       verifyAuditChain: vi.fn().mockResolvedValue({
         ok: false, totalRows: 50,
         firstBreakAuditId: 7, firstBreakReason: 'ROW_HASH_MISMATCH',
       }),
     } as never} />);
-    await userEvent.click(screen.getByTestId('aud01-run'));
-    await waitFor(() => expect(screen.getByTestId('aud01-status'))
-      .toHaveTextContent('BROKEN'));
+    await waitFor(() => expect(screen.getByTestId('aud01-status-chip'))
+      .toHaveTextContent(/Broken/));
     expect(screen.getByTestId('aud01-break-id')).toHaveTextContent('7');
     expect(screen.getByTestId('aud01-break-reason'))
-      .toHaveTextContent('ROW_HASH_MISMATCH');
+      .toHaveTextContent(/Row-hash mismatch/);
+    expect(screen.getByTestId('aud01-open-trail-at-break'))
+      .toHaveAttribute('href', '/audit/trail');
   });
 
   it('shows error on failure', async () => {
