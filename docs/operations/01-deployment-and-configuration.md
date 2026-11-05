@@ -18,5 +18,18 @@ One Linux edge host / VM with PostgreSQL, version-pinned local DHIS2 Core, DER S
 ## Example layout (illustrative, not executed)
 `/opt/der/der-server.jar`, `/etc/der/application.yml`, `/var/lib/der/`, `/var/log/der/`; DHIS2 Core in its own application-server context; PostgreSQL as system service. `deployment/nginx`, `deployment/systemd`, `deployment/scripts` contain actual maintained assets.
 
+## Secret-at-rest key (`DER_SECURITY_SECRET_KEY`)
+DER seals DHIS2 per-user service credentials (`der.edge_user_dhis2_mapping.credential_cipher`) with AES-256-GCM via `SecretEnvelope`. The key is read from `der.security.secret-key` (env var `DER_SECURITY_SECRET_KEY`), a base64-encoded 32-byte value.
+
+**When unset, `SecretEnvelope.seal()` is a pass-through and credentials land as plaintext in the DB** — documented fallback for dev convenience, not for pilot or production. Generate and set the key before onboarding real operator credentials:
+
+```
+openssl rand -base64 32
+# append to the server's environment, e.g.:
+#   DER_SECURITY_SECRET_KEY=<base64>
+```
+
+Key rotation currently requires re-saving each mapping with the new key active (old ciphertext is not re-wrapped automatically). Keep the key out of the source tree; the standard DER layout places it in `/etc/der/application.yml` or the systemd unit's `EnvironmentFile`, mode 0600, owned by the service account.
+
 ## Operational cautions
 Do not assume `.local` domain is universally discoverable; validate mDNS or managed DNS. Do not expose PostgreSQL to end-user devices. Do not let NGINX return central endpoints as a fallback during WAN outage without explicit semantics. Verify clock drift, certificate trust and credentials before proceeding.
