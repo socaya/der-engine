@@ -9,6 +9,9 @@ target/
 *.log
 # Keep evidence bundles under version control even though they contain .log files.
 !docs/evaluation/evidence/**/*.log
+# Gate-script scratch bundles (regenerated every run of scripts/run_all_checks.sh
+# when the phase is not pinned).
+docs/evaluation/evidence/phase-unknown/
 .DS_Store
 coverage/
 
