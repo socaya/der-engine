@@ -200,107 +200,11 @@ function RecoveryAction({ testIdPrefix, runTestId, title, description, affects, 
   );
 }
 
-// EA-23..26 Backup / restore (stubs; Phase 07 orchestrates) ----------
-export function EABackupList({ api = edgeApi }: {
-  api?: Pick<typeof edgeApi, 'listBackups' | 'requestBackup'>;
-} = {}): JSX.Element {
-  const [rows, setRows] = useState<edgeApi.BackupRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  async function load(): Promise<void> {
-    try { setRows(await api.listBackups()); } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  }
-  // Why: load/reload closes over state; re-run only when api changes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load().catch(() => undefined); }, [api]);
-  async function trigger(kind: 'AUDIT' | 'FULL'): Promise<void> {
-    try { await api.requestBackup(kind); await load(); } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  }
-  if (error) return <ErrorBlock title="Backups failed" testId="ea23-error">{error}</ErrorBlock>;
-  if (rows === null) return <LoadingBlock testId="ea23-loading" />;
-  return (
-    <div className="ea-screen">
-      <h1 data-test="ea23-heading">Backup runs</h1>
-      <p>Phase 07 ships the pg_dump worker; alpha.3 just records intent.</p>
-      <button type="button" data-test="ea23-request-audit"
-              onClick={() => { trigger('AUDIT').catch(() => undefined); }}>
-        Request audit backup
-      </button>
-      <button type="button" data-test="ea23-request-full"
-              onClick={() => { trigger('FULL').catch(() => undefined); }}>
-        Request full backup
-      </button>
-      {rows.length === 0 ? (
-        <EmptyBlock title="No backups yet" testId="ea23-empty">
-          Trigger a backup from this page or from the Maintenance
-          screen.  Successful runs land here with a download link;
-          failed runs surface the reason inline.
-        </EmptyBlock>
-      ) : (
-        <ul>{rows.map((r) => (
-          <li key={r.runId}>
-            <span data-test={`ea23-row-${r.runId}`}>
-              {r.kind} / {r.status} — {r.requestedAt}
-            </span>
-          </li>
-        ))}</ul>
-      )}
-    </div>
-  );
-}
-
-export function EARestoreList({ api = edgeApi }: {
-  api?: Pick<typeof edgeApi, 'listRestores' | 'requestRestore'>;
-} = {}): JSX.Element {
-  const [rows, setRows] = useState<edgeApi.RestoreRow[] | null>(null);
-  const [source, setSource] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  async function load(): Promise<void> {
-    try { setRows(await api.listRestores()); } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  }
-  // Why: load/reload closes over state; re-run only when api changes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load().catch(() => undefined); }, [api]);
-  async function trigger(): Promise<void> {
-    try { await api.requestRestore(source); await load(); } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  }
-  if (error) return <ErrorBlock title="Restores failed" testId="ea25-error">{error}</ErrorBlock>;
-  if (rows === null) return <LoadingBlock testId="ea25-loading" />;
-  return (
-    <div className="ea-screen">
-      <h1 data-test="ea25-heading">Restore runs</h1>
-      <label><span>Source URI</span>
-        <input data-test="ea25-source" value={source}
-               onChange={(e) => setSource(e.target.value)} /></label>
-      <button type="button" data-test="ea25-request" disabled={!source}
-              onClick={() => { trigger().catch(() => undefined); }}>
-        Request restore
-      </button>
-      {rows.length === 0 ? (
-        <EmptyBlock title="No restores yet" testId="ea25-empty">
-          Nothing has been restored on this edge.  Upload a backup
-          artefact and start a restore from the <strong>/restore</strong>
-          endpoint; history lands here with status + duration.
-        </EmptyBlock>
-      ) : (
-        <ul>{rows.map((r) => (
-          <li key={r.runId}>
-            <span data-test={`ea25-row-${r.runId}`}>
-              {r.source} / {r.status}
-            </span>
-          </li>
-        ))}</ul>
-      )}
-    </div>
-  );
-}
+/* EA-30 Backup catalogue + EA-31 Restore: the rich MockupBackupList /
+ * MockupRestoreList in MoreScreens.tsx (routed at /backup and /restore)
+ * are the canonical surfaces. The thin stubs that once lived here, and
+ * their /backup-legacy + /restore-legacy routes, were removed as part
+ * of the EA-30/31 overhaul. */
 
 // EA-27..30 Evaluation / reports ------------------------------------
 export function EAEvaluationReports({ api = edgeApi }: {

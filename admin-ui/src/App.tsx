@@ -14,7 +14,7 @@ import {
   EAAuditVerify, EAAuditEvents, EAReferralInbox,
 } from './screens/EACoreScreens';
 import {
-  EARecoveryTools, EABackupList, EARestoreList, EAEvaluationReports,
+  EARecoveryTools, EAEvaluationReports,
   EAAppsList, EADiagnostics, EASettings,
 } from './screens/EARemainderScreens';
 import { SignIn } from './screens/SignIn';
@@ -236,9 +236,7 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EAMetadataOverview /></RequireAuth>} />
           <Route path="/recovery" element={<RequireAuth><EARecoveryTools /></RequireAuth>} />
           <Route path="/backup" element={<RequireAuth><MockupBackupList /></RequireAuth>} />
-          <Route path="/backup-legacy" element={<RequireAuth><EABackupList /></RequireAuth>} />
           <Route path="/restore" element={<RequireAuth><MockupRestoreList /></RequireAuth>} />
-          <Route path="/restore-legacy" element={<RequireAuth><EARestoreList /></RequireAuth>} />
           <Route path="/evaluation"
                  element={<RequireAuth><EAEvaluationReports /></RequireAuth>} />
           <Route path="/apps" element={<RequireAuth><EAAppsList /></RequireAuth>} />

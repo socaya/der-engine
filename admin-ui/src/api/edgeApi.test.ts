@@ -104,7 +104,7 @@ describe('edgeApi route coverage', () => {
     ['listBackups',       () => api.listBackups(),               '/edge-api/v1/backup/runs',            'GET',    undefined],
     ['requestBackup',     () => api.requestBackup('FULL'),       '/edge-api/v1/backup/request',         'POST',   { kind: 'FULL' }],
     ['listRestores',      () => api.listRestores(),              '/edge-api/v1/restore/runs',           'GET',    undefined],
-    ['requestRestore',    () => api.requestRestore('/a/b.dump'), '/edge-api/v1/restore/request',        'POST',   { source: '/a/b.dump' }],
+    ['requestRestore',    () => api.requestRestore('LOCAL', '/a/b.dump'), '/edge-api/v1/restore/request',        'POST',   { kind: 'LOCAL', source: '/a/b.dump' }],
     ['diagnostics',       () => api.diagnostics(),               '/edge-api/v1/admin/diagnostics',      'GET',    undefined],
     ['readSettings',      () => api.readSettings(),              '/edge-api/v1/admin/settings',         'GET',    undefined],
     ['saveSettings',      () => api.saveSettings({ cron: { x: '0' }, featureFlags: {}, roles: [] }), '/edge-api/v1/admin/settings', 'POST', { cron: { x: '0' }, featureFlags: {}, roles: [] }],
@@ -1144,10 +1144,12 @@ describe('edgeApi wrappers — batch coverage', () => {
     expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
   });
 
-  it('requestRestore POSTs a restore request', async () => {
+  it('requestRestore POSTs a restore request with kind + source', async () => {
     fetchMock.mockResolvedValue(respond(200, {}));
-    await api.requestRestore('s3://bucket/runid-1.tar.gz');
+    await api.requestRestore('REMOTE', 's3://bucket/runid-1.tar.gz');
     expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+    expect(JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string))
+      .toEqual({ kind: 'REMOTE', source: 's3://bucket/runid-1.tar.gz' });
   });
 
   it('writeUserPref POSTs a pref key/value', async () => {

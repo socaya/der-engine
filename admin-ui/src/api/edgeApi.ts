@@ -1729,15 +1729,38 @@ export interface RestoreRow {
   source: string;
   status: 'REQUESTED' | 'QUEUED' | 'SUCCESS' | 'FAILED';
   message?: string;
+  /** LOCAL = restore from a known backup run; UPLOAD = restore from an
+   *  uploaded archive; REMOTE = restore from an operator-supplied URI. */
+  kind?: 'LOCAL' | 'UPLOAD' | 'REMOTE';
 }
+
+export type RestoreKind = 'LOCAL' | 'UPLOAD' | 'REMOTE';
 
 export function listRestores(): Promise<RestoreRow[]> {
   return request<{ runs: RestoreRow[] }>('GET', '/edge-api/v1/restore/runs')
     .then((r) => r.runs ?? []);
 }
 
-export function requestRestore(source: string): Promise<RestoreRow> {
-  return request<RestoreRow>('POST', '/edge-api/v1/restore/request', { source });
+/** EA-31: server requires kind + source. Older signature (source-only)
+ *  silently 400'd; the three-way kind reflects the UI selector. */
+export function requestRestore(kind: RestoreKind, source: string):
+    Promise<RestoreRow> {
+  return request<RestoreRow>('POST', '/edge-api/v1/restore/request',
+    { kind, source });
+}
+
+/** EA-31: multipart upload for operator-supplied archive; returns an
+ *  upload key the UI feeds back into requestRestore('UPLOAD', key). */
+export function uploadRestoreArchive(file: File):
+    Promise<{ uploadKey: string; size: number }> {
+  const form = new FormData();
+  form.append('archive', file);
+  return fetch('/edge-api/v1/restore/upload', {
+    method: 'POST', body: form, credentials: 'same-origin',
+  }).then(async (r) => {
+    if (!r.ok) throw new Error(`upload failed: HTTP ${r.status}`);
+    return r.json() as Promise<{ uploadKey: string; size: number }>;
+  });
 }
 
 export interface SystemInfoRuntime {

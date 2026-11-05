@@ -1,4 +1,5 @@
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../test/renderWithProviders';
@@ -286,10 +287,97 @@ describe('MoreScreens — surface mount test', () => {
       { runId: 2, source: 'bk-audit-1', status: 'FAILED',
         requestedAt: '2026-11-03T07:00:00Z', message: 'bad manifest' },
     ] as edgeApi.RestoreRow[]);
+    vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'backupVerifyHistory').mockResolvedValue([]);
     renderWithProviders(<MockupRestoreList />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/bk-full-1|bk-audit-1/));
     expect(document.body.textContent ?? '').toMatch(/SUCCESS|FAILED/);
+  });
+
+  it('MockupRestoreList — LOCAL backup picker surfaces identity + verify status, submits with kind=LOCAL', async () => {
+    vi.spyOn(edgeApi, 'listRestores').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([
+      { runId: 7, kind: 'FULL', status: 'SUCCESS',
+        requestedAt: '2026-11-04T10:00:00Z' },
+      { runId: 6, kind: 'AUDIT', status: 'FAILED',
+        requestedAt: '2026-11-04T09:00:00Z', message: 'disk full' },
+    ] as edgeApi.BackupRow[]);
+    vi.spyOn(edgeApi, 'backupVerifyHistory').mockResolvedValue([
+      { verificationId: '1', backupRunId: 7, verifiedAt: '2026-11-04T11:00:00Z',
+        outcome: 'PASSED', durationMs: 1234,
+        shadowDbName: null, rowCounts: null, reason: null },
+    ]);
+    const submit = vi.spyOn(edgeApi, 'requestRestore').mockResolvedValue({
+      runId: 99, kind: 'LOCAL', source: 'backup-run://7',
+      status: 'REQUESTED', requestedAt: 'now',
+    });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderWithProviders(<MockupRestoreList />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('restore-tools'))
+      .toBeInTheDocument());
+    /* LOCAL radio is the default; the picker dropdown lists only
+     * successful backups (run #7), not the failed one. */
+    expect(screen.queryByTestId('restore-run-opt-6')).toBeNull();
+    expect(screen.getByTestId('restore-run-opt-7')).toBeInTheDocument();
+    await userEvent.selectOptions(
+      screen.getByTestId('restore-run-select'), '7');
+    const selectedPanel = await screen.findByTestId('restore-selected-backup');
+    expect(selectedPanel).toHaveTextContent('7');
+    expect(selectedPanel).toHaveTextContent('FULL');
+    expect(document.body.textContent ?? '').toMatch(/PASSED/);
+    await userEvent.click(screen.getByTestId('restore-submit'));
+    await waitFor(() => expect(submit).toHaveBeenCalledWith(
+      'LOCAL', 'backup-run://7'));
+    confirmSpy.mockRestore();
+  });
+
+  it('MockupRestoreList — UPLOAD flow uploads then requests restore with upload key', async () => {
+    vi.spyOn(edgeApi, 'listRestores').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'backupVerifyHistory').mockResolvedValue([]);
+    const upload = vi.spyOn(edgeApi, 'uploadRestoreArchive').mockResolvedValue({
+      uploadKey: 'upload-abc123.dump', size: 2048,
+    });
+    const submit = vi.spyOn(edgeApi, 'requestRestore').mockResolvedValue({
+      runId: 100, kind: 'UPLOAD', source: 'upload-abc123.dump',
+      status: 'REQUESTED', requestedAt: 'now',
+    });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderWithProviders(<MockupRestoreList />, { authApi });
+    await userEvent.click(await screen.findByTestId('restore-kind-upload'));
+    const file = new File(['backup contents'], 'backup.dump', {
+      type: 'application/octet-stream' });
+    await userEvent.upload(screen.getByTestId('restore-upload'), file);
+    expect(screen.getByTestId('restore-upload-chosen'))
+      .toHaveTextContent('backup.dump');
+    await userEvent.click(screen.getByTestId('restore-submit'));
+    await waitFor(() => expect(upload).toHaveBeenCalled());
+    await waitFor(() => expect(submit).toHaveBeenCalledWith(
+      'UPLOAD', 'upload-abc123.dump'));
+    confirmSpy.mockRestore();
+  });
+
+  it('MockupRestoreList — cancelling the confirm does not submit', async () => {
+    vi.spyOn(edgeApi, 'listRestores').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([
+      { runId: 1, kind: 'FULL', status: 'SUCCESS',
+        requestedAt: '2026-11-04T10:00:00Z' },
+    ] as edgeApi.BackupRow[]);
+    vi.spyOn(edgeApi, 'backupVerifyHistory').mockResolvedValue([]);
+    const submit = vi.spyOn(edgeApi, 'requestRestore').mockResolvedValue({
+      runId: 1, kind: 'LOCAL', source: 'backup-run://1',
+      status: 'REQUESTED', requestedAt: 'now',
+    });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderWithProviders(<MockupRestoreList />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('restore-tools'))
+      .toBeInTheDocument());
+    await userEvent.selectOptions(
+      screen.getByTestId('restore-run-select'), '1');
+    await userEvent.click(screen.getByTestId('restore-submit'));
+    expect(submit).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
   });
 
   it('MockupCompatInspector renders details from a resolved compat probe', async () => {

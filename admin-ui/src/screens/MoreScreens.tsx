@@ -1730,40 +1730,213 @@ function BackupRunsTable({ rows }: { rows: ReadonlyArray<edgeApi.BackupRow> }): 
 /* ─── /restore ───────────────────────────────────────────────────── */
 export function MockupRestoreList(): JSX.Element {
   const [rows, setRows] = useState<edgeApi.RestoreRow[] | null>(null);
+  const [backups, setBackups] = useState<edgeApi.BackupRow[]>([]);
+  const [verifyHist, setVerifyHist] = useState<edgeApi.BackupVerifyRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
-  const [source, setSource] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [kind, setKind] = useState<edgeApi.RestoreKind>('LOCAL');
+  const [localRunId, setLocalRunId] = useState<string>('');
+  const [remoteUri, setRemoteUri] = useState('');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+
   async function reload(): Promise<void> {
-    try { setRows(await edgeApi.listRestores()); }
-    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    const [a, b, c] = await Promise.allSettled([
+      edgeApi.listRestores(),
+      edgeApi.listBackups(),
+      edgeApi.backupVerifyHistory(25),
+    ]);
+    if (a.status === 'fulfilled') setRows(a.value);
+    else { setErr(a.reason instanceof Error ? a.reason.message : String(a.reason)); return; }
+    if (b.status === 'fulfilled') setBackups(b.value);
+    if (c.status === 'fulfilled') setVerifyHist(c.value);
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
-  async function request(): Promise<void> {
-    if (!source) return;
-    setBusy(true);
-    try { await edgeApi.requestRestore(source); setSource(''); await reload(); } finally { setBusy(false); }
+
+  /* EA-31 §"Show backup identity, version, checksum, scope,
+   * verification results": restore from a LOCAL backup needs to show
+   * the selected backup's run + the latest verify row for it so the
+   * operator sees what they're about to replay. */
+  const successBackups = backups.filter((b) => b.status === 'SUCCESS');
+  const selected = successBackups.find((b) => String(b.runId) === localRunId);
+  const selectedVerify = selected
+    ? verifyHist.find((v) => v.backupRunId === selected.runId) ?? null
+    : null;
+
+  function canSubmit(): boolean {
+    if (busy) return false;
+    if (kind === 'LOCAL') return selected != null;
+    if (kind === 'REMOTE') return remoteUri.trim().length > 0;
+    return uploadFile != null;
   }
-  if (err) return <ErrorBlock title="Restores failed" testId="err-restore">{err}</ErrorBlock>;
+
+  async function submit(): Promise<void> {
+    if (!canSubmit()) return;
+    const label = kind === 'LOCAL' ? `backup run #${selected!.runId}`
+      : kind === 'REMOTE' ? remoteUri.trim()
+      : uploadFile!.name;
+    if (!window.confirm(
+      `Restore from ${label}?\n\nThis overwrites the local database.`)) return;
+    setBusy(true); setMsg(null); setErr(null);
+    try {
+      let source: string;
+      if (kind === 'UPLOAD') {
+        const up = await edgeApi.uploadRestoreArchive(uploadFile!);
+        source = up.uploadKey;
+      } else if (kind === 'LOCAL') {
+        source = `backup-run://${selected!.runId}`;
+      } else {
+        source = remoteUri.trim();
+      }
+      await edgeApi.requestRestore(kind, source);
+      setMsg('Restore request recorded.');
+      setRemoteUri(''); setUploadFile(null);
+      await reload();
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(false); }
+  }
+
+  if (err && !rows) return <ErrorBlock title="Restores failed" testId="err-restore">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
+
   return (
-    <div className="ea-screen">
+    <div className="ea-screen" data-test="restore-tools">
       <SyncStatusBar
         tone="muted"
         title="Restore"
         statusLabel={`${rows.length} on record`}
       />
+
+      {msg && (
+        <div className="ea-callout ea-callout--success" role="status"
+             data-test="restore-msg">{msg}</div>
+      )}
+      {err && (
+        <ErrorBlock title="Restore action failed" testId="err-restore-action">{err}</ErrorBlock>
+      )}
+
       <Panel title="Request a restore">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-          <label className="ea-field" style={{ flex: 1 }}>
+        <fieldset className="ea-field" data-test="restore-kind">
+          <legend className="ea-field-label">Source</legend>
+          <div className="ea-radio-group">
+            {(['LOCAL', 'UPLOAD', 'REMOTE'] as const).map((k) => (
+              <label key={k} className="ea-radio">
+                <input type="radio" name="restore-kind"
+                       data-test={`restore-kind-${k.toLowerCase()}`}
+                       value={k} checked={kind === k}
+                       onChange={() => setKind(k)} />
+                <span>
+                  {k === 'LOCAL' ? 'Local backup run'
+                    : k === 'UPLOAD' ? 'Upload archive'
+                    : 'Remote URI'}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        {kind === 'LOCAL' && (
+          <div className="ea-field">
+            <label className="ea-field-label" htmlFor="restore-run-select">
+              Backup run
+            </label>
+            <select id="restore-run-select"
+                    className="ea-input"
+                    data-test="restore-run-select"
+                    value={localRunId}
+                    onChange={(e) => setLocalRunId(e.target.value)}>
+              <option value="">— choose —</option>
+              {successBackups.map((b) => (
+                <option key={b.runId} value={String(b.runId)}
+                        data-test={`restore-run-opt-${b.runId}`}>
+                  #{b.runId} · {b.kind} · {fmtDate(b.requestedAt)}
+                </option>
+              ))}
+            </select>
+            {successBackups.length === 0 && (
+              <span className="ea-field-hint">No successful backups available.</span>
+            )}
+          </div>
+        )}
+
+        {kind === 'UPLOAD' && (
+          <div className="ea-field">
+            <label className="ea-field-label" htmlFor="restore-upload">
+              Archive
+            </label>
+            <input type="file" id="restore-upload"
+                   data-test="restore-upload"
+                   onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} />
+            {uploadFile && (
+              <span className="ea-field-hint"
+                    data-test="restore-upload-chosen">
+                {uploadFile.name} · {Math.round(uploadFile.size / 1024)} KB
+              </span>
+            )}
+          </div>
+        )}
+
+        {kind === 'REMOTE' && (
+          <label className="ea-field">
             <span className="ea-field-label">Source URI</span>
-            <input className="ea-input ea-mono" value={source}
-                   onChange={(e) => setSource(e.target.value)}
+            <input className="ea-input ea-mono"
+                   data-test="restore-remote-uri"
+                   value={remoteUri}
+                   onChange={(e) => setRemoteUri(e.target.value)}
                    placeholder="file:///path/to/backup.tar.gz" />
           </label>
-          <button type="button" className="ea-btn ea-btn--primary" disabled={!source || busy}
-                  onClick={() => { request().catch(() => undefined); }}>Request restore</button>
+        )}
+
+        <div className="ea-mapping-form-actions">
+          <button type="button" className="ea-btn ea-btn--primary"
+                  data-test="restore-submit"
+                  disabled={!canSubmit()}
+                  onClick={() => { submit().catch(() => undefined); }}>
+            {busy ? 'Submitting…' : 'Request restore'}
+          </button>
         </div>
       </Panel>
+
+      {kind === 'LOCAL' && selected && (
+        <Panel title="Selected backup"
+               action={
+                 <Status tone={
+                   selectedVerify == null ? 'muted'
+                     : selectedVerify.outcome === 'PASSED'
+                       || selectedVerify.outcome === 'SUCCESS' ? 'success'
+                     : 'danger'}>
+                   {selectedVerify?.outcome ?? 'Never verified'}
+                 </Status>
+               }>
+          <dl className="ea-def-list" data-test="restore-selected-backup">
+            <div className="ea-def-row"><dt>Run ID</dt>
+              <dd className="ea-mono">{selected.runId}</dd></div>
+            <div className="ea-def-row"><dt>Kind</dt>
+              <dd>{selected.kind}</dd></div>
+            <div className="ea-def-row"><dt>Requested at</dt>
+              <dd className="ea-mono">{fmtDate(selected.requestedAt)}</dd></div>
+            <div className="ea-def-row"><dt>Last verification</dt>
+              <dd>
+                {selectedVerify
+                  ? (
+                    <>
+                      <span className="ea-mono">{fmtDate(selectedVerify.verifiedAt)}</span>
+                      {selectedVerify.reason && (
+                        <span className="ea-text-muted" style={{ marginLeft: 8, fontSize: 12 }}>
+                          · {selectedVerify.reason}
+                        </span>
+                      )}
+                    </>
+                  )
+                  : <span className="ea-text-muted">
+                      Not verified — restore will proceed without a round-trip proof.
+                    </span>}
+              </dd></div>
+          </dl>
+        </Panel>
+      )}
+
       <Panel title="History">
         {rows.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0 }}>No restores recorded.</p>

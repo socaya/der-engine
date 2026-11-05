@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
 import {
-  EARecoveryTools, EABackupList, EARestoreList, EAEvaluationReports,
+  EARecoveryTools, EAEvaluationReports,
   EAAppsList, EADiagnostics, EASettings,
 } from './EARemainderScreens';
 
@@ -69,81 +69,9 @@ describe('EA-19 RecoveryTools', () => {
   });
 });
 
-describe('EA-23 BackupList', () => {
-  it('lists and requests', async () => {
-    const api = {
-      listBackups: vi.fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ runId: 1, requestedAt: 'now', kind: 'AUDIT' as const,
-          status: 'REQUESTED' as const }]),
-      requestBackup: vi.fn().mockResolvedValue({ runId: 1, requestedAt: 'now',
-        kind: 'AUDIT', status: 'REQUESTED' }),
-    };
-    renderWithProviders(<EABackupList api={api as never} />);
-    await waitFor(() => expect(screen.getByTestId('ea23-empty')).toBeInTheDocument());
-    await userEvent.click(screen.getByTestId('ea23-request-audit'));
-    await waitFor(() => expect(screen.getByTestId('ea23-row-1')).toBeInTheDocument());
-  });
-  it('request full', async () => {
-    const api = {
-      listBackups: vi.fn().mockResolvedValue([]),
-      requestBackup: vi.fn().mockResolvedValue({ runId: 2, requestedAt: 'now',
-        kind: 'FULL', status: 'REQUESTED' }),
-    };
-    renderWithProviders(<EABackupList api={api as never} />);
-    await userEvent.click(await screen.findByTestId('ea23-request-full'));
-    expect(api.requestBackup).toHaveBeenCalledWith('FULL');
-  });
-  it('error on load', async () => {
-    renderWithProviders(<EABackupList api={{
-      listBackups: vi.fn().mockRejectedValue('x'),
-      requestBackup: vi.fn(),
-    } as never} />);
-    await waitFor(() => expect(screen.getByTestId('ea23-error')).toBeInTheDocument());
-  });
-  it('error on request', async () => {
-    const api = {
-      listBackups: vi.fn().mockResolvedValue([]),
-      requestBackup: vi.fn().mockRejectedValue(new Error('nope')),
-    };
-    renderWithProviders(<EABackupList api={api as never} />);
-    await userEvent.click(await screen.findByTestId('ea23-request-audit'));
-    await waitFor(() => expect(screen.getByTestId('ea23-error')).toBeInTheDocument());
-  });
-});
-
-describe('EA-25 RestoreList', () => {
-  it('requests restore', async () => {
-    const api = {
-      listRestores: vi.fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ runId: 5, requestedAt: 'now', source: 's3://x',
-          status: 'REQUESTED' as const }]),
-      requestRestore: vi.fn().mockResolvedValue({ runId: 5, requestedAt: 'now',
-        source: 's3://x', status: 'REQUESTED' }),
-    };
-    renderWithProviders(<EARestoreList api={api as never} />);
-    await userEvent.type(await screen.findByTestId('ea25-source'), 's3://x');
-    await userEvent.click(screen.getByTestId('ea25-request'));
-    await waitFor(() => expect(screen.getByTestId('ea25-row-5')).toBeInTheDocument());
-  });
-  it('error on load', async () => {
-    renderWithProviders(<EARestoreList api={{
-      listRestores: vi.fn().mockRejectedValue('x'),
-      requestRestore: vi.fn(),
-    } as never} />);
-    await waitFor(() => expect(screen.getByTestId('ea25-error')).toBeInTheDocument());
-  });
-  it('error on request', async () => {
-    renderWithProviders(<EARestoreList api={{
-      listRestores: vi.fn().mockResolvedValue([]),
-      requestRestore: vi.fn().mockRejectedValue(new Error('x')),
-    } as never} />);
-    await userEvent.type(await screen.findByTestId('ea25-source'), 's');
-    await userEvent.click(screen.getByTestId('ea25-request'));
-    await waitFor(() => expect(screen.getByTestId('ea25-error')).toBeInTheDocument());
-  });
-});
+/* EA-23 BackupList and EA-25 RestoreList stubs removed with the EA-30/31
+ * overhaul; the canonical screens (MockupBackupList / MockupRestoreList
+ * in MoreScreens.tsx) are covered by MoreScreens.test.tsx. */
 
 describe('EA-27 EvaluationReports', () => {
   it('aggregates outcomes + backlog', async () => {

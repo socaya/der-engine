@@ -66,8 +66,6 @@ vi.mock('./screens/workflow/WorkflowMonitoring', () => ({
 
 vi.mock('./screens/EARemainderScreens', () => ({
   EARecoveryTools:     () => <div data-test="s-recovery">recovery</div>,
-  EABackupList:        () => <div data-test="s-backup">backup</div>,
-  EARestoreList:       () => <div data-test="s-restore">restore</div>,
   EAEvaluationReports: () => <div data-test="s-eval">eval</div>,
   EAAppsList:          () => <div data-test="s-apps">apps</div>,
   EADiagnostics:       () => <div data-test="s-diag">diag</div>,
@@ -117,8 +115,6 @@ describe('App routing', () => {
     ['/referral/inbox-legacy', 's-referral'],
     ['/metadata-legacy',         's-metadata'],
     ['/recovery',                's-recovery'],
-    ['/backup-legacy',           's-backup'],
-    ['/restore-legacy',          's-restore'],
     ['/evaluation',              's-eval'],
     ['/apps',                    's-apps'],
     ['/diagnostics',             's-diag'],
