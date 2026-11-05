@@ -222,7 +222,6 @@ export function EAUsersList({ api = edgeApi }:
     <div className="ea-screen">
       <HeroHeader
         title="Users"
-        subtitle="Operators and administrators provisioned on this edge."
         lastFetched={lastFetched}
         actions={
           <Link to="/provisioning/users/new" className="ea-btn ea-btn--primary"
@@ -377,7 +376,6 @@ export function EAUserCreate({ api = edgeApi }:
     <div className="ea-screen">
       <HeroHeader
         title="Add user"
-        subtitle="Provision an operator or administrator account on this edge."
         actions={
           <Link to="/provisioning/users" className="ea-btn ea-btn--ghost"
                  data-cross-module="Access">← Back to users</Link>
@@ -393,7 +391,6 @@ export function EAUserCreate({ api = edgeApi }:
           <div className="ea-form-section">
             <div className="ea-form-section-head">
               <h2>Account</h2>
-              <p>Identity shown on captured records and audit entries.</p>
             </div>
             <div className="ea-form-grid">
               <label className="ea-field">
@@ -437,7 +434,6 @@ export function EAUserCreate({ api = edgeApi }:
           <div className="ea-form-section">
             <div className="ea-form-section-head">
               <h2>Credentials</h2>
-              <p>Minimum 12 characters mixing upper, lower, and digits.</p>
             </div>
             <div className="ea-form-grid">
               <label className="ea-field">
@@ -452,6 +448,7 @@ export function EAUserCreate({ api = edgeApi }:
                   aria-invalid={!!fieldError('password')}
                   autoComplete="new-password"
                 />
+                <span className="ea-field-hint">Min 12 chars, mixed case + digits.</span>
                 {fieldError('password') && (
                   <span className="ea-field-error" data-test="ea03-err-password">
                     {fieldError('password')}
@@ -482,7 +479,6 @@ export function EAUserCreate({ api = edgeApi }:
           <div className="ea-form-section">
             <div className="ea-form-section-head">
               <h2>Access</h2>
-              <p>What this user can do on the edge once signed in.</p>
             </div>
             <div className="ea-role-picker" role="radiogroup" aria-label="Role">
               <select
@@ -529,9 +525,7 @@ export function EAUserCreate({ api = edgeApi }:
           </div>
 
           {status === 'saved' && (
-            <p data-test="ea03-saved" className="ea-saved">
-              User created. They can now sign in with the credentials you provided.
-            </p>
+            <p data-test="ea03-saved" className="ea-saved">User created.</p>
           )}
           {status === 'error' && error && (
             <div className="ea-form-error">
@@ -613,7 +607,7 @@ export function EACompatHistory({ api = edgeApi }:
     <div className="ea-screen">
       <ScreenHeader
         title="Compat history"
-        subtitle={`${rows.length} snapshots. Click a row for details.`}
+        subtitle={`${rows.length} snapshots`}
         lastFetched={lastFetched}
         onRefresh={reload}
         testId="ea05-header"
@@ -961,7 +955,7 @@ export function EAJobTrigger({ api = edgeApi }:
             {status === 'triggering' ? 'Firing…' : 'Fire now'}
           </button>
           {status === 'ok' && (
-            <p className="ea-saved" data-test="ea07-ok">Triggered. Check Jobs for the run outcome.</p>
+            <p className="ea-saved" data-test="ea07-ok">Triggered.</p>
           )}
         </div>
       </section>
@@ -1006,7 +1000,6 @@ export function EADriftInspector({ api = edgeApi }:
     <div className="ea-screen">
       <HeroHeader
         title="Metadata drift"
-        subtitle="Fingerprint comparison between the latest two metadata snapshots."
         actions={
           <button type="button" data-test="ea08-refresh" disabled={refreshing}
                   onClick={() => { setRefreshing(true);
@@ -1075,10 +1068,7 @@ export function EAConflictList({ api = edgeApi }:
       <section>
         {rows.length === 0
           ? <EmptyBlock title="No conflicts" testId="ea10-empty">
-              Nothing in the CONFLICT_REVIEW state right now.  Conflicts
-              appear when DER publishes an operation that DHIS2 central
-              rejects (ETag mismatch, stale value, etc.) and the
-              operator needs to pick between the two versions.
+              Nothing to review.
             </EmptyBlock>
           : (
             <div className="ea-table-wrap">
@@ -1342,8 +1332,7 @@ export function EAApprovalQueue({ api = edgeApi }:
       </header>
       {rows.length === 0 ? (
         <EmptyBlock title="No pending approvals" testId="apr-empty">
-          Nothing is waiting for a reviewer. Writes that do not need approval
-          drain straight through.
+          Nothing waiting for review.
         </EmptyBlock>
       ) : (
         <table className="ea-approvals">
@@ -1522,13 +1511,6 @@ export function EACaptureWorkflowList({ api = edgeApi }:
         title="Workflows"
         statusLabel={workflows.length === 0 ? 'None defined'
           : `${enabled} of ${workflows.length} enabled`}
-        subtitle={
-          <span>
-            Multi-step capture flows over your DHIS2 datasets. Each
-            workflow composes forms + review gates for an operator to
-            follow end-to-end.
-          </span>
-        }
         actions={
           <Link to="/workflows/new" className="ea-btn ea-btn--primary ea-btn--sm"
                 data-test="cwf01-new" data-cross-module="Workflows">
@@ -1869,8 +1851,7 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
       </label>
       {devices.length > 0 && (
         <details className="ea-cwf-device-ref" data-test="cwf02-devices">
-          <summary>Enrolled devices ({devices.length}) — paste UUID into
-            a step&apos;s <code>ownerDeviceId</code> to bind it (ADR-0022)</summary>
+          <summary>Enrolled devices ({devices.length})</summary>
           <ul>
             {devices.map((d) => (
               <li key={d.deviceId} data-test={`cwf02-device-${d.deviceId}`}>
@@ -1942,7 +1923,7 @@ export function EACaptureWorkflowDesigner({ api = edgeApi, workflowId }:
       </button>
       {existing && (
         <section className="ea-cwf-export" data-test="cwf02-export-section">
-          <h2>Export (ADR-0024)</h2>
+          <h2>Export</h2>
           <button type="button" data-test="cwf02-export"
             onClick={() => { doExport().catch(() => undefined); }}>
             Export as canonical JSON
@@ -2018,10 +1999,8 @@ export function EADeviceFleet({ api = edgeApi }:
       <h1 data-test="dvc01-heading">Device fleet</h1>
       {rows.length === 0 ? (
         <EmptyBlock title="No devices enrolled" testId="dvc01-empty">
-          Devices appear here when a mobile client calls
-          <code> POST /devices/enroll</code> with a valid enrolment
-          token.  Generate a token from Device enrolment and scan its
-          QR code on the device.
+          Generate a token from Device enrolment and scan its QR code
+          on the device to enroll.
         </EmptyBlock>
       ) : (
         <table className="ea-devices">
@@ -2253,19 +2232,6 @@ export function EAAuditVerify({ api = edgeApi }:
         <ErrorBlock title="Verify failed" testId="aud01-error">{error}</ErrorBlock>
       )}
 
-      {resp == null && !busy && !error && (
-        <Panel title="How verification works">
-          <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
-            <li>Streams every <code>security_audit</code> row in insertion order.</li>
-            <li>Re-hashes each row from the stored previous hash plus the
-              row payload.</li>
-            <li>Stops at the first mismatch and reports the audit id +
-              reason; otherwise reports <strong>OK</strong>.</li>
-            <li>Admin-only (der.audit.read). Does not modify any row.</li>
-          </ul>
-        </Panel>
-      )}
-
       {resp && (
         <Panel title="Verification result"
                action={
@@ -2354,9 +2320,7 @@ export function EAReferralInbox({ api = edgeApi }:
       </header>
       {rows.length === 0 ? (
         <EmptyBlock title="No pending referrals" testId="ref01-empty">
-          The next inbox scan runs on <code>der.referral.inbox.cron</code>
-          (default every 10 minutes). Enable the HTTP scan with
-          <code> der.referral.http.enabled=true</code>.
+          Nothing to review.
         </EmptyBlock>
       ) : (
         <table className="ea-ref-table">
