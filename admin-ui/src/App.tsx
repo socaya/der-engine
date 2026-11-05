@@ -69,6 +69,7 @@ import {
   MockupAuditEvents, MockupFacilityAnalytics, MockupSupportBundle,
   MockupConfigEditor, MockupOperationalReport, MockupUserScope,
   MockupSiteConfig, MockupDecommission, MockupDhis2Mappings,
+  MockupOperatorMetrics,
 } from './screens/MoreScreens';
 import {
   NetworkOverview, NetworkAccessPoint, NetworkConnectedDevices,
@@ -336,6 +337,10 @@ export default function App(): JSX.Element {
           <Route path="/devices/connections" element={<RequireAuth><CapConnections /></RequireAuth>} />
           <Route path="/devices/diagnostics" element={<RequireAuth><CapDeviceDiagnostics /></RequireAuth>} />
           <Route path="/monitoring/metrics" element={<RequireAuth><CapOperatorMetrics /></RequireAuth>} />
+          <Route path="/admin/metrics/operators"
+                 element={<RequireAuth><MockupOperatorMetrics /></RequireAuth>} />
+          <Route path="/metrics/operators"
+                 element={<RequireAuth><MockupOperatorMetrics /></RequireAuth>} />
           <Route path="/monitoring/health" element={<RequireAuth><CapServiceHealth /></RequireAuth>} />
           <Route path="/monitoring/storage" element={<RequireAuth><CapStorage /></RequireAuth>} />
           <Route path="/setup" element={<RequireAuth><CapProvisioningSetup /></RequireAuth>} />

@@ -454,6 +454,8 @@ export interface ConflictRow {
   payload?: Record<string, unknown> | null;
   lastError?: string | null;
   updatedAt?: string;
+  /** EA-33: per-operator metrics aggregation groups by this uid. */
+  submittedBy?: string | null;
 }
 
 export function listConflicts(limit = 100): Promise<ConflictRow[]> {

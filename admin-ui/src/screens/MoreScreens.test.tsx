@@ -26,6 +26,7 @@ import {
   MockupSiteConfig,
   MockupDecommission,
   MockupDhis2Mappings,
+  MockupOperatorMetrics,
 } from './MoreScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -1562,5 +1563,76 @@ describe('MoreScreens — surface mount test', () => {
     await waitFor(() =>
       expect(screen.getByTestId('err-dhis2-mappings')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/403 forbidden/);
+  });
+
+  it('MockupOperatorMetrics — joins users × mappings × conflicts; ranks by attention count', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
+      users: [
+        { userId: 'u-alice', username: 'alice', displayName: 'Alice',
+          roles: ['OPERATOR'] },
+        { userId: 'u-bob', username: 'bob', displayName: 'Bob',
+          roles: ['OPERATOR'] },
+        { userId: 'u-carol', username: 'carol', displayName: 'Carol',
+          roles: ['ADMIN'] },
+      ],
+    } as unknown as { users: edgeApi.ProvisionedUser[] });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([
+      { edgeUserId: 'u-alice', dhis2UserUid: 'A1', dhis2Username: 'alice.c',
+        dhis2DisplayName: 'Alice', mappedAt: 'now', mappedBy: 'admin',
+        lastVerifiedAt: null, authType: 'BASIC', hasCredential: true,
+        credentialSetAt: 'now' },
+      { edgeUserId: 'u-bob', dhis2UserUid: 'B1', dhis2Username: 'bob.c',
+        dhis2DisplayName: 'Bob', mappedAt: 'now', mappedBy: 'admin',
+        lastVerifiedAt: null, authType: null, hasCredential: false,
+        credentialSetAt: null },
+    ]);
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
+      { operationId: 'op-1', entityType: 'EVENT', entityRef: 'e1',
+        state: 'CONFLICT_REVIEW', attemptCount: 1, createdAt: 'now',
+        submittedBy: 'u-alice' },
+      { operationId: 'op-2', entityType: 'EVENT', entityRef: 'e2',
+        state: 'CONFLICT_REVIEW', attemptCount: 1, createdAt: 'now',
+        submittedBy: 'u-alice' },
+      { operationId: 'op-3', entityType: 'EVENT', entityRef: 'e3',
+        state: 'CENTRAL_REJECTED', attemptCount: 3, createdAt: 'now',
+        submittedBy: 'u-bob' },
+      { operationId: 'op-4', entityType: 'EVENT', entityRef: 'e4',
+        state: 'RETRYABLE', attemptCount: 2, createdAt: 'now',
+        submittedBy: 'u-carol' },
+    ] as unknown as edgeApi.ConflictRow[]);
+    renderWithProviders(<MockupOperatorMetrics />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('operator-metrics'))
+      .toBeInTheDocument());
+    const table = screen.getByTestId('operator-metrics-table');
+    /* Alice has 2 conflicts → ranks first. */
+    const rows = table.querySelectorAll('tbody tr');
+    expect(rows[0]).toHaveAttribute('data-test', 'operator-metrics-row-u-alice');
+    /* Bob has 1 rejection → second. */
+    expect(rows[1]).toHaveAttribute('data-test', 'operator-metrics-row-u-bob');
+    /* Carol has 1 retryable → third. */
+    expect(rows[2]).toHaveAttribute('data-test', 'operator-metrics-row-u-carol');
+    /* Bob is mapped but has no credential → warning chip. */
+    expect(rows[1]).toHaveTextContent(/Not set/);
+    /* Carol is unmapped → warning chip. */
+    expect(rows[2]).toHaveTextContent(/Unmapped/);
+  });
+
+  it('MockupOperatorMetrics — empty-state when no users', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({ users: [] });
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([]);
+    renderWithProviders(<MockupOperatorMetrics />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('operator-metrics-empty'))
+      .toBeInTheDocument());
+  });
+
+  it('MockupOperatorMetrics — listUsers rejection surfaces the error block', async () => {
+    vi.spyOn(edgeApi, 'listUsers').mockRejectedValue(new Error('503 DB down'));
+    vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
+    vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([]);
+    renderWithProviders(<MockupOperatorMetrics />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('err-operator-metrics'))
+      .toBeInTheDocument());
+    expect(document.body.textContent ?? '').toMatch(/503 DB down/);
   });
 });
