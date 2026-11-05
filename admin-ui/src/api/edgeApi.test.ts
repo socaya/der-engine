@@ -727,11 +727,46 @@ describe('edgeApi wrappers — batch coverage', () => {
     expect(fetchMock.mock.calls[0]![0]).toContain('rejection');
   });
 
-  it('listAuditEvents GETs audit events + accepts limit', async () => {
+  it('listAuditEvents GETs audit events + legacy limit maps to pageSize', async () => {
     fetchMock.mockResolvedValue(respond(200, { events: [] }));
     await api.listAuditEvents({ limit: 25 });
     expect(fetchMock.mock.calls[0]![0]).toContain('audit');
-    expect(fetchMock.mock.calls[0]![0]).toContain('limit=25');
+    expect(fetchMock.mock.calls[0]![0]).toContain('pageSize=25');
+  });
+
+  it('listAuditEvents EA-29 filters appear in the URL', async () => {
+    fetchMock.mockResolvedValue(respond(200, { events: [] }));
+    await api.listAuditEvents({
+      from: '2026-11-01T00:00:00Z',
+      to: '2026-11-05T23:59:59Z',
+      eventTypes: ['USER_SIGNED_IN', 'USER_SIGNED_OUT'],
+      actorUserId: 'actor-uid',
+      subjectUserId: 'subject-uid',
+      cursor: 'opaque-cursor',
+      pageSize: 50,
+    });
+    const url = fetchMock.mock.calls[0]![0] as string;
+    expect(url).toContain('from=2026-11-01T00%3A00%3A00Z');
+    expect(url).toContain('to=2026-11-05T23%3A59%3A59Z');
+    expect(url).toContain('eventType=USER_SIGNED_IN');
+    expect(url).toContain('eventType=USER_SIGNED_OUT');
+    expect(url).toContain('actorUserId=actor-uid');
+    expect(url).toContain('subjectUserId=subject-uid');
+    expect(url).toContain('cursor=opaque-cursor');
+    expect(url).toContain('pageSize=50');
+  });
+
+  it('auditEventsCsvUrl EA-29 points at the export endpoint with filters', () => {
+    const url = api.auditEventsCsvUrl({
+      from: '2026-11-01T00:00:00Z',
+      eventTypes: ['USER_SIGNED_IN'],
+    });
+    expect(url).toContain('/security/audit/events/export.csv');
+    expect(url).toContain('from=2026-11-01T00%3A00%3A00Z');
+    expect(url).toContain('eventType=USER_SIGNED_IN');
+    /* pageSize + cursor must not leak into the export URL. */
+    expect(url).not.toContain('pageSize');
+    expect(url).not.toContain('cursor');
   });
 
   it('verifyAuditChain GETs verify endpoint', async () => {

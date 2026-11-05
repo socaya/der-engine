@@ -121,13 +121,13 @@ describe('MockupUsersDashboard', () => {
         'der.roles.read'],
     });
     vi.spyOn(edgeApi, 'listAuditEvents').mockResolvedValue({
-      count: 2,
+      count: 2, pageSize: 100, nextCursor: null,
       events: [
-        { eventType: 'USER_SIGNED_IN', actorUserId: 'u-live',
+        { auditId: 1, eventType: 'USER_SIGNED_IN', actorUserId: 'u-live',
           subjectUserId: null, clientIp: '10.0.0.1', userAgent: 'curl',
           outcome: 'SUCCESS', detail: '{}',
           observedAt: '2026-11-05T09:00:00Z' },
-        { eventType: 'USER_DHIS2_MAPPING_SET', actorUserId: 'u-live',
+        { auditId: 2, eventType: 'USER_DHIS2_MAPPING_SET', actorUserId: 'u-live',
           subjectUserId: 'u-live', clientIp: null, userAgent: null,
           outcome: 'SUCCESS', detail: '{}',
           observedAt: '2026-11-05T09:05:00Z' },
@@ -166,7 +166,7 @@ describe('MockupUsersDashboard', () => {
       userId: 'u-live', authorities: [],
     });
     vi.spyOn(edgeApi, 'listAuditEvents').mockResolvedValue({
-      count: 0, events: [],
+      count: 0, pageSize: 100, nextCursor: null, events: [],
     });
     const revoke = vi.spyOn(edgeApi, 'revokeUserSessions').mockResolvedValue({
       userId: 'u-live', revokedCount: 2,
@@ -193,7 +193,7 @@ describe('MockupUsersDashboard', () => {
       userId: 'u-live', authorities: [],
     });
     vi.spyOn(edgeApi, 'listAuditEvents').mockResolvedValue({
-      count: 0, events: [],
+      count: 0, pageSize: 100, nextCursor: null, events: [],
     });
     const revoke = vi.spyOn(edgeApi, 'revokeUserSessions').mockResolvedValue({
       userId: 'u-live', revokedCount: 0,

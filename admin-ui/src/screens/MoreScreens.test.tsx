@@ -27,6 +27,7 @@ import {
   MockupDecommission,
   MockupDhis2Mappings,
   MockupOperatorMetrics,
+  MockupSecurityAuditTrail,
 } from './MoreScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -1634,5 +1635,99 @@ describe('MoreScreens — surface mount test', () => {
     await waitFor(() => expect(screen.getByTestId('err-operator-metrics'))
       .toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/503 DB down/);
+  });
+
+  it('MockupSecurityAuditTrail renders the page + exposes auditId per row', async () => {
+    vi.spyOn(edgeApi, 'listAuditEvents').mockResolvedValue({
+      count: 2, pageSize: 100, nextCursor: null,
+      events: [
+        { auditId: 101, eventType: 'USER_SIGNED_IN', actorUserId: 'a1',
+          subjectUserId: null, clientIp: '10.0.0.1', userAgent: null,
+          outcome: 'SUCCESS', detail: '{}', observedAt: '2026-11-05T10:00:00Z' },
+        { auditId: 102, eventType: 'USER_SESSIONS_REVOKED', actorUserId: 'a2',
+          subjectUserId: 's2', clientIp: null, userAgent: null,
+          outcome: 'SUCCESS', detail: '{}', observedAt: '2026-11-05T10:05:00Z' },
+      ],
+    });
+    renderWithProviders(<MockupSecurityAuditTrail />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('audit-trail'))
+      .toBeInTheDocument());
+    expect(screen.getByTestId('audit-trail-row-101')).toBeInTheDocument();
+    expect(screen.getByTestId('audit-trail-row-102')).toBeInTheDocument();
+    expect(screen.getByTestId('audit-trail-type-USER_SIGNED_IN'))
+      .toBeInTheDocument();
+  });
+
+  it('MockupSecurityAuditTrail — Apply fires listAuditEvents with the chosen filters', async () => {
+    const spy = vi.spyOn(edgeApi, 'listAuditEvents').mockResolvedValue({
+      count: 0, pageSize: 100, nextCursor: null, events: [],
+    });
+    renderWithProviders(<MockupSecurityAuditTrail />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('audit-trail'))
+      .toBeInTheDocument());
+    /* First call was the initial empty-filter load. Apply with actor set. */
+    await userEvent.type(screen.getByTestId('audit-trail-actor'),
+      'c0ffee00-0000-0000-0000-000000000001');
+    await userEvent.click(screen.getByTestId('audit-trail-apply'));
+    await waitFor(() => expect(spy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        actorUserId: 'c0ffee00-0000-0000-0000-000000000001',
+        pageSize: 100,
+      })));
+  });
+
+  it('MockupSecurityAuditTrail — Next uses the returned cursor; Prev restores the previous page', async () => {
+    const spy = vi.spyOn(edgeApi, 'listAuditEvents')
+      .mockResolvedValueOnce({
+        count: 2, pageSize: 100, nextCursor: 'cursor-page2',
+        events: [
+          { auditId: 11, eventType: 'A', actorUserId: null, subjectUserId: null,
+            clientIp: null, userAgent: null, outcome: 'SUCCESS', detail: '{}',
+            observedAt: '2026-11-05T10:00:00Z' },
+        ],
+      })
+      .mockResolvedValueOnce({
+        count: 1, pageSize: 100, nextCursor: null,
+        events: [
+          { auditId: 22, eventType: 'B', actorUserId: null, subjectUserId: null,
+            clientIp: null, userAgent: null, outcome: 'SUCCESS', detail: '{}',
+            observedAt: '2026-11-05T09:00:00Z' },
+        ],
+      })
+      .mockResolvedValueOnce({
+        count: 2, pageSize: 100, nextCursor: 'cursor-page2',
+        events: [
+          { auditId: 11, eventType: 'A', actorUserId: null, subjectUserId: null,
+            clientIp: null, userAgent: null, outcome: 'SUCCESS', detail: '{}',
+            observedAt: '2026-11-05T10:00:00Z' },
+        ],
+      });
+    renderWithProviders(<MockupSecurityAuditTrail />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('audit-trail-row-11'))
+      .toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('audit-trail-next'));
+    await waitFor(() => expect(spy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cursor: 'cursor-page2' })));
+    await waitFor(() => expect(screen.getByTestId('audit-trail-row-22'))
+      .toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('audit-trail-prev'));
+    await waitFor(() => expect(screen.getByTestId('audit-trail-row-11'))
+      .toBeInTheDocument());
+  });
+
+  it('MockupSecurityAuditTrail — Export CSV navigates to the export URL', async () => {
+    vi.spyOn(edgeApi, 'listAuditEvents').mockResolvedValue({
+      count: 0, pageSize: 100, nextCursor: null, events: [],
+    });
+    const assignSpy = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { assign: assignSpy }, writable: true,
+    });
+    renderWithProviders(<MockupSecurityAuditTrail />, { authApi });
+    await waitFor(() => expect(screen.getByTestId('audit-trail'))
+      .toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('audit-trail-export-csv'));
+    expect(assignSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/security/audit/events/export.csv'));
   });
 });

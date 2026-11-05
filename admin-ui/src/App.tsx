@@ -69,7 +69,7 @@ import {
   MockupAuditEvents, MockupFacilityAnalytics, MockupSupportBundle,
   MockupConfigEditor, MockupOperationalReport, MockupUserScope,
   MockupSiteConfig, MockupDecommission, MockupDhis2Mappings,
-  MockupOperatorMetrics,
+  MockupOperatorMetrics, MockupSecurityAuditTrail,
 } from './screens/MoreScreens';
 import {
   NetworkOverview, NetworkAccessPoint, NetworkConnectedDevices,
@@ -224,6 +224,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><EAFacilityAnalytics /></RequireAuth>} />
           <Route path="/audit/verify"
                  element={<RequireAuth><EAAuditVerify /></RequireAuth>} />
+          <Route path="/audit/trail"
+                 element={<RequireAuth><MockupSecurityAuditTrail /></RequireAuth>} />
           <Route path="/audit/events"
                  element={<RequireAuth><MockupAuditEvents /></RequireAuth>} />
           <Route path="/audit/events-legacy"

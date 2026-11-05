@@ -3806,6 +3806,306 @@ export function MockupSupportBundle(): JSX.Element {
   );
 }
 
+/* ─── /audit/trail ──────────────────────────────────────────────────
+ *
+ * EA-29 Audit trail. The security_audit stream is the authoritative
+ * admin audit log (hash-chained, append-only, all mutation endpoints
+ * emit here). This screen is the paginated/filtered explorer with CSV
+ * export; MockupAuditEvents at /audit/events stays for the lighter
+ * system-activity + network-events streams.
+ */
+export function MockupSecurityAuditTrail(): JSX.Element {
+  const [events, setEvents] = useState<edgeApi.AuditEventRow[] | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [prevCursors, setPrevCursors] = useState<string[]>([]);
+  const [currentCursor, setCurrentCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  /* Filters are owned by this screen; the applied filter is the one
+   * the current page was fetched with. Editing before Apply doesn't
+   * refetch. */
+  const [draftFrom, setDraftFrom] = useState('');
+  const [draftTo, setDraftTo] = useState('');
+  const [draftEventTypes, setDraftEventTypes] = useState<Set<string>>(new Set());
+  const [draftActor, setDraftActor] = useState('');
+  const [draftSubject, setDraftSubject] = useState('');
+  const [applied, setApplied] = useState<edgeApi.AuditEventsQuery>({});
+
+  function load(cursor: string | null, filters: edgeApi.AuditEventsQuery): void {
+    setLoading(true); setErr(null);
+    edgeApi.listAuditEvents({ ...filters, cursor: cursor ?? undefined, pageSize: 100 })
+      .then((r) => {
+        setEvents(r.events);
+        setNextCursor(r.nextCursor);
+      })
+      .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)))
+      .finally(() => setLoading(false));
+  }
+  useEffect(() => { load(null, applied); }, [applied]);
+
+  function toIsoOrEmpty(local: string): string | undefined {
+    if (!local) return undefined;
+    /* HTML datetime-local produces 'YYYY-MM-DDTHH:MM' (no seconds, no
+     * tz). Treat as local wall-clock; convert to UTC Instant. */
+    const d = new Date(local);
+    if (Number.isNaN(d.valueOf())) return undefined;
+    return d.toISOString();
+  }
+
+  function quickRange(hours: number): void {
+    const now = new Date();
+    const from = new Date(now.getTime() - hours * 3600_000);
+    const fmt = (d: Date): string =>
+      new Date(d.getTime() - d.getTimezoneOffset() * 60_000)
+        .toISOString().slice(0, 16);
+    setDraftFrom(fmt(from));
+    setDraftTo(fmt(now));
+  }
+
+  function applyFilters(): void {
+    const next: edgeApi.AuditEventsQuery = {
+      from: toIsoOrEmpty(draftFrom),
+      to: toIsoOrEmpty(draftTo),
+      eventTypes: draftEventTypes.size > 0 ? Array.from(draftEventTypes) : undefined,
+      actorUserId: draftActor.trim() || undefined,
+      subjectUserId: draftSubject.trim() || undefined,
+    };
+    setPrevCursors([]); setCurrentCursor(null);
+    setApplied(next);
+  }
+
+  function clearFilters(): void {
+    setDraftFrom(''); setDraftTo(''); setDraftEventTypes(new Set());
+    setDraftActor(''); setDraftSubject('');
+    setPrevCursors([]); setCurrentCursor(null);
+    setApplied({});
+  }
+
+  function toggleType(t: string): void {
+    const next = new Set(draftEventTypes);
+    if (next.has(t)) next.delete(t); else next.add(t);
+    setDraftEventTypes(next);
+  }
+
+  function nextPage(): void {
+    if (!nextCursor) return;
+    setPrevCursors((prev) => [...prev, currentCursor ?? '']);
+    setCurrentCursor(nextCursor);
+    load(nextCursor, applied);
+  }
+
+  function prevPage(): void {
+    if (prevCursors.length === 0) return;
+    const prev = prevCursors[prevCursors.length - 1];
+    setPrevCursors((p) => p.slice(0, -1));
+    const resumeCursor = prev === '' ? null : prev;
+    setCurrentCursor(resumeCursor);
+    load(resumeCursor, applied);
+  }
+
+  function exportCsv(): void {
+    window.location.assign(edgeApi.auditEventsCsvUrl(applied));
+  }
+
+  /* Collect the event types seen on the current page as the multiselect
+   * options. For a fresh deployment this will start empty; once the page
+   * populates, the operator can narrow from there. A richer version
+   * would hit a dedicated /distinct-event-types endpoint. */
+  const knownTypes = Array.from(new Set((events ?? []).map((e) => e.eventType))).sort();
+
+  if (err && !events) return <ErrorBlock title="Audit trail failed"
+                                          testId="err-audit-trail">{err}</ErrorBlock>;
+  const activeFilterCount = [
+    applied.from, applied.to, applied.actorUserId, applied.subjectUserId,
+  ].filter(Boolean).length + (applied.eventTypes?.length ?? 0);
+
+  return (
+    <div className="ea-screen" data-test="audit-trail">
+      <SyncStatusBar
+        tone="info"
+        title="Audit trail"
+        statusLabel={events == null ? 'Loading…'
+          : `${events.length} row${events.length === 1 ? '' : 's'} · page ${prevCursors.length + 1}`}
+        subtitle={
+          <>
+            <span>security_audit stream · hash-chained</span>
+            {activeFilterCount > 0 && (<><span>·</span>
+              <span>{activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'} active</span>
+            </>)}
+          </>
+        }
+        actions={
+          <>
+            <Link to="/audit/verify" className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-cross-module="Security"
+                  data-test="audit-trail-open-verify">
+              <UiIcon icon="audit" size={14} />
+              <span>Hash chain</span>
+            </Link>
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    data-test="audit-trail-export-csv"
+                    onClick={exportCsv}>
+              <UiIcon icon="restore" size={14} />
+              <span>Export CSV</span>
+            </button>
+          </>
+        }
+      />
+
+      <Panel title="Filters"
+             action={
+               <div style={{ display: 'flex', gap: 6 }}>
+                 <button type="button"
+                         className="ea-btn ea-btn--ghost ea-btn--sm"
+                         data-test="audit-trail-quick-24h"
+                         onClick={() => quickRange(24)}>Last 24h</button>
+                 <button type="button"
+                         className="ea-btn ea-btn--ghost ea-btn--sm"
+                         data-test="audit-trail-quick-7d"
+                         onClick={() => quickRange(24 * 7)}>Last 7d</button>
+                 <button type="button"
+                         className="ea-btn ea-btn--ghost ea-btn--sm"
+                         data-test="audit-trail-quick-30d"
+                         onClick={() => quickRange(24 * 30)}>Last 30d</button>
+               </div>
+             }>
+        <div className="ea-audit-filters">
+          <label className="ea-field">
+            <span className="ea-field-label">From</span>
+            <input type="datetime-local" className="ea-input"
+                   data-test="audit-trail-from"
+                   value={draftFrom} onChange={(e) => setDraftFrom(e.target.value)} />
+          </label>
+          <label className="ea-field">
+            <span className="ea-field-label">To</span>
+            <input type="datetime-local" className="ea-input"
+                   data-test="audit-trail-to"
+                   value={draftTo} onChange={(e) => setDraftTo(e.target.value)} />
+          </label>
+          <label className="ea-field">
+            <span className="ea-field-label">Actor uid</span>
+            <input className="ea-input ea-mono"
+                   data-test="audit-trail-actor"
+                   value={draftActor}
+                   placeholder="UUID"
+                   onChange={(e) => setDraftActor(e.target.value)} />
+          </label>
+          <label className="ea-field">
+            <span className="ea-field-label">Subject uid</span>
+            <input className="ea-input ea-mono"
+                   data-test="audit-trail-subject"
+                   value={draftSubject}
+                   placeholder="UUID"
+                   onChange={(e) => setDraftSubject(e.target.value)} />
+          </label>
+        </div>
+        {knownTypes.length > 0 && (
+          <div className="ea-field" style={{ marginTop: 8 }}>
+            <span className="ea-field-label">Event types (seen on this page)</span>
+            <div className="ea-inline-list" data-test="audit-trail-types">
+              {knownTypes.map((t) => {
+                const active = draftEventTypes.has(t);
+                return (
+                  <li key={t}
+                      className={'ea-mono' + (active ? ' ea-chip--primary' : '')}
+                      data-test={`audit-trail-type-${t}`}
+                      onClick={() => toggleType(t)}
+                      style={{ cursor: 'pointer',
+                               background: active ? 'var(--der-primary-soft)' : undefined,
+                               borderColor: active ? 'var(--der-primary)' : undefined }}>
+                    {t}
+                  </li>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        <div className="ea-mapping-form-actions">
+          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                  data-test="audit-trail-clear"
+                  onClick={clearFilters}>Clear</button>
+          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                  data-test="audit-trail-apply"
+                  onClick={applyFilters}>Apply</button>
+        </div>
+      </Panel>
+
+      {err && (
+        <ErrorBlock title="Audit page failed"
+                     testId="err-audit-trail-page">{err}</ErrorBlock>
+      )}
+
+      <Panel title="Events"
+             action={
+               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                 <button type="button"
+                         className="ea-btn ea-btn--ghost ea-btn--sm"
+                         data-test="audit-trail-prev"
+                         disabled={prevCursors.length === 0 || loading}
+                         onClick={prevPage}>← Prev</button>
+                 <button type="button"
+                         className="ea-btn ea-btn--ghost ea-btn--sm"
+                         data-test="audit-trail-next"
+                         disabled={nextCursor == null || loading}
+                         onClick={nextPage}>Next →</button>
+               </div>
+             }>
+        {events == null
+          ? <LoadingBlock testId="audit-trail-loading" />
+          : events.length === 0
+            ? <EmptyBlock title="No events"
+                           testId="audit-trail-empty">
+                No audit events match this filter.
+              </EmptyBlock>
+            : (
+              <div className="ea-table-wrap">
+                <table className="ea-table ea-table--dense"
+                       data-test="audit-trail-table">
+                  <thead><tr>
+                    <th>Observed</th>
+                    <th>Event</th>
+                    <th>Outcome</th>
+                    <th>Actor</th>
+                    <th>Subject</th>
+                    <th>Client</th>
+                  </tr></thead>
+                  <tbody>
+                    {events.map((e) => (
+                      <tr key={e.auditId}
+                          data-test={`audit-trail-row-${e.auditId}`}>
+                        <td className="ea-mono" style={{ fontSize: 12 }}>
+                          {new Date(e.observedAt).toLocaleString()}
+                        </td>
+                        <td className="ea-mono">{e.eventType}</td>
+                        <td>
+                          <Status tone={e.outcome === 'SUCCESS' ? 'success'
+                            : e.outcome === 'ERROR' ? 'danger' : 'warning'}>
+                            {e.outcome}
+                          </Status>
+                        </td>
+                        <td className="ea-mono ea-text-muted"
+                            style={{ fontSize: 11 }}>
+                          {e.actorUserId?.slice(0, 8) ?? '—'}
+                        </td>
+                        <td className="ea-mono ea-text-muted"
+                            style={{ fontSize: 11 }}>
+                          {e.subjectUserId?.slice(0, 8) ?? '—'}
+                        </td>
+                        <td className="ea-mono ea-text-muted"
+                            style={{ fontSize: 12 }}>
+                          {e.clientIp ?? '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+      </Panel>
+    </div>
+  );
+}
+
 /* ─── /admin/metrics/operators ─────────────────────────────────────
  *
  * EA-33 Operator metrics. CapOperatorMetrics (/monitoring/metrics) is

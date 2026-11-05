@@ -2799,8 +2799,10 @@ export function verifyAuditChain(): Promise<AuditChainVerifyResponse> {
   return request('GET', '/edge-api/v1/security/audit/verify');
 }
 
-/** C2: audit event timeline. */
+/** C2 / EA-29: audit event timeline. */
 export interface AuditEventRow {
+  /** EA-29: stable opaque row id; needed for keyset cursor construction. */
+  auditId: number;
   eventType: string;
   actorUserId: string | null;
   subjectUserId: string | null;
@@ -2813,18 +2815,61 @@ export interface AuditEventRow {
 
 export interface AuditEventsResponse {
   count: number;
+  pageSize: number;
   events: AuditEventRow[];
+  /** EA-29: opaque cursor to pass as the next page's cursor param, or
+   *  null when the client has exhausted the result set. */
+  nextCursor: string | null;
 }
 
-export function listAuditEvents(opts: {
-  eventType?: string; actorUserId?: string; limit?: number;
-} = {}): Promise<AuditEventsResponse> {
+export interface AuditEventsQuery {
+  /** Legacy single-type filter — kept for callers already in-tree
+   *  (user-detail activity tab). EA-29 clients prefer eventTypes. */
+  eventType?: string;
+  /** EA-29: multiple event types are OR'd server-side. */
+  eventTypes?: string[];
+  actorUserId?: string;
+  subjectUserId?: string;
+  /** ISO-8601 instant; filters on observed_at >= from. */
+  from?: string;
+  /** ISO-8601 instant; filters on observed_at <= to. */
+  to?: string;
+  cursor?: string;
+  pageSize?: number;
+  /** Legacy alias of pageSize, kept so existing callers still work. */
+  limit?: number;
+}
+
+function auditEventsQueryParams(opts: AuditEventsQuery): URLSearchParams {
   const q = new URLSearchParams();
-  if (opts.eventType) q.set('eventType', opts.eventType);
+  if (opts.eventType) q.append('eventType', opts.eventType);
+  if (opts.eventTypes) {
+    for (const t of opts.eventTypes) q.append('eventType', t);
+  }
   if (opts.actorUserId) q.set('actorUserId', opts.actorUserId);
-  q.set('limit', String(opts.limit ?? 100));
+  if (opts.subjectUserId) q.set('subjectUserId', opts.subjectUserId);
+  if (opts.from) q.set('from', opts.from);
+  if (opts.to) q.set('to', opts.to);
+  if (opts.cursor) q.set('cursor', opts.cursor);
+  const size = opts.pageSize ?? opts.limit ?? 100;
+  q.set('pageSize', String(size));
+  return q;
+}
+
+export function listAuditEvents(opts: AuditEventsQuery = {}): Promise<AuditEventsResponse> {
+  const q = auditEventsQueryParams(opts);
   return request<AuditEventsResponse>(
     'GET', `/edge-api/v1/security/audit/events?${q.toString()}`);
+}
+
+/** EA-29: URL for the CSV export endpoint. Browsers navigate to this
+ *  directly (via window.location.assign) so the session cookie attaches
+ *  and the file downloads via Content-Disposition. */
+export function auditEventsCsvUrl(opts: Omit<AuditEventsQuery, 'cursor' | 'pageSize' | 'limit'> = {}): string {
+  const q = auditEventsQueryParams(opts);
+  q.delete('pageSize');
+  q.delete('cursor');
+  return `/edge-api/v1/security/audit/events/export.csv?${q.toString()}`;
 }
 
 /** EA-27: derived authorities a user holds via their role grants. */
