@@ -91,6 +91,38 @@ export function session(): Promise<SignInResponse> {
   return request<SignInResponse>('GET', '/edge-api/v1/auth/session');
 }
 
+/** Minimal shape of a DHIS2 data-set payload served by the mirror at
+ *  /api/dataSets/{uid}. The client reads the periodType so it can
+ *  generate the appropriate period picker without the operator having
+ *  to type a DHIS2 period id by hand. */
+export interface DataSetMeta {
+  id: string;
+  displayName?: string;
+  name?: string;
+  periodType?: string;
+}
+
+export function getDataSetMeta(dataSetUid: string): Promise<DataSetMeta> {
+  return request<DataSetMeta>('GET',
+    `/api/dataSets/${encodeURIComponent(dataSetUid)}`);
+}
+
+/** ADR-0015 — the single orgUnit the edge is bound to. The device
+ *  client defaults every capture-related orgUnit field to this value
+ *  and refuses to submit against any other OU. */
+export interface OrgUnitBinding {
+  bound: boolean;
+  orgUnitId: string | null;
+  orgUnitDisplayName: string | null;
+  orgUnitPath: string | null;
+  boundAt: string | null;
+  boundBy: string | null;
+}
+
+export function getOrgUnitBinding(): Promise<OrgUnitBinding> {
+  return request<OrgUnitBinding>('GET', '/edge-api/v1/system/org-unit');
+}
+
 export interface HealthResponse {
   service: string;
   status: string;

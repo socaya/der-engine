@@ -347,6 +347,24 @@ describe('edgeApi device header (ADR-0023)', () => {
   });
 });
 
+describe('edgeApi.getDataSetMeta', () => {
+  it('hits /api/dataSets/<uid>', async () => {
+    fetchMock.mockResolvedValue(respond(200, { id: 'DS', periodType: 'Monthly' }));
+    const m = await api.getDataSetMeta('DS');
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/dataSets/DS');
+    expect(m.periodType).toBe('Monthly');
+  });
+});
+
+describe('edgeApi.getOrgUnitBinding', () => {
+  it('hits /edge-api/v1/system/org-unit', async () => {
+    fetchMock.mockResolvedValue(respond(200, { bound: true, orgUnitId: 'OU-A' }));
+    const b = await api.getOrgUnitBinding();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/edge-api/v1/system/org-unit');
+    expect(b.orgUnitId).toBe('OU-A');
+  });
+});
+
 describe('edgeApi module-status helpers', () => {
   it('dhis2Ping hits /edge-api/v1/dhis2/ping', async () => {
     fetchMock.mockResolvedValue(respond(200, { reachable: true }));

@@ -10,6 +10,7 @@ import type {
 } from '../api/edgeApi';
 import { CaptureFormError } from '../api/edgeApi';
 import { CaptureFormRenderer, type FieldValue } from '../components/CaptureFormRenderer';
+import { useOrgUnitBinding } from '../orgunit/OrgUnitBindingContext';
 import {
   ErrorBlock,
   LoadingBlock,
@@ -47,6 +48,13 @@ export function CaptureRunForm(
   { api = edgeApi, submitEvent }: CaptureRunFormProps = {},
 ): JSX.Element {
   const { id: runId = '' } = useParams();
+  const binding = useOrgUnitBinding();
+  const boundOrgUnit = binding.state.status === 'READY' && binding.state.binding.bound
+    ? binding.state.binding.orgUnitId ?? ''
+    : '';
+  const boundOrgUnitName = binding.state.status === 'READY' && binding.state.binding.bound
+    ? binding.state.binding.orgUnitDisplayName ?? boundOrgUnit
+    : '';
 
   const [run, setRun] = useState<CaptureRunSummary | null>(null);
   const [form, setForm] = useState<CaptureFormAssembly | null>(null);
@@ -55,7 +63,8 @@ export function CaptureRunForm(
   const [loadError, setLoadError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
 
-  const [orgUnit, setOrgUnit] = useState('');
+  // orgUnit is read-only — sourced from the bound-OU context (ADR-0015).
+  // period + occurredAt remain operator-editable within the capture flow.
   const [period, setPeriod] = useState('');
   const [occurredAt, setOccurredAt] = useState('');
 
@@ -78,10 +87,10 @@ export function CaptureRunForm(
       const seed: Record<string, FieldValue> = {};
       for (const [k, v] of Object.entries(d.cells)) seed[k] = v;
       setValues(seed);
-      // best-effort: parse "OU:PERIOD" out of businessKey for aggregate
+      // orgUnit is the bound OU (set outside this callback). For aggregate
+      // we still parse the period out of the business key if present.
       if (f.formType === 'AGGREGATE' && r.businessKey.includes(':')) {
-        const [ou, per] = r.businessKey.split(':', 2);
-        setOrgUnit(ou ?? '');
+        const [, per] = r.businessKey.split(':', 2);
         setPeriod(per ?? '');
       }
     } catch (err) {
@@ -123,7 +132,7 @@ export function CaptureRunForm(
             .map((f) => {
               const dv: Record<string, string> = {
                 dataElement: f.dataElementUid,
-                orgUnit,
+                orgUnit: boundOrgUnit,
                 period,
                 value: toStringValue(values[f.fieldRef]!),
               };
@@ -148,7 +157,7 @@ export function CaptureRunForm(
         const body = {
           events: [{
             programStage: form.bindingUid,
-            orgUnit,
+            orgUnit: boundOrgUnit,
             occurredAt: occurredAt || new Date().toISOString(),
             status: 'ACTIVE',
             dataValues: dvs,
@@ -192,8 +201,8 @@ export function CaptureRunForm(
   const canSubmit = form.ownership.isMyStep
     && run.state !== 'COMPLETED'
     && run.state !== 'REJECTED'
-    && (form.formType !== 'AGGREGATE' || (orgUnit !== '' && period !== ''))
-    && (form.formType === 'AGGREGATE' || orgUnit !== '');
+    && boundOrgUnit !== ''
+    && (form.formType !== 'AGGREGATE' || period !== '');
 
   return (
     <div className="der-capture-run-form">
@@ -213,40 +222,38 @@ export function CaptureRunForm(
       </header>
       {offline && <OfflineBanner testId="capture-form-offline" />}
 
-      {form.formType === 'AGGREGATE' && (
-        <div className="der-capture-run-form__context">
-          <InputField
-            label="Organisation unit UID"
-            value={orgUnit}
-            disabled={!form.ownership.isMyStep}
-            dataTest="capture-form-orgunit"
-            onChange={({ value }) => setOrgUnit(value ?? '')}
-          />
-          <InputField
-            label="Period"
-            value={period}
-            disabled={!form.ownership.isMyStep}
-            dataTest="capture-form-period"
-            onChange={({ value }) => setPeriod(value ?? '')}
-          />
-        </div>
+      {!boundOrgUnit && (
+        <NoticeBox error title="This edge is not bound to an organisation unit"
+                   dataTest="capture-form-unbound">
+          An admin must bind this edge to an organisation unit on the DER
+          server before capture can proceed.
+        </NoticeBox>
       )}
-      {form.formType !== 'AGGREGATE' && (
+      {boundOrgUnit && (
         <div className="der-capture-run-form__context">
-          <InputField
-            label="Organisation unit UID"
-            value={orgUnit}
-            disabled={!form.ownership.isMyStep}
-            dataTest="capture-form-orgunit"
-            onChange={({ value }) => setOrgUnit(value ?? '')}
-          />
-          <InputField
-            label="Occurred at (ISO-8601, optional)"
-            value={occurredAt}
-            disabled={!form.ownership.isMyStep}
-            dataTest="capture-form-occurred"
-            onChange={({ value }) => setOccurredAt(value ?? '')}
-          />
+          <div className="der-field" data-test="capture-form-orgunit">
+            <span>Organisation unit</span>
+            <strong>{boundOrgUnitName}</strong>
+            <code>{boundOrgUnit}</code>
+          </div>
+          {form.formType === 'AGGREGATE' && (
+            <InputField
+              label="Period"
+              value={period}
+              disabled={!form.ownership.isMyStep}
+              dataTest="capture-form-period"
+              onChange={({ value }) => setPeriod(value ?? '')}
+            />
+          )}
+          {form.formType !== 'AGGREGATE' && (
+            <InputField
+              label="Occurred at (ISO-8601, optional)"
+              value={occurredAt}
+              disabled={!form.ownership.isMyStep}
+              dataTest="capture-form-occurred"
+              onChange={({ value }) => setOccurredAt(value ?? '')}
+            />
+          )}
         </div>
       )}
 

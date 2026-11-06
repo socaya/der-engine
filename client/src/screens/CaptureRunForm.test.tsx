@@ -108,16 +108,19 @@ describe('CaptureRunForm', () => {
       route: '/capture/runs/r-1/form',
     });
     expect(await screen.findByTestId('capture-form-heading')).toHaveTextContent('HIV monthly');
-    const ou = screen.getByTestId('capture-form-orgunit').querySelector('input') as HTMLInputElement;
+    // orgUnit is the bound-OU display — "Facility A" + "OU-A" (default binding).
+    const ou = screen.getByTestId('capture-form-orgunit');
+    expect(ou).toHaveTextContent('Facility A');
+    expect(ou).toHaveTextContent('OU-A');
+    // period is parsed out of the business key.
     const per = screen.getByTestId('capture-form-period').querySelector('input') as HTMLInputElement;
-    expect(ou.value).toBe('OU-A');
     expect(per.value).toBe('2026W40');
     expect(
       screen.getByTestId('capture-field-de1').querySelector('input'),
     ).toHaveValue(42);
   });
 
-  it('submits aggregate payload, advances, and shows the success banner', async () => {
+  it('submits aggregate payload using the bound OU, advances, and shows success', async () => {
     const submitAggregate = vi.fn().mockResolvedValue({ status: 'OK' });
     const advanceCaptureRun = vi.fn().mockResolvedValue(
       advResp({ state: 'COMPLETED', currentStepId: null, completedByThisCall: true }),
@@ -134,10 +137,17 @@ describe('CaptureRunForm', () => {
       route: '/capture/runs/r-1/form',
     });
     await screen.findByTestId('capture-form-heading');
-    const de1 = screen.getByTestId('capture-field-de1').querySelector('input')!;
-    fireEvent.change(de1, { target: { value: '10' } });
-    const de2 = screen.getByTestId('capture-field-de2:cc').querySelector('input')!;
-    fireEvent.change(de2, { target: { value: '5' } });
+    await waitFor(() => {
+      expect(screen.getByTestId('capture-form-orgunit')).toHaveTextContent('OU-A');
+    });
+    fireEvent.change(
+      screen.getByTestId('capture-field-de1').querySelector('input')!,
+      { target: { value: '10' } },
+    );
+    fireEvent.change(
+      screen.getByTestId('capture-field-de2:cc').querySelector('input')!,
+      { target: { value: '5' } },
+    );
     fireEvent.click(screen.getByTestId('capture-form-submit'));
     await waitFor(() => {
       expect(submitAggregate).toHaveBeenCalledWith({
@@ -165,6 +175,9 @@ describe('CaptureRunForm', () => {
       route: '/capture/runs/r-1/form',
     });
     await screen.findByTestId('capture-form-heading');
+    await waitFor(() => {
+      expect(screen.getByTestId('capture-form-orgunit')).toHaveTextContent('OU-A');
+    });
     fireEvent.change(
       screen.getByTestId('capture-field-de1').querySelector('input')!,
       { target: { value: '1' } },
@@ -190,6 +203,9 @@ describe('CaptureRunForm', () => {
       route: '/capture/runs/r-1/form',
     });
     await screen.findByTestId('capture-form-heading');
+    await waitFor(() => {
+      expect(screen.getByTestId('capture-form-orgunit')).toHaveTextContent('OU-A');
+    });
     fireEvent.change(
       screen.getByTestId('capture-field-de1').querySelector('input')!,
       { target: { value: '1' } },
@@ -212,6 +228,9 @@ describe('CaptureRunForm', () => {
       route: '/capture/runs/r-1/form',
     });
     await screen.findByTestId('capture-form-heading');
+    await waitFor(() => {
+      expect(screen.getByTestId('capture-form-orgunit')).toHaveTextContent('OU-A');
+    });
     fireEvent.change(
       screen.getByTestId('capture-field-de1').querySelector('input')!,
       { target: { value: '1' } },
@@ -233,6 +252,9 @@ describe('CaptureRunForm', () => {
       route: '/capture/runs/r-1/form',
     });
     await screen.findByTestId('capture-form-heading');
+    await waitFor(() => {
+      expect(screen.getByTestId('capture-form-orgunit')).toHaveTextContent('OU-A');
+    });
     fireEvent.change(
       screen.getByTestId('capture-field-de1').querySelector('input')!,
       { target: { value: '1' } },
@@ -307,7 +329,7 @@ describe('CaptureRunForm', () => {
     });
   });
 
-  it('EVENT_STAGE path posts /api/events via submitEvent and advances', async () => {
+  it('EVENT_STAGE path posts /api/events with the bound OU + advances', async () => {
     const submitEvent = vi.fn().mockResolvedValue({ status: 'OK' });
     const advance = vi.fn().mockResolvedValue(advResp({ state: 'OPEN' }));
     const api = {
@@ -323,10 +345,9 @@ describe('CaptureRunForm', () => {
       { route: '/capture/runs/r-1/form' },
     );
     await screen.findByTestId('capture-form-heading');
-    fireEvent.change(
-      screen.getByTestId('capture-form-orgunit').querySelector('input')!,
-      { target: { value: 'OU-X' } },
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId('capture-form-orgunit')).toHaveTextContent('OU-A');
+    });
     fireEvent.change(
       screen.getByTestId('capture-field-de1').querySelector('input')!,
       { target: { value: '9' } },
@@ -339,12 +360,12 @@ describe('CaptureRunForm', () => {
       events: { programStage: string; orgUnit: string; dataValues: unknown[] }[]
     };
     expect(body.events[0].programStage).toBe('stage1');
-    expect(body.events[0].orgUnit).toBe('OU-X');
+    expect(body.events[0].orgUnit).toBe('OU-A');
     expect(body.events[0].dataValues).toEqual([{ dataElement: 'de1', value: '9' }]);
     expect(advance).toHaveBeenCalledWith('r-1');
   });
 
-  it('EVENT_STAGE submit button stays disabled when orgUnit is empty', async () => {
+  it('shows the unbound banner + disables submit when the edge has no bound OU', async () => {
     const api = {
       health: vi.fn().mockResolvedValue(healthy),
       getCaptureRun: vi.fn().mockResolvedValue({ ...run, businessKey: 'tei-1' }),
@@ -355,8 +376,12 @@ describe('CaptureRunForm', () => {
     } as never;
     renderWithProviders(withRoute(<CaptureRunForm api={api} />), {
       route: '/capture/runs/r-1/form',
+      orgUnitBinding: null,
     });
     await screen.findByTestId('capture-form-heading');
+    await waitFor(() => {
+      expect(screen.getByTestId('capture-form-unbound')).toBeInTheDocument();
+    });
     expect(screen.getByTestId('capture-form-submit')).toBeDisabled();
   });
 
@@ -395,11 +420,11 @@ describe('CaptureRunForm', () => {
     expect(screen.getByTestId('capture-form-submit')).toBeDisabled();
   });
 
-  it('operator edits aggregate orgUnit + period and the next submit uses new values', async () => {
+  it('operator can edit the period for an aggregate run', async () => {
     const submitAggregate = vi.fn().mockResolvedValue({ status: 'OK' });
     const api = {
       health: vi.fn().mockResolvedValue(healthy),
-      getCaptureRun: vi.fn().mockResolvedValue(run),
+      getCaptureRun: vi.fn().mockResolvedValue({ ...run, businessKey: 'opaque' }),
       getCaptureRunForm: vi.fn().mockResolvedValue(aggForm()),
       getCaptureRunData: vi.fn().mockResolvedValue(prefill()),
       submitAggregate,
@@ -409,10 +434,6 @@ describe('CaptureRunForm', () => {
       route: '/capture/runs/r-1/form',
     });
     await screen.findByTestId('capture-form-heading');
-    fireEvent.change(
-      screen.getByTestId('capture-form-orgunit').querySelector('input')!,
-      { target: { value: 'OU-NEW' } },
-    );
     fireEvent.change(
       screen.getByTestId('capture-form-period').querySelector('input')!,
       { target: { value: '2026W41' } },
@@ -425,7 +446,7 @@ describe('CaptureRunForm', () => {
     await waitFor(() => {
       expect(submitAggregate).toHaveBeenCalledWith({
         dataValues: [
-          { dataElement: 'de1', orgUnit: 'OU-NEW', period: '2026W41', value: '7' },
+          { dataElement: 'de1', orgUnit: 'OU-A', period: '2026W41', value: '7' },
         ],
       });
     });
@@ -446,10 +467,9 @@ describe('CaptureRunForm', () => {
       { route: '/capture/runs/r-1/form' },
     );
     await screen.findByTestId('capture-form-heading');
-    fireEvent.change(
-      screen.getByTestId('capture-form-orgunit').querySelector('input')!,
-      { target: { value: 'OU-X' } },
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId('capture-form-orgunit')).toHaveTextContent('OU-A');
+    });
     fireEvent.change(
       screen.getByTestId('capture-form-occurred').querySelector('input')!,
       { target: { value: '2026-11-01T10:00:00Z' } },
@@ -462,23 +482,5 @@ describe('CaptureRunForm', () => {
       events: { occurredAt: string }[]
     };
     expect(body.events[0].occurredAt).toBe('2026-11-01T10:00:00Z');
-  });
-
-  it('EVENT_STAGE with no businessKey colon leaves orgUnit empty', async () => {
-    const api = {
-      health: vi.fn().mockResolvedValue(healthy),
-      getCaptureRun: vi.fn().mockResolvedValue({ ...run, businessKey: 'opaque' }),
-      getCaptureRunForm: vi.fn().mockResolvedValue(eventForm()),
-      getCaptureRunData: vi.fn().mockResolvedValue(prefill()),
-      submitAggregate: vi.fn(),
-      advanceCaptureRun: vi.fn(),
-    } as never;
-    renderWithProviders(withRoute(<CaptureRunForm api={api} />), {
-      route: '/capture/runs/r-1/form',
-    });
-    await screen.findByTestId('capture-form-heading');
-    expect(
-      (screen.getByTestId('capture-form-orgunit').querySelector('input') as HTMLInputElement).value,
-    ).toBe('');
   });
 });

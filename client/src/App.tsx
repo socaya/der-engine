@@ -8,6 +8,7 @@ import { Launcher } from './screens/Launcher';
 import { SessionDetails } from './screens/SessionDetails';
 import { RecentWork } from './screens/RecentWork';
 import { EdgeConnectionError } from './screens/EdgeConnectionError';
+import { OrgUnitBindingProvider } from './orgunit/OrgUnitBindingContext';
 import { AggregateDatasetPicker } from './screens/AggregateDatasetPicker';
 import { AggregateEntry } from './screens/AggregateEntry';
 import { ProgramPicker } from './screens/ProgramPicker';
@@ -38,6 +39,7 @@ import { NetworkStatus } from './screens/NetworkStatus';
 export default function App(): JSX.Element {
   return (
     <AuthProvider>
+      <OrgUnitBindingProvider>
       <HeaderBar appName="DER Edge Runtime" />
       <DeviceBoot />
       <main className="der-main" data-test="der-main">
@@ -132,6 +134,7 @@ export default function App(): JSX.Element {
           } />
         </Routes>
       </main>
+      </OrgUnitBindingProvider>
     </AuthProvider>
   );
 }
