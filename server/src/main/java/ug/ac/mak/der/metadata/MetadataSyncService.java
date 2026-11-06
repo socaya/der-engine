@@ -47,7 +47,28 @@ public class MetadataSyncService {
     static final String FIELDS_ALL = "?fields=:all&paging=false";
     static final String ORG_UNIT_PATH = "/api/organisationUnits" + FIELDS_ALL;
     static final String DATA_ELEMENT_PATH = "/api/dataElements" + FIELDS_ALL;
-    static final String DATA_SET_PATH = "/api/dataSets" + FIELDS_ALL;
+    /**
+     * §2.3.19 — DHIS2's {@code fields=:all} on {@code /api/dataSets}
+     * leaves {@code sections[]} as bare {@code {id}} refs and
+     * {@code categoryCombo[]} with empty {@code categoryOptionCombos}.
+     * Render-side the device client needs section names + per-section
+     * data-element membership + the full combo tree to lay out a
+     * DHIS2-style section form. Deepen the mask so the mirror payload
+     * carries everything renderSectionForm needs without a second
+     * round-trip. The upstream DHIS2 response size grows ~6 KB per
+     * dataset — negligible on sync and worth the saved device-side
+     * fan-out.
+     */
+    static final String DATA_SET_PATH =
+            "/api/dataSets?paging=false&fields=:all"
+                    + ",sections[id,name,displayName,sortOrder,"
+                    + "dataElements[id],indicators[id],"
+                    + "greyedFields[dataElement[id],categoryOptionCombo[id]]]"
+                    + ",dataSetElements[dataElement[id],categoryCombo[id]]"
+                    + ",categoryCombo[id,name,displayName,"
+                    + "categoryOptionCombos[id,name,displayName],"
+                    + "categories[id,name,displayName,"
+                    + "categoryOptions[id,name,displayName]]]";
     static final String PROGRAM_PATH = "/api/programs" + FIELDS_ALL;
     static final String TRACKED_ENTITY_TYPE_PATH = "/api/trackedEntityTypes" + FIELDS_ALL;
     static final String CATEGORY_OPTION_COMBO_PATH = "/api/categoryOptionCombos" + FIELDS_ALL;
@@ -64,7 +85,21 @@ public class MetadataSyncService {
     static final String OPTION_SET_PATH = "/api/optionSets" + FIELDS_ALL;
     static final String INDICATOR_PATH = "/api/indicators" + FIELDS_ALL;
     static final String VALIDATION_RULE_PATH = "/api/validationRules" + FIELDS_ALL;
-    static final String CATEGORY_COMBO_PATH = "/api/categoryCombos" + FIELDS_ALL;
+    /**
+     * §2.3.19 — DHIS2's {@code fields=:all} on {@code /api/
+     * categoryCombos} returns {@code categoryOptionCombos: []}
+     * because COCs are a separate resource. Deepen the mask so each
+     * stored combo carries its COC list + category breakdown, which
+     * lets renderSectionForm emit nested headers without a second
+     * round-trip. COCs are also pulled separately via
+     * CATEGORY_OPTION_COMBO_PATH for drift + conflict workflows; the
+     * inline copy is the source of truth for form rendering.
+     */
+    static final String CATEGORY_COMBO_PATH =
+            "/api/categoryCombos?paging=false&fields=:all"
+                    + ",categoryOptionCombos[id,name,displayName]"
+                    + ",categories[id,name,displayName,"
+                    + "categoryOptions[id,name,displayName]]";
 
     private final Dhis2ReferenceClient dhis2;
     private final Dhis2Properties props;
