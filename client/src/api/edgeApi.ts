@@ -170,6 +170,76 @@ export function getDataSetFormMetadata(dataSetUid: string): Promise<unknown> {
 }
 
 /**
+ * Enrichment registry shape — raw DHIS2 /api/dataElements items, as
+ * emitted by the DER mirror. Captures the fields renderSectionForm
+ * needs when the dataset's own payload only carries `{id}` refs.
+ */
+export interface DataElementEntry {
+  id: string;
+  name?: string;
+  displayName?: string;
+  formName?: string;
+  valueType?: string;
+  categoryCombo?: { id: string };
+  optionSet?: { id: string };
+}
+
+export interface CategoryComboEntry {
+  id: string;
+  name?: string;
+  displayName?: string;
+  categories?: Array<{ id: string }>;
+  categoryOptionCombos?: Array<{ id: string; name?: string }>;
+}
+
+/**
+ * Paginate through a list endpoint until exhausted. DER's
+ * MetadataListController caps pageSize at 500 — the mirror holds a
+ * few hundred of each metadata kind in a typical deployment, so
+ * two or three round-trips brings down the full registry for a
+ * dataset render. Caller caches the result; this helper has no
+ * memoisation of its own.
+ */
+async function listAllPaged<T>(
+  resource: string,
+): Promise<T[]> {
+  const out: T[] = [];
+  let page = 1;
+  for (;;) {
+    const body = await request<{
+      pager?: { pageCount?: number };
+      [k: string]: unknown;
+    }>('GET', `/api/${resource}?pageSize=500&page=${page}`);
+    const chunk = body[resource] as T[] | undefined;
+    if (!chunk || chunk.length === 0) break;
+    out.push(...chunk);
+    const pageCount = body.pager?.pageCount ?? page;
+    if (page >= pageCount) break;
+    page += 1;
+  }
+  return out;
+}
+
+export function listAllDataElements(): Promise<DataElementEntry[]> {
+  return listAllPaged<DataElementEntry>('dataElements');
+}
+
+export function listAllCategoryCombos(): Promise<CategoryComboEntry[]> {
+  return listAllPaged<CategoryComboEntry>('categoryCombos');
+}
+
+export interface CategoryOptionComboEntry {
+  id: string;
+  name?: string;
+  displayName?: string;
+  categoryCombo?: { id: string };
+}
+
+export function listAllCategoryOptionCombos(): Promise<CategoryOptionComboEntry[]> {
+  return listAllPaged<CategoryOptionComboEntry>('categoryOptionCombos');
+}
+
+/**
  * Fetch `dataEntryForm.htmlCode` separately — DHIS2 doesn't include
  * it in the default `/api/dataSets/{uid}` response, and even when
  * the mirror has it, the column is heavy. The C-UI-5f client only

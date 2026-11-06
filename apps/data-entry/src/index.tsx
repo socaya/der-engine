@@ -138,7 +138,17 @@ export default function DataEntryApp(): JSX.Element {
         // Always pull the dataset metadata first — it drives both
         // the AOC picker + globals hydration regardless of form
         // type.
-        const meta = await api.getDataSetFormMetadata(dataSet.trim()) as DataSetBundle;
+        const metaRaw = await api.getDataSetFormMetadata(dataSet.trim()) as DataSetBundle;
+        if (cancelled) return;
+        // DER's mirror serves `/api/dataSets/{uid}` with the DHIS2
+        // `fields=:all` payload, which expands scalars but leaves
+        // every nested reference (sections.dataElements,
+        // dataSetElements.dataElement, categoryCombo) as a bare
+        // `{id}`. Enrich the payload once-per-form-load against the
+        // local registries so renderSectionForm has names,
+        // valueTypes, and COCs to work with. One-shot module cache
+        // keeps dataset switches snappy.
+        const meta = await enrichDataSetBundle(metaRaw, api);
         if (cancelled) return;
         // formType === 'CUSTOM' → fetch the dataset's htmlCode
         // from DHIS2. formType === 'SECTION' → synthesise the
@@ -530,7 +540,16 @@ interface DataSetBundle {
   dataEntryForm?: { id: string; name?: string } | null;
   sections?: Array<{
     id: string; name?: string; sortOrder?: number;
-    dataElements?: Array<{ id: string }>;
+    // Post-enrichment, `dataElements[]` carries the full DE row —
+    // name, formName, valueType, categoryCombo — so
+    // renderSectionForm can group + label cells without a separate
+    // `dataSetElements[]` lookup. Pre-enrichment, only `{id}` is
+    // guaranteed.
+    dataElements?: Array<{
+      id: string; name?: string; formName?: string;
+      valueType?: string;
+      categoryCombo?: DataSetBundle['categoryCombo'];
+    }>;
     indicators?: Array<{ id: string }>;
     greyedFields?: Array<{
       dataElement?: { id: string };
@@ -550,6 +569,130 @@ interface DataSetBundle {
  *   • Greyed fields render as a disabled `—` cell, matching
  *     DHIS2's section form.
  */
+interface EnrichRegistryEntry {
+  id: string;
+  name?: string;
+  displayName?: string;
+  formName?: string;
+  valueType?: string;
+  categoryCombo?: { id: string };
+}
+
+interface CatComboRegistryEntry {
+  id: string;
+  name?: string;
+  displayName?: string;
+  categories?: Array<{ id: string }>;
+  categoryOptionCombos?: Array<{ id: string; name?: string }>;
+}
+
+interface CocRegistryEntry {
+  id: string;
+  name?: string;
+  displayName?: string;
+  categoryCombo?: { id: string };
+}
+
+interface EnrichApi {
+  listAllDataElements: () => Promise<EnrichRegistryEntry[]>;
+  listAllCategoryCombos: () => Promise<CatComboRegistryEntry[]>;
+  listAllCategoryOptionCombos: () => Promise<CocRegistryEntry[]>;
+}
+
+let deRegistryPromise: Promise<Map<string, EnrichRegistryEntry>> | null = null;
+let ccRegistryPromise: Promise<Map<string, CatComboRegistryEntry>> | null = null;
+let cocByCcPromise: Promise<Map<string, CocRegistryEntry[]>> | null = null;
+
+/**
+ * Walk the dataset bundle and replace every bare `{id}` reference
+ * on `sections.dataElements`, `dataSetElements.dataElement`,
+ * nested `categoryCombo`, `categories`, `categoryOptionCombos`
+ * with the full object from the local registries. Idempotent — an
+ * already-expanded payload passes through unchanged.
+ *
+ * The three registries are cached at module scope; a dataset
+ * switch pays the enrichment cost once per session.
+ */
+async function enrichDataSetBundle(
+  meta: DataSetBundle,
+  api: EnrichApi,
+): Promise<DataSetBundle> {
+  if (!deRegistryPromise) {
+    deRegistryPromise = api.listAllDataElements().then((xs) =>
+      new Map(xs.map((x) => [x.id, x])));
+  }
+  if (!ccRegistryPromise) {
+    ccRegistryPromise = api.listAllCategoryCombos().then((xs) =>
+      new Map(xs.map((x) => [x.id, x])));
+  }
+  if (!cocByCcPromise) {
+    cocByCcPromise = api.listAllCategoryOptionCombos().then((xs) => {
+      const by = new Map<string, CocRegistryEntry[]>();
+      for (const x of xs) {
+        const ccId = x.categoryCombo?.id;
+        if (!ccId) continue;
+        const bucket = by.get(ccId);
+        if (bucket) bucket.push(x);
+        else by.set(ccId, [x]);
+      }
+      return by;
+    });
+  }
+  const [des, ccs, cocsByCc] = await Promise.all([
+    deRegistryPromise, ccRegistryPromise, cocByCcPromise,
+  ]);
+
+  const expandCc = (cc: { id: string } | undefined):
+    DataSetBundle['categoryCombo'] | undefined => {
+    if (!cc?.id) return undefined;
+    const reg = ccs.get(cc.id);
+    const cocs = cocsByCc.get(cc.id) ?? [];
+    if (!reg) return cc as DataSetBundle['categoryCombo'];
+    return {
+      id: reg.id,
+      name: reg.name ?? reg.displayName,
+      // Category-option combos come from a different mirror table
+      // than categoryCombos (dedicated metadata_category_option_
+      // combo). Group them by cc.id on the client.
+      categoryOptionCombos: cocs.map((c) => ({
+        id: c.id, name: c.name ?? c.displayName })),
+      // Leave `categories` unexpanded — `/api/categories` isn't on
+      // DER's mirror, so renderSectionForm's nested-header branch
+      // stays a no-op and we fall back to the flat COC-name header
+      // row. Still legible; a future slice can expand categories
+      // once the mirror picks them up.
+      categories: (reg.categories ?? []).map((c) => ({ id: c.id })),
+    };
+  };
+
+  const expandDe = (ref: { id: string }): { id: string;
+    name?: string; formName?: string; valueType?: string;
+    categoryCombo?: DataSetBundle['categoryCombo'] } => {
+    const reg = des.get(ref.id);
+    if (!reg) return ref;
+    return {
+      id: reg.id,
+      name: reg.name ?? reg.displayName,
+      formName: reg.formName,
+      valueType: reg.valueType,
+      categoryCombo: expandCc(reg.categoryCombo),
+    };
+  };
+
+  return {
+    ...meta,
+    categoryCombo: expandCc(meta.categoryCombo) ?? meta.categoryCombo,
+    dataSetElements: (meta.dataSetElements ?? []).map((dse) => ({
+      ...dse,
+      dataElement: dse.dataElement ? expandDe(dse.dataElement) : undefined,
+    })),
+    sections: (meta.sections ?? []).map((s) => ({
+      ...s,
+      dataElements: (s.dataElements ?? []).map((d) => expandDe(d)),
+    })),
+  };
+}
+
 function renderSectionForm(meta: DataSetBundle): string {
   const dataElementsById: Record<string, {
     id: string; name?: string; formName?: string;
@@ -568,9 +711,27 @@ function renderSectionForm(meta: DataSetBundle): string {
   }> = {};
   for (const i of meta.indicators ?? []) indicatorsById[i.id] = i;
 
-  const sections = (meta.sections ?? [])
+  // DER's mirror sometimes serves sections as bare `{id}` refs
+  // without dataElements/name/sortOrder (DHIS2's `fields=:all`
+  // doesn't descend into section membership). When that happens,
+  // synthesise a single pseudo-section that owns every DE on the
+  // dataset — the operator still gets a working table grouped by
+  // categoryCombo. The server-side sync-path lift that fills in
+  // real section membership ships in a later slice.
+  let sections = (meta.sections ?? [])
     .slice()
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const sectionsHaveMembership = sections.some(
+    (s) => (s.dataElements?.length ?? 0) > 0);
+  if (!sectionsHaveMembership) {
+    const allDes = (meta.dataSetElements ?? [])
+      .map((dse) => dse.dataElement)
+      .filter((d): d is NonNullable<typeof d> => Boolean(d));
+    sections = [{
+      id: meta.id, name: meta.displayName ?? meta.name ?? 'Data entry',
+      sortOrder: 0, dataElements: allDes, indicators: [], greyedFields: [],
+    }];
+  }
   const esc = (s: string) => s.replace(/&/g, '&amp;')
     .replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
