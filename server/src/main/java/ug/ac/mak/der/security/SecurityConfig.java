@@ -86,6 +86,18 @@ public class SecurityConfig {
                         .requestMatchers("/edge-api/v1/admin/signin-settings",
                                 "/edge-api/v1/admin/signin-settings/**")
                                 .hasAuthority("der.system.settings.write")
+                        // C-UI-5a app catalogue — three public GETs feed the
+                        // device shell before the operator has a session
+                        // (catalogue, signed bundle bytes, public key). The
+                        // admin install/upgrade/enable/disable/delete surface
+                        // below is gated by der.system.settings.write.
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/edge-api/v1/apps",
+                                "/edge-api/v1/apps/signing-key",
+                                "/edge-api/v1/apps/*/*/bundle.js").permitAll()
+                        .requestMatchers("/edge-api/v1/admin/apps",
+                                "/edge-api/v1/admin/apps/**")
+                                .hasAuthority("der.system.settings.write")
                         /* §2.3.120 R-AQ — Spring forwards uncaught
                          * controller exceptions to /error. Without
                          * permitAll here the internal forward is

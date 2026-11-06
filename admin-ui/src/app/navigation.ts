@@ -275,6 +275,9 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'login-appearance', label: 'Login page', to: '/settings/login',
         status: 'implemented', tabIcon: 'settings',
         crumb: 'Login appearance' },
+      { id: 'app-catalogue', label: 'App catalogue', to: '/apps/catalogue',
+        status: 'implemented', tabIcon: 'settings',
+        crumb: 'App catalogue' },
     ],
   },
 ];

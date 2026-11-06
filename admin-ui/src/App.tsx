@@ -42,6 +42,7 @@ import {
   CapProvisioningSetup, CapReleases, CapNetwork,
 } from './screens/CapabilityScreens';
 import { LoginAppearance } from './screens/LoginAppearance';
+import { AppCatalogue } from './screens/AppCatalogue';
 import { DataAggregate } from './screens/DataAggregate';
 import { DataAggregateDetail } from './screens/DataAggregateDetail';
 import { DataEvents } from './screens/DataEvents';
@@ -350,6 +351,7 @@ export default function App(): JSX.Element {
           <Route path="/settings/releases" element={<RequireAuth><CapReleases /></RequireAuth>} />
           <Route path="/settings/network" element={<RequireAuth><CapNetwork /></RequireAuth>} />
           <Route path="/settings/login" element={<RequireAuth><LoginAppearance /></RequireAuth>} />
+          <Route path="/apps/catalogue" element={<RequireAuth><AppCatalogue /></RequireAuth>} />
         </Routes>
         </AdminShell>
       </OrgUnitProvider>

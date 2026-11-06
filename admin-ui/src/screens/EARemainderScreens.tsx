@@ -266,12 +266,12 @@ export function EAEvaluationReports({ api = edgeApi }: {
 
 // EA-31..34 Installed apps ---------------------------------------
 export function EAAppsList({ api = edgeApi }: {
-  api?: Pick<typeof edgeApi, 'listApps' | 'setAppEnabled' | 'uninstallApp'>;
+  api?: Pick<typeof edgeApi, 'listInstalledApps' | 'setAppEnabled' | 'uninstallApp'>;
 } = {}): JSX.Element {
   const [rows, setRows] = useState<edgeApi.InstalledAppRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   async function reload(): Promise<void> {
-    try { setRows(await api.listApps()); } catch (err) {
+    try { setRows(await api.listInstalledApps()); } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
   }

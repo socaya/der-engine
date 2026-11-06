@@ -104,7 +104,7 @@ describe('EA-27 EvaluationReports', () => {
 describe('EA-31 AppsList', () => {
   it('toggle and uninstall', async () => {
     const api = {
-      listApps: vi.fn()
+      listInstalledApps: vi.fn()
         .mockResolvedValueOnce([{ appId: 'a1', appKey: 'k', version: '1', displayName: 'App',
           enabled: true, installedAt: 'now' }])
         .mockResolvedValueOnce([{ appId: 'a1', appKey: 'k', version: '1', displayName: 'App',
@@ -122,14 +122,14 @@ describe('EA-31 AppsList', () => {
   });
   it('error on list', async () => {
     renderWithProviders(<EAAppsList api={{
-      listApps: vi.fn().mockRejectedValue('x'),
+      listInstalledApps: vi.fn().mockRejectedValue('x'),
       setAppEnabled: vi.fn(), uninstallApp: vi.fn(),
     } as never} />);
     await waitFor(() => expect(screen.getByTestId('ea31-error')).toBeInTheDocument());
   });
   it('error on toggle', async () => {
     const api = {
-      listApps: vi.fn().mockResolvedValue([{ appId: 'a', appKey: 'k', version: '1',
+      listInstalledApps: vi.fn().mockResolvedValue([{ appId: 'a', appKey: 'k', version: '1',
         displayName: 'A', enabled: true, installedAt: 'now' }]),
       setAppEnabled: vi.fn().mockRejectedValue(new Error('e')),
       uninstallApp: vi.fn(),
@@ -140,7 +140,7 @@ describe('EA-31 AppsList', () => {
   });
   it('error on delete', async () => {
     const api = {
-      listApps: vi.fn().mockResolvedValue([{ appId: 'a', appKey: 'k', version: '1',
+      listInstalledApps: vi.fn().mockResolvedValue([{ appId: 'a', appKey: 'k', version: '1',
         displayName: 'A', enabled: true, installedAt: 'now' }]),
       setAppEnabled: vi.fn(),
       uninstallApp: vi.fn().mockRejectedValue('e'),

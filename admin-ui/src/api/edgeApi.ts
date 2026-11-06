@@ -1447,7 +1447,12 @@ export interface InstalledAppRow {
   installedAt: string;
 }
 
-export function listApps(): Promise<InstalledAppRow[]> {
+/**
+ * Legacy EA-31..34 placeholder — kept until EARemainderScreens is
+ * retired. The real C-UI-5a catalogue lives at `listApps()` below with
+ * the `AppCatalogueEntry` shape.
+ */
+export function listInstalledApps(): Promise<InstalledAppRow[]> {
   return request<InstalledAppRow[]>('GET', '/edge-api/v1/apps');
 }
 
@@ -3355,4 +3360,86 @@ export async function uploadSignInBackground(file: File): Promise<SignInSettings
 
 export function clearSignInBackground(): Promise<SignInSettings> {
   return request('DELETE', '/edge-api/v1/admin/signin-settings/background');
+}
+
+/* ─────────── App catalogue (ADR-0037 C-UI-5a) ─────────── */
+
+export interface AppCatalogueEntry {
+  appId: string;
+  appKey: string;
+  displayName: string;
+  module: string | null;
+  version: string;
+  bundleUrl: string;
+  bundleSha256: string;
+  signatureB64: string;
+  requiresDerApi: string;
+}
+
+export interface AppCatalogueResponse {
+  apps: AppCatalogueEntry[];
+}
+
+export function listApps(): Promise<AppCatalogueResponse> {
+  return request<AppCatalogueResponse>('GET', '/edge-api/v1/apps');
+}
+
+/** Multipart install — not covered by the JSON `request` helper. */
+export async function installApp(form: {
+  file: File;
+  appKey: string;
+  displayName: string;
+  module?: string | null;
+  version: string;
+  requiresDerApi: string;
+  iconSvg?: string | null;
+}): Promise<AppCatalogueEntry> {
+  const body = new FormData();
+  body.append('file', form.file);
+  body.append('appKey', form.appKey);
+  body.append('displayName', form.displayName);
+  if (form.module != null && form.module !== '') body.append('module', form.module);
+  body.append('version', form.version);
+  body.append('requiresDerApi', form.requiresDerApi);
+  if (form.iconSvg != null && form.iconSvg !== '') body.append('iconSvg', form.iconSvg);
+  const r = await fetch('/edge-api/v1/admin/apps/install', {
+    method: 'POST', credentials: 'include', body,
+  });
+  if (!r.ok) {
+    throw new EdgeApiError(r.status, 'UNKNOWN',
+      `Install failed with status ${r.status}`);
+  }
+  return r.json() as Promise<AppCatalogueEntry>;
+}
+
+/** Multipart upgrade — not covered by the JSON `request` helper. */
+export async function upgradeApp(appId: string, form: {
+  file: File;
+  version: string;
+  requiresDerApi: string;
+}): Promise<AppCatalogueEntry> {
+  const body = new FormData();
+  body.append('file', form.file);
+  body.append('version', form.version);
+  body.append('requiresDerApi', form.requiresDerApi);
+  const r = await fetch(`/edge-api/v1/admin/apps/${encodeURIComponent(appId)}/upgrade`, {
+    method: 'POST', credentials: 'include', body,
+  });
+  if (!r.ok) {
+    throw new EdgeApiError(r.status, 'UNKNOWN',
+      `Upgrade failed with status ${r.status}`);
+  }
+  return r.json() as Promise<AppCatalogueEntry>;
+}
+
+export function enableApp(appId: string): Promise<void> {
+  return request<void>('POST', `/edge-api/v1/admin/apps/${encodeURIComponent(appId)}/enable`);
+}
+
+export function disableApp(appId: string): Promise<void> {
+  return request<void>('POST', `/edge-api/v1/admin/apps/${encodeURIComponent(appId)}/disable`);
+}
+
+export function deleteApp(appId: string): Promise<void> {
+  return request<void>('DELETE', `/edge-api/v1/admin/apps/${encodeURIComponent(appId)}`);
 }

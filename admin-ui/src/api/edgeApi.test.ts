@@ -98,7 +98,7 @@ describe('edgeApi route coverage', () => {
     ['resumeWorker',      () => api.resumeWorker(),              '/edge-api/v1/journal/worker/resume',  'POST',   undefined],
     ['listUsers',         () => api.listUsers(),                 '/edge-api/v1/provisioning/users',     'GET',    undefined],
     ['createUser',        () => api.createUser({ username: 'u', displayName: 'U', password: 'p', roles: ['OPERATOR'] }), '/edge-api/v1/provisioning/users', 'POST', { username: 'u', displayName: 'U', password: 'p', roles: ['OPERATOR'] }],
-    ['listApps',          () => api.listApps(),                  '/edge-api/v1/apps',                   'GET',    undefined],
+    ['listInstalledApps', () => api.listInstalledApps(),         '/edge-api/v1/apps',                   'GET',    undefined],
     ['setAppEnabled',     () => api.setAppEnabled('a', true),    '/edge-api/v1/apps/a/enable?enabled=true', 'POST', undefined],
     ['uninstallApp',      () => api.uninstallApp('a'),           '/edge-api/v1/apps/a',                 'DELETE', undefined],
     ['listBackups',       () => api.listBackups(),               '/edge-api/v1/backup/runs',            'GET',    undefined],
@@ -543,9 +543,9 @@ describe('edgeApi wrappers — batch coverage', () => {
     expect(fetchMock.mock.calls[0]![0]).toContain('user');
   });
 
-  it('listApps GETs the apps endpoint', async () => {
-    fetchMock.mockResolvedValue(respond(200, { apps: [] }));
-    await api.listApps();
+  it('listInstalledApps GETs the apps endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, []));
+    await api.listInstalledApps();
     expect(fetchMock.mock.calls[0]![0]).toContain('app');
   });
 
@@ -1508,5 +1508,119 @@ describe('edgeApi wrappers — batch coverage', () => {
     fetchMock.mockResolvedValue(respond(200, {}));
     await api.networkSettingPut('wan.mtu', '1500');
     expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('PUT');
+  });
+
+  // ─── C-UI-5a app catalogue ──────────────────────────────────────
+  // Multipart responders need `.json()` — the shared `respond()` only
+  // exposes `.text()`, so we build a minimal Response-like fixture.
+  function respondJson(status: number, body: unknown): Response {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      text: async () => JSON.stringify(body),
+      json: async () => body,
+    } as unknown as Response;
+  }
+
+  it('listApps GETs the catalogue endpoint', async () => {
+    fetchMock.mockResolvedValue(respond(200, { apps: [] }));
+    await api.listApps();
+    expect(fetchMock.mock.calls[0]![0]).toContain('/edge-api/v1/apps');
+  });
+
+  it('installApp POSTs multipart with the right fields', async () => {
+    fetchMock.mockResolvedValue(respondJson(200, { appId: 'a' }));
+    const file = new File(['x'], 'b.zip', { type: 'application/zip' });
+    await api.installApp({
+      file, appKey: 'k', displayName: 'D',
+      module: 'm', version: '1', requiresDerApi: '2.44',
+    });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toContain('/edge-api/v1/admin/apps/install');
+    expect((init as RequestInit).method).toBe('POST');
+    const body = (init as RequestInit).body as FormData;
+    expect(body.get('appKey')).toBe('k');
+    expect(body.get('displayName')).toBe('D');
+    expect(body.get('module')).toBe('m');
+    expect(body.get('version')).toBe('1');
+    expect(body.get('requiresDerApi')).toBe('2.44');
+    expect(body.get('file')).toBe(file);
+  });
+
+  it('installApp omits optional fields when blank/null', async () => {
+    fetchMock.mockResolvedValue(respondJson(200, { appId: 'a' }));
+    const file = new File(['x'], 'b.zip', { type: 'application/zip' });
+    await api.installApp({
+      file, appKey: 'k', displayName: 'D',
+      module: null, version: '1', requiresDerApi: '2.44',
+      iconSvg: '',
+    });
+    const body = (fetchMock.mock.calls[0]![1] as RequestInit).body as FormData;
+    expect(body.has('module')).toBe(false);
+    expect(body.has('iconSvg')).toBe(false);
+  });
+
+  it('installApp includes module and iconSvg when provided', async () => {
+    fetchMock.mockResolvedValue(respondJson(200, { appId: 'a' }));
+    const file = new File(['x'], 'b.zip', { type: 'application/zip' });
+    await api.installApp({
+      file, appKey: 'k', displayName: 'D',
+      module: 'mm', version: '1', requiresDerApi: '2.44',
+      iconSvg: '<svg/>',
+    });
+    const body = (fetchMock.mock.calls[0]![1] as RequestInit).body as FormData;
+    expect(body.get('module')).toBe('mm');
+    expect(body.get('iconSvg')).toBe('<svg/>');
+  });
+
+  it('installApp throws EdgeApiError on non-2xx', async () => {
+    fetchMock.mockResolvedValue(respond(400, {}));
+    const file = new File(['x'], 'b.zip', { type: 'application/zip' });
+    await expect(api.installApp({
+      file, appKey: 'k', displayName: 'D',
+      version: '1', requiresDerApi: '2.44',
+    })).rejects.toBeInstanceOf(api.EdgeApiError);
+  });
+
+  it('upgradeApp POSTs multipart to the appId path', async () => {
+    fetchMock.mockResolvedValue(respondJson(200, { appId: 'a' }));
+    const file = new File(['x'], 'n.zip', { type: 'application/zip' });
+    await api.upgradeApp('app-7', { file, version: '2', requiresDerApi: '2.44' });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toContain('/edge-api/v1/admin/apps/app-7/upgrade');
+    expect((init as RequestInit).method).toBe('POST');
+    const body = (init as RequestInit).body as FormData;
+    expect(body.get('version')).toBe('2');
+    expect(body.get('requiresDerApi')).toBe('2.44');
+    expect(body.get('file')).toBe(file);
+  });
+
+  it('upgradeApp throws EdgeApiError on non-2xx', async () => {
+    fetchMock.mockResolvedValue(respond(500, {}));
+    const file = new File(['x'], 'n.zip', { type: 'application/zip' });
+    await expect(api.upgradeApp('app-7', {
+      file, version: '2', requiresDerApi: '2.44',
+    })).rejects.toBeInstanceOf(api.EdgeApiError);
+  });
+
+  it('enableApp POSTs to the enable path', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.enableApp('app-7');
+    expect(fetchMock.mock.calls[0]![0]).toContain('/apps/app-7/enable');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('disableApp POSTs to the disable path', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.disableApp('app-7');
+    expect(fetchMock.mock.calls[0]![0]).toContain('/apps/app-7/disable');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+  });
+
+  it('deleteApp DELETEs by appId', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.deleteApp('app-7');
+    expect(fetchMock.mock.calls[0]![0]).toContain('/apps/app-7');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('DELETE');
   });
 });

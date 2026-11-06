@@ -146,45 +146,61 @@ body {
   margin: 0 auto;
 }
 
-/* App launcher overlay — flat, bordered, no shadow. */
+/* App launcher — DHIS2 HeaderBar-style right-anchored dropdown.
+ *
+ * `backdrop` is a transparent, full-viewport layer that only exists
+ * to catch outside clicks (the panel itself is positioned, not
+ * centered in the viewport). The panel sits under the topbar's
+ * launcher button on the right edge.
+ */
 .der-launcher-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(33, 41, 52, 0.45);
+  background: transparent;
   z-index: 1000;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 72px 20px 20px;
 }
 
 .der-launcher {
+  position: absolute;
+  top: calc(var(--der-topbar-h) + 4px);
+  inset-inline-end: 12px;
   background: var(--der-surface);
   border: 1px solid var(--der-border);
   border-radius: var(--der-radius-md);
-  width: 100%;
-  max-width: 720px;
-  max-height: calc(100vh - 92px);
-  overflow: auto;
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100vh - var(--der-topbar-h) - 16px);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-.der-launcher__header {
+.der-launcher__search {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--der-border);
+  gap: 8px;
+  padding: 8px;
 }
 
-.der-launcher__title {
-  margin: 0;
+.der-launcher__filter {
+  flex: 1 1 auto;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--der-border);
+  border-radius: var(--der-radius-sm);
+  background: var(--der-surface);
+  color: var(--der-ink-900);
   font-size: 13px;
-  color: var(--der-ink-500);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+  outline: none;
+}
+
+.der-launcher__filter:focus-visible {
+  border-color: var(--der-brand-500);
+}
+
+.der-launcher__visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0;
+  margin: -1px; overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
 }
 
 .der-launcher__close {
@@ -192,8 +208,8 @@ body {
   border: 0;
   color: var(--der-ink-500);
   cursor: pointer;
-  font-size: 16px;
-  padding: 4px 8px;
+  font-size: 14px;
+  padding: 6px 10px;
   border-radius: var(--der-radius-sm);
 }
 
@@ -204,29 +220,29 @@ body {
   outline: none;
 }
 
-.der-launcher__grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  background: var(--der-border);
-  padding: 1px;
-}
-
-@media (max-width: 640px) {
-  .der-launcher__grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.der-launcher__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 0 8px 8px;
+  overflow-y: auto;
+  min-height: 200px;
 }
 
 .der-launcher__tile {
-  background: var(--der-surface);
-  padding: 20px 14px;
+  width: 96px;
+  margin: 8px;
+  padding: 8px 4px;
+  border-radius: 12px;
   text-align: center;
   text-decoration: none;
   color: var(--der-ink-900);
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   transition: background 100ms;
 }
@@ -237,9 +253,18 @@ body {
   outline: none;
 }
 
-.der-launcher__tile-icon {
-  width: 32px;
-  height: 32px;
+.der-launcher__tile-glyph {
+  width: 48px;
+  height: 48px;
+  margin: 8px 0 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.der-launcher__tile-glyph svg {
+  width: 48px;
+  height: 48px;
   stroke: var(--der-brand-500);
   stroke-width: 1.6;
   stroke-linecap: round;
@@ -248,15 +273,20 @@ body {
 }
 
 .der-launcher__tile-label {
-  font-weight: 600;
-  font-size: 13px;
-  line-height: 1.2;
+  font-size: 12px;
+  line-height: 14px;
+  margin-top: 6px;
+  color: var(--der-ink-900);
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
 }
 
-.der-launcher__tile-subtitle {
-  font-size: 11px;
+.der-launcher__empty {
+  width: 100%;
+  padding: 24px 16px;
+  text-align: center;
   color: var(--der-ink-500);
-  line-height: 1.3;
+  font-size: 13px;
 }
 
 /* User menu dropdown — flat, bordered, no shadow. */
