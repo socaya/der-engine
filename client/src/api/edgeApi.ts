@@ -390,6 +390,59 @@ export function listTrackerEvents(program: string, orgUnit: string, pageSize = 1
   return request('GET', `/api/tracker/events?${q}`);
 }
 
+/** Minimal tracked-entity shape returned by the DHIS2 tracker proxy. The
+ *  C-UI-5c slice-5 capture-tracker app renders a small list; later
+ *  slices will enrich the shape with program-status, enrollments, etc. */
+export interface TrackedEntityRow {
+  readonly trackedEntity?: string;
+  readonly trackedEntityInstance?: string;
+  readonly displayName?: string;
+  readonly lastUpdated?: string;
+  readonly orgUnit?: string;
+}
+
+/** List tracked entities for a program + bound OU. Thin wrapper around
+ *  the DHIS2 /api/tracker/trackedEntities read endpoint. Slice-5 of
+ *  C-UI-5c — the capture-tracker app consumes this via the SDK. */
+export function listTrackerEntities(program: string, orgUnit: string, pageSize = 50):
+    Promise<{ instances?: TrackedEntityRow[]; trackedEntities?: TrackedEntityRow[]; total?: number }> {
+  const q = new URLSearchParams({
+    program, orgUnit, pageSize: String(pageSize),
+  }).toString();
+  return request('GET', `/api/tracker/trackedEntities?${q}`);
+}
+
+/** Enrol a single TEI into a program via POST /api/tracker. Minimal
+ *  single-attribute shape used by the capture-tracker slice-5 app.
+ *  Full enrolment (multi-attribute, program-rules) lives in the shell
+ *  EnrollmentCreate screen and migrates in later slices. */
+export interface TrackerEnrolInput {
+  readonly program: string;
+  readonly orgUnit: string;
+  readonly trackedEntityType: string;
+  readonly enrolledAt?: string;
+  readonly attributes: ReadonlyArray<{ attribute: string; value: string }>;
+}
+
+export function enrolTei(input: TrackerEnrolInput): Promise<unknown> {
+  const enrolledAt = input.enrolledAt ?? new Date().toISOString().slice(0, 10);
+  const body = {
+    trackedEntities: [{
+      trackedEntityType: input.trackedEntityType,
+      orgUnit: input.orgUnit,
+      attributes: input.attributes,
+      enrollments: [{
+        program: input.program,
+        orgUnit: input.orgUnit,
+        enrolledAt,
+        status: 'ACTIVE',
+        attributes: input.attributes,
+      }],
+    }],
+  };
+  return request('POST', '/api/tracker', body);
+}
+
 export interface DraftRow {
   draftId: string;
   kind: string;

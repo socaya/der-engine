@@ -20,6 +20,16 @@ function useDerApi(): {
   listEvents: typeof edgeApi.listEvents;
   listDrafts: typeof edgeApi.listDrafts;
   dhis2Ping: typeof edgeApi.dhis2Ping;
+  // C-UI-5c slice-5 — tracker + workflow-capture surface.
+  listTrackerEntities: typeof edgeApi.listTrackerEntities;
+  enrolTei: typeof edgeApi.enrolTei;
+  listCaptureWorkflows: typeof edgeApi.listCaptureWorkflows;
+  listCaptureRuns: typeof edgeApi.listCaptureRuns;
+  startCaptureRun: typeof edgeApi.startCaptureRun;
+  getCaptureRun: typeof edgeApi.getCaptureRun;
+  getCaptureRunForm: typeof edgeApi.getCaptureRunForm;
+  getCaptureRunData: typeof edgeApi.getCaptureRunData;
+  advanceCaptureRun: typeof edgeApi.advanceCaptureRun;
 } {
   return {
     submitAggregate: edgeApi.submitAggregate,
@@ -27,6 +37,15 @@ function useDerApi(): {
     listEvents: edgeApi.listEvents,
     listDrafts: edgeApi.listDrafts,
     dhis2Ping: edgeApi.dhis2Ping,
+    listTrackerEntities: edgeApi.listTrackerEntities,
+    enrolTei: edgeApi.enrolTei,
+    listCaptureWorkflows: edgeApi.listCaptureWorkflows,
+    listCaptureRuns: edgeApi.listCaptureRuns,
+    startCaptureRun: edgeApi.startCaptureRun,
+    getCaptureRun: edgeApi.getCaptureRun,
+    getCaptureRunForm: edgeApi.getCaptureRunForm,
+    getCaptureRunData: edgeApi.getCaptureRunData,
+    advanceCaptureRun: edgeApi.advanceCaptureRun,
   };
 }
 

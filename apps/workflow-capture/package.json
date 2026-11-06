@@ -1,0 +1,14 @@
+{
+  "name": "@der/app-workflow-capture",
+  "version": "0.1.0-alpha.1",
+  "type": "module",
+  "private": true,
+  "description": "DER-dispatched workflow-run capture app (C-UI-5c slice 5). Replaces client/src/screens/CaptureRunList.tsx + CaptureRunForm.tsx over the slice-5 rollout.",
+  "main": "src/index.tsx",
+  "exports": { ".": { "import": "./src/index.tsx" } },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@der/app-sdk": "workspace:*"
+  }
+}
