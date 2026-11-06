@@ -16,7 +16,17 @@ async function parseAppManifest(file: File): Promise<Partial<{
   version: string; requiresDerApi: string;
 }> | null> {
   // Only scan the first 4 KB — the banner is the very first line.
-  const head = await file.slice(0, 4096).text();
+  // jsdom's File.slice(...) returns a Blob without .text(); fall
+  // back to reading the whole thing in test environments.
+  let head: string;
+  try {
+    const slice = file.slice(0, 4096);
+    head = typeof slice.text === 'function'
+      ? await slice.text()
+      : await file.text();
+  } catch {
+    return null;
+  }
   const m = /@der-app\s+(\{[\s\S]*?\})\s*\*\//.exec(head);
   if (!m || !m[1]) return null;
   try {
