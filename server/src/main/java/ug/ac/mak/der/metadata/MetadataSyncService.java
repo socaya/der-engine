@@ -59,16 +59,24 @@ public class MetadataSyncService {
      * dataset — negligible on sync and worth the saved device-side
      * fan-out.
      */
+    /**
+     * Brackets percent-encoded (%5B/%5D) because Java's HttpClient
+     * sends `[`/`]` verbatim in the URI's raw query component and
+     * DHIS2's servlet filter rejects them as RFC-3986-illegal — a
+     * curl-compatible fields mask (unencoded brackets) returns 400
+     * through java.net.http. Encoding here keeps the mask readable
+     * at the call site and the request parseable by DHIS2.
+     */
     static final String DATA_SET_PATH =
             "/api/dataSets?paging=false&fields=:all"
-                    + ",sections[id,name,displayName,sortOrder,"
-                    + "dataElements[id],indicators[id],"
-                    + "greyedFields[dataElement[id],categoryOptionCombo[id]]]"
-                    + ",dataSetElements[dataElement[id],categoryCombo[id]]"
-                    + ",categoryCombo[id,name,displayName,"
-                    + "categoryOptionCombos[id,name,displayName],"
-                    + "categories[id,name,displayName,"
-                    + "categoryOptions[id,name,displayName]]]";
+                    + ",sections%5Bid,name,displayName,sortOrder,"
+                    + "dataElements%5Bid%5D,indicators%5Bid%5D,"
+                    + "greyedFields%5BdataElement%5Bid%5D,categoryOptionCombo%5Bid%5D%5D%5D"
+                    + ",dataSetElements%5BdataElement%5Bid%5D,categoryCombo%5Bid%5D%5D"
+                    + ",categoryCombo%5Bid,name,displayName,"
+                    + "categoryOptionCombos%5Bid,name,displayName%5D,"
+                    + "categories%5Bid,name,displayName,"
+                    + "categoryOptions%5Bid,name,displayName%5D%5D%5D";
     static final String PROGRAM_PATH = "/api/programs" + FIELDS_ALL;
     static final String TRACKED_ENTITY_TYPE_PATH = "/api/trackedEntityTypes" + FIELDS_ALL;
     static final String CATEGORY_OPTION_COMBO_PATH = "/api/categoryOptionCombos" + FIELDS_ALL;
@@ -97,9 +105,9 @@ public class MetadataSyncService {
      */
     static final String CATEGORY_COMBO_PATH =
             "/api/categoryCombos?paging=false&fields=:all"
-                    + ",categoryOptionCombos[id,name,displayName]"
-                    + ",categories[id,name,displayName,"
-                    + "categoryOptions[id,name,displayName]]";
+                    + ",categoryOptionCombos%5Bid,name,displayName%5D"
+                    + ",categories%5Bid,name,displayName,"
+                    + "categoryOptions%5Bid,name,displayName%5D%5D";
 
     private final Dhis2ReferenceClient dhis2;
     private final Dhis2Properties props;
