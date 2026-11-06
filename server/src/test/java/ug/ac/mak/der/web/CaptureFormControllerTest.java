@@ -34,12 +34,15 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.CaptureFormService;
 import ug.ac.mak.der.workflow.CaptureFormService.CaptureFormError;
 import ug.ac.mak.der.workflow.CaptureFormService.ErrorCode;
+import ug.ac.mak.der.workflow.CaptureFormService.EventDetail;
+import ug.ac.mak.der.workflow.CaptureFormService.EventSummary;
 import ug.ac.mak.der.workflow.CaptureFormService.FormAssembly;
 import ug.ac.mak.der.workflow.CaptureFormService.FormDataPrefill;
 import ug.ac.mak.der.workflow.CaptureFormService.FormField;
 import ug.ac.mak.der.workflow.CaptureFormService.FormSection;
 import ug.ac.mak.der.workflow.CaptureFormService.FormType;
 import ug.ac.mak.der.workflow.CaptureFormService.Ownership;
+import ug.ac.mak.der.workflow.CaptureFormService.ProgramStageSummary;
 import ug.ac.mak.der.workflow.CaptureFormService.Requirement;
 import ug.ac.mak.der.workflow.CaptureWorkflowRun;
 import ug.ac.mak.der.workflow.CaptureWorkflowService;
@@ -412,5 +415,132 @@ class CaptureFormControllerTest {
                         .with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("WORKFLOW_RUN_NOT_FOUND"));
+    }
+
+    // ───── phase 2 — program-stage + event endpoints ─────────────────────
+
+    @Test
+    void listStagesReturnsSortedStages() throws Exception {
+        when(forms.listStagesForProgram("P1")).thenReturn(List.of(
+                new ProgramStageSummary("S1", "Registration", false, 1),
+                new ProgramStageSummary("S2", "Visit", true, 2)));
+        mockMvc.perform(get("/edge-api/v1/capture/programs/P1/stages")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(2))
+                .andExpect(jsonPath("$.stages[0].stageUid").value("S1"))
+                .andExpect(jsonPath("$.stages[1].repeatable").value(true));
+    }
+
+    @Test
+    void listStagesForUnmirroredProgram503() throws Exception {
+        when(forms.listStagesForProgram("Pghost"))
+                .thenThrow(new CaptureFormError(
+                        ErrorCode.METADATA_NOT_READY,
+                        "program Pghost not mirrored"));
+        mockMvc.perform(get("/edge-api/v1/capture/programs/Pghost/stages")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("METADATA_NOT_READY"));
+    }
+
+    @Test
+    void getStageFormReturnsFormEnvelope() throws Exception {
+        when(forms.assembleForProgramStage("P1", "S1")).thenReturn(new FormAssembly(
+                FormType.EVENT_STAGE, "PROGRAM_STAGE", "S1", "Registration",
+                new Ownership(null, null, true),
+                List.of(new FormSection(null, "Registration", List.of(
+                        new FormField("DE1", "DE1", null, "Patient ID",
+                                null, "TEXT", null, Requirement.REQUIRED)))),
+                List.of()));
+        mockMvc.perform(get("/edge-api/v1/capture/programs/P1/stages/S1/form")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.formType").value("EVENT_STAGE"))
+                .andExpect(jsonPath("$.bindingUid").value("S1"))
+                .andExpect(jsonPath("$.sections[0].fields[0].requirement")
+                        .value("REQUIRED"));
+    }
+
+    @Test
+    void getStageFormWrongProgram400() throws Exception {
+        when(forms.assembleForProgramStage("Pbad", "S1"))
+                .thenThrow(new CaptureFormError(
+                        ErrorCode.CAPTURE_PARAM_INVALID,
+                        "stage S1 does not belong to program Pbad"));
+        mockMvc.perform(get("/edge-api/v1/capture/programs/Pbad/stages/S1/form")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CAPTURE_PARAM_INVALID"));
+    }
+
+    @Test
+    void listEventsReturnsRows() throws Exception {
+        when(forms.listEvents("P1", "OU1", 100)).thenReturn(List.of(
+                new EventSummary(UUID.randomUUID(), "S1", "OU1",
+                        Instant.parse("2026-11-06T09:00:00Z"), "ACTIVE")));
+        mockMvc.perform(get("/edge-api/v1/capture/programs/P1/events")
+                        .param("orgUnit", "OU1")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.events[0].programStageUid").value("S1"));
+    }
+
+    @Test
+    void listEventsRequiresOrgUnit() throws Exception {
+        when(forms.listEvents("P1", null, 100))
+                .thenThrow(new CaptureFormError(
+                        ErrorCode.CAPTURE_PARAM_INVALID, "orgUnit is required"));
+        mockMvc.perform(get("/edge-api/v1/capture/programs/P1/events")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CAPTURE_PARAM_INVALID"));
+    }
+
+    @Test
+    void getEventDetailReturnsEvent() throws Exception {
+        final UUID eventId = UUID.randomUUID();
+        when(forms.getEventDetail(eventId)).thenReturn(new EventDetail(
+                eventId, null, "P1", "S1", "OU1",
+                Instant.parse("2026-11-06T10:00:00Z"), "ACTIVE",
+                "HllvX50cXC0", java.util.Map.of("DE1", "value-42"), null));
+        mockMvc.perform(get("/edge-api/v1/capture/events/" + eventId + "/detail")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.programStageUid").value("S1"))
+                .andExpect(jsonPath("$.dataValues.DE1").value("value-42"));
+    }
+
+    @Test
+    void getEventDetailNotFound404() throws Exception {
+        final UUID eventId = UUID.randomUUID();
+        when(forms.getEventDetail(eventId))
+                .thenThrow(new CaptureFormError(
+                        ErrorCode.WORKFLOW_RUN_NOT_FOUND,
+                        "event " + eventId + " not found"));
+        mockMvc.perform(get("/edge-api/v1/capture/events/" + eventId + "/detail")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("WORKFLOW_RUN_NOT_FOUND"));
+    }
+
+    @Test
+    void getRunFormProgramStageBinding() throws Exception {
+        /* Run-scoped form for a PROGRAM_STAGE workflow run returns
+         * formType=EVENT_STAGE and the stage's displayName. */
+        final UUID runId = UUID.randomUUID();
+        when(forms.assembleForRun(eq(runId), anyString(), any()))
+                .thenReturn(new FormAssembly(
+                        FormType.EVENT_STAGE, "PROGRAM_STAGE", "S1",
+                        "Registration",
+                        new Ownership("OPERATOR", null, true),
+                        List.of(new FormSection(null, "Step 1", List.of())),
+                        List.of()));
+        mockMvc.perform(get("/edge-api/v1/capture/runs/" + runId + "/form")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.formType").value("EVENT_STAGE"))
+                .andExpect(jsonPath("$.bindingKind").value("PROGRAM_STAGE"));
     }
 }

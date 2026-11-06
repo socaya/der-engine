@@ -221,6 +221,63 @@ public class CaptureFormController {
     }
 
     // ────────────────────────────────────────────────────────────────────
+    // Program-stage + event endpoints (ADR-0036 phase 2)
+    // ────────────────────────────────────────────────────────────────────
+
+    @GetMapping("/programs/{programUid}/stages")
+    @PreAuthorize("hasAuthority('der.capture.read')")
+    public ResponseEntity<?> listStages(
+            @PathVariable("programUid") final String programUid) {
+        try {
+            final var stages = forms.listStagesForProgram(programUid);
+            return ResponseEntity.ok(Map.of(
+                    "count", stages.size(),
+                    "stages", stages));
+        } catch (CaptureFormError ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @GetMapping("/programs/{programUid}/stages/{stageUid}/form")
+    @PreAuthorize("hasAuthority('der.capture.read')")
+    public ResponseEntity<?> getStageForm(
+            @PathVariable("programUid") final String programUid,
+            @PathVariable("stageUid") final String stageUid) {
+        try {
+            return ResponseEntity.ok(forms.assembleForProgramStage(programUid, stageUid));
+        } catch (CaptureFormError ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @GetMapping("/programs/{programUid}/events")
+    @PreAuthorize("hasAuthority('der.capture.read')")
+    public ResponseEntity<?> listEvents(
+            @PathVariable("programUid") final String programUid,
+            @RequestParam(value = "orgUnit", required = false) final String orgUnit,
+            @RequestParam(value = "limit", defaultValue = "100") final int limit) {
+        try {
+            final var rows = forms.listEvents(programUid, orgUnit, limit);
+            return ResponseEntity.ok(Map.of(
+                    "count", rows.size(),
+                    "events", rows));
+        } catch (CaptureFormError ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @GetMapping("/events/{eventUid}/detail")
+    @PreAuthorize("hasAuthority('der.capture.read')")
+    public ResponseEntity<?> getEventDetail(
+            @PathVariable("eventUid") final UUID eventUid) {
+        try {
+            return ResponseEntity.ok(forms.getEventDetail(eventUid));
+        } catch (CaptureFormError ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
     // Helpers
     // ────────────────────────────────────────────────────────────────────
 

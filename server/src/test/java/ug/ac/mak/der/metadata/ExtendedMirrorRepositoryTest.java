@@ -264,6 +264,25 @@ class ExtendedMirrorRepositoryTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void listProgramStagesForProgramReturnsList() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.query(anyString(), any(RowMapper.class), eq("P1")))
+                .thenReturn(List.of());
+        assertThat(new ExtendedMirrorRepository(jdbc, m)
+                .listProgramStagesForProgram("P1")).isEmpty();
+    }
+
+    @Test
+    void listProgramStagesForProgramReturnsEmptyOnBlankInput() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final ExtendedMirrorRepository repo = new ExtendedMirrorRepository(jdbc, m);
+        assertThat(repo.listProgramStagesForProgram(null)).isEmpty();
+        assertThat(repo.listProgramStagesForProgram("")).isEmpty();
+        assertThat(repo.listProgramStagesForProgram("   ")).isEmpty();
+    }
+
+    @Test
     void findProgramStageDataElementsRowMapperCovered() throws Exception {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
         final ResultSet rs = mock(ResultSet.class);

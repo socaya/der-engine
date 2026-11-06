@@ -134,6 +134,23 @@ public class ExtendedMirrorRepository {
                 programStageMapper(), uid));
     }
 
+    /** ADR-0036 phase 2 — list every mirrored stage belonging to a
+     *  program, ordered by the stage's {@code sortOrder} payload
+     *  field (defaulting to 0 when missing). The stage's own
+     *  dataElements are not hydrated here — callers wanting field
+     *  rows call {@link #findProgramStageDataElements(String)}. */
+    public List<MirroredProgramStage> listProgramStagesForProgram(final String programUid) {
+        if (programUid == null || programUid.isBlank()) {
+            return List.of();
+        }
+        return jdbc.query(
+                "SELECT dhis2_uid, program_uid, display_name, repeatable, payload "
+                        + "FROM der.metadata_program_stage "
+                        + "WHERE program_uid = ? "
+                        + "ORDER BY display_name",
+                programStageMapper(), programUid);
+    }
+
     public List<MirroredProgramStage.ProgramStageDataElement> findProgramStageDataElements(
             final String programStageUid) {
         return jdbc.query(

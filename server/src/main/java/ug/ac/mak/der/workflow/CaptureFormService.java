@@ -20,8 +20,11 @@ import ug.ac.mak.der.metadata.MetadataMirrorRepository;
 import ug.ac.mak.der.metadata.MirroredCategoryOptionCombo;
 import ug.ac.mak.der.metadata.MirroredDataElement;
 import ug.ac.mak.der.metadata.MirroredDataSet;
+import ug.ac.mak.der.metadata.MirroredProgramStage;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValue;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValueRepository;
+import ug.ac.mak.der.workflows.events.Event;
+import ug.ac.mak.der.workflows.events.EventRepository;
 
 /**
  * ADR-0036 — projects a {@link CaptureWorkflowRun}'s current step onto a
@@ -48,19 +51,22 @@ public class CaptureFormService {
     private final MetadataMirrorRepository mirror;
     private final ExtendedMirrorRepository extended;
     private final AggregateDataValueRepository aggregates;
+    private final EventRepository events;
 
     public CaptureFormService(final CaptureWorkflowService workflows,
                                final CaptureWorkflowRepository workflowRepo,
                                final CaptureWorkflowContributionRepository contributions,
                                final MetadataMirrorRepository mirror,
                                final ExtendedMirrorRepository extended,
-                               final AggregateDataValueRepository aggregates) {
+                               final AggregateDataValueRepository aggregates,
+                               final EventRepository events) {
         this.workflows = Objects.requireNonNull(workflows, "workflows");
         this.workflowRepo = Objects.requireNonNull(workflowRepo, "workflowRepo");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
         this.mirror = Objects.requireNonNull(mirror, "mirror");
         this.extended = Objects.requireNonNull(extended, "extended");
         this.aggregates = Objects.requireNonNull(aggregates, "aggregates");
+        this.events = Objects.requireNonNull(events, "events");
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -111,18 +117,32 @@ public class CaptureFormService {
                             .map(UUID::toString).toList()));
         }
 
-        /* Phase 1 constraint: only DATA_SET binding is supported.
-         * PROGRAM / PROGRAM_STAGE / *_SECTION land with ADR-0018 slice B. */
-        if (wf.boundMetadataKind() != CaptureWorkflow.BindingKind.DATA_SET) {
+        /* Supported binding kinds in Phase 1/2:
+         *   DATA_SET      → aggregate form (Phase 1)
+         *   PROGRAM_STAGE → event-stage form (Phase 2)
+         * Other BindingKind values return CAPTURE_PARAM_INVALID until
+         * the matching reconciler lands. */
+        final FormType formType;
+        final String displayName;
+        if (wf.boundMetadataKind() == CaptureWorkflow.BindingKind.DATA_SET) {
+            final MirroredDataSet dataSet = mirror.findDataSet(wf.boundMetadataId())
+                    .orElseThrow(() -> new CaptureFormError(
+                            ErrorCode.METADATA_NOT_READY,
+                            "dataSet " + wf.boundMetadataId() + " not mirrored"));
+            formType = FormType.AGGREGATE;
+            displayName = dataSet.displayName();
+        } else if (wf.boundMetadataKind() == CaptureWorkflow.BindingKind.PROGRAM_STAGE) {
+            final MirroredProgramStage stage = extended.findProgramStage(wf.boundMetadataId())
+                    .orElseThrow(() -> new CaptureFormError(
+                            ErrorCode.METADATA_NOT_READY,
+                            "program-stage " + wf.boundMetadataId() + " not mirrored"));
+            formType = FormType.EVENT_STAGE;
+            displayName = stage.displayName();
+        } else {
             throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
                     "binding kind " + wf.boundMetadataKind()
-                            + " not supported in phase 1");
+                            + " not supported in phase 2");
         }
-
-        final MirroredDataSet dataSet = mirror.findDataSet(wf.boundMetadataId())
-                .orElseThrow(() -> new CaptureFormError(
-                        ErrorCode.METADATA_NOT_READY,
-                        "dataSet " + wf.boundMetadataId() + " not mirrored"));
 
         final Ownership ownership = resolveOwnership(current, actorRole,
                 clientDeviceHeader);
@@ -149,10 +169,10 @@ public class CaptureFormService {
         }
 
         return new FormAssembly(
-                FormType.AGGREGATE,
+                formType,
                 wf.boundMetadataKind().name(),
                 wf.boundMetadataId(),
-                dataSet.displayName(),
+                displayName,
                 ownership,
                 List.of(new FormSection(null, current.displayName(), editable)),
                 upstream);
@@ -258,6 +278,132 @@ public class CaptureFormService {
             }
         }
         return new FormDataPrefill(cells, lastUpdated);
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Event / program-stage endpoints (ADR-0036 phase 2)
+    // ────────────────────────────────────────────────────────────────────
+
+    /** List every mirrored stage for a program, ordered by displayName.
+     *  An unmirrored program → {@link ErrorCode#METADATA_NOT_READY}. */
+    public List<ProgramStageSummary> listStagesForProgram(final String programUid) {
+        if (programUid == null || programUid.isBlank()) {
+            throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
+                    "programUid is required");
+        }
+        if (mirror.findProgram(programUid).isEmpty()) {
+            throw new CaptureFormError(ErrorCode.METADATA_NOT_READY,
+                    "program " + programUid + " not mirrored");
+        }
+        return extended.listProgramStagesForProgram(programUid).stream()
+                .map(s -> new ProgramStageSummary(
+                        s.dhis2Uid(), s.displayName(), s.repeatable(),
+                        readIntProperty(s.payload(), "sortOrder")))
+                .toList();
+    }
+
+    /** Assemble a free-standing stage form from the mirror. */
+    public FormAssembly assembleForProgramStage(final String programUid,
+                                                  final String stageUid) {
+        if (programUid == null || programUid.isBlank()) {
+            throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
+                    "programUid is required");
+        }
+        if (stageUid == null || stageUid.isBlank()) {
+            throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
+                    "stageUid is required");
+        }
+        final MirroredProgramStage stage = extended.findProgramStage(stageUid)
+                .orElseThrow(() -> new CaptureFormError(
+                        ErrorCode.METADATA_NOT_READY,
+                        "program-stage " + stageUid + " not mirrored"));
+        if (!programUid.equals(stage.programUid())) {
+            throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
+                    "stage " + stageUid + " does not belong to program "
+                            + programUid);
+        }
+        final List<MirroredProgramStage.ProgramStageDataElement> psdes =
+                extended.findProgramStageDataElements(stageUid);
+        final List<FormField> fields = new ArrayList<>();
+        for (final MirroredProgramStage.ProgramStageDataElement psde : psdes) {
+            final MirroredDataElement de = mirror.findDataElement(psde.dataElementUid())
+                    .orElse(null);
+            if (de == null) {
+                continue;
+            }
+            fields.add(new FormField(
+                    psde.dataElementUid(),
+                    psde.dataElementUid(),
+                    null,
+                    de.displayName(),
+                    null,
+                    de.valueType(),
+                    readOptionSetUid(de),
+                    psde.compulsory() ? Requirement.REQUIRED : Requirement.OPTIONAL));
+        }
+        return new FormAssembly(
+                FormType.EVENT_STAGE,
+                CaptureWorkflow.BindingKind.PROGRAM_STAGE.name(),
+                stageUid,
+                stage.displayName(),
+                new Ownership(null, null, true),
+                List.of(new FormSection(null, stage.displayName(), fields)),
+                List.of());
+    }
+
+    /** List events for a program × orgUnit (optionally capped). */
+    public List<EventSummary> listEvents(final String programUid,
+                                          final String orgUnitUid,
+                                          final int limit) {
+        if (programUid == null || programUid.isBlank()) {
+            throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
+                    "programUid is required");
+        }
+        if (orgUnitUid == null || orgUnitUid.isBlank()) {
+            throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
+                    "orgUnit is required");
+        }
+        return events.findByProgramAndOrgUnit(programUid, orgUnitUid, limit).stream()
+                .map(e -> new EventSummary(
+                        e.eventId(),
+                        e.programStageUid(),
+                        e.orgUnitUid(),
+                        e.occurredAt(),
+                        e.status() == null ? null : e.status().name()))
+                .toList();
+    }
+
+    /** Full event detail — row + dataValues keyed by dataElement UID. */
+    public EventDetail getEventDetail(final UUID eventUid) {
+        if (eventUid == null) {
+            throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
+                    "eventUid is required");
+        }
+        final Event e = events.findById(eventUid)
+                .orElseThrow(() -> new CaptureFormError(
+                        ErrorCode.WORKFLOW_RUN_NOT_FOUND,
+                        "event " + eventUid + " not found"));
+        return new EventDetail(
+                e.eventId(),
+                e.enrollmentId(),
+                e.programUid(),
+                e.programStageUid(),
+                e.orgUnitUid(),
+                e.occurredAt(),
+                e.status() == null ? null : e.status().name(),
+                e.attributeOptionComboUid(),
+                e.dataValues() == null ? Map.of() : Map.copyOf(e.dataValues()),
+                e.workflowRunId());
+    }
+
+    private static int readIntProperty(
+            final com.fasterxml.jackson.databind.JsonNode payload,
+            final String name) {
+        if (payload == null) {
+            return 0;
+        }
+        final var n = payload.path(name);
+        return n.isMissingNode() || !n.isNumber() ? 0 : n.asInt();
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -444,6 +590,31 @@ public class CaptureFormService {
     public record FormDataPrefill(
             Map<String, String> cells,
             java.time.Instant lastUpdatedAt) { }
+
+    public record ProgramStageSummary(
+            String stageUid,
+            String displayName,
+            boolean repeatable,
+            int sortOrder) { }
+
+    public record EventSummary(
+            UUID eventUid,
+            String programStageUid,
+            String orgUnitUid,
+            java.time.Instant occurredAt,
+            String status) { }
+
+    public record EventDetail(
+            UUID eventUid,
+            UUID enrollmentUid,
+            String programUid,
+            String programStageUid,
+            String orgUnitUid,
+            java.time.Instant occurredAt,
+            String status,
+            String attributeOptionComboUid,
+            Map<String, String> dataValues,
+            UUID workflowRunId) { }
 
     /** Thrown by projection methods; the controller translates to HTTP. */
     public static final class CaptureFormError extends RuntimeException {
