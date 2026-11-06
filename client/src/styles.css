@@ -9,6 +9,45 @@ body {
     margin: 0;
 }
 
+.der-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 24px;
+    background: #2c6693;
+    color: #fff;
+    border-bottom: 1px solid #1f4d70;
+}
+
+.der-header__brand {
+    font-weight: 600;
+    text-decoration: none;
+    color: inherit;
+    letter-spacing: 0.3px;
+}
+
+.der-header__orgunit {
+    display: inline-flex;
+    gap: 6px;
+    align-items: baseline;
+    font-size: 13px;
+    opacity: 0.95;
+}
+
+.der-header__orgunit code {
+    opacity: 0.75;
+}
+
+.der-header__orgunit--unbound {
+    color: #ffd5d5;
+}
+
+.der-header__user {
+    margin-left: auto;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
 .der-main {
     padding: 24px 32px;
     max-width: 1200px;

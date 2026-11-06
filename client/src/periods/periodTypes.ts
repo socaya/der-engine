@@ -67,7 +67,10 @@ function addMonths(d: Date, months: number): Date {
 }
 
 function monthLabel(y: number, m0: number): string {
-  const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const names = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
   return `${names[m0]} ${y}`;
 }
 

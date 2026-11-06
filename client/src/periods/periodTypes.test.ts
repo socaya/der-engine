@@ -19,7 +19,7 @@ describe('generatePeriods', () => {
   it('Monthly: produces YYYYMM ids', () => {
     const p = generatePeriods('Monthly', 3, ANCHOR);
     expect(p.map((x) => x.id)).toEqual(['202611', '202610', '202609']);
-    expect(p[0].label).toBe('Nov 2026');
+    expect(p[0].label).toBe('November 2026');
   });
 
   it('Quarterly: Q1-Q4 ids relative to anchor', () => {

@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
-import { HeaderBar } from '@dhis2/ui';
 import { AuthProvider } from './auth/AuthContext';
+import { DerHeader } from './components/DerHeader';
 import { DeviceBoot } from './device/DeviceBoot';
 import { RequireAuth } from './components/RequireAuth';
 import { SignIn } from './screens/SignIn';
@@ -40,7 +40,7 @@ export default function App(): JSX.Element {
   return (
     <AuthProvider>
       <OrgUnitBindingProvider>
-      <HeaderBar appName="DER Edge Runtime" />
+      <DerHeader />
       <DeviceBoot />
       <main className="der-main" data-test="der-main">
         <Routes>
