@@ -141,12 +141,25 @@ export default function DataEntryApp(): JSX.Element {
         // DHIS2 section-form table from the metadata we already
         // have. Either way `formHtml` is injected via
         // `applyFormAssets` into #contentDiv.
+        //
+        // If the custom-form HTML isn't in the mirror yet (common
+        // when the dataset was created in DHIS2 after the last
+        // metadata sync), silently fall back to the SECTION-rendered
+        // form so the operator can still capture values.
         let formHtml = '';
         if (formInfo.formType === 'CUSTOM' && formInfo.formId) {
-          const form = await api.getDataEntryFormHtml(formInfo.formId) as {
-            htmlCode?: string;
-          };
-          formHtml = form.htmlCode ?? '';
+          try {
+            const form = await api.getDataEntryFormHtml(formInfo.formId) as {
+              htmlCode?: string;
+            };
+            formHtml = form.htmlCode ?? '';
+          } catch (fetchErr) {
+            formHtml = '';
+            // eslint-disable-next-line no-console
+            console.warn('[data-entry] custom htmlCode fetch failed; '
+              + 'falling back to SECTION render', fetchErr);
+          }
+          if (!formHtml.trim()) formHtml = renderSectionForm(meta);
         } else if (formInfo.formType === 'SECTION') {
           formHtml = renderSectionForm(meta);
         }

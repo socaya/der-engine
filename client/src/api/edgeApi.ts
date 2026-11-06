@@ -58,7 +58,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       body: body == null ? undefined : JSON.stringify(body),
     });
   } catch (err) {
-    throw new EdgeApiError(0, 'EDGE_UNREACHABLE', `edge unreachable: ${String(err)}`);
+    throw new EdgeApiError(0, 'EDGE_UNREACHABLE',
+      `edge unreachable (${method} ${path}): ${String(err)}`);
   }
   if (response.status === 204) {
     return undefined as T;
@@ -726,7 +727,8 @@ async function captureRequest<T>(method: string, path: string, body?: unknown): 
       body: body == null ? undefined : JSON.stringify(body),
     });
   } catch (err) {
-    throw new EdgeApiError(0, 'EDGE_UNREACHABLE', `edge unreachable: ${String(err)}`);
+    throw new EdgeApiError(0, 'EDGE_UNREACHABLE',
+      `edge unreachable (${method} ${path}): ${String(err)}`);
   }
   if (response.status === 204) return undefined as T;
   if (response.ok) {
