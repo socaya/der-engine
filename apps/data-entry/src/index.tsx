@@ -1198,17 +1198,33 @@ function buildPeriodOptions(periodType?: string): Array<{ id: string; label: str
   }
 }
 
+/**
+ * ISO-8601 week number of a calendar date — operates in the
+ * operator's LOCAL calendar so DHIS2 period IDs match what they
+ * see on the wall clock. DHIS2 period IDs are calendar values
+ * (e.g. "2026W45" = ISO week 45 of 2026 everywhere), not
+ * timezone-bound; using local avoids off-by-one around midnight
+ * for operators in UTC-7/UTC+12 edges.
+ *
+ * Algorithm per ISO-8601: shift to the Thursday of the same
+ * week, then week number is weeks-from-Jan-1 of that Thursday's
+ * year. Day-arithmetic uses a `setDate()` adjustment which is
+ * safe against DST in every modern JS runtime.
+ */
 function isoWeek(d: Date): { year: number; week: number } {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNum = t.getUTCDay() === 0 ? 7 : t.getUTCDay();
-  t.setUTCDate(t.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  return { year: t.getUTCFullYear(), week };
+  const t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dayNum = t.getDay() === 0 ? 7 : t.getDay();
+  t.setDate(t.getDate() + 4 - dayNum);
+  const yearStart = new Date(t.getFullYear(), 0, 1);
+  const msPerDay = 86400000;
+  const daysSinceYearStart = Math.round(
+    (t.getTime() - yearStart.getTime()) / msPerDay);
+  return { year: t.getFullYear(), week: Math.ceil((daysSinceYearStart + 1) / 7) };
 }
+
 function isoWeeksInYear(y: number): number {
-  const d = new Date(Date.UTC(y, 11, 28));
-  return isoWeek(d).week;
+  // Dec 28 is always in the last ISO week of its year; probe it.
+  return isoWeek(new Date(y, 11, 28)).week;
 }
 
 /* Scoped styles for the aggregate data-entry app. Flat/soft per
