@@ -19,7 +19,14 @@ SCRIPT = HERE / "check_registers.py"
 
 
 def materialise(dst: pathlib.Path) -> None:
-    shutil.copytree(ROOT / "docs", dst / "docs")
+    # Skip docs/evaluation/evidence/ — each gate run writes ~210 MB of JaCoCo
+    # HTML there, it is gitignored, and the register check doesn't read it.
+    # Copying it blew up /tmp (Errno 28) on commit 02ce108.
+    shutil.copytree(
+        ROOT / "docs",
+        dst / "docs",
+        ignore=shutil.ignore_patterns("evidence"),
+    )
     (dst / "scripts").mkdir()
     shutil.copy(SCRIPT, dst / "scripts" / SCRIPT.name)
 
