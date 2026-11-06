@@ -452,12 +452,19 @@ function renderSectionForm(meta: DataSetBundle): string {
     id: string; name?: string; formName?: string;
     categoryCombo?: {
       id: string; name?: string;
+      categories?: Array<{ id: string; name?: string;
+        categoryOptions?: Array<{ id: string; name?: string }> }>;
       categoryOptionCombos?: Array<{ id: string; name?: string }>;
     };
   }> = {};
   for (const dse of meta.dataSetElements ?? []) {
     if (dse.dataElement) dataElementsById[dse.dataElement.id] = dse.dataElement;
   }
+  const indicatorsById: Record<string, {
+    id: string; name?: string;
+  }> = {};
+  for (const i of meta.indicators ?? []) indicatorsById[i.id] = i;
+
   const sections = (meta.sections ?? [])
     .slice()
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
@@ -478,6 +485,8 @@ function renderSectionForm(meta: DataSetBundle): string {
     // renders one subtable per combo (DHIS2 behaviour).
     const groups = new Map<string, {
       cc: { id: string; name?: string;
+        categories?: Array<{ id: string; name?: string;
+          categoryOptions?: Array<{ id: string; name?: string }> }>;
         categoryOptionCombos?: Array<{ id: string; name?: string }> };
       des: Array<{ id: string; name?: string; formName?: string }>;
     }>();
@@ -494,13 +503,35 @@ function renderSectionForm(meta: DataSetBundle): string {
     }
     for (const group of groups.values()) {
       const cocs = group.cc.categoryOptionCombos ?? [];
+      const cats = group.cc.categories ?? [];
       parts.push(`<table class="sectionTable" cellspacing="0">`);
-      parts.push('<thead><tr>');
-      parts.push(`<th class="dataElementCell">${esc(group.cc.name ?? 'Data element')}</th>`);
-      for (const c of cocs) {
-        parts.push(`<th>${esc(c.name ?? '')}</th>`);
+      // Nested column headers: one <tr> per category, each cell
+      // spans the width of its options' slice across COCs. For a
+      // categoryCombo of (Sex × Age) with 2 × 3 options the first
+      // row has 2 cells (Sex) each spanning 3 COCs; second row has
+      // 6 cells (Age) each spanning 1. If we can't derive the
+      // nesting (missing metadata), fall back to a single flat row.
+      const nestedHeaders = buildNestedHeaders(cats, cocs);
+      parts.push('<thead>');
+      if (nestedHeaders.length > 0) {
+        for (let i = 0; i < nestedHeaders.length; i++) {
+          parts.push('<tr>');
+          if (i === 0) {
+            parts.push(`<th class="dataElementCell" rowspan="${nestedHeaders.length}">`
+              + esc(group.cc.name ?? 'Data element') + '</th>');
+          }
+          for (const h of nestedHeaders[i] ?? []) {
+            parts.push(`<th colspan="${h.span}">${esc(h.label)}</th>`);
+          }
+          parts.push('</tr>');
+        }
+      } else {
+        parts.push('<tr>');
+        parts.push(`<th class="dataElementCell">${esc(group.cc.name ?? 'Data element')}</th>`);
+        for (const c of cocs) parts.push(`<th>${esc(c.name ?? '')}</th>`);
+        parts.push('</tr>');
       }
-      parts.push('</tr></thead><tbody>');
+      parts.push('</thead><tbody>');
       for (const de of group.des) {
         parts.push('<tr>');
         parts.push(`<td class="dataElementCell" id="${esc(de.id)}-cell">`
@@ -517,10 +548,62 @@ function renderSectionForm(meta: DataSetBundle): string {
         }
         parts.push('</tr>');
       }
+      // Indicator rows — one per indicator in the section. Input
+      // name="indicator" + indicatorid attribute is what
+      // entry.js's updateIndicators() queries. Span across COCs
+      // via colspan so the row looks aligned with data rows.
+      for (const iref of section.indicators ?? []) {
+        const ind = indicatorsById[iref.id];
+        if (!ind) continue;
+        parts.push('<tr class="indicatorRow">');
+        parts.push(`<td class="dataElementCell">${esc(ind.name ?? ind.id)}</td>`);
+        parts.push(`<td colspan="${cocs.length}">`
+          + `<input type="text" name="indicator" indicatorid="${esc(ind.id)}"`
+          + ' readonly></td>');
+        parts.push('</tr>');
+      }
       parts.push('</tbody></table>');
     }
   }
   return parts.join('\n');
+}
+
+/**
+ * Given a categoryCombo's categories (ordered) and its
+ * categoryOptionCombos (also ordered — DHIS2 uses lexicographic
+ * product of category option ids), build the nested header rows
+ * DHIS2's section form renders.
+ *
+ * Returns [] if the metadata is incomplete (e.g. categories empty
+ * or options missing) so the renderer falls back to flat headers.
+ */
+function buildNestedHeaders(
+  cats: Array<{ id: string; name?: string;
+    categoryOptions?: Array<{ id: string; name?: string }> }>,
+  _cocs: Array<{ id: string; name?: string }>,
+): Array<Array<{ label: string; span: number }>> {
+  if (cats.length === 0) return [];
+  // Each category's options drive its row's span pattern. The
+  // span for a category at depth `d` is the product of the option
+  // counts of categories deeper than d (so the first row is the
+  // widest-spanning).
+  const counts = cats.map((c) => (c.categoryOptions?.length ?? 0));
+  if (counts.some((n) => n === 0)) return [];
+  const rows: Array<Array<{ label: string; span: number }>> = [];
+  for (let d = 0; d < cats.length; d++) {
+    const cells: Array<{ label: string; span: number }> = [];
+    let span = 1;
+    for (let e = d + 1; e < cats.length; e++) span *= counts[e] ?? 1;
+    let repeat = 1;
+    for (let e = 0; e < d; e++) repeat *= counts[e] ?? 1;
+    for (let r = 0; r < repeat; r++) {
+      for (const opt of cats[d]?.categoryOptions ?? []) {
+        cells.push({ label: opt.name ?? opt.id, span });
+      }
+    }
+    rows.push(cells);
+  }
+  return rows;
 }
 
 /**
