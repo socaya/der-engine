@@ -8,7 +8,7 @@ import {
 } from '@dhis2/ui';
 import * as edgeApi from '../api/edgeApi';
 import type {
-  AggregateReadbackRow,
+  CaptureFormAssembly,
   DataSetMeta,
   ImportSummary,
 } from '../api/edgeApi';
@@ -18,8 +18,10 @@ import {
   OfflineBanner,
   LocallyCommittedPill,
 } from '../components/ScreenStates';
-import { useRunValidation } from '../hooks/useRunValidation';
-import { RunValidationBanner } from '../components/RunValidationBanner';
+import {
+  CaptureFormRenderer,
+  type FieldValue,
+} from '../components/CaptureFormRenderer';
 import { useOrgUnitBinding } from '../orgunit/OrgUnitBindingContext';
 import {
   generatePeriods,
@@ -31,27 +33,35 @@ import {
 export interface AggregateEntryProps {
   readonly api?: Pick<
     typeof edgeApi,
-    'readAggregateValues' | 'submitAggregate' | 'health' | 'getDataSetMeta'
+    'submitAggregate'
+    | 'health'
+    | 'getDataSetMeta'
+    | 'getCaptureDataSetForm'
+    | 'getCaptureDataSetData'
   >;
 }
 
 /**
- * DC-07 — Aggregate entry grid.
+ * DC-07 — Aggregate data entry.
  *
- * orgUnit is sourced from the DER server's bound OU (ADR-0015); the
- * operator cannot override it on the client — the server rejects
- * writes against other OUs anyway.
+ * Renders a real DHIS2-style data-set form by consuming the ADR-0036
+ * D-CAP-3 envelope from GET /edge-api/v1/capture/datasets/{uid}/form.
+ * Sections, field labels, value types and category-option-combo
+ * disaggregations all come from the server projection; the operator
+ * sees the same shape as a stock DHIS2 Data Entry form.
  *
- * period is picked from a list generated for the dataset's periodType,
- * which is read from the DER mirror via GET /api/dataSets/{uid}. The
- * operator does not type a period id by hand.
+ * - orgUnit is the bound OU (ADR-0015), locked.
+ * - period is picked from server-provided periodType. Picking a period
+ *   auto-loads any previously-captured values from
+ *   /edge-api/v1/capture/datasets/{uid}/data?orgUnit=…&period=….
+ * - Submit packs the current field values into DHIS2's dataValueSets
+ *   shape and POSTs /api/dataValueSets.
  */
 export function AggregateEntry(
   { api = edgeApi }: AggregateEntryProps = {},
 ): JSX.Element {
   const [params] = useSearchParams();
   const dataSet = params.get('dataSet') ?? '';
-  const runId = params.get('runId');
   const binding = useOrgUnitBinding();
   const boundOrgUnit = binding.state.status === 'READY' && binding.state.binding.bound
     ? binding.state.binding.orgUnitId ?? ''
@@ -62,26 +72,32 @@ export function AggregateEntry(
 
   const [meta, setMeta] = useState<DataSetMeta | null>(null);
   const [metaError, setMetaError] = useState<string | null>(null);
+  const [form, setForm] = useState<CaptureFormAssembly | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [period, setPeriod] = useState(params.get('period') ?? '');
-  const [rows, setRows] = useState<AggregateReadbackRow[] | null>(null);
-  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, FieldValue>>({});
   const [result, setResult] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const validation = useRunValidation(runId);
-
+  // Mount: health, dataset metadata (for periodType), form envelope.
   useEffect(() => {
     let cancelled = false;
-    api.health().then((h) => { if (!cancelled) { setOffline(!h.dhis2Integrated); } })
+    api.health().then((h) => { if (!cancelled) setOffline(!h.dhis2Integrated); })
        .catch(() => undefined);
     if (dataSet) {
       api.getDataSetMeta(dataSet).then((m) => {
         if (!cancelled) setMeta(m);
       }).catch((err) => {
         if (!cancelled) setMetaError(
+          err instanceof Error ? err.message : String(err));
+      });
+      api.getCaptureDataSetForm(dataSet).then((f) => {
+        if (!cancelled) setForm(f);
+      }).catch((err) => {
+        if (!cancelled) setFormError(
           err instanceof Error ? err.message : String(err));
       });
     }
@@ -93,44 +109,59 @@ export function AggregateEntry(
     ? generatePeriods(periodType as PeriodType, 12)
     : [];
 
-  const load = useCallback(async (): Promise<void> => {
+  // Auto-load prefill when a period is picked.
+  const loadPrefill = useCallback(async (): Promise<void> => {
+    if (!boundOrgUnit || !period || !dataSet) return;
     setError(null);
-    setRows(null);
     setLoading(true);
     try {
-      const resp = await api.readAggregateValues(boundOrgUnit, period);
-      setRows(resp.dataValues);
+      const data = await api.getCaptureDataSetData(dataSet, boundOrgUnit, period);
+      const seed: Record<string, FieldValue> = {};
+      for (const [k, v] of Object.entries(data.cells)) seed[k] = v;
+      setValues(seed);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, [api, boundOrgUnit, period]);
+  }, [api, boundOrgUnit, period, dataSet]);
 
-  // Auto-load the grid whenever we have both a bound OU and a picked
-  // period. Removes the separate "Load values" click — operators just
-  // choose the period they want to capture against and the form opens.
-  useEffect(() => {
-    if (!boundOrgUnit || !period) return;
-    load().catch(() => undefined);
-  }, [boundOrgUnit, period, load]);
+  useEffect(() => { loadPrefill().catch(() => undefined); }, [loadPrefill]);
+
+  function updateField(fieldRef: string, value: FieldValue): void {
+    setValues((prev) => ({ ...prev, [fieldRef]: value }));
+  }
+
+  function stringify(v: FieldValue): string {
+    if (typeof v === 'boolean') return v ? 'true' : 'false';
+    return v;
+  }
 
   async function submit(): Promise<void> {
+    if (!form) return;
     setSaving(true);
+    setError(null);
     try {
-      const merged: Record<string, string> = {};
-      validation.assignedValues.forEach((v, k) => {
-        if (!validation.hiddenFields.has(k)) merged[k] = v;
-      });
-      Object.entries(edits).forEach(([k, v]) => { merged[k] = v; });
-      const dataValues = Object.entries(merged)
-        .filter(([k]) => !validation.hiddenFields.has(k))
-        .map(([dataElement, value]) => ({
-          dataElement, orgUnit: boundOrgUnit, period, value,
-        }));
+      const dataValues = form.sections.flatMap((section) =>
+        section.fields
+          .filter((f) => f.requirement !== 'READONLY'
+                       && values[f.fieldRef] !== undefined
+                       && values[f.fieldRef] !== '')
+          .map((f) => {
+            const dv: Record<string, string> = {
+              dataElement: f.dataElementUid,
+              orgUnit: boundOrgUnit,
+              period,
+              value: stringify(values[f.fieldRef]!),
+            };
+            if (f.categoryOptionComboUid) {
+              dv.categoryOptionCombo = f.categoryOptionComboUid;
+            }
+            return dv as never;
+          }),
+      );
       const r = await api.submitAggregate({ dataValues });
       setResult(r);
-      setEdits({});
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -146,10 +177,6 @@ export function AggregateEntry(
         {meta?.displayName ? <> — <strong>{meta.displayName}</strong></> : null}
       </p>
       {offline && <OfflineBanner testId="aggregate-entry-offline" />}
-      {runId && (
-        <RunValidationBanner state={validation}
-                              testId="aggregate-entry-validation" />
-      )}
       {!boundOrgUnit && (
         <NoticeBox error title="This edge is not bound to an organisation unit"
                    dataTest="aggregate-entry-unbound">
@@ -161,6 +188,12 @@ export function AggregateEntry(
         <ErrorBlock title="Could not load data-set metadata"
                      testId="aggregate-entry-meta-error">
           {metaError}
+        </ErrorBlock>
+      )}
+      {formError && (
+        <ErrorBlock title="Could not load data-set form"
+                     testId="aggregate-entry-form-error">
+          {formError}
         </ErrorBlock>
       )}
 
@@ -198,78 +231,36 @@ export function AggregateEntry(
       </div>
 
       {error && (
-        <ErrorBlock title="Aggregate error" testId="aggregate-entry-error">{error}</ErrorBlock>
+        <ErrorBlock title="Aggregate error" testId="aggregate-entry-error">
+          {error}
+        </ErrorBlock>
       )}
       {loading && (
         <LoadingBlock testId="aggregate-entry-loading" />
       )}
-      {rows !== null && (
-        <table className="der-aggregate-grid" data-test="aggregate-entry-grid">
-          <thead>
-            <tr><th>Data element</th><th>Current</th><th>New</th></tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => {
-              const hidden = validation.hiddenFields.has(r.dataElement);
-              if (hidden) {
-                return (
-                  <tr key={r.dataElement} data-test={`aggregate-row-hidden-${r.dataElement}`}
-                       style={{ opacity: 0.4 }}>
-                    <td data-test={`aggregate-row-de-${r.dataElement}`}>
-                      {r.dataElement}
-                      <span style={{ marginLeft: 8, fontSize: 11, color: '#5a6a85' }}>
-                        hidden by rule
-                      </span>
-                    </td>
-                    <td>—</td>
-                    <td>—</td>
-                  </tr>
-                );
-              }
-              const suggested = validation.assignedValues.get(r.dataElement);
-              const edited = edits[r.dataElement];
-              const value = edited != null ? edited : (suggested ?? '');
-              const isAutoFilled = edited == null && suggested != null;
-              return (
-                <tr key={r.dataElement}
-                     data-test={isAutoFilled
-                       ? `aggregate-row-autofilled-${r.dataElement}`
-                       : undefined}>
-                  <td data-test={`aggregate-row-de-${r.dataElement}`}>{r.dataElement}</td>
-                  <td data-test={`aggregate-row-current-${r.dataElement}`}>{r.value}</td>
-                  <td>
-                    <input
-                      data-test={`aggregate-row-input-${r.dataElement}`}
-                      value={value}
-                      style={isAutoFilled
-                        ? { background: 'rgba(91,192,222,0.08)' } : undefined}
-                      onChange={(e) =>
-                        setEdits({ ...edits, [r.dataElement]: e.target.value })}
-                    />
-                    {isAutoFilled && (
-                      <span style={{ marginLeft: 6, fontSize: 11, color: '#2a7998' }}
-                             data-test={`aggregate-row-assign-hint-${r.dataElement}`}>
-                        suggested by rule
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+
+      {form && boundOrgUnit && period && !loading && (
+        <CaptureFormRenderer
+          form={form}
+          values={values}
+          onChange={updateField}
+          disabled={saving}
+        />
       )}
-      {(Object.keys(edits).length > 0 || validation.assignedValues.size > 0) && (
-        <Button
-          primary
-          dataTest="aggregate-entry-submit"
-          loading={saving}
-          disabled={!boundOrgUnit || !period}
-          onClick={() => { submit().catch(() => undefined); }}
-        >
-          Save
-        </Button>
+
+      {form && boundOrgUnit && period && !loading && (
+        <div className="der-aggregate-actions">
+          <Button
+            primary
+            dataTest="aggregate-entry-submit"
+            loading={saving}
+            onClick={() => { submit().catch(() => undefined); }}
+          >
+            Save
+          </Button>
+        </div>
       )}
+
       {result && (
         <div data-test="aggregate-entry-result" className="der-import-summary">
           <strong>Status: {result.status}</strong>
