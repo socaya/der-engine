@@ -79,14 +79,15 @@ export function DerTopbar(
       )}
 
       {queuedCount > 0 && (
-        <span className={'der-topbar__queue'
-          + (online ? '' : ' der-topbar__queue--offline')}
+        <Link to="/queue"
+              className={'der-topbar__queue'
+                + (online ? '' : ' der-topbar__queue--offline')}
               data-test="der-topbar-queue"
               title={online
-                ? 'Draining offline queue — N pending submissions'
-                : 'Offline — N pending submissions will sync when reachable'}>
+                ? 'Draining offline queue — click to inspect pending submissions'
+                : 'Offline — click to inspect pending submissions'}>
           {queuedCount} queued
-        </span>
+        </Link>
       )}
 
       <span className="der-topbar__spacer" />

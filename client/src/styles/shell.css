@@ -75,7 +75,11 @@ body {
   color: #f3f5f7;
   font-size: 12px;
   letter-spacing: 0.02em;
-  cursor: default;
+  cursor: pointer;
+  text-decoration: none;
+}
+.der-topbar__queue:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .der-topbar__queue--offline {

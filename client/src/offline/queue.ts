@@ -96,6 +96,16 @@ export async function listByKind(kind: QueueKind): Promise<QueueEntry[]> {
   return rows as unknown as QueueEntry[];
 }
 
+/**
+ * All pending entries across every kind, sorted by insertion
+ * order (oldest first) — matches the drain order.
+ */
+export async function listAll(): Promise<QueueEntry[]> {
+  const d = await db();
+  const rows = await d.getAllFromIndex(STORE, 'by-createdAt');
+  return rows as unknown as QueueEntry[];
+}
+
 export async function count(kind?: QueueKind): Promise<number> {
   const d = await db();
   if (kind) {

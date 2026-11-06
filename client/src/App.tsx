@@ -17,6 +17,7 @@ import { Drafts } from './screens/Drafts';
 import { Dhis2Status } from './screens/Dhis2Status';
 import { SyncStatus } from './screens/SyncStatus';
 import { NetworkStatus } from './screens/NetworkStatus';
+import { OfflineQueue } from './screens/OfflineQueue';
 import { AppHost } from './apps/AppHost';
 
 /**
@@ -129,6 +130,9 @@ function InnerRoutes(): JSX.Element {
           } />
           <Route path="/network/status" element={
             <RequireAuth><NetworkStatus /></RequireAuth>
+          } />
+          <Route path="/queue" element={
+            <RequireAuth><OfflineQueue /></RequireAuth>
           } />
           {/* ADR-0037 C-UI-5b — DER-dispatched apps. */}
           <Route path="/apps/:appKey" element={
