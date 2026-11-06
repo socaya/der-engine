@@ -116,6 +116,13 @@ export default function DataEntryApp(): JSX.Element {
           formHtml = renderSectionForm(meta);
         }
         if (cancelled) return;
+        // Fetch validation rules alongside dataset metadata. The
+        // mirror may not have any; empty list keeps the globals
+        // clean without surfacing an error. Best-effort — a
+        // validationRules endpoint failure must NOT block form
+        // rendering, since most installations run without any.
+        const vrResp = await api.listValidationRules(dataSet.trim()).catch(() => ({ validationRules: [] }));
+        if (cancelled) return;
         // Derive the AOC picker list — only categories with more
         // than one option (i.e. non-default) need an operator
         // selection.
@@ -171,6 +178,7 @@ export default function DataEntryApp(): JSX.Element {
           orgUnitId: ou.orgUnitUid ?? '',
           meta,
           aocSelections: seed,
+          validationRules: vrResp.validationRules ?? [],
         });
 
         // Vendor CSS baseline (DHIS2's own stack) first so the form
@@ -524,6 +532,11 @@ function hydrateDhis2Globals(args: {
   dataSetId: string; periodId: string; orgUnitId: string;
   meta: DataSetBundle;
   aocSelections?: Record<string, string>;
+  validationRules?: Array<{
+    id: string; name: string;
+    importance?: string; operator?: string; periodType?: string;
+    leftSide?: unknown; rightSide?: unknown;
+  }>;
 }): void {
   const g = globalThis as unknown as { dhis2?: Record<string, unknown>;
     DHIS2_BASE_URL?: string; $?: { ajaxSetup?: (o: object) => void } };
@@ -578,6 +591,23 @@ function hydrateDhis2Globals(args: {
     };
   }
   de.indicatorFormulas = indicatorFormulas;
+
+  // Validation rules — DHIS2 entry.js reads `dhis2.de.validationRules`
+  // as an id-keyed map. When no rules are synced (fresh mirror /
+  // dataset with none), the map is empty and the validate button
+  // becomes a no-op rather than crashing.
+  const validationRules: Record<string, unknown> = {};
+  for (const r of args.validationRules ?? []) validationRules[r.id] = r;
+  de.validationRules = validationRules;
+  // DHIS2 also expects `lockExceptions` + `emptyOrganisationUnits`
+  // + `significantZeros` on the namespace. DER doesn't mirror lock
+  // exceptions yet — ship an empty array so entry.js's lock-aware
+  // save paths treat every (ds,pe,ou) as unlocked. `significantZeros`
+  // is per-data-element and comes from dataSetElements; derive on
+  // demand rather than preload.
+  de.lockExceptions = [];
+  de.emptyOrganisationUnits = [];
+  de.significantZeros = [];
 
   // Dataset registry — form.js's getSelections() queries
   // dhis2.de.dataSets[<id>].

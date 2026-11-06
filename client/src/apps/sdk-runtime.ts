@@ -28,6 +28,7 @@ function useDerApi(): {
   getDataSetMeta: typeof edgeApi.getDataSetMeta;
   getDataSetFormMetadata: typeof edgeApi.getDataSetFormMetadata;
   getDataEntryFormHtml: typeof edgeApi.getDataEntryFormHtml;
+  listValidationRules: typeof edgeApi.listValidationRules;
   // C-UI-5c slice-5 — tracker + workflow-capture surface.
   listTrackerEntities: typeof edgeApi.listTrackerEntities;
   enrolTei: typeof edgeApi.enrolTei;
@@ -48,6 +49,7 @@ function useDerApi(): {
     getDataSetMeta: edgeApi.getDataSetMeta,
     getDataSetFormMetadata: edgeApi.getDataSetFormMetadata,
     getDataEntryFormHtml: edgeApi.getDataEntryFormHtml,
+    listValidationRules: edgeApi.listValidationRules,
     listTrackerEntities: edgeApi.listTrackerEntities,
     enrolTei: edgeApi.enrolTei,
     listCaptureWorkflows: edgeApi.listCaptureWorkflows,

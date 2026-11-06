@@ -162,6 +162,33 @@ export function getDataEntryFormHtml(formUid: string): Promise<{
     `/api/dataEntryForms/${encodeURIComponent(formUid)}`);
 }
 
+/**
+ * Validation rules for a dataset, shaped the way DHIS2 entry.js
+ * expects on `dhis2.de.validationRules[<id>]`. Falls back to an
+ * empty list when the mirror hasn't synced rules yet.
+ */
+export function listValidationRules(dataSetUid: string): Promise<{
+  validationRules: Array<{
+    id: string; name: string;
+    importance?: string; operator?: string;
+    periodType?: string;
+    leftSide?: { expression?: string; missingValueStrategy?: string;
+      description?: string };
+    rightSide?: { expression?: string; missingValueStrategy?: string;
+      description?: string };
+  }>;
+}> {
+  const fields = [
+    'id,name,importance,operator,periodType',
+    'leftSide[expression,missingValueStrategy,description]',
+    'rightSide[expression,missingValueStrategy,description]',
+  ].join(',');
+  const q = new URLSearchParams({
+    dataSet: dataSetUid, fields, paging: 'false',
+  }).toString();
+  return request('GET', `/api/validationRules?${q}`);
+}
+
 /** ADR-0015 — the single orgUnit the edge is bound to. The device
  *  client defaults every capture-related orgUnit field to this value
  *  and refuses to submit against any other OU. */
