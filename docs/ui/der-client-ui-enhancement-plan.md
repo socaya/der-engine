@@ -321,105 +321,191 @@ client/src/
 │   └── <existing screens unchanged apart from a ScreenCard wrap>
 ```
 
-## Phase C-UI-5 — DER-managed apps (post C-UI-4)
+## Phase C-UI-5 — Apps run **in** the client, dispatched **from** DER
 
-**Added 2026-11-06 per maintainer direction:** Apps like Data
-Entry, Capture (for Events and Tracker programs), and future
-operator-specific apps are not baked into the client bundle. They
-live on the DER server — installed, versioned and refreshed
-server-side, and surfaced in the device client's shell.
+**Revised 2026-11-06 per maintainer direction.** Apps like Data
+Entry (Aggregate), Capture (Events), Capture (Tracker Programs),
+and future operator-specific apps:
+
+- are **not** baked into the client bundle at build time,
+- are **not** executed on the DER server (no iframe host),
+- **run inside the client** as real React components sharing the
+  shell's context (auth, bound OU, offline queue, PWA cache),
+- are **installed, versioned and broadcast from DER** — operator
+  devices fetch a signed bundle, cache it in IndexedDB + the PWA
+  cache, ESM-import it, and mount it into the shell's main slot.
+
+Model shorthand: **DER dispatches, the client runs.** Same model
+on Web (PWA) and Android (Capacitor wrap of the PWA). No iframes.
+No postMessage bridge.
+
+### How the dispatch works
+
+1. **Catalogue read.** On launcher open the client calls
+   `GET /edge-api/v1/apps`. Response:
+   ```json
+   {"apps":[{"appId":"data-entry","displayName":"Data Entry",
+             "module":"Data","version":"1.4.0",
+             "bundleUrl":"/edge-api/v1/apps/data-entry/1.4.0/bundle.js",
+             "bundleSha256":"…","signature":"…",
+             "requiresDerApi":"1.0.0","active":true}, …]}
+   ```
+2. **Fetch + verify.** For each active app the client checks its
+   IndexedDB `installed_apps` store for a cached bundle at the
+   catalogue's `version`. If absent, `fetch(bundleUrl)` + verify
+   `sha256` + verify Ed25519 signature against DER's public key
+   (served once at `/edge-api/v1/apps/signing-key`), then store
+   the bundle text in IDB. Capped at `N` apps / `M` MB.
+3. **Mount.** `AppHost.tsx` at `/apps/:appId` does:
+   ```ts
+   const blob = new Blob([bundleText], { type: 'application/javascript' });
+   const url = URL.createObjectURL(blob);
+   const mod = await import(/* @vite-ignore */ url);
+   // mod.default is the app's root React component.
+   ```
+   The component renders inside the shell's content card. It
+   calls DER edgeApi directly via a `useDerApi()` hook the SDK
+   exposes — no RPC bridge, no sandbox marshaling.
+4. **Version refresh.** On every launcher open + on reconnect,
+   the catalogue is re-fetched. A newer `version` triggers a
+   download + cache-swap on next navigation into the app.
+   Offline clients keep running the last cached version until
+   they reconnect.
+5. **Broadcast.** Admin pushes an app upgrade on
+   `POST /edge-api/v1/admin/apps/:id/upgrade`. DER updates the
+   catalogue row; next client poll sees the new version.
+
+### Why ESM dynamic import, not iframe
+
+| Property | ESM dynamic import | iframe |
+|---|---|---|
+| Shares `AuthContext`, `useOrgUnitBinding`, offline queue | ✅ direct hook access | ❌ via postMessage RPC |
+| Runs in client's React tree | ✅ real components | ❌ separate document |
+| Debug + stack traces | ✅ one tree | ❌ cross-boundary |
+| Offline cache | ✅ IDB bundle + PWA | ⚠ needs a bespoke SW path |
+| Android (Capacitor) | ✅ same code | ⚠ WebView iframe quirks |
+| Isolation of untrusted code | ❌ (we don't need it — first party) | ✅ (but we don't need this) |
 
 ### Scope
 
-- **Server-managed app catalogue.** Every installable app is a
-  row in a new `der.installed_app` table (or reused `custom_app`
-  if ADR-0005 already covers it) with:
-  - `app_id`, `display_name`, `module` (one of the six Server
-    Modules), `icon_url`, `entry_url` (JS / HTML served by DER),
-    `version`, `installed_at`, `installed_by`, `active`.
-- **Installation lifecycle on the server.** Admin-ui gets an
-  "Apps" screen that uploads / enables / disables / upgrades
-  apps. The client never installs or upgrades anything — it
-  reads the catalogue read-only at runtime.
-- **Client reads the catalogue at launcher open.** The app-
-  launcher overlay (C-UI-2) grows a second grid of **"Apps"**
-  underneath the six Server-Module cards. Each app card = one
-  installed_app row.
-- **App surface fits the shell.** When the operator opens an app
-  the client mounts the app's entry URL inside the shell's main
-  content slot — via an iframe sandbox, with the DerTopbar and
-  DerBreadcrumb kept visible. A small `postMessage` bridge lets
-  apps:
-  - read the bound OU, the signed-in user, the online state,
-  - request writes through DER's own `/api/*` / `/edge-api/v1/*`
-    endpoints (CSP tightened so iframe can only POST to the DER
-    origin — never direct to DHIS2).
-- **Version + refresh from the server.** The catalogue row's
-  `version` field feeds the client's cache-bust: when the admin
-  pushes a new version, the next overlay open invalidates the
-  cached iframe URL. Clients don't need a reload cycle.
+- **Server catalogue table.** `der.installed_app`:
+  - `app_id` (UUID / slug), `display_name`, `module`, `icon_svg`,
+    `active`, `created_at`, `created_by`.
+  - `der.installed_app_version` child: `version`, `bundle_bytes`
+    (large blob) OR `bundle_path` (file on disk),
+    `bundle_sha256`, `signature`, `requires_der_api`,
+    `uploaded_at`, `superseded_at`.
+  - One current version per `app_id` (`superseded_at IS NULL`).
+- **Signing.** DER holds an Ed25519 key pair. Public key served
+  at `/edge-api/v1/apps/signing-key`; private key stays in
+  `SecretEnvelope` sealed with `DER_SECURITY_SECRET_KEY`.
+  Admin's upload tool signs the bundle before upload; the server
+  re-verifies the signature on write + rejects on mismatch.
+- **Endpoints.** Read:
+  - `GET /edge-api/v1/apps` — catalogue (op).
+  - `GET /edge-api/v1/apps/:id/:version/bundle.js` — the bundle (op).
+  - `GET /edge-api/v1/apps/signing-key` — Ed25519 public key (op).
+  Admin:
+  - `POST /edge-api/v1/admin/apps/install` — upload new app (admin).
+  - `POST /edge-api/v1/admin/apps/:id/upgrade` — new version (admin).
+  - `POST /edge-api/v1/admin/apps/:id/enable|disable` (admin).
+  - `DELETE /edge-api/v1/admin/apps/:id` (admin).
+- **Client runtime.**
+  - `src/apps/catalogue.ts` — `useAppCatalogue()` hook; polls
+    `/edge-api/v1/apps` with cache-first semantics.
+  - `src/apps/installer.ts` — `ensureInstalled(app)`: idempotent
+    fetch + verify + IDB store + optional PWA precache.
+  - `src/apps/signatures.ts` — Web Crypto subtle verify against
+    the server's Ed25519 public key.
+  - `src/apps/AppHost.tsx` — routed at `/apps/:appId`. Resolves
+    the cached bundle, `import()`s it, mounts `mod.default`.
+  - `src/apps/sdk.ts` — the **DER App SDK**. Exposes:
+    - `useAuth`, `useOrgUnitBinding`, `useOnlineStatus`
+    - `useDerApi()` returning `{ submitAggregate, listRuns, … }`
+    - `<ScreenCard>`, `<ErrorBlock>`, `<LoadingBlock>` — same
+      styling as the shell so apps feel native.
+    Published as a published-locally package so app devs
+    `import { useDerApi, ScreenCard } from '@der/app-sdk'`.
+- **App bundles are ESM.** Rollup / Vite-library builds. One
+  entry. `externals`: `react`, `react-dom`, `@der/app-sdk`
+  (resolved to the shell's own copies at runtime via an
+  import-map on the client — Vite's `importmap` emit on build).
 
-### Endpoints needed (new or confirm existing)
+### First-party apps to migrate
 
-| Method | Path | Notes |
-|---|---|---|
-| GET | `/edge-api/v1/apps` | Returns `{apps: [{appId, displayName, module, iconUrl, entryUrl, version, active}]}`. Op-readable. |
-| POST | `/edge-api/v1/admin/apps/install` | Admin uploads a zipped app bundle. Writes to `installed_app`. |
-| POST | `/edge-api/v1/admin/apps/:id/enable` | Flips `active`. |
-| POST | `/edge-api/v1/admin/apps/:id/disable` | Flips `active`. |
-| POST | `/edge-api/v1/admin/apps/:id/upgrade` | Supersedes the row with a new `version`. |
+The MVP apps already live as screens in `src/screens/`.
+Migration is additive — the shell keeps the screens for a
+release, then thins them to a `<Navigate to="/apps/data-entry">`
+as the app bundle takes over:
 
-ADR-0005 (custom app hosting) already covers part of this — confirm
-the existing endpoints before adding new ones. Prior EA audit
-listed `/edge-api/v1/apps` + `/edge-api/v1/admin/apps/*` as
-Administration surfaces already in admin-ui at `/apps`.
+| First-party app | Replaces |
+|---|---|
+| `data-entry` (Aggregate) | `AggregateEntry.tsx` |
+| `capture-event` | `EventNew.tsx` + `EventList.tsx` |
+| `capture-tracker` | `TrackerSearch.tsx` + `EnrollmentCreate.tsx` + `TrackerDashboard.tsx` |
+| `workflow-capture` | `CaptureRunList.tsx` + `CaptureRunForm.tsx` |
 
-### Client components
-
-- Extend `modules.ts` to export an `AppCatalogueCard` interface
-  separate from `ModuleCard`.
-- `DerAppLauncher.tsx` (shipped in C-UI-2) grows a second grid
-  section beneath the modules — queried from
-  `GET /edge-api/v1/apps` via a new `useInstalledApps()` hook.
-- `AppHost.tsx` — new screen at `/apps/:appId`. Mounts the app's
-  `entryUrl` in a sandboxed `<iframe>`; sets up the postMessage
-  bridge; applies the shell card around the iframe so the
-  operator always sees the topbar + breadcrumb.
+Each app's repo lives under `apps/` in the monorepo so CI can
+build + sign them into DER server fixtures at release time.
 
 ### Security
 
-- `iframe sandbox="allow-scripts allow-same-origin allow-forms"`.
-- Content-Security-Policy on the shell: `frame-src 'self'`
-  only — apps cannot load cross-origin iframes. Enforced on the
-  server side via the response header.
-- postMessage bridge validates `event.origin === window.location.origin`
-  and enumerates its own small verb list (read-bound-ou, read-user,
-  write-aggregate, write-event). No open eval, no full fetch proxy.
+- **Signature verification is mandatory.** No bundle runs without
+  a valid Ed25519 signature against DER's public key.
+- **Same-origin only.** `bundleUrl` must resolve under the DER
+  origin; cross-origin bundles are rejected before the Blob URL
+  is created.
+- **CSP** on the client: `script-src 'self' blob:` to permit the
+  Blob-URL imports but block anything else.
+- **No `allow-scripts allow-same-origin` sandbox.** Apps run as
+  trusted first-party code. The SDK does not expose `eval`.
+- **Verified `requires_der_api`.** On install, the catalogue row
+  declares the minimum DER API version the app needs. Client
+  skips incompatible versions with a visible "needs client
+  upgrade" chip instead of crashing.
+
+### Android (Capacitor) later
+
+- Wrap the installed PWA in Capacitor's Android project.
+- Dynamic ESM imports work the same way inside Capacitor's
+  WebView (Chrome engine), so the same catalogue + installer +
+  AppHost pipeline runs on Android with no code change.
+- Capacitor's `@capacitor/filesystem` is a nice-to-have for
+  storing the bundles on the filesystem instead of IDB, but it's
+  not required for MVP.
 
 ### Non-goals
 
-- No DHIS2 Core app loading. If an operator wants Capture / Data
-  Entry, that app is packaged separately and installed on DER.
-  The DHIS2 origin is never iframed.
+- No third-party / untrusted app hosting. Apps are first-party
+  signed by DER.
+- No multi-version A/B. One active version per app.
 - No app-level org-unit override — every app inherits the edge's
-  bound OU via the postMessage bridge.
-- No multi-version A/B install. One active version per app.
+  bound OU.
+- No DHIS2 Core app loading. The DHIS2 origin is never fetched
+  from the client.
+- No live code reload during development — dev-mode apps are
+  normal Vite dev-server entries; the dispatch pipeline only
+  kicks in on production builds.
 
 ### Phased delivery
 
-- **C-UI-5a** — read-only app catalogue + iframe host (`/apps/:id`).
-- **C-UI-5b** — admin-ui upload + enable/disable flow (relies on
-  ADR-0005's existing endpoints where they exist).
-- **C-UI-5c** — version refresh + offline cache (apps served from
-  the PWA cache too).
+- **C-UI-5a** — server catalogue + signing-key endpoint; admin-ui
+  "Apps" screen for upload/enable/disable; empty client runtime
+  that lists the catalogue in the App Launcher (no bundles yet).
+- **C-UI-5b** — client runtime: installer, signatures, AppHost.
+  Ship one dev app (an "Hello DER" smoke app) end-to-end.
+- **C-UI-5c** — migrate the four first-party apps. Each migration
+  is its own ADR + commit cycle.
+- **C-UI-5d** — Android (Capacitor) wrap. Separate release.
 
 ### Risks
 
 | Risk | Mitigation |
 |---|---|
-| Legacy DHIS2 apps use `@dhis2/ui` chrome and break inside our shell | Document the DER App SDK: a single-page entry mounts at `#root`, declares its chrome preference via a meta tag; we strip HeaderBar automatically by injecting a CSS override. |
-| iframe host costs performance | Lazy-mount on user click; keep the iframe alive during navigation inside the app, dispose on route change out. |
-| postMessage bridge turns into a mini-RPC that duplicates edgeApi | Keep the verb list minimal. Apps prefer to call DER's `/api` / `/edge-api` directly — the bridge only exists for cross-document identity reads. |
+| Vite can't `import()` a Blob URL reliably in every browser | iOS Safari 17+ + Chrome + Firefox all support it. Android 10+ via Capacitor runs Chrome too. If a target browser lacks support, fall back to injecting a `<script type="module">` with the Blob URL. |
+| App bundles balloon the IDB storage | Keep each bundle under 500 KB gzipped (a strict budget enforced on upload). N-app cap of 16; evict oldest on exceed. |
+| App + shell React versions drift | Externalise React + ReactDOM via an import map so the app always binds to the shell's instance. Type-check in CI. |
+| Signing-key rotation leaves old clients orphaned | Clients store the current signing-key fingerprint; a rotated key triggers a "please sign in again to re-sync" flow that re-fetches the key before the next install. |
 
 ---
 
