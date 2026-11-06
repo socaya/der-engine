@@ -167,6 +167,11 @@ public enum AuthorityCatalog {
             "Edit the workflow catalogue (not individual runs).",
             "Blocks POST + PUT + DELETE on /edge-api/v1/workflows/**."),
 
+    // ---- Capture (ADR-0036 data-module form API) -------------------------
+    CAPTURE_READ              ("der.capture.read",              "Capture",
+            "Read workflow-scoped + free-standing capture forms and prefill values.",
+            "Blocks GET on /edge-api/v1/capture/**."),
+
     // ---- Backup + restore ------------------------------------------------
     BACKUP_READ      ("der.backup.read",     "Backup",
             "View backup runs.",

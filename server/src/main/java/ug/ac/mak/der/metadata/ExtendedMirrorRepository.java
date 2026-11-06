@@ -63,6 +63,39 @@ public class ExtendedMirrorRepository {
         return count != null && count > 0;
     }
 
+    /** ADR-0036 — one-shot lookup used by the capture form API. */
+    public Optional<MirroredCategoryOptionCombo> findCategoryOptionCombo(final String uid) {
+        if (uid == null || uid.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            final MirroredCategoryOptionCombo row = jdbc.queryForObject(
+                    "SELECT dhis2_uid, display_name, category_combo_uid, payload "
+                            + "FROM der.metadata_category_option_combo WHERE dhis2_uid = ?",
+                    categoryOptionComboMapper(), uid);
+            return Optional.ofNullable(row);
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    RowMapper<MirroredCategoryOptionCombo> categoryOptionComboMapper() {
+        return (ResultSet rs, int rowNum) -> {
+            final JsonNode payload;
+            try {
+                payload = json.readTree(rs.getString("payload"));
+            } catch (IOException ex) {
+                throw new IllegalStateException(
+                        "metadata_category_option_combo.payload is not JSON", ex);
+            }
+            return new MirroredCategoryOptionCombo(
+                    rs.getString("dhis2_uid"),
+                    rs.getString("display_name"),
+                    rs.getString("category_combo_uid"),
+                    payload);
+        };
+    }
+
     // Program stages ------------------------------------------------------
 
     @Transactional

@@ -208,6 +208,62 @@ class ExtendedMirrorRepositoryTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void findCategoryOptionComboReturnsRowFromMirror() throws Exception {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final ResultSet rs = mock(ResultSet.class);
+        when(rs.getString("dhis2_uid")).thenReturn("HllvX50cXC0");
+        when(rs.getString("display_name")).thenReturn("default");
+        when(rs.getString("category_combo_uid")).thenReturn("bjDvmb4bfuf");
+        when(rs.getString("payload")).thenReturn("{\"id\":\"HllvX50cXC0\"}");
+        final ArgumentCaptor<RowMapper<MirroredCategoryOptionCombo>> cap =
+                ArgumentCaptor.forClass(RowMapper.class);
+        when(jdbc.queryForObject(anyString(), cap.capture(), eq("HllvX50cXC0")))
+                .thenAnswer(inv -> cap.getValue().mapRow(rs, 1));
+        assertThat(new ExtendedMirrorRepository(jdbc, m).findCategoryOptionCombo("HllvX50cXC0"))
+                .isPresent()
+                .get().extracting(MirroredCategoryOptionCombo::displayName)
+                .isEqualTo("default");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void findCategoryOptionComboReturnsEmptyOnMiss() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), any(RowMapper.class), eq("ghost")))
+                .thenThrow(new EmptyResultDataAccessException(1));
+        assertThat(new ExtendedMirrorRepository(jdbc, m)
+                .findCategoryOptionCombo("ghost")).isEmpty();
+    }
+
+    @Test
+    void findCategoryOptionComboReturnsEmptyOnBlankInput() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final ExtendedMirrorRepository repo = new ExtendedMirrorRepository(jdbc, m);
+        assertThat(repo.findCategoryOptionCombo(null)).isEmpty();
+        assertThat(repo.findCategoryOptionCombo("")).isEmpty();
+        assertThat(repo.findCategoryOptionCombo("   ")).isEmpty();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void findCategoryOptionComboMapperThrowsOnBadJson() throws Exception {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final ResultSet rs = mock(ResultSet.class);
+        when(rs.getString("payload")).thenReturn("{garbage");
+        final ObjectMapper broken = mock(ObjectMapper.class);
+        when(broken.readTree(anyString()))
+                .thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("boom") { });
+        final ArgumentCaptor<RowMapper<MirroredCategoryOptionCombo>> cap =
+                ArgumentCaptor.forClass(RowMapper.class);
+        when(jdbc.queryForObject(anyString(), cap.capture(), eq("x")))
+                .thenAnswer(inv -> cap.getValue().mapRow(rs, 1));
+        assertThatThrownBy(() -> new ExtendedMirrorRepository(jdbc, broken)
+                .findCategoryOptionCombo("x"))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     void findProgramStageDataElementsRowMapperCovered() throws Exception {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
         final ResultSet rs = mock(ResultSet.class);

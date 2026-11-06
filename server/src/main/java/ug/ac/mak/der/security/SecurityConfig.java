@@ -167,6 +167,10 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/workflows/**").hasAuthority("der.workflows.catalogue.write")
                         .requestMatchers(org.springframework.http.HttpMethod.PUT, "/edge-api/v1/workflows/**").hasAuthority("der.workflows.catalogue.write")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/edge-api/v1/workflows/**").hasAuthority("der.workflows.catalogue.write")
+                        // ADR-0036 capture form API (data module).  Reads
+                        // only in Phase 1 — writes still go through the
+                        // existing /api/* emulator endpoints.
+                        .requestMatchers("/edge-api/v1/capture/**").hasAuthority("der.capture.read")
                         // ADR-0019 device management — each lifecycle verb is its own
                         // authority so a role can hold "approve" without "revoke".
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/edge-api/v1/devices/*/approve").hasAuthority("der.devices.approve")
