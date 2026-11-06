@@ -106,6 +106,61 @@ describe('ensureInstalled', () => {
     expect(keys.some((k) => k.startsWith('id-1@1.0.0@'))).toBe(false);
   });
 
+  it("falls back to cached bundle when the server's actual bytes "
+    + 'disagree with the catalogue sha', async () => {
+    // Install A — catalogue A (sha_A), bundle A → cached under sha_A.
+    await ensureInstalled(APP);
+    const SHA_A = APP.bundleSha256;
+    // Now the operator's catalogue refreshes with an advertised
+    // sha_B, but the server's bundleUrl still returns bytes_X
+    // (sha_X). Classic re-upload race. Without the fallback we'd
+    // throw SHA256_MISMATCH; with it we reinstate sha_A and
+    // return BUNDLE.
+    const BUNDLE_X = 'export default () => null; // stray bytes';
+    const SHA_B = 'ff'.repeat(32);
+    const updated = { ...APP, bundleSha256: SHA_B };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(bundleResponse(BUNDLE_X));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const txt = await ensureInstalled(updated);
+    expect(txt).toBe(BUNDLE);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('sha256 mismatch'));
+    expect((await listInstalled()).some((k) => k.endsWith(`@${SHA_A}`))).toBe(true);
+  });
+
+  it('falls back to cached bundle when fetch itself throws', async () => {
+    await ensureInstalled(APP);
+    const SHA_B = 'ff'.repeat(32);
+    const updated = { ...APP, bundleSha256: SHA_B };
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const txt = await ensureInstalled(updated);
+    expect(txt).toBe(BUNDLE);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('still throws FETCH_FAILED when the fetch throws and no fallback exists', async () => {
+    const SHA_B = 'ff'.repeat(32);
+    const updated = { ...APP, bundleSha256: SHA_B };
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
+    const e = await ensureInstalled(updated).catch((x) => x) as InstallError;
+    expect(e.code).toBe('FETCH_FAILED');
+  });
+
+  it('falls back to cached bundle on FETCH_FAILED too', async () => {
+    await ensureInstalled(APP);
+    const SHA_B = 'ff'.repeat(32);
+    const updated = { ...APP, bundleSha256: SHA_B };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      { ok: false, status: 503,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      } as unknown as Response);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const txt = await ensureInstalled(updated);
+    expect(txt).toBe(BUNDLE);
+    expect(warn).toHaveBeenCalled();
+  });
+
   it('evicts stale cached entry for the same app when sha256 changes', async () => {
     await ensureInstalled(APP);
     const UPDATED_BUNDLE = 'export default () => null; // v2';

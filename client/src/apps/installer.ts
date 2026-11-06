@@ -93,22 +93,61 @@ export async function ensureInstalled(app: CatalogueApp): Promise<string> {
     key(app.appId, app.version, app.bundleSha256));
   if (cached) return cached.bundleText;
 
-  // Evict stale entries for the same app whose sha256 doesn't match
-  // the catalogue's current bundle — otherwise IDB grows unbounded
-  // as operators iterate on an app during development.
+  // Capture any pre-existing cached version for this app BEFORE
+  // we evict it, so a SHA256_MISMATCH at fetch time can roll back
+  // to it rather than leaving the operator staring at a "Could
+  // not load" screen. The eviction loop below still runs so IDB
+  // doesn't accumulate stale rows once a successful install
+  // overwrites the fallback.
+  let fallback: InstalledAppSchema['installed']['value'] | null = null;
   for (const k of (await d.getAllKeys('installed')) as string[]) {
-    if (k.startsWith(`${app.appId}@`)
-      && !k.endsWith(`@${app.bundleSha256}`)) {
-      await d.delete('installed', k);
+    if (!k.startsWith(`${app.appId}@`)) continue;
+    if (k.endsWith(`@${app.bundleSha256}`)) continue;
+    if (!fallback) {
+      const row = await d.get('installed', k);
+      if (row) fallback = row;
     }
+    await d.delete('installed', k);
   }
 
-  const r = await fetch(app.bundleUrl, { credentials: 'include' });
-  if (!r.ok) throw err('FETCH_FAILED', `bundle fetch failed (${r.status})`);
+  let r: Response;
+  try {
+    r = await fetch(app.bundleUrl, { credentials: 'include' });
+  } catch (fetchErr) {
+    if (fallback) {
+      console.warn('[installer] bundle fetch failed; falling back '
+        + 'to previously installed version', fetchErr);
+      await reinstateFallback(d, app, fallback);
+      return fallback.bundleText;
+    }
+    throw err('FETCH_FAILED', `bundle fetch failed: ${String(fetchErr)}`);
+  }
+  if (!r.ok) {
+    if (fallback) {
+      console.warn(`[installer] bundle fetch returned ${r.status}; `
+        + 'falling back to previously installed version');
+      await reinstateFallback(d, app, fallback);
+      return fallback.bundleText;
+    }
+    throw err('FETCH_FAILED', `bundle fetch failed (${r.status})`);
+  }
   const bundleBytes = new Uint8Array(await r.arrayBuffer());
 
   const sha = await signatures.sha256Hex(bundleBytes);
   if (sha !== app.bundleSha256) {
+    // Catalogue is stale (admin just re-uploaded; the client
+    // cached the previous catalogue row). Prefer a working old
+    // bundle over a hard failure — the next catalogue refresh
+    // will pick up the new bundleSha256 and ensureInstalled will
+    // fetch cleanly.
+    if (fallback) {
+      console.warn(`[installer] sha256 mismatch for ${app.appKey}; `
+        + `catalogue=${app.bundleSha256.slice(0, 12)}… `
+        + `actual=${sha.slice(0, 12)}…; `
+        + 'falling back to previously installed version');
+      await reinstateFallback(d, app, fallback);
+      return fallback.bundleText;
+    }
     throw err('SHA256_MISMATCH',
       `bundle sha256 differs: catalogue=${app.bundleSha256} actual=${sha}`);
   }
@@ -137,6 +176,24 @@ export async function ensureInstalled(app: CatalogueApp): Promise<string> {
     throw err('IDB_FAILED', (e as Error).message);
   }
   return bundleText;
+}
+
+/**
+ * Re-insert a fallback row under its original key so subsequent
+ * ensureInstalled calls (while the catalogue is still stale) can
+ * hit the cached path and skip the eviction + fetch loop
+ * entirely. The row is written back verbatim — we didn't touch
+ * its sha256/signature, so it stays bit-identical to the version
+ * the catalogue approved at install time.
+ */
+async function reinstateFallback(
+  d: IDBPDatabase<InstalledAppSchema>,
+  app: CatalogueApp,
+  row: InstalledAppSchema['installed']['value'],
+): Promise<void> {
+  try {
+    await d.put('installed', row, key(app.appId, row.version, row.sha256));
+  } catch { /* IDB write failure is non-fatal — we still return the bytes. */ }
 }
 
 export async function listInstalled(): Promise<string[]> {
