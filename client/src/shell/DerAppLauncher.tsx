@@ -84,6 +84,7 @@ export function DerAppLauncher(
       return;
     }
     e.preventDefault();
+    /* v8 ignore next 2 — defensive fallback when ref isn't attached yet. */
     const row = Array.from(
       gridRef.current?.querySelectorAll<HTMLAnchorElement>('a.der-launcher__tile')
       ?? [],

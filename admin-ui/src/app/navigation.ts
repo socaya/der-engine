@@ -269,15 +269,13 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       { id: 'settings', label: 'General', to: '/settings', status: 'implemented' },
       { id: 'provisioning', label: 'Provisioning', to: '/setup', status: 'implemented' },
-      { id: 'apps', label: 'Apps', to: '/apps', status: 'implemented' },
+      { id: 'apps', label: 'Apps', to: '/apps',
+        status: 'implemented', crumb: 'Apps' },
       { id: 'releases', label: 'Releases', to: '/settings/releases', status: 'implemented' },
       { id: 'network', label: 'Network', to: '/settings/network', status: 'implemented' },
       { id: 'login-appearance', label: 'Login page', to: '/settings/login',
         status: 'implemented', tabIcon: 'settings',
         crumb: 'Login appearance' },
-      { id: 'app-catalogue', label: 'App catalogue', to: '/apps/catalogue',
-        status: 'implemented', tabIcon: 'settings',
-        crumb: 'App catalogue' },
     ],
   },
 ];

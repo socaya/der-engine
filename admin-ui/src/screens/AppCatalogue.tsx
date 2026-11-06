@@ -3,6 +3,33 @@ import * as edgeApi from '../api/edgeApi';
 import { Panel } from './shared';
 
 /**
+ * Pulls a bundle's `@der-app` manifest out of the leading banner
+ * comment emitted by `client/scripts/build-apps.mjs`:
+ *
+ *   `/` + `* @der-app {"appKey":…,"displayName":…,…} *` + `/`
+ *
+ * Returns the parsed object or `null` if the bundle has no
+ * manifest (e.g. hand-authored samples under docs/apps/samples).
+ */
+async function parseAppManifest(file: File): Promise<Partial<{
+  appKey: string; displayName: string; module: string;
+  version: string; requiresDerApi: string;
+}> | null> {
+  // Only scan the first 4 KB — the banner is the very first line.
+  const head = await file.slice(0, 4096).text();
+  const m = /@der-app\s+(\{[\s\S]*?\})\s*\*\//.exec(head);
+  if (!m || !m[1]) return null;
+  try {
+    return JSON.parse(m[1]) as Partial<{
+      appKey: string; displayName: string; module: string;
+      version: string; requiresDerApi: string;
+    }>;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * EA App catalogue — admin installs, upgrades, enables/disables and
  * deletes the deep-link app bundles served to each device client.
  *
@@ -54,6 +81,21 @@ export function AppCatalogue(): JSX.Element {
     setInstallVersion('');
     setInstallRequires('');
     if (installFileRef.current) installFileRef.current.value = '';
+  }
+
+  /** On file-select, parse the bundle's `@der-app` banner and
+   *  auto-fill any form field the admin hasn't already typed. Never
+   *  overwrites an admin-typed value — operator intent wins. */
+  async function onInstallFileChange(e: ChangeEvent<HTMLInputElement>): Promise<void> {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const mf = await parseAppManifest(file);
+    if (!mf) return;
+    if (mf.appKey && installAppKey === '') setInstallAppKey(mf.appKey);
+    if (mf.displayName && installDisplayName === '') setInstallDisplayName(mf.displayName);
+    if (mf.module && installModule === '') setInstallModule(mf.module);
+    if (mf.version && installVersion === '') setInstallVersion(mf.version);
+    if (mf.requiresDerApi && installRequires === '') setInstallRequires(mf.requiresDerApi);
   }
 
   function resetUpgradeForm(): void {
@@ -271,8 +313,13 @@ export function AppCatalogue(): JSX.Element {
                   ref={installFileRef}
                   type="file"
                   data-test="install-file"
+                  onChange={(e) => void onInstallFileChange(e)}
                   style={{ width: '100%' }}
                 />
+                <p className="ea-text-muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+                  Fields auto-fill from the bundle&apos;s <code>@der-app</code> manifest
+                  when present. You can still override any value.
+                </p>
               </div>
             </div>
             <div style={{ marginTop: 12 }}>

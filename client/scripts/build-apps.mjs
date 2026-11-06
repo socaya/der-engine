@@ -10,7 +10,7 @@
  * install, no duplicate dependency trees.
  */
 import { build } from 'esbuild';
-import { mkdirSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -34,10 +34,24 @@ const nodePaths = [
   resolve(dirname(fileURLToPath(import.meta.url)), '..', 'node_modules'),
 ];
 
+function readManifest(appDir) {
+  const pkgPath = resolve(appDir, 'package.json');
+  if (!existsSync(pkgPath)) return null;
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+  return pkg.derAppManifest ?? null;
+}
+
 for (const appDir of appDirs) {
   const name = appDir.split('/').pop();
   const outdir = resolve(appDir, 'dist');
   mkdirSync(outdir, { recursive: true });
+  const manifest = readManifest(appDir);
+  // The admin-ui's AppCatalogue screen parses this comment on
+  // file-select to auto-fill the install form so admins don't have
+  // to retype appKey / displayName / module / version each time.
+  const banner = manifest
+    ? { js: `/* @der-app ${JSON.stringify(manifest)} */` }
+    : undefined;
   const t0 = Date.now();
   await build({
     entryPoints: [resolve(appDir, 'src', 'index.tsx')],
@@ -56,6 +70,7 @@ for (const appDir of appDirs) {
     ],
     legalComments: 'none',
     entryNames: 'bundle',
+    banner,
   });
   console.log(`[build-apps] ${name} → ${outdir}/bundle.js (${Date.now() - t0} ms)`);
 }

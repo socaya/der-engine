@@ -31,22 +31,13 @@ const ICON = {
 } as const;
 
 export const MODULES: readonly ModuleTile[] = [
-  { id: 'dhis2', label: 'DHIS2',
-    subtitle: 'Reachability + compatibility',
-    to: '/dhis2/status', testId: 'app-dhis2', icon: ICON.plug },
   { id: 'sync', label: 'Synchronisation',
     subtitle: 'Jobs · drift · worker',
     to: '/sync/status', testId: 'app-sync', icon: ICON.sync },
-  { id: 'network', label: 'Network',
-    subtitle: 'Status · interfaces · AP',
-    to: '/network/status', testId: 'app-network', icon: ICON.wifi },
   { id: 'workflows', label: 'Workflows',
     subtitle: 'Capture runs',
     to: '/capture/runs', testId: 'app-workflows', icon: ICON.workflow },
   { id: 'data', label: 'Data',
     subtitle: 'Aggregate · Programs · Drafts',
     to: '/aggregate/datasets', testId: 'app-data', icon: ICON.dataset },
-  { id: 'admin', label: 'Administration',
-    subtitle: 'Session · recent work',
-    to: '/session', testId: 'app-admin', icon: ICON.user },
 ];

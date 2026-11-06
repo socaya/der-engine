@@ -15,7 +15,7 @@ import {
 } from './screens/EACoreScreens';
 import {
   EARecoveryTools, EAEvaluationReports,
-  EAAppsList, EADiagnostics, EASettings,
+  EADiagnostics, EASettings,
 } from './screens/EARemainderScreens';
 import { SignIn } from './screens/SignIn';
 import { WorkflowForm } from './screens/workflow/WorkflowForm';
@@ -247,7 +247,10 @@ export default function App(): JSX.Element {
           <Route path="/restore" element={<RequireAuth><MockupRestoreList /></RequireAuth>} />
           <Route path="/evaluation"
                  element={<RequireAuth><EAEvaluationReports /></RequireAuth>} />
-          <Route path="/apps" element={<RequireAuth><EAAppsList /></RequireAuth>} />
+          {/* C-UI-5a merged `/apps` with the former `/apps/catalogue`
+              — one Apps surface, signed-bundle catalogue. */}
+          <Route path="/apps" element={<RequireAuth><AppCatalogue /></RequireAuth>} />
+          <Route path="/apps/catalogue" element={<Navigate to="/apps" replace />} />
           <Route path="/diagnostics" element={<RequireAuth><EADiagnostics /></RequireAuth>} />
           <Route path="/support-bundle"
                  element={<RequireAuth><MockupSupportBundle /></RequireAuth>} />
@@ -351,7 +354,6 @@ export default function App(): JSX.Element {
           <Route path="/settings/releases" element={<RequireAuth><CapReleases /></RequireAuth>} />
           <Route path="/settings/network" element={<RequireAuth><CapNetwork /></RequireAuth>} />
           <Route path="/settings/login" element={<RequireAuth><LoginAppearance /></RequireAuth>} />
-          <Route path="/apps/catalogue" element={<RequireAuth><AppCatalogue /></RequireAuth>} />
         </Routes>
         </AdminShell>
       </OrgUnitProvider>

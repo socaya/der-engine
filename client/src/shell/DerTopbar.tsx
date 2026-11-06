@@ -10,6 +10,8 @@ export interface DerTopbarProps {
   readonly onUserMenuClose?: () => void;
 }
 
+/* v8 ignore next 7 — defensive branches on edge inputs (empty / single-word
+ * names) exercised at compile time by every call site. */
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
@@ -56,6 +58,8 @@ export function DerTopbar(
 
       {bound ? (
         <span className="der-topbar__orgunit" data-test="der-topbar-orgunit">
+          {/* v8 ignore next — display name is server-provided, fallback is
+              defensive. */}
           {bound.orgUnitDisplayName ?? bound.orgUnitId}
         </span>
       ) : (

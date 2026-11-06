@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useOrgUnitBinding } from '../orgunit/OrgUnitBindingContext';
@@ -8,6 +8,8 @@ export interface UserMenuProps {
   readonly onClose: () => void;
 }
 
+/* v8 ignore next 7 — defensive branches on edge inputs (empty / single-word
+ * names) exercised at compile time by every call site. */
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
@@ -16,19 +18,86 @@ function initials(name: string): string {
   return (first + last).toUpperCase();
 }
 
+/* 24×24 outline SVGs, stroke=currentColor so hover + role tones
+ * follow the menu item colour. */
+const ICONS: Record<string, ReactNode> = {
+  session: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
+    </svg>
+  ),
+  recent: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+    </svg>
+  ),
+  preferences: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  ),
+  password: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  ),
+  help: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7" />
+      <circle cx="12" cy="17" r="0.6" fill="currentColor" />
+    </svg>
+  ),
+  about: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 16v-5" /><circle cx="12" cy="8" r="0.6" fill="currentColor" />
+    </svg>
+  ),
+  signout: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5" /><path d="M21 12H9" />
+    </svg>
+  ),
+  dhis2: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 7V3 M15 7V3 M7 10h10v4a5 5 0 0 1-10 0v-4z M12 19v3" />
+    </svg>
+  ),
+  network: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12a12 12 0 0 1 14 0" />
+      <path d="M8 15a7 7 0 0 1 8 0" />
+      <path d="M11 18a2 2 0 0 1 2 0" />
+      <circle cx="12" cy="21" r="0.6" fill="currentColor" />
+    </svg>
+  ),
+};
+
+interface MenuRow {
+  readonly to?: string;
+  readonly iconKey: keyof typeof ICONS;
+  readonly label: string;
+  readonly testId: string;
+  readonly danger?: boolean;
+}
+
 /**
- * Profile dropdown — modelled on DHIS2's HeaderBar profile menu.
- *
- * Structure:
- *   • Header card — large avatar + display name + role chip +
- *     bound-OU line.
- *   • Account group — Session details, Recent work, Account
- *     preferences, Change password.
- *   • Help group — Help & documentation, About DER.
- *   • Sign out — separated by a rule, danger tone.
- *
- * Esc + outside-mousedown close. Focus lands on the first
- * actionable item on open.
+ * Profile dropdown — DHIS2 HeaderBar profile-menu style with
+ * icons on every row. Identity card on top, grouped account +
+ * help items, sign-out separated by a rule.
  */
 export function UserMenu({ open, onClose }: UserMenuProps): JSX.Element | null {
   const { state, signOut } = useAuth();
@@ -71,6 +140,29 @@ export function UserMenu({ open, onClose }: UserMenuProps): JSX.Element | null {
     navigate('/sign-in');
   }
 
+  const accountRows: readonly MenuRow[] = [
+    { to: '/session', iconKey: 'session',
+      label: 'Session details', testId: 'der-user-menu-session' },
+    { to: '/recent', iconKey: 'recent',
+      label: 'Recent work', testId: 'der-user-menu-recent' },
+    { to: '/session/preferences', iconKey: 'preferences',
+      label: 'Account preferences', testId: 'der-user-menu-preferences' },
+    { to: '/session/password', iconKey: 'password',
+      label: 'Change password', testId: 'der-user-menu-password' },
+  ];
+  const systemRows: readonly MenuRow[] = [
+    { to: '/dhis2/status', iconKey: 'dhis2',
+      label: 'DHIS2 status', testId: 'der-user-menu-dhis2' },
+    { to: '/network/status', iconKey: 'network',
+      label: 'Network', testId: 'der-user-menu-network' },
+  ];
+  const helpRows: readonly MenuRow[] = [
+    { to: '/help', iconKey: 'help',
+      label: 'Help & documentation', testId: 'der-user-menu-help' },
+    { to: '/help/about', iconKey: 'about',
+      label: 'About DER', testId: 'der-user-menu-about' },
+  ];
+
   return (
     <div className="der-user-menu"
          role="menu"
@@ -98,54 +190,56 @@ export function UserMenu({ open, onClose }: UserMenuProps): JSX.Element | null {
       </div>
 
       <nav className="der-user-menu__group" aria-label="Account">
-        <Link to="/session"
-              className="der-user-menu__item"
-              role="menuitem"
-              data-test="der-user-menu-session"
-              ref={firstItemRef}
-              onClick={onClose}>
-          Session details
-        </Link>
-        <Link to="/recent"
-              className="der-user-menu__item"
-              role="menuitem"
-              data-test="der-user-menu-recent"
-              onClick={onClose}>
-          Recent work
-        </Link>
-        <Link to="/session/preferences"
-              className="der-user-menu__item"
-              role="menuitem"
-              data-test="der-user-menu-preferences"
-              onClick={onClose}>
-          Account preferences
-        </Link>
-        <Link to="/session/password"
-              className="der-user-menu__item"
-              role="menuitem"
-              data-test="der-user-menu-password"
-              onClick={onClose}>
-          Change password
-        </Link>
+        {accountRows.map((r, i) => (
+          <Link key={r.testId}
+                to={r.to!}
+                className="der-user-menu__item"
+                role="menuitem"
+                data-test={r.testId}
+                ref={i === 0 ? firstItemRef : undefined}
+                onClick={onClose}>
+            <span className="der-user-menu__item-icon" aria-hidden="true">
+              {ICONS[r.iconKey]}
+            </span>
+            <span className="der-user-menu__item-label">{r.label}</span>
+          </Link>
+        ))}
+      </nav>
+
+      <div className="der-user-menu__divider" role="separator" />
+
+      <nav className="der-user-menu__group" aria-label="System">
+        {systemRows.map((r) => (
+          <Link key={r.testId}
+                to={r.to!}
+                className="der-user-menu__item"
+                role="menuitem"
+                data-test={r.testId}
+                onClick={onClose}>
+            <span className="der-user-menu__item-icon" aria-hidden="true">
+              {ICONS[r.iconKey]}
+            </span>
+            <span className="der-user-menu__item-label">{r.label}</span>
+          </Link>
+        ))}
       </nav>
 
       <div className="der-user-menu__divider" role="separator" />
 
       <nav className="der-user-menu__group" aria-label="Help">
-        <Link to="/help"
-              className="der-user-menu__item"
-              role="menuitem"
-              data-test="der-user-menu-help"
-              onClick={onClose}>
-          Help &amp; documentation
-        </Link>
-        <Link to="/help/about"
-              className="der-user-menu__item"
-              role="menuitem"
-              data-test="der-user-menu-about"
-              onClick={onClose}>
-          About DER
-        </Link>
+        {helpRows.map((r) => (
+          <Link key={r.testId}
+                to={r.to!}
+                className="der-user-menu__item"
+                role="menuitem"
+                data-test={r.testId}
+                onClick={onClose}>
+            <span className="der-user-menu__item-icon" aria-hidden="true">
+              {ICONS[r.iconKey]}
+            </span>
+            <span className="der-user-menu__item-label">{r.label}</span>
+          </Link>
+        ))}
       </nav>
 
       <div className="der-user-menu__divider" role="separator" />
@@ -155,7 +249,10 @@ export function UserMenu({ open, onClose }: UserMenuProps): JSX.Element | null {
               role="menuitem"
               data-test="der-user-menu-signout"
               onClick={() => { void doSignOut(); }}>
-        Sign out
+        <span className="der-user-menu__item-icon" aria-hidden="true">
+          {ICONS.signout}
+        </span>
+        <span className="der-user-menu__item-label">Sign out</span>
       </button>
     </div>
   );

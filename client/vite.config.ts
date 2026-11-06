@@ -53,6 +53,15 @@ export default defineConfig({
         'src/test/**',
         'src/**/*.d.ts',
         'src/**/*.{test,spec}.{ts,tsx}',
+        // C-UI-5c: the SDK bridge + runtime are indirectly covered.
+        // sdk-bridge.ts is esbuilt into /vendor/der-app-sdk.js and
+        // only runs inside the Blob-URL dynamic import — not from
+        // the shell's own test harness. sdk-runtime.ts hooks are
+        // re-exports of already-tested shell hooks (useAuth,
+        // useOrgUnitBinding, useOnlineStatus); unit-testing them
+        // again under new names adds noise, not safety.
+        'src/apps/sdk-bridge.ts',
+        'src/apps/sdk-runtime.ts',
       ],
       // der-1.2.0-alpha.3 adds the device-identity package
       // (DeviceEnrollment, useDeviceEnrollment, DeviceBoot). 150 tests

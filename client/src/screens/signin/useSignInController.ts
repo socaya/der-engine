@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { EdgeApiError } from '../../api/edgeApi';
@@ -37,6 +37,17 @@ export function useSignInController(): SignInController {
   const alreadyIn = authState.status === 'AUTHENTICATED';
   const alreadyInUsername = authState.status === 'AUTHENTICATED'
     ? authState.user.username : '';
+
+  // If the session probe comes back AUTHENTICATED (or the user
+  // later signs in in another tab), auto-redirect to the originally
+  // requested path or `/`. Prevents the "you are already signed
+  // in" dead-end — this is the fast path, not an error.
+  useEffect(() => {
+    if (authState.status !== 'AUTHENTICATED') return;
+    const to = (location.state as { from?: { pathname: string } } | null)
+               ?.from?.pathname ?? '/';
+    navigate(to, { replace: true });
+  }, [authState.status, location.state, navigate]);
 
   const doSubmit = async (): Promise<void> => {
     setSubmitting(true);

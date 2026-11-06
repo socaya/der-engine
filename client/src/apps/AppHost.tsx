@@ -56,6 +56,9 @@ export function AppHost(): JSX.Element {
           message: err.message });
         return;
       }
+      /* v8 ignore start — Blob-URL dynamic ESM import can't be
+       * executed in jsdom; this path is covered by the C-UI-5b live
+       * smoke flow. The install-error branches above are unit-tested. */
       try {
         const blob = new Blob([bundleText], { type: 'application/javascript' });
         url = URL.createObjectURL(blob);
@@ -71,6 +74,7 @@ export function AppHost(): JSX.Element {
       } catch (e) {
         setStatus({ kind: 'import-error', message: (e as Error).message });
       }
+      /* v8 ignore stop */
     })();
     return () => {
       revoked = true;

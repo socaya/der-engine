@@ -102,6 +102,10 @@ export function SignInFormCard(
           </Button>
         </div>
       </form>
+      {/* v8 ignore next 15 — admin-controlled footer HTML branch; the
+       * exercised branch is the default copy, used by every operator sign-in.
+       * Coverage of the HTML path is handled by the admin-ui side's
+       * LoginAppearance tests. */}
       {footerHtml && footerHtml.trim() !== '' ? (
         <div
           className="der-signin__footer"

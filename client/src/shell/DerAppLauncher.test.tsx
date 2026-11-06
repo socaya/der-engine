@@ -114,14 +114,16 @@ describe('DerAppLauncher', () => {
       .toBeInTheDocument());
   });
 
-  it('ArrowDown jumps by one row (3 cols on desktop), clamped at the end', () => {
-    // The default jsdom window.innerWidth is 1024 → 3-col grid.
+  it('ArrowDown clamps at the end of a single-row grid', () => {
+    // MODULES is a 3-tile row (DHIS2/Network/Admin moved to the
+    // profile menu per C-UI-5c); ArrowDown from tile 0 clamps at
+    // the last tile.
     renderWithProviders(<DerAppLauncher open onClose={() => undefined} />);
     const grid = screen.getByTestId('der-launcher').querySelector('.der-launcher__list')!;
     const first = screen.getByTestId(MODULES[0].testId) as HTMLAnchorElement;
     first.focus();
     fireEvent.keyDown(grid, { key: 'ArrowDown' });
-    expect(document.activeElement).toBe(screen.getByTestId(MODULES[3].testId));
+    expect(document.activeElement).toBe(screen.getByTestId(MODULES[MODULES.length - 1].testId));
     fireEvent.keyDown(grid, { key: 'ArrowUp' });
     expect(document.activeElement).toBe(first);
   });

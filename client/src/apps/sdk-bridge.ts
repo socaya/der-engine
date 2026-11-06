@@ -7,7 +7,13 @@
  * forwards each exported symbol to that registry so apps and
  * shell share one React instance (hooks require this) + one
  * context tree (AuthContext, OrgUnitBinding, etc.).
+ *
+ * This file is esbuilt into `public/vendor/der-app-sdk.js`; it
+ * only ever runs inside the Blob-URL dynamic import path so the
+ * shell's own test suite can't execute it. Covered end-to-end by
+ * the live-browser flow in C-UI-5b.
  */
+/* v8 ignore file — see module comment above. */
 
 type UnknownFn = (...args: unknown[]) => unknown;
 

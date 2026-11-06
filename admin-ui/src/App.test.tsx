@@ -65,9 +65,12 @@ vi.mock('./screens/workflow/WorkflowMonitoring', () => ({
 vi.mock('./screens/EARemainderScreens', () => ({
   EARecoveryTools:     () => <div data-test="s-recovery">recovery</div>,
   EAEvaluationReports: () => <div data-test="s-eval">eval</div>,
-  EAAppsList:          () => <div data-test="s-apps">apps</div>,
   EADiagnostics:       () => <div data-test="s-diag">diag</div>,
   EASettings:          () => <div data-test="s-settings">settings</div>,
+}));
+
+vi.mock('./screens/AppCatalogue', () => ({
+  AppCatalogue: () => <div data-test="ea-app-catalogue">catalogue</div>,
 }));
 
 // RequireAuth passes through unconditionally thanks to the mocked useAuth.
@@ -114,7 +117,7 @@ describe('App routing', () => {
     ['/metadata-legacy',         's-metadata'],
     ['/recovery',                's-recovery'],
     ['/evaluation',              's-eval'],
-    ['/apps',                    's-apps'],
+    ['/apps',                    'ea-app-catalogue'],
     ['/diagnostics',             's-diag'],
     ['/settings',                's-settings'],
   ])('route %s mounts %s', async (route, testId) => {
