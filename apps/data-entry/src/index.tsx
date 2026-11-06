@@ -40,7 +40,7 @@ export default function DataEntryApp(): JSX.Element {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [formInfo, setFormInfo] = useState<{
     hasCustomForm: boolean; formId?: string; displayName?: string;
-    formType?: string;
+    formType?: string; periodType?: string;
   } | null>(null);
   const customRoot = useRef<HTMLDivElement | null>(null);
   // AttributeOptionCombo selections for non-default categoryCombos.
@@ -62,7 +62,7 @@ export default function DataEntryApp(): JSX.Element {
       try {
         const meta = await api.getDataSetMeta(dataSet.trim()) as {
           displayName?: string; name?: string;
-          formType?: string;
+          formType?: string; periodType?: string;
           dataEntryForm?: { id: string } | null;
         };
         if (cancelled) return;
@@ -78,6 +78,7 @@ export default function DataEntryApp(): JSX.Element {
           formId: meta.dataEntryForm?.id,
           displayName: meta.displayName ?? meta.name,
           formType: meta.formType,
+          periodType: meta.periodType,
         });
       } catch { if (!cancelled) setFormInfo(null); }
     })();
@@ -310,8 +311,7 @@ export default function DataEntryApp(): JSX.Element {
                      placeholder="e.g. BfMAe6Itzgt" style={inputStyle} />
             </label>
             <label>Period
-              <input value={period} onChange={(e) => setPeriod(e.target.value)}
-                     placeholder="e.g. 202611" style={inputStyle} />
+              {renderPeriodPicker(formInfo?.periodType, period, setPeriod)}
             </label>
           </div>
           {aocCategories.length > 0 && (
@@ -955,6 +955,102 @@ const errorStrip = {
   background: '#fbeaea', color: '#8a2525',
   border: '1px solid #e0bcbc', borderRadius: 3,
 };
+/**
+ * Render an appropriate period picker for the dataset's periodType.
+ *
+ * - Monthly   → `<input type="month">`  → convert YYYY-MM to YYYYMM
+ * - Weekly    → `<input type="week">`   → convert YYYY-Www to YYYYWnn
+ * - Daily     → `<input type="date">`   → convert YYYY-MM-DD to YYYYMMDD
+ * - Yearly    → `<select>` of the last 10 years + current year
+ * - Quarterly → `<select>` of this year's Q1..Q4 + previous year
+ * - Anything else → free-text field (DHIS2 periodType IDs vary; e.g.
+ *   SixMonthly, FinancialJuly — users type the DHIS2 period id by hand).
+ *
+ * Internally the period string stored in state is always the
+ * DHIS2 period id (e.g. "202611", "2026W45", "20261104"), so the
+ * submit path + hidden #selectedPeriodId are unchanged.
+ */
+function renderPeriodPicker(
+  periodType: string | undefined,
+  period: string,
+  setPeriod: (v: string) => void,
+): JSX.Element {
+  const common = { ...inputStyle } as React.CSSProperties;
+  switch (periodType) {
+    case 'Monthly': {
+      // YYYYMM ↔ YYYY-MM
+      const isoFromP = period.length === 6
+        ? `${period.slice(0, 4)}-${period.slice(4, 6)}` : '';
+      return (
+        <input type="month" value={isoFromP}
+          onChange={(e) => setPeriod(e.target.value.replace('-', ''))}
+          style={common} />
+      );
+    }
+    case 'Daily': {
+      const isoFromP = period.length === 8
+        ? `${period.slice(0,4)}-${period.slice(4,6)}-${period.slice(6,8)}` : '';
+      return (
+        <input type="date" value={isoFromP}
+          onChange={(e) => setPeriod(e.target.value.replace(/-/g, ''))}
+          style={common} />
+      );
+    }
+    case 'Weekly': {
+      // DHIS2: YYYYWnn ↔ YYYY-Www
+      const m = /^(\d{4})W(\d{1,2})$/.exec(period);
+      const isoFromP = m
+        ? `${m[1]}-W${String(m[2]).padStart(2, '0')}` : '';
+      return (
+        <input type="week" value={isoFromP}
+          onChange={(e) => {
+            const im = /^(\d{4})-W(\d{2})$/.exec(e.target.value);
+            setPeriod(im ? `${im[1]}W${im[2]}` : '');
+          }}
+          style={common} />
+      );
+    }
+    case 'Yearly': {
+      const now = new Date().getFullYear();
+      const options: number[] = [];
+      for (let y = now; y > now - 11; y--) options.push(y);
+      return (
+        <select value={period} onChange={(e) => setPeriod(e.target.value)}
+                style={common}>
+          <option value="">Pick a year</option>
+          {options.map((y) => (
+            <option key={y} value={String(y)}>{y}</option>
+          ))}
+        </select>
+      );
+    }
+    case 'Quarterly': {
+      const now = new Date().getFullYear();
+      const options: string[] = [];
+      for (const y of [now, now - 1]) {
+        for (const q of [1, 2, 3, 4]) options.push(`${y}Q${q}`);
+      }
+      return (
+        <select value={period} onChange={(e) => setPeriod(e.target.value)}
+                style={common}>
+          <option value="">Pick a quarter</option>
+          {options.map((p) => (
+            <option key={p} value={p}>{p.replace('Q', ' Q')}</option>
+          ))}
+        </select>
+      );
+    }
+    default:
+      return (
+        <input value={period}
+          onChange={(e) => setPeriod(e.target.value)}
+          placeholder={periodType
+            ? `DHIS2 ${periodType} period id` : 'e.g. 202611'}
+          style={common} />
+      );
+  }
+}
+
 function tabBtn(active: boolean): React.CSSProperties {
   return {
     padding: '6px 12px',
