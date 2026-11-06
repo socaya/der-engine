@@ -69,6 +69,18 @@ export default function DataEntryApp(): JSX.Element {
   // Bump after every successful form render so SectionNavigator
   // re-scrapes the headers of the freshly-injected #contentDiv.
   const [formRenderVersion, setFormRenderVersion] = useState(0);
+  // Compact-by-default, remembered in localStorage so operators
+  // don't have to re-pick on every visit.
+  const [density, setDensity] = useState<'compact' | 'comfortable'>(() => {
+    try {
+      return (window.localStorage.getItem('der-de-density') as
+        'compact' | 'comfortable') ?? 'compact';
+    } catch { return 'compact'; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('der-de-density', density); }
+    catch { /* non-persistent env */ }
+  }, [density]);
 
   // Hydrate the dataset picker once on mount — operators choose
   // from what's mirrored on this edge, not type raw UIDs.
@@ -474,7 +486,7 @@ export default function DataEntryApp(): JSX.Element {
       )}
 
       {formReady && mode === 'custom' && (
-        <div className="der-de-form-card">
+        <div className={`der-de-form-card der-de-density-${density}`}>
           {aocCategories.length > 0 && (
             <div style={{ display: 'grid',
               gridTemplateColumns: `repeat(${Math.min(aocCategories.length, 3)}, 1fr)`,
@@ -510,6 +522,16 @@ export default function DataEntryApp(): JSX.Element {
       {formReady && mode === 'custom' && (
         <div className="der-de-actionbar" data-test="de-actionbar">
           <SaveStatePill root={customRoot} formVersion={formRenderVersion} />
+          <button type="button"
+                  className="der-de-density-btn"
+                  data-test="de-density-toggle"
+                  aria-label={`Switch to ${density === 'compact'
+                    ? 'comfortable' : 'compact'} density`}
+                  title={`Density: ${density}. Click to switch.`}
+                  onClick={() => setDensity((d) =>
+                    d === 'compact' ? 'comfortable' : 'compact')}>
+            {density === 'compact' ? '⇕ Compact' : '⇔ Comfortable'}
+          </button>
           {completion && (
             <span className="der-de-completion-pill"
                   data-test="de-completion-status">
@@ -850,6 +872,13 @@ function renderSectionForm(meta: DataSetBundle): string {
     for (const group of groups.values()) {
       const cocs = group.cc.categoryOptionCombos ?? [];
       const cats = group.cc.categories ?? [];
+      // Wrap every table in a scroll container so wide multi-
+      // dimensional disaggregations (Age × Sex × Status) scroll
+      // horizontally without dragging the sticky dataElement
+      // labels along. The inner <thead> and `.dataElementCell`
+      // cells carry position:sticky so column + row names remain
+      // visible as the grid moves.
+      parts.push('<div class="der-de-table-scroll">');
       parts.push(`<table class="sectionTable" cellspacing="0">`);
       // Nested column headers: one <tr> per category, each cell
       // spans the width of its options' slice across COCs. For a
@@ -908,7 +937,7 @@ function renderSectionForm(meta: DataSetBundle): string {
           + ' readonly></td>');
         parts.push('</tr>');
       }
-      parts.push('</tbody></table>');
+      parts.push('</tbody></table></div>');
     }
   }
   return parts.join('\n');
@@ -2290,19 +2319,45 @@ const APP_STYLES = `
 }
 .der-de-form-card .sectionTable th,
 .der-de-form-card .sectionTable td {
-  border: 1px solid #d7dde5;
-  padding: 6px 8px;
+  border: 1px solid #e5e9ef;
+  padding: var(--der-de-cell-pad, 4px 8px);
   text-align: left;
   vertical-align: middle;
+  white-space: nowrap;
 }
-.der-de-form-card .sectionTable th {
+/* Sticky column headers — stay visible as the grid scrolls down.
+   thead stacks above the first-column dataElementCell via z-index. */
+.der-de-form-card .sectionTable thead th {
+  position: sticky;
+  top: 0;
   background: #f3f5f7;
   font-weight: 500;
   color: #404b5a;
+  z-index: 2;
 }
 .der-de-form-card .sectionTable .dataElementCell {
   background: #f8fafc;
-  min-width: 220px;
+  min-width: var(--der-de-de-col, 200px);
+  max-width: var(--der-de-de-col-max, 320px);
+  white-space: normal;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+.der-de-form-card .sectionTable thead th.dataElementCell {
+  z-index: 3; /* corner cell sits above both axes. */
+}
+/* Each table gets its own horizontal scroll container so wide
+   disaggregations don't push the whole form around. */
+.der-de-form-card .der-de-table-scroll {
+  overflow-x: auto;
+  margin: 8px 0 20px;
+  border: 1px solid #eef0f3;
+  border-radius: 6px;
+  background: #fff;
+}
+.der-de-form-card .der-de-table-scroll .sectionTable {
+  margin: 0;
 }
 .der-de-form-card .sectionTable .indicatorRow td {
   background: #fcf7e6;
@@ -2333,6 +2388,53 @@ const APP_STYLES = `
   color: #1f4d70;
   border-bottom: 1px solid #d7dde5;
   padding-bottom: 4px;
+}
+/* Compact density — the default. Dense enough to show large
+   multi-dimensional disaggregations without a horizontal
+   scroll in most cases. */
+.der-de-form-card.der-de-density-compact {
+  --der-de-cell-pad: 3px 6px;
+  --der-de-de-col: 180px;
+  --der-de-de-col-max: 260px;
+}
+.der-de-form-card.der-de-density-compact .sectionTable {
+  font-size: 12px;
+}
+.der-de-form-card.der-de-density-compact .sectionTable input[type="text"] {
+  font-size: 12px;
+  padding: 1px 3px;
+}
+.der-de-form-card.der-de-density-compact h3.formSection {
+  font-size: 13px;
+}
+/* Comfortable density — roomier spacing for operators on
+   tablets or anyone who wants a bigger tap target. */
+.der-de-form-card.der-de-density-comfortable {
+  --der-de-cell-pad: 8px 10px;
+  --der-de-de-col: 240px;
+  --der-de-de-col-max: 360px;
+}
+.der-de-form-card.der-de-density-comfortable .sectionTable {
+  font-size: 14px;
+}
+.der-de-form-card.der-de-density-comfortable .sectionTable input[type="text"] {
+  font-size: 14px;
+  padding: 4px 6px;
+}
+.der-de-form-card.der-de-density-comfortable h3.formSection {
+  font-size: 17px;
+}
+.der-de-density-btn {
+  padding: 4px 10px;
+  border: 1px solid #c0c7cf;
+  border-radius: 10px;
+  background: #fff;
+  color: #404b5a;
+  font-size: 12px;
+  cursor: pointer;
+}
+.der-de-density-btn:hover {
+  background: #f3f5f7;
 }
 `;
 
