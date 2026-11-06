@@ -14,6 +14,7 @@ function App(): JSX.Element {
   return (
     <Routes>
       <Route path="/sign-in" element={<SignIn />} />
+      <Route path="/" element={<div data-test="landed-home">home</div>} />
       <Route path="/launcher" element={<div data-test="landed-launcher">landed</div>} />
       <Route path="/other" element={<div data-test="landed-other">other</div>} />
     </Routes>
@@ -28,10 +29,10 @@ describe('SignIn', () => {
         signIn: vi.fn(), signOut: vi.fn() },
     });
     await waitFor(() => expect(screen.getByTestId('signin-heading')).toBeInTheDocument());
-    expect(screen.getByText(/does not reach the central DHIS2/i)).toBeInTheDocument();
+    expect(screen.getByText(/no reach-through to the central DHIS2/i)).toBeInTheDocument();
   });
 
-  it('submits credentials and redirects to /launcher on success', async () => {
+  it('submits credentials and redirects to / on success', async () => {
     const signIn = vi.fn().mockResolvedValue(user);
     renderWithProviders(<App />, {
       route: '/sign-in',
@@ -46,7 +47,7 @@ describe('SignIn', () => {
     await userEvent.type(u, 'alice');
     await userEvent.type(p, 'hunter22');
     await userEvent.click(screen.getByTestId('signin-submit'));
-    await waitFor(() => expect(screen.getByTestId('landed-launcher')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('landed-home')).toBeInTheDocument());
     expect(signIn).toHaveBeenCalledWith('alice', 'hunter22');
   });
 

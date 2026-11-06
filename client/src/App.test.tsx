@@ -46,10 +46,14 @@ describe('App', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the launcher at / when authenticated', async () => {
+  it('renders DerHome at / when authenticated', async () => {
     vi.spyOn(edgeApiModule, 'session').mockResolvedValue(user);
+    vi.spyOn(edgeApiModule, 'getOrgUnitBinding').mockResolvedValue({
+      bound: true, orgUnitId: 'OU-A', orgUnitDisplayName: 'Facility A',
+      orgUnitPath: '/R/OU-A', boundAt: '2026-11-01T00:00:00Z', boundBy: 'admin',
+    });
     renderAt('/');
-    await waitFor(() => expect(screen.getByTestId('launcher-heading')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('der-home')).toBeInTheDocument());
     vi.restoreAllMocks();
   });
 });

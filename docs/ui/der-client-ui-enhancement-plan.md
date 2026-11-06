@@ -50,9 +50,42 @@
    groups → tiles (per `docs/ui/EA-01-18-alignment.md`). No new
    nav axis is introduced.
 
+## Reference: VitalWorks DHIS2 codebase
+
+`/Users/stephocay/projects/vitalworks/dhis2` is the authoritative
+visual + component reference. The patterns we borrow (aligned +
+optimised for DER's constraints — single OU, no multi-tenancy, no
+third-party apps):
+
+- **Login layout** — `repos/login-app/src/templates/standard.js`
+  gives us the body-blue (`#2a5298`) + heading-strip + centered
+  card structure. C-UI-3 already adopts this.
+- **Topbar + App Launcher pattern** — `repos/header-bar` +
+  `repos/apps-overview`. We don't use the component directly
+  (it fetches DHIS2 app-shell endpoints DER doesn't serve), but
+  the layout vocabulary matches: dark navy or brand-blue bar,
+  3×2 grid of app tiles with icon + title.
+- **Profile menu** — `repos/header-bar/src/profile-menu/*` covers
+  display-name header + role + Session + Sign out. Our
+  `UserMenu.tsx` (C-UI-2) mirrors it minus DHIS2's profile-edit
+  deep link (DER profiles live in admin-ui).
+- **Design tokens** — the `@dhis2/ui` grey ramp (grey050..grey900)
+  maps to our `--der-ink-*` + `--der-canvas`. Spacers (`dp4`,
+  `dp8`, `dp16`, `dp24`) inform our paddings.
+
+What we optimise for DER:
+
+- No shadows — DHIS2's `--elevations-e400` is replaced with
+  `1px solid var(--der-border)` so the whole surface stays flat.
+- No installable-app admin — apps ship from DER via C-UI-5's
+  dispatch (ESM bundles), not the DHIS2 "Apps" install screen.
+- Single-OU badge replaces DHIS2's org-unit tree picker.
+- No notifications bell — DER surfaces attention via DerHome.
+
 ## What we adopt from DHIS2 Pro UI
 
-Audited against the live `localhost:8080/dhis` instance:
+Audited against the live `localhost:8080/dhis` instance + the
+VitalWorks source at `/Users/stephocay/projects/vitalworks/dhis2`:
 
 - **Topbar** — ~48 px tall, dark navy (`#1C2838` family), left
   brand lockup, centre app title, right-hand icon strip for app

@@ -1,4 +1,4 @@
-/* DER device-client shell (ADR-0037 C-UI-1). */
+/* DER device-client shell (ADR-0037 C-UI-3 — flat + soft, DHIS2 palette). */
 
 body {
   background: var(--der-canvas);
@@ -20,9 +20,8 @@ body {
   gap: 16px;
   height: var(--der-topbar-h);
   padding: 0 20px;
-  background: var(--der-ink-900);
-  color: #fff;
-  border-bottom: 1px solid #000;
+  background: var(--der-topbar-bg);
+  color: var(--der-topbar-fg);
   flex: 0 0 auto;
 }
 
@@ -30,24 +29,24 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
   color: inherit;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   font-size: 14px;
 }
 
 .der-topbar__brand-mark {
   width: 24px;
   height: 24px;
-  background: var(--der-brand-500);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 10px;
   letter-spacing: 0;
   color: #fff;
+  border-radius: var(--der-radius-sm);
 }
 
 .der-topbar__orgunit {
@@ -55,10 +54,10 @@ body {
   gap: 6px;
   align-items: baseline;
   font-size: 12px;
-  opacity: 0.9;
+  opacity: 0.95;
   padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.10);
   border-radius: var(--der-radius-sm);
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .der-topbar__orgunit code {
@@ -67,7 +66,7 @@ body {
 }
 
 .der-topbar__orgunit--unbound {
-  color: #f6c6c6;
+  color: #ffd6d6;
   background: rgba(169, 50, 50, 0.3);
 }
 
@@ -90,7 +89,7 @@ body {
 
 .der-topbar__btn:hover,
 .der-topbar__btn:focus-visible {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.10);
   outline: none;
 }
 
@@ -147,12 +146,11 @@ body {
   margin: 0 auto;
 }
 
-/* App launcher overlay (C-UI-2) */
+/* App launcher overlay — flat, bordered, no shadow. */
 .der-launcher-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(28, 40, 56, 0.55);
-  backdrop-filter: blur(4px);
+  background: rgba(33, 41, 52, 0.45);
   z-index: 1000;
   display: flex;
   align-items: flex-start;
@@ -162,8 +160,8 @@ body {
 
 .der-launcher {
   background: var(--der-surface);
+  border: 1px solid var(--der-border);
   border-radius: var(--der-radius-md);
-  box-shadow: var(--der-shadow-pop);
   width: 100%;
   max-width: 720px;
   max-height: calc(100vh - 92px);
@@ -182,8 +180,8 @@ body {
 
 .der-launcher__title {
   margin: 0;
-  font-size: 14px;
-  color: var(--der-ink-700);
+  font-size: 13px;
+  color: var(--der-ink-500);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -261,7 +259,7 @@ body {
   line-height: 1.3;
 }
 
-/* User menu dropdown (C-UI-2) */
+/* User menu dropdown — flat, bordered, no shadow. */
 .der-user-wrap {
   position: relative;
 }
@@ -275,7 +273,6 @@ body {
   color: var(--der-ink-900);
   border: 1px solid var(--der-border);
   border-radius: var(--der-radius-md);
-  box-shadow: var(--der-shadow-pop);
   z-index: 1000;
   padding: 4px 0;
 }
@@ -317,4 +314,186 @@ body {
 
 .der-user-menu__item--danger {
   color: var(--der-danger);
+}
+
+/* Home screen (C-UI-3). */
+.der-home {
+  display: grid;
+  gap: 16px;
+}
+
+.der-home__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.der-card {
+  background: var(--der-surface);
+  border: 1px solid var(--der-border);
+  border-radius: var(--der-radius-md);
+  padding: 16px 18px;
+}
+
+.der-card--brand {
+  background: var(--der-brand-500);
+  color: var(--der-topbar-fg);
+  border-color: var(--der-brand-600);
+}
+
+.der-card__title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--der-ink-500);
+  font-weight: 600;
+}
+
+.der-card--brand .der-card__title {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.der-card__value {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--der-ink-900);
+}
+
+.der-card--brand .der-card__value {
+  color: var(--der-topbar-fg);
+}
+
+.der-card__meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--der-ink-500);
+}
+
+.der-card--brand .der-card__meta {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.der-card__link {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--der-brand-500);
+  text-decoration: none;
+  display: inline-block;
+}
+
+.der-card--brand .der-card__link {
+  color: var(--der-topbar-fg);
+  text-decoration: underline;
+}
+
+.der-card__link:hover {
+  text-decoration: underline;
+}
+
+.der-home__section-title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--der-ink-500);
+  font-weight: 600;
+}
+
+/* Sign-in (C-UI-3) — matches the DHIS2 2.44 "standard" login
+ * template: blue body background (#2a5298), Roboto, centered white
+ * card. Flat per the project-wide rule — a 1 px border does the
+ * layering instead of DHIS2's --elevations-e400 shadow. */
+.der-signin {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--der-signin-bg);
+  color: #ffffff;
+  font-family: var(--der-font-base);
+}
+
+.der-signin__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+  min-height: 140px;
+}
+
+.der-signin__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 540px;
+}
+
+.der-signin__app-title {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 500;
+  margin: 0;
+  color: #f3f5f7;
+}
+
+.der-signin__app-intro {
+  font-size: 14px;
+  line-height: 19px;
+  margin: 0;
+  color: #f3f5f7;
+  opacity: 0.75;
+}
+
+.der-signin__brand-mark {
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.14);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  font-size: 16px;
+  border-radius: var(--der-radius-md);
+  flex-shrink: 0;
+}
+
+.der-signin__body {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0 20px 40px;
+}
+
+.der-signin__card {
+  background: var(--der-surface);
+  border: 1px solid var(--der-border);
+  border-radius: var(--der-radius-md);
+  max-width: 400px;
+  width: 100%;
+  padding: 24px;
+  color: var(--der-ink-900);
+}
+
+.der-signin__card h1 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--der-ink-900);
+}
+
+.der-signin__sub {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 17px;
+  color: var(--der-ink-700);
+}
+
+.der-signin__footer {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--der-ink-500);
 }

@@ -1,22 +1,33 @@
 /**
- * DER device-client design tokens (ADR-0037 C-UI-1).
+ * DER device-client design tokens (ADR-0037).
  *
- * Every token is prefixed `--der-` so @dhis2/ui's own Sass/CSS
- * tokens ({--dhis2-*}) cohabit without clashes. Tokens are the only
+ * C-UI-3 pins the palette to DHIS2 Pro UI's defaults so operators
+ * who move between DER and a native DHIS2 instance don't context-
+ * switch visually. Flat + soft UI: no drop shadows, minimal radius,
+ * 1 px borders doing the layering work.
+ *
+ * Every token is prefixed `--der-` so @dhis2/ui's own tokens
+ * ({--dhis2-*}) cohabit without clashes. Tokens are the only
  * place colours + radii are hard-coded; component styles must
- * consume them via var() so the palette can swap in one place.
+ * consume them via var() so the palette swaps in one place.
  */
 :root {
-  /* brand + chrome */
-  --der-brand-500: #2c6693;     /* header blue */
-  --der-brand-600: #1f4d70;
-  --der-brand-100: #e4edf5;
-  --der-ink-900:   #1c2838;     /* topbar dark + primary text */
-  --der-ink-700:   #35455a;
-  --der-ink-500:   #5a6a85;     /* muted meta */
-  --der-canvas:    #f3f5f7;     /* app background */
+  /* brand + chrome — DHIS2 Pro palette */
+  --der-brand-500: #2c6693;     /* DHIS2 HeaderBar blue */
+  --der-brand-600: #1f4d70;     /* darker hover / press */
+  --der-brand-100: #d9e5f0;     /* 100-tint for hover fills */
+  --der-topbar-bg: var(--der-brand-500);
+  --der-topbar-fg: #ffffff;
+  /* DHIS2 standard-login template body background. */
+  --der-signin-bg: #2a5298;
+
+  /* @dhis2/ui grey-ramp alignment — operator eye matches DHIS2. */
+  --der-ink-900:   #212934;     /* ~grey900 — primary text */
+  --der-ink-700:   #404b5a;     /* ~grey700 — secondary */
+  --der-ink-500:   #6e7a8a;     /* ~grey600 — muted meta */
+  --der-canvas:    #f3f5f7;     /* app background (grey050-ish) */
   --der-surface:   #ffffff;     /* card background */
-  --der-border:    #e0e4eb;
+  --der-border:    #d7dde5;     /* grey300 — 1 px dividers */
 
   /* status pills */
   --der-success:   #1a8754;
@@ -24,12 +35,12 @@
   --der-danger:    #a93232;
   --der-info:      #2c6693;
 
-  /* radii + shadow */
-  --der-radius-sm: 4px;
-  --der-radius-md: 8px;
-  --der-shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.12);
+  /* flat + soft — just enough radius to not look brutalist */
+  --der-radius-sm: 2px;
+  --der-radius-md: 3px;
 
   /* vertical rhythm */
   --der-topbar-h:  48px;
-  --der-font-base: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --der-font-base: 'Roboto', 'Helvetica Neue', system-ui, -apple-system,
+                   'Segoe UI', Arial, sans-serif;
 }

@@ -3,7 +3,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { DeviceBoot } from './device/DeviceBoot';
 import { RequireAuth } from './components/RequireAuth';
 import { SignIn } from './screens/SignIn';
-import { Launcher } from './screens/Launcher';
+import { DerHome } from './screens/DerHome';
 import { SessionDetails } from './screens/SessionDetails';
 import { RecentWork } from './screens/RecentWork';
 import { EdgeConnectionError } from './screens/EdgeConnectionError';
@@ -41,15 +41,26 @@ export default function App(): JSX.Element {
     <AuthProvider>
       <OrgUnitBindingProvider>
       <DeviceBoot />
-      <DerShell>
+      <Routes>
+        {/* Full-viewport routes — no shell chrome. */}
+        <Route path="/sign-in" element={<SignIn />} />
+        <Route path="/edge-error" element={<EdgeConnectionError />} />
+        {/* Everything else runs inside the DerShell. */}
+        <Route path="/*" element={<DerShell><InnerRoutes /></DerShell>} />
+      </Routes>
+      </OrgUnitBindingProvider>
+    </AuthProvider>
+  );
+}
+
+function InnerRoutes(): JSX.Element {
+  return (
         <Routes>
-          <Route path="/sign-in" element={<SignIn />} />
-          <Route path="/edge-error" element={<EdgeConnectionError />} />
           <Route
             path="/"
             element={
               <RequireAuth>
-                <Launcher />
+                <DerHome />
               </RequireAuth>
             }
           />
@@ -57,7 +68,7 @@ export default function App(): JSX.Element {
             path="/launcher"
             element={
               <RequireAuth>
-                <Launcher />
+                <DerHome />
               </RequireAuth>
             }
           />
@@ -132,8 +143,5 @@ export default function App(): JSX.Element {
             <RequireAuth><NetworkStatus /></RequireAuth>
           } />
         </Routes>
-      </DerShell>
-      </OrgUnitBindingProvider>
-    </AuthProvider>
   );
 }
