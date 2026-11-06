@@ -11,6 +11,7 @@ const APPS: CatalogueApp[] = [{
   module: null, version: '1.0.0',
   bundleUrl: '/edge-api/v1/apps/id-1/1.0.0/bundle.js',
   bundleSha256: 'abc', signatureB64: 'si', requiresDerApi: '1.0.0',
+  iconUrl: null,
 }];
 
 function catalogueResponse(apps: CatalogueApp[] = APPS): Response {

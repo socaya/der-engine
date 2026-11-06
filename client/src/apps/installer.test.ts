@@ -27,6 +27,7 @@ let APP: CatalogueApp = {
   bundleSha256: '',
   signatureB64: 'si',
   requiresDerApi: '1.0.0',
+  iconUrl: null,
 };
 
 async function sha(s: string): Promise<string> {

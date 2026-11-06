@@ -94,7 +94,8 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                                 "/edge-api/v1/apps",
                                 "/edge-api/v1/apps/signing-key",
-                                "/edge-api/v1/apps/*/*/bundle.js").permitAll()
+                                "/edge-api/v1/apps/*/*/bundle.js",
+                                "/edge-api/v1/apps/*/*/icon").permitAll()
                         .requestMatchers("/edge-api/v1/admin/apps",
                                 "/edge-api/v1/admin/apps/**")
                                 .hasAuthority("der.system.settings.write")

@@ -15,6 +15,10 @@ interface Tile {
   readonly testId: string;
   readonly iconPath?: string;
   readonly iconRects?: boolean;
+  /** When set, the launcher renders this image URL instead of the
+   *  inline SVG glyph — used by DER-dispatched apps that ship an
+   *  icon inside their DHIS2-style zip manifest (C-UI-5c). */
+  readonly iconImageUrl?: string | null;
 }
 
 /**
@@ -56,6 +60,7 @@ export function DerAppLauncher(
       label: a.displayName,
       testId: `der-launcher-app-${a.appKey}`,
       iconRects: true,
+      iconImageUrl: a.iconUrl,
     }));
     return [...mods, ...extra];
   }, [apps]);
@@ -155,18 +160,23 @@ export function DerAppLauncher(
                     data-test={t.testId}
                     onClick={onClose}>
                 <span className="der-launcher__tile-glyph" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    {t.iconRects ? (
-                      <>
-                        <rect x="4" y="4" width="7" height="7" rx="1" />
-                        <rect x="13" y="4" width="7" height="7" rx="1" />
-                        <rect x="4" y="13" width="7" height="7" rx="1" />
-                        <rect x="13" y="13" width="7" height="7" rx="1" />
-                      </>
-                    ) : (
-                      <path d={t.iconPath} />
-                    )}
-                  </svg>
+                  {t.iconImageUrl ? (
+                    <img src={t.iconImageUrl} alt=""
+                         className="der-launcher__tile-img" />
+                  ) : (
+                    <svg viewBox="0 0 24 24">
+                      {t.iconRects ? (
+                        <>
+                          <rect x="4" y="4" width="7" height="7" rx="1" />
+                          <rect x="13" y="4" width="7" height="7" rx="1" />
+                          <rect x="4" y="13" width="7" height="7" rx="1" />
+                          <rect x="13" y="13" width="7" height="7" rx="1" />
+                        </>
+                      ) : (
+                        <path d={t.iconPath} />
+                      )}
+                    </svg>
+                  )}
                 </span>
                 <span className="der-launcher__tile-label">{t.label}</span>
               </Link>

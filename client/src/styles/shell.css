@@ -283,6 +283,13 @@ body {
   fill: none;
 }
 
+.der-launcher__tile-img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  display: block;
+}
+
 .der-launcher__tile-label {
   font-size: 12px;
   line-height: 14px;

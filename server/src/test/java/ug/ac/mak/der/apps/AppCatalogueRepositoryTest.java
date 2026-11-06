@@ -78,6 +78,7 @@ class AppCatalogueRepositoryTest {
         when(rs.getString("bundle_sha256")).thenReturn("sha");
         when(rs.getString("signature_b64")).thenReturn("sig");
         when(rs.getString("requires_der_api")).thenReturn("1.0.0");
+        when(rs.getString("icon_etag")).thenReturn("abc123");
         final ArgumentCaptor<RowMapper<AppCatalogueRepository.CatalogueEntry>> cap =
                 ArgumentCaptor.forClass(RowMapper.class);
         when(jdbc.query(anyString(), cap.capture()))
@@ -93,6 +94,7 @@ class AppCatalogueRepositoryTest {
         assertThat(out.get(0).bundleSha256()).isEqualTo("sha");
         assertThat(out.get(0).signatureB64()).isEqualTo("sig");
         assertThat(out.get(0).requiresDerApi()).isEqualTo("1.0.0");
+        assertThat(out.get(0).iconEtag()).isEqualTo("abc123");
         verify(jdbc).query(contains("enabled = TRUE AND iav.superseded_at IS NULL"),
                 any(RowMapper.class));
     }
@@ -156,9 +158,77 @@ class AppCatalogueRepositoryTest {
                 appId, "1.0.0", bytes, "sha", "sig", "1.0.0", userId);
         assertThat(vid).isNotNull();
         verify(jdbc).update(contains("SET superseded_at = now()"), eq(appId));
+        // The 7-arg overload delegates to the 11-arg form with null
+        // manifest/icon columns — INSERT carries 12 bind values.
         verify(jdbc).update(contains("INSERT INTO der.installed_app_version"),
                 eq(vid), eq(appId), eq("1.0.0"), eq(bytes), eq("sha"), eq("sig"),
-                eq("1.0.0"), eq(userId));
+                eq("1.0.0"), eq(userId),
+                (Object) org.mockito.ArgumentMatchers.isNull(),
+                (Object) org.mockito.ArgumentMatchers.isNull(),
+                (Object) org.mockito.ArgumentMatchers.isNull(),
+                (Object) org.mockito.ArgumentMatchers.isNull());
+    }
+
+    @Test
+    void installVersionPersistsManifestAndIcon() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final UUID appId = UUID.randomUUID();
+        final UUID userId = UUID.randomUUID();
+        final byte[] bundle = "JS".getBytes();
+        final byte[] icon = "<svg/>".getBytes();
+        final UUID vid = new AppCatalogueRepository(jdbc).installVersion(
+                appId, "1.0.0", bundle, "sha", "sig", "1.0.0", userId,
+                "{\"name\":\"k\"}", icon, "image/svg+xml", "etag16");
+        assertThat(vid).isNotNull();
+        verify(jdbc).update(contains("SET superseded_at = now()"), eq(appId));
+        verify(jdbc).update(contains("CAST(? AS jsonb)"),
+                eq(vid), eq(appId), eq("1.0.0"), eq(bundle), eq("sha"), eq("sig"),
+                eq("1.0.0"), eq(userId), eq("{\"name\":\"k\"}"), eq(icon),
+                eq("image/svg+xml"), eq("etag16"));
+    }
+
+    // ---- readIcon ------------------------------------------------------
+
+    @Test
+    void readIconMiss() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), any(RowMapper.class),
+                any(UUID.class), eq("1.0.0")))
+                .thenThrow(new EmptyResultDataAccessException(1));
+        assertThat(new AppCatalogueRepository(jdbc)
+                .readIcon(UUID.randomUUID(), "1.0.0")).isEmpty();
+    }
+
+    @Test
+    void readIconHit() throws Exception {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final ResultSet rs = mock(ResultSet.class);
+        final byte[] bytes = "<svg/>".getBytes();
+        when(rs.getBytes("icon_bytes")).thenReturn(bytes);
+        when(rs.getString("icon_mime")).thenReturn("image/svg+xml");
+        when(rs.getString("icon_etag")).thenReturn("etag16");
+        final ArgumentCaptor<RowMapper<AppCatalogueRepository.IconRow>> cap =
+                ArgumentCaptor.forClass(RowMapper.class);
+        when(jdbc.queryForObject(anyString(), cap.capture(),
+                any(UUID.class), eq("1.0.0")))
+                .thenAnswer(inv -> cap.getValue().mapRow(rs, 1));
+        final var out = new AppCatalogueRepository(jdbc)
+                .readIcon(UUID.randomUUID(), "1.0.0");
+        assertThat(out).isPresent();
+        assertThat(out.get().bytes()).isEqualTo(bytes);
+        assertThat(out.get().mime()).isEqualTo("image/svg+xml");
+        assertThat(out.get().etag()).isEqualTo("etag16");
+    }
+
+    @Test
+    void iconRowDefensivelyCopiesBytes() {
+        final byte[] source = "orig".getBytes();
+        final var row = new AppCatalogueRepository.IconRow(source, "image/svg+xml", "e");
+        source[0] = 'X';
+        assertThat(row.bytes()).isEqualTo("orig".getBytes());
+        final byte[] first = row.bytes();
+        first[0] = 'Y';
+        assertThat(row.bytes()).isEqualTo("orig".getBytes());
     }
 
     // ---- setEnabled / deleteApp ---------------------------------------
@@ -199,7 +269,7 @@ class AppCatalogueRepositoryTest {
     void catalogueEntryRecordExposesFields() {
         final UUID id = UUID.randomUUID();
         final var e = new AppCatalogueRepository.CatalogueEntry(
-                id, "k", "Name", "{}", "1.0", "sha", "sig", "1.0.0");
+                id, "k", "Name", "{}", "1.0", "sha", "sig", "1.0.0", "etag16");
         assertThat(e.appId()).isEqualTo(id);
         assertThat(e.appKey()).isEqualTo("k");
         assertThat(e.displayName()).isEqualTo("Name");
@@ -208,5 +278,6 @@ class AppCatalogueRepositoryTest {
         assertThat(e.bundleSha256()).isEqualTo("sha");
         assertThat(e.signatureB64()).isEqualTo("sig");
         assertThat(e.requiresDerApi()).isEqualTo("1.0.0");
+        assertThat(e.iconEtag()).isEqualTo("etag16");
     }
 }

@@ -10,6 +10,9 @@ export interface CatalogueApp {
   readonly bundleSha256: string;
   readonly signatureB64: string;
   readonly requiresDerApi: string;
+  /** From C-UI-5c zip packaging: `/edge-api/v1/apps/<id>/<v>/icon`
+   *  when the app shipped an icon in its manifest, else `null`. */
+  readonly iconUrl: string | null;
 }
 
 export interface CatalogueResult {
@@ -41,6 +44,7 @@ function sanitize(raw: unknown): CatalogueApp[] {
       version: o.version, bundleUrl: o.bundleUrl,
       bundleSha256: o.bundleSha256, signatureB64: o.signatureB64,
       requiresDerApi: o.requiresDerApi,
+      iconUrl: typeof o.iconUrl === 'string' ? o.iconUrl : null,
     }];
   });
 }

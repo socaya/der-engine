@@ -10,8 +10,10 @@
  * install, no duplicate dependency trees.
  */
 import { build } from 'esbuild';
-import { mkdirSync, readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync,
+         statSync, existsSync, rmSync, copyFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { dirname, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // client/scripts/ → repo root is two levels up.
@@ -41,14 +43,33 @@ function readManifest(appDir) {
   return pkg.derAppManifest ?? null;
 }
 
+/**
+ * Translate the package.json `derAppManifest` block into a
+ * DHIS2-shaped `manifest.webapp` for the zip. Keeps DHIS2's
+ * `requires_der_api` snake_case convention; stores DER-only
+ * fields (`module`) alongside it.
+ */
+function toWebappManifest(manifest, hasIcon) {
+  const out = {
+    name: manifest.appKey,
+    displayName: manifest.displayName,
+    version: manifest.version,
+    requires_der_api: manifest.requiresDerApi,
+  };
+  if (manifest.module) out.module = manifest.module;
+  if (manifest.description) out.description = manifest.description;
+  if (manifest.developer) out.developer = manifest.developer;
+  if (hasIcon) out.icons = { '128': 'icon.svg' };
+  return out;
+}
+
 for (const appDir of appDirs) {
   const name = appDir.split('/').pop();
   const outdir = resolve(appDir, 'dist');
   mkdirSync(outdir, { recursive: true });
   const manifest = readManifest(appDir);
-  // The admin-ui's AppCatalogue screen parses this comment on
-  // file-select to auto-fill the install form so admins don't have
-  // to retype appKey / displayName / module / version each time.
+  // Keep the @der-app banner for backward-compat with the raw-.js
+  // upload path; the zip carries the canonical manifest.webapp.
   const banner = manifest
     ? { js: `/* @der-app ${JSON.stringify(manifest)} */` }
     : undefined;
@@ -72,5 +93,31 @@ for (const appDir of appDirs) {
     entryNames: 'bundle',
     banner,
   });
-  console.log(`[build-apps] ${name} → ${outdir}/bundle.js (${Date.now() - t0} ms)`);
+
+  // Also emit the DHIS2-style zip: manifest.webapp + bundle.js
+  // (+ icon.svg if the app ships one at `apps/<name>/icon.svg`).
+  if (manifest) {
+    const stageDir = resolve(outdir, '.zip-stage');
+    rmSync(stageDir, { recursive: true, force: true });
+    mkdirSync(stageDir, { recursive: true });
+    const iconSrc = resolve(appDir, 'icon.svg');
+    const hasIcon = existsSync(iconSrc);
+    if (hasIcon) copyFileSync(iconSrc, resolve(stageDir, 'icon.svg'));
+    copyFileSync(resolve(outdir, 'bundle.js'), resolve(stageDir, 'bundle.js'));
+    writeFileSync(
+      resolve(stageDir, 'manifest.webapp'),
+      JSON.stringify(toWebappManifest(manifest, hasIcon), null, 2),
+    );
+    const zipPath = resolve(outdir, `${name}.zip`);
+    rmSync(zipPath, { force: true });
+    execFileSync('zip', ['-j', '-q', zipPath,
+      resolve(stageDir, 'manifest.webapp'),
+      resolve(stageDir, 'bundle.js'),
+      ...(hasIcon ? [resolve(stageDir, 'icon.svg')] : []),
+    ]);
+    rmSync(stageDir, { recursive: true, force: true });
+  }
+
+  const label = manifest ? `${basename(outdir)}/${name}.zip` : 'bundle.js';
+  console.log(`[build-apps] ${name} → ${label} (${Date.now() - t0} ms)`);
 }

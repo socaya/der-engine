@@ -1,23 +1,55 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import JSZip from 'jszip';
 import * as edgeApi from '../api/edgeApi';
 import { Panel } from './shared';
 
-/**
- * Pulls a bundle's `@der-app` manifest out of the leading banner
- * comment emitted by `client/scripts/build-apps.mjs`:
- *
- *   `/` + `* @der-app {"appKey":…,"displayName":…,…} *` + `/`
- *
- * Returns the parsed object or `null` if the bundle has no
- * manifest (e.g. hand-authored samples under docs/apps/samples).
- */
-async function parseAppManifest(file: File): Promise<Partial<{
+type ParsedManifest = Partial<{
   appKey: string; displayName: string; module: string;
   version: string; requiresDerApi: string;
-}> | null> {
-  // Only scan the first 4 KB — the banner is the very first line.
-  // jsdom's File.slice(...) returns a Blob without .text(); fall
-  // back to reading the whole thing in test environments.
+}>;
+
+/** Match the DHIS2 `manifest.webapp` shape → our form-field names. */
+function webappToFields(raw: unknown): ParsedManifest {
+  if (!raw || typeof raw !== 'object') return {};
+  const w = raw as Record<string, unknown>;
+  const pick = (k: string): string | undefined =>
+    typeof w[k] === 'string' ? (w[k] as string) : undefined;
+  return {
+    appKey: pick('name'),
+    displayName: pick('displayName'),
+    module: pick('module'),
+    version: pick('version'),
+    requiresDerApi: pick('requires_der_api')
+      ?? pick('requiresDerApi'),
+  };
+}
+
+/**
+ * Reads the install-form fields from a selected file.
+ *
+ *   - `.zip` → parse `manifest.webapp` (DHIS2 schema) from the archive.
+ *   - `.js` / `.mjs` → parse the `/* @der-app {…} *` + `/`` banner comment
+ *     emitted by `client/scripts/build-apps.mjs` for backward compat.
+ *
+ * Returns `null` when the file carries no manifest (hand-authored
+ * sample). Never throws — any parsing hiccup falls back to "no
+ * auto-fill" so the admin can still type the fields manually.
+ */
+async function parseAppManifest(file: File): Promise<ParsedManifest | null> {
+  const isZip = file.name.toLowerCase().endsWith('.zip')
+             || file.type === 'application/zip';
+  if (isZip) {
+    try {
+      const zip = await JSZip.loadAsync(await file.arrayBuffer());
+      const entry = zip.file('manifest.webapp');
+      if (!entry) return null;
+      const json = JSON.parse(await entry.async('string')) as unknown;
+      return webappToFields(json);
+    } catch {
+      return null;
+    }
+  }
+  // Raw .js / .mjs — read the first 4 KB and look for the banner.
   let head: string;
   try {
     const slice = file.slice(0, 4096);
@@ -30,10 +62,7 @@ async function parseAppManifest(file: File): Promise<Partial<{
   const m = /@der-app\s+(\{[\s\S]*?\})\s*\*\//.exec(head);
   if (!m || !m[1]) return null;
   try {
-    return JSON.parse(m[1]) as Partial<{
-      appKey: string; displayName: string; module: string;
-      version: string; requiresDerApi: string;
-    }>;
+    return JSON.parse(m[1]) as ParsedManifest;
   } catch {
     return null;
   }
@@ -322,13 +351,16 @@ export function AppCatalogue(): JSX.Element {
                   id="install-file"
                   ref={installFileRef}
                   type="file"
+                  accept=".zip,application/zip,.js,.mjs,application/javascript,text/javascript"
                   data-test="install-file"
                   onChange={(e) => void onInstallFileChange(e)}
                   style={{ width: '100%' }}
                 />
                 <p className="ea-text-muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
-                  Fields auto-fill from the bundle&apos;s <code>@der-app</code> manifest
-                  when present. You can still override any value.
+                  Upload a DHIS2-style <code>.zip</code>
+                  (<code>manifest.webapp</code> + <code>bundle.js</code> + optional
+                  icon) or a raw <code>.js</code> bundle. Fields auto-fill from
+                  the manifest; you can still override any value.
                 </p>
               </div>
             </div>

@@ -1,5 +1,6 @@
 package ug.ac.mak.der.apps;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -7,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -38,17 +40,33 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
  * <ul>
  *   <li>{@code GET /edge-api/v1/apps} — enabled apps + their active version metadata.</li>
  *   <li>{@code GET /edge-api/v1/apps/{appId}/{version}/bundle.js} — immutable bundle bytes.</li>
+ *   <li>{@code GET /edge-api/v1/apps/{appId}/{version}/icon} — icon blob (V092).</li>
  *   <li>{@code GET /edge-api/v1/apps/signing-key} — the raw Ed25519 public key.</li>
  * </ul>
  *
  * <p>Admin surface — gated by {@code der.system.settings.write} at
  * {@link ug.ac.mak.der.security.SecurityConfig}:</p>
  * <ul>
- *   <li>{@code POST /edge-api/v1/admin/apps/install} — multipart upload.</li>
+ *   <li>{@code POST /edge-api/v1/admin/apps/install} — multipart upload (.js or .zip).</li>
  *   <li>{@code POST /edge-api/v1/admin/apps/{appId}/upgrade} — new version.</li>
  *   <li>{@code POST /edge-api/v1/admin/apps/{appId}/enable|disable}.</li>
  *   <li>{@code DELETE /edge-api/v1/admin/apps/{appId}}.</li>
  * </ul>
+ *
+ * <p>Install accepts two file shapes:</p>
+ * <ul>
+ *   <li>Raw {@code .js} / {@code .mjs} bundle with typed form fields — the
+ *       original Phase 02 flow, unchanged.</li>
+ *   <li>DHIS2-style {@code .zip} containing {@code manifest.webapp},
+ *       {@code bundle.js} and an optional icon. The manifest supplies
+ *       {@code appKey} ({@code name}), {@code displayName}, {@code version},
+ *       {@code module} and {@code requires_der_api}; form parameters for
+ *       those fields are ignored on the zip path.</li>
+ * </ul>
+ *
+ * <p>The Ed25519 signing boundary is unchanged across both paths: the
+ * signature covers only the raw {@code bundle.js} bytes, never the zip
+ * envelope, so device-side verification needs no awareness of packaging.</p>
  */
 @RestController
 public class AppCatalogueController {
@@ -56,6 +74,10 @@ public class AppCatalogueController {
     /** The bundle types we accept + serve. Matches what browsers will execute. */
     static final Set<String> JS_MIME = Set.of(
             "application/javascript", "text/javascript");
+
+    /** Zip MIME shapes we recognise. */
+    static final Set<String> ZIP_MIME = Set.of(
+            "application/zip", "application/x-zip-compressed", "multipart/x-zip");
 
     /** 5 MB is comfortable for a webpack-built admin tile; refuse the rest. */
     static final int MAX_BUNDLE_BYTES = 5 * 1024 * 1024;
@@ -123,6 +145,31 @@ public class AppCatalogueController {
                 .body(r.bytes());
     }
 
+    @GetMapping(path = "/edge-api/v1/apps/{appId}/{version}/icon")
+    public ResponseEntity<byte[]> icon(
+            @PathVariable("appId") final UUID appId,
+            @PathVariable("version") final String version,
+            @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false)
+            final String ifNoneMatch) {
+        final Optional<AppCatalogueRepository.IconRow> row = repo.readIcon(appId, version);
+        if (row.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        final AppCatalogueRepository.IconRow r = row.get();
+        final String etag = "\"" + r.etag() + "\"";
+        if (ifNoneMatch != null && iconMatches(ifNoneMatch, r.etag())) {
+            return ResponseEntity.status(304).eTag(etag).build();
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(r.mime()))
+                .eTag(etag)
+                .cacheControl(org.springframework.http.CacheControl
+                        .maxAge(java.time.Duration.ofSeconds(31_536_000L))
+                        .cachePublic()
+                        .immutable())
+                .body(r.bytes());
+    }
+
     // ---- admin writes --------------------------------------------------
 
     @PostMapping(path = "/edge-api/v1/admin/apps/install",
@@ -130,11 +177,11 @@ public class AppCatalogueController {
     public ResponseEntity<Map<String, Object>> install(
             final Authentication authentication,
             @RequestParam("file") final MultipartFile file,
-            @RequestParam("appKey") final String appKey,
-            @RequestParam("displayName") final String displayName,
+            @RequestParam(value = "appKey", required = false) final String appKey,
+            @RequestParam(value = "displayName", required = false) final String displayName,
             @RequestParam(value = "module", required = false) final String module,
-            @RequestParam("version") final String version,
-            @RequestParam("requiresDerApi") final String requiresDerApi,
+            @RequestParam(value = "version", required = false) final String version,
+            @RequestParam(value = "requiresDerApi", required = false) final String requiresDerApi,
             @RequestParam(value = "iconSvg", required = false) final String iconSvg)
             throws IOException {
         final UUID userId = requirePrincipal(authentication);
@@ -145,8 +192,22 @@ public class AppCatalogueController {
         if (precheck != null) {
             return precheck;
         }
+        if (isZipUpload(file)) {
+            final ParsedBundle parsed;
+            try {
+                parsed = parseZip(file);
+            } catch (ValidationFailure ex) {
+                return ex.toResponse();
+            }
+            return ResponseEntity.ok(installZip(parsed, userId));
+        }
+        if (appKey == null || displayName == null || version == null
+                || requiresDerApi == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "appKey, displayName, version, requiresDerApi "
+                            + "required for .js uploads"));
+        }
         final byte[] bytes = file.getBytes();
-        // Reuse app_id when app_key already exists; otherwise mint a new row.
         final Optional<InstalledApp> existing = installedApps.findByKey(appKey);
         final UUID appId;
         if (existing.isPresent()) {
@@ -159,8 +220,8 @@ public class AppCatalogueController {
                     "db://" + appKey,
                     userId, java.time.Instant.now(), true));
         }
-        return ResponseEntity.ok(storeVersion(appId, appKey, version, requiresDerApi,
-                bytes, userId));
+        return ResponseEntity.ok(storeJsVersion(appId, appKey, version, module,
+                requiresDerApi, bytes, userId));
     }
 
     @PostMapping(path = "/edge-api/v1/admin/apps/{appId}/upgrade",
@@ -169,8 +230,8 @@ public class AppCatalogueController {
             final Authentication authentication,
             @PathVariable("appId") final UUID appId,
             @RequestParam("file") final MultipartFile file,
-            @RequestParam("version") final String version,
-            @RequestParam("requiresDerApi") final String requiresDerApi)
+            @RequestParam(value = "version", required = false) final String version,
+            @RequestParam(value = "requiresDerApi", required = false) final String requiresDerApi)
             throws IOException {
         final UUID userId = requirePrincipal(authentication);
         if (userId == null) {
@@ -184,9 +245,26 @@ public class AppCatalogueController {
         if (precheck != null) {
             return precheck;
         }
+        if (isZipUpload(file)) {
+            final ParsedBundle parsed;
+            try {
+                parsed = parseZip(file);
+            } catch (ValidationFailure ex) {
+                return ex.toResponse();
+            }
+            // Upgrade keeps the existing appId; manifest's name field
+            // is advisory here (identity is the path variable).
+            return ResponseEntity.ok(storeZipVersion(
+                    appId, existing.get().appKey(), parsed, userId));
+        }
+        if (version == null || requiresDerApi == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "version, requiresDerApi "
+                            + "required for .js uploads"));
+        }
         final byte[] bytes = file.getBytes();
-        return ResponseEntity.ok(storeVersion(appId, existing.get().appKey(), version,
-                requiresDerApi, bytes, userId));
+        return ResponseEntity.ok(storeJsVersion(appId, existing.get().appKey(),
+                version, null, requiresDerApi, bytes, userId));
     }
 
     @PostMapping(path = "/edge-api/v1/admin/apps/{appId}/enable",
@@ -236,16 +314,77 @@ public class AppCatalogueController {
         return ResponseEntity.ok(Map.of("appId", appId.toString(), "enabled", enabled));
     }
 
-    private Map<String, Object> storeVersion(final UUID appId,
-                                              final String appKey,
-                                              final String version,
-                                              final String requiresDerApi,
-                                              final byte[] bytes,
-                                              final UUID userId) {
+    /** Raw-{@code .js} path — no manifest, no icon. */
+    private Map<String, Object> storeJsVersion(final UUID appId,
+                                                 final String appKey,
+                                                 final String version,
+                                                 final String module,
+                                                 final String requiresDerApi,
+                                                 final byte[] bytes,
+                                                 final UUID userId) {
         final String sha = sha256Hex(bytes);
         final String signature = Base64.getEncoder()
                 .encodeToString(signer.signBundle(bytes));
-        repo.installVersion(appId, version, bytes, sha, signature, requiresDerApi, userId);
+        repo.installVersion(appId, version, bytes, sha, signature, requiresDerApi,
+                userId);
+        final Map<String, Object> body = installResponseBase(appId, appKey, version,
+                sha, signature, requiresDerApi);
+        body.put("module", module);
+        body.put("iconUrl", null);
+        body.put("manifestJson", null);
+        return body;
+    }
+
+    /**
+     * Fresh-install from a zip — mint the identity row if missing, then
+     * persist the version with manifest + icon.
+     */
+    private Map<String, Object> installZip(final ParsedBundle parsed, final UUID userId) {
+        final Optional<InstalledApp> existing = installedApps.findByKey(parsed.manifest.name);
+        final UUID appId;
+        if (existing.isPresent()) {
+            appId = existing.get().appId();
+        } else {
+            appId = UUID.randomUUID();
+            installedApps.insert(new InstalledApp(
+                    appId, parsed.manifest.name, parsed.manifest.version,
+                    parsed.manifest.displayName,
+                    manifestJson(parsed.manifest.module, null),
+                    "db://" + parsed.manifest.name,
+                    userId, java.time.Instant.now(), true));
+        }
+        return storeZipVersion(appId, parsed.manifest.name, parsed, userId);
+    }
+
+    /** Insert the new {@code installed_app_version} row from a parsed zip. */
+    private Map<String, Object> storeZipVersion(final UUID appId,
+                                                  final String appKey,
+                                                  final ParsedBundle parsed,
+                                                  final UUID userId) {
+        final String sha = sha256Hex(parsed.bundleBytes);
+        final String signature = Base64.getEncoder()
+                .encodeToString(signer.signBundle(parsed.bundleBytes));
+        final String iconEtag = parsed.iconBytes == null
+                ? null
+                : sha256Hex(parsed.iconBytes).substring(0, 16);
+        repo.installVersion(appId, parsed.manifest.version, parsed.bundleBytes,
+                sha, signature, parsed.manifest.requiresDerApi, userId,
+                parsed.manifestJsonRaw, parsed.iconBytes, parsed.iconMime, iconEtag);
+        final Map<String, Object> body = installResponseBase(appId, appKey,
+                parsed.manifest.version, sha, signature, parsed.manifest.requiresDerApi);
+        body.put("module", parsed.manifest.module);
+        body.put("iconUrl", parsed.iconBytes == null ? null
+                : iconUrl(appId, parsed.manifest.version));
+        body.put("manifestJson", parsed.manifestJsonRaw);
+        return body;
+    }
+
+    private Map<String, Object> installResponseBase(final UUID appId,
+                                                     final String appKey,
+                                                     final String version,
+                                                     final String sha,
+                                                     final String signature,
+                                                     final String requiresDerApi) {
         final Map<String, Object> body = new LinkedHashMap<>();
         body.put("appId", appId.toString());
         body.put("appKey", appKey);
@@ -257,21 +396,162 @@ public class AppCatalogueController {
         return body;
     }
 
+    /**
+     * Validate the raw multipart envelope: non-empty, size ceiling, and
+     * a recognised content type. Zip discrimination happens inside the
+     * install handlers so the response bodies can stay specific.
+     *
+     * <p>The {@code file == null} branch is defensive: Spring's
+     * {@code @RequestParam("file")} binding rejects the request with 400
+     * before reaching this method when the multipart part is missing, so
+     * only the {@code file.isEmpty()} case is reachable from HTTP.</p>
+     */
     private ResponseEntity<Map<String, Object>> validateFile(final MultipartFile file) {
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "file required"));
         }
-        final String mime = file.getContentType();
-        if (mime == null || !JS_MIME.contains(mime.toLowerCase(java.util.Locale.ROOT))) {
+        final boolean zip = isZipUpload(file);
+        final String mime = normalisedMime(file);
+        if (!zip && (mime == null || !JS_MIME.contains(mime))) {
             return ResponseEntity.status(415)
-                    .body(Map.of("error", "unsupported media type; allowed: " + JS_MIME));
+                    .body(Map.of("error", "unsupported media type; allowed: "
+                            + JS_MIME + " or application/zip"));
         }
-        if (file.getSize() > MAX_BUNDLE_BYTES) {
+        final long limit = zip ? AppBundleArchive.MAX_ARCHIVE_BYTES : MAX_BUNDLE_BYTES;
+        if (file.getSize() > limit) {
             return ResponseEntity.status(413)
-                    .body(Map.of("error", "file exceeds " + MAX_BUNDLE_BYTES + " bytes"));
+                    .body(Map.of("error", "file exceeds " + limit + " bytes"));
         }
         return null;
+    }
+
+    /**
+     * {@code true} iff the upload is a zip — by MIME or by filename. The
+     * filename check lets us accept archives uploaded through tooling
+     * that drops the content-type header (curl, etc.).
+     */
+    private static boolean isZipUpload(final MultipartFile file) {
+        final String mime = normalisedMime(file);
+        if (mime != null && ZIP_MIME.contains(mime)) {
+            return true;
+        }
+        final String name = file.getOriginalFilename();
+        return name != null && name.toLowerCase(Locale.ROOT).endsWith(".zip");
+    }
+
+    private static String normalisedMime(final MultipartFile file) {
+        final String raw = file.getContentType();
+        return raw == null ? null : raw.toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Parse + validate the zip envelope. Any structural problem surfaces
+     * as a {@link ValidationFailure} carrying the HTTP status and payload
+     * the caller will return directly.
+     */
+    private ParsedBundle parseZip(final MultipartFile file) throws IOException {
+        final AppBundleArchive archive;
+        try (var in = new ByteArrayInputStream(file.getBytes())) {
+            archive = AppBundleArchive.parse(in);
+        } catch (AppBundleArchive.ArchiveException ex) {
+            throw new ValidationFailure(400, ex.getMessage());
+        }
+        final byte[] manifestBytes = archive.entry("manifest.webapp");
+        if (manifestBytes == null) {
+            throw new ValidationFailure(400, "missing manifest.webapp");
+        }
+        final String manifestRaw = new String(manifestBytes,
+                java.nio.charset.StandardCharsets.UTF_8);
+        final AppBundleManifest manifest;
+        try {
+            manifest = mapper.readValue(manifestBytes, AppBundleManifest.class);
+        } catch (IOException ex) {
+            throw new ValidationFailure(400, "malformed manifest.webapp");
+        }
+        if (isBlank(manifest.name)) {
+            throw new ValidationFailure(400, "manifest.webapp missing required field: name");
+        }
+        if (isBlank(manifest.displayName)) {
+            throw new ValidationFailure(400,
+                    "manifest.webapp missing required field: displayName");
+        }
+        if (isBlank(manifest.version)) {
+            throw new ValidationFailure(400,
+                    "manifest.webapp missing required field: version");
+        }
+        if (isBlank(manifest.requiresDerApi)) {
+            throw new ValidationFailure(400,
+                    "manifest.webapp missing required field: requires_der_api");
+        }
+        final byte[] bundleBytes = archive.entry("bundle.js");
+        if (bundleBytes == null) {
+            throw new ValidationFailure(400, "missing bundle.js");
+        }
+        if (bundleBytes.length > MAX_BUNDLE_BYTES) {
+            throw new ValidationFailure(413, "bundle.js exceeds "
+                    + MAX_BUNDLE_BYTES + " bytes");
+        }
+        final IconResolution icon = resolveIcon(archive, manifest);
+        return new ParsedBundle(manifest, manifestRaw, bundleBytes,
+                icon.bytes, icon.mime);
+    }
+
+    /**
+     * Pick the icon entry declared in {@code manifest.icons}. The DHIS2
+     * convention keys icons by nominal pixel size as a string; we pick
+     * the entry with the largest numeric key that resolves to a file
+     * actually present in the archive, falling back to any entry on the
+     * off-chance the map contains non-numeric keys. Returns a result
+     * with null bytes if no icon can be resolved (icons are optional).
+     */
+    private static IconResolution resolveIcon(final AppBundleArchive archive,
+                                               final AppBundleManifest manifest) {
+        final Map<String, String> icons = manifest.iconsSafe();
+        if (icons.isEmpty()) {
+            return IconResolution.empty();
+        }
+        String chosenName = null;
+        int chosenScore = Integer.MIN_VALUE;
+        for (final Map.Entry<String, String> e : icons.entrySet()) {
+            final String path = e.getValue();
+            if (path == null || archive.entry(path) == null) {
+                continue;
+            }
+            final int score;
+            try {
+                score = Integer.parseInt(e.getKey().trim());
+            } catch (NumberFormatException nfe) {
+                // Non-numeric key — treat as lowest priority but still eligible.
+                if (chosenName == null) {
+                    chosenName = path;
+                }
+                continue;
+            }
+            if (score > chosenScore) {
+                chosenScore = score;
+                chosenName = path;
+            }
+        }
+        if (chosenName == null) {
+            return IconResolution.empty();
+        }
+        final String mime = AppBundleArchive.iconMimeFor(chosenName);
+        if (mime == null) {
+            throw new ValidationFailure(400,
+                    "icon " + chosenName + " must be .svg/.png/.webp/.jpg");
+        }
+        final byte[] bytes = archive.entry(chosenName);
+        if (bytes.length > AppBundleArchive.MAX_ICON_BYTES) {
+            throw new ValidationFailure(400,
+                    "icon " + chosenName + " exceeds "
+                            + AppBundleArchive.MAX_ICON_BYTES + " bytes");
+        }
+        return new IconResolution(bytes, mime);
+    }
+
+    private static boolean isBlank(final String s) {
+        return s == null || s.isBlank();
     }
 
     private static UUID requirePrincipal(final Authentication authentication) {
@@ -292,6 +572,9 @@ public class AppCatalogueController {
         m.put("bundleSha256", row.bundleSha256());
         m.put("signatureB64", row.signatureB64());
         m.put("requiresDerApi", row.requiresDerApi());
+        m.put("iconUrl", row.iconEtag() == null ? null
+                : iconUrl(row.appId(), row.version()));
+        m.put("manifestJson", row.manifestJson());
         return m;
     }
 
@@ -339,6 +622,10 @@ public class AppCatalogueController {
         return "/edge-api/v1/apps/" + appId + "/" + version + "/bundle.js";
     }
 
+    private static String iconUrl(final UUID appId, final String version) {
+        return "/edge-api/v1/apps/" + appId + "/" + version + "/icon";
+    }
+
     private static String etagOf(final String sha256) {
         // Use the first 16 hex chars — plenty of collision resistance for
         // cache validation, keeps the header short.
@@ -355,6 +642,20 @@ public class AppCatalogueController {
         for (final String part : header.split(",")) {
             final String trimmed = part.trim();
             if (trimmed.equals("*") || trimmed.equals(bare) || trimmed.equals(quoted)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean iconMatches(final String header, final String etag) {
+        if (header == null || etag == null) {
+            return false;
+        }
+        final String quoted = "\"" + etag + "\"";
+        for (final String part : header.split(",")) {
+            final String trimmed = part.trim();
+            if (trimmed.equals("*") || trimmed.equals(etag) || trimmed.equals(quoted)) {
                 return true;
             }
         }
@@ -381,6 +682,64 @@ public class AppCatalogueController {
             return MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 unavailable", ex);
+        }
+    }
+
+    // ---- parse-output carriers ----------------------------------------
+
+    /** Internal holder for a successfully-parsed zip install. */
+    private static final class ParsedBundle {
+        final AppBundleManifest manifest;
+        final String manifestJsonRaw;
+        final byte[] bundleBytes;
+        final byte[] iconBytes; // nullable
+        final String iconMime;  // nullable
+
+        ParsedBundle(final AppBundleManifest manifest,
+                     final String manifestJsonRaw,
+                     final byte[] bundleBytes,
+                     final byte[] iconBytes,
+                     final String iconMime) {
+            this.manifest = manifest;
+            this.manifestJsonRaw = manifestJsonRaw;
+            this.bundleBytes = bundleBytes;
+            this.iconBytes = iconBytes;
+            this.iconMime = iconMime;
+        }
+    }
+
+    /** Resolved icon tuple — bytes/mime null when the archive has no icon. */
+    private static final class IconResolution {
+        final byte[] bytes;
+        final String mime;
+
+        IconResolution(final byte[] bytes, final String mime) {
+            this.bytes = bytes;
+            this.mime = mime;
+        }
+
+        static IconResolution empty() {
+            return new IconResolution(null, null);
+        }
+    }
+
+    /**
+     * Carries a status + message pair from the zip parser back to the
+     * controller entry point. Throwing lets validators compose without
+     * each sub-step having to return {@code Optional<ResponseEntity>}.
+     */
+    private static final class ValidationFailure extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        private final int status;
+
+        ValidationFailure(final int status, final String message) {
+            super(message);
+            this.status = status;
+        }
+
+        ResponseEntity<Map<String, Object>> toResponse() {
+            return ResponseEntity.status(status)
+                    .body(Map.of("error", getMessage()));
         }
     }
 }

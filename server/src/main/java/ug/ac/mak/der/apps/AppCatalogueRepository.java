@@ -70,13 +70,18 @@ public class AppCatalogueRepository {
      * (superseded_at IS NULL). Apps with no active version are omitted —
      * on-disk reality is always "either you have bytes or you aren't in
      * the catalogue" and callers should not have to deal with the latter.
+     *
+     * <p>The V092 {@code manifest_json} + {@code icon_etag} on the version
+     * row are preferred over the identity row's manifest once the first
+     * zip-shaped install lands.  The controller uses {@code icon_etag} as
+     * a presence probe to decide whether to publish {@code iconUrl}.</p>
      */
     public List<CatalogueEntry> catalogue() {
         return jdbc.query(
                 "SELECT ia.app_id, ia.app_key, ia.display_name, "
-                        + "       ia.manifest_json::text AS manifest_json, "
+                        + "       COALESCE(iav.manifest_json::text, ia.manifest_json::text) AS manifest_json, "
                         + "       iav.version, iav.bundle_sha256, iav.signature_b64, "
-                        + "       iav.requires_der_api "
+                        + "       iav.requires_der_api, iav.icon_etag "
                         + "FROM der.installed_app ia "
                         + "JOIN der.installed_app_version iav ON iav.app_id = ia.app_id "
                         + "WHERE ia.enabled = TRUE AND iav.superseded_at IS NULL "
@@ -103,6 +108,27 @@ public class AppCatalogueRepository {
         }
     }
 
+    /**
+     * Read the icon blob for a specific version — returns empty if the
+     * version has no icon (older {@code .js}-only installs don't).
+     */
+    public Optional<IconRow> readIcon(final UUID appId, final String version) {
+        try {
+            return Optional.ofNullable(jdbc.queryForObject(
+                    "SELECT icon_bytes, icon_mime, icon_etag "
+                            + "FROM der.installed_app_version "
+                            + "WHERE app_id = ? AND version = ? "
+                            + "  AND icon_bytes IS NOT NULL",
+                    (ResultSet rs, int n) -> new IconRow(
+                            rs.getBytes("icon_bytes"),
+                            rs.getString("icon_mime"),
+                            rs.getString("icon_etag")),
+                    appId, version));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
     // ---- writes --------------------------------------------------------
 
     /**
@@ -123,6 +149,28 @@ public class AppCatalogueRepository {
                                 final String signatureB64,
                                 final String requiresDerApi,
                                 final UUID uploadedBy) {
+        return installVersion(appId, version, bytes, sha256, signatureB64,
+                requiresDerApi, uploadedBy, null, null, null, null);
+    }
+
+    /**
+     * Full-shape install used by the zip-aware controller path — in
+     * addition to the signed bundle bytes the caller can supply the raw
+     * manifest JSON string and an optional icon blob + its mime + etag.
+     * Any of the optional args may be {@code null} (raw {@code .js}
+     * installs go through the shorter overload above).
+     */
+    public UUID installVersion(final UUID appId,
+                                final String version,
+                                final byte[] bytes,
+                                final String sha256,
+                                final String signatureB64,
+                                final String requiresDerApi,
+                                final UUID uploadedBy,
+                                final String manifestJson,
+                                final byte[] iconBytes,
+                                final String iconMime,
+                                final String iconEtag) {
         jdbc.update(
                 "UPDATE der.installed_app_version SET superseded_at = now() "
                         + "WHERE app_id = ? AND superseded_at IS NULL",
@@ -131,9 +179,10 @@ public class AppCatalogueRepository {
         jdbc.update(
                 "INSERT INTO der.installed_app_version (version_id, app_id, version, "
                         + "bundle_bytes, bundle_sha256, signature_b64, requires_der_api, "
-                        + "uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        + "uploaded_by, manifest_json, icon_bytes, icon_mime, icon_etag) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb), ?, ?, ?)",
                 versionId, appId, version, bytes, sha256, signatureB64,
-                requiresDerApi, uploadedBy);
+                requiresDerApi, uploadedBy, manifestJson, iconBytes, iconMime, iconEtag);
         return versionId;
     }
 
@@ -165,7 +214,8 @@ public class AppCatalogueRepository {
                 rs.getString("version"),
                 rs.getString("bundle_sha256"),
                 rs.getString("signature_b64"),
-                rs.getString("requires_der_api"));
+                rs.getString("requires_der_api"),
+                rs.getString("icon_etag"));
     }
 
     // ---- projections ---------------------------------------------------
@@ -175,7 +225,13 @@ public class AppCatalogueRepository {
                               String publicKeyB64,
                               String sealedSecret) { }
 
-    /** One row of the enabled-apps catalogue with its active version. */
+    /**
+     * One row of the enabled-apps catalogue with its active version.
+     * {@code iconEtag} is non-null iff an icon has been uploaded for
+     * this version — the controller uses it both as a presence probe
+     * (to decide whether to publish {@code iconUrl}) and as the HTTP
+     * {@code ETag} value for the icon endpoint itself.
+     */
     public record CatalogueEntry(UUID appId,
                                   String appKey,
                                   String displayName,
@@ -183,7 +239,8 @@ public class AppCatalogueRepository {
                                   String version,
                                   String bundleSha256,
                                   String signatureB64,
-                                  String requiresDerApi) { }
+                                  String requiresDerApi,
+                                  String iconEtag) { }
 
     /** Bytes + crypto metadata for a specific version. */
     public record BundleRow(byte[] bytes,
@@ -194,6 +251,22 @@ public class AppCatalogueRepository {
         /** Defensive copy so the stored blob can't be mutated by callers. */
         public BundleRow {
             Objects.requireNonNull(bytes, "bytes");
+            bytes = bytes.clone();
+        }
+
+        @Override
+        public byte[] bytes() {
+            return bytes.clone();
+        }
+    }
+
+    /** Raw icon blob + mime + etag. All three are non-null when present. */
+    public record IconRow(byte[] bytes, String mime, String etag) {
+
+        public IconRow {
+            Objects.requireNonNull(bytes, "bytes");
+            Objects.requireNonNull(mime, "mime");
+            Objects.requireNonNull(etag, "etag");
             bytes = bytes.clone();
         }
 

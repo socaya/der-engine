@@ -6,6 +6,7 @@ const GOOD = {
   appId: 'a1', appKey: 'data-entry', displayName: 'Data Entry',
   module: 'Data', version: '1.0.0', bundleUrl: '/b',
   bundleSha256: 'ab', signatureB64: 'si', requiresDerApi: '1.0.0',
+  iconUrl: '/i',
 };
 
 function okJson(body: unknown): Response {

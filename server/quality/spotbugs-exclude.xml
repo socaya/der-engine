@@ -239,6 +239,21 @@
     </Or>
   </Match>
 
+  <!-- V092 (DHIS2-style bundle packaging): AppBundleManifest is a
+       Jackson-populated manifest.webapp DTO. Fields such as description /
+       developer / developer.name / developer.email are read by downstream
+       consumers but not by the DER server itself (the install flow only
+       needs name/displayName/version/icons/module/requires_der_api).
+       Keeping the full shape lets admins round-trip a DHIS2-compatible
+       manifest without stripping fields. Reviewed 2026-11-06. -->
+  <Match>
+    <Or>
+      <Class name="ug.ac.mak.der.apps.AppBundleManifest"/>
+      <Class name="ug.ac.mak.der.apps.AppBundleManifest$Developer"/>
+    </Or>
+    <Bug pattern="UUF_UNUSED_PUBLIC_OR_PROTECTED_FIELD"/>
+  </Match>
+
   <!-- der-2.3.123 batch waiver — pre-1.0.0 cut.
        Dominant pre-existing patterns across the Phase 03..14 code
        base. Closing them honestly means (a) restructuring Quartz
