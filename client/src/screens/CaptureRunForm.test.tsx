@@ -151,10 +151,12 @@ describe('CaptureRunForm', () => {
     fireEvent.click(screen.getByTestId('capture-form-submit'));
     await waitFor(() => {
       expect(submitAggregate).toHaveBeenCalledWith({
+        dataSet: 'ds1',
+        orgUnit: 'OU-A',
+        period: '2026W40',
         dataValues: [
-          { dataElement: 'de1', orgUnit: 'OU-A', period: '2026W40', value: '10' },
-          { dataElement: 'de2', orgUnit: 'OU-A', period: '2026W40', value: '5',
-            categoryOptionCombo: 'cc' },
+          { dataElement: 'de1', value: '10' },
+          { dataElement: 'de2', value: '5', categoryOptionCombo: 'cc' },
         ],
       });
     });
@@ -445,8 +447,11 @@ describe('CaptureRunForm', () => {
     fireEvent.click(screen.getByTestId('capture-form-submit'));
     await waitFor(() => {
       expect(submitAggregate).toHaveBeenCalledWith({
+        dataSet: 'ds1',
+        orgUnit: 'OU-A',
+        period: '2026W41',
         dataValues: [
-          { dataElement: 'de1', orgUnit: 'OU-A', period: '2026W41', value: '7' },
+          { dataElement: 'de1', value: '7' },
         ],
       });
     });

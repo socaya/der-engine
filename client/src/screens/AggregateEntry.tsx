@@ -22,6 +22,7 @@ import {
   CaptureFormRenderer,
   type FieldValue,
 } from '../components/CaptureFormRenderer';
+import { hasBlockingErrors, validateForm } from '../forms/validation';
 import { useOrgUnitBinding } from '../orgunit/OrgUnitBindingContext';
 import {
   generatePeriods,
@@ -142,25 +143,32 @@ export function AggregateEntry(
     setSaving(true);
     setError(null);
     try {
+      // DHIS2 dataValueSets envelope — dataSet is required by DER
+      // (DataValueSetsController §2.3.84). orgUnit + period live on
+      // the envelope so per-row fields inherit; each row only carries
+      // its own dataElement, value, and CoC if disaggregated.
       const dataValues = form.sections.flatMap((section) =>
         section.fields
           .filter((f) => f.requirement !== 'READONLY'
                        && values[f.fieldRef] !== undefined
                        && values[f.fieldRef] !== '')
           .map((f) => {
-            const dv: Record<string, string> = {
+            const dv: { dataElement: string; value: string; categoryOptionCombo?: string } = {
               dataElement: f.dataElementUid,
-              orgUnit: boundOrgUnit,
-              period,
               value: stringify(values[f.fieldRef]!),
             };
             if (f.categoryOptionComboUid) {
               dv.categoryOptionCombo = f.categoryOptionComboUid;
             }
-            return dv as never;
+            return dv;
           }),
       );
-      const r = await api.submitAggregate({ dataValues });
+      const r = await api.submitAggregate({
+        dataSet,
+        orgUnit: boundOrgUnit,
+        period,
+        dataValues,
+      });
       setResult(r);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -239,27 +247,41 @@ export function AggregateEntry(
         <LoadingBlock testId="aggregate-entry-loading" />
       )}
 
-      {form && boundOrgUnit && period && !loading && (
-        <CaptureFormRenderer
-          form={form}
-          values={values}
-          onChange={updateField}
-          disabled={saving}
-        />
-      )}
-
-      {form && boundOrgUnit && period && !loading && (
-        <div className="der-aggregate-actions">
-          <Button
-            primary
-            dataTest="aggregate-entry-submit"
-            loading={saving}
-            onClick={() => { submit().catch(() => undefined); }}
-          >
-            Save
-          </Button>
-        </div>
-      )}
+      {form && boundOrgUnit && period && !loading && (() => {
+        const issues = validateForm(form, values);
+        const blocking = hasBlockingErrors(issues);
+        const errorCount = Array.from(issues.values())
+          .filter((i) => i.severity === 'ERROR').length;
+        return (
+          <>
+            {errorCount > 0 && (
+              <NoticeBox error
+                          title={`${errorCount} field${errorCount === 1 ? '' : 's'} need attention`}
+                          dataTest="aggregate-entry-validation">
+                Resolve the highlighted fields before saving.
+              </NoticeBox>
+            )}
+            <CaptureFormRenderer
+              form={form}
+              values={values}
+              onChange={updateField}
+              disabled={saving}
+              issues={issues}
+            />
+            <div className="der-aggregate-actions">
+              <Button
+                primary
+                dataTest="aggregate-entry-submit"
+                loading={saving}
+                disabled={saving || blocking}
+                onClick={() => { submit().catch(() => undefined); }}
+              >
+                Save
+              </Button>
+            </div>
+          </>
+        );
+      })()}
 
       {result && (
         <div data-test="aggregate-entry-result" className="der-import-summary">

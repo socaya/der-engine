@@ -121,10 +121,12 @@ describe('AggregateEntry', () => {
     fireEvent.click(screen.getByTestId('aggregate-entry-submit'));
     await waitFor(() => {
       expect(submit).toHaveBeenCalledWith({
+        dataSet: 'DS',
+        orgUnit: 'OU-A',
+        period: '202611',
         dataValues: [
-          { dataElement: 'de1', orgUnit: 'OU-A', period: '202611', value: '9' },
-          { dataElement: 'de2', orgUnit: 'OU-A', period: '202611', value: '4',
-            categoryOptionCombo: 'cc' },
+          { dataElement: 'de1', value: '9' },
+          { dataElement: 'de2', value: '4', categoryOptionCombo: 'cc' },
         ],
       });
     });
@@ -264,6 +266,38 @@ describe('AggregateEntry', () => {
       { route: '/aggregate/entry?dataSet=DS' });
     await waitFor(() =>
       expect(screen.getByTestId('aggregate-entry-period-unsupported')).toBeInTheDocument());
+  });
+
+  it('shows a validation banner + disables submit when a field is invalid', async () => {
+    // Required field left empty → ERROR → submit disabled.
+    const requiredForm = () => ({
+      ...form(),
+      sections: [{
+        sectionUid: 's', displayName: 'Core',
+        fields: [{
+          fieldRef: 'req', dataElementUid: 'req', categoryOptionComboUid: null,
+          dataElementDisplayName: 'Required DE', categoryOptionComboDisplayName: null,
+          valueType: 'TEXT' as const, optionSetUid: null,
+          requirement: 'REQUIRED' as const,
+        }],
+      }],
+    });
+    renderWithProviders(
+      <AggregateEntry api={stubApi({
+        getCaptureDataSetForm: vi.fn().mockResolvedValue(requiredForm()),
+      })} />,
+      { route: '/aggregate/entry?dataSet=DS&period=202611' },
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('aggregate-entry-validation')).toBeInTheDocument());
+    expect(screen.getByTestId('aggregate-entry-submit')).toBeDisabled();
+    fireEvent.change(
+      screen.getByTestId('capture-field-req').querySelector('input')!,
+      { target: { value: 'ok' } },
+    );
+    await waitFor(() =>
+      expect(screen.queryByTestId('aggregate-entry-validation')).toBeNull());
+    expect(screen.getByTestId('aggregate-entry-submit')).toBeEnabled();
   });
 
   it('offline banner when dhis2 unreachable', async () => {

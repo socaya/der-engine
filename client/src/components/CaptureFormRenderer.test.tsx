@@ -378,6 +378,54 @@ describe('CaptureFormRenderer', () => {
     expect(onChange).toHaveBeenCalledWith('opt', 'CODE-A');
   });
 
+  it('wraps the field with an issue marker when ERROR issues are passed', () => {
+    render(
+      <CaptureFormRenderer
+        form={assembly()}
+        values={{}}
+        onChange={() => undefined}
+        issues={new Map([['de1', { severity: 'ERROR', message: 'nope' }]])}
+      />,
+    );
+    const wrap = screen.getByTestId('capture-field-de1-issue');
+    expect(wrap).toHaveAttribute('data-severity', 'ERROR');
+  });
+
+  it('wraps the field with a WARNING issue marker when passed a warning', () => {
+    render(
+      <CaptureFormRenderer
+        form={assembly({
+          sections: [{
+            sectionUid: 's', displayName: 'S', fields: [
+              field({ fieldRef: 'b', valueType: 'BOOLEAN' }),
+              field({ fieldRef: 'lt', valueType: 'LONG_TEXT' }),
+              field({ fieldRef: 'd', valueType: 'DATE' }),
+              field({ fieldRef: 'dt', valueType: 'DATETIME' }),
+              field({ fieldRef: 'opt', valueType: 'TEXT', optionSetUid: 'OS' }),
+              field({ fieldRef: 'n', valueType: 'NUMBER' }),
+              field({ fieldRef: 't', valueType: 'TEXT' }),
+            ],
+          }],
+        })}
+        values={{}}
+        onChange={() => undefined}
+        issues={new Map([
+          ['b',   { severity: 'WARNING', message: 'w' }],
+          ['lt',  { severity: 'WARNING', message: 'w' }],
+          ['d',   { severity: 'WARNING', message: 'w' }],
+          ['dt',  { severity: 'WARNING', message: 'w' }],
+          ['opt', { severity: 'WARNING', message: 'w' }],
+          ['n',   { severity: 'WARNING', message: 'w' }],
+          ['t',   { severity: 'WARNING', message: 'w' }],
+        ])}
+      />,
+    );
+    for (const id of ['b', 'lt', 'd', 'dt', 'opt', 'n', 't']) {
+      expect(screen.getByTestId(`capture-field-${id}-issue`))
+        .toHaveAttribute('data-severity', 'WARNING');
+    }
+  });
+
   it('coerces NO for a false boolean upstream value', () => {
     render(
       <CaptureFormRenderer

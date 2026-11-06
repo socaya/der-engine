@@ -149,7 +149,7 @@ describe('edgeApi.readAggregateValues', () => {
 describe('edgeApi.submitAggregate', () => {
   it('POSTs dataValueSets', async () => {
     fetchMock.mockResolvedValue(respond(200, { status: 'OK' }));
-    const summary = await api.submitAggregate({ dataValues: [] });
+    const summary = await api.submitAggregate({ dataSet: 'DS', dataValues: [] });
     const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(path).toBe('/api/dataValueSets');
     expect(init.method).toBe('POST');

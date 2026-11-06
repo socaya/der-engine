@@ -296,11 +296,24 @@ export function readAggregateValues(orgUnit: string, period: string, limit = 500
   return request<{ dataValues: AggregateReadbackRow[] }>('GET', `/api/dataValueSets?${q}`);
 }
 
+/**
+ * DHIS2 dataValueSets envelope. DER requires an envelope-level
+ * `dataSet` (DataValueSetsController §2.3.84) — the server rejects
+ * payloads without it as 400 BAD_REQUEST. `orgUnit` and `period` may
+ * be set on the envelope so per-row fields can inherit them.
+ */
 export interface AggregateSubmitInput {
+  dataSet: string;
+  orgUnit?: string;
+  period?: string;
+  categoryOptionCombo?: string;
+  attributeOptionCombo?: string;
   dataValues: readonly {
     dataElement: string;
-    orgUnit: string;
-    period: string;
+    orgUnit?: string;
+    period?: string;
+    categoryOptionCombo?: string;
+    attributeOptionCombo?: string;
     value: string;
     comment?: string;
   }[];

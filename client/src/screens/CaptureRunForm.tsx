@@ -130,19 +130,22 @@ export function CaptureRunForm(
             .filter((f) => f.requirement !== 'READONLY' && values[f.fieldRef] !== undefined
                         && values[f.fieldRef] !== '')
             .map((f) => {
-              const dv: Record<string, string> = {
+              const dv: { dataElement: string; value: string; categoryOptionCombo?: string } = {
                 dataElement: f.dataElementUid,
-                orgUnit: boundOrgUnit,
-                period,
                 value: toStringValue(values[f.fieldRef]!),
               };
               if (f.categoryOptionComboUid) {
                 dv.categoryOptionCombo = f.categoryOptionComboUid;
               }
-              return dv as never;
+              return dv;
             }),
         );
-        await api.submitAggregate({ dataValues });
+        await api.submitAggregate({
+          dataSet: form.bindingUid,
+          orgUnit: boundOrgUnit,
+          period,
+          dataValues,
+        });
       } else {
         // EVENT_STAGE / TRACKER_STAGE — bindingUid is the programStage
         const dvs = form.sections.flatMap((s) =>

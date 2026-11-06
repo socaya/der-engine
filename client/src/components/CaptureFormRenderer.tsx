@@ -9,6 +9,7 @@ import type {
   CaptureFormAssembly,
   CaptureFormField,
 } from '../api/edgeApi';
+import type { FieldIssueMap } from '../forms/validation';
 
 export type FieldValue = string | boolean;
 
@@ -17,6 +18,12 @@ export interface CaptureFormRendererProps {
   readonly values: Record<string, FieldValue>;
   readonly onChange: (fieldRef: string, value: FieldValue) => void;
   readonly disabled?: boolean;
+  /**
+   * Per-field validation issues, keyed by fieldRef. Each field control
+   * renders inline validation text + an error ring when its ref is
+   * present. Compute with `validateForm()` in src/forms/validation.ts.
+   */
+  readonly issues?: FieldIssueMap;
 }
 
 /**
@@ -32,7 +39,7 @@ export interface CaptureFormRendererProps {
  * renderer only needs to switch on the stable DHIS2 valueType vocabulary.
  */
 export function CaptureFormRenderer(
-  { form, values, onChange, disabled }: CaptureFormRendererProps,
+  { form, values, onChange, disabled, issues }: CaptureFormRendererProps,
 ): JSX.Element {
   const readOnly = (f: CaptureFormField): boolean =>
     f.requirement === 'READONLY' || disabled === true || !form.ownership.isMyStep;
@@ -76,6 +83,7 @@ export function CaptureFormRenderer(
                   value={values[f.fieldRef]}
                   readOnly={readOnly(f)}
                   onChange={onChange}
+                  issue={issues?.get(f.fieldRef)}
                 />
               ))}
             </div>
@@ -128,47 +136,64 @@ function FieldControl(
     value,
     readOnly,
     onChange,
+    issue,
   }: {
     field: CaptureFormField;
     value: FieldValue | undefined;
     readOnly: boolean;
     onChange: (fieldRef: string, value: FieldValue) => void;
+    issue?: { severity: 'ERROR' | 'WARNING'; message: string };
   },
 ): JSX.Element {
   const label = labelOf(field);
   const dataTest = `capture-field-${field.fieldRef}`;
   const required = field.requirement === 'REQUIRED';
   const asString = typeof value === 'boolean' ? String(value) : (value ?? '');
+  const errorText = issue?.severity === 'ERROR' ? issue.message : undefined;
+  const warningText = issue?.severity === 'WARNING' ? issue.message : undefined;
 
   const vt = field.valueType;
+  const commonError = errorText ? { error: true, validationText: errorText } : {};
+  const commonWarn  = warningText ? { warning: true, validationText: warningText } : {};
+  const errorWrap = (el: JSX.Element): JSX.Element =>
+    errorText || warningText
+      ? (
+        <div data-test={`${dataTest}-issue`}
+              data-severity={errorText ? 'ERROR' : 'WARNING'}>
+          {el}
+        </div>
+      )
+      : el;
   if (vt === 'BOOLEAN' || vt === 'TRUE_ONLY') {
-    return (
+    return errorWrap(
       <CheckboxField
         label={label}
         checked={value === true || value === 'true'}
         disabled={readOnly}
         required={required}
         dataTest={dataTest}
+        {...commonError} {...commonWarn}
         onChange={({ checked }) => onChange(field.fieldRef, Boolean(checked))}
-      />
+      />,
     );
   }
   if (vt === 'LONG_TEXT') {
-    return (
+    return errorWrap(
       <TextAreaField
         label={label}
         value={asString}
         disabled={readOnly}
         required={required}
         dataTest={dataTest}
+        {...commonError} {...commonWarn}
         onChange={({ value: v }) => onChange(field.fieldRef, v ?? '')}
-      />
+      />,
     );
   }
   if (vt === 'NUMBER' || vt === 'INTEGER' || vt === 'INTEGER_POSITIVE'
       || vt === 'INTEGER_NEGATIVE' || vt === 'INTEGER_ZERO_OR_POSITIVE'
       || vt === 'PERCENTAGE' || vt === 'UNIT_INTERVAL') {
-    return (
+    return errorWrap(
       <InputField
         label={label}
         type="number"
@@ -176,12 +201,13 @@ function FieldControl(
         disabled={readOnly}
         required={required}
         dataTest={dataTest}
+        {...commonError} {...commonWarn}
         onChange={({ value: v }) => onChange(field.fieldRef, v ?? '')}
-      />
+      />,
     );
   }
   if (vt === 'DATE') {
-    return (
+    return errorWrap(
       <InputField
         label={label}
         type="date"
@@ -189,12 +215,13 @@ function FieldControl(
         disabled={readOnly}
         required={required}
         dataTest={dataTest}
+        {...commonError} {...commonWarn}
         onChange={({ value: v }) => onChange(field.fieldRef, v ?? '')}
-      />
+      />,
     );
   }
   if (vt === 'DATETIME') {
-    return (
+    return errorWrap(
       <InputField
         label={label}
         type="datetime-local"
@@ -202,14 +229,13 @@ function FieldControl(
         disabled={readOnly}
         required={required}
         dataTest={dataTest}
+        {...commonError} {...commonWarn}
         onChange={({ value: v }) => onChange(field.fieldRef, v ?? '')}
-      />
+      />,
     );
   }
   if (field.optionSetUid) {
-    // Option-set backed: without option-set hydration we fall through to
-    // a plain text input but mark it so the form still looks DHIS2-native.
-    return (
+    return errorWrap(
       <InputField
         label={label}
         value={asString}
@@ -217,19 +243,21 @@ function FieldControl(
         required={required}
         placeholder="option code"
         dataTest={dataTest}
+        {...commonError} {...commonWarn}
         onChange={({ value: v }) => onChange(field.fieldRef, v ?? '')}
-      />
+      />,
     );
   }
-  return (
+  return errorWrap(
     <InputField
       label={label}
       value={asString}
       disabled={readOnly}
       required={required}
       dataTest={dataTest}
+      {...commonError} {...commonWarn}
       onChange={({ value: v }) => onChange(field.fieldRef, v ?? '')}
-    />
+    />,
   );
 }
 
