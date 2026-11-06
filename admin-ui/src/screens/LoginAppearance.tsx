@@ -14,6 +14,21 @@ type Layout = edgeApi.SignInLayoutKind | '';
  * each device fetches on mount. Device operators can still override
  * any field per-device via `localStorage.*`.
  */
+/**
+ * Resolve where to point the preview iframe. In prod the admin-ui is
+ * served at `/admin/*` and the device client at `/`, so `/sign-in`
+ * means the device client's sign-in page. In dev the admin-ui runs
+ * on :5174 while the device client's Vite dev server is on :5173 —
+ * a relative `/sign-in` would hit admin-ui's own sign-in route
+ * instead. Detect the dev port and cross-reference the client.
+ */
+function devicePreviewUrl(): string {
+  if (typeof window !== 'undefined' && window.location.port === '5174') {
+    return `${window.location.protocol}//${window.location.hostname}:5173/sign-in`;
+  }
+  return '/sign-in';
+}
+
 export function LoginAppearance(): JSX.Element {
   const [loaded, setLoaded] = useState<edgeApi.SignInSettings | null>(null);
   const [layout, setLayout] = useState<Layout>('');
@@ -243,7 +258,7 @@ export function LoginAppearance(): JSX.Element {
           <iframe
             key={previewKey}
             title="Sign-in preview"
-            src="/sign-in"
+            src={devicePreviewUrl()}
             data-test="login-preview"
             style={{ width: '100%', height: 640, border: '1px solid #d7dde5' }}
           />
