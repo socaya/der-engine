@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { DataProvider } from '@dhis2/app-runtime';
 import App from './App';
+import { installSdkRuntime } from './apps/sdk-runtime';
 import './styles/tokens.css';
 import './styles/shell.css';
 import './styles.css';
@@ -20,6 +21,12 @@ import './styles.css';
  * Note: @dhis2/app-runtime defaults to credentials:'include' on fetch calls,
  * so the DER_SESSION cookie flows through without extra wiring.
  */
+
+// C-UI-5c — register the SDK runtime on globalThis before any
+// DER-dispatched app bundle can `import '@der/app-sdk'`. Must
+// happen before React renders so the bridge resolves on first
+// use.
+installSdkRuntime();
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

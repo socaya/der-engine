@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5174",
+    "dev": "node scripts/build-vendor.mjs && vite --host 0.0.0.0 --port 5174",
+    "prebuild": "node scripts/build-vendor.mjs",
     "build": "tsc -b && vite build",
+    "build:vendor": "node scripts/build-vendor.mjs",
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings 0",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
