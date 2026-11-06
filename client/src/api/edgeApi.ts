@@ -531,27 +531,43 @@ export interface ImportSummary {
 }
 
 export async function submitAggregate(body: AggregateSubmitInput): Promise<ImportSummary> {
-  // §2.3.129 — offline-first capture. When the browser reports
-  // offline, enqueue the payload in IndexedDB and return a synthetic
-  // "queued locally" ImportSummary so the UI can show a Queued-offline
-  // state. A reconnect-replay loop drains the queue when online.
+  // §2.3.129 — offline-first capture. Two paths land in the queue:
+  //   1. `navigator.onLine === false` — the browser knows there's
+  //      no network; skip fetch, enqueue straight away.
+  //   2. The fetch itself throws EDGE_UNREACHABLE (network dropped
+  //      mid-request, DER server not responding, CORS pre-flight
+  //      fail). Save-on-blur relies on this: an in-progress form
+  //      session shouldn't lose a keystroke just because the
+  //      Wi-Fi flaked for one submit.
+  // A reconnect-replay loop (offline/queue.ts) drains both cases
+  // in insertion order once the edge is reachable again.
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    const { enqueue } = await import('../offline/queue');
-    const id = await enqueue({
-      kind: 'aggregate',
-      url: '/api/dataValueSets',
-      body,
-    });
-    return {
-      status: 'OFFLINE_QUEUED',
-      derServerDate: new Date().toISOString(),
-      importCount: { imported: 0, updated: 0, ignored: 0, deleted: 0 },
-      conflicts: [],
-      // Queue id as a hint so callers can show it; harmless if unused.
-      offlineQueueId: id,
-    } as ImportSummary & { offlineQueueId: number };
+    return enqueueAggregate(body);
   }
-  return request<ImportSummary>('POST', '/api/dataValueSets', body);
+  try {
+    return await request<ImportSummary>('POST', '/api/dataValueSets', body);
+  } catch (err) {
+    if (err instanceof EdgeApiError && err.code === 'EDGE_UNREACHABLE') {
+      return enqueueAggregate(body);
+    }
+    throw err;
+  }
+}
+
+async function enqueueAggregate(body: AggregateSubmitInput): Promise<ImportSummary> {
+  const { enqueue } = await import('../offline/queue');
+  const id = await enqueue({
+    kind: 'aggregate',
+    url: '/api/dataValueSets',
+    body,
+  });
+  return {
+    status: 'OFFLINE_QUEUED',
+    derServerDate: new Date().toISOString(),
+    importCount: { imported: 0, updated: 0, ignored: 0, deleted: 0 },
+    conflicts: [],
+    offlineQueueId: id,
+  } as ImportSummary & { offlineQueueId: number };
 }
 
 export interface EventRow {

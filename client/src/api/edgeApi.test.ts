@@ -155,6 +155,13 @@ describe('edgeApi.submitAggregate', () => {
     expect(init.method).toBe('POST');
     expect(summary.status).toBe('OK');
   });
+
+  it('enqueues locally when the edge is unreachable mid-request', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    const summary = await api.submitAggregate({ dataSet: 'DS', dataValues: [] });
+    expect(summary.status).toBe('OFFLINE_QUEUED');
+    expect((summary as { offlineQueueId?: number }).offlineQueueId).toEqual(expect.any(Number));
+  });
 });
 
 describe('edgeApi.listEvents', () => {

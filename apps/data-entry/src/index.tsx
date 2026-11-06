@@ -1203,7 +1203,7 @@ function attachSaveOnBlur(
     if (lastSaved.get(t) === v) return;
     paintState(t, 'saving');
     try {
-      await api.submitAggregate({
+      const r = await api.submitAggregate({
         dataSet, period, orgUnit,
         attributeOptionComboSelections: getAoc(),
         dataValues: [{
@@ -1211,9 +1211,14 @@ function attachSaveOnBlur(
           categoryOptionCombo: parsed.coc,
           value: v,
         }],
-      });
+      }) as { status?: string };
       lastSaved.set(t, v);
-      paintState(t, 'saved');
+      // submitAggregate transparently enqueues when offline / edge
+      // unreachable and returns `status: 'OFFLINE_QUEUED'` — paint
+      // amber so the operator sees that their value is safe locally
+      // and will drain when the network returns, distinct from a
+      // live "saved" write.
+      paintState(t, r?.status === 'OFFLINE_QUEUED' ? 'queued' : 'saved');
     } catch {
       paintState(t, 'error');
     }
@@ -1373,15 +1378,23 @@ function validateByType(value: string, valueType: string): string | null {
 
 function paintState(
   input: HTMLInputElement,
-  state: 'saving' | 'saved' | 'error',
+  state: 'saving' | 'saved' | 'queued' | 'error',
 ): void {
-  const colour = state === 'saving'
-    ? '#b9860a'
-    : state === 'saved'
-      ? '#1a8754'
-      : '#a93232';
+  const colour = state === 'saving' ? '#b9860a'
+    : state === 'saved' ? '#1a8754'
+    : state === 'queued' ? '#ce7b00'
+    : '#a93232';
   input.style.outline = `2px solid ${colour}`;
   input.style.transition = 'outline 150ms';
+  // `queued` — amber ring + a tooltip the operator can hover to
+  // learn the value is pending drain. Doesn't fade; the operator
+  // should keep seeing which cells are pending until a drain
+  // succeeds and the next blur paints them green.
+  if (state === 'queued') {
+    input.setAttribute('title', 'Queued — will sync when the edge is reachable again.');
+  } else {
+    input.removeAttribute('title');
+  }
   if (state === 'saved') {
     window.setTimeout(() => {
       // Fade the ring so saved cells don't stay loudly highlighted.
