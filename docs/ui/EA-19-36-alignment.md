@@ -30,8 +30,8 @@
 | EA-27 | Edge users | `MockupUsersDashboard` | `/provisioning/users` | `/edge-api/v1/provisioning/users` · `/edge-api/v1/provisioning/users/dhis2-mapping` | Administration |
 | EA-28 | Permission policies | `CapAuthorities` | `/access/authorities` | `/edge-api/v1/authorities` · `/edge-api/v1/roles` | Administration |
 | EA-29 | Audit trail | `MockupSecurityAuditTrail` | `/audit/trail` | `/edge-api/v1/security/audit/events` · `/edge-api/v1/security/audit/verify` | Security & Audit |
-| EA-30 | Backup catalogue | `MockupBackupList` | `/backup` | `/edge-api/v1/backups` · `/edge-api/v1/backups/verify/status` · `/edge-api/v1/backups/verify/history` · `/edge-api/v1/backups/pitr/wal` · `/edge-api/v1/system/settings` | Security & Audit |
-| EA-31 | Restore | `MockupRestoreList` | `/restore` | `/edge-api/v1/restores` · `/edge-api/v1/restores/upload` · `/edge-api/v1/restores/request` | Security & Audit |
+| EA-30 | Backup catalogue | `MockupBackupList` | `/backup` | `/edge-api/v1/backup/runs` · `/edge-api/v1/backup/request` · `/edge-api/v1/backup/pitr/verify/status` · `/edge-api/v1/backup/pitr/verify/history` · `/edge-api/v1/backup/pitr/wal` · `/edge-api/v1/system/settings` | Security & Audit |
+| EA-31 | Restore | `MockupRestoreList` | `/restore` | `/edge-api/v1/restore/runs` · `/edge-api/v1/restore/request` · `/edge-api/v1/restore/upload` | Security & Audit |
 | EA-32 | Failure diagnostics | `EADiagnostics` | `/diagnostics` | `/edge-api/v1/system/diagnostics` | System |
 | EA-33 | Metrics | `CapOperatorMetrics` | `/monitoring/metrics` | `/edge-api/v1/system/info` · `/edge-api/v1/jobs` | System |
 | EA-34 | Test scenarios | `EACaptureWorkflowList` | `/workflows/manage` | `/edge-api/v1/workflows` · `/edge-api/v1/workflows/:id/runs` · `/edge-api/v1/workflows/:id` · `/edge-api/v1/workflows/:id/export` | Workflows |
