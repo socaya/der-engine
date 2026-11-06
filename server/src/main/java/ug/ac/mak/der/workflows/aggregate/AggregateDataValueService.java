@@ -165,9 +165,7 @@ public class AggregateDataValueService {
             final FormKey fk = bucket.getKey();
             final List<AggregateDataValue> rows = bucket.getValue();
             final ObjectNode envelope = mapper.createObjectNode();
-            if (fk.dataSet != null && !fk.dataSet.isBlank()) {
-                envelope.put("dataSet", fk.dataSet);
-            }
+            envelope.put("dataSet", fk.dataSet);
             envelope.put("orgUnit", fk.orgUnit);
             envelope.put("period", fk.period);
             // §2.3.124 — always emit the attribute-option-combo so central
@@ -225,20 +223,18 @@ public class AggregateDataValueService {
     }
 
     /** Form key for journal coalescing — DHIS2 dataValueSets groups on
-     *  (dataSet, orgUnit, period, attributeOptionCombo). */
+     *  (dataSet, orgUnit, period, attributeOptionCombo). All four
+     *  fields are non-null non-blank: {@link AggregateDataValue}'s
+     *  constructor rejects blank dataSet/orgUnit/period and defaults
+     *  a blank AOC to {@code DEFAULT_COC}. */
     private record FormKey(String dataSet, String orgUnit, String period,
                              String attributeOptionCombo) {
         static FormKey of(final AggregateDataValue row) {
-            return new FormKey(
-                    row.dataSetUid() == null ? "" : row.dataSetUid(),
-                    row.orgUnitUid(),
-                    row.periodIso(),
-                    row.attributeOptionComboUid()
-            );
+            return new FormKey(row.dataSetUid(), row.orgUnitUid(),
+                    row.periodIso(), row.attributeOptionComboUid());
         }
         String toCompoundKey() {
-            return (dataSet.isEmpty() ? "-" : dataSet)
-                    + ":" + orgUnit + ":" + period + ":" + attributeOptionCombo;
+            return dataSet + ":" + orgUnit + ":" + period + ":" + attributeOptionCombo;
         }
     }
 
