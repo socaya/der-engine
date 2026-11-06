@@ -379,6 +379,45 @@ describe('edgeApi.listValidationRules', () => {
   });
 });
 
+describe('edgeApi list-all enrichment helpers', () => {
+  it('listAllDataElements pages through until exhausted', async () => {
+    fetchMock
+      .mockResolvedValueOnce(respond(200, {
+        pager: { page: 1, pageCount: 2 },
+        dataElements: [{ id: 'd1' }, { id: 'd2' }],
+      }))
+      .mockResolvedValueOnce(respond(200, {
+        pager: { page: 2, pageCount: 2 },
+        dataElements: [{ id: 'd3' }],
+      }));
+    const out = await api.listAllDataElements();
+    expect(out.map((x) => x.id)).toEqual(['d1', 'd2', 'd3']);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/dataElements?pageSize=500&page=1');
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/dataElements?pageSize=500&page=2');
+  });
+
+  it('listAllCategoryCombos exits when a page comes back empty', async () => {
+    fetchMock
+      .mockResolvedValueOnce(respond(200, {
+        pager: { page: 1, pageCount: 2 },
+        categoryCombos: [{ id: 'cc1' }],
+      }))
+      .mockResolvedValueOnce(respond(200, { pager: { page: 2 }, categoryCombos: [] }));
+    const out = await api.listAllCategoryCombos();
+    expect(out.map((x) => x.id)).toEqual(['cc1']);
+  });
+
+  it('listAllCategoryOptionCombos handles a single-page registry', async () => {
+    fetchMock.mockResolvedValueOnce(respond(200, {
+      pager: { page: 1, pageCount: 1 },
+      categoryOptionCombos: [{ id: 'coc1', categoryCombo: { id: 'cc1' } }],
+    }));
+    const out = await api.listAllCategoryOptionCombos();
+    expect(out).toHaveLength(1);
+    expect(out[0]?.categoryCombo?.id).toBe('cc1');
+  });
+});
+
 describe('edgeApi.getDataSetFormMetadata', () => {
   it('fetches /api/dataSets/<uid> with the full fields mask', async () => {
     fetchMock.mockResolvedValue(respond(200, {
