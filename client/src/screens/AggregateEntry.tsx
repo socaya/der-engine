@@ -23,6 +23,9 @@ import {
 } from '../components/CaptureFormRenderer';
 import { validateForm } from '../forms/validation';
 import { useOrgUnitBinding } from '../orgunit/OrgUnitBindingContext';
+import { useOnlineStatus } from '../offline/useOnlineStatus';
+import { drainOfflineQueue } from '../offline/replay';
+import { count as countQueue } from '../offline/queue';
 import {
   generatePeriods,
   isSupportedPeriodType,
@@ -84,8 +87,33 @@ export function AggregateEntry(
   // the last save; a debounced effect flushes them to the server.
   const [dirty, setDirty] = useState<ReadonlySet<string>>(new Set());
   const [saveState, setSaveState] =
-      useState<'idle' | 'dirty' | 'saving' | 'saved' | 'error'>('idle');
+      useState<'idle' | 'dirty' | 'saving' | 'saved' | 'queued' | 'error'>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [queuedCount, setQueuedCount] = useState<number>(0);
+  const online = useOnlineStatus();
+
+  // Refresh the queued-count badge whenever we transition online or
+  // after an auto-save tick finishes. The hook is cheap — IndexedDB
+  // count over a small keyed set.
+  useEffect(() => {
+    let cancelled = false;
+    countQueue('aggregate').then((n) => {
+      if (!cancelled) setQueuedCount(n);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [online, saveState]);
+
+  // When the browser flips back online, drain the offline queue. The
+  // drain is per-entry FIFO — a failure stops the loop so the next
+  // online tick retries without blocking the UI. Always refresh the
+  // queued-count badge at the end regardless of drain outcome so the
+  // user sees the live number.
+  useEffect(() => {
+    if (!online) return;
+    drainOfflineQueue().finally(() => {
+      countQueue('aggregate').then(setQueuedCount).catch(() => undefined);
+    });
+  }, [online]);
   // Hold the latest values + form in refs so the debounced flush reads
   // fresh snapshots without re-creating the timer on every keystroke.
   const valuesRef = useRef(values);
@@ -190,7 +218,7 @@ export function AggregateEntry(
       });
       setResult(r);
       setLastSavedAt(new Date().toISOString());
-      setSaveState('saved');
+      setSaveState(r.status === 'OFFLINE_QUEUED' ? 'queued' : 'saved');
       setDirty(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -298,15 +326,31 @@ export function AggregateEntry(
             <div className="der-aggregate-savebar"
                  data-test="aggregate-entry-savestate"
                  data-state={saveState}
+                 data-online={online}
                  style={{ fontSize: 12, color: '#5a6a85',
                           margin: '4px 0 12px' }}>
+              {!online && (
+                <span data-test="aggregate-entry-offline-flag"
+                       style={{ color: '#a33', marginRight: 8 }}>
+                  Offline —
+                </span>
+              )}
               {saveState === 'idle' && 'Changes auto-save as you leave each field.'}
               {saveState === 'dirty' && 'Unsaved changes — saving shortly…'}
               {saveState === 'saving' && 'Saving…'}
               {saveState === 'saved' && (
                 <>Saved{lastSavedAt ? ` at ${new Date(lastSavedAt).toLocaleTimeString()}` : ''}.</>
               )}
+              {saveState === 'queued' && (
+                <>Queued locally — will sync when the edge comes back online.</>
+              )}
               {saveState === 'error' && 'Save failed — see error below.'}
+              {queuedCount > 0 && (
+                <span data-test="aggregate-entry-queued-count"
+                       style={{ marginLeft: 8, color: '#555' }}>
+                  ({queuedCount} queued offline)
+                </span>
+              )}
             </div>
             <CaptureFormRenderer
               form={form}

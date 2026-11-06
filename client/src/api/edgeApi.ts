@@ -326,7 +326,27 @@ export interface ImportSummary {
   derServerDate?: string;
 }
 
-export function submitAggregate(body: AggregateSubmitInput): Promise<ImportSummary> {
+export async function submitAggregate(body: AggregateSubmitInput): Promise<ImportSummary> {
+  // §2.3.129 — offline-first capture. When the browser reports
+  // offline, enqueue the payload in IndexedDB and return a synthetic
+  // "queued locally" ImportSummary so the UI can show a Queued-offline
+  // state. A reconnect-replay loop drains the queue when online.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const { enqueue } = await import('../offline/queue');
+    const id = await enqueue({
+      kind: 'aggregate',
+      url: '/api/dataValueSets',
+      body,
+    });
+    return {
+      status: 'OFFLINE_QUEUED',
+      derServerDate: new Date().toISOString(),
+      importCount: { imported: 0, updated: 0, ignored: 0, deleted: 0 },
+      conflicts: [],
+      // Queue id as a hint so callers can show it; harmless if unused.
+      offlineQueueId: id,
+    } as ImportSummary & { offlineQueueId: number };
+  }
   return request<ImportSummary>('POST', '/api/dataValueSets', body);
 }
 

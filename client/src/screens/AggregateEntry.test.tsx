@@ -334,6 +334,48 @@ describe('AggregateEntry', () => {
     expect(submit).not.toHaveBeenCalled();
   });
 
+  it('when offline, savebar shows offline flag + queued state', async () => {
+    const submit = vi.fn().mockResolvedValue({
+      status: 'OFFLINE_QUEUED',
+      importCount: { imported: 0, updated: 0, ignored: 0, deleted: 0 },
+      conflicts: [],
+      derServerDate: '2026-11-06T10:00:00Z',
+    });
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    try {
+      renderWithProviders(
+        <AggregateEntry api={stubApi({ submitAggregate: submit })} />,
+        { route: '/aggregate/entry?dataSet=DS&period=202611' });
+      await waitFor(() =>
+        expect(screen.getByTestId('capture-form')).toBeInTheDocument());
+      expect(screen.getByTestId('aggregate-entry-offline-flag')).toBeInTheDocument();
+      await fireAndFlush('de1', '1');
+      await waitFor(() => {
+        expect(screen.getByTestId('aggregate-entry-savestate'))
+          .toHaveAttribute('data-state', 'queued');
+      });
+    } finally {
+      Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    }
+  });
+
+  it('shows queued-offline count when there are entries in the offline queue', async () => {
+    const { enqueue, clearAll, __resetDbForTests } = await import('../offline/queue');
+    __resetDbForTests();
+    await clearAll();
+    await enqueue({ kind: 'aggregate', url: '/api/dataValueSets', body: {} });
+    await enqueue({ kind: 'aggregate', url: '/api/dataValueSets', body: {} });
+    try {
+      renderWithProviders(<AggregateEntry api={stubApi()} />,
+        { route: '/aggregate/entry?dataSet=DS&period=202611' });
+      await waitFor(() =>
+        expect(screen.getByTestId('aggregate-entry-queued-count'))
+          .toHaveTextContent('2'));
+    } finally {
+      await clearAll();
+    }
+  });
+
   it('offline banner when dhis2 unreachable', async () => {
     renderWithProviders(
       <AggregateEntry api={stubApi({

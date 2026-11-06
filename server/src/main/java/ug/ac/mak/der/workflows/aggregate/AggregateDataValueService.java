@@ -243,11 +243,27 @@ public class AggregateDataValueService {
         if (rows.isEmpty()) {
             return Optional.empty();
         }
+        // §2.3.128 replay-overwrite semantics — if there's an existing
+        // non-terminal journal op for the same form key, cancel it with
+        // CONFLICT_REVIEW ("superseded") before inserting the new one.
+        // This gives the admin a clean "re-sync this form" that
+        // replaces a stale pending drain rather than racing it.
+        final FormKey fk = FormKey.of(rows.get(0));
+        final String compoundKey = fk.toCompoundKey();
+        final Instant now = Instant.now(clock);
         final OperationJournalEntry entry = buildAggregateEnvelopeEntry(
-                FormKey.of(rows.get(0)), rows,
-                actingUser, Instant.now(clock),
+                fk, rows, actingUser, now,
                 nextHopOrgUnitUid, submittingDeviceId,
                 rows.get(0).workflowRunId());
+        journal.findLatestByEntityRef(
+                OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE,
+                compoundKey)
+            .filter(prev -> prev.state() == OperationJournalEntry.State.PENDING
+                        || prev.state() == OperationJournalEntry.State.IN_FLIGHT
+                        || prev.state() == OperationJournalEntry.State.RETRYABLE
+                        || prev.state() == OperationJournalEntry.State.UNKNOWN_OUTCOME)
+            .ifPresent(prev -> journal.quarantine(prev.operationId(),
+                    "superseded by replay op " + entry.operationId()));
         journal.insert(entry);
         if (bucketRequiresApproval(rows.get(0).workflowRunId())) {
             journal.markRequiresApproval(entry.operationId());
