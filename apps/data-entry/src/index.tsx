@@ -43,6 +43,14 @@ export default function DataEntryApp(): JSX.Element {
     formType?: string;
   } | null>(null);
   const customRoot = useRef<HTMLDivElement | null>(null);
+  // AttributeOptionCombo selections for non-default categoryCombos.
+  // Keyed on category id → option id. Mirrored to hidden inputs +
+  // dhis2.de.currentCategorySelections on every change so form.js's
+  // getCurrentCategorySelections reads consistent state.
+  const [aocSelections, setAocSelections] = useState<Record<string, string>>({});
+  const [aocCategories, setAocCategories] = useState<Array<{
+    id: string; name: string; options: Array<{ id: string; name: string }>;
+  }>>([]);
 
   // Whenever the dataset UID changes, peek at the dataset's form
   // metadata so the UI can offer "Switch to custom form" when the
@@ -89,6 +97,22 @@ export default function DataEntryApp(): JSX.Element {
         // form.js can resolve indicators, option sets, categoryCombos.
         const meta = await api.getDataSetFormMetadata(dataSet.trim()) as DataSetBundle;
         if (cancelled) return;
+        // Derive the AOC picker list — only categories with more
+        // than one option (i.e. non-default) need an operator
+        // selection.
+        const cats = (meta.categoryCombo?.categories ?? [])
+          .filter((c) => (c.categoryOptions?.length ?? 0) > 1)
+          .map((c) => ({
+            id: c.id, name: c.name ?? c.id,
+            options: (c.categoryOptions ?? [])
+              .map((o) => ({ id: o.id, name: o.name ?? o.id })),
+          }));
+        setAocCategories(cats);
+        // Seed selections with the first option so the form always
+        // has a complete AOC even before the operator interacts.
+        const seed: Record<string, string> = {};
+        for (const c of cats) if (c.options[0]) seed[c.id] = c.options[0].id;
+        setAocSelections(seed);
         // Clear any previous render — we rebuild hidden selectors
         // + content on every form load.
         root.replaceChildren();
@@ -100,6 +124,16 @@ export default function DataEntryApp(): JSX.Element {
         ] as const) {
           const i = document.createElement('input');
           i.type = 'hidden'; i.id = id; i.value = val;
+          root.appendChild(i);
+        }
+        // Hidden AOC selectors — form.js reads `#category-<catId>`
+        // when deriving the current attributeOptionCombo on save.
+        for (const [catId, optId] of Object.entries(seed)) {
+          const i = document.createElement('input');
+          i.type = 'hidden';
+          i.id = `category-${catId}`;
+          i.value = optId;
+          i.setAttribute('data-der-category', catId);
           root.appendChild(i);
         }
         // The form's content lands here — DHIS2's entry.js expects
@@ -117,6 +151,7 @@ export default function DataEntryApp(): JSX.Element {
           periodId: period.trim(),
           orgUnitId: ou.orgUnitUid ?? '',
           meta,
+          aocSelections: seed,
         });
 
         // Vendor CSS baseline (DHIS2's own stack) first so the form
@@ -251,6 +286,29 @@ export default function DataEntryApp(): JSX.Element {
                      placeholder="e.g. 202611" style={inputStyle} />
             </label>
           </div>
+          {aocCategories.length > 0 && (
+            <div style={{ display: 'grid',
+              gridTemplateColumns: `repeat(${Math.min(aocCategories.length, 3)}, 1fr)`,
+              gap: 12, marginBottom: 12 }}>
+              {aocCategories.map((c) => (
+                <label key={c.id}>{c.name}
+                  <select
+                    value={aocSelections[c.id] ?? ''}
+                    onChange={(e) => {
+                      const next = { ...aocSelections, [c.id]: e.target.value };
+                      setAocSelections(next);
+                      syncAocToDom(customRoot.current, next);
+                    }}
+                    style={inputStyle}
+                  >
+                    {c.options.map((o) => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+          )}
           <div ref={customRoot}
                data-test="der-de-custom-form"
                className="der-de-custom-form" />
@@ -349,6 +407,7 @@ interface DataSetBundle {
 function hydrateDhis2Globals(args: {
   dataSetId: string; periodId: string; orgUnitId: string;
   meta: DataSetBundle;
+  aocSelections?: Record<string, string>;
 }): void {
   const g = globalThis as unknown as { dhis2?: Record<string, unknown>;
     DHIS2_BASE_URL?: string; $?: { ajaxSetup?: (o: object) => void } };
@@ -360,6 +419,7 @@ function hydrateDhis2Globals(args: {
   de.currentDataSetId = args.dataSetId;
   de.currentOrganisationUnitId = args.orgUnitId;
   de.currentPeriodId = args.periodId;
+  de.currentCategorySelections = { ...(args.aocSelections ?? {}) };
 
   const meta = args.meta ?? {};
   // Category + categoryCombo keyed by id.
@@ -500,6 +560,37 @@ function finaliseDhis2Shim(): void {
     if (period.DatePicker) {
       period.picker = new period.DatePicker(period.calendar, period.format);
     }
+  }
+}
+
+/**
+ * Mirror the current AOC selections into the DOM + globals so a
+ * live custom form sees consistent state when the operator
+ * changes a category:
+ *   - update / create hidden `#category-<catId>` inputs under the
+ *     form root (form.js's AOC resolver reads these).
+ *   - rewrite `window.dhis2.de.currentCategorySelections`.
+ */
+function syncAocToDom(
+  root: HTMLElement | null, selections: Record<string, string>,
+): void {
+  if (!root) return;
+  for (const [catId, optId] of Object.entries(selections)) {
+    let input = root.querySelector<HTMLInputElement>(
+      `input[data-der-category="${catId}"]`);
+    if (!input) {
+      input = document.createElement('input');
+      input.type = 'hidden';
+      input.id = `category-${catId}`;
+      input.setAttribute('data-der-category', catId);
+      root.appendChild(input);
+    }
+    input.value = optId;
+  }
+  const g = globalThis as unknown as { dhis2?: Record<string,
+    Record<string, unknown>> };
+  if (g.dhis2?.de) {
+    g.dhis2.de.currentCategorySelections = { ...selections };
   }
 }
 
