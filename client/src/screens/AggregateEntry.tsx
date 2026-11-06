@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Button,
   NoticeBox,
   SingleSelectField,
   SingleSelectOption,
@@ -22,7 +21,7 @@ import {
   CaptureFormRenderer,
   type FieldValue,
 } from '../components/CaptureFormRenderer';
-import { hasBlockingErrors, validateForm } from '../forms/validation';
+import { validateForm } from '../forms/validation';
 import { useOrgUnitBinding } from '../orgunit/OrgUnitBindingContext';
 import {
   generatePeriods,
@@ -80,8 +79,19 @@ export function AggregateEntry(
   const [result, setResult] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  // §2.3.127 auto-save-on-blur. `dirty` tracks fieldRefs edited since
+  // the last save; a debounced effect flushes them to the server.
+  const [dirty, setDirty] = useState<ReadonlySet<string>>(new Set());
+  const [saveState, setSaveState] =
+      useState<'idle' | 'dirty' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  // Hold the latest values + form in refs so the debounced flush reads
+  // fresh snapshots without re-creating the timer on every keystroke.
+  const valuesRef = useRef(values);
+  valuesRef.current = values;
+  const formRef = useRef(form);
+  formRef.current = form;
 
   // Mount: health, dataset metadata (for periodType), form envelope.
   useEffect(() => {
@@ -131,6 +141,12 @@ export function AggregateEntry(
 
   function updateField(fieldRef: string, value: FieldValue): void {
     setValues((prev) => ({ ...prev, [fieldRef]: value }));
+    setDirty((prev) => {
+      const next = new Set(prev);
+      next.add(fieldRef);
+      return next;
+    });
+    setSaveState('dirty');
   }
 
   function stringify(v: FieldValue): string {
@@ -138,24 +154,23 @@ export function AggregateEntry(
     return v;
   }
 
-  async function submit(): Promise<void> {
-    if (!form) return;
-    setSaving(true);
+  const flushDirty = useCallback(async (dirtySet: ReadonlySet<string>) => {
+    const activeForm = formRef.current;
+    const latestValues = valuesRef.current;
+    if (!activeForm || dirtySet.size === 0) return;
+    setSaveState('saving');
     setError(null);
     try {
-      // DHIS2 dataValueSets envelope — dataSet is required by DER
-      // (DataValueSetsController §2.3.84). orgUnit + period live on
-      // the envelope so per-row fields inherit; each row only carries
-      // its own dataElement, value, and CoC if disaggregated.
-      const dataValues = form.sections.flatMap((section) =>
+      const dataValues = activeForm.sections.flatMap((section) =>
         section.fields
           .filter((f) => f.requirement !== 'READONLY'
-                       && values[f.fieldRef] !== undefined
-                       && values[f.fieldRef] !== '')
+                       && dirtySet.has(f.fieldRef)
+                       && latestValues[f.fieldRef] !== undefined
+                       && latestValues[f.fieldRef] !== '')
           .map((f) => {
             const dv: { dataElement: string; value: string; categoryOptionCombo?: string } = {
               dataElement: f.dataElementUid,
-              value: stringify(values[f.fieldRef]!),
+              value: stringify(latestValues[f.fieldRef]!),
             };
             if (f.categoryOptionComboUid) {
               dv.categoryOptionCombo = f.categoryOptionComboUid;
@@ -163,6 +178,10 @@ export function AggregateEntry(
             return dv;
           }),
       );
+      if (dataValues.length === 0) {
+        setSaveState('saved');
+        return;
+      }
       const r = await api.submitAggregate({
         dataSet,
         orgUnit: boundOrgUnit,
@@ -170,12 +189,27 @@ export function AggregateEntry(
         dataValues,
       });
       setResult(r);
+      setLastSavedAt(new Date().toISOString());
+      setSaveState('saved');
+      setDirty(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSaving(false);
+      setSaveState('error');
     }
-  }
+  }, [api, dataSet, boundOrgUnit, period]);
+
+  // Debounced auto-save — waits 1.5 s after the last edit before
+  // flushing the dirty set.  Operator can keep typing without
+  // triggering a POST per keystroke; central never sees hot spam.
+  useEffect(() => {
+    if (saveState !== 'dirty') return;
+    if (dirty.size === 0) return;
+    if (!boundOrgUnit || !period) return;
+    const timer = window.setTimeout(() => {
+      flushDirty(dirty).catch(() => undefined);
+    }, 1500);
+    return () => { window.clearTimeout(timer); };
+  }, [saveState, dirty, boundOrgUnit, period, flushDirty]);
 
   return (
     <div className="der-aggregate-entry">
@@ -249,7 +283,6 @@ export function AggregateEntry(
 
       {form && boundOrgUnit && period && !loading && (() => {
         const issues = validateForm(form, values);
-        const blocking = hasBlockingErrors(issues);
         const errorCount = Array.from(issues.values())
           .filter((i) => i.severity === 'ERROR').length;
         return (
@@ -258,27 +291,30 @@ export function AggregateEntry(
               <NoticeBox error
                           title={`${errorCount} field${errorCount === 1 ? '' : 's'} need attention`}
                           dataTest="aggregate-entry-validation">
-                Resolve the highlighted fields before saving.
+                Resolve the highlighted fields — auto-save holds them until the
+                validation clears.
               </NoticeBox>
             )}
+            <div className="der-aggregate-savebar"
+                 data-test="aggregate-entry-savestate"
+                 data-state={saveState}
+                 style={{ fontSize: 12, color: '#5a6a85',
+                          margin: '4px 0 12px' }}>
+              {saveState === 'idle' && 'Changes auto-save as you leave each field.'}
+              {saveState === 'dirty' && 'Unsaved changes — saving shortly…'}
+              {saveState === 'saving' && 'Saving…'}
+              {saveState === 'saved' && (
+                <>Saved{lastSavedAt ? ` at ${new Date(lastSavedAt).toLocaleTimeString()}` : ''}.</>
+              )}
+              {saveState === 'error' && 'Save failed — see error below.'}
+            </div>
             <CaptureFormRenderer
               form={form}
               values={values}
               onChange={updateField}
-              disabled={saving}
+              disabled={saveState === 'saving'}
               issues={issues}
             />
-            <div className="der-aggregate-actions">
-              <Button
-                primary
-                dataTest="aggregate-entry-submit"
-                loading={saving}
-                disabled={saving || blocking}
-                onClick={() => { submit().catch(() => undefined); }}
-              >
-                Save
-              </Button>
-            </div>
           </>
         );
       })()}

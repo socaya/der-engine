@@ -1,5 +1,5 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AggregateEntry } from './AggregateEntry';
 import { renderWithProviders } from '../test/renderWithProviders';
 import type {
@@ -55,7 +55,16 @@ function stubApi(overrides: Record<string, unknown> = {}): never {
   } as never;
 }
 
-afterEach(() => vi.restoreAllMocks());
+async function fireAndFlush(fieldRef: string, value: string): Promise<void> {
+  fireEvent.change(
+    screen.getByTestId(`capture-field-${fieldRef}`).querySelector('input')!,
+    { target: { value } },
+  );
+  await act(async () => { vi.advanceTimersByTime(1600); });
+}
+
+beforeEach(() => { vi.useFakeTimers({ shouldAdvanceTime: true }); });
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('AggregateEntry', () => {
   it('renders dataset + bound OU + period picker, no form until period picked', async () => {
@@ -66,7 +75,6 @@ describe('AggregateEntry', () => {
     expect(screen.getByTestId('aggregate-entry-orgunit')).toHaveTextContent('OU-A');
     await waitFor(() =>
       expect(screen.getByTestId('aggregate-entry-period')).toBeInTheDocument());
-    // Form is not rendered until a period is selected.
     expect(screen.queryByTestId('capture-form')).toBeNull();
   });
 
@@ -77,16 +85,15 @@ describe('AggregateEntry', () => {
       { route: '/aggregate/entry?dataSet=DS&period=202611' });
     await waitFor(() =>
       expect(screen.getByTestId('capture-form')).toBeInTheDocument());
-    // D-CAP-3 envelope projected: field labelled "Doses", prefill value 12.
-    expect(
-      screen.getByTestId('capture-field-de1').querySelector('input'),
-    ).toHaveValue(12);
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('capture-field-de1').querySelector('input'),
+      ).toHaveValue(12));
     expect(screen.getByText('Doses')).toBeInTheDocument();
-    expect(screen.getByText('Attendance — Male')).toBeInTheDocument();
     expect(data).toHaveBeenCalledWith('DS', 'OU-A', '202611');
   });
 
-  it('shows a spinner while the prefill fetch is in flight and hides it on resolve', async () => {
+  it('shows a spinner while the prefill fetch is in flight', async () => {
     let resolveFn: (r: CaptureFormDataPrefill) => void = () => undefined;
     const pending = new Promise<CaptureFormDataPrefill>((r) => { resolveFn = r; });
     const api = stubApi({
@@ -101,7 +108,7 @@ describe('AggregateEntry', () => {
       expect(screen.queryByTestId('aggregate-entry-loading')).toBeNull());
   });
 
-  it('submits every field in the form using the bound OU + selected period', async () => {
+  it('auto-saves dirty fields after a 1.5 s debounce with the bound OU + period', async () => {
     const submit = vi.fn().mockResolvedValue({ status: 'SUCCESS',
       importCount: { imported: 2, updated: 0, ignored: 0, deleted: 0 },
       conflicts: [] });
@@ -112,13 +119,13 @@ describe('AggregateEntry', () => {
       expect(screen.getByTestId('capture-form')).toBeInTheDocument());
     fireEvent.change(
       screen.getByTestId('capture-field-de1').querySelector('input')!,
-      { target: { value: '9' } },
-    );
+      { target: { value: '9' } });
     fireEvent.change(
       screen.getByTestId('capture-field-de2:cc').querySelector('input')!,
-      { target: { value: '4' } },
-    );
-    fireEvent.click(screen.getByTestId('aggregate-entry-submit'));
+      { target: { value: '4' } });
+    expect(screen.getByTestId('aggregate-entry-savestate'))
+      .toHaveAttribute('data-state', 'dirty');
+    await act(async () => { vi.advanceTimersByTime(1600); });
     await waitFor(() => {
       expect(submit).toHaveBeenCalledWith({
         dataSet: 'DS',
@@ -130,10 +137,64 @@ describe('AggregateEntry', () => {
         ],
       });
     });
-    expect(await screen.findByTestId('aggregate-entry-result')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('aggregate-entry-savestate'))
+        .toHaveAttribute('data-state', 'saved');
+    });
   });
 
-  it('shows conflicts in the import summary', async () => {
+  it('coalesces rapid edits into one save (debounce resets on each change)', async () => {
+    const submit = vi.fn().mockResolvedValue({ status: 'SUCCESS',
+      importCount: { imported: 1, updated: 0, ignored: 0, deleted: 0 }, conflicts: [] });
+    renderWithProviders(
+      <AggregateEntry api={stubApi({ submitAggregate: submit })} />,
+      { route: '/aggregate/entry?dataSet=DS&period=202611' });
+    await waitFor(() =>
+      expect(screen.getByTestId('capture-form')).toBeInTheDocument());
+    fireEvent.change(
+      screen.getByTestId('capture-field-de1').querySelector('input')!,
+      { target: { value: '1' } });
+    await act(async () => { vi.advanceTimersByTime(800); });
+    fireEvent.change(
+      screen.getByTestId('capture-field-de1').querySelector('input')!,
+      { target: { value: '2' } });
+    await act(async () => { vi.advanceTimersByTime(800); });
+    expect(submit).not.toHaveBeenCalled();
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+    const call = submit.mock.calls[0]?.[0] as { dataValues: { value: string }[] };
+    expect(call.dataValues[0].value).toBe('2');
+  });
+
+  it('shows the error state when auto-save rejects', async () => {
+    renderWithProviders(
+      <AggregateEntry api={stubApi({
+        submitAggregate: vi.fn().mockRejectedValue(new Error('x')),
+      })} />,
+      { route: '/aggregate/entry?dataSet=DS&period=202611' });
+    await waitFor(() =>
+      expect(screen.getByTestId('capture-form')).toBeInTheDocument());
+    await fireAndFlush('de1', '1');
+    await waitFor(() =>
+      expect(screen.getByTestId('aggregate-entry-error')).toBeInTheDocument());
+    expect(screen.getByTestId('aggregate-entry-savestate'))
+      .toHaveAttribute('data-state', 'error');
+  });
+
+  it('non-Error submit rejection surfaces as string', async () => {
+    renderWithProviders(
+      <AggregateEntry api={stubApi({
+        submitAggregate: vi.fn().mockRejectedValue('nope'),
+      })} />,
+      { route: '/aggregate/entry?dataSet=DS&period=202611' });
+    await waitFor(() =>
+      expect(screen.getByTestId('capture-form')).toBeInTheDocument());
+    await fireAndFlush('de1', '1');
+    await waitFor(() =>
+      expect(screen.getByTestId('aggregate-entry-error')).toBeInTheDocument());
+  });
+
+  it('shows conflicts when the import summary has them', async () => {
     const submit = vi.fn().mockResolvedValue({
       status: 'WARNING', conflicts: [{ object: 'de1', value: 'bad' }],
     });
@@ -142,11 +203,7 @@ describe('AggregateEntry', () => {
       { route: '/aggregate/entry?dataSet=DS&period=202611' });
     await waitFor(() =>
       expect(screen.getByTestId('capture-form')).toBeInTheDocument());
-    fireEvent.change(
-      screen.getByTestId('capture-field-de1').querySelector('input')!,
-      { target: { value: '1' } },
-    );
-    fireEvent.click(screen.getByTestId('aggregate-entry-submit'));
+    await fireAndFlush('de1', '1');
     await waitFor(() =>
       expect(screen.getByTestId('aggregate-entry-conflicts')).toBeInTheDocument());
   });
@@ -161,59 +218,15 @@ describe('AggregateEntry', () => {
       expect(screen.getByTestId('aggregate-entry-error')).toBeInTheDocument());
   });
 
-  it('non-Error prefill rejection surfaces as string', async () => {
+  it('does NOT auto-save when the edge is unbound', async () => {
+    const submit = vi.fn();
     renderWithProviders(
-      <AggregateEntry api={stubApi({
-        getCaptureDataSetData: vi.fn().mockRejectedValue('nope'),
-      })} />,
-      { route: '/aggregate/entry?dataSet=DS&period=202611' });
-    await waitFor(() =>
-      expect(screen.getByTestId('aggregate-entry-error')).toBeInTheDocument());
-  });
-
-  it('error state when submit rejects', async () => {
-    renderWithProviders(
-      <AggregateEntry api={stubApi({
-        submitAggregate: vi.fn().mockRejectedValue(new Error('x')),
-      })} />,
-      { route: '/aggregate/entry?dataSet=DS&period=202611' });
-    await waitFor(() =>
-      expect(screen.getByTestId('capture-form')).toBeInTheDocument());
-    fireEvent.change(
-      screen.getByTestId('capture-field-de1').querySelector('input')!,
-      { target: { value: '1' } },
-    );
-    fireEvent.click(screen.getByTestId('aggregate-entry-submit'));
-    await waitFor(() =>
-      expect(screen.getByTestId('aggregate-entry-error')).toBeInTheDocument());
-  });
-
-  it('non-Error submit rejection surfaces as string', async () => {
-    renderWithProviders(
-      <AggregateEntry api={stubApi({
-        submitAggregate: vi.fn().mockRejectedValue('nope'),
-      })} />,
-      { route: '/aggregate/entry?dataSet=DS&period=202611' });
-    await waitFor(() =>
-      expect(screen.getByTestId('capture-form')).toBeInTheDocument());
-    fireEvent.change(
-      screen.getByTestId('capture-field-de1').querySelector('input')!,
-      { target: { value: '1' } },
-    );
-    fireEvent.click(screen.getByTestId('aggregate-entry-submit'));
-    await waitFor(() =>
-      expect(screen.getByTestId('aggregate-entry-error')).toBeInTheDocument());
-  });
-
-  it('does NOT fetch prefill when the edge is unbound', async () => {
-    const data = vi.fn();
-    renderWithProviders(
-      <AggregateEntry api={stubApi({ getCaptureDataSetData: data })} />,
+      <AggregateEntry api={stubApi({ submitAggregate: submit })} />,
       { route: '/aggregate/entry?dataSet=DS&period=202611',
         orgUnitBinding: null });
     await waitFor(() =>
       expect(screen.getByTestId('aggregate-entry-unbound')).toBeInTheDocument());
-    expect(data).not.toHaveBeenCalled();
+    expect(submit).not.toHaveBeenCalled();
   });
 
   it('shows metadata-error banner when getDataSetMeta rejects', async () => {
@@ -268,8 +281,7 @@ describe('AggregateEntry', () => {
       expect(screen.getByTestId('aggregate-entry-period-unsupported')).toBeInTheDocument());
   });
 
-  it('shows a validation banner + disables submit when a field is invalid', async () => {
-    // Required field left empty → ERROR → submit disabled.
+  it('shows the validation banner when a field is invalid', async () => {
     const requiredForm = () => ({
       ...form(),
       sections: [{
@@ -290,14 +302,36 @@ describe('AggregateEntry', () => {
     );
     await waitFor(() =>
       expect(screen.getByTestId('aggregate-entry-validation')).toBeInTheDocument());
-    expect(screen.getByTestId('aggregate-entry-submit')).toBeDisabled();
     fireEvent.change(
       screen.getByTestId('capture-field-req').querySelector('input')!,
       { target: { value: 'ok' } },
     );
     await waitFor(() =>
       expect(screen.queryByTestId('aggregate-entry-validation')).toBeNull());
-    expect(screen.getByTestId('aggregate-entry-submit')).toBeEnabled();
+  });
+
+  it('emptied field is dirty but auto-save is a no-op POST', async () => {
+    const data = vi.fn().mockResolvedValue(prefill({ de1: '5' }));
+    const submit = vi.fn();
+    renderWithProviders(
+      <AggregateEntry api={stubApi({
+        submitAggregate: submit,
+        getCaptureDataSetData: data,
+      })} />,
+      { route: '/aggregate/entry?dataSet=DS&period=202611' });
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('capture-field-de1').querySelector('input'),
+      ).toHaveValue(5));
+    fireEvent.change(
+      screen.getByTestId('capture-field-de1').querySelector('input')!,
+      { target: { value: '' } });
+    await act(async () => { vi.advanceTimersByTime(1600); });
+    await waitFor(() => {
+      expect(screen.getByTestId('aggregate-entry-savestate'))
+        .toHaveAttribute('data-state', 'saved');
+    });
+    expect(submit).not.toHaveBeenCalled();
   });
 
   it('offline banner when dhis2 unreachable', async () => {

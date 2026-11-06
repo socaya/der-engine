@@ -41,12 +41,29 @@ class AggregateDataValueServiceTest {
         return m;
     }
 
+    private static final org.springframework.beans.factory.ObjectProvider<
+            ug.ac.mak.der.workflow.CaptureWorkflowRepository> EMPTY_WORKFLOWS =
+        emptyProvider();
+
+    @SuppressWarnings("unchecked")
+    private static org.springframework.beans.factory.ObjectProvider<
+            ug.ac.mak.der.workflow.CaptureWorkflowRepository> emptyProvider() {
+        final org.springframework.beans.factory.ObjectProvider<
+                ug.ac.mak.der.workflow.CaptureWorkflowRepository> p =
+            (org.springframework.beans.factory.ObjectProvider<
+                    ug.ac.mak.der.workflow.CaptureWorkflowRepository>)
+                mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(p.getIfAvailable()).thenReturn(null);
+        return p;
+    }
+
     private AggregateDataValueService service(final AggregateDataValueRepository values,
                                                 final OperationJournalRepository journal,
                                                 final MetadataMirrorRepository metadata,
                                                 final SecurityAuditRepository audit) {
         return new AggregateDataValueService(values, journal, metadata, audit, mapper, CLOCK,
-                new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false));
+                new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false),
+                EMPTY_WORKFLOWS);
     }
 
     private AggregateDataValueService.DataValueInput validInput(final String value) {
@@ -240,25 +257,25 @@ class AggregateDataValueServiceTest {
         final var a = mock(SecurityAuditRepository.class);
         final var approvals = new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(null, j, m, a, mapper, CLOCK, approvals))
+                new AggregateDataValueService(null, j, m, a, mapper, CLOCK, approvals, EMPTY_WORKFLOWS))
                 .isInstanceOf(NullPointerException.class);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(v, null, m, a, mapper, CLOCK, approvals))
+                new AggregateDataValueService(v, null, m, a, mapper, CLOCK, approvals, EMPTY_WORKFLOWS))
                 .isInstanceOf(NullPointerException.class);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(v, j, null, a, mapper, CLOCK, approvals))
+                new AggregateDataValueService(v, j, null, a, mapper, CLOCK, approvals, EMPTY_WORKFLOWS))
                 .isInstanceOf(NullPointerException.class);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(v, j, m, null, mapper, CLOCK, approvals))
+                new AggregateDataValueService(v, j, m, null, mapper, CLOCK, approvals, EMPTY_WORKFLOWS))
                 .isInstanceOf(NullPointerException.class);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(v, j, m, a, null, CLOCK, approvals))
+                new AggregateDataValueService(v, j, m, a, null, CLOCK, approvals, EMPTY_WORKFLOWS))
                 .isInstanceOf(NullPointerException.class);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(v, j, m, a, mapper, null, approvals))
+                new AggregateDataValueService(v, j, m, a, mapper, null, approvals, EMPTY_WORKFLOWS))
                 .isInstanceOf(NullPointerException.class);
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new AggregateDataValueService(v, j, m, a, mapper, CLOCK, null))
+                new AggregateDataValueService(v, j, m, a, mapper, CLOCK, null, EMPTY_WORKFLOWS))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -393,6 +410,91 @@ class AggregateDataValueServiceTest {
     }
 
     @Test
+    void perWorkflowApprovalGate_marksRequiresApprovalWhenWorkflowOptsIn() {
+        final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        when(values.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        final UUID runId = UUID.randomUUID();
+        final UUID workflowId = UUID.randomUUID();
+        final ug.ac.mak.der.workflow.CaptureWorkflowRepository repo =
+                mock(ug.ac.mak.der.workflow.CaptureWorkflowRepository.class);
+        when(repo.findRun(runId)).thenReturn(Optional.of(
+                new ug.ac.mak.der.workflow.CaptureWorkflowRun(
+                        runId, workflowId, 1, "bk", null,
+                        ug.ac.mak.der.workflow.CaptureWorkflowRun.State.OPEN,
+                        NOW, NOW, UUID.randomUUID())));
+        when(repo.findById(workflowId)).thenReturn(Optional.of(
+                new ug.ac.mak.der.workflow.CaptureWorkflow(
+                        workflowId, "wf",
+                        ug.ac.mak.der.workflow.CaptureWorkflow.BindingKind.DATA_SET,
+                        "DS1", true, 1, NOW, NOW, UUID.randomUUID(),
+                        List.of(), List.of(),
+                        /* requiresApproval */ true,
+                        /* defaultDeviceId */ null)));
+        @SuppressWarnings("unchecked")
+        final org.springframework.beans.factory.ObjectProvider<
+                ug.ac.mak.der.workflow.CaptureWorkflowRepository> wfProv =
+            (org.springframework.beans.factory.ObjectProvider<
+                    ug.ac.mak.der.workflow.CaptureWorkflowRepository>)
+                mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(wfProv.getIfAvailable()).thenReturn(repo);
+
+        final AggregateDataValueService svc = new AggregateDataValueService(
+                values, journal, metadataWith("NUMBER"), audit, mapper, CLOCK,
+                new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false),
+                wfProv);
+        svc.submit(List.of(new AggregateDataValueService.DataValueInput(
+                "de", "ou", "2026Q1", "coc", "aoc", "1", null, "DS1", runId)),
+                UUID.randomUUID(), "ip", "ua");
+        verify(journal).markRequiresApproval(any(UUID.class));
+    }
+
+    @Test
+    void perWorkflowApprovalGate_doesNotMarkWhenWorkflowDoesNotOptIn() {
+        final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        when(values.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        final UUID runId = UUID.randomUUID();
+        final UUID workflowId = UUID.randomUUID();
+        final ug.ac.mak.der.workflow.CaptureWorkflowRepository repo =
+                mock(ug.ac.mak.der.workflow.CaptureWorkflowRepository.class);
+        when(repo.findRun(runId)).thenReturn(Optional.of(
+                new ug.ac.mak.der.workflow.CaptureWorkflowRun(
+                        runId, workflowId, 1, "bk", null,
+                        ug.ac.mak.der.workflow.CaptureWorkflowRun.State.OPEN,
+                        NOW, NOW, UUID.randomUUID())));
+        when(repo.findById(workflowId)).thenReturn(Optional.of(
+                new ug.ac.mak.der.workflow.CaptureWorkflow(
+                        workflowId, "wf",
+                        ug.ac.mak.der.workflow.CaptureWorkflow.BindingKind.DATA_SET,
+                        "DS1", true, 1, NOW, NOW, UUID.randomUUID(),
+                        List.of(), List.of(),
+                        /* requiresApproval */ false,
+                        /* defaultDeviceId */ null)));
+        @SuppressWarnings("unchecked")
+        final org.springframework.beans.factory.ObjectProvider<
+                ug.ac.mak.der.workflow.CaptureWorkflowRepository> wfProv =
+            (org.springframework.beans.factory.ObjectProvider<
+                    ug.ac.mak.der.workflow.CaptureWorkflowRepository>)
+                mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(wfProv.getIfAvailable()).thenReturn(repo);
+
+        final AggregateDataValueService svc = new AggregateDataValueService(
+                values, journal, metadataWith("NUMBER"), audit, mapper, CLOCK,
+                /* global says true — must be ignored when workflow says false */
+                new ug.ac.mak.der.approval.ApprovalRequirements(true, false, false),
+                wfProv);
+        svc.submit(List.of(new AggregateDataValueService.DataValueInput(
+                "de", "ou", "2026Q1", "coc", "aoc", "1", null, "DS1", runId)),
+                UUID.randomUUID(), "ip", "ua");
+        verify(journal, never()).markRequiresApproval(any(UUID.class));
+    }
+
+    @Test
     void marksRequiresApprovalWhenConfigured() {
         final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);
@@ -401,7 +503,8 @@ class AggregateDataValueServiceTest {
         when(values.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
         final AggregateDataValueService svc = new AggregateDataValueService(
                 values, journal, metadata, audit, mapper, CLOCK,
-                new ug.ac.mak.der.approval.ApprovalRequirements(true, false, false));
+                new ug.ac.mak.der.approval.ApprovalRequirements(true, false, false),
+                EMPTY_WORKFLOWS);
         svc.submit(java.util.List.of(validInput("1")), java.util.UUID.randomUUID(), "ip", "ua");
         verify(journal).markRequiresApproval(any(java.util.UUID.class));
     }

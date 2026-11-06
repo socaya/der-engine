@@ -52,6 +52,8 @@ public class AggregateDataValueService {
     private final ObjectMapper mapper;
     private final Clock clock;
     private final ApprovalRequirements approvals;
+    private final org.springframework.beans.factory.ObjectProvider<
+            ug.ac.mak.der.workflow.CaptureWorkflowRepository> workflows;
 
     public AggregateDataValueService(final AggregateDataValueRepository values,
                                       final OperationJournalRepository journal,
@@ -59,7 +61,9 @@ public class AggregateDataValueService {
                                       final SecurityAuditRepository audit,
                                       final ObjectMapper mapper,
                                       final Clock clock,
-                                      final ApprovalRequirements approvals) {
+                                      final ApprovalRequirements approvals,
+                                      final org.springframework.beans.factory.ObjectProvider<
+                                          ug.ac.mak.der.workflow.CaptureWorkflowRepository> workflows) {
         this.values = Objects.requireNonNull(values, "values");
         this.journal = Objects.requireNonNull(journal, "journal");
         this.metadata = Objects.requireNonNull(metadata, "metadata");
@@ -67,6 +71,30 @@ public class AggregateDataValueService {
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.approvals = Objects.requireNonNull(approvals, "approvals");
+        this.workflows = Objects.requireNonNull(workflows, "workflows");
+    }
+
+    /** §2.3.126 — a bucket requires approval if the workflow run that
+     *  produced it was captured through a workflow marked
+     *  {@code requires_approval=true}. For ad-hoc submits without a
+     *  workflow run (DHIS2 Data Entry passthrough, imports, …) fall
+     *  back to the global {@link ApprovalRequirements} toggle so
+     *  admins can still gate those if they want to. */
+    private boolean bucketRequiresApproval(final UUID runId) {
+        if (runId == null) {
+            return approvals.requiresApproval(
+                    OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE);
+        }
+        final ug.ac.mak.der.workflow.CaptureWorkflowRepository repo
+                = workflows.getIfAvailable();
+        if (repo == null) {
+            return approvals.requiresApproval(
+                    OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE);
+        }
+        return repo.findRun(runId)
+                .flatMap(run -> repo.findById(run.workflowId()))
+                .map(wf -> wf.requiresApproval())
+                .orElse(false);
     }
 
     @Transactional
@@ -162,13 +190,18 @@ public class AggregateDataValueService {
         // Emit one journal entry per form bucket — DHIS2-shaped
         // dataValueSets envelope that central will actually import.
         for (final Map.Entry<FormKey, List<AggregateDataValue>> bucket : buckets.entrySet()) {
+            final UUID runId = runKey.get(bucket.getKey());
             final OperationJournalEntry entry = buildAggregateEnvelopeEntry(
                     bucket.getKey(), bucket.getValue(),
                     actingUser, now,
                     nextHopOrgUnitUid, submittingDeviceId,
-                    runKey.get(bucket.getKey()));
+                    runId);
             journal.insert(entry);
-            if (approvals.requiresApproval(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)) {
+            // §2.3.126 per-workflow approval gating — the bucket stays
+            // in REQUIRES_APPROVAL (DRAFT) until an approver signs off
+            // when it was produced by a workflow that opts in. Ad-hoc
+            // submits (runId == null) fall back to the global toggle.
+            if (bucketRequiresApproval(runId)) {
                 journal.markRequiresApproval(entry.operationId());
             }
         }
@@ -216,7 +249,7 @@ public class AggregateDataValueService {
                 nextHopOrgUnitUid, submittingDeviceId,
                 rows.get(0).workflowRunId());
         journal.insert(entry);
-        if (approvals.requiresApproval(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)) {
+        if (bucketRequiresApproval(rows.get(0).workflowRunId())) {
             journal.markRequiresApproval(entry.operationId());
         }
         audit.append(new AuditEvent(
