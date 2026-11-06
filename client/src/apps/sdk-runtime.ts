@@ -1,3 +1,8 @@
+import * as ShellReact from 'react';
+import * as ShellReactJsxRuntime from 'react/jsx-runtime';
+import * as ShellReactDom from 'react-dom';
+import * as ShellReactDomClient from 'react-dom/client';
+import * as ShellReactRouterDom from 'react-router-dom';
 import { useAuth as useShellAuth } from '../auth/AuthContext';
 import { useOrgUnitBinding as useShellOrgUnit } from '../orgunit/OrgUnitBindingContext';
 import { useOnlineStatus as useShellOnline } from '../offline/useOnlineStatus';
@@ -69,8 +74,26 @@ export const sdkRuntime = {
   StatusPill: ShellStatusPill,
 } as const;
 
-/** Install the SDK on globalThis once, before any app can load. */
+/**
+ * Install the SDK on globalThis once, before any app can load.
+ *
+ * Also publishes the shell's React / ReactDOM / Router instances
+ * so the generated /vendor/<name>.js files can re-export from them
+ * — guaranteeing shell and apps share **one** React, which is
+ * what React's hook rules (and our shared context providers)
+ * require.
+ */
 export function installSdkRuntime(): void {
-  (globalThis as unknown as { __DER_SDK_RUNTIME__: typeof sdkRuntime })
-    .__DER_SDK_RUNTIME__ = sdkRuntime;
+  const g = globalThis as unknown as {
+    __DER_SDK_RUNTIME__: typeof sdkRuntime;
+    __DER_SHELL_VENDOR__: Record<string, unknown>;
+  };
+  g.__DER_SDK_RUNTIME__ = sdkRuntime;
+  g.__DER_SHELL_VENDOR__ = {
+    react: ShellReact,
+    'react/jsx-runtime': ShellReactJsxRuntime,
+    'react-dom': ShellReactDom,
+    'react-dom/client': ShellReactDomClient,
+    'react-router-dom': ShellReactRouterDom,
+  };
 }

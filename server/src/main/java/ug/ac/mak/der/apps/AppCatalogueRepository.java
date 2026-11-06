@@ -171,16 +171,36 @@ public class AppCatalogueRepository {
                                 final byte[] iconBytes,
                                 final String iconMime,
                                 final String iconEtag) {
+        // Supersede every OTHER active version — but leave the row we're
+        // about to upsert unmarked. The UPSERT below either updates it in
+        // place (same version re-uploaded) or inserts it fresh.
         jdbc.update(
                 "UPDATE der.installed_app_version SET superseded_at = now() "
-                        + "WHERE app_id = ? AND superseded_at IS NULL",
-                appId);
+                        + "WHERE app_id = ? AND superseded_at IS NULL "
+                        + "AND version <> ?",
+                appId, version);
         final UUID versionId = UUID.randomUUID();
+        // Upsert on (app_id, version). When an admin re-uploads the same
+        // version with fresh bytes (e.g. a hotfix build before cutting a
+        // new tag), replace the stored bundle + manifest + icon in place
+        // rather than raising a unique-constraint 500.
         jdbc.update(
                 "INSERT INTO der.installed_app_version (version_id, app_id, version, "
                         + "bundle_bytes, bundle_sha256, signature_b64, requires_der_api, "
                         + "uploaded_by, manifest_json, icon_bytes, icon_mime, icon_etag) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb), ?, ?, ?)",
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb), ?, ?, ?) "
+                        + "ON CONFLICT (app_id, version) DO UPDATE SET "
+                        + "bundle_bytes = EXCLUDED.bundle_bytes, "
+                        + "bundle_sha256 = EXCLUDED.bundle_sha256, "
+                        + "signature_b64 = EXCLUDED.signature_b64, "
+                        + "requires_der_api = EXCLUDED.requires_der_api, "
+                        + "uploaded_by = EXCLUDED.uploaded_by, "
+                        + "uploaded_at = now(), "
+                        + "superseded_at = NULL, "
+                        + "manifest_json = EXCLUDED.manifest_json, "
+                        + "icon_bytes = EXCLUDED.icon_bytes, "
+                        + "icon_mime = EXCLUDED.icon_mime, "
+                        + "icon_etag = EXCLUDED.icon_etag",
                 versionId, appId, version, bytes, sha256, signatureB64,
                 requiresDerApi, uploadedBy, manifestJson, iconBytes, iconMime, iconEtag);
         return versionId;

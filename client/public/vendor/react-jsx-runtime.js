@@ -1,1 +1,1 @@
-import*as t from"react/jsx-runtime";var{jsx:s,jsxs:e,Fragment:o}=t,r=t;export{o as Fragment,r as default,s as jsx,e as jsxs};
+const t=globalThis.__DER_SHELL_VENDOR__?.["react/jsx-runtime"];if(!t)throw new Error("@der/vendor/react-jsx-runtime: shell runtime not installed.");const e=t.jsx,r=t.jsxs,s=t.Fragment;var n=t.default??t;export{s as Fragment,n as default,e as jsx,r as jsxs};

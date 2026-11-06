@@ -1,1 +1,1 @@
-import*as t from"react-dom/client";var{createRoot:o,hydrateRoot:e}=t,r=t;export{o as createRoot,r as default,e as hydrateRoot};
+const t=globalThis.__DER_SHELL_VENDOR__?.["react-dom/client"];if(!t)throw new Error("@der/vendor/react-dom-client: shell runtime not installed.");const e=t.createRoot,o=t.hydrateRoot;var r=t.default??t;export{e as createRoot,r as default,o as hydrateRoot};

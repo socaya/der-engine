@@ -35,38 +35,19 @@ const common = {
 
 const facade = (n) => resolve(here, 'vendor-facades', `${n}.js`);
 
-// React + ReactDOM ship CJS modules; esbuild's `bundle:esm` of those
-// only emits `default`. Named ESM re-exports (`useState`, `jsx`, …)
-// need an explicit facade source that destructures the default
-// export. The facades live in client/scripts/vendor-facades/.
-await build({
-  ...common,
-  entryPoints: { 'react': facade('react') },
-});
-
-await build({
-  ...common,
-  entryPoints: { 'react-jsx-runtime': facade('react-jsx-runtime') },
-  external: ['react'],
-});
-
-await build({
-  ...common,
-  entryPoints: { 'react-dom': facade('react-dom') },
-  external: ['react'],
-});
-
-await build({
-  ...common,
-  entryPoints: { 'react-dom-client': facade('react-dom-client') },
-  external: ['react', 'react-dom'],
-});
-
-await build({
-  ...common,
-  entryPoints: { 'react-router-dom': facade('react-router-dom') },
-  external: ['react', 'react-dom'],
-});
+// Vendor facades are PURE PASSTHROUGHS — each reads the SHELL's
+// React / ReactDOM / Router instance off
+// `globalThis.__DER_SHELL_VENDOR__` (populated by
+// src/apps/sdk-runtime.ts at boot). bundle:false keeps them tiny
+// (<1 KB each) and prevents a second React instance from being
+// embedded in /vendor/, which would break hooks + context lookups
+// across the shell↔app boundary.
+const passthru = { ...common, bundle: false };
+await build({ ...passthru, entryPoints: { 'react': facade('react') } });
+await build({ ...passthru, entryPoints: { 'react-jsx-runtime': facade('react-jsx-runtime') } });
+await build({ ...passthru, entryPoints: { 'react-dom': facade('react-dom') } });
+await build({ ...passthru, entryPoints: { 'react-dom-client': facade('react-dom-client') } });
+await build({ ...passthru, entryPoints: { 'react-router-dom': facade('react-router-dom') } });
 
 await build({
   ...common,

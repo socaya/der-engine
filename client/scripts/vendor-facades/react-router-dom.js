@@ -1,6 +1,17 @@
-// react-router-dom already ships proper named ESM exports; the
-// facade just re-exports them and provides a default for any
-// consumer that uses `import ReactRouterDOM from 'react-router-dom'`.
-export * from 'react-router-dom';
-import * as ReactRouterDOM from 'react-router-dom';
-export default ReactRouterDOM;
+const RR = globalThis.__DER_SHELL_VENDOR__?.['react-router-dom'];
+if (!RR) throw new Error('@der/vendor/react-router-dom: shell runtime not installed.');
+export const BrowserRouter = RR.BrowserRouter;
+export const HashRouter = RR.HashRouter;
+export const Link = RR.Link;
+export const NavLink = RR.NavLink;
+export const Navigate = RR.Navigate;
+export const Outlet = RR.Outlet;
+export const Route = RR.Route;
+export const Routes = RR.Routes;
+export const useLocation = RR.useLocation;
+export const useNavigate = RR.useNavigate;
+export const useParams = RR.useParams;
+export const useRouteError = RR.useRouteError;
+export const useSearchParams = RR.useSearchParams;
+export const matchPath = RR.matchPath;
+export default RR.default ?? RR;
