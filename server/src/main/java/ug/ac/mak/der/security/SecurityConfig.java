@@ -125,6 +125,13 @@ public class SecurityConfig {
                          * noise in DevTools either way. Icon content
                          * is public. */
                         .requestMatchers("/favicon.ico", "/favicon.svg").permitAll()
+                        // C-UI-5f — legacy DHIS2 custom-form assets
+                        // (jQuery + dhis2.de.js + related JS/CSS). The
+                        // device-client aggregate-data-entry app loads
+                        // these to render dataset custom forms with the
+                        // same behaviour they have in DHIS2.
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/legacy-custom-forms/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         // §2 Observability — Prometheus scrape endpoint.
                         // Operators restrict reach via nginx / firewall;
