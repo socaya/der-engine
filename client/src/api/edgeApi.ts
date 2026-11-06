@@ -120,6 +120,25 @@ export function getDataSetMeta(dataSetUid: string): Promise<DataSetMeta> {
 }
 
 /**
+ * List all datasets in the DER mirror — used by the device
+ * client's data-entry app to populate the dataset picker. The
+ * mirror follows the bound-OU's assignments (sync job filters
+ * on OU), so there's no extra `?filter=organisationUnits.id`
+ * needed for pilot deployments. `paging=false` to get them all
+ * in a single round-trip (datasets are a bounded set per OU).
+ */
+export function listDataSets(): Promise<{
+  dataSets: Array<{
+    id: string; displayName?: string; name?: string;
+    periodType?: string; formType?: string;
+  }>;
+}> {
+  const fields = 'id,displayName,name,periodType,formType';
+  const q = new URLSearchParams({ fields, paging: 'false' }).toString();
+  return request('GET', `/api/dataSets?${q}`);
+}
+
+/**
  * Fetch the full dataset metadata expansion needed to populate
  * DHIS2's `dhis2.de.*` globals before loading a custom form.
  * Calls DER's /api/dataSets/{uid} with a nested `fields=` mask so

@@ -32,7 +32,10 @@ export default function DataEntryApp(): JSX.Element {
   const online = useOnlineStatus();
   const api = useDerApi();
 
-  const [mode, setMode] = useState<Mode>('structured');
+  const [mode, setMode] = useState<Mode>('custom');
+  const [datasetList, setDatasetList] = useState<Array<{
+    id: string; label: string; periodType?: string; formType?: string;
+  }>>([]);
   const [dataSet, setDataSet] = useState('');
   const [period, setPeriod] = useState('');
   const [dataElement, setDataElement] = useState('');
@@ -51,6 +54,26 @@ export default function DataEntryApp(): JSX.Element {
   const [aocCategories, setAocCategories] = useState<Array<{
     id: string; name: string; options: Array<{ id: string; name: string }>;
   }>>([]);
+
+  // Hydrate the dataset picker once on mount — operators choose
+  // from what's mirrored on this edge, not type raw UIDs.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api.listDataSets();
+        if (cancelled) return;
+        const list = (r.dataSets ?? []).map((d) => ({
+          id: d.id,
+          label: d.displayName ?? d.name ?? d.id,
+          periodType: d.periodType,
+          formType: d.formType,
+        })).sort((a, b) => a.label.localeCompare(b.label));
+        setDatasetList(list);
+      } catch { /* mirror unreachable — picker stays empty */ }
+    })();
+    return () => { cancelled = true; };
+  }, [api]);
 
   // Whenever the dataset UID changes, peek at the dataset's form
   // metadata so the UI can offer "Switch to custom form" when the
@@ -72,14 +95,20 @@ export default function DataEntryApp(): JSX.Element {
         // path feeds through the same vendor + shim pipeline so
         // entry.js's autosave + validation + indicators wire up
         // identically.
+        const hasCustomForm = (!!meta.dataEntryForm && meta.formType === 'CUSTOM')
+          || meta.formType === 'SECTION';
         setFormInfo({
-          hasCustomForm: (!!meta.dataEntryForm && meta.formType === 'CUSTOM')
-            || meta.formType === 'SECTION',
+          hasCustomForm,
           formId: meta.dataEntryForm?.id,
           displayName: meta.displayName ?? meta.name,
           formType: meta.formType,
           periodType: meta.periodType,
         });
+        // Pick the right rendering mode automatically: datasets
+        // with CUSTOM/SECTION always route through the vendor-stack
+        // path; everything else (DEFAULT) falls back to the
+        // structured single-cell form.
+        setMode(hasCustomForm ? 'custom' : 'structured');
       } catch { if (!cancelled) setFormInfo(null); }
     })();
     return () => { cancelled = true; };
@@ -237,55 +266,85 @@ export default function DataEntryApp(): JSX.Element {
     }
   }
 
+  const periodReady = period.trim() !== '';
+  const datasetReady = dataSet.trim() !== '';
+  const formReady = datasetReady && periodReady && ou.bound;
+
   return (
     <ScreenCard
-      title={formInfo?.displayName ?? 'Aggregate data entry'}
+      title="Aggregate data entry"
       actions={
         <StatusPill tone={online.isOnline ? 'success' : 'warning'}>
           {online.isOnline ? 'online' : `offline (${online.queuedCount} queued)`}
         </StatusPill>
       }
     >
-      <p style={{ margin: 0, color: '#6e7a8a', fontSize: 13 }}>
-        Signed in as <strong>{auth.displayName}</strong> • Bound OU
-        <code style={{ marginInline: 6 }}>{ou.orgUnitPath}</code>
-      </p>
+      <style>{APP_STYLES}</style>
 
-      <div style={{ display: 'flex', gap: 2, margin: '12px 0 16px' }}>
-        <button type="button" onClick={() => setMode('structured')}
-                style={tabBtn(mode === 'structured')}>
-          Structured
-        </button>
-        <button type="button" onClick={() => setMode('custom')}
-                disabled={!formInfo?.hasCustomForm}
-                title={formInfo?.hasCustomForm ? ''
-                  : (formInfo?.formType
-                      ? `Dataset formType is ${formInfo.formType}; custom form unavailable`
-                      : 'Enter a dataset UID to detect the form')}
-                style={tabBtn(mode === 'custom')}>
-          {formInfo?.formType === 'SECTION' ? 'Section form' : 'Custom form'}
-          {formInfo && !formInfo.hasCustomForm && <span>·&nbsp;unavailable</span>}
-        </button>
+      {/* Context strip — three "chips" in DHIS2-Capture style. */}
+      <div className="der-de-context">
+        <div className="der-de-chip">
+          <span className="der-de-chip-label">Organisation unit</span>
+          <span className="der-de-chip-value">
+            {ou.orgUnitPath ?? ou.orgUnitUid ?? '—'}
+          </span>
+        </div>
+        <div className="der-de-chip">
+          <span className="der-de-chip-label">Data set</span>
+          <select className="der-de-select"
+                  value={dataSet}
+                  onChange={(e) => { setDataSet(e.target.value); setPeriod(''); }}
+                  data-test="der-de-dataset-picker">
+            <option value="">Select a data set…</option>
+            {datasetList.map((d) => (
+              <option key={d.id} value={d.id}>{d.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="der-de-chip">
+          <span className="der-de-chip-label">
+            Period {formInfo?.periodType ? `· ${formInfo.periodType}` : ''}
+          </span>
+          <span className="der-de-period-wrap">
+            {renderPeriodPicker(formInfo?.periodType, period, setPeriod)}
+          </span>
+        </div>
+        <div className="der-de-chip der-de-chip-signed">
+          <span className="der-de-chip-label">Signed in</span>
+          <span className="der-de-chip-value">{auth.displayName}</span>
+        </div>
       </div>
 
       {status.kind === 'ok' && (
-        <div style={okStrip}>{status.message}</div>
+        <div style={okStrip} data-test="de-ok">{status.message}</div>
       )}
       {status.kind === 'error' && (
-        <div style={errorStrip}>{status.message}</div>
+        <div style={errorStrip} data-test="de-err">{status.message}</div>
       )}
 
-      {mode === 'structured' && (
+      {!ou.bound && (
+        <div style={{ padding: 16, color: '#8a2525' }}>
+          Device is not bound to an organisation unit — ask an admin
+          to complete provisioning before capturing data.
+        </div>
+      )}
+
+      {ou.bound && !datasetReady && (
+        <div className="der-de-placeholder">
+          Pick a data set to begin.
+        </div>
+      )}
+
+      {ou.bound && datasetReady && !periodReady && (
+        <div className="der-de-placeholder">
+          Pick a period to load the {formInfo?.formType === 'SECTION'
+            ? 'section' : 'data entry'} form.
+        </div>
+      )}
+
+      {formReady && mode === 'structured' && (
         <form onSubmit={onSubmit} style={{ marginTop: 12, display: 'grid',
           gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <label>Data set UID
-            <input value={dataSet} onChange={(e) => setDataSet(e.target.value)}
-                   placeholder="e.g. BfMAe6Itzgt" style={inputStyle} />
-          </label>
-          <label>Period (ISO)
-            <input value={period} onChange={(e) => setPeriod(e.target.value)}
-                   placeholder="e.g. 202611" style={inputStyle} />
-          </label>
           <label>Data element UID
             <input value={dataElement} onChange={(e) => setDataElement(e.target.value)}
                    style={inputStyle} />
@@ -302,18 +361,8 @@ export default function DataEntryApp(): JSX.Element {
         </form>
       )}
 
-      {mode === 'custom' && (
-        <div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr',
-            gap: 12, marginBottom: 12 }}>
-            <label>Data set UID
-              <input value={dataSet} onChange={(e) => setDataSet(e.target.value)}
-                     placeholder="e.g. BfMAe6Itzgt" style={inputStyle} />
-            </label>
-            <label>Period
-              {renderPeriodPicker(formInfo?.periodType, period, setPeriod)}
-            </label>
-          </div>
+      {formReady && mode === 'custom' && (
+        <div className="der-de-form-card">
           {aocCategories.length > 0 && (
             <div style={{ display: 'grid',
               gridTemplateColumns: `repeat(${Math.min(aocCategories.length, 3)}, 1fr)`,
@@ -1050,6 +1099,128 @@ function renderPeriodPicker(
       );
   }
 }
+
+/* Scoped styles for the aggregate data-entry app. Flat/soft per
+ * the project rule — 1 px borders, no shadows, minimal radius.
+ * Fonts resolve to Roboto via the shell's token stack. */
+const APP_STYLES = `
+.der-de-context {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+.der-de-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #d7dde5;
+  border-radius: 3px;
+}
+.der-de-chip-signed {
+  background: #f3f5f7;
+}
+.der-de-chip-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6e7a8a;
+  font-weight: 500;
+}
+.der-de-chip-value {
+  font-size: 13px;
+  color: #212934;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.der-de-select,
+.der-de-period-wrap > * {
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid #d7dde5;
+  border-radius: 2px;
+  background: #fff;
+  color: #212934;
+  width: 100%;
+  font-family: inherit;
+}
+.der-de-select:focus,
+.der-de-period-wrap > *:focus {
+  outline: none;
+  border-color: #2c6693;
+}
+.der-de-placeholder {
+  padding: 32px 16px;
+  text-align: center;
+  color: #6e7a8a;
+  font-size: 14px;
+  background: #fff;
+  border: 1px dashed #d7dde5;
+  border-radius: 3px;
+}
+.der-de-form-card {
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #d7dde5;
+  border-radius: 3px;
+}
+.der-de-form-card .sectionTable {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0 20px;
+  font-size: 13px;
+}
+.der-de-form-card .sectionTable th,
+.der-de-form-card .sectionTable td {
+  border: 1px solid #d7dde5;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+.der-de-form-card .sectionTable th {
+  background: #f3f5f7;
+  font-weight: 500;
+  color: #404b5a;
+}
+.der-de-form-card .sectionTable .dataElementCell {
+  background: #f8fafc;
+  min-width: 220px;
+}
+.der-de-form-card .sectionTable .indicatorRow td {
+  background: #fcf7e6;
+  font-weight: 500;
+}
+.der-de-form-card .sectionTable .greyed {
+  background: #eef0f3;
+  color: #9aa3b0;
+  text-align: center;
+}
+.der-de-form-card .sectionTable input[type="text"] {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  font-size: 13px;
+  color: #212934;
+  font-family: inherit;
+}
+.der-de-form-card .sectionTable input[type="text"]:focus {
+  outline: 1px solid #2c6693;
+  background: #fff;
+}
+.der-de-form-card h3.formSection {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1f4d70;
+  border-bottom: 1px solid #d7dde5;
+  padding-bottom: 4px;
+}
+`;
 
 function tabBtn(active: boolean): React.CSSProperties {
   return {

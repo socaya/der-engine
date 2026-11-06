@@ -26,6 +26,7 @@ function useDerApi(): {
   listDrafts: typeof edgeApi.listDrafts;
   dhis2Ping: typeof edgeApi.dhis2Ping;
   getDataSetMeta: typeof edgeApi.getDataSetMeta;
+  listDataSets: typeof edgeApi.listDataSets;
   getDataSetFormMetadata: typeof edgeApi.getDataSetFormMetadata;
   getDataEntryFormHtml: typeof edgeApi.getDataEntryFormHtml;
   listValidationRules: typeof edgeApi.listValidationRules;
@@ -47,6 +48,7 @@ function useDerApi(): {
     listDrafts: edgeApi.listDrafts,
     dhis2Ping: edgeApi.dhis2Ping,
     getDataSetMeta: edgeApi.getDataSetMeta,
+    listDataSets: edgeApi.listDataSets,
     getDataSetFormMetadata: edgeApi.getDataSetFormMetadata,
     getDataEntryFormHtml: edgeApi.getDataEntryFormHtml,
     listValidationRules: edgeApi.listValidationRules,
