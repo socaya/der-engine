@@ -356,6 +356,31 @@ describe('edgeApi.getDataSetMeta', () => {
   });
 });
 
+describe('edgeApi.getDataSetFormMetadata', () => {
+  it('fetches /api/dataSets/<uid> with the full fields mask', async () => {
+    fetchMock.mockResolvedValue(respond(200, {
+      id: 'DS', dataSetElements: [], indicators: [],
+    }));
+    await api.getDataSetFormMetadata('DS');
+    const url = fetchMock.mock.calls[0]?.[0] as string;
+    expect(url.startsWith('/api/dataSets/DS?fields=')).toBe(true);
+    expect(url).toContain('dataSetElements');
+    expect(url).toContain('categoryCombo');
+    expect(url).toContain('indicators');
+    expect(url).toContain('optionSet');
+  });
+});
+
+describe('edgeApi.getDataEntryFormHtml', () => {
+  it('hits /api/dataEntryForms/<uid>', async () => {
+    fetchMock.mockResolvedValue(respond(200,
+      { id: 'FORM', htmlCode: '<div>hi</div>' }));
+    const r = await api.getDataEntryFormHtml('FORM');
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/dataEntryForms/FORM');
+    expect(r.htmlCode).toBe('<div>hi</div>');
+  });
+});
+
 describe('edgeApi.getOrgUnitBinding', () => {
   it('hits /edge-api/v1/system/org-unit', async () => {
     fetchMock.mockResolvedValue(respond(200, { bound: true, orgUnitId: 'OU-A' }));
