@@ -1,6 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
-import { DerHeader } from './components/DerHeader';
 import { DeviceBoot } from './device/DeviceBoot';
 import { RequireAuth } from './components/RequireAuth';
 import { SignIn } from './screens/SignIn';
@@ -9,6 +8,7 @@ import { SessionDetails } from './screens/SessionDetails';
 import { RecentWork } from './screens/RecentWork';
 import { EdgeConnectionError } from './screens/EdgeConnectionError';
 import { OrgUnitBindingProvider } from './orgunit/OrgUnitBindingContext';
+import { DerShell } from './shell/DerShell';
 import { AggregateDatasetPicker } from './screens/AggregateDatasetPicker';
 import { AggregateEntry } from './screens/AggregateEntry';
 import { ProgramPicker } from './screens/ProgramPicker';
@@ -40,9 +40,8 @@ export default function App(): JSX.Element {
   return (
     <AuthProvider>
       <OrgUnitBindingProvider>
-      <DerHeader />
       <DeviceBoot />
-      <main className="der-main" data-test="der-main">
+      <DerShell>
         <Routes>
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/edge-error" element={<EdgeConnectionError />} />
@@ -133,7 +132,7 @@ export default function App(): JSX.Element {
             <RequireAuth><NetworkStatus /></RequireAuth>
           } />
         </Routes>
-      </main>
+      </DerShell>
       </OrgUnitBindingProvider>
     </AuthProvider>
   );

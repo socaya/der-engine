@@ -1,0 +1,148 @@
+/* DER device-client shell (ADR-0037 C-UI-1). */
+
+body {
+  background: var(--der-canvas);
+  color: var(--der-ink-900);
+  font-family: var(--der-font-base);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.der-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.der-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: var(--der-topbar-h);
+  padding: 0 20px;
+  background: var(--der-ink-900);
+  color: #fff;
+  border-bottom: 1px solid #000;
+  flex: 0 0 auto;
+}
+
+.der-topbar__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  color: inherit;
+  letter-spacing: 0.3px;
+  font-size: 14px;
+}
+
+.der-topbar__brand-mark {
+  width: 24px;
+  height: 24px;
+  background: var(--der-brand-500);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  letter-spacing: 0;
+  color: #fff;
+}
+
+.der-topbar__orgunit {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 12px;
+  opacity: 0.9;
+  padding: 2px 8px;
+  border-radius: var(--der-radius-sm);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.der-topbar__orgunit code {
+  opacity: 0.75;
+  font-size: 11px;
+}
+
+.der-topbar__orgunit--unbound {
+  color: #f6c6c6;
+  background: rgba(169, 50, 50, 0.3);
+}
+
+.der-topbar__spacer {
+  flex: 1 1 auto;
+}
+
+.der-topbar__btn {
+  background: transparent;
+  color: inherit;
+  border: 0;
+  padding: 6px 10px;
+  border-radius: var(--der-radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.der-topbar__btn:hover,
+.der-topbar__btn:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+.der-topbar__icon {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+}
+
+.der-topbar__user {
+  font-size: 13px;
+  opacity: 0.95;
+}
+
+.der-breadcrumb {
+  padding: 8px 20px;
+  background: var(--der-surface);
+  border-bottom: 1px solid var(--der-border);
+  color: var(--der-ink-500);
+  font-size: 12px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.der-breadcrumb a {
+  color: var(--der-ink-500);
+  text-decoration: none;
+}
+
+.der-breadcrumb a:hover {
+  color: var(--der-brand-500);
+  text-decoration: underline;
+}
+
+.der-breadcrumb__sep {
+  opacity: 0.5;
+}
+
+.der-breadcrumb__current {
+  color: var(--der-ink-900);
+  font-weight: 500;
+}
+
+.der-shell__main {
+  flex: 1 1 auto;
+  padding: 20px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}

@@ -1,0 +1,35 @@
+/**
+ * DER device-client design tokens (ADR-0037 C-UI-1).
+ *
+ * Every token is prefixed `--der-` so @dhis2/ui's own Sass/CSS
+ * tokens ({--dhis2-*}) cohabit without clashes. Tokens are the only
+ * place colours + radii are hard-coded; component styles must
+ * consume them via var() so the palette can swap in one place.
+ */
+:root {
+  /* brand + chrome */
+  --der-brand-500: #2c6693;     /* header blue */
+  --der-brand-600: #1f4d70;
+  --der-brand-100: #e4edf5;
+  --der-ink-900:   #1c2838;     /* topbar dark + primary text */
+  --der-ink-700:   #35455a;
+  --der-ink-500:   #5a6a85;     /* muted meta */
+  --der-canvas:    #f3f5f7;     /* app background */
+  --der-surface:   #ffffff;     /* card background */
+  --der-border:    #e0e4eb;
+
+  /* status pills */
+  --der-success:   #1a8754;
+  --der-warning:   #b9860a;
+  --der-danger:    #a93232;
+  --der-info:      #2c6693;
+
+  /* radii + shadow */
+  --der-radius-sm: 4px;
+  --der-radius-md: 8px;
+  --der-shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+  /* vertical rhythm */
+  --der-topbar-h:  48px;
+  --der-font-base: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+}

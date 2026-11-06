@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { DataProvider } from '@dhis2/app-runtime';
 import App from './App';
+import './styles/tokens.css';
+import './styles/shell.css';
 import './styles.css';
 
 /*
