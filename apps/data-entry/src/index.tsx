@@ -126,6 +126,10 @@ export default function DataEntryApp(): JSX.Element {
           if (document.querySelector(`script[data-der-custom-form="${src}"]`)) continue;
           await loadScript(src);
         }
+        // Finalise the DHIS2 shim after the vendor stack is in
+        // place — $ and dhis2.period classes exist now, so we can
+        // create the period picker + wire ajaxSetup.
+        finaliseDhis2Shim();
         // Process the dataset's own htmlCode — everything DHIS2
         // custom-form authors can embed:
         //   <link rel="stylesheet" href="…">   — stylesheets
@@ -414,10 +418,89 @@ function hydrateDhis2Globals(args: {
   // relative URLs that should hit DER's emulated endpoints. jQuery
   // resolves them against window.location by default (same origin),
   // which is what we want; but publish the explicit base URL too
-  // in case a form uses it. $ may or may not be loaded yet — set
-  // beforeSend after loadScript runs via $(document).ready, OR
-  // just stamp DHIS2_BASE_URL now and let the vendor shim handle $.
+  // in case a form uses it. $.ajaxSetup can only run after jQuery
+  // loads — see `finaliseDhis2Shim`.
   g.DHIS2_BASE_URL = `${window.location.origin}/`;
+
+  // i18n — DHIS2 entry.js references window.dhis2.shim.i18n_translations
+  // for every validation error string. Default to English (DER has no
+  // translation layer yet; matches DHIS2's own loadCustomFormShim.js
+  // default keys).
+  dhis2.shim = dhis2.shim ?? {};
+  (dhis2.shim as Record<string, unknown>).i18n_translations = {
+    i18n_loading_file_info_failed: 'Loading file info failed',
+    i18n_file_upload_failed: 'File upload failed',
+    i18n_confirm_deletion: 'Confirm deletion',
+    i18n_dataset_is_concluded: 'Dataset is concluded',
+    i18n_dataset_is_closed: 'Dataset is closed',
+    i18n_dataset_is_approved: 'Dataset is approved',
+    i18n_dataset_is_locked: 'Dataset is locked',
+    i18n_orgunit_is_closed: 'Org unit is closed',
+    i18n_select_option: 'Choose an option',
+    i18n_show_all_items: 'Show all items',
+    i18n_value_of_data_element_greater:
+      'The value of the following data element is less than the specified minimum value.',
+    i18n_value_of_data_element_less:
+      'The value of the following data element is greater than the specified maximum value.',
+    i18n_value_too_long: 'Value is too long',
+    i18n_value_must_number: 'Value must be a number',
+    i18n_value_must_integer: 'Value must be an integer',
+    i18n_value_must_positive_integer: 'Value must be a positive integer',
+    i18n_value_must_negative_integer: 'Value must be a negative integer',
+    i18n_value_must_zero_or_positive_integer: 'Value must be zero or a positive integer',
+    i18n_value_must_coordinate: 'Value must be a coordinate (longitude, latitude)',
+    i18n_value_must_unit_interval: 'Value must be a unit interval (between 0 and 1)',
+    i18n_value_must_percentage: 'Value must be a percentage (between 0 and 100)',
+    i18n_value_must_valid_url: 'Value must be a valid url',
+  };
+}
+
+/**
+ * Finalises the parts of the DHIS2 shim that require the vendor
+ * stack to be loaded already:
+ *   - `$.ajaxSetup` to add `withCredentials` so the DER_SESSION
+ *     cookie rides every jQuery AJAX call a form emits.
+ *   - `dhis2.period.format` + `calendar` + `generator` + `picker`
+ *     because custom forms with datePicker inputs use these at
+ *     render time.
+ */
+function finaliseDhis2Shim(): void {
+  const g = globalThis as unknown as {
+    $?: {
+      ajaxSetup?: (o: object) => void;
+      calendars?: { instance: (name: string) => unknown };
+    };
+    dhis2?: Record<string, Record<string, unknown>>;
+  };
+
+  if (g.$ && typeof g.$.ajaxSetup === 'function') {
+    g.$.ajaxSetup({
+      beforeSend: (
+        xhr: unknown,
+        options: { xhrFields?: Record<string, unknown> },
+      ): void => {
+        options.xhrFields = { ...(options.xhrFields ?? {}), withCredentials: true };
+      },
+    });
+  }
+
+  if (g.dhis2?.period && g.$?.calendars?.instance) {
+    const period = g.dhis2.period as Record<string, unknown> & {
+      PeriodGenerator?: new (calendar: unknown, format: string) => unknown;
+      DatePicker?: new (calendar: unknown, format: string) => unknown;
+    };
+    // DHIS2 struts baked `$dateFormat.js` as the default format;
+    // 'yyyy-MM-dd' is the modern equivalent the calendar plugin
+    // understands and matches ISO-8601 output DER accepts.
+    period.format = 'yyyy-mm-dd';
+    period.calendar = g.$.calendars.instance('gregorian');
+    if (period.PeriodGenerator) {
+      period.generator = new period.PeriodGenerator(period.calendar, period.format);
+    }
+    if (period.DatePicker) {
+      period.picker = new period.DatePicker(period.calendar, period.format);
+    }
+  }
 }
 
 function loadScript(src: string): Promise<void> {
