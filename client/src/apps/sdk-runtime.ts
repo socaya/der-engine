@@ -64,6 +64,30 @@ function useDerApi(): {
   };
 }
 
+/**
+ * Flatten the shell's AuthContext into the shape documented by
+ * `@der/app-sdk`: apps read `auth.username`, `auth.displayName`,
+ * `auth.roles[]` directly. When the shell is in INITIAL / ANONYMOUS
+ * / EDGE_DOWN (no user), return a safe empty shape so apps never
+ * see `undefined.displayName`.
+ */
+function useAppAuth(): {
+  readonly username: string;
+  readonly displayName: string;
+  readonly roles: readonly string[];
+} {
+  const ctx = useShellAuth();
+  if (ctx.state.status !== 'AUTHENTICATED') {
+    return { username: '', displayName: '', roles: [] };
+  }
+  const u = ctx.state.user;
+  return {
+    username: u.username ?? '',
+    displayName: u.displayName ?? u.username ?? '',
+    roles: u.roles ?? [],
+  };
+}
+
 function useAppOnline(): { isOnline: boolean; queuedCount: number } {
   const isOnline = useShellOnline();
   const [queuedCount, setQ] = useState(0);
@@ -75,9 +99,35 @@ function useAppOnline(): { isOnline: boolean; queuedCount: number } {
   return { isOnline, queuedCount };
 }
 
+/**
+ * Flatten the shell's OrgUnitBinding context value into the shape
+ * documented by `@der/app-sdk` — apps read `ou.bound`,
+ * `ou.orgUnitUid`, `ou.orgUnitPath` directly, not `ou.state.binding.*`.
+ * LOADING / ERROR / unbound surfaces as `bound=false` so apps can
+ * render their "not provisioned" fallback consistently.
+ */
+function useAppOrgUnit(): {
+  readonly bound: boolean;
+  readonly orgUnitUid: string;
+  readonly orgUnitPath: string;
+  readonly orgUnitDisplayName: string;
+} {
+  const ctx = useShellOrgUnit();
+  if (ctx.state.status !== 'READY' || !ctx.state.binding.bound) {
+    return { bound: false, orgUnitUid: '', orgUnitPath: '', orgUnitDisplayName: '' };
+  }
+  const b = ctx.state.binding;
+  return {
+    bound: true,
+    orgUnitUid: b.orgUnitId ?? '',
+    orgUnitPath: b.orgUnitPath ?? '',
+    orgUnitDisplayName: b.orgUnitDisplayName ?? b.orgUnitId ?? '',
+  };
+}
+
 export const sdkRuntime = {
-  useAuth: useShellAuth,
-  useOrgUnitBinding: useShellOrgUnit,
+  useAuth: useAppAuth,
+  useOrgUnitBinding: useAppOrgUnit,
   useOnlineStatus: useAppOnline,
   useDerApi,
   ScreenCard: ShellScreenCard,
