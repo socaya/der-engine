@@ -85,13 +85,24 @@ export default function DataEntryApp(): JSX.Element {
           htmlCode?: string;
         };
         if (cancelled) return;
+        // Clear any previous render — we rebuild hidden selectors
+        // + content on every form load.
+        root.replaceChildren();
         // Seed hidden selectors DHIS2's form.js reads via jQuery.
-        root.innerHTML = `
-          <input type="hidden" id="selectedDataSetId" value="${escapeAttr(dataSet.trim())}" />
-          <input type="hidden" id="selectedPeriodId" value="${escapeAttr(period.trim())}" />
-          <input type="hidden" id="selectedOrganisationUnitId" value="${escapeAttr(ou.orgUnitUid ?? '')}" />
-          <div id="contentDiv">${form.htmlCode ?? ''}</div>
-        `;
+        for (const [id, val] of [
+          ['selectedDataSetId', dataSet.trim()],
+          ['selectedPeriodId', period.trim()],
+          ['selectedOrganisationUnitId', ou.orgUnitUid ?? ''],
+        ] as const) {
+          const i = document.createElement('input');
+          i.type = 'hidden'; i.id = id; i.value = val;
+          root.appendChild(i);
+        }
+        // The form's content lands here — DHIS2's entry.js expects
+        // #contentDiv as the root selector.
+        const content = document.createElement('div');
+        content.id = 'contentDiv';
+        root.appendChild(content);
         // Global DHIS2 namespace — seed selections.
         const g = globalThis as unknown as { dhis2?: Record<string, unknown> };
         g.dhis2 = g.dhis2 ?? {};
@@ -101,15 +112,24 @@ export default function DataEntryApp(): JSX.Element {
         dhis2.de.currentOrganisationUnitId = ou.orgUnitUid ?? '';
         dhis2.de.currentPeriodId = period.trim();
 
-        // Vendor CSS first so the form renders styled on first paint.
+        // Vendor CSS baseline (DHIS2's own stack) first so the form
+        // renders styled on first paint.
         for (const href of VENDOR_STYLES) loadStyle(href);
-        // Sequential script loader — DHIS2's dhis2.* JS expects
-        // jQuery first, then its own namespace helpers, then
-        // form.js + entry.js.
         for (const src of VENDOR_SCRIPTS) {
           if (document.querySelector(`script[data-der-custom-form="${src}"]`)) continue;
           await loadScript(src);
         }
+        // Process the dataset's own htmlCode — everything DHIS2
+        // custom-form authors can embed:
+        //   <link rel="stylesheet" href="…">   — stylesheets
+        //   <style>…</style>                    — inline CSS
+        //   <script src="…">                    — remote scripts
+        //   <script>…</script>                  — inline JS
+        // The remaining DOM (inputs, tables, labels) gets appended
+        // to #contentDiv. Relative `src`/`href` are rewritten to
+        // `/legacy-custom-forms/…` so DHIS2's "../javascripts/…"
+        // references resolve through our server.
+        await applyFormAssets(content, form.htmlCode ?? '');
         setStatus({ kind: 'ok',
           message: 'Custom form loaded. Autosave + validation run as in DHIS2.' });
       } catch (e) {
@@ -297,6 +317,92 @@ function loadStyle(href: string): void {
   l.href = href;
   l.setAttribute('data-der-custom-form', href);
   document.head.appendChild(l);
+}
+
+/**
+ * Rewrite a form-relative asset path (`../javascripts/jQuery/...`,
+ * `./custom.css`, `../../../dhis-web-commons/...`) to our server's
+ * `/legacy-custom-forms/...` tree. Absolute URLs are left alone so a
+ * form that explicitly points at the central DHIS2 origin still
+ * works for fleet operators who allow that traffic.
+ */
+function rewriteLegacyPath(raw: string): string {
+  if (!raw) return raw;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith('/legacy-custom-forms/')) return raw;
+  if (raw.startsWith('/')) return raw;
+  // DHIS2 custom forms live under `dhis-web-dataentry/...` in DHIS2;
+  // their relative paths dot-up into the shared vendor tree
+  // (`../javascripts/…`, `../css/…`). Our server mirrors that tree
+  // at `/legacy-custom-forms/`, so we just strip the leading `../`
+  // chain and prepend our root.
+  const trimmed = raw.replace(/^(?:\.{1,2}\/)+/, '');
+  return `/legacy-custom-forms/${trimmed}`;
+}
+
+/**
+ * Processes the DHIS2 form's htmlCode exactly the way DHIS2 does:
+ *   1. Extract every `<link rel="stylesheet">` → append to head.
+ *   2. Extract every `<style>` → append to head.
+ *   3. Extract every `<script>` (src or inline) → load + execute
+ *      sequentially so later scripts see earlier side effects.
+ *   4. Everything else → inject into #contentDiv as real DOM nodes
+ *      (not `innerHTML`, so attributes + inputs survive).
+ */
+async function applyFormAssets(container: HTMLElement, htmlCode: string): Promise<void> {
+  const doc = new DOMParser().parseFromString(
+    `<!doctype html><html><head></head><body>${htmlCode}</body></html>`,
+    'text/html');
+
+  // Styles — order-preserving copy to head.
+  for (const node of Array.from(
+      doc.querySelectorAll('link[rel="stylesheet"],style'))) {
+    if (node.tagName === 'LINK') {
+      const href = node.getAttribute('href') ?? '';
+      if (href) loadStyle(rewriteLegacyPath(href));
+    } else {
+      const s = document.createElement('style');
+      s.textContent = node.textContent ?? '';
+      s.setAttribute('data-der-custom-form', 'inline');
+      document.head.appendChild(s);
+    }
+    node.remove();
+  }
+
+  // Collect scripts in order, strip them from the body so they
+  // don't get injected as inert text.
+  const scriptEntries: Array<{ src?: string; code?: string }> = [];
+  for (const node of Array.from(doc.querySelectorAll('script'))) {
+    const src = node.getAttribute('src');
+    if (src) scriptEntries.push({ src: rewriteLegacyPath(src) });
+    else scriptEntries.push({ code: node.textContent ?? '' });
+    node.remove();
+  }
+
+  // Append the remaining DOM. `adoptNode` lets us move real nodes
+  // across documents so attributes + listeners stay intact. Children
+  // of <body> cover 99% of DHIS2 form HTML (templates sometimes
+  // wrap in a <html> → <body> pair; the DOMParser handles that).
+  for (const child of Array.from(doc.body.childNodes)) {
+    container.appendChild(document.adoptNode(child));
+  }
+
+  // Execute scripts sequentially — src ones via an element with
+  // onload; inline via appendChild which executes immediately.
+  for (const entry of scriptEntries) {
+    if (entry.src) {
+      if (!document.querySelector(
+          `script[data-der-custom-form="${entry.src}"]`)) {
+        await loadScript(entry.src);
+      }
+    } else if (entry.code) {
+      const s = document.createElement('script');
+      s.textContent = entry.code;
+      s.setAttribute('data-der-custom-form', 'inline');
+      document.head.appendChild(s);
+      s.remove();
+    }
+  }
 }
 
 function escapeAttr(v: string): string {
