@@ -79,16 +79,6 @@ describe('edgeApi other methods', () => {
     expect(init.method).toBe('GET');
   });
 
-  it('triggerMetadataSync returns the summary', async () => {
-    fetchMock.mockResolvedValue(respond(200, {
-      status: 'OK', snapshotId: 1, total: 10,
-      organisationUnits: 2, dataElements: 3, dataSets: 1, programs: 3, trackedEntityTypes: 1,
-      centralVersion: '2.44-SNAPSHOT', centralRevision: 'r', fingerprint: 'f', message: null,
-    }));
-    const sync = await api.triggerMetadataSync();
-    expect(sync.total).toBe(10);
-  });
-
   it('health passes through', async () => {
     fetchMock.mockResolvedValue(respond(200, {
       service: 'der-server', status: 'starter-ready', version: '0.4.0', dhis2Integrated: false,

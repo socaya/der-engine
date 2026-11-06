@@ -91,25 +91,6 @@ export function session(): Promise<SignInResponse> {
   return request<SignInResponse>('GET', '/edge-api/v1/auth/session');
 }
 
-export interface SyncResult {
-  status: string;
-  snapshotId: number;
-  total: number;
-  organisationUnits: number;
-  dataElements: number;
-  dataSets: number;
-  programs: number;
-  trackedEntityTypes: number;
-  centralVersion: string | null;
-  centralRevision: string | null;
-  fingerprint: string | null;
-  message: string | null;
-}
-
-export function triggerMetadataSync(): Promise<SyncResult> {
-  return request<SyncResult>('POST', '/edge-api/v1/sync/metadata');
-}
-
 export interface HealthResponse {
   service: string;
   status: string;

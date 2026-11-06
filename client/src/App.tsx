@@ -7,7 +7,6 @@ import { SignIn } from './screens/SignIn';
 import { Launcher } from './screens/Launcher';
 import { SessionDetails } from './screens/SessionDetails';
 import { RecentWork } from './screens/RecentWork';
-import { MetadataBrowser } from './screens/MetadataBrowser';
 import { EdgeConnectionError } from './screens/EdgeConnectionError';
 import { AggregateDatasetPicker } from './screens/AggregateDatasetPicker';
 import { AggregateEntry } from './screens/AggregateEntry';
@@ -27,22 +26,14 @@ import { SyncStatus } from './screens/SyncStatus';
 import { NetworkStatus } from './screens/NetworkStatus';
 
 /**
- * DER device-client router. Routes correspond to screen IDs in
- * `docs/ui/source-screen-inventory.csv`:
- *
- *   /sign-in                             DC-01
- *   /session                             DC-02
- *   /launcher                            DC-03
- *   /recent                              DC-04
- *   /metadata/organisation-units         DC-05 metadata lane (writes land in Phase 03.5)
- *   /metadata/data-sets                  DC-05 continued
- *   /metadata/data-elements              DC-05 continued
- *   /metadata/programs                   DC-08 + DC-11 metadata lane
- *   /metadata/tracked-entity-types       DC-11 metadata lane
- *   /edge-error                          DC-18
- *
- * The DHIS2 Application-Platform HeaderBar is at the top so visually the
- * client is indistinguishable from a stock DHIS2 app running against DER.
+ * DER device-client router. The device client is a capture + view
+ * surface — metadata management lives in admin-ui. Metadata on the
+ * client is consumed only as:
+ *   - form fields (D-CAP-3 envelope projection)
+ *   - filter options in capture + review screens
+ *   - validation inputs: program rules (PRs) and validation rules
+ *     (VRs), option sets, min/max, compulsory flags
+ * There are no standalone metadata-browsing routes.
  */
 export default function App(): JSX.Element {
   return (
@@ -82,68 +73,6 @@ export default function App(): JSX.Element {
             element={
               <RequireAuth>
                 <RecentWork />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/metadata/organisation-units"
-            element={
-              <RequireAuth>
-                <MetadataBrowser
-                  resource="organisationUnits"
-                  title="Organisation units"
-                  extraColumns={[{ header: 'Level', field: 'level' }]}
-                />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/metadata/data-sets"
-            element={
-              <RequireAuth>
-                <MetadataBrowser
-                  resource="dataSets"
-                  title="Data sets"
-                  extraColumns={[{ header: 'Period type', field: 'periodType' }]}
-                />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/metadata/data-elements"
-            element={
-              <RequireAuth>
-                <MetadataBrowser
-                  resource="dataElements"
-                  title="Data elements"
-                  extraColumns={[
-                    { header: 'Value type', field: 'valueType' },
-                    { header: 'Domain', field: 'domainType' },
-                  ]}
-                />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/metadata/programs"
-            element={
-              <RequireAuth>
-                <MetadataBrowser
-                  resource="programs"
-                  title="Programs"
-                  extraColumns={[{ header: 'Program type', field: 'programType' }]}
-                />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/metadata/tracked-entity-types"
-            element={
-              <RequireAuth>
-                <MetadataBrowser
-                  resource="trackedEntityTypes"
-                  title="Tracked entity types"
-                />
               </RequireAuth>
             }
           />

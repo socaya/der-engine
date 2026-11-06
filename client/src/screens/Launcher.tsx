@@ -1,13 +1,5 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Button,
-  Card,
-  NoticeBox,
-} from '@dhis2/ui';
-import { useAuth } from '../auth/AuthContext';
-import { triggerMetadataSync } from '../api/edgeApi';
-import type { SyncResult } from '../api/edgeApi';
+import { Card } from '@dhis2/ui';
 
 interface Tile {
   readonly to: string;
@@ -36,14 +28,9 @@ const MODULES: readonly ModuleGroup[] = [
   {
     id: 'dhis2',
     label: 'DHIS2',
-    subtitle: 'Central integration: compatibility, reachability and mirrored metadata.',
+    subtitle: 'Central integration status. Metadata itself is consumed as form fields, filter options, and PR/VR validations — not browsed here. Management lives in admin-ui.',
     tiles: [
       { to: '/dhis2/status', title: 'Status', subtitle: 'Reachability + compatibility snapshot.', testId: 'tile-dhis2-status' },
-      { to: '/metadata/organisation-units', title: 'Organisation units', subtitle: 'Browse the mirrored OU hierarchy.', testId: 'tile-ou' },
-      { to: '/metadata/data-sets', title: 'Data sets', subtitle: 'Aggregate data sets available locally.', testId: 'tile-ds' },
-      { to: '/metadata/data-elements', title: 'Data elements', subtitle: 'Mirrored data elements.', testId: 'tile-de' },
-      { to: '/metadata/programs', title: 'Programs', subtitle: 'Tracker and event programs.', testId: 'tile-prg' },
-      { to: '/metadata/tracked-entity-types', title: 'Tracked entity types', subtitle: 'Entity type registry.', testId: 'tile-tet' },
     ],
   },
   {
@@ -94,32 +81,14 @@ const MODULES: readonly ModuleGroup[] = [
 ];
 
 export function Launcher(): JSX.Element {
-  const { state } = useAuth();
-  const isAdmin = state.status === 'AUTHENTICATED' && state.user.roles.includes('ADMIN');
-  const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<SyncResult | null>(null);
-  const [syncError, setSyncError] = useState<string | null>(null);
-
-  const doSync = async (): Promise<void> => {
-    setSyncing(true);
-    setSyncError(null);
-    try {
-      const result = await triggerMetadataSync();
-      setLastSync(result);
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   return (
     <div className="der-launcher">
       <h1 data-test="launcher-heading">Launcher</h1>
       <p>
         Signed in to the DER edge runtime. The launcher is organised by the
         six Server Modules — only features backed by a verified server endpoint
-        appear here. Admin-only configuration lives in the admin UI.
+        appear here. Metadata is managed on the DER server; the client uses
+        whatever is already synced.
       </p>
 
       {MODULES.map((mod) => (
@@ -140,41 +109,6 @@ export function Launcher(): JSX.Element {
           </div>
         </section>
       ))}
-
-      {isAdmin ? (
-        <Card className="der-sync-card" dataTest="sync-card">
-          <h2>Metadata sync</h2>
-          <p>Pull organisation units, data sets, data elements, programs and tracked entity types from the central DHIS2.</p>
-          <Button
-            primary
-            loading={syncing}
-            disabled={syncing}
-            onClick={() => void doSync()}
-            dataTest="sync-button"
-          >
-            Sync metadata from central
-          </Button>
-          {lastSync ? (
-            <NoticeBox title="Sync complete" dataTest="sync-result">
-              <ul>
-                <li>Snapshot id: <code>{lastSync.snapshotId}</code></li>
-                <li>Total: {lastSync.total}</li>
-                <li>Organisation units: {lastSync.organisationUnits}</li>
-                <li>Data elements: {lastSync.dataElements}</li>
-                <li>Data sets: {lastSync.dataSets}</li>
-                <li>Programs: {lastSync.programs}</li>
-                <li>Tracked entity types: {lastSync.trackedEntityTypes}</li>
-                <li>Central version: {lastSync.centralVersion}</li>
-              </ul>
-            </NoticeBox>
-          ) : null}
-          {syncError ? (
-            <NoticeBox error title="Sync failed" dataTest="sync-error">
-              {syncError}
-            </NoticeBox>
-          ) : null}
-        </Card>
-      ) : null}
     </div>
   );
 }
