@@ -60,7 +60,8 @@ describe('ensureInstalled', () => {
     expect(txt).toBe(BUNDLE);
     expect(globalThis.fetch).toHaveBeenCalledWith(
       APP.bundleUrl, expect.objectContaining({ credentials: 'include' }));
-    expect(await listInstalled()).toContain('id-1@1.0.0');
+    const keys = await listInstalled();
+    expect(keys.some((k) => k.startsWith('id-1@1.0.0@'))).toBe(true);
   });
 
   it('returns the cached entry on the second call without refetching', async () => {
@@ -101,6 +102,20 @@ describe('ensureInstalled', () => {
   it('evictApp removes the cached entry', async () => {
     await ensureInstalled(APP);
     await evictApp(APP.appId, APP.version);
-    expect(await listInstalled()).not.toContain('id-1@1.0.0');
+    const keys = await listInstalled();
+    expect(keys.some((k) => k.startsWith('id-1@1.0.0@'))).toBe(false);
+  });
+
+  it('evicts stale cached entry for the same app when sha256 changes', async () => {
+    await ensureInstalled(APP);
+    const UPDATED_BUNDLE = 'export default () => null; // v2';
+    const updated = { ...APP, bundleSha256: await sha(UPDATED_BUNDLE) };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      bundleResponse(UPDATED_BUNDLE));
+    const txt = await ensureInstalled(updated);
+    expect(txt).toBe(UPDATED_BUNDLE);
+    const keys = await listInstalled();
+    expect(keys).toHaveLength(1);
+    expect(keys[0]!.endsWith(`@${updated.bundleSha256}`)).toBe(true);
   });
 });

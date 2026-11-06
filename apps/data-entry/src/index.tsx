@@ -123,7 +123,11 @@ export default function DataEntryApp(): JSX.Element {
   // mode and the dataset has one. Loads vendor scripts in sequence,
   // seeds DHIS2 globals + hidden selectors, then injects htmlCode.
   useEffect(() => {
-    if (mode !== 'custom' || !formInfo?.hasCustomForm || !formInfo.formId) return;
+    if (mode !== 'custom' || !formInfo?.hasCustomForm) return;
+    // SECTION datasets carry metadata but no `dataEntryForm.id` —
+    // the renderer synthesises the table from `sections[]`. Only
+    // reject CUSTOM when the mirror doesn't know the form id.
+    if (formInfo.formType === 'CUSTOM' && !formInfo.formId) return;
     const root = customRoot.current;
     if (!root) return;
     let cancelled = false;

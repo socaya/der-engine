@@ -7,7 +7,7 @@ const DB_VERSION = 1;
 
 interface InstalledAppSchema extends DBSchema {
   installed: {
-    key: string;              // `${appId}@${version}`
+    key: string;              // `${appId}@${version}@${sha256}`
     value: {
       appId: string;
       appKey: string;
@@ -52,8 +52,15 @@ export async function __resetForTests(): Promise<void> {
   });
 }
 
-function key(appId: string, version: string): string {
-  return `${appId}@${version}`;
+/**
+ * Cache key is `${appId}@${version}@${sha256}`. Including the
+ * sha256 makes it impossible for a stale cached bundle to shadow a
+ * freshly uploaded one — admins frequently iterate on apps without
+ * bumping the semver string (DER dev workflow + DHIS2 2.44 apps
+ * both tolerate same-version re-uploads server-side via upsert).
+ */
+function key(appId: string, version: string, sha256: string): string {
+  return `${appId}@${version}@${sha256}`;
 }
 
 export interface InstallError extends Error {
@@ -82,8 +89,19 @@ function err(code: InstallError['code'], message: string): InstallError {
  */
 export async function ensureInstalled(app: CatalogueApp): Promise<string> {
   const d = await db();
-  const cached = await d.get('installed', key(app.appId, app.version));
+  const cached = await d.get('installed',
+    key(app.appId, app.version, app.bundleSha256));
   if (cached) return cached.bundleText;
+
+  // Evict stale entries for the same app whose sha256 doesn't match
+  // the catalogue's current bundle — otherwise IDB grows unbounded
+  // as operators iterate on an app during development.
+  for (const k of (await d.getAllKeys('installed')) as string[]) {
+    if (k.startsWith(`${app.appId}@`)
+      && !k.endsWith(`@${app.bundleSha256}`)) {
+      await d.delete('installed', k);
+    }
+  }
 
   const r = await fetch(app.bundleUrl, { credentials: 'include' });
   if (!r.ok) throw err('FETCH_FAILED', `bundle fetch failed (${r.status})`);
@@ -114,7 +132,7 @@ export async function ensureInstalled(app: CatalogueApp): Promise<string> {
       sha256: sha,
       signatureB64: app.signatureB64,
       installedAt: new Date().toISOString(),
-    }, key(app.appId, app.version));
+    }, key(app.appId, app.version, app.bundleSha256));
   } catch (e) {
     throw err('IDB_FAILED', (e as Error).message);
   }
@@ -126,7 +144,11 @@ export async function listInstalled(): Promise<string[]> {
   return d.getAllKeys('installed') as Promise<string[]>;
 }
 
-export async function evictApp(appId: string, version: string): Promise<void> {
+export async function evictApp(appId: string, version?: string): Promise<void> {
   const d = await db();
-  await d.delete('installed', key(appId, version));
+  const keys = (await d.getAllKeys('installed')) as string[];
+  const prefix = version ? `${appId}@${version}@` : `${appId}@`;
+  for (const k of keys) {
+    if (k.startsWith(prefix)) await d.delete('installed', k);
+  }
 }
