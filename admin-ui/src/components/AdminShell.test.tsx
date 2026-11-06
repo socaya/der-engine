@@ -91,8 +91,11 @@ describe('AdminShell — authenticated mode', () => {
     render(wrap(<AdminShell><div>child</div></AdminShell>));
     await waitFor(() =>
       expect(screen.getByTestId('sidebar')).toBeInTheDocument());
-    /* Operating-mode pill present. */
-    expect(screen.getByTestId('topbar-mode')).toBeInTheDocument();
+    /* Operating-mode pill present — mounts async after the system
+     * health probe resolves, so wrap in waitFor to keep stable
+     * under coverage-instrumented timing. */
+    await waitFor(() =>
+      expect(screen.getByTestId('topbar-mode')).toBeInTheDocument());
     /* OU chip shows the bound org-unit display name. */
     await waitFor(() =>
       expect(screen.getByText('Clinic One')).toBeInTheDocument());
