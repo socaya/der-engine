@@ -30,6 +30,16 @@ export default defineConfig({
       '/api': { target: DER_SERVER, changeOrigin: true },
     },
   },
+  // §2.3.131 — `vite preview` serves the production build. The PWA
+  // service worker only registers in prod, so this is the real
+  // installable surface. Proxy /api + /edge-api to DER.
+  preview: {
+    port: 5174,
+    proxy: {
+      '/edge-api': { target: DER_SERVER, changeOrigin: true },
+      '/api': { target: DER_SERVER, changeOrigin: true },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
