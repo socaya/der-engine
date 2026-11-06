@@ -29,12 +29,21 @@ function respond(status: number, body: unknown): Response {
 }
 
 describe('Launcher', () => {
-  it('renders the tile grid', async () => {
+  it('renders a section per Server Module with its tiles', async () => {
     renderWithProviders(<Launcher />, {
       authApi: { session: vi.fn().mockResolvedValue(operator), signIn: vi.fn(), signOut: vi.fn() },
     });
     await waitFor(() => expect(screen.getByTestId('launcher-heading')).toBeInTheDocument());
-    for (const id of ['tile-ou', 'tile-ds', 'tile-de', 'tile-prg', 'tile-tet', 'tile-recent', 'tile-session']) {
+    for (const id of ['dhis2', 'sync', 'network', 'workflows', 'data', 'admin']) {
+      expect(screen.getByTestId(`module-${id}`)).toBeInTheDocument();
+      expect(screen.getByTestId(`module-${id}-heading`)).toBeInTheDocument();
+      expect(screen.getByTestId(`module-${id}-tiles`)).toBeInTheDocument();
+    }
+    // Representative tile under every module.
+    for (const id of [
+      'tile-dhis2-status', 'tile-ou', 'tile-sync-status', 'tile-network-status',
+      'tile-capture', 'tile-aggregate', 'tile-session', 'tile-recent',
+    ]) {
       expect(screen.getByTestId(id)).toBeInTheDocument();
     }
   });

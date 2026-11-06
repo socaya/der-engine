@@ -123,6 +123,123 @@ export function health(): Promise<HealthResponse> {
   return request<HealthResponse>('GET', '/edge-api/v1/system/health');
 }
 
+/* ───── Module status (Server Modules alignment) ────────────────────
+ *
+ * DHIS2 / Synchronisation / Network status endpoints that the device
+ * client's Launcher surfaces as operator-facing status tiles. Each
+ * endpoint is operator-readable on the server (ADR-0005 SecurityConfig +
+ * AuthorityCatalog). Admin-only mutators (ap/start, journal/pause,
+ * jobs/trigger, …) stay in admin-ui.
+ */
+
+export interface Dhis2PingSnapshot {
+  reachable: boolean;
+  observedVersion: string | null;
+  latencyMs: number;
+  probedAt: string;
+  message: string | null;
+}
+
+export function dhis2Ping(): Promise<Dhis2PingSnapshot> {
+  return request<Dhis2PingSnapshot>('GET', '/edge-api/v1/dhis2/ping');
+}
+
+export interface CompatSnapshot {
+  status: string;
+  observedVersion: string | null;
+  pinnedVersion: string | null;
+  revision: string | null;
+  buildTime: string | null;
+  message: string | null;
+}
+
+export function dhis2Compat(): Promise<CompatSnapshot> {
+  return request<CompatSnapshot>('GET', '/edge-api/v1/dhis2/compatibility');
+}
+
+export interface SyncJobRun {
+  runId: number | null;
+  jobName: string;
+  startedAt: string;
+  finishedAt: string | null;
+  outcome: 'STARTED' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
+  durationMs: number | null;
+  detail: string | null;
+  triggeredBy: string;
+}
+
+export function listSyncJobs(limit = 20): Promise<SyncJobRun[]> {
+  return request<SyncJobRun[]>(
+    'GET', `/edge-api/v1/sync/jobs?limit=${encodeURIComponent(String(limit))}`);
+}
+
+export interface DriftSnapshot {
+  status?: string;
+  message?: string;
+  driftId?: number;
+  capturedAt?: string;
+  snapshotFrom?: number;
+  snapshotTo?: number;
+  fingerprintFrom?: string;
+  fingerprintTo?: string;
+  deltasJson?: string;
+  triggeredBy?: string;
+}
+
+export function latestDrift(): Promise<DriftSnapshot> {
+  return request<DriftSnapshot>('GET', '/edge-api/v1/sync/drift');
+}
+
+export interface JournalWorkerHealth {
+  enabled: boolean;
+  lastTick: string | null;
+  lastBatchSize: number;
+  backlog: Record<string, number>;
+}
+
+export function journalWorkerHealth(): Promise<JournalWorkerHealth> {
+  return request<JournalWorkerHealth>('GET', '/edge-api/v1/journal/worker');
+}
+
+export interface NetworkStatus {
+  [k: string]: unknown;
+}
+
+export function networkStatus(): Promise<NetworkStatus> {
+  return request<NetworkStatus>('GET', '/edge-api/v1/network/status');
+}
+
+export interface NetworkInterface {
+  name: string;
+  state?: string;
+  purpose?: string;
+  priority?: number | null;
+  ipv4?: string | null;
+  ipv6?: string | null;
+  mac?: string | null;
+  [k: string]: unknown;
+}
+
+export function listNetworkInterfaces(): Promise<{ interfaces: NetworkInterface[] }> {
+  return request('GET', '/edge-api/v1/network/interfaces');
+}
+
+export interface AccessPointStatus {
+  [k: string]: unknown;
+}
+
+export function networkAccessPoint(): Promise<AccessPointStatus> {
+  return request('GET', '/edge-api/v1/network/access-point');
+}
+
+export interface EnrolQr {
+  [k: string]: unknown;
+}
+
+export function networkEnrolQr(): Promise<EnrolQr> {
+  return request('GET', '/edge-api/v1/network/ap/qr');
+}
+
 export interface ActivityEntry {
   auditId: number;
   eventType: string;
@@ -279,6 +396,366 @@ export function runValidation(runId: string): Promise<{
 }> {
   return request<{ runId: string; errorCount: number; issues: ValidationIssue[] }>(
     'GET', `/edge-api/v1/workflows/runs/${runId}/validation`);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// ADR-0036 — Capture form API bridge
+//
+// All /edge-api/v1/capture/* responses are DER-native shapes projected
+// server-side from the metadata mirror.  The projection already
+// normalises across the DHIS2 versions DER supports (ADR-0002 /
+// ADR-0006 — currently 2.41 floor through 2.44 head), so the client
+// consumes a stable envelope regardless of which upstream DHIS2
+// version seeded the mirror.  Writes still flow through the ADR-0004
+// /api/* emulator path and use the same version-aware shape.
+// ────────────────────────────────────────────────────────────────────
+
+/** D-CAP-3 envelope — projected form for a workflow run's current
+ *  step, or a free-standing dataSet / programStage form. */
+export interface CaptureFormAssembly {
+  formType: 'AGGREGATE' | 'EVENT_STAGE' | 'TRACKER_STAGE';
+  bindingKind: 'DATA_SET' | 'DATA_SET_SECTION' | 'DATA_ELEMENT' | 'PROGRAM'
+    | 'PROGRAM_SECTION' | 'PROGRAM_STAGE' | 'PROGRAM_STAGE_SECTION'
+    | 'TRACKED_ENTITY_TYPE' | 'TRACKED_ENTITY_ATTRIBUTE' | 'SYSTEM';
+  bindingUid: string;
+  displayName: string;
+  ownership: {
+    ownerRole: string | null;
+    ownerDeviceId: string | null;
+    isMyStep: boolean;
+  };
+  sections: CaptureFormSection[];
+  upstreamContext: CaptureFormUpstreamContext[];
+}
+
+export interface CaptureFormSection {
+  sectionUid: string | null;
+  displayName: string;
+  fields: CaptureFormField[];
+}
+
+export interface CaptureFormField {
+  fieldRef: string;
+  dataElementUid: string;
+  categoryOptionComboUid: string | null;
+  dataElementDisplayName: string;
+  categoryOptionComboDisplayName: string | null;
+  valueType: string;
+  optionSetUid: string | null;
+  requirement: 'REQUIRED' | 'OPTIONAL' | 'READONLY';
+}
+
+export interface CaptureFormUpstreamContext {
+  stepId: string;
+  stepDisplayName: string;
+  fields: CaptureFormField[];
+}
+
+export interface CaptureFormDataPrefill {
+  cells: Record<string, string>;
+  lastUpdatedAt: string | null;
+}
+
+export interface CaptureRunSummary {
+  runId: string;
+  workflowId: string;
+  workflowVersion: number;
+  businessKey: string;
+  currentStepId: string | null;
+  state: 'OPEN' | 'AWAITING' | 'COMPLETED' | 'REJECTED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CaptureAdvanceResponse extends CaptureRunSummary {
+  completedByThisCall: boolean;
+}
+
+/** D-CAP-8 error codes — surface for UI error handling. */
+export type CaptureErrorCode =
+  | 'CAPTURE_PARAM_INVALID'
+  | 'WORKFLOW_RUN_NOT_FOUND'
+  | 'WORKFLOW_RUN_BLOCKED'
+  | 'WORKFLOW_RUN_NOT_OWNED'
+  | 'DEVICE_HEADER_REQUIRED'
+  | 'METADATA_NOT_READY';
+
+export class CaptureFormError extends Error {
+  readonly code: CaptureErrorCode;
+  readonly status: number;
+  readonly blockedOnStepIds?: string[];
+  constructor(status: number, code: CaptureErrorCode, message: string,
+              blockedOnStepIds?: string[]) {
+    super(message);
+    this.name = 'CaptureFormError';
+    this.code = code;
+    this.status = status;
+    this.blockedOnStepIds = blockedOnStepIds;
+  }
+}
+
+async function captureRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
+  let response: Response;
+  try {
+    const headers: Record<string, string> = body == null
+      ? { Accept: 'application/json' }
+      : { Accept: 'application/json', 'Content-Type': 'application/json' };
+    const device = readDeviceHeader();
+    if (device) headers['X-DER-Device-Id'] = device;
+    response = await fetch(path, {
+      method,
+      credentials: 'include',
+      headers,
+      body: body == null ? undefined : JSON.stringify(body),
+    });
+  } catch (err) {
+    throw new EdgeApiError(0, 'EDGE_UNREACHABLE', `edge unreachable: ${String(err)}`);
+  }
+  if (response.status === 204) return undefined as T;
+  if (response.ok) {
+    const text = await response.text();
+    return (text ? JSON.parse(text) : undefined) as T;
+  }
+  /* Translate D-CAP-8 error envelopes into CaptureFormError so the UI can
+   * switch on `.code`. Any body we can't parse as D-CAP-8 falls back to a
+   * plain EdgeApiError. */
+  const errBody = await response.text();
+  try {
+    const parsed = JSON.parse(errBody) as {
+      code?: string; message?: string; blockedOnStepIds?: string[];
+    };
+    if (parsed && typeof parsed.code === 'string') {
+      throw new CaptureFormError(
+        response.status,
+        parsed.code as CaptureErrorCode,
+        parsed.message ?? parsed.code,
+        parsed.blockedOnStepIds,
+      );
+    }
+  } catch (ex) {
+    if (ex instanceof CaptureFormError) throw ex;
+    // not JSON — fall through to generic
+  }
+  throw new EdgeApiError(
+    response.status,
+    response.status >= 500 ? 'EDGE_UNREACHABLE' : 'UNKNOWN',
+    `unexpected status ${response.status}`,
+  );
+}
+
+/* ───── capture workflow listing (for picker) ────────────────────── */
+
+export interface CaptureWorkflowSummary {
+  workflowId: string;
+  displayName: string;
+  boundMetadataKind: string;
+  boundMetadataId: string | null;
+  enabled: boolean;
+  version: number;
+}
+
+export function listCaptureWorkflows():
+    Promise<{ workflows: CaptureWorkflowSummary[] }> {
+  return request('GET', '/edge-api/v1/workflows');
+}
+
+/* ───── run-scoped (ADR-0036 D-CAP-2) ────────────────────────────── */
+
+export function listCaptureRuns(opts: {
+  workflowId: string;
+  state?: CaptureRunSummary['state'];
+}): Promise<{ count: number; runs: CaptureRunSummary[] }> {
+  const q = new URLSearchParams();
+  q.set('workflowId', opts.workflowId);
+  if (opts.state) q.set('state', opts.state);
+  return captureRequest('GET',
+    `/edge-api/v1/capture/runs?${q.toString()}`);
+}
+
+export function startCaptureRun(workflowId: string, businessKey: string):
+    Promise<CaptureRunSummary> {
+  return captureRequest('POST', '/edge-api/v1/capture/runs',
+    { workflowId, businessKey });
+}
+
+export function getCaptureRun(runId: string): Promise<CaptureRunSummary> {
+  return captureRequest('GET',
+    `/edge-api/v1/capture/runs/${encodeURIComponent(runId)}`);
+}
+
+export function getCaptureRunForm(runId: string): Promise<CaptureFormAssembly> {
+  return captureRequest('GET',
+    `/edge-api/v1/capture/runs/${encodeURIComponent(runId)}/form`);
+}
+
+export function getCaptureRunData(runId: string): Promise<CaptureFormDataPrefill> {
+  return captureRequest('GET',
+    `/edge-api/v1/capture/runs/${encodeURIComponent(runId)}/data`);
+}
+
+export function advanceCaptureRun(runId: string): Promise<CaptureAdvanceResponse> {
+  return captureRequest('POST',
+    `/edge-api/v1/capture/runs/${encodeURIComponent(runId)}/advance`);
+}
+
+/* ───── free-standing aggregate (D-CAP-4) ────────────────────────── */
+
+export function getCaptureDataSetForm(dataSetUid: string):
+    Promise<CaptureFormAssembly> {
+  return captureRequest('GET',
+    `/edge-api/v1/capture/datasets/${encodeURIComponent(dataSetUid)}/form`);
+}
+
+export function getCaptureDataSetData(dataSetUid: string,
+                                        orgUnit: string,
+                                        period: string):
+    Promise<CaptureFormDataPrefill> {
+  const q = new URLSearchParams({ orgUnit, period });
+  return captureRequest('GET',
+    `/edge-api/v1/capture/datasets/${encodeURIComponent(dataSetUid)}/data?${q.toString()}`);
+}
+
+/* ───── event / program-stage (phase 2) ──────────────────────────── */
+
+export interface CaptureProgramStageSummary {
+  stageUid: string;
+  displayName: string;
+  repeatable: boolean;
+  sortOrder: number;
+}
+
+export interface CaptureEventSummary {
+  eventUid: string;
+  programStageUid: string;
+  orgUnitUid: string;
+  occurredAt: string;
+  status: string | null;
+}
+
+export interface CaptureEventDetail {
+  eventUid: string;
+  enrollmentUid: string | null;
+  programUid: string;
+  programStageUid: string;
+  orgUnitUid: string;
+  occurredAt: string;
+  status: string | null;
+  attributeOptionComboUid: string | null;
+  dataValues: Record<string, string>;
+  workflowRunId: string | null;
+}
+
+export function listCaptureProgramStages(programUid: string):
+    Promise<{ count: number; stages: CaptureProgramStageSummary[] }> {
+  return captureRequest('GET',
+    `/edge-api/v1/capture/programs/${encodeURIComponent(programUid)}/stages`);
+}
+
+export function getCaptureStageForm(programUid: string, stageUid: string):
+    Promise<CaptureFormAssembly> {
+  return captureRequest('GET',
+    `/edge-api/v1/capture/programs/${encodeURIComponent(programUid)}`
+    + `/stages/${encodeURIComponent(stageUid)}/form`);
+}
+
+export function listCaptureProgramEvents(programUid: string, orgUnit: string,
+                                           limit = 100):
+    Promise<{ count: number; events: CaptureEventSummary[] }> {
+  const q = new URLSearchParams({ orgUnit, limit: String(limit) });
+  return captureRequest('GET',
+    `/edge-api/v1/capture/programs/${encodeURIComponent(programUid)}`
+    + `/events?${q.toString()}`);
+}
+
+export function getCaptureEventDetail(eventUid: string):
+    Promise<CaptureEventDetail> {
+  return captureRequest('GET',
+    `/edge-api/v1/capture/events/${encodeURIComponent(eventUid)}/detail`);
+}
+
+/* ───── tracker reads (phase 3) ──────────────────────────────────── */
+
+export interface CaptureProgramInfo {
+  programUid: string;
+  displayName: string;
+  programType: 'WITH_REGISTRATION' | 'WITHOUT_REGISTRATION';
+  trackedEntityTypeUid: string | null;
+}
+
+export interface CaptureTrackedEntityTypeRef {
+  trackedEntityTypeUid: string;
+}
+
+export interface CaptureTrackedEntityAttributeSummary {
+  attributeUid: string;
+  displayName: string;
+  valueType: string;
+  optionSetUid: string | null;
+  searchable: boolean;
+  uniqueAttribute: boolean;
+}
+
+export interface CaptureEnrollmentSummary {
+  enrollmentUid: string;
+  teiUid: string;
+  programUid: string;
+  orgUnitUid: string;
+  status: string | null;
+  enrollmentDate: string | null;
+  incidentDate: string | null;
+  lastUpdatedAt: string;
+}
+
+export interface CaptureTrackerEventSummary {
+  eventUid: string;
+  enrollmentUid: string;
+  programUid: string;
+  programStageUid: string;
+  orgUnitUid: string;
+  status: string | null;
+  occurredDate: string | null;
+  lastUpdatedAt: string;
+}
+
+export function getCaptureProgram(programUid: string):
+    Promise<CaptureProgramInfo> {
+  return captureRequest('GET',
+    `/edge-api/v1/capture/programs/${encodeURIComponent(programUid)}`);
+}
+
+export function getCaptureProgramTeiType(programUid: string):
+    Promise<CaptureTrackedEntityTypeRef> {
+  return captureRequest('GET',
+    `/edge-api/v1/capture/programs/${encodeURIComponent(programUid)}`
+    + '/trackedEntityType');
+}
+
+export function listCaptureTeiTypeAttributes(teiTypeUid: string):
+    Promise<{ count: number; attributes: CaptureTrackedEntityAttributeSummary[] }> {
+  return captureRequest('GET',
+    `/edge-api/v1/capture/trackedEntityTypes/${encodeURIComponent(teiTypeUid)}`
+    + '/attributes');
+}
+
+export function listCaptureTeiEnrollments(teiUid: string, programUid?: string):
+    Promise<{ count: number; enrollments: CaptureEnrollmentSummary[] }> {
+  const q = new URLSearchParams();
+  if (programUid) q.set('programUid', programUid);
+  const qs = q.toString();
+  return captureRequest('GET',
+    `/edge-api/v1/capture/trackedEntities/${encodeURIComponent(teiUid)}/enrollments`
+    + (qs ? `?${qs}` : ''));
+}
+
+export function listCaptureEnrollmentEvents(enrollmentUid: string,
+                                              programStageUid?: string):
+    Promise<{ count: number; events: CaptureTrackerEventSummary[] }> {
+  const q = new URLSearchParams();
+  if (programStageUid) q.set('programStageUid', programStageUid);
+  const qs = q.toString();
+  return captureRequest('GET',
+    `/edge-api/v1/capture/enrollments/${encodeURIComponent(enrollmentUid)}/events`
+    + (qs ? `?${qs}` : ''));
 }
 
 /** §2.3.43 — pull a program's tracked-entity-attribute UID list from

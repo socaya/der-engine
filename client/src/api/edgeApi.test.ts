@@ -356,3 +356,237 @@ describe('edgeApi device header (ADR-0023)', () => {
     spy.mockRestore();
   });
 });
+
+describe('edgeApi module-status helpers', () => {
+  it('dhis2Ping hits /edge-api/v1/dhis2/ping', async () => {
+    fetchMock.mockResolvedValue(respond(200, { reachable: true }));
+    await api.dhis2Ping();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/edge-api/v1/dhis2/ping');
+  });
+
+  it('dhis2Compat hits /edge-api/v1/dhis2/compatibility', async () => {
+    fetchMock.mockResolvedValue(respond(200, { status: 'OK' }));
+    await api.dhis2Compat();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/edge-api/v1/dhis2/compatibility');
+  });
+
+  it('listSyncJobs attaches ?limit=', async () => {
+    fetchMock.mockResolvedValue(respond(200, []));
+    await api.listSyncJobs(10);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/edge-api/v1/sync/jobs?limit=10');
+  });
+
+  it('latestDrift hits /edge-api/v1/sync/drift', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.latestDrift();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/edge-api/v1/sync/drift');
+  });
+
+  it('journalWorkerHealth hits /edge-api/v1/journal/worker', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.journalWorkerHealth();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/edge-api/v1/journal/worker');
+  });
+
+  it('networkStatus, listNetworkInterfaces, networkAccessPoint, networkEnrolQr', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.networkStatus();
+    await api.listNetworkInterfaces();
+    await api.networkAccessPoint();
+    await api.networkEnrolQr();
+    const paths = fetchMock.mock.calls.map((c) => c[0] as string);
+    expect(paths[0]).toBe('/edge-api/v1/network/status');
+    expect(paths[1]).toBe('/edge-api/v1/network/interfaces');
+    expect(paths[2]).toBe('/edge-api/v1/network/access-point');
+    expect(paths[3]).toBe('/edge-api/v1/network/ap/qr');
+  });
+});
+
+describe('edgeApi capture endpoints (ADR-0036)', () => {
+  it('listCaptureWorkflows hits /edge-api/v1/workflows', async () => {
+    fetchMock.mockResolvedValue(respond(200, { workflows: [] }));
+    await api.listCaptureWorkflows();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/edge-api/v1/workflows');
+  });
+
+  it('listCaptureRuns composes workflowId + state params', async () => {
+    fetchMock.mockResolvedValue(respond(200, { count: 0, runs: [] }));
+    await api.listCaptureRuns({ workflowId: 'wf-1', state: 'OPEN' });
+    const [path] = fetchMock.mock.calls[0] as [string];
+    expect(path).toContain('workflowId=wf-1');
+    expect(path).toContain('state=OPEN');
+  });
+
+  it('listCaptureRuns omits state when not provided', async () => {
+    fetchMock.mockResolvedValue(respond(200, { count: 0, runs: [] }));
+    await api.listCaptureRuns({ workflowId: 'wf-1' });
+    const [path] = fetchMock.mock.calls[0] as [string];
+    expect(path).not.toContain('state=');
+  });
+
+  it('startCaptureRun POSTs workflowId + businessKey', async () => {
+    fetchMock.mockResolvedValue(respond(200, { runId: 'r' }));
+    await api.startCaptureRun('wf-1', 'key-1');
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/edge-api/v1/capture/runs');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string))
+      .toEqual({ workflowId: 'wf-1', businessKey: 'key-1' });
+  });
+
+  it('getCaptureRun / getCaptureRunForm / getCaptureRunData / advance', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.getCaptureRun('r-1');
+    await api.getCaptureRunForm('r-1');
+    await api.getCaptureRunData('r-1');
+    await api.advanceCaptureRun('r-1');
+    const paths = fetchMock.mock.calls.map((c) => c[0] as string);
+    expect(paths[0]).toBe('/edge-api/v1/capture/runs/r-1');
+    expect(paths[1]).toBe('/edge-api/v1/capture/runs/r-1/form');
+    expect(paths[2]).toBe('/edge-api/v1/capture/runs/r-1/data');
+    expect(paths[3]).toBe('/edge-api/v1/capture/runs/r-1/advance');
+    const [, advInit] = fetchMock.mock.calls[3] as [string, RequestInit];
+    expect(advInit.method).toBe('POST');
+  });
+
+  it('getCaptureDataSetForm / getCaptureDataSetData', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.getCaptureDataSetForm('ds-1');
+    await api.getCaptureDataSetData('ds-1', 'OU-A', '2026W40');
+    const paths = fetchMock.mock.calls.map((c) => c[0] as string);
+    expect(paths[0]).toBe('/edge-api/v1/capture/datasets/ds-1/form');
+    expect(paths[1]).toContain('/edge-api/v1/capture/datasets/ds-1/data?');
+    expect(paths[1]).toContain('orgUnit=OU-A');
+    expect(paths[1]).toContain('period=2026W40');
+  });
+
+  it('listCaptureProgramStages, getCaptureStageForm, listCaptureProgramEvents, getCaptureEventDetail', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.listCaptureProgramStages('p-1');
+    await api.getCaptureStageForm('p-1', 's-1');
+    await api.listCaptureProgramEvents('p-1', 'OU-A');
+    await api.getCaptureEventDetail('e-1');
+    const paths = fetchMock.mock.calls.map((c) => c[0] as string);
+    expect(paths[0]).toBe('/edge-api/v1/capture/programs/p-1/stages');
+    expect(paths[1]).toBe('/edge-api/v1/capture/programs/p-1/stages/s-1/form');
+    expect(paths[2]).toContain('/edge-api/v1/capture/programs/p-1/events?');
+    expect(paths[2]).toContain('orgUnit=OU-A');
+    expect(paths[3]).toBe('/edge-api/v1/capture/events/e-1/detail');
+  });
+
+  it('getCaptureProgram, getCaptureProgramTeiType, listCaptureTeiTypeAttributes', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.getCaptureProgram('p-1');
+    await api.getCaptureProgramTeiType('p-1');
+    await api.listCaptureTeiTypeAttributes('tet-1');
+    const paths = fetchMock.mock.calls.map((c) => c[0] as string);
+    expect(paths[0]).toBe('/edge-api/v1/capture/programs/p-1');
+    expect(paths[1]).toBe('/edge-api/v1/capture/programs/p-1/trackedEntityType');
+    expect(paths[2]).toBe('/edge-api/v1/capture/trackedEntityTypes/tet-1/attributes');
+  });
+
+  it('listCaptureTeiEnrollments, listCaptureEnrollmentEvents', async () => {
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.listCaptureTeiEnrollments('tei-1');
+    await api.listCaptureTeiEnrollments('tei-1', 'p-9');
+    await api.listCaptureEnrollmentEvents('en-1');
+    await api.listCaptureEnrollmentEvents('en-1', 's-9');
+    const paths = fetchMock.mock.calls.map((c) => c[0] as string);
+    expect(paths[0]).toBe('/edge-api/v1/capture/trackedEntities/tei-1/enrollments');
+    expect(paths[1]).toBe('/edge-api/v1/capture/trackedEntities/tei-1/enrollments?programUid=p-9');
+    expect(paths[2]).toBe('/edge-api/v1/capture/enrollments/en-1/events');
+    expect(paths[3]).toBe('/edge-api/v1/capture/enrollments/en-1/events?programStageUid=s-9');
+  });
+
+  it('CaptureFormError constructor keeps code/status/blockedOnStepIds', () => {
+    const err = new api.CaptureFormError(
+      409, 'WORKFLOW_RUN_BLOCKED', 'blocked', ['step-a'],
+    );
+    expect(err.name).toBe('CaptureFormError');
+    expect(err.code).toBe('WORKFLOW_RUN_BLOCKED');
+    expect(err.status).toBe(409);
+    expect(err.blockedOnStepIds).toEqual(['step-a']);
+  });
+
+  it('captureRequest re-raises as CaptureFormError when body contains a known code', async () => {
+    fetchMock.mockResolvedValue(respond(
+      409, undefined,
+      '{"code":"WORKFLOW_RUN_BLOCKED","message":"blocked","blockedOnStepIds":["s-prev","s-two"]}',
+    ));
+    let caught: unknown;
+    try { await api.getCaptureRun('r-x'); } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(api.CaptureFormError);
+    const cfe = caught as api.CaptureFormError;
+    expect(cfe.code).toBe('WORKFLOW_RUN_BLOCKED');
+    expect(cfe.status).toBe(409);
+    expect(cfe.blockedOnStepIds).toEqual(['s-prev', 's-two']);
+  });
+
+  it('captureRequest handles D-CAP-8 error body without blockedOnStepIds', async () => {
+    fetchMock.mockResolvedValue(respond(
+      404, undefined, '{"code":"WORKFLOW_RUN_NOT_FOUND","message":"nope"}',
+    ));
+    let caught: unknown;
+    try { await api.getCaptureRun('r-x'); } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(api.CaptureFormError);
+    const cfe = caught as api.CaptureFormError;
+    expect(cfe.blockedOnStepIds).toBeUndefined();
+  });
+
+  it('captureRequest leaves non-D-CAP-8 500 errors as EDGE_UNREACHABLE', async () => {
+    fetchMock.mockResolvedValue(respond(500, undefined, 'raw server fail'));
+    let caught: unknown;
+    try { await api.getCaptureRun('r-x'); } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(api.EdgeApiError);
+    expect(caught).not.toBeInstanceOf(api.CaptureFormError);
+    expect((caught as api.EdgeApiError).code).toBe('EDGE_UNREACHABLE');
+  });
+
+  it('captureRequest returns 204 bodies as undefined', async () => {
+    fetchMock.mockResolvedValue(respond(204, undefined, ''));
+    const r = await api.advanceCaptureRun('r-1');
+    expect(r).toBeUndefined();
+  });
+
+  it('captureRequest returns empty body as undefined on 200', async () => {
+    fetchMock.mockResolvedValue(respond(200, undefined, ''));
+    const r = await api.getCaptureRun('r-1');
+    expect(r).toBeUndefined();
+  });
+
+  it('captureRequest leaves JSON bodies without a code as EdgeApiError', async () => {
+    fetchMock.mockResolvedValue(respond(400, { foo: 'bar' }));
+    let caught: unknown;
+    try { await api.getCaptureRun('r-1'); } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(api.EdgeApiError);
+    expect(caught).not.toBeInstanceOf(api.CaptureFormError);
+    expect((caught as api.EdgeApiError).code).toBe('UNKNOWN');
+  });
+
+  it('captureRequest wraps fetch rejection as EDGE_UNREACHABLE', async () => {
+    fetchMock.mockRejectedValue(new Error('connection refused'));
+    let caught: unknown;
+    try { await api.getCaptureRun('r-1'); } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(api.EdgeApiError);
+    expect((caught as api.EdgeApiError).code).toBe('EDGE_UNREACHABLE');
+    expect((caught as api.EdgeApiError).status).toBe(0);
+  });
+
+  it('captureRequest attaches X-DER-Device-Id when enrolled', async () => {
+    window.localStorage.setItem('der_device_id', 'dev-7');
+    fetchMock.mockResolvedValue(respond(200, {}));
+    await api.getCaptureRun('r-1');
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers['X-DER-Device-Id']).toBe('dev-7');
+    window.localStorage.removeItem('der_device_id');
+  });
+
+  it('captureRequest POST body sets Content-Type JSON', async () => {
+    fetchMock.mockResolvedValue(respond(200, { runId: 'r' }));
+    await api.startCaptureRun('wf', 'k');
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers['Content-Type']).toBe('application/json');
+  });
+});

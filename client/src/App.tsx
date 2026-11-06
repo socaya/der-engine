@@ -20,6 +20,11 @@ import { EnrollmentCreate } from './screens/EnrollmentCreate';
 import { ScheduledEvents } from './screens/ScheduledEvents';
 import { SubmittedReview } from './screens/SubmittedReview';
 import { Drafts } from './screens/Drafts';
+import { CaptureRunList } from './screens/CaptureRunList';
+import { CaptureRunForm } from './screens/CaptureRunForm';
+import { Dhis2Status } from './screens/Dhis2Status';
+import { SyncStatus } from './screens/SyncStatus';
+import { NetworkStatus } from './screens/NetworkStatus';
 
 /**
  * DER device-client router. Routes correspond to screen IDs in
@@ -178,6 +183,23 @@ export default function App(): JSX.Element {
           } />
           <Route path="/drafts" element={
             <RequireAuth><Drafts /></RequireAuth>
+          } />
+          {/* ADR-0036 — workflow-scoped capture */}
+          <Route path="/capture/runs" element={
+            <RequireAuth><CaptureRunList /></RequireAuth>
+          } />
+          <Route path="/capture/runs/:id/form" element={
+            <RequireAuth><CaptureRunForm /></RequireAuth>
+          } />
+          {/* Server-Module status surfaces */}
+          <Route path="/dhis2/status" element={
+            <RequireAuth><Dhis2Status /></RequireAuth>
+          } />
+          <Route path="/sync/status" element={
+            <RequireAuth><SyncStatus /></RequireAuth>
+          } />
+          <Route path="/network/status" element={
+            <RequireAuth><NetworkStatus /></RequireAuth>
           } />
         </Routes>
       </main>
