@@ -57,6 +57,14 @@ export default function DataEntryApp(): JSX.Element {
   const [aocCategories, setAocCategories] = useState<Array<{
     id: string; name: string; options: Array<{ id: string; name: string }>;
   }>>([]);
+  // FR-06-06 — "Complete" marker state for the current
+  // (dataSet, orgUnit, period) triple. `null` → unknown / still
+  // loading; false → open for edits; true → the operator has
+  // marked the registration complete. Toggled via the button below
+  // the form card.
+  const [completion, setCompletion] =
+    useState<{ completed: boolean; completedAt?: string } | null>(null);
+  const [completionBusy, setCompletionBusy] = useState(false);
 
   // Hydrate the dataset picker once on mount — operators choose
   // from what's mirrored on this edge, not type raw UIDs.
@@ -324,6 +332,50 @@ export default function DataEntryApp(): JSX.Element {
   const datasetReady = dataSet.trim() !== '';
   const formReady = datasetReady && periodReady && ou.bound;
 
+  // Load the completion marker whenever the form key tuple changes.
+  // Covers both the initial load and switching between periods.
+  useEffect(() => {
+    if (!formReady) { setCompletion(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const rec = await api.getCompletion(
+          dataSet.trim(), ou.orgUnitUid ?? '', period.trim());
+        if (cancelled) return;
+        setCompletion({
+          completed: Boolean(rec.completed),
+          completedAt: rec.completedAt,
+        });
+      } catch { if (!cancelled) setCompletion({ completed: false }); }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataSet, period, ou.orgUnitUid, formReady]);
+
+  async function toggleCompletion(): Promise<void> {
+    if (!formReady || completionBusy) return;
+    const next = !(completion?.completed);
+    setCompletionBusy(true);
+    try {
+      const rec = await api.markCompletion({
+        dataSet: dataSet.trim(),
+        orgUnit: ou.orgUnitUid ?? '',
+        period: period.trim(),
+        completed: next,
+      });
+      setCompletion({
+        completed: Boolean(rec.completed), completedAt: rec.completedAt,
+      });
+      setStatus({ kind: 'ok',
+        message: rec.completed
+          ? 'Dataset marked complete.'
+          : 'Dataset reopened.' });
+    } catch (err) {
+      setStatus({ kind: 'error',
+        message: `Completion failed: ${(err as Error).message}` });
+    } finally { setCompletionBusy(false); }
+  }
+
   return (
     <ScreenCard
       title="Aggregate data entry"
@@ -446,11 +498,30 @@ export default function DataEntryApp(): JSX.Element {
                data-test="der-de-custom-form"
                className="der-de-custom-form" />
           <div className="der-de-form-actions">
+            {completion && (
+              <span className="der-de-completion-pill"
+                    data-test="de-completion-status">
+                {completion.completed
+                  ? `Complete${completion.completedAt
+                      ? ' · ' + new Date(completion.completedAt).toLocaleString()
+                      : ''}`
+                  : 'Open for edits'}
+              </span>
+            )}
             <button type="button"
                     onClick={() => runValidation(customRoot.current, setStatus)}
                     style={secondaryBtn}
                     data-test="de-validate-btn">
               Validate
+            </button>
+            <button type="button"
+                    onClick={toggleCompletion}
+                    disabled={completionBusy}
+                    style={completion?.completed ? secondaryBtn : primaryBtn}
+                    data-test="de-complete-btn">
+              {completionBusy
+                ? 'Saving…'
+                : completion?.completed ? 'Reopen' : 'Mark complete'}
             </button>
           </div>
         </div>
@@ -1919,10 +1990,20 @@ const APP_STYLES = `
 .der-de-form-card .der-de-form-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid #eef0f3;
   gap: 8px;
+}
+.der-de-completion-pill {
+  margin-right: auto;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #eef0f3;
+  color: #404b5a;
+  font-size: 12px;
+  letter-spacing: 0.02em;
 }
 .der-de-form-card .sectionTable {
   border-collapse: collapse;

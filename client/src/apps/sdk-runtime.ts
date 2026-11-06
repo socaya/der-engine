@@ -34,6 +34,8 @@ function useDerApi(): {
   listAllDataElements: typeof edgeApi.listAllDataElements;
   listAllCategoryCombos: typeof edgeApi.listAllCategoryCombos;
   listAllCategoryOptionCombos: typeof edgeApi.listAllCategoryOptionCombos;
+  getCompletion: typeof edgeApi.getCompletion;
+  markCompletion: typeof edgeApi.markCompletion;
   // C-UI-5c slice-5 — tracker + workflow-capture surface.
   listTrackerEntities: typeof edgeApi.listTrackerEntities;
   enrolTei: typeof edgeApi.enrolTei;
@@ -60,6 +62,8 @@ function useDerApi(): {
     listAllDataElements: edgeApi.listAllDataElements,
     listAllCategoryCombos: edgeApi.listAllCategoryCombos,
     listAllCategoryOptionCombos: edgeApi.listAllCategoryOptionCombos,
+    getCompletion: edgeApi.getCompletion,
+    markCompletion: edgeApi.markCompletion,
     listTrackerEntities: edgeApi.listTrackerEntities,
     enrolTei: edgeApi.enrolTei,
     listCaptureWorkflows: edgeApi.listCaptureWorkflows,

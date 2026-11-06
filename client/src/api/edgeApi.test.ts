@@ -379,6 +379,37 @@ describe('edgeApi.listValidationRules', () => {
   });
 });
 
+describe('edgeApi.getCompletion / markCompletion', () => {
+  it('getCompletion builds the status query', async () => {
+    fetchMock.mockResolvedValue(respond(200, { completed: true }));
+    await api.getCompletion('DS', 'OU', '202611', 'AOC');
+    const url = fetchMock.mock.calls[0]?.[0] as string;
+    expect(url.startsWith('/edge-api/v1/aggregate/completion?')).toBe(true);
+    expect(url).toContain('dataSet=DS');
+    expect(url).toContain('orgUnit=OU');
+    expect(url).toContain('period=202611');
+    expect(url).toContain('attributeOptionCombo=AOC');
+  });
+
+  it('getCompletion omits attributeOptionCombo when blank', async () => {
+    fetchMock.mockResolvedValue(respond(200, { completed: false }));
+    await api.getCompletion('DS', 'OU', '202611');
+    expect(fetchMock.mock.calls[0]?.[0]).not.toContain('attributeOptionCombo');
+  });
+
+  it('markCompletion POSTs the full body', async () => {
+    fetchMock.mockResolvedValue(respond(200, { completed: true }));
+    await api.markCompletion({
+      dataSet: 'DS', orgUnit: 'OU', period: '202611', completed: true,
+    });
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({
+      dataSet: 'DS', orgUnit: 'OU', period: '202611', completed: true,
+    });
+  });
+});
+
 describe('edgeApi list-all enrichment helpers', () => {
   it('listAllDataElements pages through until exhausted', async () => {
     fetchMock

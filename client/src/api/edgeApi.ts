@@ -279,6 +279,38 @@ export function listValidationRules(dataSetUid: string): Promise<{
   return request('GET', `/api/validationRules?${q}`);
 }
 
+/**
+ * FR-06-06 — dataset completeness marker. Maps to DHIS2's
+ * `CompleteDataSetRegistration` resource; DER stores a local row
+ * per (dataSet, orgUnit, period, attributeOptionCombo) + replays
+ * to the central at the next journal drain.
+ */
+export interface CompletionRecord {
+  dataSet: string;
+  orgUnit: string;
+  period: string;
+  attributeOptionCombo?: string | null;
+  completed: boolean;
+  completedBy?: string | null;
+  completedAt?: string;
+}
+
+export function getCompletion(
+  dataSet: string, orgUnit: string, period: string,
+  attributeOptionCombo?: string,
+): Promise<CompletionRecord> {
+  const q = new URLSearchParams({ dataSet, orgUnit, period });
+  if (attributeOptionCombo) q.set('attributeOptionCombo', attributeOptionCombo);
+  return request('GET', `/edge-api/v1/aggregate/completion?${q.toString()}`);
+}
+
+export function markCompletion(body: {
+  dataSet: string; orgUnit: string; period: string;
+  attributeOptionCombo?: string; completed: boolean;
+}): Promise<CompletionRecord> {
+  return request('POST', '/edge-api/v1/aggregate/completion', body);
+}
+
 /** ADR-0015 — the single orgUnit the edge is bound to. The device
  *  client defaults every capture-related orgUnit field to this value
  *  and refuses to submit against any other OU. */
