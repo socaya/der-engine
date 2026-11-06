@@ -61,13 +61,13 @@ class AppsControllerTest {
 
     @Test
     void listRequiresAuth() throws Exception {
-        mockMvc.perform(get("/edge-api/v1/apps")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/edge-api/v1/apps/installed")).andExpect(status().isUnauthorized());
     }
 
     @Test
     void listOk() throws Exception {
         when(repository.findAll()).thenReturn(List.of(sample()));
-        mockMvc.perform(get("/edge-api/v1/apps").with(as(EdgeRole.OPERATOR)))
+        mockMvc.perform(get("/edge-api/v1/apps/installed").with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isOk());
     }
 

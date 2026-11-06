@@ -1453,7 +1453,7 @@ export interface InstalledAppRow {
  * the `AppCatalogueEntry` shape.
  */
 export function listInstalledApps(): Promise<InstalledAppRow[]> {
-  return request<InstalledAppRow[]>('GET', '/edge-api/v1/apps');
+  return request<InstalledAppRow[]>('GET', '/edge-api/v1/apps/installed');
 }
 
 export function setAppEnabled(id: string, enabled: boolean): Promise<unknown> {

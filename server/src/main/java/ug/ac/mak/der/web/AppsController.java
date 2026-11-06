@@ -55,7 +55,14 @@ public class AppsController {
         this(installer, repository, HttpClient.newHttpClient());
     }
 
-    @GetMapping
+    /**
+     * Legacy ADR-0005 installed-app list. The C-UI-5a catalogue
+     * (signed dynamic app bundles) claimed the bare `/edge-api/v1/apps`
+     * path; this endpoint keeps serving the raw `InstalledApp` rows
+     * (manifest + install path) at a disambiguated sub-path for the
+     * admin-ui's legacy "Apps" mockup screen (EAAppsList).
+     */
+    @GetMapping(path = "/installed")
     public ResponseEntity<List<InstalledApp>> list(final Authentication authentication) {
         if (!(authentication instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();

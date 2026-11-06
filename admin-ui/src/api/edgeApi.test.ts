@@ -98,7 +98,7 @@ describe('edgeApi route coverage', () => {
     ['resumeWorker',      () => api.resumeWorker(),              '/edge-api/v1/journal/worker/resume',  'POST',   undefined],
     ['listUsers',         () => api.listUsers(),                 '/edge-api/v1/provisioning/users',     'GET',    undefined],
     ['createUser',        () => api.createUser({ username: 'u', displayName: 'U', password: 'p', roles: ['OPERATOR'] }), '/edge-api/v1/provisioning/users', 'POST', { username: 'u', displayName: 'U', password: 'p', roles: ['OPERATOR'] }],
-    ['listInstalledApps', () => api.listInstalledApps(),         '/edge-api/v1/apps',                   'GET',    undefined],
+    ['listInstalledApps', () => api.listInstalledApps(),         '/edge-api/v1/apps/installed',         'GET',    undefined],
     ['setAppEnabled',     () => api.setAppEnabled('a', true),    '/edge-api/v1/apps/a/enable?enabled=true', 'POST', undefined],
     ['uninstallApp',      () => api.uninstallApp('a'),           '/edge-api/v1/apps/a',                 'DELETE', undefined],
     ['listBackups',       () => api.listBackups(),               '/edge-api/v1/backup/runs',            'GET',    undefined],
