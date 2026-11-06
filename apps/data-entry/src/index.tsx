@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState,
+  type FormEvent, type RefObject } from 'react';
 import {
   useAuth, useOrgUnitBinding, useOnlineStatus, useDerApi,
   ScreenCard, StatusPill,
@@ -65,6 +66,9 @@ export default function DataEntryApp(): JSX.Element {
   const [completion, setCompletion] =
     useState<{ completed: boolean; completedAt?: string } | null>(null);
   const [completionBusy, setCompletionBusy] = useState(false);
+  // Bump after every successful form render so SectionNavigator
+  // re-scrapes the headers of the freshly-injected #contentDiv.
+  const [formRenderVersion, setFormRenderVersion] = useState(0);
 
   // Hydrate the dataset picker once on mount — operators choose
   // from what's mirrored on this edge, not type raw UIDs.
@@ -294,6 +298,7 @@ export default function DataEntryApp(): JSX.Element {
           () => ({ ...aocSelectionsRef.current }),
           api);
         attachKeyboardNav(content);
+        setFormRenderVersion((v) => v + 1);
         setStatus({ kind: 'ok',
           message: 'Custom form loaded. Autosave + validation run as in DHIS2.' });
       } catch (e) {
@@ -494,9 +499,12 @@ export default function DataEntryApp(): JSX.Element {
               ))}
             </div>
           )}
-          <div ref={customRoot}
-               data-test="der-de-custom-form"
-               className="der-de-custom-form" />
+          <div className="der-de-form-split">
+            <SectionNavigator targetRef={customRoot} formVersion={formRenderVersion} />
+            <div ref={customRoot}
+                 data-test="der-de-custom-form"
+                 className="der-de-custom-form" />
+          </div>
           <div className="der-de-form-actions">
             {completion && (
               <span className="der-de-completion-pill"
@@ -1281,6 +1289,97 @@ function attachKeyboardNav(container: HTMLElement): void {
  * Invalid cells get a red 2 px outline; the summary status strip
  * reports the count.
  */
+/**
+ * Left-rail section navigator — scrapes `<h3 class="formSection">`
+ * headers out of the rendered #contentDiv and renders them as a
+ * clickable list. Click → smooth-scroll the heading into view.
+ * An IntersectionObserver keeps the active link in sync as the
+ * operator scrolls the form.
+ *
+ * Hidden on narrow viewports (< 1024 px) and when a form has
+ * fewer than two sections — single-section forms don't benefit
+ * from a navigator, and mobile layouts use the whole width for
+ * the grid.
+ */
+function SectionNavigator(
+  { targetRef, formVersion }:
+  { targetRef: RefObject<HTMLDivElement | null>;
+    formVersion: number },
+): JSX.Element | null {
+  const [entries, setEntries] = useState<Array<{
+    id: string; label: string; el: HTMLHeadingElement;
+  }>>([]);
+  const [activeId, setActiveId] = useState<string>('');
+
+  // Rescan every time the form is re-rendered (dataset / period
+  // switch) — the previous <h3>s are torn out and new ones take
+  // their place.
+  useEffect(() => {
+    const root = targetRef.current;
+    if (!root) return;
+    const hs = Array.from(
+      root.querySelectorAll<HTMLHeadingElement>('h3.formSection'));
+    const next = hs.map((h, i) => {
+      const id = h.id || `der-de-section-${i}`;
+      h.id = id;
+      return { id, label: (h.textContent ?? '').trim(), el: h };
+    }).filter((e) => e.label);
+    setEntries(next);
+    setActiveId(next[0]?.id ?? '');
+  }, [targetRef, formVersion]);
+
+  // Scroll-spy via IntersectionObserver. The topmost section that
+  // is at least 40 % visible wins. Fallbacks to the first section
+  // if nothing qualifies (e.g. between sections).
+  useEffect(() => {
+    if (entries.length === 0) return;
+    const io = new IntersectionObserver((xs) => {
+      // Pick the entry with the largest intersection ratio among
+      // those currently crossing the threshold.
+      let best: { id: string; ratio: number } | null = null;
+      for (const x of xs) {
+        if (!x.isIntersecting) continue;
+        const id = (x.target as HTMLElement).id;
+        if (!id) continue;
+        if (!best || x.intersectionRatio > best.ratio) {
+          best = { id, ratio: x.intersectionRatio };
+        }
+      }
+      if (best) setActiveId(best.id);
+    }, { threshold: [0, 0.2, 0.4, 0.6], rootMargin: '-80px 0px -60% 0px' });
+    for (const e of entries) io.observe(e.el);
+    return () => io.disconnect();
+  }, [entries]);
+
+  if (entries.length < 2) return null;
+
+  return (
+    <nav className="der-de-section-nav"
+         aria-label="Form sections"
+         data-test="de-section-nav">
+      <div className="der-de-section-nav__title">Sections</div>
+      <ul className="der-de-section-nav__list">
+        {entries.map((e) => (
+          <li key={e.id}>
+            <button type="button"
+                    className={'der-de-section-nav__item'
+                      + (activeId === e.id
+                        ? ' der-de-section-nav__item--active' : '')}
+                    data-test="de-section-nav-item"
+                    onClick={() => {
+                      e.el.scrollIntoView({
+                        behavior: 'smooth', block: 'start' });
+                      setActiveId(e.id);
+                    }}>
+              {e.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
 function runValidation(
   root: HTMLElement | null,
   setStatus: (s: {
@@ -2008,6 +2107,67 @@ const APP_STYLES = `
   padding-top: 16px;
   border-top: 1px solid #eef0f3;
   gap: 8px;
+}
+.der-de-form-split {
+  display: block;
+}
+.der-de-section-nav { display: none; }
+@media (min-width: 1024px) {
+  .der-de-form-split {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .der-de-section-nav {
+    display: block;
+    position: sticky;
+    top: 80px;
+    align-self: start;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding: 12px 8px;
+    background: #fafbfc;
+    border: 1px solid #eef0f3;
+    border-radius: 6px;
+  }
+}
+.der-de-section-nav__title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6e7a8a;
+  font-weight: 500;
+  margin: 0 8px 8px;
+}
+.der-de-section-nav__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.der-de-section-nav__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 0 4px 4px 0;
+  color: #404b5a;
+  font-size: 13px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.der-de-section-nav__item:hover {
+  background: #eef0f3;
+}
+.der-de-section-nav__item--active {
+  background: #eef4fa;
+  border-left-color: #2c6693;
+  color: #1f4d70;
+  font-weight: 500;
 }
 .der-de-completion-pill {
   margin-right: auto;
