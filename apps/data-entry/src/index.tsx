@@ -258,6 +258,7 @@ export default function DataEntryApp(): JSX.Element {
           () => ou.orgUnitUid ?? '',
           () => ({ ...aocSelectionsRef.current }),
           api);
+        attachKeyboardNav(content);
         setStatus({ kind: 'ok',
           message: 'Custom form loaded. Autosave + validation run as in DHIS2.' });
       } catch (e) {
@@ -962,6 +963,40 @@ function attachSaveOnBlur(
   };
   // Use capture so we don't fight with jQuery's blur handlers.
   container.addEventListener('blur', (ev) => { void handler(ev); }, true);
+}
+
+/**
+ * DHIS2-Data-Entry-style keyboard navigation:
+ *   • Enter — focus the data-value input directly below (same
+ *     categoryOptionCombo column, next data-element row).
+ *   • Shift+Enter — the input directly above.
+ *
+ * Tab keeps native behaviour (moves to the next focusable element
+ * in document order, which is the next cell to the right for a
+ * row-ordered table). Only runs on `<input name="<de>-<coc>-val">`
+ * targets so Prev/Next buttons + OU chip inputs stay untouched.
+ */
+function attachKeyboardNav(container: HTMLElement): void {
+  container.addEventListener('keydown', (ev) => {
+    const e = ev as KeyboardEvent;
+    if (e.key !== 'Enter') return;
+    const t = e.target as HTMLElement | null;
+    if (!(t instanceof HTMLInputElement)) return;
+    const name = t.getAttribute('name') ?? '';
+    const m = /^(.+)-(.+)-val$/.exec(name);
+    if (!m) return;
+    e.preventDefault();
+    const coc = m[2];
+    // All inputs in the same COC column, in DOM order.
+    const column = Array.from(
+      container.querySelectorAll<HTMLInputElement>(
+        `input[name$="-${coc}-val"]`));
+    const idx = column.indexOf(t);
+    if (idx === -1) return;
+    const target = column[idx + (e.shiftKey ? -1 : 1)];
+    target?.focus();
+    if (target instanceof HTMLInputElement) target.select();
+  });
 }
 
 function paintState(
