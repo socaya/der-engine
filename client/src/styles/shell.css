@@ -28,46 +28,37 @@ body {
 .der-topbar__brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-weight: 500;
   text-decoration: none;
   color: inherit;
-  letter-spacing: 0.2px;
-  font-size: 14px;
+  letter-spacing: 0.1px;
+  font-size: 15px;
 }
 
-.der-topbar__brand-mark {
-  width: 24px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.14);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  letter-spacing: 0;
-  color: #fff;
-  border-radius: var(--der-radius-sm);
+.der-topbar__brand-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+}
+
+.der-topbar__brand-text {
+  font-weight: 500;
 }
 
 .der-topbar__orgunit {
   display: inline-flex;
-  gap: 6px;
-  align-items: baseline;
-  font-size: 12px;
-  opacity: 0.95;
-  padding: 2px 8px;
-  background: rgba(255, 255, 255, 0.10);
-  border-radius: var(--der-radius-sm);
-}
-
-.der-topbar__orgunit code {
-  opacity: 0.75;
-  font-size: 11px;
+  align-items: center;
+  font-size: 13px;
+  color: #f3f5f7;
+  opacity: 0.92;
+  padding: 0 4px;
 }
 
 .der-topbar__orgunit--unbound {
   color: #ffd6d6;
-  background: rgba(169, 50, 50, 0.3);
 }
 
 .der-topbar__spacer {
@@ -102,9 +93,29 @@ body {
   stroke-width: 1.75;
 }
 
-.der-topbar__user {
-  font-size: 13px;
-  opacity: 0.95;
+/* Circular avatar — initials in the DHIS2 HeaderBar profile style. */
+.der-topbar__avatar {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-inline-start: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  border: 0;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.der-topbar__avatar:hover,
+.der-topbar__avatar:focus-visible,
+.der-topbar__avatar[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.24);
+  outline: none;
 }
 
 .der-breadcrumb {
@@ -289,16 +300,16 @@ body {
   font-size: 13px;
 }
 
-/* User menu dropdown — flat, bordered, no shadow. */
+/* User menu dropdown — DHIS2 HeaderBar profile menu style. */
 .der-user-wrap {
   position: relative;
 }
 
 .der-user-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   right: 0;
-  min-width: 200px;
+  min-width: 260px;
   background: var(--der-surface);
   color: var(--der-ink-900);
   border: 1px solid var(--der-border);
@@ -308,19 +319,69 @@ body {
 }
 
 .der-user-menu__header {
-  padding: 8px 14px 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 12px;
   border-bottom: 1px solid var(--der-border);
+}
+
+.der-user-menu__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--der-brand-500);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.der-user-menu__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .der-user-menu__name {
   font-weight: 600;
   font-size: 13px;
   color: var(--der-ink-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .der-user-menu__role {
   font-size: 11px;
   color: var(--der-ink-500);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.der-user-menu__ou {
+  font-size: 12px;
+  color: var(--der-ink-700);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.der-user-menu__group {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.der-user-menu__divider {
+  height: 1px;
+  background: var(--der-border);
+  margin: 0;
 }
 
 .der-user-menu__item {
@@ -329,11 +390,12 @@ body {
   background: transparent;
   border: 0;
   text-align: left;
-  padding: 8px 14px;
+  padding: 8px 16px;
   font-size: 13px;
   color: var(--der-ink-900);
   text-decoration: none;
   cursor: pointer;
+  font-family: inherit;
 }
 
 .der-user-menu__item:hover,
@@ -344,6 +406,7 @@ body {
 
 .der-user-menu__item--danger {
   color: var(--der-danger);
+  font-weight: 500;
 }
 
 /* Home screen (C-UI-3). */

@@ -4,22 +4,30 @@ import { useOrgUnitBinding } from '../orgunit/OrgUnitBindingContext';
 import { UserMenu } from './UserMenu';
 
 export interface DerTopbarProps {
-  /** C-UI-2 wires this to toggle the app-launcher overlay. */
   readonly onLauncherClick?: () => void;
-  /** C-UI-2 wires this to toggle the user menu dropdown. */
   readonly userMenuOpen?: boolean;
   readonly onUserMenuToggle?: () => void;
   readonly onUserMenuClose?: () => void;
 }
 
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  const first = parts[0]?.[0] ?? '';
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
+  return (first + last).toUpperCase();
+}
+
 /**
- * ADR-0037 C-UI-1 topbar. DHIS2-alike chrome: dark navy bar,
- * brand lockup, bound-OU badge, spacer, app-launcher button, user
- * tile. No notifications bell — status surfaces live in the
- * Server-Module screens.
+ * ADR-0037 topbar — DHIS2 HeaderBar-alike.
  *
- * The app-launcher button is wired to a no-op in C-UI-1. The
- * overlay it opens lands in C-UI-2.
+ *   - Brand lockup uses the DER negative-white icon SVG, not a
+ *     text monogram (matches the DHIS2 HeaderBar logo slot).
+ *   - Bound-OU chip is plain inline text (no background tint).
+ *   - User surface is a circular 32 px avatar showing the
+ *     operator's initials (A&A → "AA"). Full name, role and
+ *     bound OU live inside the dropdown, mirroring DHIS2's own
+ *     profile menu.
  */
 export function DerTopbar(
   {
@@ -39,14 +47,16 @@ export function DerTopbar(
   return (
     <header className="der-topbar" data-test="der-topbar">
       <Link to="/" className="der-topbar__brand" data-test="der-topbar-brand">
-        <span className="der-topbar__brand-mark" aria-hidden="true">DER</span>
-        <span>Edge Runtime</span>
+        <img className="der-topbar__brand-logo"
+             src="/brand/der-icon-white.svg"
+             alt=""
+             aria-hidden="true" />
+        <span className="der-topbar__brand-text">DHIS2 Edge Runtime</span>
       </Link>
 
       {bound ? (
         <span className="der-topbar__orgunit" data-test="der-topbar-orgunit">
-          <strong>{bound.orgUnitDisplayName ?? bound.orgUnitId}</strong>
-          <code>{bound.orgUnitId}</code>
+          {bound.orgUnitDisplayName ?? bound.orgUnitId}
         </span>
       ) : (
         <span className="der-topbar__orgunit der-topbar__orgunit--unbound"
@@ -58,7 +68,7 @@ export function DerTopbar(
       <span className="der-topbar__spacer" />
 
       <button type="button"
-              className="der-topbar__btn"
+              className="der-topbar__btn der-topbar__btn--icon"
               data-test="der-topbar-launcher"
               aria-label="Open app launcher"
               onClick={onLauncherClick}>
@@ -73,12 +83,13 @@ export function DerTopbar(
       {user && (
         <span className="der-user-wrap">
           <button type="button"
-                  className="der-topbar__btn der-topbar__user"
+                  className="der-topbar__avatar"
                   data-test="der-topbar-user"
                   aria-haspopup="menu"
                   aria-expanded={userMenuOpen}
+                  aria-label={`Open profile menu for ${user.displayName}`}
                   onClick={onUserMenuToggle}>
-            {user.displayName}
+            <span aria-hidden="true">{initials(user.displayName)}</span>
           </button>
           <UserMenu open={userMenuOpen}
                     onClose={onUserMenuClose ?? (() => undefined)} />
