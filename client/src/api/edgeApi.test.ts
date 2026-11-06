@@ -356,6 +356,29 @@ describe('edgeApi.getDataSetMeta', () => {
   });
 });
 
+describe('edgeApi.listDataSets', () => {
+  it('fetches /api/dataSets with paging disabled', async () => {
+    fetchMock.mockResolvedValue(respond(200, { dataSets: [] }));
+    await api.listDataSets();
+    const url = fetchMock.mock.calls[0]?.[0] as string;
+    expect(url.startsWith('/api/dataSets?')).toBe(true);
+    expect(url).toContain('paging=false');
+    expect(url).toContain('displayName');
+    expect(url).toContain('periodType');
+  });
+});
+
+describe('edgeApi.listValidationRules', () => {
+  it('fetches /api/validationRules filtered to the dataset', async () => {
+    fetchMock.mockResolvedValue(respond(200, { validationRules: [] }));
+    await api.listValidationRules('DS');
+    const url = fetchMock.mock.calls[0]?.[0] as string;
+    expect(url.startsWith('/api/validationRules?')).toBe(true);
+    expect(url).toContain('dataSet=DS');
+    expect(url).toContain('paging=false');
+  });
+});
+
 describe('edgeApi.getDataSetFormMetadata', () => {
   it('fetches /api/dataSets/<uid> with the full fields mask', async () => {
     fetchMock.mockResolvedValue(respond(200, {
