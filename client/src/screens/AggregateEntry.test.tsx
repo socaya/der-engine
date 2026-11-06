@@ -194,6 +194,19 @@ describe('AggregateEntry', () => {
       expect(screen.getByTestId('aggregate-entry-error')).toBeInTheDocument());
   });
 
+  it('result without conflicts omits the conflicts list', async () => {
+    const submit = vi.fn().mockResolvedValue({ status: 'SUCCESS' });
+    renderWithProviders(
+      <AggregateEntry api={stubApi({ submitAggregate: submit })} />,
+      { route: '/aggregate/entry?dataSet=DS&period=202611' });
+    await waitFor(() =>
+      expect(screen.getByTestId('capture-form')).toBeInTheDocument());
+    await fireAndFlush('de1', '1');
+    await waitFor(() =>
+      expect(screen.getByTestId('aggregate-entry-result')).toBeInTheDocument());
+    expect(screen.queryByTestId('aggregate-entry-conflicts')).toBeNull();
+  });
+
   it('shows conflicts when the import summary has them', async () => {
     const submit = vi.fn().mockResolvedValue({
       status: 'WARNING', conflicts: [{ object: 'de1', value: 'bad' }],
@@ -360,11 +373,18 @@ describe('AggregateEntry', () => {
   });
 
   it('shows queued-offline count when there are entries in the offline queue', async () => {
+    // Fake timers interfere with IndexedDB's internal scheduling —
+    // switch back to real timers for this IDB-heavy test.
+    vi.useRealTimers();
     const { enqueue, clearAll, __resetDbForTests } = await import('../offline/queue');
     __resetDbForTests();
     await clearAll();
     await enqueue({ kind: 'aggregate', url: '/api/dataValueSets', body: {} });
     await enqueue({ kind: 'aggregate', url: '/api/dataValueSets', body: {} });
+    // offline so the reconnect-drain effect doesn't fire and
+    // consume the rows we just enqueued.
+    Object.defineProperty(navigator, 'onLine',
+      { value: false, configurable: true });
     try {
       renderWithProviders(<AggregateEntry api={stubApi()} />,
         { route: '/aggregate/entry?dataSet=DS&period=202611' });
@@ -373,6 +393,8 @@ describe('AggregateEntry', () => {
           .toHaveTextContent('2'));
     } finally {
       await clearAll();
+      Object.defineProperty(navigator, 'onLine',
+        { value: true, configurable: true });
     }
   });
 

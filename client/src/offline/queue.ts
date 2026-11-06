@@ -57,8 +57,16 @@ function db(): Promise<IDBPDatabase<DerOfflineSchema>> {
   return dbPromise;
 }
 
-/** Only call from tests. Resets the singleton so fake-indexeddb picks up. */
+/** Only call from tests. Closes any open connection + clears the
+ *  module-level singleton so fake-indexeddb picks up a fresh handle
+ *  on the next access.  Without the explicit close(), the prior
+ *  transactions on the stale handle emit InvalidStateError when
+ *  they fire during the next test's event loop. */
 export function __resetDbForTests(): void {
+  if (dbPromise) {
+    dbPromise.then((d) => { try { d.close(); } catch { /* ignore */ } })
+             .catch(() => undefined);
+  }
   dbPromise = null;
 }
 

@@ -115,10 +115,15 @@ public class AggregateDataValueRepository {
     public List<AggregateDataValue> findByFilter(final String orgUnitUid, final String periodIso,
                                                   final int limit) {
         final int capped = Math.max(1, Math.min(limit, 500));
+        // §2.3.130 — SELECT must include data_set_uid + workflow_run_id
+        // because rowMapper() reads them; earlier revisions omitted both
+        // columns and findByFilter threw as soon as any row matched
+        // (PSQLException: column data_set_uid not found).
         final StringBuilder sql = new StringBuilder(
                 "SELECT value_id, data_element_uid, org_unit_uid, period_iso, "
                         + "category_option_combo_uid, attribute_option_combo_uid, "
-                        + "value_text, comment, submitted_by, submitted_at, value_version "
+                        + "value_text, comment, submitted_by, submitted_at, "
+                        + "value_version, data_set_uid, workflow_run_id "
                         + "FROM der.aggregate_data_value WHERE 1=1");
         final List<Object> args = new java.util.ArrayList<>();
         if (orgUnitUid != null && !orgUnitUid.isBlank()) {
