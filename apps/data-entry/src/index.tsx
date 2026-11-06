@@ -101,6 +101,8 @@ export default function DataEntryApp(): JSX.Element {
         dhis2.de.currentOrganisationUnitId = ou.orgUnitUid ?? '';
         dhis2.de.currentPeriodId = period.trim();
 
+        // Vendor CSS first so the form renders styled on first paint.
+        for (const href of VENDOR_STYLES) loadStyle(href);
         // Sequential script loader — DHIS2's dhis2.* JS expects
         // jQuery first, then its own namespace helpers, then
         // form.js + entry.js.
@@ -227,12 +229,53 @@ export default function DataEntryApp(): JSX.Element {
   );
 }
 
+/**
+ * DHIS2 2.44 legacy custom-form vendor bundle — mirrors the list in
+ * `aggregate-data-entry-app/src/plugin-legacy-custom-forms/content/
+ * external-scripts.js` so custom forms behave the same way they do
+ * in DHIS2's own Data Entry app. Loaded SEQUENTIALLY (async=false).
+ */
 const VENDOR_SCRIPTS = [
   '/legacy-custom-forms/javascripts/jQuery/jquery.min.js',
+  '/legacy-custom-forms/javascripts/jQuery/placeholders.jquery.min.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.utils.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.ext.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.metadata.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.tablesorter.min.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.upload-1.0.2.min.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.dhisAjaxSelect.js',
+  '/legacy-custom-forms/javascripts/jQuery/ui/jquery-ui.min.js',
+  '/legacy-custom-forms/javascripts/jQuery/ui/jquery.blockUI.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.validate.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.validate.ext.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.cookie.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.glob.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.date.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.tmpl.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.autogrow.js',
+  '/legacy-custom-forms/javascripts/jQuery/jquery.fileupload.min.js',
+  '/legacy-custom-forms/javascripts/bootstrap.min.js',
+  '/legacy-custom-forms/javascripts/dhis2/dhis2.util.js',
   '/legacy-custom-forms/javascripts/dhis2/dhis2.array.js',
+  '/legacy-custom-forms/javascripts/dhis2/dhis2.select.js',
+  '/legacy-custom-forms/javascripts/jQuery/calendars/jquery.calendars.min.js',
+  '/legacy-custom-forms/javascripts/jQuery/calendars/jquery.calendars.plus.min.js',
+  '/legacy-custom-forms/javascripts/select2.min.js',
+  '/legacy-custom-forms/javascripts/floatThead/jquery.floatThead.min.js',
   '/legacy-custom-forms/javascripts/dhis2/dhis2.period.js',
+  '/legacy-custom-forms/javascripts/dhis2/dhis2.validation.js',
   '/legacy-custom-forms/javascripts/data-entry/form.js',
   '/legacy-custom-forms/javascripts/data-entry/entry.js',
+];
+
+const VENDOR_STYLES = [
+  '/legacy-custom-forms/javascripts/jQuery/ui/css/redmond/jquery-ui.css',
+  '/legacy-custom-forms/css/light_blue.css',
+  '/legacy-custom-forms/css/widgets.css',
+  '/legacy-custom-forms/css/select2/select2.css',
+  '/legacy-custom-forms/css/dhis-web-dataentry.css',
+  '/legacy-custom-forms/css/bootstrap/bootstrap.min.css',
+  '/legacy-custom-forms/css/plugin-styles.css',
 ];
 
 function loadScript(src: string): Promise<void> {
@@ -245,6 +288,15 @@ function loadScript(src: string): Promise<void> {
     s.onerror = () => reject(new Error(`failed to load ${src}`));
     document.head.appendChild(s);
   });
+}
+
+function loadStyle(href: string): void {
+  if (document.querySelector(`link[data-der-custom-form="${href}"]`)) return;
+  const l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = href;
+  l.setAttribute('data-der-custom-form', href);
+  document.head.appendChild(l);
 }
 
 function escapeAttr(v: string): string {
