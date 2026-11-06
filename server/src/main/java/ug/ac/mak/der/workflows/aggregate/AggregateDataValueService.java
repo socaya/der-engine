@@ -162,55 +162,11 @@ public class AggregateDataValueService {
         // Emit one journal entry per form bucket — DHIS2-shaped
         // dataValueSets envelope that central will actually import.
         for (final Map.Entry<FormKey, List<AggregateDataValue>> bucket : buckets.entrySet()) {
-            final FormKey fk = bucket.getKey();
-            final List<AggregateDataValue> rows = bucket.getValue();
-            final ObjectNode envelope = mapper.createObjectNode();
-            envelope.put("dataSet", fk.dataSet);
-            envelope.put("orgUnit", fk.orgUnit);
-            envelope.put("period", fk.period);
-            // §2.3.124 — always emit the attribute-option-combo so central
-            // never has to resolve the default itself. When the row had
-            // none set, AggregateDataValue's constructor coerced it to
-            // DHIS2's canonical default CoC uid ("HllvX50cXC0"), so the
-            // envelope is always DHIS2-shape-complete.
-            envelope.put("attributeOptionCombo", fk.attributeOptionCombo);
-            final ArrayNode arr = envelope.putArray("dataValues");
-            for (final AggregateDataValue row : rows) {
-                final ObjectNode dv = arr.addObject();
-                dv.put("dataElement", row.dataElementUid());
-                // Same default-COC coercion as above — always emit so
-                // the central side's strict-CoC configs don't drop rows.
-                dv.put("categoryOptionCombo", row.categoryOptionComboUid());
-                dv.put("value", row.valueText());
-                if (row.comment() != null && !row.comment().isBlank()) {
-                    dv.put("comment", row.comment());
-                }
-                // §2.3.124 distributed-workflow lineage — every row carries
-                // the originating workflow run (when captured through one)
-                // and the device UUID that submitted it so central can
-                // reconcile which device + step produced each value.
-                if (row.workflowRunId() != null) {
-                    dv.put("workflowRunId", row.workflowRunId().toString());
-                }
-                if (submittingDeviceId != null) {
-                    dv.put("deviceId", submittingDeviceId.toString());
-                }
-            }
-            final OperationJournalEntry entry = new OperationJournalEntry(
-                    UUID.randomUUID(),
-                    OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE,
-                    fk.toCompoundKey(),
-                    envelope,
-                    OperationJournalEntry.State.PENDING,
-                    0,
-                    null,
-                    actingUser,
-                    now,
-                    now,
-                    nextHopOrgUnitUid == null || nextHopOrgUnitUid.isBlank()
-                            ? null : nextHopOrgUnitUid.trim(),
-                    runKey.get(fk)
-            );
+            final OperationJournalEntry entry = buildAggregateEnvelopeEntry(
+                    bucket.getKey(), bucket.getValue(),
+                    actingUser, now,
+                    nextHopOrgUnitUid, submittingDeviceId,
+                    runKey.get(bucket.getKey()));
             journal.insert(entry);
             if (approvals.requiresApproval(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)) {
                 journal.markRequiresApproval(entry.operationId());
@@ -220,6 +176,107 @@ public class AggregateDataValueService {
         LOG.info("aggregate submission: imported={}, ignored={}, buckets={}",
                 imported, ignored, buckets.size());
         return new ImportSummary(imported, ignored, List.copyOf(conflicts));
+    }
+
+    /**
+     * §2.3.125 — administrative replay. Reads the current local rows
+     * for (dataSet, orgUnit, period, aoc) and emits a brand-new
+     * {@code PENDING} journal entry with the full DHIS2 envelope so
+     * the drain worker publishes the form again. Used when an admin
+     * notices a drain that reported SUCCESS but central importCount
+     * was all zeros, or when a central-side rollback silently lost
+     * the row set.
+     *
+     * @return the new journal operation id, or empty when the form
+     *     has no local rows to replay.
+     */
+    @Transactional
+    public Optional<UUID> replayForm(final String dataSetUid,
+                                       final String orgUnitUid,
+                                       final String periodIso,
+                                       final String attributeOptionComboUid,
+                                       final UUID actingUser,
+                                       final String nextHopOrgUnitUid,
+                                       final UUID submittingDeviceId) {
+        Objects.requireNonNull(dataSetUid, "dataSetUid");
+        Objects.requireNonNull(orgUnitUid, "orgUnitUid");
+        Objects.requireNonNull(periodIso, "periodIso");
+        final String aoc = attributeOptionComboUid == null
+                || attributeOptionComboUid.isBlank()
+                ? AggregateDataValue.DEFAULT_COC
+                : attributeOptionComboUid;
+        final List<AggregateDataValue> rows =
+                values.findByForm(dataSetUid, orgUnitUid, periodIso, aoc);
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        final OperationJournalEntry entry = buildAggregateEnvelopeEntry(
+                FormKey.of(rows.get(0)), rows,
+                actingUser, Instant.now(clock),
+                nextHopOrgUnitUid, submittingDeviceId,
+                rows.get(0).workflowRunId());
+        journal.insert(entry);
+        if (approvals.requiresApproval(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)) {
+            journal.markRequiresApproval(entry.operationId());
+        }
+        audit.append(new AuditEvent(
+                "AGGREGATE_REPLAY",
+                AuditEvent.Outcome.SUCCESS,
+                actingUser, null, null, null,
+                Map.of(
+                        "formKey", FormKey.of(rows.get(0)).toCompoundKey(),
+                        "rowCount", rows.size(),
+                        "operationId", entry.operationId().toString()
+                )
+        ), Instant.now(clock));
+        return Optional.of(entry.operationId());
+    }
+
+    /** Build the envelope payload + journal entry shared by submit() and replayForm(). */
+    private OperationJournalEntry buildAggregateEnvelopeEntry(
+            final FormKey fk,
+            final List<AggregateDataValue> rows,
+            final UUID actingUser,
+            final Instant at,
+            final String nextHopOrgUnitUid,
+            final UUID submittingDeviceId,
+            final UUID runId) {
+        final ObjectNode envelope = mapper.createObjectNode();
+        envelope.put("dataSet", fk.dataSet);
+        envelope.put("orgUnit", fk.orgUnit);
+        envelope.put("period", fk.period);
+        envelope.put("attributeOptionCombo", fk.attributeOptionCombo);
+        final ArrayNode arr = envelope.putArray("dataValues");
+        for (final AggregateDataValue row : rows) {
+            final ObjectNode dv = arr.addObject();
+            dv.put("dataElement", row.dataElementUid());
+            dv.put("categoryOptionCombo", row.categoryOptionComboUid());
+            dv.put("value", row.valueText());
+            if (row.comment() != null && !row.comment().isBlank()) {
+                dv.put("comment", row.comment());
+            }
+            if (row.workflowRunId() != null) {
+                dv.put("workflowRunId", row.workflowRunId().toString());
+            }
+            if (submittingDeviceId != null) {
+                dv.put("deviceId", submittingDeviceId.toString());
+            }
+        }
+        return new OperationJournalEntry(
+                UUID.randomUUID(),
+                OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE,
+                fk.toCompoundKey(),
+                envelope,
+                OperationJournalEntry.State.PENDING,
+                0,
+                null,
+                actingUser,
+                at,
+                at,
+                nextHopOrgUnitUid == null || nextHopOrgUnitUid.isBlank()
+                        ? null : nextHopOrgUnitUid.trim(),
+                runId
+        );
     }
 
     /** Form key for journal coalescing — DHIS2 dataValueSets groups on

@@ -135,6 +135,30 @@ public class AggregateDataValueRepository {
     }
 
     /**
+     * §2.3.125 — look up every row for a form key so the admin can
+     * replay an entire aggregate form back into the journal. Uses the
+     * full-row mapper so the envelope builder sees dataSetUid and
+     * workflowRunId (findByFilter's lean mapper drops those).
+     */
+    public List<AggregateDataValue> findByForm(final String dataSetUid,
+                                                 final String orgUnitUid,
+                                                 final String periodIso,
+                                                 final String attributeOptionComboUid) {
+        return jdbc.query(
+                "SELECT value_id, data_element_uid, org_unit_uid, period_iso, "
+                        + "category_option_combo_uid, attribute_option_combo_uid, "
+                        + "value_text, comment, submitted_by, submitted_at, "
+                        + "value_version, data_set_uid, workflow_run_id "
+                        + "FROM der.aggregate_data_value "
+                        + "WHERE data_set_uid = ? AND org_unit_uid = ? "
+                        + "  AND period_iso = ? "
+                        + "  AND attribute_option_combo_uid = ? "
+                        + "ORDER BY data_element_uid, category_option_combo_uid",
+                rowMapper(),
+                dataSetUid, orgUnitUid, periodIso, attributeOptionComboUid);
+    }
+
+    /**
      * ADR-0034 — look up a local row by its compound-key coordinates
      * so the inbound pull can tell "central's row collides with ours"
      * (merge path) from "central knows a row we don't have yet"

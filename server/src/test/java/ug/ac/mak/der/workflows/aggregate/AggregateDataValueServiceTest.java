@@ -332,6 +332,67 @@ class AggregateDataValueServiceTest {
     }
 
     @Test
+    void replayForm_withLocalRows_insertsNewPendingJournalEntry() {
+        final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final MetadataMirrorRepository metadata = mock(MetadataMirrorRepository.class);
+        final AggregateDataValue row = new AggregateDataValue(
+                UUID.randomUUID(), "de1", "ou", "202611", "coc", "aoc",
+                "42", null, UUID.randomUUID(),
+                Instant.parse("2026-11-01T10:00:00Z"), 1, "DS1", null);
+        when(values.findByForm("DS1", "ou", "202611", "aoc"))
+                .thenReturn(java.util.List.of(row));
+        final AggregateDataValueService svc = service(values, journal, metadata, audit);
+        final Optional<UUID> opId = svc.replayForm(
+                "DS1", "ou", "202611", "aoc",
+                UUID.randomUUID(), null, null);
+        assertThat(opId).isPresent();
+        final org.mockito.ArgumentCaptor<OperationJournalEntry> cap =
+                org.mockito.ArgumentCaptor.forClass(OperationJournalEntry.class);
+        verify(journal).insert(cap.capture());
+        final OperationJournalEntry inserted = cap.getValue();
+        assertThat(inserted.operationId()).isEqualTo(opId.get());
+        assertThat(inserted.state()).isEqualTo(OperationJournalEntry.State.PENDING);
+        assertThat(inserted.payload().path("dataSet").asText()).isEqualTo("DS1");
+        assertThat(inserted.payload().path("dataValues").size()).isEqualTo(1);
+    }
+
+    @Test
+    void replayForm_defaultsAocWhenBlank() {
+        final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final MetadataMirrorRepository metadata = mock(MetadataMirrorRepository.class);
+        when(values.findByForm("DS1", "ou", "202611",
+                AggregateDataValue.DEFAULT_COC))
+                .thenReturn(java.util.List.of(new AggregateDataValue(
+                        UUID.randomUUID(), "de1", "ou", "202611", null, null,
+                        "1", null, UUID.randomUUID(),
+                        Instant.parse("2026-11-01T10:00:00Z"), 1, "DS1", null)));
+        final AggregateDataValueService svc = service(values, journal, metadata, audit);
+        assertThat(svc.replayForm("DS1", "ou", "202611", "",
+                UUID.randomUUID(), null, null)).isPresent();
+        assertThat(svc.replayForm("DS1", "ou", "202611", null,
+                UUID.randomUUID(), null, null)).isPresent();
+    }
+
+    @Test
+    void replayForm_withNoRows_returnsEmptyAndDoesNotTouchJournal() {
+        final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final MetadataMirrorRepository metadata = mock(MetadataMirrorRepository.class);
+        when(values.findByForm(any(), any(), any(), any()))
+                .thenReturn(java.util.List.of());
+        final AggregateDataValueService svc = service(values, journal, metadata, audit);
+        assertThat(svc.replayForm("DS1", "ou", "202611", "aoc",
+                UUID.randomUUID(), null, null)).isEmpty();
+        org.mockito.Mockito.verify(journal, org.mockito.Mockito.never())
+                .insert(any(OperationJournalEntry.class));
+    }
+
+    @Test
     void marksRequiresApprovalWhenConfigured() {
         final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);

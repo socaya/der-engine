@@ -7,6 +7,7 @@ import {
   isInEdgeOrgUnitScope, OutOfScopeBanner,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
+import { ResponseBody } from '../components/ResponseBody';
 import { UiIcon } from '../components/UiIcon';
 import { useOrgUnit } from '../components/OrgUnitContext';
 
@@ -267,13 +268,14 @@ export function JournalPanel(
                     {e.attemptCount}
                   </td>
                   <td style={{ fontSize: 12 }}>
-                    {e.lastError ?? (
-                      e.nextHopOrgUnitUid
-                        ? <>Next hop: <span className="ea-mono">
-                            {e.nextHopOrgUnitUid}
-                          </span></>
-                        : <span className="ea-text-muted">—</span>
-                    )}
+                    {e.lastError
+                      ? <ResponseBody text={e.lastError}
+                                       dataTest={`journal-body-${e.operationId}`} />
+                      : (e.nextHopOrgUnitUid
+                          ? <>Next hop: <span className="ea-mono">
+                              {e.nextHopOrgUnitUid}
+                            </span></>
+                          : <span className="ea-text-muted">—</span>)}
                   </td>
                   <td className="ea-mono"
                       style={{ fontSize: 10 }} title={e.operationId}>

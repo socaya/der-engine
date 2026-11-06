@@ -10,6 +10,7 @@ import {
   RelatedMenu,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
+import { ResponseBody } from '../components/ResponseBody';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -741,9 +742,10 @@ function CentralValuePanel(
         )}
       </div>
       {central.lastError && (
-        <p style={{ marginTop: 12, fontSize: 12, color: 'var(--der-ink-700)' }}>
-          <strong>Last error:</strong> {central.lastError}
-        </p>
+        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--der-ink-700)' }}>
+          <strong style={{ display: 'block', marginBottom: 4 }}>Last error:</strong>
+          <ResponseBody text={central.lastError} />
+        </div>
       )}
     </Panel>
   );

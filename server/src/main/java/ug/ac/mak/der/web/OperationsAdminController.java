@@ -37,6 +37,7 @@ import ug.ac.mak.der.security.EdgeUser;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.security.EdgeUserRepository;
 import ug.ac.mak.der.security.SecurityAuditRepository;
+import ug.ac.mak.der.workflows.aggregate.AggregateDataValueService;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 import ug.ac.mak.der.workflows.backup.BackupRepository;
@@ -61,6 +62,7 @@ public class OperationsAdminController {
     private final EdgeUserRepository users;
     private final ObjectProvider<BackupRepository> backups;
     private final ObjectProvider<OperationJournalRepository> journal;
+    private final ObjectProvider<AggregateDataValueService> aggregates;
     private final SecurityAuditRepository audit;
     private final ObjectMapper mapper;
     private final Clock clock;
@@ -70,6 +72,7 @@ public class OperationsAdminController {
     public OperationsAdminController(final EdgeUserRepository users,
                                       final ObjectProvider<BackupRepository> backups,
                                       final ObjectProvider<OperationJournalRepository> journal,
+                                      final ObjectProvider<AggregateDataValueService> aggregates,
                                       final SecurityAuditRepository audit,
                                       final ObjectMapper mapper,
                                       final Clock clock,
@@ -77,6 +80,7 @@ public class OperationsAdminController {
         this.users = Objects.requireNonNull(users, "users");
         this.backups = Objects.requireNonNull(backups, "backups");
         this.journal = Objects.requireNonNull(journal, "journal");
+        this.aggregates = Objects.requireNonNull(aggregates, "aggregates");
         this.audit = Objects.requireNonNull(audit, "audit");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -370,6 +374,59 @@ public class OperationsAdminController {
                 Instant.now(clock));
         return ResponseEntity.ok(Map.of("operationId", opId.toString(),
                 "state", "CONFLICT_REVIEW", "reason", reason));
+    }
+
+    /**
+     * §2.3.125 — replay an aggregate form. Reads every local row for
+     * (dataSet, orgUnit, period, aoc) and emits a brand-new PENDING
+     * journal entry carrying the DHIS2 envelope so the drain worker
+     * publishes the form again. Use when an admin notices a drain
+     * that reported SUCCESS but central importCount was all zeros,
+     * or when central silently rolled back a form after acceptance.
+     *
+     * <p>Unlike {@code /journal/{opId}/retry}, this creates a fresh
+     * operation from the current local state — the journal remains
+     * append-only, and the previous SUCCESS row is left intact as
+     * provenance.</p>
+     */
+    @PostMapping(path = "/journal/aggregate/replay")
+    public ResponseEntity<Map<String, Object>> replayAggregateForm(
+            final Authentication authentication,
+            @RequestParam("dataSet") final String dataSet,
+            @RequestParam("orgUnit") final String orgUnit,
+            @RequestParam("period") final String period,
+            @RequestParam(value = "attributeOptionCombo", required = false)
+                final String attributeOptionCombo) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final AggregateDataValueService svc = aggregates.getIfAvailable();
+        if (svc == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "code", "AGGREGATE_SERVICE_UNAVAILABLE",
+                    "message", "aggregate service not wired"));
+        }
+        if (dataSet == null || dataSet.isBlank()
+                || orgUnit == null || orgUnit.isBlank()
+                || period == null || period.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "FORM_KEY_INCOMPLETE",
+                    "message", "dataSet, orgUnit, period are all required"));
+        }
+        return svc.replayForm(
+                dataSet.trim(), orgUnit.trim(), period.trim(),
+                attributeOptionCombo, principal.userId(),
+                null, null
+        ).<ResponseEntity<Map<String, Object>>>map(opId -> ResponseEntity.ok(Map.of(
+                "operationId", opId.toString(),
+                "state", "PENDING",
+                "dataSet", dataSet,
+                "orgUnit", orgUnit,
+                "period", period
+        ))).orElseGet(() -> ResponseEntity.status(404).body(Map.of(
+                "code", "FORM_HAS_NO_LOCAL_ROWS",
+                "message", "no aggregate_data_value rows for that form key"
+        )));
     }
 
     /**
