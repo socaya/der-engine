@@ -16,11 +16,15 @@ import { useEffect, useState } from 'react';
 
 function useDerApi(): {
   submitAggregate: typeof edgeApi.submitAggregate;
+  submitEvent: typeof edgeApi.submitEvent;
+  listEvents: typeof edgeApi.listEvents;
   listDrafts: typeof edgeApi.listDrafts;
   dhis2Ping: typeof edgeApi.dhis2Ping;
 } {
   return {
     submitAggregate: edgeApi.submitAggregate,
+    submitEvent: edgeApi.submitEvent,
+    listEvents: edgeApi.listEvents,
     listDrafts: edgeApi.listDrafts,
     dhis2Ping: edgeApi.dhis2Ping,
   };

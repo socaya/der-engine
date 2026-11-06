@@ -1,0 +1,14 @@
+{
+  "name": "@der/app-capture-event",
+  "version": "0.1.0-alpha.1",
+  "type": "module",
+  "private": true,
+  "description": "DER-dispatched event-program capture app (C-UI-5c slice 4). Replaces client/src/screens/EventNew.tsx + EventList.tsx over the slice-4 rollout.",
+  "main": "src/index.tsx",
+  "exports": { ".": { "import": "./src/index.tsx" } },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@der/app-sdk": "workspace:*"
+  }
+}

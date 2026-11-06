@@ -367,6 +367,23 @@ export function listEvents(program: string, orgUnit: string, pageSize = 100):
   return request('GET', `/api/events?${q}`);
 }
 
+export interface EventSubmitInput {
+  readonly program: string;
+  readonly programStage?: string;
+  readonly orgUnit: string;
+  readonly occurredAt?: string;
+  readonly eventDate?: string;
+  readonly dataValues?: ReadonlyArray<{ dataElement: string; value: string }>;
+  readonly enrollment?: string;
+}
+
+/** POST /api/events — DER accepts the DHIS2-shaped envelope and
+ *  stores events locally with the same offline-queue semantics as
+ *  aggregate submissions. */
+export function submitEvent(body: EventSubmitInput): Promise<unknown> {
+  return request('POST', '/api/events', body);
+}
+
 export function listTrackerEvents(program: string, orgUnit: string, pageSize = 100):
     Promise<{ instances: EventRow[]; total: number }> {
   const q = new URLSearchParams({ program, orgUnit, pageSize: String(pageSize) }).toString();
