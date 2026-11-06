@@ -43,7 +43,18 @@ mkdir -p "$(dirname "$JAR_DST")"
 
 echo "stopping any live DER server…"
 pkill -9 -f 'java -jar .*der-server-.*\.jar' 2>/dev/null || true
+# pkill's pattern-match sometimes misses when the pattern cache is
+# cold. Also hard-kill anything still binding port 8085.
+PORT_PIDS=$(lsof -nP -iTCP:8085 -sTCP:LISTEN -t 2>/dev/null || true)
+if [[ -n "$PORT_PIDS" ]]; then
+    kill -9 $PORT_PIDS 2>/dev/null || true
+fi
 sleep 3
+STILL=$(lsof -nP -iTCP:8085 -sTCP:LISTEN -t 2>/dev/null || true)
+if [[ -n "$STILL" ]]; then
+    echo "error: something is still bound to :8085 (pid $STILL)" >&2
+    exit 4
+fi
 
 echo "copying ${JAR_SRC} -> ${JAR_DST}"
 cp "$JAR_SRC" "$JAR_DST"
