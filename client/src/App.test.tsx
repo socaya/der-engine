@@ -33,7 +33,7 @@ describe('App', () => {
       new EdgeApiError(401, 'INVALID_CREDENTIALS', 'no'),
     );
     renderAt('/');
-    await waitFor(() => expect(screen.getByTestId('signin-heading')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('der-signin-heading')).toBeInTheDocument());
     vi.restoreAllMocks();
   });
 

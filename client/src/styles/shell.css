@@ -409,10 +409,11 @@ body {
   color: var(--der-ink-900);
 }
 
-/* Heading sub-component — brand mark + title + intro. */
+/* Heading sub-component — brand mark on top, then title + intro
+ * underneath (DHIS2 sidebar template order). */
 .der-signin-heading {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: flex-start;
   gap: 16px;
   padding: 24px;
@@ -426,24 +427,25 @@ body {
 .der-signin-heading__titles {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   max-width: 540px;
 }
 
 .der-signin-heading__app-title {
-  font-size: 20px;
-  line-height: 28px;
-  font-weight: 500;
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 400;
   margin: 0;
   color: inherit;
+  letter-spacing: -0.015em;
 }
 
 .der-signin-heading__app-intro {
-  font-size: 14px;
-  line-height: 19px;
+  font-size: 16px;
+  line-height: 22px;
   margin: 0;
   color: inherit;
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .der-signin-heading__brand-mark {
@@ -535,17 +537,15 @@ body {
 
 .der-signin--sidebar .der-signin__panel-inner {
   width: 100%;
-  padding: 32px 32px 24px;
+  padding: 40px 32px 24px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 24px;
 }
 
 .der-signin--sidebar .der-signin-heading {
   padding: 0;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 16px;
+  gap: 20px;
 }
 
 /* Unboxed form — mirrors DHIS2's `--form-container-box-shadow: 0`
@@ -556,18 +556,7 @@ body {
   color: var(--der-ink-900);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.der-signin__form h1 {
-  margin: 0 0 8px;
-  font-size: 18px;
-  font-weight: 500;
-  color: var(--der-ink-900);
-}
-
-.der-signin__form .der-signin__sub {
-  margin: 0 0 16px;
+  gap: 2px;
 }
 
 .der-signin--sidebar .der-signin__scenery {

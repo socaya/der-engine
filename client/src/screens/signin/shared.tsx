@@ -21,6 +21,11 @@ export function SignInHeading(
   return (
     <div className={`der-signin-heading ${toneClass}`.trim()}
          data-test="der-signin-heading">
+      <img
+        className="der-signin-heading__brand-mark"
+        src={tone === 'dark' ? '/brand/der-icon-navy.svg' : '/brand/der-icon-white.svg'}
+        alt="DER"
+      />
       <div className="der-signin-heading__titles">
         <h1 className="der-signin-heading__app-title"
              data-test="signin-app-title">
@@ -30,11 +35,6 @@ export function SignInHeading(
           {appIntro && appIntro.trim() !== '' ? appIntro : DEFAULT_INTRO}
         </p>
       </div>
-      <img
-        className="der-signin-heading__brand-mark"
-        src={tone === 'dark' ? '/brand/der-icon-navy.svg' : '/brand/der-icon-white.svg'}
-        alt="DER"
-      />
     </div>
   );
 }
@@ -57,12 +57,10 @@ export function SignInFormCard(
   } = state;
   const cls = variant === 'plain' ? 'der-signin__form' : 'der-signin__card';
   const label = submitLabel && submitLabel.trim() !== '' ? submitLabel : 'Sign in';
+  const showInnerTitle = variant === 'card';
   return (
     <section className={cls} data-test="der-signin-card">
-      <h1 data-test="signin-heading">Sign in</h1>
-      <p className="der-signin__sub">
-        Use your DER-mirrored credentials to continue.
-      </p>
+      {showInnerTitle && <h1 data-test="signin-heading">Sign in</h1>}
 
       {error && (
         <NoticeBox error title="Sign-in failed" dataTest="signin-error">

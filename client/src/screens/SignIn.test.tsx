@@ -48,7 +48,7 @@ describe('SignIn', () => {
       authApi: { session: vi.fn().mockRejectedValue(new EdgeApiError(401, 'INVALID_CREDENTIALS', 'no')),
         signIn: vi.fn(), signOut: vi.fn() },
     });
-    await waitFor(() => expect(screen.getByTestId('signin-heading')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('der-signin-heading')).toBeInTheDocument());
     expect(screen.getByText(/no reach-through to the central DHIS2/i)).toBeInTheDocument();
   });
 
@@ -179,7 +179,7 @@ describe('SignIn — location state redirect', () => {
         },
       },
     );
-    await waitFor(() => expect(screen.getByTestId('signin-heading')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('der-signin-heading')).toBeInTheDocument());
     // Fire onChange with value=undefined by directly clearing the input via DOM.
     // @dhis2/ui InputField's onChange forwards {value}; a backspace-to-empty gives value=''.
     const u = screen.getByTestId('signin-username').querySelector('input')!;
