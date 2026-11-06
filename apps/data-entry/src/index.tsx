@@ -66,8 +66,15 @@ export default function DataEntryApp(): JSX.Element {
           dataEntryForm?: { id: string } | null;
         };
         if (cancelled) return;
+        // The "Custom form" tab lights up for both CUSTOM
+        // (operator-authored htmlCode) and SECTION (DER renders
+        // the DHIS2 section table from metadata) formTypes. Either
+        // path feeds through the same vendor + shim pipeline so
+        // entry.js's autosave + validation + indicators wire up
+        // identically.
         setFormInfo({
-          hasCustomForm: !!meta.dataEntryForm && meta.formType === 'CUSTOM',
+          hasCustomForm: (!!meta.dataEntryForm && meta.formType === 'CUSTOM')
+            || meta.formType === 'SECTION',
           formId: meta.dataEntryForm?.id,
           displayName: meta.displayName ?? meta.name,
           formType: meta.formType,
@@ -89,13 +96,25 @@ export default function DataEntryApp(): JSX.Element {
     (async () => {
       setStatus({ kind: 'submitting' });
       try {
-        const form = await api.getDataEntryFormHtml(formInfo.formId!) as {
-          htmlCode?: string;
-        };
-        if (cancelled) return;
-        // Pull the dataset's full metadata expansion so DHIS2's
-        // form.js can resolve indicators, option sets, categoryCombos.
+        // Always pull the dataset metadata first — it drives both
+        // the AOC picker + globals hydration regardless of form
+        // type.
         const meta = await api.getDataSetFormMetadata(dataSet.trim()) as DataSetBundle;
+        if (cancelled) return;
+        // formType === 'CUSTOM' → fetch the dataset's htmlCode
+        // from DHIS2. formType === 'SECTION' → synthesise the
+        // DHIS2 section-form table from the metadata we already
+        // have. Either way `formHtml` is injected via
+        // `applyFormAssets` into #contentDiv.
+        let formHtml = '';
+        if (formInfo.formType === 'CUSTOM' && formInfo.formId) {
+          const form = await api.getDataEntryFormHtml(formInfo.formId) as {
+            htmlCode?: string;
+          };
+          formHtml = form.htmlCode ?? '';
+        } else if (formInfo.formType === 'SECTION') {
+          formHtml = renderSectionForm(meta);
+        }
         if (cancelled) return;
         // Derive the AOC picker list — only categories with more
         // than one option (i.e. non-default) need an operator
@@ -175,7 +194,7 @@ export default function DataEntryApp(): JSX.Element {
         // to #contentDiv. Relative `src`/`href` are rewritten to
         // `/legacy-custom-forms/…` so DHIS2's "../javascripts/…"
         // references resolve through our server.
-        await applyFormAssets(content, form.htmlCode ?? '');
+        await applyFormAssets(content, formHtml);
         setStatus({ kind: 'ok',
           message: 'Custom form loaded. Autosave + validation run as in DHIS2.' });
       } catch (e) {
@@ -235,7 +254,8 @@ export default function DataEntryApp(): JSX.Element {
                       ? `Dataset formType is ${formInfo.formType}; custom form unavailable`
                       : 'Enter a dataset UID to detect the form')}
                 style={tabBtn(mode === 'custom')}>
-          Custom form {formInfo && !formInfo.hasCustomForm && <span>·&nbsp;unavailable</span>}
+          {formInfo?.formType === 'SECTION' ? 'Section form' : 'Custom form'}
+          {formInfo && !formInfo.hasCustomForm && <span>·&nbsp;unavailable</span>}
         </button>
       </div>
 
@@ -397,6 +417,102 @@ interface DataSetBundle {
     indicatorType?: { id: string; factor?: number };
   }>;
   dataEntryForm?: { id: string; name?: string } | null;
+  sections?: Array<{
+    id: string; name?: string; sortOrder?: number;
+    dataElements?: Array<{ id: string }>;
+    indicators?: Array<{ id: string }>;
+    greyedFields?: Array<{
+      dataElement?: { id: string };
+      categoryOptionCombo?: { id: string };
+    }>;
+  }>;
+}
+
+/**
+ * Render a DHIS2-section-form HTML body from the dataset's metadata.
+ *   • One <h3> + <table> per section, in sortOrder.
+ *   • Within each section group data elements by their
+ *     categoryCombo so cells share column headers (DHIS2's own
+ *     renderer does the same).
+ *   • Cell id/name = `<deId>-<cocId>-val` so entry.js's autosave +
+ *     validation + indicator wiring recognises the inputs.
+ *   • Greyed fields render as a disabled `—` cell, matching
+ *     DHIS2's section form.
+ */
+function renderSectionForm(meta: DataSetBundle): string {
+  const dataElementsById: Record<string, {
+    id: string; name?: string; formName?: string;
+    categoryCombo?: {
+      id: string; name?: string;
+      categoryOptionCombos?: Array<{ id: string; name?: string }>;
+    };
+  }> = {};
+  for (const dse of meta.dataSetElements ?? []) {
+    if (dse.dataElement) dataElementsById[dse.dataElement.id] = dse.dataElement;
+  }
+  const sections = (meta.sections ?? [])
+    .slice()
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const esc = (s: string) => s.replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  const parts: string[] = [];
+  for (const section of sections) {
+    const greyed = new Set<string>();
+    for (const g of section.greyedFields ?? []) {
+      if (g.dataElement?.id && g.categoryOptionCombo?.id) {
+        greyed.add(`${g.dataElement.id}:${g.categoryOptionCombo.id}`);
+      }
+    }
+    parts.push(`<h3 class="formSection">${esc(section.name ?? '')}</h3>`);
+    // Group DEs by categoryCombo id so a section with mixed combos
+    // renders one subtable per combo (DHIS2 behaviour).
+    const groups = new Map<string, {
+      cc: { id: string; name?: string;
+        categoryOptionCombos?: Array<{ id: string; name?: string }> };
+      des: Array<{ id: string; name?: string; formName?: string }>;
+    }>();
+    for (const deRef of section.dataElements ?? []) {
+      const de = dataElementsById[deRef.id];
+      if (!de?.categoryCombo) continue;
+      const ccId = de.categoryCombo.id;
+      let group = groups.get(ccId);
+      if (!group) {
+        group = { cc: de.categoryCombo, des: [] };
+        groups.set(ccId, group);
+      }
+      group.des.push(de);
+    }
+    for (const group of groups.values()) {
+      const cocs = group.cc.categoryOptionCombos ?? [];
+      parts.push(`<table class="sectionTable" cellspacing="0">`);
+      parts.push('<thead><tr>');
+      parts.push(`<th class="dataElementCell">${esc(group.cc.name ?? 'Data element')}</th>`);
+      for (const c of cocs) {
+        parts.push(`<th>${esc(c.name ?? '')}</th>`);
+      }
+      parts.push('</tr></thead><tbody>');
+      for (const de of group.des) {
+        parts.push('<tr>');
+        parts.push(`<td class="dataElementCell" id="${esc(de.id)}-cell">`
+          + esc(de.formName ?? de.name ?? de.id) + '</td>');
+        for (const c of cocs) {
+          const name = `${de.id}-${c.id}-val`;
+          if (greyed.has(`${de.id}:${c.id}`)) {
+            parts.push('<td class="greyed">—</td>');
+          } else {
+            parts.push(`<td><input type="text" id="${esc(name)}"`
+              + ` name="${esc(name)}" dataelementid="${esc(de.id)}"`
+              + ` optioncomboid="${esc(c.id)}"></td>`);
+          }
+        }
+        parts.push('</tr>');
+      }
+      parts.push('</tbody></table>');
+    }
+  }
+  return parts.join('\n');
 }
 
 /**

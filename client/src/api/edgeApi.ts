@@ -138,6 +138,11 @@ export function getDataSetFormMetadata(dataSetUid: string): Promise<unknown> {
     'indicators[id,name,numerator,denominator,indicatorType[id,factor]]',
     'compulsoryDataElementOperands[dimensionItem]',
     'dataEntryForm[id,name]',
+    // Section-form metadata (C-UI-5f slice 8). DHIS2 datasets with
+    // formType=SECTION ship an ordered `sections` array; DER
+    // renders them into a DHIS2-shaped table at client load time.
+    'sections[id,name,sortOrder,dataElements[id],'
+      + 'indicators[id],greyedFields[dataElement[id],categoryOptionCombo[id]]]',
   ].join(',');
   const q = new URLSearchParams({ fields }).toString();
   return request('GET',
