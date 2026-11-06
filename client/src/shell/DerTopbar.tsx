@@ -1,10 +1,15 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useOrgUnitBinding } from '../orgunit/OrgUnitBindingContext';
+import { UserMenu } from './UserMenu';
 
 export interface DerTopbarProps {
   /** C-UI-2 wires this to toggle the app-launcher overlay. */
   readonly onLauncherClick?: () => void;
+  /** C-UI-2 wires this to toggle the user menu dropdown. */
+  readonly userMenuOpen?: boolean;
+  readonly onUserMenuToggle?: () => void;
+  readonly onUserMenuClose?: () => void;
 }
 
 /**
@@ -17,7 +22,12 @@ export interface DerTopbarProps {
  * overlay it opens lands in C-UI-2.
  */
 export function DerTopbar(
-  { onLauncherClick }: DerTopbarProps = {},
+  {
+    onLauncherClick,
+    userMenuOpen = false,
+    onUserMenuToggle,
+    onUserMenuClose,
+  }: DerTopbarProps = {},
 ): JSX.Element {
   const { state } = useAuth();
   const binding = useOrgUnitBinding();
@@ -61,8 +71,17 @@ export function DerTopbar(
       </button>
 
       {user && (
-        <span className="der-topbar__user" data-test="der-topbar-user">
-          {user.displayName}
+        <span className="der-user-wrap">
+          <button type="button"
+                  className="der-topbar__btn der-topbar__user"
+                  data-test="der-topbar-user"
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen}
+                  onClick={onUserMenuToggle}>
+            {user.displayName}
+          </button>
+          <UserMenu open={userMenuOpen}
+                    onClose={onUserMenuClose ?? (() => undefined)} />
         </span>
       )}
     </header>

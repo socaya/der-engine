@@ -146,3 +146,175 @@ body {
   width: 100%;
   margin: 0 auto;
 }
+
+/* App launcher overlay (C-UI-2) */
+.der-launcher-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 40, 56, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 72px 20px 20px;
+}
+
+.der-launcher {
+  background: var(--der-surface);
+  border-radius: var(--der-radius-md);
+  box-shadow: var(--der-shadow-pop);
+  width: 100%;
+  max-width: 720px;
+  max-height: calc(100vh - 92px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.der-launcher__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--der-border);
+}
+
+.der-launcher__title {
+  margin: 0;
+  font-size: 14px;
+  color: var(--der-ink-700);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.der-launcher__close {
+  background: transparent;
+  border: 0;
+  color: var(--der-ink-500);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: var(--der-radius-sm);
+}
+
+.der-launcher__close:hover,
+.der-launcher__close:focus-visible {
+  color: var(--der-ink-900);
+  background: var(--der-canvas);
+  outline: none;
+}
+
+.der-launcher__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--der-border);
+  padding: 1px;
+}
+
+@media (max-width: 640px) {
+  .der-launcher__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.der-launcher__tile {
+  background: var(--der-surface);
+  padding: 20px 14px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--der-ink-900);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: background 100ms;
+}
+
+.der-launcher__tile:hover,
+.der-launcher__tile:focus-visible {
+  background: var(--der-brand-100);
+  outline: none;
+}
+
+.der-launcher__tile-icon {
+  width: 32px;
+  height: 32px;
+  stroke: var(--der-brand-500);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.der-launcher__tile-label {
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.der-launcher__tile-subtitle {
+  font-size: 11px;
+  color: var(--der-ink-500);
+  line-height: 1.3;
+}
+
+/* User menu dropdown (C-UI-2) */
+.der-user-wrap {
+  position: relative;
+}
+
+.der-user-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 200px;
+  background: var(--der-surface);
+  color: var(--der-ink-900);
+  border: 1px solid var(--der-border);
+  border-radius: var(--der-radius-md);
+  box-shadow: var(--der-shadow-pop);
+  z-index: 1000;
+  padding: 4px 0;
+}
+
+.der-user-menu__header {
+  padding: 8px 14px 10px;
+  border-bottom: 1px solid var(--der-border);
+}
+
+.der-user-menu__name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--der-ink-900);
+}
+
+.der-user-menu__role {
+  font-size: 11px;
+  color: var(--der-ink-500);
+}
+
+.der-user-menu__item {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--der-ink-900);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.der-user-menu__item:hover,
+.der-user-menu__item:focus-visible {
+  background: var(--der-canvas);
+  outline: none;
+}
+
+.der-user-menu__item--danger {
+  color: var(--der-danger);
+}

@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
+import { DerAppLauncher } from './DerAppLauncher';
 import { DerBreadcrumb } from './DerBreadcrumb';
 import { DerTopbar } from './DerTopbar';
 
@@ -7,29 +8,39 @@ export interface DerShellProps {
 }
 
 /**
- * ADR-0037 C-UI-1 — device-client shell.
+ * ADR-0037 C-UI-2 — device-client shell.
  *
- * Layout:
- *
- *   ┌────────────────────────────────────────────┐
- *   │ DerTopbar                                 │
- *   ├────────────────────────────────────────────┤
- *   │ DerBreadcrumb (hidden on /)                │
- *   ├────────────────────────────────────────────┤
- *   │ <main>  children                           │
- *   └────────────────────────────────────────────┘
- *
- * C-UI-2 adds the app-launcher overlay + user menu dropdown; the
- * shell is the mount point for the overlay portal.
+ * Owns the app-launcher overlay and the user-menu dropdown. The
+ * overlay is dismissable (Esc, backdrop click, close button, tile
+ * click); the menu is dismissable (Esc, outside click). No nested
+ * router is needed — both overlays close themselves on navigation.
  */
 export function DerShell({ children }: DerShellProps): JSX.Element {
+  const [launcherOpen, setLauncherOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const toggleLauncher = useCallback(() => {
+    setUserMenuOpen(false);
+    setLauncherOpen((v) => !v);
+  }, []);
+  const closeLauncher = useCallback(() => setLauncherOpen(false), []);
+  const toggleUserMenu = useCallback(() => {
+    setLauncherOpen(false);
+    setUserMenuOpen((v) => !v);
+  }, []);
+  const closeUserMenu = useCallback(() => setUserMenuOpen(false), []);
+
   return (
     <div className="der-shell" data-test="der-shell">
-      <DerTopbar />
+      <DerTopbar onLauncherClick={toggleLauncher}
+                  userMenuOpen={userMenuOpen}
+                  onUserMenuToggle={toggleUserMenu}
+                  onUserMenuClose={closeUserMenu} />
       <DerBreadcrumb />
       <main className="der-shell__main" data-test="der-shell-main">
         {children}
       </main>
+      <DerAppLauncher open={launcherOpen} onClose={closeLauncher} />
     </div>
   );
 }

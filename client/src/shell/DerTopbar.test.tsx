@@ -45,4 +45,18 @@ describe('DerTopbar', () => {
     fireEvent.click(screen.getByTestId('der-topbar-launcher'));
     expect(screen.getByTestId('der-topbar-launcher')).toBeInTheDocument();
   });
+
+  it('user tile fires onUserMenuToggle + reflects aria-expanded', async () => {
+    const onUserMenuToggle = vi.fn();
+    renderWithProviders(
+      <DerTopbar userMenuOpen onUserMenuToggle={onUserMenuToggle} />, {
+        authApi: { session: vi.fn().mockResolvedValue(user), signIn: vi.fn(), signOut: vi.fn() },
+      });
+    await waitFor(() =>
+      expect(screen.getByTestId('der-topbar-user')).toBeInTheDocument());
+    const btn = screen.getByTestId('der-topbar-user');
+    expect(btn).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(btn);
+    expect(onUserMenuToggle).toHaveBeenCalled();
+  });
 });
