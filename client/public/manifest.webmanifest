@@ -1,0 +1,20 @@
+{
+  "name": "DER Edge Runtime",
+  "short_name": "DER",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#2c6693",
+  "theme_color": "#2c6693",
+  "description": "DHIS2 Edge Runtime — offline-first capture bound to a single organisation unit.",
+  "icons": [
+    {
+      "src": "/pwa/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
