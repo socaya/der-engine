@@ -157,7 +157,8 @@ class AppCatalogueRepositoryTest {
         final UUID vid = new AppCatalogueRepository(jdbc).installVersion(
                 appId, "1.0.0", bytes, "sha", "sig", "1.0.0", userId);
         assertThat(vid).isNotNull();
-        verify(jdbc).update(contains("SET superseded_at = now()"), eq(appId));
+        verify(jdbc).update(contains("SET superseded_at = now()"),
+                eq(appId), eq("1.0.0"));
         // The 7-arg overload delegates to the 11-arg form with null
         // manifest/icon columns — INSERT carries 12 bind values.
         verify(jdbc).update(contains("INSERT INTO der.installed_app_version"),
@@ -180,7 +181,8 @@ class AppCatalogueRepositoryTest {
                 appId, "1.0.0", bundle, "sha", "sig", "1.0.0", userId,
                 "{\"name\":\"k\"}", icon, "image/svg+xml", "etag16");
         assertThat(vid).isNotNull();
-        verify(jdbc).update(contains("SET superseded_at = now()"), eq(appId));
+        verify(jdbc).update(contains("SET superseded_at = now()"),
+                eq(appId), eq("1.0.0"));
         verify(jdbc).update(contains("CAST(? AS jsonb)"),
                 eq(vid), eq(appId), eq("1.0.0"), eq(bundle), eq("sha"), eq("sig"),
                 eq("1.0.0"), eq(userId), eq("{\"name\":\"k\"}"), eq(icon),
