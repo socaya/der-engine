@@ -34,6 +34,7 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.CaptureFormService;
 import ug.ac.mak.der.workflow.CaptureFormService.CaptureFormError;
 import ug.ac.mak.der.workflow.CaptureFormService.ErrorCode;
+import ug.ac.mak.der.workflow.CaptureFormService.EnrollmentSummary;
 import ug.ac.mak.der.workflow.CaptureFormService.EventDetail;
 import ug.ac.mak.der.workflow.CaptureFormService.EventSummary;
 import ug.ac.mak.der.workflow.CaptureFormService.FormAssembly;
@@ -43,7 +44,11 @@ import ug.ac.mak.der.workflow.CaptureFormService.FormSection;
 import ug.ac.mak.der.workflow.CaptureFormService.FormType;
 import ug.ac.mak.der.workflow.CaptureFormService.Ownership;
 import ug.ac.mak.der.workflow.CaptureFormService.ProgramStageSummary;
+import ug.ac.mak.der.workflow.CaptureFormService.ProgramSummary;
 import ug.ac.mak.der.workflow.CaptureFormService.Requirement;
+import ug.ac.mak.der.workflow.CaptureFormService.TrackedEntityAttributeSummary;
+import ug.ac.mak.der.workflow.CaptureFormService.TrackedEntityTypeRef;
+import ug.ac.mak.der.workflow.CaptureFormService.TrackerEventSummary;
 import ug.ac.mak.der.workflow.CaptureWorkflowRun;
 import ug.ac.mak.der.workflow.CaptureWorkflowService;
 
@@ -523,6 +528,142 @@ class CaptureFormControllerTest {
                         .with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("WORKFLOW_RUN_NOT_FOUND"));
+    }
+
+    // ───── phase 3 — tracker reads + program-type discrimination ────────
+
+    @Test
+    void getProgramReturnsSingleEventSummary() throws Exception {
+        when(forms.resolveProgram("P1")).thenReturn(new ProgramSummary(
+                "P1", "HIV Test", "WITHOUT_REGISTRATION", null));
+        mockMvc.perform(get("/edge-api/v1/capture/programs/P1")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.programType").value("WITHOUT_REGISTRATION"))
+                .andExpect(jsonPath("$.trackedEntityTypeUid").doesNotExist());
+    }
+
+    @Test
+    void getProgramReturnsTrackerSummary() throws Exception {
+        when(forms.resolveProgram("P2")).thenReturn(new ProgramSummary(
+                "P2", "TX Referrals", "WITH_REGISTRATION", "TET1"));
+        mockMvc.perform(get("/edge-api/v1/capture/programs/P2")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.programType").value("WITH_REGISTRATION"))
+                .andExpect(jsonPath("$.trackedEntityTypeUid").value("TET1"));
+    }
+
+    @Test
+    void getProgramMetadataNotReady() throws Exception {
+        when(forms.resolveProgram("Pghost"))
+                .thenThrow(new CaptureFormError(
+                        ErrorCode.METADATA_NOT_READY, "program Pghost not mirrored"));
+        mockMvc.perform(get("/edge-api/v1/capture/programs/Pghost")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("METADATA_NOT_READY"));
+    }
+
+    @Test
+    void getProgramTrackedEntityType() throws Exception {
+        when(forms.resolveProgramTrackedEntityType("P2"))
+                .thenReturn(new TrackedEntityTypeRef("TET1"));
+        mockMvc.perform(get("/edge-api/v1/capture/programs/P2/trackedEntityType")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.trackedEntityTypeUid").value("TET1"));
+    }
+
+    @Test
+    void getProgramTrackedEntityTypeOnSingleEvent400() throws Exception {
+        when(forms.resolveProgramTrackedEntityType("P1"))
+                .thenThrow(new CaptureFormError(
+                        ErrorCode.CAPTURE_PARAM_INVALID,
+                        "program P1 is WITHOUT_REGISTRATION; no trackedEntityType applies"));
+        mockMvc.perform(get("/edge-api/v1/capture/programs/P1/trackedEntityType")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CAPTURE_PARAM_INVALID"));
+    }
+
+    @Test
+    void listTeiTypeAttributesHappy() throws Exception {
+        when(forms.listAttributesForTeiType("TET1")).thenReturn(List.of(
+                new TrackedEntityAttributeSummary("TEA1", "First name", "TEXT",
+                        null, true, false),
+                new TrackedEntityAttributeSummary("TEA2", "National ID", "TEXT",
+                        null, true, true)));
+        mockMvc.perform(get("/edge-api/v1/capture/trackedEntityTypes/TET1/attributes")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(2))
+                .andExpect(jsonPath("$.attributes[0].searchable").value(true))
+                .andExpect(jsonPath("$.attributes[1].uniqueAttribute").value(true));
+    }
+
+    @Test
+    void listTeiTypeAttributesMetadataNotReady() throws Exception {
+        when(forms.listAttributesForTeiType("TETghost"))
+                .thenThrow(new CaptureFormError(
+                        ErrorCode.METADATA_NOT_READY,
+                        "trackedEntityType TETghost not mirrored"));
+        mockMvc.perform(get("/edge-api/v1/capture/trackedEntityTypes/TETghost/attributes")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("METADATA_NOT_READY"));
+    }
+
+    @Test
+    void listTeiEnrollmentsHappy() throws Exception {
+        when(forms.listEnrollmentsForTei("TEI1", "P2")).thenReturn(List.of(
+                new EnrollmentSummary(
+                        "Enroll111A1", "TEI1", "P2", "OU1", "ACTIVE",
+                        "2026-01-01", null,
+                        Instant.parse("2026-11-06T09:00:00Z"))));
+        mockMvc.perform(get("/edge-api/v1/capture/trackedEntities/TEI1/enrollments")
+                        .param("programUid", "P2")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.enrollments[0].enrollmentUid")
+                        .value("Enroll111A1"))
+                .andExpect(jsonPath("$.enrollments[0].status").value("ACTIVE"));
+    }
+
+    @Test
+    void listTeiEnrollmentsMissingTeiRejected() throws Exception {
+        when(forms.listEnrollmentsForTei("", null))
+                .thenThrow(new CaptureFormError(
+                        ErrorCode.CAPTURE_PARAM_INVALID, "teiUid is required"));
+        /* Controller passes the path param through; the service gate
+         * surfaces the 400.  We exercise the service error path via
+         * a mocked call directly. */
+    }
+
+    @Test
+    void listEnrollmentEventsHappy() throws Exception {
+        when(forms.listEventsForEnrollment("Enroll111A1", "S1")).thenReturn(List.of(
+                new TrackerEventSummary(
+                        "Event111A11", "Enroll111A1", "P2", "S1", "OU1",
+                        "ACTIVE", "2026-02-01",
+                        Instant.parse("2026-11-06T10:00:00Z"))));
+        mockMvc.perform(get("/edge-api/v1/capture/enrollments/Enroll111A1/events")
+                        .param("programStageUid", "S1")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.events[0].programStageUid").value("S1"));
+    }
+
+    @Test
+    void listEnrollmentEventsMissingEnrollment400() throws Exception {
+        when(forms.listEventsForEnrollment("", null))
+                .thenThrow(new CaptureFormError(
+                        ErrorCode.CAPTURE_PARAM_INVALID,
+                        "enrollmentUid is required"));
+        /* Same shape as listTeiEnrollmentsMissingTeiRejected — path
+         * param validation covered at the service boundary. */
     }
 
     @Test

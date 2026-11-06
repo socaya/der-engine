@@ -20,11 +20,17 @@ import ug.ac.mak.der.metadata.MetadataMirrorRepository;
 import ug.ac.mak.der.metadata.MirroredCategoryOptionCombo;
 import ug.ac.mak.der.metadata.MirroredDataElement;
 import ug.ac.mak.der.metadata.MirroredDataSet;
+import ug.ac.mak.der.metadata.MirroredProgram;
 import ug.ac.mak.der.metadata.MirroredProgramStage;
+import ug.ac.mak.der.metadata.MirroredTrackedEntityAttribute;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValue;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValueRepository;
 import ug.ac.mak.der.workflows.events.Event;
 import ug.ac.mak.der.workflows.events.EventRepository;
+import ug.ac.mak.der.workflows.tracker.Enrollment;
+import ug.ac.mak.der.workflows.tracker.EnrollmentRepository;
+import ug.ac.mak.der.workflows.tracker.TrackerEvent;
+import ug.ac.mak.der.workflows.tracker.TrackerEventRepository;
 
 /**
  * ADR-0036 — projects a {@link CaptureWorkflowRun}'s current step onto a
@@ -52,6 +58,8 @@ public class CaptureFormService {
     private final ExtendedMirrorRepository extended;
     private final AggregateDataValueRepository aggregates;
     private final EventRepository events;
+    private final EnrollmentRepository enrollments;
+    private final TrackerEventRepository trackerEvents;
 
     public CaptureFormService(final CaptureWorkflowService workflows,
                                final CaptureWorkflowRepository workflowRepo,
@@ -59,7 +67,9 @@ public class CaptureFormService {
                                final MetadataMirrorRepository mirror,
                                final ExtendedMirrorRepository extended,
                                final AggregateDataValueRepository aggregates,
-                               final EventRepository events) {
+                               final EventRepository events,
+                               final EnrollmentRepository enrollments,
+                               final TrackerEventRepository trackerEvents) {
         this.workflows = Objects.requireNonNull(workflows, "workflows");
         this.workflowRepo = Objects.requireNonNull(workflowRepo, "workflowRepo");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
@@ -67,6 +77,8 @@ public class CaptureFormService {
         this.extended = Objects.requireNonNull(extended, "extended");
         this.aggregates = Objects.requireNonNull(aggregates, "aggregates");
         this.events = Objects.requireNonNull(events, "events");
+        this.enrollments = Objects.requireNonNull(enrollments, "enrollments");
+        this.trackerEvents = Objects.requireNonNull(trackerEvents, "trackerEvents");
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -407,6 +419,158 @@ public class CaptureFormService {
     }
 
     // ────────────────────────────────────────────────────────────────────
+    // Tracker / program-type reads (ADR-0036 phase 3)
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Program summary: display name, program type
+     * (WITHOUT_REGISTRATION = single-event, WITH_REGISTRATION = tracker)
+     * and the linked trackedEntityTypeUid when tracker.
+     */
+    public ProgramSummary resolveProgram(final String programUid) {
+        if (programUid == null || programUid.isBlank()) {
+            throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
+                    "programUid is required");
+        }
+        final MirroredProgram p = mirror.findProgram(programUid)
+                .orElseThrow(() -> new CaptureFormError(
+                        ErrorCode.METADATA_NOT_READY,
+                        "program " + programUid + " not mirrored"));
+        return new ProgramSummary(
+                p.dhis2Uid(),
+                p.displayName(),
+                p.programType(),
+                p.trackedEntityTypeUid());
+    }
+
+    /** Resolve just the TEI type for a tracker program. Non-tracker
+     *  programs (WITHOUT_REGISTRATION) return 400 — the concept
+     *  doesn't apply. */
+    public TrackedEntityTypeRef resolveProgramTrackedEntityType(final String programUid) {
+        final ProgramSummary s = resolveProgram(programUid);
+        if (s.trackedEntityTypeUid() == null) {
+            throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
+                    "program " + programUid + " is "
+                            + (s.programType() == null ? "unknown" : s.programType())
+                            + "; no trackedEntityType applies");
+        }
+        return new TrackedEntityTypeRef(s.trackedEntityTypeUid());
+    }
+
+    /**
+     * Attributes (TEAs) known to this edge for a TEI type.
+     *
+     * <p>In the DHIS2 data model TEAs can be defined at the TET level
+     * (payload.trackedEntityTypeAttributes) OR per-program
+     * (payload.programTrackedEntityAttributes). Clients searching or
+     * creating TEIs of a given type care about the union. The mirror
+     * stores every TEA globally, so we project all mirrored TEAs
+     * once the TET existence check passes.</p>
+     */
+    public List<TrackedEntityAttributeSummary> listAttributesForTeiType(final String teiTypeUid) {
+        if (teiTypeUid == null || teiTypeUid.isBlank()) {
+            throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
+                    "trackedEntityTypeUid is required");
+        }
+        if (mirror.findTrackedEntityType(teiTypeUid).isEmpty()) {
+            throw new CaptureFormError(ErrorCode.METADATA_NOT_READY,
+                    "trackedEntityType " + teiTypeUid + " not mirrored");
+        }
+        final List<TrackedEntityAttributeSummary> out = new ArrayList<>();
+        for (final MirroredTrackedEntityAttribute a
+                : extended.findAllTrackedEntityAttributes()) {
+            out.add(new TrackedEntityAttributeSummary(
+                    a.dhis2Uid(),
+                    a.displayName(),
+                    a.valueType(),
+                    readOptionSetUidNode(a.payload()),
+                    readBool(a.payload(), "searchable"),
+                    a.uniqueAttribute()));
+        }
+        return out;
+    }
+
+    /**
+     * Enrollments for a tracked entity, optionally filtered to one
+     * program. The {@code programUid} filter narrows the typical
+     * capture flow (a client opening a TEI card inside a given program).
+     */
+    public List<EnrollmentSummary> listEnrollmentsForTei(final String teiUid,
+                                                          final String programUid) {
+        if (teiUid == null || teiUid.isBlank()) {
+            throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
+                    "teiUid is required");
+        }
+        final List<Enrollment> rows = enrollments.findByTei(teiUid);
+        return rows.stream()
+                .filter(e -> programUid == null || programUid.isBlank()
+                        || programUid.equals(e.programUid()))
+                .map(e -> new EnrollmentSummary(
+                        e.enrollmentUid(),
+                        e.teiUid(),
+                        e.programUid(),
+                        e.orgUnitUid(),
+                        e.status() == null ? null : e.status().name(),
+                        e.enrollmentDate() == null ? null
+                                : e.enrollmentDate().toString(),
+                        e.incidentDate() == null ? null
+                                : e.incidentDate().toString(),
+                        e.updatedAt()))
+                .toList();
+    }
+
+    /**
+     * Tracker-stage events for an enrollment. Optional
+     * {@code programStageUid} filter so a client can refresh a single
+     * timeline without pulling every stage.
+     */
+    public List<TrackerEventSummary> listEventsForEnrollment(final String enrollmentUid,
+                                                               final String programStageUid) {
+        if (enrollmentUid == null || enrollmentUid.isBlank()) {
+            throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
+                    "enrollmentUid is required");
+        }
+        final List<TrackerEvent> rows = trackerEvents.findByEnrollment(enrollmentUid);
+        return rows.stream()
+                .filter(e -> programStageUid == null || programStageUid.isBlank()
+                        || programStageUid.equals(e.programStageUid()))
+                .map(e -> new TrackerEventSummary(
+                        e.eventUid(),
+                        e.enrollmentUid(),
+                        e.programUid(),
+                        e.programStageUid(),
+                        e.orgUnitUid(),
+                        e.status() == null ? null : e.status().name(),
+                        e.occurredDate() == null ? null
+                                : e.occurredDate().toString(),
+                        e.updatedAt()))
+                .toList();
+    }
+
+    private static String readOptionSetUidNode(
+            final com.fasterxml.jackson.databind.JsonNode payload) {
+        if (payload == null) {
+            return null;
+        }
+        final var opt = payload.path("optionSet");
+        if (opt.isMissingNode() || opt.isNull()) {
+            return null;
+        }
+        final var id = opt.path("id");
+        return id.isMissingNode() || id.isNull() ? null : id.asText();
+    }
+
+    private static boolean readBool(
+            final com.fasterxml.jackson.databind.JsonNode payload,
+            final String name) {
+        if (payload == null) {
+            return false;
+        }
+        final var n = payload.path(name);
+        return !n.isMissingNode() && !n.isNull() && n.asBoolean(false);
+    }
+
+    // ────────────────────────────────────────────────────────────────────
     // Internal projection helpers
     // ────────────────────────────────────────────────────────────────────
 
@@ -615,6 +779,42 @@ public class CaptureFormService {
             String attributeOptionComboUid,
             Map<String, String> dataValues,
             UUID workflowRunId) { }
+
+    public record ProgramSummary(
+            String programUid,
+            String displayName,
+            String programType,
+            String trackedEntityTypeUid) { }
+
+    public record TrackedEntityTypeRef(String trackedEntityTypeUid) { }
+
+    public record TrackedEntityAttributeSummary(
+            String attributeUid,
+            String displayName,
+            String valueType,
+            String optionSetUid,
+            boolean searchable,
+            boolean uniqueAttribute) { }
+
+    public record EnrollmentSummary(
+            String enrollmentUid,
+            String teiUid,
+            String programUid,
+            String orgUnitUid,
+            String status,
+            String enrollmentDate,
+            String incidentDate,
+            java.time.Instant lastUpdatedAt) { }
+
+    public record TrackerEventSummary(
+            String eventUid,
+            String enrollmentUid,
+            String programUid,
+            String programStageUid,
+            String orgUnitUid,
+            String status,
+            String occurredDate,
+            java.time.Instant lastUpdatedAt) { }
 
     /** Thrown by projection methods; the controller translates to HTTP. */
     public static final class CaptureFormError extends RuntimeException {

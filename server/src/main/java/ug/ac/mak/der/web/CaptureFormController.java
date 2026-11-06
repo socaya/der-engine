@@ -278,6 +278,78 @@ public class CaptureFormController {
     }
 
     // ────────────────────────────────────────────────────────────────────
+    // Tracker reads (ADR-0036 phase 3)
+    // ────────────────────────────────────────────────────────────────────
+
+    @GetMapping("/programs/{programUid}")
+    @PreAuthorize("hasAuthority('der.capture.read')")
+    public ResponseEntity<?> getProgram(
+            @PathVariable("programUid") final String programUid) {
+        try {
+            return ResponseEntity.ok(forms.resolveProgram(programUid));
+        } catch (CaptureFormError ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @GetMapping("/programs/{programUid}/trackedEntityType")
+    @PreAuthorize("hasAuthority('der.capture.read')")
+    public ResponseEntity<?> getProgramTrackedEntityType(
+            @PathVariable("programUid") final String programUid) {
+        try {
+            return ResponseEntity.ok(
+                    forms.resolveProgramTrackedEntityType(programUid));
+        } catch (CaptureFormError ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @GetMapping("/trackedEntityTypes/{teiTypeUid}/attributes")
+    @PreAuthorize("hasAuthority('der.capture.read')")
+    public ResponseEntity<?> listTeiTypeAttributes(
+            @PathVariable("teiTypeUid") final String teiTypeUid) {
+        try {
+            final var attrs = forms.listAttributesForTeiType(teiTypeUid);
+            return ResponseEntity.ok(Map.of(
+                    "count", attrs.size(),
+                    "attributes", attrs));
+        } catch (CaptureFormError ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @GetMapping("/trackedEntities/{teiUid}/enrollments")
+    @PreAuthorize("hasAuthority('der.capture.read')")
+    public ResponseEntity<?> listTeiEnrollments(
+            @PathVariable("teiUid") final String teiUid,
+            @RequestParam(value = "programUid", required = false) final String programUid) {
+        try {
+            final var rows = forms.listEnrollmentsForTei(teiUid, programUid);
+            return ResponseEntity.ok(Map.of(
+                    "count", rows.size(),
+                    "enrollments", rows));
+        } catch (CaptureFormError ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    @GetMapping("/enrollments/{enrollmentUid}/events")
+    @PreAuthorize("hasAuthority('der.capture.read')")
+    public ResponseEntity<?> listEnrollmentEvents(
+            @PathVariable("enrollmentUid") final String enrollmentUid,
+            @RequestParam(value = "programStageUid", required = false)
+            final String programStageUid) {
+        try {
+            final var rows = forms.listEventsForEnrollment(enrollmentUid, programStageUid);
+            return ResponseEntity.ok(Map.of(
+                    "count", rows.size(),
+                    "events", rows));
+        } catch (CaptureFormError ex) {
+            return errorResponse(ex);
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
     // Helpers
     // ────────────────────────────────────────────────────────────────────
 

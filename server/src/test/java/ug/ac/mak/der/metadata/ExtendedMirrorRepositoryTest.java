@@ -283,6 +283,17 @@ class ExtendedMirrorRepositoryTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void findAllTrackedEntityAttributesReturnsList() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.query(anyString(), any(RowMapper.class)))
+                .thenReturn(List.of(new MirroredTrackedEntityAttribute(
+                        "TEA1", "First name", "TEXT", false, m.createObjectNode())));
+        assertThat(new ExtendedMirrorRepository(jdbc, m)
+                .findAllTrackedEntityAttributes()).hasSize(1);
+    }
+
+    @Test
     void findProgramStageDataElementsRowMapperCovered() throws Exception {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
         final ResultSet rs = mock(ResultSet.class);

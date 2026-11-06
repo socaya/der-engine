@@ -188,6 +188,15 @@ public class ExtendedMirrorRepository {
         return rows.size();
     }
 
+    /** ADR-0036 phase 3 — list every mirrored TEA, ordered by name. */
+    public List<MirroredTrackedEntityAttribute> findAllTrackedEntityAttributes() {
+        return jdbc.query(
+                "SELECT dhis2_uid, display_name, value_type, unique_attribute, payload "
+                        + "FROM der.metadata_tracked_entity_attribute "
+                        + "ORDER BY display_name",
+                trackedEntityAttributeMapper());
+    }
+
     public Optional<MirroredTrackedEntityAttribute> findTrackedEntityAttribute(final String uid) {
         return single(() -> jdbc.queryForObject(
                 "SELECT dhis2_uid, display_name, value_type, unique_attribute, payload "
