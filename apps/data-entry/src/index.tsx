@@ -418,6 +418,14 @@ export default function DataEntryApp(): JSX.Element {
           <div ref={customRoot}
                data-test="der-de-custom-form"
                className="der-de-custom-form" />
+          <div className="der-de-form-actions">
+            <button type="button"
+                    onClick={() => runValidation(customRoot.current, setStatus)}
+                    style={secondaryBtn}
+                    data-test="de-validate-btn">
+              Validate
+            </button>
+          </div>
         </div>
       )}
     </ScreenCard>
@@ -999,6 +1007,121 @@ function attachKeyboardNav(container: HTMLElement): void {
   });
 }
 
+/**
+ * Walk every `<de>-<coc>-val` input, validate the entered value
+ * against the data-element's `valueType` (from
+ * window.dhis2.de.dataElements), and highlight invalid cells.
+ *
+ * Checks covered client-side:
+ *   • NUMBER / UNIT_INTERVAL / PERCENTAGE → finite numeric, in
+ *     range per DHIS2's conventions.
+ *   • INTEGER / INTEGER_* (POSITIVE / NEGATIVE / ZERO_OR_POSITIVE)
+ *     → integer with sign constraints.
+ *   • BOOLEAN / TRUE_ONLY → true/false/1/0 literal or empty.
+ *   • URL → `new URL()` round-trip.
+ *   • Blank → fine (DHIS2 treats as "no value captured"; only
+ *     compulsory operands require a value — not covered here as
+ *     DER's mirror doesn't surface the full operand list on the
+ *     dataset fields mask yet).
+ *
+ * Invalid cells get a red 2 px outline; the summary status strip
+ * reports the count.
+ */
+function runValidation(
+  root: HTMLElement | null,
+  setStatus: (s: {
+    kind: 'ok' | 'error'; message: string;
+  }) => void,
+): void {
+  if (!root) return;
+  const g = globalThis as unknown as {
+    dhis2?: { de?: { dataElements?: Record<string,
+      { valueType?: string }> } };
+  };
+  const dataElements = g.dhis2?.de?.dataElements ?? {};
+  const inputs = Array.from(root.querySelectorAll<HTMLInputElement>(
+    'input[name$="-val"]'));
+  const problems: string[] = [];
+  for (const input of inputs) {
+    input.style.outline = '';
+    const v = input.value.trim();
+    if (v === '') continue;
+    const m = /^(.+)-(.+)-val$/.exec(input.getAttribute('name') ?? '');
+    if (!m) continue;
+    const deId = m[1]!;
+    const de = dataElements[deId];
+    const valueType = de?.valueType ?? 'TEXT';
+    const problem = validateByType(v, valueType);
+    if (problem) {
+      input.style.outline = '2px solid #a93232';
+      problems.push(`${de?.valueType ? '' : '(unknown DE) '}`
+        + `${deId}: ${problem}`);
+    }
+  }
+  if (problems.length === 0) {
+    setStatus({ kind: 'ok', message: `Validation passed — all ${inputs.length} cells OK.` });
+  } else {
+    setStatus({ kind: 'error',
+      message: `Validation found ${problems.length} issue${problems.length === 1 ? '' : 's'}. First: ${problems[0]}` });
+  }
+}
+
+function validateByType(value: string, valueType: string): string | null {
+  const n = Number(value);
+  const isInt = Number.isInteger(n);
+  switch (valueType) {
+    case 'NUMBER':
+    case 'INTEGER':
+    case 'INTEGER_POSITIVE':
+    case 'INTEGER_NEGATIVE':
+    case 'INTEGER_ZERO_OR_POSITIVE':
+    case 'UNIT_INTERVAL':
+    case 'PERCENTAGE':
+      if (!Number.isFinite(n)) return 'must be a number';
+      break;
+  }
+  switch (valueType) {
+    case 'INTEGER':
+      if (!isInt) return 'must be an integer';
+      break;
+    case 'INTEGER_POSITIVE':
+      if (!isInt || n <= 0) return 'must be a positive integer';
+      break;
+    case 'INTEGER_NEGATIVE':
+      if (!isInt || n >= 0) return 'must be a negative integer';
+      break;
+    case 'INTEGER_ZERO_OR_POSITIVE':
+      if (!isInt || n < 0) return 'must be zero or positive';
+      break;
+    case 'UNIT_INTERVAL':
+      if (n < 0 || n > 1) return 'must be between 0 and 1';
+      break;
+    case 'PERCENTAGE':
+      if (n < 0 || n > 100) return 'must be between 0 and 100';
+      break;
+    case 'BOOLEAN':
+      if (!['true', 'false', '1', '0', 'yes', 'no'].includes(value.toLowerCase())) {
+        return 'must be a yes/no value';
+      }
+      break;
+    case 'TRUE_ONLY':
+      if (!['true', '1', 'yes'].includes(value.toLowerCase())) {
+        return 'must be yes';
+      }
+      break;
+    case 'URL':
+      try { new URL(value); }
+      catch { return 'must be a valid URL'; }
+      break;
+    default:
+      // TEXT, LONG_TEXT, LETTER, PHONE_NUMBER, EMAIL, DATE, TIME,
+      // DATETIME, COORDINATE, FILE_RESOURCE — skip; DHIS2's own
+      // entry.js validation catches these via jquery.validate.
+      break;
+  }
+  return null;
+}
+
 function paintState(
   input: HTMLInputElement,
   state: 'saving' | 'saved' | 'error',
@@ -1176,6 +1299,11 @@ const inputStyle = {
 const primaryBtn = {
   padding: '6px 16px', border: '1px solid #1f4d70',
   background: '#2c6693', color: '#fff',
+  borderRadius: 2, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+};
+const secondaryBtn = {
+  padding: '6px 16px', border: '1px solid #c0c7cf',
+  background: '#fff', color: '#2c3e4c',
   borderRadius: 2, fontSize: 13, fontWeight: 500, cursor: 'pointer',
 };
 const okStrip = {
@@ -1609,6 +1737,14 @@ const APP_STYLES = `
   background: #fff;
   border: 1px solid #d7dde5;
   border-radius: 3px;
+}
+.der-de-form-card .der-de-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eef0f3;
+  gap: 8px;
 }
 .der-de-form-card .sectionTable {
   border-collapse: collapse;
