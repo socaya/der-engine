@@ -28,6 +28,12 @@ export default defineConfig({
     proxy: {
       '/edge-api': { target: DER_SERVER, changeOrigin: true },
       '/api': { target: DER_SERVER, changeOrigin: true },
+      // C-UI-5f — DHIS2 custom forms reference vendor scripts and
+      // stylesheets with relative paths like `../javascripts/jQuery/
+      // jquery.min.js`. The data-entry app rewrites those to
+      // `/legacy-custom-forms/…`; forward to DER so the mirrored
+      // DHIS2 2.44 legacy bundle resolves.
+      '/legacy-custom-forms': { target: DER_SERVER, changeOrigin: true },
     },
   },
   // §2.3.131 — `vite preview` serves the production build. The PWA
@@ -38,6 +44,7 @@ export default defineConfig({
     proxy: {
       '/edge-api': { target: DER_SERVER, changeOrigin: true },
       '/api': { target: DER_SERVER, changeOrigin: true },
+      '/legacy-custom-forms': { target: DER_SERVER, changeOrigin: true },
     },
   },
   test: {
