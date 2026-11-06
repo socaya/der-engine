@@ -400,52 +400,53 @@ body {
   font-weight: 600;
 }
 
-/* Sign-in (C-UI-3) — matches the DHIS2 2.44 "standard" login
- * template: blue body background (#2a5298), Roboto, centered white
- * card. Flat per the project-wide rule — a 1 px border does the
- * layering instead of DHIS2's --elevations-e400 shadow. */
+/* Sign-in (C-UI-3 + C-UI-3b) — four layouts share the same card
+ * but anchor it differently. All stay flat per project rule: 1 px
+ * border, no box-shadow. */
 .der-signin {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: var(--der-signin-bg);
-  color: #ffffff;
   font-family: var(--der-font-base);
+  color: var(--der-ink-900);
 }
 
-.der-signin__heading {
+/* Heading sub-component — brand mark + title + intro. */
+.der-signin-heading {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
   padding: 24px;
-  min-height: 140px;
+  color: #f3f5f7;
 }
 
-.der-signin__titles {
+.der-signin-heading--dark {
+  color: var(--der-ink-900);
+}
+
+.der-signin-heading__titles {
   display: flex;
   flex-direction: column;
   gap: 6px;
   max-width: 540px;
 }
 
-.der-signin__app-title {
+.der-signin-heading__app-title {
   font-size: 20px;
   line-height: 28px;
   font-weight: 500;
   margin: 0;
-  color: #f3f5f7;
+  color: inherit;
 }
 
-.der-signin__app-intro {
+.der-signin-heading__app-intro {
   font-size: 14px;
   line-height: 19px;
   margin: 0;
-  color: #f3f5f7;
-  opacity: 0.75;
+  color: inherit;
+  opacity: 0.8;
 }
 
-.der-signin__brand-mark {
+.der-signin-heading__brand-mark {
   width: 56px;
   height: 56px;
   background: rgba(255, 255, 255, 0.14);
@@ -460,8 +461,12 @@ body {
   flex-shrink: 0;
 }
 
+.der-signin-heading--dark .der-signin-heading__brand-mark {
+  background: var(--der-brand-500);
+}
+
+/* Shared form card. */
 .der-signin__body {
-  flex: 1 1 auto;
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -496,4 +501,156 @@ body {
   margin-top: 16px;
   font-size: 12px;
   color: var(--der-ink-500);
+}
+
+/* ─── standard — DHIS2 2.44 default layout ───────────────── */
+.der-signin--standard {
+  display: flex;
+  flex-direction: column;
+  background: var(--der-signin-bg);
+}
+
+/* ─── sidebar — DHIS2 default look (DER default) ─────────────
+ *   Narrow white panel on the left holds brand + unboxed form.
+ *   Large right panel = background image + blue gradient
+ *   fallback. On narrow viewports the right panel is dropped. */
+.der-signin--sidebar {
+  min-height: 100vh;
+  display: flex;
+  background: var(--der-signin-bg);
+}
+
+.der-signin--sidebar .der-signin__panel {
+  background: #ffffff;
+  min-height: 100vh;
+  flex: 0 0 420px;
+  max-width: 100%;
+  border-right: 1px solid var(--der-border);
+}
+
+.der-signin--sidebar .der-signin__panel-inner {
+  width: 100%;
+  padding: 32px 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.der-signin--sidebar .der-signin-heading {
+  padding: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* Unboxed form — mirrors DHIS2's `--form-container-box-shadow: 0`
+ * + `--form-container-box-border-radius: 0`. The panel itself is
+ * the container; inputs sit flush. */
+.der-signin__form {
+  width: 100%;
+  color: var(--der-ink-900);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.der-signin__form h1 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--der-ink-900);
+}
+
+.der-signin__form .der-signin__sub {
+  margin: 0 0 16px;
+}
+
+.der-signin--sidebar .der-signin__scenery {
+  flex: 1 1 auto;
+  min-height: 100vh;
+  background:
+    var(--der-signin-bg-image, none),
+    linear-gradient(180deg, #2a5298 0%, #1e3c72 100%);
+  background-size: cover, auto;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+@media (max-width: 760px) {
+  .der-signin--sidebar .der-signin__panel {
+    flex: 1 1 auto;
+    border-right: none;
+  }
+  .der-signin--sidebar .der-signin__scenery {
+    display: none;
+  }
+}
+
+/* ─── hero — full-bleed image + dark-tinted overlay ──────── */
+.der-signin--hero {
+  min-height: 100vh;
+  background:
+    var(--der-signin-bg-image, linear-gradient(
+      135deg, var(--der-brand-500) 0%, var(--der-signin-bg) 100%));
+  background-size: cover;
+  background-position: center;
+  display: flex;
+}
+
+.der-signin--hero .der-signin__hero-overlay {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(
+    180deg,
+    rgba(28, 40, 56, 0.55) 0%,
+    rgba(28, 40, 56, 0.15) 45%,
+    rgba(28, 40, 56, 0.55) 100%);
+}
+
+.der-signin--hero .der-signin__body {
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+/* ─── marketing — split with image panel + floating card ─── */
+.der-signin--marketing {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  min-height: 100vh;
+  background: var(--der-canvas);
+}
+
+.der-signin--marketing .der-signin__marketing-panel {
+  background:
+    var(--der-signin-bg-image, linear-gradient(
+      135deg, var(--der-brand-500) 0%, var(--der-signin-bg) 100%));
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: flex-end;
+  padding: 32px;
+  color: #f3f5f7;
+}
+
+.der-signin--marketing .der-signin-heading {
+  padding: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.der-signin--marketing .der-signin__floating-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  background: var(--der-surface);
+}
+
+@media (max-width: 760px) {
+  .der-signin--marketing {
+    grid-template-columns: 1fr;
+    grid-template-rows: 180px 1fr;
+  }
 }
