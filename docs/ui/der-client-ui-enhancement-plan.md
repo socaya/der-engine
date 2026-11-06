@@ -321,6 +321,108 @@ client/src/
 │   └── <existing screens unchanged apart from a ScreenCard wrap>
 ```
 
+## Phase C-UI-5 — DER-managed apps (post C-UI-4)
+
+**Added 2026-11-06 per maintainer direction:** Apps like Data
+Entry, Capture (for Events and Tracker programs), and future
+operator-specific apps are not baked into the client bundle. They
+live on the DER server — installed, versioned and refreshed
+server-side, and surfaced in the device client's shell.
+
+### Scope
+
+- **Server-managed app catalogue.** Every installable app is a
+  row in a new `der.installed_app` table (or reused `custom_app`
+  if ADR-0005 already covers it) with:
+  - `app_id`, `display_name`, `module` (one of the six Server
+    Modules), `icon_url`, `entry_url` (JS / HTML served by DER),
+    `version`, `installed_at`, `installed_by`, `active`.
+- **Installation lifecycle on the server.** Admin-ui gets an
+  "Apps" screen that uploads / enables / disables / upgrades
+  apps. The client never installs or upgrades anything — it
+  reads the catalogue read-only at runtime.
+- **Client reads the catalogue at launcher open.** The app-
+  launcher overlay (C-UI-2) grows a second grid of **"Apps"**
+  underneath the six Server-Module cards. Each app card = one
+  installed_app row.
+- **App surface fits the shell.** When the operator opens an app
+  the client mounts the app's entry URL inside the shell's main
+  content slot — via an iframe sandbox, with the DerTopbar and
+  DerBreadcrumb kept visible. A small `postMessage` bridge lets
+  apps:
+  - read the bound OU, the signed-in user, the online state,
+  - request writes through DER's own `/api/*` / `/edge-api/v1/*`
+    endpoints (CSP tightened so iframe can only POST to the DER
+    origin — never direct to DHIS2).
+- **Version + refresh from the server.** The catalogue row's
+  `version` field feeds the client's cache-bust: when the admin
+  pushes a new version, the next overlay open invalidates the
+  cached iframe URL. Clients don't need a reload cycle.
+
+### Endpoints needed (new or confirm existing)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/edge-api/v1/apps` | Returns `{apps: [{appId, displayName, module, iconUrl, entryUrl, version, active}]}`. Op-readable. |
+| POST | `/edge-api/v1/admin/apps/install` | Admin uploads a zipped app bundle. Writes to `installed_app`. |
+| POST | `/edge-api/v1/admin/apps/:id/enable` | Flips `active`. |
+| POST | `/edge-api/v1/admin/apps/:id/disable` | Flips `active`. |
+| POST | `/edge-api/v1/admin/apps/:id/upgrade` | Supersedes the row with a new `version`. |
+
+ADR-0005 (custom app hosting) already covers part of this — confirm
+the existing endpoints before adding new ones. Prior EA audit
+listed `/edge-api/v1/apps` + `/edge-api/v1/admin/apps/*` as
+Administration surfaces already in admin-ui at `/apps`.
+
+### Client components
+
+- Extend `modules.ts` to export an `AppCatalogueCard` interface
+  separate from `ModuleCard`.
+- `DerAppLauncher.tsx` (shipped in C-UI-2) grows a second grid
+  section beneath the modules — queried from
+  `GET /edge-api/v1/apps` via a new `useInstalledApps()` hook.
+- `AppHost.tsx` — new screen at `/apps/:appId`. Mounts the app's
+  `entryUrl` in a sandboxed `<iframe>`; sets up the postMessage
+  bridge; applies the shell card around the iframe so the
+  operator always sees the topbar + breadcrumb.
+
+### Security
+
+- `iframe sandbox="allow-scripts allow-same-origin allow-forms"`.
+- Content-Security-Policy on the shell: `frame-src 'self'`
+  only — apps cannot load cross-origin iframes. Enforced on the
+  server side via the response header.
+- postMessage bridge validates `event.origin === window.location.origin`
+  and enumerates its own small verb list (read-bound-ou, read-user,
+  write-aggregate, write-event). No open eval, no full fetch proxy.
+
+### Non-goals
+
+- No DHIS2 Core app loading. If an operator wants Capture / Data
+  Entry, that app is packaged separately and installed on DER.
+  The DHIS2 origin is never iframed.
+- No app-level org-unit override — every app inherits the edge's
+  bound OU via the postMessage bridge.
+- No multi-version A/B install. One active version per app.
+
+### Phased delivery
+
+- **C-UI-5a** — read-only app catalogue + iframe host (`/apps/:id`).
+- **C-UI-5b** — admin-ui upload + enable/disable flow (relies on
+  ADR-0005's existing endpoints where they exist).
+- **C-UI-5c** — version refresh + offline cache (apps served from
+  the PWA cache too).
+
+### Risks
+
+| Risk | Mitigation |
+|---|---|
+| Legacy DHIS2 apps use `@dhis2/ui` chrome and break inside our shell | Document the DER App SDK: a single-page entry mounts at `#root`, declares its chrome preference via a meta tag; we strip HeaderBar automatically by injecting a CSS override. |
+| iframe host costs performance | Lazy-mount on user click; keep the iframe alive during navigation inside the app, dispose on route change out. |
+| postMessage bridge turns into a mini-RPC that duplicates edgeApi | Keep the verb list minimal. Apps prefer to call DER's `/api` / `/edge-api` directly — the bridge only exists for cross-document identity reads. |
+
+---
+
 ## Next action
 
 Maintainer approval of this plan → open Phase C-UI-1 as an ADR
