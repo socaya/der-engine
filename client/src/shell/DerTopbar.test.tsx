@@ -46,6 +46,18 @@ describe('DerTopbar', () => {
     expect(screen.getByTestId('der-topbar-launcher')).toBeInTheDocument();
   });
 
+  it('renders the queued chip when queuedCount > 0', () => {
+    renderWithProviders(<DerTopbar queuedCount={3} online={false} />);
+    const chip = screen.getByTestId('der-topbar-queue');
+    expect(chip).toHaveTextContent('3 queued');
+    expect(chip.className).toMatch(/der-topbar__queue--offline/);
+  });
+
+  it('hides the queued chip at zero', () => {
+    renderWithProviders(<DerTopbar queuedCount={0} />);
+    expect(screen.queryByTestId('der-topbar-queue')).toBeNull();
+  });
+
   it('user tile fires onUserMenuToggle + reflects aria-expanded', async () => {
     const onUserMenuToggle = vi.fn();
     renderWithProviders(

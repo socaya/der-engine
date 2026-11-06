@@ -8,6 +8,13 @@ export interface DerTopbarProps {
   readonly userMenuOpen?: boolean;
   readonly onUserMenuToggle?: () => void;
   readonly onUserMenuClose?: () => void;
+  /** Number of pending offline-queue entries across every app.
+   *  Rendered as a muted chip when > 0; hidden when zero. */
+  readonly queuedCount?: number;
+  /** Browser online state, forwarded so the offline chip can
+   *  tell "queued because we're offline" apart from "queued but
+   *  the drain's already running". */
+  readonly online?: boolean;
 }
 
 /* v8 ignore next 7 — defensive branches on edge inputs (empty / single-word
@@ -37,6 +44,8 @@ export function DerTopbar(
     userMenuOpen = false,
     onUserMenuToggle,
     onUserMenuClose,
+    queuedCount = 0,
+    online = true,
   }: DerTopbarProps = {},
 ): JSX.Element {
   const { state } = useAuth();
@@ -66,6 +75,17 @@ export function DerTopbar(
         <span className="der-topbar__orgunit der-topbar__orgunit--unbound"
                data-test="der-topbar-unbound">
           Not bound to an organisation unit
+        </span>
+      )}
+
+      {queuedCount > 0 && (
+        <span className={'der-topbar__queue'
+          + (online ? '' : ' der-topbar__queue--offline')}
+              data-test="der-topbar-queue"
+              title={online
+                ? 'Draining offline queue — N pending submissions'
+                : 'Offline — N pending submissions will sync when reachable'}>
+          {queuedCount} queued
         </span>
       )}
 

@@ -1,7 +1,10 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { DerAppLauncher } from './DerAppLauncher';
 import { DerBreadcrumb } from './DerBreadcrumb';
 import { DerTopbar } from './DerTopbar';
+import { useOnlineStatus } from '../offline/useOnlineStatus';
+import { count as queueCount } from '../offline/queue';
+import { drainOfflineQueue } from '../offline/replay';
 
 export interface DerShellProps {
   readonly children: ReactNode;
@@ -18,6 +21,38 @@ export interface DerShellProps {
 export function DerShell({ children }: DerShellProps): JSX.Element {
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [queued, setQueued] = useState<number>(0);
+  const online = useOnlineStatus();
+
+  // Shell-level offline-queue plumbing. Two reasons to live here:
+  //   1. One auto-drain for every dispatched app — the drain used
+  //      to live on AggregateEntry only; capture-event +
+  //      capture-tracker + workflow-capture had their own
+  //      duplicate copies or none at all.
+  //   2. The topbar chip can show "N queued" regardless of which
+  //      app owns the submission.
+  // Re-count every 2 s so a submit that queues from inside a
+  // dispatched app bumps the badge without the app needing to
+  // push.
+  const lastDrainOnline = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (online && lastDrainOnline.current !== true) {
+      drainOfflineQueue().catch(() => undefined);
+    }
+    lastDrainOnline.current = online;
+  }, [online]);
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async (): Promise<void> => {
+      try {
+        const n = await queueCount();
+        if (!cancelled) setQueued(n);
+      } catch { /* queue unavailable */ }
+    };
+    void tick();
+    const id = window.setInterval(() => { void tick(); }, 2000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, []);
 
   const toggleLauncher = useCallback(() => {
     setUserMenuOpen(false);
@@ -35,7 +70,9 @@ export function DerShell({ children }: DerShellProps): JSX.Element {
       <DerTopbar onLauncherClick={toggleLauncher}
                   userMenuOpen={userMenuOpen}
                   onUserMenuToggle={toggleUserMenu}
-                  onUserMenuClose={closeUserMenu} />
+                  onUserMenuClose={closeUserMenu}
+                  queuedCount={queued}
+                  online={online} />
       <DerBreadcrumb />
       <main className="der-shell__main" data-test="der-shell-main">
         {children}

@@ -65,6 +65,23 @@ body {
   flex: 1 1 auto;
 }
 
+.der-topbar__queue {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 12px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #f3f5f7;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  cursor: default;
+}
+
+.der-topbar__queue--offline {
+  background: rgba(206, 123, 0, 0.35);
+}
+
 .der-topbar__btn {
   background: transparent;
   color: inherit;
