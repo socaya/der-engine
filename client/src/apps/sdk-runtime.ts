@@ -25,6 +25,8 @@ function useDerApi(): {
   listEvents: typeof edgeApi.listEvents;
   listDrafts: typeof edgeApi.listDrafts;
   dhis2Ping: typeof edgeApi.dhis2Ping;
+  getDataSetMeta: typeof edgeApi.getDataSetMeta;
+  getDataEntryFormHtml: typeof edgeApi.getDataEntryFormHtml;
   // C-UI-5c slice-5 — tracker + workflow-capture surface.
   listTrackerEntities: typeof edgeApi.listTrackerEntities;
   enrolTei: typeof edgeApi.enrolTei;
@@ -42,6 +44,8 @@ function useDerApi(): {
     listEvents: edgeApi.listEvents,
     listDrafts: edgeApi.listDrafts,
     dhis2Ping: edgeApi.dhis2Ping,
+    getDataSetMeta: edgeApi.getDataSetMeta,
+    getDataEntryFormHtml: edgeApi.getDataEntryFormHtml,
     listTrackerEntities: edgeApi.listTrackerEntities,
     enrolTei: edgeApi.enrolTei,
     listCaptureWorkflows: edgeApi.listCaptureWorkflows,

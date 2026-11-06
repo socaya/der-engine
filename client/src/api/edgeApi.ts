@@ -100,11 +100,36 @@ export interface DataSetMeta {
   displayName?: string;
   name?: string;
   periodType?: string;
+  formType?: 'CUSTOM' | 'SECTION' | 'DEFAULT' | string;
+  dataEntryForm?: {
+    id: string;
+    name?: string;
+    /** The actual DHIS2 custom-form HTML. May be absent on
+     *  SECTION / DEFAULT datasets or when the mirror didn't sync
+     *  the field (field-mask default on /api/dataSets omits
+     *  `htmlCode`; the C-UI-5f slice-2 client fetches it
+     *  explicitly via `?fields=…dataEntryForm[id,name,htmlCode]`
+     *  when it needs to render). */
+    htmlCode?: string;
+  } | null;
 }
 
 export function getDataSetMeta(dataSetUid: string): Promise<DataSetMeta> {
   return request<DataSetMeta>('GET',
     `/api/dataSets/${encodeURIComponent(dataSetUid)}`);
+}
+
+/**
+ * Fetch `dataEntryForm.htmlCode` separately — DHIS2 doesn't include
+ * it in the default `/api/dataSets/{uid}` response, and even when
+ * the mirror has it, the column is heavy. The C-UI-5f client only
+ * calls this when the operator opts into the custom-form view.
+ */
+export function getDataEntryFormHtml(formUid: string): Promise<{
+  id: string; htmlCode?: string;
+}> {
+  return request('GET',
+    `/api/dataEntryForms/${encodeURIComponent(formUid)}`);
 }
 
 /** ADR-0015 — the single orgUnit the edge is bound to. The device
