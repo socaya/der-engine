@@ -40,6 +40,12 @@ await build({
 
 await build({
   ...common,
+  entryPoints: { 'react-jsx-runtime': 'react/jsx-runtime' },
+  external: ['react'],
+});
+
+await build({
+  ...common,
   entryPoints: { 'react-dom': 'react-dom' },
   external: ['react'],
 });
