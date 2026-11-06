@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { DeviceBoot } from './device/DeviceBoot';
 import { RequireAuth } from './components/RequireAuth';
@@ -10,18 +10,10 @@ import { EdgeConnectionError } from './screens/EdgeConnectionError';
 import { OrgUnitBindingProvider } from './orgunit/OrgUnitBindingContext';
 import { DerShell } from './shell/DerShell';
 import { AggregateDatasetPicker } from './screens/AggregateDatasetPicker';
-import { AggregateEntry } from './screens/AggregateEntry';
 import { ProgramPicker } from './screens/ProgramPicker';
-import { EventList } from './screens/EventList';
-import { EventNew } from './screens/EventNew';
-import { TrackerSearch } from './screens/TrackerSearch';
-import { TrackerDashboard } from './screens/TrackerDashboard';
-import { EnrollmentCreate } from './screens/EnrollmentCreate';
 import { ScheduledEvents } from './screens/ScheduledEvents';
 import { SubmittedReview } from './screens/SubmittedReview';
 import { Drafts } from './screens/Drafts';
-import { CaptureRunList } from './screens/CaptureRunList';
-import { CaptureRunForm } from './screens/CaptureRunForm';
 import { Dhis2Status } from './screens/Dhis2Status';
 import { SyncStatus } from './screens/SyncStatus';
 import { NetworkStatus } from './screens/NetworkStatus';
@@ -89,34 +81,31 @@ function InnerRoutes(): JSX.Element {
               </RequireAuth>
             }
           />
-          {/* Phase 06 Release 1 — DC-06..17 */}
+          {/* Phase 06 / C-UI-5e — the capture screens migrate to
+              DER-dispatched apps. Shell routes redirect for one
+              release so existing bookmarks + tests continue to
+              work; AppHost shows a clear "install from admin"
+              message when the app isn't yet in the catalogue. */}
           <Route path="/aggregate/datasets" element={
             <RequireAuth><AggregateDatasetPicker /></RequireAuth>
           } />
-          <Route path="/aggregate/entry" element={
-            <RequireAuth><AggregateEntry /></RequireAuth>
-          } />
+          <Route path="/aggregate/entry"
+                 element={<Navigate to="/apps/data-entry" replace />} />
           <Route path="/programs" element={
             <RequireAuth><ProgramPicker /></RequireAuth>
           } />
-          <Route path="/programs/:program/events" element={
-            <RequireAuth><EventList /></RequireAuth>
-          } />
-          <Route path="/programs/:program/events/new" element={
-            <RequireAuth><EventNew /></RequireAuth>
-          } />
-          <Route path="/tracker/:program/search" element={
-            <RequireAuth><TrackerSearch /></RequireAuth>
-          } />
-          <Route path="/tracker/:program/tei/:tei" element={
-            <RequireAuth><TrackerDashboard /></RequireAuth>
-          } />
-          <Route path="/tracker/:program/enroll" element={
-            <RequireAuth><EnrollmentCreate /></RequireAuth>
-          } />
-          <Route path="/tracker/:program/stage/:stage/new" element={
-            <RequireAuth><EventNew /></RequireAuth>
-          } />
+          <Route path="/programs/:program/events"
+                 element={<Navigate to="/apps/capture-event" replace />} />
+          <Route path="/programs/:program/events/new"
+                 element={<Navigate to="/apps/capture-event" replace />} />
+          <Route path="/tracker/:program/search"
+                 element={<Navigate to="/apps/capture-tracker" replace />} />
+          <Route path="/tracker/:program/tei/:tei"
+                 element={<Navigate to="/apps/capture-tracker" replace />} />
+          <Route path="/tracker/:program/enroll"
+                 element={<Navigate to="/apps/capture-tracker" replace />} />
+          <Route path="/tracker/:program/stage/:stage/new"
+                 element={<Navigate to="/apps/capture-event" replace />} />
           <Route path="/scheduled" element={
             <RequireAuth><ScheduledEvents /></RequireAuth>
           } />
@@ -126,13 +115,11 @@ function InnerRoutes(): JSX.Element {
           <Route path="/drafts" element={
             <RequireAuth><Drafts /></RequireAuth>
           } />
-          {/* ADR-0036 — workflow-scoped capture */}
-          <Route path="/capture/runs" element={
-            <RequireAuth><CaptureRunList /></RequireAuth>
-          } />
-          <Route path="/capture/runs/:id/form" element={
-            <RequireAuth><CaptureRunForm /></RequireAuth>
-          } />
+          {/* ADR-0036 — workflow-scoped capture (now via dispatched app) */}
+          <Route path="/capture/runs"
+                 element={<Navigate to="/apps/workflow-capture" replace />} />
+          <Route path="/capture/runs/:id/form"
+                 element={<Navigate to="/apps/workflow-capture" replace />} />
           {/* Server-Module status surfaces */}
           <Route path="/dhis2/status" element={
             <RequireAuth><Dhis2Status /></RequireAuth>
