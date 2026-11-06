@@ -505,33 +505,36 @@ export default function DataEntryApp(): JSX.Element {
                  data-test="der-de-custom-form"
                  className="der-de-custom-form" />
           </div>
-          <div className="der-de-form-actions">
-            {completion && (
-              <span className="der-de-completion-pill"
-                    data-test="de-completion-status">
-                {completion.completed
-                  ? `Complete${completion.completedAt
-                      ? ' · ' + new Date(completion.completedAt).toLocaleString()
-                      : ''}`
-                  : 'Open for edits'}
-              </span>
-            )}
-            <button type="button"
-                    onClick={() => runValidation(customRoot.current, setStatus)}
-                    style={secondaryBtn}
-                    data-test="de-validate-btn">
-              Validate
-            </button>
-            <button type="button"
-                    onClick={toggleCompletion}
-                    disabled={completionBusy}
-                    style={completion?.completed ? secondaryBtn : primaryBtn}
-                    data-test="de-complete-btn">
-              {completionBusy
-                ? 'Saving…'
-                : completion?.completed ? 'Reopen' : 'Mark complete'}
-            </button>
-          </div>
+        </div>
+      )}
+      {formReady && mode === 'custom' && (
+        <div className="der-de-actionbar" data-test="de-actionbar">
+          <SaveStatePill root={customRoot} formVersion={formRenderVersion} />
+          {completion && (
+            <span className="der-de-completion-pill"
+                  data-test="de-completion-status">
+              {completion.completed
+                ? `Complete${completion.completedAt
+                    ? ' · ' + new Date(completion.completedAt).toLocaleString()
+                    : ''}`
+                : 'Open for edits'}
+            </span>
+          )}
+          <button type="button"
+                  onClick={() => runValidation(customRoot.current, setStatus)}
+                  style={secondaryBtn}
+                  data-test="de-validate-btn">
+            Validate
+          </button>
+          <button type="button"
+                  onClick={toggleCompletion}
+                  disabled={completionBusy}
+                  style={completion?.completed ? secondaryBtn : primaryBtn}
+                  data-test="de-complete-btn">
+            {completionBusy
+              ? 'Saving…'
+              : completion?.completed ? 'Reopen' : 'Mark complete'}
+          </button>
         </div>
       )}
     </ScreenCard>
@@ -1380,6 +1383,77 @@ function SectionNavigator(
   );
 }
 
+/**
+ * Live summary pill for the current form's save state. Scans the
+ * rendered inputs every 800 ms, buckets them by paint-state ring
+ * colour (amber queued / amber saving / green saved / red error),
+ * and renders a concise "N queued, M saved" line. Pinned into the
+ * sticky bottom action bar so the operator sees per-cell outcomes
+ * without squinting at individual outlines on a long section
+ * form.
+ */
+function SaveStatePill(
+  { root, formVersion }:
+  { root: RefObject<HTMLDivElement | null>; formVersion: number },
+): JSX.Element {
+  const [tally, setTally] = useState({
+    total: 0, filled: 0, saving: 0, saved: 0, queued: 0, error: 0,
+  });
+
+  useEffect(() => {
+    const scan = (): void => {
+      const el = root.current;
+      if (!el) return;
+      const inputs = Array.from(
+        el.querySelectorAll<HTMLInputElement>('input[name$="-val"]'));
+      let filled = 0; let saving = 0; let saved = 0;
+      let queued = 0; let error = 0;
+      for (const i of inputs) {
+        if (i.value.trim() !== '') filled++;
+        const o = i.style.outline || '';
+        if (o.includes('rgb(185, 134, 10)') || o.includes('#b9860a')) saving++;
+        else if (o.includes('rgb(206, 123, 0)') || o.includes('#ce7b00')) queued++;
+        else if (o.includes('rgb(26, 135, 84)') || o.includes('#1a8754')
+                 || o.includes('rgb(183, 220, 199)') || o.includes('#b7dcc7')) saved++;
+        else if (o.includes('rgb(169, 50, 50)') || o.includes('#a93232')) error++;
+      }
+      setTally({ total: inputs.length, filled, saving, saved, queued, error });
+    };
+    scan();
+    const id = window.setInterval(scan, 800);
+    return () => window.clearInterval(id);
+  }, [root, formVersion]);
+
+  // Nothing to render until the form has inputs.
+  if (tally.total === 0) {
+    return (
+      <span className="der-de-savepill der-de-savepill--muted"
+            data-test="de-save-state">
+        No cells yet
+      </span>
+    );
+  }
+
+  const parts: string[] = [];
+  parts.push(`${tally.filled} of ${tally.total} filled`);
+  if (tally.saving > 0) parts.push(`${tally.saving} saving`);
+  if (tally.queued > 0) parts.push(`${tally.queued} queued`);
+  if (tally.error > 0) parts.push(`${tally.error} error`);
+
+  const tone = tally.error > 0 ? 'error'
+    : tally.queued > 0 ? 'queued'
+    : tally.saving > 0 ? 'saving'
+    : tally.filled > 0 ? 'saved'
+    : 'muted';
+
+  return (
+    <span className={`der-de-savepill der-de-savepill--${tone}`}
+          data-test="de-save-state">
+      {parts.join(' · ')}
+    </span>
+  );
+}
+
 function runValidation(
   root: HTMLElement | null,
   setStatus: (s: {
@@ -2014,6 +2088,18 @@ const APP_STYLES = `
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
   margin: 12px 0 16px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: saturate(140%) blur(6px);
+  border: 1px solid #eef0f3;
+  border-radius: 8px;
+  /* ADR-0037 §1.2 — sticky context strip so the operator always
+   * sees which dataset/period/OU/AOC they are editing, even when
+   * scrolling long section forms. 56 px matches the shell topbar
+   * height so the two stack cleanly. */
+  position: sticky;
+  top: 56px;
+  z-index: 5;
 }
 .der-de-chip {
   display: flex;
@@ -2099,15 +2185,33 @@ const APP_STYLES = `
   border: 1px solid #d7dde5;
   border-radius: 3px;
 }
-.der-de-form-card .der-de-form-actions {
+.der-de-actionbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
   display: flex;
-  justify-content: flex-end;
   align-items: center;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #eef0f3;
-  gap: 8px;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: saturate(140%) blur(6px);
+  border: 1px solid #eef0f3;
+  border-radius: 8px;
+  box-shadow: 0 -2px 6px rgba(28, 46, 70, 0.04);
 }
+.der-de-savepill {
+  margin-right: auto;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.der-de-savepill--muted  { background: #eef0f3; color: #6e7a8a; }
+.der-de-savepill--saved  { background: #e8f4ee; color: #136436; }
+.der-de-savepill--saving { background: #fbf4e0; color: #8a6b00; }
+.der-de-savepill--queued { background: #fbeedd; color: #874a00; }
+.der-de-savepill--error  { background: #fbeaea; color: #8a2525; }
 .der-de-form-split {
   display: block;
 }
