@@ -96,7 +96,7 @@ export default function CaptureEventApp(): JSX.Element {
     >
       <p style={{ margin: 0, color: '#6e7a8a', fontSize: 13 }}>
         Signed in as <strong>{auth.displayName}</strong> • Bound OU
-        <code style={{ marginInline: 6 }}>{ou.orgUnitPath}</code>
+        <code style={{ marginInline: 6 }} title={ou.orgUnitPath}>{ou.orgUnitDisplayName || ou.orgUnitUid}</code>
       </p>
       {!ou.bound && (
         <p style={{ marginTop: 12, color: '#8a2525' }}>

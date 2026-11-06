@@ -285,8 +285,9 @@ export default function DataEntryApp(): JSX.Element {
       <div className="der-de-context">
         <div className="der-de-chip">
           <span className="der-de-chip-label">Organisation unit</span>
-          <span className="der-de-chip-value">
-            {ou.orgUnitPath ?? ou.orgUnitUid ?? '—'}
+          <span className="der-de-chip-value"
+                title={ou.orgUnitPath || ou.orgUnitUid || ''}>
+            {ou.orgUnitDisplayName || ou.orgUnitUid || '—'}
           </span>
         </div>
         <div className="der-de-chip">
