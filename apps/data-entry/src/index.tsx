@@ -69,6 +69,11 @@ export default function DataEntryApp(): JSX.Element {
   // Bump after every successful form render so SectionNavigator
   // re-scrapes the headers of the freshly-injected #contentDiv.
   const [formRenderVersion, setFormRenderVersion] = useState(0);
+  // Slice 28 — issues list from the last Validate run. When non-
+  // empty the drawer auto-opens; operators can close it + reopen
+  // from the "N issues" pill next to Validate.
+  const [issues, setIssues] = useState<ValidationIssue[]>([]);
+  const [issuesOpen, setIssuesOpen] = useState(false);
   // Compact-by-default, remembered in localStorage so operators
   // don't have to re-pick on every visit.
   const [density, setDensity] = useState<'compact' | 'comfortable'>(() => {
@@ -543,11 +548,24 @@ export default function DataEntryApp(): JSX.Element {
             </span>
           )}
           <button type="button"
-                  onClick={() => runValidation(customRoot.current, setStatus)}
+                  onClick={() => {
+                    runValidation(customRoot.current, setStatus, (xs) => {
+                      setIssues(xs);
+                      setIssuesOpen(xs.length > 0);
+                    });
+                  }}
                   style={secondaryBtn}
                   data-test="de-validate-btn">
             Validate
           </button>
+          {issues.length > 0 && !issuesOpen && (
+            <button type="button"
+                    onClick={() => setIssuesOpen(true)}
+                    className="der-de-issues-chip"
+                    data-test="de-issues-chip">
+              {issues.length} issue{issues.length === 1 ? '' : 's'}
+            </button>
+          )}
           <button type="button"
                   onClick={toggleCompletion}
                   disabled={completionBusy}
@@ -559,6 +577,20 @@ export default function DataEntryApp(): JSX.Element {
           </button>
         </div>
       )}
+      <ValidationIssuesDrawer
+        open={issuesOpen}
+        issues={issues}
+        onClose={() => setIssuesOpen(false)}
+        onPick={(iss) => {
+          const el = customRoot.current?.querySelector<HTMLInputElement>(
+            `input[name="${iss.inputName}"]`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.focus();
+            el.select();
+          }
+        }}
+      />
     </ScreenCard>
   );
 }
@@ -1483,21 +1515,96 @@ function SaveStatePill(
   );
 }
 
+/**
+ * Right-rail drawer that lists every cell flagged by the most
+ * recent `Validate` pass (plan §7.2). Click an issue → scroll the
+ * cell into view, focus it and select the text so the operator
+ * can type the correction.
+ *
+ * Esc closes the drawer; the "N issues" chip in the action bar
+ * re-opens it. Doesn't trap focus — the form stays interactive.
+ */
+function ValidationIssuesDrawer(
+  { open, issues, onClose, onPick }:
+  { open: boolean; issues: ValidationIssue[];
+    onClose: () => void;
+    onPick: (i: ValidationIssue) => void },
+): JSX.Element | null {
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open, onClose]);
+  if (!open || issues.length === 0) return null;
+  return (
+    <aside className="der-de-issues-drawer"
+           data-test="de-issues-drawer"
+           role="complementary"
+           aria-label="Validation issues">
+      <header className="der-de-issues-drawer__head">
+        <h4 className="der-de-issues-drawer__title">
+          {issues.length} validation issue{issues.length === 1 ? '' : 's'}
+        </h4>
+        <button type="button"
+                className="der-de-issues-drawer__close"
+                aria-label="Close issues panel"
+                data-test="de-issues-close"
+                onClick={onClose}>×</button>
+      </header>
+      <ul className="der-de-issues-drawer__list">
+        {issues.map((i) => (
+          <li key={`${i.deId}-${i.cocId}`}>
+            <button type="button"
+                    className="der-de-issues-drawer__item"
+                    data-test="de-issues-item"
+                    onClick={() => onPick(i)}>
+              <span className="der-de-issues-drawer__de">{i.deName}</span>
+              <span className="der-de-issues-drawer__coc">{i.cocName}</span>
+              <span className="der-de-issues-drawer__why">
+                <code className="der-de-issues-drawer__value">{i.value}</code>
+                <span>{i.problem}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
+
+export interface ValidationIssue {
+  readonly deId: string;
+  readonly cocId: string;
+  readonly deName: string;
+  readonly cocName: string;
+  readonly valueType: string;
+  readonly value: string;
+  readonly problem: string;
+  readonly inputName: string;
+}
+
 function runValidation(
   root: HTMLElement | null,
   setStatus: (s: {
     kind: 'ok' | 'error'; message: string;
   }) => void,
+  setIssues: (xs: ValidationIssue[]) => void,
 ): void {
   if (!root) return;
   const g = globalThis as unknown as {
-    dhis2?: { de?: { dataElements?: Record<string,
-      { valueType?: string }> } };
+    dhis2?: { de?: {
+      dataElements?: Record<string, { valueType?: string; name?: string }>;
+      categoryOptionCombos?: Record<string, { name?: string }>;
+    } };
   };
   const dataElements = g.dhis2?.de?.dataElements ?? {};
+  const cocs = g.dhis2?.de?.categoryOptionCombos ?? {};
   const inputs = Array.from(root.querySelectorAll<HTMLInputElement>(
     'input[name$="-val"]'));
-  const problems: string[] = [];
+  const issues: ValidationIssue[] = [];
   for (const input of inputs) {
     input.style.outline = '';
     const v = input.value.trim();
@@ -1505,20 +1612,28 @@ function runValidation(
     const m = /^(.+)-(.+)-val$/.exec(input.getAttribute('name') ?? '');
     if (!m) continue;
     const deId = m[1]!;
+    const cocId = m[2]!;
     const de = dataElements[deId];
     const valueType = de?.valueType ?? 'TEXT';
     const problem = validateByType(v, valueType);
     if (problem) {
       input.style.outline = '2px solid #a93232';
-      problems.push(`${de?.valueType ? '' : '(unknown DE) '}`
-        + `${deId}: ${problem}`);
+      issues.push({
+        deId, cocId, valueType, value: v, problem,
+        deName: de?.name ?? deId,
+        cocName: cocs[cocId]?.name ?? cocId,
+        inputName: input.name,
+      });
     }
   }
-  if (problems.length === 0) {
-    setStatus({ kind: 'ok', message: `Validation passed — all ${inputs.length} cells OK.` });
+  setIssues(issues);
+  if (issues.length === 0) {
+    setStatus({ kind: 'ok',
+      message: `Validation passed — all ${inputs.length} cells OK.` });
   } else {
     setStatus({ kind: 'error',
-      message: `Validation found ${problems.length} issue${problems.length === 1 ? '' : 's'}. First: ${problems[0]}` });
+      message: `Validation found ${issues.length} issue`
+        + `${issues.length === 1 ? '' : 's'}. See the Issues panel.` });
   }
 }
 
@@ -2435,6 +2550,99 @@ const APP_STYLES = `
 }
 .der-de-density-btn:hover {
   background: #f3f5f7;
+}
+.der-de-issues-chip {
+  padding: 4px 10px;
+  border: 1px solid #e0bcbc;
+  border-radius: 10px;
+  background: #fbeaea;
+  color: #8a2525;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.der-de-issues-drawer {
+  position: fixed;
+  top: 112px;
+  right: 16px;
+  width: 360px;
+  max-height: calc(100vh - 160px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e0bcbc;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(28, 46, 70, 0.12);
+  z-index: 10;
+}
+.der-de-issues-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #fbeaea;
+  border-bottom: 1px solid #e0bcbc;
+}
+.der-de-issues-drawer__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #8a2525;
+}
+.der-de-issues-drawer__close {
+  padding: 0 6px;
+  background: transparent;
+  border: 0;
+  color: #8a2525;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.der-de-issues-drawer__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+.der-de-issues-drawer__item {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 14px;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid #eef0f3;
+  background: transparent;
+  color: #212934;
+  cursor: pointer;
+}
+.der-de-issues-drawer__item:hover {
+  background: #fdf5f5;
+}
+.der-de-issues-drawer__de {
+  font-size: 13px;
+  font-weight: 500;
+}
+.der-de-issues-drawer__coc {
+  font-size: 11px;
+  color: #6e7a8a;
+}
+.der-de-issues-drawer__why {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: #8a2525;
+}
+.der-de-issues-drawer__value {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #fbeaea;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #8a2525;
 }
 `;
 
