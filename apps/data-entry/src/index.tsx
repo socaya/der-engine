@@ -1168,8 +1168,8 @@ function renderPeriodPicker(
   setPeriod: (v: string) => void,
 ): JSX.Element {
   const common = { ...inputStyle } as React.CSSProperties;
-  const options = buildPeriodOptions(periodType);
-  if (options.length === 0) {
+  const baseOptions = buildPeriodOptions(periodType);
+  if (baseOptions.length === 0) {
     // Unknown periodType — fall back to free text (DHIS2 period id).
     return (
       <input value={period}
@@ -1179,16 +1179,168 @@ function renderPeriodPicker(
         style={common} />
     );
   }
+  // Grow the options list so prev/next can navigate outside the
+  // default window. baseOptions are sorted newest-first; if the
+  // current selection sits beyond either end, prepend/append.
+  const options = [...baseOptions];
+  if (period && !options.some((o) => o.id === period)) {
+    const label = formatPeriodLabel(periodType, period) ?? period;
+    options.unshift({ id: period, label });
+  }
+  // `current` reports the DHIS2 period id for "right now" so Next
+  // can disable itself before stepping into the future.
+  const currentPeriodId = baseOptions[0]?.id ?? null;
+
+  const idx = options.findIndex((o) => o.id === period);
+  const canPrev = idx === -1 || idx < options.length - 1
+                  || !!periodType;  // always generate older
+  const canNext = period !== ''
+                  && (idx > 0 || period !== currentPeriodId);
+
+  const goPrev = (): void => {
+    if (!periodType) return;
+    const prev = idx >= 0 && idx < options.length - 1
+      ? options[idx + 1]?.id ?? ''
+      : stepPeriod(periodType, period || currentPeriodId || '', -1);
+    if (prev) setPeriod(prev);
+  };
+  const goNext = (): void => {
+    if (!periodType || !period) return;
+    // Don't let Next cross into the future past the current period.
+    if (period === currentPeriodId) return;
+    const next = idx > 0
+      ? options[idx - 1]?.id ?? ''
+      : stepPeriod(periodType, period, +1);
+    if (next) setPeriod(next);
+  };
+
   return (
-    <select value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            style={common}>
-      <option value="">Select a period…</option>
-      {options.map((o) => (
-        <option key={o.id} value={o.id}>{o.label}</option>
-      ))}
-    </select>
+    <span className="der-de-period-nav">
+      <button type="button" aria-label="Previous period"
+              onClick={goPrev} disabled={!canPrev}
+              className="der-de-period-btn">◀</button>
+      <select value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              style={common}>
+        <option value="">Select a period…</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.label}</option>
+        ))}
+      </select>
+      <button type="button" aria-label="Next period"
+              onClick={goNext} disabled={!canNext}
+              className="der-de-period-btn">▶</button>
+    </span>
   );
+}
+
+/**
+ * Compute the period id one step before or after a given id for
+ * the periodType — lets the Prev/Next buttons navigate beyond
+ * the initial dropdown window.
+ */
+function stepPeriod(
+  periodType: string, currentId: string, delta: -1 | 1,
+): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  switch (periodType) {
+    case 'Daily': {
+      if (!/^\d{8}$/.test(currentId)) return '';
+      const y = Number(currentId.slice(0, 4));
+      const m = Number(currentId.slice(4, 6)) - 1;
+      const d = Number(currentId.slice(6, 8));
+      const next = new Date(y, m, d + delta);
+      return `${next.getFullYear()}${pad(next.getMonth() + 1)}${pad(next.getDate())}`;
+    }
+    case 'Weekly': {
+      const m = /^(\d{4})W(\d{1,2})$/.exec(currentId);
+      if (!m) return '';
+      let wy = Number(m[1]);
+      let wk = Number(m[2]) + delta;
+      if (wk < 1) { wy -= 1; wk = isoWeeksInYear(wy); }
+      else if (wk > isoWeeksInYear(wy)) { wy += 1; wk = 1; }
+      return `${wy}W${wk}`;
+    }
+    case 'Monthly': {
+      if (!/^\d{6}$/.test(currentId)) return '';
+      const y = Number(currentId.slice(0, 4));
+      const m = Number(currentId.slice(4, 6)) - 1;
+      const total = y * 12 + m + delta;
+      return `${Math.floor(total / 12)}${pad((total % 12 + 12) % 12 + 1)}`;
+    }
+    case 'BiMonthly': {
+      const m = /^(\d{4})(\d{2})B$/.exec(currentId);
+      if (!m) return '';
+      let by = Number(m[1]); let bm = Number(m[2]) + delta;
+      if (bm < 1) { by -= 1; bm = 6; }
+      else if (bm > 6) { by += 1; bm = 1; }
+      return `${by}${pad(bm)}B`;
+    }
+    case 'Quarterly': {
+      const m = /^(\d{4})Q(\d)$/.exec(currentId);
+      if (!m) return '';
+      let qy = Number(m[1]); let q = Number(m[2]) + delta;
+      if (q < 1) { qy -= 1; q = 4; }
+      else if (q > 4) { qy += 1; q = 1; }
+      return `${qy}Q${q}`;
+    }
+    case 'SixMonthly': {
+      const m = /^(\d{4})S(\d)$/.exec(currentId);
+      if (!m) return '';
+      let sy = Number(m[1]); let s = Number(m[2]) + delta;
+      if (s < 1) { sy -= 1; s = 2; }
+      else if (s > 2) { sy += 1; s = 1; }
+      return `${sy}S${s}`;
+    }
+    case 'Yearly':
+    case 'FinancialApril':
+    case 'FinancialJuly':
+    case 'FinancialOct': {
+      if (!/^\d{4}$/.test(currentId)) return '';
+      return String(Number(currentId) + delta);
+    }
+    default:
+      return '';
+  }
+}
+
+/** Human-friendly label for a period id outside the default window. */
+function formatPeriodLabel(periodType: string | undefined, id: string): string | null {
+  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  switch (periodType) {
+    case 'Daily': {
+      if (!/^\d{8}$/.test(id)) return null;
+      return `${id.slice(0, 4)}-${id.slice(4, 6)}-${id.slice(6, 8)}`;
+    }
+    case 'Weekly': {
+      const m = /^(\d{4})W(\d{1,2})$/.exec(id);
+      return m ? `${m[1]} W${String(m[2]).padStart(2, '0')}` : null;
+    }
+    case 'Monthly': {
+      if (!/^\d{6}$/.test(id)) return null;
+      const mi = Number(id.slice(4, 6)) - 1;
+      return `${MONTH_NAMES[mi] ?? ''} ${id.slice(0, 4)}`;
+    }
+    case 'BiMonthly': {
+      const m = /^(\d{4})(\d{2})B$/.exec(id);
+      if (!m) return null;
+      const a = (Number(m[2]) - 1) * 2;
+      return `${MONTH_NAMES[a]}–${MONTH_NAMES[a + 1]} ${m[1]}`;
+    }
+    case 'Quarterly': return id.replace(/^(\d{4})Q(\d)$/, '$1 Q$2');
+    case 'SixMonthly': {
+      const m = /^(\d{4})S(\d)$/.exec(id);
+      if (!m) return null;
+      return `${m[1]} ${m[2] === '1' ? 'Jan–Jun' : 'Jul–Dec'}`;
+    }
+    case 'Yearly':
+    case 'FinancialApril':
+    case 'FinancialJuly':
+    case 'FinancialOct':
+      return /^\d{4}$/.test(id) ? id : null;
+    default: return null;
+  }
 }
 
 /**
@@ -1381,6 +1533,32 @@ const APP_STYLES = `
 .der-de-period-wrap > *:focus {
   outline: none;
   border-color: #2c6693;
+}
+.der-de-period-nav {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  width: 100%;
+}
+.der-de-period-nav select {
+  flex: 1 1 auto;
+}
+.der-de-period-btn {
+  background: #fff;
+  border: 1px solid #d7dde5;
+  color: #2c6693;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 2px;
+  line-height: 1;
+}
+.der-de-period-btn:hover:not(:disabled) {
+  background: #e4edf6;
+}
+.der-de-period-btn:disabled {
+  color: #c0c7d2;
+  cursor: not-allowed;
 }
 .der-de-placeholder {
   padding: 32px 16px;
