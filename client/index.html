@@ -10,6 +10,22 @@
     <link rel="icon" type="image/svg+xml" href="/pwa/icon.svg" />
     <link rel="apple-touch-icon" href="/pwa/icon.svg" />
     <title>DER Client</title>
+    <!-- C-UI-5c import map — resolves bare specifiers used by
+         DER-dispatched app bundles so they share React/Router with
+         the shell. The vendor + SDK files are emitted by the
+         C-UI-5c slice-2 build pipeline; absent, Blob-imported apps
+         fall back to the install-error path. -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "/vendor/react.js",
+        "react-dom": "/vendor/react-dom.js",
+        "react-dom/client": "/vendor/react-dom-client.js",
+        "react-router-dom": "/vendor/react-router-dom.js",
+        "@der/app-sdk": "/vendor/der-app-sdk.js"
+      }
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
