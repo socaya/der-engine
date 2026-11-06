@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Button,
@@ -69,6 +69,7 @@ export function AggregateEntry(
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const validation = useRunValidation(runId);
 
@@ -92,16 +93,27 @@ export function AggregateEntry(
     ? generatePeriods(periodType as PeriodType, 12)
     : [];
 
-  async function load(): Promise<void> {
+  const load = useCallback(async (): Promise<void> => {
     setError(null);
     setRows(null);
+    setLoading(true);
     try {
       const resp = await api.readAggregateValues(boundOrgUnit, period);
       setRows(resp.dataValues);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
     }
-  }
+  }, [api, boundOrgUnit, period]);
+
+  // Auto-load the grid whenever we have both a bound OU and a picked
+  // period. Removes the separate "Load values" click — operators just
+  // choose the period they want to capture against and the form opens.
+  useEffect(() => {
+    if (!boundOrgUnit || !period) return;
+    load().catch(() => undefined);
+  }, [boundOrgUnit, period, load]);
 
   async function submit(): Promise<void> {
     setSaving(true);
@@ -183,19 +195,12 @@ export function AggregateEntry(
             </NoticeBox>
           )
         )}
-        <Button
-          dataTest="aggregate-entry-load"
-          onClick={() => { load().catch(() => undefined); }}
-          disabled={!boundOrgUnit || !period}
-        >
-          Load values
-        </Button>
       </div>
 
       {error && (
         <ErrorBlock title="Aggregate error" testId="aggregate-entry-error">{error}</ErrorBlock>
       )}
-      {rows === null && !error && boundOrgUnit && period && (
+      {loading && (
         <LoadingBlock testId="aggregate-entry-loading" />
       )}
       {rows !== null && (

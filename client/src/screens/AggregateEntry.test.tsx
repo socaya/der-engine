@@ -12,7 +12,7 @@ const health = (ok = true) => ({
 
 function stubApi(overrides: Record<string, unknown> = {}): never {
   return {
-    readAggregateValues: vi.fn(),
+    readAggregateValues: vi.fn().mockResolvedValue({ dataValues: [] }),
     submitAggregate: vi.fn(),
     health: vi.fn().mockResolvedValue(health()),
     getDataSetMeta: vi.fn().mockResolvedValue({
@@ -32,12 +32,10 @@ describe('AggregateEntry', () => {
       expect(screen.getByTestId('aggregate-entry-dataset')).toHaveTextContent('DS'));
     await waitFor(() =>
       expect(screen.getByTestId('aggregate-entry-period')).toBeInTheDocument());
-    // Bound OU (default "OU-A" via renderWithProviders) renders as a locked
-    // display, not a free-text input.
     expect(screen.getByTestId('aggregate-entry-orgunit')).toHaveTextContent('OU-A');
   });
 
-  it('loads values for the bound OU + supplied period', async () => {
+  it('auto-loads the grid when both bound-OU and period are present', async () => {
     const api = stubApi({
       readAggregateValues: vi.fn().mockResolvedValue({
         dataValues: [{ dataElement: 'de1', orgUnit: 'OU-A', period: '2026Q1',
@@ -47,16 +45,48 @@ describe('AggregateEntry', () => {
     renderWithProviders(<AggregateEntry api={api} />,
       { route: '/aggregate/entry?dataSet=DS&period=2026Q1' });
     await waitFor(() =>
-      expect(screen.getByTestId('aggregate-entry-load')).toBeEnabled());
-    await userEvent.click(screen.getByTestId('aggregate-entry-load'));
-    await waitFor(() =>
       expect(screen.getByTestId('aggregate-entry-grid')).toBeInTheDocument());
     expect(screen.getByTestId('aggregate-row-current-de1')).toHaveTextContent('7');
-    // Reads must target the bound OU, not the URL ou.
     const readSpy = (api as unknown as {
       readAggregateValues: { mock: { calls: unknown[][] } }
     }).readAggregateValues;
     expect(readSpy.mock.calls[0][0]).toBe('OU-A');
+  });
+
+  it('does NOT auto-load when the edge is unbound', async () => {
+    const read = vi.fn();
+    renderWithProviders(
+      <AggregateEntry api={stubApi({ readAggregateValues: read })} />,
+      { route: '/aggregate/entry?dataSet=DS&period=2026Q1',
+        orgUnitBinding: null },
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('aggregate-entry-unbound')).toBeInTheDocument());
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it('does NOT auto-load when period is empty', async () => {
+    const read = vi.fn();
+    renderWithProviders(
+      <AggregateEntry api={stubApi({ readAggregateValues: read })} />,
+      { route: '/aggregate/entry?dataSet=DS' });
+    await waitFor(() =>
+      expect(screen.getByTestId('aggregate-entry-period')).toBeInTheDocument());
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it('shows a spinner while the load is in flight and hides it on resolve', async () => {
+    let resolveFn: (r: { dataValues: edgeApi.AggregateReadbackRow[] }) => void = () => undefined;
+    const pending = new Promise<{ dataValues: edgeApi.AggregateReadbackRow[] }>(
+      (resolve) => { resolveFn = resolve; });
+    const api = stubApi({ readAggregateValues: vi.fn().mockReturnValue(pending) });
+    renderWithProviders(<AggregateEntry api={api} />,
+      { route: '/aggregate/entry?dataSet=DS&period=2026Q1' });
+    await waitFor(() =>
+      expect(screen.getByTestId('aggregate-entry-loading')).toBeInTheDocument());
+    resolveFn({ dataValues: [] });
+    await waitFor(() =>
+      expect(screen.queryByTestId('aggregate-entry-loading')).toBeNull());
   });
 
   it('submits with the bound OU and shows the import summary', async () => {
@@ -74,9 +104,6 @@ describe('AggregateEntry', () => {
     });
     renderWithProviders(<AggregateEntry api={api} />,
       { route: '/aggregate/entry?dataSet=DS&period=2026Q1' });
-    await waitFor(() =>
-      expect(screen.getByTestId('aggregate-entry-load')).toBeEnabled());
-    await userEvent.click(screen.getByTestId('aggregate-entry-load'));
     await waitFor(() =>
       expect(screen.getByTestId('aggregate-row-input-de1')).toBeInTheDocument());
     await userEvent.type(screen.getByTestId('aggregate-row-input-de1'), '5');
@@ -99,9 +126,6 @@ describe('AggregateEntry', () => {
     });
     renderWithProviders(<AggregateEntry api={api} />,
       { route: '/aggregate/entry?dataSet=DS&period=2026Q1' });
-    await waitFor(() =>
-      expect(screen.getByTestId('aggregate-entry-load')).toBeEnabled());
-    await userEvent.click(screen.getByTestId('aggregate-entry-load'));
     await userEvent.type(await screen.findByTestId('aggregate-row-input-d'), '5');
     await userEvent.click(screen.getByTestId('aggregate-entry-submit'));
     await waitFor(() =>
@@ -115,8 +139,15 @@ describe('AggregateEntry', () => {
     renderWithProviders(<AggregateEntry api={api} />,
       { route: '/aggregate/entry?dataSet=DS&period=2026Q1' });
     await waitFor(() =>
-      expect(screen.getByTestId('aggregate-entry-load')).toBeEnabled());
-    await userEvent.click(screen.getByTestId('aggregate-entry-load'));
+      expect(screen.getByTestId('aggregate-entry-error')).toBeInTheDocument());
+  });
+
+  it('non-Error load rejection surfaces as string', async () => {
+    const api = stubApi({
+      readAggregateValues: vi.fn().mockRejectedValue('x'),
+    });
+    renderWithProviders(<AggregateEntry api={api} />,
+      { route: '/aggregate/entry?dataSet=DS&period=2026Q1' });
     await waitFor(() =>
       expect(screen.getByTestId('aggregate-entry-error')).toBeInTheDocument());
   });
@@ -131,22 +162,18 @@ describe('AggregateEntry', () => {
     });
     renderWithProviders(<AggregateEntry api={api} />,
       { route: '/aggregate/entry?dataSet=DS&period=2026Q1' });
-    await waitFor(() =>
-      expect(screen.getByTestId('aggregate-entry-load')).toBeEnabled());
-    await userEvent.click(screen.getByTestId('aggregate-entry-load'));
     await userEvent.type(await screen.findByTestId('aggregate-row-input-d'), '1');
     await userEvent.click(screen.getByTestId('aggregate-entry-submit'));
     await waitFor(() =>
       expect(screen.getByTestId('aggregate-entry-error')).toBeInTheDocument());
   });
 
-  it('shows the unbound banner + disables Load when the edge has no bound OU', async () => {
+  it('shows the unbound banner when the edge has no bound OU', async () => {
     renderWithProviders(<AggregateEntry api={stubApi()} />,
       { route: '/aggregate/entry?dataSet=DS&period=2026Q1',
         orgUnitBinding: null });
     await waitFor(() =>
       expect(screen.getByTestId('aggregate-entry-unbound')).toBeInTheDocument());
-    expect(screen.getByTestId('aggregate-entry-load')).toBeDisabled();
   });
 
   it('shows metadata-error banner when getDataSetMeta rejects', async () => {
@@ -207,9 +234,6 @@ describe('AggregateEntry', () => {
     });
     renderWithProviders(<AggregateEntry api={api} />,
       { route: '/aggregate/entry?runId=r1&dataSet=DS&period=2026Q1' });
-    await waitFor(() =>
-      expect(screen.getByTestId('aggregate-entry-load')).toBeEnabled());
-    await userEvent.click(screen.getByTestId('aggregate-entry-load'));
     await waitFor(() =>
       expect(screen.getByTestId('aggregate-entry-grid')).toBeInTheDocument());
     await waitFor(() =>
