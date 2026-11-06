@@ -776,3 +776,29 @@ body {
   color: var(--der-ink-700);
   border-color: var(--der-border);
 }
+
+/* C-UI-5b AppHost shell. */
+.der-apphost {
+  padding: 8px 0;
+}
+.der-apphost--loading {
+  padding: 24px;
+  color: var(--der-ink-500);
+  font-size: 13px;
+}
+.der-apphost--error {
+  padding: 16px 20px;
+  border: 1px solid var(--der-border);
+  border-radius: var(--der-radius-md);
+  background: var(--der-surface);
+}
+.der-apphost--error h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--der-ink-900);
+}
+.der-apphost--error p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--der-ink-700);
+}

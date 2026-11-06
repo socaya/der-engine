@@ -25,6 +25,7 @@ import { CaptureRunForm } from './screens/CaptureRunForm';
 import { Dhis2Status } from './screens/Dhis2Status';
 import { SyncStatus } from './screens/SyncStatus';
 import { NetworkStatus } from './screens/NetworkStatus';
+import { AppHost } from './apps/AppHost';
 
 /**
  * DER device-client router. The device client is a capture + view
@@ -141,6 +142,10 @@ function InnerRoutes(): JSX.Element {
           } />
           <Route path="/network/status" element={
             <RequireAuth><NetworkStatus /></RequireAuth>
+          } />
+          {/* ADR-0037 C-UI-5b — DER-dispatched apps. */}
+          <Route path="/apps/:appKey" element={
+            <RequireAuth><AppHost /></RequireAuth>
           } />
         </Routes>
   );
