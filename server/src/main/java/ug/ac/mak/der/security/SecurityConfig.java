@@ -76,6 +76,16 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/edge-api/v1/system/health").permitAll()
                         .requestMatchers("/edge-api/v1/auth/sign-in").permitAll()
+                        // V090 login page settings — the device shell
+                        // needs to paint the sign-in screen before the
+                        // operator has a session. Both reads are safe
+                        // to expose; writes below require admin auth.
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/edge-api/v1/public/signin-settings",
+                                "/edge-api/v1/public/signin-settings/background").permitAll()
+                        .requestMatchers("/edge-api/v1/admin/signin-settings",
+                                "/edge-api/v1/admin/signin-settings/**")
+                                .hasAuthority("der.system.settings.write")
                         /* §2.3.120 R-AQ — Spring forwards uncaught
                          * controller exceptions to /error. Without
                          * permitAll here the internal forward is

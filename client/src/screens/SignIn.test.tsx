@@ -1,10 +1,30 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SignIn } from './SignIn';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { EdgeApiError, type SignInResponse } from '../api/edgeApi';
+
+// The SignIn layouts mount a `useSignInSettings` hook that calls
+// `/edge-api/v1/public/signin-settings`. These tests don't care
+// about settings — stub that one endpoint and let everything else
+// through unchanged.
+const realFetch = globalThis.fetch;
+beforeEach(() => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(
+    (input, init) => {
+      const url = typeof input === 'string' ? input
+        : input instanceof URL ? input.href : input.url;
+      if (url.includes('/public/signin-settings')) {
+        return Promise.reject(new Error('stubbed'));
+      }
+      return realFetch(input as RequestInfo, init);
+    });
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const user: SignInResponse = {
   userId: 'u', username: 'alice', displayName: 'Alice', roles: ['OPERATOR'], expiresAt: 'x',

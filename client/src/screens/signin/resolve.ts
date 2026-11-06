@@ -5,26 +5,38 @@ const LAYOUT_STORAGE_KEY = 'der.signin.layout';
 const BG_STORAGE_KEY = 'der.signin.backgroundImage';
 
 /**
+ * Minimal view of the server settings used by the resolvers.
+ * Keeps resolve.ts free of the full SignInSettings shape (which
+ * lives in useSignInSettings.ts) so the two can be tested in
+ * isolation.
+ */
+export interface ServerSignInOverrides {
+  readonly layout: SignInLayoutKind | null;
+  readonly backgroundUrl: string | null;
+}
+
+/**
  * Resolve the active signin layout. Precedence (highest first):
  *
  *   1. Device-level override — `localStorage['der.signin.layout']`.
- *      Lets an operator pin a layout for one device.
- *   2. Server-level deploy config — `<meta name="der-signin-layout"
- *      content="…">` injected into index.html by the DER server at
- *      serve time (one global policy for every device).
- *   3. Build-time env — `VITE_DER_SIGNIN_LAYOUT`.
- *   4. Fallback — `sidebar`, matching the DHIS2 default look.
+ *   2. Server-level admin UI setting (from GET /signin-settings).
+ *   3. Server-level deploy tag — `<meta name="der-signin-layout">`.
+ *   4. Build-time env — `VITE_DER_SIGNIN_LAYOUT`.
+ *   5. Fallback — `sidebar`, matching the DHIS2 default look.
  *
  * Unknown values are ignored so a typo can't white-screen the
  * sign-in page.
  */
-export function resolveSignInLayout(): SignInLayoutKind {
+export function resolveSignInLayout(
+  server?: ServerSignInOverrides,
+): SignInLayoutKind {
   if (typeof window !== 'undefined') {
     try {
       const stored = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
       if (stored && isLayout(stored)) return stored;
     } catch { /* storage disabled — fall through */ }
   }
+  if (server && server.layout && isLayout(server.layout)) return server.layout;
   if (typeof document !== 'undefined') {
     const meta = document.querySelector<HTMLMetaElement>(
       'meta[name="der-signin-layout"]');
@@ -45,13 +57,16 @@ export function resolveSignInLayout(): SignInLayoutKind {
  * "no image" — useful for disabling a server-set image on a
  * single device.
  */
-export function resolveSignInBackgroundImage(): string | null {
+export function resolveSignInBackgroundImage(
+  server?: ServerSignInOverrides,
+): string | null {
   if (typeof window !== 'undefined') {
     try {
       const stored = window.localStorage.getItem(BG_STORAGE_KEY);
       if (stored !== null) return stored;
     } catch { /* storage disabled — fall through */ }
   }
+  if (server && server.backgroundUrl) return server.backgroundUrl;
   if (typeof document !== 'undefined') {
     const meta = document.querySelector<HTMLMetaElement>(
       'meta[name="der-signin-background"]');

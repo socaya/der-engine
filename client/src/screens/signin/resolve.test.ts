@@ -55,6 +55,30 @@ describe('resolveSignInLayout', () => {
     expect(resolveSignInLayout()).toBe('sidebar');
   });
 
+  it('server override beats meta + env', () => {
+    vi.stubEnv('VITE_DER_SIGNIN_LAYOUT', 'hero');
+    setMeta('der-signin-layout', 'marketing');
+    expect(resolveSignInLayout({ layout: 'standard', backgroundUrl: null }))
+      .toBe('standard');
+  });
+
+  it('device localStorage beats server override', () => {
+    window.localStorage.setItem('der.signin.layout', 'hero');
+    expect(resolveSignInLayout({ layout: 'standard', backgroundUrl: null }))
+      .toBe('hero');
+  });
+
+  it('ignores server override with unknown layout', () => {
+    expect(resolveSignInLayout(
+      { layout: 'bogus' as never, backgroundUrl: null })).toBe('sidebar');
+  });
+
+  it('ignores server override when layout is null', () => {
+    setMeta('der-signin-layout', 'hero');
+    expect(resolveSignInLayout({ layout: null, backgroundUrl: null }))
+      .toBe('hero');
+  });
+
   it('localStorage overrides meta + env', () => {
     vi.stubEnv('VITE_DER_SIGNIN_LAYOUT', 'hero');
     setMeta('der-signin-layout', 'marketing');
@@ -118,6 +142,19 @@ describe('resolveSignInBackgroundImage', () => {
     setMeta('der-signin-background', '/meta.jpg');
     window.localStorage.setItem('der.signin.backgroundImage', '/device.jpg');
     expect(resolveSignInBackgroundImage()).toBe('/device.jpg');
+  });
+
+  it('server backgroundUrl beats meta + env', () => {
+    vi.stubEnv('VITE_DER_SIGNIN_BACKGROUND', '/env.jpg');
+    setMeta('der-signin-background', '/meta.jpg');
+    expect(resolveSignInBackgroundImage(
+      { layout: null, backgroundUrl: '/server.jpg' })).toBe('/server.jpg');
+  });
+
+  it('device localStorage beats server', () => {
+    window.localStorage.setItem('der.signin.backgroundImage', '/device.jpg');
+    expect(resolveSignInBackgroundImage(
+      { layout: null, backgroundUrl: '/server.jpg' })).toBe('/device.jpg');
   });
 
   it('empty-string localStorage override clears the image', () => {

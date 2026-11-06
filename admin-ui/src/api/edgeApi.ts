@@ -3309,3 +3309,50 @@ export function networkPolicyEditFull(id: string, body: {
 }): Promise<{ updated: boolean }> {
   return request('PUT', `/edge-api/v1/network/policy/${encodeURIComponent(id)}`, body);
 }
+
+/* ─────────── Signin appearance (ADR-0037 C-UI-3d) ─────────── */
+
+export type SignInLayoutKind = 'standard' | 'sidebar' | 'hero' | 'marketing';
+
+export interface SignInSettings {
+  layout: SignInLayoutKind | null;
+  appTitle: string | null;
+  appIntro: string | null;
+  submitLabel: string | null;
+  footerHtml: string | null;
+  hasBackground: boolean;
+  backgroundUrl: string | null;
+  backgroundEtag: string | null;
+}
+
+export function readSignInSettings(): Promise<SignInSettings> {
+  return request('GET', '/edge-api/v1/public/signin-settings');
+}
+
+export function updateSignInSettings(body: {
+  layout: SignInLayoutKind | null;
+  appTitle: string | null;
+  appIntro: string | null;
+  submitLabel: string | null;
+  footerHtml: string | null;
+}): Promise<SignInSettings> {
+  return request('PUT', '/edge-api/v1/admin/signin-settings', body);
+}
+
+/** Multipart upload — not covered by the JSON `request` helper. */
+export async function uploadSignInBackground(file: File): Promise<SignInSettings> {
+  const form = new FormData();
+  form.append('file', file);
+  const r = await fetch('/edge-api/v1/admin/signin-settings/background', {
+    method: 'POST', credentials: 'include', body: form,
+  });
+  if (!r.ok) {
+    throw new EdgeApiError(r.status, 'UNKNOWN',
+      `Upload failed with status ${r.status}`);
+  }
+  return r.json() as Promise<SignInSettings>;
+}
+
+export function clearSignInBackground(): Promise<SignInSettings> {
+  return request('DELETE', '/edge-api/v1/admin/signin-settings/background');
+}

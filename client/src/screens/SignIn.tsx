@@ -3,19 +3,20 @@ import { SignInLayoutMarketing } from './signin/LayoutMarketing';
 import { SignInLayoutSidebar } from './signin/LayoutSidebar';
 import { SignInLayoutStandard } from './signin/LayoutStandard';
 import { resolveSignInLayout } from './signin/resolve';
+import { useSignInSettings } from './signin/useSignInSettings';
 
 /**
- * DC-01 Sign in (ADR-0037 C-UI-3 / C-UI-3b / C-UI-3c).
+ * DC-01 Sign in (ADR-0037 C-UI-3 / 3b / 3c / 3d).
  *
- * Picks one of four layouts: standard / sidebar / hero / marketing.
- * Default is `sidebar` — the DHIS2 2.44 look with a narrow white
- * form panel on the left and a full-bleed background image on the
- * right. Override precedence: `localStorage['der.signin.layout']`
- * (device) → `<meta name="der-signin-layout">` (server deploy) →
- * `VITE_DER_SIGNIN_LAYOUT` (build) → `sidebar` fallback.
+ * Picks one of four layouts. Precedence (highest first):
+ * device `localStorage['der.signin.layout']` → server admin
+ * setting → `<meta name="der-signin-layout">` → `VITE_DER_SIGNIN_LAYOUT`
+ * → `sidebar` fallback. Each layout then fetches the same server
+ * settings for title / intro / submit label / background image.
  */
 export function SignIn(): JSX.Element {
-  switch (resolveSignInLayout()) {
+  const settings = useSignInSettings();
+  switch (resolveSignInLayout(settings)) {
     case 'standard':  return <SignInLayoutStandard />;
     case 'hero':      return <SignInLayoutHero />;
     case 'marketing': return <SignInLayoutMarketing />;

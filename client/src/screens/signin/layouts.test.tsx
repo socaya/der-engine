@@ -28,10 +28,13 @@ function render(el: JSX.Element): void {
 describe('SignIn layouts', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => Promise.reject(new Error('stubbed')));
   });
   afterEach(() => {
     document.documentElement.style.removeProperty('--der-signin-bg-image');
     window.localStorage.clear();
+    vi.restoreAllMocks();
   });
 
   it('standard — renders heading + boxed card', async () => {
@@ -99,8 +102,15 @@ describe('SignIn layouts', () => {
 });
 
 describe('SignIn delegator', () => {
-  beforeEach(() => { window.localStorage.clear(); });
-  afterEach(() => { window.localStorage.clear(); });
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => Promise.reject(new Error('stubbed')));
+  });
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.restoreAllMocks();
+  });
 
   it('renders sidebar by default', async () => {
     const { SignIn } = await import('../SignIn');

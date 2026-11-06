@@ -4,16 +4,18 @@ import type { SignInState } from './useSignInController';
 
 export interface SignInHeadingProps {
   readonly tone?: 'light' | 'dark';
+  readonly appTitle?: string | null;
+  readonly appIntro?: string | null;
 }
 
-/**
- * Brand mark + app title + intro. Used by every signin layout.
- * The `tone` prop flips text colour for dark vs light surfaces —
- * standard/sidebar/marketing use `light` (the mark sits on blue);
- * hero uses `dark` (mark + title sit on a white card).
- */
+const DEFAULT_TITLE = 'DHIS2 Edge Runtime';
+const DEFAULT_INTRO =
+  'Offline-first capture bound to a single organisation unit. '
+  + 'Authentication is local to this edge host — no reach-through '
+  + 'to the central DHIS2.';
+
 export function SignInHeading(
-  { tone = 'light' }: SignInHeadingProps = {},
+  { tone = 'light', appTitle, appIntro }: SignInHeadingProps = {},
 ): JSX.Element {
   const toneClass = tone === 'dark' ? 'der-signin-heading--dark' : '';
   return (
@@ -22,15 +24,17 @@ export function SignInHeading(
       <div className="der-signin-heading__titles">
         <h1 className="der-signin-heading__app-title"
              data-test="signin-app-title">
-          DHIS2 Edge Runtime
+          {appTitle && appTitle.trim() !== '' ? appTitle : DEFAULT_TITLE}
         </h1>
         <p className="der-signin-heading__app-intro">
-          Offline-first capture bound to a single organisation unit.
-          Authentication is local to this edge host — no reach-through
-          to the central DHIS2.
+          {appIntro && appIntro.trim() !== '' ? appIntro : DEFAULT_INTRO}
         </p>
       </div>
-      <div className="der-signin-heading__brand-mark" aria-hidden="true">DER</div>
+      <img
+        className="der-signin-heading__brand-mark"
+        src={tone === 'dark' ? '/brand/der-icon-navy.svg' : '/brand/der-icon-white.svg'}
+        alt="DER"
+      />
     </div>
   );
 }
@@ -38,17 +42,13 @@ export function SignInHeading(
 export interface SignInFormCardProps {
   readonly state: SignInState;
   readonly onSubmit: (e: FormEvent<HTMLFormElement>) => void;
-  /**
-   * `card` wraps the form in the bordered `.der-signin__card` box
-   * (used by centered-card layouts); `plain` renders inputs flush
-   * with the surrounding panel — the DHIS2 default look where the
-   * sidebar is itself the container and the form is unboxed.
-   */
   readonly variant?: 'card' | 'plain';
+  readonly submitLabel?: string | null;
+  readonly footerHtml?: string | null;
 }
 
 export function SignInFormCard(
-  { state, onSubmit, variant = 'card' }: SignInFormCardProps,
+  { state, onSubmit, variant = 'card', submitLabel, footerHtml }: SignInFormCardProps,
 ): JSX.Element {
   const {
     username, setUsername,
@@ -56,6 +56,7 @@ export function SignInFormCard(
     submitting, error, alreadyIn, alreadyInUsername,
   } = state;
   const cls = variant === 'plain' ? 'der-signin__form' : 'der-signin__card';
+  const label = submitLabel && submitLabel.trim() !== '' ? submitLabel : 'Sign in';
   return (
     <section className={cls} data-test="der-signin-card">
       <h1 data-test="signin-heading">Sign in</h1>
@@ -91,7 +92,7 @@ export function SignInFormCard(
           disabled={submitting || alreadyIn}
           dataTest="signin-password"
         />
-        <div className="der-signin-actions" style={{ marginTop: 16 }}>
+        <div className="der-signin-actions">
           <Button
             primary
             type="submit"
@@ -99,14 +100,25 @@ export function SignInFormCard(
             disabled={submitting || alreadyIn || username === '' || password === ''}
             dataTest="signin-submit"
           >
-            Sign in
+            {label}
           </Button>
         </div>
       </form>
-      <p className="der-signin__footer">
-        Trouble signing in? An admin can approve your device on the DER
-        admin UI.
-      </p>
+      {footerHtml && footerHtml.trim() !== '' ? (
+        <div
+          className="der-signin__footer"
+          data-test="signin-footer"
+          /* Admin-controlled rich text — rendered as HTML so links work.
+           * The admin screen is ADMIN-only; this is settings output, not
+           * user input, matching the DHIS2 login's own footer semantics. */
+          dangerouslySetInnerHTML={{ __html: footerHtml }}
+        />
+      ) : (
+        <p className="der-signin__footer">
+          Trouble signing in? An admin can approve your device on the DER
+          admin UI.
+        </p>
+      )}
     </section>
   );
 }

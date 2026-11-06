@@ -449,20 +449,9 @@ body {
 .der-signin-heading__brand-mark {
   width: 56px;
   height: 56px;
-  background: rgba(255, 255, 255, 0.14);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  font-size: 16px;
-  border-radius: var(--der-radius-md);
+  object-fit: contain;
+  display: block;
   flex-shrink: 0;
-}
-
-.der-signin-heading--dark .der-signin-heading__brand-mark {
-  background: var(--der-brand-500);
 }
 
 /* Shared form card. */
@@ -501,6 +490,22 @@ body {
   margin-top: 16px;
   font-size: 12px;
   color: var(--der-ink-500);
+}
+
+/* DHIS2-style primary submit — full-width, bold label, flat.
+ * Targets the @dhis2/ui Button rendered inside the signin
+ * actions row so we don't have to override the component. */
+.der-signin-actions {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+}
+.der-signin-actions button {
+  width: 100%;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 
 /* ─── standard — DHIS2 2.44 default layout ───────────────── */
@@ -569,7 +574,7 @@ body {
   flex: 1 1 auto;
   min-height: 100vh;
   background:
-    var(--der-signin-bg-image, none),
+    var(--der-signin-bg-image, url('/brand/signin-health-bg.svg')),
     linear-gradient(180deg, #2a5298 0%, #1e3c72 100%);
   background-size: cover, auto;
   background-position: center center;
@@ -590,8 +595,8 @@ body {
 .der-signin--hero {
   min-height: 100vh;
   background:
-    var(--der-signin-bg-image, linear-gradient(
-      135deg, var(--der-brand-500) 0%, var(--der-signin-bg) 100%));
+    var(--der-signin-bg-image, url('/brand/signin-health-bg.svg')),
+    linear-gradient(135deg, var(--der-brand-500) 0%, var(--der-signin-bg) 100%);
   background-size: cover;
   background-position: center;
   display: flex;
@@ -623,8 +628,8 @@ body {
 
 .der-signin--marketing .der-signin__marketing-panel {
   background:
-    var(--der-signin-bg-image, linear-gradient(
-      135deg, var(--der-brand-500) 0%, var(--der-signin-bg) 100%));
+    var(--der-signin-bg-image, url('/brand/signin-health-bg.svg')),
+    linear-gradient(135deg, var(--der-brand-500) 0%, var(--der-signin-bg) 100%);
   background-size: cover;
   background-position: center;
   display: flex;

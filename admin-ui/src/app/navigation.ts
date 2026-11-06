@@ -272,6 +272,9 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'apps', label: 'Apps', to: '/apps', status: 'implemented' },
       { id: 'releases', label: 'Releases', to: '/settings/releases', status: 'implemented' },
       { id: 'network', label: 'Network', to: '/settings/network', status: 'implemented' },
+      { id: 'login-appearance', label: 'Login page', to: '/settings/login',
+        status: 'implemented', tabIcon: 'settings',
+        crumb: 'Login appearance' },
     ],
   },
 ];

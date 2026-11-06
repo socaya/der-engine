@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Health facility skyline">
+  <defs>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#2a5298"/>
+      <stop offset="1" stop-color="#1e3c72"/>
+    </linearGradient>
+    <linearGradient id="haze" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.08"/>
+    </linearGradient>
+    <pattern id="win" width="40" height="52" patternUnits="userSpaceOnUse">
+      <rect x="8" y="8" width="24" height="18" fill="#ffffff" fill-opacity="0.18" rx="1"/>
+      <rect x="8" y="30" width="24" height="18" fill="#ffffff" fill-opacity="0.10" rx="1"/>
+    </pattern>
+    <pattern id="win-lit" width="40" height="52" patternUnits="userSpaceOnUse">
+      <rect x="8" y="8" width="24" height="18" fill="#ffe28a" fill-opacity="0.72" rx="1"/>
+      <rect x="8" y="30" width="24" height="18" fill="#ffd166" fill-opacity="0.55" rx="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#sky)"/>
+  <rect width="1600" height="1000" fill="url(#haze)"/>
+
+  <!-- distant skyline silhouette -->
+  <g fill="#162a4a" fill-opacity="0.55">
+    <rect x="0"    y="700" width="90"  height="300"/>
+    <rect x="90"   y="640" width="110" height="360"/>
+    <rect x="200"  y="680" width="70"  height="320"/>
+    <rect x="270"  y="620" width="140" height="380"/>
+    <rect x="410"  y="660" width="90"  height="340"/>
+    <rect x="1120" y="650" width="130" height="350"/>
+    <rect x="1250" y="690" width="80"  height="310"/>
+    <rect x="1330" y="620" width="120" height="380"/>
+    <rect x="1450" y="670" width="150" height="330"/>
+  </g>
+
+  <!-- primary hospital block (centre-left) -->
+  <g>
+    <rect x="500" y="400" width="420" height="600" fill="#1a3466"/>
+    <rect x="500" y="400" width="420" height="600" fill="url(#win)"/>
+    <!-- lit windows cluster -->
+    <rect x="540" y="520" width="340" height="52" fill="url(#win-lit)"/>
+    <rect x="540" y="676" width="340" height="52" fill="url(#win-lit)"/>
+    <!-- rooftop block -->
+    <rect x="620" y="340" width="180" height="60" fill="#0f2345"/>
+    <!-- entrance canopy -->
+    <rect x="640" y="920" width="140" height="80" fill="#0f2345"/>
+    <!-- red cross on facade -->
+    <g transform="translate(710,440)">
+      <rect x="-14" y="-40" width="28" height="80" fill="#e04a4a"/>
+      <rect x="-40" y="-14" width="80" height="28" fill="#e04a4a"/>
+    </g>
+  </g>
+
+  <!-- secondary wing (right of primary) -->
+  <g>
+    <rect x="920" y="520" width="260" height="480" fill="#193163"/>
+    <rect x="920" y="520" width="260" height="480" fill="url(#win)"/>
+    <rect x="960" y="620" width="180" height="52" fill="url(#win-lit)"/>
+  </g>
+
+  <!-- ambulance-bay annex (left of primary) -->
+  <g>
+    <rect x="380" y="640" width="120" height="360" fill="#132953"/>
+    <rect x="380" y="640" width="120" height="360" fill="url(#win)"/>
+  </g>
+
+  <!-- ground + soft base glow -->
+  <rect x="0" y="960" width="1600" height="40" fill="#0b1c3c"/>
+  <ellipse cx="710" cy="960" rx="260" ry="28" fill="#ffe28a" fill-opacity="0.08"/>
+</svg>
