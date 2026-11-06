@@ -73,7 +73,8 @@ export default function DataEntryApp(): JSX.Element {
       } catch { /* mirror unreachable — picker stays empty */ }
     })();
     return () => { cancelled = true; };
-  }, [api]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Whenever the dataset UID changes, peek at the dataset's form
   // metadata so the UI can offer "Switch to custom form" when the
@@ -112,7 +113,8 @@ export default function DataEntryApp(): JSX.Element {
       } catch { if (!cancelled) setFormInfo(null); }
     })();
     return () => { cancelled = true; };
-  }, [dataSet, api]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataSet]);
 
   // Mount the DHIS2 custom form when the user switches to custom
   // mode and the dataset has one. Loads vendor scripts in sequence,
@@ -248,7 +250,8 @@ export default function DataEntryApp(): JSX.Element {
       }
     })();
     return () => { cancelled = true; };
-  }, [mode, formInfo, dataSet, period, ou.orgUnitUid, api]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, formInfo, dataSet, period, ou.orgUnitUid]);
 
   const canSubmit = ou.bound
     && dataSet.trim() !== ''
@@ -1049,19 +1052,13 @@ const errorStrip = {
   border: '1px solid #e0bcbc', borderRadius: 3,
 };
 /**
- * Render an appropriate period picker for the dataset's periodType.
+ * Render a dropdown-style period picker for the dataset's
+ * periodType. Operators prefer picking from a short list of
+ * actual DHIS2 period ids over a calendar widget.
  *
- * - Monthly   → `<input type="month">`  → convert YYYY-MM to YYYYMM
- * - Weekly    → `<input type="week">`   → convert YYYY-Www to YYYYWnn
- * - Daily     → `<input type="date">`   → convert YYYY-MM-DD to YYYYMMDD
- * - Yearly    → `<select>` of the last 10 years + current year
- * - Quarterly → `<select>` of this year's Q1..Q4 + previous year
- * - Anything else → free-text field (DHIS2 periodType IDs vary; e.g.
- *   SixMonthly, FinancialJuly — users type the DHIS2 period id by hand).
- *
- * Internally the period string stored in state is always the
- * DHIS2 period id (e.g. "202611", "2026W45", "20261104"), so the
- * submit path + hidden #selectedPeriodId are unchanged.
+ * Returns the DHIS2 period id as the <select> value (so the
+ * form state stays in native DHIS2 shape and the submit path +
+ * hidden #selectedPeriodId are unchanged).
  */
 function renderPeriodPicker(
   periodType: string | undefined,
@@ -1069,79 +1066,149 @@ function renderPeriodPicker(
   setPeriod: (v: string) => void,
 ): JSX.Element {
   const common = { ...inputStyle } as React.CSSProperties;
+  const options = buildPeriodOptions(periodType);
+  if (options.length === 0) {
+    // Unknown periodType — fall back to free text (DHIS2 period id).
+    return (
+      <input value={period}
+        onChange={(e) => setPeriod(e.target.value)}
+        placeholder={periodType
+          ? `DHIS2 ${periodType} period id` : 'e.g. 202611'}
+        style={common} />
+    );
+  }
+  return (
+    <select value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            style={common}>
+      <option value="">Select a period…</option>
+      {options.map((o) => (
+        <option key={o.id} value={o.id}>{o.label}</option>
+      ))}
+    </select>
+  );
+}
+
+/**
+ * Build the periods offered in the picker for a given periodType.
+ *   Daily      → last 30 days
+ *   Weekly     → last 12 ISO weeks
+ *   Monthly    → last 24 months
+ *   BiMonthly  → last 12 bi-months (Jan-Feb … Nov-Dec, labelled)
+ *   Quarterly  → last 8 quarters
+ *   SixMonthly → last 6 half-years
+ *   Yearly / FinancialOct / FinancialJuly / FinancialApril → last 10 years
+ * Falls back to [] (free text) for unknown period types.
+ */
+function buildPeriodOptions(periodType?: string): Array<{ id: string; label: string }> {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = today.getMonth(); // 0-based
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   switch (periodType) {
-    case 'Monthly': {
-      // YYYYMM ↔ YYYY-MM
-      const isoFromP = period.length === 6
-        ? `${period.slice(0, 4)}-${period.slice(4, 6)}` : '';
-      return (
-        <input type="month" value={isoFromP}
-          onChange={(e) => setPeriod(e.target.value.replace('-', ''))}
-          style={common} />
-      );
-    }
     case 'Daily': {
-      const isoFromP = period.length === 8
-        ? `${period.slice(0,4)}-${period.slice(4,6)}-${period.slice(6,8)}` : '';
-      return (
-        <input type="date" value={isoFromP}
-          onChange={(e) => setPeriod(e.target.value.replace(/-/g, ''))}
-          style={common} />
-      );
+      const out: Array<{ id: string; label: string }> = [];
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const id = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+        const label = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        out.push({ id, label });
+      }
+      return out;
     }
     case 'Weekly': {
-      // DHIS2: YYYYWnn ↔ YYYY-Www
-      const m = /^(\d{4})W(\d{1,2})$/.exec(period);
-      const isoFromP = m
-        ? `${m[1]}-W${String(m[2]).padStart(2, '0')}` : '';
-      return (
-        <input type="week" value={isoFromP}
-          onChange={(e) => {
-            const im = /^(\d{4})-W(\d{2})$/.exec(e.target.value);
-            setPeriod(im ? `${im[1]}W${im[2]}` : '');
-          }}
-          style={common} />
-      );
+      const out: Array<{ id: string; label: string }> = [];
+      const w = isoWeek(today);
+      let wy = w.year; let wk = w.week;
+      for (let i = 0; i < 12; i++) {
+        out.push({ id: `${wy}W${wk}`, label: `${wy} W${pad(wk)}` });
+        wk -= 1;
+        if (wk < 1) { wy -= 1; wk = isoWeeksInYear(wy); }
+      }
+      return out;
     }
-    case 'Yearly': {
-      const now = new Date().getFullYear();
-      const options: number[] = [];
-      for (let y = now; y > now - 11; y--) options.push(y);
-      return (
-        <select value={period} onChange={(e) => setPeriod(e.target.value)}
-                style={common}>
-          <option value="">Pick a year</option>
-          {options.map((y) => (
-            <option key={y} value={String(y)}>{y}</option>
-          ))}
-        </select>
-      );
+    case 'Monthly': {
+      const out: Array<{ id: string; label: string }> = [];
+      for (let i = 0; i < 24; i++) {
+        const my = y; const mm = m;
+        const total = my * 12 + mm - i;
+        const yy = Math.floor(total / 12);
+        const mi = ((total % 12) + 12) % 12;
+        out.push({
+          id: `${yy}${pad(mi + 1)}`,
+          label: `${MONTH_NAMES[mi]} ${yy}`,
+        });
+      }
+      return out;
+    }
+    case 'BiMonthly': {
+      const out: Array<{ id: string; label: string }> = [];
+      // Bi-month id = YYYY0{1..6}B; 1 = Jan-Feb, 2 = Mar-Apr, …
+      const curBm = Math.floor(m / 2) + 1;
+      let by = y; let bm = curBm;
+      for (let i = 0; i < 12; i++) {
+        const a = (bm - 1) * 2;
+        out.push({
+          id: `${by}${pad(bm)}B`,
+          label: `${MONTH_NAMES[a]}–${MONTH_NAMES[a + 1]} ${by}`,
+        });
+        bm -= 1;
+        if (bm < 1) { by -= 1; bm = 6; }
+      }
+      return out;
     }
     case 'Quarterly': {
-      const now = new Date().getFullYear();
-      const options: string[] = [];
-      for (const y of [now, now - 1]) {
-        for (const q of [1, 2, 3, 4]) options.push(`${y}Q${q}`);
+      const out: Array<{ id: string; label: string }> = [];
+      const curQ = Math.floor(m / 3) + 1;
+      let qy = y; let q = curQ;
+      for (let i = 0; i < 8; i++) {
+        out.push({ id: `${qy}Q${q}`, label: `${qy} Q${q}` });
+        q -= 1;
+        if (q < 1) { qy -= 1; q = 4; }
       }
-      return (
-        <select value={period} onChange={(e) => setPeriod(e.target.value)}
-                style={common}>
-          <option value="">Pick a quarter</option>
-          {options.map((p) => (
-            <option key={p} value={p}>{p.replace('Q', ' Q')}</option>
-          ))}
-        </select>
-      );
+      return out;
+    }
+    case 'SixMonthly': {
+      const out: Array<{ id: string; label: string }> = [];
+      const curS = m < 6 ? 1 : 2;
+      let sy = y; let s = curS;
+      for (let i = 0; i < 6; i++) {
+        out.push({ id: `${sy}S${s}`, label: `${sy} ${s === 1 ? 'Jan–Jun' : 'Jul–Dec'}` });
+        s -= 1;
+        if (s < 1) { sy -= 1; s = 2; }
+      }
+      return out;
+    }
+    case 'Yearly':
+    case 'FinancialApril':
+    case 'FinancialJuly':
+    case 'FinancialOct': {
+      const out: Array<{ id: string; label: string }> = [];
+      for (let i = 0; i < 10; i++) {
+        const yy = y - i;
+        out.push({ id: String(yy), label: String(yy) });
+      }
+      return out;
     }
     default:
-      return (
-        <input value={period}
-          onChange={(e) => setPeriod(e.target.value)}
-          placeholder={periodType
-            ? `DHIS2 ${periodType} period id` : 'e.g. 202611'}
-          style={common} />
-      );
+      return [];
   }
+}
+
+function isoWeek(d: Date): { year: number; week: number } {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = t.getUTCDay() === 0 ? 7 : t.getUTCDay();
+  t.setUTCDate(t.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return { year: t.getUTCFullYear(), week };
+}
+function isoWeeksInYear(y: number): number {
+  const d = new Date(Date.UTC(y, 11, 28));
+  return isoWeek(d).week;
 }
 
 /* Scoped styles for the aggregate data-entry app. Flat/soft per
