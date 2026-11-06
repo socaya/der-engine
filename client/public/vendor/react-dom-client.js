@@ -1,1 +1,1 @@
-var i=(t=>typeof require<"u"?require:typeof Proxy<"u"?new Proxy(t,{get:(e,r)=>(typeof require<"u"?require:e)[r]}):t)(function(t){if(typeof require<"u")return require.apply(this,arguments);throw Error('Dynamic require of "'+t+'" is not supported')});var a=(t,e)=>()=>(e||t((e={exports:{}}).exports,e),e.exports);var c=a(o=>{var n=i("react-dom");o.createRoot=n.createRoot,o.hydrateRoot=n.hydrateRoot;var u});export default c();
+import*as t from"react-dom/client";var{createRoot:o,hydrateRoot:e}=t,r=t;export{o as createRoot,r as default,e as hydrateRoot};

@@ -33,32 +33,38 @@ const common = {
   legalComments: 'none',
 };
 
+const facade = (n) => resolve(here, 'vendor-facades', `${n}.js`);
+
+// React + ReactDOM ship CJS modules; esbuild's `bundle:esm` of those
+// only emits `default`. Named ESM re-exports (`useState`, `jsx`, …)
+// need an explicit facade source that destructures the default
+// export. The facades live in client/scripts/vendor-facades/.
 await build({
   ...common,
-  entryPoints: { 'react': 'react' },
+  entryPoints: { 'react': facade('react') },
 });
 
 await build({
   ...common,
-  entryPoints: { 'react-jsx-runtime': 'react/jsx-runtime' },
+  entryPoints: { 'react-jsx-runtime': facade('react-jsx-runtime') },
   external: ['react'],
 });
 
 await build({
   ...common,
-  entryPoints: { 'react-dom': 'react-dom' },
+  entryPoints: { 'react-dom': facade('react-dom') },
   external: ['react'],
 });
 
 await build({
   ...common,
-  entryPoints: { 'react-dom-client': 'react-dom/client' },
+  entryPoints: { 'react-dom-client': facade('react-dom-client') },
   external: ['react', 'react-dom'],
 });
 
 await build({
   ...common,
-  entryPoints: { 'react-router-dom': 'react-router-dom' },
+  entryPoints: { 'react-router-dom': facade('react-router-dom') },
   external: ['react', 'react-dom'],
 });
 
