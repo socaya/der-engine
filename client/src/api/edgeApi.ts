@@ -120,6 +120,31 @@ export function getDataSetMeta(dataSetUid: string): Promise<DataSetMeta> {
 }
 
 /**
+ * Fetch the full dataset metadata expansion needed to populate
+ * DHIS2's `dhis2.de.*` globals before loading a custom form.
+ * Calls DER's /api/dataSets/{uid} with a nested `fields=` mask so
+ * data elements, option sets, categoryCombos, indicators all come
+ * back in one round-trip. Returns the raw payload — the caller
+ * reshapes into the shape form.js + entry.js expect.
+ */
+export function getDataSetFormMetadata(dataSetUid: string): Promise<unknown> {
+  const fields = [
+    'id,name,displayName,periodType,formType,version',
+    'categoryCombo[id,name,categories[id,name,categoryOptions[id,name]]'
+      + ',categoryOptionCombos[id,name]]',
+    'dataSetElements[dataElement[id,name,formName,valueType,optionSet'
+      + '[id,name,options[id,code,name,displayName]],categoryCombo'
+      + '[id,name,categoryOptionCombos[id,name]]]]',
+    'indicators[id,name,numerator,denominator,indicatorType[id,factor]]',
+    'compulsoryDataElementOperands[dimensionItem]',
+    'dataEntryForm[id,name]',
+  ].join(',');
+  const q = new URLSearchParams({ fields }).toString();
+  return request('GET',
+    `/api/dataSets/${encodeURIComponent(dataSetUid)}?${q}`);
+}
+
+/**
  * Fetch `dataEntryForm.htmlCode` separately — DHIS2 doesn't include
  * it in the default `/api/dataSets/{uid}` response, and even when
  * the mirror has it, the column is heavy. The C-UI-5f client only

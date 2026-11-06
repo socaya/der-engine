@@ -85,6 +85,10 @@ export default function DataEntryApp(): JSX.Element {
           htmlCode?: string;
         };
         if (cancelled) return;
+        // Pull the dataset's full metadata expansion so DHIS2's
+        // form.js can resolve indicators, option sets, categoryCombos.
+        const meta = await api.getDataSetFormMetadata(dataSet.trim()) as DataSetBundle;
+        if (cancelled) return;
         // Clear any previous render — we rebuild hidden selectors
         // + content on every form load.
         root.replaceChildren();
@@ -103,14 +107,17 @@ export default function DataEntryApp(): JSX.Element {
         const content = document.createElement('div');
         content.id = 'contentDiv';
         root.appendChild(content);
-        // Global DHIS2 namespace — seed selections.
-        const g = globalThis as unknown as { dhis2?: Record<string, unknown> };
-        g.dhis2 = g.dhis2 ?? {};
-        const dhis2 = g.dhis2 as Record<string, Record<string, unknown>>;
-        dhis2.de = dhis2.de ?? {};
-        dhis2.de.currentDataSetId = dataSet.trim();
-        dhis2.de.currentOrganisationUnitId = ou.orgUnitUid ?? '';
-        dhis2.de.currentPeriodId = period.trim();
+        // Global DHIS2 namespace — seed selections + metadata so
+        // form.js / entry.js can resolve indicators, option sets,
+        // category combos, data-element definitions. Mirrors the
+        // shim DHIS2's own aggregate-data-entry-app writes before
+        // custom forms load (loadCustomFormShim.js).
+        hydrateDhis2Globals({
+          dataSetId: dataSet.trim(),
+          periodId: period.trim(),
+          orgUnitId: ou.orgUnitUid ?? '',
+          meta,
+        });
 
         // Vendor CSS baseline (DHIS2's own stack) first so the form
         // renders styled on first paint.
@@ -297,6 +304,121 @@ const VENDOR_STYLES = [
   '/legacy-custom-forms/css/bootstrap/bootstrap.min.css',
   '/legacy-custom-forms/css/plugin-styles.css',
 ];
+
+/** Shape of the dataset metadata bundle returned by
+ *  `getDataSetFormMetadata`. Kept narrow to the fields DHIS2
+ *  form.js / entry.js actually read. */
+interface DataSetBundle {
+  id: string; name?: string; displayName?: string;
+  periodType?: string;
+  formType?: string;
+  version?: number;
+  categoryCombo?: {
+    id: string; name?: string;
+    categories?: Array<{ id: string; name?: string;
+      categoryOptions?: Array<{ id: string; name?: string }> }>;
+    categoryOptionCombos?: Array<{ id: string; name?: string }>;
+  };
+  dataSetElements?: Array<{
+    dataElement?: {
+      id: string; name?: string; formName?: string; valueType?: string;
+      optionSet?: { id: string; name?: string;
+        options?: Array<{ id: string; code?: string; name?: string;
+          displayName?: string }> };
+      categoryCombo?: { id: string; name?: string;
+        categoryOptionCombos?: Array<{ id: string; name?: string }> };
+    };
+  }>;
+  indicators?: Array<{
+    id: string; name?: string;
+    numerator?: string; denominator?: string;
+    indicatorType?: { id: string; factor?: number };
+  }>;
+  dataEntryForm?: { id: string; name?: string } | null;
+}
+
+/**
+ * Populate the globals DHIS2 form.js + entry.js read. Mirrors the
+ * aggregate-data-entry-app's `loadCustomFormShim` — any of these
+ * that aren't populated lead to silent null-derefs inside form.js.
+ */
+function hydrateDhis2Globals(args: {
+  dataSetId: string; periodId: string; orgUnitId: string;
+  meta: DataSetBundle;
+}): void {
+  const g = globalThis as unknown as { dhis2?: Record<string, unknown>;
+    DHIS2_BASE_URL?: string; $?: { ajaxSetup?: (o: object) => void } };
+  g.dhis2 = g.dhis2 ?? {};
+  const dhis2 = g.dhis2 as Record<string, Record<string, unknown>>;
+  dhis2.de = dhis2.de ?? {};
+  const de = dhis2.de;
+
+  de.currentDataSetId = args.dataSetId;
+  de.currentOrganisationUnitId = args.orgUnitId;
+  de.currentPeriodId = args.periodId;
+
+  const meta = args.meta ?? {};
+  // Category + categoryCombo keyed by id.
+  const categories: Record<string, unknown> = {};
+  const categoryCombos: Record<string, unknown> = {};
+  if (meta.categoryCombo) {
+    categoryCombos[meta.categoryCombo.id] = meta.categoryCombo;
+    for (const c of meta.categoryCombo.categories ?? []) {
+      categories[c.id] = c;
+    }
+  }
+  de.categories = categories;
+  de.categoryCombos = categoryCombos;
+
+  // Data elements + option sets keyed by id.
+  const dataElements: Record<string, unknown> = {};
+  const optionSets: Record<string, unknown> = {};
+  for (const dse of meta.dataSetElements ?? []) {
+    const d = dse.dataElement;
+    if (!d) continue;
+    dataElements[d.id] = d;
+    if (d.optionSet) optionSets[d.optionSet.id] = d.optionSet;
+    if (d.categoryCombo) categoryCombos[d.categoryCombo.id] = d.categoryCombo;
+  }
+  de.dataElements = dataElements;
+  de.optionSets = optionSets;
+
+  // Indicator formulas — entry.js's updateIndicators reads
+  // `dhis2.de.indicatorFormulas[<id>]`. Shape matches:
+  //   { explodedNumerator, denominator }
+  // DER's /api/indicators returns raw expressions; we pass them
+  // through — entry.js's `generateExpression` tolerates undefined
+  // `explodedNumerator` by falling through to the string form.
+  const indicatorFormulas: Record<string, unknown> = {};
+  for (const i of meta.indicators ?? []) {
+    indicatorFormulas[i.id] = {
+      explodedNumerator: i.numerator,
+      denominator: i.denominator,
+      factor: i.indicatorType?.factor ?? 1,
+    };
+  }
+  de.indicatorFormulas = indicatorFormulas;
+
+  // Dataset registry — form.js's getSelections() queries
+  // dhis2.de.dataSets[<id>].
+  de.dataSets = {
+    [meta.id]: {
+      id: meta.id, name: meta.name ?? meta.displayName ?? '',
+      periodType: meta.periodType,
+      categoryCombo: meta.categoryCombo?.id,
+      periodId: args.periodId,
+    },
+  };
+
+  // AJAX base — custom-form authors sometimes write `$.get('/api/...')`
+  // relative URLs that should hit DER's emulated endpoints. jQuery
+  // resolves them against window.location by default (same origin),
+  // which is what we want; but publish the explicit base URL too
+  // in case a form uses it. $ may or may not be loaded yet — set
+  // beforeSend after loadScript runs via $(document).ready, OR
+  // just stamp DHIS2_BASE_URL now and let the vendor shim handle $.
+  g.DHIS2_BASE_URL = `${window.location.origin}/`;
+}
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
