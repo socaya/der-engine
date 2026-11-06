@@ -51,6 +51,15 @@ describe('DerTopbar', () => {
     const chip = screen.getByTestId('der-topbar-queue');
     expect(chip).toHaveTextContent('3 queued');
     expect(chip.className).toMatch(/der-topbar__queue--offline/);
+    expect(chip.getAttribute('title')).toMatch(/Offline/);
+  });
+
+  it('queued chip is neutral + mentions drain when online', () => {
+    renderWithProviders(<DerTopbar queuedCount={2} online />);
+    const chip = screen.getByTestId('der-topbar-queue');
+    expect(chip).toHaveTextContent('2 queued');
+    expect(chip.className).not.toMatch(/der-topbar__queue--offline/);
+    expect(chip.getAttribute('title')).toMatch(/Draining/);
   });
 
   it('hides the queued chip at zero', () => {
