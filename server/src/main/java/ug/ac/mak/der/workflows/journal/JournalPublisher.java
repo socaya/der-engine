@@ -105,8 +105,20 @@ public class JournalPublisher {
                 // normally. 2.44 falls back to this when the batch is
                 // small enough to run synchronously.
             }
-            return new PublishResult(status, resp.body() == null ? "" : resp.body(),
-                    ResponseClassifier.classify(status));
+            final String respBody = resp.body() == null ? "" : resp.body();
+            // §2.3.124 Aggregate post-check — central may respond 200 OK
+            // but importCount.imported + importCount.updated == 0 when it
+            // silently discards an invalid envelope. Treat zero-import as
+            // REJECTED so the operator sees it in the attention queue
+            // instead of a false success.
+            if (status / 100 == 2 && entry.entityType()
+                    == OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE) {
+                final TerminalState aggCheck = classifyAggregateImport(respBody);
+                if (aggCheck != null) {
+                    return new PublishResult(status, respBody, aggCheck);
+                }
+            }
+            return new PublishResult(status, respBody, ResponseClassifier.classify(status));
         } catch (IOException ex) {
             LOG.warn("publish I/O failure: {}", ex.getMessage());
             return new PublishResult(-1, ex.getMessage(), TerminalState.RETRYABLE);
@@ -230,6 +242,50 @@ public class JournalPublisher {
                     .encodeToString(token.getBytes(StandardCharsets.UTF_8)));
         }
         return req.build();
+    }
+
+    /**
+     * §2.3.124 — classify an aggregate dataValueSets import summary.
+     *
+     * <p>DHIS2's {@code /api/dataValueSets} endpoint always returns
+     * 200 OK as long as the request body parsed, even if it contained
+     * no {@code dataValues[]} array or every row was dropped silently.
+     * The only authoritative signal is {@code response.importCount}.
+     * When imported + updated == 0 and no conflicts were reported, the
+     * POST was a no-op — route it to the attention queue instead of
+     * marking SUCCESS.</p>
+     *
+     * @return {@link TerminalState#REJECTED} when the import did
+     *     nothing, {@code null} when the body carries real import work
+     *     (so the caller falls back to the HTTP-status classifier).
+     */
+    private TerminalState classifyAggregateImport(final String body) {
+        if (body == null || body.isBlank()) {
+            return TerminalState.REJECTED;
+        }
+        try {
+            final JsonNode root = jsonMapper.readTree(body);
+            final JsonNode response = root.path("response");
+            final JsonNode counts = response.isObject()
+                    ? response.path("importCount")
+                    : root.path("importCount");
+            if (!counts.isObject()) {
+                return null;
+            }
+            final int imported = counts.path("imported").asInt(0);
+            final int updated = counts.path("updated").asInt(0);
+            final int ignored = counts.path("ignored").asInt(0);
+            if (imported == 0 && updated == 0 && ignored == 0) {
+                LOG.warn("aggregate publish: central returned importCount all-zeros — "
+                        + "treating as REJECTED. body={}", body);
+                return TerminalState.REJECTED;
+            }
+            return null;
+        } catch (IOException ex) {
+            LOG.warn("aggregate publish: could not parse importCount ({}); "
+                    + "falling back to status classifier", ex.getMessage());
+            return null;
+        }
     }
 
     /** Classify {@code .../jobs/{id}/report}: {@code status} is one

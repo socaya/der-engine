@@ -231,8 +231,23 @@ public class ReferralPayloadEncoder {
         final String marker = MARKER_PREFIX + nextHop + MARKER_SUFFIX;
         switch (entry.entityType()) {
             case AGGREGATE_DATA_VALUE -> {
-                appendToComment(root, marker);
+                // §2.3.124 — payload is a DHIS2 dataValueSets envelope with
+                // orgUnit at the top and a dataValues[] array. Swap the
+                // envelope orgUnit and append the referral marker to each
+                // row's comment so the marker survives per-value audit.
                 root.put("orgUnit", nextHop);
+                final JsonNode arr = root.get("dataValues");
+                if (arr instanceof ArrayNode rows) {
+                    for (final JsonNode row : rows) {
+                        if (row instanceof ObjectNode dv) {
+                            appendToComment(dv, marker);
+                        }
+                    }
+                } else {
+                    // Defensive: legacy single-row payloads before
+                    // §2.3.124 — append at top-level.
+                    appendToComment(root, marker);
+                }
             }
             case EVENT -> {
                 pushNote(root, marker);

@@ -99,6 +99,50 @@ class JournalPublisherTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
+    void aggregate200ButZeroImportCountIsRejected() throws Exception {
+        // §2.3.124 — central answers 200 OK but importCount is all
+        // zeros because the envelope was shaped wrong / data silently
+        // ignored. The publisher flips this to REJECTED so the
+        // attention queue picks it up.
+        final HttpClient http = mock(HttpClient.class);
+        final HttpResponse resp = mock(HttpResponse.class);
+        when(resp.statusCode()).thenReturn(200);
+        when(resp.body()).thenReturn(
+            "{\"httpStatus\":\"OK\",\"status\":\"OK\",\"response\":{"
+                + "\"status\":\"SUCCESS\",\"importCount\":{\"imported\":0,"
+                + "\"updated\":0,\"ignored\":0,\"deleted\":0},"
+                + "\"conflicts\":[]}}");
+        when(http.send(any(HttpRequest.class), any())).thenReturn(resp);
+        final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
+        when(engine.capabilities()).thenReturn(caps());
+        final JournalPublisher p = new JournalPublisher(http,
+            props("http://x/dhis"), engine, encoder(), mapper);
+        assertThat(p.publish(entry(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE))
+                .terminal())
+            .isEqualTo(JournalPublisher.TerminalState.REJECTED);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void aggregate200WithRealImportStaysAccepted() throws Exception {
+        final HttpClient http = mock(HttpClient.class);
+        final HttpResponse resp = mock(HttpResponse.class);
+        when(resp.statusCode()).thenReturn(200);
+        when(resp.body()).thenReturn(
+            "{\"status\":\"OK\",\"response\":{"
+                + "\"importCount\":{\"imported\":2,\"updated\":0,\"ignored\":0}}}");
+        when(http.send(any(HttpRequest.class), any())).thenReturn(resp);
+        final Dhis2CompatibilityEngine engine = mock(Dhis2CompatibilityEngine.class);
+        when(engine.capabilities()).thenReturn(caps());
+        final JournalPublisher p = new JournalPublisher(http,
+            props("http://x/dhis"), engine, encoder(), mapper);
+        assertThat(p.publish(entry(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE))
+                .terminal())
+            .isEqualTo(JournalPublisher.TerminalState.ACCEPTED);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
     void ioExceptionIsRetryable() throws Exception {
         final HttpClient http = mock(HttpClient.class);
         when(http.send(any(HttpRequest.class), any())).thenThrow(new IOException("boom"));

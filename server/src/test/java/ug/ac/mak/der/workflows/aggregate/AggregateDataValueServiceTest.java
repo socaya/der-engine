@@ -263,6 +263,75 @@ class AggregateDataValueServiceTest {
     }
 
     @Test
+    void coalescesMultipleRowsIntoOneDataValueSetsEnvelopePerForm() {
+        final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final MetadataMirrorRepository metadata = mock(MetadataMirrorRepository.class);
+        final ObjectNode payload = mapper.createObjectNode();
+        when(metadata.findDataElement(any())).thenReturn(Optional.of(
+                new MirroredDataElement("de", "DE", "NUMBER", "AGGREGATE", payload)));
+        when(metadata.findOrganisationUnit("ou")).thenReturn(Optional.of(
+                new MirroredOrganisationUnit("ou", "OU", null, 1, null, payload)));
+        when(values.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+        final AggregateDataValueService svc = service(values, journal, metadata, audit);
+
+        final AggregateDataValueService.DataValueInput r1 =
+                new AggregateDataValueService.DataValueInput(
+                        "de1", "ou", "202611", "coc1", "aoc", "10", null, "DS1");
+        final AggregateDataValueService.DataValueInput r2 =
+                new AggregateDataValueService.DataValueInput(
+                        "de2", "ou", "202611", "coc2", "aoc", "20", "note", "DS1");
+
+        svc.submit(List.of(r1, r2), UUID.randomUUID(), "ip", "ua", null,
+                UUID.fromString("00000000-0000-0000-0000-00000000dead"));
+
+        final org.mockito.ArgumentCaptor<OperationJournalEntry> cap =
+                org.mockito.ArgumentCaptor.forClass(OperationJournalEntry.class);
+        // Two rows, same (dataSet, orgUnit, period, aoc) → one journal entry.
+        verify(journal).insert(cap.capture());
+        final OperationJournalEntry entry = cap.getValue();
+        final com.fasterxml.jackson.databind.JsonNode envelope = entry.payload();
+        assertThat(envelope.path("dataSet").asText()).isEqualTo("DS1");
+        assertThat(envelope.path("orgUnit").asText()).isEqualTo("ou");
+        assertThat(envelope.path("period").asText()).isEqualTo("202611");
+        assertThat(envelope.path("dataValues").isArray()).isTrue();
+        assertThat(envelope.path("dataValues").size()).isEqualTo(2);
+        final com.fasterxml.jackson.databind.JsonNode row0 =
+                envelope.path("dataValues").get(0);
+        assertThat(row0.path("dataElement").asText()).isEqualTo("de1");
+        assertThat(row0.path("value").asText()).isEqualTo("10");
+        assertThat(row0.path("deviceId").asText())
+                .isEqualTo("00000000-0000-0000-0000-00000000dead");
+    }
+
+    @Test
+    void splitsIntoTwoEnvelopesWhenFormKeysDiffer() {
+        final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final MetadataMirrorRepository metadata = mock(MetadataMirrorRepository.class);
+        final ObjectNode payload = mapper.createObjectNode();
+        when(metadata.findDataElement(any())).thenReturn(Optional.of(
+                new MirroredDataElement("de", "DE", "NUMBER", "AGGREGATE", payload)));
+        when(metadata.findOrganisationUnit(any())).thenReturn(Optional.of(
+                new MirroredOrganisationUnit("ou", "OU", null, 1, null, payload)));
+        when(values.upsert(any())).thenAnswer(inv -> inv.getArgument(0));
+        final AggregateDataValueService svc = service(values, journal, metadata, audit);
+
+        // Two rows for different periods → must produce two envelopes.
+        final AggregateDataValueService.DataValueInput r1 =
+                new AggregateDataValueService.DataValueInput(
+                        "de1", "ou", "202611", "coc", "aoc", "1", null, "DS1");
+        final AggregateDataValueService.DataValueInput r2 =
+                new AggregateDataValueService.DataValueInput(
+                        "de1", "ou", "202612", "coc", "aoc", "2", null, "DS1");
+
+        svc.submit(List.of(r1, r2), UUID.randomUUID(), null, null);
+        verify(journal, org.mockito.Mockito.times(2)).insert(any(OperationJournalEntry.class));
+    }
+
+    @Test
     void marksRequiresApprovalWhenConfigured() {
         final AggregateDataValueRepository values = mock(AggregateDataValueRepository.class);
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);

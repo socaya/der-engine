@@ -136,10 +136,25 @@ public class DataValueSetsController {
                     webAppRunId
             ));
         }
+        // §2.3.124 distributed-workflow lineage — X-DER-Device-Id is set
+        // by every DER device-client on write; parse it best-effort so
+        // the journal envelope can stamp the originating device on each
+        // dataValues[] row. A malformed header (or missing — stock DHIS2
+        // clients) is treated as "unknown device" rather than a 4xx.
+        final String deviceHeader = http.getHeader("X-DER-Device-Id");
+        java.util.UUID deviceId = null;
+        if (deviceHeader != null && !deviceHeader.isBlank()) {
+            try {
+                deviceId = java.util.UUID.fromString(deviceHeader.trim());
+            } catch (IllegalArgumentException ignored) {
+                // leave deviceId null — see comment above.
+            }
+        }
         final AggregateDataValueService.ImportSummary result = service.submit(
                 inputs, principal.userId(),
                 http.getRemoteAddr(), http.getHeader(HttpHeaders.USER_AGENT),
-                http.getHeader("X-DER-Referral-Next-Hop")
+                http.getHeader("X-DER-Referral-Next-Hop"),
+                deviceId
         );
 
         final Instant now = Instant.now(clock);

@@ -3,11 +3,15 @@ package ug.ac.mak.der.workflows.aggregate;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -68,7 +72,7 @@ public class AggregateDataValueService {
     @Transactional
     public ImportSummary submit(final List<DataValueInput> inputs, final UUID actingUser,
                                  final String clientIp, final String userAgent) {
-        return submit(inputs, actingUser, clientIp, userAgent, null);
+        return submit(inputs, actingUser, clientIp, userAgent, null, null);
     }
 
     /**
@@ -81,10 +85,34 @@ public class AggregateDataValueService {
     public ImportSummary submit(final List<DataValueInput> inputs, final UUID actingUser,
                                  final String clientIp, final String userAgent,
                                  final String nextHopOrgUnitUid) {
+        return submit(inputs, actingUser, clientIp, userAgent, nextHopOrgUnitUid, null);
+    }
+
+    /**
+     * §2.3.124 — same as {@link #submit(List, UUID, String, String, String)}
+     * but also carries the submitting device UUID (from the client's
+     * {@code X-DER-Device-Id} header on {@code POST /api/dataValueSets}).
+     * The device UUID + per-row workflow-run id are stamped onto every
+     * {@code dataValues[]} row in the outbound DHIS2 envelope so the
+     * distributed-workflow lineage survives the hop to central.
+     */
+    @Transactional
+    public ImportSummary submit(final List<DataValueInput> inputs, final UUID actingUser,
+                                 final String clientIp, final String userAgent,
+                                 final String nextHopOrgUnitUid,
+                                 final UUID submittingDeviceId) {
         final Instant now = Instant.now(clock);
         int imported = 0;
         int ignored = 0;
         final List<Conflict> conflicts = new ArrayList<>();
+
+        // §2.3.124 Bulk-per-form coalescing. Group every accepted row by
+        // its form key (dataSet, orgUnit, period, attributeOptionCombo)
+        // so the journal publisher drains one POST per submission rather
+        // than one per cell. Payload shape matches DHIS2's
+        // /api/dataValueSets envelope so central actually imports.
+        final Map<FormKey, List<AggregateDataValue>> buckets = new LinkedHashMap<>();
+        final Map<FormKey, UUID> runKey = new LinkedHashMap<>();
 
         for (final DataValueInput input : inputs) {
             final Optional<String> rejection = validate(input);
@@ -117,34 +145,10 @@ public class AggregateDataValueService {
                     input.workflowRunId()
             );
             final AggregateDataValue stored = values.upsert(toStore);
-            final OperationJournalEntry entry = new OperationJournalEntry(
-                    UUID.randomUUID(),
-                    OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE,
-                    stored.compoundKey(),
-                    mapper.valueToTree(Map.of(
-                            "valueId", stored.valueId().toString(),
-                            "dataElement", stored.dataElementUid(),
-                            "orgUnit", stored.orgUnitUid(),
-                            "period", stored.periodIso(),
-                            "categoryOptionCombo", stored.categoryOptionComboUid(),
-                            "attributeOptionCombo", stored.attributeOptionComboUid(),
-                            "value", stored.valueText(),
-                            "comment", stored.comment() == null ? "" : stored.comment(),
-                            "valueVersion", stored.valueVersion()
-                    )),
-                    OperationJournalEntry.State.PENDING,
-                    0,
-                    null,
-                    actingUser,
-                    now,
-                    now,
-                    nextHopOrgUnitUid == null || nextHopOrgUnitUid.isBlank()
-                            ? null : nextHopOrgUnitUid.trim(),
-                    stored.workflowRunId()
-            );
-            journal.insert(entry);
-            if (approvals.requiresApproval(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)) {
-                journal.markRequiresApproval(entry.operationId());
+            final FormKey fk = FormKey.of(stored);
+            buckets.computeIfAbsent(fk, k -> new ArrayList<>()).add(stored);
+            if (stored.workflowRunId() != null) {
+                runKey.putIfAbsent(fk, stored.workflowRunId());
             }
             audit.append(new AuditEvent(
                     "AGGREGATE_WRITE_SUCCESS",
@@ -155,8 +159,87 @@ public class AggregateDataValueService {
             imported++;
         }
 
-        LOG.info("aggregate submission: imported={}, ignored={}", imported, ignored);
+        // Emit one journal entry per form bucket — DHIS2-shaped
+        // dataValueSets envelope that central will actually import.
+        for (final Map.Entry<FormKey, List<AggregateDataValue>> bucket : buckets.entrySet()) {
+            final FormKey fk = bucket.getKey();
+            final List<AggregateDataValue> rows = bucket.getValue();
+            final ObjectNode envelope = mapper.createObjectNode();
+            if (fk.dataSet != null && !fk.dataSet.isBlank()) {
+                envelope.put("dataSet", fk.dataSet);
+            }
+            envelope.put("orgUnit", fk.orgUnit);
+            envelope.put("period", fk.period);
+            // §2.3.124 — always emit the attribute-option-combo so central
+            // never has to resolve the default itself. When the row had
+            // none set, AggregateDataValue's constructor coerced it to
+            // DHIS2's canonical default CoC uid ("HllvX50cXC0"), so the
+            // envelope is always DHIS2-shape-complete.
+            envelope.put("attributeOptionCombo", fk.attributeOptionCombo);
+            final ArrayNode arr = envelope.putArray("dataValues");
+            for (final AggregateDataValue row : rows) {
+                final ObjectNode dv = arr.addObject();
+                dv.put("dataElement", row.dataElementUid());
+                // Same default-COC coercion as above — always emit so
+                // the central side's strict-CoC configs don't drop rows.
+                dv.put("categoryOptionCombo", row.categoryOptionComboUid());
+                dv.put("value", row.valueText());
+                if (row.comment() != null && !row.comment().isBlank()) {
+                    dv.put("comment", row.comment());
+                }
+                // §2.3.124 distributed-workflow lineage — every row carries
+                // the originating workflow run (when captured through one)
+                // and the device UUID that submitted it so central can
+                // reconcile which device + step produced each value.
+                if (row.workflowRunId() != null) {
+                    dv.put("workflowRunId", row.workflowRunId().toString());
+                }
+                if (submittingDeviceId != null) {
+                    dv.put("deviceId", submittingDeviceId.toString());
+                }
+            }
+            final OperationJournalEntry entry = new OperationJournalEntry(
+                    UUID.randomUUID(),
+                    OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE,
+                    fk.toCompoundKey(),
+                    envelope,
+                    OperationJournalEntry.State.PENDING,
+                    0,
+                    null,
+                    actingUser,
+                    now,
+                    now,
+                    nextHopOrgUnitUid == null || nextHopOrgUnitUid.isBlank()
+                            ? null : nextHopOrgUnitUid.trim(),
+                    runKey.get(fk)
+            );
+            journal.insert(entry);
+            if (approvals.requiresApproval(OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE)) {
+                journal.markRequiresApproval(entry.operationId());
+            }
+        }
+
+        LOG.info("aggregate submission: imported={}, ignored={}, buckets={}",
+                imported, ignored, buckets.size());
         return new ImportSummary(imported, ignored, List.copyOf(conflicts));
+    }
+
+    /** Form key for journal coalescing — DHIS2 dataValueSets groups on
+     *  (dataSet, orgUnit, period, attributeOptionCombo). */
+    private record FormKey(String dataSet, String orgUnit, String period,
+                             String attributeOptionCombo) {
+        static FormKey of(final AggregateDataValue row) {
+            return new FormKey(
+                    row.dataSetUid() == null ? "" : row.dataSetUid(),
+                    row.orgUnitUid(),
+                    row.periodIso(),
+                    row.attributeOptionComboUid()
+            );
+        }
+        String toCompoundKey() {
+            return (dataSet.isEmpty() ? "-" : dataSet)
+                    + ":" + orgUnit + ":" + period + ":" + attributeOptionCombo;
+        }
     }
 
     private Optional<String> validate(final DataValueInput input) {
