@@ -1,8 +1,13 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type CSSProperties } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { EdgeApiError } from '../api/edgeApi';
 import { ErrorBlock, EmptyBlock } from '../components/ScreenStates';
+import { useSignInSettings } from './useSignInSettings';
+
+const DEFAULT_TITLE = 'Sign in to DER Administration';
+const DEFAULT_SUB = 'DHIS2 Edge Runtime — administration console.';
+const DEFAULT_SUBMIT = 'Sign in';
 
 /**
  * @dhis2/ui-styled sign-in. Renders at `/sign-in` when RequireAuth
@@ -16,10 +21,23 @@ export function SignIn(): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const { signIn, state } = useAuth();
+  const settings = useSignInSettings();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const title = settings.appTitle?.trim() ? settings.appTitle : DEFAULT_TITLE;
+  const sub = settings.appIntro?.trim() ? settings.appIntro : DEFAULT_SUB;
+  const submitLabel = settings.submitLabel?.trim() ? settings.submitLabel : DEFAULT_SUBMIT;
+  const footer = settings.footerHtml?.trim() ? settings.footerHtml : null;
+  const bgStyle: CSSProperties | undefined = settings.hasBackground && settings.backgroundUrl
+    ? {
+        backgroundImage: `url("${settings.backgroundUrl}?v=${settings.backgroundEtag ?? ''}")`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : undefined;
 
   const from =
     (location.state as { from?: { pathname?: string } } | null)?.from
@@ -60,16 +78,17 @@ export function SignIn(): JSX.Element {
   }
 
   return (
-    <div className="ea-sign-in" data-test="sign-in">
+    <div className="ea-sign-in" data-test="sign-in" style={bgStyle}>
       <div className="ea-sign-in-card">
         <div className="ea-sign-in-pad">
           <div className="ea-sign-in-brand" aria-hidden="true">
-            <span className="ea-sign-in-logo">DER</span>
+            <img className="ea-sign-in-logo-img"
+                 src="/brand/der-icon-navy.svg"
+                 alt="DER"
+                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           </div>
-          <h1 className="ea-sign-in-title">Sign in to DER Administration</h1>
-          <p className="ea-sign-in-sub">
-            DHIS2 Edge Runtime — administration console.
-          </p>
+          <h1 className="ea-sign-in-title" data-test="sign-in-title">{title}</h1>
+          <p className="ea-sign-in-sub" data-test="sign-in-sub">{sub}</p>
 
           {state.status === 'EDGE_DOWN' && (
             <div data-test="sign-in-edge-down">
@@ -151,15 +170,26 @@ export function SignIn(): JSX.Element {
                 type="submit"
                 className="ea-btn ea-btn--primary"
                 disabled={submitting || !username || !password}
+                data-test="sign-in-submit-btn"
               >
                 {submitting && <span className="ea-btn-spinner" aria-hidden="true" />}
-                <span>{submitting ? 'Signing in…' : 'Sign in'}</span>
+                <span>{submitting ? 'Signing in…' : submitLabel}</span>
               </button>
             </div>
           </form>
-          <p className="ea-sign-in-footnote">
-            DER&nbsp;{__DER_VERSION__}
-          </p>
+          {footer ? (
+            <div
+              className="ea-sign-in-footnote"
+              data-test="sign-in-footer"
+              /* Admin-written settings output — not user input. Same
+               * treatment as the device client's SignInFormCard footer. */
+              dangerouslySetInnerHTML={{ __html: footer }}
+            />
+          ) : (
+            <p className="ea-sign-in-footnote">
+              DER&nbsp;{__DER_VERSION__}
+            </p>
+          )}
         </div>
       </div>
     </div>

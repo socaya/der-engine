@@ -1,9 +1,21 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SignIn } from './SignIn';
 import { AuthProvider } from '../auth/AuthContext';
+import * as edgeApi from '../api/edgeApi';
 import { EdgeApiError, type SignInResponse } from '../api/edgeApi';
+
+const EMPTY_SETTINGS: edgeApi.SignInSettings = {
+  layout: null, appTitle: null, appIntro: null, submitLabel: null,
+  footerHtml: null, hasBackground: false, backgroundUrl: null,
+  backgroundEtag: null,
+};
+
+beforeEach(() => {
+  vi.spyOn(edgeApi, 'readSignInSettings').mockResolvedValue(EMPTY_SETTINGS);
+});
+afterEach(() => { vi.restoreAllMocks(); });
 
 function user(name = 'alice'): SignInResponse {
   return {
@@ -159,5 +171,62 @@ describe('SignIn (Atlaskit)', () => {
      * calling signIn. */
     fireEvent.click(submitButton());
     expect(api.signIn).not.toHaveBeenCalled();
+  });
+});
+
+describe('SignIn — signin-settings wiring', () => {
+  const api = () => ({
+    session: vi.fn().mockRejectedValue(
+      new EdgeApiError(401, 'INVALID_CREDENTIALS', 'needed')),
+    signIn: vi.fn().mockResolvedValue(user()),
+    signOut: vi.fn().mockResolvedValue(undefined),
+  });
+
+  it('applies the server-provided title + intro + submit label + footer', async () => {
+    vi.spyOn(edgeApi, 'readSignInSettings').mockResolvedValue({
+      ...EMPTY_SETTINGS,
+      appTitle: 'Nakawa HC-III',
+      appIntro: 'Health district signin',
+      submitLabel: 'Enter',
+      footerHtml: '<a href="mailto:ops@x.org">Contact ops</a>',
+    });
+    renderAt('/sign-in', api());
+    await waitFor(() => expect(screen.getByTestId('sign-in-title'))
+      .toHaveTextContent('Nakawa HC-III'));
+    expect(screen.getByTestId('sign-in-sub')).toHaveTextContent('Health district signin');
+    expect(screen.getByTestId('sign-in-submit-btn')).toHaveTextContent('Enter');
+    const footer = screen.getByTestId('sign-in-footer');
+    expect(footer.querySelector('a')).not.toBeNull();
+  });
+
+  it('falls back to defaults when no settings are set', async () => {
+    renderAt('/sign-in', api());
+    await waitFor(() => expect(screen.getByTestId('sign-in-title'))
+      .toHaveTextContent(/DER Administration/i));
+    expect(screen.getByTestId('sign-in-sub')).toHaveTextContent(/administration console/i);
+    expect(screen.getByTestId('sign-in-submit-btn')).toHaveTextContent('Sign in');
+    expect(screen.queryByTestId('sign-in-footer')).toBeNull();
+  });
+
+  it('applies the uploaded background as inline style', async () => {
+    vi.spyOn(edgeApi, 'readSignInSettings').mockResolvedValue({
+      ...EMPTY_SETTINGS,
+      hasBackground: true,
+      backgroundUrl: '/edge-api/v1/public/signin-settings/background',
+      backgroundEtag: 'abc',
+    });
+    renderAt('/sign-in', api());
+    await waitFor(() => {
+      const root = screen.getByTestId('sign-in');
+      expect(root.style.backgroundImage).toContain(
+        '/edge-api/v1/public/signin-settings/background');
+    });
+  });
+
+  it('keeps rendering when the settings fetch fails', async () => {
+    vi.spyOn(edgeApi, 'readSignInSettings').mockRejectedValue(new Error('offline'));
+    renderAt('/sign-in', api());
+    await waitFor(() => expect(screen.getByTestId('sign-in-title'))
+      .toHaveTextContent(/DER Administration/i));
   });
 });

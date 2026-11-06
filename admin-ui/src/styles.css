@@ -1055,6 +1055,7 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
   color:#fff;font-weight:700;font-size:var(--fs-md);letter-spacing:0.5px;
   box-shadow:0 6px 16px rgba(36,88,163,0.3);
 }
+.ea-sign-in-logo-img{width:60px;height:60px;object-fit:contain;display:block}
 .ea-sign-in-title{
   font-size:var(--fs-xl);font-weight:700;text-align:center;
   margin:0 0 var(--sp-1);color:var(--der-ink-900);letter-spacing:-0.015em;
