@@ -233,6 +233,13 @@ export default function DataEntryApp(): JSX.Element {
         // `/legacy-custom-forms/…` so DHIS2's "../javascripts/…"
         // references resolve through our server.
         await applyFormAssets(content, formHtml);
+        // Pre-populate existing dataValues the operator (or a
+        // previous device) has already captured. Done after
+        // applyFormAssets so the `<input name="<de>-<coc>-val">`
+        // targets exist. Best-effort — no values is fine.
+        await prefillExistingValues(
+          content, dataSet.trim(), period.trim(),
+          ou.orgUnitUid ?? '', api);
         setStatus({ kind: 'ok',
           message: 'Custom form loaded. Autosave + validation run as in DHIS2.' });
       } catch (e) {
@@ -870,6 +877,42 @@ function syncAocToDom(
     Record<string, unknown>> };
   if (g.dhis2?.de) {
     g.dhis2.de.currentCategorySelections = { ...selections };
+  }
+}
+
+/**
+ * Fetch existing dataValues for (dataSet, period, orgUnit) and
+ * populate every `<input name="<de>-<coc>-val">` that already has
+ * a captured value. Mirrors the pattern DHIS2's own Data Entry
+ * uses when loading a form the operator has visited before.
+ *
+ * The /api/dataValueSets read uses the DER aggregate readback
+ * endpoint which filters by orgUnit + period server-side. Fails
+ * silently — a missing or empty response leaves the form blank.
+ */
+async function prefillExistingValues(
+  container: HTMLElement,
+  dataSet: string,
+  period: string,
+  orgUnit: string,
+  api: { readAggregateValues: (ou: string, pe: string, limit?: number) =>
+    Promise<{ dataValues: Array<{ dataElement?: string;
+      categoryOptionCombo?: string; value?: string }> }> },
+): Promise<void> {
+  if (!dataSet || !period || !orgUnit) return;
+  let rows: Array<{ dataElement?: string; categoryOptionCombo?: string; value?: string }>;
+  try {
+    const r = await api.readAggregateValues(orgUnit, period, 2000);
+    rows = r.dataValues ?? [];
+  } catch { return; }
+  for (const row of rows) {
+    const de = row.dataElement;
+    const coc = row.categoryOptionCombo;
+    const value = row.value;
+    if (!de || !coc || value == null) continue;
+    const input = container.querySelector<HTMLInputElement>(
+      `input[name="${de}-${coc}-val"]`);
+    if (input) input.value = value;
   }
 }
 
