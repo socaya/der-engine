@@ -51,6 +51,9 @@ export default function DataEntryApp(): JSX.Element {
   // dhis2.de.currentCategorySelections on every change so form.js's
   // getCurrentCategorySelections reads consistent state.
   const [aocSelections, setAocSelections] = useState<Record<string, string>>({});
+  // Ref-mirror so the save-on-blur handler (attached once per
+  // form render) always reads the operator's latest AOC pick.
+  const aocSelectionsRef = useRef<Record<string, string>>({});
   const [aocCategories, setAocCategories] = useState<Array<{
     id: string; name: string; options: Array<{ id: string; name: string }>;
   }>>([]);
@@ -171,6 +174,7 @@ export default function DataEntryApp(): JSX.Element {
         const seed: Record<string, string> = {};
         for (const c of cats) if (c.options[0]) seed[c.id] = c.options[0].id;
         setAocSelections(seed);
+        aocSelectionsRef.current = seed;
         // Clear any previous render — we rebuild hidden selectors
         // + content on every form load.
         root.replaceChildren();
@@ -242,6 +246,18 @@ export default function DataEntryApp(): JSX.Element {
         await prefillExistingValues(
           content, dataSet.trim(), period.trim(),
           ou.orgUnitUid ?? '', api);
+        // Hook save-on-blur on every data-value input in the
+        // form. We don't trust DHIS2 entry.js's internal save
+        // path to wire correctly against DER's emulated API —
+        // posting ourselves is deterministic + lets us surface a
+        // per-cell visual cue.
+        attachSaveOnBlur(
+          content,
+          () => dataSet.trim(),
+          () => period.trim(),
+          () => ou.orgUnitUid ?? '',
+          () => ({ ...aocSelectionsRef.current }),
+          api);
         setStatus({ kind: 'ok',
           message: 'Custom form loaded. Autosave + validation run as in DHIS2.' });
       } catch (e) {
@@ -385,6 +401,7 @@ export default function DataEntryApp(): JSX.Element {
                     onChange={(e) => {
                       const next = { ...aocSelections, [c.id]: e.target.value };
                       setAocSelections(next);
+                      aocSelectionsRef.current = next;
                       syncAocToDom(customRoot.current, next);
                     }}
                     style={inputStyle}
@@ -880,6 +897,91 @@ function syncAocToDom(
     Record<string, unknown>> };
   if (g.dhis2?.de) {
     g.dhis2.de.currentCategorySelections = { ...selections };
+  }
+}
+
+/**
+ * Attach a blur handler to every data-value input in the form so
+ * operator edits post to DER immediately. Independent of the DHIS2
+ * `entry.js` save path — belt-and-suspenders so DER captures the
+ * data even if a specific legacy script fails to wire.
+ *
+ * Save flow:
+ *   1. Blur fires on an `<input name="<de>-<coc>-val">`.
+ *   2. If the value hasn't changed since last save, no-op.
+ *   3. POST a single-value dataValueSets envelope; set a border
+ *      colour per state (amber = saving, green = saved, red = fail).
+ *   4. On success, remember the new "last saved" value so repeat
+ *      blurs on an unchanged field don't hit the network.
+ */
+function attachSaveOnBlur(
+  container: HTMLElement,
+  getDataSet: () => string,
+  getPeriod: () => string,
+  getOrgUnit: () => string,
+  getAoc: () => Record<string, string>,
+  api: { submitAggregate: (body: unknown) => Promise<unknown> },
+): void {
+  const parseName = (name: string): { de: string; coc: string } | null => {
+    const m = /^(.+)-(.+)-val$/.exec(name);
+    return m ? { de: m[1]!, coc: m[2]!  } : null;
+  };
+  const lastSaved = new WeakMap<HTMLInputElement, string>();
+  const inputs = container.querySelectorAll<HTMLInputElement>(
+    'input[name$="-val"]');
+  // Seed the baseline so the first unchanged blur doesn't save.
+  for (const i of Array.from(inputs)) lastSaved.set(i, i.value);
+
+  const handler = async (ev: Event): Promise<void> => {
+    const t = ev.target as HTMLInputElement;
+    if (!t || t.tagName !== 'INPUT') return;
+    const name = t.getAttribute('name') ?? '';
+    const parsed = parseName(name);
+    if (!parsed) return;
+    const dataSet = getDataSet(); const period = getPeriod();
+    const orgUnit = getOrgUnit();
+    if (!dataSet || !period || !orgUnit) return;
+    const v = t.value;
+    if (lastSaved.get(t) === v) return;
+    paintState(t, 'saving');
+    try {
+      await api.submitAggregate({
+        dataSet, period, orgUnit,
+        attributeOptionComboSelections: getAoc(),
+        dataValues: [{
+          dataElement: parsed.de,
+          categoryOptionCombo: parsed.coc,
+          value: v,
+        }],
+      });
+      lastSaved.set(t, v);
+      paintState(t, 'saved');
+    } catch {
+      paintState(t, 'error');
+    }
+  };
+  // Use capture so we don't fight with jQuery's blur handlers.
+  container.addEventListener('blur', (ev) => { void handler(ev); }, true);
+}
+
+function paintState(
+  input: HTMLInputElement,
+  state: 'saving' | 'saved' | 'error',
+): void {
+  const colour = state === 'saving'
+    ? '#b9860a'
+    : state === 'saved'
+      ? '#1a8754'
+      : '#a93232';
+  input.style.outline = `2px solid ${colour}`;
+  input.style.transition = 'outline 150ms';
+  if (state === 'saved') {
+    window.setTimeout(() => {
+      // Fade the ring so saved cells don't stay loudly highlighted.
+      if (input.style.outline.includes('#1a8754')) {
+        input.style.outline = '1px solid #b7dcc7';
+      }
+    }, 1200);
   }
 }
 
