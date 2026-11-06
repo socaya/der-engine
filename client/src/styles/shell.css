@@ -648,3 +648,97 @@ body {
     grid-template-rows: 180px 1fr;
   }
 }
+
+/* ─── C-UI-4 screen chrome ─────────────────────────────────── */
+
+.der-screen-card {
+  background: var(--der-surface);
+  border: 1px solid var(--der-border);
+  border-radius: var(--der-radius-md);
+  margin: 16px 0;
+}
+
+.der-screen-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--der-border);
+}
+
+.der-screen-card__title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--der-ink-900);
+  letter-spacing: -0.01em;
+}
+
+.der-screen-card__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.der-screen-card__body {
+  padding: 24px;
+}
+
+/* Section sub-heading inside a card — the DHIS2 Maintenance-style
+ * uppercase muted label with a 1px underline. */
+.der-section-heading {
+  margin: 0 0 12px;
+  padding: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--der-ink-500);
+  font-weight: 500;
+  border-bottom: 1px solid var(--der-border);
+}
+
+/* Unified status pills — flat, 1px border, soft tint. */
+.der-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.der-status-pill--success {
+  background: #e8f4ee;
+  color: #136436;
+  border-color: #b7dcc7;
+}
+
+.der-status-pill--warning {
+  background: #fcf4e2;
+  color: #7f5c08;
+  border-color: #e9d19d;
+}
+
+.der-status-pill--danger {
+  background: #fbeaea;
+  color: #8a2525;
+  border-color: #e0bcbc;
+}
+
+.der-status-pill--info {
+  background: #e4edf6;
+  color: #1f4d70;
+  border-color: #b7cee3;
+}
+
+.der-status-pill--neutral {
+  background: #eef0f3;
+  color: var(--der-ink-700);
+  border-color: var(--der-border);
+}
