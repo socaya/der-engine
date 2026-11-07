@@ -74,6 +74,11 @@ export default function DataEntryApp(): JSX.Element {
   // from the "N issues" pill next to Validate.
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [issuesOpen, setIssuesOpen] = useState(false);
+  // FR-07 — details drawer. Tracks the currently-focused cell and
+  // re-reads its metadata from the hydrated dhis2.de shim as the
+  // operator navigates.
+  const [details, setDetails] = useState<CellDetails | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(true);
   // Compact-by-default, remembered in localStorage so operators
   // don't have to re-pick on every visit.
   const [density, setDensity] = useState<'compact' | 'comfortable'>(() => {
@@ -315,6 +320,7 @@ export default function DataEntryApp(): JSX.Element {
           () => ({ ...aocSelectionsRef.current }),
           api);
         attachKeyboardNav(content);
+        attachDetailsSpy(content, meta, setDetails);
         setFormRenderVersion((v) => v + 1);
         // A successful render needs no toast; save-on-blur paints
         // per-cell status, the save-state pill tallies totals,
@@ -568,6 +574,15 @@ export default function DataEntryApp(): JSX.Element {
               {issues.length} issue{issues.length === 1 ? '' : 's'}
             </button>
           )}
+          {!detailsOpen && (
+            <button type="button"
+                    onClick={() => setDetailsOpen(true)}
+                    className="der-de-density-btn"
+                    data-test="de-details-toggle"
+                    aria-label="Open cell details panel">
+              Details
+            </button>
+          )}
           <button type="button"
                   onClick={toggleCompletion}
                   disabled={completionBusy}
@@ -579,6 +594,8 @@ export default function DataEntryApp(): JSX.Element {
           </button>
         </div>
       )}
+      <CellDetailsDrawer open={detailsOpen && !issuesOpen} details={details}
+        onClose={() => setDetailsOpen(false)} />
       <ValidationIssuesDrawer
         open={issuesOpen}
         issues={issues}
@@ -1662,6 +1679,201 @@ function ValidationIssuesDrawer(
       </ul>
     </aside>
   );
+}
+
+export interface CellDetails {
+  readonly deId: string;
+  readonly cocId: string;
+  readonly deName: string;
+  readonly deFormName?: string;
+  readonly valueType: string;
+  readonly optionSetId?: string;
+  readonly cocName: string;
+  readonly categoryBreakdown: Array<{ category: string; option: string }>;
+  readonly value: string;
+  readonly saveState: 'empty' | 'saving' | 'saved' | 'queued' | 'error';
+  readonly inputName: string;
+}
+
+/**
+ * Right-rail details drawer that mirrors DHIS2's own "Element
+ * details" pane — surfaces the metadata the operator typically
+ * needs while entering a value (DE name, id, valueType, category
+ * breakdown) and the per-cell save state, driven by the
+ * currently-focused input.
+ */
+function CellDetailsDrawer(
+  { open, details, onClose }:
+  { open: boolean; details: CellDetails | null;
+    onClose: () => void },
+): JSX.Element | null {
+  if (!open) return null;
+  if (!details) {
+    return (
+      <aside className="der-de-details-drawer"
+             data-test="de-details-drawer"
+             role="complementary"
+             aria-label="Cell details">
+        <header className="der-de-details-drawer__head">
+          <h4 className="der-de-details-drawer__title">Cell details</h4>
+          <button type="button"
+                  className="der-de-details-drawer__close"
+                  aria-label="Close details panel"
+                  onClick={onClose}>×</button>
+        </header>
+        <p className="der-de-details-drawer__empty">
+          Click a value cell to inspect its data element,
+          category breakdown and save state.
+        </p>
+      </aside>
+    );
+  }
+  const stateLabel: Record<CellDetails['saveState'], string> = {
+    empty: 'No value yet',
+    saving: 'Saving…',
+    saved: 'Saved on edge',
+    queued: 'Queued for sync',
+    error: 'Rejected — fix and retry',
+  };
+  const stateTone: Record<CellDetails['saveState'], string> = {
+    empty: 'muted', saving: 'saving', saved: 'saved',
+    queued: 'queued', error: 'error',
+  };
+  return (
+    <aside className="der-de-details-drawer"
+           data-test="de-details-drawer"
+           role="complementary"
+           aria-label="Cell details">
+      <header className="der-de-details-drawer__head">
+        <h4 className="der-de-details-drawer__title">Cell details</h4>
+        <button type="button"
+                className="der-de-details-drawer__close"
+                aria-label="Close details panel"
+                onClick={onClose}>×</button>
+      </header>
+      <div className="der-de-details-drawer__body">
+        <div className="der-de-details-drawer__de">
+          {details.deName}
+        </div>
+        <span className={`der-de-details-drawer__state `
+          + `der-de-details-drawer__state--${stateTone[details.saveState]}`}>
+          {stateLabel[details.saveState]}
+        </span>
+        <dl className="der-de-details-drawer__meta">
+          <dt>Value type</dt><dd>{details.valueType}</dd>
+          {details.deFormName && details.deFormName !== details.deName && (
+            <><dt>Form name</dt><dd>{details.deFormName}</dd></>
+          )}
+          <dt>Data element</dt>
+          <dd><code>{details.deId}</code></dd>
+          <dt>Category combo</dt><dd>{details.cocName}</dd>
+          {details.categoryBreakdown.length > 0 && (
+            <><dt>Breakdown</dt>
+              <dd>
+                <ul className="der-de-details-drawer__breakdown">
+                  {details.categoryBreakdown.map((b, i) => (
+                    <li key={i}>
+                      <span className="der-de-details-drawer__cat">{b.category}</span>
+                      <span className="der-de-details-drawer__opt">{b.option}</span>
+                    </li>
+                  ))}
+                </ul>
+              </dd></>
+          )}
+          <dt>COC id</dt>
+          <dd><code>{details.cocId}</code></dd>
+          <dt>Current value</dt>
+          <dd>{details.value || <span className="der-de-details-drawer__empty-val">—</span>}</dd>
+        </dl>
+      </div>
+    </aside>
+  );
+}
+
+function attachDetailsSpy(
+  container: HTMLElement,
+  meta: DataSetBundle,
+  setDetails: (d: CellDetails | null) => void,
+): void {
+  // Build closure-local lookups so vendor scripts can't wipe them
+  // by reassigning dhis2.de later on.
+  const des: Record<string, DataSetBundle['dataSetElements'] extends
+    Array<infer U> | undefined ? U extends { dataElement?: infer D } ? D : never : never> =
+    {} as Record<string, never>;
+  for (const dse of meta.dataSetElements ?? []) {
+    if (dse.dataElement) {
+      (des as Record<string, unknown>)[dse.dataElement.id] = dse.dataElement;
+    }
+  }
+  const compute = (input: HTMLInputElement): CellDetails | null => {
+    const name = input.getAttribute('name') ?? input.id ?? '';
+    const m = /^(.+)-(.+)-val$/.exec(name);
+    if (!m) return null;
+    const deId = m[1]!; const cocId = m[2]!;
+    const de = (des as Record<string, {
+      name?: string; formName?: string; valueType?: string;
+      optionSet?: { id?: string };
+      categoryCombo?: {
+        name?: string; displayName?: string;
+        categories?: Array<{ name?: string; displayName?: string;
+          categoryOptions?: Array<{ id: string; name?: string;
+            displayName?: string }> }>;
+        categoryOptionCombos?: Array<{ id: string;
+          name?: string; displayName?: string }>;
+      };
+    }>)[deId];
+    const cc = de?.categoryCombo;
+    const coc = cc?.categoryOptionCombos?.find((c) => c.id === cocId);
+    // Best-effort breakdown: split the COC name on DHIS2's
+    // standard ", " separator; align with the categories' option
+    // list by presence, not by index (COC order depends on
+    // DHIS2's cross-product convention).
+    const breakdown: Array<{ category: string; option: string }> = [];
+    const cocLabel = coc?.name ?? coc?.displayName ?? cocId;
+    const parts = cocLabel.split(/,\s*/).filter(Boolean);
+    const cats = cc?.categories ?? [];
+    parts.forEach((part, i) => {
+      breakdown.push({
+        category: cats[i]?.name ?? cats[i]?.displayName ?? '',
+        option: part,
+      });
+    });
+    const outline = input.style.outline || '';
+    const state: CellDetails['saveState'] =
+      outline.includes('rgb(185, 134, 10)') || outline.includes('#b9860a') ? 'saving'
+      : outline.includes('rgb(206, 123, 0)') || outline.includes('#ce7b00') ? 'queued'
+      : outline.includes('rgb(26, 135, 84)') || outline.includes('#1a8754')
+        || outline.includes('rgb(183, 220, 199)') || outline.includes('#b7dcc7') ? 'saved'
+      : outline.includes('rgb(169, 50, 50)') || outline.includes('#a93232') ? 'error'
+      : input.value.trim() === '' ? 'empty' : 'saved';
+    return {
+      deId, cocId,
+      deName: de?.name ?? deId,
+      deFormName: de?.formName,
+      valueType: de?.valueType ?? 'TEXT',
+      optionSetId: de?.optionSet?.id,
+      cocName: cocLabel,
+      categoryBreakdown: breakdown,
+      value: input.value,
+      saveState: state,
+      inputName: name,
+    };
+  };
+  container.addEventListener('focusin', (ev) => {
+    const t = ev.target as HTMLElement;
+    if (t && t.tagName === 'INPUT') {
+      const d = compute(t as HTMLInputElement);
+      if (d) setDetails(d);
+    }
+  }, true);
+  // Keep details in sync as the operator types + blurs.
+  container.addEventListener('input', (ev) => {
+    const t = ev.target as HTMLElement;
+    if (t && t.tagName === 'INPUT') {
+      const d = compute(t as HTMLInputElement);
+      if (d) setDetails(d);
+    }
+  }, true);
 }
 
 export interface ValidationIssue {
@@ -2783,6 +2995,114 @@ const APP_STYLES = `
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+}
+.der-de-details-drawer {
+  position: fixed;
+  top: 112px;
+  right: 16px;
+  width: 320px;
+  max-height: calc(100vh - 160px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e5e9ef;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(16, 26, 50, 0.08);
+  z-index: 8;
+}
+.der-de-details-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f7f8fc;
+  border-bottom: 1px solid #e5e9ef;
+}
+.der-de-details-drawer__title {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6e7a8a;
+  font-weight: 500;
+}
+.der-de-details-drawer__close {
+  padding: 0 6px;
+  background: transparent; border: 0; cursor: pointer;
+  color: #6e7a8a; font-size: 20px; line-height: 1;
+}
+.der-de-details-drawer__body {
+  padding: 12px 14px;
+  overflow-y: auto;
+}
+.der-de-details-drawer__empty {
+  padding: 16px 14px;
+  margin: 0;
+  color: #6e7a8a;
+  font-size: 13px;
+}
+.der-de-details-drawer__de {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2779;
+  margin-bottom: 6px;
+}
+.der-de-details-drawer__state {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  margin-bottom: 12px;
+}
+.der-de-details-drawer__state--muted  { background: #eef0f5; color: #475061; }
+.der-de-details-drawer__state--saved  { background: #e3f7eb; color: #1b8243; }
+.der-de-details-drawer__state--saving { background: #fef0d8; color: #9b5a00; }
+.der-de-details-drawer__state--queued { background: #fef0d8; color: #9b5a00; }
+.der-de-details-drawer__state--error  { background: #fee2e2; color: #c0392b; }
+.der-de-details-drawer__meta {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  row-gap: 6px;
+  column-gap: 10px;
+  margin: 0;
+  font-size: 12px;
+}
+.der-de-details-drawer__meta dt {
+  color: #6e7a8a;
+  font-weight: 400;
+}
+.der-de-details-drawer__meta dd {
+  margin: 0;
+  color: #101a32;
+  overflow-wrap: anywhere;
+}
+.der-de-details-drawer__meta dd code {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #475061;
+}
+.der-de-details-drawer__empty-val {
+  color: #9097a8;
+}
+.der-de-details-drawer__breakdown {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.der-de-details-drawer__breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 0;
+  font-size: 12px;
+}
+.der-de-details-drawer__cat {
+  color: #6e7a8a;
+}
+.der-de-details-drawer__opt {
+  color: #101a32;
+  font-weight: 500;
 }
 .der-de-issues-drawer {
   position: fixed;
