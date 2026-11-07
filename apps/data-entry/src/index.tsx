@@ -673,6 +673,39 @@ export default function DataEntryApp(): JSX.Element {
     });
   }
 
+  // Count of cells whose current value differs from the last saved
+  // one (attachSaveOnBlur stamps `data-dirty="1"` on typing, clears
+  // on successful save). Polled on an input-event + 1s interval so
+  // the Save-all chip reflects reality without React state coupling.
+  const [dirtyCount, setDirtyCount] = useState(0);
+  useEffect(() => {
+    const scan = (): void => {
+      const root = customRoot.current;
+      setDirtyCount(root ? root.querySelectorAll('input[data-dirty="1"]').length : 0);
+    };
+    scan();
+    const root = customRoot.current;
+    const h = () => scan();
+    root?.addEventListener('input', h, true);
+    root?.addEventListener('blur', h, true);
+    const iv = window.setInterval(scan, 1000);
+    return () => {
+      root?.removeEventListener('input', h, true);
+      root?.removeEventListener('blur', h, true);
+      window.clearInterval(iv);
+    };
+  }, [formRenderVersion]);
+
+  function saveAllNow(): void {
+    const root = customRoot.current;
+    if (!root) return;
+    const dirty = Array.from(
+      root.querySelectorAll<HTMLInputElement>('input[data-dirty="1"]'));
+    for (const inp of dirty) {
+      inp.dispatchEvent(new Event('blur', { bubbles: true }));
+    }
+  }
+
   async function toggleCompletion(): Promise<void> {
     if (!formReady || completionBusy) return;
     const next = !(completion?.completed);
@@ -740,6 +773,9 @@ export default function DataEntryApp(): JSX.Element {
       } else if (ev.code === 'KeyC') {
         ev.preventDefault();
         void toggleCompletion();
+      } else if (ev.code === 'KeyS') {
+        ev.preventDefault();
+        saveAllNow();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -982,6 +1018,15 @@ export default function DataEntryApp(): JSX.Element {
                     : ''}`
                 : 'Open for edits'}
             </span>
+          )}
+          {dirtyCount > 0 && (
+            <button type="button"
+                    onClick={saveAllNow}
+                    className="der-de-saveall-btn"
+                    data-test="de-saveall-btn"
+                    title="Flush all unsaved cells to the DER mirror (Alt+S)">
+              Save all · {dirtyCount}
+            </button>
           )}
           <button type="button"
                   onClick={runValidateNow}
@@ -2589,6 +2634,7 @@ function ShortcutsPopover(
     ['← / →', 'Previous / next COC column (same row)'],
     ['Tab / Shift + Tab', 'Next / previous cell (DOM order)'],
     ['Alt + 1..9', 'Jump to section N'],
+    ['Alt + S', 'Save all unsaved cells'],
     ['Alt + V', 'Run validation'],
     ['Alt + C', 'Toggle Complete marker'],
     ['Paste multi-line', 'Distributes down the COC column'],
@@ -4519,6 +4565,22 @@ const APP_STYLES = `
   height: 32px;
   background: #e6f1fb;
   flex: 0 0 auto;
+}
+.der-de-saveall-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--der-brand-600, #0f68b7);
+  background: var(--der-brand-500, #147CD7);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 120ms;
+}
+.der-de-saveall-btn:hover,
+.der-de-saveall-btn:focus-visible {
+  background: var(--der-brand-600, #0f68b7);
+  outline: 0;
 }
 .der-de-toolbar__info-btn {
   display: inline-flex;
