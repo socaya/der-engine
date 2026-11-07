@@ -74,7 +74,8 @@ public class MetadataSyncService {
                     + "greyedFields%5BdataElement%5Bid%5D,categoryOptionCombo%5Bid%5D%5D%5D"
                     + ",dataSetElements%5BdataElement%5Bid%5D,categoryCombo%5Bid%5D%5D"
                     + ",categoryCombo%5Bid,name,displayName,"
-                    + "categoryOptionCombos%5Bid,name,displayName%5D,"
+                    + "categoryOptionCombos%5Bid,name,displayName,"
+                    + "categoryOptions%5Bid,name,displayName%5D%5D,"
                     + "categories%5Bid,name,displayName,"
                     + "categoryOptions%5Bid,name,displayName%5D%5D%5D";
     static final String PROGRAM_PATH = "/api/programs" + FIELDS_ALL;
@@ -105,7 +106,8 @@ public class MetadataSyncService {
      */
     static final String CATEGORY_COMBO_PATH =
             "/api/categoryCombos?paging=false&fields=:all"
-                    + ",categoryOptionCombos%5Bid,name,displayName%5D"
+                    + ",categoryOptionCombos%5Bid,name,displayName,"
+                    + "categoryOptions%5Bid,name,displayName%5D%5D"
                     + ",categories%5Bid,name,displayName,"
                     + "categoryOptions%5Bid,name,displayName%5D%5D";
 

@@ -743,7 +743,8 @@ interface DataSetBundle {
     id: string; name?: string;
     categories?: Array<{ id: string; name?: string;
       categoryOptions?: Array<{ id: string; name?: string }> }>;
-    categoryOptionCombos?: Array<{ id: string; name?: string }>;
+    categoryOptionCombos?: Array<{ id: string; name?: string;
+      categoryOptions?: Array<{ id: string; name?: string }> }>;
   };
   dataSetElements?: Array<{
     dataElement?: {
@@ -822,6 +823,7 @@ interface CocRegistryEntry {
   name?: string;
   displayName?: string;
   categoryCombo?: { id: string };
+  categoryOptions?: Array<{ id: string }>;
 }
 
 interface EnrichApi {
@@ -886,7 +888,9 @@ async function enrichDataSetBundle(
       // than categoryCombos (dedicated metadata_category_option_
       // combo). Group them by cc.id on the client.
       categoryOptionCombos: cocs.map((c) => ({
-        id: c.id, name: c.name ?? c.displayName })),
+        id: c.id, name: c.name ?? c.displayName,
+        categoryOptions: c.categoryOptions ?? [],
+      })),
       // Pass through the full category tree — the deepened
       // CATEGORY_COMBO_PATH sync mask (slice 20 + 30) now puts
       // `categories[id,name,categoryOptions[id,name]]` into the
@@ -1093,26 +1097,64 @@ function renderSectionForm(meta: DataSetBundle): string {
 function buildNestedHeaders(
   cats: Array<{ id: string; name?: string;
     categoryOptions?: Array<{ id: string; name?: string }> }>,
-  _cocs: Array<{ id: string; name?: string }>,
+  cocs: Array<{ id: string; name?: string;
+    categoryOptions?: Array<{ id: string; name?: string }> }>,
 ): Array<Array<{ label: string; span: number }>> {
-  if (cats.length === 0) return [];
-  // Each category's options drive its row's span pattern. The
-  // span for a category at depth `d` is the product of the option
-  // counts of categories deeper than d (so the first row is the
-  // widest-spanning).
-  const counts = cats.map((c) => (c.categoryOptions?.length ?? 0));
-  if (counts.some((n) => n === 0)) return [];
+  if (cats.length === 0 || cocs.length === 0) return [];
+  // Resolve each option-id to (category.id, option.name) so we
+  // can read coc.categoryOptions regardless of order.
+  const optionCat = new Map<string, { catId: string; name: string }>();
+  for (const cat of cats) {
+    for (const opt of cat.categoryOptions ?? []) {
+      optionCat.set(opt.id, {
+        catId: cat.id,
+        name: opt.name ?? opt.id,
+      });
+    }
+  }
+  // For each coc (in server order — the same order the table
+  // body iterates when emitting cells), build an array of option
+  // labels indexed by category depth. A missing option (ref not
+  // in the option map) falls back to the coc's own name.
+  const depth = cats.length;
+  const perCoc: string[][] = cocs.map((coc) => {
+    const row: string[] = new Array(depth).fill('');
+    for (const o of coc.categoryOptions ?? []) {
+      const resolved = optionCat.get(o.id);
+      if (!resolved) continue;
+      const d = cats.findIndex((c) => c.id === resolved.catId);
+      if (d >= 0) row[d] = resolved.name;
+    }
+    return row;
+  });
+  // Every row must be fully populated; if any coc has a blank
+  // cell at some depth, we can't trust the mapping — fall back
+  // to the flat COC-name header row via returning [].
+  for (const r of perCoc) {
+    if (r.some((v) => v === '')) return [];
+  }
+  // Emit one header row per category depth, coalescing
+  // consecutive cocs with the same label at (0..d) into a single
+  // <th colspan>. This matches the header-to-column alignment
+  // DHIS2's section form uses.
   const rows: Array<Array<{ label: string; span: number }>> = [];
-  for (let d = 0; d < cats.length; d++) {
+  for (let d = 0; d < depth; d++) {
     const cells: Array<{ label: string; span: number }> = [];
-    let span = 1;
-    for (let e = d + 1; e < cats.length; e++) span *= counts[e] ?? 1;
-    let repeat = 1;
-    for (let e = 0; e < d; e++) repeat *= counts[e] ?? 1;
-    for (let r = 0; r < repeat; r++) {
-      for (const opt of cats[d]?.categoryOptions ?? []) {
-        cells.push({ label: opt.name ?? opt.id, span });
+    for (let i = 0; i < perCoc.length;) {
+      const cur = perCoc[i]!;
+      let j = i + 1;
+      // Coalesce while every depth 0..d matches the current coc.
+      while (j < perCoc.length) {
+        const nxt = perCoc[j]!;
+        let same = true;
+        for (let k = 0; k <= d; k++) {
+          if (cur[k] !== nxt[k]) { same = false; break; }
+        }
+        if (!same) break;
+        j++;
       }
+      cells.push({ label: cur[d] ?? '', span: j - i });
+      i = j;
     }
     rows.push(cells);
   }
