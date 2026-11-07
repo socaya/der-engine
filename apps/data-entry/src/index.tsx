@@ -706,6 +706,51 @@ export default function DataEntryApp(): JSX.Element {
     }
   }
 
+  // DER edge reachability pill. Separate from `online.isOnline` (WAN
+  // signal via navigator.onLine): this probes the actual DER server
+  // on the facility LAN / localhost. State progression:
+  //   up     — last ping within 15s + response ok
+  //   slow   — last successful ping > 15s ago OR one recent failure
+  //   down   — two consecutive failed pings
+  const [edgeState, setEdgeState] = useState<
+    { tone: 'up' | 'slow' | 'down'; lastPingAt: string | null;
+      consecutiveFailures: number }>(() => ({
+      tone: 'up', lastPingAt: null, consecutiveFailures: 0,
+    }));
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const tick = async (): Promise<void> => {
+      try {
+        await (api as unknown as { health: () => Promise<unknown> }).health();
+        if (cancelled) return;
+        setEdgeState({
+          tone: 'up', lastPingAt: new Date().toISOString(),
+          consecutiveFailures: 0,
+        });
+      } catch {
+        if (cancelled) return;
+        setEdgeState((prev) => {
+          const n = prev.consecutiveFailures + 1;
+          return {
+            tone: n >= 2 ? 'down' : 'slow',
+            lastPingAt: prev.lastPingAt,
+            consecutiveFailures: n,
+          };
+        });
+      } finally {
+        if (!cancelled) {
+          timer = setTimeout(() => void tick(), 5000);
+        }
+      }
+    };
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [api]);
+
   async function toggleCompletion(): Promise<void> {
     if (!formReady || completionBusy) return;
     const next = !(completion?.completed);
@@ -831,6 +876,19 @@ export default function DataEntryApp(): JSX.Element {
                 aria-label={online.isOnline ? 'Online' : 'Offline'}>
             {online.isOnline ? 'online'
               : `offline · ${online.queuedCount} queued`}
+          </span>
+          <span className={'der-de-edge-pill der-de-edge-pill--'
+            + edgeState.tone}
+                data-test="de-edge-pill"
+                data-state={edgeState.tone}
+                aria-label={'DER edge ' + edgeState.tone}
+                title={edgeState.lastPingAt
+                  ? `DER edge · ${edgeState.tone}`
+                      + ` · last checked ${fmtRelativeTime(edgeState.lastPingAt)}`
+                  : `DER edge · ${edgeState.tone}`}>
+            edge · {edgeState.tone === 'up' ? 'up'
+                   : edgeState.tone === 'slow' ? 'slow'
+                   : 'down'}
           </span>
           <span className="der-de-toolbar__ou-wrap">
             <span className="der-de-toolbar__ou-label">Bound OU</span>
@@ -4765,6 +4823,27 @@ const APP_STYLES = `
 }
 .der-de-toolbar__status--on  { color: #1b8243; }
 .der-de-toolbar__status--off { color: #9b5a00; }
+.der-de-edge-pill {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  margin-left: 8px;
+  cursor: default;
+}
+.der-de-edge-pill::before {
+  content: '';
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: 1px;
+  background: currentColor;
+}
+.der-de-edge-pill--up   { color: #1b8243; background: #e5f4ea; border-color: #b5dec4; }
+.der-de-edge-pill--slow { color: #c6680a; background: #fff1dc; border-color: #f0ca8a; }
+.der-de-edge-pill--down { color: #a3322c; background: #fbe9e7; border-color: #e9b7b2; }
 .der-de-toolbar__ou-wrap {
   margin-left: auto;
   display: inline-flex;

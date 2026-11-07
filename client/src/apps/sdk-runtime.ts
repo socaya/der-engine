@@ -29,6 +29,7 @@ function useDerApi(): {
   listDataSets: typeof edgeApi.listDataSets;
   readAggregateValues: typeof edgeApi.readAggregateValues;
   readAggregateFormSyncState: typeof edgeApi.readAggregateFormSyncState;
+  health: typeof edgeApi.health;
   getDataSetFormMetadata: typeof edgeApi.getDataSetFormMetadata;
   getDataEntryFormHtml: typeof edgeApi.getDataEntryFormHtml;
   listValidationRules: typeof edgeApi.listValidationRules;
@@ -58,6 +59,7 @@ function useDerApi(): {
     listDataSets: edgeApi.listDataSets,
     readAggregateValues: edgeApi.readAggregateValues,
     readAggregateFormSyncState: edgeApi.readAggregateFormSyncState,
+    health: edgeApi.health,
     getDataSetFormMetadata: edgeApi.getDataSetFormMetadata,
     getDataEntryFormHtml: edgeApi.getDataEntryFormHtml,
     listValidationRules: edgeApi.listValidationRules,
