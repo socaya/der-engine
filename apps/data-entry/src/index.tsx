@@ -74,6 +74,7 @@ export default function DataEntryApp(): JSX.Element {
   // from the "N issues" pill next to Validate.
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [issuesOpen, setIssuesOpen] = useState(false);
+  const totalCellsRef = useRef(0);
   // FR-07 — details drawer. Tracks the currently-focused cell and
   // re-reads its metadata from the hydrated dhis2.de shim as the
   // operator navigates.
@@ -93,6 +94,23 @@ export default function DataEntryApp(): JSX.Element {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+  // §Operator policy — the operator picks whether custom DHIS2
+  // forms render through DER's design language ('der', the
+  // default stripped-and-restyled path) or faithfully using the
+  // author's own HTML/CSS ('author', no strip, no decoration
+  // hide). Persisted in localStorage so the next visit opens in
+  // the chosen mode.
+  const [customFormMode, setCustomFormMode] =
+    useState<'der' | 'author'>(() => {
+      try {
+        const v = window.localStorage.getItem('der-de-custom-form-mode');
+        return v === 'author' ? 'author' : 'der';
+      } catch { return 'der'; }
+    });
+  useEffect(() => {
+    try { window.localStorage.setItem('der-de-custom-form-mode', customFormMode); }
+    catch { /* non-persistent env */ }
+  }, [customFormMode]);
   // Compact-by-default, remembered in localStorage so operators
   // don't have to re-pick on every visit.
   const [density, setDensity] = useState<'compact' | 'comfortable'>(() => {
@@ -333,7 +351,8 @@ export default function DataEntryApp(): JSX.Element {
         // to #contentDiv. Relative `src`/`href` are rewritten to
         // `/legacy-custom-forms/…` so DHIS2's "../javascripts/…"
         // references resolve through our server.
-        await applyFormAssets(content, formHtml);
+        await applyFormAssets(content, formHtml,
+          { stripStyles: customFormMode === 'der' });
         // Pre-populate existing dataValues the operator (or a
         // previous device) has already captured. Done after
         // applyFormAssets so the `<input name="<de>-<coc>-val">`
@@ -378,7 +397,7 @@ export default function DataEntryApp(): JSX.Element {
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, formInfo, dataSet, period, ou.orgUnitUid]);
+  }, [mode, formInfo, dataSet, period, ou.orgUnitUid, customFormMode]);
 
   const canSubmit = ou.bound
     && dataSet.trim() !== ''
@@ -630,6 +649,19 @@ export default function DataEntryApp(): JSX.Element {
                     d === 'compact' ? 'comfortable' : 'compact')}>
             {density === 'compact' ? '⇕ Compact' : '⇔ Comfortable'}
           </button>
+          <button type="button"
+                  className="der-de-density-btn"
+                  data-test="de-formmode-toggle"
+                  aria-label={`Switch to ${customFormMode === 'der'
+                    ? 'faithful author' : 'DER'} layout`}
+                  title={`Custom-form layout: ${customFormMode === 'der'
+                    ? 'DER (stripped + restyled)'
+                    : 'Author (faithful to DHIS2 central design)'}. `
+                    + 'Click to switch; reload the form for changes to take effect.'}
+                  onClick={() => setCustomFormMode((m) =>
+                    m === 'der' ? 'author' : 'der')}>
+            {customFormMode === 'der' ? '⚙ DER layout' : '⚙ Author layout'}
+          </button>
           {completion && (
             <span className="der-de-completion-pill"
                   data-test="de-completion-status">
@@ -642,9 +674,12 @@ export default function DataEntryApp(): JSX.Element {
           )}
           <button type="button"
                   onClick={() => {
-                    runValidation(customRoot.current, setStatus, (xs) => {
+                    runValidation(customRoot.current, setStatus, (xs, total) => {
                       setIssues(xs);
-                      setIssuesOpen(xs.length > 0);
+                      totalCellsRef.current = total;
+                      // Always open the modal — show success or
+                      // the issue list.
+                      setIssuesOpen(true);
                     });
                   }}
                   style={secondaryBtn}
@@ -680,9 +715,10 @@ export default function DataEntryApp(): JSX.Element {
       )}
       <ShortcutsPopover open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)} />
-      <ValidationIssuesDrawer
+      <ValidationIssuesModal
         open={issuesOpen}
         issues={issues}
+        totalCells={totalCellsRef.current}
         onClose={() => setIssuesOpen(false)}
         onPick={(iss) => {
           const el = customRoot.current?.querySelector<HTMLInputElement>(
@@ -692,6 +728,7 @@ export default function DataEntryApp(): JSX.Element {
             el.focus();
             el.select();
           }
+          setIssuesOpen(false);
         }}
       />
     </ScreenCard>
@@ -1868,54 +1905,97 @@ function CellLiveStrip(
  * Esc closes the drawer; the "N issues" chip in the action bar
  * re-opens it. Doesn't trap focus — the form stays interactive.
  */
-function ValidationIssuesDrawer(
-  { open, issues, onClose, onPick }:
-  { open: boolean; issues: ValidationIssue[];
+function ValidationIssuesModal(
+  { open, issues, totalCells, onClose, onPick }:
+  { open: boolean;
+    issues: ValidationIssue[];
+    totalCells: number;
     onClose: () => void;
     onPick: (i: ValidationIssue) => void },
 ): JSX.Element | null {
   useEffect(() => {
     if (!open) return;
-    const handler = (e: KeyboardEvent): void => {
+    const h = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose();
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
   }, [open, onClose]);
-  if (!open || issues.length === 0) return null;
+  if (!open) return null;
+  const clean = issues.length === 0;
   return (
-    <aside className="der-de-issues-drawer"
-           data-test="de-issues-drawer"
-           role="complementary"
-           aria-label="Validation issues">
-      <header className="der-de-issues-drawer__head">
-        <h4 className="der-de-issues-drawer__title">
-          {issues.length} validation issue{issues.length === 1 ? '' : 's'}
-        </h4>
-        <button type="button"
-                className="der-de-issues-drawer__close"
-                aria-label="Close issues panel"
-                data-test="de-issues-close"
-                onClick={onClose}>×</button>
-      </header>
-      <ul className="der-de-issues-drawer__list">
-        {issues.map((i) => (
-          <li key={`${i.deId}-${i.cocId}`}>
-            <button type="button"
-                    className="der-de-issues-drawer__item"
-                    data-test="de-issues-item"
-                    onClick={() => onPick(i)}>
-              <span className="der-de-issues-drawer__de">{i.deName}</span>
-              <span className="der-de-issues-drawer__coc">{i.cocName}</span>
-              <span className="der-de-issues-drawer__why">
-                <code className="der-de-issues-drawer__value">{i.value}</code>
-                <span>{i.problem}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </aside>
+    <div className="der-de-validation-backdrop"
+         role="dialog"
+         aria-modal="true"
+         aria-label="Validation result"
+         data-test="de-validation-modal"
+         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className={`der-de-validation `
+          + (clean ? 'der-de-validation--ok' : 'der-de-validation--err')}>
+        <header className="der-de-validation__head">
+          <div className="der-de-validation__title">
+            <span className="der-de-validation__badge" aria-hidden="true">
+              {clean ? '✓' : '!'}
+            </span>
+            <h3 className="der-de-validation__heading">
+              {clean
+                ? `Validation passed — all ${totalCells} cells OK.`
+                : `Validation found ${issues.length} issue`
+                  + `${issues.length === 1 ? '' : 's'} across ${totalCells} cells.`}
+            </h3>
+          </div>
+          <button type="button"
+                  className="der-de-validation__close"
+                  aria-label="Close validation modal"
+                  data-test="de-validation-close"
+                  onClick={onClose}>×</button>
+        </header>
+        <div className="der-de-validation__body">
+          {clean ? (
+            <p className="der-de-validation__ok-prose">
+              Every value on this form matches its data-element
+              valueType. Nothing is blocking a save; proceed to
+              <strong> Mark complete</strong> when you're ready.
+            </p>
+          ) : (
+            <table className="der-de-validation__table"
+                   aria-label="Validation issues list">
+              <thead>
+                <tr>
+                  <th scope="col">Data element</th>
+                  <th scope="col">Category option combo</th>
+                  <th scope="col">Entered value</th>
+                  <th scope="col">Problem</th>
+                  <th scope="col" />
+                </tr>
+              </thead>
+              <tbody>
+                {issues.map((i) => (
+                  <tr key={`${i.deId}-${i.cocId}`} data-test="de-issues-row">
+                    <td>{i.deName}</td>
+                    <td className="der-de-validation__coc">{i.cocName}</td>
+                    <td>
+                      <code className="der-de-validation__value">
+                        {i.value || '—'}
+                      </code>
+                    </td>
+                    <td className="der-de-validation__why">{i.problem}</td>
+                    <td className="der-de-validation__jump">
+                      <button type="button"
+                              className="der-de-validation__jump-btn"
+                              data-test="de-issues-item"
+                              onClick={() => onPick(i)}>
+                        Jump to cell →
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -2534,9 +2614,9 @@ export interface ValidationIssue {
 function runValidation(
   root: HTMLElement | null,
   setStatus: (s: {
-    kind: 'ok' | 'error'; message: string;
+    kind: 'ok' | 'error' | 'idle'; message?: string;
   }) => void,
-  setIssues: (xs: ValidationIssue[]) => void,
+  setIssues: (xs: ValidationIssue[], totalCells: number) => void,
 ): void {
   if (!root) return;
   const g = globalThis as unknown as {
@@ -2585,15 +2665,10 @@ function runValidation(
       });
     }
   }
-  setIssues(issues);
-  if (issues.length === 0) {
-    setStatus({ kind: 'ok',
-      message: `Validation passed — all ${inputs.length} cells OK.` });
-  } else {
-    setStatus({ kind: 'error',
-      message: `Validation found ${issues.length} issue`
-        + `${issues.length === 1 ? '' : 's'}. See the Issues panel.` });
-  }
+  setIssues(issues, inputs.length);
+  // The modal surfaces the result now; drop the status strip
+  // chatter so the operator sees a single, authoritative panel.
+  setStatus({ kind: 'idle' });
 }
 
 function validateByType(value: string, valueType: string): string | null {
@@ -2768,7 +2843,18 @@ function rewriteLegacyPath(raw: string): string {
  *   4. Everything else → inject into #contentDiv as real DOM nodes
  *      (not `innerHTML`, so attributes + inputs survive).
  */
-async function applyFormAssets(container: HTMLElement, htmlCode: string): Promise<void> {
+async function applyFormAssets(
+  container: HTMLElement,
+  htmlCode: string,
+  opts: { stripStyles?: boolean } = {},
+): Promise<void> {
+  const stripStyles = opts.stripStyles ?? true;
+  // Switch the container class so stylesheet rules
+  // (.der-de-custom-form vs .der-de-custom-form--author) pick
+  // the right level of chrome suppression. Author mode leaves
+  // the DHIS2 custom-form HTML + CSS untouched; DER mode strips
+  // decorations + inline styles.
+  container.classList.toggle('der-de-custom-form--author', !stripStyles);
   const doc = new DOMParser().parseFromString(
     `<!doctype html><html><head></head><body>${htmlCode}</body></html>`,
     'text/html');
@@ -2811,7 +2897,7 @@ async function applyFormAssets(container: HTMLElement, htmlCode: string): Promis
   // some runtimes, so strip unconditionally via removeAttribute —
   // every Element has it, idempotent for non-styled nodes.
   for (const node of Array.from(doc.body.querySelectorAll('*'))) {
-    node.removeAttribute('style');
+    if (stripStyles) node.removeAttribute('style');
     // DHIS2 custom-form authors sometimes bind inputs with
     // name="entryfield" or name="total" + id="<de>-<coc>-val".
     // Normalise `name` to the id so the save-on-blur regex
@@ -2822,12 +2908,10 @@ async function applyFormAssets(container: HTMLElement, htmlCode: string): Promis
         node.setAttribute('name', id);
       }
     }
-    // Harmonise the row-label column header. Authored TBLP /
-    // legacy DHIS2 forms label it "Reporting item"; DER's SECTION
-    // renderer uses "Data element". Use the DHIS2-standard
-    // "Data elements" everywhere so operators reading a mix of
-    // forms see consistent column copy.
-    if (node.tagName === 'TH') {
+    // Harmonise the row-label column header in DER mode only.
+    // Author mode keeps the author's copy ("Reporting item" /
+    // "Reported count") intact.
+    if (stripStyles && node.tagName === 'TH') {
       const text = (node.textContent ?? '').trim();
       if (text === 'Reporting item' || text === 'Reported count') {
         node.textContent = text === 'Reporting item'
@@ -3759,15 +3843,43 @@ const APP_STYLES = `
  * shared DER UI. Hide everything but the semantic structure
  * (sections + tables + inputs) so operators see one consistent
  * language regardless of who authored the form. */
-.der-de-custom-form .tblep-kicker,
-.der-de-custom-form .tblep-num,
-.der-de-custom-form .tblep-h1,
-.der-de-custom-form .tblep-lead,
-.der-de-custom-form .tblep-note,
-.der-de-custom-form .tblep-muted,
-.der-de-custom-form .tblep-head,
-.der-de-custom-form .tblep-foot {
+.der-de-custom-form:not(.der-de-custom-form--author) .tblep-kicker,
+.der-de-custom-form:not(.der-de-custom-form--author) .tblep-num,
+.der-de-custom-form:not(.der-de-custom-form--author) .tblep-h1,
+.der-de-custom-form:not(.der-de-custom-form--author) .tblep-lead,
+.der-de-custom-form:not(.der-de-custom-form--author) .tblep-note,
+.der-de-custom-form:not(.der-de-custom-form--author) .tblep-muted,
+.der-de-custom-form:not(.der-de-custom-form--author) .tblep-head,
+.der-de-custom-form:not(.der-de-custom-form--author) .tblep-foot {
   display: none !important;
+}
+/* Author mode — let the DHIS2 custom-form HTML render natively.
+ * Only the .tblep-table border suppression in DER mode is
+ * undone; author tables retain their own 1 px row borders +
+ * background accents. */
+.der-de-custom-form--author .tblep-root,
+.der-de-custom-form--author .tblep-head,
+.der-de-custom-form--author .tblep-panel,
+.der-de-custom-form--author .tblep-table th,
+.der-de-custom-form--author .tblep-table td,
+.der-de-custom-form--author table th,
+.der-de-custom-form--author table td {
+  padding: revert !important;
+  border: revert !important;
+  background: revert !important;
+  color: revert !important;
+  margin: revert !important;
+  border-radius: revert !important;
+}
+.der-de-custom-form--author input[name$="-val"],
+.der-de-custom-form--author input[name="entryfield"],
+.der-de-custom-form--author input[name="total"] {
+  border: revert !important;
+  border-radius: revert !important;
+  padding: revert !important;
+  background: revert !important;
+  font-size: revert !important;
+  color: revert !important;
 }
 .der-de-custom-form .tblep-table,
 .der-de-custom-form table {
@@ -4005,6 +4117,112 @@ const APP_STYLES = `
   font-weight: 500;
   cursor: pointer;
 }
+/* Validation modal — large centered dialog. Replaces the
+ * right-rail drawer: easier to read many issues at once +
+ * surfaces a clean success state. */
+.der-de-validation-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 26, 50, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+.der-de-validation {
+  background: #fff;
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 48px rgba(16, 26, 50, 0.24);
+}
+.der-de-validation__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e5e9ef;
+}
+.der-de-validation__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.der-de-validation__heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: #101a32;
+}
+.der-de-validation__badge {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+}
+.der-de-validation--ok .der-de-validation__badge {
+  background: #1b8243;
+}
+.der-de-validation--err .der-de-validation__badge {
+  background: #c0392b;
+}
+.der-de-validation__close {
+  background: transparent; border: 0; cursor: pointer;
+  color: #5b6478; font-size: 22px; line-height: 1;
+}
+.der-de-validation__body {
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+}
+.der-de-validation__ok-prose {
+  margin: 0;
+  color: #404b5a;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.der-de-validation__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.der-de-validation__table th,
+.der-de-validation__table td {
+  padding: 8px 10px;
+  text-align: left;
+  color: #101a32;
+  border-bottom: 1px solid #eef0f3;
+}
+.der-de-validation__table thead th {
+  font-size: 12px;
+  font-weight: 500;
+  color: #5b6478;
+  border-bottom: 2px solid #d8dee8;
+}
+.der-de-validation__coc { color: #5b6478; }
+.der-de-validation__value {
+  display: inline-block;
+  padding: 1px 6px;
+  background: #fbeaea;
+  color: #8a2525;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.der-de-validation__why { color: #8a2525; }
+.der-de-validation__jump-btn {
+  background: transparent;
+  border: 0;
+  color: #4a55ce;
+  font-size: 12px;
+  cursor: pointer;
+}
+.der-de-validation__jump-btn:hover { color: #2c3597; }
+
 .der-de-shortcuts-backdrop {
   position: fixed;
   inset: 0;
