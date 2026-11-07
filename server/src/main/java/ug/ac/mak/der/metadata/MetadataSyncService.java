@@ -195,8 +195,19 @@ public class MetadataSyncService {
         // skips rather than failing the whole sync.
         final java.util.LinkedHashMap<String, Integer> cat = new java.util.LinkedHashMap<>();
         for (final String resource : CATALOG_RESOURCES) {
-            cat.put(resource, fetchCatalog(resource,
-                    "/api/" + resource + FIELDS_ALL, persisted.snapshotId()));
+            // A few resources get a deeper fields mask than
+            // `:all` — categoryCombos in particular must carry
+            // `categoryOptionCombos` + nested `categories[id,
+            // name,categoryOptions[id,name]]` so the device
+            // client's section-form renderer can emit nested
+            // DHIS2-style headers (Age × Sex × Status). DHIS2's
+            // bare `:all` does NOT descend into those lists.
+            final String path = switch (resource) {
+                case "categoryCombos" -> CATEGORY_COMBO_PATH;
+                default -> "/api/" + resource + FIELDS_ALL;
+            };
+            cat.put(resource, fetchCatalog(resource, path,
+                    persisted.snapshotId()));
         }
 
         // §2.3.28 — row-versioning. One entry per (snapshot, resource, uid)

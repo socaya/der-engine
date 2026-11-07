@@ -177,6 +177,14 @@ body {
   width: 100%;
   margin: 0 auto;
 }
+/* DER-dispatched apps (ADR-0037) go full-bleed — operator-facing
+ * forms like /apps/data-entry need every pixel for wide multi-
+ * dimensional disaggregations. The centered 1200 px cap is kept
+ * for shell screens (session, dhis2 status, drafts etc.). */
+.der-shell__main:has(.der-apphost) {
+  max-width: none;
+  padding: 0;
+}
 
 /* App launcher — DHIS2 HeaderBar-style right-anchored dropdown.
  *
@@ -809,6 +817,22 @@ body {
   border: 1px solid var(--der-border);
   border-radius: var(--der-radius-md);
   margin: 16px 0;
+}
+/* Full-bleed variant for dispatched apps — no outer margin, no
+ * rounded corners against the viewport edge, body uses the
+ * remaining height so sticky action bar sits above the viewport
+ * bottom rather than the card border. */
+.der-apphost .der-screen-card {
+  margin: 0;
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+}
+.der-apphost .der-screen-card__head {
+  padding: 12px 20px;
+}
+.der-apphost .der-screen-card__body {
+  padding: 16px 20px 0;
 }
 
 .der-screen-card__head {

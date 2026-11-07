@@ -718,7 +718,11 @@ interface CatComboRegistryEntry {
   id: string;
   name?: string;
   displayName?: string;
-  categories?: Array<{ id: string }>;
+  categories?: Array<{
+    id: string; name?: string; displayName?: string;
+    categoryOptions?: Array<{ id: string; name?: string;
+      displayName?: string }>;
+  }>;
   categoryOptionCombos?: Array<{ id: string; name?: string }>;
 }
 
@@ -792,12 +796,23 @@ async function enrichDataSetBundle(
       // combo). Group them by cc.id on the client.
       categoryOptionCombos: cocs.map((c) => ({
         id: c.id, name: c.name ?? c.displayName })),
-      // Leave `categories` unexpanded — `/api/categories` isn't on
-      // DER's mirror, so renderSectionForm's nested-header branch
-      // stays a no-op and we fall back to the flat COC-name header
-      // row. Still legible; a future slice can expand categories
-      // once the mirror picks them up.
-      categories: (reg.categories ?? []).map((c) => ({ id: c.id })),
+      // Pass through the full category tree — the deepened
+      // CATEGORY_COMBO_PATH sync mask (slice 20 + 30) now puts
+      // `categories[id,name,categoryOptions[id,name]]` into the
+      // mirror, so renderSectionForm's nested-header branch can
+      // emit proper DHIS2-style Age × Sex headers instead of a
+      // flat COC-name row.
+      categories: (reg.categories ?? []).map((c) => ({
+        id: c.id,
+        name: (c as { name?: string; displayName?: string }).name
+          ?? (c as { displayName?: string }).displayName,
+        categoryOptions: ((c as {
+          categoryOptions?: Array<{ id: string; name?: string;
+            displayName?: string }>;
+        }).categoryOptions ?? []).map((o) => ({
+          id: o.id, name: o.name ?? o.displayName,
+        })),
+      })),
     };
   };
 
@@ -1365,55 +1380,112 @@ function attachKeyboardNav(container: HTMLElement): void {
  * from a navigator, and mobile layouts use the whole width for
  * the grid.
  */
+/**
+ * After applyFormAssets injects the form HTML, walk #contentDiv
+ * and gather contiguous sibling runs that start with a heading
+ * (h2/h3/h4) into wrapper `<div class="der-de-section-slot"
+ * data-section-id="…">` elements. Both SECTION-renderer forms
+ * (which emit `<h3 class="formSection">`) and CUSTOM author
+ * forms (TBLP uses `<h2 class="tblep-h2">`) end up with the same
+ * slot structure, so SectionNavigator can hide-all-but-active
+ * independently of who authored the HTML.
+ *
+ * Content before the first heading (intros, hidden inputs,
+ * styles) lands in an "intro" slot that's always visible.
+ */
+function groupIntoSections(root: HTMLElement): Array<{
+  id: string; label: string; slot: HTMLElement;
+}> {
+  const headings = Array.from(root.querySelectorAll('h2, h3, h4'))
+    .filter((h) => (h.textContent ?? '').trim().length > 0);
+  if (headings.length < 2) return [];
+  const slots: Array<{ id: string; label: string; slot: HTMLElement }> = [];
+  // Strategy 1 — headings are top-level siblings (SECTION renderer,
+  // simple custom forms): wrap each heading + its following
+  // siblings up to the next heading in a slot.
+  // Strategy 2 — headings live inside author wrappers (TBLP uses
+  // `<div class="tblep-panel">` containing an h2): pick the
+  // nearest ancestor that itself is a direct child of a "bucket"
+  // ancestor (#contentDiv or a decorative root like .tblep-root)
+  // and treat that ancestor as the slot.
+  const seen = new Set<HTMLElement>();
+  headings.forEach((h, i) => {
+    const id = h.id || `der-de-section-${i}`;
+    h.id = id;
+    let slot: HTMLElement | null = null;
+    // Strategy 2 first — find a sensible ancestor.
+    let p: HTMLElement | null = h.parentElement;
+    while (p && p !== root) {
+      const grand = p.parentElement;
+      if (grand === root || (grand && grand.parentElement === root)) {
+        slot = p;
+        break;
+      }
+      p = grand;
+    }
+    // Strategy 1 fallback — top-level sibling run.
+    if (!slot) {
+      slot = document.createElement('div');
+      slot.className = 'der-de-section-slot';
+      slot.dataset.sectionId = id;
+      const next = headings[i + 1] ?? null;
+      const nodes: Node[] = [];
+      let cur: Node | null = h;
+      while (cur && cur !== next) {
+        const n = cur.nextSibling;
+        nodes.push(cur);
+        cur = n;
+      }
+      h.parentNode?.insertBefore(slot, h);
+      for (const n of nodes) slot.appendChild(n);
+    } else {
+      // Mark existing ancestor as a slot. If multiple headings
+      // share the same ancestor (rare), the first wins + the
+      // others skip.
+      if (seen.has(slot)) return;
+      seen.add(slot);
+      slot.classList.add('der-de-section-slot');
+      slot.dataset.sectionId = id;
+    }
+    slots.push({ id, label: (h.textContent ?? '').trim(), slot });
+  });
+  return slots;
+}
+
 function SectionNavigator(
   { targetRef, formVersion }:
   { targetRef: RefObject<HTMLDivElement | null>;
     formVersion: number },
 ): JSX.Element | null {
   const [entries, setEntries] = useState<Array<{
-    id: string; label: string; el: HTMLHeadingElement;
+    id: string; label: string; slot: HTMLElement;
   }>>([]);
   const [activeId, setActiveId] = useState<string>('');
 
   // Rescan every time the form is re-rendered (dataset / period
-  // switch) — the previous <h3>s are torn out and new ones take
+  // switch) — the previous slots are torn out and new ones take
   // their place.
   useEffect(() => {
     const root = targetRef.current;
     if (!root) return;
-    const hs = Array.from(
-      root.querySelectorAll<HTMLHeadingElement>('h3.formSection'));
-    const next = hs.map((h, i) => {
-      const id = h.id || `der-de-section-${i}`;
-      h.id = id;
-      return { id, label: (h.textContent ?? '').trim(), el: h };
-    }).filter((e) => e.label);
+    const next = groupIntoSections(root);
     setEntries(next);
     setActiveId(next[0]?.id ?? '');
   }, [targetRef, formVersion]);
 
-  // Scroll-spy via IntersectionObserver. The topmost section that
-  // is at least 40 % visible wins. Fallbacks to the first section
-  // if nothing qualifies (e.g. between sections).
+  // Show the active slot, hide the rest. "Intro" nodes (any
+  // content before the first heading) stay visible.
   useEffect(() => {
-    if (entries.length === 0) return;
-    const io = new IntersectionObserver((xs) => {
-      // Pick the entry with the largest intersection ratio among
-      // those currently crossing the threshold.
-      let best: { id: string; ratio: number } | null = null;
-      for (const x of xs) {
-        if (!x.isIntersecting) continue;
-        const id = (x.target as HTMLElement).id;
-        if (!id) continue;
-        if (!best || x.intersectionRatio > best.ratio) {
-          best = { id, ratio: x.intersectionRatio };
-        }
-      }
-      if (best) setActiveId(best.id);
-    }, { threshold: [0, 0.2, 0.4, 0.6], rootMargin: '-80px 0px -60% 0px' });
-    for (const e of entries) io.observe(e.el);
-    return () => io.disconnect();
-  }, [entries]);
+    const root = targetRef.current;
+    if (!root || entries.length === 0) return;
+    for (const e of entries) {
+      e.slot.style.display = e.id === activeId ? '' : 'none';
+    }
+    // Scroll the newly revealed slot to the top of the scroll box
+    // so the operator doesn't start mid-section.
+    const act = entries.find((e) => e.id === activeId);
+    if (act) act.slot.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [targetRef, entries, activeId]);
 
   if (entries.length < 2) return null;
 
@@ -1430,11 +1502,7 @@ function SectionNavigator(
                       + (activeId === e.id
                         ? ' der-de-section-nav__item--active' : '')}
                     data-test="de-section-nav-item"
-                    onClick={() => {
-                      e.el.scrollIntoView({
-                        behavior: 'smooth', block: 'start' });
-                      setActiveId(e.id);
-                    }}>
+                    onClick={() => setActiveId(e.id)}>
               {e.label}
             </button>
           </li>
@@ -1839,6 +1907,16 @@ async function applyFormAssets(container: HTMLElement, htmlCode: string): Promis
     node.remove();
   }
 
+  // Author-written custom forms (TBLP, legacy DHIS2 bundles)
+  // routinely ship inline `style="background:…;border-radius:
+  // 22px;padding:20px"` attributes that fight DER's compact-grid
+  // design system. Strip every inline style before we adopt the
+  // nodes — the author's structural choices (tables, labels,
+  // sections) remain but visual chrome inherits DER's design
+  // tokens. Plan §6.2 Phase A sanitisation.
+  for (const node of Array.from(doc.body.querySelectorAll('*'))) {
+    if (node instanceof HTMLElement) node.removeAttribute('style');
+  }
   // Append the remaining DOM. `adoptNode` lets us move real nodes
   // across documents so attributes + listeners stay intact. Children
   // of <body> cover 99% of DHIS2 form HTML (templates sometimes
@@ -2417,6 +2495,94 @@ const APP_STYLES = `
   color: #1f4d70;
   font-weight: 500;
 }
+/* One section at a time. Each slot stretches to fill the form
+ * column so the operator sees exactly the section they picked
+ * — no accidental scroll into neighbours. */
+.der-de-section-slot {
+  margin: 0 0 12px;
+}
+/* Custom form visual integration. The inline-style strip in
+ * applyFormAssets neutralises TBLP/legacy template colours +
+ * rounded chrome; these rules give the author's table structure
+ * DER's compact grid design back. */
+.der-de-custom-form h1,
+.der-de-custom-form h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1f4d70;
+  border-bottom: 1px solid #e5e9ef;
+  padding-bottom: 6px;
+}
+.der-de-custom-form .tblep-root,
+.der-de-custom-form .tblep-head,
+.der-de-custom-form .tblep-panel {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  margin: 0 0 16px !important;
+}
+.der-de-custom-form .tblep-kicker,
+.der-de-custom-form .tblep-num {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 8px;
+  background: #eef4fa;
+  color: #1f4d70;
+  border-radius: 10px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+.der-de-custom-form .tblep-lead,
+.der-de-custom-form .tblep-note,
+.der-de-custom-form .tblep-muted {
+  color: #6e7a8a;
+  font-size: 12px;
+  margin: 4px 0 8px;
+}
+.der-de-custom-form .tblep-foot {
+  display: none;
+}
+.der-de-custom-form .tblep-table,
+.der-de-custom-form table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+.der-de-custom-form .tblep-table th,
+.der-de-custom-form .tblep-table td,
+.der-de-custom-form table th,
+.der-de-custom-form table td {
+  padding: 4px 8px !important;
+  border: 1px solid #e5e9ef !important;
+  text-align: left !important;
+  vertical-align: middle;
+  background: transparent !important;
+}
+.der-de-custom-form .tblep-table th,
+.der-de-custom-form table th {
+  background: #f3f5f7 !important;
+  font-weight: 500;
+  color: #404b5a;
+}
+.der-de-custom-form .tblep-table input[type="text"],
+.der-de-custom-form table input[type="text"],
+.der-de-custom-form input[name="entryfield"],
+.der-de-custom-form input[name="total"] {
+  width: 100% !important;
+  padding: 2px 4px !important;
+  border: 0;
+  background: transparent !important;
+  font-size: 12px !important;
+  color: #212934 !important;
+  font-family: inherit;
+}
+.der-de-custom-form input[type="text"]:focus {
+  outline: 1px solid #2c6693;
+  background: #fff !important;
+}
 .der-de-completion-pill {
   margin-right: auto;
   padding: 4px 10px;
@@ -2462,8 +2628,11 @@ const APP_STYLES = `
 .der-de-form-card .sectionTable thead th.dataElementCell {
   z-index: 3; /* corner cell sits above both axes. */
 }
-/* Each table gets its own horizontal scroll container so wide
-   disaggregations don't push the whole form around. */
+/* Each table lives inside a container that normally fits the
+   viewport (categories nest with colspan rather than forcing a
+   wide flat matrix). Only scroll horizontally as a last resort
+   when the operator chose Comfortable density on a very wide
+   combo (Age × Sex × Status + 50+ DEs). */
 .der-de-form-card .der-de-table-scroll {
   overflow-x: auto;
   margin: 8px 0 20px;
@@ -2473,6 +2642,13 @@ const APP_STYLES = `
 }
 .der-de-form-card .der-de-table-scroll .sectionTable {
   margin: 0;
+  table-layout: fixed;
+  width: 100%;
+}
+.der-de-form-card .der-de-table-scroll .sectionTable td,
+.der-de-form-card .der-de-table-scroll .sectionTable th {
+  white-space: normal;
+  word-break: break-word;
 }
 .der-de-form-card .sectionTable .indicatorRow td {
   background: #fcf7e6;
