@@ -870,15 +870,25 @@ export default function DataEntryApp(): JSX.Element {
               </svg>
             </button>
           )}
-          <span className={'der-de-toolbar__status '
-            + (online.isOnline ? 'der-de-toolbar__status--on'
-              : 'der-de-toolbar__status--off')}
-                aria-label={online.isOnline ? 'Online' : 'Offline'}>
-            {online.isOnline ? 'online'
-              : `offline · ${online.queuedCount} queued`}
+          <span className="der-de-status-icon"
+                data-test="de-wan-status"
+                data-state={online.isOnline ? 'up' : 'down'}
+                aria-label={online.isOnline
+                  ? 'Internet online'
+                  : `Internet offline — ${online.queuedCount} queued`}
+                title={online.isOnline
+                  ? 'Internet reachable (navigator.onLine)'
+                  : `Internet offline · ${online.queuedCount} queued`}>
+            <InternetMark />
+            <span className={'der-de-status-icon__dot is-'
+              + (online.isOnline ? 'lit' : 'error')} aria-hidden="true" />
+            {!online.isOnline && online.queuedCount > 0 && (
+              <span className="der-de-status-icon__count">
+                {online.queuedCount}
+              </span>
+            )}
           </span>
-          <span className={'der-de-edge-pill der-de-edge-pill--'
-            + edgeState.tone}
+          <span className="der-de-status-icon"
                 data-test="de-edge-pill"
                 data-state={edgeState.tone}
                 aria-label={'DER edge ' + edgeState.tone}
@@ -886,9 +896,11 @@ export default function DataEntryApp(): JSX.Element {
                   ? `DER edge · ${edgeState.tone}`
                       + ` · last checked ${fmtRelativeTime(edgeState.lastPingAt)}`
                   : `DER edge · ${edgeState.tone}`}>
-            edge · {edgeState.tone === 'up' ? 'up'
-                   : edgeState.tone === 'slow' ? 'slow'
-                   : 'down'}
+            <DerBrandMark />
+            <span className={'der-de-status-icon__dot is-'
+              + (edgeState.tone === 'up' ? 'lit'
+                : edgeState.tone === 'slow' ? 'pending' : 'error')}
+                  aria-hidden="true" />
           </span>
           <span className="der-de-toolbar__ou-wrap">
             <span className="der-de-toolbar__ou-label">Bound OU</span>
@@ -2524,6 +2536,25 @@ function SyncLogos(
  * `fill="currentColor"` so the parent pin recolours it via CSS
  * (orange while sync is in progress, green when both edges confirm).
  */
+/**
+ * Minimal globe glyph for the WAN/Internet status indicator on the
+ * toolbar. `currentColor` so the status pin's color drives the hue.
+ */
+function InternetMark(): JSX.Element {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14"
+         aria-hidden="true" className="der-de-sync-logos__svg">
+      <g fill="none" stroke="currentColor" strokeWidth="1.3"
+         strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="8" cy="8" r="6.3" />
+        <path d="M1.7 8h12.6" />
+        <path d="M8 1.7c2 2 2 10.6 0 12.6" />
+        <path d="M8 1.7c-2 2-2 10.6 0 12.6" />
+      </g>
+    </svg>
+  );
+}
+
 function DerBrandMark(): JSX.Element {
   return (
     <svg viewBox="0 0 1254 1254" width="14" height="14"
@@ -4805,45 +4836,37 @@ const APP_STYLES = `
   color: #101a32;
   letter-spacing: -0.01em;
 }
-.der-de-toolbar__status {
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 0;
+/* Toolbar status indicators — brand mark + 8 px status dot, no
+ * pastel pills. Matches the cell-details sync-logos pattern:
+ * logo keeps its native hue, meaning sits entirely in the dot. */
+.der-de-status-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 10px;
   background: transparent;
+  border: 0;
+  padding: 0;
+  line-height: 1;
 }
-.der-de-toolbar__status::before {
-  content: '';
+.der-de-status-icon[data-test="de-wan-status"]  { color: #0a5497; }
+.der-de-status-icon[data-test="de-edge-pill"]   { color: #0B3558; }
+.der-de-status-icon__dot {
   display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-right: 5px;
-  vertical-align: 1px;
-  background: currentColor;
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  background: #c6ccd7;
 }
-.der-de-toolbar__status--on  { color: #1b8243; }
-.der-de-toolbar__status--off { color: #9b5a00; }
-.der-de-edge-pill {
-  font-size: 11px;
+.der-de-status-icon__dot.is-lit     { background: #1b8243; }
+.der-de-status-icon__dot.is-pending { background: #c6680a; }
+.der-de-status-icon__dot.is-error   { background: #a3322c; }
+.der-de-status-icon__count {
+  font-size: 10px;
   font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  margin-left: 8px;
-  cursor: default;
+  color: #a3322c;
+  margin-left: 2px;
 }
-.der-de-edge-pill::before {
-  content: '';
-  display: inline-block;
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  margin-right: 5px;
-  vertical-align: 1px;
-  background: currentColor;
-}
-.der-de-edge-pill--up   { color: #1b8243; background: #e5f4ea; border-color: #b5dec4; }
-.der-de-edge-pill--slow { color: #c6680a; background: #fff1dc; border-color: #f0ca8a; }
-.der-de-edge-pill--down { color: #a3322c; background: #fbe9e7; border-color: #e9b7b2; }
 .der-de-toolbar__ou-wrap {
   margin-left: auto;
   display: inline-flex;
