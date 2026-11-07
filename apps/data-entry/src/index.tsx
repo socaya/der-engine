@@ -5070,7 +5070,10 @@ const APP_STYLES = `
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 60;
+  /* Must sit above .der-topbar (z-index: 100) so click-outside
+   * registers on the backdrop near the top of the viewport and
+   * the operator doesn't accidentally hit the topbar instead. */
+  z-index: 200;
 }
 .der-de-validation {
   background: #fff;
@@ -5173,7 +5176,10 @@ const APP_STYLES = `
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 20;
+  /* Above .der-topbar (z-index: 100) so click-outside anywhere
+   * on the backdrop closes the popover — the previous 20 meant
+   * the shell topbar intercepted clicks near the top. */
+  z-index: 200;
 }
 .der-de-shortcuts {
   background: #fff;
