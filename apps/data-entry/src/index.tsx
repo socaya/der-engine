@@ -1730,25 +1730,65 @@ function attachSaveOnBlur(
  * targets so Prev/Next buttons + OU chip inputs stay untouched.
  */
 function attachKeyboardNav(container: HTMLElement): void {
-  container.addEventListener('keydown', (ev) => {
-    const e = ev as KeyboardEvent;
-    if (e.key !== 'Enter') return;
-    const t = e.target as HTMLElement | null;
-    if (!(t instanceof HTMLInputElement)) return;
+  const vertical = (t: HTMLInputElement, dir: -1 | 1): void => {
     const name = t.getAttribute('name') ?? '';
     const m = /^(.+)-(.+)-val$/.exec(name);
     if (!m) return;
-    e.preventDefault();
     const coc = m[2];
-    // All inputs in the same COC column, in DOM order.
     const column = Array.from(
       container.querySelectorAll<HTMLInputElement>(
         `input[name$="-${coc}-val"]`));
     const idx = column.indexOf(t);
     if (idx === -1) return;
-    const target = column[idx + (e.shiftKey ? -1 : 1)];
-    target?.focus();
-    if (target instanceof HTMLInputElement) target.select();
+    const target = column[idx + dir];
+    if (target) { target.focus(); target.select(); }
+  };
+  const horizontal = (t: HTMLInputElement, dir: -1 | 1): void => {
+    // Walk to the sibling input in the same DOM row (same <tr>).
+    // Enables spreadsheet-style left/right traversal across COC
+    // columns for the same data element.
+    const row = t.closest('tr');
+    if (!row) return;
+    const inputs = Array.from(
+      row.querySelectorAll<HTMLInputElement>('input[name$="-val"]'));
+    const idx = inputs.indexOf(t);
+    if (idx === -1) return;
+    const target = inputs[idx + dir];
+    if (target) { target.focus(); target.select(); }
+  };
+  container.addEventListener('keydown', (ev) => {
+    const e = ev as KeyboardEvent;
+    const t = e.target as HTMLElement | null;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (!/-val$/.test(t.getAttribute('name') ?? '')) return;
+    // Modifier keys handled elsewhere (paste, select-all, etc.) —
+    // let the browser own them.
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      vertical(t, e.shiftKey ? -1 : 1);
+      return;
+    }
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      vertical(t, e.key === 'ArrowUp' ? -1 : 1);
+      return;
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      // Only hop to the neighbouring cell when the caret is at the
+      // start/end of the current value — otherwise the operator is
+      // inline-editing the number and expects native caret motion.
+      const atStart = t.selectionStart === 0 && t.selectionEnd === 0;
+      const atEnd = t.selectionStart === t.value.length
+                 && t.selectionEnd === t.value.length;
+      if (e.key === 'ArrowLeft' && atStart) {
+        e.preventDefault();
+        horizontal(t, -1);
+      } else if (e.key === 'ArrowRight' && atEnd) {
+        e.preventDefault();
+        horizontal(t, +1);
+      }
+    }
   });
 }
 
@@ -2373,9 +2413,10 @@ function ShortcutsPopover(
   }, [open, onClose]);
   if (!open) return null;
   const rows: Array<[string, string]> = [
-    ['Enter', 'Next row (same COC column)'],
-    ['Shift + Enter', 'Previous row'],
-    ['Tab / Shift + Tab', 'Next / previous cell'],
+    ['Enter / ↓', 'Next row (same COC column)'],
+    ['Shift + Enter / ↑', 'Previous row'],
+    ['← / →', 'Previous / next COC column (same row)'],
+    ['Tab / Shift + Tab', 'Next / previous cell (DOM order)'],
     ['Paste multi-line', 'Distributes down the COC column'],
     ['Esc', 'Close an open drawer'],
     ['?', 'Show / hide this cheatsheet'],
