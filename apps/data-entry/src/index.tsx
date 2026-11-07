@@ -128,6 +128,25 @@ export default function DataEntryApp(): JSX.Element {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+  // Dirty-form guard — attachSaveOnBlur stamps `data-dirty="1"` on
+  // cells whose current value differs from the last successfully
+  // saved value. If any remain dirty when the operator tries to
+  // close the tab / navigate away, trigger the browser's native
+  // "Changes you made may not be saved" dialog. Clean forms unload
+  // silently.
+  useEffect(() => {
+    const beforeUnload = (ev: BeforeUnloadEvent): void => {
+      const root = customRoot.current;
+      if (!root) return;
+      if (!root.querySelector('input[data-dirty="1"]')) return;
+      ev.preventDefault();
+      // Chrome ignores the string but requires returnValue to be
+      // truthy; Firefox/Safari honour it in some versions.
+      ev.returnValue = '';
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  }, []);
   // §Operator policy — the operator picks whether custom DHIS2
   // forms render through DER's design language ('der', the
   // default stripped-and-restyled path) or faithfully using the
@@ -1811,6 +1830,9 @@ function attachSaveOnBlur(
       // live "saved" write.
       const s = r?.status === 'OFFLINE_QUEUED' ? 'queued' : 'saved';
       paintState(t, s);
+      // Clear the dirty flag — the value is safe on the mirror
+      // (or in the offline queue, which drains deterministically).
+      t.removeAttribute('data-dirty');
       onSaveSuccess?.(s);
     } catch {
       paintState(t, 'error');
@@ -1818,6 +1840,19 @@ function attachSaveOnBlur(
   };
   // Use capture so we don't fight with jQuery's blur handlers.
   container.addEventListener('blur', (ev) => { void handler(ev); }, true);
+  // Mark cells dirty as the operator types so the beforeunload
+  // guard can warn when values have changed since the last save.
+  // Save success clears the flag above.
+  container.addEventListener('input', (ev) => {
+    const t = ev.target as HTMLInputElement | null;
+    if (!t || t.tagName !== 'INPUT') return;
+    if (!/-val$/.test(t.getAttribute('name') ?? '')) return;
+    if (t.value !== lastSaved.get(t)) {
+      t.setAttribute('data-dirty', '1');
+    } else {
+      t.removeAttribute('data-dirty');
+    }
+  }, true);
 }
 
 /**
