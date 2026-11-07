@@ -23,6 +23,12 @@ body {
   background: var(--der-topbar-bg);
   color: var(--der-topbar-fg);
   flex: 0 0 auto;
+  /* Solid so scrolling form content below never bleeds through
+   * the header. Shell owns the only topbar; pin high so the
+   * data-entry sticky toolbar stacks under it. */
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .der-topbar__brand {

@@ -482,6 +482,20 @@ export default function DataEntryApp(): JSX.Element {
        *  decorative tints — just inline labels + selects. */}
       <div className="der-de-toolbar" data-test="der-de-toolbar">
         <div className="der-de-toolbar__head">
+          <span className="der-de-toolbar__brand" aria-hidden="true">
+            <svg viewBox="0 0 128 128" width="26" height="26">
+              <rect x="18" y="22" width="92" height="84" rx="6"
+                    fill="#eef1ff" stroke="#4a55ce" stroke-width="5" />
+              <line x1="18" y1="44" x2="110" y2="44"
+                    stroke="#4a55ce" stroke-width="5" />
+              <line x1="30" y1="60" x2="80" y2="60"
+                    stroke="#4a55ce" stroke-width="3" />
+              <line x1="30" y1="76" x2="90" y2="76"
+                    stroke="#4a55ce" stroke-width="3" />
+              <line x1="30" y1="92" x2="70" y2="92"
+                    stroke="#4a55ce" stroke-width="3" />
+            </svg>
+          </span>
           <h1 className="der-de-toolbar__title">Aggregate data entry</h1>
           <span className={'der-de-toolbar__status '
             + (online.isOnline ? 'der-de-toolbar__status--on'
@@ -490,10 +504,13 @@ export default function DataEntryApp(): JSX.Element {
             {online.isOnline ? 'online'
               : `offline · ${online.queuedCount} queued`}
           </span>
-          <span className="der-de-toolbar__ou"
-                title={ou.orgUnitPath || ou.orgUnitUid || ''}
-                data-test="de-toolbar-ou">
-            {ou.orgUnitDisplayName || ou.orgUnitUid || 'Not bound to an OU'}
+          <span className="der-de-toolbar__ou-wrap">
+            <span className="der-de-toolbar__ou-label">Bound OU</span>
+            <span className="der-de-toolbar__ou"
+                  title={ou.orgUnitPath || ou.orgUnitUid || ''}
+                  data-test="de-toolbar-ou">
+              {ou.orgUnitDisplayName || ou.orgUnitUid || 'Not bound to an OU'}
+            </span>
           </span>
         </div>
         <div className="der-de-toolbar__picks">
@@ -3420,47 +3437,80 @@ const APP_STYLES = `
 .der-apphost .der-de-section-nav__ratio--partial { color: #9b5a00 !important; }
 .der-apphost .der-de-section-nav__ratio--done    { color: #1b8243 !important; }
 
-/* Single sticky toolbar — replaces the old title + chip strip. */
+/* Single sticky toolbar — replaces the old title + chip strip.
+ * SOLID background so scrolling long forms doesn't show the
+ * grid through the header. */
 .der-de-toolbar {
   position: sticky;
   top: 52px;
   z-index: 5;
   margin: 0 -20px 12px;
-  padding: 8px 20px;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: saturate(140%) blur(6px);
+  padding: 10px 20px 10px;
+  background: #ffffff;
   border-bottom: 1px solid #e5e9ef;
+  box-shadow: 0 1px 2px rgba(16, 26, 50, 0.04);
 }
 .der-de-toolbar__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
-  margin-bottom: 6px;
+  margin-bottom: 10px;
+}
+.der-de-toolbar__brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #eef1ff;
+  flex: 0 0 auto;
 }
 .der-de-toolbar__title {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 500;
   color: #101a32;
   letter-spacing: -0.01em;
 }
 .der-de-toolbar__status {
   font-size: 11px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 1px 8px;
-  border-radius: 10px;
+  padding: 0;
+  background: transparent;
 }
-.der-de-toolbar__status--on  { background: #e3f7eb; color: #1b8243; }
-.der-de-toolbar__status--off { background: #fef0d8; color: #9b5a00; }
-.der-de-toolbar__ou {
+.der-de-toolbar__status::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  vertical-align: 1px;
+  background: currentColor;
+}
+.der-de-toolbar__status--on  { color: #1b8243; }
+.der-de-toolbar__status--off { color: #9b5a00; }
+.der-de-toolbar__ou-wrap {
   margin-left: auto;
-  color: #5b6478;
-  font-size: 12px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  max-width: 360px;
+}
+.der-de-toolbar__ou-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9097a8;
+}
+.der-de-toolbar__ou {
+  color: #101a32;
+  font-size: 13px;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 320px;
 }
 .der-de-toolbar__picks {
   display: flex;
