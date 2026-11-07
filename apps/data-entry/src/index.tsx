@@ -2976,20 +2976,45 @@ function ShortcutsPopover(
     return () => window.removeEventListener('keydown', h);
   }, [open, onClose]);
   if (!open) return null;
-  const rows: Array<[string, string]> = [
-    ['Enter / ↓', 'Next row (same COC column)'],
-    ['Shift + Enter / ↑', 'Previous row'],
-    ['← / →', 'Previous / next COC column (same row)'],
-    ['Tab / Shift + Tab', 'Next / previous cell (DOM order)'],
-    ['Alt + 1..9', 'Jump to section N'],
-    ['Alt + S', 'Save all unsaved cells'],
-    ['Alt + V', 'Run validation'],
-    ['Alt + C', 'Toggle Complete marker'],
-    ['Alt + E', 'Export this period as CSV'],
-    ['Alt + P', 'Export this period as PDF (editable)'],
-    ['Paste multi-line', 'Distributes down the COC column'],
-    ['Esc', 'Close an open drawer'],
-    ['?', 'Show / hide this cheatsheet'],
+  const groups: Array<{ title: string; rows: Array<[string, string]> }> = [
+    {
+      title: 'Cell navigation',
+      rows: [
+        ['Enter / ↓', 'Next row (same COC column)'],
+        ['Shift + Enter / ↑', 'Previous row'],
+        ['← / →', 'Previous / next COC column (same row)'],
+        ['Tab / Shift + Tab', 'Next / previous cell (DOM order)'],
+        ['Alt + 1..9', 'Jump to section N'],
+      ],
+    },
+    {
+      title: 'Editing',
+      rows: [
+        ['Paste multi-line', 'Distributes down the COC column'],
+      ],
+    },
+    {
+      title: 'Actions',
+      rows: [
+        ['Alt + S', 'Save all unsaved cells'],
+        ['Alt + V', 'Run validation'],
+        ['Alt + C', 'Toggle Complete marker'],
+      ],
+    },
+    {
+      title: 'Export',
+      rows: [
+        ['Alt + E', 'Export this period as CSV'],
+        ['Alt + P', 'Export this period as PDF (editable)'],
+      ],
+    },
+    {
+      title: 'UI',
+      rows: [
+        ['Esc', 'Close an open drawer'],
+        ['?', 'Show / hide this cheatsheet'],
+      ],
+    },
   ];
   return (
     <div className="der-de-shortcuts-backdrop"
@@ -3006,14 +3031,21 @@ function ShortcutsPopover(
                   aria-label="Close keyboard shortcuts"
                   onClick={onClose}>×</button>
         </header>
-        <dl className="der-de-shortcuts__list">
-          {rows.map(([k, v]) => (
-            <div key={k} className="der-de-shortcuts__row">
-              <dt><kbd>{k}</kbd></dt>
-              <dd>{v}</dd>
-            </div>
+        <div className="der-de-shortcuts__body">
+          {groups.map((g) => (
+            <section key={g.title} className="der-de-shortcuts__group">
+              <h4 className="der-de-shortcuts__group-title">{g.title}</h4>
+              <dl className="der-de-shortcuts__list">
+                {g.rows.map(([k, v]) => (
+                  <div key={k} className="der-de-shortcuts__row">
+                    <dt><kbd>{k}</kbd></dt>
+                    <dd>{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
           ))}
-        </dl>
+        </div>
       </div>
     </div>
   );
@@ -6798,9 +6830,27 @@ const APP_STYLES = `
   background: #fff;
   border-radius: 12px;
   padding: 0;
-  width: min(440px, calc(100vw - 32px));
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 16px 48px rgba(16, 26, 50, 0.24);
   overflow: hidden;
+}
+.der-de-shortcuts__body {
+  padding: 8px 18px 16px;
+  overflow-y: auto;
+}
+.der-de-shortcuts__group {
+  margin: 10px 0 2px;
+}
+.der-de-shortcuts__group-title {
+  margin: 0 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--der-brand-500, #147CD7);
 }
 .der-de-shortcuts__head {
   display: flex;
@@ -6822,7 +6872,7 @@ const APP_STYLES = `
 }
 .der-de-shortcuts__list {
   margin: 0;
-  padding: 10px 18px 16px;
+  padding: 0;
 }
 .der-de-shortcuts__row {
   display: grid;
