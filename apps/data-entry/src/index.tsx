@@ -535,17 +535,44 @@ export default function DataEntryApp(): JSX.Element {
   useEffect(() => {
     const root = customRoot.current;
     if (!root) return;
-    const q = deFilter.trim().toLowerCase();
+    const q = deFilter.trim();
+    const qLower = q.toLowerCase();
     const rows = Array.from(root.querySelectorAll<HTMLTableRowElement>(
       'tbody tr'));
     for (const r of rows) {
+      const labelCell = (r.querySelector('.dataElementCell')
+        ?? r.querySelector('td')) as HTMLElement | null;
+      // Restore the label text (dropping any prior <mark> wrapping)
+      // using the stashed original. Re-stash on first pass.
+      if (labelCell) {
+        let original = labelCell.getAttribute('data-de-filter-orig');
+        if (original === null) {
+          original = labelCell.textContent ?? '';
+          labelCell.setAttribute('data-de-filter-orig', original);
+        }
+        if (!q) {
+          if (labelCell.textContent !== original) labelCell.textContent = original;
+        } else {
+          const text = original;
+          const idx = text.toLowerCase().indexOf(qLower);
+          if (idx >= 0) {
+            // Rebuild innerHTML with the matching substring wrapped
+            // in a <mark>; keep surrounding text as plain text.
+            const esc = (s: string) => s.replace(/[&<>]/g, (c) =>
+              c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;');
+            labelCell.innerHTML = esc(text.slice(0, idx))
+              + '<mark class="der-de-filter-hit">'
+              + esc(text.slice(idx, idx + q.length))
+              + '</mark>'
+              + esc(text.slice(idx + q.length));
+          } else if (labelCell.textContent !== original) {
+            labelCell.textContent = original;
+          }
+        }
+      }
       if (!q) { r.style.display = ''; continue; }
-      // Row label: prefer the .dataElementCell td, else the first
-      // non-input td.
-      const labelCell = r.querySelector('.dataElementCell')
-        ?? r.querySelector('td');
       const text = (labelCell?.textContent ?? '').toLowerCase();
-      r.style.display = text.includes(q) ? '' : 'none';
+      r.style.display = text.includes(qLower) ? '' : 'none';
     }
   }, [deFilter, formRenderVersion]);
 
@@ -6180,6 +6207,14 @@ const APP_STYLES = `
   height: 32px;
   background: #e6f1fb;
   flex: 0 0 auto;
+}
+.der-de-filter-hit {
+  background: #fff1dc;
+  color: var(--der-ink-900, #101a32);
+  padding: 0 2px;
+  border-radius: 3px;
+  font-weight: 500;
+  box-shadow: 0 0 0 1px #f0ca8a;
 }
 .der-de-filebtn {
   display: inline-flex;
