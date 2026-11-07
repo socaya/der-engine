@@ -1436,11 +1436,15 @@ function groupIntoSections(root: HTMLElement): Array<{
       candidate = p;
       p = p.parentElement;
     }
-    if (candidate && candidate !== h.parentElement
+    if (candidate
       // We only promote an ancestor to a slot if it's a real
       // container (has more than just the heading). A naked
       // wrapper around the heading alone adds no value.
-      && candidate.children.length > 1) {
+      && candidate.children.length > 1
+      // Don't promote the shared root container (#contentDiv or
+      // equivalent) — its direct children are the headings + their
+      // trailing content for the sibling-run fallback to wrap.
+      && candidate !== root) {
       slot = candidate;
       slot.classList.add('der-de-section-slot');
       slot.dataset.sectionId = id;
@@ -2625,32 +2629,20 @@ const APP_STYLES = `
 .der-de-form-card .sectionTable th,
 .der-de-form-card .sectionTable td {
   border: 1px solid #e5e9ef;
-  padding: var(--der-de-cell-pad, 4px 8px);
+  padding: var(--der-de-cell-pad, 6px 8px);
   text-align: left;
   vertical-align: middle;
-  white-space: nowrap;
 }
-/* Sticky column headers — stay visible as the grid scrolls down.
-   thead stacks above the first-column dataElementCell via z-index. */
 .der-de-form-card .sectionTable thead th {
-  position: sticky;
-  top: 0;
   background: #f3f5f7;
   font-weight: 500;
   color: #404b5a;
-  z-index: 2;
+  text-align: center;
 }
 .der-de-form-card .sectionTable .dataElementCell {
-  background: #f8fafc;
+  background: #fafbfd;
   min-width: var(--der-de-de-col, 200px);
-  max-width: var(--der-de-de-col-max, 320px);
-  white-space: normal;
-  position: sticky;
-  left: 0;
-  z-index: 1;
-}
-.der-de-form-card .sectionTable thead th.dataElementCell {
-  z-index: 3; /* corner cell sits above both axes. */
+  text-align: left;
 }
 /* Each table lives inside a container that normally fits the
    viewport (categories nest with colspan rather than forcing a
@@ -2660,19 +2652,12 @@ const APP_STYLES = `
 .der-de-form-card .der-de-table-scroll {
   overflow-x: auto;
   margin: 6px 0 16px;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(16, 26, 50, 0.04);
+  background: transparent;
 }
 .der-de-form-card .der-de-table-scroll .sectionTable {
   margin: 0;
-  table-layout: fixed;
   width: 100%;
-}
-.der-de-form-card .der-de-table-scroll .sectionTable td,
-.der-de-form-card .der-de-table-scroll .sectionTable th {
-  white-space: normal;
-  word-break: break-word;
+  border-collapse: collapse;
 }
 .der-de-form-card .sectionTable .indicatorRow td {
   background: #fcf7e6;
@@ -2685,16 +2670,18 @@ const APP_STYLES = `
 }
 .der-de-form-card .sectionTable input[type="text"] {
   width: 100%;
-  border: 0;
-  background: transparent;
+  border: 1px solid #e5e9ef;
+  background: #fff;
   padding: 2px 4px;
   font-size: 13px;
   color: #212934;
   font-family: inherit;
+  border-radius: 4px;
 }
 .der-de-form-card .sectionTable input[type="text"]:focus {
-  outline: 1px solid #2c6693;
-  background: #fff;
+  outline: 0;
+  border-color: var(--der-brand-500, #4a55ce);
+  box-shadow: 0 0 0 3px rgba(74, 85, 206, 0.15);
 }
 .der-de-form-card h3.formSection {
   margin: 0 0 4px;

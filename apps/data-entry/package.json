@@ -1,6 +1,6 @@
 {
   "name": "@der/app-data-entry",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "type": "module",
   "private": true,
   "description": "DER-dispatched Aggregate data-entry app (C-UI-5c slice 3). Replaces client/src/screens/AggregateEntry.tsx over the slice-3/4 rollout.",
@@ -8,7 +8,7 @@
     "appKey": "data-entry",
     "displayName": "Data entry (Aggregate)",
     "module": "Data",
-    "version": "0.1.0-alpha.1",
+    "version": "0.1.0-alpha.2",
     "requiresDerApi": "1.0.0"
   },
   "main": "src/index.tsx",

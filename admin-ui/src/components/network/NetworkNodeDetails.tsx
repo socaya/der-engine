@@ -1,7 +1,19 @@
 import { NetworkStatusBadge, statusLabel } from './NetworkStatusBadge';
 import type { SelectedNode } from './types';
-import { fmtAgo, runAction } from '../../screens/shared';
+import { fmtAgo } from '../../screens/shared';
 import * as edgeApi from '../../api/edgeApi';
+
+/** Duplicated from Network.tsx's module-local helper — admins
+ *  confirm, we fire, we toast + call back. Keeps NodeDetails
+ *  self-contained. */
+function runAction(prompt: string, fn: () => Promise<unknown>,
+  after?: () => void): void {
+  if (!window.confirm(prompt)) return;
+  fn().then(() => { after?.(); })
+    .catch((err: unknown) => {
+      window.alert(`Action failed: ${(err as Error)?.message ?? 'unknown error'}`);
+    });
+}
 
 /** Right-column details for the currently-selected node. Fields hide when
  *  the underlying data isn't present so the panel stays compact. */
