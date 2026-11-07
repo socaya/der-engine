@@ -1041,7 +1041,7 @@ function renderSectionForm(meta: DataSetBundle): string {
           parts.push('<tr>');
           if (i === 0) {
             parts.push(`<th class="dataElementCell" rowspan="${nestedHeaders.length}">`
-              + esc(group.cc.name ?? 'Data elements') + '</th>');
+              + 'Data elements' + '</th>');
           }
           for (const h of nestedHeaders[i] ?? []) {
             parts.push(`<th colspan="${h.span}">${esc(h.label)}</th>`);
@@ -1050,7 +1050,7 @@ function renderSectionForm(meta: DataSetBundle): string {
         }
       } else {
         parts.push('<tr>');
-        parts.push(`<th class="dataElementCell">${esc(group.cc.name ?? 'Data elements')}</th>`);
+        parts.push(`<th class="dataElementCell">${'Data elements'}</th>`);
         for (const c of cocs) parts.push(`<th>${esc(c.name ?? '')}</th>`);
         parts.push('</tr>');
       }
@@ -3084,11 +3084,11 @@ const APP_STYLES = `
 }
 .der-apphost .der-de-form-card .sectionTable thead th {
   background: #fff !important;
-  color: var(--der-ink-500, #5b6478);
-  font-size: 12px;
+  color: var(--der-ink-700, #2a3447);
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   border-bottom: 2px solid var(--der-border, #d8dee8) !important;
   text-align: left;
 }
