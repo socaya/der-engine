@@ -2124,25 +2124,64 @@ function SyncLogos(
             + (derLit ? 'is-lit' : 'is-muted')}
             title={derTitle} data-test="de-sync-der"
             data-state={derLit ? 'lit' : 'muted'}>
-        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-          <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.14" />
-          <path d="M4.5 4.5h3.2a3.2 3.2 0 0 1 0 6.4H4.5zM6.2 6v3.4h1.3a1.7 1.7 0 0 0 0-3.4z"
-                fill="currentColor" />
-        </svg>
+        <DerBrandMark />
         <span className="der-de-sync-logos__label">DER</span>
       </span>
       <span className={'der-de-sync-logos__pin der-de-sync-logos__pin--central '
             + 'is-' + centralTone}
             title={centralTitle} data-test="de-sync-central"
             data-state={centralTone}>
-        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-          <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.14" />
-          <path d="M8 3.2 4.1 6.2v3.6L8 12.8l3.9-3V6.2zM8 5l2.4 1.9v2L8 10.8 5.6 8.9v-2z"
-                fill="currentColor" />
-        </svg>
+        <Dhis2BrandMark />
         <span className="der-de-sync-logos__label">DHIS2</span>
       </span>
     </span>
+  );
+}
+
+/**
+ * DER brand mark (12-path "nodes + arms" glyph).
+ * Source: docs/media/singlecolors/DER_icon_singlecolor_navy.svg.
+ * `fill="currentColor"` so the parent pin recolours it via CSS
+ * (orange while sync is in progress, green when both edges confirm).
+ */
+function DerBrandMark(): JSX.Element {
+  return (
+    <svg viewBox="0 0 1254 1254" width="14" height="14"
+         aria-hidden="true" className="der-de-sync-logos__svg">
+      <g fill="currentColor" fillRule="evenodd">
+        <path d="M636 288.49h-20l-17-3.15-22-9-14.45-9.34-11.84-11-14.05-19-10-23-4.15-23V177l4.15-23 9-22 11.34-16.45 16.55-15.55 14.45-9.34 20-8 15-3.15h27l14 3.15 20 8 17.45 11.34 15.55 15.55 10.34 15.45 8 19 4.15 19v25l-5.15 22-6 14-11.34 17.45-17.55 17.55-16.45 10.34-17 7Z" />
+        <path d="M178 456.18l2.66-16.18 4-13 11-25 15.34-22.45 17.55-17.55 15.45-11.34 207-124 53.02-30.66 5.64 25 6 15 7.67 12-.33 1.28L265 402.66l-12 11.89-7.34 9.45-7 13-7.66 22.02-8-2.36-16-2.15h-12l-16 2.6Z" />
+        <path d="M1074.26 457l-27.26-2.49h-12l-14 3.46-1.34-1.12-5.32-18-7-14-7.34-10.45-13-12.89-157-95-99-58.38-.34-2.28 7.68-14 6-16 3.38-21 2.28-.34 105 61 157 96 9.45 7.34 21.55 21.55 15.34 23.45 9 22Z" />
+        <path d="M636 686.49h-19l-11-2.15-18-8-91-49.68-60-31.32-7-4.68-60-31.32-7.34-6.34-5-8-1.15-4 1.15-14 4.34-7.45 8-6.89 225-119.38.51-28.28.98-3-.82-11 .82-2 .02-50 1.49-1.49 25 3.98 17-1 14-2.98 2.28.49.23 93 1.05 2 227.44 120.66 8.34 8.34 4.15 13-1.15 8-4 8-10.34 9.34-224 120-11 4Z" />
+        <path d="M209 667.49h-17l-22-4.15-22-10-17.44-13.34-14.9-18-6-11-6-15-4.15-22 1.15-22 6-22 8-16 9.34-12.45 15.55-14.55 13.45-8.34 17-7 21-4.15h19l23 5.15 14 6 18.45 12.34 15.55 16.55 8.34 13.45 7 17 4.15 24-1.15 20-6 22-5 11-11.34 16.45-12.55 12.55-14.45 10.34-12 6-12 4Z" />
+        <path d="M1062 667.49h-23l-19-4.15-18-8-17.45-12.34-15.89-18-10-18-6-19-2.15-17v-9l2.15-15 5-17 7-14 10.34-14.45 10.55-10.55 13.45-9.34 19-9 25-5.15h17l17 3.15 14 5 10 5 13.45 9.34 15.55 15.55 7.34 10.45 8 17 5.15 22v24l-2.15 12-7 20-9.34 15.45-12 14.05-17 12.84-16 8-17 5Z" />
+        <path d="M897.49 677l-2.15 9-4 8-9.34 9.34-222 118-16 6-20 2.15-10-1.15-19-6L372 703.34l-9.34-9.34-4-8-2-8 .85-50 5.15-14 7.34-9.5 4-3.79 7-4.05 8-3 4 0 45 25.68 154 82 20 6 22 1.15 16-3.15 15-6 197-106.47 13 4.78 8.45 6.34 6.89 8 4 8 3.15 14Z" />
+        <path d="M357 650.26l-11-4.92-45.11-25.34 3.45-6 7-20 3.66-24.27 36 18.93 22.11 13.34-8.45 9-5 9-2.15 8Z" />
+        <path d="M898 650.02l-.51-16.02-3.15-14-4-8-9.45-10 4.11-3.34 11-5.32 21-12.68 20-9.93 3.66 25.27 9.46 24-5.12 4.34Z" />
+        <path d="M512 1082.28l-2 .06L234 916.34l-14.45-10.34L201 886.45l-7.34-10.45-8-15-5-13-5.15-24-.51-146.28L194 680.49h13l20-3.51.51 119 .98 3-.98 13 4.15 22 7 14 6.34 9.45 13.55 12.55 14.45 9.34L532 1034.72l-.66 3.28-6.68 10-8 17Z" />
+        <path d="M739 1084.02l-5.66-19-5-12-9.68-15 .9-3L979 879.34l15.45-10.34 13.55-13.55 10.34-17.45 3-8 2.15-11 .23-141 3.28-.49 15 2.98 17 0 17-2.77.5 139.28-1.01 10-3.15 16-7 19-8 15-8.34 11.45-11.55 12.55L1016 917.34Z" />
+        <path d="M897.49 817l-2.15 9-4 8-3.84 5L877 848.34l-186 97-38 18.38-1 32.56-14-1.77h-23l-14 1.95-1.02-.45.51-14-.98-3 .98-12-2.49-3.34-13-4.32L372 847.5l-11.34-13.5-4-11-1.16-8L356.51 756l4.15-11 3.89-5L375 732.66l10-2 64 34.68 147 76 19 5.15h23l19-5.15 213-111.46 9 2.78 5.45 3.34 7.89 8 4 9 1.15 5Z" />
+        <path d="M634 1206.49h-19l-18-3.15-18-7-15-9-17-15.89-6.34-8.45-10-18-5-15-3.15-21 2.15-23 6-20 7-14 13.84-18 14.5-12.34 16-9 22-7 18-2.15 21 2 13 3.15 18 8 15.45 10.34 14.55 14.55 11.34 17.45 7 18 3.15 17v22l-3.15 16-9 22-10.34 15.45-13.55 13.55-18.45 12.34-20 8Z" />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * DHIS2 brand mark — the blue hexagon logotype only (the "dhis2"
+ * text is cropped off via viewBox). Source: docs/media/dhislogo.svg.
+ * `fill="currentColor"` so the pin's colour drives the mark's tint.
+ */
+function Dhis2BrandMark(): JSX.Element {
+  return (
+    <svg viewBox="0 0 200 182" width="14" height="14"
+         aria-hidden="true" className="der-de-sync-logos__svg">
+      <g fill="currentColor">
+        <path d="M191.91,60,109.17,6.34a19.75,19.75,0,0,0-20.33,0L8.49,58.43a12,12,0,0,0-.25,20.63L88.78,134a19.39,19.39,0,0,0,20.38.25l82.75-53.65a11.87,11.87,0,0,0,0-20.59Zm-91,61.45a4.29,4.29,0,0,1-3.49-.05l-77-52.49L97.13,19.13a4.76,4.76,0,0,1,3.74,0l78.91,51.15Z" />
+        <path d="M88.84,47.82,45.28,76.06,58.9,85.39,97.13,60.61a4.76,4.76,0,0,1,3.74,0l39.37,25.52,14-9.06L109.17,47.82A19.78,19.78,0,0,0,88.84,47.82Z" />
+        <path d="M191.91,101.46l-8.62-5.59-14,9.06,10.52,6.83-78.91,51.15a4.37,4.37,0,0,1-3.49,0l-77-52.5,10-6.47L16.74,94.57,8.49,99.91a12,12,0,0,0-.25,20.63l80.54,54.92a19.36,19.36,0,0,0,20.38.24l82.74-53.65a11.87,11.87,0,0,0,0-20.59Z" />
+      </g>
+    </svg>
   );
 }
 
@@ -3725,24 +3764,28 @@ const APP_STYLES = `
   font-size: 9px;
 }
 .der-de-sync-logos__pin.is-muted {
-  color: var(--der-ink-300, #9097a8);
-  background: var(--der-surface-200, #f0f2f6);
-  border-color: var(--der-border-100, #e5e8ef);
+  color: #9097a8;
+  background: #f0f2f6;
+  border-color: #e5e8ef;
 }
 .der-de-sync-logos__pin.is-lit {
-  color: #136c3c;
+  color: #1b8243;
   background: #e5f4ea;
   border-color: #b5dec4;
 }
 .der-de-sync-logos__pin.is-pending {
-  color: #8d5a00;
-  background: #fbf2db;
-  border-color: #ead7a4;
+  color: #c6680a;
+  background: #fff1dc;
+  border-color: #f0ca8a;
 }
 .der-de-sync-logos__pin.is-error {
   color: #a3322c;
   background: #fbe9e7;
   border-color: #e9b7b2;
+}
+.der-de-sync-logos__svg {
+  display: block;
+  flex-shrink: 0;
 }
 .der-de-live-strip__hint {
   color: var(--der-ink-500, #5b6478);
@@ -3796,7 +3839,7 @@ const APP_STYLES = `
 }
 .der-apphost .der-de-form-card .sectionTable input[type="text"] {
   width: 100%;
-  border: 1px solid var(--der-border, #d8dee8) !important;
+  border: 1px solid #aaa !important;
   background: #fff !important;
   padding: 4px 6px;
   font-size: 14px;
@@ -3804,8 +3847,8 @@ const APP_STYLES = `
 }
 .der-apphost .der-de-form-card .sectionTable input[type="text"]:focus {
   outline: 0;
-  border-color: var(--der-brand-500, #4a55ce) !important;
-  box-shadow: 0 0 0 2px rgba(74, 85, 206, 0.18);
+  border-color: #147CD7 !important;
+  box-shadow: inset 0 0 0 2px #147CD7;
 }
 
 /* Solid-ink pills — no pastel tint, just coloured text on
@@ -4304,14 +4347,16 @@ const APP_STYLES = `
 .der-de-custom-form input[name="total"] {
   width: 100% !important;
   padding: 2px 4px !important;
-  border: 0;
-  background: transparent !important;
+  border: 1px solid #aaa !important;
+  background: #fff !important;
   font-size: 14px !important;
   color: #212934 !important;
   font-family: inherit;
 }
 .der-de-custom-form input[type="text"]:focus {
-  outline: 1px solid #2c6693;
+  outline: 0;
+  border-color: #147CD7 !important;
+  box-shadow: inset 0 0 0 2px #147CD7;
   background: #fff !important;
 }
 .der-de-completion-pill {
@@ -4373,7 +4418,7 @@ const APP_STYLES = `
 }
 .der-de-form-card .sectionTable input[type="text"] {
   width: 100%;
-  border: 1px solid #e5e9ef;
+  border: 1px solid #aaa;
   background: #fff;
   padding: 2px 4px;
   font-size: 14px;
@@ -4383,8 +4428,8 @@ const APP_STYLES = `
 }
 .der-de-form-card .sectionTable input[type="text"]:focus {
   outline: 0;
-  border-color: var(--der-brand-500, #4a55ce);
-  box-shadow: 0 0 0 3px rgba(74, 85, 206, 0.15);
+  border-color: #147CD7;
+  box-shadow: inset 0 0 0 2px #147CD7;
 }
 /* Compulsory cells — DHIS2 marks these with an amber left
  * rule so operators can tell at a glance which fields block
@@ -4420,7 +4465,7 @@ const APP_STYLES = `
 .der-de-custom-form input[name$="-val"],
 .der-de-custom-form input[name="entryfield"],
 .der-de-custom-form input[name="total"] {
-  border: 1px solid #e5e9ef !important;
+  border: 1px solid #aaa !important;
   border-radius: 4px !important;
   padding: 3px 6px !important;
   background: #fff !important;
@@ -4429,8 +4474,8 @@ const APP_STYLES = `
 .der-de-custom-form input[name="entryfield"]:focus,
 .der-de-custom-form input[name="total"]:focus {
   outline: 0;
-  border-color: var(--der-brand-500, #4a55ce) !important;
-  box-shadow: 0 0 0 3px rgba(74, 85, 206, 0.15);
+  border-color: #147CD7 !important;
+  box-shadow: inset 0 0 0 2px #147CD7;
 }
 .der-de-form-card h3.formSection {
   margin: 0 0 8px;
