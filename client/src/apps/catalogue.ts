@@ -66,8 +66,13 @@ export function useAppCatalogue(enabled: boolean): CatalogueResult {
     setLoading(true);
     (async (): Promise<void> => {
       try {
+        // `cache: 'no-store'` — the catalogue is the client's
+        // source of truth for app version + bundleSha256; a stale
+        // browser-cached response can sustain a stale IDB bundle
+        // for hours even after the operator uploaded a new build.
         const r = await fetch('/edge-api/v1/apps', {
           credentials: 'include',
+          cache: 'no-store',
           headers: { Accept: 'application/json' },
         });
         if (!r.ok) return;

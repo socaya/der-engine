@@ -112,7 +112,10 @@ export async function ensureInstalled(app: CatalogueApp): Promise<string> {
 
   let r: Response;
   try {
-    r = await fetch(app.bundleUrl, { credentials: 'include' });
+    r = await fetch(app.bundleUrl, {
+      credentials: 'include',
+      cache: 'no-store',
+    });
   } catch (fetchErr) {
     if (fallback) {
       console.warn('[installer] bundle fetch failed; falling back '
