@@ -501,6 +501,32 @@ export function readAggregateValues(orgUnit: string, period: string, limit = 500
 }
 
 /**
+ * Latest journal state for the form bucket (dataSet:orgUnit:period:aoc).
+ * Every aggregate write to this form coalesces into one envelope, so
+ * `state === 'CENTRAL_ACCEPTED'` means every cell in the form is
+ * accepted by Central DHIS2.
+ */
+export interface AggregateFormSyncState {
+  formKey: string;
+  state: 'PENDING' | 'IN_FLIGHT' | 'RETRYABLE' | 'UNKNOWN_OUTCOME'
+       | 'CENTRAL_ACCEPTED' | 'CENTRAL_REJECTED'
+       | 'CONFLICT_REVIEW' | 'QUARANTINED' | 'REQUIRES_APPROVAL' | null;
+  operationId?: string;
+  updatedAt?: string;
+  createdAt?: string;
+  attemptCount?: number;
+}
+
+export function readAggregateFormSyncState(
+  dataSet: string, orgUnit: string, period: string, aoc?: string,
+): Promise<AggregateFormSyncState> {
+  const q = new URLSearchParams({ dataSet, orgUnit, period });
+  if (aoc) q.set('aoc', aoc);
+  return request<AggregateFormSyncState>(
+    'GET', `/edge-api/v1/data/aggregate-form-sync-state?${q.toString()}`);
+}
+
+/**
  * DHIS2 dataValueSets envelope. DER requires an envelope-level
  * `dataSet` (DataValueSetsController §2.3.84) — the server rejects
  * payloads without it as 400 BAD_REQUEST. `orgUnit` and `period` may

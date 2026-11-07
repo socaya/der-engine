@@ -90,13 +90,13 @@ public class DataModuleController {
         final int capped = Math.max(1, Math.min(limit, 500));
 
         // Rows: aggregate_data_value LEFT JOIN latest matching journal
-        // entry so each row carries its outbox state. Journal entity_ref
-        // for aggregate rows is the DHIS2 compound key
-        // (dataElement|orgUnit|period|coc|aoc), not the row UUID.
+        // entry so each row carries its outbox state. AggregateDataValueService
+        // coalesces per form bucket on submit, so entity_ref matches
+        // FormKey.toCompoundKey(): "dataSet:orgUnit:period:aoc".
+        // Every value in the same form shares the envelope's latest state.
         final String keyExpr =
-                "(av.data_element_uid || '|' || av.org_unit_uid || '|' "
-              + " || av.period_iso || '|' || av.category_option_combo_uid "
-              + " || '|' || av.attribute_option_combo_uid)";
+                "(av.data_set_uid || ':' || av.org_unit_uid || ':' "
+              + " || av.period_iso || ':' || av.attribute_option_combo_uid)";
         final StringBuilder sql = new StringBuilder(
                 "SELECT av.value_id, av.data_element_uid, av.org_unit_uid, "
               + "       av.period_iso, av.category_option_combo_uid, "
@@ -685,15 +685,62 @@ public class DataModuleController {
             return ResponseEntity.notFound().build();
         }
         final Map<String, Object> row = rows.get(0);
-        // Compound key for the operation_journal lookup.
-        final String key = row.get("dataElementUid") + "|" + row.get("orgUnitUid")
-                + "|" + row.get("periodIso") + "|" + row.get("categoryOptionComboUid")
-                + "|" + row.get("attributeOptionComboUid");
+        // Compound key matches AggregateDataValueService FormKey.toCompoundKey()
+        // — dataSet:orgUnit:period:aoc — because the journal coalesces one
+        // envelope per form bucket, not per cell.
+        final String key = row.get("dataSetUid") + ":" + row.get("orgUnitUid")
+                + ":" + row.get("periodIso")
+                + ":" + row.get("attributeOptionComboUid");
         final List<Map<String, Object>> journal = journalFor(
                 "AGGREGATE_DATA_VALUE", key);
         final Map<String, Object> body = new LinkedHashMap<>();
         body.put("row", row);
         body.put("journal", journal);
+        return ResponseEntity.ok(body);
+    }
+
+    /**
+     * Form-level sync state for the (dataSet, orgUnit, period, aoc) tuple.
+     * Used by the data-entry app's cell-details strip to light up the
+     * "saved to Central" logo once the drain worker publishes the form.
+     * Journal entity_ref is the FormKey compound string, so a single
+     * lookup returns the latest envelope state shared by every cell.
+     */
+    @GetMapping("/aggregate-form-sync-state")
+    public ResponseEntity<Map<String, Object>> aggregateFormSyncState(
+            @RequestParam final String dataSet,
+            @RequestParam final String orgUnit,
+            @RequestParam final String period,
+            @RequestParam(required = false, defaultValue = "HllvX50cXC0") final String aoc) {
+        if (dataSet.isBlank() || orgUnit.isBlank() || period.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "MISSING_PARAM",
+                    "message", "dataSet, orgUnit, period are required"));
+        }
+        final String key = dataSet + ":" + orgUnit + ":" + period + ":" + aoc;
+        final List<Map<String, Object>> rows = jdbc.query(
+                "SELECT operation_id, state, updated_at, created_at, attempt_count "
+              + "FROM der.operation_journal "
+              + "WHERE entity_type = 'AGGREGATE_DATA_VALUE' AND entity_ref = ? "
+              + "ORDER BY created_at DESC LIMIT 1",
+                (ResultSet rs, int i) -> {
+                    final Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("operationId",  rs.getString("operation_id"));
+                    m.put("state",        rs.getString("state"));
+                    m.put("updatedAt", rs.getTimestamp("updated_at") == null ? null
+                            : rs.getTimestamp("updated_at").toInstant().toString());
+                    m.put("createdAt", rs.getTimestamp("created_at") == null ? null
+                            : rs.getTimestamp("created_at").toInstant().toString());
+                    m.put("attemptCount", rs.getInt("attempt_count"));
+                    return m;
+                }, key);
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("formKey", key);
+        if (rows.isEmpty()) {
+            body.put("state", null);
+        } else {
+            body.putAll(rows.get(0));
+        }
         return ResponseEntity.ok(body);
     }
 

@@ -90,6 +90,16 @@ export default function DataEntryApp(): JSX.Element {
   // re-reads its metadata from the hydrated dhis2.de shim as the
   // operator navigates.
   const [details, setDetails] = useState<CellDetails | null>(null);
+  // Form-level central-sync state for the (dataSet, orgUnit, period, aoc)
+  // tuple. Powers the DER + DHIS2 logos on the cell-details strip —
+  // DER lights as soon as a cell lands locally; DHIS2 lights once the
+  // drain worker publishes the envelope and central accepts it.
+  const [formSyncState, setFormSyncState] =
+    useState<FormSyncState>({ localSaved: false, central: null });
+  // Monotonic bump — any successful save triggers a refetch of the
+  // form-sync-state so the DHIS2 logo turns on without the operator
+  // having to click around.
+  const [saveTick, setSaveTick] = useState(0);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // "?" opens shortcuts when the operator isn't typing into an
   // input. A capture-phase listener keeps this out of the cell's
@@ -382,7 +392,20 @@ export default function DataEntryApp(): JSX.Element {
           () => period.trim(),
           () => ou.orgUnitUid ?? '',
           () => ({ ...aocSelectionsRef.current }),
-          api);
+          api,
+          (s) => {
+            // Local save lands immediately; bump saveTick so the
+            // form-sync-state poll re-fetches and the DHIS2 logo
+            // lights once the drain worker ships the envelope.
+            setFormSyncState((prev) => ({
+              ...prev,
+              localSaved: true,
+              // Transient: central now needs re-confirmation.
+              central: prev.central === 'CENTRAL_ACCEPTED' && s === 'saved'
+                ? 'PENDING' : prev.central,
+            }));
+            setSaveTick((n) => n + 1);
+          });
         // Optimistic touch — the first typed value in this
         // period gets a ● marker on the picker without waiting
         // for the next batch-refresh.
@@ -469,6 +492,47 @@ export default function DataEntryApp(): JSX.Element {
       r.style.display = text.includes(q) ? '' : 'none';
     }
   }, [deFilter, formRenderVersion]);
+
+  // Poll the form's outbox envelope state so the cell-details strip
+  // can light the DHIS2 logo once the drain worker publishes the
+  // form. Refetches whenever the context changes or a save succeeds
+  // (saveTick). While the envelope is still PENDING / IN_FLIGHT we
+  // re-poll on a short interval so the UI flips to "Synced" without
+  // the operator having to interact.
+  useEffect(() => {
+    const ouUid = ou.orgUnitUid ?? '';
+    if (!dataSet.trim() || !ouUid || !period.trim()) {
+      setFormSyncState((s) => ({ ...s, central: null }));
+      return;
+    }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const tick = async (): Promise<void> => {
+      try {
+        const r = await (api as unknown as {
+          readAggregateFormSyncState: (ds: string, ou: string, p: string) =>
+            Promise<{ state: FormSyncState['central']; updatedAt?: string }>;
+        }).readAggregateFormSyncState(dataSet.trim(), ouUid, period.trim());
+        if (cancelled) return;
+        setFormSyncState((s) => ({
+          localSaved: s.localSaved || r.state != null,
+          central: r.state,
+          updatedAt: r.updatedAt,
+        }));
+        const stillInFlight = r.state === 'PENDING'
+          || r.state === 'IN_FLIGHT'
+          || r.state === 'RETRYABLE';
+        if (stillInFlight) {
+          timer = setTimeout(() => void tick(), 4000);
+        }
+      } catch { /* offline or endpoint miss — leave logos as-is */ }
+    };
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [api, dataSet, period, ou.orgUnitUid, saveTick]);
 
   // Batch-fetch completion state for every period that appears
   // in the picker so the dropdown can prefix a ✓ to already-
@@ -688,7 +752,8 @@ export default function DataEntryApp(): JSX.Element {
           </label>
           <div className="der-de-toolbar__cell-info">
             <CellLiveStrip root={customRoot} details={details}
-                            formVersion={formRenderVersion} />
+                            formVersion={formRenderVersion}
+                            formSync={formSyncState} />
           </div>
         </div>
       </div>
@@ -1565,6 +1630,7 @@ function attachSaveOnBlur(
   getOrgUnit: () => string,
   getAoc: () => Record<string, string>,
   api: { submitAggregate: (body: unknown) => Promise<unknown> },
+  onSaveSuccess?: (status: 'saved' | 'queued') => void,
 ): void {
   const parseName = (name: string): { de: string; coc: string } | null => {
     const m = /^(.+)-(.+)-val$/.exec(name);
@@ -1604,7 +1670,9 @@ function attachSaveOnBlur(
       // amber so the operator sees that their value is safe locally
       // and will drain when the network returns, distinct from a
       // live "saved" write.
-      paintState(t, r?.status === 'OFFLINE_QUEUED' ? 'queued' : 'saved');
+      const s = r?.status === 'OFFLINE_QUEUED' ? 'queued' : 'saved';
+      paintState(t, s);
+      onSaveSuccess?.(s);
     } catch {
       paintState(t, 'error');
     }
@@ -1961,15 +2029,16 @@ function SaveStatePill(
  * Empty state (no cell focused yet) shows a quiet prompt.
  */
 function CellLiveStrip(
-  { details }:
+  { details, formSync }:
   { root: RefObject<HTMLDivElement | null>;
     details: CellDetails | null;
-    formVersion: number },
+    formVersion: number;
+    formSync: FormSyncState },
 ): JSX.Element {
   const stateLabel: Record<CellDetails['saveState'], string> = {
     empty: 'No value yet',
     saving: 'Saving…',
-    saved: 'Saved on edge',
+    saved: 'Saved on:',
     queued: 'Queued for sync',
     error: 'Rejected',
   };
@@ -1994,6 +2063,8 @@ function CellLiveStrip(
               + `der-de-live-strip__state--${stateTone[details.saveState]}`}>
               {stateLabel[details.saveState]}
             </span>
+            <SyncLogos formSync={formSync} cellSaved={
+              details.saveState === 'saved' || details.saveState === 'queued'} />
             {details.compulsory && (
               <span className="der-de-live-strip__required"
                     title="Compulsory — a value is required.">Required</span>
@@ -2006,6 +2077,64 @@ function CellLiveStrip(
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Two tiny status logos on the cell-details strip:
+ *   • DER  — lights green when this cell (or any cell in the form)
+ *            has been written to the DER mirror.
+ *   • DHIS2 — lights green when the form's outbox envelope is
+ *            CENTRAL_ACCEPTED (both logos lit = fully synced).
+ *            Amber dashed while PENDING / IN_FLIGHT / RETRYABLE,
+ *            red on CENTRAL_REJECTED / CONFLICT_REVIEW / QUARANTINED.
+ */
+function SyncLogos(
+  { formSync, cellSaved }: { formSync: FormSyncState; cellSaved: boolean },
+): JSX.Element {
+  const derLit = cellSaved || formSync.localSaved;
+  const central = formSync.central;
+  const centralTone: 'lit' | 'pending' | 'error' | 'muted' =
+    central === 'CENTRAL_ACCEPTED' ? 'lit'
+    : (central === 'PENDING' || central === 'IN_FLIGHT'
+      || central === 'RETRYABLE' || central === 'UNKNOWN_OUTCOME') ? 'pending'
+    : (central === 'CENTRAL_REJECTED' || central === 'CONFLICT_REVIEW'
+      || central === 'QUARANTINED' || central === 'REQUIRES_APPROVAL') ? 'error'
+    : 'muted';
+  const derTitle = derLit
+    ? 'Saved on edge (DER)'
+    : 'Not yet saved on edge';
+  const centralTitle =
+      centralTone === 'lit'   ? 'Synced to Central DHIS2'
+    : centralTone === 'pending' ? `Sync in progress (${central})`
+    : centralTone === 'error' ? `Central reported ${central}`
+    : 'Not yet synced to Central';
+  return (
+    <span className="der-de-sync-logos" data-test="de-sync-logos"
+          aria-label="Save + sync status">
+      <span className={'der-de-sync-logos__pin der-de-sync-logos__pin--der '
+            + (derLit ? 'is-lit' : 'is-muted')}
+            title={derTitle} data-test="de-sync-der"
+            data-state={derLit ? 'lit' : 'muted'}>
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.14" />
+          <path d="M4.5 4.5h3.2a3.2 3.2 0 0 1 0 6.4H4.5zM6.2 6v3.4h1.3a1.7 1.7 0 0 0 0-3.4z"
+                fill="currentColor" />
+        </svg>
+        <span className="der-de-sync-logos__label">DER</span>
+      </span>
+      <span className={'der-de-sync-logos__pin der-de-sync-logos__pin--central '
+            + 'is-' + centralTone}
+            title={centralTitle} data-test="de-sync-central"
+            data-state={centralTone}>
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.14" />
+          <path d="M8 3.2 4.1 6.2v3.6L8 12.8l3.9-3V6.2zM8 5l2.4 1.9v2L8 10.8 5.6 8.9v-2z"
+                fill="currentColor" />
+        </svg>
+        <span className="der-de-sync-logos__label">DHIS2</span>
+      </span>
+    </span>
   );
 }
 
@@ -2166,6 +2295,24 @@ function ShortcutsPopover(
   );
 }
 
+/**
+ * Form-level sync state surfaced on the cell-details strip.
+ *
+ * `localSaved` flips true once any cell in the active form has been
+ * written to the DER mirror via POST /api/dataValueSets. `central`
+ * reflects the latest state of the per-form outbox envelope that the
+ * drain worker owns — CENTRAL_ACCEPTED means every cell in this form
+ * is also safe in Central DHIS2.
+ */
+export interface FormSyncState {
+  readonly localSaved: boolean;
+  readonly central:
+    | 'PENDING' | 'IN_FLIGHT' | 'RETRYABLE' | 'UNKNOWN_OUTCOME'
+    | 'CENTRAL_ACCEPTED' | 'CENTRAL_REJECTED'
+    | 'CONFLICT_REVIEW' | 'QUARANTINED' | 'REQUIRES_APPROVAL' | null;
+  readonly updatedAt?: string;
+}
+
 export interface CellDetails {
   readonly deId: string;
   readonly cocId: string;
@@ -2217,7 +2364,7 @@ function CellDetailsDrawer(
   const stateLabel: Record<CellDetails['saveState'], string> = {
     empty: 'No value yet',
     saving: 'Saving…',
-    saved: 'Saved on edge',
+    saved: 'Saved on:',
     queued: 'Queued for sync',
     error: 'Rejected — fix and retry',
   };
@@ -3450,7 +3597,7 @@ const APP_STYLES = `
   border-collapse: collapse;
   width: 100%;
   table-layout: auto;
-  font-size: 13px;
+  font-size: 14px;
   margin: 0;
 }
 .der-apphost .der-de-form-card .sectionTable th,
@@ -3463,21 +3610,21 @@ const APP_STYLES = `
 }
 .der-apphost .der-de-form-card .sectionTable thead th {
   background: transparent !important;
-  color: var(--der-ink-500, #5b6478);
-  font-size: 12px;
+  color: var(--der-ink-700, #2a3447);
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
   padding: 6px 8px !important;
-  border-bottom: 2px solid var(--der-border, #d8dee8) !important;
+  border-bottom: 2px solid var(--der-brand-300, #c0c8ea) !important;
   text-align: left;
 }
 .der-apphost .der-de-form-card .sectionTable thead th.dataElementCell {
-  color: var(--der-ink-700, #2a3447);
+  color: var(--der-ink-900, #101a32);
   font-weight: 500;
 }
 .der-apphost .der-de-form-card .sectionTable tr.indicatorRow td {
-  background: #fafbfd !important;
+  background: #f0f3fb !important;
   font-weight: 500;
   color: var(--der-ink-700, #2a3447);
 }
@@ -3545,6 +3692,50 @@ const APP_STYLES = `
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+.der-de-sync-logos {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+}
+.der-de-sync-logos__pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 4px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  border: 1px solid transparent;
+  transition: color 160ms, background 160ms, border-color 160ms;
+}
+.der-de-sync-logos__pin svg { flex-shrink: 0; }
+.der-de-sync-logos__label {
+  text-transform: uppercase;
+  font-size: 9px;
+}
+.der-de-sync-logos__pin.is-muted {
+  color: var(--der-ink-300, #9097a8);
+  background: var(--der-surface-200, #f0f2f6);
+  border-color: var(--der-border-100, #e5e8ef);
+}
+.der-de-sync-logos__pin.is-lit {
+  color: #136c3c;
+  background: #e5f4ea;
+  border-color: #b5dec4;
+}
+.der-de-sync-logos__pin.is-pending {
+  color: #8d5a00;
+  background: #fbf2db;
+  border-color: #ead7a4;
+}
+.der-de-sync-logos__pin.is-error {
+  color: #a3322c;
+  background: #fbe9e7;
+  border-color: #e9b7b2;
+}
 .der-de-live-strip__hint {
   color: var(--der-ink-500, #5b6478);
   font-style: italic;
@@ -3567,21 +3758,21 @@ const APP_STYLES = `
 .der-apphost .der-de-form-card .sectionTable tbody td {
   padding: 3px 8px !important;
   color: var(--der-ink-900, #101a32) !important;
-  line-height: 1.35;
-  font-size: 13px;
+  line-height: 1.4;
+  font-size: 14px;
 }
 /* Blocked / not-applicable cells — DHIS2 greyedFields. Soft
- * neutral background + slash pattern so they read as "cannot
+ * indigo-tinted wash + slash pattern so they read as "cannot
  * be edited" without yelling for attention. */
 .der-apphost .der-de-form-card .sectionTable td.greyed {
   background: repeating-linear-gradient(
     45deg,
-    #eef0f5,
-    #eef0f5 6px,
-    #e5e9ef 6px,
-    #e5e9ef 7px
+    #eef0f9,
+    #eef0f9 6px,
+    #dde3f1 6px,
+    #dde3f1 7px
   ) !important;
-  color: #9097a8 !important;
+  color: #8893b1 !important;
   text-align: center;
 }
 /* Indicator rows — computed values, not editable. Soft tint
@@ -3591,7 +3782,7 @@ const APP_STYLES = `
  * input). */
 .der-apphost .der-de-custom-form input[readonly],
 .der-apphost .der-de-form-card input[readonly] {
-  background: #f4f6fa !important;
+  background: #f0f3fb !important;
   color: var(--der-ink-500, #5b6478) !important;
   cursor: default;
 }
@@ -3600,7 +3791,7 @@ const APP_STYLES = `
   border: 1px solid var(--der-border, #d8dee8) !important;
   background: #fff !important;
   padding: 4px 6px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--der-ink-900, #101a32);
 }
 .der-apphost .der-de-form-card .sectionTable input[type="text"]:focus {
@@ -3865,6 +4056,27 @@ const APP_STYLES = `
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.der-de-form-card h2,
+.der-de-form-card h3,
+.der-de-form-card h4,
+.der-de-custom-form h3,
+.der-de-custom-form .formSection,
+.der-de-custom-form h3.formSection {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--der-ink-900, #101a32);
+  letter-spacing: 0;
+}
+.der-de-custom-form p,
+.der-de-custom-form label,
+.der-de-custom-form td,
+.der-de-custom-form th,
+.der-de-form-card p,
+.der-de-form-card label {
+  font-size: 14px;
 }
 .der-de-form-split {
   flex: 1 1 auto;
@@ -4045,7 +4257,7 @@ const APP_STYLES = `
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 12px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .der-de-custom-form .tblep-table th,
 .der-de-custom-form .tblep-table td,
@@ -4056,12 +4268,14 @@ const APP_STYLES = `
   text-align: left !important;
   vertical-align: middle;
   background: transparent !important;
+  font-size: 14px;
 }
 .der-de-custom-form .tblep-table thead th,
 .der-de-custom-form table thead th {
-  border-bottom: 2px solid #d8dee8 !important;
-  color: #5b6478 !important;
+  border-bottom: 2px solid var(--der-brand-300, #c0c8ea) !important;
+  color: var(--der-ink-700, #2a3447) !important;
   font-weight: 500;
+  font-size: 14px;
 }
 .der-de-custom-form .tblep-table tbody tr {
   border: 0 !important;
@@ -4072,9 +4286,9 @@ const APP_STYLES = `
 }
 .der-de-custom-form .tblep-table th,
 .der-de-custom-form table th {
-  background: #f3f5f7 !important;
+  background: transparent !important;
   font-weight: 500;
-  color: #404b5a;
+  color: var(--der-ink-700, #2a3447);
 }
 .der-de-custom-form .tblep-table input[type="text"],
 .der-de-custom-form table input[type="text"],
@@ -4084,7 +4298,7 @@ const APP_STYLES = `
   padding: 2px 4px !important;
   border: 0;
   background: transparent !important;
-  font-size: 12px !important;
+  font-size: 14px !important;
   color: #212934 !important;
   font-family: inherit;
 }
@@ -4105,7 +4319,7 @@ const APP_STYLES = `
   border-collapse: collapse;
   width: 100%;
   margin: 8px 0 20px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .der-de-form-card .sectionTable th,
 .der-de-form-card .sectionTable td {
@@ -4115,13 +4329,13 @@ const APP_STYLES = `
   vertical-align: middle;
 }
 .der-de-form-card .sectionTable thead th {
-  background: #f3f5f7;
+  background: transparent;
   font-weight: 500;
-  color: #404b5a;
+  color: var(--der-ink-700, #2a3447);
   text-align: center;
 }
 .der-de-form-card .sectionTable .dataElementCell {
-  background: #fafbfd;
+  background: transparent;
   min-width: var(--der-de-de-col, 200px);
   text-align: left;
 }
@@ -4141,12 +4355,12 @@ const APP_STYLES = `
   border-collapse: collapse;
 }
 .der-de-form-card .sectionTable .indicatorRow td {
-  background: #fcf7e6;
+  background: #f0f3fb;
   font-weight: 500;
 }
 .der-de-form-card .sectionTable .greyed {
-  background: #eef0f3;
-  color: #9aa3b0;
+  background: #eef0f9;
+  color: #8893b1;
   text-align: center;
 }
 .der-de-form-card .sectionTable input[type="text"] {
@@ -4154,7 +4368,7 @@ const APP_STYLES = `
   border: 1px solid #e5e9ef;
   background: #fff;
   padding: 2px 4px;
-  font-size: 13px;
+  font-size: 14px;
   color: #212934;
   font-family: inherit;
   border-radius: 4px;
