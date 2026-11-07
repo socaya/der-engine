@@ -33,14 +33,19 @@ import{useEffect as I,useRef as se,useState as S}from"react";import{useAuth as S
   background: transparent !important;
 }
 .der-apphost .der-de-form-card .sectionTable thead th {
-  background: #fafbfd !important;
-  color: var(--der-ink-700, #2a3447);
-  font-size: 13px;
+  background: transparent !important;
+  color: var(--der-ink-500, #5b6478);
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
-  border-bottom: 1px solid var(--der-border, #d8dee8) !important;
+  padding: 6px 8px !important;
+  border-bottom: 2px solid var(--der-border, #d8dee8) !important;
   text-align: left;
+}
+.der-apphost .der-de-form-card .sectionTable thead th.dataElementCell {
+  color: var(--der-ink-700, #2a3447);
+  font-weight: 500;
 }
 .der-apphost .der-de-form-card .sectionTable tr.indicatorRow td {
   background: #fafbfd !important;
@@ -116,17 +121,25 @@ import{useEffect as I,useRef as se,useState as S}from"react";import{useAuth as S
   font-style: italic;
 }
 .der-apphost .der-de-form-card .sectionTable .dataElementCell {
-  background: #f7f8fc !important;
+  background: transparent !important;
   color: var(--der-ink-900, #101a32);
-  font-weight: 500;
+  font-weight: 400;
   min-width: 220px;
+  padding: 4px 8px !important;
 }
 .der-apphost .der-de-form-card .sectionTable tbody tr {
-  border-bottom: 1px solid rgba(216, 222, 232, 0.6) !important;
+  border: 0 !important;
+  min-height: 32px;
 }
 .der-apphost .der-de-form-card .sectionTable tbody tr:hover td,
 .der-apphost .der-de-form-card .sectionTable tbody tr:focus-within td {
   background: rgba(13, 46, 92, 0.045) !important;
+}
+.der-apphost .der-de-form-card .sectionTable tbody td {
+  padding: 3px 8px !important;
+  color: var(--der-ink-900, #101a32) !important;
+  line-height: 1.35;
+  font-size: 13px;
 }
 /* Blocked / not-applicable cells \u2014 DHIS2 greyedFields. Soft
  * neutral background + slash pattern so they read as "cannot
@@ -283,20 +296,33 @@ import{useEffect as I,useRef as se,useState as S}from"react";import{useAuth as S
   color: #6e7a8a;
   letter-spacing: 0.04em;
 }
-.der-de-toolbar__select {
+.der-de-toolbar__select,
+.der-apphost .der-de-period-nav select {
   width: 100%;
-  padding: 4px 8px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding: 5px 24px 5px 10px;
   border: 1px solid #d8dee8;
-  background: #fff;
-  border-radius: 4px;
+  border-radius: 0;
+  background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='none' stroke='%235b6478' stroke-width='1.5'><path d='M1 1l4 4 4-4'/></svg>")
+    no-repeat right 8px center;
+  background-size: 10px 6px;
+  box-shadow: none;
   font-size: 13px;
   color: #101a32;
   font-family: inherit;
+  transition: border-color 150ms;
 }
-.der-de-toolbar__select:focus {
+.der-de-toolbar__select:hover,
+.der-apphost .der-de-period-nav select:hover {
+  border-color: #9aa3b8;
+}
+.der-de-toolbar__select:focus,
+.der-apphost .der-de-period-nav select:focus {
   outline: 0;
   border-color: var(--der-brand-500, #4a55ce);
-  box-shadow: 0 0 0 3px rgba(74, 85, 206, 0.15);
+  box-shadow: 0 0 0 1px var(--der-brand-500, #4a55ce);
 }
 /* Back-compat kill switch for legacy .der-de-chip classes. */
 .der-de-chip, .der-de-chip-signed,
