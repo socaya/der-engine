@@ -151,10 +151,12 @@ describe('NetworkOverview — loaded branches', () => {
   it('RECOVERING state → warning tone', async () => {
     stubAgentHealthy('RECOVERING');
     renderWithProviders(<NetworkOverview />, { authApi });
+    // Wait on the actual label — `network-overview` mounts before
+    // the async networkStatus() stub resolves, so asserting on body
+    // text immediately races the initial render where overallLabel
+    // defaults to "Offline-first" (status still null).
     await waitFor(() =>
-      expect(screen.getByTestId('network-overview'))
-        .toBeInTheDocument());
-    expect(document.body.textContent ?? '').toMatch(/Recovering/i);
+      expect(document.body.textContent ?? '').toMatch(/Recovering/i));
   });
 
   it('unknown state value → danger tone fallback', async () => {
