@@ -1041,7 +1041,7 @@ function renderSectionForm(meta: DataSetBundle): string {
           parts.push('<tr>');
           if (i === 0) {
             parts.push(`<th class="dataElementCell" rowspan="${nestedHeaders.length}">`
-              + esc(group.cc.name ?? 'Data element') + '</th>');
+              + esc(group.cc.name ?? 'Data elements') + '</th>');
           }
           for (const h of nestedHeaders[i] ?? []) {
             parts.push(`<th colspan="${h.span}">${esc(h.label)}</th>`);
@@ -1050,7 +1050,7 @@ function renderSectionForm(meta: DataSetBundle): string {
         }
       } else {
         parts.push('<tr>');
-        parts.push(`<th class="dataElementCell">${esc(group.cc.name ?? 'Data element')}</th>`);
+        parts.push(`<th class="dataElementCell">${esc(group.cc.name ?? 'Data elements')}</th>`);
         for (const c of cocs) parts.push(`<th>${esc(c.name ?? '')}</th>`);
         parts.push('</tr>');
       }
@@ -2648,6 +2648,18 @@ async function applyFormAssets(container: HTMLElement, htmlCode: string): Promis
       const id = node.getAttribute('id') ?? '';
       if (id.endsWith('-val') && node.getAttribute('name') !== id) {
         node.setAttribute('name', id);
+      }
+    }
+    // Harmonise the row-label column header. Authored TBLP /
+    // legacy DHIS2 forms label it "Reporting item"; DER's SECTION
+    // renderer uses "Data element". Use the DHIS2-standard
+    // "Data elements" everywhere so operators reading a mix of
+    // forms see consistent column copy.
+    if (node.tagName === 'TH') {
+      const text = (node.textContent ?? '').trim();
+      if (text === 'Reporting item' || text === 'Reported count') {
+        node.textContent = text === 'Reporting item'
+          ? 'Data elements' : 'Value';
       }
     }
   }
