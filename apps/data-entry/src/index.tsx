@@ -341,6 +341,10 @@ export default function DataEntryApp(): JSX.Element {
           api);
         attachKeyboardNav(content);
         attachDetailsSpy(content, meta, setDetails);
+        // §FR-09 — mark every (de, coc) listed in
+        // compulsoryDataElementOperands so runValidation + the
+        // CSS rule can surface missing-compulsory cells.
+        markCompulsoryCells(content, meta);
         setFormRenderVersion((v) => v + 1);
         // A successful render needs no toast; save-on-blur paints
         // per-cell status, the save-state pill tallies totals,
@@ -405,6 +409,28 @@ export default function DataEntryApp(): JSX.Element {
   async function toggleCompletion(): Promise<void> {
     if (!formReady || completionBusy) return;
     const next = !(completion?.completed);
+    // Gate "Mark complete" on compulsory coverage — DHIS2 does
+    // the same server-side; surface it here so operators get
+    // immediate feedback instead of a 409 on save.
+    if (next) {
+      const root = customRoot.current;
+      if (root) {
+        const missing: HTMLInputElement[] = [];
+        for (const i of Array.from(
+            root.querySelectorAll<HTMLInputElement>(
+              'input[data-compulsory="1"]'))) {
+          if (i.value.trim() === '') missing.push(i);
+        }
+        if (missing.length > 0) {
+          setStatus({ kind: 'error',
+            message: `Can't mark complete — ${missing.length} compulsory `
+              + `value${missing.length === 1 ? '' : 's'} still missing. `
+              + 'Run Validate to jump to them.' });
+          missing[0]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+      }
+    }
     setCompletionBusy(true);
     try {
       const rec = await api.markCompletion({
@@ -703,6 +729,10 @@ interface DataSetBundle {
     numerator?: string; denominator?: string;
     indicatorType?: { id: string; factor?: number };
   }>;
+  /** DHIS2's list of (dataElement, categoryOptionCombo) pairs
+   *  that MUST have a value before the dataset can be marked
+   *  complete. dimensionItem is "<deId>.<cocId>". */
+  compulsoryDataElementOperands?: Array<{ dimensionItem: string }>;
   dataEntryForm?: { id: string; name?: string } | null;
   sections?: Array<{
     id: string; name?: string; sortOrder?: number;
@@ -1704,6 +1734,7 @@ export interface CellDetails {
   readonly value: string;
   readonly saveState: 'empty' | 'saving' | 'saved' | 'queued' | 'error';
   readonly inputName: string;
+  readonly compulsory: boolean;
 }
 
 /**
@@ -1765,6 +1796,12 @@ function CellDetailsDrawer(
       <div className="der-de-details-drawer__body">
         <div className="der-de-details-drawer__de">
           {details.deName}
+          {details.compulsory && (
+            <span className="der-de-details-drawer__compulsory"
+                  title="Compulsory — a value is required before this dataset can be marked complete.">
+              Compulsory
+            </span>
+          )}
         </div>
         <span className={`der-de-details-drawer__state `
           + `der-de-details-drawer__state--${stateTone[details.saveState]}`}>
@@ -1799,6 +1836,35 @@ function CellDetailsDrawer(
       </div>
     </aside>
   );
+}
+
+/**
+ * Flag every value input whose (dataElement, categoryOptionCombo)
+ * identity appears in meta.compulsoryDataElementOperands. DHIS2's
+ * dimensionItem is "deId.cocId". The input gains
+ * `data-compulsory="1"` which the CSS turns into an amber left
+ * border; runValidation treats empty compulsory cells as issues
+ * and toggleCompletion refuses when any remain empty.
+ */
+function markCompulsoryCells(container: HTMLElement,
+  meta: DataSetBundle): void {
+  const ops = meta.compulsoryDataElementOperands ?? [];
+  const req = new Set<string>();
+  for (const op of ops) {
+    const dim = op.dimensionItem;
+    if (!dim) continue;
+    const parts = dim.split('.');
+    if (parts.length === 2) req.add(`${parts[0]}:${parts[1]}`);
+  }
+  if (req.size === 0) return;
+  for (const input of Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[name$="-val"]'))) {
+    const m = /^(.+)-(.+)-val$/.exec(input.getAttribute('name') ?? '');
+    if (!m) continue;
+    if (req.has(`${m[1]}:${m[2]}`)) {
+      input.setAttribute('data-compulsory', '1');
+    }
+  }
 }
 
 function attachDetailsSpy(
@@ -1868,6 +1934,7 @@ function attachDetailsSpy(
       value: input.value,
       saveState: state,
       inputName: name,
+      compulsory: input.getAttribute('data-compulsory') === '1',
     };
   };
   container.addEventListener('focusin', (ev) => {
@@ -1919,17 +1986,31 @@ function runValidation(
   const issues: ValidationIssue[] = [];
   for (const input of inputs) {
     input.style.outline = '';
-    const v = input.value.trim();
-    if (v === '') continue;
     const m = /^(.+)-(.+)-val$/.exec(input.getAttribute('name') ?? '');
     if (!m) continue;
     const deId = m[1]!;
     const cocId = m[2]!;
     const de = dataElements[deId];
     const valueType = de?.valueType ?? 'TEXT';
+    const v = input.value.trim();
+    if (v === '') {
+      // Empty cells only count as issues when they are flagged
+      // compulsory on the dataset. §FR-09.
+      if (input.getAttribute('data-compulsory') === '1') {
+        input.style.outline = '2px solid #c0392b';
+        issues.push({
+          deId, cocId, valueType, value: '',
+          problem: 'compulsory value missing',
+          deName: de?.name ?? deId,
+          cocName: cocs[cocId]?.name ?? cocId,
+          inputName: input.name,
+        });
+      }
+      continue;
+    }
     const problem = validateByType(v, valueType);
     if (problem) {
-      input.style.outline = '2px solid #a93232';
+      input.style.outline = '2px solid #c0392b';
       issues.push({
         deId, cocId, valueType, value: v, problem,
         deName: de?.name ?? deId,
@@ -2908,6 +2989,18 @@ const APP_STYLES = `
   border-color: var(--der-brand-500, #4a55ce);
   box-shadow: 0 0 0 3px rgba(74, 85, 206, 0.15);
 }
+/* Compulsory cells — DHIS2 marks these with an amber left
+ * rule so operators can tell at a glance which fields block
+ * "Mark complete". Applies to both SECTION-renderer inputs and
+ * CUSTOM author inputs (we tag them the same way). */
+.der-de-form-card .sectionTable input[type="text"][data-compulsory="1"],
+.der-de-custom-form input[data-compulsory="1"] {
+  border-left: 3px solid #9b5a00 !important;
+}
+.der-de-form-card .sectionTable input[type="text"][data-compulsory="1"]:placeholder-shown,
+.der-de-custom-form input[data-compulsory="1"]:placeholder-shown {
+  background: #fef0d8 !important;
+}
 /* Row-level focus tint — SECTION renderer tables + CUSTOM
  * author tables both get a subtle indigo wash when the row
  * contains focus or is being hovered, so the operator always
@@ -3058,6 +3151,19 @@ const APP_STYLES = `
   font-weight: 500;
   color: #1f2779;
   margin-bottom: 6px;
+}
+.der-de-details-drawer__compulsory {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #fef0d8;
+  color: #9b5a00;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
 }
 .der-de-details-drawer__state {
   display: inline-block;
