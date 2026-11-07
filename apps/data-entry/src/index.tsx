@@ -345,6 +345,10 @@ export default function DataEntryApp(): JSX.Element {
         // compulsoryDataElementOperands so runValidation + the
         // CSS rule can surface missing-compulsory cells.
         markCompulsoryCells(content, meta);
+        // Live indicator calc — attaches an input listener that
+        // re-evaluates every indicator formula whenever a DE value
+        // changes. Does an initial pass against prefilled values.
+        attachIndicatorEngine(content, meta);
         setFormRenderVersion((v) => v + 1);
         // A successful render needs no toast; save-on-blur paints
         // per-cell status, the save-state pill tallies totals,
@@ -1846,6 +1850,105 @@ function CellDetailsDrawer(
  * border; runValidation treats empty compulsory cells as issues
  * and toggleCompletion refuses when any remain empty.
  */
+/**
+ * Live indicator engine. Every indicator carries a numerator +
+ * denominator expression made of `#{deId.cocId}` references (plus
+ * `#{deId}` for "sum over all COCs"). On every input event we
+ * substitute references with current cell values, evaluate the
+ * two arithmetic expressions, and write `(num / den) * factor`
+ * into the readonly `<input indicatorid=…>` cell.
+ *
+ * Error-safe:
+ *   • division by zero → blank cell (not NaN or Infinity).
+ *   • any eval throw   → blank cell.
+ *   • missing references default to 0, matching DHIS2's
+ *     entry.js convention.
+ *
+ * Expressions trusted — they come from the DER mirror, which
+ * reflects authored DHIS2 metadata, not user input. Still wrap
+ * eval in a try/catch so a malformed indicator doesn't nuke the
+ * whole form.
+ */
+function attachIndicatorEngine(container: HTMLElement,
+  meta: DataSetBundle): void {
+  const indicators = meta.indicators ?? [];
+  if (indicators.length === 0) return;
+  // Pre-compile each formula into a function that takes a value
+  // lookup fn and returns the computed result (or null).
+  const compiled = indicators
+    .filter((i) => i.numerator && i.denominator)
+    .map((i) => ({
+      id: i.id,
+      factor: i.indicatorType?.factor ?? 1,
+      numExpr: i.numerator as string,
+      denExpr: i.denominator as string,
+    }));
+  if (compiled.length === 0) return;
+  const indicatorInputs = Array.from(
+    container.querySelectorAll<HTMLInputElement>(
+      'input[indicatorid]'));
+  const inputByName = new Map<string, HTMLInputElement>();
+  for (const i of Array.from(container.querySelectorAll<HTMLInputElement>(
+      'input[name$="-val"]'))) {
+    inputByName.set(i.getAttribute('name') ?? '', i);
+  }
+  const sumByDe = (deId: string): number => {
+    let sum = 0;
+    for (const [name, el] of inputByName) {
+      if (!name.startsWith(`${deId}-`)) continue;
+      const v = parseFloat(el.value);
+      if (Number.isFinite(v)) sum += v;
+    }
+    return sum;
+  };
+  const substitute = (expr: string): string =>
+    expr.replace(/#\{([A-Za-z0-9_]+)(?:\.([A-Za-z0-9_]+))?\}/g,
+      (_m, de: string, coc?: string) => {
+        if (coc) {
+          const el = inputByName.get(`${de}-${coc}-val`);
+          const v = parseFloat(el?.value ?? '');
+          return Number.isFinite(v) ? String(v) : '0';
+        }
+        return String(sumByDe(de));
+      });
+  const safeEval = (raw: string): number => {
+    // Allow only digits, operators, parentheses, dots, spaces.
+    // Any other character → bail (prevents injected expressions
+    // leaking through the substitution stage).
+    if (!/^[\s\d+\-*/().eE]+$/.test(raw)) return NaN;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-implied-eval
+      return Function(`"use strict";return (${raw})`)() as number;
+    } catch { return NaN; }
+  };
+  const recompute = (): void => {
+    for (const ind of compiled) {
+      const num = safeEval(substitute(ind.numExpr));
+      const den = safeEval(substitute(ind.denExpr));
+      const target = indicatorInputs.find((el) =>
+        el.getAttribute('indicatorid') === ind.id);
+      if (!target) continue;
+      if (!Number.isFinite(num) || !Number.isFinite(den) || den === 0) {
+        target.value = '';
+        continue;
+      }
+      const r = (num / den) * ind.factor;
+      // Round to 2 decimals unless integer — DHIS2 convention
+      // matches reporting expectations.
+      target.value = Number.isInteger(r) ? String(r) : r.toFixed(2);
+    }
+  };
+  container.addEventListener('input', (ev) => {
+    const t = ev.target as HTMLElement | null;
+    if (t && t.tagName === 'INPUT' && t.hasAttribute('name')
+      && /-val$/.test(t.getAttribute('name') ?? '')) {
+      recompute();
+    }
+  }, true);
+  // Initial pass — prefill may already have populated values.
+  recompute();
+}
+
 function markCompulsoryCells(container: HTMLElement,
   meta: DataSetBundle): void {
   const ops = meta.compulsoryDataElementOperands ?? [];
