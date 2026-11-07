@@ -3750,27 +3750,23 @@ const APP_STYLES = `
   border-radius: 0 !important;
   margin: 0 0 16px !important;
 }
+/* Author-authored decorations shipped inside CUSTOM
+ * dataEntryForm.htmlCode (TBLP + legacy DHIS2 custom forms).
+ * These duplicate signal the DER data-entry chrome already
+ * surfaces — dataset title (toolbar), section nav numbering,
+ * section headers — and introduce visual styles that fight the
+ * shared DER UI. Hide everything but the semantic structure
+ * (sections + tables + inputs) so operators see one consistent
+ * language regardless of who authored the form. */
 .der-de-custom-form .tblep-kicker,
-.der-de-custom-form .tblep-num {
-  display: inline-block;
-  margin-right: 8px;
-  padding: 2px 8px;
-  background: #eef4fa;
-  color: #1f4d70;
-  border-radius: 10px;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  font-weight: 500;
-}
+.der-de-custom-form .tblep-num,
+.der-de-custom-form .tblep-h1,
 .der-de-custom-form .tblep-lead,
 .der-de-custom-form .tblep-note,
-.der-de-custom-form .tblep-muted {
-  color: #6e7a8a;
-  font-size: 12px;
-  margin: 4px 0 8px;
-}
+.der-de-custom-form .tblep-muted,
+.der-de-custom-form .tblep-head,
 .der-de-custom-form .tblep-foot {
-  display: none;
+  display: none !important;
 }
 .der-de-custom-form .tblep-table,
 .der-de-custom-form table {
