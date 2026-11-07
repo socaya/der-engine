@@ -819,7 +819,24 @@ export default function DataEntryApp(): JSX.Element {
           <div className="der-de-toolbar__cell-info">
             <CellLiveStrip root={customRoot} details={details}
                             formVersion={formRenderVersion}
-                            formSync={formSyncState} />
+                            formSync={formSyncState}
+                            onClear={(inputName) => {
+                              const root = customRoot.current;
+                              if (!root) return;
+                              const input = root.querySelector<HTMLInputElement>(
+                                `input[name="${inputName}"]`);
+                              if (!input) return;
+                              input.value = '';
+                              // Local clear only — fire input so live
+                              // validation + row totals react immediately,
+                              // but DON'T dispatch blur. The DER server
+                              // rejects empty writes as "value required";
+                              // firing a POST here would just paint the
+                              // cell red. Operator types a new value and
+                              // the natural blur saves normally.
+                              input.dispatchEvent(new Event('input', { bubbles: true }));
+                              input.focus();
+                            }} />
           </div>
         </div>
       </div>
@@ -2168,11 +2185,12 @@ function SaveStatePill(
  * Empty state (no cell focused yet) shows a quiet prompt.
  */
 function CellLiveStrip(
-  { details, formSync }:
+  { details, formSync, onClear }:
   { root: RefObject<HTMLDivElement | null>;
     details: CellDetails | null;
     formVersion: number;
-    formSync: FormSyncState },
+    formSync: FormSyncState;
+    onClear: (inputName: string) => void },
 ): JSX.Element {
   const stateLabel: Record<CellDetails['saveState'], string> = {
     empty: 'No value yet',
@@ -2199,6 +2217,18 @@ function CellLiveStrip(
                 <span className="der-de-live-strip__value">
                   {details.value}
                 </span>
+                <button type="button"
+                        className="der-de-live-strip__clear"
+                        data-test="de-live-clear"
+                        aria-label="Clear value"
+                        title="Clear this cell"
+                        onMouseDown={(e) => {
+                          // Prevent focus from leaving the input before
+                          // our onClick fires — keeps the cell focused so
+                          // the operator can immediately re-type.
+                          e.preventDefault();
+                        }}
+                        onClick={() => onClear(details.inputName)}>×</button>
                 <span className="der-de-live-strip__sep">·</span>
                 <span className={`der-de-live-strip__state `
                   + `der-de-live-strip__state--${stateTone[details.saveState]}`}>
@@ -4226,6 +4256,29 @@ const APP_STYLES = `
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+.der-de-live-strip__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--der-ink-500, #5b6478);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 120ms, color 120ms;
+}
+.der-de-live-strip__clear:hover,
+.der-de-live-strip__clear:focus-visible {
+  background: #fbe9e7;
+  color: #a3322c;
+  outline: 0;
 }
 .der-de-live-strip__audit {
   color: var(--der-ink-500, #5b6478);
