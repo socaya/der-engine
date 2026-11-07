@@ -78,7 +78,6 @@ export default function DataEntryApp(): JSX.Element {
   // re-reads its metadata from the hydrated dhis2.de shim as the
   // operator navigates.
   const [details, setDetails] = useState<CellDetails | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(true);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // "?" opens shortcuts when the operator isn't typing into an
   // input. A capture-phase listener keeps this out of the cell's
@@ -588,6 +587,8 @@ export default function DataEntryApp(): JSX.Element {
 
       {formReady && mode === 'custom' && (
         <div className={`der-de-form-card der-de-density-${density}`}>
+          <CellLiveStrip root={customRoot} details={details}
+                          formVersion={formRenderVersion} />
           <div className="der-de-form-split">
             <SectionNavigator targetRef={customRoot} formVersion={formRenderVersion} />
             <div ref={customRoot}
@@ -638,15 +639,6 @@ export default function DataEntryApp(): JSX.Element {
               {issues.length} issue{issues.length === 1 ? '' : 's'}
             </button>
           )}
-          {!detailsOpen && (
-            <button type="button"
-                    onClick={() => setDetailsOpen(true)}
-                    className="der-de-density-btn"
-                    data-test="de-details-toggle"
-                    aria-label="Open cell details panel">
-              Details
-            </button>
-          )}
           <button type="button"
                   onClick={() => setShortcutsOpen((v) => !v)}
                   className="der-de-density-btn"
@@ -666,8 +658,6 @@ export default function DataEntryApp(): JSX.Element {
           </button>
         </div>
       )}
-      <CellDetailsDrawer open={detailsOpen && !issuesOpen} details={details}
-        onClose={() => setDetailsOpen(false)} />
       <ShortcutsPopover open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)} />
       <ValidationIssuesDrawer
@@ -1027,22 +1017,6 @@ function renderSectionForm(meta: DataSetBundle): string {
       // cells carry position:sticky so column + row names remain
       // visible as the grid moves.
       parts.push('<div class="der-de-table-scroll">');
-      // Surface the full disaggregation inline above the table so
-      // the operator can see what categories drive the nested
-      // header rows (e.g. "Breakdown · Age · Sex"). For a
-      // default/1-option combo the caption is suppressed.
-      if (cats.length > 0) {
-        const catNames = cats.map((c) => esc(c.name ?? c.id))
-          .filter((n) => n.length > 0);
-        if (catNames.length > 0) {
-          parts.push(
-            '<div class="der-de-combo-caption">'
-            + '<span class="der-de-combo-caption__key">Breakdown</span>'
-            + catNames.map((n) =>
-                `<span class="der-de-combo-caption__val">${n}</span>`).join('')
-            + '</div>');
-        }
-      }
       parts.push(`<table class="sectionTable" cellspacing="0">`);
       // Nested column headers: one <tr> per category, each cell
       // spans the width of its options' slice across COCs. For a
@@ -1801,6 +1775,93 @@ function SaveStatePill(
           data-test="de-save-state">
       {parts.join(' · ')}
     </span>
+  );
+}
+
+/**
+ * Live strip pinned to the top of the form card. Replaces the
+ * right-rail cell-details drawer per operator feedback.
+ *
+ * Left half — active section name, tracked by watching
+ * `[data-section-id]` slot display states.
+ * Right half — the currently-focused cell: DE · COC · Value ·
+ * Storage status. Updates on every focusin / input in the
+ * form root.
+ *
+ * Empty state (no cell focused yet) shows a quiet prompt.
+ */
+function CellLiveStrip(
+  { root, details, formVersion }:
+  { root: RefObject<HTMLDivElement | null>;
+    details: CellDetails | null;
+    formVersion: number },
+): JSX.Element {
+  const [sectionName, setSectionName] = useState<string>('');
+
+  // Re-scan the section headings every render pass + whenever
+  // the active section slot changes display state.
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const read = (): void => {
+      const slots = Array.from(el.querySelectorAll<HTMLElement>(
+        '[data-section-id]'));
+      const active = slots.find((s) => s.style.display !== 'none');
+      if (!active) { setSectionName(''); return; }
+      const h = active.querySelector('h2, h3, h4');
+      setSectionName((h?.textContent ?? '').trim());
+    };
+    read();
+    // Watch the active slot's display attribute via a short
+    // polling interval — simpler than a MutationObserver chain
+    // and the tracked state is rare + cheap to recompute.
+    const id = window.setInterval(read, 400);
+    return () => window.clearInterval(id);
+  }, [root, formVersion]);
+
+  const stateLabel: Record<CellDetails['saveState'], string> = {
+    empty: 'No value yet',
+    saving: 'Saving…',
+    saved: 'Saved on edge',
+    queued: 'Queued for sync',
+    error: 'Rejected',
+  };
+  const stateTone: Record<CellDetails['saveState'], string> = {
+    empty: 'muted', saving: 'saving', saved: 'saved',
+    queued: 'queued', error: 'error',
+  };
+  return (
+    <div className="der-de-live-strip" data-test="de-live-strip">
+      <div className="der-de-live-strip__section">
+        {sectionName || 'Pick a section'}
+      </div>
+      <div className="der-de-live-strip__cell" data-test="de-live-cell">
+        {details ? (
+          <>
+            <span className="der-de-live-strip__de">{details.deName}</span>
+            <span className="der-de-live-strip__sep">·</span>
+            <span className="der-de-live-strip__coc">{details.cocName}</span>
+            <span className="der-de-live-strip__sep">·</span>
+            <span className="der-de-live-strip__value">
+              {details.value || <em className="der-de-live-strip__empty">—</em>}
+            </span>
+            <span className="der-de-live-strip__sep">·</span>
+            <span className={`der-de-live-strip__state `
+              + `der-de-live-strip__state--${stateTone[details.saveState]}`}>
+              {stateLabel[details.saveState]}
+            </span>
+            {details.compulsory && (
+              <span className="der-de-live-strip__required"
+                    title="Compulsory — a value is required.">Required</span>
+            )}
+          </>
+        ) : (
+          <span className="der-de-live-strip__hint">
+            Click a cell to see its data element, category option combo + value.
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -3113,32 +3174,66 @@ const APP_STYLES = `
   font-weight: 500;
   color: var(--der-ink-700, #2a3447);
 }
-/* Combo caption — "Breakdown · Age · Sex" surfaced above the
- * table so the matrix disaggregation is visible even without
- * reading the headers in order. */
-.der-de-combo-caption {
+/* Top-row live strip — replaces the right-rail Cell Details
+ * drawer. Left shows the active section heading; right shows
+ * DE · COC · Value · Save state for the focused cell, updating
+ * as the operator tabs between cells. */
+.der-de-live-strip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 0 8px;
-  font-size: 12px;
-  color: var(--der-ink-500, #5b6478);
-}
-.der-de-combo-caption__key {
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  font-size: 10px;
-  color: var(--der-ink-500, #5b6478);
-}
-.der-de-combo-caption__val {
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--der-border, #d8dee8);
+  font-size: 13px;
   color: var(--der-ink-700, #2a3447);
+}
+.der-de-live-strip__section {
+  font-weight: 500;
+  color: var(--der-ink-900, #101a32);
+  flex: 0 0 auto;
+}
+.der-de-live-strip__cell {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--der-ink-700, #2a3447);
+  font-size: 12px;
+}
+.der-de-live-strip__de {
+  color: var(--der-ink-900, #101a32);
   font-weight: 500;
 }
-.der-de-combo-caption__val + .der-de-combo-caption__val::before {
-  content: '×';
-  margin: 0 8px 0 0;
+.der-de-live-strip__coc {
+  color: var(--der-ink-500, #5b6478);
+}
+.der-de-live-strip__value {
+  color: var(--der-ink-900, #101a32);
+  font-family: ui-monospace, monospace;
+}
+.der-de-live-strip__empty {
   color: var(--der-ink-300, #9097a8);
-  font-weight: 400;
+  font-style: normal;
+}
+.der-de-live-strip__sep {
+  color: var(--der-ink-300, #9097a8);
+}
+.der-de-live-strip__state--muted  { color: #5b6478; }
+.der-de-live-strip__state--saved  { color: #1b8243; }
+.der-de-live-strip__state--saving { color: #9b5a00; }
+.der-de-live-strip__state--queued { color: #9b5a00; }
+.der-de-live-strip__state--error  { color: #c0392b; }
+.der-de-live-strip__required {
+  color: #9b5a00;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.der-de-live-strip__hint {
+  color: var(--der-ink-500, #5b6478);
+  font-style: italic;
 }
 .der-apphost .der-de-form-card .sectionTable .dataElementCell {
   background: #f7f8fc !important;
