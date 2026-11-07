@@ -33,10 +33,7 @@ import{useEffect as I,useRef as de,useState as N}from"react";import{useAuth as A
   background: transparent !important;
 }
 .der-apphost .der-de-form-card .sectionTable thead th {
-  position: sticky;
-  top: 112px;
-  z-index: 2;
-  background: var(--der-canvas, #f4f6fa) !important;
+  background: #fff !important;
   color: var(--der-ink-500, #5b6478);
   font-size: 12px;
   font-weight: 600;
