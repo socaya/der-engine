@@ -709,8 +709,10 @@ export default function DataEntryApp(): JSX.Element {
   async function exportCurrentFormToPdf(): Promise<void> {
     const root = customRoot.current;
     if (!root) return;
-    const rows = collectFormRowsForExport(root);
-    if (rows.length === 0) return;
+    const sections = collectFormStructureForExport(root);
+    if (sections.length === 0) return;
+    const cellCount = sections.reduce((n, s) => n + s.tables.reduce(
+      (m, t) => m + t.des.reduce((k, d) => k + d.cells.length, 0), 0), 0);
     setStatus({ kind: 'submitting' });
     try {
       // pdf-lib is ~250 KB gzipped — load it only when the
@@ -723,9 +725,10 @@ export default function DataEntryApp(): JSX.Element {
         periodLabel: formatPeriodLabel(formInfo?.periodType, period.trim())
           ?? period.trim(),
         orgUnitLabel: ou.orgUnitDisplayName || ou.orgUnitUid || '',
+        orgUnitPath: ou.orgUnitPath,
         completed: completion?.completed ?? false,
         completedAt: completion?.completedAt ?? null,
-        rows,
+        sections,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -736,7 +739,7 @@ export default function DataEntryApp(): JSX.Element {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       setStatus({ kind: 'ok', message:
-        `Exported ${rows.length} cells to PDF.` });
+        `Exported ${cellCount} cells across ${sections.length} section${sections.length === 1 ? '' : 's'} to PDF.` });
     } catch (e) {
       setStatus({ kind: 'error',
         message: `PDF export failed: ${(e as Error).message}` });
@@ -3991,9 +3994,9 @@ function paintState(
  */
 /**
  * Walk every -val input in the currently-rendered form and return
- * a structured list for the PDF / CSV exporters. The DOM is the
- * source of truth here — it already reflects the latest prefill +
- * any typed edits the operator hasn't blurred yet.
+ * a flat row list for the CSV exporter. The DOM is the source of
+ * truth here — it reflects the latest prefill + any typed edits
+ * the operator hasn't blurred yet.
  */
 export interface ExportRow {
   readonly deId: string;
@@ -4033,16 +4036,152 @@ function collectFormRowsForExport(root: HTMLElement): ExportRow[] {
 }
 
 /**
- * Build an A4 editable PDF for the OrgUnit × Dataset × Period
- * tuple. Each cell value is an AcroForm text field so a supervisor
- * can tweak values offline (opens editable in Preview / Adobe
- * Reader / Chrome's native viewer).
+ * Structured snapshot of the currently-rendered form for the PDF
+ * exporter: one entry per `<h3 class="formSection">` heading with
+ * its tables, each table carrying its nested COC header rows +
+ * one body row per data element (DE label + parallel cells).
+ * Mirrors what renderSectionForm builds in the DOM so the PDF
+ * layout matches the client surface.
+ */
+interface ExportCell {
+  readonly cocId: string;
+  readonly value: string;
+  readonly comment: string;
+  readonly compulsory: boolean;
+  readonly greyed: boolean;
+}
+interface ExportDeRow {
+  readonly deId: string;
+  readonly deLabel: string;
+  readonly cells: ReadonlyArray<ExportCell>;
+}
+interface ExportTable {
+  /** Column headers, outer list = header rows, inner list = cells
+   *  with `label` + `span` so nested category headers (Age × Sex)
+   *  render with correct colspan.                                 */
+  readonly headerRows: ReadonlyArray<ReadonlyArray<{ label: string; span: number }>>;
+  /** Flat list of COC ids in column order (matches body cells).   */
+  readonly cocIds: ReadonlyArray<string>;
+  /** Column labels — the bottom row of headerRows, flattened by
+   *  span so each entry maps 1:1 to a COC id in `cocIds`.          */
+  readonly cocLabels: ReadonlyArray<string>;
+  readonly des: ReadonlyArray<ExportDeRow>;
+}
+interface ExportSection {
+  readonly title: string;
+  readonly tables: ReadonlyArray<ExportTable>;
+}
+function collectFormStructureForExport(root: HTMLElement): ExportSection[] {
+  const sections: ExportSection[] = [];
+  // Look for section slots (data-section-id) first — SectionNavigator
+  // wraps each formSection heading in a slot; fall back to the raw
+  // headings if the renderer didn't insert slots (minimal forms).
+  const slots = Array.from(
+    root.querySelectorAll<HTMLElement>('[data-section-id]'));
+  const targets: Array<{ title: string; container: HTMLElement }> =
+    slots.length > 0
+      ? slots.map((s) => ({
+          title: s.querySelector('h2, h3, h4')?.textContent?.trim() ?? 'Section',
+          container: s,
+        }))
+      : [{ title: 'Form', container: root }];
+  for (const t of targets) {
+    const tables: ExportTable[] = [];
+    for (const tbl of Array.from(
+        t.container.querySelectorAll<HTMLTableElement>('table.sectionTable'))) {
+      tables.push(extractTable(tbl));
+    }
+    if (tables.length > 0) {
+      sections.push({ title: t.title, tables });
+    }
+  }
+  return sections;
+}
+function extractTable(tbl: HTMLTableElement): ExportTable {
+  const headerRows: Array<Array<{ label: string; span: number }>> = [];
+  for (const tr of Array.from(tbl.querySelectorAll<HTMLTableRowElement>('thead tr'))) {
+    const cells: Array<{ label: string; span: number }> = [];
+    for (const th of Array.from(tr.querySelectorAll<HTMLTableCellElement>('th'))) {
+      // Skip the sticky DE-label column (.dataElementCell) — the
+      // PDF exporter owns the leftmost column itself.
+      if (th.classList.contains('dataElementCell')) continue;
+      // Skip the trailing Total column (sum) — not meaningful on paper.
+      if (th.classList.contains('der-de-row-total-cell')) continue;
+      const span = Number(th.getAttribute('colspan') ?? '1') || 1;
+      cells.push({ label: th.textContent?.trim() ?? '', span });
+    }
+    headerRows.push(cells);
+  }
+  // Column COC ids + bottom-row labels: read from the first body
+  // row's input names since that's deterministic.
+  const firstRow = tbl.querySelector<HTMLTableRowElement>('tbody tr');
+  const cocIds: string[] = [];
+  if (firstRow) {
+    for (const cell of Array.from(firstRow.querySelectorAll<HTMLTableCellElement>('td'))) {
+      if (cell.classList.contains('dataElementCell')) continue;
+      if (cell.classList.contains('der-de-row-total-cell')) continue;
+      const input = cell.querySelector<HTMLInputElement>('input[name$="-val"]');
+      if (!input) { cocIds.push(''); continue; }
+      const m = /^(.+)-(.+)-val$/.exec(input.name);
+      cocIds.push(m?.[2] ?? '');
+    }
+  }
+  // Flatten the bottom header row by span so cocLabels[i] == label
+  // for cocIds[i]. If headers have spans > 1, repeat the label.
+  const cocLabels: string[] = [];
+  const bottom = headerRows[headerRows.length - 1] ?? [];
+  for (const h of bottom) {
+    for (let k = 0; k < h.span; k++) cocLabels.push(h.label);
+  }
+  // Pad / trim to cocIds length so array indices align.
+  while (cocLabels.length < cocIds.length) cocLabels.push('');
+  cocLabels.length = cocIds.length;
+
+  const des: ExportDeRow[] = [];
+  for (const tr of Array.from(tbl.querySelectorAll<HTMLTableRowElement>('tbody tr'))) {
+    if (tr.classList.contains('indicatorRow')) continue;
+    const labelCell = tr.querySelector<HTMLTableCellElement>('td.dataElementCell');
+    const deLabel = labelCell?.textContent?.trim() ?? '';
+    const labelId = labelCell?.id ?? '';
+    const deId = labelId.endsWith('-cell') ? labelId.slice(0, -5) : '';
+    const cells: ExportCell[] = [];
+    let colIndex = 0;
+    for (const td of Array.from(tr.querySelectorAll<HTMLTableCellElement>('td'))) {
+      if (td.classList.contains('dataElementCell')) continue;
+      if (td.classList.contains('der-de-row-total-cell')) continue;
+      const cocId = cocIds[colIndex++] ?? '';
+      if (td.classList.contains('greyed')) {
+        cells.push({
+          cocId, value: '', comment: '', compulsory: false, greyed: true,
+        });
+        continue;
+      }
+      const input = td.querySelector<HTMLInputElement>('input[name$="-val"]');
+      cells.push({
+        cocId,
+        value: input?.value ?? '',
+        comment: input?.getAttribute('data-comment') ?? '',
+        compulsory: input?.getAttribute('data-compulsory') === '1',
+        greyed: false,
+      });
+    }
+    des.push({ deId, deLabel, cells });
+  }
+  return { headerRows, cocIds, cocLabels, des };
+}
+
+/**
+ * Build a professional A4 editable PDF for the OrgUnit × Dataset ×
+ * Period tuple, mirroring the DER Client form structure:
+ *   - one heading per section
+ *   - one table per section with the matrix layout (nested COC
+ *     headers like Age × Sex), DE label on the left, editable
+ *     value cell per COC column
+ *   - final page carries a verification + stamping block for the
+ *     bound Org Unit.
  *
- * Layout: single 2-column table — DE label (wide) / COC / editable
- * value field / comment. Page header on every page carries the
- * dataset + OU + period. Footer carries "Page N of M · DER Edge
- * Runtime". Multi-page overflow handled by a y-cursor + new-page
- * on y < bottom margin.
+ * Every value cell is a real AcroForm text field so a supervisor
+ * can tweak values offline in Adobe Reader / Preview / Chrome.
  */
 async function buildDatasetPdf(
   pdfLib: typeof import('pdf-lib'),
@@ -4052,146 +4191,372 @@ async function buildDatasetPdf(
     period: string;
     periodLabel: string;
     orgUnitLabel: string;
+    orgUnitPath?: string;
     completed: boolean;
     completedAt: string | null;
-    rows: ExportRow[];
+    sections: ExportSection[];
   },
 ): Promise<Blob> {
   const { PDFDocument, StandardFonts, rgb } = pdfLib;
   const doc = await PDFDocument.create();
+  doc.setTitle(`${args.datasetLabel} — ${args.periodLabel}`);
+  doc.setSubject(`DER data entry report · ${args.orgUnitLabel}`);
+  doc.setCreator('DER Edge Runtime · Data Entry');
+  doc.setProducer('pdf-lib');
   const form = doc.getForm();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+
   // A4 portrait: 595.28 × 841.89 pt.
   const W = 595.28; const H = 841.89;
   const LM = 36; const RM = 36; const TM = 42; const BM = 48;
-  // Column layout.
-  const COL_DE = LM;            const COL_DE_W = 240;
-  const COL_COC = COL_DE + COL_DE_W + 6; const COL_COC_W = 110;
-  const COL_VAL = COL_COC + COL_COC_W + 6; const COL_VAL_W = 70;
-  const COL_COM = COL_VAL + COL_VAL_W + 10; const COL_COM_W =
-    W - RM - COL_COM;
-  const ROW_H = 20; const HEADER_H = 110; const FOOTER_H = 26;
+  const HEADER_H = 96; const FOOTER_H = 22;
 
   const BRAND = rgb(0.078, 0.486, 0.843);  // #147CD7
+  const BRAND_DEEP = rgb(0.039, 0.332, 0.591); // #0a5497
   const INK   = rgb(0.063, 0.102, 0.196);  // #101a32
+  const INK_SOFT = rgb(0.165, 0.204, 0.278); // #2a3447
   const MUTED = rgb(0.357, 0.392, 0.471);  // #5b6478
   const HAIR  = rgb(0.847, 0.871, 0.910);  // #d8dee8
   const TINT  = rgb(0.953, 0.973, 0.988);  // #f3f8fc
+  const GREY  = rgb(0.933, 0.941, 0.961);  // #eef0f5
+  const RED   = rgb(0.780, 0.196, 0.169);
+
   let page = doc.addPage([W, H]);
   const pages: Array<ReturnType<typeof doc.addPage>> = [page];
+  let currentSection = '';
 
   function drawPageHeader(pg: typeof page): void {
-    pg.drawText('DER Edge Runtime · Data Entry', {
-      x: LM, y: H - TM, size: 9, font, color: MUTED,
-    });
-    pg.drawRectangle({ x: 0, y: H - TM - 4, width: W, height: 2, color: BRAND });
+    // 2-tone brand bar at the very top.
+    pg.drawRectangle({ x: 0, y: H - 10, width: W, height: 10, color: BRAND });
+    pg.drawRectangle({ x: 0, y: H - 14, width: W, height: 4, color: BRAND_DEEP });
+    // Title block
     pg.drawText(args.datasetLabel, {
-      x: LM, y: H - TM - 24, size: 14, font: bold, color: INK,
+      x: LM, y: H - TM - 10, size: 13, font: bold, color: INK,
     });
     pg.drawText(`${args.periodLabel}  ·  ${args.orgUnitLabel}`, {
-      x: LM, y: H - TM - 42, size: 10.5, font, color: INK,
+      x: LM, y: H - TM - 28, size: 10, font, color: INK_SOFT,
     });
     const status = args.completed
       ? `Status: COMPLETE${args.completedAt
           ? ' · ' + new Date(args.completedAt).toLocaleString() : ''}`
       : 'Status: OPEN for edits';
     pg.drawText(status, {
-      x: LM, y: H - TM - 58, size: 9.5, font, color: MUTED,
+      x: LM, y: H - TM - 44, size: 9, font, color: MUTED,
     });
     pg.drawText(`Generated ${new Date().toLocaleString()}`, {
-      x: LM, y: H - TM - 72, size: 9, font, color: MUTED,
+      x: W - RM - font.widthOfTextAtSize(
+        `Generated ${new Date().toLocaleString()}`, 9),
+      y: H - TM - 44, size: 9, font, color: MUTED,
     });
     pg.drawLine({
-      start: { x: LM, y: H - TM - HEADER_H + 6 },
-      end:   { x: W - RM, y: H - TM - HEADER_H + 6 },
+      start: { x: LM, y: H - TM - 56 },
+      end:   { x: W - RM, y: H - TM - 56 },
       thickness: 0.6, color: HAIR,
     });
-    // Column headers
-    const hy = H - TM - HEADER_H + 14;
-    pg.drawText('Data element',  { x: COL_DE, y: hy, size: 9, font: bold, color: MUTED });
-    pg.drawText('Category',      { x: COL_COC, y: hy, size: 9, font: bold, color: MUTED });
-    pg.drawText('Value',         { x: COL_VAL, y: hy, size: 9, font: bold, color: MUTED });
-    pg.drawText('Comment',       { x: COL_COM, y: hy, size: 9, font: bold, color: MUTED });
+    if (currentSection) {
+      pg.drawText(`continued — ${currentSection}`, {
+        x: LM, y: H - TM - 72, size: 9, font, color: MUTED,
+      });
+    }
   }
 
   function drawPageFooter(pg: typeof page, pageIndex: number): void {
+    pg.drawLine({
+      start: { x: LM, y: BM - 4 }, end: { x: W - RM, y: BM - 4 },
+      thickness: 0.4, color: HAIR,
+    });
     pg.drawText(
       `Page ${pageIndex + 1} of ${pages.length}  ·  DER Edge Runtime`,
-      { x: LM, y: BM - 18, size: 8.5, font, color: MUTED }
+      { x: LM, y: BM - 16, size: 8.5, font, color: MUTED }
     );
-    pg.drawText(`${args.datasetUid}  ·  ${args.period}`,
-      { x: W - RM - 200, y: BM - 18, size: 8.5, font, color: MUTED });
+    const right = `${args.datasetUid}  ·  ${args.period}`;
+    pg.drawText(right, {
+      x: W - RM - font.widthOfTextAtSize(right, 8.5),
+      y: BM - 16, size: 8.5, font, color: MUTED,
+    });
   }
 
-  function ensureRowRoom(cursorY: number): { page: typeof page; y: number } {
-    if (cursorY - ROW_H < BM + FOOTER_H) {
-      const np = doc.addPage([W, H]);
-      pages.push(np);
-      drawPageHeader(np);
-      return { page: np, y: H - TM - HEADER_H - 2 };
-    }
-    return { page, y: cursorY };
+  function newPage(): void {
+    page = doc.addPage([W, H]);
+    pages.push(page);
+    drawPageHeader(page);
+    y = H - TM - HEADER_H;
+  }
+
+  function ensureRoom(need: number): void {
+    if (y - need < BM + FOOTER_H) newPage();
   }
 
   drawPageHeader(page);
-  let y = H - TM - HEADER_H - 2;
-  let i = 0;
-  for (const row of args.rows) {
-    const bump = ensureRowRoom(y);
-    page = bump.page; y = bump.y;
-    const rowY = y - ROW_H + 3;
-    if (i % 2 === 1) {
+  let y = H - TM - HEADER_H;
+
+  const sectionTitleSize = 12;
+  const columnHeaderRowH = 18;
+  const bodyRowH = 22;
+  const deColW = 230;
+
+  for (const section of args.sections) {
+    currentSection = section.title;
+    // Section heading band.
+    ensureRoom(sectionTitleSize + 24);
+    y -= 6;
+    page.drawRectangle({
+      x: LM, y: y - sectionTitleSize - 2,
+      width: W - LM - RM, height: sectionTitleSize + 10,
+      color: GREY,
+    });
+    page.drawRectangle({
+      x: LM, y: y - sectionTitleSize - 2,
+      width: 4, height: sectionTitleSize + 10,
+      color: BRAND,
+    });
+    page.drawText(section.title, {
+      x: LM + 12, y: y - sectionTitleSize + 3,
+      size: sectionTitleSize, font: bold, color: INK,
+    });
+    y -= sectionTitleSize + 14;
+
+    for (const table of section.tables) {
+      // Column widths available for COC cells after the DE col.
+      const cocCount = table.cocIds.length;
+      if (cocCount === 0) continue;
+      const cocBand = W - RM - (LM + deColW + 6);
+      const cocW = Math.max(40, Math.floor(cocBand / cocCount));
+      // Actual right edge (recomputed to keep rounding tidy).
+      const colX = (i: number): number => LM + deColW + 6 + i * cocW;
+
+      // Header rows — repeat per table on a new page.
+      const headerHeight = columnHeaderRowH * table.headerRows.length;
+      ensureRoom(headerHeight + bodyRowH);
+      // DE header cell
       page.drawRectangle({
-        x: LM - 2, y: rowY - 2,
-        width: W - LM - RM + 4, height: ROW_H,
+        x: LM, y: y - headerHeight,
+        width: deColW, height: headerHeight,
         color: TINT,
       });
+      page.drawText('Data element', {
+        x: LM + 6,
+        y: y - headerHeight + headerHeight/2 - 3,
+        size: 9, font: bold, color: INK_SOFT,
+      });
+      // Nested COC headers
+      for (let r = 0; r < table.headerRows.length; r++) {
+        let col = 0;
+        const rowY = y - (r + 1) * columnHeaderRowH;
+        for (const h of table.headerRows[r] ?? []) {
+          const x = colX(col);
+          const w = cocW * h.span;
+          page.drawRectangle({
+            x, y: rowY, width: w, height: columnHeaderRowH,
+            color: TINT,
+          });
+          page.drawLine({
+            start: { x, y: rowY },
+            end:   { x: x + w, y: rowY },
+            thickness: 0.3, color: HAIR,
+          });
+          page.drawLine({
+            start: { x, y: rowY },
+            end:   { x, y: rowY + columnHeaderRowH },
+            thickness: 0.3, color: HAIR,
+          });
+          const text = clampText(h.label, font, 8.5, w - 6);
+          page.drawText(text, {
+            x: x + w/2 - font.widthOfTextAtSize(text, 8.5)/2,
+            y: rowY + 5, size: 8.5, font: bold, color: INK_SOFT,
+          });
+          col += h.span;
+        }
+      }
+      // Right border of header band.
+      page.drawLine({
+        start: { x: W - RM, y: y - headerHeight },
+        end:   { x: W - RM, y: y },
+        thickness: 0.3, color: HAIR,
+      });
+      y -= headerHeight;
+
+      // Body rows
+      let rowIdx = 0;
+      for (const de of table.des) {
+        ensureRoom(bodyRowH);
+        if (rowIdx % 2 === 1) {
+          page.drawRectangle({
+            x: LM, y: y - bodyRowH,
+            width: W - LM - RM, height: bodyRowH,
+            color: TINT,
+          });
+        }
+        // Row separator line
+        page.drawLine({
+          start: { x: LM, y: y - bodyRowH },
+          end:   { x: W - RM, y: y - bodyRowH },
+          thickness: 0.3, color: HAIR,
+        });
+        // DE label
+        const deText = clampText(de.deLabel, font, 9, deColW - 10);
+        page.drawText(deText, {
+          x: LM + 6, y: y - bodyRowH + 7,
+          size: 9, font, color: INK,
+        });
+        // One cell per COC
+        for (let i = 0; i < de.cells.length; i++) {
+          const cell = de.cells[i]!;
+          const x = colX(i);
+          // Column divider
+          page.drawLine({
+            start: { x, y: y - bodyRowH },
+            end:   { x, y },
+            thickness: 0.3, color: HAIR,
+          });
+          if (cell.greyed) {
+            // Hatched grey for N/A cells.
+            page.drawRectangle({
+              x: x + 2, y: y - bodyRowH + 3,
+              width: cocW - 4, height: bodyRowH - 6,
+              color: GREY,
+            });
+            continue;
+          }
+          const safeField = `${de.deId}__${cell.cocId}`
+            .replace(/[^A-Za-z0-9_]/g, '_');
+          const tf = form.createTextField('val_' + safeField);
+          tf.setText(cell.value ?? '');
+          tf.addToPage(page, {
+            x: x + 2, y: y - bodyRowH + 3,
+            width: cocW - 4, height: bodyRowH - 6,
+            borderColor: cell.compulsory ? RED : HAIR,
+            borderWidth: cell.compulsory ? 0.8 : 0.4,
+            backgroundColor: rgb(1, 1, 1),
+            font, textColor: INK,
+          });
+          if (cell.comment) {
+            // Small comment indicator on the cell (visual only).
+            page.drawRectangle({
+              x: x + cocW - 7, y: y - 6,
+              width: 4, height: 4,
+              color: BRAND,
+            });
+          }
+        }
+        y -= bodyRowH;
+        rowIdx++;
+      }
+      y -= 6;
     }
-    // DE label — truncate to col width.
-    const deText = clampText(row.deLabel, font, 9.5, COL_DE_W);
-    page.drawText(deText, { x: COL_DE, y: rowY + 5, size: 9.5, font, color: INK });
-    if (row.compulsory) {
-      page.drawText('*', {
-        x: COL_DE + font.widthOfTextAtSize(deText, 9.5) + 2,
-        y: rowY + 5, size: 10, font: bold, color: rgb(0.780, 0.196, 0.169),
+    y -= 4;
+  }
+
+  // Verification + stamping footer block. Always at the bottom of
+  // its own fresh section — reserve ~210 pt and new-page if needed.
+  const verifyH = 230;
+  ensureRoom(verifyH);
+  currentSection = '';
+  y -= 10;
+  page.drawRectangle({
+    x: LM, y: y - 24,
+    width: W - LM - RM, height: 24,
+    color: GREY,
+  });
+  page.drawRectangle({
+    x: LM, y: y - 24, width: 4, height: 24, color: BRAND,
+  });
+  page.drawText('Verification & Stamping', {
+    x: LM + 12, y: y - 17,
+    size: 12, font: bold, color: INK,
+  });
+  y -= 36;
+
+  // OU block
+  page.drawText('Bound Organisation Unit', {
+    x: LM, y, size: 9, font: bold, color: MUTED,
+  });
+  y -= 14;
+  page.drawText(args.orgUnitLabel || '—', {
+    x: LM, y, size: 11, font: bold, color: INK,
+  });
+  y -= 14;
+  if (args.orgUnitPath) {
+    page.drawText(args.orgUnitPath, {
+      x: LM, y, size: 9, font, color: MUTED,
+    });
+    y -= 12;
+  }
+  y -= 10;
+
+  // Two columns of role fields.
+  const colGap = 20;
+  const colW = (W - LM - RM - colGap) / 2;
+  const sigRowH = 24;
+  const roles: Array<{ title: string; keyBase: string }> = [
+    { title: 'Officer in Charge', keyBase: 'sig_oic' },
+    { title: 'Reviewer / Supervisor', keyBase: 'sig_sup' },
+  ];
+  for (let r = 0; r < roles.length; r++) {
+    const role = roles[r]!;
+    const x = LM + (r * (colW + colGap));
+    page.drawText(role.title, {
+      x, y, size: 9, font: bold, color: INK_SOFT,
+    });
+  }
+  y -= 10;
+
+  const fieldLabels = ['Name', 'Signature', 'Date'];
+  for (const label of fieldLabels) {
+    for (let r = 0; r < roles.length; r++) {
+      const role = roles[r]!;
+      const x = LM + (r * (colW + colGap));
+      page.drawText(label, {
+        x, y: y - 3, size: 8, font, color: MUTED,
+      });
+      const tf = form.createTextField(
+        `${role.keyBase}_${label.toLowerCase()}`);
+      tf.setText('');
+      tf.addToPage(page, {
+        x, y: y - sigRowH + 2,
+        width: colW, height: sigRowH - 6,
+        borderColor: HAIR, borderWidth: 0.6,
+        backgroundColor: rgb(1, 1, 1),
+        font, textColor: INK,
       });
     }
-    const cocText = clampText(row.cocLabel, font, 9, COL_COC_W);
-    page.drawText(cocText, {
-      x: COL_COC, y: rowY + 5, size: 9, font, color: MUTED,
-    });
-    // Editable text field for the value.
-    const safeField = `${row.deId}__${row.cocId}`.replace(/[^A-Za-z0-9_]/g, '_');
-    const tf = form.createTextField('val_' + safeField);
-    tf.setText(row.value ?? '');
-    tf.addToPage(page, {
-      x: COL_VAL, y: rowY, width: COL_VAL_W, height: ROW_H - 4,
-      borderColor: HAIR, borderWidth: 0.5,
-      backgroundColor: rgb(1, 1, 1),
-      font, textColor: INK,
-    });
-    // Comment field — larger, flows across the remaining col width.
-    const cf = form.createTextField('com_' + safeField);
-    cf.enableMultiline();
-    cf.setText(row.comment ?? '');
-    cf.addToPage(page, {
-      x: COL_COM, y: rowY, width: COL_COM_W, height: ROW_H - 4,
-      borderColor: HAIR, borderWidth: 0.5,
-      backgroundColor: rgb(1, 1, 1),
-      font, textColor: INK,
-    });
-    y -= ROW_H;
-    i++;
+    y -= sigRowH + 6;
   }
-  // Signature line + audit footer on the last page.
-  const sigY = Math.max(y - 30, BM + FOOTER_H + 60);
-  page.drawLine({
-    start: { x: LM, y: sigY }, end: { x: LM + 200, y: sigY },
-    thickness: 0.6, color: HAIR,
+
+  // Remarks + OU stamp box side-by-side.
+  y -= 4;
+  const remarksW = colW;
+  const stampW = colW;
+  page.drawText('Remarks', {
+    x: LM, y: y - 3, size: 8, font, color: MUTED,
   });
-  page.drawText('Reviewed by (signature + date)', {
-    x: LM, y: sigY - 10, size: 8.5, font, color: MUTED,
+  page.drawText('OU Stamp', {
+    x: LM + colW + colGap, y: y - 3, size: 8, font, color: MUTED,
+  });
+  const remarksH = 56;
+  const remarks = form.createTextField('remarks');
+  remarks.enableMultiline();
+  remarks.setText('');
+  remarks.addToPage(page, {
+    x: LM, y: y - remarksH + 2,
+    width: remarksW, height: remarksH - 6,
+    borderColor: HAIR, borderWidth: 0.6,
+    backgroundColor: rgb(1, 1, 1),
+    font, textColor: INK,
+  });
+  // Stamp outline (not a field — stamp is physical).
+  page.drawRectangle({
+    x: LM + colW + colGap,
+    y: y - remarksH + 2,
+    width: stampW, height: remarksH - 6,
+    borderColor: HAIR, borderWidth: 0.8,
+  });
+  page.drawText('(Place official OU stamp above)', {
+    x: LM + colW + colGap + stampW/2
+       - font.widthOfTextAtSize('(Place official OU stamp above)', 7.5)/2,
+    y: y - remarksH + 10,
+    size: 7.5, font, color: MUTED,
   });
 
   for (let p = 0; p < pages.length; p++) {
