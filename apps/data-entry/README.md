@@ -24,7 +24,7 @@ From the **Admin UI** → **Settings → App catalogue** → **Install
 app**:
 
 - App key: `data-entry`
-- Display name: `Data entry`
+- Display name: `Data Entry`
 - Module: `Data`
 - Version: `0.1.0-alpha.1`
 - Requires DER API: `1.0.0`

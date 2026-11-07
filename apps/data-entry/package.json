@@ -6,7 +6,7 @@
   "description": "DER-dispatched Aggregate data-entry app (C-UI-5c slice 3). Replaces client/src/screens/AggregateEntry.tsx over the slice-3/4 rollout.",
   "derAppManifest": {
     "appKey": "data-entry",
-    "displayName": "Data entry",
+    "displayName": "Data Entry",
     "module": "Data",
     "version": "0.1.0-alpha.2",
     "requiresDerApi": "1.0.0"
