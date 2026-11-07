@@ -78,6 +78,11 @@ export default function DataEntryApp(): JSX.Element {
   // row-label matches the typed substring. Driven by an input
   // in the toolbar; applied via a DOM walk after every keystroke.
   const [deFilter, setDeFilter] = useState('');
+  // Visible/total row counts, driven by the filter effect. Surfaced
+  // next to the filter clear-button so the operator can see at a
+  // glance how many rows match.
+  const [filterCounts, setFilterCounts] = useState<
+    { visible: number; total: number }>({ visible: 0, total: 0 });
   // Bump after every successful form render so SectionNavigator
   // re-scrapes the headers of the freshly-injected #contentDiv.
   const [formRenderVersion, setFormRenderVersion] = useState(0);
@@ -539,6 +544,7 @@ export default function DataEntryApp(): JSX.Element {
     const qLower = q.toLowerCase();
     const rows = Array.from(root.querySelectorAll<HTMLTableRowElement>(
       'tbody tr'));
+    let visible = 0;
     for (const r of rows) {
       const labelCell = (r.querySelector('.dataElementCell')
         ?? r.querySelector('td')) as HTMLElement | null;
@@ -570,10 +576,14 @@ export default function DataEntryApp(): JSX.Element {
           }
         }
       }
-      if (!q) { r.style.display = ''; continue; }
+      if (!q) { r.style.display = ''; visible++; continue; }
       const text = (labelCell?.textContent ?? '').toLowerCase();
-      r.style.display = text.includes(qLower) ? '' : 'none';
+      const hit = text.includes(qLower);
+      r.style.display = hit ? '' : 'none';
+      if (hit) visible++;
     }
+    setFilterCounts((prev) => (prev.visible === visible && prev.total === rows.length)
+      ? prev : { visible, total: rows.length });
   }, [deFilter, formRenderVersion]);
 
   // Poll the form's outbox envelope state so the cell-details strip
@@ -985,6 +995,19 @@ export default function DataEntryApp(): JSX.Element {
       } else if (ev.code === 'KeyP') {
         ev.preventDefault();
         void exportCurrentFormToPdf();
+      } else if (ev.code === 'KeyM') {
+        // Alt+M opens the comment popover on the live strip for the
+        // currently focused cell. The strip owns the modal state;
+        // clicking its toggle keeps that ownership intact.
+        const btn = document.querySelector<HTMLButtonElement>(
+          '[data-test="de-live-comment-btn"]');
+        if (btn) {
+          ev.preventDefault();
+          btn.click();
+        }
+      } else if (ev.code === 'KeyI') {
+        ev.preventDefault();
+        setInfoOpen((v) => !v);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -1023,7 +1046,7 @@ export default function DataEntryApp(): JSX.Element {
                     className="der-de-toolbar__info-btn"
                     data-test="de-info-btn"
                     aria-label="About this dataset"
-                    title="About this dataset"
+                    title="About this dataset (Alt+I)"
                     onClick={() => setInfoOpen((v) => !v)}>
               <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
                 <circle cx="8" cy="8" r="7" fill="none"
@@ -1128,11 +1151,20 @@ export default function DataEntryApp(): JSX.Element {
                      onChange={(e) => setDeFilter(e.target.value)}
                      data-test="de-filter-input" />
               {deFilter && (
-                <button type="button"
-                        className="der-de-toolbar__filter-clear"
-                        aria-label="Clear filter"
-                        data-test="de-filter-clear"
-                        onClick={() => setDeFilter('')}>×</button>
+                <>
+                  <span className="der-de-toolbar__filter-count"
+                        data-test="de-filter-count"
+                        title={filterCounts.visible === 0
+                          ? 'No data elements match your filter'
+                          : `Showing ${filterCounts.visible} of ${filterCounts.total} rows`}>
+                    {filterCounts.visible}/{filterCounts.total}
+                  </span>
+                  <button type="button"
+                          className="der-de-toolbar__filter-clear"
+                          aria-label="Clear filter"
+                          data-test="de-filter-clear"
+                          onClick={() => setDeFilter('')}>×</button>
+                </>
               )}
             </span>
           </label>
@@ -1277,6 +1309,8 @@ export default function DataEntryApp(): JSX.Element {
                 : 'Open for edits'}
             </span>
           )}
+          <CentralSyncBadge state={formSyncState} />
+
           {dirtyCount > 0 && (
             <button type="button"
                     onClick={saveAllNow}
@@ -2684,8 +2718,8 @@ function CellLiveStrip(
                           ? 'Edit comment on this cell'
                           : 'Add a comment to this cell'}
                         title={details.comment
-                          ? `Comment: ${details.comment}`
-                          : 'Add a comment to this cell'}
+                          ? `Comment: ${details.comment} (Alt+M)`
+                          : 'Add a comment to this cell (Alt+M)'}
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
                           setCommentDraft(details.comment ?? '');
@@ -3102,6 +3136,56 @@ function ValidationIssuesModal(
  * Opened from the actionbar "⌨ Shortcuts" chip or by pressing
  * `?` anywhere on the page (except inside an input).
  */
+function CentralSyncBadge(
+  { state }: { state: FormSyncState },
+): JSX.Element | null {
+  const c = state.central;
+  if (!c) return null;
+  // Map each central envelope state to a short label + tone class.
+  // Tone drives the dot color — green for accepted, amber for
+  // in-flight / retry, red for rejected / quarantined, blue for
+  // conflict / approval (operator action needed).
+  const map: Record<NonNullable<FormSyncState['central']>,
+    { label: string; tone: string }> = {
+      PENDING:          { label: 'Queued for Central',      tone: 'queued' },
+      IN_FLIGHT:        { label: 'Publishing to Central',   tone: 'queued' },
+      RETRYABLE:        { label: 'Retrying Central publish', tone: 'queued' },
+      UNKNOWN_OUTCOME:  { label: 'Central outcome unknown', tone: 'queued' },
+      CENTRAL_ACCEPTED: { label: 'Synced to Central',       tone: 'saved'  },
+      CENTRAL_REJECTED: { label: 'Rejected by Central',     tone: 'error'  },
+      CONFLICT_REVIEW:  { label: 'Conflict · needs review', tone: 'review' },
+      QUARANTINED:      { label: 'Quarantined',             tone: 'error'  },
+      REQUIRES_APPROVAL:{ label: 'Awaiting approval',       tone: 'review' },
+    };
+  const { label, tone } = map[c];
+  const ts = state.updatedAt ? relativeTime(state.updatedAt) : '';
+  return (
+    <span className={'der-de-central-badge der-de-central-badge--' + tone}
+          data-test="de-central-sync-badge"
+          title={state.updatedAt
+            ? label + ' · ' + new Date(state.updatedAt).toLocaleString()
+            : label}>
+      <span className="der-de-central-badge__dot" aria-hidden="true" />
+      <span className="der-de-central-badge__label">{label}</span>
+      {ts && <span className="der-de-central-badge__ts">· {ts}</span>}
+    </span>
+  );
+}
+
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return '';
+  const delta = Math.max(0, Date.now() - then);
+  const s = Math.floor(delta / 1000);
+  if (s < 60)      return 'just now';
+  const m = Math.floor(s / 60);
+  if (m < 60)      return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24)      return h + 'h ago';
+  const d = Math.floor(h / 24);
+  return d + 'd ago';
+}
+
 function ShortcutsPopover(
   { open, onClose }: { open: boolean; onClose: () => void },
 ): JSX.Element | null {
@@ -3129,6 +3213,7 @@ function ShortcutsPopover(
       title: 'Editing',
       rows: [
         ['Paste multi-line', 'Distributes down the COC column'],
+        ['Alt + M', 'Open the comment popover for the focused cell'],
       ],
     },
     {
@@ -3149,6 +3234,7 @@ function ShortcutsPopover(
     {
       title: 'UI',
       rows: [
+        ['Alt + I', 'About this dataset'],
         ['Esc', 'Close an open drawer'],
         ['?', 'Show / hide this cheatsheet'],
       ],
@@ -6208,6 +6294,37 @@ const APP_STYLES = `
   background: #e6f1fb;
   flex: 0 0 auto;
 }
+.der-de-central-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  border: 1px solid #d7dde9;
+  background: #f6f8fc;
+  color: var(--der-ink-700, #263352);
+  white-space: nowrap;
+}
+.der-de-central-badge__dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #94a3b8;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.04);
+}
+.der-de-central-badge--saved  .der-de-central-badge__dot { background: #1E8E4A; }
+.der-de-central-badge--queued .der-de-central-badge__dot { background: #F59E0B; }
+.der-de-central-badge--review .der-de-central-badge__dot { background: #147CD7; }
+.der-de-central-badge--error  .der-de-central-badge__dot { background: #D32F2F; }
+.der-de-central-badge--saved  { border-color: #c6e7d1; background: #ecf7f0; }
+.der-de-central-badge--queued { border-color: #f4d7a2; background: #fff4de; }
+.der-de-central-badge--review { border-color: #cfe1f4; background: #eaf3fc; }
+.der-de-central-badge--error  { border-color: #f1b8b8; background: #fbeaea; }
+.der-de-central-badge__ts {
+  opacity: 0.75;
+  font-weight: 400;
+}
 .der-de-filter-hit {
   background: #fff1dc;
   color: var(--der-ink-900, #101a32);
@@ -6529,6 +6646,20 @@ const APP_STYLES = `
   font-size: 16px;
   padding: 0 4px;
   line-height: 1;
+}
+.der-de-toolbar__filter-count {
+  position: absolute;
+  right: 26px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 500;
+  color: #6e7a8a;
+  background: #eef2f8;
+  padding: 2px 6px;
+  border-radius: 10px;
+  line-height: 1.2;
+  pointer-events: none;
 }
 .der-de-toolbar__field-label {
   font-size: 11px;
