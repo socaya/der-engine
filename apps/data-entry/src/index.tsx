@@ -1880,7 +1880,14 @@ function attachColumnPaste(
     if (values.length === 0) return;
     ev.preventDefault();
     const coc = m[2]!;
-    const column = Array.from(container.querySelectorAll<HTMLInputElement>(
+    // Scope the column to the currently-visible section slot
+    // (one-section-at-a-time nav). Operators expect the paste to
+    // spill into rows they can SEE — not to silently fill hidden
+    // panels. Fall back to the whole container if the form doesn't
+    // use slot-hiding.
+    const slot = (target.closest('[data-section-id]') as HTMLElement | null)
+      ?? container;
+    const column = Array.from(slot.querySelectorAll<HTMLInputElement>(
       `input[name$="-${coc}-val"]`));
     const startIdx = column.indexOf(target);
     if (startIdx === -1) return;
