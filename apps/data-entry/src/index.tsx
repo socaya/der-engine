@@ -474,63 +474,69 @@ export default function DataEntryApp(): JSX.Element {
   }
 
   return (
-    <ScreenCard
-      title="Aggregate data entry"
-      actions={
-        <StatusPill tone={online.isOnline ? 'success' : 'warning'}>
-          {online.isOnline ? 'online' : `offline (${online.queuedCount} queued)`}
-        </StatusPill>
-      }
-    >
+    <ScreenCard dataTest="der-aggregate-entry">
       <style>{APP_STYLES}</style>
 
-      {/* Context strip — three "chips" in DHIS2-Capture style. */}
-      <div className="der-de-context">
-        <div className="der-de-chip">
-          <span className="der-de-chip-label">Organisation unit</span>
-          <span className="der-de-chip-value"
-                title={ou.orgUnitPath || ou.orgUnitUid || ''}>
-            {ou.orgUnitDisplayName || ou.orgUnitUid || '—'}
+      {/* Single toolbar — title + online + OU subtitle + Data set +
+       *  AOC + Period in one sticky line. No chips, no cards, no
+       *  decorative tints — just inline labels + selects. */}
+      <div className="der-de-toolbar" data-test="der-de-toolbar">
+        <div className="der-de-toolbar__head">
+          <h1 className="der-de-toolbar__title">Aggregate data entry</h1>
+          <span className={'der-de-toolbar__status '
+            + (online.isOnline ? 'der-de-toolbar__status--on'
+              : 'der-de-toolbar__status--off')}
+                aria-label={online.isOnline ? 'Online' : 'Offline'}>
+            {online.isOnline ? 'online'
+              : `offline · ${online.queuedCount} queued`}
+          </span>
+          <span className="der-de-toolbar__ou"
+                title={ou.orgUnitPath || ou.orgUnitUid || ''}
+                data-test="de-toolbar-ou">
+            {ou.orgUnitDisplayName || ou.orgUnitUid || 'Not bound to an OU'}
           </span>
         </div>
-        <div className="der-de-chip">
-          <span className="der-de-chip-label">Data set</span>
-          <select className="der-de-select"
-                  value={dataSet}
-                  onChange={(e) => { setDataSet(e.target.value); setPeriod(''); }}
-                  data-test="der-de-dataset-picker">
-            <option value="">Select a data set…</option>
-            {datasetList.map((d) => (
-              <option key={d.id} value={d.id}>{d.label}</option>
-            ))}
-          </select>
-        </div>
-        {aocCategories.map((c) => (
-          <div key={c.id} className="der-de-chip" data-test="de-aoc-chip">
-            <span className="der-de-chip-label">{c.name}</span>
-            <select className="der-de-select"
-                    value={aocSelections[c.id] ?? ''}
-                    onChange={(e) => {
-                      const next = { ...aocSelections, [c.id]: e.target.value };
-                      setAocSelections(next);
-                      aocSelectionsRef.current = next;
-                      syncAocToDom(customRoot.current, next);
-                    }}
-                    data-test="de-aoc-select">
-              <option value="">Select…</option>
-              {c.options.map((o) => (
-                <option key={o.id} value={o.id}>{o.name}</option>
+        <div className="der-de-toolbar__picks">
+          <label className="der-de-toolbar__field">
+            <span className="der-de-toolbar__field-label">Data set</span>
+            <select className="der-de-toolbar__select"
+                    value={dataSet}
+                    onChange={(e) => { setDataSet(e.target.value); setPeriod(''); }}
+                    data-test="der-de-dataset-picker">
+              <option value="">Select a data set…</option>
+              {datasetList.map((d) => (
+                <option key={d.id} value={d.id}>{d.label}</option>
               ))}
             </select>
-          </div>
-        ))}
-        <div className="der-de-chip">
-          <span className="der-de-chip-label">
-            Period {formInfo?.periodType ? `· ${formInfo.periodType}` : ''}
-          </span>
-          <span className="der-de-period-wrap">
-            {renderPeriodPicker(formInfo?.periodType, period, setPeriod)}
-          </span>
+          </label>
+          {aocCategories.map((c) => (
+            <label key={c.id} className="der-de-toolbar__field"
+                   data-test="de-aoc-chip">
+              <span className="der-de-toolbar__field-label">{c.name}</span>
+              <select className="der-de-toolbar__select"
+                      value={aocSelections[c.id] ?? ''}
+                      onChange={(e) => {
+                        const next = { ...aocSelections, [c.id]: e.target.value };
+                        setAocSelections(next);
+                        aocSelectionsRef.current = next;
+                        syncAocToDom(customRoot.current, next);
+                      }}
+                      data-test="de-aoc-select">
+                <option value="">Select…</option>
+                {c.options.map((o) => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </select>
+            </label>
+          ))}
+          <label className="der-de-toolbar__field der-de-toolbar__field--period">
+            <span className="der-de-toolbar__field-label">
+              Period{formInfo?.periodType ? ` · ${formInfo.periodType}` : ''}
+            </span>
+            <span className="der-de-period-wrap">
+              {renderPeriodPicker(formInfo?.periodType, period, setPeriod)}
+            </span>
+          </label>
         </div>
       </div>
 
@@ -3033,48 +3039,87 @@ function isoWeeksInYear(y: number): number {
  * the project rule — 1 px borders, no shadows, minimal radius.
  * Fonts resolve to Roboto via the shell's token stack. */
 const APP_STYLES = `
-.der-de-context {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-  margin: 0 0 16px;
-  padding: 10px 0 12px;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: saturate(140%) blur(6px);
-  border-bottom: 1px solid #e5e9ef;
-  /* ADR-0037 §1.2 — sticky context strip so the operator always
-   * sees which dataset/period/OU/AOC they are editing, even when
-   * scrolling long section forms. 52 px matches the shell topbar
-   * height so the two stack cleanly. */
+/* Single sticky toolbar — replaces the old title + chip strip. */
+.der-de-toolbar {
   position: sticky;
   top: 52px;
   z-index: 5;
+  margin: 0 -20px 12px;
+  padding: 8px 20px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: saturate(140%) blur(6px);
+  border-bottom: 1px solid #e5e9ef;
 }
-.der-de-chip {
+.der-de-toolbar__head {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 12px;
-  background: #f7f8fc;
-  border-radius: 8px;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
 }
-.der-de-chip-signed {
-  background: #eef0f5;
+.der-de-toolbar__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #101a32;
+  letter-spacing: -0.01em;
 }
-.der-de-chip-label {
+.der-de-toolbar__status {
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #6e7a8a;
-  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 10px;
 }
-.der-de-chip-value {
-  font-size: 13px;
-  color: #212934;
-  font-weight: 500;
+.der-de-toolbar__status--on  { background: #e3f7eb; color: #1b8243; }
+.der-de-toolbar__status--off { background: #fef0d8; color: #9b5a00; }
+.der-de-toolbar__ou {
+  margin-left: auto;
+  color: #5b6478;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 320px;
+}
+.der-de-toolbar__picks {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.der-de-toolbar__field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+}
+.der-de-toolbar__field--period {
+  min-width: 260px;
+}
+.der-de-toolbar__field-label {
+  font-size: 11px;
+  color: #6e7a8a;
+  letter-spacing: 0.04em;
+}
+.der-de-toolbar__select {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #d8dee8;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #101a32;
+  font-family: inherit;
+}
+.der-de-toolbar__select:focus {
+  outline: 0;
+  border-color: var(--der-brand-500, #4a55ce);
+  box-shadow: 0 0 0 3px rgba(74, 85, 206, 0.15);
+}
+/* Back-compat kill switch for legacy .der-de-chip classes. */
+.der-de-chip, .der-de-chip-signed,
+.der-de-chip-label, .der-de-chip-value {
+  display: none !important;
 }
 .der-de-select,
 .der-de-period-wrap > * {
