@@ -3044,8 +3044,9 @@ function stepPeriod(
 
 /** Human-friendly label for a period id outside the default window. */
 function formatPeriodLabel(periodType: string | undefined, id: string): string | null {
-  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const MONTH_NAMES = ['January', 'February', 'March', 'April',
+    'May', 'June', 'July', 'August', 'September', 'October',
+    'November', 'December'];
   switch (periodType) {
     case 'Daily': {
       if (!/^\d{8}$/.test(id)) return null;
@@ -3097,8 +3098,9 @@ function buildPeriodOptions(periodType?: string): Array<{ id: string; label: str
   const y = today.getFullYear();
   const m = today.getMonth(); // 0-based
   const pad = (n: number) => String(n).padStart(2, '0');
-  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const MONTH_NAMES = ['January', 'February', 'March', 'April',
+    'May', 'June', 'July', 'August', 'September', 'October',
+    'November', 'December'];
   switch (periodType) {
     case 'Daily': {
       const out: Array<{ id: string; label: string }> = [];
@@ -3779,10 +3781,23 @@ const APP_STYLES = `
 .der-de-custom-form table th,
 .der-de-custom-form table td {
   padding: 4px 8px !important;
-  border: 1px solid #e5e9ef !important;
+  border: 0 !important;
   text-align: left !important;
   vertical-align: middle;
   background: transparent !important;
+}
+.der-de-custom-form .tblep-table thead th,
+.der-de-custom-form table thead th {
+  border-bottom: 2px solid #d8dee8 !important;
+  color: #5b6478 !important;
+  font-weight: 500;
+}
+.der-de-custom-form .tblep-table tbody tr {
+  border: 0 !important;
+}
+.der-de-custom-form .tblep-table tbody tr:hover td,
+.der-de-custom-form .tblep-table tbody tr:focus-within td {
+  background: rgba(13, 46, 92, 0.045) !important;
 }
 .der-de-custom-form .tblep-table th,
 .der-de-custom-form table th {
