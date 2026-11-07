@@ -102,6 +102,18 @@ export default function DataEntryApp(): JSX.Element {
   // having to click around.
   const [saveTick, setSaveTick] = useState(0);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Dataset summary for the toolbar info popover: filled after the
+  // meta effect resolves so the info button can render without
+  // re-fetching + without re-walking the full DataSetBundle on open.
+  const [formSummary, setFormSummary] = useState<{
+    description?: string;
+    sectionCount: number;
+    dataElementCount: number;
+    compulsoryCount: number;
+    validationRuleCount: number;
+    indicatorCount: number;
+  } | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
   // "?" opens shortcuts when the operator isn't typing into an
   // input. A capture-phase listener keeps this out of the cell's
   // own input stream.
@@ -360,6 +372,17 @@ export default function DataEntryApp(): JSX.Element {
           meta,
           aocSelections: seed,
           validationRules: vrResp.validationRules ?? [],
+        });
+        // Freeze a compact summary for the info popover. Uses meta
+        // we already have in hand so the panel can render without
+        // touching the network on open.
+        setFormSummary({
+          description: meta.description,
+          sectionCount: meta.sections?.length ?? 0,
+          dataElementCount: meta.dataSetElements?.length ?? 0,
+          compulsoryCount: meta.compulsoryDataElementOperands?.length ?? 0,
+          validationRuleCount: vrResp.validationRules?.length ?? 0,
+          indicatorCount: meta.indicators?.length ?? 0,
         });
 
         // Vendor CSS baseline (DHIS2's own stack) first so the form
@@ -700,6 +723,22 @@ export default function DataEntryApp(): JSX.Element {
             </svg>
           </span>
           <h1 className="der-de-toolbar__title">Aggregate data entry</h1>
+          {formInfo && formSummary && (
+            <button type="button"
+                    className="der-de-toolbar__info-btn"
+                    data-test="de-info-btn"
+                    aria-label="About this dataset"
+                    title="About this dataset"
+                    onClick={() => setInfoOpen((v) => !v)}>
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <circle cx="8" cy="8" r="7" fill="none"
+                        stroke="currentColor" strokeWidth="1.5" />
+                <circle cx="8" cy="4.5" r="0.9" fill="currentColor" />
+                <path d="M8 7v5" stroke="currentColor" strokeWidth="1.5"
+                      strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
           <span className={'der-de-toolbar__status '
             + (online.isOnline ? 'der-de-toolbar__status--on'
               : 'der-de-toolbar__status--off')}
@@ -920,6 +959,10 @@ export default function DataEntryApp(): JSX.Element {
       )}
       <ShortcutsPopover open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)} />
+      <InfoPopover open={infoOpen}
+        onClose={() => setInfoOpen(false)}
+        formInfo={formInfo}
+        summary={formSummary} />
       <ValidationIssuesModal
         open={issuesOpen}
         issues={issues}
@@ -994,6 +1037,7 @@ const VENDOR_STYLES = [
  *  form.js / entry.js actually read. */
 interface DataSetBundle {
   id: string; name?: string; displayName?: string;
+  description?: string;
   periodType?: string;
   formType?: string;
   version?: number;
@@ -2459,6 +2503,87 @@ function ShortcutsPopover(
             <div key={k} className="der-de-shortcuts__row">
               <dt><kbd>{k}</kbd></dt>
               <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Dataset summary popover — info icon on the toolbar opens this.
+ * Grounds the operator by showing the dataset's name + description
+ * and the structural counts (sections, DEs, compulsory cells,
+ * validation rules, indicators) so a new operator can see at a
+ * glance what they're looking at before they start typing.
+ */
+function InfoPopover(
+  { open, onClose, formInfo, summary }:
+  { open: boolean;
+    onClose: () => void;
+    formInfo: {
+      displayName?: string; periodType?: string;
+      openFuturePeriods?: number; formType?: string;
+    } | null;
+    summary: {
+      description?: string;
+      sectionCount: number;
+      dataElementCount: number;
+      compulsoryCount: number;
+      validationRuleCount: number;
+      indicatorCount: number;
+    } | null },
+): JSX.Element | null {
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [open, onClose]);
+  if (!open || !formInfo || !summary) return null;
+  const openFuture = formInfo.openFuturePeriods ?? 0;
+  const rows: Array<[string, React.ReactNode]> = [
+    ['Period type', formInfo.periodType ?? '—'],
+    ['Form type', formInfo.formType ?? '—'],
+    ['Open future periods', String(openFuture)
+      + (openFuture === 0 ? ' (current period closed)' : '')],
+    ['Sections', String(summary.sectionCount)],
+    ['Data elements', String(summary.dataElementCount)],
+    ['Compulsory cells', String(summary.compulsoryCount)],
+    ['Indicators', String(summary.indicatorCount)],
+    ['Validation rules', String(summary.validationRuleCount)],
+  ];
+  return (
+    <div className="der-de-shortcuts-backdrop"
+         role="dialog"
+         aria-modal="true"
+         aria-label="Dataset info"
+         data-test="de-info-popover"
+         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="der-de-shortcuts der-de-info">
+        <header className="der-de-shortcuts__head">
+          <h3 className="der-de-shortcuts__title"
+              data-test="de-info-title">
+            {formInfo.displayName ?? 'Dataset info'}
+          </h3>
+          <button type="button"
+                  className="der-de-shortcuts__close"
+                  aria-label="Close dataset info"
+                  data-test="de-info-close"
+                  onClick={onClose}>×</button>
+        </header>
+        {summary.description && (
+          <p className="der-de-info__desc"
+             data-test="de-info-desc">{summary.description}</p>
+        )}
+        <dl className="der-de-shortcuts__list">
+          {rows.map(([k, v]) => (
+            <div key={k} className="der-de-shortcuts__row">
+              <dt>{k}</dt>
+              <dd data-test={`de-info-${k.toLowerCase().replace(/\s+/g, '-')}`}>{v}</dd>
             </div>
           ))}
         </dl>
@@ -4248,6 +4373,33 @@ const APP_STYLES = `
   height: 32px;
   background: #e6f1fb;
   flex: 0 0 auto;
+}
+.der-de-toolbar__info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--der-brand-500, #147CD7);
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  transition: color 120ms, background 120ms;
+  border-radius: 4px;
+}
+.der-de-toolbar__info-btn:hover,
+.der-de-toolbar__info-btn:focus-visible {
+  color: var(--der-brand-700, #0a5497);
+  background: #e6f1fb;
+  outline: 0;
+}
+.der-de-info__desc {
+  margin: 0 0 12px;
+  color: var(--der-ink-500, #5b6478);
+  font-size: 13px;
+  line-height: 1.5;
 }
 .der-de-toolbar__title {
   margin: 0;
