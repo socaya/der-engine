@@ -3124,40 +3124,41 @@ const APP_STYLES = `
 .der-de-select,
 .der-de-period-wrap > * {
   font-size: 13px;
-  padding: 6px 8px;
-  border: 1px solid #d7dde5;
-  border-radius: 2px;
-  background: #fff;
-  color: #212934;
-  width: 100%;
   font-family: inherit;
 }
 .der-de-select:focus,
 .der-de-period-wrap > *:focus {
   outline: none;
-  border-color: #2c6693;
+  border-color: var(--der-brand-500, #4a55ce);
 }
+/* Compound prev-[select]-next. No wrapping border; each child
+ * carries its own 1 px outline so the three items read as one
+ * unit without a second enclosing frame. */
 .der-de-period-nav {
   display: inline-flex;
-  gap: 4px;
+  gap: 2px;
   align-items: center;
   width: 100%;
 }
 .der-de-period-nav select {
   flex: 1 1 auto;
+  padding: 4px 8px;
+  border: 1px solid #d8dee8;
+  background: #fff;
+  color: #101a32;
+  border-radius: 4px;
 }
 .der-de-period-btn {
-  background: #fff;
-  border: 1px solid #d7dde5;
-  color: #2c6693;
+  background: transparent;
+  border: 0;
+  color: #4a55ce;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
-  border-radius: 2px;
   line-height: 1;
 }
 .der-de-period-btn:hover:not(:disabled) {
-  background: #e4edf6;
+  color: #2c3597;
 }
 .der-de-period-btn:disabled {
   color: #c0c7d2;
@@ -3172,23 +3173,35 @@ const APP_STYLES = `
   border: 1px dashed #d7dde5;
   border-radius: 3px;
 }
+/* Layout envelope — the AppHost's ScreenCard body is a flex
+ * column whose height fills the viewport below the shell topbar
+ * + sticky toolbar. The form card grows to fill the remaining
+ * space (flex: 1) so a short form still pushes the actionbar to
+ * the screen bottom; a long form grows the column naturally and
+ * the actionbar follows the content (not the viewport). */
+.der-apphost .der-screen-card__body {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - var(--der-topbar-h, 52px));
+}
 .der-de-form-card {
   padding: 0;
   background: transparent;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.der-de-form-split {
+  flex: 1 1 auto;
 }
 .der-de-actionbar {
-  position: sticky;
-  bottom: 0;
-  z-index: 6;
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 -24px;
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: saturate(140%) blur(6px);
+  margin: 12px -20px 0;
+  padding: 12px 20px;
+  background: #fff;
   border-top: 1px solid #e5e9ef;
-  box-shadow: 0 -2px 6px rgba(16, 26, 50, 0.04);
 }
 .der-de-savepill {
   margin-right: auto;
