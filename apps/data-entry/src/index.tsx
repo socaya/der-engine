@@ -554,6 +554,10 @@ export default function DataEntryApp(): JSX.Element {
               {renderPeriodPicker(formInfo?.periodType, period, setPeriod)}
             </span>
           </label>
+          <div className="der-de-toolbar__cell-info">
+            <CellLiveStrip root={customRoot} details={details}
+                            formVersion={formRenderVersion} />
+          </div>
         </div>
       </div>
 
@@ -605,8 +609,6 @@ export default function DataEntryApp(): JSX.Element {
 
       {formReady && mode === 'custom' && (
         <div className={`der-de-form-card der-de-density-${density}`}>
-          <CellLiveStrip root={customRoot} details={details}
-                          formVersion={formRenderVersion} />
           <div className="der-de-form-split">
             <SectionNavigator targetRef={customRoot} formVersion={formRenderVersion} />
             <div ref={customRoot}
@@ -1809,34 +1811,11 @@ function SaveStatePill(
  * Empty state (no cell focused yet) shows a quiet prompt.
  */
 function CellLiveStrip(
-  { root, details, formVersion }:
+  { details }:
   { root: RefObject<HTMLDivElement | null>;
     details: CellDetails | null;
     formVersion: number },
 ): JSX.Element {
-  const [sectionName, setSectionName] = useState<string>('');
-
-  // Re-scan the section headings every render pass + whenever
-  // the active section slot changes display state.
-  useEffect(() => {
-    const el = root.current;
-    if (!el) return;
-    const read = (): void => {
-      const slots = Array.from(el.querySelectorAll<HTMLElement>(
-        '[data-section-id]'));
-      const active = slots.find((s) => s.style.display !== 'none');
-      if (!active) { setSectionName(''); return; }
-      const h = active.querySelector('h2, h3, h4');
-      setSectionName((h?.textContent ?? '').trim());
-    };
-    read();
-    // Watch the active slot's display attribute via a short
-    // polling interval — simpler than a MutationObserver chain
-    // and the tracked state is rare + cheap to recompute.
-    const id = window.setInterval(read, 400);
-    return () => window.clearInterval(id);
-  }, [root, formVersion]);
-
   const stateLabel: Record<CellDetails['saveState'], string> = {
     empty: 'No value yet',
     saving: 'Saving…',
@@ -1850,9 +1829,6 @@ function CellLiveStrip(
   };
   return (
     <div className="der-de-live-strip" data-test="de-live-strip">
-      <div className="der-de-live-strip__section">
-        {sectionName || 'Pick a section'}
-      </div>
       <div className="der-de-live-strip__cell" data-test="de-live-cell">
         {details ? (
           <>
@@ -3303,25 +3279,22 @@ const APP_STYLES = `
   font-size: 0.92em;
 }
 
-/* Top-row live strip — replaces the right-rail Cell Details
- * drawer. Left shows the active section heading; right shows
- * DE · COC · Value · Save state for the focused cell, updating
- * as the operator tabs between cells. */
+/* Inline live strip — mounted on the right of the picks row
+ * (Dataset · AOC · Period). No row of its own; shares the
+ * baseline of the selects. */
+.der-de-toolbar__cell-info {
+  margin-left: auto;
+  align-self: flex-end;
+  padding-bottom: 4px;
+  max-width: 560px;
+  overflow: hidden;
+}
 .der-de-live-strip {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 6px 0 10px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--der-border, #d8dee8);
-  font-size: 13px;
+  gap: 8px;
+  font-size: 12px;
   color: var(--der-ink-700, #2a3447);
-}
-.der-de-live-strip__section {
-  font-weight: 500;
-  color: var(--der-ink-900, #101a32);
-  flex: 0 0 auto;
 }
 .der-de-live-strip__cell {
   display: inline-flex;
