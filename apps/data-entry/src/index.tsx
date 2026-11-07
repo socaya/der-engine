@@ -3083,16 +3083,17 @@ const APP_STYLES = `
   background: transparent !important;
 }
 .der-apphost .der-de-form-card .sectionTable thead th {
-  background: #fff !important;
+  background: #f4f6fa !important;
   color: var(--der-ink-700, #2a3447);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
-  border-bottom: 2px solid var(--der-border, #d8dee8) !important;
+  border-bottom: 1px solid var(--der-border, #d8dee8) !important;
   text-align: left;
 }
 .der-apphost .der-de-form-card .sectionTable .dataElementCell {
+  background: #f7f8fc !important;
   color: var(--der-ink-900, #101a32);
   font-weight: 500;
   min-width: 220px;
@@ -3103,6 +3104,36 @@ const APP_STYLES = `
 .der-apphost .der-de-form-card .sectionTable tbody tr:hover td,
 .der-apphost .der-de-form-card .sectionTable tbody tr:focus-within td {
   background: rgba(13, 46, 92, 0.045) !important;
+}
+/* Blocked / not-applicable cells — DHIS2 greyedFields. Soft
+ * neutral background + slash pattern so they read as "cannot
+ * be edited" without yelling for attention. */
+.der-apphost .der-de-form-card .sectionTable td.greyed {
+  background: repeating-linear-gradient(
+    45deg,
+    #eef0f5,
+    #eef0f5 6px,
+    #e5e9ef 6px,
+    #e5e9ef 7px
+  ) !important;
+  color: #9097a8 !important;
+  text-align: center;
+}
+/* Indicator rows — computed values, not editable. Soft tint
+ * aligned with the thead so they read as "same family as the
+ * header row". */
+.der-apphost .der-de-form-card .sectionTable tr.indicatorRow td {
+  background: #f4f6fa !important;
+  font-weight: 500;
+  color: var(--der-ink-700, #2a3447);
+}
+/* Total / readonly cells (e.g. TBLP's "Total across all breakdown"
+ * input). */
+.der-apphost .der-de-custom-form input[readonly],
+.der-apphost .der-de-form-card input[readonly] {
+  background: #f4f6fa !important;
+  color: var(--der-ink-500, #5b6478) !important;
+  cursor: default;
 }
 .der-apphost .der-de-form-card .sectionTable input[type="text"] {
   width: 100%;
