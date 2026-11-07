@@ -15,20 +15,25 @@
  * them via var() so the palette swaps in one place.
  */
 :root {
-  /* brand — indigo */
-  --der-brand-50:  #eef1ff;
-  --der-brand-100: #dde2ff;
-  --der-brand-300: #aab2ff;
-  --der-brand-500: #4a55ce;
-  --der-brand-600: #3a45b3;
-  --der-brand-700: #2c3597;
-  --der-brand-800: #1f2779;
+  /* brand — DHIS2 blue (#147CD7), the same hue the sign-in InputField
+   * focus ring uses. Operators learn one accent colour across the
+   * stack: focus borders, primary buttons, topbar chrome, selection
+   * pills and the data-entry filter all share this palette. */
+  --der-brand-50:  #e6f1fb;
+  --der-brand-100: #c7dff6;
+  --der-brand-300: #78b4e9;
+  --der-brand-500: #147CD7;
+  --der-brand-600: #0f68b7;
+  --der-brand-700: #0a5497;
+  --der-brand-800: #083f72;
 
-  /* chrome (topbar / dark panes) — deep navy */
-  --der-chrome-bg:    #10243d;
-  --der-chrome-alt:   #14304f;
-  --der-chrome-fg:    #e9f3ff;
-  --der-chrome-muted: #9ab6d8;
+  /* chrome (topbar / dark panes) — DHIS2 blue, deepened for ink
+   * legibility. Matches the primary accent so the topbar reads
+   * as part of the brand surface instead of a third colour. */
+  --der-chrome-bg:    #0a5497;
+  --der-chrome-alt:   #083f72;
+  --der-chrome-fg:    #eaf3fc;
+  --der-chrome-muted: #a9c7e3;
 
   /* accent (sync pills / online indicators) — cyan */
   --der-accent-500: #06b6d4;

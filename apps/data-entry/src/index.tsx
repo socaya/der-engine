@@ -685,15 +685,15 @@ export default function DataEntryApp(): JSX.Element {
           <span className="der-de-toolbar__brand" aria-hidden="true">
             <svg viewBox="0 0 128 128" width="26" height="26">
               <rect x="18" y="22" width="92" height="84" rx="6"
-                    fill="#eef1ff" stroke="#4a55ce" stroke-width="5" />
+                    fill="#e6f1fb" stroke="#147CD7" stroke-width="5" />
               <line x1="18" y1="44" x2="110" y2="44"
-                    stroke="#4a55ce" stroke-width="5" />
+                    stroke="#147CD7" stroke-width="5" />
               <line x1="30" y1="60" x2="80" y2="60"
-                    stroke="#4a55ce" stroke-width="3" />
+                    stroke="#147CD7" stroke-width="3" />
               <line x1="30" y1="76" x2="90" y2="76"
-                    stroke="#4a55ce" stroke-width="3" />
+                    stroke="#147CD7" stroke-width="3" />
               <line x1="30" y1="92" x2="70" y2="92"
-                    stroke="#4a55ce" stroke-width="3" />
+                    stroke="#147CD7" stroke-width="3" />
             </svg>
           </span>
           <h1 className="der-de-toolbar__title">Aggregate data entry</h1>
@@ -3293,8 +3293,8 @@ const inputStyle = {
   borderRadius: 0, fontSize: 13, fontFamily: 'inherit',
 };
 const primaryBtn = {
-  padding: '6px 16px', border: '1px solid #1f4d70',
-  background: '#2c6693', color: '#fff',
+  padding: '6px 16px', border: '1px solid #0a5497',
+  background: '#147CD7', color: '#fff',
   borderRadius: 0, fontSize: 13, fontWeight: 500, cursor: 'pointer',
 };
 const secondaryBtn = {
@@ -3954,7 +3954,7 @@ const APP_STYLES = `
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: #eef1ff;
+  background: #e6f1fb;
   flex: 0 0 auto;
 }
 .der-de-toolbar__title {
@@ -4041,8 +4041,8 @@ const APP_STYLES = `
 .der-de-toolbar__filter-input:hover { border-color: #9aa3b8; }
 .der-de-toolbar__filter-input:focus {
   outline: 0;
-  border-color: var(--der-brand-500, #4a55ce);
-  box-shadow: 0 0 0 1px var(--der-brand-500, #4a55ce);
+  border-color: #147CD7;
+  box-shadow: inset 0 0 0 2px #147CD7;
 }
 .der-de-toolbar__filter-clear {
   position: absolute;
@@ -4087,8 +4087,8 @@ const APP_STYLES = `
 .der-de-toolbar__select:focus,
 .der-apphost .der-de-period-nav select:focus {
   outline: 0;
-  border-color: var(--der-brand-500, #4a55ce);
-  box-shadow: 0 0 0 1px var(--der-brand-500, #4a55ce);
+  border-color: #147CD7;
+  box-shadow: inset 0 0 0 2px #147CD7;
 }
 /* Back-compat kill switch for legacy .der-de-chip classes. */
 .der-de-chip, .der-de-chip-signed,
@@ -4103,7 +4103,7 @@ const APP_STYLES = `
 .der-de-select:focus,
 .der-de-period-wrap > *:focus {
   outline: none;
-  border-color: var(--der-brand-500, #4a55ce);
+  border-color: var(--der-brand-500, #147CD7);
 }
 /* Compound prev-[select]-next. No wrapping border; each child
  * carries its own 1 px outline so the three items read as one
@@ -4125,7 +4125,7 @@ const APP_STYLES = `
 .der-de-period-btn {
   background: transparent;
   border: 0;
-  color: #4a55ce;
+  color: #147CD7;
   padding: 4px 8px;
   font-size: 13px;
   cursor: pointer;
@@ -4283,8 +4283,8 @@ const APP_STYLES = `
 }
 .der-de-section-nav__item--active {
   background: #eef4fa;
-  border-left-color: #2c6693;
-  color: #1f4d70;
+  border-left-color: #147CD7;
+  color: #0a5497;
   font-weight: 500;
 }
 /* One section at a time. Each slot stretches to fill the form
@@ -4302,7 +4302,7 @@ const APP_STYLES = `
   margin: 0 0 8px;
   font-size: 16px;
   font-weight: 500;
-  color: #1f4d70;
+  color: #0a5497;
   border-bottom: 1px solid #e5e9ef;
   padding-bottom: 6px;
 }
@@ -4513,7 +4513,7 @@ const APP_STYLES = `
 .der-de-form-card .sectionTable tbody tr:focus-within
   .dataElementCell,
 .der-de-custom-form table tbody tr:focus-within td:first-child {
-  color: #1f2779;
+  color: #083f72;
   font-weight: 500;
 }
 /* Custom-form author inputs inherit the same visual language as
@@ -4700,7 +4700,7 @@ const APP_STYLES = `
 .der-de-validation__jump-btn {
   background: transparent;
   border: 0;
-  color: #4a55ce;
+  color: #147CD7;
   font-size: 12px;
   cursor: pointer;
 }
@@ -4735,7 +4735,7 @@ const APP_STYLES = `
   margin: 0;
   font-size: 14px;
   font-weight: 500;
-  color: #1f2779;
+  color: #083f72;
 }
 .der-de-shortcuts__close {
   background: transparent; border: 0; cursor: pointer;
@@ -4816,7 +4816,7 @@ const APP_STYLES = `
 .der-de-details-drawer__de {
   font-size: 14px;
   font-weight: 500;
-  color: #1f2779;
+  color: #083f72;
   margin-bottom: 6px;
 }
 .der-de-details-drawer__compulsory {
@@ -4976,9 +4976,9 @@ const APP_STYLES = `
 function tabBtn(active: boolean): React.CSSProperties {
   return {
     padding: '6px 12px',
-    background: active ? '#2c6693' : 'transparent',
-    color: active ? '#fff' : '#2c6693',
-    border: '1px solid #2c6693',
+    background: active ? '#147CD7' : 'transparent',
+    color: active ? '#fff' : '#147CD7',
+    border: '1px solid #147CD7',
     borderRadius: 0, fontSize: 13, cursor: 'pointer',
   };
 }
