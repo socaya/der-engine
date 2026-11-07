@@ -433,6 +433,7 @@ export default function DataEntryApp(): JSX.Element {
         attachKeyboardNav(content);
         attachColumnPaste(content, setStatus);
         attachMatrixTotals(content);
+        attachRowTotals(content);
         attachDetailsSpy(content, meta, setDetails);
         // §FR-09 — mark every (de, coc) listed in
         // compulsoryDataElementOperands so runValidation + the
@@ -1286,6 +1287,10 @@ function renderSectionForm(meta: DataSetBundle): string {
       // 6 cells (Age) each spanning 1. If we can't derive the
       // nesting (missing metadata), fall back to a single flat row.
       const nestedHeaders = buildNestedHeaders(cats, cocs);
+      // Slice 55 — surface a live row-sum column on matrix sections
+      // (2+ COCs per row). Single-COC sections skip the column
+      // because the total would just mirror the lone value.
+      const withRowTotal = cocs.length >= 2;
       parts.push('<thead>');
       if (nestedHeaders.length > 0) {
         for (let i = 0; i < nestedHeaders.length; i++) {
@@ -1297,12 +1302,19 @@ function renderSectionForm(meta: DataSetBundle): string {
           for (const h of nestedHeaders[i] ?? []) {
             parts.push(`<th colspan="${h.span}">${esc(h.label)}</th>`);
           }
+          if (i === 0 && withRowTotal) {
+            parts.push(`<th class="der-de-row-total-cell" `
+              + `rowspan="${nestedHeaders.length}">Total</th>`);
+          }
           parts.push('</tr>');
         }
       } else {
         parts.push('<tr>');
         parts.push(`<th class="dataElementCell">${'Data elements'}</th>`);
         for (const c of cocs) parts.push(`<th>${esc(c.name ?? '')}</th>`);
+        if (withRowTotal) {
+          parts.push('<th class="der-de-row-total-cell">Total</th>');
+        }
         parts.push('</tr>');
       }
       parts.push('</thead><tbody>');
@@ -1320,18 +1332,24 @@ function renderSectionForm(meta: DataSetBundle): string {
               + ` optioncomboid="${esc(c.id)}"></td>`);
           }
         }
+        if (withRowTotal) {
+          parts.push(`<td class="der-de-row-total-cell" `
+            + `data-de-row-total="${esc(de.id)}">—</td>`);
+        }
         parts.push('</tr>');
       }
       // Indicator rows — one per indicator in the section. Input
       // name="indicator" + indicatorid attribute is what
       // entry.js's updateIndicators() queries. Span across COCs
-      // via colspan so the row looks aligned with data rows.
+      // + the trailing row-total column so the row still spans
+      // the full table.
       for (const iref of section.indicators ?? []) {
         const ind = indicatorsById[iref.id];
         if (!ind) continue;
+        const span = withRowTotal ? cocs.length + 1 : cocs.length;
         parts.push('<tr class="indicatorRow">');
         parts.push(`<td class="dataElementCell">${esc(ind.name ?? ind.id)}</td>`);
-        parts.push(`<td colspan="${cocs.length}">`
+        parts.push(`<td colspan="${span}">`
           + `<input type="text" name="indicator" indicatorid="${esc(ind.id)}"`
           + ' readonly></td>');
         parts.push('</tr>');
@@ -2772,6 +2790,49 @@ function attachMatrixTotals(container: HTMLElement): void {
 }
 
 /**
+ * Live per-row total column on matrix sections (renderSectionForm
+ * appends a trailing `td.der-de-row-total-cell[data-de-row-total]`
+ * on every DE row when the section has ≥ 2 COCs). Sums every
+ * numeric value in the row and writes it into the trailing cell;
+ * refreshes on every input event. Empty rows read "—" so the
+ * operator can tell at a glance which rows have nothing captured.
+ */
+function attachRowTotals(container: HTMLElement): void {
+  const cells = Array.from(container.querySelectorAll<HTMLElement>(
+    'td.der-de-row-total-cell[data-de-row-total]'));
+  if (cells.length === 0) return;
+  const recompute = (cell: HTMLElement): void => {
+    const row = cell.closest('tr');
+    if (!row) return;
+    let sum = 0;
+    let any = false;
+    for (const input of Array.from(
+        row.querySelectorAll<HTMLInputElement>('input[name$="-val"]'))) {
+      const raw = input.value.trim();
+      if (raw === '') continue;
+      const v = Number(raw);
+      if (Number.isFinite(v)) { sum += v; any = true; }
+    }
+    if (!any) {
+      cell.textContent = '—';
+      return;
+    }
+    cell.textContent = Number.isInteger(sum)
+      ? String(sum) : sum.toFixed(2);
+  };
+  for (const cell of cells) recompute(cell);
+  container.addEventListener('input', (ev) => {
+    const t = ev.target as HTMLInputElement | null;
+    if (!t || t.tagName !== 'INPUT') return;
+    if (!/-val$/.test(t.getAttribute('name') ?? '')) return;
+    const row = t.closest('tr');
+    const cell = row?.querySelector<HTMLElement>(
+      'td.der-de-row-total-cell[data-de-row-total]');
+    if (cell) recompute(cell);
+  }, true);
+}
+
+/**
  * Flag every value input whose (dataElement, categoryOptionCombo)
  * identity appears in meta.compulsoryDataElementOperands. DHIS2's
  * dimensionItem is "deId.cocId". The input gains
@@ -3949,6 +4010,22 @@ const APP_STYLES = `
   background: #f0f3fb !important;
   font-weight: 500;
   color: var(--der-ink-700, #2a3447);
+}
+.der-apphost .der-de-form-card .sectionTable th.der-de-row-total-cell,
+.der-apphost .der-de-form-card .sectionTable td.der-de-row-total-cell {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--der-ink-700, #2a3447);
+  background: #f6f8fd !important;
+  border-left: 1px solid var(--der-brand-100, #c7dff6) !important;
+  padding: 3px 10px !important;
+  min-width: 48px;
+}
+.der-apphost .der-de-form-card .sectionTable th.der-de-row-total-cell {
+  color: var(--der-ink-900, #101a32);
+  font-weight: 500;
+  background: transparent !important;
 }
 /* Matrix title total badge — "(Total: 19)" appended to the
  * title of each disaggregated matrix. Updates live from input
