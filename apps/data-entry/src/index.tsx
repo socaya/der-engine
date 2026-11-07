@@ -1027,6 +1027,22 @@ function renderSectionForm(meta: DataSetBundle): string {
       // cells carry position:sticky so column + row names remain
       // visible as the grid moves.
       parts.push('<div class="der-de-table-scroll">');
+      // Surface the full disaggregation inline above the table so
+      // the operator can see what categories drive the nested
+      // header rows (e.g. "Breakdown · Age · Sex"). For a
+      // default/1-option combo the caption is suppressed.
+      if (cats.length > 0) {
+        const catNames = cats.map((c) => esc(c.name ?? c.id))
+          .filter((n) => n.length > 0);
+        if (catNames.length > 0) {
+          parts.push(
+            '<div class="der-de-combo-caption">'
+            + '<span class="der-de-combo-caption__key">Breakdown</span>'
+            + catNames.map((n) =>
+                `<span class="der-de-combo-caption__val">${n}</span>`).join('')
+            + '</div>');
+        }
+      }
       parts.push(`<table class="sectionTable" cellspacing="0">`);
       // Nested column headers: one <tr> per category, each cell
       // spans the width of its options' slice across COCs. For a
@@ -3083,7 +3099,7 @@ const APP_STYLES = `
   background: transparent !important;
 }
 .der-apphost .der-de-form-card .sectionTable thead th {
-  background: #f4f6fa !important;
+  background: #fafbfd !important;
   color: var(--der-ink-700, #2a3447);
   font-size: 13px;
   font-weight: 500;
@@ -3091,6 +3107,37 @@ const APP_STYLES = `
   text-transform: none;
   border-bottom: 1px solid var(--der-border, #d8dee8) !important;
   text-align: left;
+}
+.der-apphost .der-de-form-card .sectionTable tr.indicatorRow td {
+  background: #fafbfd !important;
+  font-weight: 500;
+  color: var(--der-ink-700, #2a3447);
+}
+/* Combo caption — "Breakdown · Age · Sex" surfaced above the
+ * table so the matrix disaggregation is visible even without
+ * reading the headers in order. */
+.der-de-combo-caption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 8px;
+  font-size: 12px;
+  color: var(--der-ink-500, #5b6478);
+}
+.der-de-combo-caption__key {
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 10px;
+  color: var(--der-ink-500, #5b6478);
+}
+.der-de-combo-caption__val {
+  color: var(--der-ink-700, #2a3447);
+  font-weight: 500;
+}
+.der-de-combo-caption__val + .der-de-combo-caption__val::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--der-ink-300, #9097a8);
 }
 .der-apphost .der-de-form-card .sectionTable .dataElementCell {
   background: #f7f8fc !important;
@@ -3122,11 +3169,6 @@ const APP_STYLES = `
 /* Indicator rows — computed values, not editable. Soft tint
  * aligned with the thead so they read as "same family as the
  * header row". */
-.der-apphost .der-de-form-card .sectionTable tr.indicatorRow td {
-  background: #f4f6fa !important;
-  font-weight: 500;
-  color: var(--der-ink-700, #2a3447);
-}
 /* Total / readonly cells (e.g. TBLP's "Total across all breakdown"
  * input). */
 .der-apphost .der-de-custom-form input[readonly],
@@ -3630,12 +3672,13 @@ const APP_STYLES = `
   box-shadow: 0 0 0 3px rgba(74, 85, 206, 0.15);
 }
 .der-de-form-card h3.formSection {
-  margin: 0 0 4px;
-  font-size: 15px;
+  margin: 0 0 8px;
+  padding: 0;
+  font-size: 16px;
   font-weight: 500;
-  color: #1f4d70;
-  border-bottom: 1px solid #d7dde5;
-  padding-bottom: 4px;
+  color: var(--der-ink-900, #101a32);
+  border: 0;
+  letter-spacing: -0.01em;
 }
 /* Compact density — the default. Dense enough to show large
    multi-dimensional disaggregations without a horizontal
