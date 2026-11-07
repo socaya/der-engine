@@ -81,7 +81,9 @@ public class DataValueSetsController {
         // without fanning out an N+1 lookup per cell.
         final Set<UUID> submitterIds = new HashSet<>();
         for (final AggregateDataValue v : rows) {
-            if (v.submittedBy() != null) submitterIds.add(v.submittedBy());
+            if (v.submittedBy() != null) {
+                submitterIds.add(v.submittedBy());
+            }
         }
         final Map<UUID, String> usernameByUserId = resolveUsernames(submitterIds);
         final List<Map<String, Object>> dataValues = new ArrayList<>(rows.size());
@@ -98,7 +100,9 @@ public class DataValueSetsController {
             // the readable name without a second round-trip.
             m.put("stored_by", v.submittedBy().toString());
             final String username = usernameByUserId.get(v.submittedBy());
-            if (username != null) m.put("stored_by_username", username);
+            if (username != null) {
+                m.put("stored_by_username", username);
+            }
             m.put("lastUpdated", v.submittedAt().toString());
             dataValues.add(m);
         }
@@ -220,7 +224,9 @@ public class DataValueSetsController {
         final Object[] args = new Object[ids.size()];
         int i = 0;
         for (final UUID id : ids) {
-            if (i > 0) placeholders.append(',');
+            if (i > 0) {
+                placeholders.append(',');
+            }
             placeholders.append('?');
             args[i++] = id;
         }
