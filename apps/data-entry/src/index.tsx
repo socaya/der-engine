@@ -2102,6 +2102,23 @@ function CellLiveStrip(
                   + `der-de-live-strip__state--${stateTone[details.saveState]}`}>
                   {stateLabel[details.saveState]}
                 </span>
+                {(details.lastUpdated || details.lastUpdatedBy) && (
+                  <>
+                    <span className="der-de-live-strip__sep">·</span>
+                    <span className="der-de-live-strip__audit"
+                          data-test="de-live-audit"
+                          title={details.lastUpdated
+                            ? new Date(details.lastUpdated).toLocaleString()
+                            : undefined}>
+                      {details.lastUpdated
+                        ? fmtRelativeTime(details.lastUpdated)
+                        : 'earlier'}
+                      {details.lastUpdatedBy && (
+                        <> by <strong>{details.lastUpdatedBy}</strong></>
+                      )}
+                    </span>
+                  </>
+                )}
               </>
             )}
             <SyncLogos formSync={formSync} cellState={details.saveState} />
@@ -2422,6 +2439,11 @@ export interface CellDetails {
   readonly saveState: 'empty' | 'saving' | 'saved' | 'queued' | 'error';
   readonly inputName: string;
   readonly compulsory: boolean;
+  /** ISO timestamp of the most recent server-side write for this cell,
+   *  stamped onto the input as `data-updated` by the prefill pass. */
+  readonly lastUpdated?: string;
+  /** Username of the operator who made that write. */
+  readonly lastUpdatedBy?: string;
 }
 
 /**
@@ -3034,6 +3056,8 @@ function attachDetailsSpy(
       saveState: state,
       inputName: name,
       compulsory: input.getAttribute('data-compulsory') === '1',
+      lastUpdated: input.getAttribute('data-updated') ?? undefined,
+      lastUpdatedBy: input.getAttribute('data-updated-by') ?? undefined,
     };
   };
   container.addEventListener('focusin', (ev) => {
@@ -3226,10 +3250,12 @@ async function prefillExistingValues(
   orgUnit: string,
   api: { readAggregateValues: (ou: string, pe: string, limit?: number) =>
     Promise<{ dataValues: Array<{ dataElement?: string;
-      categoryOptionCombo?: string; value?: string }> }> },
+      categoryOptionCombo?: string; value?: string;
+      lastUpdated?: string; storedByUsername?: string }> }> },
 ): Promise<void> {
   if (!dataSet || !period || !orgUnit) return;
-  let rows: Array<{ dataElement?: string; categoryOptionCombo?: string; value?: string }>;
+  let rows: Array<{ dataElement?: string; categoryOptionCombo?: string;
+    value?: string; lastUpdated?: string; storedByUsername?: string }>;
   try {
     const r = await api.readAggregateValues(orgUnit, period, 2000);
     rows = r.dataValues ?? [];
@@ -3241,8 +3267,43 @@ async function prefillExistingValues(
     if (!de || !coc || value == null) continue;
     const input = container.querySelector<HTMLInputElement>(
       `input[name="${de}-${coc}-val"]`);
-    if (input) input.value = value;
+    if (!input) continue;
+    input.value = value;
+    // Stamp the audit trail from the readback so attachDetailsSpy
+    // can surface "Saved {ago} by {user}" on the cell-details
+    // strip + the browser native title tooltip picks up the same
+    // text on hover.
+    if (row.lastUpdated) {
+      input.setAttribute('data-updated', row.lastUpdated);
+    }
+    if (row.storedByUsername) {
+      input.setAttribute('data-updated-by', row.storedByUsername);
+    }
+    // Title stays unset here — attachLiveValidation owns the
+    // title attribute (sets it to the validation reason on failing
+    // keystrokes, clears it on valid ones). The audit trail lives
+    // on the cell-details strip instead.
   }
+}
+
+/**
+ * Short relative-time label for the audit tooltip. Falls back to the
+ * raw ISO string when the input is malformed so the operator still
+ * gets context rather than an empty tooltip.
+ */
+function fmtRelativeTime(iso: string): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return iso;
+  const diff = Date.now() - t;
+  if (diff < 0) return new Date(t).toLocaleString();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days} d ago`;
+  return new Date(t).toLocaleDateString();
 }
 
 function loadScript(src: string): Promise<void> {
@@ -3911,6 +3972,14 @@ const APP_STYLES = `
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+.der-de-live-strip__audit {
+  color: var(--der-ink-500, #5b6478);
+  font-size: 12px;
+}
+.der-de-live-strip__audit strong {
+  color: var(--der-ink-700, #2a3447);
+  font-weight: 500;
 }
 .der-de-sync-logos {
   display: inline-flex;

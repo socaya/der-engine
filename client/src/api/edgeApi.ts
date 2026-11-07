@@ -516,12 +516,27 @@ export interface AggregateReadbackRow {
   attributeOptionCombo: string;
   value: string;
   lastUpdated?: string;
+  storedBy?: string;
+  storedByUsername?: string;
 }
 
-export function readAggregateValues(orgUnit: string, period: string, limit = 500):
-    Promise<{ dataValues: AggregateReadbackRow[] }> {
+export async function readAggregateValues(
+  orgUnit: string, period: string, limit = 500,
+): Promise<{ dataValues: AggregateReadbackRow[] }> {
   const q = new URLSearchParams({ orgUnit, period, limit: String(limit) }).toString();
-  return request<{ dataValues: AggregateReadbackRow[] }>('GET', `/api/dataValueSets?${q}`);
+  // DER's wire shape uses the DHIS2-native stored_by + a sibling
+  // stored_by_username. Normalise to our camelCase surface so the
+  // data-entry app can render the audit tooltip without knowing
+  // the server's field names.
+  const raw = await request<{ dataValues: Array<AggregateReadbackRow
+      & { 'stored_by'?: string; 'stored_by_username'?: string }> }>(
+    'GET', `/api/dataValueSets?${q}`);
+  const dataValues = (raw.dataValues ?? []).map((r) => ({
+    ...r,
+    storedBy: r.storedBy ?? r['stored_by'],
+    storedByUsername: r.storedByUsername ?? r['stored_by_username'],
+  }));
+  return { dataValues };
 }
 
 /**

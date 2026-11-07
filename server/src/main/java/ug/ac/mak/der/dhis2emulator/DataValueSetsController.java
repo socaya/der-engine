@@ -3,9 +3,13 @@ package ug.ac.mak.der.dhis2emulator;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,15 +53,18 @@ public class DataValueSetsController {
     private final AggregateDataValueRepository values;
     private final SystemWorkflowService systemWorkflows;
     private final Clock clock;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public DataValueSetsController(final AggregateDataValueService service,
                                     final AggregateDataValueRepository values,
                                     final SystemWorkflowService systemWorkflows,
-                                    final Clock clock) {
+                                    final Clock clock,
+                                    final org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.service = service;
         this.values = values;
         this.systemWorkflows = systemWorkflows;
         this.clock = clock;
+        this.jdbc = jdbc;
     }
 
     @GetMapping
@@ -69,7 +76,15 @@ public class DataValueSetsController {
             return ResponseEntity.status(401).build();
         }
         final List<AggregateDataValue> rows = values.findByFilter(orgUnit, period, limit);
-        final List<Map<String, Object>> dataValues = new java.util.ArrayList<>(rows.size());
+        // Resolve submitter UUIDs → usernames in one batch so the
+        // data-entry app can render "Saved by {name}" tooltips
+        // without fanning out an N+1 lookup per cell.
+        final Set<UUID> submitterIds = new HashSet<>();
+        for (final AggregateDataValue v : rows) {
+            if (v.submittedBy() != null) submitterIds.add(v.submittedBy());
+        }
+        final Map<UUID, String> usernameByUserId = resolveUsernames(submitterIds);
+        final List<Map<String, Object>> dataValues = new ArrayList<>(rows.size());
         for (final AggregateDataValue v : rows) {
             final Map<String, Object> m = new LinkedHashMap<>();
             m.put("dataElement", v.dataElementUid());
@@ -78,7 +93,12 @@ public class DataValueSetsController {
             m.put("categoryOptionCombo", v.categoryOptionComboUid());
             m.put("attributeOptionCombo", v.attributeOptionComboUid());
             m.put("value", v.valueText());
+            // DHIS2's wire field is stored_by — keep the UUID there for
+            // back-compat. Add stored_by_username so UIs can display
+            // the readable name without a second round-trip.
             m.put("stored_by", v.submittedBy().toString());
+            final String username = usernameByUserId.get(v.submittedBy());
+            if (username != null) m.put("stored_by_username", username);
             m.put("lastUpdated", v.submittedAt().toString());
             dataValues.add(m);
         }
@@ -190,6 +210,28 @@ public class DataValueSetsController {
         body.put("responseType", "ImportSummary");
         body.put("derServerDate", now.toString());
         return body;
+    }
+
+    private Map<UUID, String> resolveUsernames(final Set<UUID> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        final StringBuilder placeholders = new StringBuilder();
+        final Object[] args = new Object[ids.size()];
+        int i = 0;
+        for (final UUID id : ids) {
+            if (i > 0) placeholders.append(',');
+            placeholders.append('?');
+            args[i++] = id;
+        }
+        final Map<UUID, String> out = new HashMap<>();
+        jdbc.query(
+                "SELECT user_id, username FROM der.edge_user WHERE user_id IN ("
+                        + placeholders + ")",
+                rs -> {
+                    out.put(UUID.fromString(rs.getString(1)), rs.getString(2));
+                }, args);
+        return out;
     }
 
     public record DataValueSetsRequest(
