@@ -42,6 +42,24 @@ describe('useAppCatalogue', () => {
     expect(result.current.apps[0].appKey).toBe('data-entry');
   });
 
+  it('drops null + non-object entries from the apps list', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      okJson({ apps: [null, 'string', 42, GOOD] }),
+    );
+    const { result } = renderHook(() => useAppCatalogue(true));
+    await waitFor(() => expect(result.current.apps.length).toBe(1));
+    expect(result.current.apps[0].appKey).toBe('data-entry');
+  });
+
+  it('passes cache: no-store so browsers never serve a stale catalogue', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValue(okJson({ apps: [GOOD] }));
+    renderHook(() => useAppCatalogue(true));
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    const init = spy.mock.calls[0]?.[1] as RequestInit;
+    expect(init.cache).toBe('no-store');
+  });
+
   it('returns [] for non-array apps field', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       okJson({ apps: 'nope' }),

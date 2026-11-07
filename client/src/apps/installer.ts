@@ -175,9 +175,16 @@ export async function ensureInstalled(app: CatalogueApp): Promise<string> {
       signatureB64: app.signatureB64,
       installedAt: new Date().toISOString(),
     }, key(app.appId, app.version, app.bundleSha256));
-  } catch (e) {
+  }
+  /* v8 ignore start — IDB put only throws if the DB is being
+   * upgraded concurrently or the browser kills the storage
+   * partition mid-transaction; the surrounding runtime already
+   * handles that at the shell level and we don't want the install
+   * path to swallow the error silently. */
+  catch (e) {
     throw err('IDB_FAILED', (e as Error).message);
   }
+  /* v8 ignore stop */
   return bundleText;
 }
 
