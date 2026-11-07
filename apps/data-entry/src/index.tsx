@@ -71,6 +71,8 @@ export default function DataEntryApp(): JSX.Element {
   // current period's completion flips.
   const [completedPeriods, setCompletedPeriods] =
     useState<Set<string>>(new Set());
+  const [touchedPeriods, setTouchedPeriods] =
+    useState<Set<string>>(new Set());
   // Bump after every successful form render so SectionNavigator
   // re-scrapes the headers of the freshly-injected #contentDiv.
   const [formRenderVersion, setFormRenderVersion] = useState(0);
@@ -377,6 +379,19 @@ export default function DataEntryApp(): JSX.Element {
           () => ou.orgUnitUid ?? '',
           () => ({ ...aocSelectionsRef.current }),
           api);
+        // Optimistic touch — the first typed value in this
+        // period gets a ● marker on the picker without waiting
+        // for the next batch-refresh.
+        content.addEventListener('blur', (ev) => {
+          const t = ev.target as HTMLInputElement | null;
+          if (t && t.tagName === 'INPUT'
+            && /-val$/.test(t.getAttribute('name') ?? '')
+            && t.value.trim() !== '') {
+            const pe = period.trim();
+            setTouchedPeriods((prev) => prev.has(pe) ? prev
+              : new Set(prev).add(pe));
+          }
+        }, true);
         attachKeyboardNav(content);
         attachColumnPaste(content, setStatus);
         attachMatrixTotals(content);
@@ -438,21 +453,36 @@ export default function DataEntryApp(): JSX.Element {
   useEffect(() => {
     if (!dataSet.trim() || !ou.bound || !formInfo?.periodType) {
       setCompletedPeriods(new Set());
+      setTouchedPeriods(new Set());
       return;
     }
     let cancelled = false;
     (async () => {
       const periods = buildPeriodOptions(formInfo.periodType).map((o) => o.id);
-      const outcomes = await Promise.all(periods.map(async (pe) => {
-        try {
-          const r = await api.getCompletion(
-            dataSet.trim(), ou.orgUnitUid ?? '', pe);
-          return r.completed ? pe : null;
-        } catch { return null; }
-      }));
+      // One readAggregateValues() per period in parallel — DER's
+      // mirror answers these in milliseconds; 25 periods max per
+      // picker, fine on LAN.
+      const [compOutcomes, touchOutcomes] = await Promise.all([
+        Promise.all(periods.map(async (pe) => {
+          try {
+            const r = await api.getCompletion(
+              dataSet.trim(), ou.orgUnitUid ?? '', pe);
+            return r.completed ? pe : null;
+          } catch { return null; }
+        })),
+        Promise.all(periods.map(async (pe) => {
+          try {
+            const r = await api.readAggregateValues(
+              ou.orgUnitUid ?? '', pe, 1);
+            return (r.dataValues?.length ?? 0) > 0 ? pe : null;
+          } catch { return null; }
+        })),
+      ]);
       if (cancelled) return;
       setCompletedPeriods(new Set(
-        outcomes.filter((p): p is string => p !== null)));
+        compOutcomes.filter((p): p is string => p !== null)));
+      setTouchedPeriods(new Set(
+        touchOutcomes.filter((p): p is string => p !== null)));
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -610,7 +640,8 @@ export default function DataEntryApp(): JSX.Element {
               Period{formInfo?.periodType ? ` · ${formInfo.periodType}` : ''}
             </span>
             <span className="der-de-period-wrap">
-              {renderPeriodPicker(formInfo?.periodType, period, setPeriod, completedPeriods)}
+              {renderPeriodPicker(formInfo?.periodType, period, setPeriod,
+                completedPeriods, touchedPeriods)}
             </span>
           </label>
           <div className="der-de-toolbar__cell-info">
@@ -3029,9 +3060,14 @@ function renderPeriodPicker(
   period: string,
   setPeriod: (v: string) => void,
   completedPeriods: Set<string> = new Set(),
+  touchedPeriods: Set<string> = new Set(),
 ): JSX.Element {
-  const markLabel = (id: string, label: string): string =>
-    completedPeriods.has(id) ? `✓  ${label}` : label;
+  // ✓ wins over ● — if a period is complete it's also touched.
+  const markLabel = (id: string, label: string): string => {
+    if (completedPeriods.has(id)) return `✓  ${label}`;
+    if (touchedPeriods.has(id))   return `●  ${label}`;
+    return label;
+  };
   const common = { ...inputStyle } as React.CSSProperties;
   const baseOptions = buildPeriodOptions(periodType);
   if (baseOptions.length === 0) {
