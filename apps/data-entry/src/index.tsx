@@ -438,6 +438,8 @@ export default function DataEntryApp(): JSX.Element {
         // compulsoryDataElementOperands so runValidation + the
         // CSS rule can surface missing-compulsory cells.
         markCompulsoryCells(content, meta);
+        annotateValueTypes(content, meta);
+        attachLiveValidation(content);
         annotateAriaLabels(content, meta);
         // Live indicator calc — attaches an input listener that
         // re-evaluates every indicator formula whenever a DE value
@@ -1677,6 +1679,17 @@ function attachSaveOnBlur(
     if (!dataSet || !period || !orgUnit) return;
     const v = t.value;
     if (lastSaved.get(t) === v) return;
+    // Refuse to ship values the DE's valueType rejects — these would
+    // just loop through Central as CENTRAL_REJECTED and strand the
+    // operator with a "mystery sync failure". attachLiveValidation
+    // already paints the red outline; here we leave the previous
+    // last-saved value intact (no POST) so the operator can correct
+    // the typo without Central ever seeing the garbage.
+    const vt = t.getAttribute('data-valuetype') ?? 'TEXT';
+    if (v !== '' && validateByType(v, vt)) {
+      paintState(t, 'error');
+      return;
+    }
     paintState(t, 'saving');
     try {
       const r = await api.submitAggregate({
@@ -2832,6 +2845,103 @@ function annotateAriaLabels(container: HTMLElement,
     if (input.getAttribute('data-compulsory') === '1') {
       input.setAttribute('aria-required', 'true');
     }
+  }
+}
+
+/**
+ * Stamp each cell input with `data-valuetype` + a value-type-matched
+ * `inputmode` / `pattern`. Operators get the right native keyboard on
+ * tablets (numeric keypad for integers, decimal pad for NUMBER,
+ * yes/no toggle hints for BOOLEAN) and the browser flags
+ * `pattern`-violating values with its own :invalid state — which
+ * attachLiveValidation layers a DER tooltip + red outline on top of.
+ */
+function annotateValueTypes(container: HTMLElement, meta: DataSetBundle): void {
+  const byId: Record<string, { valueType?: string; optionSet?: { id: string } }> = {};
+  for (const dse of meta.dataSetElements ?? []) {
+    if (dse.dataElement) byId[dse.dataElement.id] = dse.dataElement;
+  }
+  for (const input of Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[name$="-val"]'))) {
+    const m = /^(.+)-(.+)-val$/.exec(input.getAttribute('name') ?? '');
+    if (!m) continue;
+    const vt = byId[m[1]!]?.valueType ?? 'TEXT';
+    input.setAttribute('data-valuetype', vt);
+    switch (vt) {
+      case 'INTEGER':
+      case 'INTEGER_POSITIVE':
+      case 'INTEGER_NEGATIVE':
+      case 'INTEGER_ZERO_OR_POSITIVE':
+        input.setAttribute('inputmode', 'numeric');
+        input.setAttribute('pattern', '-?\\d*');
+        break;
+      case 'NUMBER':
+      case 'UNIT_INTERVAL':
+      case 'PERCENTAGE':
+        input.setAttribute('inputmode', 'decimal');
+        input.setAttribute('pattern', '-?\\d*(\\.\\d+)?');
+        break;
+      case 'EMAIL':
+        input.setAttribute('inputmode', 'email');
+        input.setAttribute('type', 'email');
+        break;
+      case 'PHONE_NUMBER':
+        input.setAttribute('inputmode', 'tel');
+        input.setAttribute('type', 'tel');
+        break;
+      case 'URL':
+        input.setAttribute('inputmode', 'url');
+        input.setAttribute('type', 'url');
+        break;
+      case 'DATE':
+        input.setAttribute('type', 'date');
+        break;
+      case 'TIME':
+        input.setAttribute('type', 'time');
+        break;
+      case 'DATETIME':
+        input.setAttribute('type', 'datetime-local');
+        break;
+      default: break;
+    }
+  }
+}
+
+/**
+ * Validate every cell against its data element's valueType on each
+ * input event — flag non-conforming cells with `data-de-invalid="1"`
+ * + a human `title`. Paired with the save-on-blur guard below so
+ * invalid values never reach the DER mirror.
+ */
+function attachLiveValidation(container: HTMLElement): void {
+  const run = (input: HTMLInputElement): void => {
+    const v = input.value;
+    if (v === '') {
+      input.removeAttribute('data-de-invalid');
+      input.removeAttribute('title');
+      return;
+    }
+    const vt = input.getAttribute('data-valuetype') ?? 'TEXT';
+    const err = validateByType(v, vt);
+    if (err) {
+      input.setAttribute('data-de-invalid', '1');
+      input.setAttribute('title', err);
+    } else {
+      input.removeAttribute('data-de-invalid');
+      input.removeAttribute('title');
+    }
+  };
+  container.addEventListener('input', (ev) => {
+    const t = ev.target as HTMLInputElement | null;
+    if (!t || t.tagName !== 'INPUT') return;
+    if (!/-val$/.test(t.getAttribute('name') ?? '')) return;
+    run(t);
+  }, true);
+  // Initial pass — prefilled values deserve the same scrutiny so the
+  // operator sees any existing bad data on first open.
+  for (const input of Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[name$="-val"]'))) {
+    run(input);
   }
 }
 
@@ -4529,6 +4639,20 @@ const APP_STYLES = `
   outline: 0;
   border-color: #147CD7 !important;
   box-shadow: inset 0 0 0 2px #147CD7;
+}
+/* Realtime value-type validation — attachLiveValidation stamps
+ * data-de-invalid="1" + title=<reason> on inputs that don't
+ * match their data element's valueType. */
+.der-de-custom-form input[data-de-invalid="1"],
+.der-apphost .der-de-form-card input[data-de-invalid="1"] {
+  border-color: #c0392b !important;
+  background: #fbeaea !important;
+  box-shadow: inset 0 0 0 1px #c0392b;
+}
+.der-de-custom-form input[data-de-invalid="1"]:focus,
+.der-apphost .der-de-form-card input[data-de-invalid="1"]:focus {
+  border-color: #c0392b !important;
+  box-shadow: inset 0 0 0 2px #c0392b;
 }
 .der-de-form-card h3.formSection {
   margin: 0 0 8px;
