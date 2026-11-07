@@ -117,7 +117,13 @@ export default function DataEntryApp(): JSX.Element {
   // metadata so the UI can offer "Switch to custom form" when the
   // dataset actually has one.
   useEffect(() => {
-    if (dataSet.trim() === '') { setFormInfo(null); return; }
+    if (dataSet.trim() === '') {
+      setFormInfo(null);
+      setAocCategories([]);
+      setAocSelections({});
+      aocSelectionsRef.current = {};
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -127,12 +133,6 @@ export default function DataEntryApp(): JSX.Element {
           dataEntryForm?: { id: string } | null;
         };
         if (cancelled) return;
-        // The "Custom form" tab lights up for both CUSTOM
-        // (operator-authored htmlCode) and SECTION (DER renders
-        // the DHIS2 section table from metadata) formTypes. Either
-        // path feeds through the same vendor + shim pipeline so
-        // entry.js's autosave + validation + indicators wire up
-        // identically.
         const hasCustomForm = (!!meta.dataEntryForm && meta.formType === 'CUSTOM')
           || meta.formType === 'SECTION';
         setFormInfo({
@@ -142,11 +142,31 @@ export default function DataEntryApp(): JSX.Element {
           formType: meta.formType,
           periodType: meta.periodType,
         });
-        // Pick the right rendering mode automatically: datasets
-        // with CUSTOM/SECTION always route through the vendor-stack
-        // path; everything else (DEFAULT) falls back to the
-        // structured single-cell form.
         setMode(hasCustomForm ? 'custom' : 'structured');
+
+        // Load the dataset's attribute-category combo NOW (before
+        // the operator picks a period) so a non-default AOC (e.g.
+        // "Partner × Funder") can be chosen alongside the dataset.
+        // DHIS2's own Data Entry app does this too — AOC is a
+        // dataset-level dimension, not a form-level one.
+        try {
+          const full = await api.getDataSetFormMetadata(dataSet.trim());
+          if (cancelled) return;
+          const enriched = await enrichDataSetBundle(full as DataSetBundle, api);
+          if (cancelled) return;
+          const cats = (enriched.categoryCombo?.categories ?? [])
+            .filter((c) => (c.categoryOptions?.length ?? 0) > 1)
+            .map((c) => ({
+              id: c.id, name: c.name ?? c.id,
+              options: (c.categoryOptions ?? [])
+                .map((o) => ({ id: o.id, name: o.name ?? o.id })),
+            }));
+          setAocCategories(cats);
+          const seed: Record<string, string> = {};
+          for (const c of cats) if (c.options[0]) seed[c.id] = c.options[0].id;
+          setAocSelections(seed);
+          aocSelectionsRef.current = seed;
+        } catch { /* mirror unreachable — leave AOC empty */ }
       } catch { if (!cancelled) setFormInfo(null); }
     })();
     return () => { cancelled = true; };
@@ -438,6 +458,25 @@ export default function DataEntryApp(): JSX.Element {
             ))}
           </select>
         </div>
+        {aocCategories.map((c) => (
+          <div key={c.id} className="der-de-chip" data-test="de-aoc-chip">
+            <span className="der-de-chip-label">{c.name}</span>
+            <select className="der-de-select"
+                    value={aocSelections[c.id] ?? ''}
+                    onChange={(e) => {
+                      const next = { ...aocSelections, [c.id]: e.target.value };
+                      setAocSelections(next);
+                      aocSelectionsRef.current = next;
+                      syncAocToDom(customRoot.current, next);
+                    }}
+                    data-test="de-aoc-select">
+              <option value="">Select…</option>
+              {c.options.map((o) => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select>
+          </div>
+        ))}
         <div className="der-de-chip">
           <span className="der-de-chip-label">
             Period {formInfo?.periodType ? `· ${formInfo.periodType}` : ''}
@@ -445,10 +484,6 @@ export default function DataEntryApp(): JSX.Element {
           <span className="der-de-period-wrap">
             {renderPeriodPicker(formInfo?.periodType, period, setPeriod)}
           </span>
-        </div>
-        <div className="der-de-chip der-de-chip-signed">
-          <span className="der-de-chip-label">Signed in</span>
-          <span className="der-de-chip-value">{auth.displayName}</span>
         </div>
       </div>
 
@@ -500,30 +535,6 @@ export default function DataEntryApp(): JSX.Element {
 
       {formReady && mode === 'custom' && (
         <div className={`der-de-form-card der-de-density-${density}`}>
-          {aocCategories.length > 0 && (
-            <div style={{ display: 'grid',
-              gridTemplateColumns: `repeat(${Math.min(aocCategories.length, 3)}, 1fr)`,
-              gap: 12, marginBottom: 12 }}>
-              {aocCategories.map((c) => (
-                <label key={c.id}>{c.name}
-                  <select
-                    value={aocSelections[c.id] ?? ''}
-                    onChange={(e) => {
-                      const next = { ...aocSelections, [c.id]: e.target.value };
-                      setAocSelections(next);
-                      aocSelectionsRef.current = next;
-                      syncAocToDom(customRoot.current, next);
-                    }}
-                    style={inputStyle}
-                  >
-                    {c.options.map((o) => (
-                      <option key={o.id} value={o.id}>{o.name}</option>
-                    ))}
-                  </select>
-                </label>
-              ))}
-            </div>
-          )}
           <div className="der-de-form-split">
             <SectionNavigator targetRef={customRoot} formVersion={formRenderVersion} />
             <div ref={customRoot}
