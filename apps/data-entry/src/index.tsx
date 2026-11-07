@@ -1613,6 +1613,8 @@ function SectionNavigator(
     id: string; label: string; slot: HTMLElement;
   }>>([]);
   const [activeId, setActiveId] = useState<string>('');
+  const [progress, setProgress] = useState<Record<string, {
+    filled: number; total: number }>>({});
 
   // Rescan every time the form is re-rendered (dataset / period
   // switch) — the previous slots are torn out and new ones take
@@ -1624,6 +1626,35 @@ function SectionNavigator(
     setEntries(next);
     setActiveId(next[0]?.id ?? '');
   }, [targetRef, formVersion]);
+
+  // Live completion ratio per section — walks each slot's inputs
+  // on every input event (hidden slots still count) and tallies
+  // filled vs total.
+  useEffect(() => {
+    if (entries.length === 0) return;
+    const recount = (): void => {
+      const next: Record<string, { filled: number; total: number }> = {};
+      for (const e of entries) {
+        const inputs = Array.from(
+          e.slot.querySelectorAll<HTMLInputElement>('input[name$="-val"]'));
+        const filled = inputs.filter((i) => i.value.trim() !== '').length;
+        next[e.id] = { filled, total: inputs.length };
+      }
+      setProgress(next);
+    };
+    recount();
+    const root = targetRef.current;
+    if (!root) return;
+    const onInput = (ev: Event): void => {
+      const t = ev.target as HTMLElement | null;
+      if (t && t.tagName === 'INPUT'
+        && /-val$/.test(t.getAttribute('name') ?? '')) {
+        recount();
+      }
+    };
+    root.addEventListener('input', onInput, true);
+    return () => { root.removeEventListener('input', onInput, true); };
+  }, [targetRef, entries]);
 
   // Show the active slot, hide the rest. "Intro" nodes (any
   // content before the first heading) stay visible.
@@ -1647,18 +1678,34 @@ function SectionNavigator(
          data-test="de-section-nav">
       <div className="der-de-section-nav__title">Sections</div>
       <ul className="der-de-section-nav__list">
-        {entries.map((e) => (
-          <li key={e.id}>
-            <button type="button"
-                    className={'der-de-section-nav__item'
-                      + (activeId === e.id
-                        ? ' der-de-section-nav__item--active' : '')}
-                    data-test="de-section-nav-item"
-                    onClick={() => setActiveId(e.id)}>
-              {e.label}
-            </button>
-          </li>
-        ))}
+        {entries.map((e) => {
+          const pr = progress[e.id];
+          const tone = !pr || pr.total === 0 ? 'muted'
+            : pr.filled === 0 ? 'muted'
+            : pr.filled === pr.total ? 'done'
+            : 'partial';
+          return (
+            <li key={e.id}>
+              <button type="button"
+                      className={'der-de-section-nav__item'
+                        + (activeId === e.id
+                          ? ' der-de-section-nav__item--active' : '')}
+                      data-test="de-section-nav-item"
+                      onClick={() => setActiveId(e.id)}>
+                <span className="der-de-section-nav__label">{e.label}</span>
+                {pr && pr.total > 0 && (
+                  <span className={`der-de-section-nav__ratio `
+                      + `der-de-section-nav__ratio--${tone}`}
+                        data-test="de-section-nav-ratio"
+                        title={`${pr.filled} of ${pr.total} cells filled`}>
+                    {tone === 'done' ? '✓'
+                      : `${pr.filled}/${pr.total}`}
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );
@@ -3128,8 +3175,11 @@ const APP_STYLES = `
   padding: 0;
 }
 .der-de-section-nav__item {
-  display: block;
+  display: flex;
   width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   text-align: left;
   padding: 8px 10px;
   margin: 0;
@@ -3142,6 +3192,20 @@ const APP_STYLES = `
   line-height: 1.35;
   cursor: pointer;
 }
+.der-de-section-nav__label {
+  flex: 1 1 auto;
+}
+.der-de-section-nav__ratio {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.der-de-section-nav__ratio--muted   { background: #eef0f5; color: #6e7a8a; }
+.der-de-section-nav__ratio--partial { background: #fef0d8; color: #9b5a00; }
+.der-de-section-nav__ratio--done    { background: #e3f7eb; color: #1b8243; }
 .der-de-section-nav__item:hover {
   background: #eef0f3;
 }
