@@ -2017,6 +2017,27 @@ function SectionNavigator(
     setActiveId(next[0]?.id ?? '');
   }, [targetRef, formVersion]);
 
+  // Alt+1..9 jumps to the Nth section. Overrides even when focus
+  // is on a cell input — operators are nearly always typing, so a
+  // "skip when in input" guard would make the shortcut useless.
+  // ev.code (Digit1 etc.) instead of ev.key because Alt+1 on macOS
+  // produces "¡" as ev.key; code stays Digit1 regardless of layout.
+  useEffect(() => {
+    if (entries.length === 0) return;
+    const onKey = (ev: KeyboardEvent): void => {
+      if (!ev.altKey || ev.metaKey || ev.ctrlKey || ev.shiftKey) return;
+      const m = /^Digit([1-9])$/.exec(ev.code);
+      if (!m) return;
+      const n = Number(m[1]);
+      const target = entries[n - 1];
+      if (!target) return;
+      ev.preventDefault();
+      setActiveId(target.id);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [entries]);
+
   // Live completion ratio per section — walks each slot's inputs
   // on every input event (hidden slots still count) and tallies
   // filled vs total.
@@ -2509,6 +2530,7 @@ function ShortcutsPopover(
     ['Shift + Enter / ↑', 'Previous row'],
     ['← / →', 'Previous / next COC column (same row)'],
     ['Tab / Shift + Tab', 'Next / previous cell (DOM order)'],
+    ['Alt + 1..9', 'Jump to section N'],
     ['Paste multi-line', 'Distributes down the COC column'],
     ['Esc', 'Close an open drawer'],
     ['?', 'Show / hide this cheatsheet'],
