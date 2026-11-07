@@ -73,6 +73,10 @@ export default function DataEntryApp(): JSX.Element {
     useState<Set<string>>(new Set());
   const [touchedPeriods, setTouchedPeriods] =
     useState<Set<string>>(new Set());
+  // DE filter — narrows the visible tbody rows to those whose
+  // row-label matches the typed substring. Driven by an input
+  // in the toolbar; applied via a DOM walk after every keystroke.
+  const [deFilter, setDeFilter] = useState('');
   // Bump after every successful form render so SectionNavigator
   // re-scrapes the headers of the freshly-injected #contentDiv.
   const [formRenderVersion, setFormRenderVersion] = useState(0);
@@ -446,6 +450,26 @@ export default function DataEntryApp(): JSX.Element {
   const datasetReady = dataSet.trim() !== '';
   const formReady = datasetReady && periodReady && ou.bound;
 
+  // Apply the DE filter: walks every tbody row in #contentDiv,
+  // hides rows whose first `.dataElementCell` (or title cell)
+  // text doesn't include the filter substring (case-insensitive).
+  useEffect(() => {
+    const root = customRoot.current;
+    if (!root) return;
+    const q = deFilter.trim().toLowerCase();
+    const rows = Array.from(root.querySelectorAll<HTMLTableRowElement>(
+      'tbody tr'));
+    for (const r of rows) {
+      if (!q) { r.style.display = ''; continue; }
+      // Row label: prefer the .dataElementCell td, else the first
+      // non-input td.
+      const labelCell = r.querySelector('.dataElementCell')
+        ?? r.querySelector('td');
+      const text = (labelCell?.textContent ?? '').toLowerCase();
+      r.style.display = text.includes(q) ? '' : 'none';
+    }
+  }, [deFilter, formRenderVersion]);
+
   // Batch-fetch completion state for every period that appears
   // in the picker so the dropdown can prefix a ✓ to already-
   // complete periods. Runs when dataset / OU / periodType
@@ -642,6 +666,24 @@ export default function DataEntryApp(): JSX.Element {
             <span className="der-de-period-wrap">
               {renderPeriodPicker(formInfo?.periodType, period, setPeriod,
                 completedPeriods, touchedPeriods)}
+            </span>
+          </label>
+          <label className="der-de-toolbar__field der-de-toolbar__field--filter">
+            <span className="der-de-toolbar__field-label">Filter data elements</span>
+            <span className="der-de-toolbar__filter">
+              <input className="der-de-toolbar__filter-input"
+                     type="search"
+                     placeholder="type to narrow rows…"
+                     value={deFilter}
+                     onChange={(e) => setDeFilter(e.target.value)}
+                     data-test="de-filter-input" />
+              {deFilter && (
+                <button type="button"
+                        className="der-de-toolbar__filter-clear"
+                        aria-label="Clear filter"
+                        data-test="de-filter-clear"
+                        onClick={() => setDeFilter('')}>×</button>
+              )}
             </span>
           </label>
           <div className="der-de-toolbar__cell-info">
@@ -3677,6 +3719,44 @@ const APP_STYLES = `
 }
 .der-de-toolbar__field--period {
   min-width: 260px;
+}
+.der-de-toolbar__field--filter {
+  min-width: 240px;
+  max-width: 320px;
+}
+.der-de-toolbar__filter {
+  display: inline-flex;
+  width: 100%;
+  position: relative;
+}
+.der-de-toolbar__filter-input {
+  width: 100%;
+  padding: 5px 24px 5px 10px;
+  border: 1px solid #d8dee8;
+  background: #fff;
+  font-size: 13px;
+  color: #101a32;
+  font-family: inherit;
+  transition: border-color 150ms;
+}
+.der-de-toolbar__filter-input:hover { border-color: #9aa3b8; }
+.der-de-toolbar__filter-input:focus {
+  outline: 0;
+  border-color: var(--der-brand-500, #4a55ce);
+  box-shadow: 0 0 0 1px var(--der-brand-500, #4a55ce);
+}
+.der-de-toolbar__filter-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: #6e7a8a;
+  font-size: 16px;
+  padding: 0 4px;
+  line-height: 1;
 }
 .der-de-toolbar__field-label {
   font-size: 11px;
