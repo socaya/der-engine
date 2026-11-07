@@ -162,6 +162,27 @@ describe('edgeApi.submitAggregate', () => {
     expect(summary.status).toBe('OFFLINE_QUEUED');
     expect((summary as { offlineQueueId?: number }).offlineQueueId).toEqual(expect.any(Number));
   });
+
+  it('posts over LAN even when navigator.onLine is false', async () => {
+    // WAN dropped (navigator.onLine=false) but the DER server on the
+    // facility LAN / localhost is still reachable. The fetch succeeds,
+    // so no queueing — writes land on the edge immediately. This is
+    // the core offline-first invariant.
+    const original = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', {
+      configurable: true, get: () => false,
+    });
+    try {
+      fetchMock.mockResolvedValue(respond(200, { status: 'OK' }));
+      const summary = await api.submitAggregate({ dataSet: 'DS', dataValues: [] });
+      expect(summary.status).toBe('OK');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true, get: () => original,
+      });
+    }
+  });
 });
 
 describe('edgeApi.listEvents', () => {

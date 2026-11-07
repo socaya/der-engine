@@ -596,19 +596,17 @@ export interface ImportSummary {
 }
 
 export async function submitAggregate(body: AggregateSubmitInput): Promise<ImportSummary> {
-  // §2.3.129 — offline-first capture. Two paths land in the queue:
-  //   1. `navigator.onLine === false` — the browser knows there's
-  //      no network; skip fetch, enqueue straight away.
-  //   2. The fetch itself throws EDGE_UNREACHABLE (network dropped
-  //      mid-request, DER server not responding, CORS pre-flight
-  //      fail). Save-on-blur relies on this: an in-progress form
-  //      session shouldn't lose a keystroke just because the
-  //      Wi-Fi flaked for one submit.
-  // A reconnect-replay loop (offline/queue.ts) drains both cases
-  // in insertion order once the edge is reachable again.
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    return enqueueAggregate(body);
-  }
+  // §2.3.129 — offline-first capture. The DER edge lives on the
+  // facility LAN (or localhost in dev), so reachability has nothing
+  // to do with `navigator.onLine` — that's the browser's view of
+  // WAN connectivity. A laptop that loses WiFi can still reach the
+  // DER server over wired LAN; a phone that loses its carrier data
+  // can still reach it over the facility hotspot. Always TRY the
+  // fetch first and only fall back to the queue when the fetch
+  // itself fails with EDGE_UNREACHABLE (network dropped mid-flight,
+  // DER server actually down, CORS preflight denied). The queue
+  // then drains in insertion order on the next successful round-
+  // trip — see offline/queue.ts.
   try {
     return await request<ImportSummary>('POST', '/api/dataValueSets', body);
   } catch (err) {

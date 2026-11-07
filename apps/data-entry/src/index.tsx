@@ -2557,36 +2557,47 @@ function InfoPopover(
     ['Validation rules', String(summary.validationRuleCount)],
   ];
   return (
-    <div className="der-de-shortcuts-backdrop"
+    <div className="der-de-shortcuts-backdrop der-de-info-backdrop"
          role="dialog"
          aria-modal="true"
          aria-label="Dataset info"
          data-test="de-info-popover"
          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="der-de-shortcuts der-de-info">
-        <header className="der-de-shortcuts__head">
-          <h3 className="der-de-shortcuts__title"
-              data-test="de-info-title">
-            {formInfo.displayName ?? 'Dataset info'}
-          </h3>
+      <div className="der-de-info-modal">
+        <header className="der-de-info-modal__head">
+          <div className="der-de-info-modal__title-wrap">
+            <span className="der-de-info-modal__eyebrow">Dataset</span>
+            <h2 className="der-de-info-modal__title"
+                data-test="de-info-title">
+              {formInfo.displayName ?? 'Dataset info'}
+            </h2>
+          </div>
           <button type="button"
-                  className="der-de-shortcuts__close"
+                  className="der-de-info-modal__close"
                   aria-label="Close dataset info"
                   data-test="de-info-close"
                   onClick={onClose}>×</button>
         </header>
-        {summary.description && (
-          <p className="der-de-info__desc"
-             data-test="de-info-desc">{summary.description}</p>
-        )}
-        <dl className="der-de-shortcuts__list">
-          {rows.map(([k, v]) => (
-            <div key={k} className="der-de-shortcuts__row">
-              <dt>{k}</dt>
-              <dd data-test={`de-info-${k.toLowerCase().replace(/\s+/g, '-')}`}>{v}</dd>
-            </div>
-          ))}
-        </dl>
+        <div className="der-de-info-modal__body">
+          {summary.description && (
+            <p className="der-de-info-modal__desc"
+               data-test="de-info-desc">{summary.description}</p>
+          )}
+          <dl className="der-de-info-modal__stats">
+            {rows.map(([k, v]) => (
+              <div key={k} className="der-de-info-modal__stat">
+                <dt>{k}</dt>
+                <dd data-test={`de-info-${k.toLowerCase().replace(/\s+/g, '-')}`}>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        <footer className="der-de-info-modal__foot">
+          <button type="button"
+                  className="der-de-info-modal__done"
+                  data-test="de-info-done"
+                  onClick={onClose}>Done</button>
+        </footer>
       </div>
     </div>
   );
@@ -4395,11 +4406,126 @@ const APP_STYLES = `
   background: #e6f1fb;
   outline: 0;
 }
-.der-de-info__desc {
-  margin: 0 0 12px;
+.der-de-info-modal {
+  background: #fff;
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(16, 26, 50, 0.28);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.der-de-info-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e5e9ef;
+  background: linear-gradient(180deg, #f6f9ff 0%, #fff 100%);
+}
+.der-de-info-modal__title-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.der-de-info-modal__eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--der-brand-500, #147CD7);
+  margin-bottom: 4px;
+}
+.der-de-info-modal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--der-ink-900, #101a32);
+  line-height: 1.3;
+}
+.der-de-info-modal__close {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
   color: var(--der-ink-500, #5b6478);
+  font-size: 26px;
+  line-height: 1;
+  padding: 0 6px;
+  border-radius: 4px;
+  transition: color 120ms, background 120ms;
+}
+.der-de-info-modal__close:hover,
+.der-de-info-modal__close:focus-visible {
+  color: var(--der-ink-900, #101a32);
+  background: #e5e9ef;
+  outline: 0;
+}
+.der-de-info-modal__body {
+  padding: 20px 24px 8px;
+  overflow-y: auto;
+}
+.der-de-info-modal__desc {
+  margin: 0 0 20px;
+  color: var(--der-ink-700, #2a3447);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.der-de-info-modal__stats {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.der-de-info-modal__stat {
+  background: #f6f8fd;
+  border: 1px solid #e0e6f3;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 0;
+}
+.der-de-info-modal__stat dt {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--der-ink-500, #5b6478);
+  margin-bottom: 4px;
+}
+.der-de-info-modal__stat dd {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--der-ink-900, #101a32);
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.der-de-info-modal__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 24px 16px;
+  border-top: 1px solid #e5e9ef;
+  background: #fff;
+}
+.der-de-info-modal__done {
+  background: var(--der-brand-500, #147CD7);
+  color: #fff;
+  border: 1px solid var(--der-brand-600, #0f68b7);
+  border-radius: 6px;
+  padding: 7px 18px;
   font-size: 13px;
-  line-height: 1.5;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.der-de-info-modal__done:hover,
+.der-de-info-modal__done:focus-visible {
+  background: var(--der-brand-600, #0f68b7);
+  outline: 0;
 }
 .der-de-toolbar__title {
   margin: 0;
