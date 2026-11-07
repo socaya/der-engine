@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as edgeApi from '../api/edgeApi';
 
 /**
@@ -30,6 +30,17 @@ export function MetadataPicker(
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Blur-close is debounced so a mouse click on a dropdown row can
+  // register before the input loses focus. Track the pending id so
+  // we can cancel on unmount — otherwise the timer fires after the
+  // component tree + env teardown and setOpen throws
+  // "window is not defined" in jsdom.
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (closeTimerRef.current !== null) {
+      clearTimeout(closeTimerRef.current);
+    }
+  }, []);
 
   // Lazy-load on first open; cache for the session.
   useEffect(() => {
@@ -74,7 +85,13 @@ export function MetadataPicker(
           className="ea-input ea-mono"
           value={open ? query : value}
           onFocus={() => { setOpen(true); setQuery(''); }}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onBlur={() => {
+            if (closeTimerRef.current !== null) clearTimeout(closeTimerRef.current);
+            closeTimerRef.current = setTimeout(() => {
+              closeTimerRef.current = null;
+              setOpen(false);
+            }, 150);
+          }}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           placeholder={placeholder ?? `Search ${resource}…`}
           disabled={disabled}
