@@ -222,6 +222,62 @@ class DataValueSetsControllerTest {
     }
 
     @Test
+    void getWithZeroRowsSkipsUsernameLookup() throws Exception {
+        // Empty row set → resolveUsernames bails on ids.isEmpty()
+        // and the controller doesn't call jdbcTemplate at all.
+        when(values.findByFilter(anyString(), anyString(), any(Integer.class)))
+                .thenReturn(List.of());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/dataValueSets?orgUnit=ou1&period=2026Q1&limit=100").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dataValues.length()").value(0));
+        org.mockito.Mockito.verifyNoInteractions(jdbcTemplate);
+    }
+
+    @Test
+    void getEnrichesWithStoredByUsername() throws Exception {
+        // Two rows with two distinct submitters → the loop builds a
+        // "?,?" placeholder list and resolveUsernames returns a
+        // populated map, which the response-building loop then
+        // threads into stored_by_username.
+        final UUID u1 = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        final UUID u2 = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        when(values.findByFilter(anyString(), anyString(), any(Integer.class)))
+                .thenReturn(List.of(
+                        new ug.ac.mak.der.workflows.aggregate.AggregateDataValue(
+                                UUID.randomUUID(), "de1", "ou1", "2026Q1", "HllvX50cXC0", "HllvX50cXC0",
+                                "42", null, u1, Instant.parse("2026-10-22T12:00:00Z"), 1, "DS12345"),
+                        new ug.ac.mak.der.workflows.aggregate.AggregateDataValue(
+                                UUID.randomUUID(), "de2", "ou1", "2026Q1", "HllvX50cXC0", "HllvX50cXC0",
+                                "7", null, u2, Instant.parse("2026-10-22T12:00:00Z"), 1, "DS12345")
+                ));
+        // Simulate der.edge_user returning username rows for both
+        // submitters; invoke the callback once per row via a Mockito
+        // Answer so the controller's lambda populates its map.
+        org.mockito.Mockito.doAnswer(inv -> {
+            final org.springframework.jdbc.core.RowCallbackHandler cb = inv.getArgument(1);
+            final java.sql.ResultSet rs1 = org.mockito.Mockito.mock(java.sql.ResultSet.class);
+            when(rs1.getString(1)).thenReturn(u1.toString());
+            when(rs1.getString(2)).thenReturn("alice");
+            final java.sql.ResultSet rs2 = org.mockito.Mockito.mock(java.sql.ResultSet.class);
+            when(rs2.getString(1)).thenReturn(u2.toString());
+            when(rs2.getString(2)).thenReturn("bob");
+            cb.processRow(rs1);
+            cb.processRow(rs2);
+            return null;
+        }).when(jdbcTemplate).query(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(org.springframework.jdbc.core.RowCallbackHandler.class),
+                org.mockito.ArgumentMatchers.<Object>any(),
+                org.mockito.ArgumentMatchers.<Object>any());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/dataValueSets?orgUnit=ou1&period=2026Q1&limit=100").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dataValues[0].stored_by_username").value("alice"))
+                .andExpect(jsonPath("$.dataValues[1].stored_by_username").value("bob"));
+    }
+
+    @Test
     void getIs401WithoutAuth() throws Exception {
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .get("/api/dataValueSets"))
