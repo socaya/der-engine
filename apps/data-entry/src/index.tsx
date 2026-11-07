@@ -4842,8 +4842,8 @@ const APP_STYLES = `
 .der-de-status-icon {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-left: 10px;
+  gap: 5px;
+  margin-left: 12px;
   background: transparent;
   border: 0;
   padding: 0;
@@ -4851,11 +4851,18 @@ const APP_STYLES = `
 }
 .der-de-status-icon[data-test="de-wan-status"]  { color: #0a5497; }
 .der-de-status-icon[data-test="de-edge-pill"]   { color: #0B3558; }
+/* Bigger glyph on the toolbar vs the smaller cell-details strip —
+ * these indicators are an always-visible top-bar affordance, not
+ * an inline cell annotation, so give them room. */
+.der-de-status-icon svg {
+  width: 20px;
+  height: 20px;
+}
 .der-de-status-icon__dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
   background: #c6ccd7;
 }
 .der-de-status-icon__dot.is-lit     { background: #1b8243; }

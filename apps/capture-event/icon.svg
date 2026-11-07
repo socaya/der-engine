@@ -1,14 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Event capture">
-  <rect x="20" y="30" width="88" height="80" rx="6"
-        fill="#ffffff" stroke="#1f4d70" stroke-width="5"/>
-  <rect x="20" y="30" width="88" height="20" rx="6"
-        fill="#2c6693" stroke="#1f4d70" stroke-width="5"/>
-  <rect x="38" y="18" width="6" height="22" rx="3" fill="#1f4d70"/>
-  <rect x="84" y="18" width="6" height="22" rx="3" fill="#1f4d70"/>
-  <circle cx="44" cy="74" r="4" fill="#1f4d70"/>
-  <circle cx="64" cy="74" r="4" fill="#1f4d70"/>
-  <circle cx="84" cy="74" r="4" fill="#1f4d70"/>
-  <circle cx="44" cy="92" r="4" fill="#1f4d70"/>
-  <circle cx="64" cy="92" r="4" fill="#2c6693"/>
-  <circle cx="84" cy="92" r="4" fill="#1f4d70" opacity="0.4"/>
+  <!-- Amber DHIS2-style tile for event capture -->
+  <rect x="8" y="8" width="112" height="112" rx="20" fill="#F2994A"/>
+  <!-- Calendar body -->
+  <rect x="26" y="34" width="76" height="68" rx="6" fill="#ffffff"/>
+  <!-- Calendar header band -->
+  <rect x="26" y="34" width="76" height="18" rx="6" fill="#D97928"/>
+  <rect x="26" y="46" width="76" height="6" fill="#D97928"/>
+  <!-- Spiral pins -->
+  <rect x="42" y="24" width="7" height="20" rx="3" fill="#C45A10"/>
+  <rect x="79" y="24" width="7" height="20" rx="3" fill="#C45A10"/>
+  <!-- Day dots -->
+  <circle cx="42" cy="70" r="4" fill="#F2994A"/>
+  <circle cx="64" cy="70" r="4" fill="#F2994A"/>
+  <circle cx="86" cy="70" r="4" fill="#F2994A"/>
+  <circle cx="42" cy="88" r="4" fill="#F2994A"/>
+  <!-- Today highlighted -->
+  <circle cx="64" cy="88" r="7" fill="#27AE60"/>
+  <path d="M60.5 88l2.5 2.5 4.5-5" stroke="#ffffff" stroke-width="2"
+        fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="86" cy="88" r="4" fill="#F2994A" opacity="0.4"/>
 </svg>

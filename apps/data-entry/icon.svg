@@ -1,10 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Data entry">
-  <rect x="18" y="22" width="92" height="84" rx="6"
-        fill="#ffffff" stroke="#147CD7" stroke-width="5"/>
-  <line x1="18" y1="44" x2="110" y2="44" stroke="#147CD7" stroke-width="5"/>
-  <line x1="18" y1="64" x2="110" y2="64" stroke="#147CD7" stroke-width="3"/>
-  <line x1="18" y1="84" x2="110" y2="84" stroke="#147CD7" stroke-width="3"/>
-  <line x1="46" y1="22" x2="46" y2="106" stroke="#147CD7" stroke-width="3"/>
-  <line x1="78" y1="22" x2="78" y2="106" stroke="#147CD7" stroke-width="3"/>
-  <rect x="50" y="68" width="24" height="12" fill="#0a5497"/>
+  <!-- Teal DHIS2-style tile for aggregate data entry -->
+  <rect x="8" y="8" width="112" height="112" rx="20" fill="#1A9988"/>
+  <!-- Table outline -->
+  <rect x="28" y="36" width="72" height="56" rx="4"
+        fill="none" stroke="#ffffff" stroke-width="4"/>
+  <!-- Header band -->
+  <rect x="28" y="36" width="72" height="14" rx="4" fill="#ffffff" opacity="0.35"/>
+  <path d="M28 50h72" stroke="#ffffff" stroke-width="2.5"/>
+  <!-- Column dividers -->
+  <path d="M52 36v56" stroke="#ffffff" stroke-width="2.5"/>
+  <path d="M76 36v56" stroke="#ffffff" stroke-width="2.5"/>
+  <!-- Row dividers -->
+  <path d="M28 64h72" stroke="#ffffff" stroke-width="2.5"/>
+  <path d="M28 78h72" stroke="#ffffff" stroke-width="2.5"/>
+  <!-- Filled check cell -->
+  <path d="M83 70l4 4 7-7" stroke="#F2C94C" stroke-width="3.5"
+        fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
