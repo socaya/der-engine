@@ -96,17 +96,17 @@ function InnerRoutes(): JSX.Element {
             <RequireAuth><ProgramPicker /></RequireAuth>
           } />
           <Route path="/programs/:program/events"
-                 element={<Navigate to="/apps/capture-event" replace />} />
+                 element={<Navigate to="/apps/capture" replace />} />
           <Route path="/programs/:program/events/new"
-                 element={<Navigate to="/apps/capture-event" replace />} />
+                 element={<Navigate to="/apps/capture" replace />} />
           <Route path="/tracker/:program/search"
-                 element={<Navigate to="/apps/capture-tracker" replace />} />
+                 element={<Navigate to="/apps/capture" replace />} />
           <Route path="/tracker/:program/tei/:tei"
-                 element={<Navigate to="/apps/capture-tracker" replace />} />
+                 element={<Navigate to="/apps/capture" replace />} />
           <Route path="/tracker/:program/enroll"
-                 element={<Navigate to="/apps/capture-tracker" replace />} />
+                 element={<Navigate to="/apps/capture" replace />} />
           <Route path="/tracker/:program/stage/:stage/new"
-                 element={<Navigate to="/apps/capture-event" replace />} />
+                 element={<Navigate to="/apps/capture" replace />} />
           <Route path="/scheduled" element={
             <RequireAuth><ScheduledEvents /></RequireAuth>
           } />

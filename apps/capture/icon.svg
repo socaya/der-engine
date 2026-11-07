@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Capture">
+  <defs>
+    <linearGradient id="capTile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1E6AB5"/>
+      <stop offset="1" stop-color="#0A4B86"/>
+    </linearGradient>
+    <linearGradient id="capBoard" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EEF3FB"/>
+    </linearGradient>
+    <filter id="capShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3"
+                    flood-color="#062A4F" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <!-- Rounded tile with diagonal gradient -->
+  <rect x="6" y="6" width="116" height="116" rx="24" fill="url(#capTile)"/>
+  <!-- Subtle top highlight for depth -->
+  <rect x="6" y="6" width="116" height="40" rx="24" fill="#FFFFFF" opacity="0.08"/>
+
+  <!-- Clipboard body -->
+  <g filter="url(#capShadow)">
+    <rect x="30" y="30" width="68" height="80" rx="7" fill="url(#capBoard)"/>
+  </g>
+  <!-- Clip at top -->
+  <rect x="50" y="22" width="28" height="18" rx="4" fill="#0A4B86"/>
+  <rect x="56" y="25" width="16" height="4" rx="2" fill="#FFFFFF" opacity="0.85"/>
+
+  <!-- Row 1: user avatar + name bar (tracker-style) -->
+  <circle cx="44" cy="52" r="5" fill="#2A8E7E"/>
+  <rect x="52" y="49" width="36" height="3" rx="1.5" fill="#1E6AB5"/>
+  <rect x="52" y="55" width="22" height="2.5" rx="1" fill="#9FB2C9"/>
+
+  <!-- Row 2: checkbox item (event-style) -->
+  <rect x="39" y="68" width="8" height="8" rx="1.5" fill="none"
+        stroke="#1E6AB5" stroke-width="1.4"/>
+  <path d="M41.2 72 l1.8 1.8 l3.2 -3.2" stroke="#1E8E4A"
+        stroke-width="1.6" fill="none" stroke-linecap="round"
+        stroke-linejoin="round"/>
+  <rect x="51" y="70" width="36" height="3" rx="1.5" fill="#263352"/>
+
+  <!-- Row 3: date chip + arrow -->
+  <rect x="39" y="84" width="20" height="10" rx="2" fill="#E8F0FA"/>
+  <text x="49" y="92" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"
+        font-size="7.5" font-weight="700" fill="#0A4B86"
+        text-anchor="middle">2026-11-07</text>
+  <path d="M63 89 l20 0 M79 85 l4 4 l-4 4"
+        stroke="#1E6AB5" stroke-width="1.6"
+        fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Row 4: pending status chip -->
+  <circle cx="44" cy="102" r="2.5" fill="#F59E0B"/>
+  <rect x="51" y="100" width="30" height="3" rx="1.5" fill="#A56518"/>
+  <rect x="51" y="105" width="20" height="2" rx="1" fill="#C6D4E4"/>
+</svg>

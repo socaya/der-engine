@@ -1,0 +1,277 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useAuth, useOrgUnitBinding, useOnlineStatus, useDerApi,
+  ScreenCard, StatusPill,
+} from '@der/app-sdk';
+
+import { EventWorkflow } from './features/EventWorkflow';
+import { TrackerWorkflow } from './features/TrackerWorkflow';
+import type { ProgramOpt, CaptureApi } from './shared/types';
+import { CAPTURE_STYLES } from './shared/styles';
+
+/**
+ * DER Capture — unified Tracker + Event capture app.
+ *
+ * <p>Requirements doc §1: "Build one Capture app". Tracker and
+ * Event flows share one shell, one metadata adapter, one form
+ * engine, one permission layer. The mode is derived from the
+ * selected program's {@code programType} (never a user toggle).</p>
+ *
+ * <p>Layout mirrors the Data Entry app (sticky top toolbar with
+ * title + info + online pill + context fields; content area
+ * below; sticky action footer) so operators have one muscle
+ * memory across both modules.</p>
+ */
+export default function CaptureApp(): JSX.Element {
+  const auth = useAuth();
+  const ou = useOrgUnitBinding();
+  const online = useOnlineStatus();
+  const api = useDerApi() as unknown as CaptureApi;
+
+  const [programs, setPrograms] = useState<ProgramOpt[]>([]);
+  const [programUid, setProgramUid] = useState('');
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Hash-based internal route lets the app expose deep links like
+  // #/event and #/tracker without pulling a router in. Reserved
+  // for G4+ (tracker list, TEI dashboard, enrolment create).
+  const [hashRoute, setHashRoute] = useState<string>(() =>
+    (typeof window !== 'undefined' ? window.location.hash.slice(1) : '')
+    || '/');
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onHash = (): void => setHashRoute(window.location.hash.slice(1) || '/');
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  // Fetch programs once the device is OU-bound.
+  useEffect(() => {
+    if (!ou.bound) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await api.listPrograms(ou.orgUnitUid);
+        if (cancelled) return;
+        setPrograms(list.map((p) => ({
+          id: p.id, displayName: p.displayName,
+          programType: p.programType,
+        })));
+        // Auto-select the only assigned program so the operator
+        // doesn't have to think when the facility runs one program.
+        if (list.length === 1) setProgramUid(list[0].id);
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError('Failed to load programs: ' + (err as Error).message);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [ou.bound, ou.orgUnitUid, api]);
+
+  const program = useMemo(
+    () => programs.find((p) => p.id === programUid) ?? null,
+    [programs, programUid]);
+  // Derive the mode from metadata — never a toggle (§1, §22.5).
+  const mode: 'event' | 'tracker' | null = program
+    ? (program.programType === 'WITH_REGISTRATION' ? 'tracker' : 'event')
+    : null;
+
+  return (
+    <ScreenCard dataTest="der-capture">
+      <style>{CAPTURE_STYLES}</style>
+
+      {/* Sticky top toolbar — mirrors the Data Entry layout:
+       *   title + info-button + online pill + context fields
+       *   on one line. */}
+      <div className="cap-toolbar" role="toolbar"
+           aria-label="Capture toolbar">
+        <div className="cap-toolbar__brand">
+          <span className="cap-toolbar__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22">
+              <rect x="4" y="5" width="16" height="16" rx="3"
+                    fill="none" stroke="#147CD7" strokeWidth="1.8"/>
+              <rect x="9" y="3" width="6" height="4" rx="1"
+                    fill="#147CD7"/>
+              <path d="M8 12 l2.2 2.2 L16 8.4"
+                    fill="none" stroke="#1E8E4A" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+          <h1 className="cap-toolbar__title">Capture</h1>
+          <button type="button"
+                  className="cap-toolbar__info-btn"
+                  data-test="cap-info-btn"
+                  aria-label="About Capture"
+                  title="About Capture (Alt+I)"
+                  onClick={() => setInfoOpen((v) => !v)}>
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <circle cx="8" cy="8" r="7" fill="none"
+                      stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="8" cy="4.5" r="0.9" fill="currentColor" />
+              <rect x="7" y="7" width="2" height="5" rx="1"
+                    fill="currentColor"/>
+            </svg>
+          </button>
+          <StatusPill tone={online.isOnline ? 'success' : 'warning'}>
+            {online.isOnline
+              ? 'online' : `offline (${online.queuedCount} queued)`}
+          </StatusPill>
+        </div>
+
+        <label className="cap-toolbar__field">
+          <span className="cap-toolbar__field-label">Program</span>
+          <select className="cap-toolbar__select"
+                  value={programUid}
+                  onChange={(e) => setProgramUid(e.target.value)}
+                  data-test="cap-program-select"
+                  disabled={!ou.bound || programs.length === 0}>
+            <option value="">— select —</option>
+            {programs.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.displayName}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="cap-toolbar__ou">
+          <span className="cap-toolbar__field-label">Organisation unit</span>
+          <code className="cap-toolbar__ou-code" title={ou.orgUnitPath}>
+            {ou.orgUnitDisplayName || ou.orgUnitUid || '—'}
+          </code>
+        </div>
+
+        {mode && (
+          <span className={'cap-toolbar__mode cap-toolbar__mode--' + mode}
+                data-test="cap-mode-chip"
+                title={mode === 'tracker'
+                  ? 'Program requires registration — tracker workflow'
+                  : 'Standalone event program — event workflow'}>
+            {mode === 'tracker' ? 'Tracker' : 'Event'}
+          </span>
+        )}
+      </div>
+
+      {!ou.bound && (
+        <div className="cap-strip cap-strip--err" data-test="cap-ou-missing">
+          Device is not bound to an organisation unit — ask an admin
+          to complete provisioning before capturing records.
+        </div>
+      )}
+      {loadError && (
+        <div className="cap-strip cap-strip--err" data-test="cap-load-err">
+          {loadError}
+        </div>
+      )}
+
+      {/* Signed-in subheader — matches the Data Entry chrome. */}
+      <p className="cap-sub">
+        Signed in as <strong>{auth.displayName}</strong>
+        {program && (
+          <>
+            {' · Program '}
+            <code className="cap-sub__code">{program.displayName}</code>
+          </>
+        )}
+      </p>
+
+      {/* Content area — mode-aware. Shared form engine, shared
+       *  edge-write contract; the Tracker and Event components
+       *  are thin wrappers that orchestrate workflow-specific
+       *  context around the common form engine. */}
+      {!program && ou.bound && programs.length > 0 && (
+        <div className="cap-empty" data-test="cap-pick-program">
+          <h2 className="cap-empty__title">Pick a program to begin</h2>
+          <p className="cap-empty__body">
+            You have <strong>{programs.length}</strong>{' '}
+            program{programs.length === 1 ? '' : 's'} assigned to this
+            organisation unit. The capture mode (Tracker or Event) is
+            derived from the program type — no toggle is needed.
+          </p>
+        </div>
+      )}
+      {!program && ou.bound && programs.length === 0 && (
+        <div className="cap-empty" data-test="cap-no-programs">
+          <h2 className="cap-empty__title">No programs assigned</h2>
+          <p className="cap-empty__body">
+            This organisation unit has no programs available. Ask an
+            administrator to assign a program before continuing.
+          </p>
+        </div>
+      )}
+      {program && mode === 'event' && (
+        <EventWorkflow api={api} programUid={program.id}
+                        orgUnitUid={ou.orgUnitUid}
+                        orgUnitDisplayName={ou.orgUnitDisplayName} />
+      )}
+      {program && mode === 'tracker' && (
+        <TrackerWorkflow api={api} programUid={program.id}
+                          orgUnitUid={ou.orgUnitUid}
+                          orgUnitDisplayName={ou.orgUnitDisplayName}
+                          hashRoute={hashRoute} />
+      )}
+
+      {infoOpen && (
+        <CaptureInfoPopover onClose={() => setInfoOpen(false)}
+                             program={program} mode={mode} />
+      )}
+    </ScreenCard>
+  );
+}
+
+function CaptureInfoPopover(
+  { onClose, program, mode }:
+  { onClose: () => void;
+    program: ProgramOpt | null;
+    mode: 'event' | 'tracker' | null },
+): JSX.Element {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const h = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [onClose]);
+  return (
+    <div className="cap-info-backdrop"
+         role="dialog" aria-modal="true" aria-label="About Capture"
+         data-test="cap-info-popover"
+         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="cap-info" ref={dialogRef}>
+        <header className="cap-info__head">
+          <h3 className="cap-info__title">About Capture</h3>
+          <button type="button"
+                  className="cap-info__close"
+                  aria-label="Close"
+                  onClick={onClose}>×</button>
+        </header>
+        <div className="cap-info__body">
+          <p>
+            DER Capture is one app covering both <strong>Tracker</strong>{' '}
+            (registration + enrolment + repeatable stages) and{' '}
+            <strong>Event</strong> (standalone events) programs. The
+            mode is derived from the program's <code>programType</code>,
+            not a user toggle.
+          </p>
+          {program && (
+            <dl className="cap-info__dl">
+              <div><dt>Program</dt><dd>{program.displayName}</dd></div>
+              <div><dt>Program UID</dt><dd><code>{program.id}</code></dd></div>
+              <div><dt>Mode</dt>
+                <dd>{mode === 'tracker' ? 'Tracker (WITH_REGISTRATION)'
+                  : 'Event (WITHOUT_REGISTRATION)'}</dd></div>
+            </dl>
+          )}
+          <p className="cap-info__note">
+            Edits are committed to the facility edge first. Central
+            sync is a separate step — the status footer distinguishes
+            <em> Saved on edge</em> from <em>Synced to Central</em>.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

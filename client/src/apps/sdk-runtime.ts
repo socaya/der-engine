@@ -48,7 +48,7 @@ function useDerApi(): {
   getCaptureRunForm: typeof edgeApi.getCaptureRunForm;
   getCaptureRunData: typeof edgeApi.getCaptureRunData;
   advanceCaptureRun: typeof edgeApi.advanceCaptureRun;
-  // CE-1 — capture-event pickers surface.
+  // Capture app (unified) — program + stage pickers surface.
   listPrograms: typeof edgeApi.listPrograms;
   listCaptureProgramStages: typeof edgeApi.listCaptureProgramStages;
   getCaptureStageForm: typeof edgeApi.getCaptureStageForm;

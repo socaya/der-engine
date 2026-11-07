@@ -57,6 +57,11 @@ app shares the same React instance and context providers.
   `client/src/screens/AggregateEntry.tsx`.
 
 **Open (C-UI-5c slice 3+):**
-- `apps/capture-event/`, `apps/capture-tracker/`,
-  `apps/workflow-capture/` migrations; each is its own ADR +
-  commit.
+- `apps/capture/` — unified Tracker + Event capture app (replaces
+  the separate `apps/capture-event/` and `apps/capture-tracker/`
+  slice-4/5 scaffolds, per the requirements doc §1 "one Capture
+  app"). Rolled out gate by gate (G1 shared shell shipped; G2
+  metadata parser, G3 form engine, G4 Tracker list/register, G5
+  Tracker timeline, G6 Event flows, G7 Relationships, G8 Edge
+  durability, G9 polish queued).
+- `apps/workflow-capture/` migration; its own ADR + commit.

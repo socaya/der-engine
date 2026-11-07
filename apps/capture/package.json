@@ -1,13 +1,13 @@
 {
-  "name": "@der/app-capture-event",
+  "name": "@der/app-capture",
   "version": "0.1.0-alpha.1",
   "type": "module",
   "private": true,
-  "description": "DER-dispatched event-program capture app (C-UI-5c slice 4). Replaces client/src/screens/EventNew.tsx + EventList.tsx over the slice-4 rollout.",
+  "description": "DER Capture — unified Tracker + Event capture app (requirements doc §1 \"one Capture app\"). Replaces apps/capture-event + apps/capture-tracker.",
   "derAppManifest": {
-    "appKey": "capture-event",
-    "displayName": "Event capture",
-    "module": "Data",
+    "appKey": "capture",
+    "displayName": "Capture",
+    "module": "Capture",
     "version": "0.1.0-alpha.1",
     "requiresDerApi": "1.0.0"
   },
