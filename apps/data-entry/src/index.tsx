@@ -340,6 +340,7 @@ export default function DataEntryApp(): JSX.Element {
           () => ({ ...aocSelectionsRef.current }),
           api);
         attachKeyboardNav(content);
+        attachColumnPaste(content, setStatus);
         attachDetailsSpy(content, meta, setDetails);
         // §FR-09 — mark every (de, coc) listed in
         // compulsoryDataElementOperands so runValidation + the
@@ -1840,6 +1841,62 @@ function CellDetailsDrawer(
       </div>
     </aside>
   );
+}
+
+/**
+ * Column paste (FR-06). Operators routinely copy a column of
+ * values from a spreadsheet and want it to drop into DER in one
+ * action. On paste into any `<input name="<de>-<coc>-val">`:
+ *
+ *   • If the clipboard text contains newlines → split on
+ *     \r?\n, trim trailing empties, and distribute values
+ *     DOWN the same COC column starting at the focused cell.
+ *   • Each target fires `blur` so attachSaveOnBlur captures +
+ *     saves the value (or enqueues when offline).
+ *   • The status strip reports "Pasted N values into COC …".
+ *   • Fewer clipboard values than cells → the remainder stay
+ *     untouched. More values than cells → the overflow is
+ *     silently dropped (we don't want to walk off the end of
+ *     the section).
+ *
+ * Single-line pastes fall through to the browser's native
+ * behaviour (just updates this one cell).
+ */
+function attachColumnPaste(
+  container: HTMLElement,
+  setStatus: (s: { kind: 'ok' | 'error'; message: string }) => void,
+): void {
+  container.addEventListener('paste', (ev) => {
+    const target = ev.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT') return;
+    const name = target.getAttribute('name') ?? '';
+    const m = /^(.+)-(.+)-val$/.exec(name);
+    if (!m) return;
+    const text = ev.clipboardData?.getData('text/plain') ?? '';
+    if (!/\r?\n/.test(text)) return; // single-line → native.
+    const values = text.split(/\r?\n/).map((s) => s.trim())
+      // Drop trailing blank line(s) from Excel's "copy a range".
+      .filter((_v, i, arr) => !(i === arr.length - 1 && _v === ''));
+    if (values.length === 0) return;
+    ev.preventDefault();
+    const coc = m[2]!;
+    const column = Array.from(container.querySelectorAll<HTMLInputElement>(
+      `input[name$="-${coc}-val"]`));
+    const startIdx = column.indexOf(target);
+    if (startIdx === -1) return;
+    let filled = 0;
+    for (let i = 0; i < values.length; i++) {
+      const slot = column[startIdx + i];
+      if (!slot) break;
+      slot.value = values[i] ?? '';
+      slot.dispatchEvent(new Event('input', { bubbles: true }));
+      slot.dispatchEvent(new Event('blur', { bubbles: true }));
+      filled++;
+    }
+    setStatus({ kind: 'ok',
+      message: `Pasted ${filled} value${filled === 1 ? '' : 's'} `
+        + `into the column (${values.length - filled} overflow).` });
+  }, true);
 }
 
 /**
