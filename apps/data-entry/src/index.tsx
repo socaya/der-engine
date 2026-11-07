@@ -746,6 +746,26 @@ export default function DataEntryApp(): JSX.Element {
     }
   }
 
+  async function importPdfFile(file: File): Promise<void> {
+    setStatus({ kind: 'submitting' });
+    try {
+      const pdfLib = await import('pdf-lib') as typeof import('pdf-lib');
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const r = await applyPdfImportToForm(pdfLib, customRoot.current, bytes);
+      if (r.imported === 0 && r.skipped === 0) {
+        setStatus({ kind: 'error', message: 'PDF import: no form fields found' });
+        return;
+      }
+      setStatus({ kind: 'ok',
+        message: `Imported ${r.imported} cell${r.imported === 1 ? '' : 's'} from PDF`
+          + (r.skipped > 0 ? ` (skipped ${r.skipped})` : '')
+          + '. Review + Save all to commit.' });
+    } catch (e) {
+      setStatus({ kind: 'error',
+        message: `PDF import failed: ${(e as Error).message}` });
+    }
+  }
+
   function importCsvFile(file: File): void {
     const reader = new FileReader();
     reader.onerror = () => setStatus({ kind: 'error',
@@ -1263,6 +1283,19 @@ export default function DataEntryApp(): JSX.Element {
                    onChange={(e) => {
                      const f = e.target.files?.[0];
                      if (f) importCsvFile(f);
+                     e.target.value = '';
+                   }} />
+          </label>
+          <label className="der-de-density-btn der-de-import-btn"
+                 data-test="de-import-pdf-btn"
+                 title="Upload an edited PDF (filled in Adobe/Preview) back into this form">
+            ⬆ PDF
+            <input type="file"
+                   accept="application/pdf,.pdf"
+                   data-test="de-import-pdf-input"
+                   onChange={(e) => {
+                     const f = e.target.files?.[0];
+                     if (f) void importPdfFile(f);
                      e.target.value = '';
                    }} />
           </label>
@@ -4110,6 +4143,63 @@ function applyCsvImportToForm(
       input.removeAttribute('data-comment');
     }
     imported++;
+  }
+  return { imported, skipped };
+}
+
+/**
+ * Apply an uploaded PDF (originally exported via slice 67/68) back
+ * onto the form. Reads every AcroForm text field whose name follows
+ * the `val_<deId>__<cocId>` / `com_<deId>__<cocId>` convention,
+ * maps it to the matching `<de>-<coc>-val` input, sets the value +
+ * data-comment and fires input events so dirty tracking + live
+ * validation + row totals react.
+ */
+async function applyPdfImportToForm(
+  pdfLib: typeof import('pdf-lib'),
+  root: HTMLElement | null, bytes: Uint8Array,
+): Promise<{ imported: number; skipped: number }> {
+  if (!root) return { imported: 0, skipped: 0 };
+  const doc = await pdfLib.PDFDocument.load(bytes, { ignoreEncryption: true });
+  const form = doc.getForm();
+  const allFields = form.getFields();
+  if (allFields.length === 0) {
+    throw new Error('PDF has no fillable form fields (not a DER export?)');
+  }
+  // Use form.getTextField(name) — it throws when the named field
+  // isn't a text field, so we don't rely on instanceof / duck-type
+  // checks that esbuild + minification can disagree about across
+  // the bundled pdf-lib copy and the dynamically-imported one.
+  let imported = 0; let skipped = 0;
+  for (const field of allFields) {
+    const name = field.getName();
+    const val = /^val_(.+)__(.+)$/.exec(name);
+    const com = /^com_(.+)__(.+)$/.exec(name);
+    if (!val && !com) continue;
+    let tf: { getText(): string | undefined };
+    try {
+      tf = form.getTextField(name) as unknown as { getText(): string | undefined };
+    } catch { continue; }
+    const text = (tf.getText() ?? '').toString().trim();
+    if (val) {
+      const [, de, coc] = val;
+      const input = root.querySelector<HTMLInputElement>(
+        `input[name="${CSS.escape(de!)}-${CSS.escape(coc!)}-val"]`);
+      if (!input) { skipped++; continue; }
+      if (text !== input.value) {
+        input.value = text;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      imported++;
+    } else if (com) {
+      const [, de, coc] = com;
+      const input = root.querySelector<HTMLInputElement>(
+        `input[name="${CSS.escape(de!)}-${CSS.escape(coc!)}-val"]`);
+      if (!input) continue;
+      if (text) input.setAttribute('data-comment', text);
+      else input.removeAttribute('data-comment');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   }
   return { imported, skipped };
 }
