@@ -2087,8 +2087,7 @@ function CellLiveStrip(
               + `der-de-live-strip__state--${stateTone[details.saveState]}`}>
               {stateLabel[details.saveState]}
             </span>
-            <SyncLogos formSync={formSync} cellSaved={
-              details.saveState === 'saved' || details.saveState === 'queued'} />
+            <SyncLogos formSync={formSync} cellState={details.saveState} />
             {details.compulsory && (
               <span className="der-de-live-strip__required"
                     title="Compulsory — a value is required.">Required</span>
@@ -2105,41 +2104,56 @@ function CellLiveStrip(
 }
 
 /**
- * Two tiny status logos on the cell-details strip:
- *   • DER  — lights green when this cell (or any cell in the form)
- *            has been written to the DER mirror.
- *   • DHIS2 — lights green when the form's outbox envelope is
- *            CENTRAL_ACCEPTED (both logos lit = fully synced).
- *            Amber dashed while PENDING / IN_FLIGHT / RETRYABLE,
- *            red on CENTRAL_REJECTED / CONFLICT_REVIEW / QUARANTINED.
+ * Two tiny status logos on the cell-details strip. Both pins reflect
+ * the FOCUSED cell's status — not the form's — so a cell with no
+ * value shows gray even when other cells in the same form have been
+ * synced:
+ *
+ *   • DER  — gray when the cell is empty, amber while saving, green
+ *            once the DER mirror acknowledged the write (saved or
+ *            queued), red if the local save rejected.
+ *   • DHIS2 — gray until the cell has been saved locally. Once a
+ *            save lands, follows the form envelope's central state
+ *            (the drain worker coalesces per form so the envelope
+ *            state is shared by every cell).
  */
 function SyncLogos(
-  { formSync, cellSaved }: { formSync: FormSyncState; cellSaved: boolean },
+  { formSync, cellState }:
+  { formSync: FormSyncState; cellState: CellDetails['saveState'] },
 ): JSX.Element {
-  const derLit = cellSaved || formSync.localSaved;
+  const cellSaved = cellState === 'saved' || cellState === 'queued';
+  const derTone: 'lit' | 'pending' | 'error' | 'muted' =
+      cellState === 'saved' || cellState === 'queued' ? 'lit'
+    : cellState === 'saving' ? 'pending'
+    : cellState === 'error'  ? 'error'
+    : 'muted';
   const central = formSync.central;
   const centralTone: 'lit' | 'pending' | 'error' | 'muted' =
-    central === 'CENTRAL_ACCEPTED' ? 'lit'
+      !cellSaved ? 'muted'
+    : central === 'CENTRAL_ACCEPTED' ? 'lit'
     : (central === 'PENDING' || central === 'IN_FLIGHT'
       || central === 'RETRYABLE' || central === 'UNKNOWN_OUTCOME') ? 'pending'
     : (central === 'CENTRAL_REJECTED' || central === 'CONFLICT_REVIEW'
       || central === 'QUARANTINED' || central === 'REQUIRES_APPROVAL') ? 'error'
     : 'muted';
-  const derTitle = derLit
-    ? 'Saved on edge (DER)'
-    : 'Not yet saved on edge';
+  const derTitle =
+      derTone === 'lit'     ? 'Saved on edge (DER)'
+    : derTone === 'pending' ? 'Saving on edge…'
+    : derTone === 'error'   ? 'Rejected by edge'
+    : 'No value entered yet';
   const centralTitle =
-      centralTone === 'lit'   ? 'Synced to Central DHIS2'
+      centralTone === 'lit'     ? 'Synced to Central DHIS2'
     : centralTone === 'pending' ? `Sync in progress (${central})`
-    : centralTone === 'error' ? `Central reported ${central}`
-    : 'Not yet synced to Central';
+    : centralTone === 'error'   ? `Central reported ${central}`
+    : cellSaved                 ? 'Awaiting Central sync'
+    : 'No value entered yet';
   return (
     <span className="der-de-sync-logos" data-test="de-sync-logos"
           aria-label="Save + sync status">
       <span className={'der-de-sync-logos__pin der-de-sync-logos__pin--der '
-            + (derLit ? 'is-lit' : 'is-muted')}
+            + 'is-' + derTone}
             title={derTitle} data-test="de-sync-der"
-            data-state={derLit ? 'lit' : 'muted'}>
+            data-state={derTone}>
         <DerBrandMark />
         <span className="der-de-sync-logos__label">DER</span>
       </span>
