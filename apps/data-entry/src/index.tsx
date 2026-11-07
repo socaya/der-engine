@@ -4144,10 +4144,15 @@ function renderPeriodPicker(
   openFuturePeriods: number = 0,
 ): JSX.Element {
   // ✓ wins over ● — if a period is complete it's also touched.
+  // Appends a relative-time hint (· last month / 2 months ago / …)
+  // so operators can tell at a glance how old a period is without
+  // reading the label.
   const markLabel = (id: string, label: string): string => {
-    if (completedPeriods.has(id)) return `✓  ${label}`;
-    if (touchedPeriods.has(id))   return `●  ${label}`;
-    return label;
+    const hint = periodHint(periodType, id);
+    const annotated = hint ? `${label}  ·  ${hint}` : label;
+    if (completedPeriods.has(id)) return `✓  ${annotated}`;
+    if (touchedPeriods.has(id))   return `●  ${annotated}`;
+    return annotated;
   };
   const common = { ...inputStyle } as React.CSSProperties;
   const baseOptions = buildPeriodOptions(periodType, openFuturePeriods);
@@ -4337,6 +4342,107 @@ function formatPeriodLabel(periodType: string | undefined, id: string): string |
  *   Yearly / FinancialOct / FinancialJuly / FinancialApril → last 10 years
  * Falls back to [] (free text) for unknown period types.
  */
+/**
+ * Relative-time hint for a DHIS2 period id, taken relative to
+ * "today". Returns null when the period is in the current slot
+ * (handled by the picker's own current-period marker) or when the
+ * period type / id is something we don't know how to decode.
+ *
+ * Examples:
+ *   Monthly, "202610" (today = 2026-11): "last month"
+ *   Monthly, "202608" (today = 2026-11): "3 months ago"
+ *   Quarterly, "2026Q3" (today = Q4 2026): "last quarter"
+ *   Yearly, "2024"    (today = 2026):     "2 years ago"
+ */
+function periodHint(periodType: string | undefined, periodId: string): string | null {
+  if (!periodType || !periodId) return null;
+  const now = new Date();
+  switch (periodType) {
+    case 'Daily': {
+      const m = /^(\d{4})(\d{2})(\d{2})$/.exec(periodId);
+      if (!m) return null;
+      const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      const diffDays = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+        - d.getTime()) / 86400000);
+      if (diffDays === 0) return 'today';
+      if (diffDays === 1) return 'yesterday';
+      if (diffDays > 0 && diffDays < 30) return `${diffDays} days ago`;
+      if (diffDays < 0) return 'future';
+      return null;
+    }
+    case 'Weekly': {
+      const m = /^(\d{4})W(\d{1,2})$/.exec(periodId);
+      if (!m) return null;
+      const w = isoWeek(now);
+      const delta = (w.year - Number(m[1])) * 52 + (w.week - Number(m[2]));
+      if (delta === 0) return 'this week';
+      if (delta === 1) return 'last week';
+      if (delta > 1 && delta < 52) return `${delta} weeks ago`;
+      if (delta < 0) return 'future';
+      return null;
+    }
+    case 'Monthly': {
+      const m = /^(\d{4})(\d{2})$/.exec(periodId);
+      if (!m) return null;
+      const delta = (now.getFullYear() - Number(m[1])) * 12
+                  + (now.getMonth() - (Number(m[2]) - 1));
+      if (delta === 0) return 'this month';
+      if (delta === 1) return 'last month';
+      if (delta > 1 && delta < 12) return `${delta} months ago`;
+      if (delta >= 12 && delta % 12 === 0) {
+        const y = delta / 12;
+        return y === 1 ? '1 year ago' : `${y} years ago`;
+      }
+      if (delta >= 12) return `${delta} months ago`;
+      if (delta < 0) return 'future';
+      return null;
+    }
+    case 'BiMonthly': {
+      const m = /^(\d{4})(\d{2})B$/.exec(periodId);
+      if (!m) return null;
+      const bmNow = Math.floor(now.getMonth() / 2) + 1;
+      const delta = (now.getFullYear() - Number(m[1])) * 6 + (bmNow - Number(m[2]));
+      if (delta === 0) return 'this bi-month';
+      if (delta === 1) return 'last bi-month';
+      if (delta > 1) return `${delta} bi-months ago`;
+      return 'future';
+    }
+    case 'Quarterly': {
+      const m = /^(\d{4})Q(\d)$/.exec(periodId);
+      if (!m) return null;
+      const qNow = Math.floor(now.getMonth() / 3) + 1;
+      const delta = (now.getFullYear() - Number(m[1])) * 4 + (qNow - Number(m[2]));
+      if (delta === 0) return 'this quarter';
+      if (delta === 1) return 'last quarter';
+      if (delta > 1) return `${delta} quarters ago`;
+      return 'future';
+    }
+    case 'SixMonthly': {
+      const m = /^(\d{4})S(\d)$/.exec(periodId);
+      if (!m) return null;
+      const sNow = now.getMonth() < 6 ? 1 : 2;
+      const delta = (now.getFullYear() - Number(m[1])) * 2 + (sNow - Number(m[2]));
+      if (delta === 0) return 'this half';
+      if (delta === 1) return 'last half';
+      if (delta > 1) return `${delta} halves ago`;
+      return 'future';
+    }
+    case 'Yearly':
+    case 'FinancialApril':
+    case 'FinancialJuly':
+    case 'FinancialOct': {
+      if (!/^\d{4}$/.test(periodId)) return null;
+      const delta = now.getFullYear() - Number(periodId);
+      if (delta === 0) return 'this year';
+      if (delta === 1) return 'last year';
+      if (delta > 1) return `${delta} years ago`;
+      return 'future';
+    }
+    default:
+      return null;
+  }
+}
+
 function buildPeriodOptions(
   periodType?: string,
   openFuturePeriods: number = 0,
