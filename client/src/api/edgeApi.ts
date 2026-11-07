@@ -1159,6 +1159,50 @@ export function listCaptureEnrollmentEvents(enrollmentUid: string,
     + (qs ? `?${qs}` : ''));
 }
 
+/** Program summary used by the capture app pickers. */
+export interface ProgramSummary {
+  id: string;
+  displayName: string;
+  programType: 'WITH_REGISTRATION' | 'WITHOUT_REGISTRATION';
+  trackedEntityTypeId: string | null;
+  orgUnitIds: readonly string[];
+}
+
+/**
+ * List programs from the DER mirror (`GET /api/programs`). When
+ * {@code orgUnit} is provided, only programs assigned to that OU
+ * are returned — mirrors {@link listDataSets}'s OU filter so the
+ * capture-event picker can't conflict out on E8022.
+ */
+export async function listPrograms(orgUnit?: string):
+    Promise<ProgramSummary[]> {
+  const r = await fetch('/api/programs?fields=id,displayName,programType,'
+      + 'trackedEntityType[id],organisationUnits[id]&paging=false',
+    { credentials: 'include', headers: { Accept: 'application/json' } });
+  if (!r.ok) return [];
+  const body = await r.json() as {
+    programs?: Array<{
+      id: string;
+      displayName?: string;
+      name?: string;
+      programType?: string;
+      trackedEntityType?: { id: string };
+      organisationUnits?: Array<{ id: string }>;
+    }>;
+  };
+  const all: ProgramSummary[] = (body.programs ?? []).map((p) => ({
+    id: p.id,
+    displayName: p.displayName ?? p.name ?? p.id,
+    programType: (p.programType === 'WITH_REGISTRATION'
+      ? 'WITH_REGISTRATION' : 'WITHOUT_REGISTRATION'),
+    trackedEntityTypeId: p.trackedEntityType?.id ?? null,
+    orgUnitIds: (p.organisationUnits ?? []).map((o) => o.id),
+  }));
+  if (!orgUnit) return all;
+  return all.filter((p) =>
+    p.orgUnitIds.length === 0 || p.orgUnitIds.includes(orgUnit));
+}
+
 /** §2.3.43 — pull a program's tracked-entity-attribute UID list from
  *  the DHIS2 proxy so EnrollmentCreate can render the right inputs
  *  without the operator having to paste them into the URL. */

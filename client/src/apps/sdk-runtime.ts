@@ -48,6 +48,11 @@ function useDerApi(): {
   getCaptureRunForm: typeof edgeApi.getCaptureRunForm;
   getCaptureRunData: typeof edgeApi.getCaptureRunData;
   advanceCaptureRun: typeof edgeApi.advanceCaptureRun;
+  // CE-1 — capture-event pickers surface.
+  listPrograms: typeof edgeApi.listPrograms;
+  listCaptureProgramStages: typeof edgeApi.listCaptureProgramStages;
+  getCaptureStageForm: typeof edgeApi.getCaptureStageForm;
+  listCaptureProgramEvents: typeof edgeApi.listCaptureProgramEvents;
 } {
   return {
     submitAggregate: edgeApi.submitAggregate,
@@ -77,6 +82,10 @@ function useDerApi(): {
     getCaptureRunForm: edgeApi.getCaptureRunForm,
     getCaptureRunData: edgeApi.getCaptureRunData,
     advanceCaptureRun: edgeApi.advanceCaptureRun,
+    listPrograms: edgeApi.listPrograms,
+    listCaptureProgramStages: edgeApi.listCaptureProgramStages,
+    getCaptureStageForm: edgeApi.getCaptureStageForm,
+    listCaptureProgramEvents: edgeApi.listCaptureProgramEvents,
   };
 }
 

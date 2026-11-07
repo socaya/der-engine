@@ -302,6 +302,87 @@ function jsonRespond(status: number, body: unknown): Response {
   } as unknown as Response;
 }
 
+describe('edgeApi.listPrograms', () => {
+  it('maps DHIS2 programs into flat ProgramSummary records', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {
+      programs: [
+        { id: 'P1', displayName: 'Event prog A',
+          programType: 'WITHOUT_REGISTRATION',
+          trackedEntityType: null,
+          organisationUnits: [{ id: 'OU1' }] },
+        { id: 'P2', name: 'Tracker prog', // falls back from name
+          programType: 'WITH_REGISTRATION',
+          trackedEntityType: { id: 'TET1' },
+          organisationUnits: [] },
+      ],
+    }));
+    const r = await api.listPrograms();
+    expect(r).toEqual([
+      { id: 'P1', displayName: 'Event prog A',
+        programType: 'WITHOUT_REGISTRATION',
+        trackedEntityTypeId: null,
+        orgUnitIds: ['OU1'] },
+      { id: 'P2', displayName: 'Tracker prog',
+        programType: 'WITH_REGISTRATION',
+        trackedEntityTypeId: 'TET1',
+        orgUnitIds: [] },
+    ]);
+    const [path] = fetchMock.mock.calls[0] as [string];
+    expect(path).toContain('/api/programs?fields=');
+    expect(path).toContain('paging=false');
+  });
+
+  it('filters to the bound OU when orgUnit is provided', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {
+      programs: [
+        { id: 'P1', displayName: 'A',
+          programType: 'WITHOUT_REGISTRATION',
+          organisationUnits: [{ id: 'OU-mine' }] },
+        { id: 'P2', displayName: 'B',
+          programType: 'WITHOUT_REGISTRATION',
+          organisationUnits: [{ id: 'OU-other' }] },
+        { id: 'P3', displayName: 'C',
+          programType: 'WITHOUT_REGISTRATION',
+          organisationUnits: [] }, // empty means "all OUs" — always kept
+      ],
+    }));
+    const r = await api.listPrograms('OU-mine');
+    expect(r.map((p) => p.id)).toEqual(['P1', 'P3']);
+  });
+
+  it('defaults programType to WITHOUT_REGISTRATION when missing / unknown', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {
+      programs: [
+        { id: 'P1', displayName: 'No type' },
+        { id: 'P2', displayName: 'Weird',
+          programType: 'SOMETHING_ELSE' },
+      ],
+    }));
+    const r = await api.listPrograms();
+    expect(r.every((p) => p.programType === 'WITHOUT_REGISTRATION')).toBe(true);
+  });
+
+  it('returns an empty list on HTTP error', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(500, { error: 'boom' }));
+    const r = await api.listPrograms();
+    expect(r).toEqual([]);
+  });
+
+  it('handles a body without a programs array', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {}));
+    const r = await api.listPrograms();
+    expect(r).toEqual([]);
+  });
+
+  it('falls back to id when neither displayName nor name is set', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {
+      programs: [{ id: 'P-only' }],
+    }));
+    const r = await api.listPrograms();
+    expect(r[0]!.displayName).toBe('P-only');
+  });
+});
+
 describe('edgeApi.programTrackedEntityAttributes', () => {
   it('maps the DHIS2 metadata response to a flat UID list', async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, {
