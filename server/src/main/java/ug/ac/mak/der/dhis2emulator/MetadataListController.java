@@ -187,11 +187,46 @@ public class MetadataListController {
     public ResponseEntity<Map<String, Object>> dataSets(
             final Authentication auth,
             @RequestParam(name = "pageSize", defaultValue = "50") final int pageSize,
-            @RequestParam(name = "page", defaultValue = "1") final int page) {
+            @RequestParam(name = "page", defaultValue = "1") final int page,
+            @RequestParam(name = "orgUnit", required = false) final String orgUnit) {
         if (!(auth instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(buildList("dataSets", mirror.findAllDataSets(), page, pageSize));
+        // §2.3.84 — hide unassigned datasets at the source so neither
+        // the data-entry app nor the admin surface can offer a form
+        // the operator's OU is not permitted to capture against.
+        // Central DHIS2 rejects such submissions with E8022 "Data set
+        // not usable with org unit", producing CONFLICT_REVIEW
+        // envelopes that can never drain. Filtering here prevents
+        // the bad state from being created in the first place.
+        final List<ug.ac.mak.der.metadata.MirroredDataSet> all =
+                mirror.findAllDataSets();
+        final List<ug.ac.mak.der.metadata.MirroredDataSet> rows =
+                orgUnit == null || orgUnit.isBlank()
+                        ? all
+                        : filterDataSetsByOrgUnit(all, orgUnit.trim());
+        return ResponseEntity.ok(buildList("dataSets", rows, page, pageSize));
+    }
+
+    static List<ug.ac.mak.der.metadata.MirroredDataSet> filterDataSetsByOrgUnit(
+            final List<ug.ac.mak.der.metadata.MirroredDataSet> rows,
+            final String orgUnitUid) {
+        final List<ug.ac.mak.der.metadata.MirroredDataSet> kept =
+                new java.util.ArrayList<>(rows.size());
+        for (final var ds : rows) {
+            final JsonNode ous = ds.payload().get("organisationUnits");
+            if (ous == null || !ous.isArray()) {
+                continue;
+            }
+            for (final JsonNode node : ous) {
+                final JsonNode id = node.get("id");
+                if (id != null && orgUnitUid.equals(id.asText())) {
+                    kept.add(ds);
+                    break;
+                }
+            }
+        }
+        return kept;
     }
 
     @GetMapping("/dataSets/{uid}")

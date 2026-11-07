@@ -145,13 +145,21 @@ export default function DataEntryApp(): JSX.Element {
     catch { /* non-persistent env */ }
   }, [density]);
 
-  // Hydrate the dataset picker once on mount — operators choose
-  // from what's mirrored on this edge, not type raw UIDs.
+  // Hydrate the dataset picker whenever the bound OU resolves —
+  // operators only see datasets assigned to their facility on
+  // Central DHIS2. Prevents entry on (dataSet, orgUnit) pairs the
+  // central side will reject with E8022 "Data set not usable with
+  // org unit" (the root cause of every CONFLICT_REVIEW envelope
+  // the admin outbox was accumulating).
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      if (!ou.bound || !ou.orgUnitUid) {
+        setDatasetList([]);
+        return;
+      }
       try {
-        const r = await api.listDataSets();
+        const r = await api.listDataSets(ou.orgUnitUid);
         if (cancelled) return;
         const list = (r.dataSets ?? []).map((d) => ({
           id: d.id,
@@ -164,7 +172,7 @@ export default function DataEntryApp(): JSX.Element {
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ou.bound, ou.orgUnitUid]);
 
   // Whenever the dataset UID changes, peek at the dataset's form
   // metadata so the UI can offer "Switch to custom form" when the

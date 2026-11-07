@@ -128,15 +128,16 @@ export function getDataSetMeta(dataSetUid: string): Promise<DataSetMeta> {
  * needed for pilot deployments. `paging=false` to get them all
  * in a single round-trip (datasets are a bounded set per OU).
  */
-export function listDataSets(): Promise<{
+export function listDataSets(orgUnit?: string): Promise<{
   dataSets: Array<{
     id: string; displayName?: string; name?: string;
     periodType?: string; formType?: string;
   }>;
 }> {
   const fields = 'id,displayName,name,periodType,formType';
-  const q = new URLSearchParams({ fields, paging: 'false' }).toString();
-  return request('GET', `/api/dataSets?${q}`);
+  const q = new URLSearchParams({ fields, paging: 'false' });
+  if (orgUnit && orgUnit.trim()) q.set('orgUnit', orgUnit.trim());
+  return request('GET', `/api/dataSets?${q.toString()}`);
 }
 
 /**
