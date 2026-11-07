@@ -405,7 +405,7 @@ import{useEffect as I,useRef as se,useState as S}from"react";import{useAuth as S
   .der-de-form-split {
     display: grid;
     grid-template-columns: 240px 1fr;
-    gap: 24px;
+    gap: 15px;
     align-items: start;
   }
   .der-de-section-nav {
