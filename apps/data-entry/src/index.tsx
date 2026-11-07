@@ -316,8 +316,10 @@ export default function DataEntryApp(): JSX.Element {
           api);
         attachKeyboardNav(content);
         setFormRenderVersion((v) => v + 1);
-        setStatus({ kind: 'ok',
-          message: 'Custom form loaded. Autosave + validation run as in DHIS2.' });
+        // A successful render needs no toast; save-on-blur paints
+        // per-cell status, the save-state pill tallies totals,
+        // and the sticky action bar carries Validate / Complete.
+        setStatus({ kind: 'idle' });
       } catch (e) {
         setStatus({ kind: 'error',
           message: `custom form failed to render: ${(e as Error).message}` });
@@ -2681,6 +2683,40 @@ const APP_STYLES = `
 .der-de-form-card .sectionTable input[type="text"]:focus {
   outline: 0;
   border-color: var(--der-brand-500, #4a55ce);
+  box-shadow: 0 0 0 3px rgba(74, 85, 206, 0.15);
+}
+/* Row-level focus tint — SECTION renderer tables + CUSTOM
+ * author tables both get a subtle indigo wash when the row
+ * contains focus or is being hovered, so the operator always
+ * knows which row they are typing into. */
+.der-de-form-card .sectionTable tbody tr:hover,
+.der-de-form-card .sectionTable tbody tr:focus-within,
+.der-de-custom-form table tbody tr:hover,
+.der-de-custom-form table tbody tr:focus-within {
+  background: #eef4fa;
+}
+.der-de-form-card .sectionTable tbody tr:focus-within
+  .dataElementCell,
+.der-de-custom-form table tbody tr:focus-within td:first-child {
+  color: #1f2779;
+  font-weight: 500;
+}
+/* Custom-form author inputs inherit the same visual language as
+ * SECTION-renderer inputs: 1 px border, 4 px radius, indigo
+ * focus ring. */
+.der-de-custom-form input[name$="-val"],
+.der-de-custom-form input[name="entryfield"],
+.der-de-custom-form input[name="total"] {
+  border: 1px solid #e5e9ef !important;
+  border-radius: 4px !important;
+  padding: 3px 6px !important;
+  background: #fff !important;
+}
+.der-de-custom-form input[name$="-val"]:focus,
+.der-de-custom-form input[name="entryfield"]:focus,
+.der-de-custom-form input[name="total"]:focus {
+  outline: 0;
+  border-color: var(--der-brand-500, #4a55ce) !important;
   box-shadow: 0 0 0 3px rgba(74, 85, 206, 0.15);
 }
 .der-de-form-card h3.formSection {
