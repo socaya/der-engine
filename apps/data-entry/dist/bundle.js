@@ -69,9 +69,10 @@ import{useEffect as I,useRef as de,useState as N}from"react";import{useAuth as A
   font-weight: 500;
 }
 .der-de-combo-caption__val + .der-de-combo-caption__val::before {
-  content: '\xB7';
-  margin-right: 8px;
+  content: '\xD7';
+  margin: 0 8px 0 0;
   color: var(--der-ink-300, #9097a8);
+  font-weight: 400;
 }
 .der-apphost .der-de-form-card .sectionTable .dataElementCell {
   background: #f7f8fc !important;
@@ -630,7 +631,7 @@ import{useEffect as I,useRef as de,useState as N}from"react";import{useAuth as A
   padding: 1px 3px;
 }
 .der-de-form-card.der-de-density-compact h3.formSection {
-  font-size: 13px;
+  font-size: 15px;
 }
 /* Comfortable density \u2014 roomier spacing for operators on
    tablets or anyone who wants a bigger tap target. */
