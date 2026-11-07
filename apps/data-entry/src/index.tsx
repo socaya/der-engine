@@ -2042,36 +2042,55 @@ function attachColumnPaste(
     const m = /^(.+)-(.+)-val$/.exec(name);
     if (!m) return;
     const text = ev.clipboardData?.getData('text/plain') ?? '';
-    if (!/\r?\n/.test(text)) return; // single-line → native.
-    const values = text.split(/\r?\n/).map((s) => s.trim())
-      // Drop trailing blank line(s) from Excel's "copy a range".
-      .filter((_v, i, arr) => !(i === arr.length - 1 && _v === ''));
-    if (values.length === 0) return;
+    const hasNl = /\r?\n/.test(text);
+    const hasTab = /\t/.test(text);
+    if (!hasNl && !hasTab) return; // single-cell → native.
+    // Parse into a 2-D grid. Excel's convention: \n between rows,
+    // \t between cells within a row. Trim trailing blank rows.
+    const grid = text.split(/\r?\n/)
+      .filter((_v, i, arr) => !(i === arr.length - 1 && _v === ''))
+      .map((row) => row.split('\t').map((c) => c.trim()));
+    if (grid.length === 0) return;
     ev.preventDefault();
-    const coc = m[2]!;
-    // Scope the column to the currently-visible section slot
-    // (one-section-at-a-time nav). Operators expect the paste to
-    // spill into rows they can SEE — not to silently fill hidden
-    // panels. Fall back to the whole container if the form doesn't
-    // use slot-hiding.
     const slot = (target.closest('[data-section-id]') as HTMLElement | null)
       ?? container;
-    const column = Array.from(slot.querySelectorAll<HTMLInputElement>(
-      `input[name$="-${coc}-val"]`));
-    const startIdx = column.indexOf(target);
-    if (startIdx === -1) return;
-    let filled = 0;
-    for (let i = 0; i < values.length; i++) {
-      const slot = column[startIdx + i];
-      if (!slot) break;
-      slot.value = values[i] ?? '';
-      slot.dispatchEvent(new Event('input', { bubbles: true }));
-      slot.dispatchEvent(new Event('blur', { bubbles: true }));
-      filled++;
+    // Build the grid of inputs within the visible slot. Rows are
+    // DE × COC cells laid out as they appear; we walk the `<tr>`s
+    // in document order so we land on the same visual rectangle
+    // the operator sees.
+    const rows = Array.from(slot.querySelectorAll<HTMLTableRowElement>(
+      'tbody tr'));
+    const cellRows: HTMLInputElement[][] = rows.map((r) =>
+      Array.from(r.querySelectorAll<HTMLInputElement>('input[name$="-val"]')));
+    // Locate the anchor cell's (row, col) in the slot.
+    let startRow = -1; let startCol = -1;
+    for (let r = 0; r < cellRows.length; r++) {
+      const c = cellRows[r]!.indexOf(target);
+      if (c !== -1) { startRow = r; startCol = c; break; }
     }
+    if (startRow === -1) return;
+    let filled = 0; let overflow = 0;
+    for (let i = 0; i < grid.length; i++) {
+      const rowVals = grid[i]!;
+      const targetRow = cellRows[startRow + i];
+      if (!targetRow) { overflow += rowVals.length; continue; }
+      for (let j = 0; j < rowVals.length; j++) {
+        const cell = targetRow[startCol + j];
+        if (!cell) { overflow++; continue; }
+        cell.value = rowVals[j] ?? '';
+        cell.dispatchEvent(new Event('input', { bubbles: true }));
+        cell.dispatchEvent(new Event('blur', { bubbles: true }));
+        filled++;
+      }
+    }
+    const shape = grid.length === 1
+      ? `${grid[0]!.length}-cell row`
+      : grid[0]?.length === 1
+        ? `${grid.length}-cell column`
+        : `${grid.length}×${grid[0]?.length ?? 0} block`;
     setStatus({ kind: 'ok',
       message: `Pasted ${filled} value${filled === 1 ? '' : 's'} `
-        + `into the column (${values.length - filled} overflow).` });
+        + `(${shape}${overflow > 0 ? `, ${overflow} overflow` : ''}).` });
   }, true);
 }
 
