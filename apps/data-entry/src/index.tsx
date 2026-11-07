@@ -706,6 +706,43 @@ export default function DataEntryApp(): JSX.Element {
     }
   }
 
+  async function exportCurrentFormToPdf(): Promise<void> {
+    const root = customRoot.current;
+    if (!root) return;
+    const rows = collectFormRowsForExport(root);
+    if (rows.length === 0) return;
+    setStatus({ kind: 'submitting' });
+    try {
+      // pdf-lib is ~250 KB gzipped — load it only when the
+      // operator asks for a PDF so the first paint stays snappy.
+      const pdfLib = await import('pdf-lib') as typeof import('pdf-lib');
+      const blob = await buildDatasetPdf(pdfLib, {
+        datasetLabel: formInfo?.displayName ?? dataSet.trim(),
+        datasetUid: dataSet.trim(),
+        period: period.trim(),
+        periodLabel: formatPeriodLabel(formInfo?.periodType, period.trim())
+          ?? period.trim(),
+        orgUnitLabel: ou.orgUnitDisplayName || ou.orgUnitUid || '',
+        completed: completion?.completed ?? false,
+        completedAt: completion?.completedAt ?? null,
+        rows,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `der-data-entry-${dataSet.trim()}-${period.trim()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStatus({ kind: 'ok', message:
+        `Exported ${rows.length} cells to PDF.` });
+    } catch (e) {
+      setStatus({ kind: 'error',
+        message: `PDF export failed: ${(e as Error).message}` });
+    }
+  }
+
   function exportCurrentFormToCsv(): void {
     const root = customRoot.current;
     if (!root) return;
@@ -876,6 +913,9 @@ export default function DataEntryApp(): JSX.Element {
       } else if (ev.code === 'KeyE') {
         ev.preventDefault();
         exportCurrentFormToCsv();
+      } else if (ev.code === 'KeyP') {
+        ev.preventDefault();
+        void exportCurrentFormToPdf();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -1190,6 +1230,14 @@ export default function DataEntryApp(): JSX.Element {
                   title="Download this period's values as CSV (Alt+E)"
                   aria-label="Export values as CSV">
             ⬇ CSV
+          </button>
+          <button type="button"
+                  onClick={() => { void exportCurrentFormToPdf(); }}
+                  className="der-de-density-btn"
+                  data-test="de-export-pdf-btn"
+                  title="Download this period as an editable A4 PDF report (Alt+P)"
+                  aria-label="Export values as PDF">
+            ⬇ PDF
           </button>
           {issues.length > 0 && !issuesOpen && (
             <button type="button"
@@ -2935,6 +2983,7 @@ function ShortcutsPopover(
     ['Alt + V', 'Run validation'],
     ['Alt + C', 'Toggle Complete marker'],
     ['Alt + E', 'Export this period as CSV'],
+    ['Alt + P', 'Export this period as PDF (editable)'],
     ['Paste multi-line', 'Distributes down the COC column'],
     ['Esc', 'Close an open drawer'],
     ['?', 'Show / hide this cheatsheet'],
@@ -3940,6 +3989,234 @@ function paintState(
  * endpoint which filters by orgUnit + period server-side. Fails
  * silently — a missing or empty response leaves the form blank.
  */
+/**
+ * Walk every -val input in the currently-rendered form and return
+ * a structured list for the PDF / CSV exporters. The DOM is the
+ * source of truth here — it already reflects the latest prefill +
+ * any typed edits the operator hasn't blurred yet.
+ */
+export interface ExportRow {
+  readonly deId: string;
+  readonly deLabel: string;
+  readonly cocId: string;
+  readonly cocLabel: string;
+  readonly value: string;
+  readonly comment: string;
+  readonly lastUpdated: string;
+  readonly lastUpdatedBy: string;
+  readonly compulsory: boolean;
+}
+function collectFormRowsForExport(root: HTMLElement): ExportRow[] {
+  const out: ExportRow[] = [];
+  for (const input of Array.from(
+      root.querySelectorAll<HTMLInputElement>('input[name$="-val"]'))) {
+    const m = /^(.+)-(.+)-val$/.exec(input.getAttribute('name') ?? '');
+    if (!m) continue;
+    const deId = m[1]!; const cocId = m[2]!;
+    const cellId = `${deId}-cell`;
+    const deLabel = root.querySelector(`#${CSS.escape(cellId)}`)
+      ?.textContent?.trim() ?? deId;
+    const ariaLabel = input.getAttribute('aria-label') ?? '';
+    const cocLabel = ariaLabel.startsWith(deLabel + ',')
+      ? ariaLabel.slice(deLabel.length + 1).trim()
+      : (ariaLabel || cocId);
+    out.push({
+      deId, deLabel, cocId, cocLabel,
+      value: input.value ?? '',
+      comment: input.getAttribute('data-comment') ?? '',
+      lastUpdated: input.getAttribute('data-updated') ?? '',
+      lastUpdatedBy: input.getAttribute('data-updated-by') ?? '',
+      compulsory: input.getAttribute('data-compulsory') === '1',
+    });
+  }
+  return out;
+}
+
+/**
+ * Build an A4 editable PDF for the OrgUnit × Dataset × Period
+ * tuple. Each cell value is an AcroForm text field so a supervisor
+ * can tweak values offline (opens editable in Preview / Adobe
+ * Reader / Chrome's native viewer).
+ *
+ * Layout: single 2-column table — DE label (wide) / COC / editable
+ * value field / comment. Page header on every page carries the
+ * dataset + OU + period. Footer carries "Page N of M · DER Edge
+ * Runtime". Multi-page overflow handled by a y-cursor + new-page
+ * on y < bottom margin.
+ */
+async function buildDatasetPdf(
+  pdfLib: typeof import('pdf-lib'),
+  args: {
+    datasetLabel: string;
+    datasetUid: string;
+    period: string;
+    periodLabel: string;
+    orgUnitLabel: string;
+    completed: boolean;
+    completedAt: string | null;
+    rows: ExportRow[];
+  },
+): Promise<Blob> {
+  const { PDFDocument, StandardFonts, rgb } = pdfLib;
+  const doc = await PDFDocument.create();
+  const form = doc.getForm();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  // A4 portrait: 595.28 × 841.89 pt.
+  const W = 595.28; const H = 841.89;
+  const LM = 36; const RM = 36; const TM = 42; const BM = 48;
+  // Column layout.
+  const COL_DE = LM;            const COL_DE_W = 240;
+  const COL_COC = COL_DE + COL_DE_W + 6; const COL_COC_W = 110;
+  const COL_VAL = COL_COC + COL_COC_W + 6; const COL_VAL_W = 70;
+  const COL_COM = COL_VAL + COL_VAL_W + 10; const COL_COM_W =
+    W - RM - COL_COM;
+  const ROW_H = 20; const HEADER_H = 110; const FOOTER_H = 26;
+
+  const BRAND = rgb(0.078, 0.486, 0.843);  // #147CD7
+  const INK   = rgb(0.063, 0.102, 0.196);  // #101a32
+  const MUTED = rgb(0.357, 0.392, 0.471);  // #5b6478
+  const HAIR  = rgb(0.847, 0.871, 0.910);  // #d8dee8
+  const TINT  = rgb(0.953, 0.973, 0.988);  // #f3f8fc
+  let page = doc.addPage([W, H]);
+  const pages: Array<ReturnType<typeof doc.addPage>> = [page];
+
+  function drawPageHeader(pg: typeof page): void {
+    pg.drawText('DER Edge Runtime · Data Entry', {
+      x: LM, y: H - TM, size: 9, font, color: MUTED,
+    });
+    pg.drawRectangle({ x: 0, y: H - TM - 4, width: W, height: 2, color: BRAND });
+    pg.drawText(args.datasetLabel, {
+      x: LM, y: H - TM - 24, size: 14, font: bold, color: INK,
+    });
+    pg.drawText(`${args.periodLabel}  ·  ${args.orgUnitLabel}`, {
+      x: LM, y: H - TM - 42, size: 10.5, font, color: INK,
+    });
+    const status = args.completed
+      ? `Status: COMPLETE${args.completedAt
+          ? ' · ' + new Date(args.completedAt).toLocaleString() : ''}`
+      : 'Status: OPEN for edits';
+    pg.drawText(status, {
+      x: LM, y: H - TM - 58, size: 9.5, font, color: MUTED,
+    });
+    pg.drawText(`Generated ${new Date().toLocaleString()}`, {
+      x: LM, y: H - TM - 72, size: 9, font, color: MUTED,
+    });
+    pg.drawLine({
+      start: { x: LM, y: H - TM - HEADER_H + 6 },
+      end:   { x: W - RM, y: H - TM - HEADER_H + 6 },
+      thickness: 0.6, color: HAIR,
+    });
+    // Column headers
+    const hy = H - TM - HEADER_H + 14;
+    pg.drawText('Data element',  { x: COL_DE, y: hy, size: 9, font: bold, color: MUTED });
+    pg.drawText('Category',      { x: COL_COC, y: hy, size: 9, font: bold, color: MUTED });
+    pg.drawText('Value',         { x: COL_VAL, y: hy, size: 9, font: bold, color: MUTED });
+    pg.drawText('Comment',       { x: COL_COM, y: hy, size: 9, font: bold, color: MUTED });
+  }
+
+  function drawPageFooter(pg: typeof page, pageIndex: number): void {
+    pg.drawText(
+      `Page ${pageIndex + 1} of ${pages.length}  ·  DER Edge Runtime`,
+      { x: LM, y: BM - 18, size: 8.5, font, color: MUTED }
+    );
+    pg.drawText(`${args.datasetUid}  ·  ${args.period}`,
+      { x: W - RM - 200, y: BM - 18, size: 8.5, font, color: MUTED });
+  }
+
+  function ensureRowRoom(cursorY: number): { page: typeof page; y: number } {
+    if (cursorY - ROW_H < BM + FOOTER_H) {
+      const np = doc.addPage([W, H]);
+      pages.push(np);
+      drawPageHeader(np);
+      return { page: np, y: H - TM - HEADER_H - 2 };
+    }
+    return { page, y: cursorY };
+  }
+
+  drawPageHeader(page);
+  let y = H - TM - HEADER_H - 2;
+  let i = 0;
+  for (const row of args.rows) {
+    const bump = ensureRowRoom(y);
+    page = bump.page; y = bump.y;
+    const rowY = y - ROW_H + 3;
+    if (i % 2 === 1) {
+      page.drawRectangle({
+        x: LM - 2, y: rowY - 2,
+        width: W - LM - RM + 4, height: ROW_H,
+        color: TINT,
+      });
+    }
+    // DE label — truncate to col width.
+    const deText = clampText(row.deLabel, font, 9.5, COL_DE_W);
+    page.drawText(deText, { x: COL_DE, y: rowY + 5, size: 9.5, font, color: INK });
+    if (row.compulsory) {
+      page.drawText('*', {
+        x: COL_DE + font.widthOfTextAtSize(deText, 9.5) + 2,
+        y: rowY + 5, size: 10, font: bold, color: rgb(0.780, 0.196, 0.169),
+      });
+    }
+    const cocText = clampText(row.cocLabel, font, 9, COL_COC_W);
+    page.drawText(cocText, {
+      x: COL_COC, y: rowY + 5, size: 9, font, color: MUTED,
+    });
+    // Editable text field for the value.
+    const safeField = `${row.deId}__${row.cocId}`.replace(/[^A-Za-z0-9_]/g, '_');
+    const tf = form.createTextField('val_' + safeField);
+    tf.setText(row.value ?? '');
+    tf.addToPage(page, {
+      x: COL_VAL, y: rowY, width: COL_VAL_W, height: ROW_H - 4,
+      borderColor: HAIR, borderWidth: 0.5,
+      backgroundColor: rgb(1, 1, 1),
+      font, textColor: INK,
+    });
+    // Comment field — larger, flows across the remaining col width.
+    const cf = form.createTextField('com_' + safeField);
+    cf.enableMultiline();
+    cf.setText(row.comment ?? '');
+    cf.addToPage(page, {
+      x: COL_COM, y: rowY, width: COL_COM_W, height: ROW_H - 4,
+      borderColor: HAIR, borderWidth: 0.5,
+      backgroundColor: rgb(1, 1, 1),
+      font, textColor: INK,
+    });
+    y -= ROW_H;
+    i++;
+  }
+  // Signature line + audit footer on the last page.
+  const sigY = Math.max(y - 30, BM + FOOTER_H + 60);
+  page.drawLine({
+    start: { x: LM, y: sigY }, end: { x: LM + 200, y: sigY },
+    thickness: 0.6, color: HAIR,
+  });
+  page.drawText('Reviewed by (signature + date)', {
+    x: LM, y: sigY - 10, size: 8.5, font, color: MUTED,
+  });
+
+  for (let p = 0; p < pages.length; p++) {
+    drawPageFooter(pages[p]!, p);
+  }
+  const bytes = await doc.save();
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+function clampText(text: string, font: {
+  widthOfTextAtSize(s: string, n: number): number;
+}, size: number, maxWidth: number): string {
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
+  let lo = 0; let hi = text.length;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (font.widthOfTextAtSize(text.slice(0, mid) + '…', size) <= maxWidth) {
+      lo = mid;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return text.slice(0, lo) + '…';
+}
+
 async function prefillExistingValues(
   container: HTMLElement,
   dataSet: string,
