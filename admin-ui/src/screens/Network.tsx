@@ -630,6 +630,9 @@ export function NetworkConnectedDevices(): JSX.Element {
   const unblock = (id: string): void => runAction(
     `Unblock device ${id}? Its previous trust level is restored.`,
     () => edgeApi.networkDeviceUnblock(id), () => { reload().catch(() => undefined); });
+  const del = (id: string): void => runAction(
+    `Delete device ${id}? It will be removed from both the clients list and the mesh topology. Any dependent records (DHCP leases, enrolment tokens) are untouched.`,
+    () => edgeApi.networkDeviceDelete(id), () => { reload().catch(() => undefined); });
   function exportCsv(): void {
     const rows = (clients ?? []).map((c) =>
       [c.deviceId, c.owner ?? '', c.ip, c.link, c.signalDbm ?? '',
@@ -725,6 +728,7 @@ export function NetworkConnectedDevices(): JSX.Element {
                           { label: 'View certificate', onSelect: () => setCertFor(c) },
                           { label: 'View audit', to: `/audit/events?device=${encodeURIComponent(c.deviceId)}` },
                           ...(c.derDeviceId ? [{ label: 'View DER device', to: `/devices/${c.derDeviceId}` }] : []),
+                          { label: 'Delete device', danger: true, onSelect: () => del(c.deviceId) },
                         ]} />
                       </td>
                     </tr>

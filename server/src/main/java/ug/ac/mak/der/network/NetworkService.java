@@ -935,6 +935,20 @@ public class NetworkService {
         return ok;
     }
 
+    /** §2.2.7 — hard-delete a client row. Returns true when a row
+     *  existed and was removed; false when no such deviceId. Logs a
+     *  DEVICE_REMOVED audit event on success so the device-events
+     *  history keeps the trail. */
+    @Transactional
+    public boolean deleteClient(final String deviceId, final String actorName) {
+        final boolean ok = repo.deleteClient(deviceId) > 0;
+        if (ok) {
+            repo.recordEvent("DEVICE_REMOVED", "SUCCESS", deviceId, null, null,
+                              actorName, "deleted by operator", null);
+        }
+        return ok;
+    }
+
     @Transactional
     public boolean editInterface(final String name, final Integer priority,
                                     final String purpose, final String actorName) {

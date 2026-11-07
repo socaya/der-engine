@@ -3048,6 +3048,14 @@ export function networkDeviceBlock(deviceId: string): Promise<{ blocked: boolean
 export function networkDeviceUnblock(deviceId: string): Promise<{ unblocked: boolean }> {
   return request('POST', `/edge-api/v1/network/devices/${encodeURIComponent(deviceId)}/unblock`);
 }
+/** Hard-delete a device from the network_client table.
+ *  Called from /network/clients + /network/mesh when an operator
+ *  decommissions a device (seed/test rows, a replaced tablet,
+ *  etc.). Both screens re-poll after a 204 and the device
+ *  disappears from the topology. */
+export function networkDeviceDelete(deviceId: string): Promise<{ deleted: boolean }> {
+  return request('DELETE', `/edge-api/v1/network/clients/${encodeURIComponent(deviceId)}`);
+}
 export function networkInterfaceSetState(
   name: string, body: { state: 'up' | 'down' }): Promise<{ state: string }> {
   return request('POST', `/edge-api/v1/network/interfaces/${encodeURIComponent(name)}/state`, body);

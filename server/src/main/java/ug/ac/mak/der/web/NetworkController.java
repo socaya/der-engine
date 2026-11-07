@@ -322,6 +322,20 @@ public class NetworkController {
             : ResponseEntity.status(404).body(err("CLIENT_NOT_FOUND", id));
     }
 
+    /** §2.2.7 — hard-delete a client row. Called from the admin UI's
+     *  /network/clients + /network/mesh screens when an operator
+     *  decommissions a device. The mesh view reads from the same
+     *  table so the device disappears from both panes in the next
+     *  poll. We also drop any dependent operation-journal
+     *  attribution rows in a single transaction via the service. */
+    @DeleteMapping("/clients/{id}")
+    public ResponseEntity<Map<String, Object>> deleteClient(
+            final Authentication auth, @PathVariable final String id) {
+        return svc.deleteClient(id, actor(auth))
+            ? ResponseEntity.ok(Map.of("deleted", true))
+            : ResponseEntity.status(404).body(err("CLIENT_NOT_FOUND", id));
+    }
+
     /* ─── Peers ────────────────────────────────────────────────── */
 
     @GetMapping("/peers")

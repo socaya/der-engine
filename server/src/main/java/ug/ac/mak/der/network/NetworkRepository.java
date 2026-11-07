@@ -519,6 +519,16 @@ public class NetworkRepository {
             owner, hostname, deviceId);
     }
 
+    /** §2.2.7 — hard-delete a client row. Dependent FK rows
+     *  (DHCP leases keyed on MAC, auth tokens referencing deviceId)
+     *  are allowed to live on; they're keyed differently and
+     *  eventually TTL out. */
+    public int deleteClient(final String deviceId) {
+        return jdbc.update(
+            "DELETE FROM der.network_client WHERE device_id = ?",
+            deviceId);
+    }
+
     public int updateInterfaceConfig(final String name, final Integer priority,
                                         final String purpose) {
         return jdbc.update(

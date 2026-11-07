@@ -105,7 +105,13 @@ export function MeshTopology(): JSX.Element {
               {summary && <NetworkSummary summary={summary} />}
             </Panel>
             <Panel title="Selected node">
-              <NetworkNodeDetails selected={selected} />
+              <NetworkNodeDetails
+                selected={selected}
+                onDeleted={() => {
+                  setSelected(null);
+                  reload().catch(() => undefined);
+                }}
+              />
             </Panel>
           </div>
         </div>

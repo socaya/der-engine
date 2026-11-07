@@ -1,11 +1,14 @@
 import { NetworkStatusBadge, statusLabel } from './NetworkStatusBadge';
 import type { SelectedNode } from './types';
-import { fmtAgo } from '../../screens/shared';
+import { fmtAgo, runAction } from '../../screens/shared';
+import * as edgeApi from '../../api/edgeApi';
 
 /** Right-column details for the currently-selected node. Fields hide when
  *  the underlying data isn't present so the panel stays compact. */
 export function NetworkNodeDetails(
-  { selected }: { selected: SelectedNode | null }
+  { selected, onDeleted }:
+  { selected: SelectedNode | null;
+    onDeleted?: () => void },
 ): JSX.Element {
   if (selected === null) {
     return (
@@ -35,6 +38,22 @@ export function NetworkNodeDetails(
           <Row key={`${k}-${i}`} label={k} value={v} />
         ))}
       </dl>
+      {selected.kind === 'device' && (
+        <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
+          <button type="button"
+                  className="ea-btn ea-btn--danger ea-btn--sm"
+                  data-test="mesh-delete-device"
+                  onClick={() => {
+                    runAction(
+                      `Delete device ${selected.id}? It will be removed from both `
+                        + 'the clients list and the mesh topology.',
+                      () => edgeApi.networkDeviceDelete(selected.id),
+                      () => onDeleted?.());
+                  }}>
+            Delete device
+          </button>
+        </div>
+      )}
     </div>
   );
 }

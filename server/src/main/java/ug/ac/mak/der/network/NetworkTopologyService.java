@@ -14,10 +14,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import ug.ac.mak.der.device.DeviceAdjacencyService;
-import ug.ac.mak.der.device.DeviceService;
-import ug.ac.mak.der.device.EdgeDevice;
 import ug.ac.mak.der.dhis2.Dhis2ConnectionConfig;
 import ug.ac.mak.der.dhis2.Dhis2ConnectionConfigRepository;
+import ug.ac.mak.der.network.NetworkEntities.NetworkClient;
 
 /** §2.2.7 Mesh topology — combines facility devices + peer edges + WAN state
  *  into one view the admin UI renders as a live topology.
@@ -34,7 +33,6 @@ public class NetworkTopologyService {
     private final NetworkCaService ca;
     private final NetworkRepository networkRepo;
     private final NetworkService network;
-    private final ObjectProvider<DeviceService> devices;
     private final ObjectProvider<DeviceAdjacencyService> adjacencies;
     private final ObjectProvider<Dhis2ConnectionConfigRepository> dhis2Config;
     private final JdbcTemplate jdbc;
@@ -42,14 +40,12 @@ public class NetworkTopologyService {
     public NetworkTopologyService(final NetworkCaService ca,
                                     final NetworkRepository networkRepo,
                                     final NetworkService network,
-                                    final ObjectProvider<DeviceService> devices,
                                     final ObjectProvider<DeviceAdjacencyService> adjacencies,
                                     final ObjectProvider<Dhis2ConnectionConfigRepository> dhis2Config,
                                     final JdbcTemplate jdbc) {
         this.ca = Objects.requireNonNull(ca, "ca");
         this.networkRepo = Objects.requireNonNull(networkRepo, "networkRepo");
         this.network = Objects.requireNonNull(network, "network");
-        this.devices = Objects.requireNonNull(devices, "devices");
         this.adjacencies = Objects.requireNonNull(adjacencies, "adjacencies");
         this.dhis2Config = Objects.requireNonNull(dhis2Config, "dhis2Config");
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
@@ -91,25 +87,36 @@ public class NetworkTopologyService {
         der.put("hostname", status.hostname());
         der.put("centralBridge", status.centralDhis2Available());
 
-        final DeviceService ds = devices.getIfAvailable();
-        final List<EdgeDevice> deviceList = ds == null ? List.of() : ds.list();
+        // §2.2.7 — one source of truth. The mesh view used to call
+        // DeviceService.list() (der.edge_device fleet-level rows,
+        // which include historical test imports) while the admin UI's
+        // /network/clients tab read from der.network_client. That
+        // split had the two screens showing different sets of
+        // devices, which confused operators. Both views now read from
+        // der.network_client via NetworkService.listClients() so a
+        // device appears in the mesh only when it's on this LAN.
+        final List<NetworkClient> clients = network.listClients();
         final List<Map<String, Object>> deviceJson = new ArrayList<>();
         final List<Map<String, Object>> connections = new ArrayList<>();
-        for (final EdgeDevice d : deviceList) {
-            final String devStatus = statusFor(d, now);
-            final long pending = pendingFor(d);
+        for (final NetworkClient c : clients) {
+            final String devStatus = statusForClient(c, now);
+            final long pending = pendingFor(c);
             final boolean syncing = pending > 0 && !"offline".equals(devStatus);
 
             final Map<String, Object> dj = new LinkedHashMap<>();
-            dj.put("id", d.deviceId().toString());
-            dj.put("name", display(d));
-            dj.put("type", d.formFactor().name().toLowerCase());
-            dj.put("formFactor", d.formFactor().name());
+            dj.put("id", c.deviceId());
+            dj.put("name", clientDisplay(c));
+            dj.put("type", "device");
+            dj.put("formFactor", "UNKNOWN");
             dj.put("status", devStatus);
-            dj.put("lastSeen", d.lastSeenAt() == null ? null : d.lastSeenAt().toString());
-            dj.put("userAgent", d.userAgent());
-            dj.put("firmwareVersion", d.firmwareVersion());
-            dj.put("deviceStatus", d.status().name());
+            dj.put("lastSeen", c.lastSeenAt() == null ? null : c.lastSeenAt().toString());
+            dj.put("userAgent", null);
+            dj.put("firmwareVersion", null);
+            dj.put("deviceStatus", c.trust() == null ? "PENDING" : c.trust().name());
+            dj.put("ip", c.ip());
+            dj.put("mac", c.mac());
+            dj.put("link", c.link() == null ? null : c.link().name());
+            dj.put("owner", c.owner());
 
             final Map<String, Object> sync = new LinkedHashMap<>();
             sync.put("state", syncing ? "syncing" : (pending > 0 ? "pending" : "synced"));
@@ -117,14 +124,10 @@ public class NetworkTopologyService {
             dj.put("sync", sync);
             deviceJson.add(dj);
 
-            // LAN connection der → device. Always rendered as solid Wi-Fi
-            // regardless of form factor; devices connect to DER through
-            // the facility LAN or DER-hosted access point. Device↔device
-            // P2P dashed edges live in the adjacency table.
             final Map<String, Object> link = new LinkedHashMap<>();
             link.put("source", "der");
-            link.put("target", d.deviceId().toString());
-            link.put("type", "wifi");
+            link.put("target", c.deviceId());
+            link.put("type", c.link() == null ? "wifi" : c.link().name());
             link.put("status", devStatus);
             connections.add(link);
         }
@@ -201,23 +204,29 @@ public class NetworkTopologyService {
         return root;
     }
 
-    private static String display(final EdgeDevice d) {
-        if (d.displayName() != null && !d.displayName().isBlank()) {
-            return d.displayName();
+    private static String clientDisplay(final NetworkClient c) {
+        if (c.hostname() != null && !c.hostname().isBlank()) {
+            return c.hostname();
         }
-        return "Device " + d.deviceId().toString().substring(0, 8);
+        if (c.owner() != null && !c.owner().isBlank()) {
+            return c.owner();
+        }
+        final String id = c.deviceId();
+        return "Device " + (id.length() > 8 ? id.substring(0, 8) : id);
     }
 
     /** ONLINE if last-seen within 2 min, DEGRADED up to 10 min, OFFLINE after.
-     *  SUSPENDED/REVOKED/PENDING devices are OFFLINE regardless of heartbeat. */
-    private static String statusFor(final EdgeDevice d, final Instant now) {
-        if (d.status() != EdgeDevice.Status.APPROVED) {
+     *  REVOKED / PENDING devices are OFFLINE regardless of heartbeat. */
+    private static String statusForClient(final NetworkClient c, final Instant now) {
+        if (c.trust() == null
+            || c.trust() == NetworkEntities.ClientTrust.REVOKED
+            || c.trust() == NetworkEntities.ClientTrust.BLOCKED) {
             return "offline";
         }
-        if (d.lastSeenAt() == null) {
+        if (c.lastSeenAt() == null) {
             return "offline";
         }
-        final Duration age = Duration.between(d.lastSeenAt(), now);
+        final Duration age = Duration.between(c.lastSeenAt(), now);
         if (age.compareTo(ONLINE_WINDOW) <= 0) {
             return "online";
         }
@@ -238,17 +247,19 @@ public class NetworkTopologyService {
         };
     }
 
-    /** Pending ops attributed to this device's assigned user. If the device
-     *  has no user, we can't attribute journal rows and return 0. */
-    private long pendingFor(final EdgeDevice d) {
-        if (d.assignedUserId() == null) {
+    /** Pending ops for this client, resolved by device_id → user via
+     *  the device_profile table. Returns 0 when we can't attribute. */
+    private long pendingFor(final NetworkClient c) {
+        if (c.deviceId() == null) {
             return 0L;
         }
         try {
             final Long n = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM operation_journal "
-              + "WHERE submitted_by = ? AND state IN ('PENDING','RETRYABLE','UNKNOWN_OUTCOME')",
-                Long.class, d.assignedUserId());
+                "SELECT COUNT(*) FROM operation_journal j "
+              + "JOIN der.device_profile p ON p.user_id = j.submitted_by "
+              + "WHERE p.device_id::text = ? "
+              + "AND j.state IN ('PENDING','RETRYABLE','UNKNOWN_OUTCOME')",
+                Long.class, c.deviceId());
             return n == null ? 0L : n;
         } catch (Exception ex) {
             return 0L;
