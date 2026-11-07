@@ -66,6 +66,11 @@ export default function DataEntryApp(): JSX.Element {
   const [completion, setCompletion] =
     useState<{ completed: boolean; completedAt?: string } | null>(null);
   const [completionBusy, setCompletionBusy] = useState(false);
+  // Set of period ids already marked complete for the active
+  // (dataSet, OU). Refreshed when either changes + whenever the
+  // current period's completion flips.
+  const [completedPeriods, setCompletedPeriods] =
+    useState<Set<string>>(new Set());
   // Bump after every successful form render so SectionNavigator
   // re-scrapes the headers of the freshly-injected #contentDiv.
   const [formRenderVersion, setFormRenderVersion] = useState(0);
@@ -426,6 +431,33 @@ export default function DataEntryApp(): JSX.Element {
   const datasetReady = dataSet.trim() !== '';
   const formReady = datasetReady && periodReady && ou.bound;
 
+  // Batch-fetch completion state for every period that appears
+  // in the picker so the dropdown can prefix a ✓ to already-
+  // complete periods. Runs when dataset / OU / periodType
+  // changes.
+  useEffect(() => {
+    if (!dataSet.trim() || !ou.bound || !formInfo?.periodType) {
+      setCompletedPeriods(new Set());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const periods = buildPeriodOptions(formInfo.periodType).map((o) => o.id);
+      const outcomes = await Promise.all(periods.map(async (pe) => {
+        try {
+          const r = await api.getCompletion(
+            dataSet.trim(), ou.orgUnitUid ?? '', pe);
+          return r.completed ? pe : null;
+        } catch { return null; }
+      }));
+      if (cancelled) return;
+      setCompletedPeriods(new Set(
+        outcomes.filter((p): p is string => p !== null)));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataSet, ou.orgUnitUid, formInfo?.periodType]);
+
   // Load the completion marker whenever the form key tuple changes.
   // Covers both the initial load and switching between periods.
   useEffect(() => {
@@ -481,6 +513,14 @@ export default function DataEntryApp(): JSX.Element {
       });
       setCompletion({
         completed: Boolean(rec.completed), completedAt: rec.completedAt,
+      });
+      // Keep the picker's ✓ marks in sync — add on complete,
+      // drop on reopen.
+      setCompletedPeriods((prev) => {
+        const nxt = new Set(prev);
+        if (rec.completed) nxt.add(period.trim());
+        else nxt.delete(period.trim());
+        return nxt;
       });
       setStatus({ kind: 'ok',
         message: rec.completed
@@ -570,7 +610,7 @@ export default function DataEntryApp(): JSX.Element {
               Period{formInfo?.periodType ? ` · ${formInfo.periodType}` : ''}
             </span>
             <span className="der-de-period-wrap">
-              {renderPeriodPicker(formInfo?.periodType, period, setPeriod)}
+              {renderPeriodPicker(formInfo?.periodType, period, setPeriod, completedPeriods)}
             </span>
           </label>
           <div className="der-de-toolbar__cell-info">
@@ -2988,7 +3028,10 @@ function renderPeriodPicker(
   periodType: string | undefined,
   period: string,
   setPeriod: (v: string) => void,
+  completedPeriods: Set<string> = new Set(),
 ): JSX.Element {
+  const markLabel = (id: string, label: string): string =>
+    completedPeriods.has(id) ? `✓  ${label}` : label;
   const common = { ...inputStyle } as React.CSSProperties;
   const baseOptions = buildPeriodOptions(periodType);
   if (baseOptions.length === 0) {
@@ -3046,7 +3089,7 @@ function renderPeriodPicker(
               style={common}>
         <option value="">Select a period…</option>
         {options.map((o) => (
-          <option key={o.id} value={o.id}>{o.label}</option>
+          <option key={o.id} value={o.id}>{markLabel(o.id, o.label)}</option>
         ))}
       </select>
       <button type="button" aria-label="Next period"
