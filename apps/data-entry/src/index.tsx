@@ -4458,11 +4458,27 @@ const APP_STYLES = `
   font-style: italic;
 }
 .der-apphost .der-de-form-card .sectionTable .dataElementCell {
-  background: transparent !important;
+  /* Slice 62 — freeze the DE label column on both thead + tbody
+   * so it stays visible when the operator scrolls horizontally on
+   * wide matrix sections. A solid white background is required so
+   * data cells don't bleed through on scroll; z-index lifts the
+   * sticky column above hover tints + the row-total trailing cell. */
+  background: #ffffff !important;
   color: var(--der-ink-900, #101a32);
   font-weight: 400;
   min-width: 220px;
   padding: 4px 8px !important;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  box-shadow: 1px 0 0 var(--der-brand-100, #c7dff6);
+}
+.der-apphost .der-de-form-card .sectionTable tbody tr:hover .dataElementCell,
+.der-apphost .der-de-form-card .sectionTable tbody tr:focus-within .dataElementCell {
+  /* Hover wash on the sticky column: pre-blend the row tint with
+   * white so the sticky column reads as part of the hovered row
+   * rather than a hole against the scrolled-under cells. */
+  background: #eef3fa !important;
 }
 .der-apphost .der-de-form-card .sectionTable tbody tr {
   border: 0 !important;
