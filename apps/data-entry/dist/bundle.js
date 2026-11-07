@@ -854,9 +854,10 @@ import{useEffect as R,useRef as ne,useState as T}from"react";import{useAuth as z
   box-shadow: inset 0 0 0 1px #c0392b;
 }
 .der-de-custom-form input[data-de-invalid="1"]:focus,
-.der-apphost .der-de-form-card input[data-de-invalid="1"]:focus {
+.der-apphost .der-de-form-card input[data-de-invalid="1"]:focus,
+.der-apphost .der-de-form-card .sectionTable input[type="text"][data-de-invalid="1"]:focus {
   border-color: #c0392b !important;
-  box-shadow: inset 0 0 0 2px #c0392b;
+  box-shadow: inset 0 0 0 2px #c0392b !important;
 }
 .der-de-form-card h3.formSection {
   margin: 0 0 8px;
