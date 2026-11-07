@@ -1,62 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Data entry">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Data Entry">
   <defs>
-    <linearGradient id="deBg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1A9988"/>
-      <stop offset="1" stop-color="#0E6D62"/>
+    <linearGradient id="deTile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1FA896"/>
+      <stop offset="1" stop-color="#0D7A6D"/>
     </linearGradient>
     <linearGradient id="deSheet" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#F3F7F6"/>
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EDF5F3"/>
     </linearGradient>
-    <filter id="deShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.15"/>
+    <linearGradient id="dePencil" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F7B500"/>
+      <stop offset="1" stop-color="#F28F00"/>
+    </linearGradient>
+    <filter id="deShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3"
+                    flood-color="#063B35" flood-opacity="0.28"/>
     </filter>
   </defs>
 
-  <!-- Rounded tile background with subtle vertical gradient -->
-  <rect x="8" y="8" width="112" height="112" rx="22" fill="url(#deBg)"/>
+  <!-- Rounded tile with diagonal gradient -->
+  <rect x="6" y="6" width="116" height="116" rx="24" fill="url(#deTile)"/>
+  <!-- Subtle top highlight for depth -->
+  <rect x="6" y="6" width="116" height="40" rx="24" fill="#FFFFFF" opacity="0.08"/>
 
-  <!-- Back sheet (offset for depth) -->
-  <rect x="34" y="28" width="68" height="78" rx="5"
-        fill="#ffffff" opacity="0.35"/>
-
-  <!-- Primary form sheet with soft shadow -->
+  <!-- Form sheet -->
   <g filter="url(#deShadow)">
-    <rect x="28" y="34" width="68" height="78" rx="6" fill="url(#deSheet)"/>
+    <rect x="30" y="26" width="68" height="84" rx="8" fill="url(#deSheet)"/>
   </g>
+  <!-- Header band -->
+  <rect x="30" y="26" width="68" height="18" rx="8" fill="#0A5F55"/>
+  <rect x="30" y="38" width="68" height="6" fill="#0A5F55"/>
+  <!-- Title bars on header -->
+  <rect x="38" y="33" width="34" height="3" rx="1.5" fill="#FFFFFF" opacity="0.85"/>
 
-  <!-- Form header band -->
-  <rect x="28" y="34" width="68" height="14" rx="6" fill="#0E6D62"/>
-  <rect x="34" y="40" width="34" height="3" rx="1.5" fill="#ffffff" opacity="0.85"/>
-
-  <!-- Table grid lines -->
-  <g stroke="#CBE3DF" stroke-width="1.5">
-    <line x1="28" y1="62" x2="96" y2="62"/>
-    <line x1="28" y1="76" x2="96" y2="76"/>
-    <line x1="28" y1="90" x2="96" y2="90"/>
-    <line x1="52" y1="48" x2="52" y2="104"/>
-    <line x1="74" y1="48" x2="74" y2="104"/>
-  </g>
-
-  <!-- Filled "good" cell (green check) -->
-  <rect x="52" y="48" width="22" height="14" fill="#E5F4EA"/>
-  <path d="M58 55l3 3 6-6" stroke="#1B8243" stroke-width="2.2"
+  <!-- Row 1: label + filled green cell (success tick) -->
+  <rect x="38" y="52" width="26" height="4" rx="2" fill="#A9BCB8"/>
+  <rect x="72" y="50" width="18" height="10" rx="2" fill="#E6F6EC"/>
+  <path d="M76 55l3 3 6-6" stroke="#1E8E4A" stroke-width="2.2"
         fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 
-  <!-- Numeric cell with value -->
-  <rect x="74" y="62" width="22" height="14" fill="#E6F1FB"/>
-  <text x="85" y="73" font-family="system-ui, -apple-system, sans-serif"
-        font-size="10" font-weight="700" fill="#0E6D62"
-        text-anchor="middle">42</text>
+  <!-- Row 2: label + numeric value -->
+  <rect x="38" y="68" width="26" height="4" rx="2" fill="#A9BCB8"/>
+  <rect x="72" y="66" width="18" height="10" rx="2" fill="#E8F0FA"/>
+  <text x="81" y="74.5" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"
+        font-size="8.5" font-weight="700" fill="#0A5F55"
+        text-anchor="middle">124</text>
 
-  <!-- Attention cell (empty / required) -->
-  <rect x="52" y="90" width="22" height="14" fill="#FFF1DC"/>
-  <circle cx="63" cy="97" r="1.8" fill="#C6680A"/>
+  <!-- Row 3: label + required/empty attention -->
+  <rect x="38" y="84" width="26" height="4" rx="2" fill="#A9BCB8"/>
+  <rect x="72" y="82" width="18" height="10" rx="2" fill="#FFF3E1"
+        stroke="#F7B500" stroke-width="1"/>
+  <circle cx="81" cy="87" r="1.8" fill="#C97700"/>
 
-  <!-- Pencil (DHIS2 entry affordance) -->
-  <g transform="translate(78 82) rotate(-35)">
-    <rect x="0" y="0" width="22" height="7" rx="1.5" fill="#F2C94C"/>
-    <rect x="0" y="0" width="5" height="7" fill="#F2A33E"/>
-    <polygon points="22,0 28,3.5 22,7" fill="#2A3447"/>
+  <!-- Pencil — overlaid on bottom-right corner writing -->
+  <g transform="translate(92 92) rotate(-38)" filter="url(#deShadow)">
+    <!-- Body -->
+    <rect x="-28" y="-5" width="24" height="10" rx="2" fill="url(#dePencil)"/>
+    <!-- Ferrule -->
+    <rect x="-4" y="-5" width="4" height="10" fill="#D9B6B6"/>
+    <!-- Eraser -->
+    <rect x="0" y="-5" width="4" height="10" rx="2" fill="#E96B6B"/>
+    <!-- Tip -->
+    <polygon points="-32,-5 -38,0 -32,5" fill="#F4E4C1"/>
+    <polygon points="-34,-2 -38,0 -34,2" fill="#2B2D2E"/>
   </g>
 </svg>
