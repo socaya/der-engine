@@ -645,6 +645,15 @@ export default function DataEntryApp(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataSet, period, ou.orgUnitUid, formReady]);
 
+  function runValidateNow(): void {
+    runValidation(customRoot.current, setStatus, (xs, total) => {
+      setIssues(xs);
+      totalCellsRef.current = total;
+      // Always open the modal — success or issue list, same path.
+      setIssuesOpen(true);
+    });
+  }
+
   async function toggleCompletion(): Promise<void> {
     if (!formReady || completionBusy) return;
     const next = !(completion?.completed);
@@ -698,6 +707,28 @@ export default function DataEntryApp(): JSX.Element {
         message: `Completion failed: ${(err as Error).message}` });
     } finally { setCompletionBusy(false); }
   }
+
+  // Alt+V / Alt+C hotkeys. Modifier-only guard (no Meta / Ctrl /
+  // Shift) + ev.code match so macOS Option-layer dead-keys don't
+  // break the shortcut. Override even when focus is in a cell —
+  // the operator is almost always typing.
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent): void => {
+      if (!ev.altKey || ev.metaKey || ev.ctrlKey || ev.shiftKey) return;
+      if (ev.code === 'KeyV') {
+        ev.preventDefault();
+        runValidateNow();
+      } else if (ev.code === 'KeyC') {
+        ev.preventDefault();
+        void toggleCompletion();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // runValidateNow / toggleCompletion re-create each render, so
+    // the re-attach is intentional — ensures the handlers close
+    // over the latest state (customRoot, issues, completion flag).
+  });
 
   return (
     <ScreenCard dataTest="der-aggregate-entry">
@@ -934,15 +965,7 @@ export default function DataEntryApp(): JSX.Element {
             </span>
           )}
           <button type="button"
-                  onClick={() => {
-                    runValidation(customRoot.current, setStatus, (xs, total) => {
-                      setIssues(xs);
-                      totalCellsRef.current = total;
-                      // Always open the modal — show success or
-                      // the issue list.
-                      setIssuesOpen(true);
-                    });
-                  }}
+                  onClick={runValidateNow}
                   style={secondaryBtn}
                   data-test="de-validate-btn">
             Validate
@@ -2531,6 +2554,8 @@ function ShortcutsPopover(
     ['← / →', 'Previous / next COC column (same row)'],
     ['Tab / Shift + Tab', 'Next / previous cell (DOM order)'],
     ['Alt + 1..9', 'Jump to section N'],
+    ['Alt + V', 'Run validation'],
+    ['Alt + C', 'Toggle Complete marker'],
     ['Paste multi-line', 'Distributes down the COC column'],
     ['Esc', 'Close an open drawer'],
     ['?', 'Show / hide this cheatsheet'],
