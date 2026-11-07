@@ -355,6 +355,7 @@ export default function DataEntryApp(): JSX.Element {
           api);
         attachKeyboardNav(content);
         attachColumnPaste(content, setStatus);
+        attachMatrixTotals(content);
         attachDetailsSpy(content, meta, setDetails);
         // §FR-09 — mark every (de, coc) listed in
         // compulsoryDataElementOperands so runValidation + the
@@ -2178,6 +2179,107 @@ function attachColumnPaste(
 }
 
 /**
+ * TBLP and legacy DHIS2 custom forms often ship an explicit
+ * "Total across all breakdown cells: [input name=total
+ * dataelementid=…]" trailer under each matrix table. Drop the
+ * noisy trailer + show the running sum inline in the matrix
+ * title as " (Total: N)" that updates live.
+ *
+ * Strategy per total-input:
+ *   1. Find the preceding sibling heading (h1..h4, label-div,
+ *      caption etc.) and remember it as the title node.
+ *   2. Remove the author's trailer container entirely.
+ *   3. Append a span.der-de-matrix-total to the title.
+ *   4. Register a `recompute` that sums every
+ *      input[name$="-val"][dataelementid=<id>] currently in the
+ *      form, writing the result into the span.
+ *
+ * A single input listener on #contentDiv in capture phase fires
+ * every registered recompute.
+ */
+function attachMatrixTotals(container: HTMLElement): void {
+  const totals = Array.from(container.querySelectorAll<HTMLInputElement>(
+    'input[name="total"][dataelementid]'));
+  if (totals.length === 0) return;
+  const recomputers: Array<() => void> = [];
+  for (const total of totals) {
+    const deId = total.getAttribute('dataelementid') ?? '';
+    if (!deId) continue;
+    // The trailer wrapper is the closest DIV ancestor that
+    // contains this input and no other table. Fall back to the
+    // input's own parent.
+    const trailer = total.closest('div');
+    // Walk previous siblings of the trailer's container looking
+    // for a heading or label-div. If none found, fall back to the
+    // nearest h3.formSection two levels up.
+    const findTitle = (): HTMLElement | null => {
+      let node: HTMLElement | null = trailer ?? total.parentElement;
+      if (!node) return null;
+      let cur: Element | null = node.previousElementSibling;
+      while (cur) {
+        if (/^(H1|H2|H3|H4)$/.test(cur.tagName)) return cur as HTMLElement;
+        // Author template convention: a plain <div> + specific
+        // style makes a title above the matrix (TBLP uses this
+        // for "New TB episodes by age and sex").
+        if (cur.tagName === 'DIV'
+          && !cur.querySelector('table, input')
+          && (cur.textContent ?? '').trim().length > 0) {
+          return cur as HTMLElement;
+        }
+        cur = cur.previousElementSibling;
+      }
+      // Fallback: nearest h3.formSection ancestor.
+      const anc = node.closest('[data-section-id]');
+      if (anc) {
+        const h = anc.querySelector<HTMLElement>('h2, h3, h4');
+        if (h) return h;
+      }
+      return null;
+    };
+    const title = findTitle();
+    if (!title) continue;
+    // Drop the trailer (`Total across all breakdown cells: [input]`).
+    trailer?.remove();
+    // Inject a running-total badge into the title.
+    const badge = document.createElement('span');
+    badge.className = 'der-de-matrix-total';
+    badge.setAttribute('data-de', deId);
+    title.appendChild(badge);
+    const recompute = (): void => {
+      let sum = 0; let any = false;
+      // Author inputs expose the DE in the `dataelementid` attr
+      // AND in the normalised `name` prefix ("<de>-<coc>-val").
+      // Match either for maximum compatibility.
+      const matches = Array.from(container.querySelectorAll<HTMLInputElement>(
+        `input[dataelementid="${deId}"][name$="-val"],`
+        + `input[name^="${deId}-"][name$="-val"]`));
+      const seen = new Set<HTMLInputElement>();
+      for (const i of matches) {
+        if (seen.has(i)) continue;
+        seen.add(i);
+        const v = parseFloat(i.value);
+        if (Number.isFinite(v)) { sum += v; any = true; }
+      }
+      if (any) {
+        const rounded = Number.isInteger(sum) ? sum : Number(sum.toFixed(2));
+        badge.textContent = ` (Total: ${rounded})`;
+      } else {
+        badge.textContent = '';
+      }
+    };
+    recomputers.push(recompute);
+    recompute();
+  }
+  if (recomputers.length === 0) return;
+  container.addEventListener('input', (ev) => {
+    const t = ev.target as HTMLElement | null;
+    if (!t || t.tagName !== 'INPUT') return;
+    if (!/-val$/.test(t.getAttribute('name') ?? '')) return;
+    for (const fn of recomputers) fn();
+  }, true);
+}
+
+/**
  * Flag every value input whose (dataElement, categoryOptionCombo)
  * identity appears in meta.compulsoryDataElementOperands. DHIS2's
  * dimensionItem is "deId.cocId". The input gains
@@ -3174,6 +3276,16 @@ const APP_STYLES = `
   font-weight: 500;
   color: var(--der-ink-700, #2a3447);
 }
+/* Matrix title total badge — "(Total: 19)" appended to the
+ * title of each disaggregated matrix. Updates live from input
+ * events on inputs sharing the same dataelementid. */
+.der-de-matrix-total {
+  margin-left: 6px;
+  font-weight: 400;
+  color: var(--der-ink-500, #5b6478);
+  font-size: 0.92em;
+}
+
 /* Top-row live strip — replaces the right-rail Cell Details
  * drawer. Left shows the active section heading; right shows
  * DE · COC · Value · Save state for the focused cell, updating
