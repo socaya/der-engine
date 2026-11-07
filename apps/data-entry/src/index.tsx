@@ -1267,16 +1267,16 @@ export default function DataEntryApp(): JSX.Element {
           </button>
           <button type="button"
                   onClick={exportCurrentFormToCsv}
-                  className="der-de-density-btn"
+                  className="der-de-density-btn der-de-filebtn"
                   data-test="de-export-btn"
                   title="Download this period's values as CSV (Alt+E)"
                   aria-label="Export values as CSV">
-            ⬇ CSV
+            <FileIcon kind="csv" direction="down" />
           </button>
-          <label className="der-de-density-btn der-de-import-btn"
+          <label className="der-de-density-btn der-de-filebtn der-de-import-btn"
                  data-test="de-import-csv-btn"
                  title="Upload an edited CSV back into this form">
-            ⬆ CSV
+            <FileIcon kind="csv" direction="up" />
             <input type="file"
                    accept=".csv,text/csv"
                    data-test="de-import-csv-input"
@@ -1286,10 +1286,18 @@ export default function DataEntryApp(): JSX.Element {
                      e.target.value = '';
                    }} />
           </label>
-          <label className="der-de-density-btn der-de-import-btn"
+          <button type="button"
+                  onClick={() => { void exportCurrentFormToPdf(); }}
+                  className="der-de-density-btn der-de-filebtn"
+                  data-test="de-export-pdf-btn"
+                  title="Download this period as an editable A4 PDF report (Alt+P)"
+                  aria-label="Export values as PDF">
+            <FileIcon kind="pdf" direction="down" />
+          </button>
+          <label className="der-de-density-btn der-de-filebtn der-de-import-btn"
                  data-test="de-import-pdf-btn"
                  title="Upload an edited PDF (filled in Adobe/Preview) back into this form">
-            ⬆ PDF
+            <FileIcon kind="pdf" direction="up" />
             <input type="file"
                    accept="application/pdf,.pdf"
                    data-test="de-import-pdf-input"
@@ -1299,14 +1307,6 @@ export default function DataEntryApp(): JSX.Element {
                      e.target.value = '';
                    }} />
           </label>
-          <button type="button"
-                  onClick={() => { void exportCurrentFormToPdf(); }}
-                  className="der-de-density-btn"
-                  data-test="de-export-pdf-btn"
-                  title="Download this period as an editable A4 PDF report (Alt+P)"
-                  aria-label="Export values as PDF">
-            ⬇ PDF
-          </button>
           {issues.length > 0 && !issuesOpen && (
             <button type="button"
                     onClick={() => setIssuesOpen(true)}
@@ -2864,6 +2864,52 @@ function SyncLogos(
  * Minimal globe glyph for the WAN/Internet status indicator on the
  * toolbar. `currentColor` so the status pin's color drives the hue.
  */
+/**
+ * Document-with-badge icon for the CSV / PDF export + import buttons.
+ * A white sheet with a folded corner, a coloured label band at the
+ * bottom ("CSV" green, "PDF" red), and a small circular overlay in
+ * the corner carrying the direction arrow (↓ for export, ↑ for
+ * import). Enough visual hierarchy that an operator can tell
+ * "download" from "upload" at a glance without reading the label.
+ */
+function FileIcon(
+  { kind, direction }:
+  { kind: 'csv' | 'pdf'; direction: 'down' | 'up' },
+): JSX.Element {
+  const label = kind === 'csv' ? 'CSV' : 'PDF';
+  const bandColor = kind === 'csv' ? '#1A9988' : '#D32F2F';
+  const bandDeep  = kind === 'csv' ? '#0E6D62' : '#8E1F1F';
+  const arrowBg = direction === 'down' ? '#147CD7' : '#F59E0B';
+  const arrowPath = direction === 'down'
+    ? 'M8 4v7 M5 8l3 3 3-3'   // down
+    : 'M8 12V5 M5 8l3-3 3 3'; // up
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22"
+         aria-hidden="true" className="der-de-filebtn__icon">
+      {/* sheet body */}
+      <path d="M4 2h9l4 4v15a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"
+            fill="#ffffff" stroke="#8993a7" strokeWidth="0.9"
+            strokeLinejoin="round" />
+      {/* folded corner */}
+      <path d="M13 2v4h4" fill="#e3e8f0" stroke="#8993a7" strokeWidth="0.7"
+            strokeLinejoin="round" />
+      {/* label band */}
+      <rect x="3" y="13" width="14" height="6" fill={bandColor} />
+      <rect x="3" y="19" width="14" height="1.2" fill={bandDeep} />
+      <text x="10" y="17.5" fontFamily="system-ui, -apple-system, sans-serif"
+            fontSize="4.2" fontWeight="700" fill="#ffffff"
+            textAnchor="middle" letterSpacing="0.3">{label}</text>
+      {/* direction badge, bottom-right */}
+      <circle cx="19" cy="19" r="4.6" fill={arrowBg}
+              stroke="#ffffff" strokeWidth="1" />
+      <path d={arrowPath}
+            transform="translate(11 11)"
+            fill="none" stroke="#ffffff" strokeWidth="1.5"
+            strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function InternetMark(): JSX.Element {
   return (
     <svg viewBox="0 0 16 16" width="14" height="14"
@@ -6090,17 +6136,40 @@ const APP_STYLES = `
   background: #e6f1fb;
   flex: 0 0 auto;
 }
-.der-de-import-btn {
+.der-de-filebtn {
   display: inline-flex;
   align-items: center;
-  cursor: pointer;
+  gap: 5px;
+  padding-left: 8px;
+  padding-right: 10px;
 }
+.der-de-filebtn__icon { display: block; flex-shrink: 0; }
+.der-de-filebtn__label {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.der-de-import-btn {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+/* The native <input type="file"> renders both a "Choose file"
+ * button AND a "No file chosen" / filename caption. Hide it fully
+ * — accessible-hidden via clip + absolute 1×1 so screen readers
+ * can still discover it, but no visual leakage (width:0 alone
+ * leaves the filename caption visible on some browsers). */
 .der-de-import-btn input[type="file"] {
   position: absolute;
-  width: 0;
-  height: 0;
-  opacity: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
   overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
   pointer-events: none;
 }
 .der-de-saveall-btn {
