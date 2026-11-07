@@ -2078,15 +2078,19 @@ function CellLiveStrip(
             <span className="der-de-live-strip__de">{details.deName}</span>
             <span className="der-de-live-strip__sep">·</span>
             <span className="der-de-live-strip__coc">{details.cocName}</span>
-            <span className="der-de-live-strip__sep">·</span>
-            <span className="der-de-live-strip__value">
-              {details.value || <em className="der-de-live-strip__empty">—</em>}
-            </span>
-            <span className="der-de-live-strip__sep">·</span>
-            <span className={`der-de-live-strip__state `
-              + `der-de-live-strip__state--${stateTone[details.saveState]}`}>
-              {stateLabel[details.saveState]}
-            </span>
+            {details.value && (
+              <>
+                <span className="der-de-live-strip__sep">·</span>
+                <span className="der-de-live-strip__value">
+                  {details.value}
+                </span>
+                <span className="der-de-live-strip__sep">·</span>
+                <span className={`der-de-live-strip__state `
+                  + `der-de-live-strip__state--${stateTone[details.saveState]}`}>
+                  {stateLabel[details.saveState]}
+                </span>
+              </>
+            )}
             <SyncLogos formSync={formSync} cellState={details.saveState} />
             {details.compulsory && (
               <span className="der-de-live-strip__required"
@@ -2155,14 +2159,16 @@ function SyncLogos(
             title={derTitle} data-test="de-sync-der"
             data-state={derTone}>
         <DerBrandMark />
-        <span className="der-de-sync-logos__label">DER</span>
+        <span className={'der-de-sync-logos__dot is-' + derTone}
+              aria-hidden="true" />
       </span>
       <span className={'der-de-sync-logos__pin der-de-sync-logos__pin--central '
             + 'is-' + centralTone}
             title={centralTitle} data-test="de-sync-central"
             data-state={centralTone}>
         <Dhis2BrandMark />
-        <span className="der-de-sync-logos__label">DHIS2</span>
+        <span className={'der-de-sync-logos__dot is-' + centralTone}
+              aria-hidden="true" />
       </span>
     </span>
   );
@@ -3799,47 +3805,36 @@ const APP_STYLES = `
 .der-de-sync-logos {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-left: 6px;
+  gap: 10px;
+  margin-left: 8px;
 }
 .der-de-sync-logos__pin {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 6px 2px 4px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  padding: 0;
+  background: transparent;
+  border: 0;
   line-height: 1;
-  border: 1px solid transparent;
-  transition: color 160ms, background 160ms, border-color 160ms;
 }
 .der-de-sync-logos__pin svg { flex-shrink: 0; }
-.der-de-sync-logos__label {
-  text-transform: uppercase;
-  font-size: 9px;
+/* Each brand mark keeps its native dark hue — status is communicated
+ * by the small square dot next to it, not by recolouring the logo. */
+.der-de-sync-logos__pin--der    { color: #0B3558; }
+.der-de-sync-logos__pin--central { color: #0080d4; }
+/* Square status dot, 8 px. Green = saved/synced, orange = pending,
+ * red = error, gray = empty. */
+.der-de-sync-logos__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  background: #c6ccd7;
 }
-.der-de-sync-logos__pin.is-muted {
-  color: #9097a8;
-  background: #f0f2f6;
-  border-color: #e5e8ef;
-}
-.der-de-sync-logos__pin.is-lit {
-  color: #1b8243;
-  background: #e5f4ea;
-  border-color: #b5dec4;
-}
-.der-de-sync-logos__pin.is-pending {
-  color: #c6680a;
-  background: #fff1dc;
-  border-color: #f0ca8a;
-}
-.der-de-sync-logos__pin.is-error {
-  color: #a3322c;
-  background: #fbe9e7;
-  border-color: #e9b7b2;
-}
+.der-de-sync-logos__dot.is-muted   { background: #c6ccd7; }
+.der-de-sync-logos__dot.is-lit     { background: #1b8243; }
+.der-de-sync-logos__dot.is-pending { background: #c6680a; }
+.der-de-sync-logos__dot.is-error   { background: #a3322c; }
 .der-de-sync-logos__svg {
   display: block;
   flex-shrink: 0;
@@ -4132,7 +4127,8 @@ const APP_STYLES = `
   line-height: 1;
 }
 .der-de-period-btn:hover:not(:disabled) {
-  color: #2c3597;
+  color: #0a5497;
+  background: #e6f1fb;
 }
 .der-de-period-btn:disabled {
   color: #c0c7d2;
@@ -4704,7 +4700,7 @@ const APP_STYLES = `
   font-size: 12px;
   cursor: pointer;
 }
-.der-de-validation__jump-btn:hover { color: #2c3597; }
+.der-de-validation__jump-btn:hover { color: #0a5497; }
 
 .der-de-shortcuts-backdrop {
   position: fixed;
