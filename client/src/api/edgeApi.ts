@@ -101,6 +101,18 @@ export interface DataSetMeta {
   displayName?: string;
   name?: string;
   periodType?: string;
+  /** DHIS2 — how many future periods may be opened for entry
+   *  (default 0 = the current period is NOT available until it
+   *  ends, past periods only). Honoured by the period picker so
+   *  operators can never submit values Central would reject as
+   *  outside the open window. */
+  openFuturePeriods?: number;
+  /** DHIS2 — grace window after a period ends during which entry
+   *  stays open. 0 = closes as soon as the period ends. */
+  expiryDays?: number;
+  /** DHIS2 — target lag between period end and data entry
+   *  completion; informational, not enforced. */
+  timelyDays?: number;
   formType?: 'CUSTOM' | 'SECTION' | 'DEFAULT' | string;
   dataEntryForm?: {
     id: string;
@@ -116,8 +128,19 @@ export interface DataSetMeta {
 }
 
 export function getDataSetMeta(dataSetUid: string): Promise<DataSetMeta> {
+  // Ask for the entry-window fields by name. DER's mirror emits the
+  // whole payload regardless of ?fields=, but DHIS2 2.44 defaults to
+  // a narrow projection that omits openFuturePeriods / expiryDays —
+  // naming them here keeps the client behaviour identical whether
+  // we talk to the mirror or straight to central.
+  // Brackets must be percent-encoded — Tomcat 10 rejects literal
+  // `[`/`]` in the query string as RFC 3986 violation, which
+  // produces a 400 BAD_REQUEST before the controller sees it.
+  const q = 'fields=id,displayName,name,periodType,formType,'
+          + 'openFuturePeriods,expiryDays,timelyDays,'
+          + 'dataEntryForm%5Bid,name%5D';
   return request<DataSetMeta>('GET',
-    `/api/dataSets/${encodeURIComponent(dataSetUid)}`);
+    `/api/dataSets/${encodeURIComponent(dataSetUid)}?${q}`);
 }
 
 /**

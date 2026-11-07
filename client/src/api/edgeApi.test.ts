@@ -355,11 +355,19 @@ describe('edgeApi device header (ADR-0023)', () => {
 });
 
 describe('edgeApi.getDataSetMeta', () => {
-  it('hits /api/dataSets/<uid>', async () => {
-    fetchMock.mockResolvedValue(respond(200, { id: 'DS', periodType: 'Monthly' }));
+  it('hits /api/dataSets/<uid> with entry-window fields', async () => {
+    fetchMock.mockResolvedValue(respond(200,
+      { id: 'DS', periodType: 'Monthly', openFuturePeriods: 0 }));
     const m = await api.getDataSetMeta('DS');
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/dataSets/DS');
+    const url = fetchMock.mock.calls[0]?.[0] as string;
+    expect(url.startsWith('/api/dataSets/DS?')).toBe(true);
+    // DHIS2 2.44 omits openFuturePeriods / expiryDays from the
+    // default projection; we name them explicitly so the picker
+    // always sees them.
+    expect(url).toContain('openFuturePeriods');
+    expect(url).toContain('expiryDays');
     expect(m.periodType).toBe('Monthly');
+    expect(m.openFuturePeriods).toBe(0);
   });
 });
 

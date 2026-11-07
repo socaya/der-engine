@@ -45,6 +45,7 @@ export default function DataEntryApp(): JSX.Element {
   const [formInfo, setFormInfo] = useState<{
     hasCustomForm: boolean; formId?: string; displayName?: string;
     formType?: string; periodType?: string;
+    openFuturePeriods?: number;
   } | null>(null);
   const customRoot = useRef<HTMLDivElement | null>(null);
   // AttributeOptionCombo selections for non-default categoryCombos.
@@ -191,6 +192,7 @@ export default function DataEntryApp(): JSX.Element {
         const meta = await api.getDataSetMeta(dataSet.trim()) as {
           displayName?: string; name?: string;
           formType?: string; periodType?: string;
+          openFuturePeriods?: number;
           dataEntryForm?: { id: string } | null;
         };
         if (cancelled) return;
@@ -202,6 +204,7 @@ export default function DataEntryApp(): JSX.Element {
           displayName: meta.displayName ?? meta.name,
           formType: meta.formType,
           periodType: meta.periodType,
+          openFuturePeriods: meta.openFuturePeriods ?? 0,
         });
         setMode(hasCustomForm ? 'custom' : 'structured');
 
@@ -510,7 +513,13 @@ export default function DataEntryApp(): JSX.Element {
   useEffect(() => {
     const ouUid = ou.orgUnitUid ?? '';
     if (!dataSet.trim() || !ouUid || !period.trim()) {
-      setFormSyncState((s) => ({ ...s, central: null }));
+      // Bail-out branch intentionally sets state via an equality
+      // check — useDerApi() returns a fresh object identity on every
+      // render, and if we unconditionally setState here the pre-
+      // dataset mount loops forever (each state write triggers a
+      // re-render which re-runs the effect which re-sets state).
+      setFormSyncState((s) =>
+        s.central == null && !s.updatedAt ? s : { ...s, central: null });
       return;
     }
     let cancelled = false;
@@ -540,7 +549,11 @@ export default function DataEntryApp(): JSX.Element {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [api, dataSet, period, ou.orgUnitUid, saveTick]);
+    // api intentionally omitted — useDerApi() returns a fresh object
+    // on every render; depending on it would reinstate the mount
+    // loop above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataSet, period, ou.orgUnitUid, saveTick]);
 
   // Batch-fetch completion state for every period that appears
   // in the picker so the dropdown can prefix a ✓ to already-
@@ -554,7 +567,9 @@ export default function DataEntryApp(): JSX.Element {
     }
     let cancelled = false;
     (async () => {
-      const periods = buildPeriodOptions(formInfo.periodType).map((o) => o.id);
+      const periods = buildPeriodOptions(
+        formInfo.periodType, formInfo.openFuturePeriods ?? 0,
+      ).map((o) => o.id);
       // One readAggregateValues() per period in parallel — DER's
       // mirror answers these in milliseconds; 25 periods max per
       // picker, fine on LAN.
@@ -737,7 +752,8 @@ export default function DataEntryApp(): JSX.Element {
             </span>
             <span className="der-de-period-wrap">
               {renderPeriodPicker(formInfo?.periodType, period, setPeriod,
-                completedPeriods, touchedPeriods)}
+                completedPeriods, touchedPeriods,
+                formInfo?.openFuturePeriods ?? 0)}
             </span>
           </label>
           <label className="der-de-toolbar__field der-de-toolbar__field--filter">
@@ -3297,6 +3313,7 @@ function renderPeriodPicker(
   setPeriod: (v: string) => void,
   completedPeriods: Set<string> = new Set(),
   touchedPeriods: Set<string> = new Set(),
+  openFuturePeriods: number = 0,
 ): JSX.Element {
   // ✓ wins over ● — if a period is complete it's also touched.
   const markLabel = (id: string, label: string): string => {
@@ -3305,7 +3322,7 @@ function renderPeriodPicker(
     return label;
   };
   const common = { ...inputStyle } as React.CSSProperties;
-  const baseOptions = buildPeriodOptions(periodType);
+  const baseOptions = buildPeriodOptions(periodType, openFuturePeriods);
   if (baseOptions.length === 0) {
     // Unknown periodType — fall back to free text (DHIS2 period id).
     return (
@@ -3492,7 +3509,10 @@ function formatPeriodLabel(periodType: string | undefined, id: string): string |
  *   Yearly / FinancialOct / FinancialJuly / FinancialApril → last 10 years
  * Falls back to [] (free text) for unknown period types.
  */
-function buildPeriodOptions(periodType?: string): Array<{ id: string; label: string }> {
+function buildPeriodOptions(
+  periodType?: string,
+  openFuturePeriods: number = 0,
+): Array<{ id: string; label: string }> {
   const today = new Date();
   const y = today.getFullYear();
   const m = today.getMonth(); // 0-based
@@ -3500,10 +3520,17 @@ function buildPeriodOptions(periodType?: string): Array<{ id: string; label: str
   const MONTH_NAMES = ['January', 'February', 'March', 'April',
     'May', 'June', 'July', 'August', 'September', 'October',
     'November', 'December'];
+  // DHIS2 opens the current + next (openFuturePeriods - 1) periods;
+  // when openFuturePeriods = 0 (the default) the current period is
+  // closed too, so entry starts at the last-completed period. We
+  // shift each generator's starting index by (1 - openFuturePeriods)
+  // — positive values skip past the current period, 1 keeps it, 2+
+  // walks further into the future.
+  const skip = Math.max(0, 1 - Math.max(0, openFuturePeriods));
   switch (periodType) {
     case 'Daily': {
       const out: Array<{ id: string; label: string }> = [];
-      for (let i = 0; i < 30; i++) {
+      for (let i = skip; i < 30 + skip; i++) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
         const id = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
@@ -3516,6 +3543,10 @@ function buildPeriodOptions(periodType?: string): Array<{ id: string; label: str
       const out: Array<{ id: string; label: string }> = [];
       const w = isoWeek(today);
       let wy = w.year; let wk = w.week;
+      for (let s = 0; s < skip; s++) {
+        wk -= 1;
+        if (wk < 1) { wy -= 1; wk = isoWeeksInYear(wy); }
+      }
       for (let i = 0; i < 12; i++) {
         out.push({ id: `${wy}W${wk}`, label: `${wy} W${pad(wk)}` });
         wk -= 1;
@@ -3525,7 +3556,7 @@ function buildPeriodOptions(periodType?: string): Array<{ id: string; label: str
     }
     case 'Monthly': {
       const out: Array<{ id: string; label: string }> = [];
-      for (let i = 0; i < 24; i++) {
+      for (let i = skip; i < 24 + skip; i++) {
         const my = y; const mm = m;
         const total = my * 12 + mm - i;
         const yy = Math.floor(total / 12);
@@ -3542,6 +3573,10 @@ function buildPeriodOptions(periodType?: string): Array<{ id: string; label: str
       // Bi-month id = YYYY0{1..6}B; 1 = Jan-Feb, 2 = Mar-Apr, …
       const curBm = Math.floor(m / 2) + 1;
       let by = y; let bm = curBm;
+      for (let s = 0; s < skip; s++) {
+        bm -= 1;
+        if (bm < 1) { by -= 1; bm = 6; }
+      }
       for (let i = 0; i < 12; i++) {
         const a = (bm - 1) * 2;
         out.push({
@@ -3557,6 +3592,10 @@ function buildPeriodOptions(periodType?: string): Array<{ id: string; label: str
       const out: Array<{ id: string; label: string }> = [];
       const curQ = Math.floor(m / 3) + 1;
       let qy = y; let q = curQ;
+      for (let s = 0; s < skip; s++) {
+        q -= 1;
+        if (q < 1) { qy -= 1; q = 4; }
+      }
       for (let i = 0; i < 8; i++) {
         out.push({ id: `${qy}Q${q}`, label: `${qy} Q${q}` });
         q -= 1;
@@ -3568,6 +3607,10 @@ function buildPeriodOptions(periodType?: string): Array<{ id: string; label: str
       const out: Array<{ id: string; label: string }> = [];
       const curS = m < 6 ? 1 : 2;
       let sy = y; let s = curS;
+      for (let i = 0; i < skip; i++) {
+        s -= 1;
+        if (s < 1) { sy -= 1; s = 2; }
+      }
       for (let i = 0; i < 6; i++) {
         out.push({ id: `${sy}S${s}`, label: `${sy} ${s === 1 ? 'Jan–Jun' : 'Jul–Dec'}` });
         s -= 1;
@@ -3580,7 +3623,7 @@ function buildPeriodOptions(periodType?: string): Array<{ id: string; label: str
     case 'FinancialJuly':
     case 'FinancialOct': {
       const out: Array<{ id: string; label: string }> = [];
-      for (let i = 0; i < 10; i++) {
+      for (let i = skip; i < 10 + skip; i++) {
         const yy = y - i;
         out.push({ id: String(yy), label: String(yy) });
       }
