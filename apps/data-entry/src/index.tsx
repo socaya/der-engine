@@ -706,6 +706,58 @@ export default function DataEntryApp(): JSX.Element {
     }
   }
 
+  function exportCurrentFormToCsv(): void {
+    const root = customRoot.current;
+    if (!root) return;
+    const dsLabel = formInfo?.displayName ?? dataSet.trim();
+    const pe = period.trim();
+    const ouLabel = ou.orgUnitDisplayName || ou.orgUnitUid || '';
+    const rows: string[][] = [[
+      'Data element', 'Data element id', 'COC', 'COC id',
+      'Value', 'Comment', 'Last updated', 'Saved by',
+    ]];
+    for (const input of Array.from(
+        root.querySelectorAll<HTMLInputElement>('input[name$="-val"]'))) {
+      const m = /^(.+)-(.+)-val$/.exec(input.getAttribute('name') ?? '');
+      if (!m) continue;
+      const cellId = `${m[1]}-cell`;
+      const deLabel = root.querySelector(`#${CSS.escape(cellId)}`)
+        ?.textContent?.trim() ?? m[1];
+      const ariaLabel = input.getAttribute('aria-label') ?? '';
+      // Aria label shape is "DE, COC" (annotateAriaLabels); strip DE
+      // to get just the COC name.
+      const cocLabel = ariaLabel.startsWith(deLabel + ',')
+        ? ariaLabel.slice(deLabel.length + 1).trim()
+        : ariaLabel;
+      rows.push([
+        deLabel, m[1]!, cocLabel || '—', m[2]!,
+        input.value ?? '',
+        input.getAttribute('data-comment') ?? '',
+        input.getAttribute('data-updated') ?? '',
+        input.getAttribute('data-updated-by') ?? '',
+      ]);
+    }
+    const esc = (v: string): string =>
+      /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+    const meta = [
+      `# Dataset: ${dsLabel}`,
+      `# Period:  ${pe}`,
+      `# OrgUnit: ${ouLabel}`,
+      `# Exported: ${new Date().toISOString()}`,
+      '',
+    ].join('\n');
+    const csv = meta + rows.map(r => r.map(esc).join(',')).join('\n') + '\n';
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `der-data-entry-${dataSet.trim()}-${pe}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   // DER edge reachability pill. Separate from `online.isOnline` (WAN
   // signal via navigator.onLine): this probes the actual DER server
   // on the facility LAN / localhost. State progression:
@@ -821,6 +873,9 @@ export default function DataEntryApp(): JSX.Element {
       } else if (ev.code === 'KeyS') {
         ev.preventDefault();
         saveAllNow();
+      } else if (ev.code === 'KeyE') {
+        ev.preventDefault();
+        exportCurrentFormToCsv();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -1127,6 +1182,14 @@ export default function DataEntryApp(): JSX.Element {
                   style={secondaryBtn}
                   data-test="de-validate-btn">
             Validate
+          </button>
+          <button type="button"
+                  onClick={exportCurrentFormToCsv}
+                  className="der-de-density-btn"
+                  data-test="de-export-btn"
+                  title="Download this period's values as CSV (Alt+E)"
+                  aria-label="Export values as CSV">
+            ⬇ CSV
           </button>
           {issues.length > 0 && !issuesOpen && (
             <button type="button"
@@ -2871,6 +2934,7 @@ function ShortcutsPopover(
     ['Alt + S', 'Save all unsaved cells'],
     ['Alt + V', 'Run validation'],
     ['Alt + C', 'Toggle Complete marker'],
+    ['Alt + E', 'Export this period as CSV'],
     ['Paste multi-line', 'Distributes down the COC column'],
     ['Esc', 'Close an open drawer'],
     ['?', 'Show / hide this cheatsheet'],
