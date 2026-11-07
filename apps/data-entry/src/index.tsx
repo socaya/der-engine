@@ -4321,18 +4321,36 @@ async function buildDatasetPdf(
       // Column widths available for COC cells after the DE col.
       const cocCount = table.cocIds.length;
       if (cocCount === 0) continue;
-      const cocBand = W - RM - (LM + deColW + 6);
-      const cocW = Math.max(40, Math.floor(cocBand / cocCount));
-      // Actual right edge (recomputed to keep rounding tidy).
-      const colX = (i: number): number => LM + deColW + 6 + i * cocW;
+      // Shrink the DE label column when the matrix has many COCs so
+      // every COC column still gets enough width to fit a readable
+      // value field.
+      const effectiveDeColW = cocCount >= 6 ? 170
+        : cocCount >= 4 ? 200
+        : deColW;
+      const cocBand = W - RM - (LM + effectiveDeColW + 6);
+      const cocW = Math.max(28, Math.floor(cocBand / cocCount));
+      const colX = (i: number): number => LM + effectiveDeColW + 6 + i * cocW;
 
-      // Header rows — repeat per table on a new page.
-      const headerHeight = columnHeaderRowH * table.headerRows.length;
+      // Measure the leaf-row labels; if any exceeds the column
+      // width we rotate the entire leaf row 90° so the labels
+      // stay readable without spilling off the page.
+      const bottomRow = table.headerRows[table.headerRows.length - 1] ?? [];
+      const headerFontSize = 8.5;
+      const maxLeafWidth = bottomRow.reduce((acc, h) => Math.max(acc,
+        font.widthOfTextAtSize(h.label, headerFontSize)), 0);
+      const rotateLeaf = cocCount > 1
+        && bottomRow.some(h => h.span === 1)
+        && (cocCount >= 5 || maxLeafWidth + 8 > cocW);
+      const leafRowH = rotateLeaf
+        ? Math.min(90, Math.ceil(maxLeafWidth) + 10)
+        : columnHeaderRowH;
+      const outerRowsH = Math.max(0, table.headerRows.length - 1) * columnHeaderRowH;
+      const headerHeight = outerRowsH + leafRowH;
       ensureRoom(headerHeight + bodyRowH);
       // DE header cell
       page.drawRectangle({
         x: LM, y: y - headerHeight,
-        width: deColW, height: headerHeight,
+        width: effectiveDeColW, height: headerHeight,
         color: TINT,
       });
       page.drawText('Data element', {
@@ -4340,15 +4358,21 @@ async function buildDatasetPdf(
         y: y - headerHeight + headerHeight/2 - 3,
         size: 9, font: bold, color: INK_SOFT,
       });
-      // Nested COC headers
+      // Nested COC headers — outer rows horizontal; leaf row
+      // rotated when rotateLeaf is set.
       for (let r = 0; r < table.headerRows.length; r++) {
         let col = 0;
-        const rowY = y - (r + 1) * columnHeaderRowH;
+        const isLeaf = r === table.headerRows.length - 1;
+        const rowH = isLeaf ? leafRowH : columnHeaderRowH;
+        // Row top y = previous rows consumed + this row height.
+        const rowsAboveH = r === 0 ? 0
+          : (r * columnHeaderRowH);  // outer rows always columnHeaderRowH
+        const rowY = y - rowsAboveH - rowH;
         for (const h of table.headerRows[r] ?? []) {
           const x = colX(col);
           const w = cocW * h.span;
           page.drawRectangle({
-            x, y: rowY, width: w, height: columnHeaderRowH,
+            x, y: rowY, width: w, height: rowH,
             color: TINT,
           });
           page.drawLine({
@@ -4358,13 +4382,29 @@ async function buildDatasetPdf(
           });
           page.drawLine({
             start: { x, y: rowY },
-            end:   { x, y: rowY + columnHeaderRowH },
+            end:   { x, y: rowY + rowH },
             thickness: 0.3, color: HAIR,
           });
-          const text = clampText(h.label, font, 8.5, w - 6);
+          if (isLeaf && rotateLeaf && h.span === 1) {
+            // Rotate text 90° counter-clockwise, origin at the
+            // text baseline. We draw at (cellCenterX + textAscent/2,
+            // cellBottom + 4) with rotate 90° — so the text runs
+            // from bottom to top of the cell.
+            const text = clampText(h.label, font, headerFontSize, rowH - 8);
+            page.drawText(text, {
+              x: x + w/2 + headerFontSize/2 - 1,
+              y: rowY + 4,
+              size: headerFontSize, font: bold, color: INK_SOFT,
+              rotate: pdfLib.degrees(90),
+            });
+            col += h.span;
+            continue;
+          }
+          const text = clampText(h.label, font, headerFontSize, w - 6);
           page.drawText(text, {
-            x: x + w/2 - font.widthOfTextAtSize(text, 8.5)/2,
-            y: rowY + 5, size: 8.5, font: bold, color: INK_SOFT,
+            x: x + w/2 - font.widthOfTextAtSize(text, headerFontSize)/2,
+            y: rowY + rowH/2 - 3,
+            size: headerFontSize, font: bold, color: INK_SOFT,
           });
           col += h.span;
         }
@@ -4395,7 +4435,7 @@ async function buildDatasetPdf(
           thickness: 0.3, color: HAIR,
         });
         // DE label
-        const deText = clampText(de.deLabel, font, 9, deColW - 10);
+        const deText = clampText(de.deLabel, font, 9, effectiveDeColW - 10);
         page.drawText(deText, {
           x: LM + 6, y: y - bodyRowH + 7,
           size: 9, font, color: INK,
