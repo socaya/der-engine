@@ -45,6 +45,12 @@ class DataValueSetsControllerTest {
     @MockBean AggregateDataValueService service;
     @MockBean AggregateDataValueRepository values;
     @MockBean ug.ac.mak.der.workflow.SystemWorkflowService systemWorkflows;
+    // Slice 53 — controller joins der.edge_user via JdbcTemplate to
+    // enrich the GET response with stored_by_username. @WebMvcTest
+    // doesn't load a real JDBC bean, so we mock it with a no-op row
+    // iterator (zero rows → no stored_by_username emitted, which the
+    // existing assertions tolerate).
+    @MockBean org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @org.springframework.boot.test.context.TestConfiguration
     static class Config {
