@@ -5,31 +5,29 @@ import{useEffect as $,useRef as oe,useState as k}from"react";import{useAuth as w
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
-  margin: 12px 0 16px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.92);
+  margin: 0 0 16px;
+  padding: 10px 0 12px;
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: saturate(140%) blur(6px);
-  border: 1px solid #eef0f3;
-  border-radius: 8px;
+  border-bottom: 1px solid #e5e9ef;
   /* ADR-0037 \xA71.2 \u2014 sticky context strip so the operator always
    * sees which dataset/period/OU/AOC they are editing, even when
-   * scrolling long section forms. 56 px matches the shell topbar
+   * scrolling long section forms. 52 px matches the shell topbar
    * height so the two stack cleanly. */
   position: sticky;
-  top: 56px;
+  top: 52px;
   z-index: 5;
 }
 .der-de-chip {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 10px 12px;
-  background: #fff;
-  border: 1px solid #d7dde5;
-  border-radius: 3px;
+  padding: 8px 12px;
+  background: #f7f8fc;
+  border-radius: 8px;
 }
 .der-de-chip-signed {
-  background: #f3f5f7;
+  background: #eef0f5;
 }
 .der-de-chip-label {
   font-size: 11px;
@@ -98,10 +96,8 @@ import{useEffect as $,useRef as oe,useState as k}from"react";import{useAuth as w
   border-radius: 3px;
 }
 .der-de-form-card {
-  padding: 20px;
-  background: #fff;
-  border: 1px solid #d7dde5;
-  border-radius: 3px;
+  padding: 0;
+  background: transparent;
 }
 .der-de-actionbar {
   position: sticky;
@@ -110,13 +106,12 @@ import{useEffect as $,useRef as oe,useState as k}from"react";import{useAuth as w
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 12px;
-  padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.96);
+  margin: 0 -24px;
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: saturate(140%) blur(6px);
-  border: 1px solid #eef0f3;
-  border-radius: 8px;
-  box-shadow: 0 -2px 6px rgba(28, 46, 70, 0.04);
+  border-top: 1px solid #e5e9ef;
+  box-shadow: 0 -2px 6px rgba(16, 26, 50, 0.04);
 }
 .der-de-savepill {
   margin-right: auto;
@@ -144,14 +139,13 @@ import{useEffect as $,useRef as oe,useState as k}from"react";import{useAuth as w
   .der-de-section-nav {
     display: block;
     position: sticky;
-    top: 80px;
+    top: 140px;
     align-self: start;
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 220px);
     overflow-y: auto;
-    padding: 12px 8px;
-    background: #fafbfc;
-    border: 1px solid #eef0f3;
-    border-radius: 6px;
+    padding: 10px 6px;
+    background: #f7f8fc;
+    border-radius: 10px;
   }
 }
 .der-de-section-nav__title {
@@ -331,10 +325,10 @@ import{useEffect as $,useRef as oe,useState as k}from"react";import{useAuth as w
    combo (Age \xD7 Sex \xD7 Status + 50+ DEs). */
 .der-de-form-card .der-de-table-scroll {
   overflow-x: auto;
-  margin: 8px 0 20px;
-  border: 1px solid #eef0f3;
-  border-radius: 6px;
+  margin: 6px 0 16px;
+  border-radius: 8px;
   background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 26, 50, 0.04);
 }
 .der-de-form-card .der-de-table-scroll .sectionTable {
   margin: 0;

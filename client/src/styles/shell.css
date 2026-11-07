@@ -815,24 +815,27 @@ body {
 .der-screen-card {
   background: var(--der-surface);
   border: 1px solid var(--der-border);
-  border-radius: var(--der-radius-md);
+  border-radius: var(--der-radius-lg);
   margin: 16px 0;
+  box-shadow: var(--der-shadow-sm);
 }
-/* Full-bleed variant for dispatched apps — no outer margin, no
- * rounded corners against the viewport edge, body uses the
- * remaining height so sticky action bar sits above the viewport
- * bottom rather than the card border. */
+/* Full-bleed variant for dispatched apps — borderless against the
+ * viewport edge, no shadow, no radius. The sticky header + body
+ * handle their own visual separation via background + subtle
+ * rules rather than a hard outer border. */
 .der-apphost .der-screen-card {
   margin: 0;
+  border: 0;
   border-radius: 0;
-  border-left: 0;
-  border-right: 0;
+  box-shadow: none;
+  background: var(--der-surface);
 }
 .der-apphost .der-screen-card__head {
-  padding: 12px 20px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--der-border);
 }
 .der-apphost .der-screen-card__body {
-  padding: 16px 20px 0;
+  padding: 16px 24px 0;
 }
 
 .der-screen-card__head {
