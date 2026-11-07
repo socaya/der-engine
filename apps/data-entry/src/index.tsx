@@ -79,6 +79,21 @@ export default function DataEntryApp(): JSX.Element {
   // operator navigates.
   const [details, setDetails] = useState<CellDetails | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(true);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // "?" opens shortcuts when the operator isn't typing into an
+  // input. A capture-phase listener keeps this out of the cell's
+  // own input stream.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== '?') return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      e.preventDefault();
+      setShortcutsOpen((v) => !v);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   // Compact-by-default, remembered in localStorage so operators
   // don't have to re-pick on every visit.
   const [density, setDensity] = useState<'compact' | 'comfortable'>(() => {
@@ -346,6 +361,7 @@ export default function DataEntryApp(): JSX.Element {
         // compulsoryDataElementOperands so runValidation + the
         // CSS rule can surface missing-compulsory cells.
         markCompulsoryCells(content, meta);
+        annotateAriaLabels(content, meta);
         // Live indicator calc — attaches an input listener that
         // re-evaluates every indicator formula whenever a DE value
         // changes. Does an initial pass against prefilled values.
@@ -626,6 +642,14 @@ export default function DataEntryApp(): JSX.Element {
             </button>
           )}
           <button type="button"
+                  onClick={() => setShortcutsOpen((v) => !v)}
+                  className="der-de-density-btn"
+                  data-test="de-shortcuts-toggle"
+                  title="Show keyboard shortcuts (?)"
+                  aria-label="Show keyboard shortcuts">
+            ⌨ Shortcuts
+          </button>
+          <button type="button"
                   onClick={toggleCompletion}
                   disabled={completionBusy}
                   style={completion?.completed ? secondaryBtn : primaryBtn}
@@ -638,6 +662,8 @@ export default function DataEntryApp(): JSX.Element {
       )}
       <CellDetailsDrawer open={detailsOpen && !issuesOpen} details={details}
         onClose={() => setDetailsOpen(false)} />
+      <ShortcutsPopover open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)} />
       <ValidationIssuesDrawer
         open={issuesOpen}
         issues={issues}
@@ -1727,6 +1753,60 @@ function ValidationIssuesDrawer(
   );
 }
 
+/**
+ * Centered modal listing keyboard shortcuts the data-entry app
+ * supports. Dismissable via Esc, × button, or backdrop click.
+ * Opened from the actionbar "⌨ Shortcuts" chip or by pressing
+ * `?` anywhere on the page (except inside an input).
+ */
+function ShortcutsPopover(
+  { open, onClose }: { open: boolean; onClose: () => void },
+): JSX.Element | null {
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [open, onClose]);
+  if (!open) return null;
+  const rows: Array<[string, string]> = [
+    ['Enter', 'Next row (same COC column)'],
+    ['Shift + Enter', 'Previous row'],
+    ['Tab / Shift + Tab', 'Next / previous cell'],
+    ['Paste multi-line', 'Distributes down the COC column'],
+    ['Esc', 'Close an open drawer'],
+    ['?', 'Show / hide this cheatsheet'],
+  ];
+  return (
+    <div className="der-de-shortcuts-backdrop"
+         role="dialog"
+         aria-modal="true"
+         aria-label="Keyboard shortcuts"
+         data-test="de-shortcuts-popover"
+         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="der-de-shortcuts">
+        <header className="der-de-shortcuts__head">
+          <h3 className="der-de-shortcuts__title">Keyboard shortcuts</h3>
+          <button type="button"
+                  className="der-de-shortcuts__close"
+                  aria-label="Close keyboard shortcuts"
+                  onClick={onClose}>×</button>
+        </header>
+        <dl className="der-de-shortcuts__list">
+          {rows.map(([k, v]) => (
+            <div key={k} className="der-de-shortcuts__row">
+              <dt><kbd>{k}</kbd></dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>
+  );
+}
+
 export interface CellDetails {
   readonly deId: string;
   readonly cocId: string;
@@ -2011,6 +2091,39 @@ function attachIndicatorEngine(container: HTMLElement,
   }, true);
   // Initial pass — prefill may already have populated values.
   recompute();
+}
+
+/**
+ * Walk every value input + set `aria-label` to
+ * "<DE name>, <COC name>" so screen readers announce the full
+ * cell identity on focus. Also sets `aria-required="true"` on
+ * compulsory cells (markCompulsoryCells has already set the
+ * `data-compulsory` attribute).
+ */
+function annotateAriaLabels(container: HTMLElement,
+  meta: DataSetBundle): void {
+  const des: Record<string, { name?: string; formName?: string;
+    categoryCombo?: { categoryOptionCombos?: Array<{
+      id: string; name?: string; displayName?: string }> } }> = {};
+  for (const dse of meta.dataSetElements ?? []) {
+    if (dse.dataElement) des[dse.dataElement.id] = dse.dataElement;
+  }
+  for (const input of Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[name$="-val"]'))) {
+    const m = /^(.+)-(.+)-val$/.exec(input.getAttribute('name') ?? '');
+    if (!m) continue;
+    const de = des[m[1]!];
+    const deLabel = de?.formName ?? de?.name ?? m[1];
+    const coc = de?.categoryCombo?.categoryOptionCombos?.find((c) => c.id === m[2]);
+    const cocLabel = coc?.name ?? coc?.displayName ?? m[2];
+    if (!input.hasAttribute('aria-label')) {
+      input.setAttribute('aria-label',
+        cocLabel === m[2] ? `${deLabel}` : `${deLabel}, ${cocLabel}`);
+    }
+    if (input.getAttribute('data-compulsory') === '1') {
+      input.setAttribute('aria-required', 'true');
+    }
+  }
 }
 
 function markCompulsoryCells(container: HTMLElement,
@@ -3266,6 +3379,67 @@ const APP_STYLES = `
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+}
+.der-de-shortcuts-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 26, 50, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+.der-de-shortcuts {
+  background: #fff;
+  border-radius: 12px;
+  padding: 0;
+  width: min(440px, calc(100vw - 32px));
+  box-shadow: 0 16px 48px rgba(16, 26, 50, 0.24);
+  overflow: hidden;
+}
+.der-de-shortcuts__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #f7f8fc;
+  border-bottom: 1px solid #e5e9ef;
+}
+.der-de-shortcuts__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2779;
+}
+.der-de-shortcuts__close {
+  background: transparent; border: 0; cursor: pointer;
+  font-size: 22px; line-height: 1; color: #6e7a8a;
+}
+.der-de-shortcuts__list {
+  margin: 0;
+  padding: 10px 18px 16px;
+}
+.der-de-shortcuts__row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f5f7;
+}
+.der-de-shortcuts__row:last-child { border-bottom: 0; }
+.der-de-shortcuts__row dt { margin: 0; }
+.der-de-shortcuts__row dd { margin: 0; color: #404b5a; font-size: 13px; }
+.der-de-shortcuts kbd {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #eef0f5;
+  border: 1px solid #d8dee8;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #101a32;
+  box-shadow: 0 1px 0 rgba(16, 26, 50, 0.1);
 }
 .der-de-details-drawer {
   position: fixed;
