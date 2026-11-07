@@ -853,7 +853,7 @@ export default function DataEntryApp(): JSX.Element {
                     stroke="#147CD7" stroke-width="3" />
             </svg>
           </span>
-          <h1 className="der-de-toolbar__title">Aggregate data entry</h1>
+          <h1 className="der-de-toolbar__title">Data entry</h1>
           {formInfo && formSummary && (
             <button type="button"
                     className="der-de-toolbar__info-btn"

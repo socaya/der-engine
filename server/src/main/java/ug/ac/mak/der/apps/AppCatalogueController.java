@@ -344,6 +344,13 @@ public class AppCatalogueController {
         final UUID appId;
         if (existing.isPresent()) {
             appId = existing.get().appId();
+            // Refresh display_name on re-install — the manifest is the
+            // source of truth; without this a renamed app keeps its
+            // original label in der.installed_app forever. Idempotent
+            // when the value hasn't changed.
+            if (!existing.get().displayName().equals(parsed.manifest.displayName)) {
+                installedApps.updateDisplayName(appId, parsed.manifest.displayName);
+            }
         } else {
             appId = UUID.randomUUID();
             installedApps.insert(new InstalledApp(

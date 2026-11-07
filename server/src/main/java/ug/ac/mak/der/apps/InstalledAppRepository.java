@@ -69,6 +69,12 @@ public class InstalledAppRepository {
                 enabled, appId);
     }
 
+    public int updateDisplayName(final UUID appId, final String displayName) {
+        return jdbc.update(
+                "UPDATE der.installed_app SET display_name = ? WHERE app_id = ?",
+                displayName, appId);
+    }
+
     public int delete(final UUID appId) {
         return jdbc.update("DELETE FROM der.installed_app WHERE app_id = ?", appId);
     }
