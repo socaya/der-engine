@@ -3414,6 +3414,36 @@ function CellDetailsDrawer(
  * Single-line pastes fall through to the browser's native
  * behaviour (just updates this one cell).
  */
+/**
+ * Split a single delimited row honouring RFC 4180-ish quoted
+ * fields: a quoted cell can contain the delimiter / newlines /
+ * escaped quotes (""). Keeps tab, comma, semicolon split
+ * behaviour on the same code path so attachColumnPaste can pick
+ * the delimiter and still respect "Stockout, week 3" quoting.
+ */
+function parseDelimitedRow(row: string, delim: string): string[] {
+  const out: string[] = [];
+  let i = 0; const n = row.length; let field = '';
+  while (i <= n) {
+    const ch = row[i];
+    if (ch === '"') {
+      i++;
+      while (i < n) {
+        if (row[i] === '"' && row[i + 1] === '"') { field += '"'; i += 2; }
+        else if (row[i] === '"') { i++; break; }
+        else { field += row[i]!; i++; }
+      }
+    } else if (ch === delim || ch === undefined) {
+      out.push(field);
+      field = '';
+      i++;
+    } else {
+      field += ch; i++;
+    }
+  }
+  return out;
+}
+
 function attachColumnPaste(
   container: HTMLElement,
   setStatus: (s: { kind: 'ok' | 'error'; message: string }) => void,
@@ -3427,12 +3457,27 @@ function attachColumnPaste(
     const text = ev.clipboardData?.getData('text/plain') ?? '';
     const hasNl = /\r?\n/.test(text);
     const hasTab = /\t/.test(text);
-    if (!hasNl && !hasTab) return; // single-cell → native.
-    // Parse into a 2-D grid. Excel's convention: \n between rows,
-    // \t between cells within a row. Trim trailing blank rows.
+    // Pick the row-cell delimiter from the first line — Excel +
+    // Google Sheets grid paste uses tab, CSV rows use comma, some
+    // EU locales (and SQL dumps) use semicolon. Only commit to a
+    // delimiter if the paste looks tabular (multi-row OR the first
+    // line splits into ≥ 2 cells with it); otherwise leave native
+    // paste behaviour.
+    const firstLine = text.split(/\r?\n/, 1)[0] ?? '';
+    const cellDelim = hasTab ? '\t'
+      : firstLine.includes(',') ? ','
+      : firstLine.includes(';') ? ';'
+      : '';
+    if (!hasNl && !cellDelim) return; // single-cell → native paste.
+    if (hasNl && !cellDelim) {
+      // Multiple rows, no in-row delimiter — treat as a column of
+      // single-cell values (operator pasting a vertical list).
+    }
     const grid = text.split(/\r?\n/)
       .filter((_v, i, arr) => !(i === arr.length - 1 && _v === ''))
-      .map((row) => row.split('\t').map((c) => c.trim()));
+      .map((row) => cellDelim
+        ? parseDelimitedRow(row, cellDelim).map((c) => c.trim())
+        : [row.trim()]);
     if (grid.length === 0) return;
     ev.preventDefault();
     const slot = (target.closest('[data-section-id]') as HTMLElement | null)
