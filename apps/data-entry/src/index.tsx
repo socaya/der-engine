@@ -1399,32 +1399,55 @@ function groupIntoSections(root: HTMLElement): Array<{
   const headings = Array.from(root.querySelectorAll('h2, h3, h4'))
     .filter((h) => (h.textContent ?? '').trim().length > 0);
   if (headings.length < 2) return [];
+
+  // For each heading, find the "most specific ancestor that owns
+  // exactly this heading" — i.e. the lowest ancestor whose
+  // subtree contains no OTHER heading from the list. That
+  // ancestor becomes the section's slot. Works for every
+  // DHIS2 shape we have in the wild:
+  //   • SECTION renderer: h3.formSection + following sibling
+  //     table share a shallow parent (#contentDiv) — the
+  //     "exactly this heading" walk stops at the heading
+  //     itself (parent contains all), so we fall back to a
+  //     synthesised sibling-run wrapper.
+  //   • TBLP CUSTOM: each `<div class="tblep-panel">` contains
+  //     exactly one h2 — the walk resolves the panel as the
+  //     slot immediately.
+  const headingSet = new Set(headings);
   const slots: Array<{ id: string; label: string; slot: HTMLElement }> = [];
-  // Strategy 1 — headings are top-level siblings (SECTION renderer,
-  // simple custom forms): wrap each heading + its following
-  // siblings up to the next heading in a slot.
-  // Strategy 2 — headings live inside author wrappers (TBLP uses
-  // `<div class="tblep-panel">` containing an h2): pick the
-  // nearest ancestor that itself is a direct child of a "bucket"
-  // ancestor (#contentDiv or a decorative root like .tblep-root)
-  // and treat that ancestor as the slot.
-  const seen = new Set<HTMLElement>();
+
+  const containsOtherHeading = (el: HTMLElement, self: Element): boolean => {
+    for (const h of headingSet) {
+      if (h === self) continue;
+      if (el.contains(h)) return true;
+    }
+    return false;
+  };
+
   headings.forEach((h, i) => {
     const id = h.id || `der-de-section-${i}`;
     h.id = id;
     let slot: HTMLElement | null = null;
-    // Strategy 2 first — find a sensible ancestor.
+    // Walk up until the parent would contain another heading.
     let p: HTMLElement | null = h.parentElement;
+    let candidate: HTMLElement | null = null;
     while (p && p !== root) {
-      const grand = p.parentElement;
-      if (grand === root || (grand && grand.parentElement === root)) {
-        slot = p;
-        break;
-      }
-      p = grand;
+      if (containsOtherHeading(p, h)) break;
+      candidate = p;
+      p = p.parentElement;
     }
-    // Strategy 1 fallback — top-level sibling run.
-    if (!slot) {
+    if (candidate && candidate !== h.parentElement
+      // We only promote an ancestor to a slot if it's a real
+      // container (has more than just the heading). A naked
+      // wrapper around the heading alone adds no value.
+      && candidate.children.length > 1) {
+      slot = candidate;
+      slot.classList.add('der-de-section-slot');
+      slot.dataset.sectionId = id;
+    } else {
+      // Fallback — build a wrapper around the heading + its
+      // following siblings up to the next heading (classic
+      // SECTION-renderer path).
       slot = document.createElement('div');
       slot.className = 'der-de-section-slot';
       slot.dataset.sectionId = id;
@@ -1432,20 +1455,12 @@ function groupIntoSections(root: HTMLElement): Array<{
       const nodes: Node[] = [];
       let cur: Node | null = h;
       while (cur && cur !== next) {
-        const n = cur.nextSibling;
+        const n: Node | null = cur.nextSibling;
         nodes.push(cur);
         cur = n;
       }
       h.parentNode?.insertBefore(slot, h);
       for (const n of nodes) slot.appendChild(n);
-    } else {
-      // Mark existing ancestor as a slot. If multiple headings
-      // share the same ancestor (rare), the first wins + the
-      // others skip.
-      if (seen.has(slot)) return;
-      seen.add(slot);
-      slot.classList.add('der-de-section-slot');
-      slot.dataset.sectionId = id;
     }
     slots.push({ id, label: (h.textContent ?? '').trim(), slot });
   });
@@ -1914,8 +1929,23 @@ async function applyFormAssets(container: HTMLElement, htmlCode: string): Promis
   // nodes — the author's structural choices (tables, labels,
   // sections) remain but visual chrome inherits DER's design
   // tokens. Plan §6.2 Phase A sanitisation.
+  //
+  // DOMParser's doc uses a different document than the main page;
+  // a cross-document `instanceof HTMLElement` check fails under
+  // some runtimes, so strip unconditionally via removeAttribute —
+  // every Element has it, idempotent for non-styled nodes.
   for (const node of Array.from(doc.body.querySelectorAll('*'))) {
-    if (node instanceof HTMLElement) node.removeAttribute('style');
+    node.removeAttribute('style');
+    // DHIS2 custom-form authors sometimes bind inputs with
+    // name="entryfield" or name="total" + id="<de>-<coc>-val".
+    // Normalise `name` to the id so the save-on-blur regex
+    // `^(.+)-(.+)-val$` picks the input up like a SECTION cell.
+    if (node.tagName === 'INPUT') {
+      const id = node.getAttribute('id') ?? '';
+      if (id.endsWith('-val') && node.getAttribute('name') !== id) {
+        node.setAttribute('name', id);
+      }
+    }
   }
   // Append the remaining DOM. `adoptNode` lets us move real nodes
   // across documents so attributes + listeners stay intact. Children
