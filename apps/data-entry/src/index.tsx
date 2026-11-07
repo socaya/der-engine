@@ -746,6 +746,25 @@ export default function DataEntryApp(): JSX.Element {
     }
   }
 
+  function importCsvFile(file: File): void {
+    const reader = new FileReader();
+    reader.onerror = () => setStatus({ kind: 'error',
+      message: 'CSV import failed: unable to read file' });
+    reader.onload = () => {
+      const text = String(reader.result ?? '');
+      const r = applyCsvImportToForm(customRoot.current, text);
+      if (r.imported === 0 && r.skipped === 0) {
+        setStatus({ kind: 'error', message: 'CSV import: no rows found' });
+        return;
+      }
+      setStatus({ kind: 'ok',
+        message: `Imported ${r.imported} cell${r.imported === 1 ? '' : 's'}`
+          + (r.skipped > 0 ? ` (skipped ${r.skipped} unknown)` : '')
+          + '. Review + Save all to commit.' });
+    };
+    reader.readAsText(file);
+  }
+
   function exportCurrentFormToCsv(): void {
     const root = customRoot.current;
     if (!root) return;
@@ -1234,6 +1253,19 @@ export default function DataEntryApp(): JSX.Element {
                   aria-label="Export values as CSV">
             ⬇ CSV
           </button>
+          <label className="der-de-density-btn der-de-import-btn"
+                 data-test="de-import-csv-btn"
+                 title="Upload an edited CSV back into this form">
+            ⬆ CSV
+            <input type="file"
+                   accept=".csv,text/csv"
+                   data-test="de-import-csv-input"
+                   onChange={(e) => {
+                     const f = e.target.files?.[0];
+                     if (f) importCsvFile(f);
+                     e.target.value = '';
+                   }} />
+          </label>
           <button type="button"
                   onClick={() => { void exportCurrentFormToPdf(); }}
                   className="der-de-density-btn"
@@ -4025,6 +4057,106 @@ function paintState(
  * silently — a missing or empty response leaves the form blank.
  */
 /**
+ * Apply an uploaded CSV back onto the form. Expects the same
+ * columnar shape slice 66 exports — specifically the `Data
+ * element id` + `COC id` + `Value` + optional `Comment` columns
+ * (column headers are read from the first non-preamble line, so
+ * order can vary). Preamble lines starting with `#` are ignored.
+ *
+ * For each parseable row, locates the matching -val input, sets
+ * the value + data-comment, dispatches input so live validation +
+ * row totals + dirty tracking react. Leaves the actual save to
+ * the operator (Save all / blur) so they can review before
+ * committing.
+ *
+ * Returns { imported, skipped } — skipped counts rows whose
+ * compound key isn't present in the current form (different
+ * section, closed dataset, typo).
+ */
+function applyCsvImportToForm(
+  root: HTMLElement | null, text: string,
+): { imported: number; skipped: number } {
+  if (!root) return { imported: 0, skipped: 0 };
+  const rows = parseCsv(text);
+  if (rows.length === 0) return { imported: 0, skipped: 0 };
+  // Accept the slice-66 export shape — header row names are the
+  // single source of truth.
+  const header = rows[0]!.map(h => h.toLowerCase());
+  const deIdCol = header.indexOf('data element id');
+  const cocIdCol = header.indexOf('coc id');
+  const valueCol = header.indexOf('value');
+  const commentCol = header.indexOf('comment');
+  if (deIdCol < 0 || cocIdCol < 0 || valueCol < 0) {
+    return { imported: 0, skipped: 0 };
+  }
+  let imported = 0; let skipped = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i]!;
+    const de = (r[deIdCol] ?? '').trim();
+    const coc = (r[cocIdCol] ?? '').trim();
+    if (!de || !coc) continue;
+    const input = root.querySelector<HTMLInputElement>(
+      `input[name="${CSS.escape(de)}-${CSS.escape(coc)}-val"]`);
+    if (!input) { skipped++; continue; }
+    const value = (r[valueCol] ?? '').trim();
+    const comment = commentCol >= 0 ? (r[commentCol] ?? '').trim() : '';
+    if (value !== input.value) {
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (comment) {
+      input.setAttribute('data-comment', comment);
+    } else {
+      input.removeAttribute('data-comment');
+    }
+    imported++;
+  }
+  return { imported, skipped };
+}
+
+/**
+ * Minimal RFC 4180-ish CSV parser. Handles double-quoted fields
+ * with embedded commas / newlines / escaped quotes. Skips
+ * preamble lines starting with `#` (we emit these on export).
+ */
+function parseCsv(text: string): string[][] {
+  const out: string[][] = [];
+  const src = text.replace(/\r\n/g, '\n');
+  let i = 0; const n = src.length;
+  while (i < n) {
+    // Skip preamble lines + blank lines at top-of-file / between rows.
+    if (src[i] === '#') {
+      while (i < n && src[i] !== '\n') i++;
+      i++;
+      continue;
+    }
+    if (src[i] === '\n') { i++; continue; }
+    const row: string[] = [];
+    while (i < n && src[i] !== '\n') {
+      let field = '';
+      if (src[i] === '"') {
+        i++;
+        while (i < n) {
+          if (src[i] === '"' && src[i + 1] === '"') { field += '"'; i += 2; }
+          else if (src[i] === '"') { i++; break; }
+          else { field += src[i]!; i++; }
+        }
+      } else {
+        while (i < n && src[i] !== ',' && src[i] !== '\n') {
+          field += src[i]!; i++;
+        }
+      }
+      row.push(field);
+      if (src[i] === ',') { i++; continue; }
+      if (src[i] === '\n') { break; }
+    }
+    if (i < n && src[i] === '\n') i++;
+    out.push(row);
+  }
+  return out;
+}
+
+/**
  * Walk every -val input in the currently-rendered form and return
  * a flat row list for the CSV exporter. The DOM is the source of
  * truth here — it reflects the latest prefill + any typed edits
@@ -5867,6 +5999,19 @@ const APP_STYLES = `
   height: 32px;
   background: #e6f1fb;
   flex: 0 0 auto;
+}
+.der-de-import-btn {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.der-de-import-btn input[type="file"] {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 .der-de-saveall-btn {
   padding: 6px 14px;
