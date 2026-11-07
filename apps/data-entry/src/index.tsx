@@ -992,6 +992,30 @@ export default function DataEntryApp(): JSX.Element {
                               // the natural blur saves normally.
                               input.dispatchEvent(new Event('input', { bubbles: true }));
                               input.focus();
+                            }}
+                            onComment={(inputName, next) => {
+                              const root = customRoot.current;
+                              if (!root) return;
+                              const input = root.querySelector<HTMLInputElement>(
+                                `input[name="${inputName}"]`);
+                              if (!input) return;
+                              if (next === '') {
+                                input.removeAttribute('data-comment');
+                              } else {
+                                input.setAttribute('data-comment', next);
+                              }
+                              // If the cell has a value, flush via blur
+                              // so the comment ships with the next save.
+                              // Empty-cell: set only (server rejects empty
+                              // value writes); comment will ship whenever
+                              // the operator actually enters a value.
+                              if (input.value.trim() !== '') {
+                                // Force save-on-blur to see a change so it
+                                // actually POSTs (lastSaved tracks the
+                                // value, not the comment).
+                                input.focus();
+                                input.dispatchEvent(new Event('blur', { bubbles: true }));
+                              }
                             }} />
           </div>
         </div>
@@ -1899,10 +1923,14 @@ function attachSaveOnBlur(
     return m ? { de: m[1]!, coc: m[2]!  } : null;
   };
   const lastSaved = new WeakMap<HTMLInputElement, string>();
+  const lastSavedComment = new WeakMap<HTMLInputElement, string>();
   const inputs = container.querySelectorAll<HTMLInputElement>(
     'input[name$="-val"]');
   // Seed the baseline so the first unchanged blur doesn't save.
-  for (const i of Array.from(inputs)) lastSaved.set(i, i.value);
+  for (const i of Array.from(inputs)) {
+    lastSaved.set(i, i.value);
+    lastSavedComment.set(i, i.getAttribute('data-comment') ?? '');
+  }
 
   const handler = async (ev: Event): Promise<void> => {
     const t = ev.target as HTMLInputElement;
@@ -1914,7 +1942,14 @@ function attachSaveOnBlur(
     const orgUnit = getOrgUnit();
     if (!dataSet || !period || !orgUnit) return;
     const v = t.value;
-    if (lastSaved.get(t) === v) return;
+    const commentNow = t.getAttribute('data-comment') ?? '';
+    // Bail if neither the value nor the comment has changed since
+    // the last successful save. Comment-only edits still trigger
+    // a POST so the server-side comment stays in sync.
+    if (lastSaved.get(t) === v
+        && (lastSavedComment.get(t) ?? '') === commentNow) {
+      return;
+    }
     // Refuse to ship values the DE's valueType rejects — these would
     // just loop through Central as CENTRAL_REJECTED and strand the
     // operator with a "mystery sync failure". attachLiveValidation
@@ -1928,6 +1963,7 @@ function attachSaveOnBlur(
     }
     paintState(t, 'saving');
     try {
+      const comment = t.getAttribute('data-comment') ?? undefined;
       const r = await api.submitAggregate({
         dataSet, period, orgUnit,
         attributeOptionComboSelections: getAoc(),
@@ -1935,9 +1971,11 @@ function attachSaveOnBlur(
           dataElement: parsed.de,
           categoryOptionCombo: parsed.coc,
           value: v,
+          ...(comment && comment.trim() !== '' ? { comment } : {}),
         }],
       }) as { status?: string };
       lastSaved.set(t, v);
+      lastSavedComment.set(t, commentNow);
       // submitAggregate transparently enqueues when offline / edge
       // unreachable and returns `status: 'OFFLINE_QUEUED'` — paint
       // amber so the operator sees that their value is safe locally
@@ -2379,13 +2417,22 @@ function SaveStatePill(
  * Empty state (no cell focused yet) shows a quiet prompt.
  */
 function CellLiveStrip(
-  { details, formSync, onClear }:
+  { details, formSync, onClear, onComment }:
   { root: RefObject<HTMLDivElement | null>;
     details: CellDetails | null;
     formVersion: number;
     formSync: FormSyncState;
-    onClear: (inputName: string) => void },
+    onClear: (inputName: string) => void;
+    onComment: (inputName: string, next: string) => void },
 ): JSX.Element {
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [commentDraft, setCommentDraft] = useState('');
+  // Reset the editor whenever the focused cell changes so a stale
+  // draft from the previous cell doesn't leak in.
+  useEffect(() => {
+    setCommentDraft(details?.comment ?? '');
+    setCommentOpen(false);
+  }, [details?.inputName, details?.comment]);
   const stateLabel: Record<CellDetails['saveState'], string> = {
     empty: 'No value yet',
     saving: 'Saving…',
@@ -2423,6 +2470,31 @@ function CellLiveStrip(
                           e.preventDefault();
                         }}
                         onClick={() => onClear(details.inputName)}>×</button>
+                <button type="button"
+                        className={'der-de-live-strip__comment-btn'
+                          + (details.comment ? ' has-comment' : '')}
+                        data-test="de-live-comment-btn"
+                        aria-label={details.comment
+                          ? 'Edit comment on this cell'
+                          : 'Add a comment to this cell'}
+                        title={details.comment
+                          ? `Comment: ${details.comment}`
+                          : 'Add a comment to this cell'}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setCommentDraft(details.comment ?? '');
+                          setCommentOpen((v) => !v);
+                        }}>
+                  <svg viewBox="0 0 16 16" width="12" height="12"
+                       aria-hidden="true">
+                    <path d="M3 3h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H6l-3 2.5V4a1 1 0 0 1 1-1z"
+                          fill="none" stroke="currentColor"
+                          strokeWidth="1.4" strokeLinejoin="round"/>
+                    {details.comment && (
+                      <circle cx="12" cy="4" r="2.5" fill="#1b8243"/>
+                    )}
+                  </svg>
+                </button>
                 <span className="der-de-live-strip__sep">·</span>
                 <span className={`der-de-live-strip__state `
                   + `der-de-live-strip__state--${stateTone[details.saveState]}`}>
@@ -2459,6 +2531,79 @@ function CellLiveStrip(
           </span>
         )}
       </div>
+      {details && commentOpen && (
+        <div className="der-de-shortcuts-backdrop"
+             role="dialog"
+             aria-modal="true"
+             aria-label="Edit cell comment"
+             data-test="de-comment-popover"
+             onClick={(e) => { if (e.target === e.currentTarget) setCommentOpen(false); }}>
+          <div className="der-de-comment-modal">
+            <header className="der-de-comment-modal__head">
+              <div className="der-de-comment-modal__title-wrap">
+                <span className="der-de-comment-modal__eyebrow">Cell comment</span>
+                <h3 className="der-de-comment-modal__title">
+                  {details.deName}
+                </h3>
+                {details.cocName && details.cocName !== 'default' && (
+                  <p className="der-de-comment-modal__sub">{details.cocName}</p>
+                )}
+              </div>
+              <button type="button"
+                      className="der-de-comment-modal__close"
+                      aria-label="Close comment editor"
+                      onClick={() => setCommentOpen(false)}>×</button>
+            </header>
+            <div className="der-de-comment-modal__body">
+              <textarea className="der-de-comment-modal__textarea"
+                        data-test="de-comment-textarea"
+                        autoFocus
+                        rows={5}
+                        maxLength={400}
+                        placeholder="Add context e.g. stockout, device fault, late reporting…"
+                        value={commentDraft}
+                        onChange={(e) => setCommentDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setCommentOpen(false);
+                          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                            onComment(details.inputName, commentDraft.trim());
+                            setCommentOpen(false);
+                          }
+                        }} />
+              <div className="der-de-comment-modal__hint">
+                <span>{commentDraft.length}/400</span>
+                <span>⌘/Ctrl + Enter to save · Esc to close</span>
+              </div>
+            </div>
+            <footer className="der-de-comment-modal__foot">
+              {details.comment && (
+                <button type="button"
+                        className="der-de-comment-modal__delete"
+                        data-test="de-comment-delete"
+                        onClick={() => {
+                          onComment(details.inputName, '');
+                          setCommentOpen(false);
+                        }}>
+                  Delete
+                </button>
+              )}
+              <button type="button"
+                      className="der-de-comment-modal__cancel"
+                      onClick={() => setCommentOpen(false)}>Cancel</button>
+              <button type="button"
+                      className="der-de-comment-modal__save"
+                      data-test="de-comment-save"
+                      disabled={commentDraft.trim() === (details.comment ?? '')}
+                      onClick={() => {
+                        onComment(details.inputName, commentDraft.trim());
+                        setCommentOpen(false);
+                      }}>
+                {details.comment ? 'Update comment' : 'Save comment'}
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2886,6 +3031,8 @@ export interface CellDetails {
   readonly lastUpdated?: string;
   /** Username of the operator who made that write. */
   readonly lastUpdatedBy?: string;
+  /** DHIS2 comment on the data value (operator free-text annotation). */
+  readonly comment?: string;
 }
 
 /**
@@ -3543,6 +3690,7 @@ function attachDetailsSpy(
       compulsory: input.getAttribute('data-compulsory') === '1',
       lastUpdated: input.getAttribute('data-updated') ?? undefined,
       lastUpdatedBy: input.getAttribute('data-updated-by') ?? undefined,
+      comment: input.getAttribute('data-comment') ?? undefined,
     };
   };
   container.addEventListener('focusin', (ev) => {
@@ -3735,12 +3883,13 @@ async function prefillExistingValues(
   orgUnit: string,
   api: { readAggregateValues: (ou: string, pe: string, limit?: number) =>
     Promise<{ dataValues: Array<{ dataElement?: string;
-      categoryOptionCombo?: string; value?: string;
+      categoryOptionCombo?: string; value?: string; comment?: string;
       lastUpdated?: string; storedByUsername?: string }> }> },
 ): Promise<void> {
   if (!dataSet || !period || !orgUnit) return;
   let rows: Array<{ dataElement?: string; categoryOptionCombo?: string;
-    value?: string; lastUpdated?: string; storedByUsername?: string }>;
+    value?: string; comment?: string;
+    lastUpdated?: string; storedByUsername?: string }>;
   try {
     const r = await api.readAggregateValues(orgUnit, period, 2000);
     rows = r.dataValues ?? [];
@@ -3754,6 +3903,9 @@ async function prefillExistingValues(
       `input[name="${de}-${coc}-val"]`);
     if (!input) continue;
     input.value = value;
+    if (row.comment) {
+      input.setAttribute('data-comment', row.comment);
+    }
     // Stamp the audit trail from the readback so attachDetailsSpy
     // can surface "Saved {ago} by {user}" on the cell-details
     // strip + the browser native title tooltip picks up the same
@@ -4496,6 +4648,167 @@ const APP_STYLES = `
   background: #fbe9e7;
   color: #a3322c;
   outline: 0;
+}
+.der-de-live-strip__comment-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--der-ink-500, #5b6478);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 120ms, color 120ms;
+}
+.der-de-live-strip__comment-btn:hover,
+.der-de-live-strip__comment-btn:focus-visible {
+  background: #e6f1fb;
+  color: var(--der-brand-500, #147CD7);
+  outline: 0;
+}
+.der-de-live-strip__comment-btn.has-comment {
+  color: var(--der-brand-500, #147CD7);
+}
+/* Cell-comment modal — centered dialog on the shared
+ * .der-de-shortcuts-backdrop (z-index 200). Matches the info-modal
+ * aesthetic: eyebrow + large title, tinted header gradient, body
+ * with textarea + char counter, footer with Delete/Cancel/Save. */
+.der-de-comment-modal {
+  background: #ffffff;
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(16, 26, 50, 0.28);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.der-de-comment-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px 14px;
+  background: linear-gradient(180deg, #f6f9ff 0%, #ffffff 100%);
+  border-bottom: 1px solid #e5e9ef;
+}
+.der-de-comment-modal__title-wrap { flex: 1 1 auto; min-width: 0; }
+.der-de-comment-modal__eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--der-brand-500, #147CD7);
+  margin-bottom: 4px;
+}
+.der-de-comment-modal__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--der-ink-900, #101a32);
+  line-height: 1.35;
+}
+.der-de-comment-modal__sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--der-ink-500, #5b6478);
+}
+.der-de-comment-modal__close {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--der-ink-500, #5b6478);
+  font-size: 24px;
+  line-height: 1;
+  padding: 0 6px;
+  border-radius: 4px;
+  transition: background 120ms, color 120ms;
+}
+.der-de-comment-modal__close:hover,
+.der-de-comment-modal__close:focus-visible {
+  background: #e5e9ef;
+  color: var(--der-ink-900, #101a32);
+  outline: 0;
+}
+.der-de-comment-modal__body {
+  padding: 16px 20px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.der-de-comment-modal__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  padding: 10px 12px;
+  border: 1px solid #aaa;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--der-ink-900, #101a32);
+  background: #ffffff;
+  line-height: 1.45;
+}
+.der-de-comment-modal__textarea:focus {
+  outline: 0;
+  border-color: #147CD7;
+  box-shadow: inset 0 0 0 2px #147CD7;
+}
+.der-de-comment-modal__hint {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--der-ink-500, #5b6478);
+}
+.der-de-comment-modal__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid #e5e9ef;
+  background: #ffffff;
+}
+.der-de-comment-modal__delete {
+  padding: 7px 14px;
+  border: 1px solid #e9b7b2;
+  background: #ffffff;
+  color: #a3322c;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-right: auto;
+}
+.der-de-comment-modal__delete:hover { background: #fbe9e7; }
+.der-de-comment-modal__cancel {
+  padding: 7px 14px;
+  border: 1px solid var(--der-border, #d8dee8);
+  background: #ffffff;
+  color: var(--der-ink-700, #2a3447);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.der-de-comment-modal__cancel:hover { background: #f0f2f6; }
+.der-de-comment-modal__save {
+  padding: 7px 16px;
+  border: 1px solid var(--der-brand-600, #0f68b7);
+  background: var(--der-brand-500, #147CD7);
+  color: #ffffff;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms, opacity 120ms;
+}
+.der-de-comment-modal__save:hover { background: var(--der-brand-600, #0f68b7); }
+.der-de-comment-modal__save:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .der-de-live-strip__audit {
   color: var(--der-ink-500, #5b6478);

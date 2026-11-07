@@ -95,6 +95,9 @@ public class DataValueSetsController {
             m.put("categoryOptionCombo", v.categoryOptionComboUid());
             m.put("attributeOptionCombo", v.attributeOptionComboUid());
             m.put("value", v.valueText());
+            if (v.comment() != null && !v.comment().isBlank()) {
+                m.put("comment", v.comment());
+            }
             // DHIS2's wire field is stored_by — keep the UUID there for
             // back-compat. Add stored_by_username so UIs can display
             // the readable name without a second round-trip.

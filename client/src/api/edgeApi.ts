@@ -515,6 +515,7 @@ export interface AggregateReadbackRow {
   categoryOptionCombo: string;
   attributeOptionCombo: string;
   value: string;
+  comment?: string;
   lastUpdated?: string;
   storedBy?: string;
   storedByUsername?: string;
