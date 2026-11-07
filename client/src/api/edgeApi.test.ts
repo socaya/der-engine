@@ -372,6 +372,44 @@ describe('edgeApi.listDataSets', () => {
     expect(url).toContain('paging=false');
     expect(url).toContain('displayName');
     expect(url).toContain('periodType');
+    expect(url).not.toContain('orgUnit=');
+  });
+
+  it('forwards orgUnit when passed — server filters to assigned datasets', async () => {
+    fetchMock.mockResolvedValue(respond(200, { dataSets: [] }));
+    await api.listDataSets('HL2zXaIULBe');
+    const url = fetchMock.mock.calls[0]?.[0] as string;
+    expect(url).toContain('orgUnit=HL2zXaIULBe');
+  });
+
+  it('ignores a blank orgUnit', async () => {
+    fetchMock.mockResolvedValue(respond(200, { dataSets: [] }));
+    await api.listDataSets('   ');
+    const url = fetchMock.mock.calls[0]?.[0] as string;
+    expect(url).not.toContain('orgUnit=');
+  });
+});
+
+describe('edgeApi.readAggregateFormSyncState', () => {
+  it('GETs /edge-api/v1/data/aggregate-form-sync-state with the tuple', async () => {
+    fetchMock.mockResolvedValue(respond(200, {
+      formKey: 'DS:OU:202611:AOC', state: 'CENTRAL_ACCEPTED',
+    }));
+    const r = await api.readAggregateFormSyncState('DS', 'OU', '202611');
+    const url = fetchMock.mock.calls[0]?.[0] as string;
+    expect(url.startsWith('/edge-api/v1/data/aggregate-form-sync-state?')).toBe(true);
+    expect(url).toContain('dataSet=DS');
+    expect(url).toContain('orgUnit=OU');
+    expect(url).toContain('period=202611');
+    expect(url).not.toContain('aoc=');
+    expect(r.state).toBe('CENTRAL_ACCEPTED');
+  });
+
+  it('forwards a non-default AOC when provided', async () => {
+    fetchMock.mockResolvedValue(respond(200, { formKey: 'k', state: null }));
+    await api.readAggregateFormSyncState('DS', 'OU', '202611', 'XYZ');
+    const url = fetchMock.mock.calls[0]?.[0] as string;
+    expect(url).toContain('aoc=XYZ');
   });
 });
 
