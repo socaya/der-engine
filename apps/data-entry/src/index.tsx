@@ -2685,27 +2685,27 @@ function escapeAttr(v: string): string {
 const inputStyle = {
   display: 'block', width: '100%', marginTop: 4,
   padding: '6px 8px', border: '1px solid #d7dde5',
-  borderRadius: 2, fontSize: 13, fontFamily: 'inherit',
+  borderRadius: 0, fontSize: 13, fontFamily: 'inherit',
 };
 const primaryBtn = {
   padding: '6px 16px', border: '1px solid #1f4d70',
   background: '#2c6693', color: '#fff',
-  borderRadius: 2, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+  borderRadius: 0, fontSize: 13, fontWeight: 500, cursor: 'pointer',
 };
 const secondaryBtn = {
   padding: '6px 16px', border: '1px solid #c0c7cf',
   background: '#fff', color: '#2c3e4c',
-  borderRadius: 2, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+  borderRadius: 0, fontSize: 13, fontWeight: 500, cursor: 'pointer',
 };
 const okStrip = {
   marginTop: 12, padding: '8px 12px',
   background: '#e8f4ee', color: '#136436',
-  border: '1px solid #b7dcc7', borderRadius: 3,
+  border: '1px solid #b7dcc7', borderRadius: 0,
 };
 const errorStrip = {
   marginTop: 12, padding: '8px 12px',
   background: '#fbeaea', color: '#8a2525',
-  border: '1px solid #e0bcbc', borderRadius: 3,
+  border: '1px solid #e0bcbc', borderRadius: 0,
 };
 /**
  * Render a dropdown-style period picker for the dataset's
@@ -3039,6 +3039,97 @@ function isoWeeksInYear(y: number): number {
  * the project rule — 1 px borders, no shadows, minimal radius.
  * Fonts resolve to Roboto via the shell's token stack. */
 const APP_STYLES = `
+/* Flat-UI reset — the data-entry app renders inside the AppHost
+ * wrapper and matches the admin-ui's zero-radius / solid-ink
+ * table language. Any radius we still want on an individual
+ * element must re-declare it explicitly after this rule. */
+.der-apphost .der-de-toolbar *,
+.der-apphost .der-de-actionbar *,
+.der-apphost .der-de-form-card *,
+.der-apphost .der-de-section-nav *,
+.der-apphost .der-de-details-drawer,
+.der-apphost .der-de-details-drawer * {
+  border-radius: 0 !important;
+}
+
+/* Section tables — adopt the admin-ui ea-table look: collapsed
+ * borders, uppercase 13 px sticky thead with a 2 px underline,
+ * no cell borders, subtle hover tint. */
+.der-apphost .der-de-form-card .sectionTable {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: auto;
+  font-size: 13px;
+  margin: 0;
+}
+.der-apphost .der-de-form-card .sectionTable th,
+.der-apphost .der-de-form-card .sectionTable td {
+  padding: 6px 8px;
+  border: 0 !important;
+  text-align: left;
+  vertical-align: middle;
+  background: transparent !important;
+}
+.der-apphost .der-de-form-card .sectionTable thead th {
+  position: sticky;
+  top: 112px;
+  z-index: 2;
+  background: var(--der-canvas, #f4f6fa) !important;
+  color: var(--der-ink-500, #5b6478);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--der-border, #d8dee8) !important;
+  text-align: left;
+}
+.der-apphost .der-de-form-card .sectionTable .dataElementCell {
+  color: var(--der-ink-900, #101a32);
+  font-weight: 500;
+  min-width: 220px;
+}
+.der-apphost .der-de-form-card .sectionTable tbody tr {
+  border-bottom: 1px solid rgba(216, 222, 232, 0.6) !important;
+}
+.der-apphost .der-de-form-card .sectionTable tbody tr:hover td,
+.der-apphost .der-de-form-card .sectionTable tbody tr:focus-within td {
+  background: rgba(13, 46, 92, 0.045) !important;
+}
+.der-apphost .der-de-form-card .sectionTable input[type="text"] {
+  width: 100%;
+  border: 1px solid var(--der-border, #d8dee8) !important;
+  background: #fff !important;
+  padding: 4px 6px;
+  font-size: 13px;
+  color: var(--der-ink-900, #101a32);
+}
+.der-apphost .der-de-form-card .sectionTable input[type="text"]:focus {
+  outline: 0;
+  border-color: var(--der-brand-500, #4a55ce) !important;
+  box-shadow: 0 0 0 2px rgba(74, 85, 206, 0.18);
+}
+
+/* Solid-ink pills — no pastel tint, just coloured text on
+ * transparent background with a thin bottom underline. */
+.der-apphost .der-de-toolbar__status,
+.der-apphost .der-de-savepill,
+.der-apphost .der-de-section-nav__ratio,
+.der-apphost .der-de-completion-pill,
+.der-apphost .der-de-issues-chip {
+  background: transparent !important;
+  padding: 0 4px !important;
+  border: 0 !important;
+}
+.der-apphost .der-de-toolbar__status--on    { color: #1b8243 !important; }
+.der-apphost .der-de-toolbar__status--off   { color: #9b5a00 !important; }
+.der-apphost .der-de-savepill--saved        { color: #1b8243 !important; }
+.der-apphost .der-de-savepill--saving       { color: #9b5a00 !important; }
+.der-apphost .der-de-savepill--queued       { color: #9b5a00 !important; }
+.der-apphost .der-de-savepill--error        { color: #c0392b !important; }
+.der-apphost .der-de-section-nav__ratio--muted   { color: #5b6478 !important; }
+.der-apphost .der-de-section-nav__ratio--partial { color: #9b5a00 !important; }
+.der-apphost .der-de-section-nav__ratio--done    { color: #1b8243 !important; }
+
 /* Single sticky toolbar — replaces the old title + chip strip. */
 .der-de-toolbar {
   position: sticky;
@@ -3836,6 +3927,6 @@ function tabBtn(active: boolean): React.CSSProperties {
     background: active ? '#2c6693' : 'transparent',
     color: active ? '#fff' : '#2c6693',
     border: '1px solid #2c6693',
-    borderRadius: 2, fontSize: 13, cursor: 'pointer',
+    borderRadius: 0, fontSize: 13, cursor: 'pointer',
   };
 }
