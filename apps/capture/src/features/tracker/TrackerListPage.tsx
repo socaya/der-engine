@@ -295,41 +295,44 @@ export function TrackerListPage(
             Clear
           </button>
         )}
-        <span className="cap-section-head__rule" />
-        <button type="button"
-                className="cap-density-btn"
-                data-test="tr-density-toggle"
-                aria-label={'Switch to '
-                  + (density === 'compact' ? 'comfortable' : 'compact')
-                  + ' density'}
-                title={'Density: ' + density + '. Click to switch.'}
-                onClick={() => setDensity(
-                  (d) => d === 'compact' ? 'comfortable' : 'compact')}>
-          {density === 'compact' ? '⇔ Compact' : '⇕ Comfortable'}
-        </button>
-        <button type="button"
-                className="cap-btn cap-btn--secondary"
-                data-test="tr-export-csv"
-                style={{ padding: '4px 10px', fontSize: 12 }}
-                disabled={filtered.length === 0}
-                onClick={exportCsv}>
-          Export CSV
-        </button>
-        <button type="button"
-                className="cap-btn cap-btn--primary"
-                data-test="tr-register-open"
-                disabled={registerDisabled}
-                title={tetUid == null
-                  ? 'This program has no tracked-entity type assigned'
-                  : regFieldCount === 0
-                  ? 'No registration attributes are configured'
-                  : query.trim() === ''
-                  ? 'Search existing records first to avoid duplicates '
-                    + '(TR-002). Opens the registration form.'
-                    : 'Register a new tracked entity'}
-                onClick={() => navTracker.register(programUid)}>
-          Register new
-        </button>
+        {/* Right-group container stays flush right on its line
+         *  (see EventListPage for rationale). */}
+        <div className="cap-section-head__right">
+          <button type="button"
+                  className="cap-density-btn"
+                  data-test="tr-density-toggle"
+                  aria-label={'Switch to '
+                    + (density === 'compact' ? 'comfortable' : 'compact')
+                    + ' density'}
+                  title={'Density: ' + density + '. Click to switch.'}
+                  onClick={() => setDensity(
+                    (d) => d === 'compact' ? 'comfortable' : 'compact')}>
+            {density === 'compact' ? '⇔ Compact' : '⇕ Comfortable'}
+          </button>
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  data-test="tr-export-csv"
+                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  disabled={filtered.length === 0}
+                  onClick={exportCsv}>
+            Export CSV
+          </button>
+          <button type="button"
+                  className="cap-btn cap-btn--primary"
+                  data-test="tr-register-open"
+                  disabled={registerDisabled}
+                  title={tetUid == null
+                    ? 'This program has no tracked-entity type assigned'
+                    : regFieldCount === 0
+                    ? 'No registration attributes are configured'
+                    : query.trim() === ''
+                    ? 'Search existing records first to avoid '
+                      + 'duplicates. Opens the registration form.'
+                      : 'Register a new tracked entity'}
+                  onClick={() => navTracker.register(programUid)}>
+            Register new
+          </button>
+        </div>
       </div>
 
       {selected.size > 0 && (

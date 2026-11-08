@@ -528,6 +528,17 @@ export const CAPTURE_STYLES = `
    * role but drop the hairline. */
   flex: 1;
 }
+/* Right-group container — holds the "flush right" action buttons
+ * so they stay together when the toolbar wraps at narrow widths.
+ * margin-left: auto on a single element keeps the group right-
+ * aligned on whichever flex line it ends up on, unlike a flex: 1
+ * spacer which resets per line and leaves wrapped actions left-
+ * flush. The inner flex handles the button-to-button gap. */
+.cap-section-head__right {
+  margin-left: auto;
+  display: inline-flex; align-items: center;
+  gap: 10px; flex-wrap: wrap;
+}
 /* Inline label + control pair for toolbar rows — label on the
  * left, control on the right, both centered so the whole row
  * reads as one professional strip. Used in event/tracker form

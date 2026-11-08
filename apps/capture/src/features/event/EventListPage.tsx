@@ -378,34 +378,39 @@ export function EventListPage(
             Clear
           </button>
         )}
-        <span className="cap-section-head__rule" />
-        <button type="button"
-                className="cap-density-btn"
-                data-test="ev-density-toggle"
-                aria-label={'Switch to '
-                  + (density === 'compact' ? 'comfortable' : 'compact')
-                  + ' density'}
-                title={'Density: ' + density + '. Click to switch.'}
-                onClick={() => setDensity(
-                  (d) => d === 'compact' ? 'comfortable' : 'compact')}>
-          {density === 'compact' ? '⇔ Compact' : '⇕ Comfortable'}
-        </button>
-        <button type="button"
-                className="cap-btn cap-btn--secondary"
-                data-test="ev-export-csv"
-                style={{ padding: '4px 10px', fontSize: 12 }}
-                title="Download the filtered + sorted list as CSV"
-                disabled={filtered.length === 0}
-                onClick={exportCsv}>
-          Export CSV
-        </button>
-        <button type="button"
-                className="cap-btn cap-btn--primary"
-                data-test="ev-new"
-                title="Open the new-event form"
-                onClick={() => navEvent.create(programUid)}>
-          + New event
-        </button>
+        {/* Right-group container stays flush right on its line
+         *  (via margin-left: auto on a single element rather than
+         *  a flex spacer, so the group wraps as one unit when the
+         *  toolbar overflows at narrow widths). */}
+        <div className="cap-section-head__right">
+          <button type="button"
+                  className="cap-density-btn"
+                  data-test="ev-density-toggle"
+                  aria-label={'Switch to '
+                    + (density === 'compact' ? 'comfortable' : 'compact')
+                    + ' density'}
+                  title={'Density: ' + density + '. Click to switch.'}
+                  onClick={() => setDensity(
+                    (d) => d === 'compact' ? 'comfortable' : 'compact')}>
+            {density === 'compact' ? '⇔ Compact' : '⇕ Comfortable'}
+          </button>
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  data-test="ev-export-csv"
+                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  title="Download the filtered + sorted list as CSV"
+                  disabled={filtered.length === 0}
+                  onClick={exportCsv}>
+            Export CSV
+          </button>
+          <button type="button"
+                  className="cap-btn cap-btn--primary"
+                  data-test="ev-new"
+                  title="Open the new-event form"
+                  onClick={() => navEvent.create(programUid)}>
+            + New event
+          </button>
+        </div>
       </div>
       {selected.size > 0 && (
         <div className="cap-strip cap-strip--info"
