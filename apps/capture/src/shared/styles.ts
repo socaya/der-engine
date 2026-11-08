@@ -61,11 +61,11 @@ export const CAPTURE_STYLES = `
 }
 .cap-toolbar__info-btn:hover { background: #eef2f8; }
 .cap-dirty-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 3px 10px; border-radius: 0;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 0;
   font-size: 12px; font-weight: 600;
-  background: #fff4de; color: #A56518;
-  border: 1px solid #f4d7a2;
+  background: transparent; color: #A56518;
+  border: 0;
   white-space: nowrap;
 }
 .cap-dirty-chip__dot {
@@ -104,18 +104,15 @@ export const CAPTURE_STYLES = `
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cap-toolbar__mode {
-  align-self: end; justify-self: end;
-  padding: 4px 10px; border-radius: 0;
-  font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
-  border: 1px solid #c6d4e4; background: #eef2f8;
-  color: #0a5497;
+  display: inline-block;
+  padding: 2px 0;
+  font-size: 13px; font-weight: 500;
+  color: #263352;
+  background: transparent; border: 0;
+  letter-spacing: 0;
 }
-.cap-toolbar__mode--tracker {
-  background: #f1e7fa; border-color: #d8c1ef; color: #5a2b96;
-}
-.cap-toolbar__mode--event {
-  background: #ebf6f1; border-color: #bfe4d2; color: #136436;
-}
+.cap-toolbar__mode--tracker { color: #5a2b96; }
+.cap-toolbar__mode--event   { color: #136436; }
 
 .cap-sub {
   margin: 10px 14px 0 14px; color: #4a5768; font-size: 13px;
@@ -138,36 +135,25 @@ export const CAPTURE_STYLES = `
 .cap-strip--warn{ background: #fff4de; color: #A56518;
                   border: 1px solid #f4d7a2; }
 
-.cap-wf-strip {
-  margin: 10px 14px 0 14px;
-  padding: 10px 14px;
-  background: #f6f8fc;
-  border: 1px solid #e3e8f0;
+.cap-toolbar__field--wf {
+  min-width: 0;
 }
-.cap-wf-strip__head {
-  display: flex; align-items: baseline; gap: 10px;
+.cap-wf-chips {
+  display: inline;
+  color: #263352; font-size: 13px; font-weight: 500;
 }
-.cap-wf-strip__count {
-  margin-left: auto; font-size: 11px; color: #6e7a8a;
-}
-.cap-wf-strip__list {
-  margin: 6px 0 0 0; padding: 0; list-style: none;
-  display: flex; flex-wrap: wrap; gap: 6px 10px;
-}
-.cap-wf-strip__list li { display: inline-flex; }
-.cap-wf-strip__link {
-  display: inline-block;
-  padding: 4px 10px;
-  background: #fff; border: 1px solid #c6d4e4;
-  color: #0a5497; text-decoration: none; font-size: 13px;
+.cap-wf-chip {
+  display: inline;
+  color: #5a2b96;
+  background: transparent; border: 0; padding: 0;
   font-weight: 500;
 }
-.cap-wf-strip__link:hover {
-  background: #eef2f8; border-color: #0a5497;
+.cap-wf-chip + .cap-wf-chip::before {
+  content: ' · ';
+  color: #9097a8; font-weight: 400;
 }
-.cap-wf-strip__more {
-  display: inline-flex; align-items: center;
-  font-size: 12px; color: #6e7a8a;
+.cap-wf-chip--more {
+  color: #6e7a8a; font-weight: 400;
 }
 .cap-empty {
   margin: 24px 14px; padding: 24px;
@@ -330,17 +316,18 @@ export const CAPTURE_STYLES = `
 }
 .cap-list__when { color: #6e7a8a; }
 
+/* Flat chips — no background, no border; the colour alone
+ * carries the semantic. Matches the user's 'no chips styles'
+ * directive while still being scannable. */
 .cap-chip {
-  display: inline-block;
-  padding: 1px 8px; border-radius: 0;
+  display: inline;
+  padding: 0;
   font-size: 11px; font-weight: 500;
-  background: #eef2f8; color: #0a5497;
-  border: 1px solid #cfe1f4;
+  background: transparent; color: #0a5497;
+  border: 0;
+  text-transform: uppercase; letter-spacing: 0.04em;
 }
-.cap-chip--warn {
-  background: #fff4de; color: #A56518;
-  border-color: #f4d7a2;
-}
+.cap-chip--warn { color: #A56518; }
 
 .cap-identity-strip {
   margin: 10px 14px;

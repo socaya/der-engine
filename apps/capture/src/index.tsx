@@ -171,6 +171,28 @@ function CaptureAppInner(): JSX.Element {
     ? (program.programType === 'WITH_REGISTRATION' ? 'tracker' : 'event')
     : null;
 
+  // Program stage IDs so the workflow filter can include
+  // PROGRAM_STAGE / PROGRAM_STAGE_SECTION bindings, not just
+  // whole-program ones (distributed workflow config lives at
+  // several metadata levels per DER server).
+  const [programStageIds, setProgramStageIds] =
+    useState<ReadonlyArray<string>>([]);
+  useEffect(() => {
+    setProgramStageIds([]);
+    if (!programUid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api.listCaptureProgramStages(programUid);
+        if (cancelled) return;
+        setProgramStageIds(r.stages.map((s) => s.stageUid));
+      } catch {
+        if (!cancelled) setProgramStageIds([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [programUid]);
+
   return (
     <ScreenCard dataTest="der-capture">
       <style>{CAPTURE_STYLES}</style>
@@ -264,6 +286,51 @@ function CaptureAppInner(): JSX.Element {
               </span>
             )}
           </div>
+
+          {/* Distributed workflows allocated to this device for
+           *  the selected program (or any of its stages /
+           *  sections). Display-only — the operator captures
+           *  normally below and the DER server stamps each write
+           *  with the workflow run. */}
+          {program && (() => {
+            const stageIdSet = new Set(programStageIds);
+            const related = workflows.filter((w) => {
+              if (w.boundMetadataKind === 'PROGRAM'
+                && w.boundMetadataId === program.id) return true;
+              if ((w.boundMetadataKind === 'PROGRAM_STAGE'
+                || w.boundMetadataKind === 'PROGRAM_STAGE_SECTION')
+                && w.boundMetadataId
+                && stageIdSet.has(w.boundMetadataId)) return true;
+              return false;
+            });
+            if (related.length === 0) return null;
+            return (
+              <div className="cap-toolbar__field cap-toolbar__field--wf"
+                   data-test="cap-workflows">
+                <span className="cap-toolbar__field-label">
+                  Allocated workflows
+                </span>
+                <div className="cap-wf-chips">
+                  {related.slice(0, 4).map((w) => (
+                    <span key={w.workflowId}
+                          className="cap-wf-chip"
+                          data-test={'cap-wf-' + w.workflowId}
+                          title={'This device is allocated workflow '
+                            + w.displayName
+                            + '. Captures below contribute to its '
+                            + 'current run.'}>
+                      {w.displayName}
+                    </span>
+                  ))}
+                  {related.length > 4 && (
+                    <span className="cap-wf-chip cap-wf-chip--more">
+                      +{related.length - 4}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -279,50 +346,6 @@ function CaptureAppInner(): JSX.Element {
         </div>
       )}
 
-
-      {/* Assigned device workflows — only when a program is
-       *  selected AND at least one workflow is bound to that
-       *  program. Kinds that count: PROGRAM (whole-program
-       *  workflow), PROGRAM_STAGE / PROGRAM_STAGE_SECTION bound
-       *  to a stage of this program (we match on the program's
-       *  own ID today; stage-level matching lands when the
-       *  program's stage list is lifted into the shell). */}
-      {program && (() => {
-        const related = workflows.filter((w) =>
-          w.boundMetadataKind === 'PROGRAM'
-          && w.boundMetadataId === program.id);
-        if (related.length === 0) return null;
-        return (
-          <div className="cap-wf-strip" data-test="cap-workflows">
-            <div className="cap-wf-strip__head">
-              <span className="cap-toolbar__field-label">
-                Device workflows for this program
-              </span>
-              <span className="cap-wf-strip__count">
-                {related.length} available
-              </span>
-            </div>
-            <ul className="cap-wf-strip__list">
-              {related.slice(0, 6).map((w) => (
-                <li key={w.workflowId}>
-                  <a href={'/apps/workflow-capture#/'
-                        + encodeURIComponent(w.workflowId)}
-                     target="_blank" rel="noopener"
-                     className="cap-wf-strip__link"
-                     data-test={'cap-wf-' + w.workflowId}>
-                    {w.displayName}
-                  </a>
-                </li>
-              ))}
-              {related.length > 6 && (
-                <li className="cap-wf-strip__more">
-                  … +{related.length - 6} more
-                </li>
-              )}
-            </ul>
-          </div>
-        );
-      })()}
 
       {/* Content area — mode-aware. Shared form engine, shared
        *  edge-write contract; the Tracker and Event components
