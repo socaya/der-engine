@@ -558,35 +558,36 @@ export function TrackerListPage(
               <option value={100}>100</option>
             </select>
           </label>
-          <span className="cap-pager__spacer" />
-          <button type="button" className="cap-pager__btn"
-                  data-test="tr-pager-first"
-                  aria-label="First page"
-                  disabled={safePage === 1}
-                  onClick={() => setPage(1)}>«</button>
-          <button type="button" className="cap-pager__btn"
-                  data-test="tr-pager-prev"
-                  aria-label="Previous page"
-                  disabled={safePage === 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}>
-            ‹
-          </button>
-          <span data-test="tr-pager-page">
-            Page {safePage} of {pageCount}
-          </span>
-          <button type="button" className="cap-pager__btn"
-                  data-test="tr-pager-next"
-                  aria-label="Next page"
-                  disabled={safePage === pageCount}
-                  onClick={() => setPage(
-                    (p) => Math.min(pageCount, p + 1))}>
-            ›
-          </button>
-          <button type="button" className="cap-pager__btn"
-                  data-test="tr-pager-last"
-                  aria-label="Last page"
-                  disabled={safePage === pageCount}
-                  onClick={() => setPage(pageCount)}>»</button>
+          <div className="cap-pager__nav">
+            <button type="button" className="cap-pager__btn"
+                    data-test="tr-pager-first"
+                    aria-label="First page"
+                    disabled={safePage === 1}
+                    onClick={() => setPage(1)}>«</button>
+            <button type="button" className="cap-pager__btn"
+                    data-test="tr-pager-prev"
+                    aria-label="Previous page"
+                    disabled={safePage === 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              ‹
+            </button>
+            <span data-test="tr-pager-page">
+              Page {safePage} of {pageCount}
+            </span>
+            <button type="button" className="cap-pager__btn"
+                    data-test="tr-pager-next"
+                    aria-label="Next page"
+                    disabled={safePage === pageCount}
+                    onClick={() => setPage(
+                      (p) => Math.min(pageCount, p + 1))}>
+              ›
+            </button>
+            <button type="button" className="cap-pager__btn"
+                    data-test="tr-pager-last"
+                    aria-label="Last page"
+                    disabled={safePage === pageCount}
+                    onClick={() => setPage(pageCount)}>»</button>
+          </div>
         </div>
       )}
     </>

@@ -958,14 +958,27 @@ export const CAPTURE_STYLES = `
 }
 .cap-density-btn:hover { background: var(--der-surface-subtle); }
 .cap-pager {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 10px 14px;
+  flex-wrap: wrap;
   margin: 0 20px 14px 20px;
   padding: 10px 12px;
   border: 0; border-top: 1px solid var(--der-border);
   background: var(--der-surface);
   color: var(--der-text-muted); font-size: 12px;
 }
-.cap-pager__spacer { flex: 1; }
+/* Pager children never break inside themselves — labels like
+ * "Rows per page" + "Page 2 of 7" must stay as a single unit
+ * even when the pager itself wraps to a second line. */
+.cap-pager > * { white-space: nowrap; }
+/* Nav-group container — holds First/Prev/Page/Next/Last so the
+ * nav buttons stay grouped flush right. Same margin-left: auto
+ * pattern the section-head uses, so when the pager wraps to a
+ * second line on narrow mobile viewports the nav stays right-
+ * aligned instead of collapsing against the range label. */
+.cap-pager__nav {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 6px;
+}
 .cap-pager__pagesize {
   padding: 2px 6px; font-size: 12px;
   background: var(--der-surface); color: var(--der-text);
