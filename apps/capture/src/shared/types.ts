@@ -101,4 +101,26 @@ export interface CaptureApi {
       mandatory?: boolean; sortOrder?: number;
     }>;
   }>;
+  listCaptureTeiEnrollments: (teiUid: string, programUid?: string) =>
+    Promise<{
+      count: number;
+      enrollments: ReadonlyArray<{
+        enrollmentUid: string; teiUid: string;
+        programUid: string; orgUnitUid: string;
+        status: string | null;
+        enrollmentDate: string | null;
+        incidentDate: string | null;
+        lastUpdatedAt: string;
+      }>;
+    }>;
+  listCaptureEnrollmentEvents: (enrollmentUid: string,
+    programStageUid?: string) => Promise<{
+      count: number;
+      events: ReadonlyArray<{
+        eventUid: string; enrollmentUid: string;
+        programUid: string; programStageUid: string;
+        orgUnitUid: string; status: string | null;
+        occurredDate: string | null; lastUpdatedAt: string;
+      }>;
+    }>;
 }

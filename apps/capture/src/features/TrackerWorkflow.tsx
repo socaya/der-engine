@@ -3,6 +3,7 @@ import { FormEngine, requiredFieldsComplete } from '../shared/FormEngine';
 import type { CaptureApi } from '../shared/types';
 import type { CaptureFormSection, CaptureParseIssue } from '../shared/model';
 import { parseTeiAttributesForm } from '../shared/parser';
+import { TrackerDashboard } from './TrackerDashboard';
 
 interface TeiRow {
   readonly trackedEntity?: string;
@@ -44,6 +45,7 @@ export function TrackerWorkflow(
   const [listStatus, setListStatus] =
     useState<'idle' | 'loading' | 'err'>('idle');
   const [query, setQuery] = useState('');
+  const [openTei, setOpenTei] = useState<TeiRow | null>(null);
 
   // Registration state.
   const [tetUid, setTetUid] = useState<string | null>(null);
@@ -136,6 +138,20 @@ export function TrackerWorkflow(
     }
   }
 
+  // When a TEI is open, render the dashboard in place of the list
+  // — the back button hands control back to the working list.
+  if (openTei) {
+    const uid = openTei.trackedEntity
+      ?? openTei.trackedEntityInstance ?? '';
+    return (
+      <TrackerDashboard api={api} programUid={programUid}
+                         tei={uid}
+                         displayName={openTei.displayName ?? null}
+                         lastUpdated={openTei.lastUpdated ?? null}
+                         onBack={() => setOpenTei(null)} />
+    );
+  }
+
   return (
     <>
       {/* Working list */}
@@ -193,7 +209,17 @@ export function TrackerWorkflow(
             const uid = r.trackedEntity ?? r.trackedEntityInstance
               ?? ('row-' + i);
             return (
-              <li key={uid + i} className="cap-list__row">
+              <li key={uid + i}
+                  className="cap-list__row cap-list__row--clickable"
+                  data-test={'tr-tei-row-' + uid}
+                  onClick={() => setOpenTei(r)}
+                  role="button" tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setOpenTei(r);
+                    }
+                  }}>
                 <div>
                   <code>{uid}</code>
                   {r.displayName && (

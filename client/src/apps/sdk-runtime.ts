@@ -59,6 +59,9 @@ function useDerApi(): {
   // G4 — tracker TEI type + attribute surface for registration.
   getCaptureProgramTeiType: typeof edgeApi.getCaptureProgramTeiType;
   listCaptureTeiTypeAttributes: typeof edgeApi.listCaptureTeiTypeAttributes;
+  // G5 — tracker TEI dashboard: enrolments + stage events.
+  listCaptureTeiEnrollments: typeof edgeApi.listCaptureTeiEnrollments;
+  listCaptureEnrollmentEvents: typeof edgeApi.listCaptureEnrollmentEvents;
 } {
   return {
     submitAggregate: edgeApi.submitAggregate,
@@ -96,6 +99,8 @@ function useDerApi(): {
     listProgramRuleVariables: edgeApi.listProgramRuleVariables,
     getCaptureProgramTeiType: edgeApi.getCaptureProgramTeiType,
     listCaptureTeiTypeAttributes: edgeApi.listCaptureTeiTypeAttributes,
+    listCaptureTeiEnrollments: edgeApi.listCaptureTeiEnrollments,
+    listCaptureEnrollmentEvents: edgeApi.listCaptureEnrollmentEvents,
   };
 }
 

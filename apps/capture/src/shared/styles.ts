@@ -204,7 +204,94 @@ export const CAPTURE_STYLES = `
   font-size: 13px; color: #263352;
 }
 .cap-list__row:hover { background: #fafcff; }
+.cap-list__row--clickable { cursor: pointer; }
+.cap-list__row--clickable:focus {
+  outline: none; background: #eef2f8;
+  box-shadow: inset 2px 0 0 #147CD7;
+}
+.cap-list__row--active {
+  background: #eaf3fc;
+  box-shadow: inset 2px 0 0 #147CD7;
+}
 .cap-list__when { color: #6e7a8a; }
+
+.cap-chip {
+  display: inline-block;
+  padding: 1px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 500;
+  background: #eef2f8; color: #0a5497;
+  border: 1px solid #cfe1f4;
+}
+
+.cap-identity-strip {
+  margin: 10px 14px;
+  padding: 10px 14px;
+  background: #fafcff;
+  border: 1px solid #e3e8f0;
+  border-radius: 6px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  font-size: 13px;
+}
+.cap-identity-strip > div {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cap-stage-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 14px;
+  margin: 10px 14px 14px 14px;
+  min-height: 240px;
+}
+.cap-stage-rail {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 6px;
+  background: #fafcff;
+  border: 1px solid #e3e8f0;
+  border-radius: 6px;
+  align-self: start;
+}
+.cap-stage-rail__item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px;
+  background: transparent; border: 0; border-radius: 4px;
+  cursor: pointer; font-family: inherit;
+  font-size: 13px; color: #263352;
+  text-align: left;
+}
+.cap-stage-rail__item:hover { background: #eef2f8; }
+.cap-stage-rail__item--active {
+  background: #eaf3fc; color: #0a5497; font-weight: 600;
+  box-shadow: inset 2px 0 0 #147CD7;
+}
+.cap-stage-rail__name { flex: 1; }
+.cap-stage-rail__count {
+  min-width: 22px; padding: 1px 6px;
+  text-align: center;
+  background: #eef2f8; color: #6e7a8a;
+  font-size: 11px; font-weight: 500;
+  border-radius: 999px;
+  margin-left: 8px;
+}
+.cap-stage-rail__item--active .cap-stage-rail__count {
+  background: #147CD7; color: #fff;
+}
+.cap-stage-pane {
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #e3e8f0;
+  border-radius: 6px;
+  min-height: 160px;
+}
+@media (max-width: 760px) {
+  .cap-stage-layout {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* Info popover — matches the Data Entry info modal. */
 .cap-info-backdrop {
