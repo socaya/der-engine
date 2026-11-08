@@ -544,46 +544,72 @@ export const CAPTURE_STYLES = `
   outline: none;
   box-shadow: 0 0 0 2px var(--der-surface), 0 0 0 4px var(--der-primary);
 }
-.cap-form { padding: 0 20px 14px 20px;
-            display: flex; flex-direction: column; gap: 14px; }
+/* === DER Modern Form — airy two-column grid, hairline section
+ *     rule, no fieldset box. Operators scan labels vertically
+ *     instead of fighting a dense 4-col grid, and the section
+ *     head reads as a header instead of a tiny caption.
+ *
+ *     Design rules:
+ *       - fieldset has no border/padding (native groove removed)
+ *       - 2-col grid capped at 960px max width; 1-col at <720px
+ *       - inputs: soft var(--der-border), 3px radius, 14px font
+ *       - section title: 14px semibold, hairline rule under it,
+ *         filled-count pushed to the right
+ */
+.cap-form { padding: 8px 20px 14px 20px;
+            display: flex; flex-direction: column; gap: 24px; }
 .cap-form-section {
-  /* Dropped the box border + tinted fill — grouping comes from the
-   * legend + consistent grid gaps; the outline was doing too much
-   * work in a page that already uses one separator per section head. */
-  padding: 10px 0 12px 0;
+  border: 0; padding: 0; margin: 0;
+  max-width: 960px;
 }
 .cap-form-section__title {
-  font-size: 12px;
-  letter-spacing: 0.02em; color: var(--der-text);
-  padding: 0 6px; font-weight: 500;
-  display: inline-flex; gap: 10px; align-items: baseline;
+  display: flex; align-items: baseline; gap: 10px;
+  width: 100%;
+  font-size: 14px; font-weight: 600;
+  color: var(--der-text);
+  padding: 0 0 8px 0;
+  border-bottom: 1px solid var(--der-border-soft);
+  letter-spacing: 0;
 }
 .cap-form-section__title-text { color: var(--der-text); }
 .cap-form-section__title-count {
   font-size: 11px; font-weight: 400;
-  color: var(--der-text-faint); text-transform: none; letter-spacing: 0;
+  color: var(--der-text-muted);
+  margin-left: auto;
+  text-transform: none; letter-spacing: 0;
 }
 .cap-form-section__req-ok { color: var(--der-success); font-weight: 500; }
 .cap-form-section__req-pending { color: var(--der-warning); font-weight: 500; }
 .cap-form-section__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 10px 14px; margin-top: 8px;
+  display: grid; grid-template-columns: 1fr;
+  gap: 16px 28px; margin-top: 14px;
+  max-width: 960px;
+}
+@media (min-width: 720px) {
+  .cap-form-section__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .cap-input {
-  display: flex; flex-direction: column; gap: 4px;
+  display: flex; flex-direction: column; gap: 5px;
 }
 .cap-input__label {
-  font-size: 12px; color: var(--der-text); font-weight: 500;
+  font-size: 12px; color: var(--der-text-muted); font-weight: 400;
 }
-.cap-input__req { color: #D32F2F; margin-left: 2px; }
+.cap-input__req { color: var(--der-danger); margin-left: 3px; }
 .cap-input__ctl {
-  padding: 6px 8px; border: 1px solid #aaa; border-radius: 0;
-  font-size: 14px; background: var(--der-surface); font-family: inherit;
+  padding: 7px 10px;
+  border: 1px solid var(--der-border); border-radius: 3px;
+  font-size: 14px; background: var(--der-surface);
+  color: var(--der-text); font-family: inherit;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+.cap-input__ctl:hover:not(:disabled):not(:read-only) {
+  border-color: var(--der-text-muted);
 }
 .cap-input__ctl:focus {
   outline: none; border-color: var(--der-primary);
-  box-shadow: 0 0 0 2px rgba(20,124,215,0.2);
+  box-shadow: 0 0 0 2px rgba(20,124,215,0.18);
 }
 .cap-input__ctl--ro {
   background: var(--der-surface-subtle); color: var(--der-text-muted);
@@ -593,12 +619,11 @@ export const CAPTURE_STYLES = `
 }
 .cap-field-warn {
   font-size: 11px; color: var(--der-warning);
-  padding: 3px 6px; border-radius: 0;
-  background: #fff4de; border: 1px solid #f4d7a2;
+  padding: 2px 0 0 0; border: 0; background: transparent;
+  line-height: 1.35;
 }
 .cap-field-warn--err {
-  color: var(--der-danger);
-  background: var(--der-danger-subtle); border-color: var(--der-danger);
+  color: var(--der-danger); background: transparent;
 }
 
 /* Sticky action footer — one row: save-state on the left, primary
@@ -625,7 +650,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-action-bar__state strong { color: var(--der-text); }
 .cap-btn {
-  padding: 7px 18px; border-radius: 0; font-size: 14px;
+  padding: 7px 18px; border-radius: 3px; font-size: 14px;
   font-weight: 500; cursor: pointer; border: 1px solid transparent;
   background: var(--der-surface);
 }
