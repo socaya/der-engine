@@ -3,6 +3,7 @@ import type { CaptureApi } from '../shared/types';
 import { EventListPage } from './event/EventListPage';
 import { EventDetailPage } from './event/EventDetailPage';
 import { EventFormPage } from './event/EventFormPage';
+import { EventSheetPage } from './event/EventSheetPage';
 import { parseCaptureRoute, navEvent } from '../shared/routing';
 
 /**
@@ -23,6 +24,7 @@ export function EventWorkflow(
   useEffect(() => {
     const route = parseCaptureRoute('#' + hashRoute);
     const current = (route.kind === 'event-list'
+      || route.kind === 'event-sheet'
       || route.kind === 'event-detail'
       || route.kind === 'event-form')
         && route.programId === programUid;
@@ -31,6 +33,13 @@ export function EventWorkflow(
 
   const route = parseCaptureRoute('#' + hashRoute);
 
+  if (route.kind === 'event-sheet') {
+    return (
+      <EventSheetPage api={api}
+                       programUid={programUid}
+                       orgUnitUid={orgUnitUid} />
+    );
+  }
   if (route.kind === 'event-detail') {
     return (
       <EventDetailPage api={api}

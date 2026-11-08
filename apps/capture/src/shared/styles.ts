@@ -660,6 +660,113 @@ export const CAPTURE_STYLES = `
 .cap-status--active { color: var(--der-primary); }
 .cap-status--ok     { color: var(--der-success); }
 
+/* --- Spreadsheet mode (SHEET-A) ---------------------------------
+ * Dense grid that scrolls horizontally when the stage has many
+ * fields. Each row paints a thin status dot on the left so the
+ * operator can see at a glance which rows are saving / saved /
+ * dirty. Inputs inherit the full cell width so operators type
+ * directly into the grid like Excel.
+ */
+.cap-sheet-wrap {
+  margin: 0 14px 14px 14px;
+  overflow: auto;
+  max-height: calc(100vh - 220px);
+  border: 1px solid var(--der-border);
+}
+.cap-sheet {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  font-size: 13px; color: var(--der-text);
+}
+.cap-sheet thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--der-surface-subtle);
+  text-align: left; font-weight: 500;
+  color: var(--der-text-muted); font-size: 12px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--der-border);
+  border-right: 1px solid var(--der-border-soft);
+  white-space: nowrap;
+}
+.cap-sheet thead th:last-child { border-right: 0; }
+.cap-sheet td {
+  padding: 0;
+  border-bottom: 1px solid var(--der-border-soft);
+  border-right: 1px solid var(--der-border-soft);
+  background: var(--der-surface);
+  vertical-align: middle;
+}
+.cap-sheet td:last-child { border-right: 0; }
+.cap-sheet__row--saving td,
+.cap-sheet__row--dirty td { background: #fffdf5; }
+.cap-sheet__row--err td { background: var(--der-danger-subtle); }
+
+.cap-sheet__status-col,
+.cap-sheet__status-cell {
+  width: 24px; text-align: center; padding: 0 4px;
+  background: var(--der-surface-subtle);
+}
+.cap-sheet__dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  vertical-align: middle;
+}
+.cap-sheet__dot--idle   { background: var(--der-border); }
+.cap-sheet__dot--saved  { background: var(--der-success); }
+.cap-sheet__dot--dirty  { background: var(--der-warning);
+                          animation: cap-pulse 1.6s ease-in-out infinite; }
+.cap-sheet__dot--saving { background: var(--der-primary);
+                          animation: cap-pulse 1.0s ease-in-out infinite; }
+.cap-sheet__dot--err    { background: var(--der-danger); }
+
+.cap-sheet__date-col, .cap-sheet__date-cell { min-width: 130px; }
+.cap-sheet__actions-col, .cap-sheet__actions-cell {
+  width: 30px; text-align: center;
+  background: var(--der-surface-subtle);
+}
+
+.cap-sheet__cell-input {
+  width: 100%; padding: 6px 8px;
+  border: 0; background: transparent;
+  color: var(--der-text); font: inherit;
+  outline: 0;
+}
+.cap-sheet__cell-input:focus {
+  background: var(--der-primary-subtle);
+  box-shadow: inset 0 0 0 2px var(--der-primary);
+}
+.cap-sheet__cell-input--ro {
+  background: var(--der-surface-subtle);
+  color: var(--der-text-muted);
+}
+.cap-sheet__row-del {
+  background: transparent; border: 0; cursor: pointer;
+  color: var(--der-text-faint); font-size: 16px;
+  padding: 2px 6px;
+}
+.cap-sheet__row-del:hover { color: var(--der-danger); }
+.cap-sheet__empty {
+  padding: 16px; text-align: center;
+  color: var(--der-text-muted); font-size: 13px;
+  background: var(--der-surface-subtle);
+}
+
+.cap-view-toggle {
+  display: inline-flex; border: 1px solid var(--der-border);
+  background: var(--der-surface);
+}
+.cap-view-toggle button {
+  background: transparent; border: 0;
+  padding: 4px 10px; font-size: 12px; font-family: inherit;
+  color: var(--der-text-muted); cursor: pointer;
+}
+.cap-view-toggle button + button {
+  border-left: 1px solid var(--der-border);
+}
+.cap-view-toggle button:hover { color: var(--der-text); }
+.cap-view-toggle button.cap-view-toggle--active {
+  background: var(--der-primary-subtle); color: var(--der-primary);
+  font-weight: 500;
+}
+
 .cap-list { margin: 0 14px 14px 14px; padding: 0; list-style: none; }
 .cap-list__row {
   padding: 8px 10px; border-bottom: 1px solid var(--der-border-soft);

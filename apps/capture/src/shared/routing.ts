@@ -41,6 +41,8 @@ export type CaptureRoute =
       readonly eventId: string | null }
   | { readonly kind: 'event-list';
       readonly programId: string }
+  | { readonly kind: 'event-sheet';
+      readonly programId: string }
   | { readonly kind: 'event-detail';
       readonly programId: string; readonly eventId: string }
   | { readonly kind: 'event-form';
@@ -88,6 +90,9 @@ export function parseCaptureRoute(hash: string): CaptureRoute {
 
   if (segs[0] === 'events' && segs[1]) {
     const programId = segs[1];
+    if (segs[2] === 'sheet') {
+      return { kind: 'event-sheet', programId };
+    }
     if (segs[2] === 'new') {
       return { kind: 'event-form', programId, eventId: null };
     }
@@ -134,6 +139,8 @@ export const navTracker = {
 export const navEvent = {
   list: (programId: string) =>
     navigateTo(`/events/${programId}`),
+  sheet: (programId: string) =>
+    navigateTo(`/events/${programId}/sheet`),
   detail: (programId: string, eventId: string) =>
     navigateTo(`/events/${programId}/${eventId}`),
   create: (programId: string) =>

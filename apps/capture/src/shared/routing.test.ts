@@ -56,6 +56,11 @@ describe('parseCaptureRoute', () => {
       { kind: 'event-form', programId: 'evp', eventId: 'EV1' });
   });
 
+  it('parses event-sheet', () => {
+    expect(parseCaptureRoute('#/events/evp/sheet')).toEqual(
+      { kind: 'event-sheet', programId: 'evp' });
+  });
+
   it('falls back to tracker list for unknown tracker suffix', () => {
     const r = parseCaptureRoute('#/tracker/abc/weirdthing');
     expect(r).toEqual({ kind: 'tracker-list', programId: 'abc' });

@@ -176,6 +176,23 @@ export function EventListPage(
               : `${recent.length} loaded`}
         </span>
         <span className="cap-section-head__rule" />
+        <div className="cap-view-toggle" role="group"
+             aria-label="Event view mode" data-test="ev-view-toggle">
+          <button type="button"
+                  className="cap-view-toggle--active"
+                  data-test="ev-view-rows"
+                  aria-pressed="true"
+                  title="Row view — one event per row with details">
+            Rows
+          </button>
+          <button type="button"
+                  data-test="ev-view-sheet"
+                  aria-pressed="false"
+                  title="Spreadsheet mode — all events on a single grid, cells save as you type"
+                  onClick={() => navEvent.sheet(programUid)}>
+            Sheet
+          </button>
+        </div>
         <button type="button"
                 className="cap-btn cap-btn--primary"
                 data-test="ev-new"
