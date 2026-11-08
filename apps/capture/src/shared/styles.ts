@@ -553,6 +553,30 @@ export const CAPTURE_STYLES = `
   border-color: var(--der-primary);
   box-shadow: inset 0 0 0 2px var(--der-primary);
 }
+/* Identity-strip metadata inlined into the section-head toolbar
+ * — one key/value chip per piece ("UPDATED Nov 8, 2026, 05:11
+ * PM", "UID 745296…"). Flex-wrap so the row wraps gracefully on
+ * narrow viewports instead of forcing horizontal scroll. */
+.cap-section-head__meta {
+  display: inline-flex; align-items: baseline;
+  flex-wrap: wrap; gap: 6px 20px;
+  font-size: 13px; color: var(--der-text);
+}
+.cap-section-head__meta-item {
+  display: inline-flex; align-items: baseline; gap: 6px;
+}
+.cap-section-head__meta-item > strong {
+  color: var(--der-text-muted); font-weight: 500;
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cap-section-head__meta-item > span { color: var(--der-text); }
+.cap-section-head__meta-item > code {
+  font-size: 12px; color: var(--der-text-muted);
+  background: var(--der-surface-subtle);
+  padding: 2px 6px; border-radius: 3px;
+  font-family: ui-monospace, Menlo, monospace;
+}
 
 /* Shared form engine styling — sections + typed inputs. Mirrors
  * the Data Entry app so operators feel at home. */

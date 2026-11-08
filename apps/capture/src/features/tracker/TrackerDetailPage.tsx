@@ -209,32 +209,35 @@ export function TrackerDetailPage(
             : `${enrolments.length} enrolment`
               + (enrolments.length === 1 ? '' : 's')}
         </span>
+        {/* Identity metadata inline in the toolbar — uppercase
+         *  muted label + value, matches the identity-strip style
+         *  that used to render on a second row below. */}
         <span className="cap-section-head__rule" />
-      </div>
-
-      <div className="cap-identity-strip" data-test="tr-identity-strip">
-        {identity.displayName && (
-          <div>
-            <strong>Name</strong>
-            <span>{identity.displayName}</span>
-          </div>
-        )}
-        {identity.attributes.map((a) => (
-          <div key={a.label}>
-            <strong>{a.label}</strong>
-            <span>{a.value}</span>
-          </div>
-        ))}
-        {identity.lastUpdated && (
-          <div>
-            <strong>Updated</strong>
-            <span>{formatTimestamp(identity.lastUpdated)}</span>
-          </div>
-        )}
-        <div>
-          <strong>UID</strong>
-          <code>{teiId}</code>
-        </div>
+        <span className="cap-section-head__meta"
+              data-test="tr-identity-strip">
+          {identity.displayName && (
+            <span className="cap-section-head__meta-item">
+              <strong>Name</strong>
+              <span>{identity.displayName}</span>
+            </span>
+          )}
+          {identity.attributes.map((a) => (
+            <span key={a.label} className="cap-section-head__meta-item">
+              <strong>{a.label}</strong>
+              <span>{a.value}</span>
+            </span>
+          ))}
+          {identity.lastUpdated && (
+            <span className="cap-section-head__meta-item">
+              <strong>Updated</strong>
+              <span>{formatTimestamp(identity.lastUpdated)}</span>
+            </span>
+          )}
+          <span className="cap-section-head__meta-item">
+            <strong>UID</strong>
+            <code>{teiId}</code>
+          </span>
+        </span>
       </div>
 
       {status === 'idle' && enrolments.length === 0 && (
