@@ -475,6 +475,38 @@ describe('edgeApi.listPrograms', () => {
   });
 });
 
+describe('edgeApi.getOptionSet', () => {
+  it('fetches an option set with code + displayName options', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {
+      id: 'OS_sex', displayName: 'Sex',
+      options: [
+        { id: 'o-f', code: 'F', displayName: 'Female', sortOrder: 1 },
+        { id: 'o-m', code: 'M', displayName: 'Male', sortOrder: 2 },
+      ],
+    }));
+    const r = await api.getOptionSet('OS_sex');
+    expect(r!.id).toBe('OS_sex');
+    expect(r!.options!.length).toBe(2);
+    const [path] = fetchMock.mock.calls[0] as [string];
+    expect(path).toContain('/api/optionSets/OS_sex');
+    expect(path).toContain('fields=id,displayName,name');
+    expect(path).toContain('options[id,code,displayName');
+  });
+
+  it('URL-encodes the UID', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, { id: 'X' }));
+    await api.getOptionSet('a/b c');
+    const [path] = fetchMock.mock.calls[0] as [string];
+    expect(path).toContain('/api/optionSets/a%2Fb%20c');
+  });
+
+  it('returns null on HTTP error so the form can degrade', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(500, { error: 'boom' }));
+    const r = await api.getOptionSet('OS1');
+    expect(r).toBeNull();
+  });
+});
+
 describe('edgeApi.deleteTrackerRelationship', () => {
   it('sends DELETE to the relationships endpoint with an encoded UID',
       async () => {

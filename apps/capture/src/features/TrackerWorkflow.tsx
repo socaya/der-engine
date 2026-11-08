@@ -280,7 +280,8 @@ export function TrackerWorkflow(
             </div>
           )}
           <form onSubmit={onSubmitRegistration} data-test="tr-reg-form">
-            <FormEngine sections={regSections} values={regValues}
+            <FormEngine api={api}
+                         sections={regSections} values={regValues}
                          onChange={(k, v) => setRegValues((prev) =>
                            ({ ...prev, [k]: v }))} />
             <div className="cap-action-bar" data-test="tr-reg-action-bar">

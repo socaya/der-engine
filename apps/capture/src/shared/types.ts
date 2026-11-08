@@ -162,6 +162,15 @@ export interface CaptureApi {
   deleteTrackerRelationship: (relationshipUid: string) =>
     Promise<{ ok: true } | { ok: false; status: number;
       message: string }>;
+  getOptionSet: (optionSetUid: string) => Promise<{
+    id: string;
+    displayName?: string;
+    name?: string;
+    options?: ReadonlyArray<{
+      id?: string; code?: string; displayName?: string;
+      name?: string; sortOrder?: number;
+    }>;
+  } | null>;
   listRelationshipTypes: () => Promise<ReadonlyArray<{
     id: string;
     displayName?: string;

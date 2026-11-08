@@ -346,7 +346,8 @@ export function EventWorkflow(
       )}
       {effectiveSections.length > 0 && (
         <form onSubmit={onSubmitSave} data-test="ce-form">
-          <FormEngine sections={effectiveSections} values={values}
+          <FormEngine api={api}
+                       sections={effectiveSections} values={values}
                        onChange={(k, v) => setValues((prev) => ({
                          ...prev, [k]: v }))} />
 

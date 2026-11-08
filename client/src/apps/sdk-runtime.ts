@@ -69,6 +69,8 @@ function useDerApi(): {
   listRelationshipTypes: typeof edgeApi.listRelationshipTypes;
   submitTrackerRelationship: typeof edgeApi.submitTrackerRelationship;
   deleteTrackerRelationship: typeof edgeApi.deleteTrackerRelationship;
+  // G9-6 — option-set select in the shared form engine.
+  getOptionSet: typeof edgeApi.getOptionSet;
 } {
   return {
     submitAggregate: edgeApi.submitAggregate,
@@ -113,6 +115,7 @@ function useDerApi(): {
     listRelationshipTypes: edgeApi.listRelationshipTypes,
     submitTrackerRelationship: edgeApi.submitTrackerRelationship,
     deleteTrackerRelationship: edgeApi.deleteTrackerRelationship,
+    getOptionSet: edgeApi.getOptionSet,
   };
 }
 

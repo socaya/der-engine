@@ -1299,6 +1299,34 @@ export async function listProgramRuleVariables(programUid?: string):
   return vars.filter((v) => v.program?.id === programUid);
 }
 
+export interface RawOptionSet {
+  readonly id: string;
+  readonly displayName?: string;
+  readonly name?: string;
+  readonly options?: ReadonlyArray<{
+    id?: string;
+    code?: string;
+    displayName?: string;
+    name?: string;
+    sortOrder?: number;
+  }>;
+}
+
+/** Fetch an option set's options from the DHIS2 proxy. Returns
+ *  {@code null} on error so the FormEngine can degrade to a plain
+ *  text input without breaking the whole form (§MD-006). */
+export async function getOptionSet(optionSetUid: string):
+    Promise<RawOptionSet | null> {
+  const r = await fetch(
+    '/api/optionSets/' + encodeURIComponent(optionSetUid)
+      + '?fields=id,displayName,name,options[id,code,displayName,'
+      + 'name,sortOrder]',
+    { credentials: 'include',
+      headers: { Accept: 'application/json' } });
+  if (!r.ok) return null;
+  return await r.json() as RawOptionSet;
+}
+
 /** Minimal relationship row shape returned by the DHIS2 tracker
  *  relationships read endpoint. Fields come wide so the Capture
  *  parser decides what's displayable with current permissions

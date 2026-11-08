@@ -262,7 +262,8 @@ export function TrackerStageEditor(
       )}
 
       <form onSubmit={onSubmitSave} data-test="tr-editor-form">
-        <FormEngine sections={effectiveSections} values={values}
+        <FormEngine api={api}
+                     sections={effectiveSections} values={values}
                      onChange={(k, v) => setValues((prev) =>
                        ({ ...prev, [k]: v }))} />
         <div className="cap-action-bar" data-test="tr-editor-action-bar">
