@@ -237,6 +237,85 @@ export const CAPTURE_STYLES = `
   font-size: 11px; color: #6e7a8a;
 }
 
+/* Workflow tabs when more than one workflow is assigned. */
+.cap-dwf__tabs {
+  display: flex; gap: 2px;
+  padding: 0 14px;
+  border-bottom: 1px solid #eef0f3;
+  background: #fafcff;
+  overflow-x: auto;
+}
+.cap-dwf__tab {
+  padding: 8px 14px;
+  background: transparent; border: 0; border-bottom: 2px solid transparent;
+  color: #4a5768; font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+.cap-dwf__tab:hover { background: #eef2f8; }
+.cap-dwf__tab--active {
+  color: #0a5497; border-bottom-color: #147CD7;
+}
+
+.cap-dwf__run { padding: 14px 18px; }
+.cap-dwf__start {
+  display: flex; align-items: end; gap: 10px;
+  margin: 10px 0;
+}
+.cap-dwf__runs {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 10px; align-items: end;
+  margin: 10px 0;
+}
+.cap-dwf__step--current {
+  background: #fff4de; color: #A56518;
+}
+.cap-dwf__step--current .cap-dwf__step-ord {
+  background: #F59E0B; color: #fff;
+}
+.cap-dwf__ctx {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: #fafcff;
+  border: 1px solid #e3e8f0;
+}
+.cap-dwf__ctx-title {
+  margin: 0 0 8px 0;
+  font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #6e7a8a;
+  font-weight: 600;
+}
+.cap-dwf__ctx-step {
+  padding: 6px 0;
+  border-top: 1px solid #eef0f3;
+}
+.cap-dwf__ctx-step:first-of-type { border-top: 0; }
+.cap-dwf__ctx-step-title {
+  margin: 0 0 4px 0;
+  font-size: 12px; font-weight: 500; color: #263352;
+  letter-spacing: 0.02em;
+}
+.cap-dwf__ctx-grid {
+  margin: 4px 0 0 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 30%) 1fr;
+  gap: 2px 14px;
+  font-size: 13px;
+}
+.cap-dwf__ctx-grid > div { display: contents; }
+.cap-dwf__ctx-grid dt {
+  color: #6e7a8a; padding: 2px 0;
+}
+.cap-dwf__ctx-grid dd {
+  margin: 0; color: #101a32; padding: 2px 0;
+}
+.cap-dwf__step-form {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #c6d4e4;
+}
+
 .cap-empty {
   margin: 24px 14px; padding: 24px;
   border: 1px dashed #c6d4e4; border-radius: 0;
