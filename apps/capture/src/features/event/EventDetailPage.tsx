@@ -201,7 +201,11 @@ export function EventDetailPage(
 
       {/* Identity strip — key/value metadata. UID stays as a code
        *  chip so operators can copy it; stage + OU use display
-       *  names from the mirror. Date formatted for humans. */}
+       *  names from the mirror. Date formatted for humans. Kept
+       *  on its own line because the toolbar carries both status
+       *  and action buttons (Delete + Edit) that need to stay
+       *  flush right — merging inline pushes those onto a second
+       *  line that's visually detached from the title. */}
       <div className="cap-identity-strip" data-test="ev-identity-strip">
         <div>
           <strong>Stage</strong>

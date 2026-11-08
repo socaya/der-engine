@@ -1564,12 +1564,18 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   background: var(--der-surface-subtle); border-color: var(--der-border); color: var(--der-primary);
 }
 .cap-row-actions__menu {
-  position: absolute; right: 0; top: 100%;
-  margin: 2px 0 0 0; padding: 4px 0; list-style: none;
+  /* Viewport-anchored (not relative to the wrapper) so the menu
+   * escapes the table-wrap's overflow-x: auto clipping context —
+   * otherwise it renders behind the pager + anything downstream.
+   * Coords set inline from the trigger's bounding rect. */
+  position: fixed;
+  margin: 0; padding: 4px 0; list-style: none;
   background: var(--der-surface);
   border: 1px solid #d8dee8;
+  border-radius: 3px;
   min-width: 180px;
-  z-index: 50;
+  box-shadow: 0 4px 12px rgba(23, 38, 60, 0.12);
+  z-index: 1000;
 }
 .cap-row-actions__item {
   display: block; width: 100%; padding: 6px 12px;

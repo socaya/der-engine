@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState,
+  type ReactNode } from 'react';
 
 export interface RowAction {
   readonly label: string;
@@ -21,6 +22,32 @@ export function RowActions(
 ): JSX.Element {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement | null>(null);
+  const menuRef = useRef<HTMLUListElement | null>(null);
+  /** Viewport-anchored menu coords. Computed from the trigger's
+   *  getBoundingClientRect so the menu escapes the table-wrap's
+   *  overflow-x: auto clipping context and renders above the
+   *  pager / stage pane / anything else below it. */
+  const [menuRect, setMenuRect] =
+    useState<{ top: number; right: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !wrapRef.current) { setMenuRect(null); return; }
+    function recompute() {
+      if (!wrapRef.current) return;
+      const r = wrapRef.current.getBoundingClientRect();
+      setMenuRect({
+        top: r.bottom + 2,
+        right: window.innerWidth - r.right,
+      });
+    }
+    recompute();
+    window.addEventListener('scroll', recompute, true);
+    window.addEventListener('resize', recompute);
+    return () => {
+      window.removeEventListener('scroll', recompute, true);
+      window.removeEventListener('resize', recompute);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -29,9 +56,13 @@ export function RowActions(
         if (e.key === 'Escape') setOpen(false);
         return;
       }
-      if (!wrapRef.current) return;
       if (!(e.target instanceof Node)) return;
-      if (!wrapRef.current.contains(e.target)) setOpen(false);
+      // Close if click lands outside both the trigger wrap AND
+      // the floating menu (menu is portaled via position: fixed,
+      // so a contains() on wrapRef alone would miss menu clicks).
+      if (wrapRef.current?.contains(e.target)) return;
+      if (menuRef.current?.contains(e.target)) return;
+      setOpen(false);
     };
     window.addEventListener('mousedown', onDown);
     window.addEventListener('keydown', onDown);
@@ -55,8 +86,11 @@ export function RowActions(
                 setOpen((v) => !v); }}>
         <DotsIcon />
       </button>
-      {open && (
-        <ul className="cap-row-actions__menu" role="menu">
+      {open && menuRect && (
+        <ul className="cap-row-actions__menu" role="menu"
+            ref={menuRef}
+            style={{ top: menuRect.top + 'px',
+                     right: menuRect.right + 'px' }}>
           {actions.map((a, i) => (
             <li key={i} role="none">
               <button type="button"
