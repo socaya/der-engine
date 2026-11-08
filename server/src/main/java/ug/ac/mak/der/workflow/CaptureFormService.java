@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import ug.ac.mak.der.metadata.ExtendedMirrorRepository;
 import ug.ac.mak.der.metadata.MetadataMirrorRepository;
+import ug.ac.mak.der.metadata.MirroredProgramStageSection;
 import ug.ac.mak.der.metadata.MirroredCategoryOptionCombo;
 import ug.ac.mak.der.metadata.MirroredDataElement;
 import ug.ac.mak.der.metadata.MirroredDataSet;
@@ -336,22 +337,97 @@ public class CaptureFormService {
         }
         final List<MirroredProgramStage.ProgramStageDataElement> psdes =
                 extended.findProgramStageDataElements(stageUid);
-        final List<FormField> fields = new ArrayList<>();
+        // Index psdes by DE uid so we can look up per-field metadata
+        // (compulsory + renderType) when building section groupings.
+        final java.util.Map<String, MirroredProgramStage.ProgramStageDataElement>
+                psdeByUid = new java.util.LinkedHashMap<>();
         for (final MirroredProgramStage.ProgramStageDataElement psde : psdes) {
-            final MirroredDataElement de = mirror.findDataElement(psde.dataElementUid())
-                    .orElse(null);
-            if (de == null) {
-                continue;
+            psdeByUid.put(psde.dataElementUid(), psde);
+        }
+        final List<MirroredProgramStageSection> sections =
+                extended.findProgramStageSections(stageUid);
+        final List<FormSection> formSections = new ArrayList<>();
+        if (!sections.isEmpty()) {
+            // Metadata-driven per-section grouping (Phase 1): one
+            // FormSection per DHIS2 programStageSection, data
+            // elements in the admin-configured within-section order,
+            // renderType hint passed through. DEs not assigned to
+            // any section are gathered into a trailing "Other" group
+            // so the operator never loses access to a field (defence
+            // in depth; well-configured DHIS2 metadata places every
+            // DE in exactly one section).
+            final java.util.Set<String> seen = new java.util.HashSet<>();
+            for (final MirroredProgramStageSection sec : sections) {
+                final List<FormField> secFields = new ArrayList<>();
+                for (final String deUid : sec.dataElementUids()) {
+                    final MirroredDataElement de =
+                            mirror.findDataElement(deUid).orElse(null);
+                    if (de == null) {
+                        continue;
+                    }
+                    final MirroredProgramStage.ProgramStageDataElement
+                            psde = psdeByUid.get(deUid);
+                    final boolean compulsory = psde != null
+                            && psde.compulsory();
+                    secFields.add(new FormField(
+                            deUid, deUid, null,
+                            de.displayName(), null,
+                            de.valueType(), readOptionSetUid(de),
+                            compulsory ? Requirement.REQUIRED
+                                    : Requirement.OPTIONAL,
+                            psde == null ? null
+                                    : psde.renderTypeDesktop()));
+                    seen.add(deUid);
+                }
+                formSections.add(new FormSection(
+                        sec.dhis2Uid(), sec.displayName(),
+                        sec.sortOrder(), sec.renderTypeDesktop(),
+                        secFields));
             }
-            fields.add(new FormField(
-                    psde.dataElementUid(),
-                    psde.dataElementUid(),
-                    null,
-                    de.displayName(),
-                    null,
-                    de.valueType(),
-                    readOptionSetUid(de),
-                    psde.compulsory() ? Requirement.REQUIRED : Requirement.OPTIONAL));
+            final List<FormField> unassigned = new ArrayList<>();
+            for (final MirroredProgramStage.ProgramStageDataElement psde : psdes) {
+                if (seen.contains(psde.dataElementUid())) {
+                    continue;
+                }
+                final MirroredDataElement de = mirror.findDataElement(
+                        psde.dataElementUid()).orElse(null);
+                if (de == null) {
+                    continue;
+                }
+                unassigned.add(new FormField(
+                        psde.dataElementUid(), psde.dataElementUid(),
+                        null, de.displayName(), null,
+                        de.valueType(), readOptionSetUid(de),
+                        psde.compulsory() ? Requirement.REQUIRED
+                                : Requirement.OPTIONAL,
+                        psde.renderTypeDesktop()));
+            }
+            if (!unassigned.isEmpty()) {
+                formSections.add(new FormSection(null, "Other",
+                        Integer.MAX_VALUE, null, unassigned));
+            }
+        } else {
+            // No sections mirrored (older metadata or formType=DEFAULT):
+            // fall back to the pre-Phase-1 lumped single-section
+            // output so existing programs keep rendering exactly as
+            // they did before this slice.
+            final List<FormField> fields = new ArrayList<>();
+            for (final MirroredProgramStage.ProgramStageDataElement psde : psdes) {
+                final MirroredDataElement de = mirror.findDataElement(
+                        psde.dataElementUid()).orElse(null);
+                if (de == null) {
+                    continue;
+                }
+                fields.add(new FormField(
+                        psde.dataElementUid(), psde.dataElementUid(),
+                        null, de.displayName(), null,
+                        de.valueType(), readOptionSetUid(de),
+                        psde.compulsory() ? Requirement.REQUIRED
+                                : Requirement.OPTIONAL,
+                        psde.renderTypeDesktop()));
+            }
+            formSections.add(new FormSection(null,
+                    stage.displayName(), fields));
         }
         return new FormAssembly(
                 FormType.EVENT_STAGE,
@@ -359,7 +435,7 @@ public class CaptureFormService {
                 stageUid,
                 stage.displayName(),
                 new Ownership(null, null, true),
-                List.of(new FormSection(null, stage.displayName(), fields)),
+                formSections,
                 List.of());
     }
 
@@ -734,12 +810,53 @@ public class CaptureFormService {
             String categoryOptionComboDisplayName,
             String valueType,
             String optionSetUid,
-            Requirement requirement) { }
+            Requirement requirement,
+            /**
+             * Per-field DHIS2 renderType hint from the mirror
+             * (DROPDOWN / VERTICAL_RADIOBUTTONS /
+             * HORIZONTAL_RADIOBUTTONS / VERTICAL_CHECKBOXES /
+             * HORIZONTAL_CHECKBOXES / TOGGLE / SPINNER / SLIDER /
+             * AUTOCOMPLETE / DEFAULT / ...). Nullable; client
+             * falls back to a value-type-chosen input when absent.
+             */
+            String renderType) {
+
+        /** Back-compat shorthand for aggregate + upstream-context
+         *  callers that don't carry a renderType hint. */
+        public FormField(final String fieldRef,
+                          final String dataElementUid,
+                          final String categoryOptionComboUid,
+                          final String dataElementDisplayName,
+                          final String categoryOptionComboDisplayName,
+                          final String valueType,
+                          final String optionSetUid,
+                          final Requirement requirement) {
+            this(fieldRef, dataElementUid, categoryOptionComboUid,
+                    dataElementDisplayName, categoryOptionComboDisplayName,
+                    valueType, optionSetUid, requirement, null);
+        }
+    }
 
     public record FormSection(
-            UUID sectionUid,
+            String sectionUid,
             String displayName,
-            List<FormField> fields) { }
+            Integer sortOrder,
+            /**
+             * Per-section layout hint from the DHIS2 mirror
+             * (LISTING / MATRIX / SEQUENTIAL). Nullable; client
+             * falls back to LISTING when absent.
+             */
+            String renderType,
+            List<FormField> fields) {
+
+        /** Back-compat shorthand for the aggregate + lumped-fallback
+         *  callers that only need (uid, name, fields). */
+        public FormSection(final String sectionUid,
+                            final String displayName,
+                            final List<FormField> fields) {
+            this(sectionUid, displayName, null, null, fields);
+        }
+    }
 
     public record UpstreamStepContext(
             UUID stepId,
