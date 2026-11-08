@@ -806,4 +806,79 @@ export const CAPTURE_STYLES = `
   border-radius: 0;
   font-size: 11px; font-family: ui-monospace, Menlo, monospace;
 }
+
+/* --- ContextInspector (v3 §5.3) ---------------------------------
+ * Right-side overlay panel. Backdrop is transparent on desktop so
+ * the operator can still see the page beneath; on narrow viewports
+ * the panel becomes a full-width sheet.
+ */
+.cap-insp-backdrop {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(23, 38, 60, 0.18);
+  display: flex; justify-content: flex-end;
+}
+.cap-insp {
+  width: 360px; max-width: 95vw; height: 100%;
+  background: var(--der-surface);
+  border-left: 1px solid var(--der-border);
+  box-shadow: -2px 0 0 rgba(23, 38, 60, 0.04);
+  display: flex; flex-direction: column;
+  outline: none;
+}
+.cap-insp__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--der-border);
+}
+.cap-insp__title {
+  margin: 0; font-size: 13px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--der-text-muted);
+}
+.cap-insp__close {
+  background: transparent; border: 0;
+  color: var(--der-text-muted); cursor: pointer;
+  font-size: 22px; line-height: 1; padding: 0 4px;
+}
+.cap-insp__close:hover { color: var(--der-text); }
+.cap-insp__tabs {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--der-border);
+}
+.cap-insp__tab {
+  flex: 1; padding: 8px 10px;
+  background: transparent; border: 0;
+  border-bottom: 2px solid transparent;
+  font-size: 12px; font-weight: 500; font-family: inherit;
+  color: var(--der-text-muted); cursor: pointer;
+}
+.cap-insp__tab:hover { color: var(--der-text); }
+.cap-insp__tab--active {
+  color: var(--der-primary);
+  border-bottom-color: var(--der-primary);
+}
+.cap-insp__body {
+  flex: 1; overflow: auto;
+  padding: 14px;
+  font-size: 13px; color: var(--der-text);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.cap-insp__sync-line {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 500;
+}
+.cap-insp__sync-line--live { color: var(--der-success); }
+.cap-insp__sync-line--syncing { color: var(--der-warning); }
+.cap-insp__sync-line--offline-held { color: var(--der-warning); }
+.cap-insp__sync-line--offline { color: var(--der-text-muted); }
+.cap-insp__hint {
+  margin: 10px 0 0 0;
+  padding: 8px 10px;
+  background: var(--der-surface-subtle);
+  color: var(--der-text-muted);
+  font-size: 11px; line-height: 1.5;
+}
+@media (max-width: 640px) {
+  .cap-insp { width: 100%; max-width: 100%; }
+}
 `;

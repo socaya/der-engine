@@ -11,6 +11,7 @@ import { TrackerWorkflow } from './features/TrackerWorkflow';
 import type { ProgramOpt, CaptureApi } from './shared/types';
 import { CAPTURE_STYLES } from './shared/styles';
 import { DirtyProvider, useAnyDirty } from './shared/DirtyContext';
+import { ContextInspector } from './shared/ContextInspector';
 
 /**
  * DER Capture — unified Tracker + Event capture app.
@@ -42,6 +43,7 @@ function CaptureAppInner(): JSX.Element {
   const [programs, setPrograms] = useState<ProgramOpt[]>([]);
   const [programUid, setProgramUid] = useState('');
   const [infoOpen, setInfoOpen] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   /** DER device workflows — fetched once on mount. The toolbar
    *  strip filters at render time to the currently-selected
@@ -88,6 +90,9 @@ function CaptureAppInner(): JSX.Element {
       if (ev.code === 'KeyI') {
         ev.preventDefault();
         setInfoOpen((v) => !v);
+      } else if (ev.code === 'KeyD') {
+        ev.preventDefault();
+        setInspectorOpen((v) => !v);
       } else if (ev.code === 'KeyS') {
         const btn = document.querySelector<HTMLButtonElement>(
           '[data-test="ce-submit-btn"]:not([disabled]),'
@@ -279,6 +284,29 @@ function CaptureAppInner(): JSX.Element {
               <circle cx="8" cy="4.5" r="0.9" fill="currentColor" />
               <rect x="7" y="7" width="2" height="5" rx="1"
                     fill="currentColor"/>
+            </svg>
+          </button>
+          <button type="button"
+                  className="cap-toolbar__info-btn"
+                  data-test="cap-inspector-btn"
+                  aria-label="Open context inspector"
+                  aria-expanded={inspectorOpen}
+                  title={'Context inspector — sync + program + device '
+                    + 'state at a glance (Alt+D)'}
+                  onClick={() => setInspectorOpen((v) => !v)}>
+            <svg viewBox="0 0 16 16" width="13" height="13"
+                 aria-hidden="true">
+              <rect x="1.5" y="2.5" width="13" height="11"
+                    fill="none" stroke="currentColor"
+                    strokeWidth="1.5" />
+              <line x1="10.5" y1="2.5" x2="10.5" y2="13.5"
+                    stroke="currentColor" strokeWidth="1.5"/>
+              <line x1="3.5" y1="5.5" x2="8.5" y2="5.5"
+                    stroke="currentColor" strokeWidth="1.3"/>
+              <line x1="3.5" y1="8" x2="8" y2="8"
+                    stroke="currentColor" strokeWidth="1.3"/>
+              <line x1="3.5" y1="10.5" x2="8.5" y2="10.5"
+                    stroke="currentColor" strokeWidth="1.3"/>
             </svg>
           </button>
           <OfflineStatus isOnline={online.isOnline}
@@ -478,6 +506,26 @@ function CaptureAppInner(): JSX.Element {
                              assignedWorkflowCount={
                                deviceAssignedWorkflows.length} />
       )}
+
+      <ContextInspector
+        open={inspectorOpen}
+        onClose={() => setInspectorOpen(false)}
+        isOnline={online.isOnline}
+        queuedCount={online.queuedCount}
+        onFlush={async () => {
+          await api.triggerSyncJob('JOURNAL_WORKER_DRAIN');
+        }}
+        programLabel={program?.displayName ?? null}
+        programUid={program?.id ?? null}
+        modeLabel={mode === 'tracker' ? 'Tracker (WITH_REGISTRATION)'
+          : mode === 'event' ? 'Event (WITHOUT_REGISTRATION)'
+          : null}
+        ouLabel={ou.orgUnitDisplayName || ou.orgUnitUid
+          || 'Not bound'}
+        ouUid={ou.orgUnitUid}
+        deviceId={device.deviceId}
+        deviceStatus={device.status}
+        workflowCount={deviceAssignedWorkflows.length} />
     </ScreenCard>
   );
 }
