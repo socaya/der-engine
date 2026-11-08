@@ -90,14 +90,14 @@ export function TrackerDashboard(
         }));
         setEnrolments(enr);
         setStages(stageRes.stages.map((s) => ({
-          id: s.programStageUid, displayName: s.displayName,
+          id: s.stageUid, displayName: s.displayName,
         })));
         // Persist repeatability so the "Add event" button can
         // disable itself for non-repeatable stages that already
         // have one event (TR-034).
         const repMap = new Map<string, boolean>();
         for (const s of stageRes.stages) {
-          repMap.set(s.programStageUid,
+          repMap.set(s.stageUid,
             (s as { repeatable?: boolean }).repeatable ?? false);
         }
         setStageRepeatable(repMap);

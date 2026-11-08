@@ -144,8 +144,9 @@ function CaptureAppInner(): JSX.Element {
       <style>{CAPTURE_STYLES}</style>
 
       {/* Sticky top toolbar — mirrors the Data Entry layout:
-       *   title + info-button + online pill + context fields
-       *   on one line. */}
+       *   row 1: brand strip (icon + title + info + online + dirty)
+       *   row 2: Bound OU + Program + Mode fields with labels
+       *          stacked above each control. */}
       <div className="cap-toolbar" role="toolbar"
            aria-label="Capture toolbar">
         <div className="cap-toolbar__brand">
@@ -175,6 +176,7 @@ function CaptureAppInner(): JSX.Element {
                     fill="currentColor"/>
             </svg>
           </button>
+          <span style={{ flex: 1 }} />
           <StatusPill tone={online.isOnline ? 'success' : 'warning'}>
             {online.isOnline
               ? 'online' : `offline (${online.queuedCount} queued)`}
@@ -182,38 +184,54 @@ function CaptureAppInner(): JSX.Element {
           <DirtyChip />
         </div>
 
-        <label className="cap-toolbar__field">
-          <span className="cap-toolbar__field-label">Program</span>
-          <select className="cap-toolbar__select"
-                  value={programUid}
-                  onChange={(e) => setProgramUid(e.target.value)}
-                  data-test="cap-program-select"
-                  disabled={!ou.bound || programs.length === 0}>
-            <option value="">— select —</option>
-            {programs.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.displayName}
+        <div className="cap-toolbar__fields">
+          <label className="cap-toolbar__field cap-toolbar__field--ou">
+            <span className="cap-toolbar__field-label">Bound OU</span>
+            <span className="cap-toolbar__ou-value"
+                  data-test="cap-bound-ou"
+                  title={ou.orgUnitPath}>
+              {ou.orgUnitDisplayName || ou.orgUnitUid || '—'}
+            </span>
+          </label>
+
+          <label className="cap-toolbar__field">
+            <span className="cap-toolbar__field-label">Program</span>
+            <select className="cap-toolbar__select"
+                    value={programUid}
+                    onChange={(e) => setProgramUid(e.target.value)}
+                    data-test="cap-program-select"
+                    disabled={!ou.bound || programs.length === 0}>
+              <option value="">
+                {programs.length === 0 ? 'No programs assigned'
+                  : 'Select a program…'}
               </option>
-            ))}
-          </select>
-        </label>
+              {programs.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <div className="cap-toolbar__ou">
-          <span className="cap-toolbar__field-label">Organisation unit</span>
-          <code className="cap-toolbar__ou-code" title={ou.orgUnitPath}>
-            {ou.orgUnitDisplayName || ou.orgUnitUid || '—'}
-          </code>
+          <div className="cap-toolbar__field">
+            <span className="cap-toolbar__field-label">Mode</span>
+            {mode ? (
+              <span className={'cap-toolbar__mode '
+                  + 'cap-toolbar__mode--' + mode}
+                    data-test="cap-mode-chip"
+                    title={mode === 'tracker'
+                      ? 'Program requires registration — tracker workflow'
+                      : 'Standalone event program — event workflow'}>
+                {mode === 'tracker' ? 'Tracker' : 'Event'}
+              </span>
+            ) : (
+              <span className="cap-toolbar__mode cap-toolbar__mode--empty"
+                    data-test="cap-mode-chip">
+                —
+              </span>
+            )}
+          </div>
         </div>
-
-        {mode && (
-          <span className={'cap-toolbar__mode cap-toolbar__mode--' + mode}
-                data-test="cap-mode-chip"
-                title={mode === 'tracker'
-                  ? 'Program requires registration — tracker workflow'
-                  : 'Standalone event program — event workflow'}>
-            {mode === 'tracker' ? 'Tracker' : 'Event'}
-          </span>
-        )}
       </div>
 
       {!ou.bound && (
@@ -258,8 +276,25 @@ function CaptureAppInner(): JSX.Element {
         <div className="cap-empty" data-test="cap-no-programs">
           <h2 className="cap-empty__title">No programs assigned</h2>
           <p className="cap-empty__body">
-            This organisation unit has no programs available. Ask an
-            administrator to assign a program before continuing.
+            Your bound organisation unit{' '}
+            <code className="cap-sub__code" title={ou.orgUnitPath}>
+              {ou.orgUnitDisplayName || ou.orgUnitUid}
+            </code>{' '}
+            isn't in any program's{' '}
+            <code>organisationUnits</code> assignment on this DHIS2
+            server. Ask an administrator to open the program in the
+            DHIS2 Maintenance app and tick this OU under
+            <em> Access → Organisation units</em>, then refresh.
+          </p>
+          <p className="cap-empty__body" style={{ fontSize: 12,
+            color: '#6e7a8a' }}>
+            <strong>Tech hint:</strong> admin can verify with{' '}
+            <code>
+              GET /api/programs?fields=id,organisationUnits[id]
+            </code>
+            {' '}and check that{' '}
+            <code>{ou.orgUnitUid || '—'}</code> appears on at least
+            one program.
           </p>
         </div>
       )}

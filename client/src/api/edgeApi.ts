@@ -692,15 +692,49 @@ export interface TrackedEntityRow {
   readonly orgUnit?: string;
 }
 
-/** List tracked entities for a program + bound OU. Thin wrapper around
- *  the DHIS2 /api/tracker/trackedEntities read endpoint. Slice-5 of
- *  C-UI-5c — the capture-tracker app consumes this via the SDK. */
-export function listTrackerEntities(program: string, orgUnit: string, pageSize = 50):
-    Promise<{ instances?: TrackedEntityRow[]; trackedEntities?: TrackedEntityRow[]; total?: number }> {
+/** List tracked entities for a program + bound OU.
+ *
+ *  <p>DER's dhis2 proxy allow-list doesn't cover
+ *  {@code /api/tracker/trackedEntities}, and the DER-native
+ *  {@code /edge-api/v1/tracked-entities} search is scoped by
+ *  {@code trackedEntityType}, not by program. So we resolve
+ *  program → TET first (cached via {@link getCaptureProgramTeiType}),
+ *  then hit the native endpoint. The returned shape stays
+ *  compatible with existing callers — {@code trackedEntities} +
+ *  {@code count} with TrackedEntityRow entries. */
+export async function listTrackerEntities(
+  program: string, orgUnit: string, pageSize = 50,
+): Promise<{ instances?: TrackedEntityRow[];
+    trackedEntities?: TrackedEntityRow[]; total?: number }> {
+  let tetUid: string | null = null;
+  try {
+    const tet = await getCaptureProgramTeiType(program);
+    tetUid = tet?.trackedEntityTypeUid ?? null;
+  } catch {
+    tetUid = null;
+  }
   const q = new URLSearchParams({
-    program, orgUnit, pageSize: String(pageSize),
-  }).toString();
-  return request('GET', `/api/tracker/trackedEntities?${q}`);
+    orgUnit, limit: String(pageSize),
+  });
+  if (tetUid) q.set('trackedEntityType', tetUid);
+  const r = await fetch('/edge-api/v1/tracked-entities?' + q.toString(),
+    { credentials: 'include',
+      headers: { Accept: 'application/json' } });
+  if (!r.ok) {
+    return { trackedEntities: [], total: 0 };
+  }
+  const body = await r.json() as { trackedEntities?: Array<{
+    teiUid?: string; displayName?: string;
+    orgUnit?: string; updatedAt?: string;
+  }>; count?: number };
+  const rows: TrackedEntityRow[] = (body.trackedEntities ?? [])
+    .map((t) => ({
+      trackedEntity: t.teiUid,
+      displayName: t.displayName,
+      orgUnit: t.orgUnit,
+      lastUpdated: t.updatedAt,
+    }));
+  return { trackedEntities: rows, total: body.count ?? rows.length };
 }
 
 /** Enrol a single TEI into a program via POST /api/tracker. Minimal

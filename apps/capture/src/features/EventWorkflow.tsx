@@ -67,7 +67,7 @@ export function EventWorkflow(
         const r = await api.listCaptureProgramStages(programUid);
         if (cancelled) return;
         const opts = r.stages.map((s) => ({
-          id: s.programStageUid, displayName: s.displayName,
+          id: s.stageUid, displayName: s.displayName,
         }));
         setStages(opts);
         if (opts.length === 1) setStageUid(opts[0].id);

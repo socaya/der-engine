@@ -31,9 +31,9 @@ describe('parseProgram', () => {
 
   it('attaches stages in server order with explicit sort orders', () => {
     const stages: RawStage[] = [
-      { programStageUid: 'S2', displayName: 'Second',
+      { stageUid: 'S2', displayName: 'Second',
         sortOrder: 2, repeatable: true },
-      { programStageUid: 'S1', displayName: 'First',
+      { stageUid: 'S1', displayName: 'First',
         sortOrder: 1, repeatable: false },
     ];
     const p = parseProgram({ id: 'P1' }, stages);
@@ -70,7 +70,7 @@ describe('parseProgram', () => {
 
   it('defaults stage repeatable to false and keeps display order', () => {
     const p = parseProgram({ id: 'P1' }, [
-      { programStageUid: 'S1' }, { programStageUid: 'S2' },
+      { stageUid: 'S1' }, { stageUid: 'S2' },
     ]);
     expect(p.stages[0]!.repeatable).toBe(false);
     expect(p.stages[1]!.sortOrder).toBe(1);
@@ -186,7 +186,7 @@ describe('parseStageForm', () => {
 
   it('uses stageMeta for displayName + repeatable when supplied', () => {
     const r = parseStageForm('S1', baseForm,
-      { programStageUid: 'S1', displayName: 'Clinic visit',
+      { stageUid: 'S1', displayName: 'Clinic visit',
         repeatable: true, sortOrder: 3 });
     expect(r.stage.displayName).toBe('Clinic visit');
     expect(r.stage.repeatable).toBe(true);

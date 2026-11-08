@@ -29,7 +29,7 @@ export interface RawProgram {
 }
 
 export interface RawStage {
-  readonly programStageUid: string;
+  readonly stageUid: string;
   readonly displayName?: string;
   readonly repeatable?: boolean;
   readonly sortOrder?: number;
@@ -94,8 +94,8 @@ export function parseProgram(
     raw.programType === 'WITH_REGISTRATION'
       ? 'WITH_REGISTRATION' : 'WITHOUT_REGISTRATION';
   const parsedStages: CaptureStage[] = stages.map((s, i) => ({
-    id: s.programStageUid,
-    displayName: s.displayName ?? s.programStageUid,
+    id: s.stageUid,
+    displayName: s.displayName ?? s.stageUid,
     repeatable: s.repeatable ?? false,
     sortOrder: s.sortOrder ?? i,
   }));

@@ -8,17 +8,18 @@
 export const CAPTURE_STYLES = `
 .cap-toolbar {
   position: sticky; top: 0; z-index: 10;
-  display: grid;
-  grid-template-columns: minmax(280px, auto) 1fr 1fr auto;
-  gap: 12px; align-items: end;
+  display: flex; flex-direction: column; gap: 10px;
   padding: 10px 14px 12px 14px;
   background: #fff;
   border-bottom: 1px solid #e3e8f0;
 }
+.cap-toolbar__fields {
+  display: grid;
+  grid-template-columns: 2fr 2fr auto;
+  gap: 12px; align-items: end;
+}
 @media (max-width: 760px) {
-  .cap-toolbar {
-    /* Stack the brand row + each selector field on narrow screens
-     * so the toolbar never overflows horizontally. */
+  .cap-toolbar__fields {
     grid-template-columns: 1fr;
   }
   .cap-toolbar__brand {
@@ -30,7 +31,18 @@ export const CAPTURE_STYLES = `
 }
 .cap-toolbar__brand {
   display: flex; align-items: center; gap: 10px;
-  padding-bottom: 1px;
+}
+.cap-toolbar__ou-value {
+  display: inline-block;
+  padding: 6px 10px; border-radius: 3px;
+  border: 1px solid #c6d4e4;
+  background: #eef2f8;
+  color: #0a5497; font-weight: 500; font-size: 14px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.cap-toolbar__mode--empty {
+  background: #f3f5f8; color: #94a3b8; border-color: #e3e8f0;
 }
 .cap-toolbar__icon {
   display: inline-flex; align-items: center; justify-content: center;

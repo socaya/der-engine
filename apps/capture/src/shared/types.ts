@@ -35,7 +35,8 @@ export interface CaptureApi {
     programType: 'WITH_REGISTRATION' | 'WITHOUT_REGISTRATION';
   }>>;
   listCaptureProgramStages: (programUid: string) => Promise<{
-    stages: Array<{ programStageUid: string; displayName: string }>;
+    stages: Array<{ stageUid: string; displayName: string;
+      repeatable?: boolean; sortOrder?: number }>;
   }>;
   getCaptureStageForm: (programUid: string, stageUid: string) => Promise<{
     sections: Array<{ displayName: string;

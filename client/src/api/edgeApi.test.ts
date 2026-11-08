@@ -507,6 +507,78 @@ describe('edgeApi.getOptionSet', () => {
   });
 });
 
+describe('edgeApi.listTrackerEntities', () => {
+  it('resolves program → TET then hits the native /edge-api route',
+      async () => {
+    fetchMock.mockResolvedValueOnce(jsonRespond(200,
+      { trackedEntityTypeUid: 'TET1' }));
+    fetchMock.mockResolvedValueOnce(jsonRespond(200, {
+      trackedEntities: [
+        { teiUid: 'TEI_A', displayName: 'Alice', orgUnit: 'OU1',
+          updatedAt: '2026-11-08T00:00:00Z' },
+        { teiUid: 'TEI_B' },
+      ],
+      count: 2,
+    }));
+    const r = await api.listTrackerEntities('P1', 'OU1', 50);
+    expect(r.trackedEntities?.length).toBe(2);
+    expect(r.trackedEntities?.[0]).toEqual({
+      trackedEntity: 'TEI_A', displayName: 'Alice',
+      orgUnit: 'OU1', lastUpdated: '2026-11-08T00:00:00Z',
+    });
+    expect(r.total).toBe(2);
+    const [tetPath] = fetchMock.mock.calls[0] as [string];
+    const [searchPath] = fetchMock.mock.calls[1] as [string];
+    expect(tetPath).toContain('/edge-api/v1/capture/programs/P1');
+    expect(searchPath).toContain('/edge-api/v1/tracked-entities?');
+    expect(searchPath).toContain('trackedEntityType=TET1');
+    expect(searchPath).toContain('orgUnit=OU1');
+    expect(searchPath).toContain('limit=50');
+  });
+
+  it('omits trackedEntityType when the TET lookup fails', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('net down'));
+    fetchMock.mockResolvedValueOnce(jsonRespond(200,
+      { trackedEntities: [], count: 0 }));
+    await api.listTrackerEntities('P1', 'OU1');
+    const [searchPath] = fetchMock.mock.calls[1] as [string];
+    expect(searchPath).toContain('/edge-api/v1/tracked-entities');
+    expect(searchPath).not.toContain('trackedEntityType=');
+  });
+
+  it('returns an empty list on HTTP error', async () => {
+    fetchMock.mockResolvedValueOnce(jsonRespond(200,
+      { trackedEntityTypeUid: 'TET1' }));
+    fetchMock.mockResolvedValueOnce(jsonRespond(500,
+      { error: 'boom' }));
+    const r = await api.listTrackerEntities('P1', 'OU1');
+    expect(r).toEqual({ trackedEntities: [], total: 0 });
+  });
+
+  it('skips the trackedEntityType filter when TET lookup returns null',
+      async () => {
+    // getCaptureProgramTeiType responds with a non-null body but no
+    // trackedEntityTypeUid field — the helper should fall through
+    // and search without the filter rather than error out.
+    fetchMock.mockResolvedValueOnce(jsonRespond(200, {}));
+    fetchMock.mockResolvedValueOnce(jsonRespond(200, {
+      trackedEntities: [], count: 0,
+    }));
+    await api.listTrackerEntities('P1', 'OU1');
+    const [searchPath] = fetchMock.mock.calls[1] as [string];
+    expect(searchPath).not.toContain('trackedEntityType=');
+  });
+
+  it('falls back when the native endpoint omits trackedEntities + count',
+      async () => {
+    fetchMock.mockResolvedValueOnce(jsonRespond(200,
+      { trackedEntityTypeUid: 'TET1' }));
+    fetchMock.mockResolvedValueOnce(jsonRespond(200, {}));
+    const r = await api.listTrackerEntities('P1', 'OU1');
+    expect(r).toEqual({ trackedEntities: [], total: 0 });
+  });
+});
+
 describe('edgeApi.submitEvent', () => {
   it('wraps the single event in the DHIS2 {events:[...]} envelope',
       async () => {
