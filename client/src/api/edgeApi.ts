@@ -666,11 +666,13 @@ export interface EventSubmitInput {
   readonly event?: string;
 }
 
-/** POST /api/events — DER accepts the DHIS2-shaped envelope and
- *  stores events locally with the same offline-queue semantics as
- *  aggregate submissions. */
+/** POST /api/events — DER's dhis2 emulator reads
+ *  {@code {events: [...]}} and rejects bare-event bodies with
+ *  'events array is required'. Wrap the single-event input so
+ *  Capture's submit flow actually writes to the edge (fix for
+ *  a long-standing bug uncovered during G5/G6 live verification). */
 export function submitEvent(body: EventSubmitInput): Promise<unknown> {
-  return request('POST', '/api/events', body);
+  return request('POST', '/api/events', { events: [body] });
 }
 
 export function listTrackerEvents(program: string, orgUnit: string, pageSize = 100):

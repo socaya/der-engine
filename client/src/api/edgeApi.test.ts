@@ -507,6 +507,27 @@ describe('edgeApi.getOptionSet', () => {
   });
 });
 
+describe('edgeApi.submitEvent', () => {
+  it('wraps the single event in the DHIS2 {events:[...]} envelope',
+      async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, { status: 'SUCCESS' }));
+    await api.submitEvent({
+      program: 'P1', programStage: 'S1', orgUnit: 'OU1',
+      occurredAt: '2026-11-08T00:00:00Z',
+      dataValues: [{ dataElement: 'DE1', value: '5' }],
+    });
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/api/events');
+    expect(init.method).toBe('POST');
+    const body = JSON.parse(String(init.body)) as {
+      events: Array<{ program: string }>;
+    };
+    expect(Array.isArray(body.events)).toBe(true);
+    expect(body.events.length).toBe(1);
+    expect(body.events[0]!.program).toBe('P1');
+  });
+});
+
 describe('edgeApi.enrolTei', () => {
   it('POSTs to the DER-native /edge-api/v1/tracked-entities path', async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, { teiUid: 'T1' }));

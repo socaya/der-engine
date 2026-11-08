@@ -153,6 +153,15 @@ export function TrackerRelationshipsSection(
 
   return (
     <>
+      <div className="cap-strip cap-strip--info"
+           data-test="tr-rel-edge-notice"
+           style={{ marginBottom: 6 }}>
+        <strong>Relationships pass through to central DHIS2.</strong>{' '}
+        The DER edge doesn't emulate the tracker relationship
+        endpoints today — reads + writes go straight to the central
+        server when it's reachable. During a WAN outage the list
+        stays empty and Link/Unlink return HTTP errors.
+      </div>
       <div className="cap-section-head" data-test="tr-rel-head">
         <h2 className="cap-section-head__title">Relationships</h2>
         <span className="cap-section-head__count">
