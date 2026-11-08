@@ -5,7 +5,7 @@ import type {
   CaptureProgramRule, CaptureProgramRuleVariable,
 } from '../shared/model';
 import { parseStageForm } from '../shared/parser';
-import { parseProgramRules } from '../shared/rules';
+import { enrichRulesWithActions, parseProgramRules } from '../shared/rules';
 import { applyRuleEffectsToSections, evaluateRules } from '../shared/ruleEngine';
 import type { CaptureApi } from '../shared/types';
 import { useDirtyGuard } from '../shared/useDirtyGuard';
@@ -64,10 +64,12 @@ export function TrackerStageEditor(
     setState('loading');
     (async () => {
       try {
-        const [form, rawRules, rawVars, detail] = await Promise.all([
+        const [form, rawRules, rawVars, rawActions, detail]
+            = await Promise.all([
           api.getCaptureStageForm(programUid, stageUid),
           api.listProgramRules(programUid),
           api.listProgramRuleVariables(programUid),
+          api.listProgramRuleActions(),
           eventUid ? api.getCaptureEventDetail(eventUid)
             : Promise.resolve(null),
         ]);
@@ -75,7 +77,8 @@ export function TrackerStageEditor(
         const parsed = parseStageForm(stageUid, form);
         setSections(parsed.sections);
         setParseIssues(parsed.issues);
-        const parsedRules = parseProgramRules(rawRules, rawVars);
+        const enriched = enrichRulesWithActions(rawRules, rawActions);
+        const parsedRules = parseProgramRules(enriched, rawVars);
         setRules(parsedRules.rules);
         setRuleVars(parsedRules.variables);
         if (detail) {

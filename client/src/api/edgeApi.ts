@@ -1342,6 +1342,22 @@ export async function listProgramRules(programUid?: string):
   return rules.filter((r) => r.program?.id === programUid);
 }
 
+/** DER's /api/programRules response returns programRuleActions as
+ *  id-only stubs (the mirror's inline expansion is shallow). Pull
+ *  the full action list separately and let the client join them by
+ *  rule UID. */
+export async function listProgramRuleActions():
+    Promise<Array<RawProgramRuleAction & {
+      programRule?: { id?: string } }>> {
+  return await listAllPages<RawProgramRuleAction
+    & { programRule?: { id?: string } }>(
+    '/api/programRuleActions?fields=id,programRule%5Bid%5D,'
+      + 'programRuleActionType,content,data,'
+      + 'dataElement%5Bid%5D,trackedEntityAttribute%5Bid%5D,'
+      + 'programStage%5Bid%5D,programStageSection%5Bid%5D,location',
+    'programRuleActions');
+}
+
 export async function listProgramRuleVariables(programUid?: string):
     Promise<RawProgramRuleVariable[]> {
   const vars = await listAllPages<RawProgramRuleVariable>(

@@ -84,6 +84,17 @@ export interface CaptureApi {
       location?: string;
     }>;
   }>>;
+  listProgramRuleActions: () => Promise<ReadonlyArray<{
+    id: string;
+    programRule?: { id?: string };
+    programRuleActionType?: string;
+    content?: string; data?: string;
+    dataElement?: { id?: string } | null;
+    trackedEntityAttribute?: { id?: string } | null;
+    programStage?: { id?: string } | null;
+    programStageSection?: { id?: string } | null;
+    location?: string;
+  }>>;
   listProgramRuleVariables: (programUid?: string) =>
     Promise<ReadonlyArray<{
       id: string; displayName?: string; name?: string;

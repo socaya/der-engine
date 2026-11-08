@@ -6,7 +6,7 @@ import type {
   CaptureProgramRule, CaptureProgramRuleVariable,
 } from '../shared/model';
 import { parseStageForm } from '../shared/parser';
-import { parseProgramRules } from '../shared/rules';
+import { enrichRulesWithActions, parseProgramRules } from '../shared/rules';
 import { applyRuleEffectsToSections, evaluateRules } from '../shared/ruleEngine';
 import { useDirtyGuard } from '../shared/useDirtyGuard';
 import { usePublishDirty } from '../shared/DirtyContext';
@@ -126,12 +126,14 @@ export function EventWorkflow(
     let cancelled = false;
     (async () => {
       try {
-        const [rawRules, rawVars] = await Promise.all([
+        const [rawRules, rawVars, rawActions] = await Promise.all([
           api.listProgramRules(programUid),
           api.listProgramRuleVariables(programUid),
+          api.listProgramRuleActions(),
         ]);
         if (cancelled) return;
-        const parsed = parseProgramRules(rawRules, rawVars);
+        const enriched = enrichRulesWithActions(rawRules, rawActions);
+        const parsed = parseProgramRules(enriched, rawVars);
         setRules(parsed.rules);
         setRuleVars(parsed.variables);
         if (parsed.issues.length > 0) {
@@ -337,8 +339,17 @@ export function EventWorkflow(
             + New event
           </button>
         )}
-        <StageSelect stages={stages} value={stageUid}
-                      onChange={setStageUid} />
+        {/* Event programs typically have a single stage (per
+         *  DHIS2 WITHOUT_REGISTRATION semantics). When there's
+         *  exactly one, suppress the stage display entirely —
+         *  the operator already knows what program they picked
+         *  and doesn't need the stage echoed back. Only show
+         *  the select when the program defines multiple stages
+         *  (rare for event programs but possible). */}
+        {stages.length > 1 && (
+          <StageSelect stages={stages} value={stageUid}
+                        onChange={setStageUid} />
+        )}
         <label className="cap-input" style={{ minWidth: 160 }}>
           <span className="cap-toolbar__field-label">Event date</span>
           <input className="cap-input__ctl" type="date"

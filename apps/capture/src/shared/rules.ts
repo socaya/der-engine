@@ -125,7 +125,22 @@ export function parseProgramRuleAction(
     KNOWN_RULE_ACTIONS.has(typeRaw as RuleActionType)
       ? (typeRaw as RuleActionType)
       : 'UNKNOWN';
-  if (type === 'UNKNOWN') {
+  // Two distinct 'unknown' causes:
+  //   (a) server responded with a type we don't recognise — real
+  //       compatibility gap, worth a warning.
+  //   (b) server responded with just {id} because the DER mirror
+  //       doesn't expand nested programRuleActions[] inline
+  //       (observed on /api/programRules). That's not an action
+  //       the admin can fix — it's a bulk-fetch gap we patch in
+  //       the rule-engine loader. Silence it to keep the strip
+  //       usable.
+  const serverReturnedPlaceholder =
+    raw.programRuleActionType === undefined
+    && raw.content === undefined
+    && raw.data === undefined
+    && !raw.dataElement && !raw.trackedEntityAttribute
+    && !raw.programStage && !raw.programStageSection;
+  if (type === 'UNKNOWN' && !serverReturnedPlaceholder) {
     issues.push({ severity: 'warning', code: 'UNKNOWN_RULE_ACTION',
       message: `Rule action ${raw.id} uses unsupported type `
         + `"${raw.programRuleActionType}"; rule effect will not be `
@@ -166,6 +181,31 @@ export function parseProgramRule(
     priority: raw.priority ?? 0,
     actions,
   };
+}
+
+/** Enrich a raw rule list in place by swapping its id-only
+ *  {@code programRuleActions} stubs with the full action records
+ *  pulled from the bulk-fetch endpoint. The DER mirror's nested
+ *  expansion on /api/programRules is shallow, so we have to join
+ *  manually to get programRuleActionType + content + data. */
+export function enrichRulesWithActions(
+  rawRules: readonly RawProgramRule[],
+  rawActions: readonly (RawProgramRuleAction
+    & { programRule?: { id?: string } })[],
+): RawProgramRule[] {
+  const byRuleId = new Map<string, RawProgramRuleAction[]>();
+  for (const a of rawActions) {
+    const ruleId = a.programRule?.id;
+    if (!ruleId) continue;
+    const list = byRuleId.get(ruleId) ?? [];
+    list.push(a);
+    byRuleId.set(ruleId, list);
+  }
+  return rawRules.map((r) => {
+    const full = byRuleId.get(r.id);
+    if (!full) return r;
+    return { ...r, programRuleActions: full };
+  });
 }
 
 /** Parse a batch of raw rules + variables scoped to one program,

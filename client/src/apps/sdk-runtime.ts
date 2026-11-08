@@ -56,6 +56,7 @@ function useDerApi(): {
   // G3 — program rules + variables, parsed client-side.
   listProgramRules: typeof edgeApi.listProgramRules;
   listProgramRuleVariables: typeof edgeApi.listProgramRuleVariables;
+  listProgramRuleActions: typeof edgeApi.listProgramRuleActions;
   // G4 — tracker TEI type + attribute surface for registration.
   getCaptureProgramTeiType: typeof edgeApi.getCaptureProgramTeiType;
   listCaptureTeiTypeAttributes: typeof edgeApi.listCaptureTeiTypeAttributes;
@@ -106,6 +107,7 @@ function useDerApi(): {
     listCaptureProgramEvents: edgeApi.listCaptureProgramEvents,
     listProgramRules: edgeApi.listProgramRules,
     listProgramRuleVariables: edgeApi.listProgramRuleVariables,
+    listProgramRuleActions: edgeApi.listProgramRuleActions,
     getCaptureProgramTeiType: edgeApi.getCaptureProgramTeiType,
     listCaptureTeiTypeAttributes: edgeApi.listCaptureTeiTypeAttributes,
     listCaptureTeiEnrollments: edgeApi.listCaptureTeiEnrollments,
