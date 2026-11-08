@@ -66,6 +66,7 @@ export function DistributedWorkflowPanel(
             <HandoverQueue api={api}
                            workflowId={workflow.workflowId}
                            mySteps={mySteps}
+                           allSteps={workflow.steps}
                            wholeWorkflow={wholeWorkflow} />
           </div>
         );
@@ -81,10 +82,11 @@ export function DistributedWorkflowPanel(
  * waiting work without digging into Workflow Capture.
  */
 function HandoverQueue(
-  { api, workflowId, mySteps, wholeWorkflow }: {
+  { api, workflowId, mySteps, allSteps, wholeWorkflow }: {
     api: CaptureApi;
     workflowId: string;
     mySteps: WorkflowAssignment['steps'];
+    allSteps: WorkflowAssignment['steps'];
     wholeWorkflow: boolean;
   },
 ): JSX.Element | null {
@@ -142,16 +144,45 @@ function HandoverQueue(
         </p>
       ) : (
         <ul className="cap-dwf__queue-list">
-          {waiting.map((r) => (
-            <li key={r.runId}
-                data-test={'cap-dwf-queue-item-' + r.runId}>
-              <strong>{r.businessKey}</strong>
-              <span className="cap-dwf__queue-meta">
-                updated {relativeTime(r.updatedAt)}
-                {' · '}state <em>{r.state}</em>
-              </span>
-            </li>
-          ))}
+          {waiting.map((r) => {
+            const step = allSteps.find(
+              (s) => s.stepId === r.currentStepId);
+            const stepLabel = step
+              ? `#${step.ordinal + 1} ${step.displayName}`
+              : (r.currentStepId
+                  ? r.currentStepId.slice(0, 8) + '…'
+                  : '—');
+            return (
+              <li key={r.runId}
+                  data-test={'cap-dwf-queue-item-' + r.runId}>
+                <strong className="cap-dwf__queue-key">
+                  {r.businessKey}
+                </strong>
+                <span className="cap-dwf__queue-meta">
+                  at {stepLabel}
+                  {' · updated '}{relativeTime(r.updatedAt)}
+                  {' · '}<em>{r.state}</em>
+                </span>
+                <span className="cap-dwf__queue-spacer" />
+                <button type="button"
+                        className="cap-btn cap-btn--secondary"
+                        style={{ padding: '2px 8px', fontSize: 11 }}
+                        title={'Copy the business key to the '
+                          + 'clipboard — useful when handing off '
+                          + 'to a colleague or admin.'}
+                        data-test={'cap-dwf-queue-copy-' + r.runId}
+                        disabled={typeof navigator === 'undefined'
+                          || !navigator.clipboard}
+                        onClick={() => {
+                          navigator.clipboard
+                            ?.writeText(r.businessKey)
+                            .catch(() => undefined);
+                        }}>
+                  Copy key
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

@@ -262,9 +262,11 @@ export const CAPTURE_STYLES = `
 }
 .cap-dwf__queue-list > li {
   padding: 6px 0; font-size: 13px; color: #263352;
-  display: flex; align-items: baseline; gap: 10px;
+  display: flex; align-items: center; gap: 10px;
   border-top: 1px solid #f2f3f7;
 }
+.cap-dwf__queue-key { color: #0a5497; font-weight: 600; }
+.cap-dwf__queue-spacer { flex: 1; }
 .cap-dwf__queue-list > li:first-child { border-top: 0; }
 .cap-dwf__queue-meta {
   font-size: 11px; color: #7a8597;
