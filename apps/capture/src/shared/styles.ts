@@ -800,10 +800,39 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   color: var(--der-warning); font-weight: 500;
 }
 
-.cap-sheet__status-col,
-.cap-sheet__status-cell {
+/* SHEET-H1 freeze — status + date columns stay left-anchored
+ * while the data columns scroll horizontally. Needs higher
+ * specificity than the generic .cap-sheet td position:relative
+ * rule used for fill-handle anchoring, so the selectors double up
+ * on the cap-sheet qualifier. position:sticky inside a table only
+ * works when border-collapse is separate (cap-sheet uses that). */
+.cap-sheet .cap-sheet__status-col,
+.cap-sheet td.cap-sheet__status-cell {
   width: 24px; text-align: center; padding: 0 4px;
   background: var(--der-surface-subtle);
+  position: sticky; left: 0; z-index: 4;
+}
+.cap-sheet .cap-sheet__date-col,
+.cap-sheet td.cap-sheet__date-cell {
+  min-width: 130px;
+  position: sticky; left: 24px; z-index: 4;
+  background: var(--der-surface);
+  /* Hairline on the right edge visually separates the frozen
+   * area from the horizontally-scrolling data columns. */
+  box-shadow: 1px 0 0 var(--der-border);
+}
+/* The fill-preview tint uses !important + outline, which would
+ * blow through the sticky cells. Lift the sticky z-index above
+ * the fill-preview outline so the frozen columns always stay
+ * on top of scrolling content. */
+.cap-sheet thead .cap-sheet__status-col,
+.cap-sheet thead .cap-sheet__date-col { z-index: 5; }
+/* Keep the hover tint subtle on frozen cells so they don't jump
+ * visually relative to the scrolling body. */
+.cap-sheet__row--saving .cap-sheet__date-cell,
+.cap-sheet__row--dirty .cap-sheet__date-cell { background: #fffdf5; }
+.cap-sheet__row--err .cap-sheet__date-cell {
+  background: var(--der-danger-subtle);
 }
 .cap-sheet__dot {
   display: inline-block; width: 8px; height: 8px; border-radius: 50%;
@@ -817,7 +846,6 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
                           animation: cap-pulse 1.0s ease-in-out infinite; }
 .cap-sheet__dot--err    { background: var(--der-danger); }
 
-.cap-sheet__date-col, .cap-sheet__date-cell { min-width: 130px; }
 .cap-sheet__actions-col, .cap-sheet__actions-cell {
   width: 30px; text-align: center;
   background: var(--der-surface-subtle);

@@ -896,16 +896,74 @@ export function EventSheetPage(
     const [rowStr, colStr] = coord.split(':');
     const row = Number(rowStr); const col = Number(colStr);
     if (!Number.isFinite(row) || !Number.isFinite(col)) return;
-    // Escape — deselect without altering any values. If focus is
-    // inside an input, let the browser handle the first press
-    // (native inputs often use Esc to revert current edit); the
-    // second press is caught here.
+    // Escape — behaviour depends on where focus is:
+    //   • inside an input  → blur back to the containing cell td
+    //     so arrow keys resume cell-grid navigation (Excel style).
+    //   • already on a cell → clear the selection.
     if (e.key === 'Escape') {
+      const inInput = target.tagName === 'INPUT'
+        || target.tagName === 'TEXTAREA'
+        || target.tagName === 'SELECT';
+      if (inInput) {
+        e.preventDefault();
+        target.blur();
+        cell.focus();
+        return;
+      }
       if (selection) {
         e.preventDefault();
         setSelection(null);
         // eslint-disable-next-line no-console
         console.log('[sheet] deselect');
+      }
+      return;
+    }
+    // F2 — enter edit mode (focus the input inside the active cell).
+    // Excel/Sheets parity: keyboard-first operators toggle between
+    // cell-grid navigation and in-cell editing with F2 / Esc.
+    if (e.key === 'F2') {
+      const input = cell.querySelector<HTMLInputElement
+        | HTMLSelectElement | HTMLTextAreaElement>(
+        'input,select,textarea');
+      if (input) {
+        e.preventDefault();
+        input.focus();
+        if ('select' in input && typeof input.select === 'function') {
+          input.select();
+        }
+      }
+      return;
+    }
+    // Arrow keys WITHOUT Shift — move the focused cell. Only fires
+    // when focus is on the td itself, NOT inside an input (inputs
+    // need arrow keys for cursor navigation). Esc from an input
+    // blurs to the td so the operator can re-enter cell-grid
+    // navigation from inside the sheet.
+    const isInputFocus = target.tagName === 'INPUT'
+      || target.tagName === 'TEXTAREA'
+      || target.tagName === 'SELECT';
+    if (!isInputFocus && !e.shiftKey && !e.ctrlKey && !e.metaKey
+        && (e.key === 'ArrowUp' || e.key === 'ArrowDown'
+            || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      const colMax = allFields.length - 1;
+      const rowMax = rowsRef.current.length - 1;
+      const dRow = e.key === 'ArrowUp' ? -1
+        : e.key === 'ArrowDown' ? 1 : 0;
+      const dCol = e.key === 'ArrowLeft' ? -1
+        : e.key === 'ArrowRight' ? 1 : 0;
+      // When moving into the data-column range (col >= 0) use the
+      // field index; left/right clamp to 0..colMax, up/down to
+      // the row bounds.
+      const nextRow = Math.max(0, Math.min(rowMax, row + dRow));
+      const nextCol = Math.max(0, Math.min(colMax,
+        col < 0 ? Math.max(0, dCol) : col + dCol));
+      const next = document.querySelector<HTMLElement>(
+        `[data-cell-coord="${nextRow}:${nextCol}"]`);
+      if (next) {
+        next.focus();
+        setSelection({ anchor: { row: nextRow, col: nextCol },
+          focus: { row: nextRow, col: nextCol } });
       }
       return;
     }
@@ -1144,8 +1202,11 @@ export function EventSheetPage(
         <strong>Ctrl+Z</strong> undoes, <strong>Ctrl+Shift+Z</strong>
         redoes. Drag the blue square at the bottom-right of the
         selection to fill a rectangle with the anchor cell's value.
-        <strong>Esc</strong> deselects. Drag a column header's right
-        edge to resize — widths persist per program.
+        <strong>Esc</strong> blurs an input back to the cell (so
+        arrow keys move between cells) or deselects when focus is
+        already on a cell. <strong>F2</strong> re-enters edit mode.
+        Drag a column header's right edge to resize — widths
+        persist per program.
       </p>
 
       <div className="cap-sheet-wrap" data-test="ev-sheet"
