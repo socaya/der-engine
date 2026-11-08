@@ -799,6 +799,30 @@ export function enrolTei(input: TrackerEnrolInput): Promise<unknown> {
   return request('POST', '/edge-api/v1/tracked-entities', body);
 }
 
+/** TR-013 — create an enrollment for an existing tracked entity.
+ *  Posts to the DER-native {@code /edge-api/v1/tracker/enrollments}
+ *  endpoint. The caller supplies the enrollment UID (generated
+ *  client-side so the same ID is used in the queued central
+ *  submission + optimistic UI). */
+export interface TrackerEnrollmentInput {
+  readonly enrollmentUid: string;
+  readonly teiUid: string;
+  readonly programUid: string;
+  readonly orgUnitUid: string;
+  readonly enrollmentDate: string;
+  readonly incidentDate?: string;
+  readonly status?: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+}
+
+export function createEnrollment(
+  input: TrackerEnrollmentInput,
+): Promise<{ enrollmentUid: string; teiUid: string;
+    programUid: string; orgUnitUid: string;
+    status: string; enrollmentDate: string;
+    incidentDate: string | null }> {
+  return request('POST', '/edge-api/v1/tracker/enrollments', input);
+}
+
 export interface DraftRow {
   draftId: string;
   kind: string;

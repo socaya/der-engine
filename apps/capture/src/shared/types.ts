@@ -68,6 +68,18 @@ export interface CaptureApi {
     trackedEntityType: string;
     attributes: Array<{ attribute: string; value: string }>;
   }) => Promise<unknown>;
+  createEnrollment: (body: {
+    enrollmentUid: string;
+    teiUid: string;
+    programUid: string;
+    orgUnitUid: string;
+    enrollmentDate: string;
+    incidentDate?: string;
+    status?: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  }) => Promise<{ enrollmentUid: string; teiUid: string;
+    programUid: string; orgUnitUid: string;
+    status: string; enrollmentDate: string;
+    incidentDate: string | null }>;
   listProgramRules: (programUid?: string) => Promise<ReadonlyArray<{
     id: string; displayName?: string; name?: string;
     program?: { id?: string } | null;

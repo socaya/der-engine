@@ -1,378 +1,107 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { FormEngine, requiredFieldsComplete } from '../shared/FormEngine';
+import { useEffect } from 'react';
 import type { CaptureApi } from '../shared/types';
-import type { CaptureFormSection, CaptureParseIssue } from '../shared/model';
-import { parseTeiAttributesForm } from '../shared/parser';
-import { TrackerDashboard } from './TrackerDashboard';
-import { RowActions } from '../shared/RowActions';
-
-interface TeiRow {
-  readonly trackedEntity?: string;
-  readonly trackedEntityInstance?: string;
-  readonly displayName?: string;
-  readonly lastUpdated?: string;
-}
+import { TrackerListPage } from './tracker/TrackerListPage';
+import { TrackerDetailPage } from './tracker/TrackerDetailPage';
+import { TrackerRegisterPage } from './tracker/TrackerRegisterPage';
+import { TrackerEnrolPage } from './tracker/TrackerEnrolPage';
+import { TrackerStageFormPage } from './tracker/TrackerStageFormPage';
+import { parseCaptureRoute, navTracker } from '../shared/routing';
 
 /**
- * Tracker (WITH_REGISTRATION) workflow inside the unified
- * Capture shell (requirements doc §8 Tracker Capture).
+ * Tracker (WITH_REGISTRATION) workflow router. v3 NAV-001..008
+ * mandate that list, detail and form are separate full-page
+ * routes, so this component is a thin hash-route dispatcher — it
+ * never renders two of those at the same time.
  *
- * Slice G4-1 ships:
- *   • Working list — program + OU-filtered tracked entities, with
- *     a search input that filters by display name (TR-001).
- *   • Search-first registration (TR-002, TR-010) — operator must
- *     search before "Register new" opens; the registration form
- *     is metadata-driven from the program's tracked-entity
- *     attributes and rendered through the shared FormEngine so
- *     typed-value and mandatory-flag fixes land once.
- *   • Honest status footer — distinguishes edge-saved from
- *     Central-acknowledged (§FR-005, §UI-008).
- *
- * Deferred to later gates:
- *   • Stage event timeline (G5)
- *   • Program-rule evaluation during registration (G5)
- *   • Relationship browser (G7)
- *   • Multiple enrolments / enrolment switcher (G5)
+ * <p>The sub-pages themselves are the full implementations:
+ * {@link TrackerListPage}, {@link TrackerDetailPage},
+ * {@link TrackerRegisterPage}, {@link TrackerStageFormPage}.</p>
  */
 export function TrackerWorkflow(
-  { api, programUid, orgUnitUid }: {
+  { api, programUid, orgUnitUid, hashRoute }: {
     api: CaptureApi; programUid: string;
     orgUnitUid: string; orgUnitDisplayName: string;
     hashRoute: string;
   },
 ): JSX.Element {
-  // Working list state.
-  const [rows, setRows] = useState<TeiRow[]>([]);
-  const [listStatus, setListStatus] =
-    useState<'idle' | 'loading' | 'err'>('idle');
-  const [query, setQuery] = useState('');
-  const [openTei, setOpenTei] = useState<TeiRow | null>(null);
-
-  // Registration state.
-  const [tetUid, setTetUid] = useState<string | null>(null);
-  const [regSections, setRegSections] =
-    useState<readonly CaptureFormSection[]>([]);
-  const [regIssues, setRegIssues] =
-    useState<readonly CaptureParseIssue[]>([]);
-  const [regValues, setRegValues] = useState<Record<string, string>>({});
-  const [regOpen, setRegOpen] = useState(false);
-  const [regState, setRegState] =
-    useState<'idle' | 'submitting' | 'ok' | 'err'>('idle');
-  const [regMsg, setRegMsg] = useState<string | null>(null);
-
-  const [metadataReady, setMetadataReady] = useState(true);
-  // Load working-list + registration metadata on program change.
+  // If the operator just picked a program but the hash is empty
+  // (home), normalize to the tracker working list. One-shot per
+  // program change so a deliberate deep link isn't overridden.
   useEffect(() => {
-    let cancelled = false;
-    setListStatus('loading');
-    setMetadataReady(true);
-    (async () => {
-      try {
-        const [listRes, tetRes] = await Promise.all([
-          api.listTrackerEntities(programUid, orgUnitUid, 100),
-          api.getCaptureProgramTeiType(programUid),
-        ]);
-        if (cancelled) return;
-        setRows(listRes.trackedEntities ?? listRes.instances ?? []);
-        setListStatus('idle');
-        const tet = tetRes?.trackedEntityTypeUid ?? null;
-        setTetUid(tet);
-        if (tet) {
-          const attrs = await api.listCaptureTeiTypeAttributes(tet);
-          if (cancelled) return;
-          const parsed = parseTeiAttributesForm(attrs.attributes);
-          setRegSections(parsed.sections);
-          setRegIssues(parsed.issues);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          const msg = (err as Error).message ?? '';
-          if (/METADATA_NOT_READY|not mirrored/.test(msg)) {
-            setMetadataReady(false);
-            setListStatus('idle');
-          } else {
-            setRows([]); setListStatus('err');
-          }
+    const route = parseCaptureRoute('#' + hashRoute);
+    const current = (route.kind === 'tracker-list'
+      || route.kind === 'tracker-detail'
+      || route.kind === 'tracker-register'
+      || route.kind === 'tracker-enrol'
+      || route.kind === 'tracker-stage-form')
+        && route.programId === programUid;
+    if (!current) navTracker.list(programUid);
+  }, [programUid]);
+
+  const route = parseCaptureRoute('#' + hashRoute);
+
+  async function resolveTeiForEnrolment(
+    enrollmentUid: string,
+  ): Promise<string | null> {
+    try {
+      // Walk the current enrolment list for this program/OU to map
+      // enrolment → TEI. Cheap because the list is usually small
+      // per facility and the metadata mirror caches it.
+      const list = await api.listTrackerEntities(programUid, orgUnitUid, 500);
+      const rows = list.trackedEntities ?? list.instances ?? [];
+      for (const r of rows) {
+        const teiUid = r.trackedEntity ?? r.trackedEntityInstance;
+        if (!teiUid) continue;
+        const enrs = await api.listCaptureTeiEnrollments(teiUid, programUid);
+        if (enrs.enrollments.some(
+          (e) => e.enrollmentUid === enrollmentUid)) {
+          return teiUid;
         }
       }
-    })();
-    return () => { cancelled = true; };
-  }, [programUid, orgUnitUid]);
-
-  const filteredRows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (q === '') return rows;
-    return rows.filter((r) => {
-      const uid = (r.trackedEntity ?? r.trackedEntityInstance ?? '')
-        .toLowerCase();
-      const name = (r.displayName ?? '').toLowerCase();
-      return uid.includes(q) || name.includes(q);
-    });
-  }, [rows, query]);
-
-  const canSubmitReg = useMemo(() => {
-    if (regState === 'submitting') return false;
-    if (tetUid == null) return false;
-    return requiredFieldsComplete(regSections, regValues);
-  }, [regState, tetUid, regSections, regValues]);
-
-  async function onSubmitRegistration(e: FormEvent<HTMLFormElement>):
-      Promise<void> {
-    e.preventDefault();
-    if (!tetUid) return;
-    setRegState('submitting');
-    setRegMsg(null);
-    try {
-      const attributes = Object.entries(regValues)
-        .filter(([, v]) => v.trim() !== '')
-        .map(([attribute, value]) => ({ attribute, value }));
-      await api.enrolTei({
-        program: programUid,
-        orgUnit: orgUnitUid,
-        trackedEntityType: tetUid,
-        attributes,
-      });
-      setRegState('ok');
-      setRegMsg(`Saved on edge · tracked entity registered with `
-        + `${attributes.length} attribute`
-        + `${attributes.length === 1 ? '' : 's'}.`);
-      setRegValues({});
-      // Reload the working list so the new row shows up.
-      const r = await api.listTrackerEntities(programUid, orgUnitUid, 100);
-      setRows(r.trackedEntities ?? r.instances ?? []);
-      setRegOpen(false);
-    } catch (err) {
-      setRegState('err');
-      setRegMsg((err as Error).message ?? 'Registration failed');
-    }
+    } catch { /* fall through to null */ }
+    return null;
   }
 
-  if (!metadataReady) {
+  if (route.kind === 'tracker-detail') {
     return (
-      <div className="cap-strip cap-strip--warn"
-           data-test="tr-metadata-not-ready">
-        <strong>Program metadata hasn't been synced to this
-          edge yet.</strong>{' '}
-        The tracker working list + registration form can't render
-        until an administrator runs a metadata sync (admin UI →
-        Sync jobs). The program appears above because the list
-        payload ships inline, but its tracked-entity-type and
-        attributes must be mirrored locally first (§MD-008).
-      </div>
+      <TrackerDetailPage api={api}
+                          programUid={programUid}
+                          orgUnitUid={orgUnitUid}
+                          teiId={route.teiId} />
     );
   }
-
-  // When a TEI is open, render the dashboard in place of the list
-  // — the back button hands control back to the working list.
-  if (openTei) {
-    const uid = openTei.trackedEntity
-      ?? openTei.trackedEntityInstance ?? '';
+  if (route.kind === 'tracker-register') {
     return (
-      <TrackerDashboard api={api} programUid={programUid}
+      <TrackerRegisterPage api={api}
+                            programUid={programUid}
+                            orgUnitUid={orgUnitUid} />
+    );
+  }
+  if (route.kind === 'tracker-enrol') {
+    return (
+      <TrackerEnrolPage api={api}
+                         programUid={programUid}
                          orgUnitUid={orgUnitUid}
-                         tei={uid}
-                         displayName={openTei.displayName ?? null}
-                         lastUpdated={openTei.lastUpdated ?? null}
-                         onBack={() => setOpenTei(null)} />
+                         teiId={route.teiId} />
     );
   }
-
+  if (route.kind === 'tracker-stage-form') {
+    return (
+      <TrackerStageFormPage api={api}
+                             programUid={programUid}
+                             orgUnitUid={orgUnitUid}
+                             enrollmentId={route.enrollmentId}
+                             stageId={route.stageId}
+                             eventId={route.eventId}
+                             onResolveTei={resolveTeiForEnrolment} />
+    );
+  }
+  // Default to the working list for tracker-list OR when we're
+  // in the middle of a navigation transition (route still points
+  // at a different program).
   return (
-    <>
-      {/* Working list */}
-      <div className="cap-section-head" data-test="tr-list-head">
-        <h2 className="cap-section-head__title">Tracked entities</h2>
-        <label className="cap-input" style={{ minWidth: 220 }}>
-          <span className="cap-toolbar__field-label">Search</span>
-          <input className="cap-input__ctl" type="search"
-                 value={query}
-                 onChange={(e) => setQuery(e.target.value)}
-                 placeholder="UID or display name… (Alt+F)"
-                 data-test="tr-search-input" />
-        </label>
-        <span className="cap-section-head__count">
-          {listStatus === 'loading' ? 'loading…'
-            : listStatus === 'err' ? 'failed to load'
-            : query !== ''
-              ? `${filteredRows.length} of ${rows.length} shown`
-              : rows.length === 0 ? 'none yet'
-              : `${rows.length} loaded`}
-        </span>
-        <span className="cap-section-head__rule" />
-        <button type="button"
-                className={'cap-btn ' + (regOpen
-                  ? 'cap-btn--secondary' : 'cap-btn--primary')}
-                data-test="tr-register-toggle"
-                disabled={tetUid == null || regSections.length === 0}
-                title={tetUid == null
-                  ? 'This program has no tracked-entity type assigned'
-                  : regSections.length === 0
-                  ? 'No registration attributes are configured'
-                  : regOpen ? 'Close registration form'
-                  : query.trim() === ''
-                  ? 'Search existing records first to avoid duplicates '
-                    + '(TR-002). Click here to proceed with registration '
-                    + 'anyway.'
-                    : 'Register a new tracked entity'}
-                onClick={() => setRegOpen((v) => !v)}>
-          {regOpen ? 'Close' : 'Register new'}
-        </button>
-      </div>
-
-      {filteredRows.length === 0 ? (
-        <p className="cap-sub" style={{ marginLeft: 14 }}>
-          {listStatus === 'loading'
-            ? 'Fetching tracked entities assigned to your OU…'
-            : listStatus === 'err'
-            ? 'The tracker mirror could not be reached. Check the '
-              + 'edge connection and retry.'
-            : query !== ''
-            ? 'No tracked entities match this search. Pre-registration '
-              + 'duplicate check is intentional (TR-002).'
-            : 'No tracked entities yet for this program at this '
-              + 'organisation unit.'}
-        </p>
-      ) : (
-        <ul className="cap-list" data-test="tr-tei-list">
-          {filteredRows.map((r, i) => {
-            const uid = r.trackedEntity ?? r.trackedEntityInstance
-              ?? ('row-' + i);
-            return (
-              <li key={uid + i}
-                  className="cap-list__row cap-list__row--clickable"
-                  data-test={'tr-tei-row-' + uid}
-                  onClick={() => setOpenTei(r)}
-                  role="button" tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setOpenTei(r);
-                    }
-                  }}>
-                <div>
-                  <code>{uid}</code>
-                  {r.displayName && (
-                    <span style={{ marginLeft: 10 }}>{r.displayName}</span>
-                  )}
-                </div>
-                <span className="cap-list__when">{r.lastUpdated ?? '—'}</span>
-                <RowActions
-                  label="Tracked entity actions"
-                  dataTest={'tr-tei-actions-' + uid}
-                  actions={[
-                    { label: 'Open dashboard',
-                      title: 'Open this tracked entity\'s enrolments '
-                        + '+ stage events in the dashboard panel.',
-                      onSelect: () => setOpenTei(r) },
-                    { label: 'Copy UID',
-                      disabled: typeof navigator === 'undefined'
-                        || !navigator.clipboard,
-                      title: 'Copy this tracked-entity UID to the '
-                        + 'clipboard for sharing with admins.',
-                      onSelect: () => {
-                        navigator.clipboard?.writeText(uid)
-                          .catch(() => undefined);
-                      } },
-                  ]} />
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {/* Registration form — only when the operator has searched
-       *  first and explicitly opened it (TR-002). */}
-      {regOpen && tetUid && regSections.length > 0 && (
-        <>
-          <div className="cap-section-head" data-test="tr-register-head">
-            <h2 className="cap-section-head__title">Register new</h2>
-            <span className="cap-section-head__count">
-              {regSections[0]!.fields.length} attribute
-              {regSections[0]!.fields.length === 1 ? '' : 's'}
-            </span>
-            <span className="cap-section-head__rule" />
-          </div>
-          {query.trim() === '' && (
-            <div className="cap-strip cap-strip--info"
-                 data-test="tr-register-search-nudge"
-                 style={{ display: 'flex', alignItems: 'center',
-                   gap: 10 }}>
-              <strong style={{ flex: 1 }}>
-                Searching first avoids duplicates.
-              </strong>
-              <span style={{ fontSize: 12 }}>
-                Requirements doc §TR-002 asks you to check for
-                existing records before registering. Use the search
-                above to narrow the working list, then come back here
-                if no match is found.
-              </span>
-            </div>
-          )}
-          {regIssues.length > 0 && (
-            <div className="cap-strip cap-strip--info"
-                 data-test="tr-parse-issues">
-              <strong>Metadata notes:</strong>
-              <ul style={{ margin: '4px 0 0 20px', padding: 0 }}>
-                {regIssues.map((iss, i) => (
-                  <li key={i} style={{ fontSize: 12 }}>
-                    <code>{iss.code}</code>{' — '}{iss.message}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <form onSubmit={onSubmitRegistration} data-test="tr-reg-form">
-            <FormEngine api={api}
-                         sections={regSections} values={regValues}
-                         onChange={(k, v) => setRegValues((prev) =>
-                           ({ ...prev, [k]: v }))} />
-            <div className="cap-action-bar" data-test="tr-reg-action-bar">
-              <div className="cap-action-bar__state">
-                {regState === 'ok' && regMsg && (
-                  <span data-test="tr-reg-saved">{regMsg}</span>
-                )}
-                {regState === 'err' && regMsg && (
-                  <span data-test="tr-reg-err"
-                        style={{ color: '#8a2525' }}>
-                    {regMsg}
-                  </span>
-                )}
-                {regState === 'idle' && (
-                  <span>
-                    <strong>
-                      {Object.values(regValues)
-                        .filter((v) => v !== '').length}
-                    </strong> of {regSections[0]!.fields.length} filled
-                  </span>
-                )}
-              </div>
-              <button type="button"
-                      className="cap-btn cap-btn--secondary"
-                      onClick={() => { setRegOpen(false);
-                        setRegValues({}); }}
-                      data-test="tr-reg-cancel">
-                Cancel
-              </button>
-              <button type="submit"
-                      className="cap-btn cap-btn--primary"
-                      disabled={!canSubmitReg}
-                      data-test="tr-reg-submit">
-                {regState === 'submitting'
-                  ? 'Registering…' : 'Register'}
-              </button>
-            </div>
-          </form>
-        </>
-      )}
-
-      {regOpen && tetUid === null && (
-        <div className="cap-strip cap-strip--err"
-             data-test="tr-no-tet">
-          This program has no tracked-entity type assigned, so
-          registration cannot proceed. Ask an administrator to
-          configure the program's tracked-entity type.
-        </div>
-      )}
-    </>
+    <TrackerListPage api={api}
+                      programUid={programUid}
+                      orgUnitUid={orgUnitUid} />
   );
 }

@@ -460,7 +460,8 @@ function CaptureAppInner(): JSX.Element {
       {program && mode === 'event' && (
         <EventWorkflow api={api} programUid={program.id}
                         orgUnitUid={ou.orgUnitUid}
-                        orgUnitDisplayName={ou.orgUnitDisplayName} />
+                        orgUnitDisplayName={ou.orgUnitDisplayName}
+                        hashRoute={hashRoute} />
       )}
       {program && mode === 'tracker' && (
         <TrackerWorkflow api={api} programUid={program.id}
