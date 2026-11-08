@@ -1347,6 +1347,65 @@ export interface RawRelationshipType {
   };
 }
 
+/** Body shape for a minimal TEI↔TEI relationship create via the
+ *  DHIS2 tracker import endpoint (§REL-EDGE-001). G7-2b only
+ *  supports TEI↔TEI; event / enrolment endpoints come in G7-2c
+ *  once the capability matrix is probed per §13.3. */
+export interface TrackerRelationshipCreate {
+  readonly relationshipType: string;
+  readonly fromTei: string;
+  readonly toTei: string;
+}
+
+/** Delete a tracker relationship by UID. Requires explicit
+ *  operator confirmation (§REL-SEC-005); the caller enforces
+ *  the window.confirm prompt. */
+export async function deleteTrackerRelationship(
+  relationshipUid: string,
+): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+  const r = await fetch('/api/tracker/relationships/'
+      + encodeURIComponent(relationshipUid),
+    { method: 'DELETE', credentials: 'include',
+      headers: { Accept: 'application/json' } });
+  if (!r.ok) {
+    let message = `HTTP ${r.status}`;
+    try {
+      const err = await r.json() as { message?: string };
+      if (err.message) message = err.message;
+    } catch { /* keep default */ }
+    return { ok: false, status: r.status, message };
+  }
+  return { ok: true };
+}
+
+export async function submitTrackerRelationship(
+  body: TrackerRelationshipCreate,
+): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+  const payload = {
+    relationships: [{
+      relationshipType: body.relationshipType,
+      from: { trackedEntity: { trackedEntity: body.fromTei } },
+      to:   { trackedEntity: { trackedEntity: body.toTei } },
+    }],
+  };
+  const r = await fetch('/api/tracker', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json',
+      Accept: 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) {
+    let message = `HTTP ${r.status}`;
+    try {
+      const err = await r.json() as { message?: string };
+      if (err.message) message = err.message;
+    } catch { /* keep default */ }
+    return { ok: false, status: r.status, message };
+  }
+  return { ok: true };
+}
+
 /** List relationship-type definitions from the DHIS2 metadata
  *  endpoint. The Capture app filters eligibility client-side —
  *  the server returns them all. */

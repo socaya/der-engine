@@ -475,6 +475,90 @@ describe('edgeApi.listPrograms', () => {
   });
 });
 
+describe('edgeApi.deleteTrackerRelationship', () => {
+  it('sends DELETE to the relationships endpoint with an encoded UID',
+      async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, { status: 'OK' }));
+    const r = await api.deleteTrackerRelationship('a b/c');
+    expect(r).toEqual({ ok: true });
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/api/tracker/relationships/a%20b%2Fc');
+    expect(init.method).toBe('DELETE');
+  });
+
+  it('returns an error with the server message on HTTP failure',
+      async () => {
+    fetchMock.mockResolvedValue(jsonRespond(403,
+      { message: 'not permitted' }));
+    const r = await api.deleteTrackerRelationship('R1');
+    expect(r).toEqual({ ok: false, status: 403,
+      message: 'not permitted' });
+  });
+
+  it('falls back to HTTP <status> when no message is present',
+      async () => {
+    fetchMock.mockResolvedValue(jsonRespond(500, {}));
+    const r = await api.deleteTrackerRelationship('R1');
+    expect(r).toEqual({ ok: false, status: 500,
+      message: 'HTTP 500' });
+  });
+});
+
+describe('edgeApi.submitTrackerRelationship', () => {
+  it('POSTs the DHIS2-shaped payload for a TEI↔TEI link', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, { status: 'OK' }));
+    const r = await api.submitTrackerRelationship({
+      relationshipType: 'RT1', fromTei: 'TEI_A', toTei: 'TEI_B',
+    });
+    expect(r).toEqual({ ok: true });
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/api/tracker');
+    expect(init.method).toBe('POST');
+    const body = JSON.parse(String(init.body)) as {
+      relationships: Array<{ relationshipType: string;
+        from: { trackedEntity: { trackedEntity: string } };
+        to:   { trackedEntity: { trackedEntity: string } } }>;
+    };
+    expect(body.relationships[0]!.relationshipType).toBe('RT1');
+    expect(body.relationships[0]!.from.trackedEntity.trackedEntity)
+      .toBe('TEI_A');
+    expect(body.relationships[0]!.to.trackedEntity.trackedEntity)
+      .toBe('TEI_B');
+  });
+
+  it('returns an error result with the server message on HTTP failure',
+      async () => {
+    fetchMock.mockResolvedValue(jsonRespond(400,
+      { message: 'target not permitted' }));
+    const r = await api.submitTrackerRelationship({
+      relationshipType: 'RT1', fromTei: 'TEI_A', toTei: 'TEI_B',
+    });
+    expect(r).toEqual({ ok: false, status: 400,
+      message: 'target not permitted' });
+  });
+
+  it('falls back to "HTTP <status>" when the error body has no message',
+      async () => {
+    fetchMock.mockResolvedValue(jsonRespond(500, {}));
+    const r = await api.submitTrackerRelationship({
+      relationshipType: 'RT1', fromTei: 'A', toTei: 'B',
+    });
+    expect(r).toEqual({ ok: false, status: 500, message: 'HTTP 500' });
+  });
+
+  it('survives an unparseable error body', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false, status: 502, headers: new Headers(),
+      json: async () => { throw new Error('bad json'); },
+      text: async () => 'oops',
+    } as unknown as Response);
+    const r = await api.submitTrackerRelationship({
+      relationshipType: 'RT1', fromTei: 'A', toTei: 'B',
+    });
+    expect(r).toEqual({ ok: false, status: 502, message: 'HTTP 502' });
+  });
+});
+
 describe('edgeApi.listRelationshipTypes', () => {
   it('fetches relationship-type metadata with constraints', async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, {

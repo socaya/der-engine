@@ -67,6 +67,8 @@ function useDerApi(): {
   // G7 — tracker relationships (read-only in G7-1).
   listTrackerRelationships: typeof edgeApi.listTrackerRelationships;
   listRelationshipTypes: typeof edgeApi.listRelationshipTypes;
+  submitTrackerRelationship: typeof edgeApi.submitTrackerRelationship;
+  deleteTrackerRelationship: typeof edgeApi.deleteTrackerRelationship;
 } {
   return {
     submitAggregate: edgeApi.submitAggregate,
@@ -109,6 +111,8 @@ function useDerApi(): {
     getCaptureEventDetail: edgeApi.getCaptureEventDetail,
     listTrackerRelationships: edgeApi.listTrackerRelationships,
     listRelationshipTypes: edgeApi.listRelationshipTypes,
+    submitTrackerRelationship: edgeApi.submitTrackerRelationship,
+    deleteTrackerRelationship: edgeApi.deleteTrackerRelationship,
   };
 }
 

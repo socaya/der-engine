@@ -155,6 +155,13 @@ export interface CaptureApi {
       event?: { event?: string };
     };
   }>>;
+  submitTrackerRelationship: (body: {
+    relationshipType: string; fromTei: string; toTei: string;
+  }) => Promise<{ ok: true } | { ok: false; status: number;
+    message: string }>;
+  deleteTrackerRelationship: (relationshipUid: string) =>
+    Promise<{ ok: true } | { ok: false; status: number;
+      message: string }>;
   listRelationshipTypes: () => Promise<ReadonlyArray<{
     id: string;
     displayName?: string;

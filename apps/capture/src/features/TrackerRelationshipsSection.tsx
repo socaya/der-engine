@@ -54,6 +54,10 @@ export function TrackerRelationshipsSection(
   const [types, setTypes] = useState<RelTypeRow[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickedType, setPickedType] = useState<RelTypeRow | null>(null);
+  const [targetTei, setTargetTei] = useState('');
+  const [submit, setSubmit] =
+    useState<'idle' | 'submitting' | 'ok' | 'err'>('idle');
+  const [submitMsg, setSubmitMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,8 +108,7 @@ export function TrackerRelationshipsSection(
                 onClick={() => setPickerOpen(true)}
                 title={types.length === 0
                   ? 'No relationship types are configured'
-                  : 'Pick a relationship type — target search '
-                    + 'arrives in slice G7-2b'}
+                  : 'Pick a relationship type, then link a target TEI'}
                 style={{ padding: '4px 10px', fontSize: 12 }}>
           + Add relationship
         </button>
@@ -113,20 +116,72 @@ export function TrackerRelationshipsSection(
 
       {pickedType && (
         <div className="cap-strip cap-strip--info"
-             data-test="tr-rel-picked-type"
-             style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <strong style={{ flex: 1 }}>
-            Relationship type: {pickedType.displayName}
-          </strong>
-          <span className="cap-chip">
-            Target search arrives in G7-2b
-          </span>
+             data-test="tr-rel-create"
+             style={{ display: 'grid',
+               gridTemplateColumns: '1fr auto auto', gap: 10,
+               alignItems: 'end' }}>
+          <label className="cap-input">
+            <span className="cap-toolbar__field-label">
+              Link {pickedType.displayName} — target TEI UID
+            </span>
+            <input className="cap-input__ctl"
+                   type="text"
+                   value={targetTei}
+                   data-test="tr-rel-target-uid"
+                   placeholder="target tracked-entity UID"
+                   onChange={(e) => setTargetTei(e.target.value)} />
+            {submit === 'ok' && submitMsg && (
+              <span style={{ fontSize: 11, color: '#136436' }}>
+                {submitMsg}
+              </span>
+            )}
+            {submit === 'err' && submitMsg && (
+              <span style={{ fontSize: 11, color: '#8a2525' }}>
+                {submitMsg}
+              </span>
+            )}
+          </label>
           <button type="button"
                   className="cap-btn cap-btn--secondary"
-                  onClick={() => setPickedType(null)}
+                  onClick={() => { setPickedType(null);
+                    setTargetTei(''); setSubmit('idle');
+                    setSubmitMsg(null); }}
                   data-test="tr-rel-picked-clear"
-                  style={{ padding: '2px 8px', fontSize: 12 }}>
-            Dismiss
+                  style={{ padding: '4px 10px', fontSize: 12 }}>
+            Cancel
+          </button>
+          <button type="button"
+                  className="cap-btn cap-btn--primary"
+                  data-test="tr-rel-link"
+                  disabled={submit === 'submitting'
+                    || targetTei.trim() === ''
+                    || targetTei.trim() === tei}
+                  title={targetTei.trim() === tei
+                    ? 'Cannot link a tracked entity to itself'
+                    : 'Create the relationship on the edge '
+                      + '(§REL-EDGE-001)'}
+                  onClick={async () => {
+                    setSubmit('submitting'); setSubmitMsg(null);
+                    const res = await api.submitTrackerRelationship({
+                      relationshipType: pickedType.id,
+                      fromTei: tei,
+                      toTei: targetTei.trim(),
+                    });
+                    if (res.ok) {
+                      setSubmit('ok');
+                      setSubmitMsg('Saved on edge · central '
+                        + 'sync is a separate step.');
+                      const r = await api.listTrackerRelationships(tei);
+                      setRows(Array.isArray(r) ? r : []);
+                      setPickedType(null);
+                      setTargetTei('');
+                    } else {
+                      setSubmit('err');
+                      setSubmitMsg('Failed: ' + res.message);
+                    }
+                  }}
+                  style={{ padding: '4px 12px', fontSize: 12 }}>
+            {submit === 'submitting' ? 'Linking…' : 'Link'}
           </button>
         </div>
       )}
@@ -152,14 +207,15 @@ export function TrackerRelationshipsSection(
           {rows.map((r, i) => {
             const label = r.relationshipName ?? r.relationshipType
               ?? 'Linked';
-            const fromUid = fromToUid(r.from, tei);
             const toUid = fromToUid(r.to, tei);
             const target = toUid === tei
               ? (r.from ? describeEndpoint(r.from) : '—')
               : (r.to ? describeEndpoint(r.to) : '—');
+            const uid = r.relationship;
             return (
-              <li key={(r.relationship ?? '') + i}
-                  className="cap-list__row">
+              <li key={(uid ?? '') + i}
+                  className="cap-list__row"
+                  style={{ gridTemplateColumns: '1fr auto auto' }}>
                 <div>
                   <strong>{label}</strong>
                   {r.bidirectional && (
@@ -176,6 +232,33 @@ export function TrackerRelationshipsSection(
                 <span className="cap-list__when">
                   {r.lastUpdated ?? r.createdAt ?? '—'}
                 </span>
+                {uid && (
+                  <button type="button"
+                          className="cap-btn cap-btn--secondary"
+                          data-test={'tr-rel-unlink-' + uid}
+                          style={{ padding: '2px 8px', fontSize: 11 }}
+                          title={'Unlink this relationship. The DER '
+                            + 'journal keeps a tombstone (§REL-SEC-005)'}
+                          onClick={async () => {
+                            const ok = window.confirm(
+                              'Unlink this relationship? The link '
+                              + 'will be removed on the facility '
+                              + 'edge and queued for central sync.');
+                            if (!ok) return;
+                            const res = await
+                              api.deleteTrackerRelationship(uid);
+                            if (res.ok) {
+                              const fresh =
+                                await api.listTrackerRelationships(tei);
+                              setRows(Array.isArray(fresh) ? fresh : []);
+                            } else {
+                              window.alert('Unlink failed: '
+                                + res.message);
+                            }
+                          }}>
+                    Unlink
+                  </button>
+                )}
               </li>
             );
           })}
@@ -262,8 +345,9 @@ function TypePickerModal(
             </ul>
           )}
           <p className="cap-info__note" style={{ marginTop: 8 }}>
-            Full add-relationship flow — target search, preview and
-            confirm (§REL-UX-005) — arrives in slice G7-2b.
+            After you pick a type, enter the target tracked-entity
+            UID to link. Candidate search + preview (§REL-UX-005)
+            arrive in slice G7-2c.
           </p>
         </div>
       </div>
