@@ -145,6 +145,7 @@ export function TrackerWorkflow(
       ?? openTei.trackedEntityInstance ?? '';
     return (
       <TrackerDashboard api={api} programUid={programUid}
+                         orgUnitUid={orgUnitUid}
                          tei={uid}
                          displayName={openTei.displayName ?? null}
                          lastUpdated={openTei.lastUpdated ?? null}

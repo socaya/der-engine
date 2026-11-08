@@ -49,6 +49,9 @@ export interface CaptureApi {
     program: string; programStage?: string; orgUnit: string;
     occurredAt: string;
     dataValues: Array<{ dataElement: string; value: string }>;
+    enrollment?: string;
+    status?: string;
+    event?: string;
   }) => Promise<unknown>;
   listTrackerEntities: (program: string, orgUnit: string,
     limit?: number) => Promise<{
@@ -123,4 +126,27 @@ export interface CaptureApi {
         occurredDate: string | null; lastUpdatedAt: string;
       }>;
     }>;
+  getCaptureEventDetail: (eventUid: string) => Promise<{
+    eventUid: string;
+    enrollmentUid: string | null;
+    programUid: string;
+    programStageUid: string;
+    orgUnitUid: string;
+    occurredAt: string;
+    status: string | null;
+    dataValues: Record<string, string>;
+  }>;
+}
+
+/** G6 — body accepted by submitEvent when editing a tracker
+ *  stage event. Extends the event-program shape with an
+ *  enrolment ref so the DER edge journal can associate the
+ *  event with its parent enrolment. */
+export interface TrackerEventSubmit {
+  readonly program: string;
+  readonly programStage: string;
+  readonly orgUnit: string;
+  readonly occurredAt: string;
+  readonly enrollment: string;
+  readonly dataValues: Array<{ dataElement: string; value: string }>;
 }

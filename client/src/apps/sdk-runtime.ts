@@ -62,6 +62,8 @@ function useDerApi(): {
   // G5 — tracker TEI dashboard: enrolments + stage events.
   listCaptureTeiEnrollments: typeof edgeApi.listCaptureTeiEnrollments;
   listCaptureEnrollmentEvents: typeof edgeApi.listCaptureEnrollmentEvents;
+  // G6 — stage event editor pre-fill.
+  getCaptureEventDetail: typeof edgeApi.getCaptureEventDetail;
 } {
   return {
     submitAggregate: edgeApi.submitAggregate,
@@ -101,6 +103,7 @@ function useDerApi(): {
     listCaptureTeiTypeAttributes: edgeApi.listCaptureTeiTypeAttributes,
     listCaptureTeiEnrollments: edgeApi.listCaptureTeiEnrollments,
     listCaptureEnrollmentEvents: edgeApi.listCaptureEnrollmentEvents,
+    getCaptureEventDetail: edgeApi.getCaptureEventDetail,
   };
 }
 

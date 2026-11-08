@@ -659,6 +659,11 @@ export interface EventSubmitInput {
   readonly eventDate?: string;
   readonly dataValues?: ReadonlyArray<{ dataElement: string; value: string }>;
   readonly enrollment?: string;
+  /** DHIS2 event status — ACTIVE / COMPLETED / VISITED / SCHEDULE /
+   *  OVERDUE / SKIPPED. Capture only toggles between ACTIVE and
+   *  COMPLETED today (§TR-043); other states are server-driven. */
+  readonly status?: string;
+  readonly event?: string;
 }
 
 /** POST /api/events — DER accepts the DHIS2-shaped envelope and
