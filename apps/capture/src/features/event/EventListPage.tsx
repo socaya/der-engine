@@ -66,20 +66,23 @@ export function EventListPage(
   /** Checked event UIDs for bulk operations. */
   const [selected, setSelected] = useState<Set<string>>(new Set());
   /** Row density — mirrors Data Entry's compact/comfortable
-   *  toggle. Persisted across sessions in localStorage so an
-   *  operator's preference follows them between programs. */
+   *  toggle. Persisted across sessions in localStorage under a
+   *  shared key so one preference applies to every working list
+   *  (event + tracker) — operators flip once, every table
+   *  follows. */
   const [density, setDensity] =
     useState<'compact' | 'comfortable'>(() => {
       if (typeof localStorage === 'undefined') return 'compact';
-      const v = localStorage.getItem('cap:ev-list:density');
+      const v = localStorage.getItem('cap:list:density');
       return v === 'comfortable' ? 'comfortable' : 'compact';
     });
   /** Pagination — page is 1-based so the pager labels read
    *  naturally ("Page 1 of N"). Page size defaults to 25 to
-   *  match the DHIS2 Capture default; persisted per-browser. */
+   *  match the DHIS2 Capture default; persisted per-browser
+   *  under a shared key (see density above for rationale). */
   const [pageSize, setPageSize] = useState<number>(() => {
     if (typeof localStorage === 'undefined') return 25;
-    const raw = localStorage.getItem('cap:ev-list:pagesize');
+    const raw = localStorage.getItem('cap:list:pagesize');
     const n = raw ? parseInt(raw, 10) : NaN;
     return n === 10 || n === 25 || n === 50 || n === 100 ? n : 25;
   });
@@ -91,11 +94,11 @@ export function EventListPage(
   }, [query, stateKey]);
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('cap:ev-list:density', density);
+    localStorage.setItem('cap:list:density', density);
   }, [density]);
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
-    localStorage.setItem('cap:ev-list:pagesize', String(pageSize));
+    localStorage.setItem('cap:list:pagesize', String(pageSize));
   }, [pageSize]);
 
   // Load events + derive columns from the program's stage(s).

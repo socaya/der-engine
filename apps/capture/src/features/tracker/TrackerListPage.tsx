@@ -65,11 +65,40 @@ export function TrackerListPage(
     key: string; direction: 'asc' | 'desc';
   }>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /** Density + pagination state. Keys are shared with EventListPage
+   *  (cap:list:density, cap:list:pagesize) so one toggle propagates
+   *  across every working list — operators get one muscle memory. */
+  const [density, setDensity] =
+    useState<'compact' | 'comfortable'>(() => {
+      if (typeof localStorage === 'undefined') return 'compact';
+      const v = localStorage.getItem('cap:list:density');
+      return v === 'comfortable' ? 'comfortable' : 'compact';
+    });
+  const [pageSize, setPageSize] = useState<number>(() => {
+    if (typeof localStorage === 'undefined') return 25;
+    const raw = localStorage.getItem('cap:list:pagesize');
+    const n = raw ? parseInt(raw, 10) : NaN;
+    return n === 10 || n === 25 || n === 50 || n === 100 ? n : 25;
+  });
+  const [page, setPage] = useState<number>(1);
 
   useEffect(() => {
     if (typeof sessionStorage === 'undefined') return;
     sessionStorage.setItem(stateKey, query);
   }, [query, stateKey]);
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('cap:list:density', density);
+  }, [density]);
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('cap:list:pagesize', String(pageSize));
+  }, [pageSize]);
+  // Reset page 1 whenever the filter/sort/page-size set changes so
+  // operators don't land on a now-empty page.
+  useEffect(() => {
+    setPage(1);
+  }, [query, sort, pageSize]);
 
   useEffect(() => {
     let cancelled = false;
@@ -162,6 +191,12 @@ export function TrackerListPage(
     return sort.direction === 'asc' ? '↑' : '↓';
   }
 
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const pageStart = (safePage - 1) * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, filtered.length);
+  const pageRows = filtered.slice(pageStart, pageEnd);
+
   function exportCsv(): void {
     const header = ['TEI UID', 'Display name',
       ...columns.map((c) => c.label), 'Last updated'];
@@ -229,6 +264,17 @@ export function TrackerListPage(
               : `${rows.length} loaded`}
         </span>
         <span className="cap-section-head__rule" />
+        <button type="button"
+                className="cap-density-btn"
+                data-test="tr-density-toggle"
+                aria-label={'Switch to '
+                  + (density === 'compact' ? 'comfortable' : 'compact')
+                  + ' density'}
+                title={'Density: ' + density + '. Click to switch.'}
+                onClick={() => setDensity(
+                  (d) => d === 'compact' ? 'comfortable' : 'compact')}>
+          {density === 'compact' ? '⇔ Compact' : '⇕ Comfortable'}
+        </button>
         <button type="button"
                 className="cap-btn cap-btn--secondary"
                 data-test="tr-export-csv"
@@ -300,11 +346,12 @@ export function TrackerListPage(
         </p>
       ) : columns.length === 0 ? (
         <ul className="cap-list" data-test="tr-tei-list">
-          {filtered.map((r, i) => renderBasicRow(programUid, r, i))}
+          {pageRows.map((r, i) => renderBasicRow(programUid, r, i))}
         </ul>
       ) : (
         <div className="cap-table-wrap" data-test="tr-tei-list">
-          <table className="cap-table" data-test="tr-tei-table">
+          <table className={'cap-table cap-table--' + density}
+                 data-test="tr-tei-table">
             <thead>
               <tr>
                 <th scope="col" style={{ width: 28 }}>
@@ -363,7 +410,7 @@ export function TrackerListPage(
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r, i) => {
+              {pageRows.map((r, i) => {
                 const uid = r.trackedEntity
                   ?? r.trackedEntityInstance ?? ('row-' + i);
                 const checked = selected.has(uid);
@@ -453,6 +500,56 @@ export function TrackerListPage(
               })}
             </tbody>
           </table>
+        </div>
+      )}
+      {filtered.length > 0 && (
+        <div className="cap-pager" data-test="tr-pager">
+          <span data-test="tr-pager-range">
+            {`${pageStart + 1}–${pageEnd} of ${filtered.length}`}
+          </span>
+          <label style={{ display: 'flex', alignItems: 'center',
+                          gap: 6 }}>
+            Rows per page
+            <select className="cap-pager__pagesize"
+                    data-test="tr-pager-pagesize"
+                    value={pageSize}
+                    onChange={(ev) => setPageSize(
+                      parseInt(ev.target.value, 10))}>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </label>
+          <span className="cap-pager__spacer" />
+          <button type="button" className="cap-pager__btn"
+                  data-test="tr-pager-first"
+                  aria-label="First page"
+                  disabled={safePage === 1}
+                  onClick={() => setPage(1)}>«</button>
+          <button type="button" className="cap-pager__btn"
+                  data-test="tr-pager-prev"
+                  aria-label="Previous page"
+                  disabled={safePage === 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            ‹
+          </button>
+          <span data-test="tr-pager-page">
+            Page {safePage} of {pageCount}
+          </span>
+          <button type="button" className="cap-pager__btn"
+                  data-test="tr-pager-next"
+                  aria-label="Next page"
+                  disabled={safePage === pageCount}
+                  onClick={() => setPage(
+                    (p) => Math.min(pageCount, p + 1))}>
+            ›
+          </button>
+          <button type="button" className="cap-pager__btn"
+                  data-test="tr-pager-last"
+                  aria-label="Last page"
+                  disabled={safePage === pageCount}
+                  onClick={() => setPage(pageCount)}>»</button>
         </div>
       )}
     </>
