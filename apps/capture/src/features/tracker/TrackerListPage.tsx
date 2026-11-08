@@ -364,18 +364,20 @@ export function TrackerListPage(
       )}
 
       {filtered.length === 0 ? (
-        <p className="cap-sub" style={{ marginLeft: 14 }}>
+        <div className="cap-placeholder" data-test="tr-list-empty">
           {listStatus === 'loading'
-            ? 'Fetching tracked entities assigned to your OU…'
+            ? 'Fetching tracked entities for this facility…'
             : listStatus === 'err'
-            ? 'The tracker mirror could not be reached. Check the '
-              + 'edge connection and retry.'
+            ? 'Tracked entities could not be loaded. Check the '
+              + 'connection and try again.'
             : query !== ''
-            ? 'No tracked entities match this search. Pre-registration '
-              + 'duplicate check is intentional (TR-002).'
-            : 'No tracked entities yet for this program at this '
-              + 'organisation unit.'}
-        </p>
+            ? 'No tracked entities match this search. Try a '
+              + 'shorter search, or use Register new above if '
+              + 'this person is not yet enrolled.'
+            : 'No tracked entities enrolled for this program at '
+              + 'this facility yet. Use Register new above to '
+              + 'enrol the first one.'}
+        </div>
       ) : columns.length === 0 ? (
         <ul className="cap-list" data-test="tr-tei-list">
           {pageRows.map((r, i) => renderBasicRow(programUid, r, i))}

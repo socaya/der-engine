@@ -228,9 +228,9 @@ export function EventDetailPage(
        *  pair instead of an input. Mirrors DER Modern Form shape
        *  so operators recognise the structure. */}
       {sections.length === 0 ? (
-        <p className="cap-sub" style={{ marginLeft: 20 }}>
-          No values recorded on this event.
-        </p>
+        <div className="cap-placeholder" data-test="ev-detail-empty">
+          No values recorded on this event yet.
+        </div>
       ) : (
         <div className="cap-form" data-test="ev-detail-sections">
           {sections.map((s, i) => (

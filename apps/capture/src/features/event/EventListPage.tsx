@@ -463,17 +463,18 @@ export function EventListPage(
       )}
 
       {filtered.length === 0 ? (
-        <p className="cap-sub" style={{ marginLeft: 14 }}>
+        <div className="cap-placeholder" data-test="ev-list-empty">
           {status === 'loading'
             ? 'Fetching events…'
             : status === 'err'
-            ? 'The edge mirror could not be reached. Check the '
-              + 'connection and retry.'
+            ? 'Events could not be loaded. Check the connection '
+              + 'and try again.'
             : activeFilterCount > 0
             ? 'No events match these filters.'
             : 'No events recorded for this program at this '
-              + 'organisation unit yet.'}
-        </p>
+              + 'facility yet. Use + New event above to capture '
+              + 'the first one.'}
+        </div>
       ) : columns.length === 0 ? (
         // Fallback: no stage metadata yet → keep the UID+status+date
         // row layout.
