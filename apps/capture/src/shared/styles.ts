@@ -1099,6 +1099,25 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 .cap-sheet td.cap-sheet__rownum-cell:hover {
   color: var(--der-text); background: var(--der-primary-subtle);
 }
+/* SHEET-R — drag affordance on the row-number gutter. ⋮ glyph
+ * hides by default, surfaces on row hover so operators discover
+ * the drag-to-reorder affordance without permanent chrome. */
+.cap-sheet__rownum-handle {
+  display: inline-block; width: 8px;
+  margin-right: 2px;
+  color: var(--der-text-faint);
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+  cursor: grab;
+  user-select: none;
+}
+.cap-sheet__rownum-cell:hover .cap-sheet__rownum-handle {
+  opacity: 1;
+}
+.cap-sheet__rownum-dropzone {
+  background: var(--der-primary-subtle) !important;
+  box-shadow: inset 0 2px 0 var(--der-primary) !important;
+}
 .cap-sheet .cap-sheet__status-col,
 .cap-sheet td.cap-sheet__status-cell {
   width: 24px; text-align: center; padding: 0 4px;

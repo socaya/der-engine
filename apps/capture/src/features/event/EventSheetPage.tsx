@@ -1060,6 +1060,50 @@ export function EventSheetPage(
       { fieldId, shiftKey });
   }
 
+  /** Move row at srcIdx to the position of tgtIdx. Operates on the
+   *  underlying rows array; sort must be cleared for this to be
+   *  sensible (otherwise the display order is driven by sort,
+   *  not by rows). Records an undo batch so Ctrl+Z reverts the
+   *  whole move in one step. */
+  function reorderRow(srcIdx: number, tgtIdx: number): void {
+    if (srcIdx === tgtIdx) return;
+    setRows((prev) => {
+      if (srcIdx < 0 || srcIdx >= prev.length
+          || tgtIdx < 0 || tgtIdx >= prev.length) return prev;
+      const copy = [...prev];
+      const [moved] = copy.splice(srcIdx, 1);
+      copy.splice(tgtIdx, 0, moved!);
+      return copy;
+    });
+    // eslint-disable-next-line no-console
+    console.log('[sheet] reorder row',
+      { from: srcIdx, to: tgtIdx });
+  }
+
+  /** Sort the data-element columns within a given section run
+   *  alphabetically by label. Persists via colOrder so operators
+   *  get a stable rearranged schema. */
+  function sortSectionColumnsAlphabetically(sectionRun: {
+    startIdx: number; length: number;
+  }): void {
+    const inSection = allFields
+      .slice(sectionRun.startIdx,
+        sectionRun.startIdx + sectionRun.length)
+      .slice()
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .map((f) => f.id);
+    const current = allFields.map((f) => f.id);
+    const next = [...current];
+    // Replace the slice in-place with the sorted order.
+    for (let i = 0; i < inSection.length; i++) {
+      next[sectionRun.startIdx + i] = inSection[i]!;
+    }
+    setColOrder(next);
+    // eslint-disable-next-line no-console
+    console.log('[sheet] section sort columns',
+      { count: inSection.length });
+  }
+
   /** Move the sourceFieldId column to the position of targetFieldId.
    *  Persists the new order via the colOrder state (which
    *  sessionStorage mirrors). Rejects drops that would land on the
@@ -1805,6 +1849,12 @@ export function EventSheetPage(
           menu={sectionMenu}
           anyCollapsed={collapsedSections.size > 0}
           onClose={() => setSectionMenu(null)}
+          onSortColumnsAZ={() => {
+            sortSectionColumnsAlphabetically({
+              startIdx: sectionMenu.startIdx,
+              length: sectionMenu.length });
+            setSectionMenu(null);
+          }}
           onHideSection={() => {
             // Mark every field in this run as hidden. Uses the
             // current allFields run so operators see the same
@@ -2142,19 +2192,60 @@ export function EventSheetPage(
                 <td className="cap-sheet__rownum-cell"
                     data-test={'ev-sheet-row-' + rowIdx + '-num'}
                     role="button" tabIndex={-1}
+                    draggable={sort.length === 0}
                     title={sort.length > 0
                       ? 'Click to select this row (Shift+click '
-                        + 'extends). Row ' + (displayPos + 1)
+                        + 'extends). Clear sort to reorder. Row '
+                        + (displayPos + 1)
                         + ' (data index ' + (rowIdx + 1) + ')'
-                      : 'Click to select this row (Shift+click '
-                        + 'extends). Row ' + (rowIdx + 1)}
+                      : 'Click to select, drag to reorder rows. '
+                        + 'Row ' + (rowIdx + 1)}
                     onMouseDown={(ev) =>
                       onRowNumMouseDown(ev, rowIdx)}
                     onContextMenu={(ev) => {
                       ev.preventDefault();
                       setRowMenu({ rowIdx, displayPos,
                         x: ev.clientX, y: ev.clientY });
+                    }}
+                    onDragStart={(ev) => {
+                      if (sort.length > 0) {
+                        ev.preventDefault();
+                        return;
+                      }
+                      ev.dataTransfer.effectAllowed = 'move';
+                      ev.dataTransfer.setData('text/x-cap-row',
+                        String(rowIdx));
+                    }}
+                    onDragOver={(ev) => {
+                      if (ev.dataTransfer.types.includes(
+                          'text/x-cap-row')) {
+                        ev.preventDefault();
+                        ev.dataTransfer.dropEffect = 'move';
+                        (ev.currentTarget as HTMLElement)
+                          .classList.add(
+                            'cap-sheet__rownum-dropzone');
+                      }
+                    }}
+                    onDragLeave={(ev) => {
+                      (ev.currentTarget as HTMLElement)
+                        .classList.remove(
+                          'cap-sheet__rownum-dropzone');
+                    }}
+                    onDrop={(ev) => {
+                      (ev.currentTarget as HTMLElement)
+                        .classList.remove(
+                          'cap-sheet__rownum-dropzone');
+                      const src = ev.dataTransfer.getData(
+                        'text/x-cap-row');
+                      if (!src) return;
+                      const srcIdx = Number(src);
+                      if (!Number.isFinite(srcIdx)
+                          || srcIdx === rowIdx) return;
+                      ev.preventDefault();
+                      reorderRow(srcIdx, rowIdx);
                     }}>
+                  <span className="cap-sheet__rownum-handle"
+                        aria-hidden="true">⋮</span>
                   {displayPos + 1}
                 </td>
                 <td className="cap-sheet__status-cell"
@@ -2455,7 +2546,7 @@ function ColumnsPopover(
  *  currently collapsed. */
 function SectionHeadMenu(
   { menu, anyCollapsed, onClose, onHideSection, onFreezeThrough,
-    onCollapse, onExpandAll }: {
+    onCollapse, onExpandAll, onSortColumnsAZ }: {
     menu: { sectionKey: string; sectionLabel: string;
       startIdx: number; length: number;
       x: number; y: number };
@@ -2465,6 +2556,7 @@ function SectionHeadMenu(
     onFreezeThrough: () => void;
     onCollapse: () => void;
     onExpandAll: () => void;
+    onSortColumnsAZ: () => void;
   },
 ): JSX.Element {
   useEffect(() => {
@@ -2495,6 +2587,12 @@ function SectionHeadMenu(
                 data-test="ev-sheet-section-menu-collapse"
                 onClick={onCollapse}>
           Collapse section
+        </button>
+        <button type="button" role="menuitem"
+                className="cap-sheet__colmenu-item"
+                data-test="ev-sheet-section-menu-sort-az"
+                onClick={onSortColumnsAZ}>
+          Sort columns A→Z
         </button>
         <button type="button" role="menuitem"
                 className="cap-sheet__colmenu-item"
