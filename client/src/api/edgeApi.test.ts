@@ -475,6 +475,56 @@ describe('edgeApi.listPrograms', () => {
   });
 });
 
+describe('edgeApi.listTrackerRelationships', () => {
+  it('fetches relationships scoped to one tracked entity', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {
+      relationships: [
+        { relationship: 'R1', relationshipType: 'RT1',
+          relationshipName: 'Parent of', bidirectional: false,
+          from: { trackedEntity: { trackedEntity: 'TEI1',
+            displayName: 'Jane Doe' } },
+          to:   { trackedEntity: { trackedEntity: 'TEI2',
+            displayName: 'Baby Doe' } } },
+      ],
+    }));
+    const r = await api.listTrackerRelationships('TEI1');
+    expect(r.length).toBe(1);
+    expect(r[0]!.relationship).toBe('R1');
+    const [path] = fetchMock.mock.calls[0] as [string];
+    expect(path).toContain('/api/tracker/relationships');
+    expect(path).toContain('trackedEntity=TEI1');
+    expect(path).toContain('bidirectional');
+  });
+
+  it('falls back to the instances array shape', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {
+      instances: [{ relationship: 'R-only' }],
+    }));
+    const r = await api.listTrackerRelationships('TEI1');
+    expect(r.map((x) => x.relationship)).toEqual(['R-only']);
+  });
+
+  it('returns an empty list on HTTP error', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(500, { error: 'boom' }));
+    const r = await api.listTrackerRelationships('TEI1');
+    expect(r).toEqual([]);
+  });
+
+  it('returns an empty list when neither key is present in the body',
+      async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {}));
+    const r = await api.listTrackerRelationships('TEI1');
+    expect(r).toEqual([]);
+  });
+
+  it('URL-encodes the TEI UID so special characters survive', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, { relationships: [] }));
+    await api.listTrackerRelationships('a b/c');
+    const [path] = fetchMock.mock.calls[0] as [string];
+    expect(path).toContain('trackedEntity=a%20b%2Fc');
+  });
+});
+
 describe('edgeApi.programTrackedEntityAttributes', () => {
   it('maps the DHIS2 metadata response to a flat UID list', async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, {

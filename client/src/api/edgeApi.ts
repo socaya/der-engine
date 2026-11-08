@@ -1299,6 +1299,53 @@ export async function listProgramRuleVariables(programUid?: string):
   return vars.filter((v) => v.program?.id === programUid);
 }
 
+/** Minimal relationship row shape returned by the DHIS2 tracker
+ *  relationships read endpoint. Fields come wide so the Capture
+ *  parser decides what's displayable with current permissions
+ *  (§REL-UX-002 — never expose unauthorized target attributes). */
+export interface TrackerRelationshipRow {
+  readonly relationship?: string;
+  readonly relationshipType?: string;
+  readonly relationshipName?: string;
+  readonly bidirectional?: boolean;
+  readonly createdAt?: string;
+  readonly lastUpdated?: string;
+  readonly from?: {
+    trackedEntity?: { trackedEntity?: string; displayName?: string };
+    enrollment?: { enrollment?: string };
+    event?: { event?: string };
+  };
+  readonly to?: {
+    trackedEntity?: { trackedEntity?: string; displayName?: string };
+    enrollment?: { enrollment?: string };
+    event?: { event?: string };
+  };
+}
+
+/** List tracker relationships for a tracked entity. Thin wrapper
+ *  around /api/tracker/relationships?trackedEntity={uid} — the
+ *  DHIS2 2.44 endpoint. Returns the raw rows; the Capture app
+ *  parses them for display orientation (§REL-UX-006). */
+export async function listTrackerRelationships(teiUid: string):
+    Promise<TrackerRelationshipRow[]> {
+  const r = await fetch(
+    '/api/tracker/relationships?fields=relationship,relationshipType,'
+      + 'relationshipName,bidirectional,createdAt,lastUpdated,'
+      + 'from[trackedEntity[trackedEntity,displayName],'
+      + 'enrollment[enrollment],event[event]],'
+      + 'to[trackedEntity[trackedEntity,displayName],'
+      + 'enrollment[enrollment],event[event]]'
+      + '&trackedEntity=' + encodeURIComponent(teiUid),
+    { credentials: 'include',
+      headers: { Accept: 'application/json' } });
+  if (!r.ok) return [];
+  const body = await r.json() as {
+    relationships?: TrackerRelationshipRow[];
+    instances?: TrackerRelationshipRow[];
+  };
+  return body.relationships ?? body.instances ?? [];
+}
+
 /** §2.3.43 — pull a program's tracked-entity-attribute UID list from
  *  the DHIS2 proxy so EnrollmentCreate can render the right inputs
  *  without the operator having to paste them into the URL. */

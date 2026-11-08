@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CaptureApi, StageOpt } from '../shared/types';
+import { TrackerRelationshipsSection } from './TrackerRelationshipsSection';
 import { TrackerStageEditor } from './TrackerStageEditor';
 
 export interface TrackerEnrolment {
@@ -338,6 +339,8 @@ export function TrackerDashboard(
           </div>
         </div>
       )}
+
+      <TrackerRelationshipsSection api={api} tei={tei} />
     </>
   );
 }

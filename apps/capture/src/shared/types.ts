@@ -136,6 +136,24 @@ export interface CaptureApi {
     status: string | null;
     dataValues: Record<string, string>;
   }>;
+  listTrackerRelationships: (teiUid: string) => Promise<ReadonlyArray<{
+    relationship?: string;
+    relationshipType?: string;
+    relationshipName?: string;
+    bidirectional?: boolean;
+    createdAt?: string;
+    lastUpdated?: string;
+    from?: {
+      trackedEntity?: { trackedEntity?: string; displayName?: string };
+      enrollment?: { enrollment?: string };
+      event?: { event?: string };
+    };
+    to?: {
+      trackedEntity?: { trackedEntity?: string; displayName?: string };
+      enrollment?: { enrollment?: string };
+      event?: { event?: string };
+    };
+  }>>;
 }
 
 /** G6 — body accepted by submitEvent when editing a tracker

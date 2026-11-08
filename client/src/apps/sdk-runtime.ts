@@ -64,6 +64,8 @@ function useDerApi(): {
   listCaptureEnrollmentEvents: typeof edgeApi.listCaptureEnrollmentEvents;
   // G6 — stage event editor pre-fill.
   getCaptureEventDetail: typeof edgeApi.getCaptureEventDetail;
+  // G7 — tracker relationships (read-only in G7-1).
+  listTrackerRelationships: typeof edgeApi.listTrackerRelationships;
 } {
   return {
     submitAggregate: edgeApi.submitAggregate,
@@ -104,6 +106,7 @@ function useDerApi(): {
     listCaptureTeiEnrollments: edgeApi.listCaptureTeiEnrollments,
     listCaptureEnrollmentEvents: edgeApi.listCaptureEnrollmentEvents,
     getCaptureEventDetail: edgeApi.getCaptureEventDetail,
+    listTrackerRelationships: edgeApi.listTrackerRelationships,
   };
 }
 
