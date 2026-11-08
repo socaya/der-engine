@@ -4,6 +4,7 @@ import {
   OrgUnitBindingProvider,
   useOrgUnitBinding,
 } from './OrgUnitBindingContext';
+import { AuthProvider } from '../auth/AuthContext';
 
 function Probe(): JSX.Element {
   const { state, reload } = useOrgUnitBinding();
@@ -24,6 +25,25 @@ function Probe(): JSX.Element {
   );
 }
 
+/** Shared auth-mock: the OU-binding provider waits for
+ *  auth.state.status === 'AUTHENTICATED' before fetching (fix for
+ *  the first-login "Not bound to an OU" bug — provider used to
+ *  fetch pre-sign-in and cache the 401). Every test here needs an
+ *  AuthProvider ancestor; we inject a signed-in session so the
+ *  binding fetch fires synchronously under the test's control. */
+function authApi(): never {
+  return {
+    session: vi.fn().mockResolvedValue({
+      username: 'op', displayName: 'Op', roles: [] }),
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+  } as never;
+}
+
+function renderWithAuth(ui: JSX.Element): ReturnType<typeof render> {
+  return render(<AuthProvider api={authApi()}>{ui}</AuthProvider>);
+}
+
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe('OrgUnitBindingProvider', () => {
@@ -34,7 +54,7 @@ describe('OrgUnitBindingProvider', () => {
         orgUnitPath: '/R/OU-1', boundAt: 't', boundBy: 'admin',
       }),
     } as never;
-    render(
+    renderWithAuth(
       <OrgUnitBindingProvider api={api}><Probe /></OrgUnitBindingProvider>,
     );
     await waitFor(() => expect(screen.getByTestId('bound')).toHaveTextContent('true'));
@@ -46,7 +66,7 @@ describe('OrgUnitBindingProvider', () => {
     const api = {
       getOrgUnitBinding: vi.fn().mockRejectedValue(new Error('boom')),
     } as never;
-    render(
+    renderWithAuth(
       <OrgUnitBindingProvider api={api}><Probe /></OrgUnitBindingProvider>,
     );
     await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('boom'));
@@ -56,7 +76,7 @@ describe('OrgUnitBindingProvider', () => {
     const api = {
       getOrgUnitBinding: vi.fn().mockRejectedValue('nope'),
     } as never;
-    render(
+    renderWithAuth(
       <OrgUnitBindingProvider api={api}><Probe /></OrgUnitBindingProvider>,
     );
     await waitFor(() => expect(screen.getByTestId('error')).toBeInTheDocument());
@@ -72,8 +92,8 @@ describe('OrgUnitBindingProvider', () => {
           orgUnitDisplayName: 'New', orgUnitPath: '/R/OU-NEW',
           boundAt: 't', boundBy: 'admin' }),
     };
-    render(
-      <OrgUnitBindingProvider api={api}><Probe /></OrgUnitBindingProvider>,
+    renderWithAuth(
+      <OrgUnitBindingProvider api={api as never}><Probe /></OrgUnitBindingProvider>,
     );
     await waitFor(() => expect(screen.getByTestId('bound')).toHaveTextContent('false'));
     // trigger a second load directly against the stub to confirm it fires
@@ -85,5 +105,40 @@ describe('OrgUnitBindingProvider', () => {
     expect(() => render(<Probe />)).toThrow(
       /useOrgUnitBinding must be called inside/,
     );
+  });
+
+  /** Regression: before this fix the provider would fetch once on
+   *  mount — if that landed before auth succeeded the fetch 401'd
+   *  and the ERROR state persisted until the operator manually
+   *  refreshed the page. Now the provider waits for AUTHENTICATED
+   *  and fetches on that transition. */
+  it('defers the fetch until auth becomes AUTHENTICATED', async () => {
+    let resolveSession: ((v: unknown) => void) | null = null;
+    const auth = {
+      session: vi.fn(() => new Promise((res) => { resolveSession = res; })),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+    } as never;
+    const api = {
+      getOrgUnitBinding: vi.fn().mockResolvedValue({
+        bound: true, orgUnitId: 'OU-A', orgUnitDisplayName: 'A',
+        orgUnitPath: '/R/A', boundAt: 't', boundBy: 'admin',
+      }),
+    } as never;
+    render(
+      <AuthProvider api={auth}>
+        <OrgUnitBindingProvider api={api}><Probe /></OrgUnitBindingProvider>
+      </AuthProvider>,
+    );
+    // Pre-auth: loading shown, binding fetch NOT fired.
+    expect(screen.getByTestId('loading')).toBeInTheDocument();
+    expect(api.getOrgUnitBinding).not.toHaveBeenCalled();
+    // Flip auth to AUTHENTICATED.
+    await act(async () => {
+      resolveSession!({ username: 'op', displayName: 'Op', roles: [] });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(api.getOrgUnitBinding).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByTestId('bound')).toHaveTextContent('true'));
   });
 });

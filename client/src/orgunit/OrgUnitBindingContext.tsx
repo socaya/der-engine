@@ -3,11 +3,13 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import * as edgeApi from '../api/edgeApi';
 import type { OrgUnitBinding } from '../api/edgeApi';
+import { useAuth } from '../auth/AuthContext';
 
 /**
  * ADR-0015 — device-client orgUnit binding.
@@ -42,6 +44,7 @@ export function OrgUnitBindingProvider(
   { children, api = edgeApi }: OrgUnitBindingProviderProps,
 ): JSX.Element {
   const [state, setState] = useState<State>({ status: 'LOADING' });
+  const auth = useAuth();
 
   const load = useCallback(async () => {
     try {
@@ -53,9 +56,29 @@ export function OrgUnitBindingProvider(
     }
   }, [api]);
 
+  /** Refetch the binding every time the auth status flips to
+   *  AUTHENTICATED. Fixes the first-login edge case where the
+   *  provider mounted before sign-in, hit /me with no session,
+   *  stored ERROR state, and never retried — operators used to
+   *  see "Not bound to an OU" until they refreshed the page.
+   *  We also guard against re-fetching during a single
+   *  authenticated session via the ref so a re-render of the
+   *  auth state doesn't trigger an extra network call. */
+  const lastSessionRef = useRef<string | null>(null);
   useEffect(() => {
+    if (auth.state.status !== 'AUTHENTICATED') {
+      // Clear the guard so a sign-out → sign-in cycle refetches.
+      lastSessionRef.current = null;
+      // While unauthenticated, hold LOADING so the capture + other
+      // apps don't flash their "not bound" fallback.
+      setState({ status: 'LOADING' });
+      return;
+    }
+    const sessionKey = auth.state.user.username ?? 'anon';
+    if (lastSessionRef.current === sessionKey) return;
+    lastSessionRef.current = sessionKey;
     void load();
-  }, [load]);
+  }, [auth.state, load]);
 
   return (
     <Ctx.Provider value={{ state, reload: load }}>
