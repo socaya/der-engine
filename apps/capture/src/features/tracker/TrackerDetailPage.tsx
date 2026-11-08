@@ -47,8 +47,15 @@ export function TrackerDetailPage(
     useState<'idle' | 'loading' | 'err'>('loading');
   const [tetUid, setTetUid] = useState<string | null>(null);
   const [identity, setIdentity] =
-    useState<{ displayName: string | null; lastUpdated: string | null }>({
-      displayName: null, lastUpdated: null });
+    useState<{
+      displayName: string | null;
+      lastUpdated: string | null;
+      /** Ordered list of (label, value) pairs for the top TEA
+       *  attributes so operators see who this person is at a
+       *  glance (name, age, phone, …) instead of just a UID. */
+      attributes: ReadonlyArray<{ label: string; value: string }>;
+    }>({
+      displayName: null, lastUpdated: null, attributes: [] });
   const [statusFilter, setStatusFilter] =
     useState<'all' | 'ACTIVE' | 'COMPLETED'>('all');
 
@@ -72,9 +79,41 @@ export function TrackerDetailPage(
         const me = all.find((r) =>
           r.trackedEntity === teiId
           || r.trackedEntityInstance === teiId);
+        // Resolve TEA uid → display name so attribute cells carry
+        // human labels instead of opaque UIDs. Pull the TEI-type's
+        // attribute metadata; label the top non-empty attribute
+        // values in the identity strip.
+        let attrs: ReadonlyArray<{ label: string; value: string }> = [];
+        if (tetRes && me?.attributes) {
+          try {
+            const teaRes = await api.listCaptureTeiTypeAttributes(
+              tetRes.trackedEntityTypeUid);
+            if (!cancelled) {
+              const byUid = new Map<string, string>();
+              const ordered = [...teaRes.attributes].sort(
+                (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+              for (const a of ordered) {
+                byUid.set(a.attributeUid,
+                  a.displayName ?? a.attributeUid);
+              }
+              const entries: Array<{ label: string; value: string }> = [];
+              for (const a of ordered) {
+                const v = me.attributes[a.attributeUid];
+                if (!v || String(v).trim() === '') continue;
+                entries.push({
+                  label: byUid.get(a.attributeUid) ?? a.attributeUid,
+                  value: String(v),
+                });
+                if (entries.length >= 4) break;
+              }
+              attrs = entries;
+            }
+          } catch { /* keep attrs empty on failure */ }
+        }
         setIdentity({
           displayName: me?.displayName ?? null,
           lastUpdated: me?.lastUpdated ?? null,
+          attributes: attrs,
         });
         const enr: TrackerEnrolment[] = (enrRes.enrollments ?? []).map((e) => ({
           enrollmentUid: e.enrollmentUid,
@@ -174,23 +213,28 @@ export function TrackerDetailPage(
       </div>
 
       <div className="cap-identity-strip" data-test="tr-identity-strip">
-        <div>
-          <span className="cap-toolbar__field-label">UID</span>
-          <code className="cap-toolbar__ou-code">{teiId}</code>
-        </div>
         {identity.displayName && (
           <div>
-            <span className="cap-toolbar__field-label">Name</span>
-            <strong style={{ marginLeft: 8 }}>{identity.displayName}</strong>
+            <strong>Name</strong>
+            <span>{identity.displayName}</span>
           </div>
         )}
+        {identity.attributes.map((a) => (
+          <div key={a.label}>
+            <strong>{a.label}</strong>
+            <span>{a.value}</span>
+          </div>
+        ))}
         {identity.lastUpdated && (
           <div>
-            <span className="cap-toolbar__field-label">Last updated</span>
-            <span style={{ marginLeft: 8, color: '#4a5768',
-              fontSize: 13 }}>{identity.lastUpdated}</span>
+            <strong>Updated</strong>
+            <span>{formatTimestamp(identity.lastUpdated)}</span>
           </div>
         )}
+        <div>
+          <strong>UID</strong>
+          <code>{teiId}</code>
+        </div>
       </div>
 
       {status === 'idle' && enrolments.length === 0 && (
@@ -241,15 +285,24 @@ export function TrackerDetailPage(
                 data-test={'tr-enrolment-' + e.enrollmentUid}
                 onClick={() => setSelectedEnrolment(e.enrollmentUid)}>
               <div>
-                <code>{e.enrollmentUid}</code>
+                <strong>Enrolled {formatDateOnly(e.enrollmentDate
+                  ?? e.lastUpdatedAt)}</strong>
                 {e.status && (
-                  <span className="cap-chip" style={{ marginLeft: 10 }}>
-                    {e.status}
+                  <span className={'cap-status cap-status--'
+                      + (e.status === 'COMPLETED' ? 'ok' : 'active')}
+                        style={{ marginLeft: 10 }}>
+                    {formatStatusLabel(e.status)}
                   </span>
                 )}
+                <code style={{ marginLeft: 10,
+                  background: 'var(--der-surface-subtle)',
+                  padding: '2px 6px', borderRadius: 3,
+                  fontSize: 11, color: 'var(--der-text-muted)' }}>
+                  {e.enrollmentUid}
+                </code>
               </div>
               <span className="cap-list__when">
-                {e.enrollmentDate ?? e.lastUpdatedAt}
+                {formatTimestamp(e.lastUpdatedAt)}
               </span>
             </li>
           ))}
@@ -293,33 +346,33 @@ export function TrackerDetailPage(
               </p>
             ) : (
               <>
-                <div style={{ display: 'flex',
-                  justifyContent: 'space-between', alignItems: 'center',
-                  gap: 10, marginBottom: 10 }}>
-                  <strong style={{ fontSize: 13, color: '#263352' }}>
+                <div style={{ display: 'flex', alignItems: 'center',
+                  gap: 14, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <strong style={{ fontSize: 14,
+                    color: 'var(--der-text)' }}>
                     {stageEvents.length} event
                     {stageEvents.length === 1 ? '' : 's'}
                     {statusFilter !== 'all' && rawStageEvents.length
                       !== stageEvents.length && (
-                      <span style={{ color: '#6e7a8a',
+                      <span style={{ color: 'var(--der-text-muted)',
                         fontWeight: 400 }}>
                         {' '}· of {rawStageEvents.length}
                       </span>
                     )}
                   </strong>
-                  <label style={{ display: 'flex',
-                    alignItems: 'center', gap: 6, fontSize: 11,
-                    color: '#6e7a8a' }}>
-                    status
-                    <select className="cap-input__ctl"
+                  <span style={{ flex: 1 }} />
+                  <label className="cap-section-head__inline">
+                    <span className="cap-section-head__inline-label">
+                      Status
+                    </span>
+                    <select className="cap-section-head__inline-ctl"
                             data-test="tr-status-filter"
-                            style={{ padding: '2px 6px', fontSize: 12 }}
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(
                               e.target.value as typeof statusFilter)}>
-                      <option value="all">all</option>
-                      <option value="ACTIVE">ACTIVE</option>
-                      <option value="COMPLETED">COMPLETED</option>
+                      <option value="all">All</option>
+                      <option value="ACTIVE">Active</option>
+                      <option value="COMPLETED">Completed</option>
                     </select>
                   </label>
                   {(() => {
@@ -369,16 +422,26 @@ export function TrackerDetailPage(
                             }
                           }}>
                         <div>
-                          <code>{e.eventUid}</code>
+                          <strong>{formatDateOnly(e.occurredDate
+                            ?? e.lastUpdatedAt)}</strong>
                           {e.status && (
-                            <span className="cap-chip"
+                            <span className={'cap-status cap-status--'
+                                + (e.status === 'COMPLETED'
+                                  ? 'ok' : 'active')}
                                   style={{ marginLeft: 10 }}>
-                              {e.status}
+                              {formatStatusLabel(e.status)}
                             </span>
                           )}
+                          <code style={{ marginLeft: 10,
+                            background: 'var(--der-surface-subtle)',
+                            padding: '2px 6px', borderRadius: 3,
+                            fontSize: 11,
+                            color: 'var(--der-text-muted)' }}>
+                            {e.eventUid.slice(0, 8)}…
+                          </code>
                         </div>
                         <span className="cap-list__when">
-                          {e.occurredDate ?? e.lastUpdatedAt}
+                          {formatTimestamp(e.lastUpdatedAt)}
                         </span>
                       </li>
                     ))}
@@ -396,4 +459,43 @@ export function TrackerDetailPage(
                                      tetUid={tetUid} />
     </>
   );
+}
+
+/** Human-readable timestamp for the identity strip + list rows.
+ *  Falls back to the raw string if unparseable (never swallows a
+ *  malformed server value). */
+function formatTimestamp(iso: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  // Date-only values (YYYY-MM-DD) show just the day; full
+  // timestamps include time for recency context.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    return d.toLocaleDateString(undefined,
+      { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+  return d.toLocaleString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function formatDateOnly(iso: string | null): string {
+  if (!iso) return '—';
+  const slice = iso.length >= 10 ? iso.slice(0, 10) : iso;
+  const d = new Date(slice);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined,
+    { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function formatStatusLabel(s: string | null | undefined): string {
+  if (!s) return '—';
+  if (s === 'ACTIVE') return 'Active';
+  if (s === 'COMPLETED') return 'Completed';
+  if (s === 'SCHEDULE' || s === 'SCHEDULED') return 'Scheduled';
+  if (s === 'OVERDUE') return 'Overdue';
+  if (s === 'VISITED') return 'Visited';
+  if (s === 'SKIPPED') return 'Skipped';
+  return s;
 }

@@ -851,10 +851,16 @@ export const CAPTURE_STYLES = `
   margin: 0 20px 10px 20px;
 }
 .cap-filter-row .cap-input { min-width: 160px; }
+/* Borderless table — mirrors @dhis2/ui's DataTable aesthetic
+ * used across the DER device client (Drafts, OfflineQueue,
+ * ScheduledEvents). No cell borders, no outer frame. Structure
+ * comes from a single 2px header bottom-rule (brand-tinted) plus
+ * hairline row separators and a hover tint for interactivity.
+ * Operators recognise the pattern from the rest of the stack. */
 .cap-table-wrap {
-  margin: 0 20px 14px 20px;
+  margin: 0 20px 0 20px;
   overflow-x: auto;
-  border-top: 1px solid var(--der-border-soft);
+  border: 0; background: var(--der-surface);
 }
 .cap-table {
   width: 100%; border-collapse: collapse;
@@ -862,23 +868,30 @@ export const CAPTURE_STYLES = `
 }
 .cap-table thead th {
   text-align: left; font-weight: 500;
-  color: var(--der-text-muted); font-size: 12px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--der-border);
+  color: var(--der-text-muted);
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 12px;
   background: var(--der-surface);
+  border: 0;
+  border-bottom: 2px solid var(--der-border);
   white-space: nowrap;
   position: sticky; top: 0;
 }
-.cap-table__row { cursor: pointer; }
+.cap-table__row { cursor: pointer; transition: background 80ms; }
 .cap-table__row:hover { background: var(--der-surface-subtle); }
 .cap-table__row:focus {
   outline: none; background: var(--der-surface-subtle);
-  box-shadow: inset 2px 0 0 var(--der-primary);
+  box-shadow: inset 3px 0 0 var(--der-primary);
 }
 .cap-table__cell {
-  padding: 8px 10px;
+  padding: 10px 12px;
+  border: 0;
   border-bottom: 1px solid var(--der-border-soft);
-  vertical-align: top;
+  vertical-align: middle;
+}
+.cap-table tbody tr:last-child .cap-table__cell {
+  border-bottom: 0;
 }
 .cap-table__cell--date { color: var(--der-text-muted);
                          white-space: nowrap; }
@@ -907,8 +920,9 @@ export const CAPTURE_STYLES = `
 .cap-density-btn:hover { background: var(--der-surface-subtle); }
 .cap-pager {
   display: flex; align-items: center; gap: 10px;
-  margin: 0 20px 14px 20px; padding: 8px 10px;
-  border: 1px solid var(--der-border-soft); border-top: 0;
+  margin: 0 20px 14px 20px;
+  padding: 10px 12px;
+  border: 0; border-top: 1px solid var(--der-border);
   background: var(--der-surface);
   color: var(--der-text-muted); font-size: 12px;
 }
