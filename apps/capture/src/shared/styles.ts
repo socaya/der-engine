@@ -706,6 +706,16 @@ export const CAPTURE_STYLES = `
 .cap-sheet__row--saving td,
 .cap-sheet__row--dirty td { background: #fffdf5; }
 .cap-sheet__row--err td { background: var(--der-danger-subtle); }
+/* Frozen row (SHEET-O2) — sticky-top below the header. The last
+ * frozen row carries a hairline on its bottom edge so operators
+ * see the boundary between frozen pane + scrolling body. */
+.cap-sheet__row--row-frozen {
+  background: var(--der-surface);
+}
+.cap-sheet__row--row-frozen-last td {
+  border-bottom: 1px solid var(--der-border) !important;
+}
+
 /* Active-row highlight — the row (or span of rows) containing the
  * current selection gets a soft blue tint so operators keep
  * context across long/wide sheets. Chained :not() filters so

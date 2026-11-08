@@ -86,6 +86,7 @@ export function EventSheetPage(
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [rowHeightPx, setRowHeightPx] = useState(32);
+  const [headerHeightPx, setHeaderHeightPx] = useState(32);
   /** Active sort chain — each entry is one sort key. Empty array
    *  means display order matches the underlying rows array.
    *  Shift+click on a column's sort icon appends to the chain;
@@ -186,6 +187,30 @@ export function EventSheetPage(
     fieldId: string; colIdx: number;
     x: number; y: number;
   }>(null);
+  /** Context-menu state for the row-number right-click surface
+   *  (SHEET-O1). null when closed. */
+  const [rowMenu, setRowMenu] = useState<null | {
+    rowIdx: number; displayPos: number;
+    x: number; y: number;
+  }>(null);
+  /** Number of leading display-order rows to freeze below the
+   *  header. Zero = none. Right-click menu's "Freeze through this
+   *  row" sets this to the clicked row's display position + 1. */
+  const frozenRowsKey = 'cap:sheet-frozen-rows:' + programUid;
+  const [frozenRows, setFrozenRows] = useState<number>(() => {
+    if (typeof sessionStorage === 'undefined') return 0;
+    try {
+      const raw = sessionStorage.getItem(frozenRowsKey);
+      return raw ? JSON.parse(raw) : 0;
+    } catch { return 0; }
+  });
+  useEffect(() => {
+    if (typeof sessionStorage === 'undefined') return;
+    try {
+      sessionStorage.setItem(frozenRowsKey,
+        JSON.stringify(frozenRows));
+    } catch { /* ignore */ }
+  }, [frozenRows, frozenRowsKey]);
   /** per-row save-timer handles, keyed by row index */
   const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   /** Live rows snapshot — React 18 defers functional setState until
@@ -473,7 +498,36 @@ export function EventSheetPage(
         setRowHeightPx(rh);
       }
     }
+    const thead = wrap.querySelector<HTMLElement>(
+      'table.cap-sheet thead');
+    if (thead) {
+      const hh = thead.getBoundingClientRect().height;
+      if (hh > 0 && Math.abs(headerHeightPx - hh) > 0.5) {
+        setHeaderHeightPx(hh);
+      }
+    }
   });
+
+  /** The actual list of (rowIdx, displayPos, isFrozen) tuples the
+   *  body renders. Frozen prefix always renders ahead of the
+   *  virtualization slice so Freeze through this row keeps those
+   *  rows visible regardless of scroll. */
+  const renderedRowIndexes = useMemo(() => {
+    const out: Array<{ rowIdx: number; displayPos: number;
+      isFrozen: boolean }> = [];
+    const effectiveFrozen = Math.min(frozenRows, displayOrder.length);
+    for (let i = 0; i < effectiveFrozen; i++) {
+      out.push({ rowIdx: displayOrder[i]!, displayPos: i,
+        isFrozen: true });
+    }
+    const start = Math.max(virtualSlice.startIdx, effectiveFrozen);
+    const end = virtualSlice.endIdx;
+    for (let i = start; i < end; i++) {
+      out.push({ rowIdx: displayOrder[i]!, displayPos: i,
+        isFrozen: false });
+    }
+    return out;
+  }, [displayOrder, frozenRows, virtualSlice]);
 
   // Attach a passive scroll listener for the virtualized window.
   useEffect(() => {
@@ -1635,12 +1689,32 @@ export function EventSheetPage(
             new Set(allFieldsUnfiltered.map((f) => f.id)))}
           onClose={() => setColumnsOpen(false)} />
       )}
+      {rowMenu && (
+        <RowNumMenu
+          menu={rowMenu}
+          frozenRows={frozenRows}
+          onClose={() => setRowMenu(null)}
+          onFreezeThrough={() => {
+            setFrozenRows(rowMenu.displayPos + 1);
+            setRowMenu(null);
+          }}
+          onUnfreeze={() => {
+            setFrozenRows(0);
+            setRowMenu(null);
+          }}
+          onDeleteRow={() => {
+            void deleteRow(rowMenu.rowIdx);
+            setRowMenu(null);
+          }} />
+      )}
       {colMenu && (
         <ColHeaderMenu
           menu={colMenu}
           sortActive={sort.length > 0}
           hiddenCount={hiddenCols.size}
           frozenCols={frozenCols}
+          canMoveLeft={colMenu.colIdx > 0}
+          canMoveRight={colMenu.colIdx < allFields.length - 1}
           colLabel={allFields[colMenu.colIdx]?.label
             ?? colMenu.fieldId}
           onClose={() => setColMenu(null)}
@@ -1654,7 +1728,17 @@ export function EventSheetPage(
             setColMenu(null); }}
           onClearSort={() => { setSort([]); setColMenu(null); }}
           onResetWidth={() => { resetColumnWidth(colMenu.fieldId);
-            setColMenu(null); }} />
+            setColMenu(null); }}
+          onMoveLeft={() => {
+            const target = allFields[colMenu.colIdx - 1];
+            if (target) reorderColumn(colMenu.fieldId, target.id);
+            setColMenu(null);
+          }}
+          onMoveRight={() => {
+            const target = allFields[colMenu.colIdx + 1];
+            if (target) reorderColumn(colMenu.fieldId, target.id);
+            setColMenu(null);
+          }} />
       )}
 
       <div className="cap-sheet-wrap" data-test="ev-sheet"
@@ -1751,13 +1835,18 @@ export function EventSheetPage(
               <tr aria-hidden="true"
                   data-test="ev-sheet-virt-pad-top">
                 <td colSpan={allFields.length + 4}
-                    style={{ height: virtualSlice.padTop + 'px',
+                    style={{
+                      // Shrink the top-pad by the frozen rows'
+                      // pixel height — they sit above the pad and
+                      // consume layout space regardless of scroll.
+                      height: Math.max(0,
+                        virtualSlice.padTop
+                        - frozenRows * rowHeightPx) + 'px',
                       padding: 0, border: 0 }} />
               </tr>
             )}
-            {displayOrder.slice(virtualSlice.startIdx,
-                virtualSlice.endIdx).map((rowIdx, sliceOffset) => {
-              const displayPos = virtualSlice.startIdx + sliceOffset;
+            {renderedRowIndexes.map(({ rowIdx, displayPos,
+                isFrozen }) => {
               const r = rows[rowIdx];
               if (!r) return null;
               const effects = rowEffects[rowIdx];
@@ -1804,21 +1893,36 @@ export function EventSheetPage(
                           selection.focus.row)
                       && rowIdx <= Math.max(selection.anchor.row,
                           selection.focus.row)
-                        ? ' cap-sheet__row--active' : '')}
+                        ? ' cap-sheet__row--active' : '')
+                    + (isFrozen ? ' cap-sheet__row--row-frozen' : '')
+                    + (isFrozen && displayPos === frozenRows - 1
+                      ? ' cap-sheet__row--row-frozen-last' : '')}
+                  style={isFrozen ? {
+                    position: 'sticky' as const,
+                    top: (headerHeightPx
+                      + displayPos * rowHeightPx) + 'px',
+                    zIndex: 2,
+                    background: 'var(--der-surface)',
+                  } : undefined}
                   data-test={'ev-sheet-row-' + rowIdx}
                   data-rule-errors={errorCount}
                   data-rule-warnings={warnCount}>
                 <td className="cap-sheet__rownum-cell"
                     data-test={'ev-sheet-row-' + rowIdx + '-num'}
                     role="button" tabIndex={-1}
-                    title={sort
+                    title={sort.length > 0
                       ? 'Click to select this row (Shift+click '
                         + 'extends). Row ' + (displayPos + 1)
                         + ' (data index ' + (rowIdx + 1) + ')'
                       : 'Click to select this row (Shift+click '
                         + 'extends). Row ' + (rowIdx + 1)}
                     onMouseDown={(ev) =>
-                      onRowNumMouseDown(ev, rowIdx)}>
+                      onRowNumMouseDown(ev, rowIdx)}
+                    onContextMenu={(ev) => {
+                      ev.preventDefault();
+                      setRowMenu({ rowIdx, displayPos,
+                        x: ev.clientX, y: ev.clientY });
+                    }}>
                   {displayPos + 1}
                 </td>
                 <td className="cap-sheet__status-cell"
@@ -2113,20 +2217,88 @@ function ColumnsPopover(
   );
 }
 
+/** Row-number right-click menu (SHEET-O1). Mirrors the column
+ *  header menu's affordances: Freeze through this row keeps that
+ *  row + every row above it pinned to the top of the scroll
+ *  container; Unfreeze rows clears the freeze; Delete row runs
+ *  the same confirmed delete path as the per-row × button. */
+function RowNumMenu(
+  { menu, frozenRows, onClose, onFreezeThrough, onUnfreeze,
+    onDeleteRow }: {
+    menu: { rowIdx: number; displayPos: number;
+      x: number; y: number };
+    frozenRows: number;
+    onClose: () => void;
+    onFreezeThrough: () => void;
+    onUnfreeze: () => void;
+    onDeleteRow: () => void;
+  },
+): JSX.Element {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey as unknown as
+      EventListener);
+    return () => window.removeEventListener('keydown',
+      onKey as unknown as EventListener);
+  }, [onClose]);
+  return (
+    <div className="cap-sheet__colmenu-backdrop"
+         role="presentation"
+         data-test="ev-sheet-row-menu"
+         onClick={onClose}
+         onContextMenu={(e) => { e.preventDefault(); onClose(); }}>
+      <div className="cap-sheet__colmenu"
+           role="menu"
+           style={{ left: menu.x + 'px', top: menu.y + 'px' }}
+           onClick={(e) => e.stopPropagation()}>
+        <div className="cap-sheet__colmenu-head">
+          Row {menu.displayPos + 1}
+        </div>
+        <button type="button" role="menuitem"
+                className="cap-sheet__colmenu-item"
+                data-test="ev-sheet-row-menu-freeze"
+                onClick={onFreezeThrough}>
+          Freeze through this row
+        </button>
+        {frozenRows > 0 && (
+          <button type="button" role="menuitem"
+                  className="cap-sheet__colmenu-item"
+                  data-test="ev-sheet-row-menu-unfreeze"
+                  onClick={onUnfreeze}>
+            Unfreeze rows
+          </button>
+        )}
+        <button type="button" role="menuitem"
+                className="cap-sheet__colmenu-item"
+                data-test="ev-sheet-row-menu-delete"
+                onClick={onDeleteRow}>
+          Delete row
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Floating menu anchored at cursor coords, surfaced from a
  *  right-click on a column header. Keeps freeze / hide / unhide /
  *  reset actions grouped so operators find them once instead of
  *  hunting across the toolbar. Closes on Esc, backdrop click,
  *  and any item selection. */
 function ColHeaderMenu(
-  { menu, sortActive, hiddenCount, frozenCols, colLabel,
+  { menu, sortActive, hiddenCount, frozenCols, canMoveLeft,
+    canMoveRight, colLabel,
     onClose, onHide, onUnhideAll, onFreezeThrough,
-    onUnfreezeData, onClearSort, onResetWidth }: {
+    onUnfreezeData, onClearSort, onResetWidth,
+    onMoveLeft, onMoveRight }: {
     menu: { fieldId: string; colIdx: number;
       x: number; y: number };
     sortActive: boolean;
     hiddenCount: number;
     frozenCols: number;
+    canMoveLeft: boolean;
+    canMoveRight: boolean;
     colLabel: string;
     onClose: () => void;
     onHide: () => void;
@@ -2135,6 +2307,8 @@ function ColHeaderMenu(
     onUnfreezeData: () => void;
     onClearSort: () => void;
     onResetWidth: () => void;
+    onMoveLeft: () => void;
+    onMoveRight: () => void;
   },
 ): JSX.Element {
   useEffect(() => {
@@ -2157,6 +2331,22 @@ function ColHeaderMenu(
            style={{ left: menu.x + 'px', top: menu.y + 'px' }}
            onClick={(e) => e.stopPropagation()}>
         <div className="cap-sheet__colmenu-head">{colLabel}</div>
+        {canMoveLeft && (
+          <button type="button" role="menuitem"
+                  className="cap-sheet__colmenu-item"
+                  data-test="ev-sheet-col-menu-move-left"
+                  onClick={onMoveLeft}>
+            Move column left
+          </button>
+        )}
+        {canMoveRight && (
+          <button type="button" role="menuitem"
+                  className="cap-sheet__colmenu-item"
+                  data-test="ev-sheet-col-menu-move-right"
+                  onClick={onMoveRight}>
+            Move column right
+          </button>
+        )}
         <button type="button" role="menuitem"
                 className="cap-sheet__colmenu-item"
                 data-test="ev-sheet-col-menu-hide"
