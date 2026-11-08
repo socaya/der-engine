@@ -714,8 +714,12 @@ export const CAPTURE_STYLES = `
   background: #f3f7fb;
 }
 .cap-sheet__row--active td.cap-sheet__date-cell,
-.cap-sheet__row--active td.cap-sheet__status-cell {
+.cap-sheet__row--active td.cap-sheet__status-cell,
+.cap-sheet__row--active td.cap-sheet__rownum-cell {
   background: #eef3f9;
+}
+.cap-sheet__row--active td.cap-sheet__rownum-cell {
+  color: var(--der-primary); font-weight: 500;
 }
 .cap-sheet__row--rule-warn td { box-shadow: inset 2px 0 0 var(--der-warning); }
 .cap-sheet__row--rule-err td { box-shadow: inset 2px 0 0 var(--der-danger); }
@@ -871,6 +875,19 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
   box-shadow: inset 2px 0 0 var(--der-primary) !important;
   background: var(--der-primary-subtle) !important;
 }
+/* Column sort icon (SHEET-J2). Idle state is muted; hover brings
+ * it to full contrast; active (currently sorted) column tints
+ * primary so operators see the sort target from across the sheet. */
+.cap-sheet__col-sort {
+  display: inline-block; margin-left: 6px;
+  padding: 0 4px; font-size: 11px; line-height: 1;
+  background: transparent; border: 0; color: var(--der-text-faint);
+  cursor: pointer; font-family: inherit;
+}
+.cap-sheet__col-sort:hover { color: var(--der-text); }
+.cap-sheet__col-sort--active {
+  color: var(--der-primary); font-weight: 600;
+}
 .cap-sheet thead th { position: sticky; }
 body.cap-sheet__resizing,
 body.cap-sheet__resizing * { cursor: col-resize !important;
@@ -898,21 +915,33 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 }
 
 /* SHEET-H1 freeze — status + date columns stay left-anchored
- * while the data columns scroll horizontally. Needs higher
- * specificity than the generic .cap-sheet td position:relative
- * rule used for fill-handle anchoring, so the selectors double up
- * on the cap-sheet qualifier. position:sticky inside a table only
- * works when border-collapse is separate (cap-sheet uses that). */
+ * while the data columns scroll horizontally. SHEET-J1 adds a
+ * row-number gutter in front of them that uses the same sticky-
+ * left trick. Left offsets are stacked: rownum at 0, status at
+ * 36, date at 60. Needs higher specificity than the generic
+ * .cap-sheet td position:relative rule used for fill-handle
+ * anchoring, so the selectors double up on the cap-sheet qualifier.
+ * position:sticky inside a table only works when border-collapse
+ * is separate (cap-sheet uses that). */
+.cap-sheet .cap-sheet__rownum-col,
+.cap-sheet td.cap-sheet__rownum-cell {
+  width: 36px; min-width: 36px; text-align: right;
+  padding: 0 8px;
+  background: var(--der-surface-subtle);
+  color: var(--der-text-faint); font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  position: sticky; left: 0; z-index: 4;
+}
 .cap-sheet .cap-sheet__status-col,
 .cap-sheet td.cap-sheet__status-cell {
   width: 24px; text-align: center; padding: 0 4px;
   background: var(--der-surface-subtle);
-  position: sticky; left: 0; z-index: 4;
+  position: sticky; left: 36px; z-index: 4;
 }
 .cap-sheet .cap-sheet__date-col,
 .cap-sheet td.cap-sheet__date-cell {
   min-width: 130px;
-  position: sticky; left: 24px; z-index: 4;
+  position: sticky; left: 60px; z-index: 4;
   background: var(--der-surface);
   /* Hairline on the right edge visually separates the frozen
    * area from the horizontally-scrolling data columns. */
@@ -922,6 +951,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
  * blow through the sticky cells. Lift the sticky z-index above
  * the fill-preview outline so the frozen columns always stay
  * on top of scrolling content. */
+.cap-sheet thead .cap-sheet__rownum-col,
 .cap-sheet thead .cap-sheet__status-col,
 .cap-sheet thead .cap-sheet__date-col { z-index: 5; }
 /* Keep the hover tint subtle on frozen cells so they don't jump

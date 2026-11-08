@@ -77,6 +77,12 @@ export function EventSheetPage(
     focus: { row: number; col: number };
   } | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  /** Active sort column — null means display order matches the
+   *  underlying rows array. Operators click the sort icon in a
+   *  column header to toggle unsorted → asc → desc → unsorted. */
+  const [sort, setSort] = useState<null | {
+    fieldId: string; direction: 'asc' | 'desc';
+  }>(null);
   /** Fill-drag in progress — the operator mousedowned on the handle
    *  and is extending the selection. The extend rectangle is shown
    *  as a preview outline; on mouseup the extended cells get
@@ -212,6 +218,45 @@ export function EventSheetPage(
   // reads the latest values + eventUid, even when React's state
   // commits are batched past our setRows updater call.
   useEffect(() => { rowsRef.current = rows; }, [rows]);
+
+  /** Display-order index map — rows[displayOrder[i]] is the row
+   *  rendered at visible position i. Sort doesn't mutate the
+   *  underlying rows array so undo + localKey references stay
+   *  valid; only the render pass walks the sorted indexes.
+   *
+   *  <p>Number-like values sort numerically; mixed / string values
+   *  sort lexicographically (locale-aware). Empty cells always
+   *  sort to the bottom so non-blank rows cluster together. */
+  const displayOrder = useMemo<number[]>(() => {
+    const base = rows.map((_, i) => i);
+    if (!sort) return base;
+    const key = sort.fieldId;
+    const dir = sort.direction === 'desc' ? -1 : 1;
+    function val(i: number): string {
+      return (rows[i]?.values[key] ?? '').trim();
+    }
+    function asNum(s: string): number | null {
+      if (s === '') return null;
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    }
+    // Check if ALL non-empty values are numeric → numeric sort.
+    const nonEmpty = base.map(val).filter((v) => v !== '');
+    const allNumeric = nonEmpty.length > 0
+      && nonEmpty.every((v) => Number.isFinite(Number(v)));
+    base.sort((a, b) => {
+      const va = val(a); const vb = val(b);
+      if (va === '' && vb === '') return 0;
+      if (va === '') return 1;  // empties to the bottom
+      if (vb === '') return -1;
+      if (allNumeric) {
+        const na = asNum(va) ?? 0; const nb = asNum(vb) ?? 0;
+        return (na < nb ? -1 : na > nb ? 1 : 0) * dir;
+      }
+      return va.localeCompare(vb) * dir;
+    });
+    return base;
+  }, [rows, sort]);
 
   const allFields = useMemo<readonly CaptureField[]>(() => {
     const fs: CaptureField[] = [];
@@ -575,6 +620,23 @@ export function EventSheetPage(
     const c0 = Math.min(selection.anchor.col, selection.focus.col);
     const c1 = Math.max(selection.anchor.col, selection.focus.col);
     return row >= r0 && row <= r1 && col >= c0 && col <= c1;
+  }
+
+  /** Cycle the sort state for a column:
+   *    unsorted → asc → desc → unsorted (for the same column)
+   *    new column → asc (overrides any previous sort target). */
+  function toggleSort(fieldId: string): void {
+    setSort((prev) => {
+      if (!prev || prev.fieldId !== fieldId) {
+        return { fieldId, direction: 'asc' };
+      }
+      if (prev.direction === 'asc') {
+        return { fieldId, direction: 'desc' };
+      }
+      return null;
+    });
+    // eslint-disable-next-line no-console
+    console.log('[sheet] sort toggle', { fieldId });
   }
 
   /** Move the sourceFieldId column to the position of targetFieldId.
@@ -1261,6 +1323,8 @@ export function EventSheetPage(
         <table className="cap-sheet">
           <thead>
             <tr>
+              <th scope="col" className="cap-sheet__rownum-col"
+                  title="Row number">&nbsp;</th>
               <th scope="col" className="cap-sheet__status-col"
                   title="Per-row save state">&nbsp;</th>
               <th scope="col" className="cap-sheet__date-col">Event date</th>
@@ -1300,6 +1364,21 @@ export function EventSheetPage(
                       : undefined}>
                   {f.label}
                   {f.required && <span className="cap-input__req"> *</span>}
+                  <button type="button"
+                          className={'cap-sheet__col-sort'
+                            + (sort?.fieldId === f.id
+                              ? ' cap-sheet__col-sort--active' : '')}
+                          data-test={'ev-sheet-col-sort-' + f.id}
+                          aria-label={sortLabel(sort, f.id)}
+                          title={sortLabel(sort, f.id)}
+                          onMouseDown={(ev) => ev.stopPropagation()}
+                          onDragStart={(ev) => ev.preventDefault()}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            toggleSort(f.id);
+                          }}>
+                    {sortGlyph(sort, f.id)}
+                  </button>
                   <span className="cap-sheet__col-resize"
                         role="separator" aria-orientation="vertical"
                         title={'Drag to resize this column'}
@@ -1317,7 +1396,9 @@ export function EventSheetPage(
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, rowIdx) => {
+            {displayOrder.map((rowIdx, displayPos) => {
+              const r = rows[rowIdx];
+              if (!r) return null;
               const effects = rowEffects[rowIdx];
               const ruleWarnings = effects?.warnings ?? [];
               const errorCount = ruleWarnings.filter(
@@ -1366,6 +1447,14 @@ export function EventSheetPage(
                   data-test={'ev-sheet-row-' + rowIdx}
                   data-rule-errors={errorCount}
                   data-rule-warnings={warnCount}>
+                <td className="cap-sheet__rownum-cell"
+                    data-test={'ev-sheet-row-' + rowIdx + '-num'}
+                    title={sort
+                      ? 'Row ' + (displayPos + 1)
+                        + ' (data index ' + (rowIdx + 1) + ')'
+                      : 'Row ' + (rowIdx + 1)}>
+                  {displayPos + 1}
+                </td>
                 <td className="cap-sheet__status-cell"
                     title={tooltipLines.join('\n')}>
                   {statusDot(r.saveState)}
@@ -1496,7 +1585,7 @@ export function EventSheetPage(
             {rows.length === 0 && (
               <tr>
                 <td className="cap-sheet__empty"
-                    colSpan={allFields.length + 3}>
+                    colSpan={allFields.length + 4}>
                   No events yet — click <strong>+ New row</strong> above
                   to start.
                 </td>
@@ -1541,6 +1630,27 @@ function extractEventUid(result: unknown): string | null {
     return evReports[0].uid as string;
   }
   return null;
+}
+
+function sortGlyph(
+  sort: { fieldId: string; direction: 'asc' | 'desc' } | null,
+  fieldId: string,
+): string {
+  if (!sort || sort.fieldId !== fieldId) return '↕';
+  return sort.direction === 'asc' ? '↑' : '↓';
+}
+
+function sortLabel(
+  sort: { fieldId: string; direction: 'asc' | 'desc' } | null,
+  fieldId: string,
+): string {
+  if (!sort || sort.fieldId !== fieldId) {
+    return 'Sort ascending by this column';
+  }
+  if (sort.direction === 'asc') {
+    return 'Sorted ascending — click to sort descending';
+  }
+  return 'Sorted descending — click to clear sort';
 }
 
 function statusDot(state: SheetRow['saveState']): JSX.Element {
