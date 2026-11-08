@@ -92,6 +92,15 @@ function CaptureAppInner(): JSX.Element {
         const input = document.querySelector<HTMLInputElement>(
           '[data-test="tr-search-input"]');
         if (input) { ev.preventDefault(); input.focus(); input.select(); }
+      } else if (ev.code === 'KeyB') {
+        // Back from TEI dashboard to the working list, or from the
+        // stage editor back to the stage pane. First match wins;
+        // the selector misses are no-ops on screens where neither
+        // button is visible.
+        const btn = document.querySelector<HTMLButtonElement>(
+          '[data-test="tr-editor-cancel"]:not([disabled]),'
+          + '[data-test="tr-dash-back"]:not([disabled])');
+        if (btn) { ev.preventDefault(); btn.click(); }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -349,6 +358,8 @@ function CaptureInfoPopover(
                 <dd>Add a new event on the active stage</dd></div>
               <div><dt><kbd>Alt + F</kbd></dt>
                 <dd>Focus the tracker working-list search</dd></div>
+              <div><dt><kbd>Alt + B</kbd></dt>
+                <dd>Back to previous view (closes editor or dashboard)</dd></div>
               <div><dt><kbd>Alt + I</kbd></dt>
                 <dd>Show / hide this panel</dd></div>
               <div><dt><kbd>Esc</kbd></dt>

@@ -156,6 +156,7 @@ export function TrackerDashboard(
         <button type="button"
                 className="cap-btn cap-btn--secondary"
                 data-test="tr-dash-back"
+                title="Back to the working list (Alt+B)"
                 onClick={onBack}
                 style={{ padding: '4px 10px', fontSize: 12 }}>
           ← Back to list
