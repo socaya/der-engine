@@ -932,6 +932,10 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   font-variant-numeric: tabular-nums;
   position: sticky; left: 0; z-index: 4;
 }
+.cap-sheet td.cap-sheet__rownum-cell { cursor: pointer; }
+.cap-sheet td.cap-sheet__rownum-cell:hover {
+  color: var(--der-text); background: var(--der-primary-subtle);
+}
 .cap-sheet .cap-sheet__status-col,
 .cap-sheet td.cap-sheet__status-cell {
   width: 24px; text-align: center; padding: 0 4px;

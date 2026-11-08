@@ -77,12 +77,15 @@ export function EventSheetPage(
     focus: { row: number; col: number };
   } | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  /** Active sort column — null means display order matches the
-   *  underlying rows array. Operators click the sort icon in a
-   *  column header to toggle unsorted → asc → desc → unsorted. */
-  const [sort, setSort] = useState<null | {
+  /** Active sort chain — each entry is one sort key. Empty array
+   *  means display order matches the underlying rows array.
+   *  Shift+click on a column's sort icon appends to the chain;
+   *  non-Shift click resets to a single key. Comparator walks
+   *  the chain, breaking ties with each subsequent key — matches
+   *  Excel's Sort Data dialog + Google Sheets multi-level sort. */
+  const [sort, setSort] = useState<ReadonlyArray<{
     fieldId: string; direction: 'asc' | 'desc';
-  }>(null);
+  }>>([]);
   /** Fill-drag in progress — the operator mousedowned on the handle
    *  and is extending the selection. The extend rectangle is shown
    *  as a preview outline; on mouseup the extended cells get
@@ -229,31 +232,36 @@ export function EventSheetPage(
    *  sort to the bottom so non-blank rows cluster together. */
   const displayOrder = useMemo<number[]>(() => {
     const base = rows.map((_, i) => i);
-    if (!sort) return base;
-    const key = sort.fieldId;
-    const dir = sort.direction === 'desc' ? -1 : 1;
-    function val(i: number): string {
-      return (rows[i]?.values[key] ?? '').trim();
-    }
-    function asNum(s: string): number | null {
-      if (s === '') return null;
-      const n = Number(s);
-      return Number.isFinite(n) ? n : null;
-    }
-    // Check if ALL non-empty values are numeric → numeric sort.
-    const nonEmpty = base.map(val).filter((v) => v !== '');
-    const allNumeric = nonEmpty.length > 0
-      && nonEmpty.every((v) => Number.isFinite(Number(v)));
+    if (sort.length === 0) return base;
+    // Pre-compute per-key whether the column is all-numeric so we
+    // don't re-check on every comparator call.
+    const keys = sort.map((s) => {
+      const nonEmpty = base.map(
+        (i) => (rows[i]?.values[s.fieldId] ?? '').trim())
+        .filter((v) => v !== '');
+      const allNumeric = nonEmpty.length > 0
+        && nonEmpty.every((v) => Number.isFinite(Number(v)));
+      return { fieldId: s.fieldId,
+        dir: s.direction === 'desc' ? -1 : 1,
+        allNumeric };
+    });
     base.sort((a, b) => {
-      const va = val(a); const vb = val(b);
-      if (va === '' && vb === '') return 0;
-      if (va === '') return 1;  // empties to the bottom
-      if (vb === '') return -1;
-      if (allNumeric) {
-        const na = asNum(va) ?? 0; const nb = asNum(vb) ?? 0;
-        return (na < nb ? -1 : na > nb ? 1 : 0) * dir;
+      for (const k of keys) {
+        const va = (rows[a]?.values[k.fieldId] ?? '').trim();
+        const vb = (rows[b]?.values[k.fieldId] ?? '').trim();
+        if (va === '' && vb === '') continue;
+        if (va === '') return 1;  // empties sort to bottom
+        if (vb === '') return -1;
+        let cmp: number;
+        if (k.allNumeric) {
+          const na = Number(va); const nb = Number(vb);
+          cmp = na < nb ? -1 : na > nb ? 1 : 0;
+        } else {
+          cmp = va.localeCompare(vb);
+        }
+        if (cmp !== 0) return cmp * k.dir;
       }
-      return va.localeCompare(vb) * dir;
+      return 0;
     });
     return base;
   }, [rows, sort]);
@@ -622,21 +630,37 @@ export function EventSheetPage(
     return row >= r0 && row <= r1 && col >= c0 && col <= c1;
   }
 
-  /** Cycle the sort state for a column:
-   *    unsorted → asc → desc → unsorted (for the same column)
-   *    new column → asc (overrides any previous sort target). */
-  function toggleSort(fieldId: string): void {
+  /** Cycle sort state. Without shift: single-column sort cycle
+   *  (unsorted → asc → desc → unsorted) — any previous sort chain
+   *  is discarded. With shift: append this column to the existing
+   *  chain (asc); if already in the chain, toggle its direction;
+   *  a second shift+click after desc removes it. Matches Excel's
+   *  Sort Data / Google Sheets multi-level sort behaviour. */
+  function toggleSort(fieldId: string, shiftKey: boolean): void {
     setSort((prev) => {
-      if (!prev || prev.fieldId !== fieldId) {
-        return { fieldId, direction: 'asc' };
+      if (!shiftKey) {
+        const existing = prev.find((s) => s.fieldId === fieldId);
+        if (!existing) return [{ fieldId, direction: 'asc' }];
+        if (existing.direction === 'asc') {
+          return [{ fieldId, direction: 'desc' }];
+        }
+        return [];
       }
-      if (prev.direction === 'asc') {
-        return { fieldId, direction: 'desc' };
+      const idx = prev.findIndex((s) => s.fieldId === fieldId);
+      if (idx < 0) {
+        return [...prev, { fieldId, direction: 'asc' }];
       }
-      return null;
+      const cur = prev[idx]!;
+      if (cur.direction === 'asc') {
+        const next = [...prev];
+        next[idx] = { fieldId, direction: 'desc' };
+        return next;
+      }
+      return prev.filter((_, i) => i !== idx);
     });
     // eslint-disable-next-line no-console
-    console.log('[sheet] sort toggle', { fieldId });
+    console.log('[sheet] sort toggle',
+      { fieldId, shiftKey });
   }
 
   /** Move the sourceFieldId column to the position of targetFieldId.
@@ -687,6 +711,23 @@ export function EventSheetPage(
     }
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+  }
+
+  /** Click a row-number cell to select the entire row (all data
+   *  columns). Shift+click extends the selection to a range of
+   *  rows — standard Excel row-picker behaviour. */
+  function onRowNumMouseDown(e: MouseEvent<HTMLElement>,
+      row: number): void {
+    e.preventDefault();
+    const colMax = allFields.length - 1;
+    if (colMax < 0) return;
+    if (e.shiftKey && selection) {
+      setSelection({ anchor: selection.anchor,
+        focus: { row, col: colMax } });
+    } else {
+      setSelection({ anchor: { row, col: 0 },
+        focus: { row, col: colMax } });
+    }
   }
 
   /** Cell click handler — records the anchor (and optionally
@@ -1366,7 +1407,7 @@ export function EventSheetPage(
                   {f.required && <span className="cap-input__req"> *</span>}
                   <button type="button"
                           className={'cap-sheet__col-sort'
-                            + (sort?.fieldId === f.id
+                            + (sort.some((s) => s.fieldId === f.id)
                               ? ' cap-sheet__col-sort--active' : '')}
                           data-test={'ev-sheet-col-sort-' + f.id}
                           aria-label={sortLabel(sort, f.id)}
@@ -1375,7 +1416,7 @@ export function EventSheetPage(
                           onDragStart={(ev) => ev.preventDefault()}
                           onClick={(ev) => {
                             ev.stopPropagation();
-                            toggleSort(f.id);
+                            toggleSort(f.id, ev.shiftKey);
                           }}>
                     {sortGlyph(sort, f.id)}
                   </button>
@@ -1449,10 +1490,15 @@ export function EventSheetPage(
                   data-rule-warnings={warnCount}>
                 <td className="cap-sheet__rownum-cell"
                     data-test={'ev-sheet-row-' + rowIdx + '-num'}
+                    role="button" tabIndex={-1}
                     title={sort
-                      ? 'Row ' + (displayPos + 1)
+                      ? 'Click to select this row (Shift+click '
+                        + 'extends). Row ' + (displayPos + 1)
                         + ' (data index ' + (rowIdx + 1) + ')'
-                      : 'Row ' + (rowIdx + 1)}>
+                      : 'Click to select this row (Shift+click '
+                        + 'extends). Row ' + (rowIdx + 1)}
+                    onMouseDown={(ev) =>
+                      onRowNumMouseDown(ev, rowIdx)}>
                   {displayPos + 1}
                 </td>
                 <td className="cap-sheet__status-cell"
@@ -1633,24 +1679,39 @@ function extractEventUid(result: unknown): string | null {
 }
 
 function sortGlyph(
-  sort: { fieldId: string; direction: 'asc' | 'desc' } | null,
+  sort: ReadonlyArray<{ fieldId: string;
+    direction: 'asc' | 'desc' }>,
   fieldId: string,
 ): string {
-  if (!sort || sort.fieldId !== fieldId) return '↕';
-  return sort.direction === 'asc' ? '↑' : '↓';
+  const idx = sort.findIndex((s) => s.fieldId === fieldId);
+  if (idx < 0) return '↕';
+  const arrow = sort[idx]!.direction === 'asc' ? '↑' : '↓';
+  // Only annotate the position when the chain has more than one
+  // key — single-column sort stays visually quiet.
+  if (sort.length > 1) return arrow + (idx + 1);
+  return arrow;
 }
 
 function sortLabel(
-  sort: { fieldId: string; direction: 'asc' | 'desc' } | null,
+  sort: ReadonlyArray<{ fieldId: string;
+    direction: 'asc' | 'desc' }>,
   fieldId: string,
 ): string {
-  if (!sort || sort.fieldId !== fieldId) {
-    return 'Sort ascending by this column';
+  const idx = sort.findIndex((s) => s.fieldId === fieldId);
+  if (idx < 0) {
+    return sort.length === 0
+      ? 'Sort ascending by this column '
+        + '(Shift+click adds to multi-level sort)'
+      : 'Shift+click to add to the multi-level sort';
   }
-  if (sort.direction === 'asc') {
-    return 'Sorted ascending — click to sort descending';
+  const dir = sort[idx]!.direction;
+  if (sort.length === 1) {
+    return dir === 'asc'
+      ? 'Sorted ascending — click to sort descending'
+      : 'Sorted descending — click to clear sort';
   }
-  return 'Sorted descending — click to clear sort';
+  return 'Level ' + (idx + 1) + ' of multi-level sort ('
+    + dir + ') — Shift+click to cycle';
 }
 
 function statusDot(state: SheetRow['saveState']): JSX.Element {
