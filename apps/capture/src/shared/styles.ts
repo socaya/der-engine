@@ -1381,73 +1381,90 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 }
 .cap-chip--warn { color: var(--der-warning); }
 
+/* Identity strip (tracker detail page) — borderless header
+ * row under the back/title line. Key/value pairs sit on the
+ * surface at low contrast so they read as metadata, not as a
+ * boxed-off panel. */
 .cap-identity-strip {
-  margin: 10px 14px;
-  padding: 10px 20px;
-  background: #fafcff;
-  border: 1px solid var(--der-border);
-  border-radius: 0;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 16px;
-  align-items: center;
-  font-size: 13px;
+  margin: 4px 20px 12px 20px;
+  padding: 0 0 10px 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--der-border-soft);
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 8px 24px;
+  font-size: 12px; color: var(--der-text-muted);
 }
 .cap-identity-strip > div {
-  display: flex; align-items: center; gap: 8px;
-  flex-wrap: wrap;
+  display: flex; align-items: center; gap: 6px;
+}
+.cap-identity-strip code {
+  font-size: 12px; color: var(--der-text);
+  background: var(--der-surface-subtle);
+  padding: 2px 6px; border-radius: 3px;
+}
+.cap-identity-strip strong {
+  color: var(--der-text); font-weight: 500;
 }
 
 .cap-stage-layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
-  gap: 14px;
-  margin: 10px 14px 14px 14px;
+  grid-template-columns: 220px 1fr;
+  gap: 20px;
+  margin: 8px 20px 14px 20px;
   min-height: 240px;
 }
 .cap-stage-rail {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 6px;
-  background: #fafcff;
-  border: 1px solid var(--der-border);
-  border-radius: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 0;
+  background: transparent;
+  border: 0;
   align-self: start;
 }
 .cap-stage-rail__item {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 10px;
-  background: transparent; border: 0; border-radius: 0;
+  padding: 7px 10px;
+  background: transparent; border: 0; border-radius: 3px;
   cursor: pointer; font-family: inherit;
   font-size: 13px; color: var(--der-text);
   text-align: left;
+  transition: background 100ms;
 }
 .cap-stage-rail__item:hover { background: var(--der-surface-subtle); }
 .cap-stage-rail__item--active {
-  background: var(--der-primary-subtle); color: var(--der-primary); font-weight: 600;
-  box-shadow: inset 2px 0 0 var(--der-primary);
+  background: var(--der-primary-subtle); color: var(--der-primary);
+  font-weight: 500;
+  box-shadow: inset 3px 0 0 var(--der-primary);
 }
 .cap-stage-rail__name { flex: 1; }
 .cap-stage-rail__count {
-  min-width: 22px; padding: 1px 6px;
+  min-width: 20px; padding: 0 6px;
   text-align: center;
-  background: var(--der-surface-subtle); color: var(--der-text-muted);
-  font-size: 11px; font-weight: 500;
+  background: transparent; color: var(--der-text-muted);
+  font-size: 11px; font-weight: 400;
   border-radius: 0;
   margin-left: 8px;
 }
 .cap-stage-rail__item--active .cap-stage-rail__count {
-  background: var(--der-primary); color: var(--der-surface);
+  background: transparent; color: var(--der-primary);
+  font-weight: 500;
 }
 .cap-stage-pane {
-  padding: 10px 20px;
-  background: var(--der-surface);
-  border: 1px solid var(--der-border);
+  padding: 4px 0 0 0;
+  background: transparent;
+  border: 0; border-left: 1px solid var(--der-border-soft);
+  padding-left: 20px;
   border-radius: 0;
   min-height: 160px;
 }
 @media (max-width: 760px) {
   .cap-stage-layout {
     grid-template-columns: 1fr;
+  }
+  .cap-stage-pane {
+    border-left: 0; padding-left: 0;
+    border-top: 1px solid var(--der-border-soft);
+    padding-top: 10px;
   }
 }
 
