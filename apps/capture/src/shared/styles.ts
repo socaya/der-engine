@@ -699,6 +699,38 @@ export const CAPTURE_STYLES = `
 .cap-sheet__row--saving td,
 .cap-sheet__row--dirty td { background: #fffdf5; }
 .cap-sheet__row--err td { background: var(--der-danger-subtle); }
+.cap-sheet__row--rule-warn td { box-shadow: inset 2px 0 0 var(--der-warning); }
+.cap-sheet__row--rule-err td { box-shadow: inset 2px 0 0 var(--der-danger); }
+
+.cap-sheet__cell--hidden {
+  background: var(--der-surface-subtle);
+  color: var(--der-text-faint);
+  text-align: center;
+}
+.cap-sheet__cell-hidden-marker {
+  display: block; padding: 6px 8px; color: var(--der-text-faint);
+  font-size: 11px;
+}
+.cap-sheet__cell--warn .cap-sheet__cell-input {
+  background: var(--der-warning-subtle);
+}
+.cap-sheet__cell--err .cap-sheet__cell-input {
+  background: var(--der-danger-subtle);
+}
+.cap-sheet__rule-badge {
+  display: inline-block; margin-left: 4px;
+  padding: 0 4px; font-size: 10px; font-weight: 600;
+  background: var(--der-warning); color: var(--der-surface);
+  line-height: 1.4;
+}
+.cap-sheet__rule-badge--err { background: var(--der-danger); }
+
+.cap-sheet__count-err {
+  color: var(--der-danger); font-weight: 500;
+}
+.cap-sheet__count-warn {
+  color: var(--der-warning); font-weight: 500;
+}
 
 .cap-sheet__status-col,
 .cap-sheet__status-cell {

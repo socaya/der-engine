@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState,
   type KeyboardEvent } from 'react';
 import type { CaptureApi, EventRow } from '../../shared/types';
-import type { CaptureField, CaptureFormSection }
+import type { CaptureField, CaptureFormSection,
+  CaptureProgramRule, CaptureProgramRuleVariable }
   from '../../shared/model';
 import { parseStageForm } from '../../shared/parser';
+import { enrichRulesWithActions, parseProgramRules }
+  from '../../shared/rules';
+import { evaluateRules, type RuleEffectSet, type RuleWarning }
+  from '../../shared/ruleEngine';
 import { SheetCell } from '../../shared/SheetCell';
 import { openDatePicker, openDatePickerOnFocus }
   from '../../shared/openDatePicker';
@@ -55,6 +60,10 @@ export function EventSheetPage(
   const [sections, setSections] =
     useState<readonly CaptureFormSection[]>([]);
   const [rows, setRows] = useState<SheetRow[]>([]);
+  const [rules, setRules] =
+    useState<readonly CaptureProgramRule[]>([]);
+  const [ruleVars, setRuleVars] =
+    useState<readonly CaptureProgramRuleVariable[]>([]);
   const [load, setLoad] =
     useState<'loading' | 'idle' | 'err'>('loading');
   const [loadMsg, setLoadMsg] = useState<string | null>(null);
@@ -65,15 +74,19 @@ export function EventSheetPage(
    *  is unreliable. saveRow reads this ref instead. */
   const rowsRef = useRef<SheetRow[]>([]);
 
-  // Load stage form + events in parallel.
+  // Load stage form + events + program rules in parallel.
   useEffect(() => {
     let cancelled = false;
     setLoad('loading');
     (async () => {
       try {
-        const [stageRes, evRes] = await Promise.all([
+        const [stageRes, evRes, rawRules, rawVars, rawActions] =
+          await Promise.all([
           api.listCaptureProgramStages(programUid),
           api.listCaptureProgramEvents(programUid, orgUnitUid, 200),
+          api.listProgramRules(programUid).catch(() => []),
+          api.listProgramRuleVariables(programUid).catch(() => []),
+          api.listProgramRuleActions().catch(() => []),
         ]);
         if (cancelled) return;
         const firstStage = stageRes.stages[0];
@@ -89,6 +102,12 @@ export function EventSheetPage(
         if (cancelled) return;
         const parsed = parseStageForm(firstStage.stageUid, form);
         setSections(parsed.sections);
+        // Parse rules + enrich with resolved actions (handles the
+        // id-only stub shape the DER mirror sometimes returns).
+        const enriched = enrichRulesWithActions(rawRules, rawActions);
+        const parsedRules = parseProgramRules(enriched, rawVars);
+        setRules(parsedRules.rules);
+        setRuleVars(parsedRules.variables);
         setRows((evRes.events ?? []).map((e, i) => {
           const uid = e.eventUid ?? e.event ?? null;
           return {
@@ -127,11 +146,54 @@ export function EventSheetPage(
     return fs;
   }, [sections]);
 
+  /** Per-row rule evaluation. Memoised so unaffected rows don't
+   *  re-run when the operator edits a different row. Each row's
+   *  effect set drives (a) which cells grey out (HIDEFIELD),
+   *  (b) per-row required overrides (SETMANDATORYFIELD),
+   *  (c) inline warning / error markers (SHOWWARNING / SHOWERROR),
+   *  (d) whether the row can post at all (any errors → save blocked). */
+  const rowEffects = useMemo<ReadonlyArray<RuleEffectSet>>(() => {
+    if (rules.length === 0) {
+      return rows.map(() => ({
+        hiddenFieldIds: new Set<string>(),
+        hiddenSectionIds: new Set<string>(),
+        mandatoryFieldIds: new Set<string>(),
+        warnings: [] as readonly RuleWarning[],
+        issues: [],
+      }));
+    }
+    return rows.map((r) => evaluateRules(rules, ruleVars, r.values));
+  }, [rows, rules, ruleVars]);
+
+  /** Does row i have any blocking rule-error? Guards save. */
+  function rowHasErrors(idx: number): boolean {
+    return rowEffects[idx]?.warnings.some(
+      (w) => w.severity === 'error') ?? false;
+  }
+
   /** Fire a save for the given row index. Called from the debounce
    *  timer and from onCommit (blur/change) for immediate persistence. */
   const saveRow = useCallback(async (rowIndex: number): Promise<void> => {
     const latest = rowsRef.current[rowIndex];
     if (!latest) return;
+    // Block the save when any program rule emits an error for this
+    // row. Matches DHIS2 Capture: SHOWERROR actions are hard-fail
+    // gates, not just inline markers.
+    const effects = rowEffects[rowIndex];
+    const errors = effects?.warnings.filter(
+      (w) => w.severity === 'error') ?? [];
+    if (errors.length > 0) {
+      const msg = errors.map((e) => e.message).join('; ');
+      setRows((prev) => {
+        const r = prev[rowIndex];
+        if (!r) return prev;
+        const copy = [...prev];
+        copy[rowIndex] = { ...r, saveState: 'err',
+          saveMsg: 'Rule error: ' + msg };
+        return copy;
+      });
+      return;
+    }
     setRows((prev) => {
       const r = prev[rowIndex];
       if (!r) return prev;
@@ -185,7 +247,7 @@ export function EventSheetPage(
         return copy;
       });
     }
-  }, [api, programUid, stageUid, orgUnitUid]);
+  }, [api, programUid, stageUid, orgUnitUid, rowEffects]);
 
   const scheduleSave = useCallback((rowIndex: number): void => {
     const existing = timers.current.get(rowIndex);
@@ -289,6 +351,10 @@ export function EventSheetPage(
 
   const savingCount = rows.filter((r) =>
     r.saveState === 'saving' || r.saveState === 'dirty').length;
+  const ruleErrorCount = rowEffects.reduce((n, eff) =>
+    n + eff.warnings.filter((w) => w.severity === 'error').length, 0);
+  const ruleWarnCount = rowEffects.reduce((n, eff) =>
+    n + eff.warnings.filter((w) => w.severity === 'warning').length, 0);
 
   return (
     <>
@@ -298,6 +364,18 @@ export function EventSheetPage(
               data-test="ev-sheet-status">
           {rows.length} row{rows.length === 1 ? '' : 's'}
           {savingCount > 0 && <> · <em>{savingCount} saving</em></>}
+          {ruleErrorCount > 0 && (
+            <> · <span className="cap-sheet__count-err"
+                        data-test="ev-sheet-rule-errors">
+              {ruleErrorCount} rule error{ruleErrorCount === 1 ? '' : 's'}
+            </span></>
+          )}
+          {ruleWarnCount > 0 && (
+            <> · <span className="cap-sheet__count-warn"
+                        data-test="ev-sheet-rule-warnings">
+              {ruleWarnCount} warning{ruleWarnCount === 1 ? '' : 's'}
+            </span></>
+          )}
         </span>
         <span className="cap-section-head__rule" />
         <button type="button"
@@ -341,21 +419,61 @@ export function EventSheetPage(
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, rowIdx) => (
+            {rows.map((r, rowIdx) => {
+              const effects = rowEffects[rowIdx];
+              const ruleWarnings = effects?.warnings ?? [];
+              const errorCount = ruleWarnings.filter(
+                (w) => w.severity === 'error').length;
+              const warnCount = ruleWarnings.length - errorCount;
+              const warningsByField = new Map<string,
+                readonly RuleWarning[]>();
+              for (const w of ruleWarnings) {
+                if (!w.fieldId) continue;
+                const list = warningsByField.get(w.fieldId) ?? [];
+                warningsByField.set(w.fieldId, [...list, w]);
+              }
+              const tooltipLines: string[] = [];
+              if (r.saveMsg) tooltipLines.push(r.saveMsg);
+              else switch (r.saveState) {
+                case 'saving': tooltipLines.push('Saving to edge…'); break;
+                case 'saved': tooltipLines.push(r.eventUid
+                  ? 'Saved on edge'
+                  : 'Empty row (not yet saved)'); break;
+                case 'dirty': tooltipLines.push('Typing…'); break;
+                case 'err': tooltipLines.push(r.saveMsg ?? 'Save failed');
+                  break;
+                default: tooltipLines.push('Idle');
+              }
+              if (errorCount > 0 || warnCount > 0) {
+                tooltipLines.push('');
+                tooltipLines.push('Program-rule notes:');
+                for (const w of ruleWarnings) {
+                  tooltipLines.push((w.severity === 'error'
+                    ? '• ERROR: ' : '• warn:  ') + w.message);
+                }
+              }
+              return (
               <tr key={r.localKey}
                   className={'cap-sheet__row cap-sheet__row--'
-                    + r.saveState}
-                  data-test={'ev-sheet-row-' + rowIdx}>
+                    + r.saveState
+                    + (errorCount > 0 ? ' cap-sheet__row--rule-err' : '')
+                    + (errorCount === 0 && warnCount > 0
+                      ? ' cap-sheet__row--rule-warn' : '')}
+                  data-test={'ev-sheet-row-' + rowIdx}
+                  data-rule-errors={errorCount}
+                  data-rule-warnings={warnCount}>
                 <td className="cap-sheet__status-cell"
-                    title={r.saveMsg
-                      ?? (r.saveState === 'saving' ? 'Saving to edge…'
-                        : r.saveState === 'saved'
-                          ? r.eventUid
-                            ? 'Saved on edge' : 'Empty row (not yet saved)'
-                        : r.saveState === 'dirty' ? 'Typing…'
-                        : r.saveState === 'err' ? r.saveMsg ?? 'Save failed'
-                        : 'Idle')}>
+                    title={tooltipLines.join('\n')}>
                   {statusDot(r.saveState)}
+                  {(errorCount > 0 || warnCount > 0) && (
+                    <span className={'cap-sheet__rule-badge '
+                      + (errorCount > 0
+                        ? 'cap-sheet__rule-badge--err'
+                        : 'cap-sheet__rule-badge--warn')}
+                          data-test={'ev-sheet-row-' + rowIdx + '-rulebadge'}>
+                      {errorCount + warnCount}
+                    </span>
+                  )}
                 </td>
                 <td className="cap-sheet__date-cell"
                     data-cell-coord={rowIdx + ':-1'}
@@ -369,21 +487,51 @@ export function EventSheetPage(
                          onFocus={openDatePickerOnFocus}
                          data-test={'ev-sheet-row-' + rowIdx + '-date'} />
                 </td>
-                {allFields.map((f, colIdx) => (
+                {allFields.map((f, colIdx) => {
+                  const hidden = effects?.hiddenFieldIds.has(f.id)
+                    ?? false;
+                  const mandatory = f.required
+                    || (effects?.mandatoryFieldIds.has(f.id) ?? false);
+                  const cellWarnings = warningsByField.get(f.id) ?? [];
+                  const cellHasError = cellWarnings.some(
+                    (w) => w.severity === 'error');
+                  const cellHasWarn = cellWarnings.length > 0
+                    && !cellHasError;
+                  return (
                   <td key={f.id}
                       data-cell-coord={rowIdx + ':' + colIdx}
-                      tabIndex={-1}>
-                    <SheetCell api={api} field={f}
-                                value={r.values[f.id] ?? ''}
-                                onChange={(v) => updateCell(rowIdx, f.id, v)}
-                                onCommit={() => {
-                                  const t = timers.current.get(rowIdx);
-                                  if (t) clearTimeout(t);
-                                  timers.current.delete(rowIdx);
-                                  void saveRow(rowIdx);
-                                }} />
+                      tabIndex={-1}
+                      className={
+                        (hidden ? 'cap-sheet__cell--hidden ' : '')
+                        + (cellHasError ? 'cap-sheet__cell--err ' : '')
+                        + (cellHasWarn ? 'cap-sheet__cell--warn ' : '')
+                      }
+                      title={cellWarnings.length > 0
+                        ? cellWarnings.map((w) =>
+                          (w.severity === 'error' ? 'ERROR: ' : 'warn: ')
+                          + w.message).join('\n')
+                        : hidden ? 'Hidden by a program rule for this row'
+                        : undefined}>
+                    {hidden ? (
+                      <span className="cap-sheet__cell-hidden-marker"
+                            aria-hidden="true">—</span>
+                    ) : (
+                      <SheetCell api={api}
+                                 field={mandatory !== f.required
+                                   ? { ...f, required: mandatory } : f}
+                                 value={r.values[f.id] ?? ''}
+                                 onChange={(v) =>
+                                   updateCell(rowIdx, f.id, v)}
+                                 onCommit={() => {
+                                   const t = timers.current.get(rowIdx);
+                                   if (t) clearTimeout(t);
+                                   timers.current.delete(rowIdx);
+                                   void saveRow(rowIdx);
+                                 }} />
+                    )}
                   </td>
-                ))}
+                  );
+                })}
                 <td className="cap-sheet__actions-cell">
                   <button type="button"
                           className="cap-sheet__row-del"
@@ -394,7 +542,8 @@ export function EventSheetPage(
                   </button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {rows.length === 0 && (
               <tr>
                 <td className="cap-sheet__empty"
