@@ -435,7 +435,23 @@ export function EventWorkflow(
                       void openExisting(uid);
                     }
                   } : undefined}>
-                <code>{uid || '—'}</code>
+                <div>
+                  <code>{uid || '—'}</code>
+                  {e.status && (
+                    <span className="cap-chip"
+                          style={{
+                            marginLeft: 10,
+                            background: e.status === 'COMPLETED'
+                              ? '#ecf7f0' : '#eef2f8',
+                            color: e.status === 'COMPLETED'
+                              ? '#136436' : '#0a5497',
+                            borderColor: e.status === 'COMPLETED'
+                              ? '#b7dcc7' : '#cfe1f4',
+                          }}>
+                      {e.status}
+                    </span>
+                  )}
+                </div>
                 <span className="cap-list__when">
                   {e.occurredDate ?? e.occurredAt ?? e.eventDate ?? '—'}
                 </span>

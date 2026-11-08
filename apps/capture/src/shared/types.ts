@@ -24,6 +24,7 @@ export interface EventRow {
   readonly eventDate?: string;
   readonly programStage?: string;
   readonly programStageUid?: string;
+  readonly status?: string | null;
 }
 
 /** Narrow view onto {@code useDerApi()} used by Capture. Declared
