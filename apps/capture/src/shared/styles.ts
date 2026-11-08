@@ -155,6 +155,88 @@ export const CAPTURE_STYLES = `
 .cap-wf-chip--more {
   color: #6e7a8a; font-weight: 400;
 }
+/* Distributed-workflow panel — foregrounded when the device is
+ * step-assigned. Calm, soft palette per user ask. */
+.cap-dwf {
+  margin: 14px; padding: 0;
+  background: #fff;
+  border: 1px solid #e3e8f0;
+}
+.cap-dwf__head {
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid #eef0f3;
+}
+.cap-dwf__eyebrow {
+  display: block;
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.1em; color: #6e7a8a;
+  font-weight: 600;
+}
+.cap-dwf__title {
+  margin: 4px 0 2px 0;
+  font-size: 18px; font-weight: 600; color: #101a32;
+  letter-spacing: -0.01em;
+}
+.cap-dwf__sub {
+  margin: 4px 0 0 0;
+  font-size: 13px; color: #4a5768; line-height: 1.5;
+  max-width: 66ch;
+}
+.cap-dwf__list {
+  margin: 0; padding: 0; list-style: none;
+}
+.cap-dwf__row {
+  padding: 14px 18px;
+  border-top: 1px solid #eef0f3;
+}
+.cap-dwf__row:first-child { border-top: 0; }
+.cap-dwf__row-head {
+  display: flex; align-items: baseline; gap: 10px;
+  margin-bottom: 8px;
+}
+.cap-dwf__row-name {
+  font-size: 15px; color: #101a32; font-weight: 600;
+}
+.cap-dwf__row-meta {
+  font-size: 11px; color: #6e7a8a;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.cap-dwf__steps {
+  margin: 0; padding: 0; list-style: none;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.cap-dwf__step {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 10px;
+  background: #fafcff;
+  font-size: 13px; color: #4a5768;
+}
+.cap-dwf__step--mine {
+  background: #ecf4fc;
+  color: #101a32; font-weight: 500;
+}
+.cap-dwf__step-ord {
+  min-width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #e3e8f0; color: #263352;
+  font-size: 11px; font-weight: 600;
+}
+.cap-dwf__step--mine .cap-dwf__step-ord {
+  background: #147CD7; color: #fff;
+}
+.cap-dwf__step-name { flex: 1; }
+.cap-dwf__step-flag {
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #0a5497; font-weight: 600;
+}
+.cap-dwf__actions {
+  margin-top: 10px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.cap-dwf__defer {
+  font-size: 11px; color: #6e7a8a;
+}
+
 .cap-empty {
   margin: 24px 14px; padding: 24px;
   border: 1px dashed #c6d4e4; border-radius: 0;

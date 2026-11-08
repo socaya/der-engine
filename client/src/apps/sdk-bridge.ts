@@ -21,6 +21,7 @@ interface SdkRuntime {
   readonly useAuth: UnknownFn;
   readonly useOrgUnitBinding: UnknownFn;
   readonly useOnlineStatus: UnknownFn;
+  readonly useDevice: UnknownFn;
   readonly useDerApi: UnknownFn;
   readonly ScreenCard: UnknownFn;
   readonly StatusPill: UnknownFn;
@@ -40,6 +41,7 @@ function runtime(): SdkRuntime {
 export const useAuth = ((...a: unknown[]) => runtime().useAuth(...a));
 export const useOrgUnitBinding = ((...a: unknown[]) => runtime().useOrgUnitBinding(...a));
 export const useOnlineStatus = ((...a: unknown[]) => runtime().useOnlineStatus(...a));
+export const useDevice = ((...a: unknown[]) => runtime().useDevice(...a));
 export const useDerApi = ((...a: unknown[]) => runtime().useDerApi(...a));
 export const ScreenCard = ((...a: unknown[]) => runtime().ScreenCard(...a));
 export const StatusPill = ((...a: unknown[]) => runtime().StatusPill(...a));

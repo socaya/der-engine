@@ -10,6 +10,7 @@ import { count as queueCount } from '../offline/queue';
 import * as edgeApi from '../api/edgeApi';
 import { ScreenCard as ShellScreenCard, StatusPill as ShellStatusPill } from '../shell/ScreenCard';
 import { useEffect, useState } from 'react';
+import { useDeviceEnrollment } from '../device/useDeviceEnrollment';
 
 /**
  * Shell-side implementation of the SDK surface. Installed on
@@ -145,6 +146,15 @@ function useAppAuth(): {
   };
 }
 
+/** DER device identity — surfaced so apps can detect
+ *  step-assigned distributed workflows (ownerDeviceId match). */
+function useAppDevice(): { deviceId: string | null;
+    status: string | null } {
+  const enroll = useDeviceEnrollment();
+  if (!enroll) return { deviceId: null, status: null };
+  return { deviceId: enroll.deviceId, status: enroll.status };
+}
+
 function useAppOnline(): { isOnline: boolean; queuedCount: number } {
   const isOnline = useShellOnline();
   const [queuedCount, setQ] = useState(0);
@@ -186,6 +196,7 @@ export const sdkRuntime = {
   useAuth: useAppAuth,
   useOrgUnitBinding: useAppOrgUnit,
   useOnlineStatus: useAppOnline,
+  useDevice: useAppDevice,
   useDerApi,
   ScreenCard: ShellScreenCard,
   StatusPill: ShellStatusPill,

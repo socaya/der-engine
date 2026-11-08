@@ -66,6 +66,19 @@ export declare function useOrgUnitBinding(): DerOrgUnit;
 /** True while the device has WAN + edge connectivity. */
 export declare function useOnlineStatus(): DerOnline;
 
+export interface DerDevice {
+  /** DER device UID (stable across sessions on this install).
+   *  Null until the enrol probe lands. */
+  readonly deviceId: string | null;
+  /** Lifecycle status: PENDING / APPROVED / RETIRED / etc. */
+  readonly status: string | null;
+}
+
+/** This device's identity in the DER mesh. Apps detect
+ *  step-assigned distributed workflows and attribute writes to
+ *  the originating device through this hook. */
+export declare function useDevice(): DerDevice;
+
 /** DER edge-API client, offline-safe, cookie-authenticated. */
 export declare function useDerApi(): DerApi;
 

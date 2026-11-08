@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  useOrgUnitBinding, useOnlineStatus, useDerApi,
+  useOrgUnitBinding, useOnlineStatus, useDerApi, useDevice,
   ScreenCard, StatusPill,
 } from '@der/app-sdk';
 
+import { DistributedWorkflowPanel } from './features/DistributedWorkflowPanel';
 import { EventWorkflow } from './features/EventWorkflow';
 import { TrackerWorkflow } from './features/TrackerWorkflow';
 import type { ProgramOpt, CaptureApi } from './shared/types';
@@ -34,20 +35,30 @@ export default function CaptureApp(): JSX.Element {
 function CaptureAppInner(): JSX.Element {
   const ou = useOrgUnitBinding();
   const online = useOnlineStatus();
+  const device = useDevice();
   const api = useDerApi() as unknown as CaptureApi;
 
   const [programs, setPrograms] = useState<ProgramOpt[]>([]);
   const [programUid, setProgramUid] = useState('');
   const [infoOpen, setInfoOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  /** DER device workflows — fetched once on mount, then filtered
-   *  at render time to the currently-selected program. The strip
-   *  stays hidden until a program is picked AND at least one
-   *  workflow is bound to it; otherwise we proceed as plain
-   *  tracker/event capture (user ask). */
+  /** DER device workflows — fetched once on mount. The toolbar
+   *  strip filters at render time to the currently-selected
+   *  program; the "assigned to this device" check considers
+   *  defaultDeviceId + step.ownerDeviceId regardless of program.
+   *  When nothing is assigned, we fall through to plain tracker /
+   *  event capture (user: 'if there are no workflow defined,
+   *  normal program processes are displayed'). */
   const [workflows, setWorkflows] = useState<ReadonlyArray<{
     workflowId: string; displayName: string;
     boundMetadataKind: string; boundMetadataId: string | null;
+    defaultDeviceId: string | null;
+    steps: ReadonlyArray<{
+      stepId: string; ordinal: number;
+      displayName: string;
+      ownerRole: string | null;
+      ownerDeviceId: string | null;
+    }>;
   }>>([]);
 
   // Hash-based internal route lets the app expose deep links like
@@ -131,7 +142,17 @@ function CaptureAppInner(): JSX.Element {
           .map((w) => ({ workflowId: w.workflowId,
             displayName: w.displayName,
             boundMetadataKind: w.boundMetadataKind ?? '',
-            boundMetadataId: w.boundMetadataId ?? null })));
+            boundMetadataId: w.boundMetadataId ?? null,
+            defaultDeviceId: w.defaultDeviceId ?? null,
+            steps: ((w as unknown as { steps?: ReadonlyArray<{
+              stepId: string; ordinal: number; displayName: string;
+              ownerRole?: string | null;
+              ownerDeviceId?: string | null }> }).steps ?? [])
+              .map((s) => ({
+                stepId: s.stepId, ordinal: s.ordinal,
+                displayName: s.displayName,
+                ownerRole: s.ownerRole ?? null,
+                ownerDeviceId: s.ownerDeviceId ?? null })) })));
       } catch {
         if (!cancelled) setWorkflows([]);
       }
@@ -170,6 +191,18 @@ function CaptureAppInner(): JSX.Element {
   const mode: 'event' | 'tracker' | null = program
     ? (program.programType === 'WITH_REGISTRATION' ? 'tracker' : 'event')
     : null;
+
+  // Workflows assigned specifically to THIS device (not program-
+  // scoped). Match either defaultDeviceId or any step's
+  // ownerDeviceId. If any match, we're in distributed-workflow
+  // mode and surface the assignment prominently.
+  const myDeviceId = device.deviceId;
+  const deviceAssignedWorkflows = useMemo(() => {
+    if (!myDeviceId) return [] as typeof workflows;
+    return workflows.filter((w) =>
+      w.defaultDeviceId === myDeviceId
+      || w.steps.some((s) => s.ownerDeviceId === myDeviceId));
+  }, [workflows, myDeviceId]);
 
   // Program stage IDs so the workflow filter can include
   // PROGRAM_STAGE / PROGRAM_STAGE_SECTION bindings, not just
@@ -347,11 +380,28 @@ function CaptureAppInner(): JSX.Element {
       )}
 
 
+      {/* Distributed-workflow mode: when this device has been
+       *  assigned to specific workflow step(s), replace the
+       *  plain tracker/event content with the assignment panel.
+       *  The device sees only what it is meant to capture, with
+       *  previous-step data as read-only context (the DER run
+       *  API's upstreamContext). Normal program flows stay
+       *  available as a fallback link. */}
+      {deviceAssignedWorkflows.length > 0 && (
+        <DistributedWorkflowPanel
+          api={api}
+          workflows={deviceAssignedWorkflows}
+          myDeviceId={myDeviceId ?? ''} />
+      )}
+
       {/* Content area — mode-aware. Shared form engine, shared
        *  edge-write contract; the Tracker and Event components
        *  are thin wrappers that orchestrate workflow-specific
-       *  context around the common form engine. */}
-      {!program && ou.bound && programs.length > 0 && (
+       *  context around the common form engine. Rendered only
+       *  when NO device-assigned workflow is active — otherwise
+       *  the panel above owns the screen. */}
+      {deviceAssignedWorkflows.length === 0
+        && !program && ou.bound && programs.length > 0 && (
         <div className="cap-empty" data-test="cap-pick-program">
           <h2 className="cap-empty__title">Pick a program to begin</h2>
           <p className="cap-empty__body">
@@ -362,7 +412,8 @@ function CaptureAppInner(): JSX.Element {
           </p>
         </div>
       )}
-      {!program && ou.bound && programs.length === 0 && (
+      {deviceAssignedWorkflows.length === 0
+        && !program && ou.bound && programs.length === 0 && (
         <div className="cap-empty" data-test="cap-no-programs">
           <h2 className="cap-empty__title">No programs assigned</h2>
           <p className="cap-empty__body">
@@ -388,12 +439,14 @@ function CaptureAppInner(): JSX.Element {
           </p>
         </div>
       )}
-      {program && mode === 'event' && (
+      {deviceAssignedWorkflows.length === 0
+        && program && mode === 'event' && (
         <EventWorkflow api={api} programUid={program.id}
                         orgUnitUid={ou.orgUnitUid}
                         orgUnitDisplayName={ou.orgUnitDisplayName} />
       )}
-      {program && mode === 'tracker' && (
+      {deviceAssignedWorkflows.length === 0
+        && program && mode === 'tracker' && (
         <TrackerWorkflow api={api} programUid={program.id}
                           orgUnitUid={ou.orgUnitUid}
                           orgUnitDisplayName={ou.orgUnitDisplayName}
