@@ -528,7 +528,8 @@ function CaptureAppInner(): JSX.Element {
         <TrackerWorkflow api={api} programUid={program.id}
                           orgUnitUid={ou.orgUnitUid}
                           orgUnitDisplayName={ou.orgUnitDisplayName}
-                          hashRoute={hashRoute} />
+                          hashRoute={hashRoute}
+                          onListCount={setListCount} />
       )}
 
       {infoOpen && (

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { CaptureApi } from '../shared/types';
 import { TrackerListPage } from './tracker/TrackerListPage';
 import { TrackerDetailPage } from './tracker/TrackerDetailPage';
@@ -18,10 +18,16 @@ import { parseCaptureRoute, navTracker } from '../shared/routing';
  * {@link TrackerRegisterPage}, {@link TrackerStageFormPage}.</p>
  */
 export function TrackerWorkflow(
-  { api, programUid, orgUnitUid, hashRoute }: {
+  { api, programUid, orgUnitUid, hashRoute, onListCount }: {
     api: CaptureApi; programUid: string;
     orgUnitUid: string; orgUnitDisplayName: string;
     hashRoute: string;
+    /** Published upwards by TrackerListPage so the capture host
+     *  can render the "N of M TEIs" chip next to the Mode chip
+     *  instead of in a secondary row below the filters. Non-list
+     *  routes publish null so the chip disappears. */
+    onListCount?: (c: { total: number; filtered: number;
+      noun: string } | null) => void;
   },
 ): JSX.Element {
   // If the operator just picked a program but the hash is empty
@@ -39,6 +45,18 @@ export function TrackerWorkflow(
   }, [programUid]);
 
   const route = parseCaptureRoute('#' + hashRoute);
+
+  // Non-list routes clear the host's list-count chip so the
+  // "1 TEI" chip from the list doesn't linger over the detail
+  // / register / enrol / stage-form pages.
+  const lastKindRef = useRef<string>('');
+  useEffect(() => {
+    if (route.kind !== 'tracker-list'
+        && lastKindRef.current !== route.kind) {
+      onListCount?.(null);
+    }
+    lastKindRef.current = route.kind;
+  }, [route.kind, onListCount]);
 
   async function resolveTeiForEnrolment(
     enrollmentUid: string,
@@ -102,6 +120,7 @@ export function TrackerWorkflow(
   return (
     <TrackerListPage api={api}
                       programUid={programUid}
-                      orgUnitUid={orgUnitUid} />
+                      orgUnitUid={orgUnitUid}
+                      onCountChange={onListCount} />
   );
 }

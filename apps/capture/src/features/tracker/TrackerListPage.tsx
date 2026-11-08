@@ -43,9 +43,14 @@ const UNRENDERABLE_IN_LIST = new Set([
  * looks unchanged when the operator returns via Back.</p>
  */
 export function TrackerListPage(
-  { api, programUid, orgUnitUid }: {
+  { api, programUid, orgUnitUid, onCountChange }: {
     api: CaptureApi; programUid: string;
     orgUnitUid: string;
+    /** Publishes (total, filtered) upwards so the capture host
+     *  can render "N tracked entities" next to the Mode chip
+     *  instead of duplicating it in the list's section head. */
+    onCountChange?: (c: { total: number; filtered: number;
+      noun: string } | null) => void;
   },
 ): JSX.Element {
   const stateKey = 'cap:tr-list:' + programUid + ':' + orgUnitUid;
@@ -99,6 +104,7 @@ export function TrackerListPage(
   useEffect(() => {
     setPage(1);
   }, [query, sort, pageSize]);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -197,6 +203,25 @@ export function TrackerListPage(
   const pageEnd = Math.min(pageStart + pageSize, filtered.length);
   const pageRows = filtered.slice(pageStart, pageEnd);
 
+  // Publish counts up so the capture host can render the chip
+  // next to Mode (same pattern as EventListPage).
+  useEffect(() => {
+    if (listStatus === 'loading' || !metadataReady) {
+      onCountChange?.(null);
+      return;
+    }
+    onCountChange?.({
+      total: rows.length,
+      filtered: filtered.length,
+      noun: rows.length === 1
+        ? 'tracked entity' : 'tracked entities',
+    });
+  }, [listStatus, metadataReady, rows.length, filtered.length,
+      onCountChange]);
+  useEffect(() => {
+    return () => { onCountChange?.(null); };
+  }, [onCountChange]);
+
   function exportCsv(): void {
     const header = ['TEI UID', 'Display name',
       ...columns.map((c) => c.label), 'Last updated'];
@@ -245,24 +270,31 @@ export function TrackerListPage(
 
   return (
     <>
-      <div className="cap-section-head" data-test="tr-list-head">
-        <h2 className="cap-section-head__title">Tracked entities</h2>
-        <label className="cap-input" style={{ minWidth: 220 }}>
-          <span className="cap-toolbar__field-label">Search</span>
-          <input className="cap-input__ctl" type="search"
+      {/* Single tidy toolbar — search inline on the left, density
+       *  + CSV + Register flush right. Count lives on the host
+       *  toolbar next to the Mode chip, so this row doesn't
+       *  duplicate it. */}
+      <div className="cap-section-head cap-section-head--toolbar"
+           data-test="tr-list-head">
+        <label className="cap-section-head__inline"
+               data-test="tr-filter-search">
+          <span className="cap-section-head__inline-label">Search</span>
+          <input className="cap-section-head__inline-ctl" type="search"
                  value={query}
                  onChange={(e) => setQuery(e.target.value)}
                  placeholder="UID, name, or any value… (Alt+F)"
+                 style={{ width: 240 }}
                  data-test="tr-search-input" />
         </label>
-        <span className="cap-section-head__count">
-          {listStatus === 'loading' ? 'loading…'
-            : listStatus === 'err' ? 'failed to load'
-            : query !== ''
-              ? `${filtered.length} of ${rows.length} shown`
-              : rows.length === 0 ? 'none yet'
-              : `${rows.length} loaded`}
-        </span>
+        {query.trim() !== '' && (
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  data-test="tr-clear-filters"
+                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  onClick={() => setQuery('')}>
+            Clear
+          </button>
+        )}
         <span className="cap-section-head__rule" />
         <button type="button"
                 className="cap-density-btn"
