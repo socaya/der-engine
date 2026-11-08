@@ -215,6 +215,13 @@ export function EventSheetPage(
     rowIdx: number; displayPos: number;
     x: number; y: number;
   }>(null);
+  /** Context-menu state for the section-header right-click surface
+   *  (SHEET-Q1). null when closed. */
+  const [sectionMenu, setSectionMenu] = useState<null | {
+    sectionKey: string; sectionLabel: string;
+    startIdx: number; length: number;
+    x: number; y: number;
+  }>(null);
   /** Number of leading display-order rows to freeze below the
    *  header. Zero = none. Right-click menu's "Freeze through this
    *  row" sets this to the clicked row's display position + 1. */
@@ -487,8 +494,13 @@ export function EventSheetPage(
         left: cursor + 'px',
         background: 'var(--der-surface)',
         zIndex: 3,
+        // SHEET-Q2 — rightmost frozen column gets a hairline +
+        // a soft drop shadow so the vertical freeze boundary is
+        // visually distinct from the scrolling columns.
         boxShadow: i === frozenCols - 1
-          ? '1px 0 0 var(--der-border)' : undefined,
+          ? '2px 0 2px -2px rgba(23, 38, 60, 0.12), '
+            + '1px 0 0 var(--der-border)'
+          : undefined,
       };
       cursor += measuredWidths.current[f.id]
         ?? colWidths[f.id] ?? 160;
@@ -1788,6 +1800,41 @@ export function EventSheetPage(
             new Set(allFieldsUnfiltered.map((f) => f.id)))}
           onClose={() => setColumnsOpen(false)} />
       )}
+      {sectionMenu && (
+        <SectionHeadMenu
+          menu={sectionMenu}
+          anyCollapsed={collapsedSections.size > 0}
+          onClose={() => setSectionMenu(null)}
+          onHideSection={() => {
+            // Mark every field in this run as hidden. Uses the
+            // current allFields run so operators see the same
+            // set that was visible in the group.
+            setHiddenCols((prev) => {
+              const next = new Set(prev);
+              for (let i = sectionMenu.startIdx;
+                   i < sectionMenu.startIdx + sectionMenu.length;
+                   i++) {
+                const f = allFields[i];
+                if (f) next.add(f.id);
+              }
+              return next;
+            });
+            setSectionMenu(null);
+          }}
+          onFreezeThrough={() => {
+            setFrozenCols(sectionMenu.startIdx
+              + sectionMenu.length);
+            setSectionMenu(null);
+          }}
+          onCollapse={() => {
+            toggleSection(sectionMenu.sectionKey);
+            setSectionMenu(null);
+          }}
+          onExpandAll={() => {
+            expandAllSections();
+            setSectionMenu(null);
+          }} />
+      )}
       {rowMenu && (
         <RowNumMenu
           menu={rowMenu}
@@ -1893,7 +1940,17 @@ export function EventSheetPage(
                         + (run.sectionLabel === ''
                           ? ' cap-sheet__section-head--null' : '')}
                       data-test={'ev-sheet-section-'
-                        + run.sectionKey}>
+                        + run.sectionKey}
+                      onContextMenu={(ev) => {
+                        if (run.sectionLabel === '') return;
+                        ev.preventDefault();
+                        setSectionMenu({
+                          sectionKey: run.sectionKey,
+                          sectionLabel: run.sectionLabel,
+                          startIdx: run.startIdx,
+                          length: run.length,
+                          x: ev.clientX, y: ev.clientY });
+                      }}>
                     {run.sectionLabel !== '' ? (
                       <button type="button"
                               className="cap-sheet__section-toggle"
@@ -2387,6 +2444,78 @@ function ColumnsPopover(
             Hide all
           </button>
         </footer>
+      </div>
+    </div>
+  );
+}
+
+/** Section header right-click menu (SHEET-Q1). Offers bulk
+ *  operations on every column in the section: hide, freeze
+ *  through, collapse, plus Expand all when any sections are
+ *  currently collapsed. */
+function SectionHeadMenu(
+  { menu, anyCollapsed, onClose, onHideSection, onFreezeThrough,
+    onCollapse, onExpandAll }: {
+    menu: { sectionKey: string; sectionLabel: string;
+      startIdx: number; length: number;
+      x: number; y: number };
+    anyCollapsed: boolean;
+    onClose: () => void;
+    onHideSection: () => void;
+    onFreezeThrough: () => void;
+    onCollapse: () => void;
+    onExpandAll: () => void;
+  },
+): JSX.Element {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey as unknown as
+      EventListener);
+    return () => window.removeEventListener('keydown',
+      onKey as unknown as EventListener);
+  }, [onClose]);
+  return (
+    <div className="cap-sheet__colmenu-backdrop"
+         role="presentation"
+         data-test="ev-sheet-section-menu"
+         onClick={onClose}
+         onContextMenu={(e) => { e.preventDefault(); onClose(); }}>
+      <div className="cap-sheet__colmenu"
+           role="menu"
+           style={{ left: menu.x + 'px', top: menu.y + 'px' }}
+           onClick={(e) => e.stopPropagation()}>
+        <div className="cap-sheet__colmenu-head">
+          {menu.sectionLabel} ({menu.length} column
+          {menu.length === 1 ? '' : 's'})
+        </div>
+        <button type="button" role="menuitem"
+                className="cap-sheet__colmenu-item"
+                data-test="ev-sheet-section-menu-collapse"
+                onClick={onCollapse}>
+          Collapse section
+        </button>
+        <button type="button" role="menuitem"
+                className="cap-sheet__colmenu-item"
+                data-test="ev-sheet-section-menu-freeze"
+                onClick={onFreezeThrough}>
+          Freeze through this section
+        </button>
+        <button type="button" role="menuitem"
+                className="cap-sheet__colmenu-item"
+                data-test="ev-sheet-section-menu-hide"
+                onClick={onHideSection}>
+          Hide every column in this section
+        </button>
+        {anyCollapsed && (
+          <button type="button" role="menuitem"
+                  className="cap-sheet__colmenu-item"
+                  data-test="ev-sheet-section-menu-expand-all"
+                  onClick={onExpandAll}>
+            Expand all sections
+          </button>
+        )}
       </div>
     </div>
   );

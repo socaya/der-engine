@@ -708,12 +708,25 @@ export const CAPTURE_STYLES = `
 .cap-sheet__row--err td { background: var(--der-danger-subtle); }
 /* Frozen row (SHEET-O2) — sticky-top below the header. The last
  * frozen row carries a hairline on its bottom edge so operators
- * see the boundary between frozen pane + scrolling body. */
+ * see the boundary between frozen pane + scrolling body. SHEET-Q2
+ * adds a subtle drop shadow so the boundary pops against darker
+ * scrolling rows. */
 .cap-sheet__row--row-frozen {
   background: var(--der-surface);
 }
 .cap-sheet__row--row-frozen-last td {
   border-bottom: 1px solid var(--der-border) !important;
+  box-shadow: 0 2px 2px -2px rgba(23, 38, 60, 0.12);
+}
+/* Rightmost frozen column gets a matching right-side drop shadow
+ * so the vertical freeze boundary mirrors the horizontal one.
+ * Rendered on every td in the rightmost frozen column (the
+ * frozenStyles memo adds box-shadow: 1px 0 0 var(--der-border) for
+ * the hairline; we layer the drop shadow on the col-level style
+ * via a dedicated selector). */
+.cap-sheet td.cap-sheet__cell--frozen-right-edge {
+  box-shadow: 2px 0 2px -2px rgba(23, 38, 60, 0.12),
+              1px 0 0 var(--der-border) !important;
 }
 
 /* Active-row highlight — the row (or span of rows) containing the
@@ -1097,9 +1110,11 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   min-width: 130px;
   position: sticky; left: 60px; z-index: 4;
   background: var(--der-surface);
-  /* Hairline on the right edge visually separates the frozen
-   * area from the horizontally-scrolling data columns. */
-  box-shadow: 1px 0 0 var(--der-border);
+  /* Hairline + soft drop shadow (SHEET-Q2) on the right edge so
+   * the always-frozen area has the same depth cue as any
+   * operator-chosen frozen data columns. */
+  box-shadow: 2px 0 2px -2px rgba(23, 38, 60, 0.12),
+              1px 0 0 var(--der-border);
 }
 /* The fill-preview tint uses !important + outline, which would
  * blow through the sticky cells. Lift the sticky z-index above
