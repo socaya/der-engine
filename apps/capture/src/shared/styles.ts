@@ -706,6 +706,17 @@ export const CAPTURE_STYLES = `
 .cap-sheet__row--saving td,
 .cap-sheet__row--dirty td { background: #fffdf5; }
 .cap-sheet__row--err td { background: var(--der-danger-subtle); }
+/* Active-row highlight — the row (or span of rows) containing the
+ * current selection gets a soft blue tint so operators keep
+ * context across long/wide sheets. Chained :not() filters so
+ * save-state and rule-error row tints still win when present. */
+.cap-sheet__row--active:not(.cap-sheet__row--saving):not(.cap-sheet__row--dirty):not(.cap-sheet__row--err) td {
+  background: #f3f7fb;
+}
+.cap-sheet__row--active td.cap-sheet__date-cell,
+.cap-sheet__row--active td.cap-sheet__status-cell {
+  background: #eef3f9;
+}
 .cap-sheet__row--rule-warn td { box-shadow: inset 2px 0 0 var(--der-warning); }
 .cap-sheet__row--rule-err td { box-shadow: inset 2px 0 0 var(--der-danger); }
 
@@ -758,6 +769,85 @@ export const CAPTURE_STYLES = `
 body.cap-sheet__fill-dragging,
 body.cap-sheet__fill-dragging * { cursor: crosshair !important;
                                    user-select: none; }
+
+/* --- Shortcuts popover (SHEET-I1) ---------------------------- */
+.cap-sheet__shortcuts-btn {
+  padding: 4px 10px; font-size: 11px; font-family: inherit;
+  background: transparent; color: var(--der-text-muted);
+  border: 1px solid var(--der-border); cursor: pointer;
+}
+.cap-sheet__shortcuts-btn:hover {
+  color: var(--der-text); border-color: var(--der-primary);
+}
+.cap-sheet__shortcuts-backdrop {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(23, 38, 60, 0.28);
+  display: flex; align-items: center; justify-content: center;
+}
+.cap-sheet__shortcuts {
+  background: var(--der-surface);
+  border: 1px solid var(--der-border);
+  width: min(720px, 94vw);
+  max-height: 86vh; overflow: auto;
+  box-shadow: 0 2px 0 rgba(23, 38, 60, 0.04);
+}
+.cap-sheet__shortcuts-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--der-border);
+}
+.cap-sheet__shortcuts-head h3 {
+  margin: 0; font-size: 14px; font-weight: 600;
+  color: var(--der-text);
+}
+.cap-sheet__shortcuts-close {
+  background: transparent; border: 0; cursor: pointer;
+  color: var(--der-text-muted); font-size: 22px; line-height: 1;
+}
+.cap-sheet__shortcuts-close:hover { color: var(--der-text); }
+.cap-sheet__shortcuts-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  padding: 16px 20px;
+}
+@media (max-width: 640px) {
+  .cap-sheet__shortcuts-grid { grid-template-columns: 1fr; gap: 16px; }
+}
+.cap-sheet__shortcuts-grid h4 {
+  margin: 0 0 8px 0; font-size: 12px; font-weight: 600;
+  color: var(--der-text-muted); letter-spacing: 0.02em;
+}
+.cap-sheet__shortcuts-grid dl {
+  margin: 0; display: grid;
+  grid-template-columns: max-content 1fr; gap: 6px 14px;
+  font-size: 13px;
+}
+.cap-sheet__shortcuts-grid dl > div { display: contents; }
+.cap-sheet__shortcuts-grid dt { color: var(--der-text);
+                                font-weight: 500;
+                                white-space: nowrap; }
+.cap-sheet__shortcuts-grid dd { margin: 0;
+                                color: var(--der-text-muted); }
+.cap-sheet__shortcuts-grid kbd {
+  display: inline-block; padding: 1px 6px;
+  min-width: 18px; text-align: center;
+  background: var(--der-surface-subtle);
+  border: 1px solid var(--der-border);
+  border-bottom-width: 2px;
+  font: 11px ui-monospace, Menlo, monospace;
+  color: var(--der-text);
+}
+.cap-sheet__shortcuts-foot {
+  margin: 0; padding: 10px 20px 14px;
+  font-size: 12px; color: var(--der-text-muted);
+  border-top: 1px solid var(--der-border-soft);
+}
+.cap-sheet__shortcuts-foot kbd {
+  display: inline-block; padding: 0 5px;
+  background: var(--der-surface-subtle);
+  border: 1px solid var(--der-border);
+  font: 11px ui-monospace, Menlo, monospace;
+  color: var(--der-text);
+}
 /* Column-resize drag handle — a 6px-wide strip glued to the right
  * edge of every data column's header; cursor flips to col-resize
  * on hover so operators discover the affordance. */
@@ -773,6 +863,13 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
 }
 .cap-sheet__col-resize:hover {
   background: var(--der-primary-subtle);
+}
+/* Column reorder — dropzone highlight (SHEET-I2). */
+.cap-sheet thead th[draggable="true"] { cursor: grab; }
+.cap-sheet thead th[draggable="true"]:active { cursor: grabbing; }
+.cap-sheet__col-dropzone {
+  box-shadow: inset 2px 0 0 var(--der-primary) !important;
+  background: var(--der-primary-subtle) !important;
 }
 .cap-sheet thead th { position: sticky; }
 body.cap-sheet__resizing,

@@ -76,6 +76,7 @@ export function EventSheetPage(
     anchor: { row: number; col: number };
     focus: { row: number; col: number };
   } | null>(null);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   /** Fill-drag in progress — the operator mousedowned on the handle
    *  and is extending the selection. The extend rectangle is shown
    *  as a preview outline; on mouseup the extended cells get
@@ -105,6 +106,24 @@ export function EventSheetPage(
       sessionStorage.setItem(colWidthsKey, JSON.stringify(colWidths));
     } catch { /* quota exceeded or similar — silently skip */ }
   }, [colWidths, colWidthsKey]);
+  /** Column order (list of field UIDs). Persists per program.
+   *  Defaults to the metadata-driven order; drag the header strip
+   *  to reorder. New fields appearing in the metadata after a
+   *  reorder get appended in their original positions. */
+  const colOrderKey = 'cap:sheet-order:' + programUid;
+  const [colOrder, setColOrder] = useState<string[]>(() => {
+    if (typeof sessionStorage === 'undefined') return [];
+    try {
+      const raw = sessionStorage.getItem(colOrderKey);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
+  useEffect(() => {
+    if (typeof sessionStorage === 'undefined') return;
+    try {
+      sessionStorage.setItem(colOrderKey, JSON.stringify(colOrder));
+    } catch { /* ignore */ }
+  }, [colOrder, colOrderKey]);
   /** per-row save-timer handles, keyed by row index */
   const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   /** Live rows snapshot — React 18 defers functional setState until
@@ -197,8 +216,23 @@ export function EventSheetPage(
   const allFields = useMemo<readonly CaptureField[]>(() => {
     const fs: CaptureField[] = [];
     for (const s of sections) for (const f of s.fields) fs.push(f);
-    return fs;
-  }, [sections]);
+    // Apply the persisted column order on top of the metadata-
+    // driven baseline. Fields that appear in the order list first;
+    // any NEW fields the metadata introduced after the last reorder
+    // get appended in their original position. The order array can
+    // contain stale UIDs that are no longer in the metadata — we
+    // filter those out here rather than mutating state.
+    if (colOrder.length === 0) return fs;
+    const byId = new Map(fs.map((f) => [f.id, f] as const));
+    const seen = new Set<string>();
+    const out: CaptureField[] = [];
+    for (const id of colOrder) {
+      const f = byId.get(id);
+      if (f && !seen.has(id)) { out.push(f); seen.add(id); }
+    }
+    for (const f of fs) if (!seen.has(f.id)) out.push(f);
+    return out;
+  }, [sections, colOrder]);
 
   /** Per-row rule evaluation. Memoised so unaffected rows don't
    *  re-run when the operator edits a different row. Each row's
@@ -541,6 +575,28 @@ export function EventSheetPage(
     const c0 = Math.min(selection.anchor.col, selection.focus.col);
     const c1 = Math.max(selection.anchor.col, selection.focus.col);
     return row >= r0 && row <= r1 && col >= c0 && col <= c1;
+  }
+
+  /** Move the sourceFieldId column to the position of targetFieldId.
+   *  Persists the new order via the colOrder state (which
+   *  sessionStorage mirrors). Rejects drops that would land on the
+   *  frozen status / date columns. */
+  function reorderColumn(sourceId: string, targetId: string): void {
+    setColOrder(() => {
+      const current = allFields.map((f) => f.id);
+      const srcIdx = current.indexOf(sourceId);
+      const tgtIdx = current.indexOf(targetId);
+      if (srcIdx < 0 || tgtIdx < 0) return current;
+      const next = [...current];
+      const [moved] = next.splice(srcIdx, 1);
+      // Insert before the target when dragging left-to-right; after
+      // when right-to-left. Matches Excel/Sheets drag semantics.
+      const insertAt = srcIdx < tgtIdx ? tgtIdx : tgtIdx;
+      next.splice(insertAt, 0, moved!);
+      return next;
+    });
+    // eslint-disable-next-line no-console
+    console.log('[sheet] reorder', { from: sourceId, to: targetId });
   }
 
   /** Begin a column-resize drag on the right edge of a header
@@ -1174,6 +1230,14 @@ export function EventSheetPage(
         </span>
         <span className="cap-section-head__rule" />
         <button type="button"
+                className="cap-sheet__shortcuts-btn"
+                data-test="ev-sheet-shortcuts-btn"
+                aria-expanded={shortcutsOpen}
+                title="Keyboard shortcuts"
+                onClick={() => setShortcutsOpen((v) => !v)}>
+          ? Shortcuts
+        </button>
+        <button type="button"
                 className="cap-btn cap-btn--secondary"
                 data-test="ev-sheet-back-to-rows"
                 onClick={() => navEvent.list(programUid)}
@@ -1188,26 +1252,9 @@ export function EventSheetPage(
           + New row
         </button>
       </div>
-      <p className="cap-sub" style={{ marginLeft: 14, marginTop: -6 }}>
-        Type directly into cells — rows save automatically
-        ~1&nbsp;second after your last keystroke. <strong>Tab</strong>
-        / <strong>Shift+Tab</strong> move between cells, <strong>Enter
-        </strong> jumps down to the next row, <strong>Ctrl+D</strong>
-        fills the active cell's value down through every row below.
-        <strong>Shift+Click</strong> / <strong>Shift+Arrow</strong>
-        extend the selection; <strong>Ctrl+A</strong> selects every
-        cell. <strong>Delete</strong> clears the selected range.
-        <strong>Ctrl+C</strong> copies the selection as tab-separated
-        rows; <strong>Ctrl+V</strong> pastes clipboard TSV as a block.
-        <strong>Ctrl+Z</strong> undoes, <strong>Ctrl+Shift+Z</strong>
-        redoes. Drag the blue square at the bottom-right of the
-        selection to fill a rectangle with the anchor cell's value.
-        <strong>Esc</strong> blurs an input back to the cell (so
-        arrow keys move between cells) or deselects when focus is
-        already on a cell. <strong>F2</strong> re-enters edit mode.
-        Drag a column header's right edge to resize — widths
-        persist per program.
-      </p>
+      {shortcutsOpen && (
+        <ShortcutsPopover onClose={() => setShortcutsOpen(false)} />
+      )}
 
       <div className="cap-sheet-wrap" data-test="ev-sheet"
            onKeyDown={onGridKeyDown}>
@@ -1219,6 +1266,34 @@ export function EventSheetPage(
               <th scope="col" className="cap-sheet__date-col">Event date</th>
               {allFields.map((f) => (
                 <th key={f.id} scope="col" title={f.id}
+                    draggable
+                    data-test={'ev-sheet-col-' + f.id}
+                    onDragStart={(ev) => {
+                      ev.dataTransfer.effectAllowed = 'move';
+                      ev.dataTransfer.setData('text/x-cap-col', f.id);
+                    }}
+                    onDragOver={(ev) => {
+                      if (ev.dataTransfer.types.includes(
+                          'text/x-cap-col')) {
+                        ev.preventDefault();
+                        ev.dataTransfer.dropEffect = 'move';
+                        (ev.currentTarget as HTMLElement)
+                          .classList.add('cap-sheet__col-dropzone');
+                      }
+                    }}
+                    onDragLeave={(ev) => {
+                      (ev.currentTarget as HTMLElement)
+                        .classList.remove('cap-sheet__col-dropzone');
+                    }}
+                    onDrop={(ev) => {
+                      (ev.currentTarget as HTMLElement)
+                        .classList.remove('cap-sheet__col-dropzone');
+                      const src = ev.dataTransfer.getData(
+                        'text/x-cap-col');
+                      if (!src || src === f.id) return;
+                      ev.preventDefault();
+                      reorderColumn(src, f.id);
+                    }}
                     style={colWidths[f.id]
                       ? { width: colWidths[f.id] + 'px',
                           minWidth: colWidths[f.id] + 'px' }
@@ -1230,7 +1305,10 @@ export function EventSheetPage(
                         title={'Drag to resize this column'}
                         data-test={'ev-sheet-col-resize-' + f.id}
                         onMouseDown={(e) =>
-                          startColResize(e, f.id)} />
+                          startColResize(e, f.id)}
+                        /* Stop the drag API from treating the
+                         * resize handle as a reorder gesture. */
+                        onDragStart={(ev) => ev.preventDefault()} />
                 </th>
               ))}
               <th scope="col" className="cap-sheet__actions-col">
@@ -1278,7 +1356,13 @@ export function EventSheetPage(
                     + r.saveState
                     + (errorCount > 0 ? ' cap-sheet__row--rule-err' : '')
                     + (errorCount === 0 && warnCount > 0
-                      ? ' cap-sheet__row--rule-warn' : '')}
+                      ? ' cap-sheet__row--rule-warn' : '')
+                    + (selection
+                      && rowIdx >= Math.min(selection.anchor.row,
+                          selection.focus.row)
+                      && rowIdx <= Math.max(selection.anchor.row,
+                          selection.focus.row)
+                        ? ' cap-sheet__row--active' : '')}
                   data-test={'ev-sheet-row-' + rowIdx}
                   data-rule-errors={errorCount}
                   data-rule-warnings={warnCount}>
@@ -1466,4 +1550,91 @@ function statusDot(state: SheetRow['saveState']): JSX.Element {
   };
   return <span className={'cap-sheet__dot cap-sheet__dot--' + map[state]}
                 aria-hidden="true" />;
+}
+
+/** Keyboard shortcuts cheat-sheet surfaced from a compact
+ *  "? Shortcuts" toggle in the sheet section head. Replaces the
+ *  long free-text hint paragraph that used to sit beneath the head
+ *  and made the view read as a wall of text. Grouped into two
+ *  columns so the whole sheet's keyboard contract fits in a
+ *  single readable glance. */
+function ShortcutsPopover(
+  { onClose }: { onClose: () => void },
+): JSX.Element {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="cap-sheet__shortcuts-backdrop"
+         role="dialog" aria-modal="true"
+         aria-label="Spreadsheet mode keyboard shortcuts"
+         data-test="ev-sheet-shortcuts-popover"
+         onClick={(e) => {
+           if (e.target === e.currentTarget) onClose();
+         }}>
+      <div className="cap-sheet__shortcuts">
+        <header className="cap-sheet__shortcuts-head">
+          <h3>Keyboard shortcuts</h3>
+          <button type="button"
+                  className="cap-sheet__shortcuts-close"
+                  aria-label="Close"
+                  onClick={onClose}>×</button>
+        </header>
+        <div className="cap-sheet__shortcuts-grid">
+          <section>
+            <h4>Navigation</h4>
+            <dl>
+              <div><dt><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></dt>
+                <dd>Move between cells</dd></div>
+              <div><dt><kbd>Enter</kbd></dt>
+                <dd>Jump down to the next row</dd></div>
+              <div><dt><kbd>Arrow</kbd> keys</dt>
+                <dd>Move between cells (when a cell is focused,
+                  not an input)</dd></div>
+              <div><dt><kbd>Shift</kbd>+<kbd>Arrow</kbd></dt>
+                <dd>Extend the selection</dd></div>
+              <div><dt><kbd>Shift</kbd>+<kbd>Click</kbd></dt>
+                <dd>Extend selection to the clicked cell</dd></div>
+              <div><dt><kbd>Ctrl</kbd>+<kbd>A</kbd></dt>
+                <dd>Select every cell</dd></div>
+              <div><dt><kbd>Esc</kbd></dt>
+                <dd>Blur input → cell, then deselect</dd></div>
+              <div><dt><kbd>F2</kbd></dt>
+                <dd>Enter edit mode on the active cell</dd></div>
+            </dl>
+          </section>
+          <section>
+            <h4>Edit</h4>
+            <dl>
+              <div><dt><kbd>Ctrl</kbd>+<kbd>D</kbd></dt>
+                <dd>Fill the active cell down through every row below</dd></div>
+              <div><dt><kbd>Delete</kbd></dt>
+                <dd>Clear the selected range</dd></div>
+              <div><dt><kbd>Ctrl</kbd>+<kbd>C</kbd></dt>
+                <dd>Copy selection as tab-separated rows</dd></div>
+              <div><dt><kbd>Ctrl</kbd>+<kbd>V</kbd></dt>
+                <dd>Paste clipboard TSV as a block</dd></div>
+              <div><dt><kbd>Ctrl</kbd>+<kbd>Z</kbd></dt>
+                <dd>Undo the last change</dd></div>
+              <div><dt><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt>
+                <dd>Redo</dd></div>
+              <div><dt>Drag blue square</dt>
+                <dd>Fill a rectangle with the anchor cell's value</dd></div>
+              <div><dt>Drag header edge</dt>
+                <dd>Resize column (persists per program)</dd></div>
+            </dl>
+          </section>
+        </div>
+        <p className="cap-sheet__shortcuts-foot">
+          Rows save automatically ~1&nbsp;second after your last
+          keystroke. On macOS use <kbd>⌘</kbd> wherever
+          <kbd>Ctrl</kbd> appears.
+        </p>
+      </div>
+    </div>
+  );
 }
