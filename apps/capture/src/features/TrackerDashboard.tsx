@@ -63,6 +63,8 @@ export function TrackerDashboard(
   const [editing, setEditing] = useState<'new' | string | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
   const [tetUid, setTetUid] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] =
+    useState<'all' | 'ACTIVE' | 'COMPLETED'>('all');
 
   // Fetch enrolments + stages in parallel on first open.
   useEffect(() => {
@@ -146,9 +148,20 @@ export function TrackerDashboard(
     return m;
   }, [events]);
 
-  const stageEvents = selectedStage
+  const rawStageEvents = selectedStage
     ? eventsByStage.get(selectedStage) ?? []
     : [];
+  const stageEvents = useMemo(() => {
+    const filtered = statusFilter === 'all'
+      ? rawStageEvents
+      : rawStageEvents.filter((e) => e.status === statusFilter);
+    // Newest first by occurredDate (falls back to lastUpdatedAt).
+    return [...filtered].sort((a, b) => {
+      const ad = a.occurredDate ?? a.lastUpdatedAt ?? '';
+      const bd = b.occurredDate ?? b.lastUpdatedAt ?? '';
+      return bd.localeCompare(ad);
+    });
+  }, [rawStageEvents, statusFilter]);
 
   return (
     <>
@@ -306,15 +319,41 @@ export function TrackerDashboard(
               <>
                 <div style={{ display: 'flex',
                   justifyContent: 'space-between', alignItems: 'center',
-                  marginBottom: 10 }}>
+                  gap: 10, marginBottom: 10 }}>
                   <strong style={{ fontSize: 13, color: '#263352' }}>
                     {stageEvents.length} event
                     {stageEvents.length === 1 ? '' : 's'}
+                    {statusFilter !== 'all' && rawStageEvents.length
+                      !== stageEvents.length && (
+                      <span style={{ color: '#6e7a8a',
+                        fontWeight: 400 }}>
+                        {' '}· of {rawStageEvents.length}
+                      </span>
+                    )}
                   </strong>
+                  <label style={{ display: 'flex',
+                    alignItems: 'center', gap: 6, fontSize: 11,
+                    color: '#6e7a8a' }}>
+                    status
+                    <select className="cap-input__ctl"
+                            data-test="tr-status-filter"
+                            style={{ padding: '2px 6px', fontSize: 12 }}
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(
+                              e.target.value as typeof statusFilter)}>
+                      <option value="all">all</option>
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="COMPLETED">COMPLETED</option>
+                    </select>
+                  </label>
                   {(() => {
                     const repeatable = stageRepeatable.get(selectedStage)
                       ?? false;
-                    const disabled = !repeatable && stageEvents.length > 0;
+                    // TR-034 must gate on the raw list — the active
+                    // status filter mustn't let the operator sneak a
+                    // second event past a non-repeatable-stage lock.
+                    const disabled = !repeatable
+                      && rawStageEvents.length > 0;
                     return (
                       <button type="button"
                               className="cap-btn cap-btn--primary"
