@@ -360,7 +360,95 @@ public class ExtendedMirrorRepository {
         return rules;
     }
 
+    // Relationship types --------------------------------------------------
+
+    @Transactional
+    public int upsertRelationshipTypes(
+            final List<MirroredRelationshipType> rows, final long snapshotId) {
+        for (final MirroredRelationshipType r : rows) {
+            jdbc.update(
+                    "INSERT INTO der.metadata_relationship_type "
+                            + "(dhis2_uid, display_name, bidirectional, "
+                            + " from_constraint_kind, from_constraint_uid, "
+                            + " to_constraint_kind, to_constraint_uid, "
+                            + " payload, snapshot_id, imported_at, last_seen_at) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb), "
+                            + " ?, now(), now()) "
+                            + "ON CONFLICT (dhis2_uid) DO UPDATE SET "
+                            + "display_name = EXCLUDED.display_name, "
+                            + "bidirectional = EXCLUDED.bidirectional, "
+                            + "from_constraint_kind = EXCLUDED.from_constraint_kind, "
+                            + "from_constraint_uid = EXCLUDED.from_constraint_uid, "
+                            + "to_constraint_kind = EXCLUDED.to_constraint_kind, "
+                            + "to_constraint_uid = EXCLUDED.to_constraint_uid, "
+                            + "payload = EXCLUDED.payload, "
+                            + "snapshot_id = EXCLUDED.snapshot_id, "
+                            + "last_seen_at = now()",
+                    r.dhis2Uid(), r.displayName(), r.bidirectional(),
+                    r.fromConstraintKind(), r.fromConstraintUid(),
+                    r.toConstraintKind(), r.toConstraintUid(),
+                    writeJson(r.payload()), snapshotId);
+        }
+        return rows.size();
+    }
+
+    public Optional<MirroredRelationshipType> findRelationshipType(final String uid) {
+        return single(() -> jdbc.queryForObject(
+                "SELECT dhis2_uid, display_name, bidirectional, "
+                        + " from_constraint_kind, from_constraint_uid, "
+                        + " to_constraint_kind, to_constraint_uid, payload "
+                        + "FROM der.metadata_relationship_type "
+                        + "WHERE dhis2_uid = ?",
+                relationshipTypeMapper(), uid));
+    }
+
+    public List<MirroredRelationshipType> findAllRelationshipTypes() {
+        return jdbc.query(
+                "SELECT dhis2_uid, display_name, bidirectional, "
+                        + " from_constraint_kind, from_constraint_uid, "
+                        + " to_constraint_kind, to_constraint_uid, payload "
+                        + "FROM der.metadata_relationship_type "
+                        + "ORDER BY display_name",
+                relationshipTypeMapper());
+    }
+
+    /** List types where at least one side references the given
+     *  tracked-entity type. Used by the Capture relationships picker
+     *  so the dropdown only shows types the current TEI can legally
+     *  participate in. */
+    public List<MirroredRelationshipType>
+            findRelationshipTypesForTrackedEntityType(final String tetUid) {
+        if (tetUid == null || tetUid.isBlank()) {
+            return List.of();
+        }
+        return jdbc.query(
+                "SELECT dhis2_uid, display_name, bidirectional, "
+                        + " from_constraint_kind, from_constraint_uid, "
+                        + " to_constraint_kind, to_constraint_uid, payload "
+                        + "FROM der.metadata_relationship_type "
+                        + "WHERE (from_constraint_kind "
+                        + "         = 'TRACKED_ENTITY_INSTANCE' "
+                        + "       AND from_constraint_uid = ?) "
+                        + "   OR (to_constraint_kind "
+                        + "         = 'TRACKED_ENTITY_INSTANCE' "
+                        + "       AND to_constraint_uid = ?) "
+                        + "ORDER BY display_name",
+                relationshipTypeMapper(), tetUid, tetUid);
+    }
+
     // Row mappers ---------------------------------------------------------
+
+    private RowMapper<MirroredRelationshipType> relationshipTypeMapper() {
+        return (ResultSet rs, int row) -> new MirroredRelationshipType(
+                rs.getString("dhis2_uid"),
+                rs.getString("display_name"),
+                rs.getBoolean("bidirectional"),
+                rs.getString("from_constraint_kind"),
+                rs.getString("from_constraint_uid"),
+                rs.getString("to_constraint_kind"),
+                rs.getString("to_constraint_uid"),
+                readJson(rs.getString("payload")));
+    }
 
     private RowMapper<MirroredProgramStage> programStageMapper() {
         return (ResultSet rs, int row) -> new MirroredProgramStage(

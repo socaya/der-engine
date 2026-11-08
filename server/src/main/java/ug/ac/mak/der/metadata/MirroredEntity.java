@@ -21,7 +21,8 @@ public sealed interface MirroredEntity permits
         MirroredProgramStageSection,
         MirroredTrackedEntityAttribute,
         MirroredProgramRule,
-        MirroredProgramRuleAction {
+        MirroredProgramRuleAction,
+        MirroredRelationshipType {
 
     String dhis2Uid();
 

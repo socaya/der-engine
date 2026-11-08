@@ -83,6 +83,7 @@ public class MetadataSyncService {
     static final String CATEGORY_OPTION_COMBO_PATH = "/api/categoryOptionCombos" + FIELDS_ALL;
     static final String PROGRAM_STAGE_PATH = "/api/programStages" + FIELDS_ALL;
     static final String TRACKED_ENTITY_ATTRIBUTE_PATH = "/api/trackedEntityAttributes" + FIELDS_ALL;
+    static final String RELATIONSHIP_TYPE_PATH = "/api/relationshipTypes" + FIELDS_ALL;
     static final String PROGRAM_RULE_PATH = "/api/programRules" + FIELDS_ALL;
     /** §2.3.19 — fetch actions separately. DHIS2's {@code fields=:all}
      *  on {@code /api/programRules} does not descend into
@@ -172,8 +173,9 @@ public class MetadataSyncService {
         final List<MirroredProgramStage> pss = readProgramStages();
         final List<MirroredTrackedEntityAttribute> teas = readTrackedEntityAttributes();
         final List<MirroredProgramRule> rules = readProgramRules();
+        final List<MirroredRelationshipType> relTypes = readRelationshipTypes();
 
-        final String fingerprint = fingerprintOf(ous, des, dss, prgs, tets, cocs, pss, teas, rules);
+        final String fingerprint = fingerprintOf(ous, des, dss, prgs, tets, cocs, pss, teas, rules, relTypes);
         final MetadataSnapshot pending = new MetadataSnapshot(
                 0L,
                 props.central().baseUrl(),
@@ -195,6 +197,7 @@ public class MetadataSyncService {
         extended.upsertProgramStages(pss, persisted.snapshotId());
         extended.upsertTrackedEntityAttributes(teas, persisted.snapshotId());
         extended.upsertProgramRules(rules, persisted.snapshotId());
+        extended.upsertRelationshipTypes(relTypes, persisted.snapshotId());
 
         // der-2.0.17: fetch + mirror the long-tail of metadata the
         // facility needs for offline capture + reporting + access
@@ -228,7 +231,7 @@ public class MetadataSyncService {
         // captures the latest known fingerprint. Enables true per-UID
         // diff(a, b) across snapshots.
         writeEntityVersions(persisted.snapshotId(), ous, des, dss, prgs, tets,
-                pss, teas, rules, cocs);
+                pss, teas, rules, cocs, relTypes);
 
         LOG.info("Phase 03/05 metadata sync complete, snapshot={} total={} coc={} ps={} tea={} rules={} "
                         + "catalog={}",
@@ -250,7 +253,8 @@ public class MetadataSyncService {
                                        final List<MirroredProgramStage> pss,
                                        final List<MirroredTrackedEntityAttribute> teas,
                                        final List<MirroredProgramRule> rules,
-                                       final List<MirroredCategoryOptionCombo> cocs) {
+                                       final List<MirroredCategoryOptionCombo> cocs,
+                                       final List<MirroredRelationshipType> relTypes) {
         batchInsertVersions(snapshotId, "organisationUnits",
                 ous.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
         batchInsertVersions(snapshotId, "dataElements",
@@ -269,6 +273,8 @@ public class MetadataSyncService {
                 rules.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
         batchInsertVersions(snapshotId, "categoryOptionCombos",
                 cocs.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
+        batchInsertVersions(snapshotId, "relationshipTypes",
+                relTypes.stream().map((o) -> new String[] { o.dhis2Uid(), fp(o.payload()) }).toList());
     }
 
     private void batchInsertVersions(final long snapshotId, final String resource,
@@ -509,6 +515,64 @@ public class MetadataSyncService {
                     node));
         }
         return out;
+    }
+
+    List<MirroredRelationshipType> readRelationshipTypes()
+            throws Dhis2ReferenceClient.Dhis2UnreachableException,
+                   Dhis2ReferenceClient.Dhis2ResponseException {
+        final JsonNode body = dhis2.fetchJson(RELATIONSHIP_TYPE_PATH);
+        final List<MirroredRelationshipType> out = new ArrayList<>();
+        if (body == null) {
+            return out;
+        }
+        for (final JsonNode node : body.withArray("relationshipTypes")) {
+            final JsonNode from = node.get("fromConstraint");
+            final JsonNode to = node.get("toConstraint");
+            out.add(new MirroredRelationshipType(
+                    requireText(node, "id"),
+                    textOr(node, "displayName", textOr(node, "name", "")),
+                    node.has("bidirectional")
+                        && node.get("bidirectional").asBoolean(false),
+                    constraintKind(from),
+                    constraintRefUid(from),
+                    constraintKind(to),
+                    constraintRefUid(to),
+                    node));
+        }
+        return out;
+    }
+
+    /** DHIS2 relationship constraint shape:
+     *  {@code { "relationshipEntity": "TRACKED_ENTITY_INSTANCE",
+     *           "trackedEntityType": { "id": "…" } }}. Returns the
+     *  relationshipEntity string (TRACKED_ENTITY_INSTANCE /
+     *  PROGRAM_INSTANCE / PROGRAM_STAGE_INSTANCE) or null when the
+     *  constraint is absent or malformed. */
+    private String constraintKind(final JsonNode constraint) {
+        if (constraint == null || !constraint.isObject()) {
+            return null;
+        }
+        return textOrNull(constraint, "relationshipEntity");
+    }
+
+    /** Extracts the referenced UID from a relationship constraint —
+     *  nested {@code trackedEntityType.id}, {@code program.id}, or
+     *  {@code programStage.id} depending on the constraint kind.
+     *  Null when the constraint is absent, malformed, or references
+     *  nothing (defence-in-depth — well-formed DHIS2 metadata always
+     *  carries one). */
+    private String constraintRefUid(final JsonNode constraint) {
+        if (constraint == null || !constraint.isObject()) {
+            return null;
+        }
+        for (final String field : new String[] {
+                "trackedEntityType", "program", "programStage" }) {
+            final String uid = nestedIdOrNull(constraint, field);
+            if (uid != null) {
+                return uid;
+            }
+        }
+        return null;
     }
 
     List<MirroredProgramRule> readProgramRules()
