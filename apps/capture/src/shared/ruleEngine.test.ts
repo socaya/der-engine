@@ -19,12 +19,14 @@ function mkField(id: string, required = false): CaptureField {
     id, fieldRef: id, domain: 'EVENT_DATA_ELEMENT', valueType: 'TEXT',
     label: id, description: null, required, readonly: false,
     optionSetId: null, sortOrder: 0, sectionId: null,
+    renderType: 'DEFAULT',
   };
 }
 
 function mkSection(id: string | null, fields: CaptureField[]):
     CaptureFormSection {
-  return { id, displayName: id ?? '', sortOrder: 0, fields };
+  return { id, displayName: id ?? '', sortOrder: 0,
+    renderType: 'LISTING', fields };
 }
 
 function mkVar(name: string, dataElementId: string): CaptureProgramRuleVariable {

@@ -28,6 +28,32 @@ export type CaptureValueType =
   | 'COORDINATE' | 'GEOJSON'
   | 'UNKNOWN';
 
+/** DHIS2 per-field renderType hint (Phase 2 — surfaced from the
+ *  server's FormField.renderType). Nullable at the wire; anything
+ *  the client doesn't recognise maps to DEFAULT and the field
+ *  falls back to the value-type-chosen input. */
+export type FieldRenderType =
+  | 'DEFAULT'
+  | 'DROPDOWN'
+  | 'VERTICAL_RADIOBUTTONS'
+  | 'HORIZONTAL_RADIOBUTTONS'
+  | 'VERTICAL_CHECKBOXES'
+  | 'HORIZONTAL_CHECKBOXES'
+  | 'TOGGLE'
+  | 'SPINNER'
+  | 'SLIDER'
+  | 'LINEAR_SCALE'
+  | 'AUTOCOMPLETE';
+
+/** DHIS2 per-section renderType hint (Phase 1 — surfaced from the
+ *  server's FormSection.renderType). LISTING is the default
+ *  responsive grid; MATRIX renders a row×col table; SEQUENTIAL
+ *  renders one field at a time with Prev/Next. */
+export type SectionRenderType =
+  | 'LISTING'
+  | 'MATRIX'
+  | 'SEQUENTIAL';
+
 export interface CaptureField {
   readonly id: string;
   /** Composite UID the form engine uses to key inputs — DE UID for
@@ -43,12 +69,14 @@ export interface CaptureField {
   readonly optionSetId: string | null;
   readonly sortOrder: number;
   readonly sectionId: string | null;
+  readonly renderType: FieldRenderType;
 }
 
 export interface CaptureFormSection {
   readonly id: string | null;
   readonly displayName: string;
   readonly sortOrder: number;
+  readonly renderType: SectionRenderType;
   readonly fields: readonly CaptureField[];
 }
 

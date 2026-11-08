@@ -1,5 +1,6 @@
 import type {
   CaptureField, CaptureFormSection, CaptureParseIssue, CaptureProgram,
+  FieldRenderType, SectionRenderType,
   CaptureStage, CaptureValueType, ParsedStageForm, ProgramType,
 } from './model';
 
@@ -44,6 +45,10 @@ export interface RawStageField {
   readonly requirement?: 'REQUIRED' | 'OPTIONAL' | 'READONLY';
   readonly sortOrder?: number;
   readonly description?: string | null;
+  /** DHIS2 renderType (DROPDOWN / RADIOBUTTONS / CHECKBOXES / ...).
+   *  Nullable at the wire — null falls through to DEFAULT and the
+   *  value-type-chosen input renders. */
+  readonly renderType?: string | null;
 }
 
 export interface RawStageSection {
@@ -51,6 +56,8 @@ export interface RawStageSection {
   readonly displayName?: string;
   readonly sortOrder?: number;
   readonly fields?: ReadonlyArray<RawStageField>;
+  /** DHIS2 renderType (LISTING / MATRIX / SEQUENTIAL). Nullable. */
+  readonly renderType?: string | null;
 }
 
 export interface RawStageForm {
@@ -161,6 +168,7 @@ export function parseStageForm(
           optionSetId: f.optionSetUid ?? null,
           sortOrder: f.sortOrder ?? fi,
           sectionId,
+          renderType: normalizeFieldRenderType(f.renderType),
         };
         return field;
       });
@@ -168,6 +176,7 @@ export function parseStageForm(
         id: sectionId,
         displayName: s.displayName ?? '',
         sortOrder: s.sortOrder ?? i,
+        renderType: normalizeSectionRenderType(s.renderType),
         fields,
       };
     },
@@ -244,12 +253,16 @@ export function parseTeiAttributesForm(
       optionSetId: a.optionSetUid ?? null,
       sortOrder: a.sortOrder ?? i,
       sectionId: 'identity',
+      // TEI attributes don't carry a DHIS2 renderType today; default
+      // path keeps the value-type-chosen input.
+      renderType: 'DEFAULT',
     };
   });
   const section: CaptureFormSection = {
     id: 'identity',
     displayName: 'Identity',
     sortOrder: 0,
+    renderType: 'LISTING',
     fields,
   };
   return {
@@ -303,6 +316,43 @@ export function computeFingerprint(value: unknown): string {
     hash = Math.imul(hash, 0x01000193);
   }
   return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+/** Normalise a wire-side DHIS2 field renderType to our typed
+ *  {@link FieldRenderType}. Unknown / null / missing falls to
+ *  DEFAULT so the FormEngine uses the value-type-chosen input
+ *  (same behaviour as before Phase 2). */
+function normalizeFieldRenderType(raw: string | null | undefined):
+    FieldRenderType {
+  switch (raw) {
+    case 'DROPDOWN':
+    case 'VERTICAL_RADIOBUTTONS':
+    case 'HORIZONTAL_RADIOBUTTONS':
+    case 'VERTICAL_CHECKBOXES':
+    case 'HORIZONTAL_CHECKBOXES':
+    case 'TOGGLE':
+    case 'SPINNER':
+    case 'SLIDER':
+    case 'LINEAR_SCALE':
+    case 'AUTOCOMPLETE':
+      return raw;
+    default:
+      return 'DEFAULT';
+  }
+}
+
+/** Normalise a wire-side DHIS2 section renderType. Unknown / null /
+ *  missing falls to LISTING (the responsive grid is the safe default
+ *  for every form factor). */
+function normalizeSectionRenderType(raw: string | null | undefined):
+    SectionRenderType {
+  switch (raw) {
+    case 'MATRIX':
+    case 'SEQUENTIAL':
+      return raw;
+    default:
+      return 'LISTING';
+  }
 }
 
 /** Deterministic JSON — object keys sorted so logically-equal

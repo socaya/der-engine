@@ -656,6 +656,143 @@ export const CAPTURE_STYLES = `
 .cap-input__help {
   font-size: 12px; color: var(--der-text-muted);
 }
+
+/* === Per-field renderType variants (Phase 2) === */
+
+/* TOGGLE — iOS-style switch. Click toggles on/off. */
+.cap-toggle {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 2px 4px; border: 0; background: transparent;
+  cursor: pointer; font: inherit; color: var(--der-text);
+}
+.cap-toggle:disabled { cursor: not-allowed; opacity: 0.6; }
+.cap-toggle__track {
+  position: relative; display: inline-block;
+  width: 36px; height: 20px;
+  background: #cbd2dc; border-radius: 10px;
+  transition: background 120ms;
+}
+.cap-toggle__dot {
+  position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  transition: left 120ms;
+}
+.cap-toggle--on .cap-toggle__track {
+  background: var(--der-primary);
+}
+.cap-toggle--on .cap-toggle__dot { left: 18px; }
+.cap-toggle__label { font-size: 13px; }
+
+/* SLIDER / LINEAR_SCALE — range + number input, so operators can
+ * either drag or type. */
+.cap-slider {
+  display: flex; align-items: center; gap: 12px;
+}
+.cap-slider__range {
+  flex: 1; min-width: 0;
+  accent-color: var(--der-primary);
+  cursor: pointer;
+}
+.cap-slider__range:disabled { cursor: not-allowed; }
+.cap-slider__value {
+  width: 80px; padding: 6px 10px;
+  border: 1px solid #a5adbb; border-radius: 3px;
+  font-size: 15px; background: #fff; color: var(--der-text);
+  font-family: inherit;
+}
+.cap-slider__value:focus {
+  outline: 0; border-color: var(--der-primary);
+  box-shadow: inset 0 0 0 2px var(--der-primary);
+}
+
+/* RADIO_GROUP + CHECKBOX_GROUP — stack by default, horizontal
+ * variant flows inline. Items pick up DER type + accent colour. */
+.cap-radio-group, .cap-checkbox-group {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 2px 0;
+}
+.cap-radio-group--h, .cap-checkbox-group--h {
+  flex-direction: row; flex-wrap: wrap; gap: 6px 18px;
+}
+.cap-radio, .cap-checkbox {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 14px; color: var(--der-text); cursor: pointer;
+}
+.cap-radio input, .cap-checkbox input {
+  accent-color: var(--der-primary);
+  width: 16px; height: 16px; cursor: pointer;
+}
+.cap-radio input:disabled + span,
+.cap-checkbox input:disabled + span { color: var(--der-text-muted); }
+
+/* === Per-section renderType variants (Phase 1) === */
+
+/* MATRIX — compact row-per-field table, label left, input middle,
+ * note right. Dense + grid-like for data-heavy clinical forms. */
+.cap-form-section__matrix {
+  width: 100%; border-collapse: collapse;
+  margin-top: 14px;
+}
+.cap-form-section__matrix tr + tr th,
+.cap-form-section__matrix tr + tr td {
+  border-top: 1px solid var(--der-border-soft);
+}
+.cap-form-section__matrix-label {
+  width: 30%; min-width: 200px;
+  padding: 10px 14px 10px 0;
+  text-align: left; vertical-align: top;
+  font-size: 13px; font-weight: 500; color: var(--der-text);
+}
+.cap-form-section__matrix-input {
+  padding: 8px 14px 8px 0; vertical-align: top;
+}
+.cap-form-section__matrix-input .cap-input__ctl {
+  width: 100%;
+}
+.cap-form-section__matrix-note {
+  width: 26%; min-width: 160px;
+  padding: 10px 0; vertical-align: top;
+  color: var(--der-text-muted); font-size: 12px;
+}
+@media (max-width: 720px) {
+  .cap-form-section__matrix,
+  .cap-form-section__matrix tbody,
+  .cap-form-section__matrix tr,
+  .cap-form-section__matrix th,
+  .cap-form-section__matrix td {
+    display: block; width: auto;
+  }
+  .cap-form-section__matrix-label { padding-bottom: 4px; }
+}
+
+/* SEQUENTIAL — one field at a time with prev/next + dot progress.
+ * For long questionnaires (safety checks, KAP surveys) where
+ * operators need a focused one-answer-at-a-time flow. */
+.cap-form-section__sequential {
+  display: flex; flex-direction: column; gap: 14px;
+  margin-top: 14px; max-width: 520px;
+}
+.cap-form-section__sequential-progress {
+  font-size: 12px; color: var(--der-text-muted);
+}
+.cap-form-section__sequential-field {
+  min-height: 80px;
+}
+.cap-form-section__sequential-nav {
+  display: flex; align-items: center; gap: 14px;
+}
+.cap-form-section__sequential-dots {
+  display: inline-flex; align-items: center; gap: 4px;
+  flex: 1; justify-content: center;
+}
+.cap-form-section__sequential-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--der-border); display: inline-block;
+}
+.cap-form-section__sequential-dot--active {
+  background: var(--der-primary);
+}
 .cap-field-warn {
   font-size: 11px; color: var(--der-warning);
   padding: 2px 0 0 0; border: 0; background: transparent;
