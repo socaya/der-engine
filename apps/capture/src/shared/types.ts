@@ -16,20 +16,6 @@ export interface StageOpt {
   readonly displayName: string;
 }
 
-export interface FormField {
-  readonly fieldRef: string;
-  readonly dataElementUid: string;
-  readonly displayName: string;
-  readonly valueType: string;
-  readonly required: boolean;
-  readonly readonly: boolean;
-}
-
-export interface FormSection {
-  readonly title: string;
-  readonly fields: readonly FormField[];
-}
-
 export interface EventRow {
   readonly event?: string;
   readonly eventUid?: string;

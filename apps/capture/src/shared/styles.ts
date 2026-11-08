@@ -164,6 +164,9 @@ export const CAPTURE_STYLES = `
 .cap-input__ctl--ro {
   background: #f3f5f8; color: #6e7a8a;
 }
+.cap-input__help {
+  font-size: 11px; color: #6e7a8a;
+}
 
 /* Sticky action footer — one row: save-state on the left, primary
  * actions on the right (§5.3 StickyActionBar). */

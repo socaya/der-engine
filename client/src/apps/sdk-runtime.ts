@@ -53,6 +53,9 @@ function useDerApi(): {
   listCaptureProgramStages: typeof edgeApi.listCaptureProgramStages;
   getCaptureStageForm: typeof edgeApi.getCaptureStageForm;
   listCaptureProgramEvents: typeof edgeApi.listCaptureProgramEvents;
+  // G3 — program rules + variables, parsed client-side.
+  listProgramRules: typeof edgeApi.listProgramRules;
+  listProgramRuleVariables: typeof edgeApi.listProgramRuleVariables;
 } {
   return {
     submitAggregate: edgeApi.submitAggregate,
@@ -86,6 +89,8 @@ function useDerApi(): {
     listCaptureProgramStages: edgeApi.listCaptureProgramStages,
     getCaptureStageForm: edgeApi.getCaptureStageForm,
     listCaptureProgramEvents: edgeApi.listCaptureProgramEvents,
+    listProgramRules: edgeApi.listProgramRules,
+    listProgramRuleVariables: edgeApi.listProgramRuleVariables,
   };
 }
 

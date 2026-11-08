@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { FormEngine, requiredFieldsComplete } from '../shared/FormEngine';
-import type { CaptureApi, EventRow, FormSection, StageOpt } from
-  '../shared/types';
+import type { CaptureApi, EventRow, StageOpt } from '../shared/types';
+import type { CaptureFormSection, CaptureParseIssue } from '../shared/model';
+import { parseStageForm } from '../shared/parser';
 
 /**
  * Event (WITHOUT_REGISTRATION) workflow inside the unified
@@ -24,7 +25,9 @@ export function EventWorkflow(
 ): JSX.Element {
   const [stages, setStages] = useState<StageOpt[]>([]);
   const [stageUid, setStageUid] = useState('');
-  const [sections, setSections] = useState<FormSection[]>([]);
+  const [sections, setSections] = useState<readonly CaptureFormSection[]>([]);
+  const [parseIssues, setParseIssues] =
+    useState<readonly CaptureParseIssue[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [occurredAt, setOccurredAt] = useState(() =>
     new Date().toISOString().slice(0, 10));
@@ -59,26 +62,21 @@ export function EventWorkflow(
     return () => { cancelled = true; };
   }, [programUid, api]);
 
-  // Fetch the stage form schema whenever stage changes.
+  // Fetch the stage form schema whenever stage changes. Pipe
+  // through the typed parser (G2) so the UI consumes an immutable
+  // CaptureFormSection[] with explicit issue tracking instead of
+  // the raw assembly shape.
   useEffect(() => {
-    setSections([]); setValues({});
+    setSections([]); setParseIssues([]); setValues({});
     if (stageUid === '') return;
     let cancelled = false;
     (async () => {
       try {
         const form = await api.getCaptureStageForm(programUid, stageUid);
         if (cancelled) return;
-        setSections(form.sections.map((s) => ({
-          title: s.displayName,
-          fields: s.fields.map((f) => ({
-            fieldRef: f.fieldRef,
-            dataElementUid: f.dataElementUid,
-            displayName: f.dataElementDisplayName,
-            valueType: f.valueType,
-            required: f.requirement === 'REQUIRED',
-            readonly: f.requirement === 'READONLY',
-          })),
-        })));
+        const parsed = parseStageForm(stageUid, form);
+        setSections(parsed.sections);
+        setParseIssues(parsed.issues);
       } catch (err) {
         if (!cancelled) {
           setSubmitState('err');
@@ -162,6 +160,20 @@ export function EventWorkflow(
         </span>
       </div>
 
+      {parseIssues.length > 0 && (
+        <div className="cap-strip cap-strip--info"
+             data-test="ce-parse-issues">
+          <strong>Metadata compatibility notes:</strong>
+          <ul style={{ margin: '4px 0 0 20px', padding: 0 }}>
+            {parseIssues.map((iss, i) => (
+              <li key={i} style={{ fontSize: 12 }}>
+                <code>{iss.code}</code>
+                {' — '}{iss.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {sections.length > 0 && (
         <form onSubmit={onSubmit} data-test="ce-form">
           <FormEngine sections={sections} values={values}

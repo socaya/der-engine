@@ -302,6 +302,98 @@ function jsonRespond(status: number, body: unknown): Response {
   } as unknown as Response;
 }
 
+describe('edgeApi.listProgramRules', () => {
+  it('pulls one page when pageCount is 1, scopes to a program when given', async () => {
+    fetchMock.mockResolvedValueOnce(jsonRespond(200, {
+      pager: { pageCount: 1 },
+      programRules: [
+        { id: 'R1', program: { id: 'P-mine' },
+          condition: 'true', priority: 2,
+          programRuleActions: [] },
+        { id: 'R2', program: { id: 'P-other' },
+          condition: 'true', priority: 1,
+          programRuleActions: [] },
+      ],
+    }));
+    const r = await api.listProgramRules('P-mine');
+    expect(r.map((x) => x.id)).toEqual(['R1']);
+    const [path] = fetchMock.mock.calls[0] as [string];
+    expect(path).toContain('/api/programRules?fields=');
+    expect(path).toContain('pageSize=500');
+  });
+
+  it('follows the pager across multiple pages', async () => {
+    fetchMock.mockResolvedValueOnce(jsonRespond(200, {
+      pager: { pageCount: 2 },
+      programRules: [{ id: 'R1', condition: 'x' }],
+    }));
+    fetchMock.mockResolvedValueOnce(jsonRespond(200, {
+      programRules: [{ id: 'R2', condition: 'y' }],
+    }));
+    const r = await api.listProgramRules();
+    expect(r.map((x) => x.id)).toEqual(['R1', 'R2']);
+    expect(fetchMock.mock.calls.length).toBe(2);
+  });
+
+  it('returns an empty list on HTTP error', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(500, { error: 'boom' }));
+    const r = await api.listProgramRules();
+    expect(r).toEqual([]);
+  });
+
+  it('handles a body without a programRules array', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {}));
+    const r = await api.listProgramRules();
+    expect(r).toEqual([]);
+  });
+
+  it('stops paging when a later page errors', async () => {
+    fetchMock.mockResolvedValueOnce(jsonRespond(200, {
+      pager: { pageCount: 3 },
+      programRules: [{ id: 'R1', condition: 'x' }],
+    }));
+    fetchMock.mockResolvedValueOnce(jsonRespond(500, { error: 'boom' }));
+    const r = await api.listProgramRules();
+    expect(r.map((x) => x.id)).toEqual(['R1']);
+  });
+});
+
+describe('edgeApi.listProgramRuleVariables', () => {
+  it('scopes by program and passes the right fields= selector', async () => {
+    fetchMock.mockResolvedValueOnce(jsonRespond(200, {
+      pager: { pageCount: 1 },
+      programRuleVariables: [
+        { id: 'V1', program: { id: 'P1' },
+          programRuleVariableSourceType: 'DATAELEMENT_CURRENT_EVENT' },
+        { id: 'V2', program: { id: 'P2' },
+          programRuleVariableSourceType: 'TEI_ATTRIBUTE' },
+      ],
+    }));
+    const r = await api.listProgramRuleVariables('P1');
+    expect(r.map((v) => v.id)).toEqual(['V1']);
+    const [path] = fetchMock.mock.calls[0] as [string];
+    expect(path).toContain('/api/programRuleVariables?fields=');
+    expect(path).toContain('programRuleVariableSourceType');
+  });
+
+  it('returns all variables when no program filter is given', async () => {
+    fetchMock.mockResolvedValueOnce(jsonRespond(200, {
+      pager: { pageCount: 1 },
+      programRuleVariables: [
+        { id: 'V1' }, { id: 'V2' },
+      ],
+    }));
+    const r = await api.listProgramRuleVariables();
+    expect(r.map((v) => v.id)).toEqual(['V1', 'V2']);
+  });
+
+  it('returns an empty list on HTTP error', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(500, { error: 'boom' }));
+    const r = await api.listProgramRuleVariables();
+    expect(r).toEqual([]);
+  });
+});
+
 describe('edgeApi.listPrograms', () => {
   it('maps DHIS2 programs into flat ProgramSummary records', async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, {

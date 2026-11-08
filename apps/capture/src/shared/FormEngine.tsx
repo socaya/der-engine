@@ -1,14 +1,16 @@
-import type { FormField, FormSection } from './types';
+import type { CaptureField, CaptureFormSection } from './model';
 
 /**
  * Shared metadata-driven form renderer — one implementation used
  * by both {@code EventWorkflow} and {@code TrackerWorkflow} so a
  * typed value only has to be fixed once (requirements doc §1,
- * §10 "Shared dynamic form component").
+ * §10 "Shared dynamic form component"). Consumes the typed
+ * {@link CaptureFormSection} shape produced by the G2 parser so
+ * every rendering decision maps back to a server metadata field.
  */
 export function FormEngine(
   { sections, values, onChange }: {
-    sections: readonly FormSection[];
+    sections: readonly CaptureFormSection[];
     values: Record<string, string>;
     onChange: (dataElementUid: string, value: string) => void;
   },
@@ -16,21 +18,27 @@ export function FormEngine(
   return (
     <div className="cap-form" data-test="cap-form">
       {sections.map((s, i) => (
-        <fieldset key={s.title + i} className="cap-form-section">
-          {s.title && (
-            <legend className="cap-form-section__title">{s.title}</legend>
+        <fieldset key={(s.id ?? s.displayName) + ':' + i}
+                  className="cap-form-section">
+          {s.displayName && (
+            <legend className="cap-form-section__title">
+              {s.displayName}
+            </legend>
           )}
           <div className="cap-form-section__grid">
             {s.fields.map((f) => (
               <label key={f.fieldRef} className="cap-input"
-                     data-test={'cap-field-' + f.dataElementUid}>
+                     data-test={'cap-field-' + f.id}>
                 <span className="cap-input__label">
-                  {f.displayName}
+                  {f.label}
                   {f.required && <span className="cap-input__req">*</span>}
                 </span>
                 <FieldInput field={f}
-                            value={values[f.dataElementUid] ?? ''}
-                            onChange={(v) => onChange(f.dataElementUid, v)} />
+                            value={values[f.id] ?? ''}
+                            onChange={(v) => onChange(f.id, v)} />
+                {f.description && (
+                  <span className="cap-input__help">{f.description}</span>
+                )}
               </label>
             ))}
           </div>
@@ -48,7 +56,7 @@ export function FormEngine(
  */
 function FieldInput(
   { field, value, onChange }: {
-    field: FormField; value: string;
+    field: CaptureField; value: string;
     onChange: (v: string) => void;
   },
 ): JSX.Element {
@@ -102,12 +110,12 @@ function FieldInput(
 /** Compute the "every REQUIRED field has a value" gate used by
  *  both workflows before enabling Save. */
 export function requiredFieldsComplete(
-  sections: readonly FormSection[],
+  sections: readonly CaptureFormSection[],
   values: Record<string, string>,
 ): boolean {
   for (const s of sections) {
     for (const f of s.fields) {
-      if (f.required && (values[f.dataElementUid] ?? '').trim() === '') {
+      if (f.required && (values[f.id] ?? '').trim() === '') {
         return false;
       }
     }

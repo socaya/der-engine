@@ -35,6 +35,10 @@ export default defineConfig({
       // DHIS2 2.44 legacy bundle resolves.
       '/legacy-custom-forms': { target: DER_SERVER, changeOrigin: true },
     },
+    // Allow Vitest to load *.test.ts files in apps/** which live one
+    // directory above the client/ project root (G2 — framework-free
+    // capture-app helpers co-locate their tests next to the code).
+    fs: { allow: [resolve(here, '..')] },
   },
   // §2.3.131 — `vite preview` serves the production build. The PWA
   // service worker only registers in prod, so this is the real
@@ -50,7 +54,15 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: [
+      'src/**/*.{test,spec}.{ts,tsx}',
+      // Framework-free app modules (parsers, pure helpers) co-locate
+      // their tests in apps/<name>/src/**. Pick those up here so the
+      // same vitest run gates them without each app owning its own
+      // runner. React-dependent code in apps/* bundles through
+      // build-apps.mjs and is covered by e2e / live-browser tests.
+      '../apps/**/src/**/*.{test,spec}.{ts,tsx}',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],

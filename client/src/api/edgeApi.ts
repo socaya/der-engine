@@ -1203,6 +1203,97 @@ export async function listPrograms(orgUnit?: string):
     p.orgUnitIds.length === 0 || p.orgUnitIds.includes(orgUnit));
 }
 
+/** Raw DHIS2 program rule payload — kept wide so the parser in
+ *  apps/capture decides what it supports (§MD-005 "resolve program
+ *  rules after building metadata field indexes"). */
+export interface RawProgramRule {
+  readonly id: string;
+  readonly displayName?: string;
+  readonly name?: string;
+  readonly program?: { id?: string } | null;
+  readonly programStage?: { id?: string } | null;
+  readonly condition?: string;
+  readonly description?: string;
+  readonly priority?: number | null;
+  readonly programRuleActions?: readonly RawProgramRuleAction[];
+}
+
+export interface RawProgramRuleAction {
+  readonly id: string;
+  readonly programRuleActionType?: string;
+  readonly content?: string;
+  readonly data?: string;
+  readonly dataElement?: { id?: string } | null;
+  readonly trackedEntityAttribute?: { id?: string } | null;
+  readonly programStage?: { id?: string } | null;
+  readonly programStageSection?: { id?: string } | null;
+  readonly location?: string;
+}
+
+export interface RawProgramRuleVariable {
+  readonly id: string;
+  readonly displayName?: string;
+  readonly name?: string;
+  readonly program?: { id?: string } | null;
+  readonly programRuleVariableSourceType?: string;
+  readonly dataElement?: { id?: string } | null;
+  readonly trackedEntityAttribute?: { id?: string } | null;
+  readonly programStage?: { id?: string } | null;
+  readonly useCodeForOptionSet?: boolean;
+  readonly valueType?: string;
+}
+
+async function listAllPages<T>(url: string, key: string): Promise<T[]> {
+  const first = await fetch(url + (url.includes('?') ? '&' : '?')
+    + 'pageSize=500&page=1', { credentials: 'include',
+    headers: { Accept: 'application/json' } });
+  if (!first.ok) return [];
+  const body = await first.json() as { pager?: { pageCount?: number };
+    [k: string]: unknown };
+  const out = (body[key] as T[] | undefined) ?? [];
+  const pageCount = body.pager?.pageCount ?? 1;
+  for (let p = 2; p <= pageCount; p++) {
+    const r = await fetch(url + (url.includes('?') ? '&' : '?')
+      + 'pageSize=500&page=' + p,
+      { credentials: 'include', headers: { Accept: 'application/json' } });
+    if (!r.ok) break;
+    const b = await r.json() as { [k: string]: unknown };
+    const chunk = (b[key] as T[] | undefined) ?? [];
+    out.push(...chunk);
+  }
+  return out;
+}
+
+/** List all program rules, optionally filtered to one program UID
+ *  client-side. DHIS2 2.44's `/api/programRules` supports a
+ *  `filter=program.id:eq:<uid>` but DER's emulator may not — so we
+ *  pull all + filter here to keep behaviour consistent across
+ *  server variants. */
+export async function listProgramRules(programUid?: string):
+    Promise<RawProgramRule[]> {
+  const rules = await listAllPages<RawProgramRule>(
+    '/api/programRules?fields=id,name,displayName,program[id],'
+    + 'programStage[id],condition,description,priority,'
+    + 'programRuleActions[id,programRuleActionType,content,data,'
+    + 'dataElement[id],trackedEntityAttribute[id],programStage[id],'
+    + 'programStageSection[id],location]',
+    'programRules');
+  if (!programUid) return rules;
+  return rules.filter((r) => r.program?.id === programUid);
+}
+
+export async function listProgramRuleVariables(programUid?: string):
+    Promise<RawProgramRuleVariable[]> {
+  const vars = await listAllPages<RawProgramRuleVariable>(
+    '/api/programRuleVariables?fields=id,name,displayName,'
+    + 'program[id],programRuleVariableSourceType,'
+    + 'dataElement[id],trackedEntityAttribute[id],programStage[id],'
+    + 'useCodeForOptionSet,valueType',
+    'programRuleVariables');
+  if (!programUid) return vars;
+  return vars.filter((v) => v.program?.id === programUid);
+}
+
 /** §2.3.43 — pull a program's tracked-entity-attribute UID list from
  *  the DHIS2 proxy so EnrollmentCreate can render the right inputs
  *  without the operator having to paste them into the URL. */
