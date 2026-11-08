@@ -65,11 +65,38 @@ export function EventListPage(
   }>(null);
   /** Checked event UIDs for bulk operations. */
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /** Row density — mirrors Data Entry's compact/comfortable
+   *  toggle. Persisted across sessions in localStorage so an
+   *  operator's preference follows them between programs. */
+  const [density, setDensity] =
+    useState<'compact' | 'comfortable'>(() => {
+      if (typeof localStorage === 'undefined') return 'compact';
+      const v = localStorage.getItem('cap:ev-list:density');
+      return v === 'comfortable' ? 'comfortable' : 'compact';
+    });
+  /** Pagination — page is 1-based so the pager labels read
+   *  naturally ("Page 1 of N"). Page size defaults to 25 to
+   *  match the DHIS2 Capture default; persisted per-browser. */
+  const [pageSize, setPageSize] = useState<number>(() => {
+    if (typeof localStorage === 'undefined') return 25;
+    const raw = localStorage.getItem('cap:ev-list:pagesize');
+    const n = raw ? parseInt(raw, 10) : NaN;
+    return n === 10 || n === 25 || n === 50 || n === 100 ? n : 25;
+  });
+  const [page, setPage] = useState<number>(1);
 
   useEffect(() => {
     if (typeof sessionStorage === 'undefined') return;
     sessionStorage.setItem(stateKey, query);
   }, [query, stateKey]);
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('cap:ev-list:density', density);
+  }, [density]);
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('cap:ev-list:pagesize', String(pageSize));
+  }, [pageSize]);
 
   // Load events + derive columns from the program's stage(s).
   // Event programs typically have exactly one stage; when a
@@ -167,6 +194,19 @@ export function EventListPage(
     });
     return sorted;
   }, [recent, query, statusFilter, fromDate, toDate, sort]);
+
+  // Reset to the first page whenever the filter or sort set
+  // changes — otherwise operators sitting on page 3 would see an
+  // empty table after narrowing a filter down to five rows.
+  useEffect(() => {
+    setPage(1);
+  }, [query, statusFilter, fromDate, toDate, sort, pageSize]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const pageStart = (safePage - 1) * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, filtered.length);
+  const pageRows = filtered.slice(pageStart, pageEnd);
 
   function toggleSort(key: string): void {
     setSort((prev) => {
@@ -268,6 +308,17 @@ export function EventListPage(
             Sheet
           </button>
         </div>
+        <button type="button"
+                className="cap-density-btn"
+                data-test="ev-density-toggle"
+                aria-label={'Switch to '
+                  + (density === 'compact' ? 'comfortable' : 'compact')
+                  + ' density'}
+                title={'Density: ' + density + '. Click to switch.'}
+                onClick={() => setDensity(
+                  (d) => d === 'compact' ? 'comfortable' : 'compact')}>
+          {density === 'compact' ? '⇔ Compact' : '⇕ Comfortable'}
+        </button>
         <button type="button"
                 className="cap-btn cap-btn--secondary"
                 data-test="ev-export-csv"
@@ -407,11 +458,12 @@ export function EventListPage(
         // Fallback: no stage metadata yet → keep the UID+status+date
         // row layout.
         <ul className="cap-list" data-test="ev-list">
-          {filtered.map((e, i) => renderBasicRow(programUid, e, i))}
+          {pageRows.map((e, i) => renderBasicRow(programUid, e, i))}
         </ul>
       ) : (
         <div className="cap-table-wrap" data-test="ev-list">
-          <table className="cap-table" data-test="ev-list-table">
+          <table className={'cap-table cap-table--' + density}
+                 data-test="ev-list-table">
             <thead>
               <tr>
                 <th scope="col" style={{ width: 28 }}>
@@ -470,7 +522,7 @@ export function EventListPage(
               </tr>
             </thead>
             <tbody>
-              {filtered.map((e, i) => {
+              {pageRows.map((e, i) => {
                 const uid = e.eventUid ?? e.event ?? ('row-' + i);
                 const when = e.occurredDate ?? e.occurredAt
                   ?? e.eventDate ?? '—';
@@ -569,6 +621,58 @@ export function EventListPage(
               })}
             </tbody>
           </table>
+        </div>
+      )}
+      {filtered.length > 0 && (
+        <div className="cap-pager" data-test="ev-pager">
+          <span data-test="ev-pager-range">
+            {filtered.length === 0
+              ? '0 of 0'
+              : `${pageStart + 1}–${pageEnd} of ${filtered.length}`}
+          </span>
+          <label style={{ display: 'flex', alignItems: 'center',
+                          gap: 6 }}>
+            Rows per page
+            <select className="cap-pager__pagesize"
+                    data-test="ev-pager-pagesize"
+                    value={pageSize}
+                    onChange={(ev) => setPageSize(
+                      parseInt(ev.target.value, 10))}>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </label>
+          <span className="cap-pager__spacer" />
+          <button type="button" className="cap-pager__btn"
+                  data-test="ev-pager-first"
+                  aria-label="First page"
+                  disabled={safePage === 1}
+                  onClick={() => setPage(1)}>«</button>
+          <button type="button" className="cap-pager__btn"
+                  data-test="ev-pager-prev"
+                  aria-label="Previous page"
+                  disabled={safePage === 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            ‹
+          </button>
+          <span data-test="ev-pager-page">
+            Page {safePage} of {pageCount}
+          </span>
+          <button type="button" className="cap-pager__btn"
+                  data-test="ev-pager-next"
+                  aria-label="Next page"
+                  disabled={safePage === pageCount}
+                  onClick={() => setPage(
+                    (p) => Math.min(pageCount, p + 1))}>
+            ›
+          </button>
+          <button type="button" className="cap-pager__btn"
+                  data-test="ev-pager-last"
+                  aria-label="Last page"
+                  disabled={safePage === pageCount}
+                  onClick={() => setPage(pageCount)}>»</button>
         </div>
       )}
     </>

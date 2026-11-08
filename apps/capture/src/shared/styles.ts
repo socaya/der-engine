@@ -690,6 +690,45 @@ export const CAPTURE_STYLES = `
 .cap-table__row--selected td { background: var(--der-primary-subtle); }
 .cap-table__cell--actions { width: 40px; text-align: right; }
 .cap-table__empty { color: var(--der-text-faint); }
+/* Row-view density — mirrors Data Entry's compact/comfortable
+ * toggle. Compact is the default: fits more rows per screen for
+ * long working lists. Comfortable bumps padding + type size so
+ * tablet operators get larger tap targets. */
+.cap-table--compact thead th { padding: 4px 8px; font-size: 11px; }
+.cap-table--compact .cap-table__cell { padding: 3px 8px; font-size: 12px; }
+.cap-table--comfortable thead th { padding: 10px 12px; font-size: 13px; }
+.cap-table--comfortable .cap-table__cell { padding: 10px 12px; font-size: 14px; }
+.cap-density-btn {
+  padding: 4px 10px; border: 1px solid var(--der-border);
+  border-radius: 10px; background: var(--der-surface);
+  color: var(--der-text-muted); font-size: 12px; cursor: pointer;
+}
+.cap-density-btn:hover { background: var(--der-surface-subtle); }
+.cap-pager {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 20px 14px 20px; padding: 8px 10px;
+  border: 1px solid var(--der-border-soft); border-top: 0;
+  background: var(--der-surface);
+  color: var(--der-text-muted); font-size: 12px;
+}
+.cap-pager__spacer { flex: 1; }
+.cap-pager__pagesize {
+  padding: 2px 6px; font-size: 12px;
+  background: var(--der-surface); color: var(--der-text);
+  border: 1px solid var(--der-border); border-radius: 3px;
+}
+.cap-pager__btn {
+  padding: 2px 10px; font-size: 12px; min-width: 32px;
+  background: var(--der-surface); border: 1px solid var(--der-border);
+  border-radius: 3px; cursor: pointer; color: var(--der-text);
+}
+.cap-pager__btn:disabled {
+  color: var(--der-text-faint); cursor: not-allowed;
+  background: var(--der-surface-subtle);
+}
+.cap-pager__btn:hover:not(:disabled) {
+  background: var(--der-surface-subtle);
+}
 .cap-status {
   display: inline-block;
   padding: 1px 0; font-size: 12px; font-weight: 500;
@@ -1164,12 +1203,13 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 }
 .cap-sheet .cap-sheet__date-col,
 .cap-sheet td.cap-sheet__date-cell {
-  min-width: 130px;
+  width: 160px; min-width: 160px; max-width: 160px;
   position: sticky; left: 60px; z-index: 4;
   background: var(--der-surface);
-  /* Hairline + soft drop shadow (SHEET-Q2) on the right edge so
-   * the always-frozen area has the same depth cue as any
-   * operator-chosen frozen data columns. */
+  /* Clip anything the inner input or placeholder tries to render
+   * past the right edge — without this a long value bleeds across
+   * the frozen boundary while the body scrolls horizontally. */
+  overflow: hidden;
   box-shadow: 2px 0 2px -2px rgba(23, 38, 60, 0.12),
               1px 0 0 var(--der-border);
 }
@@ -1188,7 +1228,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   background: var(--der-danger-subtle);
 }
 .cap-sheet__dot {
-  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
   vertical-align: middle;
 }
 .cap-sheet__dot--idle   { background: var(--der-border); }
