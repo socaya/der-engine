@@ -62,7 +62,7 @@ export const CAPTURE_STYLES = `
 .cap-toolbar {
   position: sticky; top: 0; z-index: 10;
   display: flex; flex-direction: column; gap: 10px;
-  padding: 10px 14px 10px 14px;
+  padding: 10px 20px 10px 20px;
   background: var(--der-surface);
   border-bottom: 1px solid var(--der-border);
 }
@@ -273,7 +273,7 @@ export const CAPTURE_STYLES = `
 .cap-dwf__banner-meta em { color: var(--der-text); font-style: normal;
   font-weight: 500; }
 .cap-dwf__queue {
-  padding: 10px 14px;
+  padding: 10px 20px;
   background: var(--der-surface);
   border-top: 1px solid var(--der-border);
   margin-bottom: 4px;
@@ -382,7 +382,7 @@ export const CAPTURE_STYLES = `
 /* Workflow tabs when more than one workflow is assigned. */
 .cap-dwf__tabs {
   display: flex; gap: 2px;
-  padding: 0 14px;
+  padding: 0 20px;
   border-bottom: 1px solid #eef0f3;
   background: #fafcff;
   overflow-x: auto;
@@ -417,7 +417,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-dwf__ctx {
   margin-top: 14px;
-  padding: 10px 14px;
+  padding: 10px 20px;
   background: #fafcff;
   border: 1px solid var(--der-border);
 }
@@ -453,7 +453,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-dwf__step-form {
   margin-top: 14px;
-  padding: 10px 14px;
+  padding: 10px 20px;
   background: var(--der-surface);
   border: 1px solid var(--der-border);
 }
@@ -472,7 +472,7 @@ export const CAPTURE_STYLES = `
 }
 
 .cap-section-head {
-  margin: 20px 14px 10px 14px;
+  margin: 20px 20px 10px 20px;
   display: flex; align-items: center; gap: 12px;
 }
 .cap-section-head__title {
@@ -513,7 +513,7 @@ export const CAPTURE_STYLES = `
   outline: none;
   box-shadow: 0 0 0 2px var(--der-surface), 0 0 0 4px var(--der-primary);
 }
-.cap-form { padding: 0 14px 14px 14px;
+.cap-form { padding: 0 20px 14px 20px;
             display: flex; flex-direction: column; gap: 14px; }
 .cap-form-section {
   /* Dropped the box border + tinted fill — grouping comes from the
@@ -575,7 +575,7 @@ export const CAPTURE_STYLES = `
 .cap-action-bar {
   position: sticky; bottom: 0; z-index: 5;
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 10px 14px; margin: 0 -14px -14px -14px;
+  padding: 10px 20px; margin: 0 -20px -14px -20px;
   background: var(--der-surface);
   border-top: 1px solid var(--der-border);
 }
@@ -616,11 +616,11 @@ export const CAPTURE_STYLES = `
 /* --- Working-list table (EV1-A) + filter row (EV1-C) ---------- */
 .cap-filter-row {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px;
-  margin: 0 14px 10px 14px;
+  margin: 0 20px 10px 20px;
 }
 .cap-filter-row .cap-input { min-width: 160px; }
 .cap-table-wrap {
-  margin: 0 14px 14px 14px;
+  margin: 0 20px 14px 20px;
   overflow-x: auto;
   border-top: 1px solid var(--der-border-soft);
 }
@@ -675,7 +675,7 @@ export const CAPTURE_STYLES = `
  * directly into the grid like Excel.
  */
 .cap-sheet-wrap {
-  margin: 0 14px 14px 14px;
+  margin: 0 20px 14px 20px;
   overflow: auto;
   /* Fill the viewport down to the bottom edge. Fixed-ish height so
    * the grid feels like a desk — the workspace fills the screen
@@ -1217,7 +1217,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   font-weight: 500;
 }
 
-.cap-list { margin: 0 14px 14px 14px; padding: 0; list-style: none; }
+.cap-list { margin: 0 20px 14px 20px; padding: 0; list-style: none; }
 .cap-list__row {
   padding: 8px 10px; border-bottom: 1px solid var(--der-border-soft);
   display: grid;
@@ -1287,7 +1287,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 
 .cap-identity-strip {
   margin: 10px 14px;
-  padding: 10px 14px;
+  padding: 10px 20px;
   background: #fafcff;
   border: 1px solid var(--der-border);
   border-radius: 0;
@@ -1343,7 +1343,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   background: var(--der-primary); color: var(--der-surface);
 }
 .cap-stage-pane {
-  padding: 10px 14px;
+  padding: 10px 20px;
   background: var(--der-surface);
   border: 1px solid var(--der-border);
   border-radius: 0;
@@ -1432,7 +1432,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 }
 .cap-insp__head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--der-border);
 }
 .cap-insp__title {
