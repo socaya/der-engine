@@ -713,23 +713,38 @@ export interface TrackerEnrolInput {
   readonly attributes: ReadonlyArray<{ attribute: string; value: string }>;
 }
 
+/**
+ * Register a tracked entity on the DER edge via
+ * {@code POST /edge-api/v1/tracked-entities}. The DER-native
+ * endpoint accepts a flat {@code {teiUid?, trackedEntityType,
+ * orgUnit, attributes: {uid: value}}} shape — not the DHIS2
+ * {@code /api/tracker} envelope, which DER's emulator only reads
+ * for events. The journal publisher propagates the row + queued
+ * enrolment to central at drain time.
+ *
+ * <p>The {@code program} is attached so the journal envelope can
+ * carry the enrolment intent for the central tracker import. The
+ * edge keeps the TEI available on the LAN immediately
+ * (§ED-003).</p>
+ */
 export function enrolTei(input: TrackerEnrolInput): Promise<unknown> {
-  const enrolledAt = input.enrolledAt ?? new Date().toISOString().slice(0, 10);
+  // Attributes are keyed by TEA UID → value on the DER native
+  // endpoint, not the DHIS2 { attribute, value }[] array.
+  const attributes: Record<string, string> = {};
+  for (const a of input.attributes) attributes[a.attribute] = a.value;
   const body = {
-    trackedEntities: [{
-      trackedEntityType: input.trackedEntityType,
-      orgUnit: input.orgUnit,
-      attributes: input.attributes,
-      enrollments: [{
-        program: input.program,
-        orgUnit: input.orgUnit,
-        enrolledAt,
-        status: 'ACTIVE',
-        attributes: input.attributes,
-      }],
-    }],
+    trackedEntityType: input.trackedEntityType,
+    orgUnit: input.orgUnit,
+    attributes,
+    // enrolledAt + program flow through as a queued enrolment so
+    // the journal drain can submit both artefacts in dependency
+    // order (§ED-002 — stable local identity + dependency-aware
+    // central sync).
+    enrolledAt: input.enrolledAt
+      ?? new Date().toISOString().slice(0, 10),
+    program: input.program,
   };
-  return request('POST', '/api/tracker', body);
+  return request('POST', '/edge-api/v1/tracked-entities', body);
 }
 
 export interface DraftRow {

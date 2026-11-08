@@ -507,6 +507,46 @@ describe('edgeApi.getOptionSet', () => {
   });
 });
 
+describe('edgeApi.enrolTei', () => {
+  it('POSTs to the DER-native /edge-api/v1/tracked-entities path', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, { teiUid: 'T1' }));
+    await api.enrolTei({
+      program: 'P1', orgUnit: 'OU1', trackedEntityType: 'TET1',
+      attributes: [
+        { attribute: 'TEA_first', value: 'Alice' },
+        { attribute: 'TEA_last', value: 'Doe' },
+      ],
+    });
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/edge-api/v1/tracked-entities');
+    expect(init.method).toBe('POST');
+    const body = JSON.parse(String(init.body)) as {
+      trackedEntityType: string; orgUnit: string;
+      program: string; enrolledAt: string;
+      attributes: Record<string, string>;
+    };
+    expect(body.trackedEntityType).toBe('TET1');
+    expect(body.orgUnit).toBe('OU1');
+    expect(body.program).toBe('P1');
+    expect(body.enrolledAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(body.attributes).toEqual({
+      TEA_first: 'Alice', TEA_last: 'Doe',
+    });
+  });
+
+  it('uses the caller-supplied enrolledAt date when provided', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, { teiUid: 'T2' }));
+    await api.enrolTei({
+      program: 'P1', orgUnit: 'OU1', trackedEntityType: 'TET1',
+      enrolledAt: '2026-01-01',
+      attributes: [],
+    });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(init.body)) as { enrolledAt: string };
+    expect(body.enrolledAt).toBe('2026-01-01');
+  });
+});
+
 describe('edgeApi.deleteTrackerRelationship', () => {
   it('sends DELETE to the relationships endpoint with an encoded UID',
       async () => {
