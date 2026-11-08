@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-  parseProgram, parseStageForm, computeFingerprint,
-  type RawProgram, type RawStage, type RawStageForm,
+  parseProgram, parseStageForm, parseTeiAttributesForm,
+  computeFingerprint,
+  type RawProgram, type RawStage, type RawStageForm, type RawTeiAttribute,
 } from './parser';
 
 /**
@@ -200,6 +201,80 @@ describe('parseStageForm', () => {
   it('falls back to the uid when neither stageMeta nor raw gives a name', () => {
     const r = parseStageForm('S1', {});
     expect(r.stage.displayName).toBe('S1');
+  });
+});
+
+describe('parseTeiAttributesForm', () => {
+  const attrs: RawTeiAttribute[] = [
+    { attributeUid: 'TEA_last', displayName: 'Last name',
+      valueType: 'TEXT', mandatory: true, sortOrder: 2 },
+    { attributeUid: 'TEA_first', displayName: 'First name',
+      valueType: 'TEXT', mandatory: true, sortOrder: 1 },
+    { attributeUid: 'TEA_dob', displayName: 'Date of birth',
+      valueType: 'DATE', mandatory: false, sortOrder: 3 },
+  ];
+
+  it('normalizes attributes into one identity section', () => {
+    const r = parseTeiAttributesForm(attrs);
+    expect(r.sections.length).toBe(1);
+    expect(r.sections[0]!.id).toBe('identity');
+    expect(r.sections[0]!.fields.map((f) => f.id)).toEqual([
+      'TEA_first', 'TEA_last', 'TEA_dob',
+    ]);
+    expect(r.sections[0]!.fields.every((f) =>
+      f.domain === 'ATTRIBUTE')).toBe(true);
+  });
+
+  it('carries mandatory + optionSet through', () => {
+    const r = parseTeiAttributesForm([
+      { attributeUid: 'TEA_sex', displayName: 'Sex',
+        valueType: 'TEXT', mandatory: true, optionSetUid: 'OS_sex' },
+    ]);
+    expect(r.sections[0]!.fields[0]!.required).toBe(true);
+    expect(r.sections[0]!.fields[0]!.optionSetId).toBe('OS_sex');
+  });
+
+  it('returns empty sections when no attributes are configured', () => {
+    const r = parseTeiAttributesForm([]);
+    expect(r.sections).toEqual([]);
+    expect(r.issues).toEqual([]);
+  });
+
+  it('flags unknown value types without dropping the field', () => {
+    const r = parseTeiAttributesForm([
+      { attributeUid: 'TEA_x', valueType: 'MYSTERY' },
+    ]);
+    expect(r.sections[0]!.fields[0]!.valueType).toBe('UNKNOWN');
+    expect(r.issues.some((i) => i.code === 'UNKNOWN_VALUE_TYPE')).toBe(true);
+  });
+
+  it('detects duplicate attribute UIDs', () => {
+    const r = parseTeiAttributesForm([
+      { attributeUid: 'TEA_x', valueType: 'TEXT' },
+      { attributeUid: 'TEA_x', valueType: 'TEXT' },
+    ]);
+    expect(r.issues.some((i) => i.code === 'DUPLICATE_FIELD')).toBe(true);
+  });
+
+  it('defaults mandatory to false when absent', () => {
+    const r = parseTeiAttributesForm([
+      { attributeUid: 'TEA_x', valueType: 'TEXT' },
+    ]);
+    expect(r.sections[0]!.fields[0]!.required).toBe(false);
+  });
+
+  it('uses attributeUid as the label when displayName is missing', () => {
+    const r = parseTeiAttributesForm([
+      { attributeUid: 'TEA_anon', valueType: 'TEXT' },
+    ]);
+    expect(r.sections[0]!.fields[0]!.label).toBe('TEA_anon');
+  });
+
+  it('computes a stable fingerprint across equal inputs', () => {
+    const a = parseTeiAttributesForm(attrs).metadataFingerprint;
+    const b = parseTeiAttributesForm(attrs).metadataFingerprint;
+    expect(a).toBe(b);
+    expect(a).toMatch(/^[0-9a-f]{8}$/);
   });
 });
 

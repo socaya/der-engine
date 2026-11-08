@@ -89,4 +89,16 @@ export interface CaptureApi {
       programStage?: { id?: string } | null;
       useCodeForOptionSet?: boolean; valueType?: string;
     }>>;
+  getCaptureProgramTeiType: (programUid: string) => Promise<{
+    trackedEntityTypeUid: string;
+  } | null>;
+  listCaptureTeiTypeAttributes: (teiTypeUid: string) => Promise<{
+    count: number;
+    attributes: ReadonlyArray<{
+      attributeUid: string; displayName?: string;
+      valueType?: string; optionSetUid?: string | null;
+      searchable?: boolean; uniqueAttribute?: boolean;
+      mandatory?: boolean; sortOrder?: number;
+    }>;
+  }>;
 }

@@ -59,6 +59,17 @@ export interface RawStageForm {
   readonly sections?: ReadonlyArray<RawStageSection>;
 }
 
+export interface RawTeiAttribute {
+  readonly attributeUid: string;
+  readonly displayName?: string;
+  readonly valueType?: string;
+  readonly optionSetUid?: string | null;
+  readonly searchable?: boolean;
+  readonly uniqueAttribute?: boolean;
+  readonly mandatory?: boolean;
+  readonly sortOrder?: number;
+}
+
 /** Supported DHIS2 value types. Anything else is flagged as a
  *  warning and rendered as plain text to keep the data flow
  *  deterministic (§MD-006 — never silently discard metadata). */
@@ -180,6 +191,68 @@ export function parseStageForm(
           valueType: f.valueType, optionSetId: f.optionSetId,
         })),
       })),
+    }),
+  };
+}
+
+/**
+ * Convert the DHIS2 program-tracked-entity-attribute list into the
+ * shared {@link CaptureFormSection} shape so the same
+ * {@code FormEngine} that renders event forms can render tracker
+ * registration forms (requirements doc §10 "Shared dynamic form
+ * component", §TR-010). Attributes land in one "Identity" section
+ * ordered by sortOrder ascending; required / unique / searchable
+ * flags are translated into the typed CaptureField shape.
+ */
+export function parseTeiAttributesForm(
+  rawAttrs: readonly RawTeiAttribute[],
+): ParsedStageForm {
+  const issues: CaptureParseIssue[] = [];
+  const seenFieldIds = new Set<string>();
+  const ordered = [...rawAttrs].sort((a, b) =>
+    (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const fields: CaptureField[] = ordered.map((a, i) => {
+    const valueType = normalizeValueType(a.valueType, issues,
+      `attributes[${i}]`);
+    if (seenFieldIds.has(a.attributeUid)) {
+      issues.push({ severity: 'warning', code: 'DUPLICATE_FIELD',
+        message: `Duplicate attribute UID ${a.attributeUid}`,
+        path: `attributes[${i}]` });
+    }
+    seenFieldIds.add(a.attributeUid);
+    return {
+      id: a.attributeUid,
+      fieldRef: a.attributeUid,
+      domain: 'ATTRIBUTE',
+      valueType,
+      label: a.displayName ?? a.attributeUid,
+      description: null,
+      required: a.mandatory ?? false,
+      readonly: false,
+      optionSetId: a.optionSetUid ?? null,
+      sortOrder: a.sortOrder ?? i,
+      sectionId: 'identity',
+    };
+  });
+  const section: CaptureFormSection = {
+    id: 'identity',
+    displayName: 'Identity',
+    sortOrder: 0,
+    fields,
+  };
+  return {
+    stage: {
+      id: '__registration',
+      displayName: 'Register new tracked entity',
+      repeatable: false,
+      sortOrder: 0,
+    },
+    sections: fields.length === 0 ? [] : [section],
+    issues,
+    metadataFingerprint: computeFingerprint({
+      kind: 'teiAttributes',
+      fields: fields.map((f) => ({ id: f.id, valueType: f.valueType,
+        required: f.required, optionSetId: f.optionSetId })),
     }),
   };
 }
