@@ -9,6 +9,8 @@ interface RelTypeRow {
   readonly toFromName?: string;
   readonly fromEntity?: string;
   readonly toEntity?: string;
+  readonly fromTet?: string;
+  readonly toTet?: string;
 }
 
 interface RelRow {
@@ -46,9 +48,10 @@ interface RelRow {
  * exactly what is and isn't implemented (§22.5 guardrail).
  */
 export function TrackerRelationshipsSection(
-  { api, tei, programUid, orgUnitUid }: {
+  { api, tei, programUid, orgUnitUid, tetUid }: {
     api: CaptureApi; tei: string;
     programUid: string; orgUnitUid: string;
+    tetUid: string | null;
   },
 ): JSX.Element {
   const [rows, setRows] = useState<RelRow[]>([]);
@@ -88,6 +91,24 @@ export function TrackerRelationshipsSection(
     return () => { cancelled = true; };
   }, [api, programUid, orgUnitUid, tei]);
 
+  /**
+   * Eligibility projection (§REL-MD-004). This TEI can be the
+   * FROM endpoint when the type's fromConstraint is a TEI with
+   * matching TET (or no TET constraint). If the type is
+   * bidirectional and the TEI matches the TO constraint instead,
+   * it's also eligible — the operator will link from the
+   * reverse perspective but the server stores one canonical
+   * relationship (§REL-UX-006).
+   */
+  const eligibleTypes = tetUid ? types.filter((t) => {
+    const fromOk = t.fromEntity === 'TRACKED_ENTITY_INSTANCE'
+      && (!t.fromTet || t.fromTet === tetUid);
+    const toOk = t.bidirectional
+      && t.toEntity === 'TRACKED_ENTITY_INSTANCE'
+      && (!t.toTet || t.toTet === tetUid);
+    return fromOk || toOk;
+  }) : types;
+
   const filteredCandidates = (() => {
     const q = candidateQuery.trim().toLowerCase();
     if (q === '') return candidates.slice(0, 20);
@@ -116,6 +137,8 @@ export function TrackerRelationshipsSection(
           toFromName: t.toFromName,
           fromEntity: t.fromConstraint?.relationshipEntity,
           toEntity: t.toConstraint?.relationshipEntity,
+          fromTet: t.fromConstraint?.trackedEntityType?.id,
+          toTet:   t.toConstraint?.trackedEntityType?.id,
         })));
         setStatus('idle');
       } catch {
@@ -142,10 +165,13 @@ export function TrackerRelationshipsSection(
         <button type="button"
                 className="cap-btn cap-btn--secondary"
                 data-test="tr-rel-add"
-                disabled={types.length === 0}
+                disabled={eligibleTypes.length === 0}
                 onClick={() => setPickerOpen(true)}
-                title={types.length === 0
-                  ? 'No relationship types are configured'
+                title={eligibleTypes.length === 0
+                  ? (types.length === 0
+                    ? 'No relationship types are configured'
+                    : 'No relationship types permit this tracked '
+                      + 'entity as an endpoint (§REL-MD-004)')
                   : 'Pick a relationship type, then link a target TEI'}
                 style={{ padding: '4px 10px', fontSize: 12 }}>
           + Add relationship
@@ -292,7 +318,7 @@ export function TrackerRelationshipsSection(
       )}
 
       {pickerOpen && (
-        <TypePickerModal types={types}
+        <TypePickerModal types={eligibleTypes}
                           onPick={(t) => { setPickedType(t);
                             setPickerOpen(false); }}
                           onClose={() => setPickerOpen(false)} />

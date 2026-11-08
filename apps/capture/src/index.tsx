@@ -280,6 +280,9 @@ function DirtyChip(): JSX.Element | null {
   return (
     <span className="cap-dirty-chip"
           data-test="cap-dirty-chip"
+          role="status"
+          aria-live="polite"
+          aria-label="Unsaved changes in the current form"
           title="You have unsaved changes in the current form.">
       <span className="cap-dirty-chip__dot" aria-hidden="true" />
       Unsaved changes

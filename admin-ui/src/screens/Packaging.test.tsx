@@ -66,9 +66,16 @@ describe('Packaging screen', () => {
   it('renders empty artefact state', async () => {
     fetchSpy.mockImplementation(fetchMock(empty) as never);
     renderWithProviders(<Packaging />);
-    await waitFor(() =>
-      expect(screen.getByText(/No artefacts recorded yet/)).toBeInTheDocument());
-    expect(screen.getByText(/0 artefacts tracked/)).toBeInTheDocument();
+    // The status pill (0 artefacts tracked) and the empty-state
+    // body copy both need the fetch promise to resolve; assert
+    // them together inside the same waitFor so the test is
+    // resilient to the two renders landing a microtask apart.
+    await waitFor(() => {
+      expect(screen.getByText(/No artefacts recorded yet/))
+        .toBeInTheDocument();
+      expect(screen.getByText(/0 artefacts tracked/))
+        .toBeInTheDocument();
+    });
   });
   it('shows loading status before data arrives', () => {
     // Pending fetch — status label should be `loading`.

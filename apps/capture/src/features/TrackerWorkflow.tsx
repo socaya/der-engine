@@ -185,7 +185,11 @@ export function TrackerWorkflow(
                   : regSections.length === 0
                   ? 'No registration attributes are configured'
                   : regOpen ? 'Close registration form'
-                    : 'Register a new tracked entity (TR-002 search first)'}
+                  : query.trim() === ''
+                  ? 'Search existing records first to avoid duplicates '
+                    + '(TR-002). Click here to proceed with registration '
+                    + 'anyway.'
+                    : 'Register a new tracked entity'}
                 onClick={() => setRegOpen((v) => !v)}>
           {regOpen ? 'Close' : 'Register new'}
         </button>
@@ -246,6 +250,22 @@ export function TrackerWorkflow(
             </span>
             <span className="cap-section-head__rule" />
           </div>
+          {query.trim() === '' && (
+            <div className="cap-strip cap-strip--info"
+                 data-test="tr-register-search-nudge"
+                 style={{ display: 'flex', alignItems: 'center',
+                   gap: 10 }}>
+              <strong style={{ flex: 1 }}>
+                Searching first avoids duplicates.
+              </strong>
+              <span style={{ fontSize: 12 }}>
+                Requirements doc §TR-002 asks you to check for
+                existing records before registering. Use the search
+                above to narrow the working list, then come back here
+                if no match is found.
+              </span>
+            </div>
+          )}
           {regIssues.length > 0 && (
             <div className="cap-strip cap-strip--info"
                  data-test="tr-parse-issues">

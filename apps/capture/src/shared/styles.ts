@@ -207,6 +207,10 @@ export const CAPTURE_STYLES = `
 }
 .cap-btn--secondary:hover:not(:disabled) { background: #eef2f8; }
 .cap-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.cap-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #147CD7;
+}
 
 /* Recent list — mirror the Data Entry chip aesthetic. */
 .cap-list { margin: 0 14px 14px 14px; padding: 0; list-style: none; }

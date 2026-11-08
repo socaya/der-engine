@@ -62,6 +62,7 @@ export function TrackerDashboard(
    *  opens the editor pre-filled from getCaptureEventDetail. */
   const [editing, setEditing] = useState<'new' | string | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
+  const [tetUid, setTetUid] = useState<string | null>(null);
 
   // Fetch enrolments + stages in parallel on first open.
   useEffect(() => {
@@ -69,10 +70,13 @@ export function TrackerDashboard(
     setStatus('loading');
     (async () => {
       try {
-        const [enrRes, stageRes] = await Promise.all([
+        const [enrRes, stageRes, tetRes] = await Promise.all([
           api.listCaptureTeiEnrollments(tei, programUid),
           api.listCaptureProgramStages(programUid),
+          api.getCaptureProgramTeiType(programUid)
+            .catch(() => null),
         ]);
+        if (tetRes) setTetUid(tetRes.trackedEntityTypeUid);
         if (cancelled) return;
         const enr: TrackerEnrolment[] = (enrRes.enrollments ?? []).map((e) => ({
           enrollmentUid: e.enrollmentUid,
@@ -370,7 +374,8 @@ export function TrackerDashboard(
 
       <TrackerRelationshipsSection api={api} tei={tei}
                                      programUid={programUid}
-                                     orgUnitUid={orgUnitUid} />
+                                     orgUnitUid={orgUnitUid}
+                                     tetUid={tetUid} />
     </>
   );
 }
