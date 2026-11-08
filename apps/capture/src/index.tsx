@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  useAuth, useOrgUnitBinding, useOnlineStatus, useDerApi,
+  useOrgUnitBinding, useOnlineStatus, useDerApi,
   ScreenCard, StatusPill,
 } from '@der/app-sdk';
 
@@ -32,7 +32,6 @@ export default function CaptureApp(): JSX.Element {
 }
 
 function CaptureAppInner(): JSX.Element {
-  const auth = useAuth();
   const ou = useOrgUnitBinding();
   const online = useOnlineStatus();
   const api = useDerApi() as unknown as CaptureApi;
@@ -41,6 +40,13 @@ function CaptureAppInner(): JSX.Element {
   const [programUid, setProgramUid] = useState('');
   const [infoOpen, setInfoOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  /** DER device workflows — surfaced when the operator has any
+   *  assigned, so they can launch a workflow run instead of the
+   *  plain tracker/event capture (requirements doc §1 plus the
+   *  wider DER capture-workflow story). When empty, we proceed
+   *  as normal capture. */
+  const [workflows, setWorkflows] = useState<ReadonlyArray<{
+    workflowId: string; displayName: string }>>([]);
 
   // Hash-based internal route lets the app expose deep links like
   // #/event and #/tracker without pulling a router in. Reserved
@@ -106,6 +112,28 @@ function CaptureAppInner(): JSX.Element {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+
+  // Fetch assigned device workflows once on mount. These are
+  // config-driven DER capture workflows; when present, the
+  // operator can launch one instead of the plain tracker/event
+  // flow. Silent on error — the UI simply falls back to the
+  // normal capture experience.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api.listCaptureWorkflows();
+        if (cancelled) return;
+        setWorkflows((r.workflows ?? [])
+          .filter((w) => w.enabled !== false)
+          .map((w) => ({ workflowId: w.workflowId,
+            displayName: w.displayName })));
+      } catch {
+        if (!cancelled) setWorkflows([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Fetch programs once the device is OU-bound.
   useEffect(() => {
@@ -247,16 +275,41 @@ function CaptureAppInner(): JSX.Element {
         </div>
       )}
 
-      {/* Signed-in subheader — matches the Data Entry chrome. */}
-      <p className="cap-sub">
-        Signed in as <strong>{auth.displayName}</strong>
-        {program && (
-          <>
-            {' · Program '}
-            <code className="cap-sub__code">{program.displayName}</code>
-          </>
-        )}
-      </p>
+
+      {/* Assigned device workflows — only when any are available
+       *  on this edge. The operator can launch one via Workflow
+       *  Capture; the plain tracker/event capture remains
+       *  available below. */}
+      {workflows.length > 0 && (
+        <div className="cap-wf-strip" data-test="cap-workflows">
+          <div className="cap-wf-strip__head">
+            <span className="cap-toolbar__field-label">
+              Device workflows
+            </span>
+            <span className="cap-wf-strip__count">
+              {workflows.length} available
+            </span>
+          </div>
+          <ul className="cap-wf-strip__list">
+            {workflows.slice(0, 6).map((w) => (
+              <li key={w.workflowId}>
+                <a href={'/apps/workflow-capture#/'
+                      + encodeURIComponent(w.workflowId)}
+                   target="_blank" rel="noopener"
+                   className="cap-wf-strip__link"
+                   data-test={'cap-wf-' + w.workflowId}>
+                  {w.displayName}
+                </a>
+              </li>
+            ))}
+            {workflows.length > 6 && (
+              <li className="cap-wf-strip__more">
+                … +{workflows.length - 6} more
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
 
       {/* Content area — mode-aware. Shared form engine, shared
        *  edge-write contract; the Tracker and Event components

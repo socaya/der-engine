@@ -163,6 +163,17 @@ export interface CaptureApi {
   deleteTrackerRelationship: (relationshipUid: string) =>
     Promise<{ ok: true } | { ok: false; status: number;
       message: string }>;
+  listCaptureWorkflows: () => Promise<{
+    workflows: ReadonlyArray<{
+      workflowId: string;
+      displayName: string;
+      boundMetadataKind?: string;
+      boundMetadataId?: string | null;
+      enabled: boolean;
+      version?: number;
+      defaultDeviceId?: string | null;
+    }>;
+  }>;
   getOptionSet: (optionSetUid: string) => Promise<{
     id: string;
     displayName?: string;

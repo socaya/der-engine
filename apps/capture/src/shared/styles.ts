@@ -136,6 +136,37 @@ export const CAPTURE_STYLES = `
 .cap-strip--info{ background: #eaf3fc; color: #0a5497;
                   border: 1px solid #cfe1f4; }
 
+.cap-wf-strip {
+  margin: 10px 14px 0 14px;
+  padding: 10px 14px;
+  background: #f6f8fc;
+  border: 1px solid #e3e8f0;
+}
+.cap-wf-strip__head {
+  display: flex; align-items: baseline; gap: 10px;
+}
+.cap-wf-strip__count {
+  margin-left: auto; font-size: 11px; color: #6e7a8a;
+}
+.cap-wf-strip__list {
+  margin: 6px 0 0 0; padding: 0; list-style: none;
+  display: flex; flex-wrap: wrap; gap: 6px 10px;
+}
+.cap-wf-strip__list li { display: inline-flex; }
+.cap-wf-strip__link {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #fff; border: 1px solid #c6d4e4;
+  color: #0a5497; text-decoration: none; font-size: 13px;
+  font-weight: 500;
+}
+.cap-wf-strip__link:hover {
+  background: #eef2f8; border-color: #0a5497;
+}
+.cap-wf-strip__more {
+  display: inline-flex; align-items: center;
+  font-size: 12px; color: #6e7a8a;
+}
 .cap-empty {
   margin: 24px 14px; padding: 24px;
   border: 1px dashed #c6d4e4; border-radius: 0;
