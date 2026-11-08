@@ -79,6 +79,13 @@ export function EventSheetPage(
   } | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [columnsOpen, setColumnsOpen] = useState(false);
+  /** Virtual-scroll state — scroll position of the sheet-wrap and
+   *  its measured viewport height. Updated on scroll + layout so
+   *  the visible-rows window follows the operator. */
+  const sheetWrapRef = useRef<HTMLDivElement | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [rowHeightPx, setRowHeightPx] = useState(32);
   /** Active sort chain — each entry is one sort key. Empty array
    *  means display order matches the underlying rows array.
    *  Shift+click on a column's sort icon appends to the chain;
@@ -414,6 +421,70 @@ export function EventSheetPage(
     }
     if (changed) setMeasureTick((t) => t + 1);
   });
+
+  /** Virtualize the row body when the dataset is large enough
+   *  that mounting every <tr> is expensive. Kept gated so sheets
+   *  with ≤ VIRT_THRESHOLD rows stay on the simpler non-virtual
+   *  path (easier debugging, and selection/fill behaviours
+   *  exercise the real indexes). */
+  const VIRT_THRESHOLD = 100;
+  const VIRT_OVERSCAN = 8;
+  const virtualize = rows.length > VIRT_THRESHOLD;
+  /** [start, end) slice of displayOrder to actually render as
+   *  <tr>s. Falls back to the full range when virtualization is
+   *  off. Computed from scrollTop + measured viewport + measured
+   *  row height, with generous overscan above and below. */
+  const virtualSlice = useMemo<{
+    startIdx: number; endIdx: number;
+    padTop: number; padBottom: number;
+  }>(() => {
+    const total = displayOrder.length;
+    if (!virtualize || total === 0 || viewportHeight === 0
+        || rowHeightPx === 0) {
+      return { startIdx: 0, endIdx: total, padTop: 0,
+        padBottom: 0 };
+    }
+    const firstVisible = Math.floor(scrollTop / rowHeightPx);
+    const lastVisible = Math.ceil(
+      (scrollTop + viewportHeight) / rowHeightPx);
+    const startIdx = Math.max(0, firstVisible - VIRT_OVERSCAN);
+    const endIdx = Math.min(total, lastVisible + VIRT_OVERSCAN);
+    const padTop = startIdx * rowHeightPx;
+    const padBottom = Math.max(0,
+      (total - endIdx) * rowHeightPx);
+    return { startIdx, endIdx, padTop, padBottom };
+  }, [virtualize, displayOrder.length, scrollTop,
+    viewportHeight, rowHeightPx]);
+
+  // Measure row height from the first rendered row + the viewport
+  // from the sheet-wrap. Runs on every render but writes only when
+  // the measured value materially changes — avoids churn while
+  // scrolling.
+  useLayoutEffect(() => {
+    const wrap = sheetWrapRef.current;
+    if (!wrap) return;
+    const h = wrap.clientHeight;
+    if (Math.abs(viewportHeight - h) > 1) setViewportHeight(h);
+    const firstRow = wrap.querySelector<HTMLElement>(
+      'tr[data-test^="ev-sheet-row-"]');
+    if (firstRow) {
+      const rh = firstRow.getBoundingClientRect().height;
+      if (rh > 0 && Math.abs(rowHeightPx - rh) > 0.5) {
+        setRowHeightPx(rh);
+      }
+    }
+  });
+
+  // Attach a passive scroll listener for the virtualized window.
+  useEffect(() => {
+    const wrap = sheetWrapRef.current;
+    if (!wrap) return;
+    const onScroll = (): void => {
+      setScrollTop(wrap.scrollTop);
+    };
+    wrap.addEventListener('scroll', onScroll, { passive: true });
+    return () => wrap.removeEventListener('scroll', onScroll);
+  }, [virtualize]);
 
   /** Per-row rule evaluation. Memoised so unaffected rows don't
    *  re-run when the operator edits a different row. Each row's
@@ -1278,13 +1349,32 @@ export function EventSheetPage(
       const nextRow = Math.max(0, Math.min(rowMax, row + dRow));
       const nextCol = Math.max(0, Math.min(colMax,
         col < 0 ? Math.max(0, dCol) : col + dCol));
+      // When virtualized, the target cell's <td> may not yet be
+      // mounted — scroll the wrap to bring the target row into
+      // the window first, then focus it after React reconciles.
       const next = document.querySelector<HTMLElement>(
         `[data-cell-coord="${nextRow}:${nextCol}"]`);
       if (next) {
         next.focus();
-        setSelection({ anchor: { row: nextRow, col: nextCol },
-          focus: { row: nextRow, col: nextCol } });
+      } else if (virtualize && sheetWrapRef.current) {
+        const targetTop = nextRow * rowHeightPx;
+        const wrap = sheetWrapRef.current;
+        if (targetTop < wrap.scrollTop) {
+          wrap.scrollTop = Math.max(0, targetTop);
+        } else if (targetTop > wrap.scrollTop + wrap.clientHeight
+            - rowHeightPx) {
+          wrap.scrollTop = targetTop - wrap.clientHeight
+            + rowHeightPx * 2;
+        }
+        // Focus on the next microtask once React re-renders.
+        queueMicrotask(() => {
+          const late = document.querySelector<HTMLElement>(
+            `[data-cell-coord="${nextRow}:${nextCol}"]`);
+          late?.focus();
+        });
       }
+      setSelection({ anchor: { row: nextRow, col: nextCol },
+        focus: { row: nextRow, col: nextCol } });
       return;
     }
     // Ctrl+Z / Cmd+Z — undo. Ctrl+Shift+Z — redo.
@@ -1568,6 +1658,7 @@ export function EventSheetPage(
       )}
 
       <div className="cap-sheet-wrap" data-test="ev-sheet"
+           ref={sheetWrapRef}
            onKeyDown={onGridKeyDown}>
         <table className="cap-sheet">
           <thead>
@@ -1656,7 +1747,17 @@ export function EventSheetPage(
             </tr>
           </thead>
           <tbody>
-            {displayOrder.map((rowIdx, displayPos) => {
+            {virtualize && virtualSlice.padTop > 0 && (
+              <tr aria-hidden="true"
+                  data-test="ev-sheet-virt-pad-top">
+                <td colSpan={allFields.length + 4}
+                    style={{ height: virtualSlice.padTop + 'px',
+                      padding: 0, border: 0 }} />
+              </tr>
+            )}
+            {displayOrder.slice(virtualSlice.startIdx,
+                virtualSlice.endIdx).map((rowIdx, sliceOffset) => {
+              const displayPos = virtualSlice.startIdx + sliceOffset;
               const r = rows[rowIdx];
               if (!r) return null;
               const effects = rowEffects[rowIdx];
@@ -1848,6 +1949,14 @@ export function EventSheetPage(
               </tr>
               );
             })}
+            {virtualize && virtualSlice.padBottom > 0 && (
+              <tr aria-hidden="true"
+                  data-test="ev-sheet-virt-pad-bottom">
+                <td colSpan={allFields.length + 4}
+                    style={{ height: virtualSlice.padBottom + 'px',
+                      padding: 0, border: 0 }} />
+              </tr>
+            )}
             {rows.length === 0 && (
               <tr>
                 <td className="cap-sheet__empty"
