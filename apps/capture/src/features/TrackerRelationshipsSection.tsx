@@ -1,5 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CaptureApi } from '../shared/types';
+
+interface RelTypeRow {
+  readonly id: string;
+  readonly displayName: string;
+  readonly bidirectional: boolean;
+  readonly fromToName?: string;
+  readonly toFromName?: string;
+  readonly fromEntity?: string;
+  readonly toEntity?: string;
+}
 
 interface RelRow {
   readonly relationship?: string;
@@ -41,15 +51,30 @@ export function TrackerRelationshipsSection(
   const [rows, setRows] = useState<RelRow[]>([]);
   const [status, setStatus] =
     useState<'idle' | 'loading' | 'err'>('loading');
+  const [types, setTypes] = useState<RelTypeRow[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickedType, setPickedType] = useState<RelTypeRow | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setStatus('loading');
     (async () => {
       try {
-        const r = await api.listTrackerRelationships(tei);
+        const [rels, typesRaw] = await Promise.all([
+          api.listTrackerRelationships(tei),
+          api.listRelationshipTypes(),
+        ]);
         if (cancelled) return;
-        setRows(Array.isArray(r) ? r : []);
+        setRows(Array.isArray(rels) ? rels : []);
+        setTypes(typesRaw.map((t) => ({
+          id: t.id,
+          displayName: t.displayName ?? t.name ?? t.id,
+          bidirectional: t.bidirectional ?? false,
+          fromToName: t.fromToName,
+          toFromName: t.toFromName,
+          fromEntity: t.fromConstraint?.relationshipEntity,
+          toEntity: t.toConstraint?.relationshipEntity,
+        })));
         setStatus('idle');
       } catch {
         if (!cancelled) {
@@ -72,7 +97,46 @@ export function TrackerRelationshipsSection(
             : `${rows.length} link${rows.length === 1 ? '' : 's'}`}
         </span>
         <span className="cap-section-head__rule" />
+        <button type="button"
+                className="cap-btn cap-btn--secondary"
+                data-test="tr-rel-add"
+                disabled={types.length === 0}
+                onClick={() => setPickerOpen(true)}
+                title={types.length === 0
+                  ? 'No relationship types are configured'
+                  : 'Pick a relationship type — target search '
+                    + 'arrives in slice G7-2b'}
+                style={{ padding: '4px 10px', fontSize: 12 }}>
+          + Add relationship
+        </button>
       </div>
+
+      {pickedType && (
+        <div className="cap-strip cap-strip--info"
+             data-test="tr-rel-picked-type"
+             style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <strong style={{ flex: 1 }}>
+            Relationship type: {pickedType.displayName}
+          </strong>
+          <span className="cap-chip">
+            Target search arrives in G7-2b
+          </span>
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  onClick={() => setPickedType(null)}
+                  data-test="tr-rel-picked-clear"
+                  style={{ padding: '2px 8px', fontSize: 12 }}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {pickerOpen && (
+        <TypePickerModal types={types}
+                          onPick={(t) => { setPickedType(t);
+                            setPickerOpen(false); }}
+                          onClose={() => setPickerOpen(false)} />
+      )}
 
       {rows.length === 0 ? (
         <div className="cap-strip cap-strip--info"
@@ -118,6 +182,92 @@ export function TrackerRelationshipsSection(
         </ul>
       )}
     </>
+  );
+}
+
+function TypePickerModal(
+  { types, onPick, onClose }: {
+    types: readonly RelTypeRow[];
+    onPick: (t: RelTypeRow) => void;
+    onClose: () => void;
+  },
+): JSX.Element {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const h = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [onClose]);
+  return (
+    <div className="cap-info-backdrop"
+         role="dialog" aria-modal="true"
+         aria-label="Pick a relationship type"
+         data-test="tr-rel-picker"
+         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="cap-info" ref={dialogRef}>
+        <header className="cap-info__head">
+          <h3 className="cap-info__title">Pick a relationship type</h3>
+          <button type="button"
+                  className="cap-info__close"
+                  aria-label="Close"
+                  onClick={onClose}>×</button>
+        </header>
+        <div className="cap-info__body">
+          {types.length === 0 ? (
+            <p style={{ margin: 0, color: '#4a5768' }}>
+              No relationship types are configured on this DHIS2
+              server.
+            </p>
+          ) : (
+            <ul className="cap-list" style={{ margin: 0,
+              maxHeight: 360, overflow: 'auto' }}>
+              {types.map((t) => (
+                <li key={t.id}
+                    className="cap-list__row cap-list__row--clickable"
+                    role="button" tabIndex={0}
+                    data-test={'tr-rel-type-' + t.id}
+                    onClick={() => onPick(t)}
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Enter' || ev.key === ' ') {
+                        ev.preventDefault();
+                        onPick(t);
+                      }
+                    }}>
+                  <div>
+                    <strong>{t.displayName}</strong>
+                    {t.bidirectional && (
+                      <span className="cap-chip"
+                            style={{ marginLeft: 10 }}>
+                        ↔ bidirectional
+                      </span>
+                    )}
+                    {!t.bidirectional && t.fromToName && (
+                      <span style={{ marginLeft: 10,
+                        color: '#4a5768', fontSize: 12 }}>
+                        {t.fromToName}
+                      </span>
+                    )}
+                    {(t.fromEntity || t.toEntity) && (
+                      <div style={{ marginTop: 2,
+                        color: '#6e7a8a', fontSize: 11 }}>
+                        {t.fromEntity ?? '—'} →{' '}
+                        {t.toEntity ?? '—'}
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="cap-info__note" style={{ marginTop: 8 }}>
+            Full add-relationship flow — target search, preview and
+            confirm (§REL-UX-005) — arrives in slice G7-2b.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 

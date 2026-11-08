@@ -1322,6 +1322,52 @@ export interface TrackerRelationshipRow {
   };
 }
 
+/** Raw DHIS2 relationship-type payload. The Capture app does its
+ *  own eligibility projection (§REL-MD-004) against this shape;
+ *  we return the full constraint blocks so cross-program /
+ *  cross-TET constraints can be honoured. */
+export interface RawRelationshipType {
+  readonly id: string;
+  readonly displayName?: string;
+  readonly name?: string;
+  readonly fromToName?: string;
+  readonly toFromName?: string;
+  readonly bidirectional?: boolean;
+  readonly fromConstraint?: {
+    readonly relationshipEntity?: string;
+    readonly trackedEntityType?: { id?: string } | null;
+    readonly program?: { id?: string } | null;
+    readonly programStage?: { id?: string } | null;
+  };
+  readonly toConstraint?: {
+    readonly relationshipEntity?: string;
+    readonly trackedEntityType?: { id?: string } | null;
+    readonly program?: { id?: string } | null;
+    readonly programStage?: { id?: string } | null;
+  };
+}
+
+/** List relationship-type definitions from the DHIS2 metadata
+ *  endpoint. The Capture app filters eligibility client-side —
+ *  the server returns them all. */
+export async function listRelationshipTypes():
+    Promise<RawRelationshipType[]> {
+  const r = await fetch(
+    '/api/relationshipTypes?fields=id,name,displayName,fromToName,'
+      + 'toFromName,bidirectional,'
+      + 'fromConstraint[relationshipEntity,trackedEntityType[id],'
+      + 'program[id],programStage[id]],'
+      + 'toConstraint[relationshipEntity,trackedEntityType[id],'
+      + 'program[id],programStage[id]]&paging=false',
+    { credentials: 'include',
+      headers: { Accept: 'application/json' } });
+  if (!r.ok) return [];
+  const body = await r.json() as {
+    relationshipTypes?: RawRelationshipType[];
+  };
+  return body.relationshipTypes ?? [];
+}
+
 /** List tracker relationships for a tracked entity. Thin wrapper
  *  around /api/tracker/relationships?trackedEntity={uid} — the
  *  DHIS2 2.44 endpoint. Returns the raw rows; the Capture app

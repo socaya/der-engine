@@ -154,6 +154,26 @@ export interface CaptureApi {
       event?: { event?: string };
     };
   }>>;
+  listRelationshipTypes: () => Promise<ReadonlyArray<{
+    id: string;
+    displayName?: string;
+    name?: string;
+    fromToName?: string;
+    toFromName?: string;
+    bidirectional?: boolean;
+    fromConstraint?: {
+      relationshipEntity?: string;
+      trackedEntityType?: { id?: string } | null;
+      program?: { id?: string } | null;
+      programStage?: { id?: string } | null;
+    };
+    toConstraint?: {
+      relationshipEntity?: string;
+      trackedEntityType?: { id?: string } | null;
+      program?: { id?: string } | null;
+      programStage?: { id?: string } | null;
+    };
+  }>>;
 }
 
 /** G6 — body accepted by submitEvent when editing a tracker

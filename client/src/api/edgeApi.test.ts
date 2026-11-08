@@ -475,6 +475,61 @@ describe('edgeApi.listPrograms', () => {
   });
 });
 
+describe('edgeApi.listRelationshipTypes', () => {
+  it('fetches relationship-type metadata with constraints', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {
+      relationshipTypes: [
+        { id: 'RT1', name: 'Parent of',
+          bidirectional: false,
+          fromConstraint: { relationshipEntity: 'TRACKED_ENTITY_INSTANCE',
+            trackedEntityType: { id: 'TET1' } },
+          toConstraint:  { relationshipEntity: 'TRACKED_ENTITY_INSTANCE',
+            trackedEntityType: { id: 'TET1' } } },
+      ],
+    }));
+    const r = await api.listRelationshipTypes();
+    expect(r.length).toBe(1);
+    expect(r[0]!.id).toBe('RT1');
+    expect(r[0]!.fromConstraint?.trackedEntityType?.id).toBe('TET1');
+    const [path] = fetchMock.mock.calls[0] as [string];
+    expect(path).toContain('/api/relationshipTypes?fields=');
+    expect(path).toContain('fromConstraint');
+    expect(path).toContain('toConstraint');
+    expect(path).toContain('paging=false');
+  });
+
+  it('returns an empty list on HTTP error', async () => {
+    fetchMock.mockResolvedValue(jsonRespond(500, { error: 'boom' }));
+    const r = await api.listRelationshipTypes();
+    expect(r).toEqual([]);
+  });
+
+  it('returns an empty list when the body lacks relationshipTypes',
+      async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {}));
+    const r = await api.listRelationshipTypes();
+    expect(r).toEqual([]);
+  });
+
+  it('preserves the bidirectional flag + constraint entity kind',
+      async () => {
+    fetchMock.mockResolvedValue(jsonRespond(200, {
+      relationshipTypes: [
+        { id: 'RT2', displayName: 'Linked event',
+          bidirectional: true,
+          fromConstraint: { relationshipEntity: 'PROGRAM_STAGE_INSTANCE',
+            program: { id: 'P1' } },
+          toConstraint:  { relationshipEntity: 'PROGRAM_STAGE_INSTANCE',
+            program: { id: 'P1' } } },
+      ],
+    }));
+    const r = await api.listRelationshipTypes();
+    expect(r[0]!.bidirectional).toBe(true);
+    expect(r[0]!.fromConstraint?.relationshipEntity)
+      .toBe('PROGRAM_STAGE_INSTANCE');
+  });
+});
+
 describe('edgeApi.listTrackerRelationships', () => {
   it('fetches relationships scoped to one tracked entity', async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, {
