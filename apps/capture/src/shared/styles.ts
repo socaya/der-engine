@@ -459,7 +459,7 @@ export const CAPTURE_STYLES = `
 }
 
 .cap-empty {
-  margin: 24px 14px; padding: 24px;
+  margin: 24px 20px; padding: 24px;
   border: 1px dashed var(--der-border); border-radius: 0;
   background: #fafcff;
   display: flex; flex-direction: column; gap: 8px;
@@ -469,6 +469,20 @@ export const CAPTURE_STYLES = `
 }
 .cap-empty__body {
   margin: 0; color: var(--der-text-muted); font-size: 14px; max-width: 60ch;
+}
+
+/* Compact centred placeholder — matches Data Entry's
+ * .der-de-placeholder so the "pick a program/data set" empty
+ * state reads the same in both apps. One short line of muted
+ * text, no title, no verbose explanation. */
+.cap-placeholder {
+  margin: 20px;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--der-text-muted);
+  font-size: 14px;
+  background: var(--der-surface);
+  border: 1px dashed var(--der-border);
 }
 
 .cap-section-head {

@@ -476,40 +476,13 @@ function CaptureAppInner(): JSX.Element {
        *  when NO device-assigned workflow is active — otherwise
        *  the panel above owns the screen. */}
       {!program && ou.bound && programs.length > 0 && (
-        <div className="cap-empty" data-test="cap-pick-program">
-          <h2 className="cap-empty__title">Pick a program to begin</h2>
-          <p className="cap-empty__body">
-            You have <strong>{programs.length}</strong>{' '}
-            program{programs.length === 1 ? '' : 's'} assigned to this
-            organisation unit. The capture mode (Tracker or Event) is
-            derived from the program type — no toggle is needed.
-          </p>
+        <div className="cap-placeholder" data-test="cap-pick-program">
+          Pick a program to begin.
         </div>
       )}
       {!program && ou.bound && programs.length === 0 && (
-        <div className="cap-empty" data-test="cap-no-programs">
-          <h2 className="cap-empty__title">No programs assigned</h2>
-          <p className="cap-empty__body">
-            Your bound organisation unit{' '}
-            <code className="cap-sub__code" title={ou.orgUnitPath}>
-              {ou.orgUnitDisplayName || ou.orgUnitUid}
-            </code>{' '}
-            isn't in any program's{' '}
-            <code>organisationUnits</code> assignment on this DHIS2
-            server. Ask an administrator to open the program in the
-            DHIS2 Maintenance app and tick this OU under
-            <em> Access → Organisation units</em>, then refresh.
-          </p>
-          <p className="cap-empty__body" style={{ fontSize: 12,
-            color: '#6e7a8a' }}>
-            <strong>Tech hint:</strong> admin can verify with{' '}
-            <code>
-              GET /api/programs?fields=id,organisationUnits[id]
-            </code>
-            {' '}and check that{' '}
-            <code>{ou.orgUnitUid || '—'}</code> appears on at least
-            one program.
-          </p>
+        <div className="cap-placeholder" data-test="cap-no-programs">
+          No programs assigned to this organisation unit.
         </div>
       )}
       {program && mode === 'event' && (
