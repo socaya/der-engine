@@ -381,7 +381,11 @@ public class CaptureFormService {
                         e.programStageUid(),
                         e.orgUnitUid(),
                         e.occurredAt(),
-                        e.status() == null ? null : e.status().name()))
+                        e.status() == null ? null : e.status().name(),
+                        // §EV1-A — carry dataValues so the Capture
+                        // working list can render metadata-driven
+                        // columns (matching DHIS2's displayInList).
+                        e.dataValues()))
                 .toList();
     }
 
@@ -766,7 +770,12 @@ public class CaptureFormService {
             String programStageUid,
             String orgUnitUid,
             java.time.Instant occurredAt,
-            String status) { }
+            String status,
+            /** Data-element → value map, same shape as
+             *  {@link EventDetail#dataValues()}. Lets the Capture
+             *  client render metadata-driven columns per
+             *  §EV1-A without an N+1 detail fetch. */
+            Map<String, String> dataValues) { }
 
     public record EventDetail(
             UUID eventUid,

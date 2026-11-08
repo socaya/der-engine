@@ -483,7 +483,8 @@ class CaptureFormControllerTest {
     void listEventsReturnsRows() throws Exception {
         when(forms.listEvents("P1", "OU1", 100)).thenReturn(List.of(
                 new EventSummary(UUID.randomUUID(), "S1", "OU1",
-                        Instant.parse("2026-11-06T09:00:00Z"), "ACTIVE")));
+                        Instant.parse("2026-11-06T09:00:00Z"), "ACTIVE",
+                        java.util.Map.of())));
         mockMvc.perform(get("/edge-api/v1/capture/programs/P1/events")
                         .param("orgUnit", "OU1")
                         .with(as(EdgeRole.OPERATOR)))

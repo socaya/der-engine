@@ -42,7 +42,13 @@ public class RuleEngine {
 
     public RuleEngine(final ExtendedMirrorRepository mirror,
                       @Value("${der.rules.enabled:true}") final boolean enabled,
-                      @Value("${der.rules.strict:true}") final boolean strict) {
+                      // DHIS2's own rules engine is lenient: a rule with
+                      // a bad condition logs a warning and is skipped,
+                      // never blocks a save. Flipping strict to false
+                      // keeps us aligned with that contract. Operators
+                      // can set der.rules.strict=true in environments
+                      // where a rule parse error should hard-fail imports.
+                      @Value("${der.rules.strict:false}") final boolean strict) {
         this.mirror = Objects.requireNonNull(mirror, "mirror");
         this.enabled = enabled;
         this.strict = strict;

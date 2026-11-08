@@ -13,6 +13,7 @@ import { usePublishDirty } from '../../shared/DirtyContext';
 import { SectionNav } from '../../shared/SectionNav';
 import { useAutofocusFirstField } from '../../shared/useAutofocusFirstField';
 import { navEvent } from '../../shared/routing';
+import { openDatePicker } from '../../shared/openDatePicker';
 
 /**
  * Event create / edit form page (NAV-004). Full-page form with
@@ -244,17 +245,10 @@ export function EventFormPage(
           {eventId ? 'Edit event' : 'New event'}
         </h2>
         {eventStatus && (
-          <span className="cap-chip"
-                data-test="ce-event-status"
-                style={{
-                  background: eventStatus === 'COMPLETED'
-                    ? '#ecf7f0' : '#eef2f8',
-                  color: eventStatus === 'COMPLETED'
-                    ? '#136436' : '#0a5497',
-                  borderColor: eventStatus === 'COMPLETED'
-                    ? '#b7dcc7' : '#cfe1f4',
-                }}>
-            {eventStatus}
+          <span className={'cap-status cap-status--'
+              + (eventStatus === 'COMPLETED' ? 'ok' : 'active')}
+                data-test="ce-event-status">
+            {eventStatus === 'COMPLETED' ? 'Completed' : 'Active'}
           </span>
         )}
         {stages.length > 1 && (
@@ -266,6 +260,7 @@ export function EventFormPage(
           <input className="cap-input__ctl" type="date"
                  value={occurredAt}
                  onChange={(e) => setOccurredAt(e.target.value)}
+                 onClick={openDatePicker}
                  data-test="ce-occurred-at" />
         </label>
         <span className="cap-section-head__count">

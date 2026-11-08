@@ -12,6 +12,7 @@ import type { ProgramOpt, CaptureApi } from './shared/types';
 import { CAPTURE_STYLES } from './shared/styles';
 import { DirtyProvider, useAnyDirty } from './shared/DirtyContext';
 import { ContextInspector } from './shared/ContextInspector';
+import { parseCaptureRoute } from './shared/routing';
 
 /**
  * DER Capture — unified Tracker + Event capture app.
@@ -189,6 +190,32 @@ function CaptureAppInner(): JSX.Element {
     })();
     return () => { cancelled = true; };
   }, [ou.bound, ou.orgUnitUid]);
+
+  // Deep-link sync — when the operator opens a URL like
+  // #/tracker/<programId>/records/<tei>, hoist the programId from
+  // the hash into the shell's programUid state so the picker shows
+  // the right program and TrackerWorkflow/EventWorkflow mount
+  // against it. Without this, deep links land on the "pick a
+  // program" empty state regardless of what the hash claims.
+  useEffect(() => {
+    if (programs.length === 0) return;
+    const route = parseCaptureRoute('#' + hashRoute);
+    const linkedProgram =
+      route.kind === 'tracker-list' ? route.programId
+      : route.kind === 'tracker-detail' ? route.programId
+      : route.kind === 'tracker-register' ? route.programId
+      : route.kind === 'tracker-enrol' ? route.programId
+      : route.kind === 'tracker-stage-form' ? route.programId
+      : route.kind === 'event-list' ? route.programId
+      : route.kind === 'event-detail' ? route.programId
+      : route.kind === 'event-form' ? route.programId
+      : null;
+    if (linkedProgram
+        && linkedProgram !== programUid
+        && programs.some((p) => p.id === linkedProgram)) {
+      setProgramUid(linkedProgram);
+    }
+  }, [hashRoute, programs, programUid]);
 
   const program = useMemo(
     () => programs.find((p) => p.id === programUid) ?? null,

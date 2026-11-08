@@ -25,6 +25,11 @@ export interface EventRow {
   readonly programStage?: string;
   readonly programStageUid?: string;
   readonly status?: string | null;
+  /** §EV1-A — dataElement UID → value. Present when the server
+   *  surfaces it (ADR-wise, since the DER edge's list endpoint now
+   *  ships this map alongside each event). Used by EventListPage
+   *  to render metadata-driven columns without an N+1 detail fetch. */
+  readonly dataValues?: Record<string, string>;
 }
 
 /** Narrow view onto {@code useDerApi()} used by Capture. Declared

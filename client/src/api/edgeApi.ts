@@ -1129,6 +1129,10 @@ export interface CaptureEventSummary {
   orgUnitUid: string;
   occurredAt: string;
   status: string | null;
+  /** §EV1-A — dataElement UID → value map; lets the client render
+   *  metadata-driven columns in the event working list without
+   *  N+1 detail fetches. Empty when the event has no values. */
+  dataValues?: Record<string, string>;
 }
 
 export interface CaptureEventDetail {

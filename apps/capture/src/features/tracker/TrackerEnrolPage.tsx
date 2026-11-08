@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { CaptureApi } from '../../shared/types';
 import { navTracker } from '../../shared/routing';
+import { openDatePicker } from '../../shared/openDatePicker';
 
 const DHIS2_UID_ALPHABET =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -198,6 +199,7 @@ export function TrackerEnrolPage(
                        className="cap-input__ctl"
                        required
                        value={enrollmentDate}
+                       onClick={openDatePicker}
                        onChange={(e) =>
                          setEnrollmentDate(e.target.value)} />
                 <span className="cap-input__help">
@@ -211,6 +213,7 @@ export function TrackerEnrolPage(
                 <input type="date"
                        className="cap-input__ctl"
                        value={incidentDate}
+                       onClick={openDatePicker}
                        onChange={(e) =>
                          setIncidentDate(e.target.value)} />
                 <span className="cap-input__help">

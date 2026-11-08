@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { CaptureField, CaptureFormSection } from './model';
 import type { RuleWarning } from './ruleEngine';
 import type { CaptureApi } from './types';
+import { openDatePicker } from './openDatePicker';
 
 /**
  * Shared metadata-driven form renderer — one implementation used
@@ -153,11 +154,13 @@ function FieldInput(
     case 'PERCENTAGE':
       return <input type="number" {...common} />;
     case 'DATE':
-      return <input type="date" {...common} />;
+      return <input type="date" {...common} onClick={openDatePicker} />;
     case 'DATETIME':
-      return <input type="datetime-local" {...common} />;
+      return <input type="datetime-local" {...common}
+                     onClick={openDatePicker} />;
     case 'TIME':
-      return <input type="time" {...common} />;
+      return <input type="time" {...common}
+                     onClick={openDatePicker} />;
     case 'BOOLEAN':
     case 'TRUE_ONLY':
       return (

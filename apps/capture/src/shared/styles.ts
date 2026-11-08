@@ -87,8 +87,7 @@ export const CAPTURE_STYLES = `
   line-height: 1.2;
 }
 .cap-toolbar__ou-label {
-  font-size: 10px; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--der-text-faint);
+  font-size: 10px; letter-spacing: 0.02em; color: var(--der-text-faint);
 }
 .cap-toolbar__ou-value {
   color: var(--der-text); font-size: 13px; font-weight: 500;
@@ -176,8 +175,8 @@ export const CAPTURE_STYLES = `
   min-width: 0;
 }
 .cap-toolbar__field-label {
-  font-size: 11px; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--der-text-muted);
+  font-size: 11px;
+  letter-spacing: 0.02em; color: var(--der-text-muted);
 }
 .cap-toolbar__select {
   padding: 6px 8px; border: 1px solid #aaa; border-radius: 0;
@@ -282,8 +281,7 @@ export const CAPTURE_STYLES = `
 .cap-dwf__queue-title {
   display: flex; align-items: baseline; gap: 10px;
   margin: 0 0 6px 0;
-  font-size: 12px; font-weight: 500;
-  text-transform: uppercase; letter-spacing: 0.08em;
+  font-size: 12px; font-weight: 500; letter-spacing: 0.02em;
   color: var(--der-text);
 }
 .cap-dwf__queue-count {
@@ -313,8 +311,8 @@ export const CAPTURE_STYLES = `
 }
 .cap-dwf__eyebrow {
   display: block;
-  font-size: 10px; text-transform: uppercase;
-  letter-spacing: 0.1em; color: var(--der-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.02em; color: var(--der-text-muted);
   font-weight: 600;
 }
 .cap-dwf__title {
@@ -343,8 +341,7 @@ export const CAPTURE_STYLES = `
   font-size: 15px; color: var(--der-text); font-weight: 600;
 }
 .cap-dwf__row-meta {
-  font-size: 11px; color: var(--der-text-muted);
-  text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: 11px; color: var(--der-text-muted); letter-spacing: 0.02em;
 }
 .cap-dwf__steps {
   margin: 0; padding: 0; list-style: none;
@@ -371,8 +368,8 @@ export const CAPTURE_STYLES = `
 }
 .cap-dwf__step-name { flex: 1; }
 .cap-dwf__step-flag {
-  font-size: 10px; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--der-primary); font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.02em; color: var(--der-primary); font-weight: 600;
 }
 .cap-dwf__actions {
   margin-top: 10px;
@@ -426,8 +423,8 @@ export const CAPTURE_STYLES = `
 }
 .cap-dwf__ctx-title {
   margin: 0 0 8px 0;
-  font-size: 12px; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--der-text-muted);
+  font-size: 12px;
+  letter-spacing: 0.02em; color: var(--der-text-muted);
   font-weight: 600;
 }
 .cap-dwf__ctx-step {
@@ -479,8 +476,7 @@ export const CAPTURE_STYLES = `
   display: flex; align-items: center; gap: 12px;
 }
 .cap-section-head__title {
-  margin: 0; font-size: 12px; font-weight: 500;
-  text-transform: uppercase; letter-spacing: 0.08em;
+  margin: 0; font-size: 12px; font-weight: 500; letter-spacing: 0.02em;
   color: var(--der-text);
 }
 .cap-section-head__count {
@@ -526,8 +522,8 @@ export const CAPTURE_STYLES = `
   padding: 10px 0 12px 0;
 }
 .cap-form-section__title {
-  font-size: 12px; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--der-text);
+  font-size: 12px;
+  letter-spacing: 0.02em; color: var(--der-text);
   padding: 0 6px; font-weight: 500;
   display: inline-flex; gap: 10px; align-items: baseline;
 }
@@ -617,6 +613,53 @@ export const CAPTURE_STYLES = `
 }
 
 /* Recent list — mirror the Data Entry chip aesthetic. */
+/* --- Working-list table (EV1-A) + filter row (EV1-C) ---------- */
+.cap-filter-row {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px;
+  margin: 0 14px 10px 14px;
+}
+.cap-filter-row .cap-input { min-width: 160px; }
+.cap-table-wrap {
+  margin: 0 14px 14px 14px;
+  overflow-x: auto;
+  border-top: 1px solid var(--der-border-soft);
+}
+.cap-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px; color: var(--der-text);
+}
+.cap-table thead th {
+  text-align: left; font-weight: 500;
+  color: var(--der-text-muted); font-size: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--der-border);
+  background: var(--der-surface);
+  white-space: nowrap;
+  position: sticky; top: 0;
+}
+.cap-table__row { cursor: pointer; }
+.cap-table__row:hover { background: var(--der-surface-subtle); }
+.cap-table__row:focus {
+  outline: none; background: var(--der-surface-subtle);
+  box-shadow: inset 2px 0 0 var(--der-primary);
+}
+.cap-table__cell {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--der-border-soft);
+  vertical-align: top;
+}
+.cap-table__cell--date { color: var(--der-text-muted);
+                         white-space: nowrap; }
+.cap-table__cell--actions { width: 40px; text-align: right; }
+.cap-table__empty { color: var(--der-text-faint); }
+.cap-status {
+  display: inline-block;
+  padding: 1px 0; font-size: 12px; font-weight: 500;
+  background: transparent; border: 0;
+}
+.cap-status--active { color: var(--der-primary); }
+.cap-status--ok     { color: var(--der-success); }
+
 .cap-list { margin: 0 14px 14px 14px; padding: 0; list-style: none; }
 .cap-list__row {
   padding: 8px 10px; border-bottom: 1px solid var(--der-border-soft);
@@ -681,8 +724,7 @@ export const CAPTURE_STYLES = `
   padding: 0;
   font-size: 11px; font-weight: 500;
   background: transparent; color: var(--der-primary);
-  border: 0;
-  text-transform: uppercase; letter-spacing: 0.04em;
+  border: 0; letter-spacing: 0.04em;
 }
 .cap-chip--warn { color: var(--der-warning); }
 
@@ -838,7 +880,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-insp__title {
   margin: 0; font-size: 13px; font-weight: 600;
-  letter-spacing: 0.04em; text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--der-text-muted);
 }
 .cap-insp__close {

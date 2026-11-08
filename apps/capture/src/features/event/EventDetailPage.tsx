@@ -107,17 +107,10 @@ export function EventDetailPage(
         </button>
         <h2 className="cap-section-head__title">Event</h2>
         {detail.status && (
-          <span className="cap-chip"
-                data-test="ev-detail-status"
-                style={{
-                  background: detail.status === 'COMPLETED'
-                    ? '#ecf7f0' : '#eef2f8',
-                  color: detail.status === 'COMPLETED'
-                    ? '#136436' : '#0a5497',
-                  borderColor: detail.status === 'COMPLETED'
-                    ? '#b7dcc7' : '#cfe1f4',
-                }}>
-            {detail.status}
+          <span className={'cap-status cap-status--'
+              + (detail.status === 'COMPLETED' ? 'ok' : 'active')}
+                data-test="ev-detail-status">
+            {detail.status === 'COMPLETED' ? 'Completed' : 'Active'}
           </span>
         )}
         <span className="cap-section-head__rule" />
