@@ -313,6 +313,7 @@ export function TrackerDetailPage(
         <div className="cap-stage-layout" data-test="tr-stage-layout">
           <nav className="cap-stage-rail" aria-label="Program stages"
                data-test="tr-stage-rail">
+            <div className="cap-stage-rail__title">Stages</div>
             {stages.length === 0 ? (
               <p className="cap-sub" style={{ margin: 0 }}>
                 This program has no stages configured.
@@ -341,9 +342,11 @@ export function TrackerDetailPage(
 
           <div className="cap-stage-pane" data-test="tr-stage-pane">
             {selectedStage === null ? (
-              <p className="cap-sub" style={{ margin: 0 }}>
-                Select a stage to see its events.
-              </p>
+              <div className="cap-placeholder"
+                   data-test="tr-stage-pane-unselected"
+                   style={{ margin: 0 }}>
+                Pick a stage on the left to see its events.
+              </div>
             ) : (
               <>
                 <div style={{ display: 'flex', alignItems: 'center',
@@ -400,9 +403,15 @@ export function TrackerDetailPage(
                   })()}
                 </div>
                 {stageEvents.length === 0 ? (
-                  <p className="cap-sub" style={{ marginTop: 0 }}>
-                    No events recorded for this stage yet.
-                  </p>
+                  <div className="cap-placeholder"
+                       data-test="tr-stage-pane-empty"
+                       style={{ margin: 0 }}>
+                    No events for this stage yet. Use
+                    <strong style={{ padding: '0 4px' }}>
+                      + Add event
+                    </strong>
+                    above to capture one.
+                  </div>
                 ) : (
                   <ul className="cap-list" style={{ margin: 0 }}
                       data-test="tr-event-list">

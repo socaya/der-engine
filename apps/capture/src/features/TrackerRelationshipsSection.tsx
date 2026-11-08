@@ -155,12 +155,12 @@ export function TrackerRelationshipsSection(
     <>
       <div className="cap-strip cap-strip--info"
            data-test="tr-rel-edge-notice"
-           style={{ marginBottom: 6 }}>
-        <strong>Relationships pass through to central DHIS2.</strong>{' '}
-        The DER edge doesn't emulate the tracker relationship
-        endpoints today — reads + writes go straight to the central
-        server when it's reachable. During a WAN outage the list
-        stays empty and Link/Unlink return HTTP errors.
+           style={{ marginBottom: 6, fontSize: 12 }}>
+        <strong>Relationships need an online connection.</strong>{' '}
+        Links to other tracked entities are managed on the central
+        server — they aren't cached on this device. If the facility
+        is offline the list will be empty and adding or removing
+        a link will fail until connectivity returns.
       </div>
       <div className="cap-section-head" data-test="tr-rel-head">
         <h2 className="cap-section-head__title">Relationships</h2>
@@ -334,13 +334,10 @@ export function TrackerRelationshipsSection(
       )}
 
       {rows.length === 0 ? (
-        <div className="cap-strip cap-strip--info"
-             data-test="tr-rel-empty">
+        <div className="cap-placeholder" data-test="tr-rel-empty">
           {status === 'err'
-            ? 'The tracker mirror could not be reached.'
-            : 'No relationships yet for this tracked entity.'}{' '}
-          <strong>Link creation</strong> arrives in slice G7-2
-          (requirements doc §13 REL-UX-004 / REL-UX-005).
+            ? 'Relationships could not be loaded.'
+            : 'No linked tracked entities yet.'}
         </div>
       ) : (
         <ul className="cap-list" data-test="tr-rel-list">

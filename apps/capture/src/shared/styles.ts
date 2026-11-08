@@ -1642,6 +1642,14 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   border: 0;
   align-self: start;
 }
+.cap-stage-rail__title {
+  font-size: 11px; font-weight: 500;
+  color: var(--der-text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 0 10px 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--der-border-soft);
+}
 .cap-stage-rail__item {
   display: flex; align-items: center; justify-content: space-between;
   padding: 7px 10px;
