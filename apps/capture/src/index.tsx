@@ -46,6 +46,14 @@ function CaptureAppInner(): JSX.Element {
   const [infoOpen, setInfoOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  /** "N of M" working-list counts published from the active
+   *  Event/Tracker list page so we can render a count chip
+   *  next to the Mode indicator instead of in a secondary row
+   *  below the filters. Null = no active list OR list still
+   *  loading. */
+  const [listCount, setListCount] =
+    useState<{ total: number; filtered: number;
+      noun: string } | null>(null);
   /** DER device workflows — fetched once on mount. The toolbar
    *  strip filters at render time to the currently-selected
    *  program; the "assigned to this device" check considers
@@ -258,6 +266,13 @@ function CaptureAppInner(): JSX.Element {
   // PROGRAM_STAGE / PROGRAM_STAGE_SECTION bindings, not just
   // whole-program ones (distributed workflow config lives at
   // several metadata levels per DER server).
+  // Reset the published list count whenever the active program
+  // flips so the toolbar chip doesn't briefly show stale numbers
+  // from the previous program's working list.
+  useEffect(() => {
+    setListCount(null);
+  }, [programUid]);
+
   const [programStageIds, setProgramStageIds] =
     useState<ReadonlyArray<string>>([]);
   useEffect(() => {
@@ -378,21 +393,38 @@ function CaptureAppInner(): JSX.Element {
 
           <div className="cap-toolbar__field">
             <span className="cap-toolbar__field-label">Mode</span>
-            {mode ? (
-              <span className={'cap-toolbar__mode '
-                  + 'cap-toolbar__mode--' + mode}
-                    data-test="cap-mode-chip"
-                    title={mode === 'tracker'
-                      ? 'Program requires registration — tracker workflow'
-                      : 'Standalone event program — event workflow'}>
-                {mode === 'tracker' ? 'Tracker' : 'Event'}
-              </span>
-            ) : (
-              <span className="cap-toolbar__mode cap-toolbar__mode--empty"
-                    data-test="cap-mode-chip">
-                —
-              </span>
-            )}
+            <div style={{ display: 'flex', alignItems: 'baseline',
+                          gap: 10 }}>
+              {mode ? (
+                <span className={'cap-toolbar__mode '
+                    + 'cap-toolbar__mode--' + mode}
+                      data-test="cap-mode-chip"
+                      title={mode === 'tracker'
+                        ? 'Program requires registration — tracker workflow'
+                        : 'Standalone event program — event workflow'}>
+                  {mode === 'tracker' ? 'Tracker' : 'Event'}
+                </span>
+              ) : (
+                <span className="cap-toolbar__mode cap-toolbar__mode--empty"
+                      data-test="cap-mode-chip">
+                  —
+                </span>
+              )}
+              {listCount && (
+                <span className="cap-toolbar__count"
+                      data-test="cap-list-count"
+                      title={listCount.filtered === listCount.total
+                        ? listCount.total + ' ' + listCount.noun
+                          + ' loaded for this program'
+                        : listCount.filtered + ' of ' + listCount.total
+                          + ' ' + listCount.noun + ' match the filters'}>
+                  {listCount.filtered === listCount.total
+                    ? listCount.total + ' ' + listCount.noun
+                    : listCount.filtered + ' of ' + listCount.total
+                      + ' ' + listCount.noun}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Distributed workflows allocated to this device for
@@ -489,7 +521,8 @@ function CaptureAppInner(): JSX.Element {
         <EventWorkflow api={api} programUid={program.id}
                         orgUnitUid={ou.orgUnitUid}
                         orgUnitDisplayName={ou.orgUnitDisplayName}
-                        hashRoute={hashRoute} />
+                        hashRoute={hashRoute}
+                        onListCount={setListCount} />
       )}
       {program && mode === 'tracker' && (
         <TrackerWorkflow api={api} programUid={program.id}

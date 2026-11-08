@@ -37,9 +37,15 @@ const UNRENDERABLE_IN_LIST = new Set([
 ]);
 
 export function EventListPage(
-  { api, programUid, orgUnitUid }: {
+  { api, programUid, orgUnitUid, onCountChange }: {
     api: CaptureApi; programUid: string;
     orgUnitUid: string;
+    /** Publishes (total, filtered) upwards to the capture host so
+     *  the host can render the "N of M events" chip next to the
+     *  Mode indicator. Called whenever the loaded set or filtered
+     *  set changes. */
+    onCountChange?: (c: { total: number; filtered: number;
+      noun: string } | null) => void;
   },
 ): JSX.Element {
   const stateKey = 'cap:ev-list:' + programUid + ':' + orgUnitUid;
@@ -205,6 +211,26 @@ export function EventListPage(
     setPage(1);
   }, [query, statusFilter, fromDate, toDate, sort, pageSize]);
 
+  // Publish counts up so the host can render the chip next to Mode.
+  useEffect(() => {
+    if (status === 'loading' || !metadataReady) {
+      onCountChange?.(null);
+      return;
+    }
+    onCountChange?.({
+      total: recent.length,
+      filtered: filtered.length,
+      noun: recent.length === 1 ? 'event' : 'events',
+    });
+    // The function identity of onCountChange doesn't stabilise across
+    // host re-renders, but React 18 bails out on identical setState
+    // so re-publishing the same numbers is a no-op upstream.
+  }, [status, metadataReady, recent.length, filtered.length,
+      onCountChange]);
+  useEffect(() => {
+    return () => { onCountChange?.(null); };
+  }, [onCountChange]);
+
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, pageCount);
   const pageStart = (safePage - 1) * pageSize;
@@ -280,20 +306,12 @@ export function EventListPage(
 
   return (
     <>
-      {/* Filter row — labelled inputs stacked under short labels,
-       *  so the row scans like a header + controls instead of a
-       *  dense toolbar strip. */}
-      <div className="cap-section-head" data-test="ev-list-head">
-        <h2 className="cap-section-head__title">Events</h2>
-        <span className="cap-section-head__count">
-          {status === 'loading' ? 'loading…'
-            : status === 'err' ? 'failed to load'
-            : activeFilterCount > 0
-              ? `${filtered.length} of ${recent.length} shown`
-              : recent.length === 0 ? 'none yet'
-              : `${recent.length} loaded`}
-        </span>
-        <span className="cap-section-head__rule" />
+      {/* Single tidy toolbar — view toggle on the left, filters
+       *  inline in the middle, density + CSV + New on the right.
+       *  Counts live on the host toolbar next to the Mode chip,
+       *  so this row doesn't duplicate them. */}
+      <div className="cap-section-head cap-section-head--toolbar"
+           data-test="ev-list-head">
         <div className="cap-view-toggle" role="group"
              aria-label="Event view mode" data-test="ev-view-toggle">
           <button type="button"
@@ -311,6 +329,56 @@ export function EventListPage(
             Sheet
           </button>
         </div>
+        <label className="cap-section-head__inline"
+               data-test="ev-filter-search">
+          <span className="cap-section-head__inline-label">Search</span>
+          <input className="cap-section-head__inline-ctl" type="search"
+                 value={query}
+                 onChange={(e) => setQuery(e.target.value)}
+                 placeholder="UID or value…"
+                 style={{ width: 180 }}
+                 data-test="ev-search-input" />
+        </label>
+        <label className="cap-section-head__inline">
+          <span className="cap-section-head__inline-label">Status</span>
+          <select className="cap-section-head__inline-ctl"
+                  value={statusFilter}
+                  data-test="ev-status-filter"
+                  onChange={(e) => setStatusFilter(
+                    e.target.value as typeof statusFilter)}>
+            <option value="all">All</option>
+            <option value="ACTIVE">Active</option>
+            <option value="COMPLETED">Completed</option>
+          </select>
+        </label>
+        <label className="cap-section-head__inline">
+          <span className="cap-section-head__inline-label">From</span>
+          <input className="cap-section-head__inline-ctl" type="date"
+                 value={fromDate}
+                 onChange={(e) => setFromDate(e.target.value)}
+                 onClick={openDatePicker}
+                 data-test="ev-from-date" />
+        </label>
+        <label className="cap-section-head__inline">
+          <span className="cap-section-head__inline-label">To</span>
+          <input className="cap-section-head__inline-ctl" type="date"
+                 value={toDate}
+                 onChange={(e) => setToDate(e.target.value)}
+                 onClick={openDatePicker}
+                 data-test="ev-to-date" />
+        </label>
+        {activeFilterCount > 0 && (
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  data-test="ev-clear-filters"
+                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  onClick={() => { setQuery('');
+                    setStatusFilter('all');
+                    setFromDate(''); setToDate(''); }}>
+            Clear
+          </button>
+        )}
+        <span className="cap-section-head__rule" />
         <button type="button"
                 className="cap-density-btn"
                 data-test="ev-density-toggle"
@@ -343,7 +411,7 @@ export function EventListPage(
         <div className="cap-strip cap-strip--info"
              data-test="ev-bulk-bar"
              style={{ display: 'flex', alignItems: 'center',
-               gap: 10, margin: '0 14px 10px' }}>
+               gap: 10, margin: '0 20px 10px' }}>
           <strong style={{ flex: 1 }}>
             {selected.size} selected
           </strong>
@@ -393,57 +461,6 @@ export function EventListPage(
           </button>
         </div>
       )}
-
-      <div className="cap-filter-row" data-test="ev-filter-row">
-        <label className="cap-input">
-          <span className="cap-input__label">Search</span>
-          <input className="cap-input__ctl" type="search"
-                 value={query}
-                 onChange={(e) => setQuery(e.target.value)}
-                 placeholder="Event UID or value text"
-                 data-test="ev-search-input" />
-        </label>
-        <label className="cap-input">
-          <span className="cap-input__label">Status</span>
-          <select className="cap-input__ctl"
-                  value={statusFilter}
-                  data-test="ev-status-filter"
-                  onChange={(e) => setStatusFilter(
-                    e.target.value as typeof statusFilter)}>
-            <option value="all">All</option>
-            <option value="ACTIVE">Active</option>
-            <option value="COMPLETED">Completed</option>
-          </select>
-        </label>
-        <label className="cap-input">
-          <span className="cap-input__label">From</span>
-          <input className="cap-input__ctl" type="date"
-                 value={fromDate}
-                 onChange={(e) => setFromDate(e.target.value)}
-                 onClick={openDatePicker}
-                 data-test="ev-from-date" />
-        </label>
-        <label className="cap-input">
-          <span className="cap-input__label">To</span>
-          <input className="cap-input__ctl" type="date"
-                 value={toDate}
-                 onChange={(e) => setToDate(e.target.value)}
-                 onClick={openDatePicker}
-                 data-test="ev-to-date" />
-        </label>
-        {activeFilterCount > 0 && (
-          <button type="button"
-                  className="cap-btn cap-btn--secondary"
-                  data-test="ev-clear-filters"
-                  style={{ padding: '4px 10px', fontSize: 12,
-                    alignSelf: 'flex-end' }}
-                  onClick={() => { setQuery('');
-                    setStatusFilter('all');
-                    setFromDate(''); setToDate(''); }}>
-            Clear filters
-          </button>
-        )}
-      </div>
 
       {filtered.length === 0 ? (
         <p className="cap-sub" style={{ marginLeft: 14 }}>

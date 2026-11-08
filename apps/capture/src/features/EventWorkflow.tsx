@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { CaptureApi } from '../shared/types';
 import { EventListPage } from './event/EventListPage';
 import { EventDetailPage } from './event/EventDetailPage';
@@ -13,10 +13,17 @@ import { parseCaptureRoute, navEvent } from '../shared/routing';
  * sub-page — it never renders two of them at once.
  */
 export function EventWorkflow(
-  { api, programUid, orgUnitUid, orgUnitDisplayName, hashRoute }: {
+  { api, programUid, orgUnitUid, orgUnitDisplayName, hashRoute,
+    onListCount }: {
     api: CaptureApi; programUid: string;
     orgUnitUid: string; orgUnitDisplayName: string;
     hashRoute: string;
+    /** Published upwards by EventListPage so the capture host can
+     *  render the "N of M events" chip next to the Mode indicator
+     *  instead of in a secondary row below the filters. Non-list
+     *  routes publish null so the chip disappears. */
+    onListCount?: (c: { total: number; filtered: number;
+      noun: string } | null) => void;
   },
 ): JSX.Element {
   // Normalize home / mismatched route to the event list for this
@@ -32,6 +39,16 @@ export function EventWorkflow(
   }, [programUid]);
 
   const route = parseCaptureRoute('#' + hashRoute);
+
+  // Non-list routes clear the host's list-count chip so it
+  // doesn't linger when the operator opens a detail or form page.
+  const lastKindRef = useRef<string>('');
+  useEffect(() => {
+    if (route.kind !== 'event-list' && lastKindRef.current !== route.kind) {
+      onListCount?.(null);
+    }
+    lastKindRef.current = route.kind;
+  }, [route.kind, onListCount]);
 
   if (route.kind === 'event-sheet') {
     return (
@@ -60,6 +77,7 @@ export function EventWorkflow(
   return (
     <EventListPage api={api}
                     programUid={programUid}
-                    orgUnitUid={orgUnitUid} />
+                    orgUnitUid={orgUnitUid}
+                    onCountChange={onListCount} />
   );
 }

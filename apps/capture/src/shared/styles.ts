@@ -231,6 +231,10 @@ export const CAPTURE_STYLES = `
 }
 .cap-toolbar__mode--tracker { color: var(--der-primary-strong); }
 .cap-toolbar__mode--event   { color: var(--der-success); }
+.cap-toolbar__count {
+  font-size: 12px; color: var(--der-text-muted); font-weight: 400;
+  white-space: nowrap;
+}
 
 .cap-sub {
   margin: 10px 14px 0 14px; color: var(--der-text-muted); font-size: 13px;
