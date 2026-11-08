@@ -63,4 +63,30 @@ export interface CaptureApi {
     trackedEntityType: string;
     attributes: Array<{ attribute: string; value: string }>;
   }) => Promise<unknown>;
+  listProgramRules: (programUid?: string) => Promise<ReadonlyArray<{
+    id: string; displayName?: string; name?: string;
+    program?: { id?: string } | null;
+    programStage?: { id?: string } | null;
+    condition?: string; description?: string;
+    priority?: number | null;
+    programRuleActions?: ReadonlyArray<{
+      id: string; programRuleActionType?: string;
+      content?: string; data?: string;
+      dataElement?: { id?: string } | null;
+      trackedEntityAttribute?: { id?: string } | null;
+      programStage?: { id?: string } | null;
+      programStageSection?: { id?: string } | null;
+      location?: string;
+    }>;
+  }>>;
+  listProgramRuleVariables: (programUid?: string) =>
+    Promise<ReadonlyArray<{
+      id: string; displayName?: string; name?: string;
+      program?: { id?: string } | null;
+      programRuleVariableSourceType?: string;
+      dataElement?: { id?: string } | null;
+      trackedEntityAttribute?: { id?: string } | null;
+      programStage?: { id?: string } | null;
+      useCodeForOptionSet?: boolean; valueType?: string;
+    }>>;
 }

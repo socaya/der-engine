@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { FormEngine, requiredFieldsComplete } from '../shared/FormEngine';
 import type { CaptureApi, EventRow, StageOpt } from '../shared/types';
-import type { CaptureFormSection, CaptureParseIssue } from '../shared/model';
+import type {
+  CaptureFormSection, CaptureParseIssue,
+  CaptureProgramRule, CaptureProgramRuleVariable,
+} from '../shared/model';
 import { parseStageForm } from '../shared/parser';
+import { parseProgramRules } from '../shared/rules';
+import { applyRuleEffectsToSections, evaluateRules } from '../shared/ruleEngine';
 
 /**
  * Event (WITHOUT_REGISTRATION) workflow inside the unified
@@ -28,6 +33,9 @@ export function EventWorkflow(
   const [sections, setSections] = useState<readonly CaptureFormSection[]>([]);
   const [parseIssues, setParseIssues] =
     useState<readonly CaptureParseIssue[]>([]);
+  const [rules, setRules] = useState<readonly CaptureProgramRule[]>([]);
+  const [ruleVars, setRuleVars] =
+    useState<readonly CaptureProgramRuleVariable[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [occurredAt, setOccurredAt] = useState(() =>
     new Date().toISOString().slice(0, 10));
@@ -88,6 +96,47 @@ export function EventWorkflow(
     return () => { cancelled = true; };
   }, [programUid, stageUid, api]);
 
+  // Fetch program rules + variables once per program. Both calls
+  // fan out all pages; the parser sorts rules by priority
+  // ascending and surfaces any non-CURRENT_EVENT variable sources
+  // in a parse-issue list (§MD-005, §PR-004).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [rawRules, rawVars] = await Promise.all([
+          api.listProgramRules(programUid),
+          api.listProgramRuleVariables(programUid),
+        ]);
+        if (cancelled) return;
+        const parsed = parseProgramRules(rawRules, rawVars);
+        setRules(parsed.rules);
+        setRuleVars(parsed.variables);
+        if (parsed.issues.length > 0) {
+          setParseIssues((prev) => [...prev, ...parsed.issues]);
+        }
+      } catch {
+        if (!cancelled) {
+          setRules([]);
+          setRuleVars([]);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [programUid, api]);
+
+  // Evaluate rules on every value change — PR-002 "deterministic
+  // on initial load and every relevant value/context change".
+  // Memo so React reconciles only when the effect set actually
+  // shifts, preserving focus + scroll (§FR-009).
+  const ruleEffects = useMemo(
+    () => evaluateRules(rules, ruleVars, values),
+    [rules, ruleVars, values]);
+
+  const effectiveSections = useMemo(
+    () => applyRuleEffectsToSections(sections, ruleEffects),
+    [sections, ruleEffects]);
+
   // Fetch recent events scoped to program + OU.
   useEffect(() => {
     let cancelled = false;
@@ -106,8 +155,11 @@ export function EventWorkflow(
   const canSubmit = useMemo(() => {
     if (stageUid === '') return false;
     if (submitState === 'submitting') return false;
-    return requiredFieldsComplete(sections, values);
-  }, [stageUid, submitState, sections, values]);
+    // Honor rule-driven required overrides + rule-hidden fields —
+    // required-field completeness is evaluated against the
+    // effective form, not the raw metadata.
+    return requiredFieldsComplete(effectiveSections, values);
+  }, [stageUid, submitState, effectiveSections, values]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
@@ -154,9 +206,14 @@ export function EventWorkflow(
                  data-test="ce-occurred-at" />
         </label>
         <span className="cap-section-head__count">
-          {sections.reduce((acc, s) => acc + s.fields.length, 0)}{' '}
-          field{sections.reduce((acc, s) => acc + s.fields.length, 0)
+          {effectiveSections.reduce((acc, s) => acc + s.fields.length, 0)}{' '}
+          field{effectiveSections.reduce((acc, s) => acc + s.fields.length, 0)
             === 1 ? '' : 's'}
+          {rules.length > 0 && (
+            <> · <span title="Program rules loaded">
+              {rules.length} rule{rules.length === 1 ? '' : 's'}
+            </span></>
+          )}
         </span>
       </div>
 
@@ -174,9 +231,23 @@ export function EventWorkflow(
           </ul>
         </div>
       )}
-      {sections.length > 0 && (
+      {ruleEffects.warnings.length > 0 && (
+        <div className="cap-strip cap-strip--info"
+             data-test="ce-rule-warnings">
+          <strong>Program-rule notes:</strong>
+          <ul style={{ margin: '4px 0 0 20px', padding: 0 }}>
+            {ruleEffects.warnings.map((w, i) => (
+              <li key={i} style={{ fontSize: 12,
+                color: w.severity === 'error' ? '#8a2525' : '#0a5497' }}>
+                {w.severity === 'error' ? '✦ ' : '• '}{w.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {effectiveSections.length > 0 && (
         <form onSubmit={onSubmit} data-test="ce-form">
-          <FormEngine sections={sections} values={values}
+          <FormEngine sections={effectiveSections} values={values}
                        onChange={(k, v) => setValues((prev) => ({
                          ...prev, [k]: v }))} />
 
@@ -194,7 +265,7 @@ export function EventWorkflow(
                 <span>
                   <strong>
                     {Object.values(values).filter((v) => v !== '').length}
-                  </strong> of {sections.reduce(
+                  </strong> of {effectiveSections.reduce(
                     (acc, s) => acc + s.fields.length, 0)} filled
                 </span>
               )}
