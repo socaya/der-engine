@@ -729,6 +729,15 @@ export const CAPTURE_STYLES = `
   color: var(--der-primary-strong);
   font-style: italic;
 }
+/* Selection rectangle — subtle tint across the range; the anchor
+ * cell gets a sharper outline so operators can see where their
+ * next keystroke lands without checking which cell has focus. */
+.cap-sheet__cell--selected {
+  background: var(--der-primary-subtle) !important;
+}
+.cap-sheet__cell--anchor {
+  box-shadow: inset 0 0 0 2px var(--der-primary) !important;
+}
 @keyframes cap-sheet-filldown {
   0%   { background: var(--der-primary-subtle); }
   100% { background: transparent; }

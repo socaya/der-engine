@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState,
-  type KeyboardEvent } from 'react';
+  type KeyboardEvent, type MouseEvent } from 'react';
 import type { CaptureApi, EventRow } from '../../shared/types';
 import type { CaptureField, CaptureFormSection,
   CaptureProgramRule, CaptureProgramRuleVariable }
@@ -67,6 +67,15 @@ export function EventSheetPage(
   const [load, setLoad] =
     useState<'loading' | 'idle' | 'err'>('loading');
   const [loadMsg, setLoadMsg] = useState<string | null>(null);
+  /** Selection rectangle — {anchor, focus} with inclusive bounds.
+   *  anchor is the cell the operator started from (click target);
+   *  focus is where they Shift-extended to. One-cell selections
+   *  have anchor === focus. null means nothing is selected and
+   *  single-cell edit mode is active. */
+  const [selection, setSelection] = useState<{
+    anchor: { row: number; col: number };
+    focus: { row: number; col: number };
+  } | null>(null);
   /** per-row save-timer handles, keyed by row index */
   const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   /** Live rows snapshot — React 18 defers functional setState until
@@ -80,6 +89,12 @@ export function EventSheetPage(
    *  Keyed by localKey, not rowIdx, so indices shifting (e.g. row
    *  deletes) don't reach back for the wrong row. */
   const undoStack = useRef<Array<Array<{
+    localKey: string; fieldId: string; oldValue: string;
+  }>>>([]);
+  /** Redo stack — undoLastBatch pushes here; redoLastBatch pops.
+   *  Cleared on every new mutation per the standard Excel/GSheet
+   *  contract (branching the history isn't worth the model cost). */
+  const redoStack = useRef<Array<Array<{
     localKey: string; fieldId: string; oldValue: string;
   }>>>([]);
   const UNDO_MAX = 50;
@@ -281,7 +296,9 @@ export function EventSheetPage(
     timers.current.set(rowIndex, t);
   }, [saveRow]);
 
-  /** Push an undo batch onto the stack, trimming at UNDO_MAX. */
+  /** Push an undo batch onto the stack, trimming at UNDO_MAX.
+   *  Clears the redo stack — a new mutation invalidates any
+   *  forward history (standard spreadsheet contract). */
   function pushUndo(batch: Array<{
     localKey: string; fieldId: string; oldValue: string;
   }>): void {
@@ -291,6 +308,7 @@ export function EventSheetPage(
       undoStack.current.splice(0,
         undoStack.current.length - UNDO_MAX);
     }
+    redoStack.current.length = 0;
   }
 
   function updateCell(rowIndex: number, deUid: string, v: string): void {
@@ -404,6 +422,61 @@ export function EventSheetPage(
     return targetRowIndexes.length;
   }
 
+  /** Serialize the selection rectangle to a TSV string. Row order
+   *  matches the sheet (top to bottom), column order matches the
+   *  grid. Hidden cells are serialised as empty string so the
+   *  rectangle stays rectangular (pasting back preserves layout). */
+  function serializeSelectionAsTsv(
+    sel: NonNullable<typeof selection>,
+  ): string {
+    const r0 = Math.min(sel.anchor.row, sel.focus.row);
+    const r1 = Math.max(sel.anchor.row, sel.focus.row);
+    const c0 = Math.min(sel.anchor.col, sel.focus.col);
+    const c1 = Math.max(sel.anchor.col, sel.focus.col);
+    const lines: string[] = [];
+    const snap = rowsRef.current;
+    for (let r = r0; r <= r1; r++) {
+      const cells: string[] = [];
+      const row = snap[r];
+      for (let c = c0; c <= c1; c++) {
+        const f = allFields[c];
+        if (!f || !row) { cells.push(''); continue; }
+        if (rowEffects[r]?.hiddenFieldIds.has(f.id)) {
+          cells.push('');
+        } else {
+          cells.push(row.values[f.id] ?? '');
+        }
+      }
+      lines.push(cells.join('\t'));
+    }
+    return lines.join('\n');
+  }
+
+  /** True when (row, col) is inside the current selection rectangle. */
+  function inSelection(row: number, col: number): boolean {
+    if (!selection) return false;
+    const r0 = Math.min(selection.anchor.row, selection.focus.row);
+    const r1 = Math.max(selection.anchor.row, selection.focus.row);
+    const c0 = Math.min(selection.anchor.col, selection.focus.col);
+    const c1 = Math.max(selection.anchor.col, selection.focus.col);
+    return row >= r0 && row <= r1 && col >= c0 && col <= c1;
+  }
+
+  /** Cell click handler — records the anchor (and optionally
+   *  extends focus with Shift held). Standard Excel semantics. */
+  function onCellMouseDown(e: MouseEvent<HTMLElement>,
+      row: number, col: number): void {
+    if (col < 0) return; // status + date columns aren't selectable.
+    if (e.shiftKey && selection) {
+      setSelection({ anchor: selection.anchor,
+        focus: { row, col } });
+    } else {
+      // A fresh click starts a one-cell selection. Keeping it set
+      // (instead of null) lets Shift+Arrow extend immediately.
+      setSelection({ anchor: { row, col }, focus: { row, col } });
+    }
+  }
+
   /** Rectangular paste — split the TSV text into a grid, map each
    *  cell into (startRow+r, startCol+c), update values in one
    *  setRows + one undo batch. Columns beyond the sheet are
@@ -501,22 +574,34 @@ export function EventSheetPage(
       cells: undoBatch.length });
   }
 
-  /** Pop the most recent undo batch and restore each cell. The
-   *  affected rows flip to dirty + auto-save via the existing
-   *  debounced pipeline so the central store matches what the
-   *  operator now sees on screen. */
-  function undoLastBatch(): number {
-    const batch = undoStack.current.pop();
-    if (!batch || batch.length === 0) return 0;
+  /** Shared swap-batch helper — applies a batch of
+   *  (localKey, fieldId, newValue) tuples to the rows and returns
+   *  the inverse batch (each tuple's previous value) so the caller
+   *  can push it onto the opposite stack. */
+  function applyBatch(batch: Array<{
+    localKey: string; fieldId: string; oldValue: string;
+  }>): { inverse: Array<{ localKey: string; fieldId: string;
+      oldValue: string }>; touchedRowIdxs: Set<number> } {
     const snap = rowsRef.current;
     const touchedKeys = new Set(batch.map((b) => b.localKey));
     const touchedRowIdxs = new Set<number>();
+    const inverse: Array<{ localKey: string; fieldId: string;
+      oldValue: string }> = [];
+    for (let i = 0; i < snap.length; i++) {
+      const r = snap[i];
+      if (!r || !touchedKeys.has(r.localKey)) continue;
+      for (const b of batch) {
+        if (b.localKey !== r.localKey) continue;
+        inverse.push({ localKey: b.localKey, fieldId: b.fieldId,
+          oldValue: r.values[b.fieldId] ?? '' });
+      }
+      touchedRowIdxs.add(i);
+    }
     setRows((prev) => {
       const copy = [...prev];
       for (let i = 0; i < copy.length; i++) {
         const r = copy[i];
         if (!r || !touchedKeys.has(r.localKey)) continue;
-        touchedRowIdxs.add(i);
         const nextValues: Record<string, string> = { ...r.values };
         for (const b of batch) {
           if (b.localKey !== r.localKey) continue;
@@ -530,12 +615,37 @@ export function EventSheetPage(
       }
       return copy;
     });
-    // Resolve touched local-keys → current indexes via snapshot too,
-    // in case the rows list was re-ordered between push + pop.
-    for (let i = 0; i < snap.length; i++) {
-      if (touchedKeys.has(snap[i]!.localKey)) {
-        touchedRowIdxs.add(i);
-      }
+    return { inverse, touchedRowIdxs };
+  }
+
+  /** Pop the most recent undo batch and restore each cell. The
+   *  affected rows flip to dirty + auto-save via the existing
+   *  debounced pipeline so the central store matches what the
+   *  operator now sees on screen. */
+  function undoLastBatch(): number {
+    const batch = undoStack.current.pop();
+    if (!batch || batch.length === 0) return 0;
+    const { inverse, touchedRowIdxs } = applyBatch(batch);
+    redoStack.current.push(inverse);
+    if (redoStack.current.length > UNDO_MAX) {
+      redoStack.current.splice(0,
+        redoStack.current.length - UNDO_MAX);
+    }
+    for (const i of touchedRowIdxs) scheduleSave(i);
+    return batch.length;
+  }
+
+  /** Pop the most recent redo batch and re-apply. Symmetric with
+   *  undoLastBatch: pushes the inverse onto the undo stack so the
+   *  operator can flip back and forth. */
+  function redoLastBatch(): number {
+    const batch = redoStack.current.pop();
+    if (!batch || batch.length === 0) return 0;
+    const { inverse, touchedRowIdxs } = applyBatch(batch);
+    undoStack.current.push(inverse);
+    if (undoStack.current.length > UNDO_MAX) {
+      undoStack.current.splice(0,
+        undoStack.current.length - UNDO_MAX);
     }
     for (const i of touchedRowIdxs) scheduleSave(i);
     return batch.length;
@@ -553,16 +663,67 @@ export function EventSheetPage(
     const [rowStr, colStr] = coord.split(':');
     const row = Number(rowStr); const col = Number(colStr);
     if (!Number.isFinite(row) || !Number.isFinite(col)) return;
-    // Ctrl+Z / Cmd+Z — pop the undo stack. Shift modifier
-    // (Ctrl+Shift+Z) is reserved for a future redo; for now we
-    // just no-op when Shift is held so the browser default is
-    // also suppressed.
+    // Ctrl+Z / Cmd+Z — undo. Ctrl+Shift+Z — redo.
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
       e.preventDefault();
-      if (e.shiftKey) return;
-      const popped = undoLastBatch();
+      if (e.shiftKey) {
+        const n = redoLastBatch();
+        // eslint-disable-next-line no-console
+        console.log('[sheet] redo', { cellsReapplied: n });
+      } else {
+        const n = undoLastBatch();
+        // eslint-disable-next-line no-console
+        console.log('[sheet] undo', { cellsReverted: n });
+      }
+      return;
+    }
+    // Ctrl+Y / Cmd+Y — alternate redo shortcut (Windows style).
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+      e.preventDefault();
+      const n = redoLastBatch();
       // eslint-disable-next-line no-console
-      console.log('[sheet] undo', { cellsReverted: popped });
+      console.log('[sheet] redo', { cellsReapplied: n });
+      return;
+    }
+    // Ctrl+C / Cmd+C over a multi-cell selection — build TSV of
+    // the selection rectangle and write to the clipboard. Single-
+    // cell selections fall through so the browser's native input
+    // copy honours the cursor's text selection.
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c'
+        && !e.shiftKey && selection
+        && !(selection.anchor.row === selection.focus.row
+             && selection.anchor.col === selection.focus.col)) {
+      if (typeof navigator === 'undefined'
+          || !navigator.clipboard?.writeText) return;
+      e.preventDefault();
+      const tsv = serializeSelectionAsTsv(selection);
+      void navigator.clipboard.writeText(tsv);
+      // eslint-disable-next-line no-console
+      console.log('[sheet] copy', { bytes: tsv.length });
+      return;
+    }
+    // Shift+Arrow — extend selection in that direction. Base case
+    // when nothing is selected yet: seed anchor at current cell.
+    if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown'
+        || e.key === 'ArrowLeft' || e.key === 'ArrowRight')
+        && col >= 0) {
+      const colMax = allFields.length - 1;
+      const rowMax = rowsRef.current.length - 1;
+      const current = selection ?? {
+        anchor: { row, col }, focus: { row, col },
+      };
+      const dRow = e.key === 'ArrowUp' ? -1
+        : e.key === 'ArrowDown' ? 1 : 0;
+      const dCol = e.key === 'ArrowLeft' ? -1
+        : e.key === 'ArrowRight' ? 1 : 0;
+      const nextFocus = {
+        row: Math.max(0, Math.min(rowMax,
+          current.focus.row + dRow)),
+        col: Math.max(0, Math.min(colMax,
+          current.focus.col + dCol)),
+      };
+      e.preventDefault();
+      setSelection({ anchor: current.anchor, focus: nextFocus });
       return;
     }
     // Ctrl+V / Cmd+V — intercept paste only when the clipboard
@@ -686,10 +847,12 @@ export function EventSheetPage(
         ~1&nbsp;second after your last keystroke. <strong>Tab</strong>
         / <strong>Shift+Tab</strong> move between cells, <strong>Enter
         </strong> jumps down to the next row, <strong>Ctrl+D</strong>
-        (<strong>⌘+D</strong>) fills the active cell's value down
-        through every row below, <strong>Ctrl+Z</strong> undoes the
-        last change, <strong>Ctrl+C</strong> / <strong>Ctrl+V</strong>
-        copy and paste the active cell.
+        fills the active cell's value down through every row below.
+        <strong>Shift+Click</strong> / <strong>Shift+Arrow</strong>
+        extend the selection; <strong>Ctrl+C</strong> copies the
+        selection as tab-separated rows; <strong>Ctrl+V</strong>
+        pastes clipboard TSV as a block. <strong>Ctrl+Z</strong> undoes,
+        <strong>Ctrl+Shift+Z</strong> redoes.
       </p>
 
       <div className="cap-sheet-wrap" data-test="ev-sheet"
@@ -806,11 +969,19 @@ export function EventSheetPage(
                   <td key={f.id}
                       data-cell-coord={rowIdx + ':' + colIdx}
                       tabIndex={-1}
+                      onMouseDown={(e) =>
+                        onCellMouseDown(e, rowIdx, colIdx)}
                       className={
                         (hidden ? 'cap-sheet__cell--hidden ' : '')
                         + (cellHasError ? 'cap-sheet__cell--err ' : '')
                         + (cellHasWarn ? 'cap-sheet__cell--warn ' : '')
                         + (isAssigned ? 'cap-sheet__cell--assigned ' : '')
+                        + (inSelection(rowIdx, colIdx)
+                          ? 'cap-sheet__cell--selected ' : '')
+                        + (selection
+                          && selection.anchor.row === rowIdx
+                          && selection.anchor.col === colIdx
+                            ? 'cap-sheet__cell--anchor ' : '')
                       }
                       title={cellWarnings.length > 0
                         ? cellWarnings.map((w) =>
