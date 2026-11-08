@@ -544,28 +544,30 @@ export const CAPTURE_STYLES = `
   outline: none;
   box-shadow: 0 0 0 2px var(--der-surface), 0 0 0 4px var(--der-primary);
 }
-/* === DER Modern Form — airy two-column grid, hairline section
- *     rule, no fieldset box. Operators scan labels vertically
- *     instead of fighting a dense 4-col grid, and the section
- *     head reads as a header instead of a tiny caption.
+/* === DER Modern Form — full-width responsive grid, Data Entry
+ *     input styling, DER-standard visible labels. Fills the
+ *     page horizontally so there's no dead space on wide
+ *     screens; grid flows from 1 → 2 → 3 columns as width
+ *     allows. Inputs mirror Data Entry (#aaa border, 15px
+ *     font, inset focus ring) and labels mirror the sign-in
+ *     InputField (13px dark text, weight 500).
  *
  *     Design rules:
- *       - fieldset has no border/padding (native groove removed)
- *       - 2-col grid capped at 960px max width; 1-col at <720px
- *       - inputs: soft var(--der-border), 3px radius, 14px font
- *       - section title: 14px semibold, hairline rule under it,
- *         filled-count pushed to the right
+ *       - fieldset: border + padding stripped (no box)
+ *       - grid: auto-fit, minmax(300px, 1fr) — fills viewport
+ *       - labels: 13px var(--der-text) weight 500 (visible)
+ *       - inputs: 15px, #a5adbb border, 3px radius, inset
+ *         focus ring like the sign-in form + Data Entry
  */
-.cap-form { padding: 8px 20px 14px 20px;
-            display: flex; flex-direction: column; gap: 24px; }
+.cap-form { padding: 10px 20px 14px 20px;
+            display: flex; flex-direction: column; gap: 26px; }
 .cap-form-section {
   border: 0; padding: 0; margin: 0;
-  max-width: 960px;
 }
 .cap-form-section__title {
   display: flex; align-items: baseline; gap: 10px;
   width: 100%;
-  font-size: 14px; font-weight: 600;
+  font-size: 15px; font-weight: 600;
   color: var(--der-text);
   padding: 0 0 8px 0;
   border-bottom: 1px solid var(--der-border-soft);
@@ -573,7 +575,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-form-section__title-text { color: var(--der-text); }
 .cap-form-section__title-count {
-  font-size: 11px; font-weight: 400;
+  font-size: 12px; font-weight: 400;
   color: var(--der-text-muted);
   margin-left: auto;
   text-transform: none; letter-spacing: 0;
@@ -581,41 +583,48 @@ export const CAPTURE_STYLES = `
 .cap-form-section__req-ok { color: var(--der-success); font-weight: 500; }
 .cap-form-section__req-pending { color: var(--der-warning); font-weight: 500; }
 .cap-form-section__grid {
-  display: grid; grid-template-columns: 1fr;
-  gap: 16px 28px; margin-top: 14px;
-  max-width: 960px;
-}
-@media (min-width: 720px) {
-  .cap-form-section__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 18px 28px; margin-top: 14px;
 }
 .cap-input {
   display: flex; flex-direction: column; gap: 5px;
+  min-width: 0;
 }
 .cap-input__label {
-  font-size: 12px; color: var(--der-text-muted); font-weight: 400;
+  font-size: 13px;
+  color: var(--der-text);
+  font-weight: 500;
+  line-height: 1.3;
 }
 .cap-input__req { color: var(--der-danger); margin-left: 3px; }
+/* Inputs — mirror Data Entry's .sectionTable input exactly so
+ * operators see one field style across apps. 1px #a5adbb border,
+ * 15px font, 6/8 padding, white bg, inset focus ring in brand
+ * blue (same ring the sign-in InputField uses). */
 .cap-input__ctl {
-  padding: 7px 10px;
-  border: 1px solid var(--der-border); border-radius: 3px;
-  font-size: 14px; background: var(--der-surface);
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #a5adbb; border-radius: 3px;
+  font-size: 15px; line-height: 1.4;
+  background: #fff;
   color: var(--der-text); font-family: inherit;
-  transition: border-color 120ms, box-shadow 120ms;
+  transition: border-color 100ms, box-shadow 100ms;
 }
 .cap-input__ctl:hover:not(:disabled):not(:read-only) {
-  border-color: var(--der-text-muted);
+  border-color: var(--der-text);
 }
 .cap-input__ctl:focus {
-  outline: none; border-color: var(--der-primary);
-  box-shadow: 0 0 0 2px rgba(20,124,215,0.18);
+  outline: 0;
+  border-color: var(--der-primary);
+  box-shadow: inset 0 0 0 2px var(--der-primary);
 }
 .cap-input__ctl--ro {
-  background: var(--der-surface-subtle); color: var(--der-text-muted);
+  background: #f0f3fb; color: var(--der-text-muted);
+  cursor: default;
 }
 .cap-input__help {
-  font-size: 11px; color: var(--der-text-muted);
+  font-size: 12px; color: var(--der-text-muted);
 }
 .cap-field-warn {
   font-size: 11px; color: var(--der-warning);
