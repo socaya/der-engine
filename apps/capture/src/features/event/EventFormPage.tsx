@@ -269,9 +269,9 @@ export function EventFormPage(
           <StageSelect stages={stages} value={stageUid}
                         onChange={setStageUid} />
         )}
-        <label className="cap-input" style={{ minWidth: 160 }}>
-          <span className="cap-toolbar__field-label">Event date</span>
-          <input className="cap-input__ctl" type="date"
+        <label className="cap-section-head__inline">
+          <span className="cap-section-head__inline-label">Event date</span>
+          <input className="cap-section-head__inline-ctl" type="date"
                  value={occurredAt}
                  onChange={(e) => setOccurredAt(e.target.value)}
                  onClick={openDatePicker}

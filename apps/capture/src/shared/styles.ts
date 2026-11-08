@@ -503,21 +503,48 @@ export const CAPTURE_STYLES = `
 }
 
 .cap-section-head {
-  margin: 20px 20px 10px 20px;
-  display: flex; align-items: center; gap: 12px;
+  margin: 16px 20px 12px 20px;
+  display: flex; align-items: center; gap: 14px;
+  flex-wrap: wrap;
+  min-height: 32px;
 }
 .cap-section-head__title {
-  margin: 0; font-size: 12px; font-weight: 500; letter-spacing: 0.02em;
+  margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0;
   color: var(--der-text);
 }
 .cap-section-head__count {
-  font-size: 12px; color: var(--der-text-faint); font-weight: 400;
+  font-size: 12px; color: var(--der-text-muted); font-weight: 400;
 }
 .cap-section-head__rule {
   /* Pure flex spacer — the original border-top rule read as busy
    * clutter next to each list/section title, so we keep the layout
    * role but drop the hairline. */
   flex: 1;
+}
+/* Inline label + control pair for toolbar rows — label on the
+ * left, control on the right, both centered so the whole row
+ * reads as one professional strip. Used in event/tracker form
+ * heads where stacking the label above the control would break
+ * the single-row intent. */
+.cap-section-head__inline {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--der-text); font-weight: 500;
+}
+.cap-section-head__inline-label {
+  color: var(--der-text); font-weight: 500;
+}
+.cap-section-head__inline-ctl {
+  padding: 4px 8px;
+  border: 1px solid #a5adbb; border-radius: 3px;
+  font-size: 13px; line-height: 1.3;
+  background: #fff; color: var(--der-text);
+  font-family: inherit;
+  transition: border-color 100ms, box-shadow 100ms;
+}
+.cap-section-head__inline-ctl:focus {
+  outline: 0;
+  border-color: var(--der-primary);
+  box-shadow: inset 0 0 0 2px var(--der-primary);
 }
 
 /* Shared form engine styling — sections + typed inputs. Mirrors
