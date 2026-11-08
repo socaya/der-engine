@@ -238,6 +238,18 @@ export function TrackerDetailPage(
             <code>{teiId}</code>
           </span>
         </span>
+        {enrolments.length >= 1 && (
+          <div className="cap-section-head__right">
+            <button type="button"
+                    className="cap-btn cap-btn--secondary"
+                    data-test="tr-enrol-add"
+                    style={{ padding: '4px 12px', fontSize: 12 }}
+                    title="Create another enrolment on this tracked entity"
+                    onClick={() => navTracker.enrol(programUid, teiId)}>
+              + Enrol again
+            </button>
+          </div>
+        )}
       </div>
 
       {status === 'idle' && enrolments.length === 0 && (
@@ -261,23 +273,11 @@ export function TrackerDetailPage(
         </div>
       )}
 
-      {enrolments.length >= 1 && (
-        <div className="cap-section-head" data-test="tr-enrol-section-head">
-          <h2 className="cap-section-head__title">Enrolments</h2>
-          <span className="cap-section-head__count">
-            {enrolments.length} total
-          </span>
-          <span className="cap-section-head__rule" />
-          <button type="button"
-                  className="cap-btn cap-btn--secondary"
-                  data-test="tr-enrol-add"
-                  style={{ padding: '4px 12px', fontSize: 12 }}
-                  title="Create another enrolment on this tracked entity"
-                  onClick={() => navTracker.enrol(programUid, teiId)}>
-            + Enrol again
-          </button>
-        </div>
-      )}
+      {/* Enrolments list — no separate section head; the count
+       *  lives on the top toolbar ("1 enrolment") and the
+       *  + Enrol again action moved there too, so the operator
+       *  sees one consolidated header instead of two stacked
+       *  rows. */}
       {enrolments.length >= 1 && (
         <ul className="cap-list" data-test="tr-enrolment-list">
           {enrolments.map((e) => (
