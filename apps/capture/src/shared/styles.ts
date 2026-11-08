@@ -15,6 +15,19 @@ export const CAPTURE_STYLES = `
   background: #fff;
   border-bottom: 1px solid #e3e8f0;
 }
+@media (max-width: 760px) {
+  .cap-toolbar {
+    /* Stack the brand row + each selector field on narrow screens
+     * so the toolbar never overflows horizontally. */
+    grid-template-columns: 1fr;
+  }
+  .cap-toolbar__brand {
+    flex-wrap: wrap;
+  }
+  .cap-toolbar__mode {
+    justify-self: start;
+  }
+}
 .cap-toolbar__brand {
   display: flex; align-items: center; gap: 10px;
   padding-bottom: 1px;
@@ -184,10 +197,20 @@ export const CAPTURE_STYLES = `
  * actions on the right (§5.3 StickyActionBar). */
 .cap-action-bar {
   position: sticky; bottom: 0; z-index: 5;
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   padding: 10px 14px; margin: 0 -14px -14px -14px;
   background: #fff;
   border-top: 1px solid #e3e8f0;
+}
+@media (max-width: 640px) {
+  .cap-action-bar {
+    gap: 8px;
+  }
+  .cap-action-bar__state {
+    flex-basis: 100%; order: -1;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #eef0f3;
+  }
 }
 .cap-action-bar__state {
   flex: 1; color: #6e7a8a; font-size: 12px;
