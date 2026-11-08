@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { CaptureField, CaptureFormSection } from './model';
+import type { RuleWarning } from './ruleEngine';
 import type { CaptureApi } from './types';
 
 /**
@@ -16,11 +17,15 @@ import type { CaptureApi } from './types';
  * app shares the same cache.</p>
  */
 export function FormEngine(
-  { api, sections, values, onChange }: {
+  { api, sections, values, onChange, warnings }: {
     api: CaptureApi;
     sections: readonly CaptureFormSection[];
     values: Record<string, string>;
     onChange: (dataElementUid: string, value: string) => void;
+    /** Optional per-field rule warnings. When a field id is present
+     *  as a key, its warnings are rendered inline beneath the input
+     *  (§PR-005 — distinguish advisory from blocking severity). */
+    warnings?: ReadonlyMap<string, readonly RuleWarning[]>;
   },
 ): JSX.Element {
   return (
@@ -34,7 +39,9 @@ export function FormEngine(
             </legend>
           )}
           <div className="cap-form-section__grid">
-            {s.fields.map((f) => (
+            {s.fields.map((f) => {
+              const fieldWarnings = warnings?.get(f.id) ?? [];
+              return (
               <label key={f.fieldRef} className="cap-input"
                      data-test={'cap-field-' + f.id}>
                 <span className="cap-input__label">
@@ -58,8 +65,19 @@ export function FormEngine(
                 {f.description && (
                   <span className="cap-input__help">{f.description}</span>
                 )}
+                {fieldWarnings.map((w, wi) => (
+                  <span key={wi}
+                        className={'cap-field-warn'
+                          + (w.severity === 'error'
+                            ? ' cap-field-warn--err' : '')}
+                        data-test={'cap-field-warn-' + f.id + '-' + wi}
+                        role={w.severity === 'error' ? 'alert' : 'status'}>
+                    {w.severity === 'error' ? '✦ ' : '• '}{w.message}
+                  </span>
+                ))}
               </label>
-            ))}
+              );
+            })}
           </div>
         </fieldset>
       ))}

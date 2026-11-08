@@ -214,6 +214,15 @@ export const CAPTURE_STYLES = `
 .cap-input__help {
   font-size: 11px; color: #6e7a8a;
 }
+.cap-field-warn {
+  font-size: 11px; color: #A56518;
+  padding: 3px 6px; border-radius: 3px;
+  background: #fff4de; border: 1px solid #f4d7a2;
+}
+.cap-field-warn--err {
+  color: #8a2525;
+  background: #fbeaea; border-color: #e0bcbc;
+}
 
 /* Sticky action footer — one row: save-state on the left, primary
  * actions on the right (§5.3 StickyActionBar). */

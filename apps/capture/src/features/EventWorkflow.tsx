@@ -147,6 +147,15 @@ export function EventWorkflow(
   const effectiveSections = useMemo(
     () => applyRuleEffectsToSections(sections, ruleEffects),
     [sections, ruleEffects]);
+  const warningsByField = useMemo(() => {
+    const m = new Map<string, typeof ruleEffects.warnings>();
+    for (const w of ruleEffects.warnings) {
+      if (!w.fieldId) continue;
+      const list = m.get(w.fieldId) ?? [];
+      m.set(w.fieldId, [...list, w]);
+    }
+    return m;
+  }, [ruleEffects.warnings]);
 
   // Fetch recent events scoped to program + OU.
   useEffect(() => {
@@ -355,6 +364,7 @@ export function EventWorkflow(
           <SectionNav sections={effectiveSections} />
           <FormEngine api={api}
                        sections={effectiveSections} values={values}
+                       warnings={warningsByField}
                        onChange={(k, v) => setValues((prev) => ({
                          ...prev, [k]: v }))} />
 
