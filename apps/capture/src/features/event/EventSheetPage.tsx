@@ -158,6 +158,7 @@ export function EventSheetPage(
         hiddenFieldIds: new Set<string>(),
         hiddenSectionIds: new Set<string>(),
         mandatoryFieldIds: new Set<string>(),
+        assignedValues: new Map<string, string>(),
         warnings: [] as readonly RuleWarning[],
         issues: [],
       }));
@@ -202,7 +203,18 @@ export function EventSheetPage(
       return copy;
     });
     try {
-      const dataValues = Object.entries(latest.values)
+      // ASSIGN rule outputs merge in on top of typed values so the
+      // saved event includes everything DHIS2 would compute client-
+      // side. Operator-typed values take precedence — ASSIGN never
+      // overwrites a cell the operator has already filled (parity
+      // with DHIS2 Capture's ASSIGN semantics when a value exists).
+      const merged: Record<string, string> = { ...latest.values };
+      if (effects?.assignedValues) {
+        for (const [k, v] of effects.assignedValues.entries()) {
+          if (!merged[k] || merged[k].trim() === '') merged[k] = v;
+        }
+      }
+      const dataValues = Object.entries(merged)
         .filter(([, v]) => v != null && v.trim() !== '')
         .map(([dataElement, value]) => ({ dataElement, value }));
       if (dataValues.length === 0 && !latest.eventUid) {
@@ -313,8 +325,51 @@ export function EventSheetPage(
     setRows((prev) => prev.filter((_, i) => i !== rowIndex));
   }
 
-  // Keyboard navigation — Tab / Shift+Tab move between cells
-  // (native). Enter moves down one row in the same column.
+  /** Fill the active cell's value down through every subsequent
+   *  row in the same column. Mirrors Excel / Google Sheets Ctrl+D
+   *  with a simple contract: the active cell is the source, every
+   *  row below is the target, each affected row auto-saves via
+   *  the existing debounced pipeline.
+   *
+   *  <p>Hidden cells for a particular row (via HIDEFIELD) are
+   *  skipped — operators don't want a fill-down to populate cells
+   *  a program rule says should not apply.</p> */
+  function fillDown(sourceRow: number, fieldId: string): number {
+    // Count BEFORE calling setRows: React 18 strict mode re-invokes
+    // functional updaters, so a counter inside the updater double-
+    // or zero-counts (second pass sees the already-updated state).
+    const snapshot = rowsRef.current;
+    const sourceValue = snapshot[sourceRow]?.values[fieldId] ?? '';
+    const targetRowIndexes: number[] = [];
+    for (let i = sourceRow + 1; i < snapshot.length; i++) {
+      if (rowEffects[i]?.hiddenFieldIds.has(fieldId)) continue;
+      if (snapshot[i]?.values[fieldId] === sourceValue) continue;
+      targetRowIndexes.push(i);
+    }
+    if (targetRowIndexes.length === 0) return 0;
+    const targetSet = new Set(targetRowIndexes);
+    setRows((prev) => {
+      const copy = [...prev];
+      for (const i of targetSet) {
+        const r = copy[i];
+        if (!r) continue;
+        copy[i] = {
+          ...r,
+          values: { ...r.values, [fieldId]: sourceValue },
+          saveState: 'dirty',
+        };
+      }
+      return copy;
+    });
+    // Debounced save per row — leverages the per-row timer map so
+    // the fire schedule is the same as a manual keystroke.
+    for (const i of targetRowIndexes) scheduleSave(i);
+    return targetRowIndexes.length;
+  }
+
+  // Keyboard navigation + fill-down. Tab / Shift+Tab move between
+  // cells (native). Enter moves down one row in the same column.
+  // Ctrl+D (or Cmd+D on macOS) fires fill-down from the active cell.
   function onGridKeyDown(e: KeyboardEvent<HTMLDivElement>): void {
     const target = e.target as HTMLElement;
     const cell = target.closest<HTMLElement>('[data-cell-coord]');
@@ -324,6 +379,25 @@ export function EventSheetPage(
     const [rowStr, colStr] = coord.split(':');
     const row = Number(rowStr); const col = Number(colStr);
     if (!Number.isFinite(row) || !Number.isFinite(col)) return;
+    // Ctrl+D / Cmd+D — fill down the active cell. The browser's
+    // default Ctrl+D (bookmark) is suppressed.
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+      if (col < 0) return; // skip the date column
+      const field = allFields[col];
+      if (!field) return;
+      e.preventDefault();
+      const n = fillDown(row, field.id);
+      // Visual flash: briefly flag the source cell so operators see
+      // what just happened. Peel the class off after the CSS
+      // animation completes (300 ms).
+      cell.classList.add('cap-sheet__cell--filldown-flash');
+      setTimeout(() =>
+        cell.classList.remove('cap-sheet__cell--filldown-flash'), 300);
+      // eslint-disable-next-line no-console
+      console.log('[sheet] fill-down', { row, field: field.id,
+        rowsFilled: n });
+      return;
+    }
     if (e.key === 'Enter') {
       e.preventDefault();
       const next = document.querySelector<HTMLElement>(
@@ -394,9 +468,12 @@ export function EventSheetPage(
         </button>
       </div>
       <p className="cap-sub" style={{ marginLeft: 14, marginTop: -6 }}>
-        Type directly into cells — rows save automatically ~1&nbsp;second
-        after your last keystroke. Tab / Shift+Tab move between cells,
-        Enter jumps down to the next row.
+        Type directly into cells — rows save automatically
+        ~1&nbsp;second after your last keystroke. <strong>Tab</strong>
+        / <strong>Shift+Tab</strong> move between cells, <strong>Enter
+        </strong> jumps down to the next row, <strong>Ctrl+D</strong>
+        (<strong>⌘+D</strong>) fills the active cell's value down
+        through every row below.
       </p>
 
       <div className="cap-sheet-wrap" data-test="ev-sheet"
@@ -497,6 +574,18 @@ export function EventSheetPage(
                     (w) => w.severity === 'error');
                   const cellHasWarn = cellWarnings.length > 0
                     && !cellHasError;
+                  // ASSIGN output — live computed value overlays
+                  // the typed value only when the typed value is
+                  // empty. Flag the cell visually so operators know
+                  // the value came from a rule, not their keystrokes.
+                  const typedValue = r.values[f.id] ?? '';
+                  const assignedValue = effects?.assignedValues.get(f.id);
+                  const effectiveValue = (typedValue.trim() === ''
+                    && assignedValue != null)
+                    ? assignedValue : typedValue;
+                  const isAssigned = typedValue.trim() === ''
+                    && assignedValue != null
+                    && assignedValue.trim() !== '';
                   return (
                   <td key={f.id}
                       data-cell-coord={rowIdx + ':' + colIdx}
@@ -505,12 +594,16 @@ export function EventSheetPage(
                         (hidden ? 'cap-sheet__cell--hidden ' : '')
                         + (cellHasError ? 'cap-sheet__cell--err ' : '')
                         + (cellHasWarn ? 'cap-sheet__cell--warn ' : '')
+                        + (isAssigned ? 'cap-sheet__cell--assigned ' : '')
                       }
                       title={cellWarnings.length > 0
                         ? cellWarnings.map((w) =>
                           (w.severity === 'error' ? 'ERROR: ' : 'warn: ')
                           + w.message).join('\n')
                         : hidden ? 'Hidden by a program rule for this row'
+                        : isAssigned
+                        ? 'Computed by an ASSIGN program rule — type a '
+                          + 'value to override.'
                         : undefined}>
                     {hidden ? (
                       <span className="cap-sheet__cell-hidden-marker"
@@ -519,7 +612,7 @@ export function EventSheetPage(
                       <SheetCell api={api}
                                  field={mandatory !== f.required
                                    ? { ...f, required: mandatory } : f}
-                                 value={r.values[f.id] ?? ''}
+                                 value={effectiveValue}
                                  onChange={(v) =>
                                    updateCell(rowIdx, f.id, v)}
                                  onCommit={() => {

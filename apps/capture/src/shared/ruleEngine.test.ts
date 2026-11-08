@@ -255,15 +255,51 @@ describe('evaluateRules', () => {
   });
 
   it('flags unsupported action types so they are visibly deferred', () => {
+    // HIDEOPTION is still unimplemented — it stays in the
+    // "not applied" bucket. (ASSIGN moved out of the bucket in
+    // SHEET-C1; see the dedicated ASSIGN test below.)
     const rule = mkRule({
       id: 'R1', condition: 'true',
-      actions: [{ id: 'A1', type: 'ASSIGN',
-        dataElementId: 'DE_computed', trackedEntityAttributeId: null,
+      actions: [{ id: 'A1', type: 'HIDEOPTION',
+        dataElementId: 'DE_x', trackedEntityAttributeId: null,
         programStageId: null, programStageSectionId: null,
-        content: 'weight / 2', data: null, location: null }],
+        content: null, data: null, location: null }],
     });
     const e = evaluateRules([rule], [], {});
     expect(e.issues.some((i) => i.code === 'RULE_ACTION_NOT_APPLIED')).toBe(true);
+  });
+
+  it('ASSIGN writes a computed value into assignedValues', () => {
+    // d2:hasValue is already supported by the expression engine.
+    // Use an expression the engine can evaluate end-to-end — the
+    // string literal path avoids needing arithmetic on strings.
+    const rule = mkRule({
+      id: 'R-assign', condition: 'true',
+      actions: [{ id: 'A1', type: 'ASSIGN',
+        dataElementId: 'DE_computed', trackedEntityAttributeId: null,
+        programStageId: null, programStageSectionId: null,
+        content: 'constant string',
+        data: "'hello'", location: null }],
+    });
+    const e = evaluateRules([rule], [], {});
+    expect(e.assignedValues.get('DE_computed')).toBe('hello');
+    // ASSIGN no longer surfaces as RULE_ACTION_NOT_APPLIED.
+    expect(e.issues.filter((i) =>
+      i.code === 'RULE_ACTION_NOT_APPLIED')).toEqual([]);
+  });
+
+  it('ASSIGN with no target surfaces a RULE_ASSIGN_NO_TARGET issue', () => {
+    const rule = mkRule({
+      id: 'R-assign-notarget', condition: 'true',
+      actions: [{ id: 'A1', type: 'ASSIGN',
+        dataElementId: null, trackedEntityAttributeId: null,
+        programStageId: null, programStageSectionId: null,
+        content: null, data: "'x'", location: null }],
+    });
+    const e = evaluateRules([rule], [], {});
+    expect(e.issues.some((i) =>
+      i.code === 'RULE_ASSIGN_NO_TARGET')).toBe(true);
+    expect(e.assignedValues.size).toBe(0);
   });
 
   it('respects rule priority ordering — already sorted by the parser', () => {

@@ -670,8 +670,15 @@ export const CAPTURE_STYLES = `
 .cap-sheet-wrap {
   margin: 0 14px 14px 14px;
   overflow: auto;
-  max-height: calc(100vh - 220px);
+  /* Fill the viewport down to the bottom edge. Fixed-ish height so
+   * the grid feels like a desk — the workspace fills the screen
+   * even when the sheet is empty, instead of collapsing to a one-
+   * line banner. The 180px reserve covers the DER shell top bar +
+   * capture toolbar + sheet section head + help hint. */
+  height: calc(100vh - 180px);
+  min-height: 320px;
   border: 1px solid var(--der-border);
+  background: var(--der-surface);
 }
 .cap-sheet {
   width: 100%; border-collapse: separate; border-spacing: 0;
@@ -716,6 +723,18 @@ export const CAPTURE_STYLES = `
 }
 .cap-sheet__cell--err .cap-sheet__cell-input {
   background: var(--der-danger-subtle);
+}
+.cap-sheet__cell--assigned .cap-sheet__cell-input {
+  background: var(--der-primary-subtle);
+  color: var(--der-primary-strong);
+  font-style: italic;
+}
+@keyframes cap-sheet-filldown {
+  0%   { background: var(--der-primary-subtle); }
+  100% { background: transparent; }
+}
+.cap-sheet__cell--filldown-flash {
+  animation: cap-sheet-filldown 300ms ease-out;
 }
 .cap-sheet__rule-badge {
   display: inline-block; margin-left: 4px;
@@ -776,9 +795,9 @@ export const CAPTURE_STYLES = `
 }
 .cap-sheet__row-del:hover { color: var(--der-danger); }
 .cap-sheet__empty {
-  padding: 16px; text-align: center;
+  padding: 48px 16px; text-align: center;
   color: var(--der-text-muted); font-size: 13px;
-  background: var(--der-surface-subtle);
+  background: var(--der-surface);
 }
 
 .cap-view-toggle {

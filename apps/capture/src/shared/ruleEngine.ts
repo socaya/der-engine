@@ -44,6 +44,11 @@ export interface RuleEffectSet {
   readonly hiddenFieldIds: ReadonlySet<string>;
   readonly hiddenSectionIds: ReadonlySet<string>;
   readonly mandatoryFieldIds: ReadonlySet<string>;
+  /** Values produced by ASSIGN actions, keyed by dataElement/TEA UID.
+   *  Consumers merge these into the row's typed values before
+   *  rendering + persistence (DHIS2 parity: ASSIGN writes into
+   *  the cell that referenced data element). */
+  readonly assignedValues: ReadonlyMap<string, string>;
   readonly warnings: readonly RuleWarning[];
   readonly issues: readonly CaptureParseIssue[];
 }
@@ -52,6 +57,7 @@ const EMPTY_EFFECTS: RuleEffectSet = {
   hiddenFieldIds: new Set(),
   hiddenSectionIds: new Set(),
   mandatoryFieldIds: new Set(),
+  assignedValues: new Map(),
   warnings: [],
   issues: [],
 };
@@ -66,6 +72,7 @@ export function evaluateRules(
   const hiddenFieldIds = new Set<string>();
   const hiddenSectionIds = new Set<string>();
   const mandatoryFieldIds = new Set<string>();
+  const assignedValues = new Map<string, string>();
   const warnings: RuleWarning[] = [];
   const issues: CaptureParseIssue[] = [];
 
@@ -106,12 +113,12 @@ export function evaluateRules(
     }
     if (!result.value) continue;
     for (const action of rule.actions) applyAction(action, rule,
-      hiddenFieldIds, hiddenSectionIds, mandatoryFieldIds, warnings,
-      issues, varLookup);
+      hiddenFieldIds, hiddenSectionIds, mandatoryFieldIds, assignedValues,
+      warnings, issues, varLookup);
   }
 
   return { hiddenFieldIds, hiddenSectionIds, mandatoryFieldIds,
-    warnings, issues };
+    assignedValues, warnings, issues };
 }
 
 function applyAction(
@@ -120,6 +127,7 @@ function applyAction(
   hiddenFieldIds: Set<string>,
   hiddenSectionIds: Set<string>,
   mandatoryFieldIds: Set<string>,
+  assignedValues: Map<string, string>,
   warnings: RuleWarning[],
   issues: CaptureParseIssue[],
   varLookup: ReadonlyMap<string, { value: string; hasValue: boolean }>,
@@ -161,8 +169,44 @@ function applyAction(
       });
       return;
     }
+    case 'ASSIGN': {
+      // DHIS2 ASSIGN writes a computed value into the targeted
+      // dataElement (or TEA). action.data holds the expression,
+      // action.dataElementId / trackedEntityAttributeId holds the
+      // write target. Last ASSIGN wins when the same target appears
+      // in multiple rules — matches DHIS2's priority-ordered eval.
+      const target = action.dataElementId
+        ?? action.trackedEntityAttributeId;
+      if (!target) {
+        issues.push({ severity: 'warning',
+          code: 'RULE_ASSIGN_NO_TARGET',
+          message: `ASSIGN rule "${rule.name}" has no target field`,
+          path: 'programRules[' + rule.id + '].actions['
+            + action.id + ']' });
+        return;
+      }
+      if (!action.data) {
+        // Bare ASSIGN with no expression: clear the cell.
+        assignedValues.set(target, '');
+        return;
+      }
+      const r = evaluateExpression(action.data, varLookup);
+      if (r.kind !== 'ok') {
+        issues.push({ severity: 'warning',
+          code: 'RULE_ASSIGN_EXPR_UNSUPPORTED',
+          message: `ASSIGN rule "${rule.name}" could not evaluate its `
+            + 'expression: ' + r.reason,
+          path: 'programRules[' + rule.id + '].actions['
+            + action.id + ']' });
+        return;
+      }
+      assignedValues.set(target, typeof r.value === 'string'
+        ? r.value
+        : typeof r.value === 'boolean' ? (r.value ? 'true' : 'false')
+        : String(r.value));
+      return;
+    }
     case 'HIDEPROGRAMSTAGE':
-    case 'ASSIGN':
     case 'HIDEOPTION':
     case 'HIDEOPTIONGROUP':
     case 'SHOWOPTIONGROUP':
