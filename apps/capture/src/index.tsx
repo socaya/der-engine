@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useOrgUnitBinding, useOnlineStatus, useDerApi, useDevice,
-  ScreenCard, StatusPill,
+  ScreenCard,
 } from '@der/app-sdk';
 
 import { DistributedWorkflowPanel, programFromWorkflow } from
@@ -281,10 +281,8 @@ function CaptureAppInner(): JSX.Element {
                     fill="currentColor"/>
             </svg>
           </button>
-          <StatusPill tone={online.isOnline ? 'success' : 'warning'}>
-            {online.isOnline
-              ? 'online' : `offline (${online.queuedCount} queued)`}
-          </StatusPill>
+          <OfflineStatus isOnline={online.isOnline}
+                          queuedCount={online.queuedCount} />
           <DirtyChip />
           {/* Bound OU lives on the brand row, flush right — same
            *  placement as the Data Entry app (§DER-STYLE-002). */}
@@ -476,6 +474,54 @@ function CaptureAppInner(): JSX.Element {
                                deviceAssignedWorkflows.length} />
       )}
     </ScreenCard>
+  );
+}
+
+/**
+ * Offline-first status indicator. Four states, each with a
+ * distinct dot colour + plain-English label so the operator
+ * doesn't have to interpret 'queue' or 'offline' in the abstract:
+ *
+ *   • Online + 0 queued → green '• Live sync'
+ *   • Online + N queued → amber '• Syncing · N pending'
+ *   • Offline + 0 queued → grey '• Offline'
+ *   • Offline + N queued → amber '• Offline · N held locally'
+ */
+function OfflineStatus(
+  { isOnline, queuedCount }:
+  { isOnline: boolean; queuedCount: number },
+): JSX.Element {
+  const kind = !isOnline && queuedCount > 0 ? 'offline-held'
+    : !isOnline ? 'offline'
+    : queuedCount > 0 ? 'syncing'
+    : 'live';
+  const labels: Record<typeof kind, string> = {
+    'live': 'Live sync',
+    'syncing': `Syncing · ${queuedCount} pending`,
+    'offline': 'Offline',
+    'offline-held': `Offline · ${queuedCount} held locally`,
+  };
+  const titles: Record<typeof kind, string> = {
+    'live': 'Device is online. Writes land on the edge AND '
+      + 'propagate to central DHIS2 immediately.',
+    'syncing': 'Device is online but the drain worker is still '
+      + 'catching up. Writes land safely on the edge; central '
+      + 'sync follows.',
+    'offline': 'No WAN link to central DHIS2. Writes land on '
+      + 'the facility edge and queue for sync when the link '
+      + 'returns (§ED-001).',
+    'offline-held': 'No WAN link. Captures are held safely on '
+      + 'the facility edge; they will publish to central DHIS2 '
+      + 'automatically when the link returns.',
+  };
+  return (
+    <span className={'cap-net-status cap-net-status--' + kind}
+          data-test="cap-net-status"
+          role="status" aria-live="polite"
+          title={titles[kind]}>
+      <span className="cap-net-status__dot" aria-hidden="true" />
+      {labels[kind]}
+    </span>
   );
 }
 

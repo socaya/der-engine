@@ -76,6 +76,40 @@ export const CAPTURE_STYLES = `
   color: #147CD7; cursor: pointer; padding: 0;
 }
 .cap-toolbar__info-btn:hover { background: #eef2f8; }
+.cap-net-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0; font-size: 12px; font-weight: 500;
+  color: var(--cap-ink-700, #263352);
+  background: transparent; border: 0;
+  white-space: nowrap; cursor: help;
+}
+.cap-net-status__dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #94a3b8;
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.18);
+}
+.cap-net-status--live .cap-net-status__dot {
+  background: #1E8E4A;
+  box-shadow: 0 0 0 2px rgba(30, 142, 74, 0.2);
+}
+.cap-net-status--live { color: #136436; }
+.cap-net-status--syncing .cap-net-status__dot {
+  background: #F59E0B;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.22);
+  animation: cap-pulse 1.6s ease-in-out infinite;
+}
+.cap-net-status--syncing { color: #A56518; }
+.cap-net-status--offline-held .cap-net-status__dot {
+  background: #F59E0B;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.22);
+}
+.cap-net-status--offline-held { color: #A56518; }
+.cap-net-status--offline { color: #6e7a8a; }
+@keyframes cap-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
 .cap-dirty-chip {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 0;
