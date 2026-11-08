@@ -40,13 +40,15 @@ function CaptureAppInner(): JSX.Element {
   const [programUid, setProgramUid] = useState('');
   const [infoOpen, setInfoOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  /** DER device workflows — surfaced when the operator has any
-   *  assigned, so they can launch a workflow run instead of the
-   *  plain tracker/event capture (requirements doc §1 plus the
-   *  wider DER capture-workflow story). When empty, we proceed
-   *  as normal capture. */
+  /** DER device workflows — fetched once on mount, then filtered
+   *  at render time to the currently-selected program. The strip
+   *  stays hidden until a program is picked AND at least one
+   *  workflow is bound to it; otherwise we proceed as plain
+   *  tracker/event capture (user ask). */
   const [workflows, setWorkflows] = useState<ReadonlyArray<{
-    workflowId: string; displayName: string }>>([]);
+    workflowId: string; displayName: string;
+    boundMetadataKind: string; boundMetadataId: string | null;
+  }>>([]);
 
   // Hash-based internal route lets the app expose deep links like
   // #/event and #/tracker without pulling a router in. Reserved
@@ -127,7 +129,9 @@ function CaptureAppInner(): JSX.Element {
         setWorkflows((r.workflows ?? [])
           .filter((w) => w.enabled !== false)
           .map((w) => ({ workflowId: w.workflowId,
-            displayName: w.displayName })));
+            displayName: w.displayName,
+            boundMetadataKind: w.boundMetadataKind ?? '',
+            boundMetadataId: w.boundMetadataId ?? null })));
       } catch {
         if (!cancelled) setWorkflows([]);
       }
@@ -276,40 +280,49 @@ function CaptureAppInner(): JSX.Element {
       )}
 
 
-      {/* Assigned device workflows — only when any are available
-       *  on this edge. The operator can launch one via Workflow
-       *  Capture; the plain tracker/event capture remains
-       *  available below. */}
-      {workflows.length > 0 && (
-        <div className="cap-wf-strip" data-test="cap-workflows">
-          <div className="cap-wf-strip__head">
-            <span className="cap-toolbar__field-label">
-              Device workflows
-            </span>
-            <span className="cap-wf-strip__count">
-              {workflows.length} available
-            </span>
+      {/* Assigned device workflows — only when a program is
+       *  selected AND at least one workflow is bound to that
+       *  program. Kinds that count: PROGRAM (whole-program
+       *  workflow), PROGRAM_STAGE / PROGRAM_STAGE_SECTION bound
+       *  to a stage of this program (we match on the program's
+       *  own ID today; stage-level matching lands when the
+       *  program's stage list is lifted into the shell). */}
+      {program && (() => {
+        const related = workflows.filter((w) =>
+          w.boundMetadataKind === 'PROGRAM'
+          && w.boundMetadataId === program.id);
+        if (related.length === 0) return null;
+        return (
+          <div className="cap-wf-strip" data-test="cap-workflows">
+            <div className="cap-wf-strip__head">
+              <span className="cap-toolbar__field-label">
+                Device workflows for this program
+              </span>
+              <span className="cap-wf-strip__count">
+                {related.length} available
+              </span>
+            </div>
+            <ul className="cap-wf-strip__list">
+              {related.slice(0, 6).map((w) => (
+                <li key={w.workflowId}>
+                  <a href={'/apps/workflow-capture#/'
+                        + encodeURIComponent(w.workflowId)}
+                     target="_blank" rel="noopener"
+                     className="cap-wf-strip__link"
+                     data-test={'cap-wf-' + w.workflowId}>
+                    {w.displayName}
+                  </a>
+                </li>
+              ))}
+              {related.length > 6 && (
+                <li className="cap-wf-strip__more">
+                  … +{related.length - 6} more
+                </li>
+              )}
+            </ul>
           </div>
-          <ul className="cap-wf-strip__list">
-            {workflows.slice(0, 6).map((w) => (
-              <li key={w.workflowId}>
-                <a href={'/apps/workflow-capture#/'
-                      + encodeURIComponent(w.workflowId)}
-                   target="_blank" rel="noopener"
-                   className="cap-wf-strip__link"
-                   data-test={'cap-wf-' + w.workflowId}>
-                  {w.displayName}
-                </a>
-              </li>
-            ))}
-            {workflows.length > 6 && (
-              <li className="cap-wf-strip__more">
-                … +{workflows.length - 6} more
-              </li>
-            )}
-          </ul>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Content area — mode-aware. Shared form engine, shared
        *  edge-write contract; the Tracker and Event components

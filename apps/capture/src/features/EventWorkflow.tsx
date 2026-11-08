@@ -57,10 +57,12 @@ export function EventWorkflow(
   // Fetch stages whenever the program changes. Auto-pick when
   // the program only has one stage so the operator doesn't see
   // a one-option select.
+  const [metadataReady, setMetadataReady] = useState(true);
   useEffect(() => {
     setStages([]); setStageUid('');
     setSections([]); setValues({});
     setOpenEventUid(null); setEventStatus(null);
+    setMetadataReady(true);
     let cancelled = false;
     (async () => {
       try {
@@ -73,8 +75,17 @@ export function EventWorkflow(
         if (opts.length === 1) setStageUid(opts[0].id);
       } catch (err) {
         if (!cancelled) {
-          setSubmitState('err');
-          setSubmitMsg('Failed to load stages: ' + (err as Error).message);
+          const msg = (err as Error).message ?? '';
+          // Explicit METADATA_NOT_READY is an admin-sync gap,
+          // not a user error — surface it as a dedicated strip
+          // instead of a misleading 'failed to load' message
+          // (§MD-008 'offline preflight and program download').
+          if (/METADATA_NOT_READY|not mirrored/.test(msg)) {
+            setMetadataReady(false);
+          } else {
+            setSubmitState('err');
+            setSubmitMsg('Failed to load stages: ' + msg);
+          }
         }
       }
     })();
@@ -275,6 +286,22 @@ export function EventWorkflow(
   }
   function onClickReopen(): void {
     void submit('ACTIVE');
+  }
+
+  if (!metadataReady) {
+    return (
+      <div className="cap-strip cap-strip--warn"
+           data-test="ce-metadata-not-ready">
+        <strong>Program metadata hasn't been synced to this
+          edge yet.</strong>{' '}
+        The capture form can't render until an administrator runs
+        a metadata sync (admin UI → Sync jobs). Programs from the
+        central DHIS2 server are listed above but their stages,
+        sections, and data elements must be mirrored locally first
+        (§MD-008). The DER edge preserves this constraint to avoid
+        rendering half-known forms.
+      </div>
+    );
   }
 
   return (

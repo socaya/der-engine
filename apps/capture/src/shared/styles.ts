@@ -135,6 +135,8 @@ export const CAPTURE_STYLES = `
                   border: 1px solid #e0bcbc; }
 .cap-strip--info{ background: #eaf3fc; color: #0a5497;
                   border: 1px solid #cfe1f4; }
+.cap-strip--warn{ background: #fff4de; color: #A56518;
+                  border: 1px solid #f4d7a2; }
 
 .cap-wf-strip {
   margin: 10px 14px 0 14px;

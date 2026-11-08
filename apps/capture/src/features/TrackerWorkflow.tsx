@@ -59,10 +59,12 @@ export function TrackerWorkflow(
     useState<'idle' | 'submitting' | 'ok' | 'err'>('idle');
   const [regMsg, setRegMsg] = useState<string | null>(null);
 
+  const [metadataReady, setMetadataReady] = useState(true);
   // Load working-list + registration metadata on program change.
   useEffect(() => {
     let cancelled = false;
     setListStatus('loading');
+    setMetadataReady(true);
     (async () => {
       try {
         const [listRes, tetRes] = await Promise.all([
@@ -81,9 +83,15 @@ export function TrackerWorkflow(
           setRegSections(parsed.sections);
           setRegIssues(parsed.issues);
         }
-      } catch {
+      } catch (err) {
         if (!cancelled) {
-          setRows([]); setListStatus('err');
+          const msg = (err as Error).message ?? '';
+          if (/METADATA_NOT_READY|not mirrored/.test(msg)) {
+            setMetadataReady(false);
+            setListStatus('idle');
+          } else {
+            setRows([]); setListStatus('err');
+          }
         }
       }
     })();
@@ -136,6 +144,21 @@ export function TrackerWorkflow(
       setRegState('err');
       setRegMsg((err as Error).message ?? 'Registration failed');
     }
+  }
+
+  if (!metadataReady) {
+    return (
+      <div className="cap-strip cap-strip--warn"
+           data-test="tr-metadata-not-ready">
+        <strong>Program metadata hasn't been synced to this
+          edge yet.</strong>{' '}
+        The tracker working list + registration form can't render
+        until an administrator runs a metadata sync (admin UI →
+        Sync jobs). The program appears above because the list
+        payload ships inline, but its tracked-entity-type and
+        attributes must be mirrored locally first (§MD-008).
+      </div>
+    );
   }
 
   // When a TEI is open, render the dashboard in place of the list
