@@ -9,7 +9,12 @@ body {
 }
 
 .der-shell {
-  min-height: 100vh;
+  /* No min-height: 100vh — any banner above the shell (device-
+   * pending strip, admin maintenance notice, etc.) would stack
+   * past the viewport and introduce a stray vertical scrollbar.
+   * Apps that need to fill the viewport (e.g. Data Entry with
+   * its sticky action bar) handle it at the card-body level
+   * using calc(100vh - topbar - banners) directly. */
   display: flex;
   flex-direction: column;
 }
@@ -937,9 +942,12 @@ body {
   border-color: var(--der-border);
 }
 
-/* C-UI-5b AppHost shell. */
+/* C-UI-5b AppHost shell. The dispatched app's screen-card already
+ * handles its own 12px breathing room; dropping the apphost's own
+ * 8px vertical padding tightens the gap between the shell topbar
+ * and the app name row. */
 .der-apphost {
-  padding: 8px 0;
+  padding: 0;
 }
 .der-apphost--loading {
   padding: 24px;

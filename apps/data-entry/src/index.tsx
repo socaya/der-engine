@@ -6271,7 +6271,12 @@ const APP_STYLES = `
  * grid through the header. */
 .der-de-toolbar {
   position: sticky;
-  top: 52px;
+  /* Stick to the very top of the scroll container (document, in
+   * this app's layout). The shell topbar is also sticky at
+   * top:0 with a higher z-index; it visually covers this
+   * toolbar first, so scroll parks the toolbar right beneath
+   * the topbar without a gap. */
+  top: 0;
   z-index: 5;
   margin: 0 -20px 12px;
   padding: 10px 20px 10px;
@@ -6753,16 +6758,36 @@ const APP_STYLES = `
   border-radius: 3px;
 }
 /* Layout envelope — the AppHost's ScreenCard body is a flex
- * column that lets the form grow naturally. Dropped the forced
- * min-height: calc(100vh - topbar) that used to make short forms
- * overflow the viewport (introduced a spurious vertical
- * scrollbar even when content fit within the card). Horizontal
- * overflow is guarded globally by the shell's
+ * column tall enough to always fill the viewport below the
+ * topbar + card margins. .der-de-actionbar below picks up
+ * margin-top: auto so a short form still pushes the action
+ * bar to the screen bottom (no scrollbar introduced); a long
+ * form grows the column naturally and the action bar follows
+ * the content.
+ *
+ * min-height math: 100vh minus the shell topbar minus the
+ * 12px card margin on top + 12px on bottom (24px total) =
+ * fill-to-edge without over-reserving (which would trigger a
+ * stray vertical scrollbar).
+ *
+ * Horizontal overflow is guarded globally by the shell's
  * .der-apphost .der-screen-card__body { overflow-x: hidden }
  * rule. */
 .der-apphost .der-screen-card__body {
   display: flex;
   flex-direction: column;
+  /* min-height stretches the body to fill the viewport so the
+   * actionbar (margin-top: auto below) parks at the bottom even
+   * when content is short. Reserve topbar + 12px card margins
+   * on each axis + 24px safety for the dev-only "Device PENDING"
+   * strip that appears above the topbar when a device hasn't been
+   * approved yet. In production (approved device) the extra 24
+   * yields a hairline of background below the card instead of a
+   * stray vertical scrollbar — a cleaner trade. */
+  min-height: calc(100vh - var(--der-topbar-h, 52px) - 48px);
+}
+.der-apphost .der-de-actionbar {
+  margin-top: auto;
 }
 .der-de-form-card {
   padding: 0;
