@@ -73,6 +73,16 @@ export function EventSheetPage(
    *  the next commit, so reading state inside a setState callback
    *  is unreliable. saveRow reads this ref instead. */
   const rowsRef = useRef<SheetRow[]>([]);
+  /** Undo stack — each entry is a batch of (localKey, fieldId,
+   *  oldValue) tuples captured just before a mutation. Ctrl+Z pops
+   *  the most recent batch and restores every tuple in it.
+   *  Capped at 50 batches so long sessions don't balloon memory.
+   *  Keyed by localKey, not rowIdx, so indices shifting (e.g. row
+   *  deletes) don't reach back for the wrong row. */
+  const undoStack = useRef<Array<Array<{
+    localKey: string; fieldId: string; oldValue: string;
+  }>>>([]);
+  const UNDO_MAX = 50;
 
   // Load stage form + events + program rules in parallel.
   useEffect(() => {
@@ -271,7 +281,27 @@ export function EventSheetPage(
     timers.current.set(rowIndex, t);
   }, [saveRow]);
 
+  /** Push an undo batch onto the stack, trimming at UNDO_MAX. */
+  function pushUndo(batch: Array<{
+    localKey: string; fieldId: string; oldValue: string;
+  }>): void {
+    if (batch.length === 0) return;
+    undoStack.current.push(batch);
+    if (undoStack.current.length > UNDO_MAX) {
+      undoStack.current.splice(0,
+        undoStack.current.length - UNDO_MAX);
+    }
+  }
+
   function updateCell(rowIndex: number, deUid: string, v: string): void {
+    const snap = rowsRef.current[rowIndex];
+    if (snap) {
+      const oldValue = snap.values[deUid] ?? '';
+      if (oldValue !== v) {
+        pushUndo([{ localKey: snap.localKey, fieldId: deUid,
+          oldValue }]);
+      }
+    }
     setRows((prev) => {
       const copy = [...prev];
       const r = copy[rowIndex];
@@ -348,6 +378,13 @@ export function EventSheetPage(
     }
     if (targetRowIndexes.length === 0) return 0;
     const targetSet = new Set(targetRowIndexes);
+    // Record undo batch BEFORE mutating so Ctrl+Z restores every
+    // cell to its pre-fill-down value in one shot.
+    pushUndo(targetRowIndexes.map((i) => ({
+      localKey: snapshot[i]!.localKey,
+      fieldId,
+      oldValue: snapshot[i]!.values[fieldId] ?? '',
+    })));
     setRows((prev) => {
       const copy = [...prev];
       for (const i of targetSet) {
@@ -367,6 +404,143 @@ export function EventSheetPage(
     return targetRowIndexes.length;
   }
 
+  /** Rectangular paste — split the TSV text into a grid, map each
+   *  cell into (startRow+r, startCol+c), update values in one
+   *  setRows + one undo batch. Columns beyond the sheet are
+   *  dropped. New rows are appended as needed when the paste
+   *  extends past the current row count — matches Excel's
+   *  "paste past the end expands the sheet" behaviour.
+   *
+   *  <p>Hidden cells (per row program rules) are skipped so a
+   *  paste never populates cells a rule said shouldn't apply.</p> */
+  function pasteBlockAt(startRow: number, startCol: number,
+      tsv: string): void {
+    const text = tsv.replace(/\r\n/g, '\n').replace(/\n+$/, '');
+    const rows2d = text.split('\n').map((line) => line.split('\t'));
+    if (rows2d.length === 0) return;
+    const snap = rowsRef.current;
+    const needed = startRow + rows2d.length - snap.length;
+    // Append new rows if the paste overflows the current sheet.
+    if (needed > 0) {
+      setRows((prev) => {
+        const extra: SheetRow[] = [];
+        for (let i = 0; i < needed; i++) {
+          extra.push({
+            eventUid: null,
+            localKey: 'paste-' + Date.now() + '-'
+              + Math.random().toString(36).slice(2, 6) + '-' + i,
+            occurredAt: new Date().toISOString().slice(0, 10),
+            status: 'ACTIVE',
+            values: {},
+            saveState: 'idle',
+          });
+        }
+        return [...prev, ...extra];
+      });
+    }
+    // Build the undo batch + the index set of rows to save.
+    const undoBatch: Array<{ localKey: string; fieldId: string;
+      oldValue: string }> = [];
+    const touchedRowIdxs = new Set<number>();
+    const liveSnap = [...snap]; // snapshot BEFORE the row append;
+    // the new rows are appended by the setRows above and will
+    // be present by the time the next setRows reads prev.
+    for (let r = 0; r < rows2d.length; r++) {
+      const rowIdx = startRow + r;
+      for (let c = 0; c < rows2d[r]!.length; c++) {
+        const colIdx = startCol + c;
+        const field = allFields[colIdx];
+        if (!field) continue; // past the right edge of the sheet
+        // Hidden-cell guard uses the snapshot's effects when
+        // available; newly-appended rows have no effects yet
+        // so they're always writable.
+        if (rowEffects[rowIdx]?.hiddenFieldIds.has(field.id)) continue;
+        const existing = liveSnap[rowIdx];
+        const oldValue = existing?.values[field.id] ?? '';
+        const newValue = rows2d[r]![c]!;
+        if (oldValue === newValue) continue;
+        undoBatch.push({
+          localKey: existing?.localKey
+            ?? 'paste-pending-' + rowIdx,
+          fieldId: field.id, oldValue,
+        });
+        touchedRowIdxs.add(rowIdx);
+      }
+    }
+    pushUndo(undoBatch);
+    // Commit the values into the rows (including any newly
+    // appended ones) via one setRows call.
+    setRows((prev) => {
+      const copy = [...prev];
+      for (let r = 0; r < rows2d.length; r++) {
+        const rowIdx = startRow + r;
+        const row = copy[rowIdx];
+        if (!row) continue;
+        const next: Record<string, string> = { ...row.values };
+        let changed = false;
+        for (let c = 0; c < rows2d[r]!.length; c++) {
+          const colIdx = startCol + c;
+          const field = allFields[colIdx];
+          if (!field) continue;
+          if (rowEffects[rowIdx]?.hiddenFieldIds.has(field.id)) continue;
+          const nv = rows2d[r]![c]!;
+          if (next[field.id] === nv) continue;
+          next[field.id] = nv;
+          changed = true;
+        }
+        if (changed) {
+          copy[rowIdx] = { ...row, values: next, saveState: 'dirty' };
+        }
+      }
+      return copy;
+    });
+    for (const i of touchedRowIdxs) scheduleSave(i);
+    // eslint-disable-next-line no-console
+    console.log('[sheet] paste', { startRow, startCol,
+      rowsAffected: touchedRowIdxs.size,
+      cells: undoBatch.length });
+  }
+
+  /** Pop the most recent undo batch and restore each cell. The
+   *  affected rows flip to dirty + auto-save via the existing
+   *  debounced pipeline so the central store matches what the
+   *  operator now sees on screen. */
+  function undoLastBatch(): number {
+    const batch = undoStack.current.pop();
+    if (!batch || batch.length === 0) return 0;
+    const snap = rowsRef.current;
+    const touchedKeys = new Set(batch.map((b) => b.localKey));
+    const touchedRowIdxs = new Set<number>();
+    setRows((prev) => {
+      const copy = [...prev];
+      for (let i = 0; i < copy.length; i++) {
+        const r = copy[i];
+        if (!r || !touchedKeys.has(r.localKey)) continue;
+        touchedRowIdxs.add(i);
+        const nextValues: Record<string, string> = { ...r.values };
+        for (const b of batch) {
+          if (b.localKey !== r.localKey) continue;
+          if (b.oldValue === '') {
+            delete nextValues[b.fieldId];
+          } else {
+            nextValues[b.fieldId] = b.oldValue;
+          }
+        }
+        copy[i] = { ...r, values: nextValues, saveState: 'dirty' };
+      }
+      return copy;
+    });
+    // Resolve touched local-keys → current indexes via snapshot too,
+    // in case the rows list was re-ordered between push + pop.
+    for (let i = 0; i < snap.length; i++) {
+      if (touchedKeys.has(snap[i]!.localKey)) {
+        touchedRowIdxs.add(i);
+      }
+    }
+    for (const i of touchedRowIdxs) scheduleSave(i);
+    return batch.length;
+  }
+
   // Keyboard navigation + fill-down. Tab / Shift+Tab move between
   // cells (native). Enter moves down one row in the same column.
   // Ctrl+D (or Cmd+D on macOS) fires fill-down from the active cell.
@@ -379,6 +553,46 @@ export function EventSheetPage(
     const [rowStr, colStr] = coord.split(':');
     const row = Number(rowStr); const col = Number(colStr);
     if (!Number.isFinite(row) || !Number.isFinite(col)) return;
+    // Ctrl+Z / Cmd+Z — pop the undo stack. Shift modifier
+    // (Ctrl+Shift+Z) is reserved for a future redo; for now we
+    // just no-op when Shift is held so the browser default is
+    // also suppressed.
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) return;
+      const popped = undoLastBatch();
+      // eslint-disable-next-line no-console
+      console.log('[sheet] undo', { cellsReverted: popped });
+      return;
+    }
+    // Ctrl+V / Cmd+V — intercept paste only when the clipboard
+    // text contains newlines or tabs (block paste). Single-value
+    // paste falls through to the browser's native input handling
+    // so the cursor position is honoured. Reading the clipboard
+    // is async + requires user-gesture permission; on refusal we
+    // fall through silently.
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v'
+        && !e.shiftKey && col >= 0) {
+      if (typeof navigator === 'undefined'
+          || !navigator.clipboard?.readText) return;
+      // Peek the clipboard — if it's single-value, let the native
+      // paste proceed. Otherwise prevent + handle as block.
+      e.preventDefault();
+      void navigator.clipboard.readText().then((text) => {
+        if (text == null) return;
+        if (!text.includes('\t') && !text.includes('\n')) {
+          // Single-value paste — delegate to updateCell so the
+          // active cell takes the value through the normal
+          // undo + save pipeline.
+          const field = allFields[col];
+          if (!field) return;
+          updateCell(row, field.id, text);
+          return;
+        }
+        pasteBlockAt(row, col, text);
+      });
+      return;
+    }
     // Ctrl+D / Cmd+D — fill down the active cell. The browser's
     // default Ctrl+D (bookmark) is suppressed.
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
@@ -473,7 +687,9 @@ export function EventSheetPage(
         / <strong>Shift+Tab</strong> move between cells, <strong>Enter
         </strong> jumps down to the next row, <strong>Ctrl+D</strong>
         (<strong>⌘+D</strong>) fills the active cell's value down
-        through every row below.
+        through every row below, <strong>Ctrl+Z</strong> undoes the
+        last change, <strong>Ctrl+C</strong> / <strong>Ctrl+V</strong>
+        copy and paste the active cell.
       </p>
 
       <div className="cap-sheet-wrap" data-test="ev-sheet"
