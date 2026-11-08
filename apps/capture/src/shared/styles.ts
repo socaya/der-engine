@@ -42,9 +42,12 @@ export const CAPTURE_STYLES = `
   --der-text-faint: #8A95A6;
   --der-border: #E6EBF1;
   --der-border-soft: #F0F3F7;
-  --der-primary: #2563A6;
-  --der-primary-strong: #194E86;
-  --der-primary-subtle: #EAF3FC;
+  /* DHIS2 brand blue — same hue Data Entry's sectionTable
+   * inputs + the sign-in InputField focus ring use, so
+   * operators see one accent colour across every DER app. */
+  --der-primary: #147CD7;
+  --der-primary-strong: #0f68b7;
+  --der-primary-subtle: #e6f1fb;
   --der-success: #237A57;
   --der-success-subtle: #E6F2EC;
   --der-warning: #A56518;
