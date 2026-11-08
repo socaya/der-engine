@@ -4,7 +4,8 @@ import {
   ScreenCard, StatusPill,
 } from '@der/app-sdk';
 
-import { DistributedWorkflowPanel } from './features/DistributedWorkflowPanel';
+import { DistributedWorkflowPanel, programFromWorkflow } from
+  './features/DistributedWorkflowPanel';
 import { EventWorkflow } from './features/EventWorkflow';
 import { TrackerWorkflow } from './features/TrackerWorkflow';
 import type { ProgramOpt, CaptureApi } from './shared/types';
@@ -204,6 +205,23 @@ function CaptureAppInner(): JSX.Element {
       || w.steps.some((s) => s.ownerDeviceId === myDeviceId));
   }, [workflows, myDeviceId]);
 
+  // When the device is step-assigned to a PROGRAM-bound workflow,
+  // auto-select that program so the normal tracker/event form
+  // renders without the operator having to pick again. Only fires
+  // once per assignment transition so an operator can still switch
+  // programs manually afterwards.
+  useEffect(() => {
+    if (programUid !== '') return;
+    if (deviceAssignedWorkflows.length === 0) return;
+    for (const w of deviceAssignedWorkflows) {
+      const pid = programFromWorkflow(w);
+      if (pid && programs.some((p) => p.id === pid)) {
+        setProgramUid(pid);
+        return;
+      }
+    }
+  }, [deviceAssignedWorkflows, programs, programUid]);
+
   // Program stage IDs so the workflow filter can include
   // PROGRAM_STAGE / PROGRAM_STAGE_SECTION bindings, not just
   // whole-program ones (distributed workflow config lives at
@@ -400,8 +418,7 @@ function CaptureAppInner(): JSX.Element {
        *  context around the common form engine. Rendered only
        *  when NO device-assigned workflow is active — otherwise
        *  the panel above owns the screen. */}
-      {deviceAssignedWorkflows.length === 0
-        && !program && ou.bound && programs.length > 0 && (
+      {!program && ou.bound && programs.length > 0 && (
         <div className="cap-empty" data-test="cap-pick-program">
           <h2 className="cap-empty__title">Pick a program to begin</h2>
           <p className="cap-empty__body">
@@ -412,8 +429,7 @@ function CaptureAppInner(): JSX.Element {
           </p>
         </div>
       )}
-      {deviceAssignedWorkflows.length === 0
-        && !program && ou.bound && programs.length === 0 && (
+      {!program && ou.bound && programs.length === 0 && (
         <div className="cap-empty" data-test="cap-no-programs">
           <h2 className="cap-empty__title">No programs assigned</h2>
           <p className="cap-empty__body">
@@ -439,14 +455,12 @@ function CaptureAppInner(): JSX.Element {
           </p>
         </div>
       )}
-      {deviceAssignedWorkflows.length === 0
-        && program && mode === 'event' && (
+      {program && mode === 'event' && (
         <EventWorkflow api={api} programUid={program.id}
                         orgUnitUid={ou.orgUnitUid}
                         orgUnitDisplayName={ou.orgUnitDisplayName} />
       )}
-      {deviceAssignedWorkflows.length === 0
-        && program && mode === 'tracker' && (
+      {program && mode === 'tracker' && (
         <TrackerWorkflow api={api} programUid={program.id}
                           orgUnitUid={ou.orgUnitUid}
                           orgUnitDisplayName={ou.orgUnitDisplayName}

@@ -155,17 +155,25 @@ export const CAPTURE_STYLES = `
 .cap-wf-chip--more {
   color: #6e7a8a; font-weight: 400;
 }
-/* Distributed-workflow panel — foregrounded when the device is
- * step-assigned. Calm, soft palette per user ask. */
+/* Distributed-workflow banner — a thin strip that names the
+ * operator's workflow + step. The actual capture form renders
+ * below via the normal tracker/event workflow components.
+ * Calm, soft palette per user ask. */
 .cap-dwf {
-  margin: 14px; padding: 0;
-  background: #fff;
-  border: 1px solid #e3e8f0;
+  margin: 10px 14px 0 14px;
+  display: flex; flex-direction: column; gap: 4px;
 }
-.cap-dwf__head {
-  padding: 14px 18px 10px;
-  border-bottom: 1px solid #eef0f3;
+.cap-dwf__banner {
+  padding: 8px 12px;
+  background: #fafcff;
+  border-left: 3px solid #147CD7;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  font-size: 13px; line-height: 1.4;
 }
+.cap-dwf__banner-title { color: #0a5497; font-weight: 600; }
+.cap-dwf__banner-meta { color: #4a5768; font-size: 12px; }
+.cap-dwf__banner-meta em { color: #263352; font-style: normal;
+  font-weight: 500; }
 .cap-dwf__eyebrow {
   display: block;
   font-size: 10px; text-transform: uppercase;
