@@ -68,29 +68,74 @@ public class TrackedEntityRepository {
      * FR-08-02: search by (type, orgUnit) + optional attribute equality
      * filter. The GIN index on `attributes` makes containment lookups
      * fast; limit is capped at 200 to avoid oversize payloads.
+     *
+     * <p>Back-compat overload — delegates with {@code programUid=null}
+     * so existing callers keep their current unfiltered semantics.</p>
      */
     public List<TrackedEntity> search(final String type, final String orgUnit,
                                         final Map<String, String> attrFilter,
                                         final int limit) {
+        return search(type, orgUnit, attrFilter, limit, null);
+    }
+
+    /**
+     * FR-08-02 (+DHIS2 /api/tracker/trackedEntities?program=X parity).
+     * Adds an optional {@code programUid} filter so results mirror the
+     * DHIS2 tracker API: only TEIs with an enrollment in the given
+     * program are returned. Without this, multiple programs that share
+     * a tracked-entity type would surface the same TEI rows on every
+     * program's working list (which is wrong vs. DHIS2 semantics).
+     *
+     * <p>Join is a {@code DISTINCT} inner join on {@code edge_enrollment}
+     * — any enrollment (ACTIVE, COMPLETED, CANCELLED) qualifies the TEI
+     * for appearance in that program's list, matching DHIS2's default.
+     * The {@code idx_edge_enrollment_program} index keeps the join
+     * cheap at facility scale.</p>
+     */
+    public List<TrackedEntity> search(final String type, final String orgUnit,
+                                        final Map<String, String> attrFilter,
+                                        final int limit,
+                                        final String programUid) {
         final int capped = Math.max(1, Math.min(limit, 200));
-        final StringBuilder sql = new StringBuilder(
-                "SELECT tei_uid, tracked_entity_type, org_unit_uid, attributes::text AS attributes, "
-                        + "created_by, created_at, updated_at, tei_version, workflow_run_id "
-                        + "FROM der.tracked_entity WHERE 1=1");
+        final StringBuilder sql = new StringBuilder();
         final List<Object> args = new java.util.ArrayList<>();
+        if (programUid != null && !programUid.isBlank()) {
+            // DISTINCT because a TEI can hold multiple enrollments in
+            // the same program over its lifetime; we want one row per
+            // TEI, not per enrollment.
+            sql.append("SELECT DISTINCT t.tei_uid, t.tracked_entity_type, "
+                    + "t.org_unit_uid, t.attributes::text AS attributes, "
+                    + "t.created_by, t.created_at, t.updated_at, "
+                    + "t.tei_version, t.workflow_run_id "
+                    + "FROM der.tracked_entity t "
+                    + "INNER JOIN der.edge_enrollment e "
+                    + "  ON e.tei_uid = t.tei_uid "
+                    + "  AND e.program_uid = ? "
+                    + "WHERE 1=1");
+            args.add(programUid);
+        } else {
+            sql.append("SELECT tei_uid, tracked_entity_type, org_unit_uid, "
+                    + "attributes::text AS attributes, "
+                    + "created_by, created_at, updated_at, tei_version, workflow_run_id "
+                    + "FROM der.tracked_entity WHERE 1=1");
+        }
+        final String colPrefix = (programUid != null && !programUid.isBlank())
+                ? "t." : "";
         if (type != null) {
-            sql.append(" AND tracked_entity_type = ?");
+            sql.append(" AND ").append(colPrefix).append("tracked_entity_type = ?");
             args.add(type);
         }
         if (orgUnit != null) {
-            sql.append(" AND org_unit_uid = ?");
+            sql.append(" AND ").append(colPrefix).append("org_unit_uid = ?");
             args.add(orgUnit);
         }
         if (attrFilter != null && !attrFilter.isEmpty()) {
-            sql.append(" AND attributes @> CAST(? AS jsonb)");
+            sql.append(" AND ").append(colPrefix)
+                    .append("attributes @> CAST(? AS jsonb)");
             args.add(writeJson(attrFilter));
         }
-        sql.append(" ORDER BY updated_at DESC LIMIT ?");
+        sql.append(" ORDER BY ").append(colPrefix)
+                .append("updated_at DESC LIMIT ?");
         args.add(capped);
         return jdbc.query(sql.toString(), mapper(), args.toArray());
     }

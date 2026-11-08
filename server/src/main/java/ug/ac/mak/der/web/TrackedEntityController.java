@@ -90,17 +90,27 @@ public class TrackedEntityController {
         return ResponseEntity.ok(toJson(stored));
     }
 
-    /** FR-08-02: search by indexed authorised fields. */
+    /** FR-08-02: search by indexed authorised fields.
+     *
+     *  <p>Accepts an optional {@code program} filter that mirrors
+     *  DHIS2's {@code /api/tracker/trackedEntities?program=X}
+     *  semantics: only TEIs with an enrollment in the given program
+     *  are returned. Without it, programs that share a tracked-entity
+     *  type would surface the same TEI on every program's list, which
+     *  diverges from DHIS2 — the capture client relies on the DHIS2
+     *  behaviour to keep program working-lists isolated.</p> */
     @GetMapping
     public ResponseEntity<Map<String, Object>> search(
             @RequestParam(required = false) final String trackedEntityType,
             @RequestParam(required = false) final String orgUnit,
+            @RequestParam(required = false) final String program,
             @RequestParam(required = false) final String attributeId,
             @RequestParam(required = false) final String attributeValue,
             @RequestParam(defaultValue = "50") final int limit) {
         final Map<String, String> filter = attributeId == null || attributeValue == null
                 ? Map.of() : Map.of(attributeId, attributeValue);
-        final List<TrackedEntity> hits = repo.search(trackedEntityType, orgUnit, filter, limit);
+        final List<TrackedEntity> hits = repo.search(trackedEntityType, orgUnit,
+                filter, limit, program);
         return ResponseEntity.ok(Map.of(
                 "trackedEntities", hits.stream()
                         .map(TrackedEntityController::toJson).toList(),

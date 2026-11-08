@@ -710,14 +710,15 @@ export interface TrackedEntityRow {
 
 /** List tracked entities for a program + bound OU.
  *
- *  <p>DER's dhis2 proxy allow-list doesn't cover
- *  {@code /api/tracker/trackedEntities}, and the DER-native
- *  {@code /edge-api/v1/tracked-entities} search is scoped by
- *  {@code trackedEntityType}, not by program. So we resolve
- *  program → TET first (cached via {@link getCaptureProgramTeiType}),
- *  then hit the native endpoint. The returned shape stays
- *  compatible with existing callers — {@code trackedEntities} +
- *  {@code count} with TrackedEntityRow entries. */
+ *  <p>Mirrors DHIS2's
+ *  {@code /api/tracker/trackedEntities?program=X&orgUnit=Y} behaviour:
+ *  only TEIs with an enrollment in the given program are returned.
+ *  The DER-native {@code /edge-api/v1/tracked-entities} endpoint
+ *  accepts {@code program} + {@code trackedEntityType} + {@code orgUnit};
+ *  without {@code program}, programs sharing a tracked-entity type
+ *  would surface the same TEI on every program's list, which diverges
+ *  from DHIS2. Resolving program → TET still happens so the TET index
+ *  is used before the enrollment join.</p> */
 export async function listTrackerEntities(
   program: string, orgUnit: string, pageSize = 50,
 ): Promise<{ instances?: TrackedEntityRow[];
@@ -733,6 +734,7 @@ export async function listTrackerEntities(
     orgUnit, limit: String(pageSize),
   });
   if (tetUid) q.set('trackedEntityType', tetUid);
+  if (program) q.set('program', program);
   const r = await fetch('/edge-api/v1/tracked-entities?' + q.toString(),
     { credentials: 'include',
       headers: { Accept: 'application/json' } });
