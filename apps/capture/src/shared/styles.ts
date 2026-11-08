@@ -10,6 +10,23 @@
  * the eye without shouting.
  */
 export const CAPTURE_STYLES = `
+/* Shell envelope — fill the viewport below the topbar + 12px
+ * card margins so the Capture page always covers the available
+ * space even when its content is short. Mirrors the Data Entry
+ * app's sticky-fill layout. 48px reserve = 12px card top margin
+ * + 12px card bottom margin + 24px safety for the dev-only
+ * "Device PENDING" banner that appears above the shell topbar
+ * before a device is approved.
+ *
+ * flex-column lets any descendant workflow (TrackerDetailPage,
+ * TrackerStageFormPage, EventFormPage, …) opt into a bottom-
+ * anchored action bar via margin-top: auto on the action strip. */
+.der-apphost .der-screen-card__body {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - var(--der-topbar-h, 52px) - 48px);
+}
+
 :root {
   /*
    * v3 §5.2 — DER design tokens (source of truth). Every Capture
