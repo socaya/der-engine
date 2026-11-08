@@ -487,7 +487,10 @@ export const CAPTURE_STYLES = `
   font-size: 12px; color: var(--der-text-faint); font-weight: 400;
 }
 .cap-section-head__rule {
-  flex: 1; border-top: 1px solid var(--der-border);
+  /* Pure flex spacer — the original border-top rule read as busy
+   * clutter next to each list/section title, so we keep the layout
+   * role but drop the hairline. */
+  flex: 1;
 }
 
 /* Shared form engine styling — sections + typed inputs. Mirrors
@@ -517,8 +520,10 @@ export const CAPTURE_STYLES = `
 .cap-form { padding: 0 14px 14px 14px;
             display: flex; flex-direction: column; gap: 14px; }
 .cap-form-section {
-  border: 1px solid var(--der-border); border-radius: 0;
-  padding: 10px 14px 12px 14px; background: #fcfdfe;
+  /* Dropped the box border + tinted fill — grouping comes from the
+   * legend + consistent grid gaps; the outline was doing too much
+   * work in a page that already uses one separator per section head. */
+  padding: 10px 0 12px 0;
 }
 .cap-form-section__title {
   font-size: 12px; text-transform: uppercase;
@@ -614,13 +619,14 @@ export const CAPTURE_STYLES = `
 /* Recent list — mirror the Data Entry chip aesthetic. */
 .cap-list { margin: 0 14px 14px 14px; padding: 0; list-style: none; }
 .cap-list__row {
-  padding: 8px 10px; border-bottom: 1px solid #eef0f3;
+  padding: 8px 10px; border-bottom: 1px solid var(--der-border-soft);
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 10px; align-items: center;
   font-size: 13px; color: var(--der-text);
 }
-.cap-list__row:hover { background: #fafcff; }
+.cap-list__row:last-child { border-bottom: 0; }
+.cap-list__row:hover { background: var(--der-surface-subtle); }
 .cap-list__row--clickable { cursor: pointer; }
 .cap-list__row--clickable:focus {
   outline: none; background: var(--der-surface-subtle);
