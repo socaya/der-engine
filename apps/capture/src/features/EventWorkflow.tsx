@@ -10,6 +10,8 @@ import { parseProgramRules } from '../shared/rules';
 import { applyRuleEffectsToSections, evaluateRules } from '../shared/ruleEngine';
 import { useDirtyGuard } from '../shared/useDirtyGuard';
 import { usePublishDirty } from '../shared/DirtyContext';
+import { SectionNav } from '../shared/SectionNav';
+import { useAutofocusFirstField } from '../shared/useAutofocusFirstField';
 
 /**
  * Event (WITHOUT_REGISTRATION) workflow inside the unified
@@ -180,6 +182,10 @@ export function EventWorkflow(
   }, [values, submitState]);
   useDirtyGuard(isDirty);
   usePublishDirty('event-workflow', isDirty);
+  // Autofocus only on true form-open transitions: new event, new
+  // stage, or opening an existing event. Not on every value edit.
+  useAutofocusFirstField(effectiveSections,
+    (openEventUid ?? 'new') + '|' + stageUid);
 
   async function openExisting(eventUid: string): Promise<void> {
     try {
@@ -346,6 +352,7 @@ export function EventWorkflow(
       )}
       {effectiveSections.length > 0 && (
         <form onSubmit={onSubmitSave} data-test="ce-form">
+          <SectionNav sections={effectiveSections} />
           <FormEngine api={api}
                        sections={effectiveSections} values={values}
                        onChange={(k, v) => setValues((prev) => ({

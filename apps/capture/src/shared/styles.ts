@@ -155,6 +155,28 @@ export const CAPTURE_STYLES = `
 
 /* Shared form engine styling — sections + typed inputs. Mirrors
  * the Data Entry app so operators feel at home. */
+.cap-section-nav {
+  position: sticky; top: 56px; z-index: 6;
+  display: flex; gap: 6px; overflow-x: auto;
+  padding: 6px 14px;
+  background: #fafcff;
+  border-bottom: 1px solid #e3e8f0;
+  scrollbar-width: thin;
+}
+.cap-section-nav__chip {
+  padding: 4px 12px; border-radius: 999px;
+  border: 1px solid #c6d4e4; background: #fff;
+  color: #4a5768; font-size: 12px; font-weight: 500;
+  white-space: nowrap; cursor: pointer; font-family: inherit;
+}
+.cap-section-nav__chip:hover { background: #eef2f8; }
+.cap-section-nav__chip--active {
+  background: #147CD7; color: #fff; border-color: #0a5497;
+}
+.cap-section-nav__chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #147CD7;
+}
 .cap-form { padding: 0 14px 14px 14px;
             display: flex; flex-direction: column; gap: 14px; }
 .cap-form-section {
@@ -260,6 +282,10 @@ export const CAPTURE_STYLES = `
   font-size: 11px; font-weight: 500;
   background: #eef2f8; color: #0a5497;
   border: 1px solid #cfe1f4;
+}
+.cap-chip--warn {
+  background: #fff4de; color: #A56518;
+  border-color: #f4d7a2;
 }
 
 .cap-identity-strip {

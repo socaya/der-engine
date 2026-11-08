@@ -10,6 +10,8 @@ import { applyRuleEffectsToSections, evaluateRules } from '../shared/ruleEngine'
 import type { CaptureApi } from '../shared/types';
 import { useDirtyGuard } from '../shared/useDirtyGuard';
 import { usePublishDirty } from '../shared/DirtyContext';
+import { SectionNav } from '../shared/SectionNav';
+import { useAutofocusFirstField } from '../shared/useAutofocusFirstField';
 
 /**
  * Tracker stage event editor (requirements doc §8.5 TR-040 to
@@ -123,6 +125,8 @@ export function TrackerStageEditor(
   }, [values, baseline, state]);
   const { confirmLeave } = useDirtyGuard(isDirty);
   usePublishDirty('tracker-stage-editor', isDirty);
+  useAutofocusFirstField(effectiveSections,
+    (eventUid ?? 'new') + '|' + stageUid);
 
   async function submit(targetStatus: 'ACTIVE' | 'COMPLETED'):
       Promise<void> {
@@ -262,6 +266,7 @@ export function TrackerStageEditor(
       )}
 
       <form onSubmit={onSubmitSave} data-test="tr-editor-form">
+        <SectionNav sections={effectiveSections} />
         <FormEngine api={api}
                      sections={effectiveSections} values={values}
                      onChange={(k, v) => setValues((prev) =>

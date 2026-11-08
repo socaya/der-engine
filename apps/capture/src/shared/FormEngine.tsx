@@ -40,6 +40,17 @@ export function FormEngine(
                 <span className="cap-input__label">
                   {f.label}
                   {f.required && <span className="cap-input__req">*</span>}
+                  {f.valueType === 'UNKNOWN' && (
+                    <span className="cap-chip cap-chip--warn"
+                          data-test={'cap-field-fallback-' + f.id}
+                          style={{ marginLeft: 6, fontSize: 10 }}
+                          title={'Server advertised an unrecognised '
+                            + 'value type; rendering as plain text. '
+                            + 'Report the metadata to admin if this '
+                            + 'should be a typed control.'}>
+                      fallback
+                    </span>
+                  )}
                 </span>
                 <FieldInput api={api} field={f}
                             value={values[f.id] ?? ''}
