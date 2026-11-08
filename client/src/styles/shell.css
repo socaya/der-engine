@@ -825,12 +825,19 @@ body {
   margin: 16px 0;
   box-shadow: var(--der-shadow-sm);
 }
-/* Full-bleed variant for dispatched apps — borderless against the
- * viewport edge, no shadow, no radius. The sticky header + body
- * handle their own visual separation via background + subtle
- * rules rather than a hard outer border. */
+/* Standard envelope for dispatched apps (Data Entry, Capture,
+ * Workflow Capture …). A 12px outer margin breathes the card off
+ * the viewport edge in both axes so content doesn't butt against
+ * the browser chrome. No border, no shadow, no radius — the
+ * sticky header + body use background + subtle hairlines for
+ * visual separation instead of a hard outer outline.
+ *
+ * overflow-x hidden on the body suppresses stray horizontal
+ * scrollbars when a form has a wide element (legacy DHIS2 custom
+ * forms sometimes ship absolute-positioned chrome that overflows
+ * the card). Vertical scroll still works as expected. */
 .der-apphost .der-screen-card {
-  margin: 0;
+  margin: 12px;
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -842,6 +849,7 @@ body {
 }
 .der-apphost .der-screen-card__body {
   padding: 0px 0px 0;
+  overflow-x: hidden;
 }
 
 .der-screen-card__head {

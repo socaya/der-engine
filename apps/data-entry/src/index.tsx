@@ -6753,15 +6753,16 @@ const APP_STYLES = `
   border-radius: 3px;
 }
 /* Layout envelope — the AppHost's ScreenCard body is a flex
- * column whose height fills the viewport below the shell topbar
- * + sticky toolbar. The form card grows to fill the remaining
- * space (flex: 1) so a short form still pushes the actionbar to
- * the screen bottom; a long form grows the column naturally and
- * the actionbar follows the content (not the viewport). */
+ * column that lets the form grow naturally. Dropped the forced
+ * min-height: calc(100vh - topbar) that used to make short forms
+ * overflow the viewport (introduced a spurious vertical
+ * scrollbar even when content fit within the card). Horizontal
+ * overflow is guarded globally by the shell's
+ * .der-apphost .der-screen-card__body { overflow-x: hidden }
+ * rule. */
 .der-apphost .der-screen-card__body {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - var(--der-topbar-h, 52px));
 }
 .der-de-form-card {
   padding: 0;
