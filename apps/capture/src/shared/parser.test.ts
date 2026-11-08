@@ -225,6 +225,18 @@ describe('parseTeiAttributesForm', () => {
       f.domain === 'ATTRIBUTE')).toBe(true);
   });
 
+  it('marks uniqueAttribute TEAs with a description note', () => {
+    const r = parseTeiAttributesForm([
+      { attributeUid: 'TEA_art', displayName: 'ART number',
+        valueType: 'TEXT', uniqueAttribute: true },
+      { attributeUid: 'TEA_sex', displayName: 'Sex',
+        valueType: 'TEXT' },
+    ]);
+    expect(r.sections[0]!.fields[0]!.description)
+      .toBe('Must be unique across tracked entities');
+    expect(r.sections[0]!.fields[1]!.description).toBeNull();
+  });
+
   it('carries mandatory + optionSet through', () => {
     const r = parseTeiAttributesForm([
       { attributeUid: 'TEA_sex', displayName: 'Sex',

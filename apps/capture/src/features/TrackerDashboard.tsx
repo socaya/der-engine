@@ -110,7 +110,7 @@ export function TrackerDashboard(
       }
     })();
     return () => { cancelled = true; };
-  }, [api, programUid, tei]);
+  }, [programUid, tei]);
 
   // Whenever the selected enrolment changes (or we bump reloadTick
   // after a save), re-fetch its events.
@@ -134,7 +134,7 @@ export function TrackerDashboard(
       }
     })();
     return () => { cancelled = true; };
-  }, [api, selectedEnrolment, reloadTick]);
+  }, [selectedEnrolment, reloadTick]);
 
   // Events by stage uid — for the stage rail count + the event
   // list on the right.

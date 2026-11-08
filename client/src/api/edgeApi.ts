@@ -1232,8 +1232,12 @@ export interface ProgramSummary {
  */
 export async function listPrograms(orgUnit?: string):
     Promise<ProgramSummary[]> {
-  const r = await fetch('/api/programs?fields=id,displayName,programType,'
-      + 'trackedEntityType[id],organisationUnits[id]&paging=false',
+  // URL-encode the bracketed field selectors; Tomcat rejects raw
+  // '[' and ']' in the query string with HTTP 400 (strict RFC 3986)
+  // even though downstream DHIS2 would accept them.
+  const r = await fetch('/api/programs?fields=id,displayName,'
+      + 'programType,trackedEntityType%5Bid%5D,'
+      + 'organisationUnits%5Bid%5D&paging=false',
     { credentials: 'include', headers: { Accept: 'application/json' } });
   if (!r.ok) return [];
   const body = await r.json() as {
@@ -1328,11 +1332,11 @@ async function listAllPages<T>(url: string, key: string): Promise<T[]> {
 export async function listProgramRules(programUid?: string):
     Promise<RawProgramRule[]> {
   const rules = await listAllPages<RawProgramRule>(
-    '/api/programRules?fields=id,name,displayName,program[id],'
-    + 'programStage[id],condition,description,priority,'
-    + 'programRuleActions[id,programRuleActionType,content,data,'
-    + 'dataElement[id],trackedEntityAttribute[id],programStage[id],'
-    + 'programStageSection[id],location]',
+    '/api/programRules?fields=id,name,displayName,program%5Bid%5D,'
+    + 'programStage%5Bid%5D,condition,description,priority,'
+    + 'programRuleActions%5Bid,programRuleActionType,content,data,'
+    + 'dataElement%5Bid%5D,trackedEntityAttribute%5Bid%5D,'
+    + 'programStage%5Bid%5D,programStageSection%5Bid%5D,location%5D',
     'programRules');
   if (!programUid) return rules;
   return rules.filter((r) => r.program?.id === programUid);
@@ -1342,9 +1346,9 @@ export async function listProgramRuleVariables(programUid?: string):
     Promise<RawProgramRuleVariable[]> {
   const vars = await listAllPages<RawProgramRuleVariable>(
     '/api/programRuleVariables?fields=id,name,displayName,'
-    + 'program[id],programRuleVariableSourceType,'
-    + 'dataElement[id],trackedEntityAttribute[id],programStage[id],'
-    + 'useCodeForOptionSet,valueType',
+    + 'program%5Bid%5D,programRuleVariableSourceType,'
+    + 'dataElement%5Bid%5D,trackedEntityAttribute%5Bid%5D,'
+    + 'programStage%5Bid%5D,useCodeForOptionSet,valueType',
     'programRuleVariables');
   if (!programUid) return vars;
   return vars.filter((v) => v.program?.id === programUid);
@@ -1370,8 +1374,8 @@ export async function getOptionSet(optionSetUid: string):
     Promise<RawOptionSet | null> {
   const r = await fetch(
     '/api/optionSets/' + encodeURIComponent(optionSetUid)
-      + '?fields=id,displayName,name,options[id,code,displayName,'
-      + 'name,sortOrder]',
+      + '?fields=id,displayName,name,options%5Bid,code,displayName,'
+      + 'name,sortOrder%5D',
     { credentials: 'include',
       headers: { Accept: 'application/json' } });
   if (!r.ok) return null;
@@ -1493,10 +1497,12 @@ export async function listRelationshipTypes():
   const r = await fetch(
     '/api/relationshipTypes?fields=id,name,displayName,fromToName,'
       + 'toFromName,bidirectional,'
-      + 'fromConstraint[relationshipEntity,trackedEntityType[id],'
-      + 'program[id],programStage[id]],'
-      + 'toConstraint[relationshipEntity,trackedEntityType[id],'
-      + 'program[id],programStage[id]]&paging=false',
+      + 'fromConstraint%5BrelationshipEntity,'
+      + 'trackedEntityType%5Bid%5D,program%5Bid%5D,'
+      + 'programStage%5Bid%5D%5D,'
+      + 'toConstraint%5BrelationshipEntity,'
+      + 'trackedEntityType%5Bid%5D,program%5Bid%5D,'
+      + 'programStage%5Bid%5D%5D&paging=false',
     { credentials: 'include',
       headers: { Accept: 'application/json' } });
   if (!r.ok) return [];
@@ -1515,10 +1521,10 @@ export async function listTrackerRelationships(teiUid: string):
   const r = await fetch(
     '/api/tracker/relationships?fields=relationship,relationshipType,'
       + 'relationshipName,bidirectional,createdAt,lastUpdated,'
-      + 'from[trackedEntity[trackedEntity,displayName],'
-      + 'enrollment[enrollment],event[event]],'
-      + 'to[trackedEntity[trackedEntity,displayName],'
-      + 'enrollment[enrollment],event[event]]'
+      + 'from%5BtrackedEntity%5BtrackedEntity,displayName%5D,'
+      + 'enrollment%5Benrollment%5D,event%5Bevent%5D%5D,'
+      + 'to%5BtrackedEntity%5BtrackedEntity,displayName%5D,'
+      + 'enrollment%5Benrollment%5D,event%5Bevent%5D%5D'
       + '&trackedEntity=' + encodeURIComponent(teiUid),
     { credentials: 'include',
       headers: { Accept: 'application/json' } });

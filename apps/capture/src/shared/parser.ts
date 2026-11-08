@@ -65,6 +65,10 @@ export interface RawTeiAttribute {
   readonly valueType?: string;
   readonly optionSetUid?: string | null;
   readonly searchable?: boolean;
+  /** DHIS2 flags unique-attribute TEAs server-side; duplicates are
+   *  rejected at registration time (§TR-010). Capture renders a
+   *  'must be unique' note so operators see the constraint before
+   *  the submit bounces. */
   readonly uniqueAttribute?: boolean;
   readonly mandatory?: boolean;
   readonly sortOrder?: number;
@@ -220,13 +224,21 @@ export function parseTeiAttributesForm(
         path: `attributes[${i}]` });
     }
     seenFieldIds.add(a.attributeUid);
+    // Surface uniqueAttribute as a human-readable note on the
+    // field so operators see the constraint before DHIS2 rejects
+    // a duplicate at register-time (§TR-010). mandatory flag maps
+    // to required; absence defaults to false (§FR-004 — never
+    // confuse absent with cleared).
+    const description = a.uniqueAttribute
+      ? 'Must be unique across tracked entities'
+      : null;
     return {
       id: a.attributeUid,
       fieldRef: a.attributeUid,
       domain: 'ATTRIBUTE',
       valueType,
       label: a.displayName ?? a.attributeUid,
-      description: null,
+      description,
       required: a.mandatory ?? false,
       readonly: false,
       optionSetId: a.optionSetUid ?? null,

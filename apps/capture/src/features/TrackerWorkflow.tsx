@@ -88,7 +88,7 @@ export function TrackerWorkflow(
       }
     })();
     return () => { cancelled = true; };
-  }, [programUid, orgUnitUid, api]);
+  }, [programUid, orgUnitUid]);
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();

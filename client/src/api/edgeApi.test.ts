@@ -490,7 +490,7 @@ describe('edgeApi.getOptionSet', () => {
     const [path] = fetchMock.mock.calls[0] as [string];
     expect(path).toContain('/api/optionSets/OS_sex');
     expect(path).toContain('fields=id,displayName,name');
-    expect(path).toContain('options[id,code,displayName');
+    expect(path).toContain('options%5Bid,code,displayName');
   });
 
   it('URL-encodes the UID', async () => {

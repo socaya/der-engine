@@ -129,7 +129,7 @@ function CaptureAppInner(): JSX.Element {
       }
     })();
     return () => { cancelled = true; };
-  }, [ou.bound, ou.orgUnitUid, api]);
+  }, [ou.bound, ou.orgUnitUid]);
 
   const program = useMemo(
     () => programs.find((p) => p.id === programUid) ?? null,
@@ -176,24 +176,25 @@ function CaptureAppInner(): JSX.Element {
                     fill="currentColor"/>
             </svg>
           </button>
-          <span style={{ flex: 1 }} />
           <StatusPill tone={online.isOnline ? 'success' : 'warning'}>
             {online.isOnline
               ? 'online' : `offline (${online.queuedCount} queued)`}
           </StatusPill>
           <DirtyChip />
-        </div>
-
-        <div className="cap-toolbar__fields">
-          <label className="cap-toolbar__field cap-toolbar__field--ou">
-            <span className="cap-toolbar__field-label">Bound OU</span>
+          {/* Bound OU lives on the brand row, flush right — same
+           *  placement as the Data Entry app (§DER-STYLE-002). */}
+          <span className="cap-toolbar__ou-wrap">
+            <span className="cap-toolbar__ou-label">Bound OU</span>
             <span className="cap-toolbar__ou-value"
                   data-test="cap-bound-ou"
                   title={ou.orgUnitPath}>
-              {ou.orgUnitDisplayName || ou.orgUnitUid || '—'}
+              {ou.orgUnitDisplayName || ou.orgUnitUid
+                || 'Not bound to an OU'}
             </span>
-          </label>
+          </span>
+        </div>
 
+        <div className="cap-toolbar__fields">
           <label className="cap-toolbar__field">
             <span className="cap-toolbar__field-label">Program</span>
             <select className="cap-toolbar__select"

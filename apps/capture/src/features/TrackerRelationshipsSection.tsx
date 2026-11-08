@@ -89,7 +89,7 @@ export function TrackerRelationshipsSection(
       }
     })();
     return () => { cancelled = true; };
-  }, [api, programUid, orgUnitUid, tei]);
+  }, [programUid, orgUnitUid, tei]);
 
   /**
    * Eligibility projection (§REL-MD-004). This TEI can be the
@@ -149,7 +149,7 @@ export function TrackerRelationshipsSection(
       }
     })();
     return () => { cancelled = true; };
-  }, [api, tei]);
+  }, [tei]);
 
   return (
     <>

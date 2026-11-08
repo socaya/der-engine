@@ -9,44 +9,44 @@ export const CAPTURE_STYLES = `
 .cap-toolbar {
   position: sticky; top: 0; z-index: 10;
   display: flex; flex-direction: column; gap: 10px;
-  padding: 10px 14px 12px 14px;
+  padding: 10px 14px 10px 14px;
   background: #fff;
-  border-bottom: 1px solid #e3e8f0;
+  border-bottom: 1px solid #e5e9ef;
 }
 .cap-toolbar__fields {
-  display: grid;
-  grid-template-columns: 2fr 2fr auto;
-  gap: 12px; align-items: end;
+  display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
 }
 @media (max-width: 760px) {
   .cap-toolbar__fields {
-    grid-template-columns: 1fr;
+    gap: 10px;
   }
   .cap-toolbar__brand {
     flex-wrap: wrap;
   }
-  .cap-toolbar__mode {
-    justify-self: start;
-  }
 }
 .cap-toolbar__brand {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 12px;
+}
+.cap-toolbar__ou-wrap {
+  margin-left: auto;
+  display: inline-flex; flex-direction: column; align-items: flex-end;
+  gap: 1px; max-width: 360px;
+  line-height: 1.2;
+}
+.cap-toolbar__ou-label {
+  font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #9097a8;
 }
 .cap-toolbar__ou-value {
-  display: inline-block;
-  padding: 6px 10px; border-radius: 3px;
-  border: 1px solid #c6d4e4;
-  background: #eef2f8;
-  color: #0a5497; font-weight: 500; font-size: 14px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  line-height: 1.3;
+  color: #101a32; font-size: 13px; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .cap-toolbar__mode--empty {
   background: #f3f5f8; color: #94a3b8; border-color: #e3e8f0;
 }
 .cap-toolbar__icon {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; border-radius: 6px;
+  width: 28px; height: 28px; border-radius: 0;
   background: #e8f0fa;
 }
 .cap-toolbar__title {
@@ -55,14 +55,14 @@ export const CAPTURE_STYLES = `
 }
 .cap-toolbar__info-btn {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; border-radius: 50%;
+  width: 22px; height: 22px;
   background: transparent; border: 1px solid #c6d4e4;
   color: #147CD7; cursor: pointer; padding: 0;
 }
 .cap-toolbar__info-btn:hover { background: #eef2f8; }
 .cap-dirty-chip {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 3px 10px; border-radius: 999px;
+  padding: 3px 10px; border-radius: 0;
   font-size: 12px; font-weight: 600;
   background: #fff4de; color: #A56518;
   border: 1px solid #f4d7a2;
@@ -81,7 +81,7 @@ export const CAPTURE_STYLES = `
   letter-spacing: 0.06em; color: #6e7a8a;
 }
 .cap-toolbar__select {
-  padding: 6px 8px; border: 1px solid #aaa; border-radius: 3px;
+  padding: 6px 8px; border: 1px solid #aaa; border-radius: 0;
   font-size: 14px; background: #fff; appearance: none;
   background-image:
     linear-gradient(45deg, transparent 50%, #6e7a8a 50%),
@@ -98,14 +98,14 @@ export const CAPTURE_STYLES = `
 .cap-toolbar__select:disabled { background-color: #f3f5f8; color: #94a3b8; }
 .cap-toolbar__ou-code {
   display: inline-block;
-  padding: 6px 8px; border: 1px solid #e3e8f0; border-radius: 3px;
+  padding: 6px 8px; border: 1px solid #e3e8f0; border-radius: 0;
   background: #f6f8fc; color: #263352;
   font-size: 13px; font-family: inherit;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cap-toolbar__mode {
   align-self: end; justify-self: end;
-  padding: 4px 10px; border-radius: 999px;
+  padding: 4px 10px; border-radius: 0;
   font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
   border: 1px solid #c6d4e4; background: #eef2f8;
   color: #0a5497;
@@ -121,12 +121,12 @@ export const CAPTURE_STYLES = `
   margin: 10px 14px 0 14px; color: #4a5768; font-size: 13px;
 }
 .cap-sub__code {
-  background: #eef2f8; padding: 1px 6px; border-radius: 4px;
+  background: #eef2f8; padding: 1px 6px; border-radius: 0;
   font-size: 12px; margin-inline: 4px;
 }
 
 .cap-strip {
-  margin: 10px 14px 0 14px; padding: 8px 12px; border-radius: 4px;
+  margin: 10px 14px 0 14px; padding: 8px 12px; border-radius: 0;
   font-size: 13px;
 }
 .cap-strip--ok  { background: #ecf7f0; color: #136436;
@@ -138,7 +138,7 @@ export const CAPTURE_STYLES = `
 
 .cap-empty {
   margin: 24px 14px; padding: 24px;
-  border: 1px dashed #c6d4e4; border-radius: 8px;
+  border: 1px dashed #c6d4e4; border-radius: 0;
   background: #fafcff;
   display: flex; flex-direction: column; gap: 8px;
 }
@@ -176,7 +176,7 @@ export const CAPTURE_STYLES = `
   scrollbar-width: thin;
 }
 .cap-section-nav__chip {
-  padding: 4px 12px; border-radius: 999px;
+  padding: 4px 12px; border-radius: 0;
   border: 1px solid #c6d4e4; background: #fff;
   color: #4a5768; font-size: 12px; font-weight: 500;
   white-space: nowrap; cursor: pointer; font-family: inherit;
@@ -192,7 +192,7 @@ export const CAPTURE_STYLES = `
 .cap-form { padding: 0 14px 14px 14px;
             display: flex; flex-direction: column; gap: 14px; }
 .cap-form-section {
-  border: 1px solid #e3e8f0; border-radius: 6px;
+  border: 1px solid #e3e8f0; border-radius: 0;
   padding: 10px 14px 12px 14px; background: #fcfdfe;
 }
 .cap-form-section__title {
@@ -213,7 +213,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-input__req { color: #D32F2F; margin-left: 2px; }
 .cap-input__ctl {
-  padding: 6px 8px; border: 1px solid #aaa; border-radius: 3px;
+  padding: 6px 8px; border: 1px solid #aaa; border-radius: 0;
   font-size: 14px; background: #fff; font-family: inherit;
 }
 .cap-input__ctl:focus {
@@ -228,7 +228,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-field-warn {
   font-size: 11px; color: #A56518;
-  padding: 3px 6px; border-radius: 3px;
+  padding: 3px 6px; border-radius: 0;
   background: #fff4de; border: 1px solid #f4d7a2;
 }
 .cap-field-warn--err {
@@ -260,7 +260,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-action-bar__state strong { color: #263352; }
 .cap-btn {
-  padding: 7px 18px; border-radius: 3px; font-size: 14px;
+  padding: 7px 18px; border-radius: 0; font-size: 14px;
   font-weight: 500; cursor: pointer; border: 1px solid transparent;
   background: #fff;
 }
@@ -299,7 +299,7 @@ export const CAPTURE_STYLES = `
 
 .cap-chip {
   display: inline-block;
-  padding: 1px 8px; border-radius: 999px;
+  padding: 1px 8px; border-radius: 0;
   font-size: 11px; font-weight: 500;
   background: #eef2f8; color: #0a5497;
   border: 1px solid #cfe1f4;
@@ -314,7 +314,7 @@ export const CAPTURE_STYLES = `
   padding: 10px 14px;
   background: #fafcff;
   border: 1px solid #e3e8f0;
-  border-radius: 6px;
+  border-radius: 0;
   display: grid;
   grid-template-columns: auto 1fr auto;
   gap: 16px;
@@ -338,13 +338,13 @@ export const CAPTURE_STYLES = `
   padding: 6px;
   background: #fafcff;
   border: 1px solid #e3e8f0;
-  border-radius: 6px;
+  border-radius: 0;
   align-self: start;
 }
 .cap-stage-rail__item {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 10px;
-  background: transparent; border: 0; border-radius: 4px;
+  background: transparent; border: 0; border-radius: 0;
   cursor: pointer; font-family: inherit;
   font-size: 13px; color: #263352;
   text-align: left;
@@ -360,7 +360,7 @@ export const CAPTURE_STYLES = `
   text-align: center;
   background: #eef2f8; color: #6e7a8a;
   font-size: 11px; font-weight: 500;
-  border-radius: 999px;
+  border-radius: 0;
   margin-left: 8px;
 }
 .cap-stage-rail__item--active .cap-stage-rail__count {
@@ -370,7 +370,7 @@ export const CAPTURE_STYLES = `
   padding: 10px 14px;
   background: #fff;
   border: 1px solid #e3e8f0;
-  border-radius: 6px;
+  border-radius: 0;
   min-height: 160px;
 }
 @media (max-width: 760px) {
@@ -389,8 +389,8 @@ export const CAPTURE_STYLES = `
 .cap-info {
   width: min(560px, calc(100vw - 32px));
   background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 20px 60px rgba(10,30,56,0.28);
+  border-radius: 0;
+  border: 1px solid #d8dee8;
   display: flex; flex-direction: column;
   max-height: calc(100vh - 32px);
   overflow: hidden;
@@ -423,7 +423,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-info__dl dd { margin: 0; color: #263352; }
 .cap-info__note {
-  margin: 0; padding: 10px; border-radius: 6px;
+  margin: 0; padding: 10px; border-radius: 0;
   background: #eaf3fc; color: #0a5497; font-size: 13px;
 }
 .cap-info__dl kbd {
@@ -432,7 +432,7 @@ export const CAPTURE_STYLES = `
   text-align: center;
   background: #f6f8fc; color: #263352;
   border: 1px solid #cfd7e4; border-bottom-width: 2px;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 11px; font-family: ui-monospace, Menlo, monospace;
 }
 `;

@@ -79,7 +79,7 @@ export function EventWorkflow(
       }
     })();
     return () => { cancelled = true; };
-  }, [programUid, api]);
+  }, [programUid]);
 
   // Fetch the stage form schema whenever stage changes. Pipe
   // through the typed parser (G2) so the UI consumes an immutable
@@ -105,7 +105,7 @@ export function EventWorkflow(
       }
     })();
     return () => { cancelled = true; };
-  }, [programUid, stageUid, api]);
+  }, [programUid, stageUid]);
 
   // Fetch program rules + variables once per program. Both calls
   // fan out all pages; the parser sorts rules by priority
@@ -134,7 +134,7 @@ export function EventWorkflow(
       }
     })();
     return () => { cancelled = true; };
-  }, [programUid, api]);
+  }, [programUid]);
 
   // Evaluate rules on every value change — PR-002 "deterministic
   // on initial load and every relevant value/context change".
@@ -170,7 +170,7 @@ export function EventWorkflow(
       }
     })();
     return () => { cancelled = true; };
-  }, [programUid, orgUnitUid, api]);
+  }, [programUid, orgUnitUid]);
 
   const canSubmit = useMemo(() => {
     if (stageUid === '') return false;

@@ -101,7 +101,7 @@ export function TrackerStageEditor(
       }
     })();
     return () => { cancelled = true; };
-  }, [api, programUid, stageUid, eventUid]);
+  }, [programUid, stageUid, eventUid]);
 
   const ruleEffects = useMemo(
     () => evaluateRules(rules, ruleVars, values),
