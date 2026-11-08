@@ -469,7 +469,11 @@ function CaptureAppInner(): JSX.Element {
 
       {infoOpen && (
         <CaptureInfoPopover onClose={() => setInfoOpen(false)}
-                             program={program} mode={mode} />
+                             program={program} mode={mode}
+                             deviceId={device.deviceId}
+                             deviceStatus={device.status}
+                             assignedWorkflowCount={
+                               deviceAssignedWorkflows.length} />
       )}
     </ScreenCard>
   );
@@ -492,10 +496,14 @@ function DirtyChip(): JSX.Element | null {
 }
 
 function CaptureInfoPopover(
-  { onClose, program, mode }:
+  { onClose, program, mode, deviceId, deviceStatus,
+    assignedWorkflowCount }:
   { onClose: () => void;
     program: ProgramOpt | null;
-    mode: 'event' | 'tracker' | null },
+    mode: 'event' | 'tracker' | null;
+    deviceId: string | null;
+    deviceStatus: string | null;
+    assignedWorkflowCount: number },
 ): JSX.Element {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -535,6 +543,27 @@ function CaptureInfoPopover(
                   : 'Event (WITHOUT_REGISTRATION)'}</dd></div>
             </dl>
           )}
+          <section data-test="cap-info-device">
+            <h4 style={{ margin: '4px 0 6px 0', fontSize: 12,
+              textTransform: 'uppercase', letterSpacing: '0.06em',
+              color: '#6e7a8a' }}>
+              Device
+            </h4>
+            <dl className="cap-info__dl">
+              <div><dt>Device UID</dt>
+                <dd>
+                  {deviceId ? <code>{deviceId}</code>
+                    : <em>enrolling…</em>}
+                </dd></div>
+              <div><dt>Status</dt>
+                <dd>{deviceStatus ?? 'enrolling…'}</dd></div>
+              <div><dt>Assigned workflows</dt>
+                <dd>{assignedWorkflowCount === 0
+                  ? 'none (operator picks programs normally)'
+                  : assignedWorkflowCount + ' step-assigned to '
+                    + 'this device'}</dd></div>
+            </dl>
+          </section>
           <section data-test="cap-info-shortcuts">
             <h4 style={{ margin: '0 0 6px 0', fontSize: 12,
               textTransform: 'uppercase', letterSpacing: '0.06em',

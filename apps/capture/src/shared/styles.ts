@@ -2,10 +2,26 @@
  * Shared design-token CSS for the unified Capture app. Palette +
  * sizing + focus halo match the Data Entry app so operators get
  * one consistent muscle memory across both modules (requirements
- * doc §5 "Modern DER Capture Design System" — reuse established
- * DER tokens from the real repository).
+ * doc §5 "Modern DER Capture Design System").
+ *
+ * Softening pass (G9-30): borders and label text drop one step in
+ * contrast so the page reads calmer at a glance; section titles
+ * use medium weight instead of semibold so the hierarchy guides
+ * the eye without shouting.
  */
 export const CAPTURE_STYLES = `
+:root {
+  --cap-ink-900: #101a32;
+  --cap-ink-700: #263352;
+  --cap-ink-500: #4a5768;
+  --cap-ink-300: #7a8597;
+  --cap-border: #ecedf0;
+  --cap-border-soft: #f2f3f7;
+  --cap-surface: #ffffff;
+  --cap-surface-soft: #fafbfd;
+  --cap-brand-500: #147CD7;
+  --cap-brand-700: #0a5497;
+}
 .cap-toolbar {
   position: sticky; top: 0; z-index: 10;
   display: flex; flex-direction: column; gap: 10px;
@@ -342,15 +358,15 @@ export const CAPTURE_STYLES = `
   display: flex; align-items: center; gap: 12px;
 }
 .cap-section-head__title {
-  margin: 0; font-size: 12px; font-weight: 600;
+  margin: 0; font-size: 12px; font-weight: 500;
   text-transform: uppercase; letter-spacing: 0.08em;
-  color: #0a5497;
+  color: #263352;
 }
 .cap-section-head__count {
-  font-size: 12px; color: #6e7a8a; font-weight: 400;
+  font-size: 12px; color: #7a8597; font-weight: 400;
 }
 .cap-section-head__rule {
-  flex: 1; border-top: 1px solid #e3e8f0;
+  flex: 1; border-top: 1px solid #ecedf0;
 }
 
 /* Shared form engine styling — sections + typed inputs. Mirrors
