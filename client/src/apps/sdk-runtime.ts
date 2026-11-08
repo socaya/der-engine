@@ -23,6 +23,7 @@ import { useDeviceEnrollment } from '../device/useDeviceEnrollment';
 function useDerApi(): {
   submitAggregate: typeof edgeApi.submitAggregate;
   submitEvent: typeof edgeApi.submitEvent;
+  deleteEvent: typeof edgeApi.deleteEvent;
   listEvents: typeof edgeApi.listEvents;
   listDrafts: typeof edgeApi.listDrafts;
   dhis2Ping: typeof edgeApi.dhis2Ping;
@@ -80,6 +81,7 @@ function useDerApi(): {
   return {
     submitAggregate: edgeApi.submitAggregate,
     submitEvent: edgeApi.submitEvent,
+    deleteEvent: edgeApi.deleteEvent,
     listEvents: edgeApi.listEvents,
     listDrafts: edgeApi.listDrafts,
     dhis2Ping: edgeApi.dhis2Ping,

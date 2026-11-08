@@ -112,6 +112,22 @@ public class EventRepository {
         return count != null && count > 0;
     }
 
+    /** Hard-delete an event + its data values. Mirrors DHIS2's
+     *  {@code DELETE /api/tracker?importStrategy=DELETE} behaviour
+     *  (DHIS2 physically removes an event only when permitted; the
+     *  DER edge delegates to central at drain time). Returns the
+     *  number of event rows removed — 0 when the UID is unknown. */
+    @Transactional
+    public int delete(final UUID eventId) {
+        if (eventId == null) {
+            return 0;
+        }
+        jdbc.update("DELETE FROM der.event_data_value WHERE event_id = ?",
+                eventId);
+        return jdbc.update("DELETE FROM der.event WHERE event_id = ?",
+                eventId);
+    }
+
     private Event withDataValues(final Event base) {
         final Map<String, String> values = new LinkedHashMap<>();
         jdbc.query(

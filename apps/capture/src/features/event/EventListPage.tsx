@@ -24,7 +24,17 @@ interface DerivedColumn {
   readonly label: string;
 }
 
-const MAX_METADATA_COLUMNS = 3;
+const MAX_METADATA_COLUMNS = 4;
+
+/** Value types that read poorly in a dense table cell — we skip them
+ *  from the metadata-driven column picker and let operators open the
+ *  detail page to see them. Open follow-up (EV3): swap this allowlist
+ *  for the authoritative {@code programStageDataElement.displayInList}
+ *  flag once the metadata mirror ingests it. */
+const UNRENDERABLE_IN_LIST = new Set([
+  'LONG_TEXT', 'FILE_RESOURCE', 'IMAGE', 'COORDINATE', 'URL',
+  'TRACKER_ASSOCIATE', 'ORGANISATION_UNIT',
+]);
 
 export function EventListPage(
   { api, programUid, orgUnitUid }: {
@@ -82,6 +92,7 @@ export function EventListPage(
           const derived: DerivedColumn[] = [];
           for (const s of form.sections) {
             for (const f of s.fields) {
+              if (UNRENDERABLE_IN_LIST.has(f.valueType ?? '')) continue;
               derived.push({
                 dataElementUid: f.dataElementUid,
                 label: f.dataElementDisplayName
@@ -309,6 +320,31 @@ export function EventListPage(
                             onSelect: () => {
                               navigator.clipboard?.writeText(uid)
                                 .catch(() => undefined);
+                            } },
+                          { label: 'Delete event',
+                            title: 'Remove this event from the edge '
+                              + 'immediately. Mirrors DHIS2 '
+                              + 'DELETE /api/events/{id}.',
+                            onSelect: () => {
+                              // eslint-disable-next-line no-alert
+                              if (!confirm('Delete event ' + uid.slice(0, 8)
+                                  + '…?\n\nThis removes the event from the '
+                                  + 'edge immediately; central sync '
+                                  + 'follows on the next drain.')) {
+                                return;
+                              }
+                              void (async () => {
+                                try {
+                                  await api.deleteEvent(uid);
+                                  setRecent((prev) => prev.filter(
+                                    (r) => (r.eventUid ?? r.event) !== uid));
+                                } catch (err) {
+                                  // eslint-disable-next-line no-alert
+                                  alert('Delete failed: '
+                                    + ((err as Error).message
+                                      ?? 'unknown error'));
+                                }
+                              })();
                             } },
                         ]} />
                     </td>

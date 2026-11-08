@@ -76,6 +76,15 @@ public class EventService {
         this.approvals = Objects.requireNonNull(approvals, "approvals");
     }
 
+    /** Mirrors DHIS2 {@code DELETE /api/events/{id}}: physically
+     *  removes the event + its data values from the edge mirror.
+     *  Returns {@code true} when a row was removed, {@code false}
+     *  when the UID was unknown (controllers translate to 404). */
+    @Transactional
+    public boolean deleteEvent(final UUID eventId) {
+        return events.delete(eventId) > 0;
+    }
+
     @Transactional
     public EventImportResult submit(final List<EventInput> inputs,
                                      final UUID submittedBy,

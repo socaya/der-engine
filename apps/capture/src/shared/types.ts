@@ -60,6 +60,8 @@ export interface CaptureApi {
     status?: string;
     event?: string;
   }) => Promise<unknown>;
+  deleteEvent: (eventId: string) => Promise<{ deleted: true;
+    eventId: string }>;
   listTrackerEntities: (program: string, orgUnit: string,
     limit?: number) => Promise<{
     instances?: Array<{ trackedEntity?: string;

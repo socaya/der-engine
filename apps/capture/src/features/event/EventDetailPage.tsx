@@ -115,6 +115,32 @@ export function EventDetailPage(
         )}
         <span className="cap-section-head__rule" />
         <button type="button"
+                className="cap-btn cap-btn--secondary"
+                data-test="ev-detail-delete"
+                title="Delete this event from the edge"
+                onClick={() => {
+                  // eslint-disable-next-line no-alert
+                  if (!confirm('Delete event ' + eventId.slice(0, 8)
+                      + '…?\n\nThis removes the event from the '
+                      + 'edge immediately; central sync '
+                      + 'follows on the next drain.')) {
+                    return;
+                  }
+                  void (async () => {
+                    try {
+                      await api.deleteEvent(eventId);
+                      navEvent.list(programUid);
+                    } catch (err) {
+                      // eslint-disable-next-line no-alert
+                      alert('Delete failed: '
+                        + ((err as Error).message
+                          ?? 'unknown error'));
+                    }
+                  })();
+                }}>
+          Delete
+        </button>
+        <button type="button"
                 className="cap-btn cap-btn--primary"
                 data-test="ev-detail-edit"
                 title="Open the event in the edit form"

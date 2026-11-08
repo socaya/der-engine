@@ -170,8 +170,8 @@ export function EventFormPage(
   useAutofocusFirstField(effectiveSections,
     (eventId ?? 'new') + '|' + stageUid);
 
-  async function submit(targetStatus: 'ACTIVE' | 'COMPLETED' | null):
-      Promise<void> {
+  async function submit(targetStatus: 'ACTIVE' | 'COMPLETED' | null,
+      { andAnother }: { andAnother?: boolean } = {}): Promise<void> {
     setSubmitState('submitting');
     setSubmitMsg(null);
     try {
@@ -196,6 +196,20 @@ export function EventFormPage(
         : 'Saved on edge';
       setSubmitMsg(`${verb} · ${dataValues.length} `
         + `value${dataValues.length === 1 ? '' : 's'}.`);
+      if (andAnother && !eventId) {
+        // EV2-B — Save & add another. Reset the form in place so
+        // the operator can capture the next event without a
+        // round-trip through the list. Keeps occurredAt pinned
+        // (same session + same day) and resets the ok banner a
+        // second later so the operator sees the confirmation
+        // before the next entry.
+        setValues({});
+        setTimeout(() => {
+          setSubmitState('idle');
+          setSubmitMsg(null);
+        }, 1200);
+        return;
+      }
       // NAV-006: route to the detail page on successful save. If
       // we're creating and don't have an eventId yet, list route.
       setTimeout(() => {
@@ -348,6 +362,23 @@ export function EventFormPage(
                       data-test="ce-complete"
                       title="Mark COMPLETED (Alt+C)">
                 Complete
+              </button>
+            )}
+            {!eventId && (
+              // EV2-B — only offered when creating. On edit the
+              // "and another" semantics don't make sense: there
+              // is no new blank event to roll into.
+              <button type="button"
+                      className="cap-btn cap-btn--secondary"
+                      onClick={() => {
+                        void submit(null, { andAnother: true });
+                      }}
+                      disabled={!canSubmit}
+                      data-test="ce-save-and-another"
+                      title={'Save this event and reset the form so you '
+                        + 'can enter the next one without going back '
+                        + 'to the list.'}>
+                Save &amp; add another
               </button>
             )}
             <button type="submit"

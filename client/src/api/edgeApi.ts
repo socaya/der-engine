@@ -691,6 +691,15 @@ export function submitEvent(body: EventSubmitInput): Promise<unknown> {
   return request('POST', '/api/events', { events: [body] });
 }
 
+/** DHIS2-parity {@code DELETE /api/events/{eventId}} — physically
+ *  removes the event from the edge mirror. The DER server's
+ *  tracker-sync pipeline queues the equivalent central delete on
+ *  the next drain when the device is online. */
+export function deleteEvent(eventId: string): Promise<{ deleted: true;
+    eventId: string }> {
+  return request('DELETE', '/api/events/' + encodeURIComponent(eventId));
+}
+
 export function listTrackerEvents(program: string, orgUnit: string, pageSize = 100):
     Promise<{ instances: EventRow[]; total: number }> {
   const q = new URLSearchParams({ program, orgUnit, pageSize: String(pageSize) }).toString();
