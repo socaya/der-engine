@@ -13,7 +13,7 @@ import { parseCaptureRoute, navEvent } from '../shared/routing';
  * sub-page — it never renders two of them at once.
  */
 export function EventWorkflow(
-  { api, programUid, orgUnitUid, hashRoute }: {
+  { api, programUid, orgUnitUid, orgUnitDisplayName, hashRoute }: {
     api: CaptureApi; programUid: string;
     orgUnitUid: string; orgUnitDisplayName: string;
     hashRoute: string;
@@ -44,6 +44,8 @@ export function EventWorkflow(
     return (
       <EventDetailPage api={api}
                         programUid={programUid}
+                        orgUnitUid={orgUnitUid}
+                        orgUnitDisplayName={orgUnitDisplayName}
                         eventId={route.eventId} />
     );
   }

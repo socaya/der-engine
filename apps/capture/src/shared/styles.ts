@@ -1557,30 +1557,57 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 }
 .cap-chip--warn { color: var(--der-warning); }
 
-/* Identity strip (tracker detail page) — borderless header
- * row under the back/title line. Key/value pairs sit on the
- * surface at low contrast so they read as metadata, not as a
- * boxed-off panel. */
+/* Identity strip (tracker + event detail pages) — borderless
+ * header row under the back/title line. Key/value pairs sit on
+ * the surface at low contrast so they read as metadata, not as
+ * a boxed-off panel. Label is weight-500 dark, value is normal
+ * dark text so the pair reads "Stage: Awareness outreach
+ * session" at glance distance. */
 .cap-identity-strip {
-  margin: 4px 20px 12px 20px;
-  padding: 0 0 10px 0;
+  margin: 4px 20px 16px 20px;
+  padding: 0 0 12px 0;
   background: transparent;
   border: 0;
   border-bottom: 1px solid var(--der-border-soft);
-  display: flex; flex-wrap: wrap; align-items: center;
-  gap: 8px 24px;
-  font-size: 12px; color: var(--der-text-muted);
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 8px 28px;
+  font-size: 13px; color: var(--der-text);
 }
 .cap-identity-strip > div {
-  display: flex; align-items: center; gap: 6px;
-}
-.cap-identity-strip code {
-  font-size: 12px; color: var(--der-text);
-  background: var(--der-surface-subtle);
-  padding: 2px 6px; border-radius: 3px;
+  display: flex; align-items: baseline; gap: 8px;
 }
 .cap-identity-strip strong {
-  color: var(--der-text); font-weight: 500;
+  color: var(--der-text-muted); font-weight: 500;
+  font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cap-identity-strip > div > span {
+  color: var(--der-text);
+}
+.cap-identity-strip code {
+  font-size: 12px; color: var(--der-text-muted);
+  background: var(--der-surface-subtle);
+  padding: 2px 6px; border-radius: 3px;
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+/* Read-only value cell on the detail page — mirrors the shape
+ * of .cap-input (label stacked over value) but renders the
+ * value as plain text in a soft-surface chip so the form
+ * recognisably matches the edit form without pretending to be
+ * an input. */
+.cap-readfield__value {
+  display: block;
+  min-height: 34px;
+  padding: 7px 10px;
+  background: var(--der-surface-subtle);
+  border: 1px solid var(--der-border-soft);
+  border-radius: 3px;
+  color: var(--der-text); font-size: 15px;
+  line-height: 1.3; word-break: break-word;
+}
+.cap-readfield__value--empty {
+  color: var(--der-text-faint);
 }
 
 .cap-stage-layout {
