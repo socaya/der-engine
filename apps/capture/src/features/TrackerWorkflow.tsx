@@ -4,6 +4,7 @@ import type { CaptureApi } from '../shared/types';
 import type { CaptureFormSection, CaptureParseIssue } from '../shared/model';
 import { parseTeiAttributesForm } from '../shared/parser';
 import { TrackerDashboard } from './TrackerDashboard';
+import { RowActions } from '../shared/RowActions';
 
 interface TeiRow {
   readonly trackedEntity?: string;
@@ -255,6 +256,24 @@ export function TrackerWorkflow(
                   )}
                 </div>
                 <span className="cap-list__when">{r.lastUpdated ?? '—'}</span>
+                <RowActions
+                  label="Tracked entity actions"
+                  dataTest={'tr-tei-actions-' + uid}
+                  actions={[
+                    { label: 'Open dashboard',
+                      title: 'Open this tracked entity\'s enrolments '
+                        + '+ stage events in the dashboard panel.',
+                      onSelect: () => setOpenTei(r) },
+                    { label: 'Copy UID',
+                      disabled: typeof navigator === 'undefined'
+                        || !navigator.clipboard,
+                      title: 'Copy this tracked-entity UID to the '
+                        + 'clipboard for sharing with admins.',
+                      onSelect: () => {
+                        navigator.clipboard?.writeText(uid)
+                          .catch(() => undefined);
+                      } },
+                  ]} />
               </li>
             );
           })}

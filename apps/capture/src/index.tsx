@@ -282,7 +282,11 @@ function CaptureAppInner(): JSX.Element {
             </svg>
           </button>
           <OfflineStatus isOnline={online.isOnline}
-                          queuedCount={online.queuedCount} />
+                          queuedCount={online.queuedCount}
+                          onFlush={async () => {
+                            await api.triggerSyncJob(
+                              'JOURNAL_WORKER_DRAIN');
+                          }} />
           <DirtyChip />
           {/* Bound OU lives on the brand row, flush right — same
            *  placement as the Data Entry app (§DER-STYLE-002). */}
@@ -488,8 +492,9 @@ function CaptureAppInner(): JSX.Element {
  *   • Offline + N queued → amber '• Offline · N held locally'
  */
 function OfflineStatus(
-  { isOnline, queuedCount }:
-  { isOnline: boolean; queuedCount: number },
+  { isOnline, queuedCount, onFlush }:
+  { isOnline: boolean; queuedCount: number;
+    onFlush: () => Promise<void> },
 ): JSX.Element {
   const kind = !isOnline && queuedCount > 0 ? 'offline-held'
     : !isOnline ? 'offline'
@@ -514,13 +519,34 @@ function OfflineStatus(
       + 'the facility edge; they will publish to central DHIS2 '
       + 'automatically when the link returns.',
   };
+  const [flushing, setFlushing] = useState(false);
+  const canFlush = isOnline && queuedCount > 0 && !flushing;
   return (
-    <span className={'cap-net-status cap-net-status--' + kind}
-          data-test="cap-net-status"
-          role="status" aria-live="polite"
-          title={titles[kind]}>
-      <span className="cap-net-status__dot" aria-hidden="true" />
-      {labels[kind]}
+    <span className="cap-net-wrap">
+      <span className={'cap-net-status cap-net-status--' + kind}
+            data-test="cap-net-status"
+            role="status" aria-live="polite"
+            title={titles[kind]}>
+        <span className="cap-net-status__dot" aria-hidden="true" />
+        {labels[kind]}
+      </span>
+      {canFlush && (
+        <button type="button"
+                className="cap-net-flush"
+                data-test="cap-net-flush"
+                title={'Fire the DER journal drain worker now so '
+                  + 'queued captures publish to central without '
+                  + 'waiting for the next scheduled run.'}
+                onClick={async () => {
+                  setFlushing(true);
+                  await onFlush();
+                  // Give the queue counter a moment to refresh
+                  // (it polls via useOnlineStatus → queueCount).
+                  setTimeout(() => setFlushing(false), 1000);
+                }}>
+          {flushing ? 'Flushing…' : 'Flush now'}
+        </button>
+      )}
     </span>
   );
 }

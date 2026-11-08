@@ -414,6 +414,22 @@ export function listSyncJobs(limit = 20): Promise<SyncJobRun[]> {
     'GET', `/edge-api/v1/sync/jobs?limit=${encodeURIComponent(String(limit))}`);
 }
 
+/** Fire a named scheduler job out-of-band — the Capture app uses
+ *  this for the 'Flush now' button next to the sync-status
+ *  indicator so operators can force a drain before closing the
+ *  app (§ED-001). Returns true when the job accepted (HTTP
+ *  200/202), false otherwise. */
+export async function triggerSyncJob(jobName: string): Promise<boolean> {
+  try {
+    await request<unknown>('POST',
+      '/edge-api/v1/sync/jobs/'
+        + encodeURIComponent(jobName) + '/trigger');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export interface DriftSnapshot {
   status?: string;
   message?: string;

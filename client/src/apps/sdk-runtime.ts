@@ -73,6 +73,8 @@ function useDerApi(): {
   deleteTrackerRelationship: typeof edgeApi.deleteTrackerRelationship;
   // G9-6 — option-set select in the shared form engine.
   getOptionSet: typeof edgeApi.getOptionSet;
+  // G9-32 — operator-triggered journal drain.
+  triggerSyncJob: typeof edgeApi.triggerSyncJob;
 } {
   return {
     submitAggregate: edgeApi.submitAggregate,
@@ -119,6 +121,7 @@ function useDerApi(): {
     submitTrackerRelationship: edgeApi.submitTrackerRelationship,
     deleteTrackerRelationship: edgeApi.deleteTrackerRelationship,
     getOptionSet: edgeApi.getOptionSet,
+    triggerSyncJob: edgeApi.triggerSyncJob,
   };
 }
 

@@ -9,6 +9,7 @@ import { parseStageForm } from '../shared/parser';
 import { enrichRulesWithActions, parseProgramRules } from '../shared/rules';
 import { applyRuleEffectsToSections, evaluateRules } from '../shared/ruleEngine';
 import { useDirtyGuard } from '../shared/useDirtyGuard';
+import { RowActions } from '../shared/RowActions';
 import { usePublishDirty } from '../shared/DirtyContext';
 import { SectionNav } from '../shared/SectionNav';
 import { useAutofocusFirstField } from '../shared/useAutofocusFirstField';
@@ -511,6 +512,27 @@ export function EventWorkflow(
                 <span className="cap-list__when">
                   {e.occurredDate ?? e.occurredAt ?? e.eventDate ?? '—'}
                 </span>
+                {uid && (
+                  <RowActions
+                    label="Event actions"
+                    dataTest={'ce-recent-actions-' + uid}
+                    actions={[
+                      { label: 'Open',
+                        title: 'Load this event in the form '
+                          + 'above for editing.',
+                        onSelect: () => { void openExisting(uid); } },
+                      { label: 'Copy UID',
+                        title: 'Copy this event\'s UID to the '
+                          + 'clipboard — useful for sharing with '
+                          + 'admins during troubleshooting.',
+                        disabled: typeof navigator === 'undefined'
+                          || !navigator.clipboard,
+                        onSelect: () => {
+                          navigator.clipboard?.writeText(uid)
+                            .catch(() => undefined);
+                        } },
+                    ]} />
+                )}
               </li>
             );
           })}

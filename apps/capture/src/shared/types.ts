@@ -185,6 +185,14 @@ export interface CaptureApi {
       defaultDeviceId?: string | null;
     }>;
   }>;
+  triggerSyncJob: (jobName: string) => Promise<boolean>;
+  listCaptureRuns: (opts: { workflowId: string; state?: string })
+    => Promise<{ count: number; runs: ReadonlyArray<{
+      runId: string; workflowId: string; businessKey: string;
+      currentStepId: string | null;
+      state: 'OPEN' | 'AWAITING' | 'COMPLETED' | 'REJECTED';
+      updatedAt: string;
+    }> }>;
   getOptionSet: (optionSetUid: string) => Promise<{
     id: string;
     displayName?: string;
