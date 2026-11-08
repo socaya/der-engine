@@ -46,7 +46,10 @@ interface RelRow {
  * exactly what is and isn't implemented (§22.5 guardrail).
  */
 export function TrackerRelationshipsSection(
-  { api, tei }: { api: CaptureApi; tei: string },
+  { api, tei, programUid, orgUnitUid }: {
+    api: CaptureApi; tei: string;
+    programUid: string; orgUnitUid: string;
+  },
 ): JSX.Element {
   const [rows, setRows] = useState<RelRow[]>([]);
   const [status, setStatus] =
@@ -58,6 +61,41 @@ export function TrackerRelationshipsSection(
   const [submit, setSubmit] =
     useState<'idle' | 'submitting' | 'ok' | 'err'>('idle');
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
+  // Candidate TEI search for the target endpoint — fetched once
+  // per (programUid, orgUnitUid) and filtered client-side by the
+  // operator's query. Precise cross-program search comes in G7-2d.
+  const [candidates, setCandidates] = useState<Array<{
+    uid: string; displayName: string; lastUpdated: string }>>([]);
+  const [candidateQuery, setCandidateQuery] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api.listTrackerEntities(programUid,
+          orgUnitUid, 200);
+        if (cancelled) return;
+        const list = r.trackedEntities ?? r.instances ?? [];
+        setCandidates(list.map((row) => ({
+          uid: row.trackedEntity ?? row.trackedEntityInstance ?? '',
+          displayName: row.displayName ?? '',
+          lastUpdated: row.lastUpdated ?? '',
+        })).filter((c) => c.uid !== '' && c.uid !== tei));
+      } catch {
+        if (!cancelled) setCandidates([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [api, programUid, orgUnitUid, tei]);
+
+  const filteredCandidates = (() => {
+    const q = candidateQuery.trim().toLowerCase();
+    if (q === '') return candidates.slice(0, 20);
+    return candidates.filter((c) =>
+      c.uid.toLowerCase().includes(q)
+      || c.displayName.toLowerCase().includes(q))
+      .slice(0, 20);
+  })();
 
   useEffect(() => {
     let cancelled = false;
@@ -117,72 +155,139 @@ export function TrackerRelationshipsSection(
       {pickedType && (
         <div className="cap-strip cap-strip--info"
              data-test="tr-rel-create"
-             style={{ display: 'grid',
-               gridTemplateColumns: '1fr auto auto', gap: 10,
-               alignItems: 'end' }}>
+             style={{ display: 'flex', flexDirection: 'column',
+               gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline',
+            gap: 10 }}>
+            <strong style={{ flex: 1 }}>
+              Link {pickedType.displayName}
+            </strong>
+            <button type="button"
+                    className="cap-btn cap-btn--secondary"
+                    onClick={() => { setPickedType(null);
+                      setTargetTei(''); setCandidateQuery('');
+                      setSubmit('idle'); setSubmitMsg(null); }}
+                    data-test="tr-rel-picked-clear"
+                    style={{ padding: '2px 10px', fontSize: 12 }}>
+              Cancel
+            </button>
+          </div>
+
           <label className="cap-input">
             <span className="cap-toolbar__field-label">
-              Link {pickedType.displayName} — target TEI UID
+              Search target (program {programUid} · OU scope)
             </span>
             <input className="cap-input__ctl"
-                   type="text"
-                   value={targetTei}
-                   data-test="tr-rel-target-uid"
-                   placeholder="target tracked-entity UID"
-                   onChange={(e) => setTargetTei(e.target.value)} />
-            {submit === 'ok' && submitMsg && (
-              <span style={{ fontSize: 11, color: '#136436' }}>
-                {submitMsg}
-              </span>
-            )}
-            {submit === 'err' && submitMsg && (
-              <span style={{ fontSize: 11, color: '#8a2525' }}>
-                {submitMsg}
-              </span>
-            )}
+                   type="search"
+                   value={candidateQuery}
+                   data-test="tr-rel-cand-search"
+                   placeholder="type a UID or name to narrow…"
+                   onChange={(e) => setCandidateQuery(e.target.value)} />
           </label>
-          <button type="button"
-                  className="cap-btn cap-btn--secondary"
-                  onClick={() => { setPickedType(null);
-                    setTargetTei(''); setSubmit('idle');
-                    setSubmitMsg(null); }}
-                  data-test="tr-rel-picked-clear"
-                  style={{ padding: '4px 10px', fontSize: 12 }}>
-            Cancel
-          </button>
-          <button type="button"
-                  className="cap-btn cap-btn--primary"
-                  data-test="tr-rel-link"
-                  disabled={submit === 'submitting'
-                    || targetTei.trim() === ''
-                    || targetTei.trim() === tei}
-                  title={targetTei.trim() === tei
-                    ? 'Cannot link a tracked entity to itself'
-                    : 'Create the relationship on the edge '
-                      + '(§REL-EDGE-001)'}
-                  onClick={async () => {
-                    setSubmit('submitting'); setSubmitMsg(null);
-                    const res = await api.submitTrackerRelationship({
-                      relationshipType: pickedType.id,
-                      fromTei: tei,
-                      toTei: targetTei.trim(),
-                    });
-                    if (res.ok) {
-                      setSubmit('ok');
-                      setSubmitMsg('Saved on edge · central '
-                        + 'sync is a separate step.');
-                      const r = await api.listTrackerRelationships(tei);
-                      setRows(Array.isArray(r) ? r : []);
-                      setPickedType(null);
-                      setTargetTei('');
-                    } else {
-                      setSubmit('err');
-                      setSubmitMsg('Failed: ' + res.message);
-                    }
-                  }}
-                  style={{ padding: '4px 12px', fontSize: 12 }}>
-            {submit === 'submitting' ? 'Linking…' : 'Link'}
-          </button>
+
+          {filteredCandidates.length === 0 ? (
+            <p style={{ margin: 0, color: '#6e7a8a', fontSize: 12 }}>
+              {candidates.length === 0
+                ? 'No tracked entities loaded for this program at '
+                  + 'this OU.'
+                : 'No candidates match this search.'}{' '}
+              You can still paste a UID below.
+            </p>
+          ) : (
+            <ul className="cap-list" style={{ margin: 0,
+              maxHeight: 200, overflow: 'auto', background: '#fff',
+              border: '1px solid #e3e8f0', borderRadius: 4 }}
+                data-test="tr-rel-cand-list">
+              {filteredCandidates.map((c) => (
+                <li key={c.uid}
+                    className={'cap-list__row '
+                      + 'cap-list__row--clickable'
+                      + (targetTei === c.uid
+                        ? ' cap-list__row--active' : '')}
+                    data-test={'tr-rel-cand-' + c.uid}
+                    onClick={() => setTargetTei(c.uid)}
+                    role="button" tabIndex={0}
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Enter' || ev.key === ' ') {
+                        ev.preventDefault();
+                        setTargetTei(c.uid);
+                      }
+                    }}>
+                  <div>
+                    <code>{c.uid}</code>
+                    {c.displayName && (
+                      <span style={{ marginLeft: 10 }}>
+                        {c.displayName}
+                      </span>
+                    )}
+                  </div>
+                  <span className="cap-list__when">
+                    {c.lastUpdated || '—'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div style={{ display: 'grid',
+            gridTemplateColumns: '1fr auto', gap: 10,
+            alignItems: 'end' }}>
+            <label className="cap-input">
+              <span className="cap-toolbar__field-label">
+                Picked target UID
+              </span>
+              <input className="cap-input__ctl"
+                     type="text"
+                     value={targetTei}
+                     data-test="tr-rel-target-uid"
+                     placeholder="paste or pick from the list above"
+                     onChange={(e) => setTargetTei(e.target.value)} />
+              {submit === 'ok' && submitMsg && (
+                <span style={{ fontSize: 11, color: '#136436' }}>
+                  {submitMsg}
+                </span>
+              )}
+              {submit === 'err' && submitMsg && (
+                <span style={{ fontSize: 11, color: '#8a2525' }}>
+                  {submitMsg}
+                </span>
+              )}
+            </label>
+            <button type="button"
+                    className="cap-btn cap-btn--primary"
+                    data-test="tr-rel-link"
+                    disabled={submit === 'submitting'
+                      || targetTei.trim() === ''
+                      || targetTei.trim() === tei}
+                    title={targetTei.trim() === tei
+                      ? 'Cannot link a tracked entity to itself'
+                      : 'Create the relationship on the edge '
+                        + '(§REL-EDGE-001)'}
+                    onClick={async () => {
+                      setSubmit('submitting'); setSubmitMsg(null);
+                      const res = await api.submitTrackerRelationship({
+                        relationshipType: pickedType.id,
+                        fromTei: tei,
+                        toTei: targetTei.trim(),
+                      });
+                      if (res.ok) {
+                        setSubmit('ok');
+                        setSubmitMsg('Saved on edge · central '
+                          + 'sync is a separate step.');
+                        const r = await api
+                          .listTrackerRelationships(tei);
+                        setRows(Array.isArray(r) ? r : []);
+                        setPickedType(null);
+                        setTargetTei(''); setCandidateQuery('');
+                      } else {
+                        setSubmit('err');
+                        setSubmitMsg('Failed: ' + res.message);
+                      }
+                    }}
+                    style={{ padding: '4px 12px', fontSize: 12 }}>
+              {submit === 'submitting' ? 'Linking…' : 'Link'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -345,9 +450,11 @@ function TypePickerModal(
             </ul>
           )}
           <p className="cap-info__note" style={{ marginTop: 8 }}>
-            After you pick a type, enter the target tracked-entity
-            UID to link. Candidate search + preview (§REL-UX-005)
-            arrive in slice G7-2c.
+            After you pick a type, search the current program's
+            tracked entities and click a candidate — or paste a
+            UID directly to link across programs. Cross-program
+            candidate search + eligibility projection
+            (§REL-MD-004) arrive in slice G7-2d.
           </p>
         </div>
       </div>

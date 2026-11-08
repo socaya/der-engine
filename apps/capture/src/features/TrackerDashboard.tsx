@@ -368,7 +368,9 @@ export function TrackerDashboard(
         </div>
       )}
 
-      <TrackerRelationshipsSection api={api} tei={tei} />
+      <TrackerRelationshipsSection api={api} tei={tei}
+                                     programUid={programUid}
+                                     orgUnitUid={orgUnitUid} />
     </>
   );
 }
