@@ -841,7 +841,7 @@ body {
   border-bottom: 1px solid var(--der-border);
 }
 .der-apphost .der-screen-card__body {
-  padding: 16px 24px 0;
+  padding: 0px 0px 0;
 }
 
 .der-screen-card__head {

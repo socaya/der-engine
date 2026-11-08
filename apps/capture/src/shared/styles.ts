@@ -650,6 +650,13 @@ export const CAPTURE_STYLES = `
 }
 .cap-table__cell--date { color: var(--der-text-muted);
                          white-space: nowrap; }
+.cap-table__sortbtn {
+  background: transparent; border: 0; padding: 0;
+  color: inherit; font: inherit; cursor: pointer;
+  text-align: left;
+}
+.cap-table__sortbtn:hover { color: var(--der-primary); }
+.cap-table__row--selected td { background: var(--der-primary-subtle); }
 .cap-table__cell--actions { width: 40px; text-align: right; }
 .cap-table__empty { color: var(--der-text-faint); }
 .cap-status {

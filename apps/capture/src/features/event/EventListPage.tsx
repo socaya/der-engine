@@ -57,6 +57,14 @@ export function EventListPage(
   const [toDate, setToDate] = useState<string>('');
   const [columns, setColumns] =
     useState<ReadonlyArray<DerivedColumn>>([]);
+  /** Row-view column sort — clicking a header toggles the column
+   *  between unsorted → asc → desc → unsorted. Key is either the
+   *  special 'date' / 'status' literals or a dataElementUid. */
+  const [sort, setSort] = useState<null | {
+    key: string; direction: 'asc' | 'desc';
+  }>(null);
+  /** Checked event UIDs for bulk operations. */
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (typeof sessionStorage === 'undefined') return;
@@ -123,7 +131,7 @@ export function EventListPage(
     const q = query.trim().toLowerCase();
     const from = fromDate.trim();
     const to = toDate.trim();
-    return recent.filter((e) => {
+    const rows = recent.filter((e) => {
       const uid = (e.eventUid ?? e.event ?? '').toLowerCase();
       if (q !== '' && !uid.includes(q)) {
         // Allow matching value text too — operators often search
@@ -140,7 +148,74 @@ export function EventListPage(
       if (to !== '' && occurred !== '' && occurred > to) return false;
       return true;
     });
-  }, [recent, query, statusFilter, fromDate, toDate]);
+    if (!sort) return rows;
+    const dir = sort.direction === 'desc' ? -1 : 1;
+    function val(e: EventRow): string {
+      if (sort!.key === 'date') {
+        return (e.occurredDate ?? e.occurredAt
+          ?? e.eventDate ?? '').slice(0, 10);
+      }
+      if (sort!.key === 'status') return e.status ?? '';
+      return (e.dataValues?.[sort!.key] ?? '').toString();
+    }
+    const sorted = [...rows].sort((a, b) => {
+      const va = val(a); const vb = val(b);
+      if (va === '' && vb === '') return 0;
+      if (va === '') return 1;
+      if (vb === '') return -1;
+      return va.localeCompare(vb, undefined, { numeric: true }) * dir;
+    });
+    return sorted;
+  }, [recent, query, statusFilter, fromDate, toDate, sort]);
+
+  function toggleSort(key: string): void {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, direction: 'asc' };
+      if (prev.direction === 'asc') return { key, direction: 'desc' };
+      return null;
+    });
+  }
+  function sortGlyphFor(key: string): string {
+    if (!sort || sort.key !== key) return '↕';
+    return sort.direction === 'asc' ? '↑' : '↓';
+  }
+
+  /** Download the currently filtered + sorted events as a CSV.
+   *  Columns: Event UID, Date, Status, + every metadata-driven
+   *  column header the list is currently rendering. */
+  function exportCsv(): void {
+    const header = ['Event UID', 'Date', 'Status',
+      ...columns.map((c) => c.label)];
+    const esc = (s: string): string => {
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    };
+    const lines = [header.map(esc).join(',')];
+    for (const e of filtered) {
+      const uid = e.eventUid ?? e.event ?? '';
+      const when = (e.occurredDate ?? e.occurredAt
+        ?? e.eventDate ?? '').slice(0, 10);
+      const row = [uid, when, e.status ?? ''];
+      for (const c of columns) {
+        row.push(e.dataValues?.[c.dataElementUid] ?? '');
+      }
+      lines.push(row.map(esc).join(','));
+    }
+    const csv = lines.join('\n');
+    const blob = new Blob([csv],
+      { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'events-' + programUid + '-'
+      + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
 
   const activeFilterCount =
     (query.trim() !== '' ? 1 : 0)
@@ -194,6 +269,15 @@ export function EventListPage(
           </button>
         </div>
         <button type="button"
+                className="cap-btn cap-btn--secondary"
+                data-test="ev-export-csv"
+                style={{ padding: '4px 10px', fontSize: 12 }}
+                title="Download the filtered + sorted list as CSV"
+                disabled={filtered.length === 0}
+                onClick={exportCsv}>
+          Export CSV
+        </button>
+        <button type="button"
                 className="cap-btn cap-btn--primary"
                 data-test="ev-new"
                 title="Open the new-event form"
@@ -201,6 +285,60 @@ export function EventListPage(
           + New event
         </button>
       </div>
+      {selected.size > 0 && (
+        <div className="cap-strip cap-strip--info"
+             data-test="ev-bulk-bar"
+             style={{ display: 'flex', alignItems: 'center',
+               gap: 10, margin: '0 14px 10px' }}>
+          <strong style={{ flex: 1 }}>
+            {selected.size} selected
+          </strong>
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  data-test="ev-bulk-clear"
+                  onClick={() => setSelected(new Set())}>
+            Clear selection
+          </button>
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  style={{ padding: '4px 10px', fontSize: 12,
+                    color: 'var(--der-danger)',
+                    borderColor: 'var(--der-danger)' }}
+                  data-test="ev-bulk-delete"
+                  onClick={() => {
+                    // eslint-disable-next-line no-alert
+                    if (!confirm('Delete ' + selected.size
+                        + ' event' + (selected.size === 1 ? '' : 's')
+                        + '?\n\nMirrors DHIS2 '
+                        + 'DELETE /api/events/{id} per row.')) {
+                      return;
+                    }
+                    void (async () => {
+                      const errs: string[] = [];
+                      for (const uid of [...selected]) {
+                        try { await api.deleteEvent(uid); }
+                        catch (err) {
+                          errs.push(uid + ': '
+                            + ((err as Error).message
+                              ?? 'unknown'));
+                        }
+                      }
+                      setRecent((prev) => prev.filter(
+                        (r) => !selected.has(
+                          r.eventUid ?? r.event ?? '')));
+                      setSelected(new Set());
+                      if (errs.length > 0) {
+                        // eslint-disable-next-line no-alert
+                        alert('Some deletes failed:\n'
+                          + errs.join('\n'));
+                      }
+                    })();
+                  }}>
+            Delete {selected.size} selected
+          </button>
+        </div>
+      )}
 
       <div className="cap-filter-row" data-test="ev-filter-row">
         <label className="cap-input">
@@ -276,14 +414,58 @@ export function EventListPage(
           <table className="cap-table" data-test="ev-list-table">
             <thead>
               <tr>
-                <th scope="col">Date</th>
+                <th scope="col" style={{ width: 28 }}>
+                  <input type="checkbox"
+                         data-test="ev-list-select-all"
+                         aria-label="Select every event"
+                         checked={filtered.length > 0
+                           && filtered.every((e) => selected.has(
+                             e.eventUid ?? e.event ?? ''))}
+                         onChange={(ev) => {
+                           if (ev.target.checked) {
+                             setSelected(new Set(filtered.map(
+                               (e) => e.eventUid ?? e.event ?? '')
+                               .filter((u) => u !== '')));
+                           } else {
+                             setSelected(new Set());
+                           }
+                         }} />
+                </th>
+                <th scope="col">
+                  <button type="button"
+                          className="cap-table__sortbtn"
+                          data-test="ev-list-sort-date"
+                          onClick={() => toggleSort('date')}>
+                    Date <span aria-hidden="true">
+                      {sortGlyphFor('date')}
+                    </span>
+                  </button>
+                </th>
                 {columns.map((c) => (
                   <th key={c.dataElementUid} scope="col"
                       title={c.dataElementUid}>
-                    {c.label}
+                    <button type="button"
+                            className="cap-table__sortbtn"
+                            data-test={'ev-list-sort-'
+                              + c.dataElementUid}
+                            onClick={() =>
+                              toggleSort(c.dataElementUid)}>
+                      {c.label} <span aria-hidden="true">
+                        {sortGlyphFor(c.dataElementUid)}
+                      </span>
+                    </button>
                   </th>
                 ))}
-                <th scope="col">Status</th>
+                <th scope="col">
+                  <button type="button"
+                          className="cap-table__sortbtn"
+                          data-test="ev-list-sort-status"
+                          onClick={() => toggleSort('status')}>
+                    Status <span aria-hidden="true">
+                      {sortGlyphFor('status')}
+                    </span>
+                  </button>
+                </th>
                 <th scope="col" aria-label="Actions" />
               </tr>
             </thead>
@@ -292,9 +474,11 @@ export function EventListPage(
                 const uid = e.eventUid ?? e.event ?? ('row-' + i);
                 const when = e.occurredDate ?? e.occurredAt
                   ?? e.eventDate ?? '—';
+                const checked = selected.has(uid);
                 return (
                   <tr key={uid + i}
-                      className="cap-table__row"
+                      className={'cap-table__row'
+                        + (checked ? ' cap-table__row--selected' : '')}
                       data-test={'ev-row-' + uid}
                       tabIndex={0}
                       role="button"
@@ -305,6 +489,21 @@ export function EventListPage(
                           navEvent.detail(programUid, uid);
                         }
                       }}>
+                    <td className="cap-table__cell"
+                        onClick={(ev) => ev.stopPropagation()}>
+                      <input type="checkbox"
+                             data-test={'ev-row-check-' + uid}
+                             aria-label="Select event"
+                             checked={checked}
+                             onChange={(ev) => {
+                               setSelected((prev) => {
+                                 const next = new Set(prev);
+                                 if (ev.target.checked) next.add(uid);
+                                 else next.delete(uid);
+                                 return next;
+                               });
+                             }} />
+                    </td>
                     <td className="cap-table__cell cap-table__cell--date">
                       {when.slice(0, 10)}
                     </td>
