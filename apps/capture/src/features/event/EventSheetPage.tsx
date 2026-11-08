@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState,
-  type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo,
+  useRef, useState, type CSSProperties, type KeyboardEvent,
+  type MouseEvent } from 'react';
 import type { CaptureApi, EventRow } from '../../shared/types';
 import type { CaptureField, CaptureFormSection,
   CaptureProgramRule, CaptureProgramRuleVariable }
@@ -133,6 +134,50 @@ export function EventSheetPage(
       sessionStorage.setItem(colOrderKey, JSON.stringify(colOrder));
     } catch { /* ignore */ }
   }, [colOrder, colOrderKey]);
+  /** Hidden column UIDs. Operators mark columns they never fill
+   *  as hidden from the right-click menu; a secondary pass can
+   *  unhide any or all via the same menu. Status / date / rownum
+   *  are structural and never hideable. */
+  const hiddenColsKey = 'cap:sheet-hidden:' + programUid;
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    if (typeof sessionStorage === 'undefined') return new Set();
+    try {
+      const raw = sessionStorage.getItem(hiddenColsKey);
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+  });
+  useEffect(() => {
+    if (typeof sessionStorage === 'undefined') return;
+    try {
+      sessionStorage.setItem(hiddenColsKey,
+        JSON.stringify([...hiddenCols]));
+    } catch { /* ignore */ }
+  }, [hiddenCols, hiddenColsKey]);
+  /** Number of data columns to freeze alongside status + date.
+   *  Zero = default (only status + date frozen). The right-click
+   *  menu's "Freeze through this column" sets this to the current
+   *  column's visible index + 1. Persists per program. */
+  const frozenColsKey = 'cap:sheet-frozen:' + programUid;
+  const [frozenCols, setFrozenCols] = useState<number>(() => {
+    if (typeof sessionStorage === 'undefined') return 0;
+    try {
+      const raw = sessionStorage.getItem(frozenColsKey);
+      return raw ? JSON.parse(raw) : 0;
+    } catch { return 0; }
+  });
+  useEffect(() => {
+    if (typeof sessionStorage === 'undefined') return;
+    try {
+      sessionStorage.setItem(frozenColsKey,
+        JSON.stringify(frozenCols));
+    } catch { /* ignore */ }
+  }, [frozenCols, frozenColsKey]);
+  /** Context-menu state for the column header right-click surface
+   *  (SHEET-L1). null when closed. */
+  const [colMenu, setColMenu] = useState<null | {
+    fieldId: string; colIdx: number;
+    x: number; y: number;
+  }>(null);
   /** per-row save-timer handles, keyed by row index */
   const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   /** Live rows snapshot — React 18 defers functional setState until
@@ -268,7 +313,10 @@ export function EventSheetPage(
 
   const allFields = useMemo<readonly CaptureField[]>(() => {
     const fs: CaptureField[] = [];
-    for (const s of sections) for (const f of s.fields) fs.push(f);
+    for (const s of sections) for (const f of s.fields) {
+      if (hiddenCols.has(f.id)) continue;
+      fs.push(f);
+    }
     // Apply the persisted column order on top of the metadata-
     // driven baseline. Fields that appear in the order list first;
     // any NEW fields the metadata introduced after the last reorder
@@ -285,7 +333,77 @@ export function EventSheetPage(
     }
     for (const f of fs) if (!seen.has(f.id)) out.push(f);
     return out;
-  }, [sections, colOrder]);
+  }, [sections, colOrder, hiddenCols]);
+
+  /** Measured widths of the first few data columns — captured via
+   *  useLayoutEffect because the metadata-driven column widths
+   *  vary per field and the 160px heuristic drifts noticeably.
+   *  Keyed by field UID; updated on every render. */
+  const measuredWidths = useRef<Record<string, number>>({});
+  /** Measured width of the date column — same reason. 130 is the
+   *  CSS fallback but real widths can run ~160-170 depending on
+   *  the browser's preferred date-input chrome. */
+  const measuredDateWidth = useRef<number>(130);
+
+  /** Per-column sticky-left style for data columns in the frozen
+   *  range. Index by colIdx; undefined for non-frozen columns.
+   *  Cumulative left starts at 60 (rownum+status) + measured date
+   *  width, then adds each prior frozen column's measured width.
+   *  Falls back to stored width (if resized) or 160. */
+  const frozenStyles = useMemo(() => {
+    const out: Array<CSSProperties | undefined> =
+      new Array(allFields.length).fill(undefined);
+    if (frozenCols === 0) return out;
+    let cursor = 60 + measuredDateWidth.current;
+    for (let i = 0; i < Math.min(frozenCols, allFields.length); i++) {
+      const f = allFields[i];
+      if (!f) continue;
+      out[i] = {
+        position: 'sticky',
+        left: cursor + 'px',
+        background: 'var(--der-surface)',
+        zIndex: 3,
+        boxShadow: i === frozenCols - 1
+          ? '1px 0 0 var(--der-border)' : undefined,
+      };
+      cursor += measuredWidths.current[f.id]
+        ?? colWidths[f.id] ?? 160;
+    }
+    return out;
+  }, [allFields, frozenCols, colWidths]);
+
+  /** After render, measure the first N data columns' actual widths
+   *  so the next render has an accurate sticky-left. One nudge:
+   *  if the measurement changes materially we force a re-render
+   *  by bumping a counter so frozenStyles recomputes. */
+  const [, setMeasureTick] = useState(0);
+  useLayoutEffect(() => {
+    const thead = document.querySelector('table.cap-sheet thead tr');
+    if (!thead) return;
+    const headers = thead.querySelectorAll<HTMLElement>(
+      'th[data-test^="ev-sheet-col-"]');
+    const dateTh = thead.querySelector<HTMLElement>(
+      '.cap-sheet__date-col');
+    let changed = false;
+    if (dateTh) {
+      const w = dateTh.getBoundingClientRect().width;
+      if (Math.abs(measuredDateWidth.current - w) > 1) {
+        measuredDateWidth.current = w;
+        changed = true;
+      }
+    }
+    for (const th of headers) {
+      const testId = th.getAttribute('data-test');
+      if (!testId) continue;
+      const fid = testId.replace('ev-sheet-col-', '');
+      const w = th.getBoundingClientRect().width;
+      if (Math.abs((measuredWidths.current[fid] ?? -1) - w) > 1) {
+        measuredWidths.current[fid] = w;
+        changed = true;
+      }
+    }
+    if (changed) setMeasureTick((t) => t + 1);
+  });
 
   /** Per-row rule evaluation. Memoised so unaffected rows don't
    *  re-run when the operator edits a different row. Each row's
@@ -628,6 +746,39 @@ export function EventSheetPage(
     const c0 = Math.min(selection.anchor.col, selection.focus.col);
     const c1 = Math.max(selection.anchor.col, selection.focus.col);
     return row >= r0 && row <= r1 && col >= c0 && col <= c1;
+  }
+
+  /** Hide a single column. The underlying field stays in the
+   *  metadata; it just drops from allFields until unhidden. */
+  function hideColumn(fieldId: string): void {
+    setHiddenCols((prev) => {
+      const next = new Set(prev);
+      next.add(fieldId);
+      return next;
+    });
+  }
+
+  /** Clear every hidden-column flag — one-click reveal. */
+  function unhideAllColumns(): void {
+    setHiddenCols(new Set());
+  }
+
+  /** Freeze through the given visible column index — status + date
+   *  stay frozen on top of this. Pass 0 to remove data-column
+   *  freezes. */
+  function freezeThrough(colIdx: number): void {
+    setFrozenCols(Math.max(0, colIdx + 1));
+  }
+
+  /** Reset a column's stored width so the browser's auto-layout
+   *  takes over again. */
+  function resetColumnWidth(fieldId: string): void {
+    setColWidths((prev) => {
+      if (!(fieldId in prev)) return prev;
+      const next = { ...prev };
+      delete next[fieldId];
+      return next;
+    });
   }
 
   /** Cycle sort state. Without shift: single-column sort cycle
@@ -1358,6 +1509,27 @@ export function EventSheetPage(
       {shortcutsOpen && (
         <ShortcutsPopover onClose={() => setShortcutsOpen(false)} />
       )}
+      {colMenu && (
+        <ColHeaderMenu
+          menu={colMenu}
+          sortActive={sort.length > 0}
+          hiddenCount={hiddenCols.size}
+          frozenCols={frozenCols}
+          colLabel={allFields[colMenu.colIdx]?.label
+            ?? colMenu.fieldId}
+          onClose={() => setColMenu(null)}
+          onHide={() => { hideColumn(colMenu.fieldId);
+            setColMenu(null); }}
+          onUnhideAll={() => { unhideAllColumns();
+            setColMenu(null); }}
+          onFreezeThrough={() => { freezeThrough(colMenu.colIdx);
+            setColMenu(null); }}
+          onUnfreezeData={() => { setFrozenCols(0);
+            setColMenu(null); }}
+          onClearSort={() => { setSort([]); setColMenu(null); }}
+          onResetWidth={() => { resetColumnWidth(colMenu.fieldId);
+            setColMenu(null); }} />
+      )}
 
       <div className="cap-sheet-wrap" data-test="ev-sheet"
            onKeyDown={onGridKeyDown}>
@@ -1369,10 +1541,17 @@ export function EventSheetPage(
               <th scope="col" className="cap-sheet__status-col"
                   title="Per-row save state">&nbsp;</th>
               <th scope="col" className="cap-sheet__date-col">Event date</th>
-              {allFields.map((f) => (
+              {allFields.map((f, colIdx) => {
+                const frozenStyle = frozenStyles[colIdx];
+                return (
                 <th key={f.id} scope="col" title={f.id}
                     draggable
                     data-test={'ev-sheet-col-' + f.id}
+                    onContextMenu={(ev) => {
+                      ev.preventDefault();
+                      setColMenu({ fieldId: f.id, colIdx,
+                        x: ev.clientX, y: ev.clientY });
+                    }}
                     onDragStart={(ev) => {
                       ev.dataTransfer.effectAllowed = 'move';
                       ev.dataTransfer.setData('text/x-cap-col', f.id);
@@ -1399,10 +1578,13 @@ export function EventSheetPage(
                       ev.preventDefault();
                       reorderColumn(src, f.id);
                     }}
-                    style={colWidths[f.id]
-                      ? { width: colWidths[f.id] + 'px',
-                          minWidth: colWidths[f.id] + 'px' }
-                      : undefined}>
+                    style={{
+                      ...(colWidths[f.id]
+                        ? { width: colWidths[f.id] + 'px',
+                            minWidth: colWidths[f.id] + 'px' }
+                        : {}),
+                      ...(frozenStyle ?? {}),
+                    }}>
                   {f.label}
                   {f.required && <span className="cap-input__req"> *</span>}
                   <button type="button"
@@ -1430,7 +1612,8 @@ export function EventSheetPage(
                          * resize handle as a reorder gesture. */
                         onDragStart={(ev) => ev.preventDefault()} />
                 </th>
-              ))}
+                );
+              })}
               <th scope="col" className="cap-sheet__actions-col">
                 &nbsp;
               </th>
@@ -1554,6 +1737,7 @@ export function EventSheetPage(
                       tabIndex={-1}
                       onMouseDown={(e) =>
                         onCellMouseDown(e, rowIdx, colIdx)}
+                      style={frozenStyles[colIdx]}
                       className={
                         (hidden ? 'cap-sheet__cell--hidden ' : '')
                         + (cellHasError ? 'cap-sheet__cell--err ' : '')
@@ -1676,6 +1860,97 @@ function extractEventUid(result: unknown): string | null {
     return evReports[0].uid as string;
   }
   return null;
+}
+
+/** Floating menu anchored at cursor coords, surfaced from a
+ *  right-click on a column header. Keeps freeze / hide / unhide /
+ *  reset actions grouped so operators find them once instead of
+ *  hunting across the toolbar. Closes on Esc, backdrop click,
+ *  and any item selection. */
+function ColHeaderMenu(
+  { menu, sortActive, hiddenCount, frozenCols, colLabel,
+    onClose, onHide, onUnhideAll, onFreezeThrough,
+    onUnfreezeData, onClearSort, onResetWidth }: {
+    menu: { fieldId: string; colIdx: number;
+      x: number; y: number };
+    sortActive: boolean;
+    hiddenCount: number;
+    frozenCols: number;
+    colLabel: string;
+    onClose: () => void;
+    onHide: () => void;
+    onUnhideAll: () => void;
+    onFreezeThrough: () => void;
+    onUnfreezeData: () => void;
+    onClearSort: () => void;
+    onResetWidth: () => void;
+  },
+): JSX.Element {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey as unknown as
+      EventListener);
+    return () => window.removeEventListener('keydown',
+      onKey as unknown as EventListener);
+  }, [onClose]);
+  return (
+    <div className="cap-sheet__colmenu-backdrop"
+         role="presentation"
+         data-test="ev-sheet-col-menu"
+         onClick={onClose}
+         onContextMenu={(e) => { e.preventDefault(); onClose(); }}>
+      <div className="cap-sheet__colmenu"
+           role="menu"
+           style={{ left: menu.x + 'px', top: menu.y + 'px' }}
+           onClick={(e) => e.stopPropagation()}>
+        <div className="cap-sheet__colmenu-head">{colLabel}</div>
+        <button type="button" role="menuitem"
+                className="cap-sheet__colmenu-item"
+                data-test="ev-sheet-col-menu-hide"
+                onClick={onHide}>
+          Hide column
+        </button>
+        <button type="button" role="menuitem"
+                className="cap-sheet__colmenu-item"
+                data-test="ev-sheet-col-menu-freeze"
+                onClick={onFreezeThrough}>
+          Freeze up to this column
+        </button>
+        {frozenCols > 0 && (
+          <button type="button" role="menuitem"
+                  className="cap-sheet__colmenu-item"
+                  data-test="ev-sheet-col-menu-unfreeze"
+                  onClick={onUnfreezeData}>
+            Unfreeze data columns
+          </button>
+        )}
+        <button type="button" role="menuitem"
+                className="cap-sheet__colmenu-item"
+                data-test="ev-sheet-col-menu-reset-width"
+                onClick={onResetWidth}>
+          Reset column width
+        </button>
+        {hiddenCount > 0 && (
+          <button type="button" role="menuitem"
+                  className="cap-sheet__colmenu-item"
+                  data-test="ev-sheet-col-menu-unhide"
+                  onClick={onUnhideAll}>
+            Unhide all columns ({hiddenCount})
+          </button>
+        )}
+        {sortActive && (
+          <button type="button" role="menuitem"
+                  className="cap-sheet__colmenu-item"
+                  data-test="ev-sheet-col-menu-clear-sort"
+                  onClick={onClearSort}>
+            Clear sort
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function sortGlyph(

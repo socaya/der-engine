@@ -875,6 +875,40 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
   box-shadow: inset 2px 0 0 var(--der-primary) !important;
   background: var(--der-primary-subtle) !important;
 }
+/* Column header context menu (SHEET-L1). Floating popup anchored
+ * at the cursor; the backdrop is transparent but intercepts the
+ * click-away dismissal. */
+.cap-sheet__colmenu-backdrop {
+  position: fixed; inset: 0; z-index: 2100;
+  background: transparent;
+}
+.cap-sheet__colmenu {
+  position: fixed;
+  min-width: 220px;
+  background: var(--der-surface);
+  border: 1px solid var(--der-border);
+  box-shadow: 0 2px 0 rgba(23, 38, 60, 0.06);
+  padding: 4px 0;
+  font-size: 13px; color: var(--der-text);
+}
+.cap-sheet__colmenu-head {
+  padding: 6px 12px 8px;
+  font-size: 11px; color: var(--der-text-muted);
+  border-bottom: 1px solid var(--der-border-soft);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 320px;
+}
+.cap-sheet__colmenu-item {
+  display: block; width: 100%; text-align: left;
+  padding: 8px 12px; font-size: 13px; font-family: inherit;
+  background: transparent; border: 0; cursor: pointer;
+  color: var(--der-text);
+}
+.cap-sheet__colmenu-item:hover {
+  background: var(--der-primary-subtle);
+  color: var(--der-primary-strong);
+}
+
 /* Column sort icon (SHEET-J2). Idle state is muted; hover brings
  * it to full contrast; active (currently sorted) column tints
  * primary so operators see the sort target from across the sheet. */
