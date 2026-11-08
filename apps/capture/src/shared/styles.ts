@@ -483,9 +483,17 @@ export const CAPTURE_STYLES = `
 }
 .cap-form-section__title {
   font-size: 12px; text-transform: uppercase;
-  letter-spacing: 0.06em; color: #147CD7;
-  padding: 0 6px; font-weight: 600;
+  letter-spacing: 0.06em; color: #263352;
+  padding: 0 6px; font-weight: 500;
+  display: inline-flex; gap: 10px; align-items: baseline;
 }
+.cap-form-section__title-text { color: #263352; }
+.cap-form-section__title-count {
+  font-size: 11px; font-weight: 400;
+  color: #7a8597; text-transform: none; letter-spacing: 0;
+}
+.cap-form-section__req-ok { color: #136436; font-weight: 500; }
+.cap-form-section__req-pending { color: #A56518; font-weight: 500; }
 .cap-form-section__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

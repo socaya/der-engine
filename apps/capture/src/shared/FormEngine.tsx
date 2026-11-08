@@ -30,12 +30,44 @@ export function FormEngine(
 ): JSX.Element {
   return (
     <div className="cap-form" data-test="cap-form">
-      {sections.map((s, i) => (
+      {sections.map((s, i) => {
+        // Per-section filled count so operators see progress
+        // without counting empty inputs by eye. Required-only
+        // count surfaces how close they are to Save-eligible.
+        let filled = 0;
+        let requiredTotal = 0;
+        let requiredFilled = 0;
+        for (const f of s.fields) {
+          const v = (values[f.id] ?? '').trim();
+          if (v !== '') filled++;
+          if (f.required) {
+            requiredTotal++;
+            if (v !== '') requiredFilled++;
+          }
+        }
+        return (
         <fieldset key={(s.id ?? s.displayName) + ':' + i}
                   className="cap-form-section">
           {s.displayName && (
             <legend className="cap-form-section__title">
-              {s.displayName}
+              <span className="cap-form-section__title-text">
+                {s.displayName}
+              </span>
+              <span className="cap-form-section__title-count"
+                    data-test={'cap-form-section-count-'
+                      + (s.id ?? i)}>
+                {filled}/{s.fields.length} filled
+                {requiredTotal > 0 && (
+                  <>
+                    {' · '}
+                    <span className={requiredFilled === requiredTotal
+                      ? 'cap-form-section__req-ok'
+                      : 'cap-form-section__req-pending'}>
+                      {requiredFilled}/{requiredTotal} required
+                    </span>
+                  </>
+                )}
+              </span>
             </legend>
           )}
           <div className="cap-form-section__grid">
@@ -80,7 +112,8 @@ export function FormEngine(
             })}
           </div>
         </fieldset>
-      ))}
+        );
+      })}
     </div>
   );
 }
