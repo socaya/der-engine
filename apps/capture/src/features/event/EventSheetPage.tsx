@@ -143,6 +143,28 @@ export function EventSheetPage(
       sessionStorage.setItem(colOrderKey, JSON.stringify(colOrder));
     } catch { /* ignore */ }
   }, [colOrder, colOrderKey]);
+  /** Collapsed section IDs. Every data-element in a collapsed
+   *  section hides from the sheet until the operator expands.
+   *  Separate from hiddenCols so the two can coexist cleanly —
+   *  e.g. operator collapses one section but has also hidden a
+   *  specific column in another; both filters apply. Persists
+   *  per program. */
+  const collapsedSectionsKey = 'cap:sheet-collapsed:' + programUid;
+  const [collapsedSections, setCollapsedSections] =
+    useState<Set<string>>(() => {
+    if (typeof sessionStorage === 'undefined') return new Set();
+    try {
+      const raw = sessionStorage.getItem(collapsedSectionsKey);
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+  });
+  useEffect(() => {
+    if (typeof sessionStorage === 'undefined') return;
+    try {
+      sessionStorage.setItem(collapsedSectionsKey,
+        JSON.stringify([...collapsedSections]));
+    } catch { /* ignore */ }
+  }, [collapsedSections, collapsedSectionsKey]);
   /** Hidden column UIDs. Operators mark columns they never fill
    *  as hidden from the right-click menu; a secondary pass can
    *  unhide any or all via the same menu. Status / date / rownum
@@ -355,10 +377,14 @@ export function EventSheetPage(
 
   const allFields = useMemo<readonly CaptureField[]>(() => {
     const fs: CaptureField[] = [];
-    for (const s of sections) for (const f of s.fields) {
-      if (hiddenCols.has(f.id)) continue;
-      fs.push(f);
-    }
+    sections.forEach((s, idx) => {
+      const sectionKey = s.id ?? ('section:' + idx);
+      if (collapsedSections.has(sectionKey)) return;
+      for (const f of s.fields) {
+        if (hiddenCols.has(f.id)) continue;
+        fs.push(f);
+      }
+    });
     // Apply the persisted column order on top of the metadata-
     // driven baseline. Fields that appear in the order list first;
     // any NEW fields the metadata introduced after the last reorder
@@ -375,7 +401,63 @@ export function EventSheetPage(
     }
     for (const f of fs) if (!seen.has(f.id)) out.push(f);
     return out;
-  }, [sections, colOrder, hiddenCols]);
+  }, [sections, colOrder, hiddenCols, collapsedSections]);
+
+  /** Build a map from fieldUid → { sectionKey, sectionLabel }.
+   *  Uses the authoritative sections array (not field.sectionId)
+   *  so programs whose sections carry a displayName but no UID
+   *  (common in DHIS2 event-stage metadata) still get grouped.
+   *  Multiple sections with the same (null) UID get synthetic
+   *  keys like 'section:0', 'section:1' to stay distinguishable. */
+  const sectionByFieldId = useMemo(() => {
+    const map = new Map<string, { sectionKey: string;
+      sectionLabel: string }>();
+    sections.forEach((s, idx) => {
+      const key = s.id ?? ('section:' + idx);
+      const label = s.displayName ?? '';
+      for (const f of s.fields) {
+        map.set(f.id, { sectionKey: key, sectionLabel: label });
+      }
+    });
+    return map;
+  }, [sections]);
+
+  /** Section groups along the current column display order.
+   *  Adjacent fields with the same section key merge into one
+   *  "run"; a section-key change starts a new run. Reorder can
+   *  break a metadata-defined section into multiple runs — we
+   *  render each run as its own group header so the display
+   *  stays accurate to what the operator sees. */
+  const sectionRuns = useMemo<ReadonlyArray<{
+    sectionKey: string;
+    sectionLabel: string;
+    startIdx: number;
+    length: number;
+  }>>(() => {
+    if (allFields.length === 0) return [];
+    const runs: Array<{ sectionKey: string;
+      sectionLabel: string;
+      startIdx: number; length: number }> = [];
+    let i = 0;
+    while (i < allFields.length) {
+      const first = sectionByFieldId.get(allFields[i]!.id);
+      const key = first?.sectionKey ?? '__orphan__';
+      let j = i + 1;
+      while (j < allFields.length) {
+        const nxt = sectionByFieldId.get(allFields[j]!.id);
+        if ((nxt?.sectionKey ?? '__orphan__') !== key) break;
+        j++;
+      }
+      runs.push({
+        sectionKey: key,
+        sectionLabel: first?.sectionLabel ?? '',
+        startIdx: i,
+        length: j - i,
+      });
+      i = j;
+    }
+    return runs;
+  }, [allFields, sectionByFieldId]);
 
   /** Measured widths of the first few data columns — captured via
    *  useLayoutEffect because the metadata-driven column widths
@@ -881,6 +963,23 @@ export function EventSheetPage(
     const c0 = Math.min(selection.anchor.col, selection.focus.col);
     const c1 = Math.max(selection.anchor.col, selection.focus.col);
     return row >= r0 && row <= r1 && col >= c0 && col <= c1;
+  }
+
+  /** Toggle a programStageSection's collapse state. Collapsed
+   *  sections hide every data-element in that section until the
+   *  operator clicks the section's caret again. */
+  function toggleSection(sectionKey: string): void {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionKey)) next.delete(sectionKey);
+      else next.add(sectionKey);
+      return next;
+    });
+  }
+
+  /** Expand every collapsed section. */
+  function expandAllSections(): void {
+    setCollapsedSections(new Set());
   }
 
   /** Hide a single column. The underlying field stays in the
@@ -1741,11 +1840,87 @@ export function EventSheetPage(
           }} />
       )}
 
+      {collapsedSections.size > 0 && (
+        <div className="cap-sheet__collapsed-strip"
+             data-test="ev-sheet-collapsed-strip">
+          <span className="cap-sheet__collapsed-strip-label">
+            Collapsed sections:
+          </span>
+          {[...collapsedSections].map((key) => {
+            const label = sections.find(
+              (s, idx) => (s.id ?? ('section:' + idx)) === key)
+                ?.displayName ?? key;
+            return (
+              <button key={key} type="button"
+                      className="cap-sheet__collapsed-chip"
+                      data-test={'ev-sheet-expand-' + key}
+                      title={'Click to re-expand the '
+                        + label + ' section'}
+                      onClick={() => toggleSection(key)}>
+                {label}{' '}<span aria-hidden="true">+</span>
+              </button>
+            );
+          })}
+          {collapsedSections.size > 1 && (
+            <button type="button"
+                    className="cap-sheet__collapsed-strip-all"
+                    data-test="ev-sheet-expand-all"
+                    onClick={expandAllSections}>
+              Expand all
+            </button>
+          )}
+        </div>
+      )}
       <div className="cap-sheet-wrap" data-test="ev-sheet"
            ref={sheetWrapRef}
            onKeyDown={onGridKeyDown}>
         <table className="cap-sheet">
           <thead>
+            {sectionRuns.some((r) => r.sectionLabel !== '') && (
+              <tr className="cap-sheet__section-row"
+                  data-test="ev-sheet-section-row">
+                <th className="cap-sheet__rownum-col"
+                    aria-hidden="true" />
+                <th className="cap-sheet__status-col"
+                    aria-hidden="true" />
+                <th className="cap-sheet__date-col"
+                    aria-hidden="true" />
+                {sectionRuns.map((run) => (
+                  <th key={run.sectionKey + '@' + run.startIdx}
+                      colSpan={run.length}
+                      scope="colgroup"
+                      className={'cap-sheet__section-head'
+                        + (run.sectionLabel === ''
+                          ? ' cap-sheet__section-head--null' : '')}
+                      data-test={'ev-sheet-section-'
+                        + run.sectionKey}>
+                    {run.sectionLabel !== '' ? (
+                      <button type="button"
+                              className="cap-sheet__section-toggle"
+                              data-test={'ev-sheet-section-toggle-'
+                                + run.sectionKey}
+                              aria-label={'Collapse section '
+                                + run.sectionLabel}
+                              title={'Hide every column in this '
+                                + 'section — expand again from '
+                                + 'the collapsed-sections strip '
+                                + 'above the sheet.'}
+                              onClick={() =>
+                                toggleSection(run.sectionKey)}>
+                        <span aria-hidden="true">▾</span>
+                        {' '}{run.sectionLabel}
+                      </button>
+                    ) : (
+                      <span className="cap-sheet__section-null">
+                        &nbsp;
+                      </span>
+                    )}
+                  </th>
+                ))}
+                <th className="cap-sheet__actions-col"
+                    aria-hidden="true" />
+              </tr>
+            )}
             <tr>
               <th scope="col" className="cap-sheet__rownum-col"
                   title="Row number">&nbsp;</th>

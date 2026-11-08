@@ -784,6 +784,62 @@ body.cap-sheet__fill-dragging,
 body.cap-sheet__fill-dragging * { cursor: crosshair !important;
                                    user-select: none; }
 
+/* Section header row (SHEET-P). An extra thead row above the
+ * per-column headers that groups data-elements by DHIS2
+ * programStageSection. Each section's label spans its contiguous
+ * run of columns via colSpan. A toggle in the label collapses
+ * the whole run; collapsed sections surface on the collapsed-
+ * sections strip above the sheet so operators can always re-
+ * expand. */
+.cap-sheet__section-row th.cap-sheet__section-head {
+  text-align: left;
+  padding: 4px 10px;
+  background: var(--der-surface-subtle);
+  border-bottom: 1px solid var(--der-border);
+  border-right: 1px solid var(--der-border-soft);
+  color: var(--der-text);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.cap-sheet__section-head--null { background: transparent; }
+.cap-sheet__section-toggle {
+  background: transparent; border: 0; padding: 0;
+  color: inherit; font: inherit; cursor: pointer;
+  text-align: left;
+}
+.cap-sheet__section-toggle:hover { color: var(--der-primary); }
+
+.cap-sheet__collapsed-strip {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 6px 14px;
+  margin-bottom: -8px;
+  font-size: 11px;
+  color: var(--der-text-muted);
+}
+.cap-sheet__collapsed-strip-label {
+  font-weight: 500;
+}
+.cap-sheet__collapsed-chip {
+  background: var(--der-surface);
+  border: 1px solid var(--der-border);
+  color: var(--der-text);
+  padding: 2px 8px;
+  font: inherit; cursor: pointer;
+  font-size: 11px;
+}
+.cap-sheet__collapsed-chip:hover {
+  background: var(--der-primary-subtle);
+  color: var(--der-primary-strong);
+  border-color: var(--der-primary);
+}
+.cap-sheet__collapsed-strip-all {
+  background: transparent; border: 0;
+  color: var(--der-primary);
+  padding: 2px 6px; margin-left: 4px;
+  font: inherit; cursor: pointer; font-size: 11px;
+  text-decoration: underline;
+}
+
 /* --- Shortcuts popover (SHEET-I1) ---------------------------- */
 .cap-sheet__shortcuts-btn {
   padding: 4px 10px; font-size: 11px; font-family: inherit;
