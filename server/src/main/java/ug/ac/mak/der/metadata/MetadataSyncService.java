@@ -404,6 +404,7 @@ public class MetadataSyncService {
             return out;
         }
         for (final JsonNode node : body.withArray("programStages")) {
+            final String stageUid = requireText(node, "id");
             final List<MirroredProgramStage.ProgramStageDataElement> psdes = new ArrayList<>();
             final JsonNode psdeNode = node.get("programStageDataElements");
             if (psdeNode != null && psdeNode.isArray()) {
@@ -415,19 +416,80 @@ public class MetadataSyncService {
                     psdes.add(new MirroredProgramStage.ProgramStageDataElement(
                             deId,
                             psde.has("compulsory") && psde.get("compulsory").asBoolean(false),
-                            intOrNull(psde, "sortOrder")));
+                            intOrNull(psde, "sortOrder"),
+                            renderTypeAt(psde, "DESKTOP"),
+                            renderTypeAt(psde, "MOBILE")));
+                }
+            }
+            final List<MirroredProgramStageSection> sections = new ArrayList<>();
+            final JsonNode secsNode = node.get("programStageSections");
+            if (secsNode != null && secsNode.isArray()) {
+                for (final JsonNode sec : secsNode) {
+                    final String secUid = requireText(sec, "id");
+                    final List<String> deUids = new ArrayList<>();
+                    final JsonNode secDes = sec.get("dataElements");
+                    if (secDes != null && secDes.isArray()) {
+                        for (final JsonNode de : secDes) {
+                            final String deId = textOrNull(de, "id");
+                            if (deId != null) {
+                                deUids.add(deId);
+                            }
+                        }
+                    }
+                    sections.add(new MirroredProgramStageSection(
+                            secUid, stageUid,
+                            textOr(sec, "displayName",
+                                    textOr(sec, "name", "")),
+                            intOrNull(sec, "sortOrder"),
+                            renderTypeAt(sec, "DESKTOP"),
+                            renderTypeAt(sec, "MOBILE"),
+                            deUids, sec));
                 }
             }
             out.add(new MirroredProgramStage(
-                    requireText(node, "id"),
+                    stageUid,
                     nestedIdOrNull(node, "program") == null
                             ? requireText(node, "program") : nestedIdOrNull(node, "program"),
                     textOr(node, "displayName", textOr(node, "name", "")),
                     node.has("repeatable") && node.get("repeatable").asBoolean(false),
+                    textOrNull(node, "formType"),
+                    dataEntryFormHtml(node),
                     psdes,
+                    sections,
                     node));
         }
         return out;
+    }
+
+    /** DHIS2 renderType is nested: {@code renderType: { DESKTOP: { type:
+     *  "DROPDOWN" }, MOBILE: { type: "DEFAULT" } }}. Returns the inner
+     *  {@code type} string for the requested form factor, or null when
+     *  absent so the client falls back to DEFAULT. */
+    private String renderTypeAt(final JsonNode node, final String formFactor) {
+        if (node == null) {
+            return null;
+        }
+        final JsonNode rt = node.get("renderType");
+        if (rt == null || !rt.isObject()) {
+            return null;
+        }
+        final JsonNode factor = rt.get(formFactor);
+        if (factor == null || !factor.isObject()) {
+            return null;
+        }
+        return textOrNull(factor, "type");
+    }
+
+    /** Pull the raw custom-form HTML blob from DHIS2's nested
+     *  {@code dataEntryForm.htmlCode}. Phase 3 will parse this for
+     *  layout hints; today we just mirror it so the parse can run
+     *  locally without a re-sync. */
+    private String dataEntryFormHtml(final JsonNode node) {
+        final JsonNode def = node.get("dataEntryForm");
+        if (def == null || !def.isObject()) {
+            return null;
+        }
+        return textOrNull(def, "htmlCode");
     }
 
     List<MirroredTrackedEntityAttribute> readTrackedEntityAttributes()

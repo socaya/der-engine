@@ -37,7 +37,8 @@ class EventServiceTest {
     }
 
     private MirroredProgramStage ps() {
-        return new MirroredProgramStage("ps", "prog", "visit", false, List.of(),
+        return new MirroredProgramStage("ps", "prog", "visit", false,
+                null, null, List.of(), List.of(),
                 mapper.createObjectNode());
     }
 
@@ -121,7 +122,8 @@ class EventServiceTest {
         final RuleEngine rules = mock(RuleEngine.class);
         final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
         when(mirror.findProgramStage("ps")).thenReturn(Optional.of(new MirroredProgramStage(
-                "ps", "OTHER", "d", false, List.of(), mapper.createObjectNode())));
+                "ps", "OTHER", "d", false, null, null,
+                List.of(), List.of(), mapper.createObjectNode())));
         final var service = new EventService(events, journal, mirror, rules, audit, mapper, clock, new ug.ac.mak.der.approval.ApprovalRequirements(false, false, false));
         final var out = service.submit(List.of(newInput(Event.Status.ACTIVE)),
                 UUID.randomUUID(), "ip", "ua");

@@ -2,6 +2,7 @@ package ug.ac.mak.der.metadata;
 
 import java.io.IOException;
 import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -103,15 +104,20 @@ public class ExtendedMirrorRepository {
         for (final MirroredProgramStage r : rows) {
             jdbc.update(
                     "INSERT INTO der.metadata_program_stage "
-                            + "(dhis2_uid, program_uid, display_name, repeatable, payload, "
+                            + "(dhis2_uid, program_uid, display_name, repeatable, "
+                            + " form_type, data_entry_form_html, payload, "
                             + " snapshot_id, imported_at, last_seen_at) "
-                            + "VALUES (?, ?, ?, ?, CAST(? AS jsonb), ?, now(), now()) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, CAST(? AS jsonb), ?, now(), now()) "
                             + "ON CONFLICT (dhis2_uid) DO UPDATE SET "
                             + "program_uid = EXCLUDED.program_uid, "
                             + "display_name = EXCLUDED.display_name, "
-                            + "repeatable = EXCLUDED.repeatable, payload = EXCLUDED.payload, "
+                            + "repeatable = EXCLUDED.repeatable, "
+                            + "form_type = EXCLUDED.form_type, "
+                            + "data_entry_form_html = EXCLUDED.data_entry_form_html, "
+                            + "payload = EXCLUDED.payload, "
                             + "snapshot_id = EXCLUDED.snapshot_id, last_seen_at = now()",
                     r.dhis2Uid(), r.programUid(), r.displayName(), r.repeatable(),
+                    r.formType(), r.dataEntryFormHtml(),
                     writeJson(r.payload()), snapshotId);
             jdbc.update(
                     "DELETE FROM der.metadata_program_stage_data_element "
@@ -119,9 +125,38 @@ public class ExtendedMirrorRepository {
             for (final MirroredProgramStage.ProgramStageDataElement psde : r.dataElements()) {
                 jdbc.update(
                         "INSERT INTO der.metadata_program_stage_data_element "
-                                + "(program_stage_uid, data_element_uid, compulsory, sort_order) "
-                                + "VALUES (?, ?, ?, ?)",
-                        r.dhis2Uid(), psde.dataElementUid(), psde.compulsory(), psde.sortOrder());
+                                + "(program_stage_uid, data_element_uid, compulsory, "
+                                + " sort_order, render_type_desktop, render_type_mobile) "
+                                + "VALUES (?, ?, ?, ?, ?, ?)",
+                        r.dhis2Uid(), psde.dataElementUid(), psde.compulsory(),
+                        psde.sortOrder(),
+                        psde.renderTypeDesktop(), psde.renderTypeMobile());
+            }
+            // Sections are owned by the stage; wipe + reinsert so a
+            // removed section in the latest DHIS2 metadata vanishes
+            // from the mirror on the next sync.
+            jdbc.update(
+                    "DELETE FROM der.metadata_program_stage_section "
+                            + "WHERE program_stage_uid = ?", r.dhis2Uid());
+            for (final MirroredProgramStageSection sec : r.sections()) {
+                jdbc.update(
+                        "INSERT INTO der.metadata_program_stage_section "
+                                + "(dhis2_uid, program_stage_uid, display_name, "
+                                + " sort_order, render_type_desktop, render_type_mobile, "
+                                + " payload, snapshot_id, imported_at, last_seen_at) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, CAST(? AS jsonb), "
+                                + " ?, now(), now())",
+                        sec.dhis2Uid(), sec.programStageUid(), sec.displayName(),
+                        sec.sortOrder(), sec.renderTypeDesktop(), sec.renderTypeMobile(),
+                        writeJson(sec.payload()), snapshotId);
+                int idx = 0;
+                for (final String deUid : sec.dataElementUids()) {
+                    jdbc.update(
+                            "INSERT INTO der.metadata_program_stage_section_data_element "
+                                    + "(section_uid, data_element_uid, sort_order) "
+                                    + "VALUES (?, ?, ?)",
+                            sec.dhis2Uid(), deUid, idx++);
+                }
             }
         }
         return rows.size();
@@ -129,7 +164,8 @@ public class ExtendedMirrorRepository {
 
     public Optional<MirroredProgramStage> findProgramStage(final String uid) {
         return single(() -> jdbc.queryForObject(
-                "SELECT dhis2_uid, program_uid, display_name, repeatable, payload "
+                "SELECT dhis2_uid, program_uid, display_name, repeatable, "
+                        + " form_type, data_entry_form_html, payload "
                         + "FROM der.metadata_program_stage WHERE dhis2_uid = ?",
                 programStageMapper(), uid));
     }
@@ -144,7 +180,8 @@ public class ExtendedMirrorRepository {
             return List.of();
         }
         return jdbc.query(
-                "SELECT dhis2_uid, program_uid, display_name, repeatable, payload "
+                "SELECT dhis2_uid, program_uid, display_name, repeatable, "
+                        + " form_type, data_entry_form_html, payload "
                         + "FROM der.metadata_program_stage "
                         + "WHERE program_uid = ? "
                         + "ORDER BY display_name",
@@ -154,15 +191,59 @@ public class ExtendedMirrorRepository {
     public List<MirroredProgramStage.ProgramStageDataElement> findProgramStageDataElements(
             final String programStageUid) {
         return jdbc.query(
-                "SELECT data_element_uid, compulsory, sort_order "
+                "SELECT data_element_uid, compulsory, sort_order, "
+                        + " render_type_desktop, render_type_mobile "
                         + "FROM der.metadata_program_stage_data_element "
                         + "WHERE program_stage_uid = ? "
                         + "ORDER BY COALESCE(sort_order, 0)",
                 (ResultSet rs, int row) -> new MirroredProgramStage.ProgramStageDataElement(
                         rs.getString("data_element_uid"),
                         rs.getBoolean("compulsory"),
-                        (Integer) rs.getObject("sort_order")),
+                        (Integer) rs.getObject("sort_order"),
+                        rs.getString("render_type_desktop"),
+                        rs.getString("render_type_mobile")),
                 programStageUid);
+    }
+
+    /** Fetch the mirrored sections for a stage, ordered by
+     *  sortOrder. Each row carries a cached list of data-element
+     *  UIDs in the order the admin configured within the section
+     *  (preserving DHIS2's within-section order). CaptureFormService
+     *  uses this to emit per-section FormAssembly instead of the
+     *  pre-Phase-1 lumped single-section fallback. */
+    public List<MirroredProgramStageSection> findProgramStageSections(
+            final String programStageUid) {
+        final List<MirroredProgramStageSection> secs = jdbc.query(
+                "SELECT dhis2_uid, program_stage_uid, display_name, sort_order, "
+                        + " render_type_desktop, render_type_mobile, payload "
+                        + "FROM der.metadata_program_stage_section "
+                        + "WHERE program_stage_uid = ? "
+                        + "ORDER BY COALESCE(sort_order, 0), display_name",
+                (ResultSet rs, int row) -> new MirroredProgramStageSection(
+                        rs.getString("dhis2_uid"),
+                        rs.getString("program_stage_uid"),
+                        rs.getString("display_name"),
+                        (Integer) rs.getObject("sort_order"),
+                        rs.getString("render_type_desktop"),
+                        rs.getString("render_type_mobile"),
+                        List.of(),
+                        readJson(rs.getString("payload"))),
+                programStageUid);
+        final List<MirroredProgramStageSection> out = new ArrayList<>(secs.size());
+        for (final MirroredProgramStageSection sec : secs) {
+            final List<String> des = jdbc.query(
+                    "SELECT data_element_uid "
+                            + "FROM der.metadata_program_stage_section_data_element "
+                            + "WHERE section_uid = ? "
+                            + "ORDER BY COALESCE(sort_order, 0)",
+                    (ResultSet rs, int row) -> rs.getString("data_element_uid"),
+                    sec.dhis2Uid());
+            out.add(new MirroredProgramStageSection(sec.dhis2Uid(),
+                    sec.programStageUid(), sec.displayName(), sec.sortOrder(),
+                    sec.renderTypeDesktop(), sec.renderTypeMobile(),
+                    des, sec.payload()));
+        }
+        return out;
     }
 
     // Tracked entity attributes -------------------------------------------
@@ -285,7 +366,10 @@ public class ExtendedMirrorRepository {
         return (ResultSet rs, int row) -> new MirroredProgramStage(
                 rs.getString("dhis2_uid"), rs.getString("program_uid"),
                 rs.getString("display_name"), rs.getBoolean("repeatable"),
-                List.of(), readJson(rs.getString("payload")));
+                rs.getString("form_type"),
+                rs.getString("data_entry_form_html"),
+                List.of(), List.of(),
+                readJson(rs.getString("payload")));
     }
 
     private RowMapper<MirroredTrackedEntityAttribute> trackedEntityAttributeMapper() {

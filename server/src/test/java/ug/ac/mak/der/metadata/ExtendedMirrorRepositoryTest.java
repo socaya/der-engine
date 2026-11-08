@@ -51,10 +51,14 @@ class ExtendedMirrorRepositoryTest {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
         final ExtendedMirrorRepository repo = new ExtendedMirrorRepository(jdbc, m);
         repo.upsertProgramStages(List.of(new MirroredProgramStage("ps", "p", "d", true,
-                List.of(new MirroredProgramStage.ProgramStageDataElement("de1", true, 1),
-                        new MirroredProgramStage.ProgramStageDataElement("de2", false, 2)),
+                null, null,
+                List.of(new MirroredProgramStage.ProgramStageDataElement(
+                        "de1", true, 1, null, null),
+                        new MirroredProgramStage.ProgramStageDataElement(
+                                "de2", false, 2, null, null)),
+                List.of(),
                 m.createObjectNode())), 1L);
-        // 1 stage upsert + 1 delete + 2 inserts = 4 updates
+        // 1 stage upsert + 1 delete-de + 2 de-inserts + 1 delete-sec = 5 updates
         verify(jdbc, org.mockito.Mockito.atLeast(4)).update(anyString(), any(Object[].class));
     }
 
@@ -63,7 +67,8 @@ class ExtendedMirrorRepositoryTest {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
         final ExtendedMirrorRepository repo = new ExtendedMirrorRepository(jdbc, m);
         repo.upsertProgramStages(List.of(new MirroredProgramStage("ps", "p", "d", false,
-                List.of(), m.createObjectNode())), 1L);
+                null, null,
+                List.of(), List.of(), m.createObjectNode())), 1L);
     }
 
     @Test
@@ -300,6 +305,8 @@ class ExtendedMirrorRepositoryTest {
         when(rs.getString("data_element_uid")).thenReturn("de1");
         when(rs.getBoolean("compulsory")).thenReturn(true);
         when(rs.getObject("sort_order")).thenReturn(1);
+        when(rs.getString("render_type_desktop")).thenReturn("DROPDOWN");
+        when(rs.getString("render_type_mobile")).thenReturn(null);
         final ArgumentCaptor<RowMapper<MirroredProgramStage.ProgramStageDataElement>> cap =
                 ArgumentCaptor.forClass(RowMapper.class);
         when(jdbc.query(anyString(), cap.capture(), eq("ps1")))

@@ -18,6 +18,7 @@ public sealed interface MirroredEntity permits
         MirroredTrackedEntityType,
         MirroredCategoryOptionCombo,
         MirroredProgramStage,
+        MirroredProgramStageSection,
         MirroredTrackedEntityAttribute,
         MirroredProgramRule,
         MirroredProgramRuleAction {

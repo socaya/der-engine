@@ -40,9 +40,12 @@ class Phase036bRecordsTest {
     @Test
     void programStageWithDataElements() {
         final MirroredProgramStage ps = new MirroredProgramStage("ps1", "prog", "visit",
-                true,
-                List.of(new MirroredProgramStage.ProgramStageDataElement("de1", true, 1),
-                        new MirroredProgramStage.ProgramStageDataElement("de2", false, 2)),
+                true, null, null,
+                List.of(new MirroredProgramStage.ProgramStageDataElement(
+                        "de1", true, 1, null, null),
+                        new MirroredProgramStage.ProgramStageDataElement(
+                                "de2", false, 2, null, null)),
+                List.of(),
                 payload());
         assertThat(ps.dataElements()).hasSize(2);
         assertThat(ps.repeatable()).isTrue();
@@ -53,25 +56,55 @@ class Phase036bRecordsTest {
     @Test
     void programStageNullDataElementsAcceptedAsEmpty() {
         final MirroredProgramStage ps = new MirroredProgramStage("ps1", "prog", "visit", false,
-                null, payload());
+                null, null, null, null, payload());
         assertThat(ps.dataElements()).isEmpty();
+        assertThat(ps.sections()).isEmpty();
     }
 
     @Test
     void programStageRejectsNulls() {
-        assertThatThrownBy(() -> new MirroredProgramStage(null, "p", "d", false, List.of(), payload()))
+        assertThatThrownBy(() -> new MirroredProgramStage(null, "p", "d", false, null, null, List.of(), List.of(), payload()))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new MirroredProgramStage("u", null, "d", false, List.of(), payload()))
+        assertThatThrownBy(() -> new MirroredProgramStage("u", null, "d", false, null, null, List.of(), List.of(), payload()))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new MirroredProgramStage("u", "p", null, false, List.of(), payload()))
+        assertThatThrownBy(() -> new MirroredProgramStage("u", "p", null, false, null, null, List.of(), List.of(), payload()))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new MirroredProgramStage("u", "p", "d", false, List.of(), null))
+        assertThatThrownBy(() -> new MirroredProgramStage("u", "p", "d", false, null, null, List.of(), List.of(), null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void programStageDataElementRejectsNullUid() {
-        assertThatThrownBy(() -> new MirroredProgramStage.ProgramStageDataElement(null, false, 1))
+        assertThatThrownBy(() -> new MirroredProgramStage.ProgramStageDataElement(
+                null, false, 1, null, null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void programStageSectionRecord() {
+        final MirroredProgramStageSection sec = new MirroredProgramStageSection(
+                "sec1", "ps1", "Demographics", 0,
+                "LISTING", "LISTING",
+                List.of("de1", "de2"), payload());
+        assertThat(sec.dhis2Uid()).isEqualTo("sec1");
+        assertThat(sec.programStageUid()).isEqualTo("ps1");
+        assertThat(sec.renderTypeDesktop()).isEqualTo("LISTING");
+        assertThat(sec.dataElementUids()).containsExactly("de1", "de2");
+    }
+
+    @Test
+    void programStageSectionRejectsNulls() {
+        assertThatThrownBy(() -> new MirroredProgramStageSection(
+                null, "ps", "n", 0, null, null, List.of(), payload()))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new MirroredProgramStageSection(
+                "u", null, "n", 0, null, null, List.of(), payload()))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new MirroredProgramStageSection(
+                "u", "ps", null, 0, null, null, List.of(), payload()))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new MirroredProgramStageSection(
+                "u", "ps", "n", 0, null, null, List.of(), null))
                 .isInstanceOf(NullPointerException.class);
     }
 
