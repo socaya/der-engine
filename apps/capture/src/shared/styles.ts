@@ -738,6 +738,26 @@ export const CAPTURE_STYLES = `
 .cap-sheet__cell--anchor {
   box-shadow: inset 0 0 0 2px var(--der-primary) !important;
 }
+/* Column-resize drag handle — a 6px-wide strip glued to the right
+ * edge of every data column's header; cursor flips to col-resize
+ * on hover so operators discover the affordance. */
+.cap-sheet thead th {
+  position: sticky; top: 0; z-index: 2;
+  /* overrides generic .cap-sheet thead th above; required so the
+   * resize handle positions correctly inside the header cell. */
+}
+.cap-sheet__col-resize {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 6px; cursor: col-resize;
+  user-select: none;
+}
+.cap-sheet__col-resize:hover {
+  background: var(--der-primary-subtle);
+}
+.cap-sheet thead th { position: sticky; }
+body.cap-sheet__resizing,
+body.cap-sheet__resizing * { cursor: col-resize !important;
+                             user-select: none; }
 @keyframes cap-sheet-filldown {
   0%   { background: var(--der-primary-subtle); }
   100% { background: transparent; }

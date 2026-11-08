@@ -76,6 +76,25 @@ export function EventSheetPage(
     anchor: { row: number; col: number };
     focus: { row: number; col: number };
   } | null>(null);
+  /** Column widths keyed by field UID; persisted in sessionStorage
+   *  per program so the next time the operator opens the same
+   *  program's sheet, their resize decisions stick. Unspecified
+   *  columns fall back to the auto-table default. */
+  const colWidthsKey = 'cap:sheet-cols:' + programUid;
+  const [colWidths, setColWidths] =
+    useState<Record<string, number>>(() => {
+      if (typeof sessionStorage === 'undefined') return {};
+      try {
+        const raw = sessionStorage.getItem(colWidthsKey);
+        return raw ? JSON.parse(raw) : {};
+      } catch { return {}; }
+    });
+  useEffect(() => {
+    if (typeof sessionStorage === 'undefined') return;
+    try {
+      sessionStorage.setItem(colWidthsKey, JSON.stringify(colWidths));
+    } catch { /* quota exceeded or similar — silently skip */ }
+  }, [colWidths, colWidthsKey]);
   /** per-row save-timer handles, keyed by row index */
   const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   /** Live rows snapshot — React 18 defers functional setState until
@@ -422,6 +441,58 @@ export function EventSheetPage(
     return targetRowIndexes.length;
   }
 
+  /** Clear every cell in the current selection rectangle. Skips
+   *  hidden cells (program rules decide those shouldn't apply to
+   *  the row). Records ONE undo batch for the whole clear so
+   *  Ctrl+Z restores the entire range in one step. */
+  function clearSelection(): void {
+    if (!selection) return;
+    const r0 = Math.min(selection.anchor.row, selection.focus.row);
+    const r1 = Math.max(selection.anchor.row, selection.focus.row);
+    const c0 = Math.min(selection.anchor.col, selection.focus.col);
+    const c1 = Math.max(selection.anchor.col, selection.focus.col);
+    const snap = rowsRef.current;
+    const batch: Array<{ localKey: string; fieldId: string;
+      oldValue: string }> = [];
+    const touchedRowIdxs = new Set<number>();
+    for (let r = r0; r <= r1; r++) {
+      const row = snap[r];
+      if (!row) continue;
+      for (let c = c0; c <= c1; c++) {
+        const f = allFields[c];
+        if (!f) continue;
+        if (rowEffects[r]?.hiddenFieldIds.has(f.id)) continue;
+        const oldValue = row.values[f.id] ?? '';
+        if (oldValue === '') continue;
+        batch.push({ localKey: row.localKey, fieldId: f.id,
+          oldValue });
+        touchedRowIdxs.add(r);
+      }
+    }
+    if (batch.length === 0) return;
+    pushUndo(batch);
+    setRows((prev) => {
+      const copy = [...prev];
+      for (const i of touchedRowIdxs) {
+        const row = copy[i];
+        if (!row) continue;
+        const next: Record<string, string> = { ...row.values };
+        for (let c = c0; c <= c1; c++) {
+          const f = allFields[c];
+          if (!f) continue;
+          if (rowEffects[i]?.hiddenFieldIds.has(f.id)) continue;
+          delete next[f.id];
+        }
+        copy[i] = { ...row, values: next, saveState: 'dirty' };
+      }
+      return copy;
+    });
+    for (const i of touchedRowIdxs) scheduleSave(i);
+    // eslint-disable-next-line no-console
+    console.log('[sheet] clear-selection',
+      { cells: batch.length, rows: touchedRowIdxs.size });
+  }
+
   /** Serialize the selection rectangle to a TSV string. Row order
    *  matches the sheet (top to bottom), column order matches the
    *  grid. Hidden cells are serialised as empty string so the
@@ -460,6 +531,34 @@ export function EventSheetPage(
     const c0 = Math.min(selection.anchor.col, selection.focus.col);
     const c1 = Math.max(selection.anchor.col, selection.focus.col);
     return row >= r0 && row <= r1 && col >= c0 && col <= c1;
+  }
+
+  /** Begin a column-resize drag on the right edge of a header
+   *  cell. Captures the starting width via getBoundingClientRect
+   *  (works whether the column uses stored width or auto) and
+   *  attaches window-level move/up handlers so the drag continues
+   *  cleanly when the cursor leaves the header cell. */
+  function startColResize(e: MouseEvent<HTMLElement>,
+      fieldId: string): void {
+    e.preventDefault();
+    e.stopPropagation();
+    const th = (e.currentTarget as HTMLElement).closest('th');
+    if (!th) return;
+    const startX = e.clientX;
+    const startWidth = th.getBoundingClientRect().width;
+    document.body.classList.add('cap-sheet__resizing');
+    function onMove(ev: globalThis.MouseEvent): void {
+      const next = Math.max(60, Math.round(
+        startWidth + (ev.clientX - startX)));
+      setColWidths((prev) => ({ ...prev, [fieldId]: next }));
+    }
+    function onUp(): void {
+      document.body.classList.remove('cap-sheet__resizing');
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   }
 
   /** Cell click handler — records the anchor (and optionally
@@ -702,6 +801,48 @@ export function EventSheetPage(
       console.log('[sheet] copy', { bytes: tsv.length });
       return;
     }
+    // Delete / Backspace over a multi-cell selection — clear every
+    // non-hidden cell in the rectangle, record ONE undo batch,
+    // schedule the affected rows for save. Single-cell selections
+    // fall through so the browser's native input delete still
+    // handles cursor-text editing.
+    if ((e.key === 'Delete' || e.key === 'Backspace')
+        && selection
+        && !(selection.anchor.row === selection.focus.row
+             && selection.anchor.col === selection.focus.col)) {
+      e.preventDefault();
+      clearSelection();
+      return;
+    }
+    // Ctrl+A / Cmd+A — select-all the data grid. Native "select
+    // all text" inside an input wins first; a second press
+    // (or Ctrl+A fired from a non-input focus like a th) grabs
+    // the whole sheet.
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a'
+        && !e.shiftKey) {
+      const target = e.target as HTMLElement;
+      const inInput = target.tagName === 'INPUT'
+        || target.tagName === 'TEXTAREA'
+        || target.tagName === 'SELECT';
+      // If the cursor is inside an input with a non-empty value,
+      // let the native Ctrl+A work once. If the operator fires
+      // Ctrl+A again (same input) we escalate to grid-select-all.
+      if (inInput && !selection) {
+        // First press — browser's select-all-text handles it.
+        // Set a one-cell selection at the active cell so the
+        // SECOND press (which lands here with selection set) can
+        // escalate.
+        return;
+      }
+      if (allFields.length === 0 || rowsRef.current.length === 0) return;
+      e.preventDefault();
+      setSelection({
+        anchor: { row: 0, col: 0 },
+        focus: { row: rowsRef.current.length - 1,
+          col: allFields.length - 1 },
+      });
+      return;
+    }
     // Shift+Arrow — extend selection in that direction. Base case
     // when nothing is selected yet: seed anchor at current cell.
     if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown'
@@ -849,10 +990,13 @@ export function EventSheetPage(
         </strong> jumps down to the next row, <strong>Ctrl+D</strong>
         fills the active cell's value down through every row below.
         <strong>Shift+Click</strong> / <strong>Shift+Arrow</strong>
-        extend the selection; <strong>Ctrl+C</strong> copies the
-        selection as tab-separated rows; <strong>Ctrl+V</strong>
-        pastes clipboard TSV as a block. <strong>Ctrl+Z</strong> undoes,
-        <strong>Ctrl+Shift+Z</strong> redoes.
+        extend the selection; <strong>Ctrl+A</strong> selects every
+        cell. <strong>Delete</strong> clears the selected range.
+        <strong>Ctrl+C</strong> copies the selection as tab-separated
+        rows; <strong>Ctrl+V</strong> pastes clipboard TSV as a block.
+        <strong>Ctrl+Z</strong> undoes, <strong>Ctrl+Shift+Z</strong>
+        redoes. Drag a column header's right edge to resize — widths
+        persist per program.
       </p>
 
       <div className="cap-sheet-wrap" data-test="ev-sheet"
@@ -864,9 +1008,19 @@ export function EventSheetPage(
                   title="Per-row save state">&nbsp;</th>
               <th scope="col" className="cap-sheet__date-col">Event date</th>
               {allFields.map((f) => (
-                <th key={f.id} scope="col" title={f.id}>
+                <th key={f.id} scope="col" title={f.id}
+                    style={colWidths[f.id]
+                      ? { width: colWidths[f.id] + 'px',
+                          minWidth: colWidths[f.id] + 'px' }
+                      : undefined}>
                   {f.label}
                   {f.required && <span className="cap-input__req"> *</span>}
+                  <span className="cap-sheet__col-resize"
+                        role="separator" aria-orientation="vertical"
+                        title={'Drag to resize this column'}
+                        data-test={'ev-sheet-col-resize-' + f.id}
+                        onMouseDown={(e) =>
+                          startColResize(e, f.id)} />
                 </th>
               ))}
               <th scope="col" className="cap-sheet__actions-col">
