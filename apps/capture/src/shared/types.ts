@@ -66,10 +66,12 @@ export interface CaptureApi {
     limit?: number) => Promise<{
     instances?: Array<{ trackedEntity?: string;
       trackedEntityInstance?: string; displayName?: string;
-      lastUpdated?: string; orgUnit?: string }>;
+      lastUpdated?: string; orgUnit?: string;
+      attributes?: Record<string, string> }>;
     trackedEntities?: Array<{ trackedEntity?: string;
       trackedEntityInstance?: string; displayName?: string;
-      lastUpdated?: string; orgUnit?: string }>;
+      lastUpdated?: string; orgUnit?: string;
+      attributes?: Record<string, string> }>;
   }>;
   enrolTei: (body: { program: string; orgUnit: string;
     trackedEntityType: string;

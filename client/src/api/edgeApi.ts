@@ -715,6 +715,11 @@ export interface TrackedEntityRow {
   readonly displayName?: string;
   readonly lastUpdated?: string;
   readonly orgUnit?: string;
+  /** Attributes keyed by tracked-entity-attribute UID. The DER-
+   *  native /edge-api/v1/tracked-entities endpoint returns this
+   *  per TEI; downstream renderers use it to drive metadata-
+   *  driven columns in the TEI working list. */
+  readonly attributes?: Record<string, string>;
 }
 
 /** List tracked entities for a program + bound OU.
@@ -753,6 +758,7 @@ export async function listTrackerEntities(
   const body = await r.json() as { trackedEntities?: Array<{
     teiUid?: string; displayName?: string;
     orgUnit?: string; updatedAt?: string;
+    attributes?: Record<string, string>;
   }>; count?: number };
   const rows: TrackedEntityRow[] = (body.trackedEntities ?? [])
     .map((t) => ({
@@ -760,6 +766,7 @@ export async function listTrackerEntities(
       displayName: t.displayName,
       orgUnit: t.orgUnit,
       lastUpdated: t.updatedAt,
+      attributes: t.attributes ?? {},
     }));
   return { trackedEntities: rows, total: body.count ?? rows.length };
 }
