@@ -76,6 +76,16 @@ export function EventSheetPage(
     anchor: { row: number; col: number };
     focus: { row: number; col: number };
   } | null>(null);
+  /** Fill-drag in progress — the operator mousedowned on the handle
+   *  and is extending the selection. The extend rectangle is shown
+   *  as a preview outline; on mouseup the extended cells get
+   *  populated with the anchor cell's value. Null means no fill
+   *  drag is active. */
+  const [fillDrag, setFillDrag] = useState<null | {
+    source: { row: number; col: number };
+    extend: { row: number; col: number };
+  }>(null);
+
   /** Column widths keyed by field UID; persisted in sessionStorage
    *  per program so the next time the operator opens the same
    *  program's sheet, their resize decisions stick. Unspecified
@@ -576,6 +586,130 @@ export function EventSheetPage(
     }
   }
 
+  /** Start a drag-fill operation. Records the source anchor cell,
+   *  attaches window-level mousemove/mouseup so the drag follows
+   *  the cursor even past the cell boundary. On mouseup the
+   *  extended rectangle fills with the source's value. */
+  function startFillDrag(e: MouseEvent<HTMLElement>,
+      sourceRow: number, sourceCol: number): void {
+    e.preventDefault();
+    e.stopPropagation();
+    setFillDrag({ source: { row: sourceRow, col: sourceCol },
+      extend: { row: sourceRow, col: sourceCol } });
+    document.body.classList.add('cap-sheet__fill-dragging');
+    function cellCoordAt(x: number, y: number): { row: number;
+        col: number } | null {
+      const el = document.elementFromPoint(x, y);
+      if (!el) return null;
+      const td = (el as HTMLElement).closest<HTMLElement>(
+        '[data-cell-coord]');
+      if (!td) return null;
+      const coord = td.getAttribute('data-cell-coord');
+      if (!coord) return null;
+      const [rs, cs] = coord.split(':');
+      const row = Number(rs); const col = Number(cs);
+      if (!Number.isFinite(row) || !Number.isFinite(col)) return null;
+      // Date column (-1) is not fillable; clamp to col 0.
+      return { row, col: col < 0 ? 0 : col };
+    }
+    function onMove(ev: globalThis.MouseEvent): void {
+      const next = cellCoordAt(ev.clientX, ev.clientY);
+      if (!next) return;
+      setFillDrag({ source: { row: sourceRow, col: sourceCol },
+        extend: next });
+    }
+    function onUp(ev: globalThis.MouseEvent): void {
+      document.body.classList.remove('cap-sheet__fill-dragging');
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      const end = cellCoordAt(ev.clientX, ev.clientY)
+        ?? { row: sourceRow, col: sourceCol };
+      setFillDrag(null);
+      commitFillDrag(sourceRow, sourceCol, end.row, end.col);
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  /** Commit the drag-fill: write the source cell's value into every
+   *  cell in the extended rectangle (excluding the source itself).
+   *  Hidden cells are skipped. One undo batch for the whole block;
+   *  per-row debounced saves. */
+  function commitFillDrag(srcRow: number, srcCol: number,
+      endRow: number, endCol: number): void {
+    const snap = rowsRef.current;
+    const srcField = allFields[srcCol];
+    if (!srcField) return;
+    const sourceValue = snap[srcRow]?.values[srcField.id] ?? '';
+    const r0 = Math.min(srcRow, endRow);
+    const r1 = Math.max(srcRow, endRow);
+    const c0 = Math.min(srcCol, endCol);
+    const c1 = Math.max(srcCol, endCol);
+    const batch: Array<{ localKey: string; fieldId: string;
+      oldValue: string }> = [];
+    const touchedRowIdxs = new Set<number>();
+    for (let r = r0; r <= r1; r++) {
+      const row = snap[r];
+      if (!row) continue;
+      for (let c = c0; c <= c1; c++) {
+        if (r === srcRow && c === srcCol) continue;
+        const f = allFields[c];
+        if (!f) continue;
+        if (rowEffects[r]?.hiddenFieldIds.has(f.id)) continue;
+        const oldValue = row.values[f.id] ?? '';
+        if (oldValue === sourceValue) continue;
+        batch.push({ localKey: row.localKey, fieldId: f.id,
+          oldValue });
+        touchedRowIdxs.add(r);
+      }
+    }
+    if (batch.length === 0) {
+      // No cells changed; promote the extend rectangle to the
+      // selection anyway so the operator can continue acting on
+      // what they just dragged.
+      setSelection({ anchor: { row: srcRow, col: srcCol },
+        focus: { row: endRow, col: endCol } });
+      return;
+    }
+    pushUndo(batch);
+    setRows((prev) => {
+      const copy = [...prev];
+      for (const i of touchedRowIdxs) {
+        const row = copy[i];
+        if (!row) continue;
+        const next: Record<string, string> = { ...row.values };
+        for (let c = c0; c <= c1; c++) {
+          if (i === srcRow && c === srcCol) continue;
+          const f = allFields[c];
+          if (!f) continue;
+          if (rowEffects[i]?.hiddenFieldIds.has(f.id)) continue;
+          if (sourceValue === '') delete next[f.id];
+          else next[f.id] = sourceValue;
+        }
+        copy[i] = { ...row, values: next, saveState: 'dirty' };
+      }
+      return copy;
+    });
+    for (const i of touchedRowIdxs) scheduleSave(i);
+    // Promote the filled rectangle to the active selection so the
+    // operator sees what they just produced.
+    setSelection({ anchor: { row: srcRow, col: srcCol },
+      focus: { row: endRow, col: endCol } });
+    // eslint-disable-next-line no-console
+    console.log('[sheet] fill-drag commit',
+      { cells: batch.length, rows: touchedRowIdxs.size });
+  }
+
+  /** True when (row, col) is inside the active drag-fill preview. */
+  function inFillPreview(row: number, col: number): boolean {
+    if (!fillDrag) return false;
+    const r0 = Math.min(fillDrag.source.row, fillDrag.extend.row);
+    const r1 = Math.max(fillDrag.source.row, fillDrag.extend.row);
+    const c0 = Math.min(fillDrag.source.col, fillDrag.extend.col);
+    const c1 = Math.max(fillDrag.source.col, fillDrag.extend.col);
+    return row >= r0 && row <= r1 && col >= c0 && col <= c1;
+  }
+
   /** Rectangular paste — split the TSV text into a grid, map each
    *  cell into (startRow+r, startCol+c), update values in one
    *  setRows + one undo batch. Columns beyond the sheet are
@@ -762,6 +896,19 @@ export function EventSheetPage(
     const [rowStr, colStr] = coord.split(':');
     const row = Number(rowStr); const col = Number(colStr);
     if (!Number.isFinite(row) || !Number.isFinite(col)) return;
+    // Escape — deselect without altering any values. If focus is
+    // inside an input, let the browser handle the first press
+    // (native inputs often use Esc to revert current edit); the
+    // second press is caught here.
+    if (e.key === 'Escape') {
+      if (selection) {
+        e.preventDefault();
+        setSelection(null);
+        // eslint-disable-next-line no-console
+        console.log('[sheet] deselect');
+      }
+      return;
+    }
     // Ctrl+Z / Cmd+Z — undo. Ctrl+Shift+Z — redo.
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
       e.preventDefault();
@@ -995,8 +1142,10 @@ export function EventSheetPage(
         <strong>Ctrl+C</strong> copies the selection as tab-separated
         rows; <strong>Ctrl+V</strong> pastes clipboard TSV as a block.
         <strong>Ctrl+Z</strong> undoes, <strong>Ctrl+Shift+Z</strong>
-        redoes. Drag a column header's right edge to resize — widths
-        persist per program.
+        redoes. Drag the blue square at the bottom-right of the
+        selection to fill a rectangle with the anchor cell's value.
+        <strong>Esc</strong> deselects. Drag a column header's right
+        edge to resize — widths persist per program.
       </p>
 
       <div className="cap-sheet-wrap" data-test="ev-sheet"
@@ -1136,6 +1285,8 @@ export function EventSheetPage(
                           && selection.anchor.row === rowIdx
                           && selection.anchor.col === colIdx
                             ? 'cap-sheet__cell--anchor ' : '')
+                        + (inFillPreview(rowIdx, colIdx)
+                          ? 'cap-sheet__cell--fill-preview ' : '')
                       }
                       title={cellWarnings.length > 0
                         ? cellWarnings.map((w) =>
@@ -1162,6 +1313,25 @@ export function EventSheetPage(
                                    timers.current.delete(rowIdx);
                                    void saveRow(rowIdx);
                                  }} />
+                    )}
+                    {selection
+                      && rowIdx === Math.max(selection.anchor.row,
+                          selection.focus.row)
+                      && colIdx === Math.max(selection.anchor.col,
+                          selection.focus.col) && (
+                      <span className="cap-sheet__fill-handle"
+                            role="button"
+                            aria-label={'Drag to fill a range with '
+                              + 'the selection value'}
+                            title={'Drag to fill cells with the '
+                              + 'anchor cell\'s value.'}
+                            data-test={'ev-sheet-fill-handle-'
+                              + selection.anchor.row + '-'
+                              + selection.anchor.col}
+                            onMouseDown={(ev) =>
+                              startFillDrag(ev,
+                                selection.anchor.row,
+                                selection.anchor.col)} />
                     )}
                   </td>
                   );

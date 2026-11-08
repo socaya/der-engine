@@ -738,6 +738,26 @@ export const CAPTURE_STYLES = `
 .cap-sheet__cell--anchor {
   box-shadow: inset 0 0 0 2px var(--der-primary) !important;
 }
+/* Google-Sheets-style fill handle on the bottom-right of the
+ * selection. The parent cell td needs position: relative so the
+ * absolutely-positioned handle anchors correctly. */
+.cap-sheet td { position: relative; }
+.cap-sheet__fill-handle {
+  position: absolute; right: -4px; bottom: -4px;
+  width: 8px; height: 8px;
+  background: var(--der-primary);
+  border: 1px solid var(--der-surface);
+  cursor: crosshair;
+  z-index: 3;
+}
+.cap-sheet__cell--fill-preview {
+  background: var(--der-warning-subtle) !important;
+  outline: 1px dashed var(--der-warning);
+  outline-offset: -1px;
+}
+body.cap-sheet__fill-dragging,
+body.cap-sheet__fill-dragging * { cursor: crosshair !important;
+                                   user-select: none; }
 /* Column-resize drag handle — a 6px-wide strip glued to the right
  * edge of every data column's header; cursor flips to col-resize
  * on hover so operators discover the affordance. */
