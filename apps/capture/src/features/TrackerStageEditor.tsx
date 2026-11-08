@@ -8,6 +8,7 @@ import { parseStageForm } from '../shared/parser';
 import { parseProgramRules } from '../shared/rules';
 import { applyRuleEffectsToSections, evaluateRules } from '../shared/ruleEngine';
 import type { CaptureApi } from '../shared/types';
+import { useDirtyGuard } from '../shared/useDirtyGuard';
 
 /**
  * Tracker stage event editor (requirements doc §8.5 TR-040 to
@@ -45,6 +46,7 @@ export function TrackerStageEditor(
   const [ruleVars, setRuleVars] =
     useState<readonly CaptureProgramRuleVariable[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [baseline, setBaseline] = useState<Record<string, string>>({});
   const [occurredAt, setOccurredAt] = useState(() =>
     new Date().toISOString().slice(0, 10));
   const [state, setState] =
@@ -74,13 +76,16 @@ export function TrackerStageEditor(
         setRules(parsedRules.rules);
         setRuleVars(parsedRules.variables);
         if (detail) {
-          setValues({ ...detail.dataValues });
+          const vals = { ...detail.dataValues };
+          setValues(vals);
+          setBaseline(vals);
           if (detail.occurredAt) {
             setOccurredAt(detail.occurredAt.slice(0, 10));
           }
           setEventStatus(detail.status ?? 'ACTIVE');
         } else {
           setValues({});
+          setBaseline({});
           setEventStatus(null);
         }
         setState('idle');
@@ -106,6 +111,17 @@ export function TrackerStageEditor(
     return requiredFieldsComplete(effectiveSections, values);
   }, [state, effectiveSections, values]);
 
+  const isDirty = useMemo(() => {
+    if (state === 'submitting' || state === 'loading') return false;
+    const keys = new Set([...Object.keys(values),
+      ...Object.keys(baseline)]);
+    for (const k of keys) {
+      if ((values[k] ?? '') !== (baseline[k] ?? '')) return true;
+    }
+    return false;
+  }, [values, baseline, state]);
+  const { confirmLeave } = useDirtyGuard(isDirty);
+
   async function submit(targetStatus: 'ACTIVE' | 'COMPLETED'):
       Promise<void> {
     setState('submitting');
@@ -125,6 +141,9 @@ export function TrackerStageEditor(
       });
       setState('ok');
       setEventStatus(targetStatus);
+      // Reset the dirty baseline so the beforeunload guard stops
+      // asking the operator — the save already succeeded.
+      setBaseline({ ...values });
       const verb = targetStatus === 'COMPLETED'
         ? 'Completed on edge'
         : eventStatus === 'COMPLETED' ? 'Reopened on edge'
@@ -264,7 +283,7 @@ export function TrackerStageEditor(
           </div>
           <button type="button"
                   className="cap-btn cap-btn--secondary"
-                  onClick={onCancel}
+                  onClick={() => { if (confirmLeave()) onCancel(); }}
                   data-test="tr-editor-cancel">Cancel</button>
           {eventStatus === 'COMPLETED' ? (
             <button type="button"

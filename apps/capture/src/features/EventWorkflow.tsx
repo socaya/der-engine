@@ -8,6 +8,7 @@ import type {
 import { parseStageForm } from '../shared/parser';
 import { parseProgramRules } from '../shared/rules';
 import { applyRuleEffectsToSections, evaluateRules } from '../shared/ruleEngine';
+import { useDirtyGuard } from '../shared/useDirtyGuard';
 
 /**
  * Event (WITHOUT_REGISTRATION) workflow inside the unified
@@ -160,6 +161,16 @@ export function EventWorkflow(
     // effective form, not the raw metadata.
     return requiredFieldsComplete(effectiveSections, values);
   }, [stageUid, submitState, effectiveSections, values]);
+
+  // EventWorkflow events start from a clean slate; "dirty" means
+  // the operator has typed at least one non-empty value and the
+  // last submit hasn't just succeeded. The guard warns on tab
+  // close + we reset it on each successful save.
+  const isDirty = useMemo(() => {
+    if (submitState === 'submitting' || submitState === 'ok') return false;
+    return Object.values(values).some((v) => v.trim() !== '');
+  }, [values, submitState]);
+  useDirtyGuard(isDirty);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
