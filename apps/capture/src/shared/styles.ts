@@ -852,6 +852,56 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
   font: 11px ui-monospace, Menlo, monospace;
   color: var(--der-text);
 }
+
+/* Columns picker popover (SHEET-M). */
+.cap-sheet__columns {
+  background: var(--der-surface);
+  border: 1px solid var(--der-border);
+  width: min(460px, 94vw);
+  max-height: 86vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 2px 0 rgba(23, 38, 60, 0.04);
+}
+.cap-sheet__columns-sub {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--der-border-soft);
+  font-size: 12px; color: var(--der-text-muted);
+}
+.cap-sheet__columns-filter {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--der-border);
+  background: var(--der-surface);
+  font-size: 12px; font-family: inherit;
+}
+.cap-sheet__columns-filter:focus {
+  outline: none; border-color: var(--der-primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 166, 0.2);
+}
+.cap-sheet__columns-list {
+  margin: 0; padding: 4px 0;
+  list-style: none; overflow: auto;
+  flex: 1 1 auto;
+}
+.cap-sheet__columns-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 18px;
+  font-size: 13px; color: var(--der-text);
+  cursor: pointer;
+}
+.cap-sheet__columns-item:hover {
+  background: var(--der-primary-subtle);
+}
+.cap-sheet__columns-empty {
+  padding: 12px 18px; color: var(--der-text-muted);
+  font-size: 12px; font-style: italic;
+}
+.cap-sheet__columns-foot {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 10px 18px;
+  border-top: 1px solid var(--der-border-soft);
+}
 /* Column-resize drag handle — a 6px-wide strip glued to the right
  * edge of every data column's header; cursor flips to col-resize
  * on hover so operators discover the affordance. */

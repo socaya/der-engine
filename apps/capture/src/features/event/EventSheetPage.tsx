@@ -78,6 +78,7 @@ export function EventSheetPage(
     focus: { row: number; col: number };
   } | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [columnsOpen, setColumnsOpen] = useState(false);
   /** Active sort chain — each entry is one sort key. Empty array
    *  means display order matches the underlying rows array.
    *  Shift+click on a column's sort icon appends to the chain;
@@ -310,6 +311,15 @@ export function EventSheetPage(
     });
     return base;
   }, [rows, sort]);
+
+  /** Every data-element field in display order, regardless of
+   *  the hiddenCols filter. The Columns picker consumes this so
+   *  operators can see + toggle every column. */
+  const allFieldsUnfiltered = useMemo<readonly CaptureField[]>(() => {
+    const fs: CaptureField[] = [];
+    for (const s of sections) for (const f of s.fields) fs.push(f);
+    return fs;
+  }, [sections]);
 
   const allFields = useMemo<readonly CaptureField[]>(() => {
     const fs: CaptureField[] = [];
@@ -1485,6 +1495,15 @@ export function EventSheetPage(
         <span className="cap-section-head__rule" />
         <button type="button"
                 className="cap-sheet__shortcuts-btn"
+                data-test="ev-sheet-columns-btn"
+                aria-expanded={columnsOpen}
+                title={'Pick which columns are visible'}
+                onClick={() => setColumnsOpen((v) => !v)}>
+          Columns{hiddenCols.size > 0 && ' · ' + hiddenCols.size
+            + ' hidden'}
+        </button>
+        <button type="button"
+                className="cap-sheet__shortcuts-btn"
                 data-test="ev-sheet-shortcuts-btn"
                 aria-expanded={shortcutsOpen}
                 title="Keyboard shortcuts"
@@ -1508,6 +1527,23 @@ export function EventSheetPage(
       </div>
       {shortcutsOpen && (
         <ShortcutsPopover onClose={() => setShortcutsOpen(false)} />
+      )}
+      {columnsOpen && (
+        <ColumnsPopover
+          fields={allFieldsUnfiltered}
+          hidden={hiddenCols}
+          onToggle={(id) => {
+            setHiddenCols((prev) => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              return next;
+            });
+          }}
+          onUnhideAll={() => setHiddenCols(new Set())}
+          onHideAll={() => setHiddenCols(
+            new Set(allFieldsUnfiltered.map((f) => f.id)))}
+          onClose={() => setColumnsOpen(false)} />
       )}
       {colMenu && (
         <ColHeaderMenu
@@ -1860,6 +1896,112 @@ function extractEventUid(result: unknown): string | null {
     return evReports[0].uid as string;
   }
   return null;
+}
+
+/** Columns visibility picker — opened from the "Columns" toolbar
+ *  button. Lists every data-element field with a checkbox; checking
+ *  / unchecking toggles the hiddenCols set. A text filter trims
+ *  the list by label match so operators with many-field schemas
+ *  can find a specific column quickly. Hide all / Show all
+ *  footer buttons flip the whole set in one click. */
+function ColumnsPopover(
+  { fields, hidden, onToggle, onUnhideAll, onHideAll, onClose }: {
+    fields: ReadonlyArray<CaptureField>;
+    hidden: ReadonlySet<string>;
+    onToggle: (fieldId: string) => void;
+    onUnhideAll: () => void;
+    onHideAll: () => void;
+    onClose: () => void;
+  },
+): JSX.Element {
+  const [filter, setFilter] = useState('');
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey as unknown as
+      EventListener);
+    return () => window.removeEventListener('keydown',
+      onKey as unknown as EventListener);
+  }, [onClose]);
+  const visibleFiltered = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (q === '') return fields;
+    return fields.filter((f) =>
+      (f.label ?? '').toLowerCase().includes(q)
+      || f.id.toLowerCase().includes(q));
+  }, [fields, filter]);
+  const visibleCount = fields.length - hidden.size;
+  return (
+    <div className="cap-sheet__shortcuts-backdrop"
+         role="dialog" aria-modal="true"
+         aria-label="Choose visible columns"
+         data-test="ev-sheet-columns-popover"
+         onClick={(e) => {
+           if (e.target === e.currentTarget) onClose();
+         }}>
+      <div className="cap-sheet__columns">
+        <header className="cap-sheet__shortcuts-head">
+          <h3>Columns</h3>
+          <button type="button"
+                  className="cap-sheet__shortcuts-close"
+                  aria-label="Close"
+                  onClick={onClose}>×</button>
+        </header>
+        <div className="cap-sheet__columns-sub">
+          <span data-test="ev-sheet-columns-count">
+            {visibleCount} of {fields.length} visible
+          </span>
+          <input type="search"
+                 placeholder="Filter columns by name…"
+                 className="cap-sheet__columns-filter"
+                 data-test="ev-sheet-columns-filter"
+                 value={filter}
+                 onChange={(e) => setFilter(e.target.value)} />
+        </div>
+        <ul className="cap-sheet__columns-list"
+            data-test="ev-sheet-columns-list">
+          {visibleFiltered.map((f) => {
+            const checked = !hidden.has(f.id);
+            return (
+              <li key={f.id}>
+                <label className="cap-sheet__columns-item">
+                  <input type="checkbox"
+                         checked={checked}
+                         data-test={'ev-sheet-columns-check-' + f.id}
+                         onChange={() => onToggle(f.id)} />
+                  <span>{f.label}
+                    {f.required && (
+                      <span className="cap-input__req"> *</span>
+                    )}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+          {visibleFiltered.length === 0 && (
+            <li className="cap-sheet__columns-empty">
+              No columns match “{filter}”.
+            </li>
+          )}
+        </ul>
+        <footer className="cap-sheet__columns-foot">
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  data-test="ev-sheet-columns-show-all"
+                  onClick={onUnhideAll}>
+            Show all
+          </button>
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  data-test="ev-sheet-columns-hide-all"
+                  onClick={onHideAll}>
+            Hide all
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
 }
 
 /** Floating menu anchored at cursor coords, surfaced from a
