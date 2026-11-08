@@ -500,7 +500,7 @@ export function TrackerListPage(
                     })}
                     <td className="cap-table__cell
                         cap-table__cell--date">
-                      {r.lastUpdated ?? '—'}
+                      {formatTimestamp(r.lastUpdated)}
                     </td>
                     <td className="cap-table__cell
                         cap-table__cell--actions"
@@ -610,7 +610,21 @@ function renderBasicRow(programUid: string, r: TeiRow,
           <span style={{ marginLeft: 10 }}>{r.displayName}</span>
         )}
       </div>
-      <span className="cap-list__when">{r.lastUpdated ?? '—'}</span>
+      <span className="cap-list__when">
+        {formatTimestamp(r.lastUpdated)}
+      </span>
     </li>
   );
+}
+
+/** Humanise an ISO timestamp for the Last-updated column. Falls
+ *  back to the raw string if unparseable, "—" if absent. */
+function formatTimestamp(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
 }
