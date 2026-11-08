@@ -31,7 +31,7 @@ public class ApprovalRequirements {
         return switch (type) {
             case AGGREGATE_DATA_VALUE -> requireAggregate;
             case EVENT, PROGRAM_STAGE_EVENT -> requireEvent;
-            case TRACKED_ENTITY, ENROLLMENT -> requireTracker;
+            case TRACKED_ENTITY, ENROLLMENT, RELATIONSHIP -> requireTracker;
         };
     }
 

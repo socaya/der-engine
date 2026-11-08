@@ -68,7 +68,12 @@ public record OperationJournalEntry(
         EVENT,
         TRACKED_ENTITY,
         ENROLLMENT,
-        PROGRAM_STAGE_EVENT
+        PROGRAM_STAGE_EVENT,
+        /** Full-emulation relationship (slice 2+). Journal entries
+         *  carry the TEI↔TEI link payload so the drain can
+         *  POST /api/relationships or DELETE /api/relationships/{uid}
+         *  against central DHIS2. */
+        RELATIONSHIP
     }
 
     public enum State {

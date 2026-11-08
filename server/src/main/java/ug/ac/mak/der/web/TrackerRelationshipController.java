@@ -6,8 +6,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -21,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.security.EdgeUserPrincipal;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 import ug.ac.mak.der.workflows.tracker.EnrollmentRepository;
 import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository;
 import ug.ac.mak.der.workflows.tracker.TrackerEventRepository;
@@ -40,17 +46,23 @@ public class TrackerRelationshipController {
     private final TrackedEntityRepository teis;
     private final EnrollmentRepository enrollments;
     private final TrackerEventRepository events;
+    private final OperationJournalRepository journal;
+    private final ObjectMapper json;
     private final Clock clock;
 
     public TrackerRelationshipController(final TrackerRelationshipRepository repo,
                                            final TrackedEntityRepository teis,
                                            final EnrollmentRepository enrollments,
                                            final TrackerEventRepository events,
+                                           final OperationJournalRepository journal,
+                                           final ObjectMapper json,
                                            final Clock clock) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.teis = Objects.requireNonNull(teis, "teis");
         this.enrollments = Objects.requireNonNull(enrollments, "enrollments");
         this.events = Objects.requireNonNull(events, "events");
+        this.journal = Objects.requireNonNull(journal, "journal");
+        this.json = Objects.requireNonNull(json, "json");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -99,6 +111,13 @@ public class TrackerRelationshipController {
                     "code", "RELATIONSHIP_INVALID", "message", ex.getMessage()));
         }
         repo.upsert(r);
+        /* Full-emulation sync (slice 2): enqueue a journal entry so
+         * the drain POSTs this relationship to central DHIS2 on
+         * connectivity. Entity type is RELATIONSHIP; entityRef is
+         * the relationship UID the device just generated (central
+         * accepts client UIDs on POST /api/relationships, so the
+         * same UID flows through both sides). */
+        enqueueJournal(r, OperationKind.CREATE, principal.userId());
         return ResponseEntity.ok(toJson(r));
     }
 
@@ -136,13 +155,45 @@ public class TrackerRelationshipController {
     @DeleteMapping("/{uid}")
     public ResponseEntity<Map<String, Object>> delete(final Authentication authentication,
                                                         @PathVariable("uid") final String uid) {
-        if (!(authentication instanceof EdgeUserPrincipal)) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
         }
-        final int n = repo.delete(uid);
-        return n == 0 ? ResponseEntity.notFound().build()
-                : ResponseEntity.ok(Map.of("deleted", true));
+        final Optional<TrackerRelationship> existing = repo.findById(uid);
+        if (existing.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        final TrackerRelationship r = existing.get();
+        /* Full-emulation sync: soft-delete + journal entry. The
+         * drain reads the soft-delete, POSTs DELETE /api/relation-
+         * ships/{uid} to central, and only then purges the row. */
+        repo.softDelete(uid, Instant.now(clock));
+        enqueueJournal(r, OperationKind.DELETE, principal.userId());
+        return ResponseEntity.ok(Map.of("deleted", true));
     }
+
+    private void enqueueJournal(final TrackerRelationship r,
+                                  final OperationKind kind,
+                                  final UUID submittedBy) {
+        final ObjectNode payload = json.createObjectNode();
+        payload.put("operation", kind.name());
+        payload.put("relationshipUid", r.relationshipUid());
+        payload.put("relationshipType", r.relationshipType());
+        payload.put("fromEntityType", r.fromEntityType().name());
+        payload.put("fromEntityUid", r.fromEntityUid());
+        payload.put("toEntityType", r.toEntityType().name());
+        payload.put("toEntityUid", r.toEntityUid());
+        payload.put("bidirectional", r.bidirectional());
+        final Instant now = Instant.now(clock);
+        journal.insert(new OperationJournalEntry(
+                UUID.randomUUID(),
+                OperationJournalEntry.EntityType.RELATIONSHIP,
+                r.relationshipUid(),
+                payload,
+                OperationJournalEntry.State.PENDING,
+                0, null, submittedBy, now, now));
+    }
+
+    private enum OperationKind { CREATE, DELETE }
 
     private boolean entityExists(final TrackerRelationship.EntityType type, final String uid) {
         return switch (type) {

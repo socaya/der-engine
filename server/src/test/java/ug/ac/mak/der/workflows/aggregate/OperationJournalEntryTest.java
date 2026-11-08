@@ -62,6 +62,6 @@ class OperationJournalEntryTest {
     @Test
     void enumHasAllStates() {
         assertThat(OperationJournalEntry.State.values()).hasSize(7);
-        assertThat(OperationJournalEntry.EntityType.values()).hasSize(5);
+        assertThat(OperationJournalEntry.EntityType.values()).hasSize(6);
     }
 }

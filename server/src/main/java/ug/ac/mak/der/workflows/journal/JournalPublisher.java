@@ -320,6 +320,13 @@ public class JournalPublisher {
                 yield caps.endpointPolicy(EndpointId.TRACKER_EVENTS).path();
             }
             case TRACKED_ENTITY, ENROLLMENT -> caps.endpointPolicy(EndpointId.TRACKER_IMPORT).path();
+            /* Slice 2 enqueues RELATIONSHIP journal entries; slice 3
+             * wires the drain handler that reads them. Until then
+             * this branch throws so a RELATIONSHIP entry can't
+             * silently take the wrong code path. */
+            case RELATIONSHIP -> throw new IllegalStateException(
+                    "RELATIONSHIP journal drain not wired yet "
+                            + "(relationships slice 3)");
         };
     }
 
