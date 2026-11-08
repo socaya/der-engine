@@ -163,7 +163,7 @@ export function TrackerWorkflow(
           <input className="cap-input__ctl" type="search"
                  value={query}
                  onChange={(e) => setQuery(e.target.value)}
-                 placeholder="UID or display name…"
+                 placeholder="UID or display name… (Alt+F)"
                  data-test="tr-search-input" />
         </label>
         <span className="cap-section-head__count">

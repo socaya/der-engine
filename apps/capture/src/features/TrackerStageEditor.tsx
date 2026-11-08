@@ -9,6 +9,7 @@ import { parseProgramRules } from '../shared/rules';
 import { applyRuleEffectsToSections, evaluateRules } from '../shared/ruleEngine';
 import type { CaptureApi } from '../shared/types';
 import { useDirtyGuard } from '../shared/useDirtyGuard';
+import { usePublishDirty } from '../shared/DirtyContext';
 
 /**
  * Tracker stage event editor (requirements doc §8.5 TR-040 to
@@ -121,6 +122,7 @@ export function TrackerStageEditor(
     return false;
   }, [values, baseline, state]);
   const { confirmLeave } = useDirtyGuard(isDirty);
+  usePublishDirty('tracker-stage-editor', isDirty);
 
   async function submit(targetStatus: 'ACTIVE' | 'COMPLETED'):
       Promise<void> {
@@ -300,14 +302,15 @@ export function TrackerStageEditor(
                     onClick={onClickComplete}
                     disabled={!canSubmit}
                     data-test="tr-editor-complete"
-                    title="Mark this event as COMPLETED (saves then transitions status — distinct from central sync)">
+                    title="Mark COMPLETED (Alt+C) — saves then transitions status, distinct from central sync">
               Complete
             </button>
           )}
           <button type="submit"
                   className="cap-btn cap-btn--primary"
                   disabled={!canSubmit}
-                  data-test="tr-editor-submit">
+                  data-test="tr-editor-submit"
+                  title="Save this event to the facility edge (Alt+S)">
             {state === 'submitting' ? 'Saving…'
               : eventUid ? 'Save changes' : 'Save event'}
           </button>

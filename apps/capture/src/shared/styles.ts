@@ -35,6 +35,18 @@ export const CAPTURE_STYLES = `
   color: #147CD7; cursor: pointer; padding: 0;
 }
 .cap-toolbar__info-btn:hover { background: #eef2f8; }
+.cap-dirty-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  background: #fff4de; color: #A56518;
+  border: 1px solid #f4d7a2;
+  white-space: nowrap;
+}
+.cap-dirty-chip__dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #F59E0B;
+}
 .cap-toolbar__field, .cap-toolbar__ou {
   display: flex; flex-direction: column; gap: 4px;
   min-width: 0;
@@ -339,5 +351,14 @@ export const CAPTURE_STYLES = `
 .cap-info__note {
   margin: 0; padding: 10px; border-radius: 6px;
   background: #eaf3fc; color: #0a5497; font-size: 13px;
+}
+.cap-info__dl kbd {
+  display: inline-block;
+  padding: 1px 6px; min-width: 20px;
+  text-align: center;
+  background: #f6f8fc; color: #263352;
+  border: 1px solid #cfd7e4; border-bottom-width: 2px;
+  border-radius: 4px;
+  font-size: 11px; font-family: ui-monospace, Menlo, monospace;
 }
 `;

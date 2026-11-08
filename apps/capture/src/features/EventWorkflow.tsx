@@ -9,6 +9,7 @@ import { parseStageForm } from '../shared/parser';
 import { parseProgramRules } from '../shared/rules';
 import { applyRuleEffectsToSections, evaluateRules } from '../shared/ruleEngine';
 import { useDirtyGuard } from '../shared/useDirtyGuard';
+import { usePublishDirty } from '../shared/DirtyContext';
 
 /**
  * Event (WITHOUT_REGISTRATION) workflow inside the unified
@@ -44,6 +45,12 @@ export function EventWorkflow(
     useState<'idle' | 'submitting' | 'ok' | 'err'>('idle');
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
   const [recent, setRecent] = useState<EventRow[]>([]);
+  /** When set, the form is editing an existing event instead of
+   *  creating a new one; submit passes event: openEventUid and
+   *  reuses the DHIS2 update semantics (§TRK-INV-002 — don't
+   *  fabricate a new event UID on a save of an existing one). */
+  const [openEventUid, setOpenEventUid] = useState<string | null>(null);
+  const [eventStatus, setEventStatus] = useState<string | null>(null);
 
   // Fetch stages whenever the program changes. Auto-pick when
   // the program only has one stage so the operator doesn't see
@@ -51,6 +58,7 @@ export function EventWorkflow(
   useEffect(() => {
     setStages([]); setStageUid('');
     setSections([]); setValues({});
+    setOpenEventUid(null); setEventStatus(null);
     let cancelled = false;
     (async () => {
       try {
@@ -171,9 +179,36 @@ export function EventWorkflow(
     return Object.values(values).some((v) => v.trim() !== '');
   }, [values, submitState]);
   useDirtyGuard(isDirty);
+  usePublishDirty('event-workflow', isDirty);
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
-    e.preventDefault();
+  async function openExisting(eventUid: string): Promise<void> {
+    try {
+      const detail = await api.getCaptureEventDetail(eventUid);
+      setStageUid(detail.programStageUid);
+      setOpenEventUid(eventUid);
+      setValues({ ...detail.dataValues });
+      setEventStatus(detail.status ?? 'ACTIVE');
+      if (detail.occurredAt) {
+        setOccurredAt(detail.occurredAt.slice(0, 10));
+      }
+      setSubmitState('idle');
+      setSubmitMsg(null);
+    } catch (err) {
+      setSubmitState('err');
+      setSubmitMsg('Failed to load event: ' + (err as Error).message);
+    }
+  }
+  function resetToNew(): void {
+    setOpenEventUid(null);
+    setEventStatus(null);
+    setValues({});
+    setOccurredAt(new Date().toISOString().slice(0, 10));
+    setSubmitState('idle');
+    setSubmitMsg(null);
+  }
+
+  async function submit(targetStatus: 'ACTIVE' | 'COMPLETED' | null):
+      Promise<void> {
     setSubmitState('submitting');
     setSubmitMsg(null);
     try {
@@ -186,11 +221,26 @@ export function EventWorkflow(
         orgUnit: orgUnitUid,
         occurredAt: new Date(occurredAt + 'T00:00:00Z').toISOString(),
         dataValues,
+        event: openEventUid ?? undefined,
+        status: targetStatus ?? undefined,
       });
       setSubmitState('ok');
-      setSubmitMsg(`Saved on edge · ${dataValues.length} `
-        + `value${dataValues.length === 1 ? '' : 's'}.`);
-      setValues({});
+      // Status only changes on explicit Complete/Reopen; a plain
+      // Save keeps whatever status the event currently has
+      // (§TR-043 — Save and Complete are distinct transitions).
+      if (targetStatus) setEventStatus(targetStatus);
+      const verb = targetStatus === 'COMPLETED'
+        ? 'Completed on edge'
+        : targetStatus === 'ACTIVE' && eventStatus === 'COMPLETED'
+        ? 'Reopened on edge'
+        : 'Saved on edge';
+      setSubmitMsg(`${verb} · ${dataValues.length} `
+        + `value${dataValues.length === 1 ? '' : 's'}. `
+        + 'Central sync is a separate step.');
+      // Only clear the form for brand-new events; keep the editor
+      // populated when the operator just edited an existing one so
+      // they can continue tweaking without re-opening it.
+      if (!openEventUid) setValues({});
       const r = await api.listCaptureProgramEvents(programUid,
         orgUnitUid, 20);
       setRecent(r.events ?? []);
@@ -200,13 +250,51 @@ export function EventWorkflow(
     }
   }
 
+  function onSubmitSave(e: FormEvent<HTMLFormElement>): void {
+    e.preventDefault();
+    void submit(null);
+  }
+  function onClickComplete(): void {
+    if (!canSubmit) return;
+    void submit('COMPLETED');
+  }
+  function onClickReopen(): void {
+    void submit('ACTIVE');
+  }
+
   return (
     <>
       {/* Stage + event-date selectors — laid out inline on the
        *  section head so they feel like extensions of the main
        *  toolbar. */}
       <div className="cap-section-head" data-test="ce-stage-head">
-        <h2 className="cap-section-head__title">Event</h2>
+        <h2 className="cap-section-head__title">
+          {openEventUid ? 'Edit event' : 'New event'}
+        </h2>
+        {eventStatus && (
+          <span className="cap-chip"
+                data-test="ce-event-status"
+                style={{
+                  background: eventStatus === 'COMPLETED'
+                    ? '#ecf7f0' : '#eef2f8',
+                  color: eventStatus === 'COMPLETED'
+                    ? '#136436' : '#0a5497',
+                  borderColor: eventStatus === 'COMPLETED'
+                    ? '#b7dcc7' : '#cfe1f4',
+                }}>
+            {eventStatus}
+          </span>
+        )}
+        {openEventUid && (
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  data-test="ce-reset-new"
+                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  onClick={resetToNew}
+                  title="Clear the form to create a new event">
+            + New event
+          </button>
+        )}
         <StageSelect stages={stages} value={stageUid}
                       onChange={setStageUid} />
         <label className="cap-input" style={{ minWidth: 160 }}>
@@ -257,7 +345,7 @@ export function EventWorkflow(
         </div>
       )}
       {effectiveSections.length > 0 && (
-        <form onSubmit={onSubmit} data-test="ce-form">
+        <form onSubmit={onSubmitSave} data-test="ce-form">
           <FormEngine sections={effectiveSections} values={values}
                        onChange={(k, v) => setValues((prev) => ({
                          ...prev, [k]: v }))} />
@@ -281,11 +369,33 @@ export function EventWorkflow(
                 </span>
               )}
             </div>
+            {openEventUid && eventStatus === 'COMPLETED' && (
+              <button type="button"
+                      className="cap-btn cap-btn--secondary"
+                      onClick={onClickReopen}
+                      disabled={submitState === 'submitting'}
+                      data-test="ce-reopen"
+                      title="Reopen this event for further edits">
+                Reopen
+              </button>
+            )}
+            {openEventUid && eventStatus !== 'COMPLETED' && (
+              <button type="button"
+                      className="cap-btn cap-btn--secondary"
+                      onClick={onClickComplete}
+                      disabled={!canSubmit}
+                      data-test="ce-complete"
+                      title="Mark COMPLETED (Alt+C) — saves then transitions status, distinct from central sync">
+                Complete
+              </button>
+            )}
             <button type="submit"
                     className="cap-btn cap-btn--primary"
                     disabled={!canSubmit}
-                    data-test="ce-submit-btn">
-              {submitState === 'submitting' ? 'Submitting…' : 'Save event'}
+                    data-test="ce-submit-btn"
+                    title="Save this event to the facility edge (Alt+S)">
+              {submitState === 'submitting' ? 'Submitting…'
+                : openEventUid ? 'Save changes' : 'Save event'}
             </button>
           </div>
         </form>
@@ -306,15 +416,32 @@ export function EventWorkflow(
         </p>
       ) : (
         <ul className="cap-list" data-test="ce-recent">
-          {recent.map((e, i) => (
-            <li key={(e.eventUid ?? e.event ?? '') + i}
-                className="cap-list__row">
-              <code>{e.eventUid ?? e.event ?? '—'}</code>
-              <span className="cap-list__when">
-                {e.occurredDate ?? e.occurredAt ?? e.eventDate ?? '—'}
-              </span>
-            </li>
-          ))}
+          {recent.map((e, i) => {
+            const uid = e.eventUid ?? e.event ?? '';
+            return (
+              <li key={uid + i}
+                  className={'cap-list__row'
+                    + (uid ? ' cap-list__row--clickable' : '')
+                    + (openEventUid && openEventUid === uid
+                      ? ' cap-list__row--active' : '')}
+                  data-test={'ce-recent-' + uid}
+                  role={uid ? 'button' : undefined}
+                  tabIndex={uid ? 0 : undefined}
+                  onClick={uid
+                    ? () => { void openExisting(uid); } : undefined}
+                  onKeyDown={uid ? (ev) => {
+                    if (ev.key === 'Enter' || ev.key === ' ') {
+                      ev.preventDefault();
+                      void openExisting(uid);
+                    }
+                  } : undefined}>
+                <code>{uid || '—'}</code>
+                <span className="cap-list__when">
+                  {e.occurredDate ?? e.occurredAt ?? e.eventDate ?? '—'}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </>

@@ -188,6 +188,34 @@ export function TrackerDashboard(
         )}
       </div>
 
+      {/* Honest no-enrolment state — distinguishes "this TEI is
+       *  registered but not enrolled in the selected program" from
+       *  "something is loading" from "the mirror is down"
+       *  (§UI-015 — every empty/loading/offline state must be
+       *  visually designed, not left to a generic snackbar). */}
+      {status === 'idle' && enrolments.length === 0 && (
+        <div className="cap-strip cap-strip--info"
+             data-test="tr-no-enrolments"
+             style={{ display: 'flex', alignItems: 'center',
+               gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <strong>This tracked entity has no enrolments in this
+              program.</strong>
+            {' '}Registering a TEI and enrolling it are separate
+            tracker transactions (§TR-012). Pick a different
+            program from the toolbar or create an enrolment below.
+          </div>
+          <button type="button"
+                  className="cap-btn cap-btn--primary"
+                  data-test="tr-enrol-cta"
+                  disabled
+                  title={'Enrolment create arrives in slice G5-4 '
+                    + '(requirements doc §TR-013)'}>
+            Enrol in this program
+          </button>
+        </div>
+      )}
+
       {/* Enrolment switcher — only when there's more than one. */}
       {enrolments.length > 1 && (
         <div className="cap-section-head">
@@ -291,7 +319,7 @@ export function TrackerDashboard(
                               title={disabled
                                 ? 'This stage is not repeatable — one '
                                   + 'event already exists (TR-034)'
-                                : 'Add a new event for this stage'}
+                                : 'Add a new event for this stage (Alt+N)'}
                               onClick={() => setEditing('new')}>
                         + Add event
                       </button>

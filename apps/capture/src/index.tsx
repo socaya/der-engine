@@ -8,6 +8,7 @@ import { EventWorkflow } from './features/EventWorkflow';
 import { TrackerWorkflow } from './features/TrackerWorkflow';
 import type { ProgramOpt, CaptureApi } from './shared/types';
 import { CAPTURE_STYLES } from './shared/styles';
+import { DirtyProvider, useAnyDirty } from './shared/DirtyContext';
 
 /**
  * DER Capture — unified Tracker + Event capture app.
@@ -23,6 +24,14 @@ import { CAPTURE_STYLES } from './shared/styles';
  * memory across both modules.</p>
  */
 export default function CaptureApp(): JSX.Element {
+  return (
+    <DirtyProvider>
+      <CaptureAppInner />
+    </DirtyProvider>
+  );
+}
+
+function CaptureAppInner(): JSX.Element {
   const auth = useAuth();
   const ou = useOrgUnitBinding();
   const online = useOnlineStatus();
@@ -45,6 +54,49 @@ export default function CaptureApp(): JSX.Element {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+
+  // Alt-key hotkeys — mirrors the Data Entry app so operators have
+  // one keyboard-first muscle memory across Capture + Data Entry:
+  //   • Alt+I  — toggle the About dataset popover
+  //   • Alt+S  — click the currently-visible Save/Submit button
+  //   • Alt+C  — click Complete (tracker stage editor only)
+  // Modifier-only guard (no Meta / Ctrl / Shift); ev.code match so
+  // macOS Option-layer dead-keys don't swallow the shortcut.
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent): void => {
+      if (!ev.altKey || ev.metaKey || ev.ctrlKey || ev.shiftKey) return;
+      if (ev.code === 'KeyI') {
+        ev.preventDefault();
+        setInfoOpen((v) => !v);
+      } else if (ev.code === 'KeyS') {
+        const btn = document.querySelector<HTMLButtonElement>(
+          '[data-test="ce-submit-btn"]:not([disabled]),'
+          + '[data-test="tr-editor-submit"]:not([disabled])');
+        if (btn) { ev.preventDefault(); btn.click(); }
+      } else if (ev.code === 'KeyC') {
+        const btn = document.querySelector<HTMLButtonElement>(
+          '[data-test="tr-editor-complete"]:not([disabled]),'
+          + '[data-test="ce-complete"]:not([disabled])');
+        if (btn) { ev.preventDefault(); btn.click(); }
+      } else if (ev.code === 'KeyN') {
+        // "+ Add event" in the tracker stage pane. No-op outside
+        // the tracker dashboard — the selector simply misses.
+        const btn = document.querySelector<HTMLButtonElement>(
+          '[data-test="tr-add-event"]:not([disabled])');
+        if (btn) { ev.preventDefault(); btn.click(); }
+      } else if (ev.code === 'KeyF') {
+        // Focus the tracker search input. On the event side there
+        // is no filter yet, so the selector misses and the shortcut
+        // is a no-op — avoids silently hijacking Alt+F on pages
+        // where it has nothing to focus.
+        const input = document.querySelector<HTMLInputElement>(
+          '[data-test="tr-search-input"]');
+        if (input) { ev.preventDefault(); input.focus(); input.select(); }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   // Fetch programs once the device is OU-bound.
   useEffect(() => {
@@ -118,6 +170,7 @@ export default function CaptureApp(): JSX.Element {
             {online.isOnline
               ? 'online' : `offline (${online.queuedCount} queued)`}
           </StatusPill>
+          <DirtyChip />
         </div>
 
         <label className="cap-toolbar__field">
@@ -221,6 +274,19 @@ export default function CaptureApp(): JSX.Element {
   );
 }
 
+function DirtyChip(): JSX.Element | null {
+  const dirty = useAnyDirty();
+  if (!dirty) return null;
+  return (
+    <span className="cap-dirty-chip"
+          data-test="cap-dirty-chip"
+          title="You have unsaved changes in the current form.">
+      <span className="cap-dirty-chip__dot" aria-hidden="true" />
+      Unsaved changes
+    </span>
+  );
+}
+
 function CaptureInfoPopover(
   { onClose, program, mode }:
   { onClose: () => void;
@@ -265,6 +331,27 @@ function CaptureInfoPopover(
                   : 'Event (WITHOUT_REGISTRATION)'}</dd></div>
             </dl>
           )}
+          <section data-test="cap-info-shortcuts">
+            <h4 style={{ margin: '0 0 6px 0', fontSize: 12,
+              textTransform: 'uppercase', letterSpacing: '0.06em',
+              color: '#6e7a8a' }}>
+              Keyboard shortcuts
+            </h4>
+            <dl className="cap-info__dl">
+              <div><dt><kbd>Alt + S</kbd></dt>
+                <dd>Save the current form</dd></div>
+              <div><dt><kbd>Alt + C</kbd></dt>
+                <dd>Mark the event Complete (tracker stage editor)</dd></div>
+              <div><dt><kbd>Alt + N</kbd></dt>
+                <dd>Add a new event on the active stage</dd></div>
+              <div><dt><kbd>Alt + F</kbd></dt>
+                <dd>Focus the tracker working-list search</dd></div>
+              <div><dt><kbd>Alt + I</kbd></dt>
+                <dd>Show / hide this panel</dd></div>
+              <div><dt><kbd>Esc</kbd></dt>
+                <dd>Close any open drawer</dd></div>
+            </dl>
+          </section>
           <p className="cap-info__note">
             Edits are committed to the facility edge first. Central
             sync is a separate step — the status footer distinguishes
