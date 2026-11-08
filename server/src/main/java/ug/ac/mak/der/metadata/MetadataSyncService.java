@@ -91,7 +91,14 @@ public class MetadataSyncService {
      *  us the full shape (action type, content, data element). */
     static final String PROGRAM_RULE_ACTION_PATH =
             "/api/programRuleActions" + FIELDS_ALL;
-    static final String OPTION_SET_PATH = "/api/optionSets" + FIELDS_ALL;
+    /** §FR-003 — DHIS2's {@code fields=:all} on {@code /api/optionSets}
+     *  returns {@code options: [{id}]} (shallow nested expansion),
+     *  so Capture select fields render with option UIDs instead of
+     *  code/displayName. Deepen the mask so each stored option set
+     *  carries the full option details for its selects. */
+    static final String OPTION_SET_PATH =
+            "/api/optionSets?paging=false&fields=:all"
+                    + ",options%5Bid,code,displayName,name,sortOrder%5D";
     static final String INDICATOR_PATH = "/api/indicators" + FIELDS_ALL;
     static final String VALIDATION_RULE_PATH = "/api/validationRules" + FIELDS_ALL;
     /**
@@ -206,6 +213,11 @@ public class MetadataSyncService {
             // bare `:all` does NOT descend into those lists.
             final String path = switch (resource) {
                 case "categoryCombos" -> CATEGORY_COMBO_PATH;
+                // §FR-003 — optionSets needs the deeper
+                // options[code,displayName,sortOrder] mask so
+                // Capture select fields render with codes/labels
+                // instead of option UIDs. :all stops at {id}.
+                case "optionSets" -> OPTION_SET_PATH;
                 default -> "/api/" + resource + FIELDS_ALL;
             };
             cat.put(resource, fetchCatalog(resource, path,
