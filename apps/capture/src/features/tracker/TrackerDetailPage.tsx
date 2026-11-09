@@ -400,7 +400,8 @@ export function TrackerDetailPage(
           )}
           {identity.attributes.map((a, i) => (
             <span key={`${a.label}:${i}`}
-                  className="cap-section-head__meta-item">
+                  className={'cap-section-head__meta-item '
+                    + 'cap-section-head__meta-item--tea'}>
               <strong>{a.label}</strong>
               <span>{a.value}</span>
             </span>

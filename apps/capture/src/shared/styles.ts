@@ -592,6 +592,12 @@ export const CAPTURE_STYLES = `
 .cap-section-head__meta-item {
   display: inline-flex; align-items: baseline; gap: 6px;
 }
+/* TEA labels in the strip come straight from DHIS2 — preserve
+ * the mirror's casing instead of uppercasing it. Generic strip
+ * labels ("Name", "Updated", "UID") stay uppercase as chrome. */
+.cap-section-head__meta-item--tea > strong {
+  text-transform: none; letter-spacing: 0;
+}
 .cap-section-head__meta-item > strong {
   color: var(--der-text-muted); font-weight: 600;
   font-size: 13px; text-transform: uppercase;
@@ -2184,7 +2190,11 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 .cap-profile-pane__cell-label {
   font-size: 13px; font-weight: 600;
   color: var(--der-text-muted);
-  text-transform: uppercase; letter-spacing: 0.04em;
+  /* Preserve the TEA display name exactly as DER serves it —
+   * uppercasing hid the actual metadata casing ("ART number" was
+   * showing as "ART NUMBER") and made the labels harder to scan
+   * once they ran across two lines. */
+  text-transform: none; letter-spacing: 0;
 }
 .cap-profile-pane__cell-value {
   font-size: 14px; color: var(--der-text);
