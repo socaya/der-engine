@@ -1595,6 +1595,31 @@ export async function getOptionSet(optionSetUid: string):
  *  relationships read endpoint. Fields come wide so the Capture
  *  parser decides what's displayable with current permissions
  *  (§REL-UX-002 — never expose unauthorized target attributes). */
+/** Relationship endpoint carrier — DHIS2's nested from/to shape,
+ *  one and only one of the three nested objects populated. The
+ *  enrolment / event sub-objects carry the server-enriched display
+ *  metadata (programName, enrollmentDate, …) when the list
+ *  endpoint resolves them from the mirror; absent otherwise. */
+export interface RelationshipEndpoint {
+  trackedEntity?: { trackedEntity?: string; displayName?: string };
+  enrollment?: {
+    enrollment?: string;
+    programUid?: string;
+    programName?: string;
+    enrollmentDate?: string;
+    status?: string;
+  };
+  event?: {
+    event?: string;
+    programUid?: string;
+    programName?: string;
+    programStageUid?: string;
+    programStageName?: string;
+    occurredDate?: string;
+    status?: string;
+  };
+}
+
 export interface TrackerRelationshipRow {
   readonly relationship?: string;
   readonly relationshipType?: string;
@@ -1602,16 +1627,8 @@ export interface TrackerRelationshipRow {
   readonly bidirectional?: boolean;
   readonly createdAt?: string;
   readonly lastUpdated?: string;
-  readonly from?: {
-    trackedEntity?: { trackedEntity?: string; displayName?: string };
-    enrollment?: { enrollment?: string };
-    event?: { event?: string };
-  };
-  readonly to?: {
-    trackedEntity?: { trackedEntity?: string; displayName?: string };
-    enrollment?: { enrollment?: string };
-    event?: { event?: string };
-  };
+  readonly from?: RelationshipEndpoint;
+  readonly to?: RelationshipEndpoint;
 }
 
 /** Raw DHIS2 relationship-type payload. The Capture app does its
@@ -1797,27 +1814,66 @@ export async function listTrackerRelationships(teiUid: string):
       toEntityUid: string;
       bidirectional: boolean;
       createdAt: string;
+      /** Optional display-enrichment for ENROLLMENT / EVENT
+       *  endpoints — the server joins against the metadata mirror
+       *  so the client can render human labels without extra
+       *  round-trips. Absent for TRACKED_ENTITY endpoints or when
+       *  the referenced row has been purged. */
+      fromDetail?: EndpointDetail;
+      toDetail?: EndpointDetail;
     }>;
   };
   // Adapt the edge flat shape to the TrackerRelationshipRow the
   // Capture app already parses (DHIS2's nested from/to shape).
+  // Enrichment is tucked into the nested enrolment/event objects
+  // so callers (describeEndpoint etc.) can render labels inline.
   return (body.relationships ?? []).map((r) => ({
     relationship: r.relationshipUid,
     relationshipType: r.relationshipType,
     bidirectional: r.bidirectional,
     createdAt: r.createdAt,
     lastUpdated: r.createdAt,
-    from: r.fromEntityType === 'TRACKED_ENTITY'
-      ? { trackedEntity: { trackedEntity: r.fromEntityUid } }
-      : r.fromEntityType === 'ENROLLMENT'
-      ? { enrollment: { enrollment: r.fromEntityUid } }
-      : { event: { event: r.fromEntityUid } },
-    to: r.toEntityType === 'TRACKED_ENTITY'
-      ? { trackedEntity: { trackedEntity: r.toEntityUid } }
-      : r.toEntityType === 'ENROLLMENT'
-      ? { enrollment: { enrollment: r.toEntityUid } }
-      : { event: { event: r.toEntityUid } },
+    from: buildSide(r.fromEntityType, r.fromEntityUid, r.fromDetail),
+    to:   buildSide(r.toEntityType,   r.toEntityUid,   r.toDetail),
   } as TrackerRelationshipRow));
+}
+
+interface EndpointDetail {
+  readonly teiUid?: string;
+  readonly enrollmentUid?: string;
+  readonly programUid?: string;
+  readonly programName?: string;
+  readonly programStageUid?: string;
+  readonly programStageName?: string;
+  readonly enrollmentDate?: string;
+  readonly occurredDate?: string;
+  readonly status?: string;
+}
+
+function buildSide(kind: string, uid: string,
+                   detail: EndpointDetail | undefined):
+    NonNullable<TrackerRelationshipRow['from']> {
+  if (kind === 'TRACKED_ENTITY') {
+    return { trackedEntity: { trackedEntity: uid } };
+  }
+  if (kind === 'ENROLLMENT') {
+    return { enrollment: {
+      enrollment: uid,
+      programUid: detail?.programUid,
+      programName: detail?.programName,
+      enrollmentDate: detail?.enrollmentDate,
+      status: detail?.status,
+    } };
+  }
+  return { event: {
+    event: uid,
+    programUid: detail?.programUid,
+    programName: detail?.programName,
+    programStageUid: detail?.programStageUid,
+    programStageName: detail?.programStageName,
+    occurredDate: detail?.occurredDate,
+    status: detail?.status,
+  } };
 }
 
 /** §2.3.43 — pull a program's tracked-entity-attribute UID list from

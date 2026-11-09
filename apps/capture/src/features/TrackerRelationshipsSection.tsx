@@ -39,6 +39,26 @@ interface RelTypeRow {
   readonly toStage?: string;
 }
 
+interface RelEndpoint {
+  trackedEntity?: { trackedEntity?: string; displayName?: string };
+  enrollment?: {
+    enrollment?: string;
+    programUid?: string;
+    programName?: string;
+    enrollmentDate?: string;
+    status?: string;
+  };
+  event?: {
+    event?: string;
+    programUid?: string;
+    programName?: string;
+    programStageUid?: string;
+    programStageName?: string;
+    occurredDate?: string;
+    status?: string;
+  };
+}
+
 interface RelRow {
   readonly relationship?: string;
   readonly relationshipType?: string;
@@ -46,12 +66,8 @@ interface RelRow {
   readonly bidirectional?: boolean;
   readonly createdAt?: string;
   readonly lastUpdated?: string;
-  readonly from?: { trackedEntity?: { trackedEntity?: string;
-    displayName?: string }; enrollment?: { enrollment?: string };
-    event?: { event?: string } };
-  readonly to?: { trackedEntity?: { trackedEntity?: string;
-    displayName?: string }; enrollment?: { enrollment?: string };
-    event?: { event?: string } };
+  readonly from?: RelEndpoint;
+  readonly to?: RelEndpoint;
 }
 
 /**
@@ -751,6 +767,10 @@ function endpointUid(endpoint: RelRow['from']): string | null {
     ?? null;
 }
 
+/** Human-friendly endpoint label.  The server enrichment provides
+ *  programName / stage name / dates for ENROLLMENT and EVENT
+ *  endpoints; fall back to the UID when a field is missing so the
+ *  row never shows a bare "undefined". */
 function describeEndpoint(endpoint: RelRow['from']): string {
   if (!endpoint) return '—';
   if (endpoint.trackedEntity) {
@@ -759,10 +779,32 @@ function describeEndpoint(endpoint: RelRow['from']): string {
       : (t.trackedEntity ?? 'tracked entity');
   }
   if (endpoint.enrollment?.enrollment) {
-    return 'enrolment ' + endpoint.enrollment.enrollment;
+    const e = endpoint.enrollment;
+    const parts: string[] = ['Enrolment'];
+    if (e.programName) parts.push(e.programName);
+    if (e.enrollmentDate) parts.push(formatDate(e.enrollmentDate));
+    if (e.status) parts.push(e.status);
+    return parts.join(' · ');
   }
   if (endpoint.event?.event) {
-    return 'event ' + endpoint.event.event;
+    const ev = endpoint.event;
+    const parts: string[] = ['Event'];
+    if (ev.programStageName) {
+      parts.push(ev.programStageName);
+    } else if (ev.programName) {
+      parts.push(ev.programName);
+    }
+    if (ev.occurredDate) parts.push(formatDate(ev.occurredDate));
+    if (ev.status) parts.push(ev.status);
+    return parts.join(' · ');
   }
   return '—';
+}
+
+function formatDate(iso: string): string {
+  const slice = iso.length >= 10 ? iso.slice(0, 10) : iso;
+  const d = new Date(slice);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined,
+    { year: 'numeric', month: 'short', day: 'numeric' });
 }
