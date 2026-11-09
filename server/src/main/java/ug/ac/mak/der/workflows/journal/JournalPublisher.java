@@ -196,15 +196,22 @@ public class JournalPublisher {
         };
     }
 
-    /** True for PROGRAM_STAGE_EVENT tombstones — journal entries
-     *  whose payload carries {@code "operation":"DELETE"}, enqueued
-     *  by EventsController.deleteEvent(). Routes the drain through
-     *  /api/tracker?importStrategy=DELETE so central removes the
-     *  event instead of upserting it. */
+    /** True for tracker-entity tombstones — journal entries whose
+     *  payload carries {@code "operation":"DELETE"}, enqueued by
+     *  the corresponding controller's delete handler. Routes the
+     *  drain through /api/tracker?importStrategy=DELETE so central
+     *  removes the row instead of upserting it. Covers
+     *  PROGRAM_STAGE_EVENT, ENROLLMENT and TRACKED_ENTITY — any
+     *  tracker row deleted at the edge uses the same shape. */
     private static boolean isTrackerDeleteTombstone(
             final OperationJournalEntry entry) {
-        if (entry.entityType() != OperationJournalEntry.EntityType.PROGRAM_STAGE_EVENT) {
-            return false;
+        switch (entry.entityType()) {
+            case PROGRAM_STAGE_EVENT:
+            case ENROLLMENT:
+            case TRACKED_ENTITY:
+                break;
+            default:
+                return false;
         }
         final JsonNode op = entry.payload() == null
                 ? null : entry.payload().get("operation");
