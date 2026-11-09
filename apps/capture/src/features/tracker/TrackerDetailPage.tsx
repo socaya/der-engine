@@ -439,6 +439,31 @@ export function TrackerDetailPage(
               + Enrol again
             </button>
           )}
+          <RowActions
+            label="Tracked entity actions"
+            dataTest="tr-tei-actions"
+            actions={[
+              { label: 'Delete tracked entity',
+                destructive: true,
+                title: 'Soft-delete the TEI + its enrolments + '
+                  + 'events on the edge, queued for central sync',
+                onSelect: () => {
+                  const ok = window.confirm('Delete this tracked '
+                    + 'entity? Its enrolments and stage events are '
+                    + 'soft-deleted on the facility edge and queued '
+                    + 'for central sync on the next drain.');
+                  if (!ok) return;
+                  void (async (): Promise<void> => {
+                    try {
+                      await api.deleteTrackedEntity(teiId);
+                      navTracker.list(programUid);
+                    } catch (err) {
+                      window.alert('Failed to delete tracked entity: '
+                        + ((err as Error).message ?? 'unknown error'));
+                    }
+                  })();
+                } },
+            ]} />
         </div>
       </div>
 
