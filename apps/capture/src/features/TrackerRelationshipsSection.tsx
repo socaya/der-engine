@@ -59,6 +59,8 @@ interface RelEndpoint {
     enrollment?: string;
     programUid?: string;
     programName?: string;
+    teiUid?: string;
+    teiDisplayName?: string;
     enrollmentDate?: string;
     status?: string;
   };
@@ -1132,72 +1134,95 @@ export function TrackerRelationshipsSection(
                   {group.rows.length === 1 ? '' : 's'}
                 </span>
               </header>
-              <ul className="cap-rel-cards">
-                {group.rows.map((r, i) => {
-                  const toUid = endpointUid(r.to);
-                  const otherSide = toUid === tei ? r.from : r.to;
-                  const identity = endpointIdentity(otherSide);
-                  const kind: 'TRACKED_ENTITY' | 'ENROLLMENT'
-                              | 'EVENT' = otherSide?.event
-                                ? 'EVENT'
-                                : otherSide?.enrollment
-                                ? 'ENROLLMENT' : 'TRACKED_ENTITY';
-                  const uid = r.relationship;
-                  return (
-                    <li key={(uid ?? '') + i}
-                        className="cap-rel-card"
-                        data-test={'tr-rel-card-' + (uid ?? i)}>
-                      <RelKindIcon kind={kind} />
-                      <div className="cap-rel-card__body">
-                        <div className="cap-rel-card__primary">
-                          {identity.primary}
-                        </div>
-                        {identity.secondary && (
-                          <div className="cap-rel-card__secondary">
-                            {identity.secondary}
-                          </div>
-                        )}
-                        <div className="cap-rel-card__chips">
-                          <SyncBadge status={r.syncStatus ?? 'LOCAL'} />
-                          {r.bidirectional && (
-                            <span className="cap-chip cap-chip--neutral"
-                                  title="Bidirectional link — appears on both records.">
-                              ↔ both ways
+              {/* DER-standard borderless table — single line per
+               *  row. Target | Type | Sync status | Captured | ⋯
+               *  Matches .cap-table style (hairline row separators
+               *  + sticky header + 14px body). */}
+              <table className="cap-table cap-rel-table"
+                     data-test={'tr-rel-table-' + group.key}>
+                <thead>
+                  <tr>
+                    <th>Target</th>
+                    <th>Direction</th>
+                    <th>Sync</th>
+                    <th>Captured</th>
+                    <th style={{ width: 40 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.rows.map((r, i) => {
+                    const toUid = endpointUid(r.to);
+                    const otherSide = toUid === tei ? r.from : r.to;
+                    const identity = endpointIdentity(otherSide);
+                    const kind: 'TRACKED_ENTITY' | 'ENROLLMENT'
+                                | 'EVENT' = otherSide?.event
+                                  ? 'EVENT'
+                                  : otherSide?.enrollment
+                                  ? 'ENROLLMENT' : 'TRACKED_ENTITY';
+                    const uid = r.relationship;
+                    const captured = formatTimestamp(
+                      r.lastUpdated ?? r.createdAt ?? '');
+                    return (
+                      <tr key={(uid ?? '') + i}
+                          data-test={'tr-rel-row-' + (uid ?? i)}>
+                        <td className="cap-table__cell">
+                          <span className="cap-rel-table__target">
+                            <RelKindIcon kind={kind} />
+                            <span className="cap-rel-table__name"
+                                  title={identity.secondary
+                                    ?? identity.primary}>
+                              {identity.primary}
                             </span>
-                          )}
-                          <span className="cap-chip cap-chip--neutral"
-                                title="Captured on this device">
-                            {formatTimestamp(r.lastUpdated
-                              ?? r.createdAt ?? '')}
                           </span>
-                        </div>
-                      </div>
-                      {uid && (
-                        <RowMenu uid={uid} targetUid={toUid ?? ''}
-                                  onUnlink={async () => {
-                                    const ok = window.confirm(
-                                      'Unlink this relationship? The '
-                                      + 'link will be removed on the '
-                                      + 'facility edge and queued for '
-                                      + 'central sync.');
-                                    if (!ok) return;
-                                    const res = await
-                                      api.deleteTrackerRelationship(uid);
-                                    if (res.ok) {
-                                      const fresh = await api
-                                        .listTrackerRelationships(tei);
-                                      setRows(Array.isArray(fresh)
-                                        ? fresh : []);
-                                    } else {
-                                      window.alert('Unlink failed: '
-                                        + res.message);
-                                    }
-                                  }} />
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+                        </td>
+                        <td className="cap-table__cell"
+                            style={{ color: 'var(--der-text-muted)' }}>
+                          {r.bidirectional
+                            ? '↔ both ways' : '→ linked to'}
+                        </td>
+                        <td className="cap-table__cell">
+                          <SyncBadge status={r.syncStatus ?? 'LOCAL'} />
+                        </td>
+                        <td className="cap-table__cell"
+                            style={{ color: 'var(--der-text-muted)',
+                              whiteSpace: 'nowrap' }}>
+                          {captured}
+                        </td>
+                        <td className="cap-table__cell"
+                            style={{ textAlign: 'right' }}>
+                          {uid && (
+                            <RowMenu uid={uid}
+                                      targetUid={toUid ?? ''}
+                                      onUnlink={async () => {
+                                        const ok = window.confirm(
+                                          'Unlink this relationship?'
+                                          + ' The link will be '
+                                          + 'removed on the facility '
+                                          + 'edge and queued for '
+                                          + 'central sync.');
+                                        if (!ok) return;
+                                        const res = await api
+                                          .deleteTrackerRelationship(uid);
+                                        if (res.ok) {
+                                          const fresh = await api
+                                            .listTrackerRelationships(
+                                              tei);
+                                          setRows(
+                                            Array.isArray(fresh)
+                                              ? fresh : []);
+                                        } else {
+                                          window.alert(
+                                            'Unlink failed: '
+                                            + res.message);
+                                        }
+                                      }} />
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </section>
           ))}
         </div>
@@ -1302,13 +1327,19 @@ function endpointIdentity(endpoint: RelRow['from']): {
   }
   if (endpoint.enrollment?.enrollment) {
     const e = endpoint.enrollment;
-    const headline = e.programName
+    // Prefer the TEI's human name as the primary — operators
+    // recognise the person first, the program second.
+    const headline = e.teiDisplayName
+      ? e.teiDisplayName
+      : e.programName
       ? `Enrolment · ${e.programName}`
       : 'Enrolment';
     const parts: string[] = [];
+    if (e.teiDisplayName && e.programName) {
+      parts.push(`Enrolment · ${e.programName}`);
+    }
     if (e.enrollmentDate) parts.push(formatDate(e.enrollmentDate));
     if (e.status) parts.push(e.status);
-    parts.push(e.enrollment);
     return {
       primary: headline,
       secondary: parts.join(' · '),

@@ -279,9 +279,29 @@ public class TrackerRelationshipController {
                 lookupDisplayNames("metadata_program", programUids);
         final Map<String, String> stageNameByUid =
                 lookupDisplayNames("metadata_program_stage", stageUids);
+        /* TEI displayName enrichment: so cards / table rows show a
+         * real patient name ("John Doe · ART#1234") instead of the
+         * raw UID. Collect every TEI uid that appears on either
+         * side (plus the teiUid carried on each enrolment detail),
+         * then resolve display names in one batch. */
+        final Set<String> teiUids = new HashSet<>();
+        for (final TrackerRelationship r : rows) {
+            if (r.fromEntityType() == TrackerRelationship.EntityType.TRACKED_ENTITY) {
+                teiUids.add(r.fromEntityUid());
+            }
+            if (r.toEntityType() == TrackerRelationship.EntityType.TRACKED_ENTITY) {
+                teiUids.add(r.toEntityUid());
+            }
+        }
+        for (final Enrollment e : enrolByUid.values()) {
+            teiUids.add(e.teiUid());
+        }
+        final Map<String, String> teiDisplayByUid =
+                lookupTeiDisplayNames(teiUids);
         final List<Map<String, Object>> payload = rows.stream()
                 .map(r -> toJson(r, enrolByUid, eventByUid,
-                        programNameByUid, stageNameByUid)).toList();
+                        programNameByUid, stageNameByUid,
+                        teiDisplayByUid)).toList();
         // nextCursor: the oldest row's createdAt in this page,
         // iff the page was full (i.e. there might be more). Null
         // signals "end of list" to the client.
@@ -322,6 +342,59 @@ public class TrackerRelationshipController {
                 new MapSqlParameterSource("uids", uids),
                 rs -> {
                     out.put(rs.getString(1), rs.getString(2));
+                });
+        return out;
+    }
+
+    /** Resolve human-friendly TEI display names for each UID in the
+     *  input set — single SQL round-trip joining tracked_entity +
+     *  metadata_tracked_entity_attribute. For each TEI, picks up to
+     *  three text-ish attributes (ordered by the TEA's payload
+     *  sortOrder) that have non-empty values, and joins their
+     *  values with spaces. Falls back to the raw UID when no
+     *  displayable attributes are set — the UI treats an unresolved
+     *  name as "Tracked entity · <uid>", same as before. */
+    private Map<String, String> lookupTeiDisplayNames(
+            final Set<String> uids) {
+        if (uids.isEmpty()) {
+            return Map.of();
+        }
+        // jsonb_exists() instead of the ? operator because
+        // NamedParameterJdbcTemplate mistakes the ? for a
+        // positional placeholder and refuses to run the query.
+        final String sql = "WITH t AS ("
+                + "  SELECT te.tei_uid, mtea.dhis2_uid AS attr_uid, "
+                + "         te.attributes->>mtea.dhis2_uid AS value, "
+                + "         COALESCE((mtea.payload->>'sortOrder')"
+                + "                  ::int, 9999) AS sort_order "
+                + "  FROM der.tracked_entity te "
+                + "  JOIN der.metadata_tracked_entity_attribute mtea "
+                + "    ON jsonb_exists(te.attributes, mtea.dhis2_uid) "
+                + "  WHERE te.tei_uid IN (:uids) "
+                + "    AND mtea.value_type IN ('TEXT','LONG_TEXT',"
+                + "        'LETTER','PHONE_NUMBER','EMAIL') "
+                + "    AND te.attributes->>mtea.dhis2_uid IS NOT NULL "
+                + "    AND te.attributes->>mtea.dhis2_uid <> '') "
+                + "SELECT tei_uid, value FROM ("
+                + "  SELECT tei_uid, value, "
+                + "         ROW_NUMBER() OVER ("
+                + "           PARTITION BY tei_uid "
+                + "           ORDER BY sort_order, attr_uid) AS rn "
+                + "  FROM t) s "
+                + "WHERE rn <= 3 "
+                + "ORDER BY tei_uid, rn";
+        final Map<String, String> out = new HashMap<>();
+        namedJdbc.query(sql,
+                new MapSqlParameterSource("uids", uids),
+                rs -> {
+                    final String teiUid = rs.getString(1);
+                    final String v = rs.getString(2);
+                    if (v == null || v.isBlank()) {
+                        return;
+                    }
+                    final String existing = out.get(teiUid);
+                    out.put(teiUid, existing == null
+                            ? v : existing + ' ' + v);
                 });
         return out;
     }
@@ -511,17 +584,18 @@ public class TrackerRelationshipController {
             final Map<String, Enrollment> enrolByUid,
             final Map<String, TrackerEvent> eventByUid,
             final Map<String, String> programNameByUid,
-            final Map<String, String> stageNameByUid) {
+            final Map<String, String> stageNameByUid,
+            final Map<String, String> teiDisplayByUid) {
         final Map<String, Object> out = toJson(r);
         final Object fromDetail = endpointDetail(r.fromEntityType(),
                 r.fromEntityUid(), enrolByUid, eventByUid,
-                programNameByUid, stageNameByUid);
+                programNameByUid, stageNameByUid, teiDisplayByUid);
         if (fromDetail != null) {
             out.put("fromDetail", fromDetail);
         }
         final Object toDetail = endpointDetail(r.toEntityType(),
                 r.toEntityUid(), enrolByUid, eventByUid,
-                programNameByUid, stageNameByUid);
+                programNameByUid, stageNameByUid, teiDisplayByUid);
         if (toDetail != null) {
             out.put("toDetail", toDetail);
         }
@@ -533,7 +607,18 @@ public class TrackerRelationshipController {
             final Map<String, Enrollment> enrolByUid,
             final Map<String, TrackerEvent> eventByUid,
             final Map<String, String> programNameByUid,
-            final Map<String, String> stageNameByUid) {
+            final Map<String, String> stageNameByUid,
+            final Map<String, String> teiDisplayByUid) {
+        if (t == TrackerRelationship.EntityType.TRACKED_ENTITY) {
+            final String name = teiDisplayByUid.get(uid);
+            if (name == null) {
+                return null;
+            }
+            final Map<String, Object> d = new LinkedHashMap<>();
+            d.put("teiUid", uid);
+            d.put("displayName", name);
+            return d;
+        }
         if (t == TrackerRelationship.EntityType.ENROLLMENT) {
             final Enrollment e = enrolByUid.get(uid);
             if (e == null) {
@@ -541,6 +626,10 @@ public class TrackerRelationshipController {
             }
             final Map<String, Object> d = new LinkedHashMap<>();
             d.put("teiUid", e.teiUid());
+            final String teiName = teiDisplayByUid.get(e.teiUid());
+            if (teiName != null) {
+                d.put("teiDisplayName", teiName);
+            }
             d.put("programUid", e.programUid());
             final String pname = programNameByUid.get(e.programUid());
             if (pname != null) {

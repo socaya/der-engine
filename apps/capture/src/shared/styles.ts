@@ -1639,10 +1639,31 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   display: flex; flex-wrap: wrap; gap: 8px;
 }
 
-/* Modern relationship cards — one row per link, replaces the
- * old cap-list row. Icon left · headline + secondary + chips
- * center · timestamp + context menu right. Hover tint so rows
- * feel interactive. */
+/* DER-standard borderless table for the Relationships list.
+ * Single-line rows per operator feedback — icon + target name
+ * in one cell, direction / sync / timestamp / menu in their
+ * own columns. Reuses .cap-table so the visual language matches
+ * the tracker working list + event list + composite catalogue. */
+.cap-rel-table {
+  margin-top: 4px;
+}
+.cap-rel-table .cap-table__cell {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.cap-rel-table__target {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-width: 0;
+}
+.cap-rel-table__name {
+  font-weight: 500; color: var(--der-text);
+  overflow: hidden; text-overflow: ellipsis;
+  max-width: 60ch;
+}
+
+/* Legacy card list — superseded by the DER-standard table
+ * above. Classes kept for the context-menu styling (RowMenu)
+ * which is reused by the table rows. */
 .cap-rel-cards {
   list-style: none; padding: 0; margin: 0;
   display: flex; flex-direction: column; gap: 6px;

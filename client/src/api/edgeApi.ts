@@ -1606,6 +1606,8 @@ export interface RelationshipEndpoint {
     enrollment?: string;
     programUid?: string;
     programName?: string;
+    teiUid?: string;
+    teiDisplayName?: string;
     enrollmentDate?: string;
     status?: string;
   };
@@ -1862,6 +1864,8 @@ export type RelationshipSyncStatus =
 
 interface EndpointDetail {
   readonly teiUid?: string;
+  readonly teiDisplayName?: string;
+  readonly displayName?: string;
   readonly enrollmentUid?: string;
   readonly programUid?: string;
   readonly programName?: string;
@@ -1876,13 +1880,18 @@ function buildSide(kind: string, uid: string,
                    detail: EndpointDetail | undefined):
     NonNullable<TrackerRelationshipRow['from']> {
   if (kind === 'TRACKED_ENTITY') {
-    return { trackedEntity: { trackedEntity: uid } };
+    return { trackedEntity: {
+      trackedEntity: uid,
+      displayName: detail?.displayName,
+    } };
   }
   if (kind === 'ENROLLMENT') {
     return { enrollment: {
       enrollment: uid,
       programUid: detail?.programUid,
       programName: detail?.programName,
+      teiUid: detail?.teiUid,
+      teiDisplayName: detail?.teiDisplayName,
       enrollmentDate: detail?.enrollmentDate,
       status: detail?.status,
     } };
