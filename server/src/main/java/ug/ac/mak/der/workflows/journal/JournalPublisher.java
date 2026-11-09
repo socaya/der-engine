@@ -416,19 +416,44 @@ public class JournalPublisher {
                     HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             final int status = resp.statusCode();
             final String respBody = resp.body() == null ? "" : resp.body();
-            final TerminalState terminal = ResponseClassifier.classify(status);
+            /* REL-S-009: per-object Tracker import report parsing.
+             * A 200 OK response can still carry a per-object
+             * ignored/error row inside bundleReport — status-only
+             * classification would wrongly flag that as SYNCED.
+             * classifyTrackerImportResponse inspects stats.ignored
+             * + objectReports[].errorReports[] to catch per-row
+             * failures before we flip sync_status. */
+            final TerminalState terminal =
+                    classifyTrackerImportResponse(status, respBody, uid);
             /* Local side-effects only on ACCEPTED. RETRYABLE +
              * REJECTED + CONFLICT leave the row in its current
              * state so the next drain retries (RETRYABLE) or the
              * operator sees it in the attention queue (REJECTED /
              * CONFLICT). */
-            if (terminal == TerminalState.ACCEPTED && relationshipRepo != null) {
-                if (isDelete) {
-                    relationshipRepo.purge(uid);
-                } else {
-                    relationshipRepo.markSynced(uid, uid,
-                            java.time.Instant.now());
+            if (relationshipRepo != null) {
+                /* Stamp sync_status to reflect the drain outcome so
+                 * the Capture UI shows the right badge immediately
+                 * after the next poll — no more inference from
+                 * central_uid alone. ACCEPTED → SYNCED (via
+                 * markSynced), REJECTED → FAILED, CONFLICT →
+                 * CONFLICT, RETRYABLE stays PENDING. */
+                final java.time.Instant now = java.time.Instant.now();
+                if (terminal == TerminalState.ACCEPTED) {
+                    if (isDelete) {
+                        relationshipRepo.purge(uid);
+                    } else {
+                        relationshipRepo.markSynced(uid, uid, now);
+                    }
+                } else if (terminal == TerminalState.REJECTED) {
+                    relationshipRepo.markSyncStatus(uid,
+                            ug.ac.mak.der.workflows.tracker
+                                .TrackerRelationship.SyncStatus.FAILED, now);
+                } else if (terminal == TerminalState.CONFLICT) {
+                    relationshipRepo.markSyncStatus(uid,
+                            ug.ac.mak.der.workflows.tracker
+                                .TrackerRelationship.SyncStatus.CONFLICT, now);
                 }
+                // RETRYABLE: no status change, next drain pass retries.
             }
             return new PublishResult(status, respBody, terminal);
         } catch (IOException ex) {
@@ -599,6 +624,97 @@ public class JournalPublisher {
     }
 
     public enum TerminalState { ACCEPTED, REJECTED, RETRYABLE, CONFLICT }
+
+    /** DHIS2 2.44 tracker-import-aware response classifier.
+     *  Status-only classification (ResponseClassifier.classify) is
+     *  insufficient for the tracker endpoint because central can
+     *  return 200 OK with a per-object failure inside its
+     *  bundleReport — e.g. one of several relationships in a batch
+     *  was ignored or rejected while the batch overall was OK. For
+     *  our single-relationship drain batches this still matters:
+     *  that one object either made it in or it didn't.
+     *
+     *  Rules (in order):
+     *  1. Non-2xx → delegate to ResponseClassifier.
+     *  2. 2xx + unparseable body → ACCEPTED (keeps behaviour
+     *     bug-compatible when central returns something exotic).
+     *  3. Top-level status=ERROR → REJECTED.
+     *  4. stats.ignored > 0 → REJECTED.
+     *  5. Any objectReport with non-empty errorReports → REJECTED.
+     *  6. Otherwise → ACCEPTED. */
+    private TerminalState classifyTrackerImportResponse(
+            final int status, final String body, final String uid) {
+        if (status / 100 != 2) {
+            return ResponseClassifier.classify(status);
+        }
+        if (body == null || body.isBlank()) {
+            return TerminalState.ACCEPTED;
+        }
+        try {
+            final JsonNode root = jsonMapper.readTree(body);
+            final String topStatus = textOrNull(root, "status");
+            if ("ERROR".equalsIgnoreCase(topStatus)) {
+                logTrackerFailure(root, uid);
+                return TerminalState.REJECTED;
+            }
+            final JsonNode stats = root.get("stats");
+            if (stats != null && stats.has("ignored")
+                    && stats.get("ignored").asInt(0) > 0) {
+                logTrackerFailure(root, uid);
+                return TerminalState.REJECTED;
+            }
+            // Dive into bundleReport.typeReportMap.RELATIONSHIP
+            // .objectReports[].errorReports[] to find per-UID
+            // failures. DHIS2 2.44 shape — if the shape changes
+            // in a future version we fall back to ACCEPTED (the
+            // top-level status gate above still catches the common
+            // error case).
+            final JsonNode typeMap = navigate(root,
+                    "bundleReport", "typeReportMap", "RELATIONSHIP");
+            if (typeMap != null) {
+                final JsonNode objectReports = typeMap.get("objectReports");
+                if (objectReports != null && objectReports.isArray()) {
+                    for (final JsonNode or : objectReports) {
+                        final JsonNode errs = or.get("errorReports");
+                        if (errs != null && errs.isArray() && errs.size() > 0) {
+                            logTrackerFailure(root, uid);
+                            return TerminalState.REJECTED;
+                        }
+                    }
+                }
+            }
+            return TerminalState.ACCEPTED;
+        } catch (IOException ex) {
+            // Body isn't valid JSON — fall back to status-only.
+            return TerminalState.ACCEPTED;
+        }
+    }
+
+    private static JsonNode navigate(final JsonNode root,
+                                       final String... path) {
+        JsonNode node = root;
+        for (final String key : path) {
+            if (node == null) {
+                return null;
+            }
+            node = node.get(key);
+        }
+        return node;
+    }
+
+    private void logTrackerFailure(final JsonNode root, final String uid) {
+        final JsonNode validation = root.get("validationReport");
+        if (validation != null) {
+            final JsonNode errs = validation.get("errorReports");
+            if (errs != null && errs.isArray() && errs.size() > 0) {
+                LOG.warn("tracker import rejected for {}: {}",
+                        uid, errs.toString());
+                return;
+            }
+        }
+        LOG.warn("tracker import rejected for {}: {}", uid,
+                root.toString());
+    }
 
     public record PublishResult(int status, String body, TerminalState terminal) { }
 }

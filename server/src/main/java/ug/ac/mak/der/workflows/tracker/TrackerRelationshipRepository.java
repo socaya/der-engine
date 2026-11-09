@@ -36,14 +36,16 @@ public class TrackerRelationshipRepository {
                         + "from_entity_type, from_entity_uid, "
                         + "to_entity_type, to_entity_uid, bidirectional, "
                         + "created_by, created_at, updated_at, "
-                        + "deleted_at, central_uid, relationship_version) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                        + "deleted_at, central_uid, relationship_version, "
+                        + "sync_status) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
                         + "ON CONFLICT (relationship_uid) DO UPDATE SET "
                         + "bidirectional = EXCLUDED.bidirectional, "
                         + "updated_at = EXCLUDED.updated_at, "
                         + "deleted_at = EXCLUDED.deleted_at, "
                         + "central_uid = EXCLUDED.central_uid, "
-                        + "relationship_version = EXCLUDED.relationship_version",
+                        + "relationship_version = EXCLUDED.relationship_version, "
+                        + "sync_status = EXCLUDED.sync_status",
                 r.relationshipUid(), r.relationshipType(),
                 r.fromEntityType().name(), r.fromEntityUid(),
                 r.toEntityType().name(), r.toEntityUid(),
@@ -52,7 +54,8 @@ public class TrackerRelationshipRepository {
                 Timestamp.from(r.updatedAt()),
                 r.deletedAt() == null ? null : Timestamp.from(r.deletedAt()),
                 r.centralUid(),
-                r.version());
+                r.version(),
+                r.syncStatus().name());
         return r;
     }
 
@@ -96,25 +99,45 @@ public class TrackerRelationshipRepository {
 
     /** Called by the drain on a successful central POST. Stamps the
      *  server-assigned UID (expected to match relationship_uid when
-     *  central accepts client UIDs) and bumps the version. */
+     *  central accepts client UIDs), bumps the version, flips
+     *  sync_status to SYNCED. */
     public int markSynced(final String uid, final String centralUid,
                             final Instant at) {
         return jdbc.update(
                 "UPDATE der.edge_tracker_relationship "
                         + "SET central_uid = ?, updated_at = ?, "
+                        + "    sync_status = 'SYNCED', "
                         + "    relationship_version = relationship_version + 1 "
                         + "WHERE relationship_uid = ?",
                 centralUid, Timestamp.from(at), uid);
     }
 
+    /** Called by the drain / controller when the row needs to
+     *  reflect a sync-attempt outcome other than SYNCED. The caller
+     *  owns the state transition — e.g. PENDING when enqueuing a
+     *  drain attempt, FAILED when central REJECTED, BLOCKED when
+     *  local metadata is missing, CONFLICT when a central version
+     *  mismatch needs operator review. */
+    public int markSyncStatus(final String uid,
+                                final TrackerRelationship.SyncStatus status,
+                                final Instant at) {
+        return jdbc.update(
+                "UPDATE der.edge_tracker_relationship "
+                        + "SET sync_status = ?, updated_at = ? "
+                        + "WHERE relationship_uid = ?",
+                status.name(), Timestamp.from(at), uid);
+    }
+
     /** Soft-delete the row so the drain can POST a DELETE to central
      *  before the physical purge happens. Version bump so a replayed
-     *  drain can't resurrect. */
+     *  drain can't resurrect. Moves sync_status back to PENDING so
+     *  the UI reflects the in-flight delete. */
     @Transactional
     public int softDelete(final String uid, final Instant at) {
         return jdbc.update(
                 "UPDATE der.edge_tracker_relationship "
                         + "SET deleted_at = ?, updated_at = ?, "
+                        + "    sync_status = 'PENDING', "
                         + "    relationship_version = relationship_version + 1 "
                         + "WHERE relationship_uid = ? "
                         + "  AND deleted_at IS NULL",
@@ -146,6 +169,10 @@ public class TrackerRelationshipRepository {
             final Timestamp updated = rs.getTimestamp("updated_at");
             final Timestamp deleted = rs.getTimestamp("deleted_at");
             final Timestamp created = rs.getTimestamp("created_at");
+            final String statusStr = rs.getString("sync_status");
+            final TrackerRelationship.SyncStatus syncStatus =
+                    statusStr == null ? TrackerRelationship.SyncStatus.LOCAL
+                        : TrackerRelationship.SyncStatus.valueOf(statusStr);
             return new TrackerRelationship(
                     rs.getString("relationship_uid"),
                     rs.getString("relationship_type"),
@@ -159,7 +186,8 @@ public class TrackerRelationshipRepository {
                     updated == null ? created.toInstant() : updated.toInstant(),
                     deleted == null ? null : deleted.toInstant(),
                     rs.getString("central_uid"),
-                    rs.getInt("relationship_version"));
+                    rs.getInt("relationship_version"),
+                    syncStatus);
         };
     }
 }

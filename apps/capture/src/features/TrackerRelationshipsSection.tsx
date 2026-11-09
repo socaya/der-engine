@@ -72,6 +72,9 @@ interface RelEndpoint {
   };
 }
 
+type RelSyncStatus =
+  'LOCAL' | 'PENDING' | 'SYNCED' | 'FAILED' | 'BLOCKED' | 'CONFLICT';
+
 interface RelRow {
   readonly relationship?: string;
   readonly relationshipType?: string;
@@ -79,6 +82,7 @@ interface RelRow {
   readonly bidirectional?: boolean;
   readonly createdAt?: string;
   readonly lastUpdated?: string;
+  readonly syncStatus?: RelSyncStatus;
   readonly from?: RelEndpoint;
   readonly to?: RelEndpoint;
 }
@@ -1127,6 +1131,7 @@ export function TrackerRelationshipsSection(
                       ↔ bidirectional
                     </span>
                   )}
+                  <SyncBadge status={r.syncStatus ?? 'LOCAL'} />
                   <div style={{ marginTop: 4, color: '#4a5768',
                     fontSize: 13 }}>
                     → {target}
@@ -1168,6 +1173,41 @@ export function TrackerRelationshipsSection(
         </ul>
       )}
     </>
+  );
+}
+
+/** Sync-state pill rendered next to each relationship row (REL-C-008).
+ *  Reads the row's syncStatus from the edge response and colours a
+ *  small pill so the operator sees at a glance whether a link is
+ *  only on the device, drained, or in a failure state needing
+ *  attention. Pure presentational; no interaction. */
+function SyncBadge({ status }: { status: RelSyncStatus }): JSX.Element {
+  const label = status === 'SYNCED'   ? 'Synced to DHIS2'
+              : status === 'PENDING'  ? 'Pending sync'
+              : status === 'LOCAL'    ? 'Device only'
+              : status === 'FAILED'   ? 'Sync failed'
+              : status === 'BLOCKED'  ? 'Blocked'
+              : status === 'CONFLICT' ? 'Conflict — review'
+              : status;
+  const title =
+      status === 'SYNCED' ? 'Central DHIS2 has accepted this link.'
+    : status === 'PENDING' ? 'Queued for central sync — will post on '
+        + 'the next drain pass.'
+    : status === 'LOCAL' ? 'Saved only on this device — drain '
+        + 'hasn’t picked it up yet.'
+    : status === 'FAILED' ? 'Central rejected the sync — check the '
+        + 'operations journal for details.'
+    : status === 'BLOCKED' ? 'Metadata missing locally — cannot '
+        + 'attempt sync.'
+    : status === 'CONFLICT' ? 'Central version differs — review in '
+        + 'the conflict queue.'
+    : '';
+  const cls = 'cap-rel-sync cap-rel-sync--' + status.toLowerCase();
+  return (
+    <span className={cls} data-test={'tr-rel-sync-' + status}
+          title={title} style={{ marginLeft: 10 }}>
+      {label}
+    </span>
   );
 }
 

@@ -114,6 +114,37 @@ public class TrackerRelationshipController {
                     "code", "TO_NOT_FOUND",
                     "message", "to " + toType + " " + body.toEntityUid() + " not found"));
         }
+        // REL-S-003: constraint validation. Pull the relationship
+        // type's from/to constraints from the mirror and verify the
+        // operator-selected endpoint actually belongs to the
+        // constrained program/stage/TET. Without this a client with
+        // out-of-date metadata (or a tampered payload) could post a
+        // relationship central would reject on drain — the
+        // operator'd see it succeed locally and fail silently later.
+        final Map<String, String> typeConstraints =
+                lookupTypeConstraints(body.relationshipType());
+        if (typeConstraints == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "RELATIONSHIP_TYPE_NOT_FOUND",
+                    "message", "relationshipType "
+                        + body.relationshipType() + " is not configured"));
+        }
+        final String fromMismatch = checkConstraint("from",
+                fromType, body.fromEntityUid(),
+                typeConstraints.get("from_kind"),
+                typeConstraints.get("from_uid"));
+        if (fromMismatch != null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "CONSTRAINT_MISMATCH", "message", fromMismatch));
+        }
+        final String toMismatch = checkConstraint("to",
+                toType, body.toEntityUid(),
+                typeConstraints.get("to_kind"),
+                typeConstraints.get("to_uid"));
+        if (toMismatch != null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "CONSTRAINT_MISMATCH", "message", toMismatch));
+        }
         final TrackerRelationship r;
         try {
             r = new TrackerRelationship(body.relationshipUid(), body.relationshipType(),
@@ -132,7 +163,15 @@ public class TrackerRelationshipController {
          * accepts client UIDs on POST /api/relationships, so the
          * same UID flows through both sides). */
         enqueueJournal(r, OperationKind.CREATE, principal.userId());
-        return ResponseEntity.ok(toJson(r));
+        // Flip sync_status to PENDING now that the drain has work
+        // queued. If the enqueue above threw, we'd have left the
+        // row at LOCAL — a safer state than claiming PENDING with
+        // nothing in the queue.
+        final Instant now = Instant.now(clock);
+        repo.markSyncStatus(r.relationshipUid(),
+                TrackerRelationship.SyncStatus.PENDING, now);
+        return ResponseEntity.ok(toJson(repo.findById(
+                r.relationshipUid()).orElse(r)));
     }
 
     @GetMapping("/{uid}")
@@ -277,6 +316,113 @@ public class TrackerRelationshipController {
 
     private enum OperationKind { CREATE, DELETE }
 
+    /** Fetch the relationship type's constraint kinds + target UIDs
+     *  from the metadata mirror. Returns a map with keys
+     *  "from_kind", "from_uid", "to_kind", "to_uid" (nullable
+     *  values) or null when the type doesn't exist in the mirror
+     *  — the caller treats that as a RELATIONSHIP_TYPE_NOT_FOUND. */
+    private Map<String, String> lookupTypeConstraints(final String typeUid) {
+        try {
+            return namedJdbc.queryForObject(
+                    "SELECT from_constraint_kind AS from_kind, "
+                        + "from_constraint_uid AS from_uid, "
+                        + "to_constraint_kind AS to_kind, "
+                        + "to_constraint_uid AS to_uid "
+                        + "FROM der.metadata_relationship_type "
+                        + "WHERE dhis2_uid = :uid",
+                    new org.springframework.jdbc.core.namedparam
+                            .MapSqlParameterSource("uid", typeUid),
+                    (rs, n) -> {
+                        final Map<String, String> m = new LinkedHashMap<>();
+                        m.put("from_kind", rs.getString("from_kind"));
+                        m.put("from_uid", rs.getString("from_uid"));
+                        m.put("to_kind", rs.getString("to_kind"));
+                        m.put("to_uid", rs.getString("to_uid"));
+                        return m;
+                    });
+        } catch (org.springframework.dao.EmptyResultDataAccessException ex) {
+            return null;
+        }
+    }
+
+    /** Verify a side's endpoint satisfies the type's constraint.
+     *  Returns null on pass; an operator-friendly error message on
+     *  fail. Checks:
+     *  - entity-type kind matches (TRACKED_ENTITY_INSTANCE =
+     *    TRACKED_ENTITY, PROGRAM_INSTANCE = ENROLLMENT,
+     *    PROGRAM_STAGE_INSTANCE = EVENT);
+     *  - for TRACKED_ENTITY: the TEI's TET matches constraint UID
+     *    (when the type pins one);
+     *  - for ENROLLMENT: the enrolment's programUid matches
+     *    constraint UID (when set);
+     *  - for EVENT: the event's programStageUid matches constraint
+     *    UID (when set).
+     *  Null constraint kind = no constraint expressed in metadata
+     *  (rare but valid), skip. */
+    private String checkConstraint(final String side,
+                                     final TrackerRelationship.EntityType entityType,
+                                     final String entityUid,
+                                     final String constraintKind,
+                                     final String constraintUid) {
+        if (constraintKind == null) {
+            return null;
+        }
+        final String expectedEdgeKind = switch (constraintKind) {
+            case "TRACKED_ENTITY_INSTANCE" -> "TRACKED_ENTITY";
+            case "PROGRAM_INSTANCE" -> "ENROLLMENT";
+            case "PROGRAM_STAGE_INSTANCE" -> "EVENT";
+            default -> null;
+        };
+        if (expectedEdgeKind == null
+                || !expectedEdgeKind.equals(entityType.name())) {
+            return side + " must be a " + expectedEdgeKind
+                    + " (type's " + side + "Constraint is "
+                    + constraintKind + ")";
+        }
+        if (constraintUid == null) {
+            return null;
+        }
+        if (entityType == TrackerRelationship.EntityType.TRACKED_ENTITY) {
+            final String actualTet = teis.findById(entityUid)
+                    .map(t -> t.trackedEntityType()).orElse(null);
+            if (actualTet == null) {
+                return side + " " + entityType + " " + entityUid
+                        + " not found";
+            }
+            if (!constraintUid.equals(actualTet)) {
+                return side + " tracked entity's TET (" + actualTet
+                        + ") does not match type constraint ("
+                        + constraintUid + ")";
+            }
+            return null;
+        }
+        if (entityType == TrackerRelationship.EntityType.ENROLLMENT) {
+            final String actualProgram = enrollments.findById(entityUid)
+                    .map(e -> e.programUid()).orElse(null);
+            if (actualProgram == null) {
+                return side + " enrolment " + entityUid + " not found";
+            }
+            if (!constraintUid.equals(actualProgram)) {
+                return side + " enrolment's program (" + actualProgram
+                        + ") does not match type constraint ("
+                        + constraintUid + ")";
+            }
+            return null;
+        }
+        // EVENT
+        final String actualStage = events.findById(entityUid)
+                .map(e -> e.programStageUid()).orElse(null);
+        if (actualStage == null) {
+            return side + " event " + entityUid + " not found";
+        }
+        if (!constraintUid.equals(actualStage)) {
+            return side + " event's stage (" + actualStage
+                    + ") does not match type constraint ("
+                    + constraintUid + ")";
+        }
+        return null;
+    }
+
     private boolean entityExists(final TrackerRelationship.EntityType type, final String uid) {
         return switch (type) {
             case TRACKED_ENTITY -> teis.findById(uid).isPresent();
@@ -296,6 +442,7 @@ public class TrackerRelationshipController {
         out.put("bidirectional", r.bidirectional());
         out.put("createdBy", r.createdBy().toString());
         out.put("createdAt", r.createdAt().toString());
+        out.put("syncStatus", r.syncStatus().name());
         return out;
     }
 

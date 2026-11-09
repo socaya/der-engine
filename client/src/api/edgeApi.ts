@@ -1627,6 +1627,12 @@ export interface TrackerRelationshipRow {
   readonly bidirectional?: boolean;
   readonly createdAt?: string;
   readonly lastUpdated?: string;
+  /** Per-row sync state surfaced to the UI as a status badge
+   *  (REL-C-008). Defaults to LOCAL when the server didn't emit
+   *  it — pre-V099 payloads shouldn't exist in practice but we
+   *  stay forward-safe rather than erroring. */
+  readonly syncStatus?:
+    'LOCAL' | 'PENDING' | 'SYNCED' | 'FAILED' | 'BLOCKED' | 'CONFLICT';
   readonly from?: RelationshipEndpoint;
   readonly to?: RelationshipEndpoint;
 }
@@ -1822,6 +1828,10 @@ export async function listTrackerRelationships(teiUid: string):
       toEntityUid: string;
       bidirectional: boolean;
       createdAt: string;
+      /** Per-row sync state from the server — LOCAL / PENDING /
+       *  SYNCED / FAILED / BLOCKED / CONFLICT. Nullable for pre-
+       *  V099 payloads (the client treats absent as LOCAL). */
+      syncStatus?: string;
       /** Optional display-enrichment for ENROLLMENT / EVENT
        *  endpoints — the server joins against the metadata mirror
        *  so the client can render human labels without extra
@@ -1841,10 +1851,14 @@ export async function listTrackerRelationships(teiUid: string):
     bidirectional: r.bidirectional,
     createdAt: r.createdAt,
     lastUpdated: r.createdAt,
+    syncStatus: (r.syncStatus ?? 'LOCAL') as RelationshipSyncStatus,
     from: buildSide(r.fromEntityType, r.fromEntityUid, r.fromDetail),
     to:   buildSide(r.toEntityType,   r.toEntityUid,   r.toDetail),
   } as TrackerRelationshipRow));
 }
+
+export type RelationshipSyncStatus =
+  'LOCAL' | 'PENDING' | 'SYNCED' | 'FAILED' | 'BLOCKED' | 'CONFLICT';
 
 interface EndpointDetail {
   readonly teiUid?: string;

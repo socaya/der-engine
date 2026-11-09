@@ -24,7 +24,8 @@ public record TrackerRelationship(
         Instant updatedAt,
         Instant deletedAt,
         String centralUid,
-        int version
+        int version,
+        SyncStatus syncStatus
 ) {
 
     public TrackerRelationship {
@@ -36,6 +37,7 @@ public record TrackerRelationship(
         Objects.requireNonNull(toEntityUid, "toEntityUid");
         Objects.requireNonNull(createdBy, "createdBy");
         Objects.requireNonNull(createdAt, "createdAt");
+        Objects.requireNonNull(syncStatus, "syncStatus");
         if (!relationshipUid.matches("^[A-Za-z][A-Za-z0-9]{10}$")) {
             throw new IllegalArgumentException("relationshipUid must be 11-char DHIS2 UID");
         }
@@ -47,10 +49,9 @@ public record TrackerRelationship(
         }
     }
 
-    /** Back-compat ctor for pre-slice-2 call sites — defaults
+    /** Back-compat ctor for pre-syncStatus call sites — defaults
      *  updatedAt=createdAt, no soft-delete, no central UID,
-     *  version 1. Lets existing tests + controller keep compiling
-     *  while new call sites opt into the sync fields. */
+     *  version 1, syncStatus LOCAL. */
     public TrackerRelationship(final String relationshipUid,
                                  final String relationshipType,
                                  final EntityType fromEntityType,
@@ -62,7 +63,41 @@ public record TrackerRelationship(
                                  final Instant createdAt) {
         this(relationshipUid, relationshipType, fromEntityType,
                 fromEntityUid, toEntityType, toEntityUid, bidirectional,
-                createdBy, createdAt, createdAt, null, null, 1);
+                createdBy, createdAt, createdAt, null, null, 1,
+                SyncStatus.LOCAL);
+    }
+
+    /** Back-compat ctor with sync-tracking fields but no explicit
+     *  syncStatus — derives the status from central_uid + deletedAt
+     *  so the repo's old row mapper still works during the rollout. */
+    public TrackerRelationship(final String relationshipUid,
+                                 final String relationshipType,
+                                 final EntityType fromEntityType,
+                                 final String fromEntityUid,
+                                 final EntityType toEntityType,
+                                 final String toEntityUid,
+                                 final boolean bidirectional,
+                                 final UUID createdBy,
+                                 final Instant createdAt,
+                                 final Instant updatedAt,
+                                 final Instant deletedAt,
+                                 final String centralUid,
+                                 final int version) {
+        this(relationshipUid, relationshipType, fromEntityType,
+                fromEntityUid, toEntityType, toEntityUid, bidirectional,
+                createdBy, createdAt, updatedAt, deletedAt, centralUid,
+                version, deriveSyncStatus(centralUid, deletedAt));
+    }
+
+    private static SyncStatus deriveSyncStatus(
+            final String centralUid, final Instant deletedAt) {
+        if (centralUid != null) {
+            return SyncStatus.SYNCED;
+        }
+        if (deletedAt != null) {
+            return SyncStatus.PENDING;
+        }
+        return SyncStatus.LOCAL;
     }
 
     public boolean needsSync() {
@@ -74,4 +109,10 @@ public record TrackerRelationship(
     }
 
     public enum EntityType { TRACKED_ENTITY, ENROLLMENT, EVENT }
+
+    /** Per-row sync state for the Capture UI badge. Mirrors the
+     *  edge_rel_sync_status_check CHECK constraint (V099). */
+    public enum SyncStatus {
+        LOCAL, PENDING, SYNCED, FAILED, BLOCKED, CONFLICT
+    }
 }

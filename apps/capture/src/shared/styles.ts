@@ -1624,6 +1624,25 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   background: var(--der-danger-subtle);
 }
 
+/* Relationship sync-state pill (REL-C-008). Soft tinted background
+ * + weight 500 label; one modifier per state. Deliberately small
+ * (13px) so the row's main label stays dominant — the badge is
+ * secondary information. */
+.cap-rel-sync {
+  display: inline-block;
+  padding: 1px 8px; border-radius: 10px;
+  font-size: 13px; font-weight: 500;
+  letter-spacing: 0.02em;
+  vertical-align: baseline;
+}
+.cap-rel-sync--synced  { background: #e3f7eb; color: #1b8243; }
+.cap-rel-sync--pending { background: #fef0d8; color: #9b5a00; }
+.cap-rel-sync--local   { background: var(--der-surface-subtle);
+                         color: var(--der-text-muted); }
+.cap-rel-sync--failed  { background: #fde3e3; color: #c13030; }
+.cap-rel-sync--blocked { background: #fde3e3; color: #c13030; }
+.cap-rel-sync--conflict{ background: #fef0d8; color: #9b5a00; }
+
 /* Flat chips — no background, no border; the colour alone
  * carries the semantic. Matches the user's 'no chips styles'
  * directive while still being scannable. */
