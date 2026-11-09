@@ -25,7 +25,8 @@ public record TrackerRelationship(
         Instant deletedAt,
         String centralUid,
         int version,
-        SyncStatus syncStatus
+        SyncStatus syncStatus,
+        RelClass relClass
 ) {
 
     public TrackerRelationship {
@@ -38,6 +39,7 @@ public record TrackerRelationship(
         Objects.requireNonNull(createdBy, "createdBy");
         Objects.requireNonNull(createdAt, "createdAt");
         Objects.requireNonNull(syncStatus, "syncStatus");
+        Objects.requireNonNull(relClass, "relClass");
         if (!relationshipUid.matches("^[A-Za-z][A-Za-z0-9]{10}$")) {
             throw new IllegalArgumentException("relationshipUid must be 11-char DHIS2 UID");
         }
@@ -64,7 +66,7 @@ public record TrackerRelationship(
         this(relationshipUid, relationshipType, fromEntityType,
                 fromEntityUid, toEntityType, toEntityUid, bidirectional,
                 createdBy, createdAt, createdAt, null, null, 1,
-                SyncStatus.LOCAL);
+                SyncStatus.LOCAL, RelClass.DHIS2_NATIVE);
     }
 
     /** Back-compat ctor with sync-tracking fields but no explicit
@@ -86,7 +88,8 @@ public record TrackerRelationship(
         this(relationshipUid, relationshipType, fromEntityType,
                 fromEntityUid, toEntityType, toEntityUid, bidirectional,
                 createdBy, createdAt, updatedAt, deletedAt, centralUid,
-                version, deriveSyncStatus(centralUid, deletedAt));
+                version, deriveSyncStatus(centralUid, deletedAt),
+                RelClass.DHIS2_NATIVE);
     }
 
     private static SyncStatus deriveSyncStatus(
@@ -114,5 +117,18 @@ public record TrackerRelationship(
      *  edge_rel_sync_status_check CHECK constraint (V099). */
     public enum SyncStatus {
         LOCAL, PENDING, SYNCED, FAILED, BLOCKED, CONFLICT
+    }
+
+    /** Spec §REL-S-011 source class — drives whether the drain
+     *  routes a relationship to central or keeps it edge-local.
+     *  DHIS2_NATIVE types mirror from central and MUST sync.
+     *  DER_DOMAIN + DER_OPERATIONAL types are edge-only and the
+     *  drain skips them. */
+    public enum RelClass {
+        DHIS2_NATIVE, DER_DOMAIN, DER_OPERATIONAL;
+
+        public boolean syncsToCentral() {
+            return this == DHIS2_NATIVE;
+        }
     }
 }

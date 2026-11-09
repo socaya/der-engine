@@ -145,6 +145,24 @@ public class TrackerRelationshipController {
             return ResponseEntity.badRequest().body(Map.of(
                     "code", "CONSTRAINT_MISMATCH", "message", toMismatch));
         }
+        // REL-S-010: duplicate prevention. If a live (not soft-
+        // deleted) row already exists with the same semantic
+        // (type, from, to), reject with 409 Conflict + return the
+        // existing row so the client can pick it up instead of
+        // trying again. The V100 partial-unique index enforces
+        // this at the DB layer too; this read-before-write is
+        // just for operator-friendly messaging.
+        final Optional<TrackerRelationship> existing =
+                repo.findBySemantic(body.relationshipType(),
+                        fromType, body.fromEntityUid(),
+                        toType, body.toEntityUid());
+        if (existing.isPresent()) {
+            return ResponseEntity.status(409).body(Map.of(
+                    "code", "RELATIONSHIP_DUPLICATE",
+                    "message", "A relationship with this type and "
+                        + "endpoints already exists on this record.",
+                    "existing", toJson(existing.get())));
+        }
         final TrackerRelationship r;
         try {
             r = new TrackerRelationship(body.relationshipUid(), body.relationshipType(),
@@ -443,6 +461,7 @@ public class TrackerRelationshipController {
         out.put("createdBy", r.createdBy().toString());
         out.put("createdAt", r.createdAt().toString());
         out.put("syncStatus", r.syncStatus().name());
+        out.put("relClass", r.relClass().name());
         return out;
     }
 

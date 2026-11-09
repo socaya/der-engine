@@ -37,15 +37,16 @@ public class TrackerRelationshipRepository {
                         + "to_entity_type, to_entity_uid, bidirectional, "
                         + "created_by, created_at, updated_at, "
                         + "deleted_at, central_uid, relationship_version, "
-                        + "sync_status) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                        + "sync_status, rel_class) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
                         + "ON CONFLICT (relationship_uid) DO UPDATE SET "
                         + "bidirectional = EXCLUDED.bidirectional, "
                         + "updated_at = EXCLUDED.updated_at, "
                         + "deleted_at = EXCLUDED.deleted_at, "
                         + "central_uid = EXCLUDED.central_uid, "
                         + "relationship_version = EXCLUDED.relationship_version, "
-                        + "sync_status = EXCLUDED.sync_status",
+                        + "sync_status = EXCLUDED.sync_status, "
+                        + "rel_class = EXCLUDED.rel_class",
                 r.relationshipUid(), r.relationshipType(),
                 r.fromEntityType().name(), r.fromEntityUid(),
                 r.toEntityType().name(), r.toEntityUid(),
@@ -55,8 +56,35 @@ public class TrackerRelationshipRepository {
                 r.deletedAt() == null ? null : Timestamp.from(r.deletedAt()),
                 r.centralUid(),
                 r.version(),
-                r.syncStatus().name());
+                r.syncStatus().name(),
+                r.relClass().name());
         return r;
+    }
+
+    /** Dedupe lookup (REL-S-010): is there already a live (not
+     *  soft-deleted) row for this semantic combination? The
+     *  V100 partial-unique index enforces this at the DB level,
+     *  but the controller uses this read to produce a friendly
+     *  409 instead of a raw duplicate-key error. */
+    public Optional<TrackerRelationship> findBySemantic(
+            final String type,
+            final TrackerRelationship.EntityType fromType,
+            final String fromUid,
+            final TrackerRelationship.EntityType toType,
+            final String toUid) {
+        try {
+            return Optional.ofNullable(jdbc.queryForObject(
+                    "SELECT * FROM der.edge_tracker_relationship "
+                        + "WHERE deleted_at IS NULL "
+                        + "  AND relationship_type = ? "
+                        + "  AND from_entity_type = ? AND from_entity_uid = ? "
+                        + "  AND to_entity_type = ? AND to_entity_uid = ? "
+                        + "LIMIT 1",
+                    mapper(), type, fromType.name(), fromUid,
+                    toType.name(), toUid));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
     }
 
     public Optional<TrackerRelationship> findById(final String uid) {
@@ -173,6 +201,10 @@ public class TrackerRelationshipRepository {
             final TrackerRelationship.SyncStatus syncStatus =
                     statusStr == null ? TrackerRelationship.SyncStatus.LOCAL
                         : TrackerRelationship.SyncStatus.valueOf(statusStr);
+            final String classStr = rs.getString("rel_class");
+            final TrackerRelationship.RelClass relClass =
+                    classStr == null ? TrackerRelationship.RelClass.DHIS2_NATIVE
+                        : TrackerRelationship.RelClass.valueOf(classStr);
             return new TrackerRelationship(
                     rs.getString("relationship_uid"),
                     rs.getString("relationship_type"),
@@ -187,7 +219,8 @@ public class TrackerRelationshipRepository {
                     deleted == null ? null : deleted.toInstant(),
                     rs.getString("central_uid"),
                     rs.getInt("relationship_version"),
-                    syncStatus);
+                    syncStatus,
+                    relClass);
         };
     }
 }

@@ -379,6 +379,27 @@ public class JournalPublisher {
                     "relationship payload missing relationshipUid",
                     TerminalState.REJECTED);
         }
+        // REL-S-011: skip DER-only relationship classes — they
+        // never leave the edge. The repo row's rel_class is the
+        // authoritative signal (not the journal payload) so this
+        // honours any post-enqueue class changes the operator or
+        // admin may apply.
+        if (relationshipRepo != null) {
+            final var row = relationshipRepo.findById(uid);
+            if (row.isPresent() && !row.get().relClass().syncsToCentral()) {
+                LOG.info("skipping {} relationship {} (class={})",
+                        row.get().relClass(), uid, row.get().relClass());
+                // Mark SYNCED so the badge doesn't show "pending"
+                // forever for a link that will never be drained.
+                relationshipRepo.markSyncStatus(uid,
+                        ug.ac.mak.der.workflows.tracker
+                            .TrackerRelationship.SyncStatus.SYNCED,
+                        java.time.Instant.now());
+                return new PublishResult(204,
+                        "edge-only (" + row.get().relClass() + ")",
+                        TerminalState.ACCEPTED);
+            }
+        }
         final boolean isDelete = "DELETE".equalsIgnoreCase(operation);
         /* DHIS2 2.44 serves all tracker writes through POST
          * /api/tracker with an importStrategy query parameter:
