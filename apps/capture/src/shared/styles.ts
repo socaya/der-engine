@@ -1674,13 +1674,37 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   width: 14px; height: 14px;
 }
 .cap-rel-table__target {
-  display: inline-flex; align-items: center; gap: 8px;
-  min-width: 0;
+  display: flex; align-items: center; gap: 12px;
+  min-width: 0; flex-wrap: wrap;
 }
 .cap-rel-table__name {
   font-weight: 500; color: var(--der-text);
   overflow: hidden; text-overflow: ellipsis;
   max-width: 60ch;
+}
+/* Summary field — rendered inline next to the target name as a
+ * mini two-row column (label on top, value below). Driven by
+ * DHIS2 metadata so the operator can identify a linked record
+ * without clicking through. Up to three per row; fixed width so
+ * long rows stay compact-aligned. */
+.cap-rel-table__col {
+  display: inline-flex; flex-direction: column;
+  min-width: 0; max-width: 20ch;
+  padding-left: 12px;
+  border-left: 1px solid var(--der-border-soft);
+  line-height: 1.2;
+}
+.cap-rel-table__col-label {
+  font-size: 11px; font-weight: 500;
+  color: var(--der-text-muted);
+  text-transform: uppercase; letter-spacing: 0.3px;
+  overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cap-rel-table__col-value {
+  font-size: 13px; color: var(--der-text);
+  overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* Menu separator — hairline between stock items and custom
  * actions / destructive items. */

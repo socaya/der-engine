@@ -61,14 +61,21 @@ interface RelTypeRow {
   readonly customActions?: ReadonlyArray<CustomAction>;
 }
 
+interface RelSummaryField { label: string; value: string }
+
 interface RelEndpoint {
-  trackedEntity?: { trackedEntity?: string; displayName?: string };
+  trackedEntity?: {
+    trackedEntity?: string;
+    displayName?: string;
+    summaryFields?: ReadonlyArray<RelSummaryField>;
+  };
   enrollment?: {
     enrollment?: string;
     programUid?: string;
     programName?: string;
     teiUid?: string;
     teiDisplayName?: string;
+    teiSummaryFields?: ReadonlyArray<RelSummaryField>;
     enrollmentDate?: string;
     status?: string;
   };
@@ -81,6 +88,7 @@ interface RelEndpoint {
     programStageName?: string;
     occurredDate?: string;
     status?: string;
+    summaryFields?: ReadonlyArray<RelSummaryField>;
   };
 }
 
@@ -1305,14 +1313,27 @@ export function TrackerRelationshipsSection(
                         )}
                       </td>
                       <td className="cap-table__cell">
-                        <span className="cap-rel-table__target">
+                        <div className="cap-rel-table__target">
                           <RelKindIcon kind={kind} />
                           <span className="cap-rel-table__name"
                                 title={identity.secondary
                                   ?? identity.primary}>
                             {identity.primary}
                           </span>
-                        </span>
+                          {endpointSummaryFields(otherSide)
+                              .map((f, idx) => (
+                            <span key={idx}
+                                  className="cap-rel-table__col"
+                                  title={`${f.label}: ${f.value}`}>
+                              <span className="cap-rel-table__col-label">
+                                {f.label}
+                              </span>
+                              <span className="cap-rel-table__col-value">
+                                {f.value}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
                       </td>
                       <td className="cap-table__cell"
                           style={{ color: 'var(--der-text-muted)' }}>
@@ -1449,6 +1470,27 @@ function groupRowsByType(
  *  name, "Enrolment in HIV Pro", "Appointment event · Nov 8") and
  *  an optional secondary line with status + dates. Falls back to
  *  the raw UID when no display enrichment is available. */
+/** Up to 3 label/value pairs to render under the target name,
+ *  pulled from the server-enriched payload (TEA values for TEIs,
+ *  stage-DE values for events — all driven by DHIS2 metadata, not
+ *  hardcoded). Empty array when the row couldn't be enriched or
+ *  the endpoint is an enrolment (enrolment enrichment reuses the
+ *  TEI's own summary under teiSummaryFields). */
+function endpointSummaryFields(endpoint: RelRow['from']):
+    ReadonlyArray<{ label: string; value: string }> {
+  if (!endpoint) return [];
+  if (endpoint.trackedEntity?.summaryFields) {
+    return endpoint.trackedEntity.summaryFields;
+  }
+  if (endpoint.enrollment?.teiSummaryFields) {
+    return endpoint.enrollment.teiSummaryFields;
+  }
+  if (endpoint.event?.summaryFields) {
+    return endpoint.event.summaryFields;
+  }
+  return [];
+}
+
 function endpointIdentity(endpoint: RelRow['from']): {
   primary: string;
   secondary: string | null;

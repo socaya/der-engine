@@ -2,6 +2,7 @@ package ug.ac.mak.der.web;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -15,6 +16,8 @@ import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -48,6 +51,9 @@ import ug.ac.mak.der.workflows.tracker.TrackerRelationshipRepository;
 @RequestMapping(path = "/edge-api/v1/tracker/relationships",
         produces = MediaType.APPLICATION_JSON_VALUE)
 public class TrackerRelationshipController {
+
+    private static final Logger LOG = LoggerFactory
+            .getLogger(TrackerRelationshipController.class);
 
     private final TrackerRelationshipRepository repo;
     private final TrackedEntityRepository teis;
@@ -298,10 +304,22 @@ public class TrackerRelationshipController {
         }
         final Map<String, String> teiDisplayByUid =
                 lookupTeiDisplayNames(teiUids);
+        /* Operator-facing per-row summary — "ART Number: 1234 ·
+         * Phone: 070..." style info under the target name so
+         * clinicians recognise the linked record without opening
+         * it. Resolved in two batch queries: top 3 TEAs with
+         * values per TEI, and top 3 data elements with values
+         * per event. */
+        final Map<String, List<Map<String, String>>> teiSummaryByUid =
+                lookupTeiSummaryFields(teiUids);
+        final Map<String, List<Map<String, String>>>
+                eventSummaryByUid =
+                lookupEventSummaryFields(eventUids);
         final List<Map<String, Object>> payload = rows.stream()
                 .map(r -> toJson(r, enrolByUid, eventByUid,
                         programNameByUid, stageNameByUid,
-                        teiDisplayByUid)).toList();
+                        teiDisplayByUid, teiSummaryByUid,
+                        eventSummaryByUid)).toList();
         // nextCursor: the oldest row's createdAt in this page,
         // iff the page was full (i.e. there might be more). Null
         // signals "end of list" to the client.
@@ -396,6 +414,110 @@ public class TrackerRelationshipController {
                     out.put(teiUid, existing == null
                             ? v : existing + ' ' + v);
                 });
+        return out;
+    }
+
+    /** Top-3 TEA label/value pairs per TEI, resolved against the
+     *  metadata mirror (display_name + sort_order). Stable sort
+     *  so the operator sees a predictable column of identifiers
+     *  across rows. */
+    private Map<String, List<Map<String, String>>>
+            lookupTeiSummaryFields(final Set<String> uids) {
+        if (uids.isEmpty()) {
+            return Map.of();
+        }
+        final String sql = "WITH t AS ("
+                + "  SELECT te.tei_uid, mtea.dhis2_uid AS attr_uid, "
+                + "         mtea.display_name AS label, "
+                + "         te.attributes->>mtea.dhis2_uid AS value, "
+                + "         COALESCE((mtea.payload->>'sortOrder')"
+                + "                  ::int, 9999) AS sort_order "
+                + "  FROM der.tracked_entity te "
+                + "  JOIN der.metadata_tracked_entity_attribute mtea "
+                + "    ON jsonb_exists(te.attributes, mtea.dhis2_uid) "
+                + "  WHERE te.tei_uid IN (:uids) "
+                + "    AND te.attributes->>mtea.dhis2_uid IS NOT NULL "
+                + "    AND te.attributes->>mtea.dhis2_uid <> '') "
+                + "SELECT tei_uid, label, value FROM ("
+                + "  SELECT tei_uid, label, value, "
+                + "         ROW_NUMBER() OVER ("
+                + "           PARTITION BY tei_uid "
+                + "           ORDER BY sort_order, attr_uid) AS rn "
+                + "  FROM t) s "
+                + "WHERE rn <= 3 "
+                + "ORDER BY tei_uid, rn";
+        final Map<String, List<Map<String, String>>> out =
+                new HashMap<>();
+        namedJdbc.query(sql,
+                new MapSqlParameterSource("uids", uids),
+                rs -> {
+                    final String uid = rs.getString(1);
+                    final Map<String, String> pair =
+                            new LinkedHashMap<>();
+                    pair.put("label", rs.getString(2));
+                    pair.put("value", rs.getString(3));
+                    out.computeIfAbsent(uid,
+                            k -> new ArrayList<>()).add(pair);
+                });
+        return out;
+    }
+
+    /** Same shape as the TEI summary helper but for events —
+     *  joins event.data_values (JSONB) against the mirror's
+     *  data-element table. Best-effort: if the mirror lacks the
+     *  stage/data-element tables (test envs) the lookup silently
+     *  returns empty so the list endpoint stays up. */
+    private Map<String, List<Map<String, String>>>
+            lookupEventSummaryFields(final Set<String> uids) {
+        if (uids.isEmpty()) {
+            return Map.of();
+        }
+        final String sql = "WITH t AS ("
+                + "  SELECT ev.event_uid, mpsde.data_element_uid "
+                + "           AS attr_uid, "
+                + "         mde.display_name AS label, "
+                + "         ev.data_values->>mpsde.data_element_uid "
+                + "           AS value, "
+                + "         COALESCE(mpsde.sort_order, 9999) AS so "
+                + "  FROM der.edge_tracker_event ev "
+                + "  JOIN der.metadata_program_stage_data_element mpsde "
+                + "    ON mpsde.program_stage_uid "
+                + "       = ev.program_stage_uid "
+                + "   AND jsonb_exists(ev.data_values, "
+                + "                    mpsde.data_element_uid) "
+                + "  JOIN der.metadata_data_element mde "
+                + "    ON mde.dhis2_uid = mpsde.data_element_uid "
+                + "  WHERE ev.event_uid IN (:uids) "
+                + "    AND ev.data_values->>mpsde.data_element_uid "
+                + "          IS NOT NULL "
+                + "    AND ev.data_values->>mpsde.data_element_uid "
+                + "          <> '') "
+                + "SELECT event_uid, label, value FROM ("
+                + "  SELECT event_uid, label, value, "
+                + "         ROW_NUMBER() OVER ("
+                + "           PARTITION BY event_uid "
+                + "           ORDER BY so, attr_uid) AS rn "
+                + "  FROM t) s "
+                + "WHERE rn <= 3 "
+                + "ORDER BY event_uid, rn";
+        final Map<String, List<Map<String, String>>> out =
+                new HashMap<>();
+        try {
+            namedJdbc.query(sql,
+                    new MapSqlParameterSource("uids", uids),
+                    rs -> {
+                        final String uid = rs.getString(1);
+                        final Map<String, String> pair =
+                                new LinkedHashMap<>();
+                        pair.put("label", rs.getString(2));
+                        pair.put("value", rs.getString(3));
+                        out.computeIfAbsent(uid,
+                                k -> new ArrayList<>()).add(pair);
+                    });
+        } catch (org.springframework.dao.DataAccessException ex) {
+            LOG.debug("event summary lookup skipped: {}",
+                    ex.getMessage());
+        }
         return out;
     }
 
@@ -585,17 +707,23 @@ public class TrackerRelationshipController {
             final Map<String, TrackerEvent> eventByUid,
             final Map<String, String> programNameByUid,
             final Map<String, String> stageNameByUid,
-            final Map<String, String> teiDisplayByUid) {
+            final Map<String, String> teiDisplayByUid,
+            final Map<String, List<Map<String, String>>>
+                    teiSummaryByUid,
+            final Map<String, List<Map<String, String>>>
+                    eventSummaryByUid) {
         final Map<String, Object> out = toJson(r);
         final Object fromDetail = endpointDetail(r.fromEntityType(),
                 r.fromEntityUid(), enrolByUid, eventByUid,
-                programNameByUid, stageNameByUid, teiDisplayByUid);
+                programNameByUid, stageNameByUid, teiDisplayByUid,
+                teiSummaryByUid, eventSummaryByUid);
         if (fromDetail != null) {
             out.put("fromDetail", fromDetail);
         }
         final Object toDetail = endpointDetail(r.toEntityType(),
                 r.toEntityUid(), enrolByUid, eventByUid,
-                programNameByUid, stageNameByUid, teiDisplayByUid);
+                programNameByUid, stageNameByUid, teiDisplayByUid,
+                teiSummaryByUid, eventSummaryByUid);
         if (toDetail != null) {
             out.put("toDetail", toDetail);
         }
@@ -608,7 +736,11 @@ public class TrackerRelationshipController {
             final Map<String, TrackerEvent> eventByUid,
             final Map<String, String> programNameByUid,
             final Map<String, String> stageNameByUid,
-            final Map<String, String> teiDisplayByUid) {
+            final Map<String, String> teiDisplayByUid,
+            final Map<String, List<Map<String, String>>>
+                    teiSummaryByUid,
+            final Map<String, List<Map<String, String>>>
+                    eventSummaryByUid) {
         if (t == TrackerRelationship.EntityType.TRACKED_ENTITY) {
             final String name = teiDisplayByUid.get(uid);
             if (name == null) {
@@ -617,6 +749,11 @@ public class TrackerRelationshipController {
             final Map<String, Object> d = new LinkedHashMap<>();
             d.put("teiUid", uid);
             d.put("displayName", name);
+            final List<Map<String, String>> fields =
+                    teiSummaryByUid.get(uid);
+            if (fields != null && !fields.isEmpty()) {
+                d.put("summaryFields", fields);
+            }
             return d;
         }
         if (t == TrackerRelationship.EntityType.ENROLLMENT) {
@@ -629,6 +766,11 @@ public class TrackerRelationshipController {
             final String teiName = teiDisplayByUid.get(e.teiUid());
             if (teiName != null) {
                 d.put("teiDisplayName", teiName);
+            }
+            final List<Map<String, String>> teiFields =
+                    teiSummaryByUid.get(e.teiUid());
+            if (teiFields != null && !teiFields.isEmpty()) {
+                d.put("teiSummaryFields", teiFields);
             }
             d.put("programUid", e.programUid());
             final String pname = programNameByUid.get(e.programUid());
@@ -658,6 +800,11 @@ public class TrackerRelationshipController {
             }
             d.put("occurredDate", ev.occurredDate().toString());
             d.put("status", ev.status().name());
+            final List<Map<String, String>> fields =
+                    eventSummaryByUid.get(uid);
+            if (fields != null && !fields.isEmpty()) {
+                d.put("summaryFields", fields);
+            }
             return d;
         }
         return null;

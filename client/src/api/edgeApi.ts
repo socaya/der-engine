@@ -1600,14 +1600,29 @@ export async function getOptionSet(optionSetUid: string):
  *  enrolment / event sub-objects carry the server-enriched display
  *  metadata (programName, enrollmentDate, …) when the list
  *  endpoint resolves them from the mirror; absent otherwise. */
+/** Compact label/value pair rendered under the target name in
+ *  the Capture relationship list so operators can identify a
+ *  linked record without clicking through. The server emits up
+ *  to three per endpoint, sorted by TEA sortOrder (TEI) or
+ *  stage-DE sortOrder (event). */
+export interface RelationshipSummaryField {
+  readonly label: string;
+  readonly value: string;
+}
+
 export interface RelationshipEndpoint {
-  trackedEntity?: { trackedEntity?: string; displayName?: string };
+  trackedEntity?: {
+    trackedEntity?: string;
+    displayName?: string;
+    summaryFields?: ReadonlyArray<RelationshipSummaryField>;
+  };
   enrollment?: {
     enrollment?: string;
     programUid?: string;
     programName?: string;
     teiUid?: string;
     teiDisplayName?: string;
+    teiSummaryFields?: ReadonlyArray<RelationshipSummaryField>;
     enrollmentDate?: string;
     status?: string;
   };
@@ -1620,6 +1635,7 @@ export interface RelationshipEndpoint {
     programStageName?: string;
     occurredDate?: string;
     status?: string;
+    summaryFields?: ReadonlyArray<RelationshipSummaryField>;
   };
 }
 
@@ -1894,6 +1910,8 @@ interface EndpointDetail {
   readonly enrollmentDate?: string;
   readonly occurredDate?: string;
   readonly status?: string;
+  readonly summaryFields?: ReadonlyArray<RelationshipSummaryField>;
+  readonly teiSummaryFields?: ReadonlyArray<RelationshipSummaryField>;
 }
 
 function buildSide(kind: string, uid: string,
@@ -1903,6 +1921,7 @@ function buildSide(kind: string, uid: string,
     return { trackedEntity: {
       trackedEntity: uid,
       displayName: detail?.displayName,
+      summaryFields: detail?.summaryFields,
     } };
   }
   if (kind === 'ENROLLMENT') {
@@ -1912,6 +1931,7 @@ function buildSide(kind: string, uid: string,
       programName: detail?.programName,
       teiUid: detail?.teiUid,
       teiDisplayName: detail?.teiDisplayName,
+      teiSummaryFields: detail?.teiSummaryFields,
       enrollmentDate: detail?.enrollmentDate,
       status: detail?.status,
     } };
@@ -1925,6 +1945,7 @@ function buildSide(kind: string, uid: string,
     programStageName: detail?.programStageName,
     occurredDate: detail?.occurredDate,
     status: detail?.status,
+    summaryFields: detail?.summaryFields,
   } };
 }
 
