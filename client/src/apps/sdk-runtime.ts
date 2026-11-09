@@ -44,6 +44,8 @@ function useDerApi(): {
   listTrackerEntities: typeof edgeApi.listTrackerEntities;
   enrolTei: typeof edgeApi.enrolTei;
   updateTeiAttributes: typeof edgeApi.updateTeiAttributes;
+  listEnrolmentNotes: typeof edgeApi.listEnrolmentNotes;
+  addEnrolmentNote: typeof edgeApi.addEnrolmentNote;
   createEnrollment: typeof edgeApi.createEnrollment;
   listCaptureWorkflows: typeof edgeApi.listCaptureWorkflows;
   listCaptureRuns: typeof edgeApi.listCaptureRuns;
@@ -102,6 +104,8 @@ function useDerApi(): {
     listTrackerEntities: edgeApi.listTrackerEntities,
     enrolTei: edgeApi.enrolTei,
     updateTeiAttributes: edgeApi.updateTeiAttributes,
+    listEnrolmentNotes: edgeApi.listEnrolmentNotes,
+    addEnrolmentNote: edgeApi.addEnrolmentNote,
     createEnrollment: edgeApi.createEnrollment,
     listCaptureWorkflows: edgeApi.listCaptureWorkflows,
     listCaptureRuns: edgeApi.listCaptureRuns,

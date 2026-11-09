@@ -289,6 +289,21 @@ export function TrackerDetailPage(
               View profile
             </button>
           )}
+          {selectedEnrolment && (
+            <button type="button"
+                    className="cap-btn cap-btn--secondary"
+                    data-test="tr-notes-jump"
+                    style={{ padding: '4px 12px', fontSize: 12 }}
+                    title="Jump to the Notes section below"
+                    onClick={() => {
+                      const el = document.querySelector(
+                        '[data-test="tr-notes-head"]');
+                      if (el) el.scrollIntoView({ behavior: 'smooth',
+                        block: 'start' });
+                    }}>
+              Notes
+            </button>
+          )}
           <button type="button"
                   className="cap-btn cap-btn--secondary"
                   data-test="tr-relationships-jump"
@@ -561,6 +576,10 @@ export function TrackerDetailPage(
         </div>
       )}
 
+      {selectedEnrolment && (
+        <EnrolmentNotesSection api={api}
+                                enrollmentUid={selectedEnrolment} />
+      )}
       <TrackerRelationshipsSection api={api} tei={teiId}
                                      programUid={programUid}
                                      orgUnitUid={orgUnitUid}
@@ -779,6 +798,104 @@ function ProfilePopover(
         </div>
       </div>
     </div>
+  );
+}
+
+/** Dashboard slice D — enrolment notes section. Append-only
+ *  list below the stage pane with an inline textarea for a new
+ *  note. Mirrors DHIS2's Note model (immutable once posted). */
+function EnrolmentNotesSection(
+  { api, enrollmentUid }: {
+    api: CaptureApi; enrollmentUid: string;
+  },
+): JSX.Element {
+  const [notes, setNotes] = useState<ReadonlyArray<{
+    noteUid: string; noteText: string; createdAt: string;
+  }>>([]);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await api.listEnrolmentNotes(enrollmentUid);
+        if (!cancelled) setNotes(rows);
+      } catch { if (!cancelled) setNotes([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [enrollmentUid, tick]);
+
+  async function submit(): Promise<void> {
+    const text = draft.trim();
+    if (text === '' || saving) return;
+    setSaving(true);
+    try {
+      const created = await api.addEnrolmentNote(enrollmentUid, text);
+      if (created) {
+        setDraft('');
+        setTick((t) => t + 1);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="cap-section-head" data-test="tr-notes-head">
+        <h2 className="cap-section-head__title">Notes</h2>
+        <span className="cap-section-head__count">
+          {notes.length === 0 ? 'none yet'
+            : `${notes.length} note${notes.length === 1 ? '' : 's'}`}
+        </span>
+        <span className="cap-section-head__rule" />
+      </div>
+      <div style={{ margin: '0 20px 14px 20px',
+        display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+          <textarea
+            className="cap-input__ctl"
+            data-test="tr-notes-draft"
+            rows={2}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Write a note about this enrolment…"
+            style={{ flex: 1, fontFamily: 'inherit', resize: 'vertical' }} />
+          <button type="button"
+                  className="cap-btn cap-btn--primary"
+                  data-test="tr-notes-add"
+                  disabled={draft.trim() === '' || saving}
+                  onClick={() => { void submit(); }}
+                  style={{ padding: '7px 16px', fontSize: 13,
+                    alignSelf: 'flex-end' }}>
+            {saving ? 'Saving…' : 'Add note'}
+          </button>
+        </div>
+        {notes.length === 0 ? (
+          <div className="cap-placeholder" data-test="tr-notes-empty"
+               style={{ margin: 0 }}>
+            No notes on this enrolment yet.
+          </div>
+        ) : (
+          <ul className="cap-list" style={{ margin: 0 }}
+              data-test="tr-notes-list">
+            {notes.map((n) => (
+              <li key={n.noteUid} className="cap-list__row"
+                  style={{ gridTemplateColumns: '1fr auto',
+                    cursor: 'default' }}>
+                <div style={{ whiteSpace: 'pre-wrap',
+                  lineHeight: 1.4 }}>{n.noteText}</div>
+                <span className="cap-list__when">
+                  {formatTimestamp(n.createdAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
   );
 }
 

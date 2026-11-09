@@ -83,6 +83,13 @@ export interface CaptureApi {
     orgUnit: string;
     attributes: Record<string, string>;
   }) => Promise<unknown>;
+  listEnrolmentNotes: (enrollmentUid: string) => Promise<Array<{
+    noteUid: string; enrollmentUid: string; noteText: string;
+    createdBy: string; createdAt: string;
+  }>>;
+  addEnrolmentNote: (enrollmentUid: string, noteText: string) =>
+    Promise<{ noteUid: string; enrollmentUid: string;
+      noteText: string; createdBy: string; createdAt: string } | null>;
   createEnrollment: (body: {
     enrollmentUid: string;
     teiUid: string;

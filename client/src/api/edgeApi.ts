@@ -859,6 +859,55 @@ export interface TrackerEnrolInput {
  * edge keeps the TEI available on the LAN immediately
  * (§ED-003).</p>
  */
+export interface EnrolmentNote {
+  readonly noteUid: string;
+  readonly enrollmentUid: string;
+  readonly noteText: string;
+  readonly createdBy: string;
+  readonly createdAt: string;
+}
+
+/** List notes attached to a tracker enrolment. Notes are
+ *  append-only + enrolment-scoped (not TEI-scoped) so re-enrolments
+ *  don't inherit chatter from a prior enrolment. */
+export async function listEnrolmentNotes(
+  enrollmentUid: string,
+): Promise<EnrolmentNote[]> {
+  const r = await fetch('/edge-api/v1/tracker/enrolments/'
+      + encodeURIComponent(enrollmentUid) + '/notes',
+    { credentials: 'include',
+      headers: { Accept: 'application/json' } });
+  if (!r.ok) return [];
+  const body = await r.json() as { notes?: EnrolmentNote[] };
+  return body.notes ?? [];
+}
+
+/** Append a new note to a tracker enrolment. noteUid is generated
+ *  client-side per DHIS2 UID conventions (11-char text). */
+export async function addEnrolmentNote(
+  enrollmentUid: string, noteText: string,
+): Promise<EnrolmentNote | null> {
+  const noteUid = generateNoteUid();
+  const r = await fetch('/edge-api/v1/tracker/enrolments/'
+      + encodeURIComponent(enrollmentUid) + '/notes',
+    { method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json',
+        Accept: 'application/json' },
+      body: JSON.stringify({ noteUid, noteText }) });
+  if (!r.ok) return null;
+  return await r.json() as EnrolmentNote;
+}
+
+function generateNoteUid(): string {
+  const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  const alphanum = alpha + '0123456789';
+  let out = alpha[Math.floor(Math.random() * alpha.length)];
+  for (let i = 0; i < 10; i++) {
+    out += alphanum[Math.floor(Math.random() * alphanum.length)];
+  }
+  return out;
+}
+
 /** Update an existing tracked entity's attribute values in place.
  *  POSTs to the same /edge-api/v1/tracked-entities endpoint as
  *  enrolTei but with teiUid set, so the server UPSERTs on the
