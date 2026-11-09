@@ -398,12 +398,14 @@ export function TrackerDetailPage(
         </div>
       )}
 
-      {/* Enrolments list — no separate section head; the count
-       *  lives on the top toolbar ("1 enrolment") and the
-       *  + Enrol again action moved there too, so the operator
-       *  sees one consolidated header instead of two stacked
-       *  rows. */}
-      {enrolments.length >= 1 && (
+      {/* Enrolment switcher — only materialises when the TEI has
+       *  two or more enrolments. The Profile pane header already
+       *  shows the single-enrolment identity chips (Active,
+       *  Enrolled {date}) so a solo-enrolment strip here was
+       *  pure duplication. For multi-enrolment TEIs we still
+       *  need a switcher — ship a compact row list so the
+       *  operator can flip between them without leaving the page. */}
+      {enrolments.length >= 2 && (
         <ul className="cap-list" data-test="tr-enrolment-list">
           {enrolments.map((e) => (
             <li key={e.enrollmentUid}
