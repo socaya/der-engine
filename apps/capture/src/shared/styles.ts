@@ -1721,6 +1721,36 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Direction cell — paired side labels ("You: Index client → Target:
+ * Contact") so the operator can read both ends of the link at
+ * a glance. */
+.cap-rel-table__dir-pair {
+  display: inline-flex; align-items: center; gap: 10px;
+  white-space: nowrap;
+}
+.cap-rel-table__dir-side {
+  display: inline-flex; flex-direction: column;
+  line-height: 1.2;
+}
+.cap-rel-table__dir-tag {
+  font-size: 11px; font-weight: 500;
+  color: var(--der-text-muted);
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.cap-rel-table__dir-role {
+  font-size: 13px; color: var(--der-text);
+}
+.cap-rel-table__dir-arrow {
+  color: var(--der-text-muted);
+  font-size: 15px;
+}
+.cap-rel-table__uid {
+  background: var(--der-surface-subtle);
+  padding: 1px 6px; font-size: 12px;
+  color: var(--der-text-muted);
+  font-family: var(--der-font-mono, ui-monospace,
+    SFMono-Regular, Menlo, monospace);
+}
 /* Menu separator — hairline between stock items and custom
  * actions / destructive items. */
 .cap-rel-card__menu-sep {

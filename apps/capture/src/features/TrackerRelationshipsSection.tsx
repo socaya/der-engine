@@ -1167,9 +1167,22 @@ export function TrackerRelationshipsSection(
             ? (meta.fromToName ?? meta.toFromName
                 ?? meta.displayName)
             : (r.relationshipName ?? r.relationshipType ?? '—');
+          // Side-roles derived from the type's fromToName /
+          // toFromName labels. If the current TEI anchors the FROM
+          // side of the relationship then fromToName names THIS
+          // side and toFromName names the TARGET; flipped when
+          // the TEI is on the TO side.
+          const currentIsFrom = toUid !== tei;
+          const thisRole = meta
+            ? (currentIsFrom ? meta.fromToName : meta.toFromName)
+            : null;
+          const targetRole = meta
+            ? (currentIsFrom ? meta.toFromName : meta.fromToName)
+            : null;
           return { r, i, toUid, otherSide, identity, kind,
             typeLabel, typeUid: r.relationshipType ?? '',
-            status: r.syncStatus ?? 'LOCAL' };
+            status: r.syncStatus ?? 'LOCAL',
+            thisRole, targetRole };
         });
         const filtered = display.filter((d) =>
           (filterType === '' || d.typeUid === filterType)
@@ -1265,7 +1278,8 @@ export function TrackerRelationshipsSection(
                   </tr>
                 )}
                 {filtered.map(({ r, i, toUid, otherSide,
-                  identity, kind, typeLabel }) => {
+                  identity, kind, typeLabel,
+                  thisRole, targetRole }) => {
                   const uid = r.relationship;
                   const captured = formatTimestamp(
                     r.lastUpdated ?? r.createdAt ?? '');
@@ -1352,6 +1366,21 @@ export function TrackerRelationshipsSection(
                                   ?? identity.primary}>
                             {identity.primary}
                           </span>
+                          {/* Fallback identity — when the target TEI
+                           *  has no displayName and no summary fields
+                           *  the row would otherwise just say
+                           *  "Tracked entity". Show the UID so the
+                           *  operator can at least recognise which
+                           *  record this is. */}
+                          {kind === 'TRACKED_ENTITY'
+                              && endpointSummaryFields(otherSide).length === 0
+                              && toUid && (
+                            <code className="cap-rel-table__uid"
+                                  title={'Tracked entity UID '
+                                    + toUid}>
+                              {toUid}
+                            </code>
+                          )}
                           {endpointSummaryFields(otherSide)
                               .map((f, idx) => (
                             <span key={idx}
@@ -1367,10 +1396,45 @@ export function TrackerRelationshipsSection(
                           ))}
                         </div>
                       </td>
-                      <td className="cap-table__cell"
-                          style={{ color: 'var(--der-text-muted)' }}>
-                        {r.bidirectional
-                          ? '↔ both ways' : '→ linked to'}
+                      <td className="cap-table__cell cap-rel-table__dir">
+                        {/* Role-aware direction cell — shows the
+                         *  role THIS TEI plays in the link and
+                         *  what role the target plays, so the
+                         *  operator can tell at a glance which
+                         *  side of the pair they are on. Falls
+                         *  back to the generic "linked to" when
+                         *  the type has no directional labels
+                         *  configured. */}
+                        {(thisRole || targetRole) ? (
+                          <span className="cap-rel-table__dir-pair">
+                            <span className="cap-rel-table__dir-side">
+                              <span className="cap-rel-table__dir-tag">
+                                You
+                              </span>
+                              <span className="cap-rel-table__dir-role">
+                                {thisRole ?? '—'}
+                              </span>
+                            </span>
+                            <span className="cap-rel-table__dir-arrow"
+                                  aria-hidden="true">
+                              {r.bidirectional ? '↔' : '→'}
+                            </span>
+                            <span className="cap-rel-table__dir-side">
+                              <span className="cap-rel-table__dir-tag">
+                                Target
+                              </span>
+                              <span className="cap-rel-table__dir-role">
+                                {targetRole ?? '—'}
+                              </span>
+                            </span>
+                          </span>
+                        ) : (
+                          <span style={{
+                            color: 'var(--der-text-muted)' }}>
+                            {r.bidirectional
+                              ? '↔ both ways' : '→ linked to'}
+                          </span>
+                        )}
                       </td>
                       <td className="cap-table__cell">
                         <SyncBadge status={r.syncStatus ?? 'LOCAL'} />
