@@ -272,7 +272,7 @@ export function TrackerDetailPage(
                 data-test="tr-dash-back"
                 title="Back to the working list (Alt+B)"
                 onClick={() => navTracker.list(programUid)}
-                style={{ padding: '4px 10px', fontSize: 12 }}>
+                style={{ padding: '5px 13px', fontSize: 13 }}>
           ← Back to list
         </button>
         <h2 className="cap-section-head__title">Tracked entity</h2>
@@ -317,7 +317,7 @@ export function TrackerDetailPage(
             <button type="button"
                     className="cap-btn cap-btn--secondary"
                     data-test="tr-profile-open"
-                    style={{ padding: '4px 12px', fontSize: 12 }}
+                    style={{ padding: '5px 13px', fontSize: 13 }}
                     title="See every captured attribute for this tracked entity"
                     onClick={() => setProfileOpen(true)}>
               View profile
@@ -329,7 +329,7 @@ export function TrackerDetailPage(
             <button type="button"
                     className="cap-btn cap-btn--secondary"
                     data-test="tr-enrol-add"
-                    style={{ padding: '4px 12px', fontSize: 12 }}
+                    style={{ padding: '5px 13px', fontSize: 13 }}
                     title="Create another enrolment on this tracked entity"
                     onClick={() => navTracker.enrol(programUid, teiId)}>
               + Enrol again
@@ -496,7 +496,7 @@ export function TrackerDetailPage(
                   <button type="button"
                           className="cap-btn cap-btn--secondary"
                           data-test="tr-stageform-back"
-                          style={{ padding: '4px 10px', fontSize: 12 }}
+                          style={{ padding: '5px 13px', fontSize: 13 }}
                           onClick={() => setStageFormMode(null)}
                           title="Back to the event list (Alt+B)">
                     ← Back to events
@@ -560,7 +560,7 @@ export function TrackerDetailPage(
                       <button type="button"
                               className="cap-btn cap-btn--primary"
                               data-test="tr-add-event"
-                              style={{ padding: '4px 12px', fontSize: 12 }}
+                              style={{ padding: '5px 13px', fontSize: 13 }}
                               disabled={disabled || !selectedEnrolment}
                               title={disabled
                                 ? 'This stage is not repeatable — one '
@@ -773,7 +773,7 @@ function ProfilePopover(
               <button type="button"
                       className="cap-btn cap-btn--secondary"
                       data-test="tr-profile-edit"
-                      style={{ padding: '4px 12px', fontSize: 12 }}
+                      style={{ padding: '5px 13px', fontSize: 13 }}
                       onClick={() => setMode('edit')}>
                 Edit
               </button>

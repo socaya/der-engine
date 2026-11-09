@@ -37,9 +37,16 @@ export const CAPTURE_STYLES = `
   --der-bg: #F8FAFC;
   --der-surface: #FFFFFF;
   --der-surface-subtle: #F3F6FA;
-  --der-text: #17263C;
-  --der-text-muted: #607089;
-  --der-text-faint: #8A95A6;
+  /* Aligned to the DER ink palette used by Data Entry + admin-
+   * ui so Capture reads with the same text contrast everywhere.
+   * --der-text        = Data Entry's --der-ink-900 (primary).
+   * --der-text-muted  = Data Entry's --der-ink-500 (secondary
+   *                     metadata — darker than before so chips +
+   *                     labels still read as content, not chrome).
+   * --der-text-faint  = Data Entry's --der-ink-300 (placeholder). */
+  --der-text: #101a32;
+  --der-text-muted: #5b6478;
+  --der-text-faint: #9097a8;
   --der-border: #E6EBF1;
   --der-border-soft: #F0F3F7;
   /* DHIS2 brand blue — same hue Data Entry's sectionTable
@@ -232,7 +239,7 @@ export const CAPTURE_STYLES = `
 .cap-toolbar__mode--tracker { color: var(--der-primary-strong); }
 .cap-toolbar__mode--event   { color: var(--der-success); }
 .cap-toolbar__count {
-  font-size: 12px; color: var(--der-text-muted); font-weight: 400;
+  font-size: 13px; color: var(--der-text-muted); font-weight: 400;
   white-space: nowrap;
 }
 
@@ -520,7 +527,7 @@ export const CAPTURE_STYLES = `
   color: var(--der-text);
 }
 .cap-section-head__count {
-  font-size: 12px; color: var(--der-text-muted); font-weight: 400;
+  font-size: 13px; color: var(--der-text-muted); font-weight: 400;
 }
 .cap-section-head__rule {
   /* Pure flex spacer — the original border-top rule read as busy
@@ -546,15 +553,15 @@ export const CAPTURE_STYLES = `
  * the single-row intent. */
 .cap-section-head__inline {
   display: inline-flex; align-items: center; gap: 8px;
-  font-size: 13px; color: var(--der-text); font-weight: 500;
+  font-size: 14px; color: var(--der-text); font-weight: 500;
 }
 .cap-section-head__inline-label {
   color: var(--der-text); font-weight: 500;
 }
 .cap-section-head__inline-ctl {
-  padding: 4px 8px;
+  padding: 5px 10px;
   border: 1px solid #a5adbb; border-radius: 3px;
-  font-size: 13px; line-height: 1.3;
+  font-size: 14px; line-height: 1.3;
   background: #fff; color: var(--der-text);
   font-family: inherit;
   transition: border-color 100ms, box-shadow 100ms;
@@ -571,19 +578,19 @@ export const CAPTURE_STYLES = `
 .cap-section-head__meta {
   display: inline-flex; align-items: baseline;
   flex-wrap: wrap; gap: 6px 20px;
-  font-size: 13px; color: var(--der-text);
+  font-size: 14px; color: var(--der-text);
 }
 .cap-section-head__meta-item {
   display: inline-flex; align-items: baseline; gap: 6px;
 }
 .cap-section-head__meta-item > strong {
-  color: var(--der-text-muted); font-weight: 500;
-  font-size: 11px; text-transform: uppercase;
+  color: var(--der-text-muted); font-weight: 600;
+  font-size: 12px; text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 .cap-section-head__meta-item > span { color: var(--der-text); }
 .cap-section-head__meta-item > code {
-  font-size: 12px; color: var(--der-text-muted);
+  font-size: 13px; color: var(--der-text);
   background: var(--der-surface-subtle);
   padding: 2px 6px; border-radius: 3px;
   font-family: ui-monospace, Menlo, monospace;
@@ -661,7 +668,7 @@ export const CAPTURE_STYLES = `
   min-width: 0;
 }
 .cap-input__label {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--der-text);
   font-weight: 500;
   line-height: 1.3;
@@ -693,7 +700,7 @@ export const CAPTURE_STYLES = `
   cursor: default;
 }
 .cap-input__help {
-  font-size: 12px; color: var(--der-text-muted);
+  font-size: 13px; color: var(--der-text-muted);
 }
 
 /* === Per-field renderType variants (Phase 2) === */
@@ -903,13 +910,13 @@ export const CAPTURE_STYLES = `
 }
 .cap-table {
   width: 100%; border-collapse: collapse;
-  font-size: 13px; color: var(--der-text);
+  font-size: 14px; color: var(--der-text);
 }
 .cap-table thead th {
-  text-align: left; font-weight: 500;
-  color: var(--der-text-muted);
-  font-size: 11px; text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-align: left; font-weight: 600;
+  color: var(--der-text);
+  font-size: 13px;
+  letter-spacing: 0;
   padding: 10px 12px;
   background: var(--der-surface);
   border: 0;
@@ -947,14 +954,14 @@ export const CAPTURE_STYLES = `
  * toggle. Compact is the default: fits more rows per screen for
  * long working lists. Comfortable bumps padding + type size so
  * tablet operators get larger tap targets. */
-.cap-table--compact thead th { padding: 4px 8px; font-size: 11px; }
-.cap-table--compact .cap-table__cell { padding: 3px 8px; font-size: 12px; }
-.cap-table--comfortable thead th { padding: 10px 12px; font-size: 13px; }
-.cap-table--comfortable .cap-table__cell { padding: 10px 12px; font-size: 14px; }
+.cap-table--compact thead th { padding: 6px 10px; font-size: 12px; }
+.cap-table--compact .cap-table__cell { padding: 5px 10px; font-size: 13px; }
+.cap-table--comfortable thead th { padding: 12px 14px; font-size: 14px; }
+.cap-table--comfortable .cap-table__cell { padding: 12px 14px; font-size: 15px; }
 .cap-density-btn {
-  padding: 4px 10px; border: 1px solid var(--der-border);
+  padding: 5px 12px; border: 1px solid var(--der-border);
   border-radius: 10px; background: var(--der-surface);
-  color: var(--der-text-muted); font-size: 12px; cursor: pointer;
+  color: var(--der-text); font-size: 13px; cursor: pointer;
 }
 .cap-density-btn:hover { background: var(--der-surface-subtle); }
 .cap-pager {
@@ -964,7 +971,7 @@ export const CAPTURE_STYLES = `
   padding: 10px 12px;
   border: 0; border-top: 1px solid var(--der-border);
   background: var(--der-surface);
-  color: var(--der-text-muted); font-size: 12px;
+  color: var(--der-text-muted); font-size: 13px;
 }
 /* Pager children never break inside themselves — labels like
  * "Rows per page" + "Page 2 of 7" must stay as a single unit
@@ -980,12 +987,12 @@ export const CAPTURE_STYLES = `
   display: inline-flex; align-items: center; gap: 6px;
 }
 .cap-pager__pagesize {
-  padding: 2px 6px; font-size: 12px;
+  padding: 3px 8px; font-size: 13px;
   background: var(--der-surface); color: var(--der-text);
   border: 1px solid var(--der-border); border-radius: 3px;
 }
 .cap-pager__btn {
-  padding: 2px 10px; font-size: 12px; min-width: 32px;
+  padding: 4px 12px; font-size: 13px; min-width: 32px;
   background: var(--der-surface); border: 1px solid var(--der-border);
   border-radius: 3px; cursor: pointer; color: var(--der-text);
 }
@@ -998,7 +1005,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-status {
   display: inline-block;
-  padding: 1px 0; font-size: 12px; font-weight: 500;
+  padding: 1px 0; font-size: 13px; font-weight: 500;
   background: transparent; border: 0;
 }
 .cap-status--active { color: var(--der-primary); }
@@ -1643,21 +1650,21 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   border-bottom: 1px solid var(--der-border-soft);
   display: flex; flex-wrap: wrap; align-items: baseline;
   gap: 8px 28px;
-  font-size: 13px; color: var(--der-text);
+  font-size: 14px; color: var(--der-text);
 }
 .cap-identity-strip > div {
   display: flex; align-items: baseline; gap: 8px;
 }
 .cap-identity-strip strong {
-  color: var(--der-text-muted); font-weight: 500;
-  font-size: 12px; text-transform: uppercase;
+  color: var(--der-text-muted); font-weight: 600;
+  font-size: 13px; text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 .cap-identity-strip > div > span {
   color: var(--der-text);
 }
 .cap-identity-strip code {
-  font-size: 12px; color: var(--der-text-muted);
+  font-size: 13px; color: var(--der-text);
   background: var(--der-surface-subtle);
   padding: 2px 6px; border-radius: 3px;
   font-family: ui-monospace, Menlo, monospace;
@@ -1737,7 +1744,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   font-size: 12px; color: var(--der-text-muted);
 }
 .cap-stage-rail__title {
-  font-size: 11px; font-weight: 500;
+  font-size: 12px; font-weight: 600;
   color: var(--der-text-muted);
   text-transform: uppercase; letter-spacing: 0.04em;
   padding: 0 10px 6px;
@@ -1746,10 +1753,10 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 }
 .cap-stage-rail__item {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 7px 10px;
+  padding: 8px 12px;
   background: transparent; border: 0; border-radius: 3px;
   cursor: pointer; font-family: inherit;
-  font-size: 13px; color: var(--der-text);
+  font-size: 14px; color: var(--der-text);
   text-align: left;
   transition: background 100ms;
 }
@@ -1764,7 +1771,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   min-width: 20px; padding: 0 6px;
   text-align: center;
   background: transparent; color: var(--der-text-muted);
-  font-size: 11px; font-weight: 400;
+  font-size: 13px; font-weight: 500;
   border-radius: 0;
   margin-left: 8px;
 }
