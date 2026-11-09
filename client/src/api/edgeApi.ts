@@ -978,6 +978,12 @@ export function deleteEnrollment(enrollmentUid: string):
     '/edge-api/v1/tracker/enrollments/' + encodeURIComponent(enrollmentUid));
 }
 
+export function deleteTrackedEntity(teiUid: string):
+    Promise<{ deleted: true }> {
+  return request('DELETE',
+    '/edge-api/v1/tracked-entities/' + encodeURIComponent(teiUid));
+}
+
 export interface DraftRow {
   draftId: string;
   kind: string;

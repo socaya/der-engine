@@ -49,6 +49,21 @@ public class TrackedEntityRepository {
         return tei;
     }
 
+    /** Hard-delete a TEI row by UID. Returns the number of rows
+     *  affected (0 when the UID wasn't present). Deliberately
+     *  cascades through the FK on edge_enrollment /
+     *  edge_tracker_event via the schema's ON DELETE CASCADE —
+     *  deleting a TEI drops its enrolments + events along with
+     *  it, matching DHIS2's tracker-DELETE semantics. */
+    public int delete(final String teiUid) {
+        if (teiUid == null) {
+            return 0;
+        }
+        return jdbc.update(
+                "DELETE FROM der.tracked_entity WHERE tei_uid = ?",
+                teiUid);
+    }
+
     public Optional<TrackedEntity> findById(final String teiUid) {
         if (teiUid == null) {
             return Optional.empty();

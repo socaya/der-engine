@@ -107,6 +107,12 @@ export interface CaptureApi {
    *  central (/api/tracker?importStrategy=DELETE). */
   deleteEnrollment: (enrollmentUid: string) =>
     Promise<{ deleted: true }>;
+  /** Delete a TEI (and its FK-cascaded enrolments + events) at
+   *  the edge. Enqueues a TRACKED_ENTITY journal tombstone so
+   *  the drain pushes the DELETE to central the same way the
+   *  enrolment / event tombstones do. */
+  deleteTrackedEntity: (teiUid: string) =>
+    Promise<{ deleted: true }>;
   listProgramRules: (programUid?: string) => Promise<ReadonlyArray<{
     id: string; displayName?: string; name?: string;
     program?: { id?: string } | null;

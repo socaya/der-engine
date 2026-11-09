@@ -8,11 +8,14 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.SystemWorkflowService;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository;
 import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository.TrackedEntity;
 import ug.ac.mak.der.workflows.tracker.TrackerService;
@@ -41,15 +46,21 @@ public class TrackedEntityController {
     private final TrackedEntityRepository repo;
     private final TrackerService trackerService;
     private final SystemWorkflowService systemWorkflows;
+    private final OperationJournalRepository journal;
+    private final ObjectMapper jsonMapper;
     private final Clock clock;
 
     public TrackedEntityController(final TrackedEntityRepository repo,
                                      final TrackerService trackerService,
                                      final SystemWorkflowService systemWorkflows,
+                                     final OperationJournalRepository journal,
+                                     final ObjectMapper jsonMapper,
                                      final Clock clock) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.trackerService = Objects.requireNonNull(trackerService, "trackerService");
         this.systemWorkflows = Objects.requireNonNull(systemWorkflows, "systemWorkflows");
+        this.journal = Objects.requireNonNull(journal, "journal");
+        this.jsonMapper = Objects.requireNonNull(jsonMapper, "jsonMapper");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -122,6 +133,45 @@ public class TrackedEntityController {
         return repo.findById(teiUid)
                 .<ResponseEntity<Map<String, Object>>>map(t -> ResponseEntity.ok(toJson(t)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Delete a TEI on the edge AND enqueue a journal tombstone so
+     *  the drain POSTs the matching DELETE to central
+     *  (/api/tracker?importStrategy=DELETE). Same pattern as the
+     *  event + enrolment tombstones — payload carries just the
+     *  identity fields the publisher needs to build the DHIS2
+     *  envelope. */
+    @DeleteMapping("/{teiUid}")
+    public ResponseEntity<Map<String, Object>> delete(
+            final Authentication authentication,
+            @PathVariable("teiUid") final String teiUid) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final TrackedEntity existing = repo.findById(teiUid).orElse(null);
+        if (existing == null) {
+            return ResponseEntity.notFound().build();
+        }
+        repo.delete(teiUid);
+        enqueueDeleteTombstone(existing, principal.userId());
+        return ResponseEntity.ok(Map.of("deleted", true));
+    }
+
+    private void enqueueDeleteTombstone(final TrackedEntity t,
+                                         final java.util.UUID actor) {
+        final ObjectNode payload = jsonMapper.createObjectNode();
+        payload.put("teiUid", t.teiUid());
+        payload.put("trackedEntityType", t.trackedEntityType());
+        payload.put("orgUnit", t.orgUnitUid());
+        payload.put("operation", "DELETE");
+        final Instant now = Instant.now(clock);
+        journal.insert(new OperationJournalEntry(
+                java.util.UUID.randomUUID(),
+                OperationJournalEntry.EntityType.TRACKED_ENTITY,
+                t.teiUid(),
+                payload,
+                OperationJournalEntry.State.PENDING,
+                0, null, actor, now, now, null, t.workflowRunId()));
     }
 
     private static Map<String, Object> toJson(final TrackedEntity t) {
