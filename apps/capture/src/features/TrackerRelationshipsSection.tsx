@@ -194,11 +194,27 @@ export function TrackerRelationshipsSection(
       status: string | null }>>([]);
 
   // --- Fetch: candidates (target TEIs) ----------------------------
+  // When the picked type's target constrains a specific program
+  // (e.g. a TEI→ENROLLMENT link into a different program than the
+  // current page), we must list TEIs enrolled in THAT program —
+  // not the current page's program. Otherwise the picker is empty
+  // for any cross-program link even when valid targets exist. We
+  // derive the target program inline (without depending on the
+  // theirProgramConstraint const below, which would hit a TDZ
+  // ordering issue inside this early effect). */
   useEffect(() => {
     let cancelled = false;
+    const pt = types.find((t) => t.id === pickedTypeId);
+    const programForCandidates = pt
+      ? (!pt.bidirectional || canAnchor(
+          mirrorToEdgeKind(pt.fromEntity), pt.fromTet,
+          pt.fromProgram, pt.fromStage)
+          ? (pt.toProgram ?? programUid)
+          : (pt.fromProgram ?? programUid))
+      : programUid;
     (async () => {
       try {
-        const r = await api.listTrackerEntities(programUid,
+        const r = await api.listTrackerEntities(programForCandidates,
           orgUnitUid, 200);
         if (cancelled) return;
         const list = r.trackedEntities ?? r.instances ?? [];
@@ -212,7 +228,8 @@ export function TrackerRelationshipsSection(
       }
     })();
     return () => { cancelled = true; };
-  }, [programUid, orgUnitUid, tei, api]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [programUid, pickedTypeId, orgUnitUid, tei, api, types]);
 
   // --- Fetch: current TEI's own enrolments + events ---------------
   useEffect(() => {
