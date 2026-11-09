@@ -1700,6 +1700,42 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   height: 1px; background: var(--der-border-soft);
   margin: 10px 10px;
 }
+/* Notes pane — rail-driven view. Standard DER body scale so
+ * note content reads at the same weight as form input text
+ * (14px minimum), label caps at 13px, timestamp 12px muted.
+ * No .cap-list grid hacks — a simple vertical stack with a
+ * hairline between rows keeps the pane calm. */
+.cap-notes-pane { display: flex; flex-direction: column; }
+.cap-notes-pane__head {
+  display: flex; align-items: center;
+  gap: 14px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.cap-notes-pane__title {
+  font-size: 15px; font-weight: 600;
+  color: var(--der-text);
+}
+.cap-notes-pane__compose {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-bottom: 16px;
+}
+.cap-notes-pane__list {
+  margin: 0; padding: 0; list-style: none;
+  display: flex; flex-direction: column;
+}
+.cap-notes-pane__item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--der-border-soft);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.cap-notes-pane__item:last-child { border-bottom: 0; }
+.cap-notes-pane__text {
+  font-size: 14px; line-height: 1.5;
+  color: var(--der-text);
+  white-space: pre-wrap; word-break: break-word;
+}
+.cap-notes-pane__when {
+  font-size: 12px; color: var(--der-text-muted);
+}
 .cap-stage-rail__title {
   font-size: 11px; font-weight: 500;
   color: var(--der-text-muted);

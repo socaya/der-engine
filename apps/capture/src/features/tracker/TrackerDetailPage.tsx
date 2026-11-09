@@ -501,7 +501,7 @@ export function TrackerDetailPage(
                           title="Back to the event list (Alt+B)">
                     ← Back to events
                   </button>
-                  <strong style={{ fontSize: 14,
+                  <strong style={{ fontSize: 15, fontWeight: 600,
                     color: 'var(--der-text)' }}>
                     {stageFormMode.kind === 'edit'
                       ? 'Edit stage event' : 'New stage event'}
@@ -524,7 +524,7 @@ export function TrackerDetailPage(
               <>
                 <div style={{ display: 'flex', alignItems: 'center',
                   gap: 14, marginBottom: 12, flexWrap: 'wrap' }}>
-                  <strong style={{ fontSize: 14,
+                  <strong style={{ fontSize: 15, fontWeight: 600,
                     color: 'var(--der-text)' }}>
                     {stageEvents.length} event
                     {stageEvents.length === 1 ? '' : 's'}
@@ -914,10 +914,9 @@ function EnrolmentNotesPane(
   }
 
   return (
-    <div data-test="tr-notes-pane">
-      <div style={{ display: 'flex', alignItems: 'center',
-        gap: 14, marginBottom: 12, flexWrap: 'wrap' }}>
-        <strong style={{ fontSize: 14, color: 'var(--der-text)' }}>
+    <div data-test="tr-notes-pane" className="cap-notes-pane">
+      <div className="cap-notes-pane__head">
+        <strong className="cap-notes-pane__title">
           {notes.length} note{notes.length === 1 ? '' : 's'}
         </strong>
         <span style={{ flex: 1 }} />
@@ -925,15 +924,14 @@ function EnrolmentNotesPane(
           <button type="button"
                   className="cap-btn cap-btn--primary"
                   data-test="tr-notes-compose"
-                  style={{ padding: '4px 12px', fontSize: 12 }}
+                  style={{ padding: '6px 14px', fontSize: 13 }}
                   onClick={() => setComposing(true)}>
             + Add note
           </button>
         )}
       </div>
       {composing && (
-        <div style={{ display: 'flex', flexDirection: 'column',
-          gap: 10, marginBottom: 14 }}>
+        <div className="cap-notes-pane__compose">
           <textarea className="cap-input__ctl"
                      data-test="tr-notes-draft"
                      rows={3}
@@ -942,13 +940,13 @@ function EnrolmentNotesPane(
                      placeholder="Write a note about this enrolment…"
                      autoFocus
                      style={{ fontFamily: 'inherit',
-                       resize: 'vertical' }} />
+                       resize: 'vertical', fontSize: 14 }} />
           <div style={{ display: 'flex',
             justifyContent: 'flex-end', gap: 10 }}>
             <button type="button"
                     className="cap-btn cap-btn--secondary"
                     data-test="tr-notes-cancel"
-                    style={{ padding: '4px 12px', fontSize: 12 }}
+                    style={{ padding: '6px 14px', fontSize: 13 }}
                     disabled={saving}
                     onClick={() => {
                       setDraft(''); setComposing(false);
@@ -958,7 +956,7 @@ function EnrolmentNotesPane(
             <button type="button"
                     className="cap-btn cap-btn--primary"
                     data-test="tr-notes-add"
-                    style={{ padding: '4px 12px', fontSize: 12 }}
+                    style={{ padding: '6px 14px', fontSize: 13 }}
                     disabled={draft.trim() === '' || saving}
                     onClick={() => { void submit(); }}>
               {saving ? 'Saving…' : 'Save note'}
@@ -968,23 +966,19 @@ function EnrolmentNotesPane(
       )}
       {notes.length === 0 ? (
         <div className="cap-placeholder" data-test="tr-notes-empty"
-             style={{ margin: 0 }}>
+             style={{ margin: 0, fontSize: 14 }}>
           No notes on this enrolment yet. Use
           <strong style={{ padding: '0 4px' }}>+ Add note</strong>
           above to add the first one.
         </div>
       ) : (
-        <ul className="cap-list" style={{ margin: 0 }}
-            data-test="tr-notes-list">
+        <ul className="cap-notes-pane__list" data-test="tr-notes-list">
           {notes.map((n) => (
-            <li key={n.noteUid} className="cap-list__row"
-                style={{ gridTemplateColumns: '1fr auto',
-                  cursor: 'default' }}>
-              <div style={{ whiteSpace: 'pre-wrap',
-                lineHeight: 1.4 }}>{n.noteText}</div>
-              <span className="cap-list__when">
+            <li key={n.noteUid} className="cap-notes-pane__item">
+              <div className="cap-notes-pane__text">{n.noteText}</div>
+              <div className="cap-notes-pane__when">
                 {formatTimestamp(n.createdAt)}
-              </span>
+              </div>
             </li>
           ))}
         </ul>
