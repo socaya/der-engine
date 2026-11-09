@@ -686,9 +686,81 @@ export interface EventSubmitInput {
  *  {@code {events: [...]}} and rejects bare-event bodies with
  *  'events array is required'. Wrap the single-event input so
  *  Capture's submit flow actually writes to the edge (fix for
- *  a long-standing bug uncovered during G5/G6 live verification). */
+ *  a long-standing bug uncovered during G5/G6 live verification).
+ *
+ *  Important: when a tracker enrolment is present, the CALLER
+ *  must use {@link submitTrackerEvent} instead — /api/events
+ *  silently drops the enrolment ref (it expects a UUID but DHIS2
+ *  UIDs are 11-char text), so events save but never appear in the
+ *  tracker detail's stage pane list. This wrapper now routes
+ *  automatically: with `enrollment` set it delegates; without it
+ *  the aggregate/event-program path is used. */
 export function submitEvent(body: EventSubmitInput): Promise<unknown> {
+  if (body.enrollment && body.enrollment.trim() !== '') {
+    return submitTrackerEvent(body);
+  }
   return request('POST', '/api/events', { events: [body] });
+}
+
+/** POST /edge-api/v1/tracker/events — writes to edge_tracker_event
+ *  (text UID keys), which is the table the Capture tracker detail
+ *  page reads via listCaptureEnrollmentEvents. The parallel
+ *  /api/events path writes to der.event (UUID keys) which is
+ *  invisible to the detail page's stage pane list — so for tracker
+ *  stage events we always use this endpoint. */
+export async function submitTrackerEvent(
+  body: EventSubmitInput,
+): Promise<unknown> {
+  const occurredDate = (body.occurredAt ?? body.eventDate ?? '')
+    .slice(0, 10);
+  // Convert the array-of-pairs dataValues the Capture editor
+  // produces into the Map<String, Object> shape the edge endpoint
+  // expects.
+  const values: Record<string, string> = {};
+  for (const dv of body.dataValues ?? []) {
+    if (dv.dataElement) values[dv.dataElement] = dv.value;
+  }
+  const payload = {
+    eventUid: body.event && body.event.length === 11
+      ? body.event : generateDhis2EventUid(),
+    enrollmentUid: body.enrollment,
+    programUid: body.program,
+    programStageUid: body.programStage,
+    orgUnitUid: body.orgUnit,
+    status: body.status ?? 'ACTIVE',
+    occurredDate,
+    dataValues: values,
+  };
+  const r = await fetch('/edge-api/v1/tracker/events', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json',
+      Accept: 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) {
+    let message = `HTTP ${r.status}`;
+    try {
+      const err = await r.json() as { message?: string };
+      if (err.message) message = err.message;
+    } catch { /* keep default */ }
+    throw new Error(message);
+  }
+  return r.json();
+}
+
+/** 11-char DHIS2 UID — same shape generateDhis2Uid uses in the
+ *  relationship wrapper. Duplicated locally to keep the helpers
+ *  colocated with their call sites (same contract, two distinct
+ *  concerns). */
+function generateDhis2EventUid(): string {
+  const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  const alphanum = alpha + '0123456789';
+  let out = alpha[Math.floor(Math.random() * alpha.length)];
+  for (let i = 0; i < 10; i++) {
+    out += alphanum[Math.floor(Math.random() * alphanum.length)];
+  }
+  return out;
 }
 
 /** DHIS2-parity {@code DELETE /api/events/{eventId}} — physically
