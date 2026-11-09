@@ -16,11 +16,20 @@ function mirrorToEdgeKind(k: string | undefined): EdgeKind | null {
   return null;
 }
 
-function edgeKindLabel(k: EdgeKind | null): string {
-  if (k === 'TRACKED_ENTITY') return 'tracked entity';
-  if (k === 'ENROLLMENT')     return 'enrolment';
-  if (k === 'EVENT')          return 'event';
-  return 'entity';
+/** Operator-facing name for a relationship type from the current
+ *  side's perspective. DHIS2 types carry two directional names —
+ *  fromToName (what the FROM side calls this link, e.g. "Baby"
+ *  when the from is a mother) and toFromName (what the TO side
+ *  calls it, e.g. "Mother"). When we're anchoring the TO side
+ *  (flipped bidirectional type) we surface toFromName; otherwise
+ *  fromToName. Falls back to displayName when the type hasn't
+ *  configured directional names, so the picker always has
+ *  something human-friendly to show. */
+function directionalLabel(t: RelTypeRow, flipped: boolean): string {
+  const name = flipped
+    ? (t.toFromName ?? t.fromToName)
+    : (t.fromToName ?? t.toFromName);
+  return name ?? t.displayName;
 }
 
 interface RelTypeRow {
@@ -477,22 +486,30 @@ export function TrackerRelationshipsSection(
                         setPickedTargetTei('');
                       }}>
                 <option value="">— Select type —</option>
-                {eligibleTypes.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.displayName}
-                    {t.bidirectional ? ' (both ways)' : ''}
-                  </option>
-                ))}
+                {/* Render the operator-facing directional label
+                 *  (fromToName or toFromName depending on which
+                 *  side our current context anchors). The full
+                 *  displayName is kept as a title tooltip so admins
+                 *  troubleshooting metadata can still see it on
+                 *  hover, but the primary label is what the
+                 *  operator thinks the link is called — "Baby",
+                 *  "Treatment supporter", etc. — not the metadata-
+                 *  level "X - Y" compound name. */}
+                {eligibleTypes.map((t) => {
+                  // Compute flip for each option so the label
+                  // matches what would actually render after pick.
+                  const fromKind = mirrorToEdgeKind(t.fromEntity);
+                  const fromCan = canAnchor(fromKind, t.fromTet,
+                    t.fromProgram, t.fromStage);
+                  const optFlipped = !fromCan && t.bidirectional;
+                  return (
+                    <option key={t.id} value={t.id}
+                            title={t.displayName}>
+                      {directionalLabel(t, optFlipped)}
+                    </option>
+                  );
+                })}
               </select>
-              {pickedType && (
-                <span className="cap-input__help">
-                  {flipped
-                    ? (pickedType.toFromName ?? pickedType.displayName)
-                    : (pickedType.fromToName ?? pickedType.displayName)}
-                  {' '}·{' '}
-                  {edgeKindLabel(ourKind)} → {edgeKindLabel(theirKind)}
-                </span>
-              )}
             </label>
 
             {/* Our-side anchor refinement — only shown when the kind
@@ -538,11 +555,16 @@ export function TrackerRelationshipsSection(
               </label>
             )}
 
-            {/* Target tracked entity — always required; narrows the
-             *  scope for ENROLLMENT/EVENT target pickers below. */}
+            {/* Target TEI — label uses the type's directional name
+             *  when available ("Baby", "Mother", "Treatment
+             *  supporter") so the form reads as a task the operator
+             *  recognises, not as DHIS2 metadata jargon. */}
             <label className="cap-input">
               <span className="cap-input__label">
-                Target tracked entity<span className="cap-input__req">*</span>
+                {pickedType
+                  ? directionalLabel(pickedType, flipped)
+                  : 'Target tracked entity'}
+                <span className="cap-input__req">*</span>
               </span>
               <select className="cap-input__ctl"
                       data-test="tr-rel-target-select"
@@ -681,7 +703,9 @@ export function TrackerRelationshipsSection(
                     }}
                     style={{ padding: '5px 13px', fontSize: 13 }}>
               {submit === 'submitting' ? 'Saving…'
-                : 'Save relationship'}
+                : pickedType
+                  ? 'Add ' + directionalLabel(pickedType, flipped)
+                  : 'Save relationship'}
             </button>
           </div>
         </div>

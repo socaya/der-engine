@@ -1762,6 +1762,12 @@ export async function listRelationshipTypes(
       fromConstraintUid: string | null;
       toConstraintKind: string | null;
       toConstraintUid: string | null;
+      /** Directional display names from the DHIS2 payload — what
+       *  the FROM/TO side calls this relationship ("Baby" /
+       *  "Mother"). Optional; present only when the admin has
+       *  configured them in the upstream metadata. */
+      fromToName?: string;
+      toFromName?: string;
     }>;
   };
   // Adapt the edge mirror's flat shape to the RawRelationshipType
@@ -1771,6 +1777,8 @@ export async function listRelationshipTypes(
     name: t.displayName,
     displayName: t.displayName,
     bidirectional: t.bidirectional,
+    fromToName: t.fromToName,
+    toFromName: t.toFromName,
     fromConstraint: t.fromConstraintKind ? {
       relationshipEntity: t.fromConstraintKind,
       trackedEntityType: t.fromConstraintKind === 'TRACKED_ENTITY_INSTANCE'

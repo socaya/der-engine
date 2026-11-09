@@ -63,6 +63,30 @@ public class RelationshipTypeController {
         out.put("fromConstraintUid", r.fromConstraintUid());
         out.put("toConstraintKind", r.toConstraintKind());
         out.put("toConstraintUid", r.toConstraintUid());
+        // Directional labels — these live only in the raw payload
+        // JSON on the mirror so the capture UI can render operator-
+        // friendly labels ("Baby" / "Mother") instead of the
+        // compound displayName. Null-tolerant: types that haven't
+        // configured either name fall back to displayName client-
+        // side.
+        final String fromToName = optionalString(r.payload(), "fromToName");
+        final String toFromName = optionalString(r.payload(), "toFromName");
+        if (fromToName != null) {
+            out.put("fromToName", fromToName);
+        }
+        if (toFromName != null) {
+            out.put("toFromName", toFromName);
+        }
         return out;
+    }
+
+    private static String optionalString(
+            final com.fasterxml.jackson.databind.JsonNode payload,
+            final String field) {
+        if (payload == null || !payload.hasNonNull(field)) {
+            return null;
+        }
+        final String v = payload.get(field).asText(null);
+        return v == null || v.isBlank() ? null : v;
     }
 }
