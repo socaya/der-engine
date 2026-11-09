@@ -42,6 +42,8 @@ import {
   CapProvisioningSetup, CapReleases, CapNetwork,
 } from './screens/CapabilityScreens';
 import { LoginAppearance } from './screens/LoginAppearance';
+import { RelationshipDiagnostics }
+  from './screens/RelationshipDiagnostics';
 import { AppCatalogue } from './screens/AppCatalogue';
 import { DataAggregate } from './screens/DataAggregate';
 import { DataAggregateDetail } from './screens/DataAggregateDetail';
@@ -252,6 +254,8 @@ export default function App(): JSX.Element {
           <Route path="/apps" element={<RequireAuth><AppCatalogue /></RequireAuth>} />
           <Route path="/apps/catalogue" element={<Navigate to="/apps" replace />} />
           <Route path="/diagnostics" element={<RequireAuth><EADiagnostics /></RequireAuth>} />
+          <Route path="/diagnostics/relationships"
+                 element={<RequireAuth><RelationshipDiagnostics /></RequireAuth>} />
           <Route path="/support-bundle"
                  element={<RequireAuth><MockupSupportBundle /></RequireAuth>} />
           <Route path="/configuration"

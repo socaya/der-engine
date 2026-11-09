@@ -1866,6 +1866,51 @@ export function diagnostics(): Promise<Diagnostics> {
   return request<Diagnostics>('GET', '/edge-api/v1/admin/diagnostics');
 }
 
+/** Relationships diagnostics payload (spec §REL-S-015 / §REL-S-016,
+ *  server slice D6 — commit a391ea9c). Admin-only read. */
+export interface RelationshipDiagnostics {
+  readonly asOf: string;
+  readonly metadata: {
+    readonly byClass: ReadonlyArray<{
+      readonly relClass: string;
+      readonly count: number;
+    }>;
+    readonly total: number;
+    readonly withDirectionalNames: number;
+  };
+  readonly instances: {
+    readonly byStatusAndClass: ReadonlyArray<{
+      readonly syncStatus: string;
+      readonly relClass: string;
+      readonly count: number;
+    }>;
+    readonly live: number;
+    readonly softDeleted: number;
+  };
+  readonly attention: ReadonlyArray<{
+    readonly relationshipUid: string;
+    readonly relationshipType: string;
+    readonly fromEntityType: string;
+    readonly fromEntityUid: string;
+    readonly toEntityType: string;
+    readonly toEntityUid: string;
+    readonly syncStatus: string;
+    readonly relClass: string;
+    readonly createdAt: string | null;
+    readonly updatedAt: string | null;
+    readonly centralUid: string | null;
+    readonly version: number;
+  }>;
+}
+
+export function relationshipDiagnostics(
+    attentionLimit = 25): Promise<RelationshipDiagnostics> {
+  const q = new URLSearchParams({
+    attentionLimit: String(attentionLimit) }).toString();
+  return request<RelationshipDiagnostics>('GET',
+    '/edge-api/v1/admin/relationships/diagnostics?' + q);
+}
+
 export function systemInfo(): Promise<SystemInfo> {
   return request<SystemInfo>('GET', '/edge-api/v1/system/info');
 }
