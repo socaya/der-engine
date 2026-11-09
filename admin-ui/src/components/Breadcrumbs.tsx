@@ -55,6 +55,10 @@ const MAP: Record<string, Crumb[]> = {
   '/restore': [{ to: '/restore', label: 'Restore' }],
   '/evaluation': [{ to: '/evaluation', label: 'Evaluation reports' }],
   '/diagnostics': [{ to: '/diagnostics', label: 'Diagnostics' }],
+  '/diagnostics/relationships': [
+    { to: '/diagnostics', label: 'Diagnostics' },
+    { to: '/diagnostics/relationships', label: 'Relationships' },
+  ],
   '/settings': [{ to: '/settings', label: 'Settings' }],
 };
 

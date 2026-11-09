@@ -237,6 +237,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'metrics-operators', label: 'Operators', to: '/admin/metrics/operators', status: 'implemented', tabIcon: 'activity' },
       { id: 'storage', label: 'Storage', to: '/monitoring/storage', status: 'implemented', tabIcon: 'storage' },
       { id: 'diagnostics', label: 'Diagnostics', to: '/diagnostics', status: 'implemented', tabIcon: 'diagnostics' },
+      { id: 'reldiag', label: 'Relationships', to: '/diagnostics/relationships',
+        status: 'implemented', tabIcon: 'diagnostics' },
       { id: 'analytics', label: 'Analytics', to: '/analytics', status: 'implemented', tabIcon: 'analytics' },
       { id: 'evaluation', label: 'Evaluation', to: '/evaluation', status: 'implemented', tabIcon: 'evaluation' },
       { id: 'testing', label: 'Testing', to: '/testing', status: 'implemented', tabIcon: 'diagnostics' },
