@@ -228,6 +228,22 @@ export function TrackerDetailPage(
             ? focusEnrollmentId
             : enr[0]!.enrollmentUid;
           setSelectedEnrolment(focused);
+          // When opened via ?enrolment= from a relationship row,
+          // swing the rail to the enrolment's first stage so the
+          // user visibly lands ON the enrolment content. Without
+          // this the pane stays on whatever the previous view was
+          // (often "Relationships" — where they clicked the link),
+          // so the navigation looks like it did nothing.
+          if (focusEnrollmentId
+              && enr.some((e) => e.enrollmentUid === focusEnrollmentId)) {
+            const firstStage = stageRes.stages[0]?.stageUid ?? null;
+            if (firstStage) {
+              setSelectedStage(firstStage);
+              setRailKind('stage');
+            } else {
+              setRailKind('profile');
+            }
+          }
         }
         setStatus('idle');
       } catch {
