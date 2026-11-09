@@ -1272,14 +1272,29 @@ export function TrackerRelationshipsSection(
                       return;
                     }
                     if (kind === 'ENROLLMENT') {
+                      // Open the target in its OWN program — the
+                      // enrolment may be in a different program than
+                      // the dashboard we're currently viewing. Fall
+                      // back to the current program only if the
+                      // server didn't enrich the detail (shouldn't
+                      // happen in practice).
                       const t = otherSide?.enrollment?.teiUid;
-                      if (t) navTracker.detail(programUid, t);
+                      const p = otherSide?.enrollment?.programUid
+                        ?? programUid;
+                      if (!t) {
+                        window.alert('Linked enrolment has no '
+                          + 'resolvable TEI on this device.');
+                        return;
+                      }
+                      navTracker.detail(p, t);
                       return;
                     }
                     const enrol =
                       otherSide?.event?.enrollmentUid;
+                    const evProgram =
+                      otherSide?.event?.programUid ?? programUid;
                     if (enrol) {
-                      navTracker.editEvent(programUid, enrol,
+                      navTracker.editEvent(evProgram, enrol,
                         toUid ?? '');
                     }
                   };
@@ -1643,7 +1658,10 @@ function RowMenu(
           + 'this device.');
         return;
       }
-      navTracker.detail(programUid, teiUid);
+      // Route to the target enrolment's OWN program, not the
+      // dashboard's — enrolment and dashboard may differ.
+      const p = targetSide?.enrollment?.programUid ?? programUid;
+      navTracker.detail(p, teiUid);
       return;
     }
     // EVENT — jump to the edit page. We need the enrolment UID
@@ -1655,7 +1673,8 @@ function RowMenu(
         + 'this device.');
       return;
     }
-    navTracker.editEvent(programUid, enrolUid, targetUid);
+    const evProgram = targetSide?.event?.programUid ?? programUid;
+    navTracker.editEvent(evProgram, enrolUid, targetUid);
   }
 
   const openLabel = targetKind === 'TRACKED_ENTITY'
