@@ -621,7 +621,21 @@ export function TrackerDetailPage(
                                              orgUnitUid={orgUnitUid}
                                              tetUid={tetUid}
                                              currentEnrollmentUid={
-                                               selectedEnrolment} />
+                                               selectedEnrolment}
+                                             onFocusLocalEnrolment={
+                                               (enrUid) => {
+                                                 setSelectedEnrolment(
+                                                   enrUid);
+                                                 const first =
+                                                   stages[0]?.id;
+                                                 if (first) {
+                                                   setSelectedStage(
+                                                     first);
+                                                   setRailKind('stage');
+                                                 } else {
+                                                   setRailKind('profile');
+                                                 }
+                                               }} />
             ) : selectedStage === null ? (
               <div className="cap-placeholder"
                    data-test="tr-stage-pane-unselected"

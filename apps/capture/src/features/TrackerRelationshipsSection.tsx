@@ -120,7 +120,7 @@ interface RelRow {
  */
 export function TrackerRelationshipsSection(
   { api, tei, programUid, orgUnitUid, tetUid,
-    currentEnrollmentUid }: {
+    currentEnrollmentUid, onFocusLocalEnrolment }: {
     api: CaptureApi; tei: string;
     programUid: string; orgUnitUid: string;
     tetUid: string | null;
@@ -129,6 +129,12 @@ export function TrackerRelationshipsSection(
      *  relationship type's from-constraint is ENROLLMENT in the
      *  current program. Null if no enrolment is active. */
     currentEnrollmentUid: string | null;
+    /** Parent-supplied callback for enrolment-row clicks whose
+     *  target lives on the SAME TEI as this dashboard — we skip
+     *  the hash navigation (which would be a no-op) and swing
+     *  the rail via the parent's local state instead. Absent for
+     *  consumers that don't own a rail. */
+    onFocusLocalEnrolment?: (enrollmentUid: string) => void;
   },
 ): JSX.Element {
   const [rows, setRows] = useState<RelRow[]>([]);
@@ -1277,16 +1283,23 @@ export function TrackerRelationshipsSection(
                       // the dashboard we're currently viewing. Fall
                       // back to the current program only if the
                       // server didn't enrich the detail (shouldn't
-                      // happen in practice). Pass the enrolment UID
-                      // so the detail page auto-focuses it on load —
-                      // otherwise navigating to the same TEI's
-                      // dashboard looks like nothing happened.
+                      // happen in practice).
                       const t = otherSide?.enrollment?.teiUid;
                       const p = otherSide?.enrollment?.programUid
                         ?? programUid;
                       if (!t) {
                         window.alert('Linked enrolment has no '
                           + 'resolvable TEI on this device.');
+                        return;
+                      }
+                      // Same-TEI, same-program: stay put, but swing
+                      // the parent's rail/selectedEnrolment via the
+                      // callback. Navigating would produce the same
+                      // hash → navigateTo short-circuits → no state
+                      // flip → the pane looks frozen on Relationships.
+                      if (t === tei && p === programUid
+                          && onFocusLocalEnrolment && toUid) {
+                        onFocusLocalEnrolment(toUid);
                         return;
                       }
                       navTracker.detail(p, t,
