@@ -147,7 +147,7 @@ export function EventDetailPage(
                 data-test="ev-detail-back"
                 title="Back to the events working list (Alt+B)"
                 onClick={() => navEvent.list(programUid)}
-                style={{ padding: '4px 10px', fontSize: 12 }}>
+                style={{ padding: '4px 10px', fontSize: 13 }}>
           ← Back to list
         </button>
         <h2 className="cap-section-head__title">Event</h2>

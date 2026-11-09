@@ -171,7 +171,7 @@ export function TrackerDashboard(
                 data-test="tr-dash-back"
                 title="Back to the working list (Alt+B)"
                 onClick={onBack}
-                style={{ padding: '4px 10px', fontSize: 12 }}>
+                style={{ padding: '4px 10px', fontSize: 13 }}>
           ← Back to list
         </button>
         <h2 className="cap-section-head__title">Tracked entity</h2>
@@ -332,12 +332,12 @@ export function TrackerDashboard(
                     )}
                   </strong>
                   <label style={{ display: 'flex',
-                    alignItems: 'center', gap: 6, fontSize: 11,
+                    alignItems: 'center', gap: 6, fontSize: 13,
                     color: '#6e7a8a' }}>
                     status
                     <select className="cap-input__ctl"
                             data-test="tr-status-filter"
-                            style={{ padding: '2px 6px', fontSize: 12 }}
+                            style={{ padding: '2px 6px', fontSize: 13 }}
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(
                               e.target.value as typeof statusFilter)}>
@@ -358,7 +358,7 @@ export function TrackerDashboard(
                       <button type="button"
                               className="cap-btn cap-btn--primary"
                               data-test="tr-add-event"
-                              style={{ padding: '4px 12px', fontSize: 12 }}
+                              style={{ padding: '4px 12px', fontSize: 13 }}
                               disabled={disabled}
                               title={disabled
                                 ? 'This stage is not repeatable — one '

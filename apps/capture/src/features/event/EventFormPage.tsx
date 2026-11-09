@@ -252,7 +252,7 @@ export function EventFormPage(
                   if (eventId) navEvent.detail(programUid, eventId);
                   else navEvent.list(programUid);
                 }}
-                style={{ padding: '4px 10px', fontSize: 12 }}>
+                style={{ padding: '4px 10px', fontSize: 13 }}>
           ← Back
         </button>
         <h2 className="cap-section-head__title">
@@ -295,7 +295,7 @@ export function EventFormPage(
           <strong>Metadata compatibility notes:</strong>
           <ul style={{ margin: '4px 0 0 20px', padding: 0 }}>
             {parseIssues.map((iss, i) => (
-              <li key={i} style={{ fontSize: 12 }}>
+              <li key={i} style={{ fontSize: 13 }}>
                 <code>{iss.code}</code>{' — '}{iss.message}
               </li>
             ))}
@@ -308,7 +308,7 @@ export function EventFormPage(
           <strong>Program-rule notes:</strong>
           <ul style={{ margin: '4px 0 0 20px', padding: 0 }}>
             {ruleEffects.warnings.map((w, i) => (
-              <li key={i} style={{ fontSize: 12,
+              <li key={i} style={{ fontSize: 13,
                 color: w.severity === 'error' ? '#8a2525' : '#0a5497' }}>
                 {w.severity === 'error' ? '✦ ' : '• '}{w.message}
               </li>

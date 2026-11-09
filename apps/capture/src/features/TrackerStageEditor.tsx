@@ -257,7 +257,7 @@ export function TrackerStageEditor(
           <strong>Metadata notes:</strong>
           <ul style={{ margin: '4px 0 0 20px', padding: 0 }}>
             {parseIssues.map((iss, i) => (
-              <li key={i} style={{ fontSize: 12 }}>
+              <li key={i} style={{ fontSize: 13 }}>
                 <code>{iss.code}</code>{' — '}{iss.message}
               </li>
             ))}
@@ -270,7 +270,7 @@ export function TrackerStageEditor(
           <strong>Program-rule notes:</strong>
           <ul style={{ margin: '4px 0 0 20px', padding: 0 }}>
             {ruleEffects.warnings.map((w, i) => (
-              <li key={i} style={{ fontSize: 12,
+              <li key={i} style={{ fontSize: 13,
                 color: w.severity === 'error' ? '#8a2525' : '#0a5497' }}>
                 {w.severity === 'error' ? '✦ ' : '• '}{w.message}
               </li>

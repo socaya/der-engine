@@ -139,7 +139,7 @@ export function TrackerRegisterPage(
                 data-test="tr-register-back"
                 title="Back to the tracked-entity working list (Alt+B)"
                 onClick={() => navTracker.list(programUid)}
-                style={{ padding: '4px 10px', fontSize: 12 }}>
+                style={{ padding: '4px 10px', fontSize: 13 }}>
           ← Back to list
         </button>
         <h2 className="cap-section-head__title">Register new tracked entity</h2>
@@ -156,7 +156,7 @@ export function TrackerRegisterPage(
           <strong>Metadata notes:</strong>
           <ul style={{ margin: '4px 0 0 20px', padding: 0 }}>
             {issues.map((iss, i) => (
-              <li key={i} style={{ fontSize: 12 }}>
+              <li key={i} style={{ fontSize: 13 }}>
                 <code>{iss.code}</code>{' — '}{iss.message}
               </li>
             ))}

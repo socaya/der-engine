@@ -427,7 +427,7 @@ export function TrackerDetailPage(
                 <code style={{ marginLeft: 10,
                   background: 'var(--der-surface-subtle)',
                   padding: '2px 6px', borderRadius: 3,
-                  fontSize: 11, color: 'var(--der-text-muted)' }}>
+                  fontSize: 13, color: 'var(--der-text-muted)' }}>
                   {e.enrollmentUid}
                 </code>
               </div>
@@ -692,7 +692,7 @@ export function TrackerDetailPage(
                           <code style={{ marginLeft: 10,
                             background: 'var(--der-surface-subtle)',
                             padding: '2px 6px', borderRadius: 3,
-                            fontSize: 11,
+                            fontSize: 13,
                             color: 'var(--der-text-muted)' }}>
                             {e.eventUid.slice(0, 8)}…
                           </code>

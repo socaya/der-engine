@@ -149,7 +149,7 @@ export function TrackerEnrolPage(
                 data-test="tr-enrol-back"
                 title="Back to the tracked-entity detail page (Alt+B)"
                 onClick={() => navTracker.detail(programUid, teiId)}
-                style={{ padding: '4px 10px', fontSize: 12 }}>
+                style={{ padding: '4px 10px', fontSize: 13 }}>
           ← Back to record
         </button>
         <h2 className="cap-section-head__title">Enrol in program</h2>
@@ -166,7 +166,7 @@ export function TrackerEnrolPage(
           <strong>This tracked entity already has an ACTIVE enrolment
             in this program.</strong>
           <ul style={{ margin: '4px 0 0 20px', padding: 0,
-            fontSize: 12 }}>
+            fontSize: 13 }}>
             {activeExisting.map((e) => (
               <li key={e.enrollmentUid}>
                 <code>{e.enrollmentUid}</code>
@@ -174,7 +174,7 @@ export function TrackerEnrolPage(
               </li>
             ))}
           </ul>
-          <p style={{ margin: '6px 0 0 0', fontSize: 12 }}>
+          <p style={{ margin: '6px 0 0 0', fontSize: 13 }}>
             Multiple ACTIVE enrolments in the same program are
             not supported here (§TRK-INV-004). Complete or cancel
             the existing enrolment first.

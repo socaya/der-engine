@@ -752,7 +752,7 @@ export function TrackerRelationshipsSection(
                   <button type="button"
                           className="cap-link-btn"
                           data-test="tr-rel-new-target"
-                          style={{ fontSize: 12, padding: 0,
+                          style={{ fontSize: 13, padding: 0,
                             background: 'none', border: 0,
                             color: 'var(--der-primary)', cursor: 'pointer' }}
                           onClick={() => setCreatingTarget(true)}>
@@ -815,7 +815,7 @@ export function TrackerRelationshipsSection(
                   </strong>
                   <span style={{ flex: 1 }} />
                   <span className="cap-sub"
-                        style={{ fontSize: 12,
+                        style={{ fontSize: 13,
                           color: 'var(--der-text-muted)' }}>
                     Register a new record to link to
                   </span>
@@ -914,7 +914,7 @@ export function TrackerRelationshipsSection(
                     <button type="button"
                             className="cap-link-btn"
                             data-test="tr-rel-new-event"
-                            style={{ fontSize: 12, padding: 0,
+                            style={{ fontSize: 13, padding: 0,
                               background: 'none', border: 0,
                               color: 'var(--der-primary)',
                               cursor: 'pointer' }}
@@ -971,7 +971,7 @@ export function TrackerRelationshipsSection(
                   </strong>
                   <span style={{ flex: 1 }} />
                   <span className="cap-sub"
-                        style={{ fontSize: 12,
+                        style={{ fontSize: 13,
                           color: 'var(--der-text-muted)' }}>
                     Create a placeholder event — fill details in the
                     stage editor later
@@ -1109,7 +1109,7 @@ export function TrackerRelationshipsSection(
                     </span>
                   )}
                   <div style={{ marginTop: 4, color: '#4a5768',
-                    fontSize: 12 }}>
+                    fontSize: 13 }}>
                     → {target}
                   </div>
                 </div>
@@ -1120,7 +1120,7 @@ export function TrackerRelationshipsSection(
                   <button type="button"
                           className="cap-btn cap-btn--secondary"
                           data-test={'tr-rel-unlink-' + uid}
-                          style={{ padding: '2px 8px', fontSize: 11 }}
+                          style={{ padding: '2px 8px', fontSize: 13 }}
                           title={'Unlink this relationship. The DER '
                             + 'journal keeps a tombstone (§REL-SEC-005)'}
                           onClick={async () => {

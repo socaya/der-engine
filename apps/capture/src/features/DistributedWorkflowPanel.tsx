@@ -166,7 +166,7 @@ function HandoverQueue(
                 <span className="cap-dwf__queue-spacer" />
                 <button type="button"
                         className="cap-btn cap-btn--secondary"
-                        style={{ padding: '2px 8px', fontSize: 11 }}
+                        style={{ padding: '2px 8px', fontSize: 13 }}
                         title={'Copy the business key to the '
                           + 'clipboard — useful when handing off '
                           + 'to a colleague or admin.'}

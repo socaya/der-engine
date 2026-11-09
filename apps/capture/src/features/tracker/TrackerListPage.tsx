@@ -290,7 +290,7 @@ export function TrackerListPage(
           <button type="button"
                   className="cap-btn cap-btn--secondary"
                   data-test="tr-clear-filters"
-                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  style={{ padding: '4px 10px', fontSize: 13 }}
                   onClick={() => setQuery('')}>
             Clear
           </button>
@@ -312,7 +312,7 @@ export function TrackerListPage(
           <button type="button"
                   className="cap-btn cap-btn--secondary"
                   data-test="tr-export-csv"
-                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  style={{ padding: '4px 10px', fontSize: 13 }}
                   disabled={filtered.length === 0}
                   onClick={exportCsv}>
             Export CSV
@@ -345,7 +345,7 @@ export function TrackerListPage(
           </strong>
           <button type="button"
                   className="cap-btn cap-btn--secondary"
-                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  style={{ padding: '4px 10px', fontSize: 13 }}
                   data-test="tr-bulk-copy-uids"
                   disabled={typeof navigator === 'undefined'
                     || !navigator.clipboard}
@@ -358,7 +358,7 @@ export function TrackerListPage(
           </button>
           <button type="button"
                   className="cap-btn cap-btn--secondary"
-                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  style={{ padding: '4px 10px', fontSize: 13 }}
                   data-test="tr-bulk-clear"
                   onClick={() => setSelected(new Set())}>
             Clear selection

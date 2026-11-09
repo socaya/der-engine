@@ -114,7 +114,7 @@ export const CAPTURE_STYLES = `
   line-height: 1.2;
 }
 .cap-toolbar__ou-label {
-  font-size: 10px; letter-spacing: 0.02em; color: var(--der-text-faint);
+  font-size: 12px; letter-spacing: 0.02em; color: var(--der-text-faint);
 }
 .cap-toolbar__ou-value {
   color: var(--der-text); font-size: 13px; font-weight: 500;
@@ -146,14 +146,14 @@ export const CAPTURE_STYLES = `
   padding: 2px 8px;
   background: transparent; color: var(--der-primary);
   border: 1px solid var(--der-border);
-  font-size: 11px; font-weight: 500;
+  font-size: 13px; font-weight: 500;
   cursor: pointer; font-family: inherit;
 }
 .cap-net-flush:hover { background: var(--der-surface-subtle); border-color: var(--der-primary); }
 .cap-net-flush:disabled { opacity: 0.6; cursor: wait; }
 .cap-net-status {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 0; font-size: 12px; font-weight: 500;
+  padding: 0; font-size: 13px; font-weight: 500;
   color: var(--cap-ink-700, var(--der-text));
   background: transparent; border: 0;
   white-space: nowrap; cursor: help;
@@ -188,7 +188,7 @@ export const CAPTURE_STYLES = `
 .cap-dirty-chip {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 0;
-  font-size: 12px; font-weight: 600;
+  font-size: 13px; font-weight: 600;
   background: transparent; color: var(--der-warning);
   border: 0;
   white-space: nowrap;
@@ -202,7 +202,7 @@ export const CAPTURE_STYLES = `
   min-width: 0;
 }
 .cap-toolbar__field-label {
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 0.02em; color: var(--der-text-muted);
 }
 .cap-toolbar__select {
@@ -248,7 +248,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-sub__code {
   background: var(--der-surface-subtle); padding: 1px 6px; border-radius: 0;
-  font-size: 12px; margin-inline: 4px;
+  font-size: 13px; margin-inline: 4px;
 }
 
 .cap-strip {
@@ -300,7 +300,7 @@ export const CAPTURE_STYLES = `
   font-size: 13px; line-height: 1.4;
 }
 .cap-dwf__banner-title { color: var(--der-primary); font-weight: 600; }
-.cap-dwf__banner-meta { color: var(--der-text-muted); font-size: 12px; }
+.cap-dwf__banner-meta { color: var(--der-text-muted); font-size: 13px; }
 .cap-dwf__banner-meta em { color: var(--der-text); font-style: normal;
   font-weight: 500; }
 .cap-dwf__queue {
@@ -312,16 +312,16 @@ export const CAPTURE_STYLES = `
 .cap-dwf__queue-title {
   display: flex; align-items: baseline; gap: 10px;
   margin: 0 0 6px 0;
-  font-size: 12px; font-weight: 500; letter-spacing: 0.02em;
+  font-size: 13px; font-weight: 500; letter-spacing: 0.02em;
   color: var(--der-text);
 }
 .cap-dwf__queue-count {
-  font-size: 11px; font-weight: 400;
+  font-size: 13px; font-weight: 400;
   text-transform: none; letter-spacing: 0;
   color: var(--der-text-faint);
 }
 .cap-dwf__queue-empty {
-  margin: 0; font-size: 12px; color: var(--der-text-faint);
+  margin: 0; font-size: 13px; color: var(--der-text-faint);
 }
 .cap-dwf__queue-list {
   margin: 0; padding: 0; list-style: none;
@@ -335,14 +335,14 @@ export const CAPTURE_STYLES = `
 .cap-dwf__queue-spacer { flex: 1; }
 .cap-dwf__queue-list > li:first-child { border-top: 0; }
 .cap-dwf__queue-meta {
-  font-size: 11px; color: var(--der-text-faint);
+  font-size: 13px; color: var(--der-text-faint);
 }
 .cap-dwf__queue-meta em {
   font-style: normal; color: var(--der-text-muted); font-weight: 500;
 }
 .cap-dwf__eyebrow {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.02em; color: var(--der-text-muted);
   font-weight: 600;
 }
@@ -372,7 +372,7 @@ export const CAPTURE_STYLES = `
   font-size: 15px; color: var(--der-text); font-weight: 600;
 }
 .cap-dwf__row-meta {
-  font-size: 11px; color: var(--der-text-muted); letter-spacing: 0.02em;
+  font-size: 13px; color: var(--der-text-muted); letter-spacing: 0.02em;
 }
 .cap-dwf__steps {
   margin: 0; padding: 0; list-style: none;
@@ -392,14 +392,14 @@ export const CAPTURE_STYLES = `
   min-width: 20px; height: 20px;
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--der-border); color: var(--der-text);
-  font-size: 11px; font-weight: 600;
+  font-size: 13px; font-weight: 600;
 }
 .cap-dwf__step--mine .cap-dwf__step-ord {
   background: var(--der-primary); color: var(--der-surface);
 }
 .cap-dwf__step-name { flex: 1; }
 .cap-dwf__step-flag {
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.02em; color: var(--der-primary); font-weight: 600;
 }
 .cap-dwf__actions {
@@ -407,7 +407,7 @@ export const CAPTURE_STYLES = `
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
 }
 .cap-dwf__defer {
-  font-size: 11px; color: var(--der-text-muted);
+  font-size: 13px; color: var(--der-text-muted);
 }
 
 /* Workflow tabs when more than one workflow is assigned. */
@@ -454,7 +454,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-dwf__ctx-title {
   margin: 0 0 8px 0;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.02em; color: var(--der-text-muted);
   font-weight: 600;
 }
@@ -465,7 +465,7 @@ export const CAPTURE_STYLES = `
 .cap-dwf__ctx-step:first-of-type { border-top: 0; }
 .cap-dwf__ctx-step-title {
   margin: 0 0 4px 0;
-  font-size: 12px; font-weight: 500; color: var(--der-text);
+  font-size: 13px; font-weight: 500; color: var(--der-text);
   letter-spacing: 0.02em;
 }
 .cap-dwf__ctx-grid {
@@ -585,7 +585,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-section-head__meta-item > strong {
   color: var(--der-text-muted); font-weight: 600;
-  font-size: 12px; text-transform: uppercase;
+  font-size: 13px; text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 .cap-section-head__meta-item > span { color: var(--der-text); }
@@ -609,7 +609,7 @@ export const CAPTURE_STYLES = `
 .cap-section-nav__chip {
   padding: 4px 12px; border-radius: 0;
   border: 1px solid var(--der-border); background: var(--der-surface);
-  color: var(--der-text-muted); font-size: 12px; font-weight: 500;
+  color: var(--der-text-muted); font-size: 13px; font-weight: 500;
   white-space: nowrap; cursor: pointer; font-family: inherit;
 }
 .cap-section-nav__chip:hover { background: var(--der-surface-subtle); }
@@ -651,7 +651,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-form-section__title-text { color: var(--der-text); }
 .cap-form-section__title-count {
-  font-size: 12px; font-weight: 400;
+  font-size: 13px; font-weight: 400;
   color: var(--der-text-muted);
   margin-left: auto;
   text-transform: none; letter-spacing: 0;
@@ -799,7 +799,7 @@ export const CAPTURE_STYLES = `
 .cap-form-section__matrix-note {
   width: 26%; min-width: 160px;
   padding: 10px 0; vertical-align: top;
-  color: var(--der-text-muted); font-size: 12px;
+  color: var(--der-text-muted); font-size: 13px;
 }
 @media (max-width: 720px) {
   .cap-form-section__matrix,
@@ -820,7 +820,7 @@ export const CAPTURE_STYLES = `
   margin-top: 14px; max-width: 520px;
 }
 .cap-form-section__sequential-progress {
-  font-size: 12px; color: var(--der-text-muted);
+  font-size: 13px; color: var(--der-text-muted);
 }
 .cap-form-section__sequential-field {
   min-height: 80px;
@@ -840,7 +840,7 @@ export const CAPTURE_STYLES = `
   background: var(--der-primary);
 }
 .cap-field-warn {
-  font-size: 11px; color: var(--der-warning);
+  font-size: 13px; color: var(--der-warning);
   padding: 2px 0 0 0; border: 0; background: transparent;
   line-height: 1.35;
 }
@@ -868,7 +868,7 @@ export const CAPTURE_STYLES = `
   }
 }
 .cap-action-bar__state {
-  flex: 1; color: var(--der-text-muted); font-size: 12px;
+  flex: 1; color: var(--der-text-muted); font-size: 13px;
 }
 .cap-action-bar__state strong { color: var(--der-text); }
 .cap-btn {
@@ -954,7 +954,7 @@ export const CAPTURE_STYLES = `
  * toggle. Compact is the default: fits more rows per screen for
  * long working lists. Comfortable bumps padding + type size so
  * tablet operators get larger tap targets. */
-.cap-table--compact thead th { padding: 6px 10px; font-size: 12px; }
+.cap-table--compact thead th { padding: 6px 10px; font-size: 13px; }
 .cap-table--compact .cap-table__cell { padding: 5px 10px; font-size: 13px; }
 .cap-table--comfortable thead th { padding: 12px 14px; font-size: 14px; }
 .cap-table--comfortable .cap-table__cell { padding: 12px 14px; font-size: 15px; }
@@ -1039,7 +1039,7 @@ export const CAPTURE_STYLES = `
   position: sticky; top: 0; z-index: 2;
   background: var(--der-surface-subtle);
   text-align: left; font-weight: 500;
-  color: var(--der-text-muted); font-size: 12px;
+  color: var(--der-text-muted); font-size: 13px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--der-border);
   border-right: 1px solid var(--der-border-soft);
@@ -1105,7 +1105,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-sheet__cell-hidden-marker {
   display: block; padding: 6px 8px; color: var(--der-text-faint);
-  font-size: 11px;
+  font-size: 13px;
 }
 .cap-sheet__cell--warn .cap-sheet__cell-input {
   background: var(--der-warning-subtle);
@@ -1162,7 +1162,7 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
   border-bottom: 1px solid var(--der-border);
   border-right: 1px solid var(--der-border-soft);
   color: var(--der-text);
-  font-size: 11px; font-weight: 500;
+  font-size: 13px; font-weight: 500;
   letter-spacing: 0.02em;
 }
 .cap-sheet__section-head--null { background: transparent; }
@@ -1177,7 +1177,7 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
   display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
   padding: 6px 14px;
   margin-bottom: -8px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--der-text-muted);
 }
 .cap-sheet__collapsed-strip-label {
@@ -1189,7 +1189,7 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
   color: var(--der-text);
   padding: 2px 8px;
   font: inherit; cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
 }
 .cap-sheet__collapsed-chip:hover {
   background: var(--der-primary-subtle);
@@ -1200,13 +1200,13 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
   background: transparent; border: 0;
   color: var(--der-primary);
   padding: 2px 6px; margin-left: 4px;
-  font: inherit; cursor: pointer; font-size: 11px;
+  font: inherit; cursor: pointer; font-size: 13px;
   text-decoration: underline;
 }
 
 /* --- Shortcuts popover (SHEET-I1) ---------------------------- */
 .cap-sheet__shortcuts-btn {
-  padding: 4px 10px; font-size: 11px; font-family: inherit;
+  padding: 4px 10px; font-size: 13px; font-family: inherit;
   background: transparent; color: var(--der-text-muted);
   border: 1px solid var(--der-border); cursor: pointer;
 }
@@ -1247,7 +1247,7 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
   .cap-sheet__shortcuts-grid { grid-template-columns: 1fr; gap: 16px; }
 }
 .cap-sheet__shortcuts-grid h4 {
-  margin: 0 0 8px 0; font-size: 12px; font-weight: 600;
+  margin: 0 0 8px 0; font-size: 13px; font-weight: 600;
   color: var(--der-text-muted); letter-spacing: 0.02em;
 }
 .cap-sheet__shortcuts-grid dl {
@@ -1272,7 +1272,7 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
 }
 .cap-sheet__shortcuts-foot {
   margin: 0; padding: 10px 20px 14px;
-  font-size: 12px; color: var(--der-text-muted);
+  font-size: 13px; color: var(--der-text-muted);
   border-top: 1px solid var(--der-border-soft);
 }
 .cap-sheet__shortcuts-foot kbd {
@@ -1296,14 +1296,14 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
   display: flex; align-items: center; gap: 12px;
   padding: 10px 18px;
   border-bottom: 1px solid var(--der-border-soft);
-  font-size: 12px; color: var(--der-text-muted);
+  font-size: 13px; color: var(--der-text-muted);
 }
 .cap-sheet__columns-filter {
   flex: 1;
   padding: 6px 10px;
   border: 1px solid var(--der-border);
   background: var(--der-surface);
-  font-size: 12px; font-family: inherit;
+  font-size: 13px; font-family: inherit;
 }
 .cap-sheet__columns-filter:focus {
   outline: none; border-color: var(--der-primary);
@@ -1325,7 +1325,7 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
 }
 .cap-sheet__columns-empty {
   padding: 12px 18px; color: var(--der-text-muted);
-  font-size: 12px; font-style: italic;
+  font-size: 13px; font-style: italic;
 }
 .cap-sheet__columns-foot {
   display: flex; gap: 8px; justify-content: flex-end;
@@ -1373,7 +1373,7 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
 }
 .cap-sheet__colmenu-head {
   padding: 6px 12px 8px;
-  font-size: 11px; color: var(--der-text-muted);
+  font-size: 13px; color: var(--der-text-muted);
   border-bottom: 1px solid var(--der-border-soft);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 320px;
@@ -1394,7 +1394,7 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
  * primary so operators see the sort target from across the sheet. */
 .cap-sheet__col-sort {
   display: inline-block; margin-left: 6px;
-  padding: 0 4px; font-size: 11px; line-height: 1;
+  padding: 0 4px; font-size: 13px; line-height: 1;
   background: transparent; border: 0; color: var(--der-text-faint);
   cursor: pointer; font-family: inherit;
 }
@@ -1415,7 +1415,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 }
 .cap-sheet__rule-badge {
   display: inline-block; margin-left: 4px;
-  padding: 0 4px; font-size: 10px; font-weight: 600;
+  padding: 0 4px; font-size: 12px; font-weight: 600;
   background: var(--der-warning); color: var(--der-surface);
   line-height: 1.4;
 }
@@ -1442,7 +1442,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   width: 36px; min-width: 36px; text-align: right;
   padding: 0 8px;
   background: var(--der-surface-subtle);
-  color: var(--der-text-faint); font-size: 11px;
+  color: var(--der-text-faint); font-size: 13px;
   font-variant-numeric: tabular-nums;
   position: sticky; left: 0; z-index: 4;
 }
@@ -1550,7 +1550,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 }
 .cap-view-toggle button {
   background: transparent; border: 0;
-  padding: 4px 10px; font-size: 12px; font-family: inherit;
+  padding: 4px 10px; font-size: 13px; font-family: inherit;
   color: var(--der-text-muted); cursor: pointer;
 }
 .cap-view-toggle button + button {
@@ -1630,7 +1630,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 .cap-chip {
   display: inline;
   padding: 0;
-  font-size: 11px; font-weight: 500;
+  font-size: 13px; font-weight: 500;
   background: transparent; color: var(--der-primary);
   border: 0; letter-spacing: 0.04em;
 }
@@ -1757,7 +1757,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   white-space: pre-wrap; word-break: break-word;
 }
 .cap-notes-pane__when {
-  font-size: 12px; color: var(--der-text-muted);
+  font-size: 13px; color: var(--der-text-muted);
 }
 
 /* Profile pane — rail's first item + default landing surface.
@@ -1809,7 +1809,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   min-width: 0;
 }
 .cap-profile-pane__cell-label {
-  font-size: 11px; font-weight: 600;
+  font-size: 13px; font-weight: 600;
   color: var(--der-text-muted);
   text-transform: uppercase; letter-spacing: 0.04em;
 }
@@ -1834,7 +1834,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   padding: 1px 6px; border-radius: 10px;
   background: var(--der-surface-subtle);
   color: var(--der-text-muted);
-  font-size: 9px; font-weight: 600;
+  font-size: 11px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .cap-profile-pane__edit {
@@ -1849,14 +1849,14 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   display: flex; flex-wrap: wrap; gap: 8px 24px;
   padding-top: 14px;
   border-top: 1px solid var(--der-border-soft);
-  font-size: 12px;
+  font-size: 13px;
 }
 .cap-profile-pane__meta {
   display: flex; align-items: baseline; gap: 6px;
 }
 .cap-profile-pane__meta-label {
   color: var(--der-text-muted); font-weight: 500;
-  text-transform: uppercase; font-size: 10px;
+  text-transform: uppercase; font-size: 12px;
   letter-spacing: 0.04em;
 }
 .cap-profile-pane__meta-value {
@@ -1864,7 +1864,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
     SFMono-Regular, Menlo, Consolas, monospace;
   background: var(--der-surface-subtle);
   padding: 1px 6px; border-radius: 3px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .cap-profile-pane__meta-value:not(code) {
   font-family: inherit; background: transparent; padding: 0;
@@ -1878,7 +1878,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 .cap-chip--neutral {
   display: inline-flex; align-items: center;
   padding: 2px 9px; border-radius: 10px;
-  font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
+  font-size: 13px; font-weight: 500; letter-spacing: 0.02em;
 }
 .cap-chip--ok {
   background: #e3f7eb; color: #1b8243;
@@ -1895,7 +1895,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   margin: 0 8px 0 0;
 }
 .cap-stage-rail__title {
-  font-size: 12px; font-weight: 600;
+  font-size: 13px; font-weight: 600;
   color: var(--der-text-muted);
   text-transform: uppercase; letter-spacing: 0.04em;
   padding: 0 10px 6px;
@@ -2027,7 +2027,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   min-width: 0;
 }
 .cap-profile-grid dt {
-  font-size: 11px; font-weight: 500;
+  font-size: 13px; font-weight: 500;
   color: var(--der-text-muted);
   text-transform: uppercase; letter-spacing: 0.04em;
 }
@@ -2053,7 +2053,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   background: var(--der-surface-subtle); color: var(--der-text);
   border: 1px solid #cfd7e4; border-bottom-width: 2px;
   border-radius: 0;
-  font-size: 11px; font-family: ui-monospace, Menlo, monospace;
+  font-size: 13px; font-family: ui-monospace, Menlo, monospace;
 }
 
 /* --- ContextInspector (v3 §5.3) ---------------------------------
@@ -2098,7 +2098,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   flex: 1; padding: 8px 10px;
   background: transparent; border: 0;
   border-bottom: 2px solid transparent;
-  font-size: 12px; font-weight: 500; font-family: inherit;
+  font-size: 13px; font-weight: 500; font-family: inherit;
   color: var(--der-text-muted); cursor: pointer;
 }
 .cap-insp__tab:hover { color: var(--der-text); }
@@ -2125,7 +2125,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   padding: 8px 10px;
   background: var(--der-surface-subtle);
   color: var(--der-text-muted);
-  font-size: 11px; line-height: 1.5;
+  font-size: 13px; line-height: 1.5;
 }
 @media (max-width: 640px) {
   .cap-insp { width: 100%; max-width: 100%; }

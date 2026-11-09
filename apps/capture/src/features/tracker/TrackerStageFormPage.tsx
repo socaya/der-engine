@@ -93,7 +93,7 @@ export function TrackerStageFormPage(
                 data-test="tr-stageform-back"
                 title="Back to the tracked-entity detail page (Alt+B)"
                 onClick={() => { void goBack(); }}
-                style={{ padding: '4px 10px', fontSize: 12 }}>
+                style={{ padding: '4px 10px', fontSize: 13 }}>
           ← Back to record
         </button>
         <h2 className="cap-section-head__title">

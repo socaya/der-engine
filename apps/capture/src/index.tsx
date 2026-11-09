@@ -699,7 +699,7 @@ function CaptureInfoPopover(
             </dl>
           )}
           <section data-test="cap-info-device">
-            <h4 style={{ margin: '4px 0 6px 0', fontSize: 12,
+            <h4 style={{ margin: '4px 0 6px 0', fontSize: 13,
               textTransform: 'uppercase', letterSpacing: '0.06em',
               color: '#6e7a8a' }}>
               Device
@@ -720,7 +720,7 @@ function CaptureInfoPopover(
             </dl>
           </section>
           <section data-test="cap-info-shortcuts">
-            <h4 style={{ margin: '0 0 6px 0', fontSize: 12,
+            <h4 style={{ margin: '0 0 6px 0', fontSize: 13,
               textTransform: 'uppercase', letterSpacing: '0.06em',
               color: '#6e7a8a' }}>
               Keyboard shortcuts

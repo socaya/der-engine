@@ -123,7 +123,7 @@ export function ContextInspector(
                       <button type="button"
                               className="cap-btn cap-btn--secondary"
                               data-test="cap-insp-flush"
-                              style={{ padding: '2px 10px', fontSize: 11 }}
+                              style={{ padding: '2px 10px', fontSize: 13 }}
                               onClick={async () => {
                                 setFlushing(true);
                                 await onFlush();

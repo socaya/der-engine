@@ -371,7 +371,7 @@ export function EventListPage(
           <button type="button"
                   className="cap-btn cap-btn--secondary"
                   data-test="ev-clear-filters"
-                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  style={{ padding: '4px 10px', fontSize: 13 }}
                   onClick={() => { setQuery('');
                     setStatusFilter('all');
                     setFromDate(''); setToDate(''); }}>
@@ -397,7 +397,7 @@ export function EventListPage(
           <button type="button"
                   className="cap-btn cap-btn--secondary"
                   data-test="ev-export-csv"
-                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  style={{ padding: '4px 10px', fontSize: 13 }}
                   title="Download the filtered + sorted list as CSV"
                   disabled={filtered.length === 0}
                   onClick={exportCsv}>
@@ -422,14 +422,14 @@ export function EventListPage(
           </strong>
           <button type="button"
                   className="cap-btn cap-btn--secondary"
-                  style={{ padding: '4px 10px', fontSize: 12 }}
+                  style={{ padding: '4px 10px', fontSize: 13 }}
                   data-test="ev-bulk-clear"
                   onClick={() => setSelected(new Set())}>
             Clear selection
           </button>
           <button type="button"
                   className="cap-btn cap-btn--secondary"
-                  style={{ padding: '4px 10px', fontSize: 12,
+                  style={{ padding: '4px 10px', fontSize: 13,
                     color: 'var(--der-danger)',
                     borderColor: 'var(--der-danger)' }}
                   data-test="ev-bulk-delete"
