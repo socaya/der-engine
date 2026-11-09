@@ -1953,6 +1953,38 @@ export function relationshipPurge(uid: string):
       + encodeURIComponent(uid) + '/purge');
 }
 
+export interface RelationshipBulkResult {
+  readonly total: number;
+  readonly succeeded: number;
+  readonly failed: number;
+  readonly results: ReadonlyArray<{
+    readonly relationshipUid: string;
+    readonly ok: boolean;
+    readonly error?: string;
+  }>;
+}
+
+export function relationshipBulkRetry(uids: ReadonlyArray<string>):
+    Promise<RelationshipBulkResult> {
+  return request<RelationshipBulkResult>('POST',
+    '/edge-api/v1/admin/relationships/bulk/retry',
+    { uids });
+}
+
+export function relationshipBulkAck(uids: ReadonlyArray<string>):
+    Promise<RelationshipBulkResult> {
+  return request<RelationshipBulkResult>('POST',
+    '/edge-api/v1/admin/relationships/bulk/ack',
+    { uids });
+}
+
+export function relationshipBulkPurge(uids: ReadonlyArray<string>):
+    Promise<RelationshipBulkResult> {
+  return request<RelationshipBulkResult>('POST',
+    '/edge-api/v1/admin/relationships/bulk/purge',
+    { uids });
+}
+
 export function systemInfo(): Promise<SystemInfo> {
   return request<SystemInfo>('GET', '/edge-api/v1/system/info');
 }

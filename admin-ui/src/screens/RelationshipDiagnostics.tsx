@@ -23,6 +23,11 @@ export function RelationshipDiagnostics(): JSX.Element {
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [actionErr, setActionErr] = useState<string | null>(null);
+  /** Per-panel selection sets for bulk actions. Separate so an
+   *  operator can't accidentally apply a tombstone action to an
+   *  attention row and vice versa. */
+  const [selAttn, setSelAttn] = useState<Set<string>>(new Set());
+  const [selTomb, setSelTomb] = useState<Set<string>>(new Set());
 
   const reload = useCallback(async (): Promise<void> => {
     setLoading(true); setErr(null);
@@ -35,6 +40,38 @@ export function RelationshipDiagnostics(): JSX.Element {
     }
   }, []);
   useEffect(() => { reload().catch(() => undefined); }, [reload]);
+
+  async function doBulk(
+    action: 'retry' | 'ack' | 'purge',
+    uids: ReadonlyArray<string>,
+    clearFn: () => void,
+  ): Promise<void> {
+    if (uids.length === 0) return;
+    const fn = action === 'retry' ? edgeApi.relationshipBulkRetry
+             : action === 'ack'   ? edgeApi.relationshipBulkAck
+             :                      edgeApi.relationshipBulkPurge;
+    setActionBusy('bulk:' + action);
+    setActionMsg(null); setActionErr(null);
+    try {
+      const res = await fn(uids);
+      let msg = `bulk ${action}: ${res.succeeded}/${res.total} ok`;
+      if (res.failed > 0) {
+        const errs = res.results.filter((r) => !r.ok)
+          .slice(0, 3)
+          .map((r) => `${r.relationshipUid}:${r.error ?? '?'}`)
+          .join(', ');
+        msg += ` · ${res.failed} failed (${errs}`
+          + (res.failed > 3 ? ', …' : '') + ')';
+      }
+      setActionMsg(msg);
+      clearFn();
+      await reload();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setActionBusy(null);
+    }
+  }
 
   async function doAction(
     action: 'retry' | 'ack' | 'purge', uid: string,
@@ -189,6 +226,18 @@ export function RelationshipDiagnostics(): JSX.Element {
                  Acknowledge marks SYNCED without a central
                  round-trip.
                </span>)}>
+        {selAttn.size > 0 && (
+          <BulkBar count={selAttn.size}
+                    actions={[
+                      { kind: 'retry', label: 'Retry selected' },
+                      { kind: 'ack',   label: 'Acknowledge selected' },
+                    ]}
+                    busy={actionBusy}
+                    onApply={(k) => doBulk(k,
+                      Array.from(selAttn),
+                      () => setSelAttn(new Set()))}
+                    onClear={() => setSelAttn(new Set())} />
+        )}
         {data.attention.length === 0 ? (
           <p style={{ color: '#5b6478' }}>
             Nothing needs attention — all live rows are SYNCED,
@@ -201,6 +250,21 @@ export function RelationshipDiagnostics(): JSX.Element {
             <thead>
               <tr style={{ textAlign: 'left',
                 borderBottom: '1px solid #d9dde6' }}>
+                <th style={{ padding: '8px 10px', width: 28 }}>
+                  <input type="checkbox"
+                         data-test="reldiag-attn-selectall"
+                         checked={selAttn.size > 0
+                           && selAttn.size === data.attention.length}
+                         ref={(el) => {
+                           if (el) el.indeterminate = selAttn.size > 0
+                             && selAttn.size < data.attention.length;
+                         }}
+                         onChange={(e) => setSelAttn(
+                           e.target.checked
+                             ? new Set(data.attention.map(
+                                 (r) => r.relationshipUid))
+                             : new Set())} />
+                </th>
                 <th style={{ padding: '8px 10px' }}>Status</th>
                 <th style={{ padding: '8px 10px' }}>Type</th>
                 <th style={{ padding: '8px 10px' }}>From</th>
@@ -213,7 +277,24 @@ export function RelationshipDiagnostics(): JSX.Element {
             <tbody>
               {data.attention.map((r) => (
                 <tr key={r.relationshipUid}
-                    style={{ borderBottom: '1px solid #ebeef3' }}>
+                    style={{ borderBottom: '1px solid #ebeef3',
+                      background: selAttn.has(r.relationshipUid)
+                        ? '#eef4fa' : undefined }}>
+                  <td style={{ padding: '8px 10px' }}>
+                    <input type="checkbox"
+                           data-test={'reldiag-attn-sel-'
+                             + r.relationshipUid}
+                           checked={selAttn.has(r.relationshipUid)}
+                           onChange={(e) => {
+                             const next = new Set(selAttn);
+                             if (e.target.checked) {
+                               next.add(r.relationshipUid);
+                             } else {
+                               next.delete(r.relationshipUid);
+                             }
+                             setSelAttn(next);
+                           }} />
+                  </td>
                   <td style={{ padding: '8px 10px' }}>
                     <SyncPill status={r.syncStatus} />
                   </td>
@@ -275,6 +356,17 @@ export function RelationshipDiagnostics(): JSX.Element {
                  central DELETE round-trip). Purge removes the
                  row from the device.
                </span>)}>
+        {selTomb.size > 0 && (
+          <BulkBar count={selTomb.size}
+                    actions={[
+                      { kind: 'purge', label: 'Purge selected' },
+                    ]}
+                    busy={actionBusy}
+                    onApply={(k) => doBulk(k,
+                      Array.from(selTomb),
+                      () => setSelTomb(new Set()))}
+                    onClear={() => setSelTomb(new Set())} />
+        )}
         {data.tombstones.length === 0 ? (
           <p style={{ color: '#5b6478' }}>
             No tombstones — every unlinked row has been
@@ -287,6 +379,21 @@ export function RelationshipDiagnostics(): JSX.Element {
             <thead>
               <tr style={{ textAlign: 'left',
                 borderBottom: '1px solid #d9dde6' }}>
+                <th style={{ padding: '8px 10px', width: 28 }}>
+                  <input type="checkbox"
+                         data-test="reldiag-tomb-selectall"
+                         checked={selTomb.size > 0
+                           && selTomb.size === data.tombstones.length}
+                         ref={(el) => {
+                           if (el) el.indeterminate = selTomb.size > 0
+                             && selTomb.size < data.tombstones.length;
+                         }}
+                         onChange={(e) => setSelTomb(
+                           e.target.checked
+                             ? new Set(data.tombstones.map(
+                                 (r) => r.relationshipUid))
+                             : new Set())} />
+                </th>
                 <th style={{ padding: '8px 10px' }}>Status</th>
                 <th style={{ padding: '8px 10px' }}>Type</th>
                 <th style={{ padding: '8px 10px' }}>From</th>
@@ -298,7 +405,24 @@ export function RelationshipDiagnostics(): JSX.Element {
             <tbody>
               {data.tombstones.map((r) => (
                 <tr key={r.relationshipUid}
-                    style={{ borderBottom: '1px solid #ebeef3' }}>
+                    style={{ borderBottom: '1px solid #ebeef3',
+                      background: selTomb.has(r.relationshipUid)
+                        ? '#eef4fa' : undefined }}>
+                  <td style={{ padding: '8px 10px' }}>
+                    <input type="checkbox"
+                           data-test={'reldiag-tomb-sel-'
+                             + r.relationshipUid}
+                           checked={selTomb.has(r.relationshipUid)}
+                           onChange={(e) => {
+                             const next = new Set(selTomb);
+                             if (e.target.checked) {
+                               next.add(r.relationshipUid);
+                             } else {
+                               next.delete(r.relationshipUid);
+                             }
+                             setSelTomb(next);
+                           }} />
+                  </td>
                   <td style={{ padding: '8px 10px' }}>
                     <SyncPill status={r.syncStatus} />
                   </td>
@@ -342,6 +466,59 @@ export function RelationshipDiagnostics(): JSX.Element {
           </table>
         )}
       </Panel>
+    </div>
+  );
+}
+
+/** Bulk-action bar above the attention / tombstone tables.
+ *  Renders only when the parent panel has a non-empty selection
+ *  set. One button per applicable action plus a Clear button. */
+function BulkBar({ count, actions, busy, onApply, onClear }: {
+  count: number;
+  actions: ReadonlyArray<{
+    kind: 'retry' | 'ack' | 'purge';
+    label: string;
+  }>;
+  busy: string | null;
+  onApply: (kind: 'retry' | 'ack' | 'purge') => Promise<void>;
+  onClear: () => void;
+}): JSX.Element {
+  const anyBusy = busy !== null;
+  return (
+    <div data-test="reldiag-bulkbar"
+         style={{ display: 'flex', alignItems: 'center',
+           gap: 10, padding: '8px 12px', marginBottom: 10,
+           background: '#eef4fa',
+           border: '1px solid #cde0f3',
+           borderRadius: 4, fontSize: 13 }}>
+      <strong>{count} selected</strong>
+      <span style={{ flex: 1 }} />
+      {actions.map((a) => {
+        const thisBusy = busy === 'bulk:' + a.kind;
+        return (
+          <button key={a.kind} type="button"
+                  data-test={`reldiag-bulk-${a.kind}`}
+                  disabled={anyBusy}
+                  onClick={() => { void onApply(a.kind); }}
+                  style={{ padding: '4px 12px', fontSize: 13,
+                    border: '1px solid #147cd7',
+                    background: thisBusy ? '#cde0f3' : '#fff',
+                    color: '#147cd7', borderRadius: 3,
+                    cursor: anyBusy ? 'default' : 'pointer' }}>
+            {thisBusy ? '…' : a.label}
+          </button>
+        );
+      })}
+      <button type="button"
+              data-test="reldiag-bulk-clear"
+              disabled={anyBusy}
+              onClick={onClear}
+              style={{ padding: '4px 10px', fontSize: 13,
+                border: 0, background: 'transparent',
+                color: '#5b6478',
+                cursor: anyBusy ? 'default' : 'pointer' }}>
+        Clear
+      </button>
     </div>
   );
 }

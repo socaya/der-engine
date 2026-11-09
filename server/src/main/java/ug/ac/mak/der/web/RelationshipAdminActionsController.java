@@ -2,11 +2,15 @@ package ug.ac.mak.der.web;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.http.MediaType;
@@ -15,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -143,6 +148,130 @@ public class RelationshipAdminActionsController {
                 "relationshipUid", uid,
                 "purgedRowCount", purged));
     }
+
+    @PostMapping("/bulk/retry")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> bulkRetry(
+            final Authentication authentication,
+            @RequestBody final BulkRequest body) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        return bulkApply(body, uid -> retryOne(uid, principal.userId()));
+    }
+
+    @PostMapping("/bulk/ack")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> bulkAck(
+            final Authentication authentication,
+            @RequestBody final BulkRequest body) {
+        if (!(authentication instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        return bulkApply(body, this::ackOne);
+    }
+
+    @PostMapping("/bulk/purge")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> bulkPurge(
+            final Authentication authentication,
+            @RequestBody final BulkRequest body) {
+        if (!(authentication instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        return bulkApply(body, this::purgeOne);
+    }
+
+    /** Per-row result from a bulk apply — the client renders each
+     *  entry so an operator can see which rows failed and why
+     *  (ROW_DELETED on retry, ROW_NOT_DELETED on purge, etc.)
+     *  without a second fetch. */
+    private record RowResult(String uid, boolean ok, String error) { }
+
+    @FunctionalInterface
+    private interface RowAction {
+        RowResult apply(String uid);
+    }
+
+    private ResponseEntity<Map<String, Object>> bulkApply(
+            final BulkRequest body, final RowAction action) {
+        if (body == null || body.uids() == null
+                || body.uids().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "EMPTY_UIDS",
+                    "message", "uids array must not be empty"));
+        }
+        if (body.uids().size() > 200) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "TOO_MANY_UIDS",
+                    "message", "bulk actions capped at 200 uids "
+                        + "per request"));
+        }
+        final List<Map<String, Object>> results = new ArrayList<>();
+        int ok = 0;
+        int failed = 0;
+        for (final String uid : body.uids()) {
+            final RowResult r = action.apply(uid);
+            final Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("relationshipUid", uid);
+            entry.put("ok", r.ok());
+            if (r.error() != null) {
+                entry.put("error", r.error());
+            }
+            results.add(entry);
+            if (r.ok()) {
+                ok++;
+            } else {
+                failed++;
+            }
+        }
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("total", body.uids().size());
+        out.put("succeeded", ok);
+        out.put("failed", failed);
+        out.put("results", results);
+        return ResponseEntity.ok(out);
+    }
+
+    private RowResult retryOne(final String uid, final UUID submittedBy) {
+        final Optional<TrackerRelationship> row = repo.findById(uid);
+        if (row.isEmpty()) {
+            return new RowResult(uid, false, "NOT_FOUND");
+        }
+        if (row.get().deletedAt() != null) {
+            return new RowResult(uid, false, "ROW_DELETED");
+        }
+        final Instant now = Instant.now(clock);
+        repo.markSyncStatus(uid,
+                TrackerRelationship.SyncStatus.PENDING, now);
+        enqueueRetryJournal(row.get(), submittedBy, now);
+        return new RowResult(uid, true, null);
+    }
+
+    private RowResult ackOne(final String uid) {
+        if (repo.findById(uid).isEmpty()) {
+            return new RowResult(uid, false, "NOT_FOUND");
+        }
+        repo.markSyncStatus(uid,
+                TrackerRelationship.SyncStatus.SYNCED,
+                Instant.now(clock));
+        return new RowResult(uid, true, null);
+    }
+
+    private RowResult purgeOne(final String uid) {
+        final Optional<TrackerRelationship> row = repo.findById(uid);
+        if (row.isEmpty()) {
+            return new RowResult(uid, false, "NOT_FOUND");
+        }
+        if (row.get().deletedAt() == null) {
+            return new RowResult(uid, false, "ROW_NOT_DELETED");
+        }
+        repo.purge(uid);
+        return new RowResult(uid, true, null);
+    }
+
+    public record BulkRequest(
+            @JsonProperty("uids") List<String> uids) { }
 
     /** Duplicates the private enqueueJournal in
      *  TrackerRelationshipController to avoid cross-controller
