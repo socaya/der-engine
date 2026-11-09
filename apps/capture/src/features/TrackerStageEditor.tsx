@@ -181,6 +181,27 @@ export function TrackerStageEditor(
     e.preventDefault();
     void submit(eventStatus === 'COMPLETED' ? 'COMPLETED' : 'ACTIVE');
   }
+
+  async function onClickDelete(): Promise<void> {
+    if (!eventUid) return;
+    const ok = window.confirm(
+      'Delete this event? The removal is soft-deleted on the facility '
+      + 'edge and queued for central sync on the next drain.');
+    if (!ok) return;
+    setState('submitting');
+    setMsg(null);
+    try {
+      await api.deleteEvent(eventUid);
+      setMsg('Deleted on edge. Central sync is a separate step.');
+      // Clear baseline so the dirty guard doesn't block the parent
+      // from unmounting the editor right away.
+      setBaseline({ ...values });
+      onSaved();
+    } catch (err) {
+      setState('err');
+      setMsg((err as Error).message ?? 'Delete failed');
+    }
+  }
   function onClickComplete(): void {
     if (!canSubmit) return;
     void submit('COMPLETED');
@@ -308,6 +329,16 @@ export function TrackerStageEditor(
                   className="cap-btn cap-btn--secondary"
                   onClick={() => { if (confirmLeave()) onCancel(); }}
                   data-test="tr-editor-cancel">Cancel</button>
+          {eventUid && (
+            <button type="button"
+                    className="cap-btn cap-btn--danger"
+                    onClick={() => { void onClickDelete(); }}
+                    disabled={state === 'submitting'}
+                    data-test="tr-editor-delete"
+                    title="Delete this event — soft-delete on the facility edge, queued for central sync">
+              Delete
+            </button>
+          )}
           {eventStatus === 'COMPLETED' ? (
             <button type="button"
                     className="cap-btn cap-btn--secondary"

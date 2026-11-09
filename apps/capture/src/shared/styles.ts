@@ -884,6 +884,12 @@ export const CAPTURE_STYLES = `
   background: var(--der-surface); color: var(--der-text); border-color: var(--der-border);
 }
 .cap-btn--secondary:hover:not(:disabled) { background: var(--der-surface-subtle); }
+.cap-btn--danger {
+  background: var(--der-surface); color: #8a2525; border-color: #d8a7a7;
+}
+.cap-btn--danger:hover:not(:disabled) {
+  background: #fbecec; border-color: #8a2525;
+}
 .cap-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .cap-btn:focus-visible {
   outline: none;
