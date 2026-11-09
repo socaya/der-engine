@@ -365,8 +365,9 @@ export function TrackerDetailPage(
               <span>{identity.displayName}</span>
             </span>
           )}
-          {identity.attributes.map((a) => (
-            <span key={a.label} className="cap-section-head__meta-item">
+          {identity.attributes.map((a, i) => (
+            <span key={`${a.label}:${i}`}
+                  className="cap-section-head__meta-item">
               <strong>{a.label}</strong>
               <span>{a.value}</span>
             </span>
@@ -999,8 +1000,9 @@ function TrackerProfilePane(
         ) : (
           <div className="cap-profile-pane__grid"
                data-test="tr-profile-grid">
-            {viewList.map((a) => (
-              <div key={a.label} className={'cap-profile-pane__cell'
+            {viewList.map((a, i) => (
+              <div key={`${a.label}:${i}`}
+                   className={'cap-profile-pane__cell'
                 + (a.isEmpty ? ' cap-profile-pane__cell--empty' : '')}>
                 <div className="cap-profile-pane__cell-label">
                   {a.label}
