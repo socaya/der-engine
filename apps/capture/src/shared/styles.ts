@@ -1787,6 +1787,29 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   margin: 0; display: grid; grid-template-columns: max-content 1fr;
   gap: 4px 12px; font-size: 13px;
 }
+/* Profile popover grid — two columns of label/value pairs so the
+ * full TEA attribute set fits on screen without scrolling. Each
+ * pair is a stacked dt/dd so the label reads first + value
+ * doesn't wrap mid-word. */
+.cap-profile-grid {
+  margin: 0; padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 24px;
+}
+.cap-profile-grid > div {
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0;
+}
+.cap-profile-grid dt {
+  font-size: 11px; font-weight: 500;
+  color: var(--der-text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.cap-profile-grid dd {
+  margin: 0; font-size: 14px; color: var(--der-text);
+  word-break: break-word;
+}
 .cap-info__dl > div {
   display: contents;
 }

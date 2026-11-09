@@ -55,8 +55,15 @@ export function TrackerDetailPage(
        *  attributes so operators see who this person is at a
        *  glance (name, age, phone, …) instead of just a UID. */
       attributes: ReadonlyArray<{ label: string; value: string }>;
+      /** The full set of non-empty TEA values ordered by
+       *  sortOrder — fed to the right-rail Profile card so
+       *  operators see every captured attribute in one place.
+       *  Superset of `attributes` (which is capped at 4 for the
+       *  top-toolbar summary). */
+      allAttributes: ReadonlyArray<{ label: string; value: string }>;
     }>({
-      displayName: null, lastUpdated: null, attributes: [] });
+      displayName: null, lastUpdated: null,
+      attributes: [], allAttributes: [] });
   /** Inline stage-form mode. When non-null, the stage pane body
    *  swaps from the event list to the TrackerStageEditor so the
    *  operator never leaves the tracker detail page. { kind:
@@ -70,6 +77,12 @@ export function TrackerDetailPage(
   const [eventsTick, setEventsTick] = useState(0);
   const [statusFilter, setStatusFilter] =
     useState<'all' | 'ACTIVE' | 'COMPLETED'>('all');
+  /** Profile popover — opens from the toolbar "View profile" button
+   *  and shows the full TEA attribute set with labels. Keeps the
+   *  existing toolbar-identity strip compact (4 attributes max)
+   *  while making every captured attribute discoverable in one
+   *  click. */
+  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +109,7 @@ export function TrackerDetailPage(
         // attribute metadata; label the top non-empty attribute
         // values in the identity strip.
         let attrs: ReadonlyArray<{ label: string; value: string }> = [];
+        let allAttrs: ReadonlyArray<{ label: string; value: string }> = [];
         if (tetRes && me?.attributes) {
           try {
             const teaRes = await api.listCaptureTeiTypeAttributes(
@@ -108,17 +122,17 @@ export function TrackerDetailPage(
                 byUid.set(a.attributeUid,
                   a.displayName ?? a.attributeUid);
               }
-              const entries: Array<{ label: string; value: string }> = [];
+              const full: Array<{ label: string; value: string }> = [];
               for (const a of ordered) {
                 const v = me.attributes[a.attributeUid];
                 if (!v || String(v).trim() === '') continue;
-                entries.push({
+                full.push({
                   label: byUid.get(a.attributeUid) ?? a.attributeUid,
                   value: String(v),
                 });
-                if (entries.length >= 4) break;
               }
-              attrs = entries;
+              attrs = full.slice(0, 4);
+              allAttrs = full;
             }
           } catch { /* keep attrs empty on failure */ }
         }
@@ -126,6 +140,7 @@ export function TrackerDetailPage(
           displayName: me?.displayName ?? null,
           lastUpdated: me?.lastUpdated ?? null,
           attributes: attrs,
+          allAttributes: allAttrs,
         });
         const enr: TrackerEnrolment[] = (enrRes.enrollments ?? []).map((e) => ({
           enrollmentUid: e.enrollmentUid,
@@ -257,8 +272,31 @@ export function TrackerDetailPage(
             <code>{teiId}</code>
           </span>
         </span>
-        {enrolments.length >= 1 && (
-          <div className="cap-section-head__right">
+        <div className="cap-section-head__right">
+          {identity.allAttributes.length > 0 && (
+            <button type="button"
+                    className="cap-btn cap-btn--secondary"
+                    data-test="tr-profile-open"
+                    style={{ padding: '4px 12px', fontSize: 12 }}
+                    title="See every captured attribute for this tracked entity"
+                    onClick={() => setProfileOpen(true)}>
+              View profile
+            </button>
+          )}
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  data-test="tr-relationships-jump"
+                  style={{ padding: '4px 12px', fontSize: 12 }}
+                  title="Jump to the Relationships section below"
+                  onClick={() => {
+                    const el = document.querySelector(
+                      '[data-test="tr-rel-head"]');
+                    if (el) el.scrollIntoView({ behavior: 'smooth',
+                      block: 'start' });
+                  }}>
+            Relationships
+          </button>
+          {enrolments.length >= 1 && (
             <button type="button"
                     className="cap-btn cap-btn--secondary"
                     data-test="tr-enrol-add"
@@ -267,8 +305,8 @@ export function TrackerDetailPage(
                     onClick={() => navTracker.enrol(programUid, teiId)}>
               + Enrol again
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {status === 'idle' && enrolments.length === 0 && (
@@ -521,7 +559,67 @@ export function TrackerDetailPage(
                                      programUid={programUid}
                                      orgUnitUid={orgUnitUid}
                                      tetUid={tetUid} />
+      {profileOpen && (
+        <ProfilePopover
+          displayName={identity.displayName}
+          teiId={teiId}
+          attributes={identity.allAttributes}
+          onClose={() => setProfileOpen(false)} />
+      )}
     </>
+  );
+}
+
+function ProfilePopover(
+  { displayName, teiId, attributes, onClose }: {
+    displayName: string | null;
+    teiId: string;
+    attributes: ReadonlyArray<{ label: string; value: string }>;
+    onClose: () => void;
+  },
+): JSX.Element {
+  return (
+    <div className="cap-info-backdrop" role="dialog" aria-modal="true"
+         data-test="tr-profile-popover" onClick={onClose}>
+      <div className="cap-info"
+           onClick={(e) => e.stopPropagation()}>
+        <div className="cap-info__head">
+          <h3>Profile</h3>
+          <button type="button" className="cap-info__close"
+                  aria-label="Close profile" onClick={onClose}>×</button>
+        </div>
+        <div className="cap-info__body">
+          {displayName && (
+            <p style={{ margin: '0 0 12px 0', fontSize: 15,
+              fontWeight: 500, color: 'var(--der-text)' }}>
+              {displayName}
+            </p>
+          )}
+          {attributes.length === 0 ? (
+            <p className="cap-sub">
+              No attributes captured for this tracked entity yet.
+            </p>
+          ) : (
+            <dl className="cap-profile-grid">
+              {attributes.map((a) => (
+                <div key={a.label}>
+                  <dt>{a.label}</dt>
+                  <dd>{a.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          <p style={{ margin: '14px 0 0 0', fontSize: 11,
+            color: 'var(--der-text-muted)' }}>
+            UID{' '}
+            <code style={{ background: 'var(--der-surface-subtle)',
+              padding: '1px 5px', borderRadius: 3 }}>
+              {teiId}
+            </code>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
