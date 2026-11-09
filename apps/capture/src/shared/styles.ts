@@ -1818,6 +1818,25 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   line-height: 1.4;
   word-break: break-word; overflow-wrap: anywhere;
 }
+.cap-profile-pane__cell--empty .cap-profile-pane__cell-value {
+  color: var(--der-text-faint);
+}
+.cap-profile-pane__cell-dash {
+  color: var(--der-text-faint); font-weight: 400;
+  letter-spacing: 0.05em;
+}
+.cap-profile-pane__cell-req {
+  color: var(--der-danger, #c13030); margin-left: 3px;
+  font-weight: 700;
+}
+.cap-profile-pane__cell-flag {
+  display: inline-block; margin-left: 8px;
+  padding: 1px 6px; border-radius: 10px;
+  background: var(--der-surface-subtle);
+  color: var(--der-text-muted);
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
 .cap-profile-pane__edit {
   display: flex; flex-direction: column;
 }

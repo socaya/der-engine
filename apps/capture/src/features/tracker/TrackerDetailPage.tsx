@@ -759,6 +759,17 @@ function TrackerProfilePane(
   const [sections, setSections] =
     useState<ReadonlyArray<ReturnType<
       typeof parseTeiAttributesForm>['sections'][number]>>([]);
+  /** Full TEA definitions for this TET — fetched once and used to
+   *  render every attribute slot in view mode (so operators see
+   *  the complete clinical record shape, with "—" placeholders for
+   *  unsaved values, instead of a hole where the attribute should
+   *  be). Separate from `sections` (which is only materialised in
+   *  edit mode because it's the FormEngine-ready, parsed version). */
+  const [teaDefs, setTeaDefs] = useState<ReadonlyArray<{
+    attributeUid: string; displayName?: string; valueType?: string;
+    optionSetUid?: string | null; mandatory?: boolean;
+    uniqueAttribute?: boolean; sortOrder?: number;
+  }>>([]);
   const [values, setValues] = useState<Record<string, string>>(
     { ...rawAttributes });
   const [saving, setSaving] = useState(false);
@@ -769,6 +780,21 @@ function TrackerProfilePane(
   // switch). Prevents stale values lingering across identity swaps.
   useEffect(() => { setValues({ ...rawAttributes }); },
     [rawAttributes, teiId]);
+
+  // Fetch the full TEA definition list once per TET, for view-mode
+  // rendering of every attribute slot (filled or empty).
+  useEffect(() => {
+    if (!tetUid) { setTeaDefs([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const teaRes = await api.listCaptureTeiTypeAttributes(tetUid);
+        if (cancelled) return;
+        setTeaDefs(teaRes.attributes);
+      } catch { if (!cancelled) setTeaDefs([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [tetUid, api]);
 
   useEffect(() => {
     if (mode !== 'edit' || !tetUid) return;
@@ -785,6 +811,34 @@ function TrackerProfilePane(
     })();
     return () => { cancelled = true; };
   }, [mode, tetUid, api]);
+
+  /** Full view-mode attribute list — every TEA for the TET ordered
+   *  by sortOrder, joined against rawAttributes. Cells with no saved
+   *  value render a muted "—" placeholder so the clinical record
+   *  shape is always visible. Falls back to the parent-provided
+   *  `attributes` (saved-only) when the TET fetch hasn't returned
+   *  yet, so the pane never flashes empty. */
+  const viewList = useMemo(() => {
+    if (teaDefs.length === 0) {
+      return attributes.map((a) => ({
+        label: a.label, value: a.value, isEmpty: false,
+        mandatory: false, unique: false,
+      }));
+    }
+    return [...teaDefs]
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      .map((def) => {
+        const v = rawAttributes[def.attributeUid];
+        const val = (v ?? '').toString();
+        return {
+          label: def.displayName ?? def.attributeUid,
+          value: val,
+          isEmpty: val.trim() === '',
+          mandatory: def.mandatory ?? false,
+          unique: def.uniqueAttribute ?? false,
+        };
+      });
+  }, [teaDefs, rawAttributes, attributes]);
 
   async function save(): Promise<void> {
     if (!tetUid) return;
@@ -902,28 +956,35 @@ function TrackerProfilePane(
       </header>
 
       {mode === 'view' ? (
-        attributes.length === 0 ? (
+        viewList.length === 0 ? (
           <div className="cap-placeholder" data-test="tr-profile-empty"
                style={{ margin: 0, fontSize: 14 }}>
-            No attributes captured for this tracked entity yet.
-            {tetUid && (
-              <>
-                {' '}Use
-                <strong style={{ padding: '0 4px' }}>Edit profile</strong>
-                above to fill them in.
-              </>
-            )}
+            This tracked entity type has no attributes configured.
           </div>
         ) : (
           <div className="cap-profile-pane__grid"
                data-test="tr-profile-grid">
-            {attributes.map((a) => (
-              <div key={a.label} className="cap-profile-pane__cell">
+            {viewList.map((a) => (
+              <div key={a.label} className={'cap-profile-pane__cell'
+                + (a.isEmpty ? ' cap-profile-pane__cell--empty' : '')}>
                 <div className="cap-profile-pane__cell-label">
                   {a.label}
+                  {a.mandatory && (
+                    <span className="cap-profile-pane__cell-req"
+                          title="Mandatory attribute">*</span>
+                  )}
+                  {a.unique && (
+                    <span className="cap-profile-pane__cell-flag"
+                          title="Unique attribute (used for deduplication)">
+                      unique
+                    </span>
+                  )}
                 </div>
                 <div className="cap-profile-pane__cell-value">
-                  {a.value}
+                  {a.isEmpty ? (
+                    <span className="cap-profile-pane__cell-dash"
+                          aria-label="No value captured yet">—</span>
+                  ) : a.value}
                 </div>
               </div>
             ))}
