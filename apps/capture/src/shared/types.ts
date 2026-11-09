@@ -241,7 +241,8 @@ export interface CaptureApi {
       name?: string; sortOrder?: number;
     }>;
   } | null>;
-  listRelationshipTypes: () => Promise<ReadonlyArray<{
+  listRelationshipTypes: (trackedEntityTypeUid?: string) =>
+    Promise<ReadonlyArray<{
     id: string;
     displayName?: string;
     name?: string;

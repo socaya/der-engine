@@ -260,6 +260,14 @@ export function TrackerDetailPage(
   // enrolment flips OR when the operator just added one (bump via
   // railCountsTick). Null enrolment = zero out.
   const [railCountsTick, setRailCountsTick] = useState(0);
+  /** Whether at least one relationship type is configured for the
+   *  current TET. Used to hide the Relationships rail item entirely
+   *  when the program's metadata has no types configured — avoids
+   *  a dead rail entry that can't lead anywhere. If the TET is
+   *  unknown we optimistically show the rail (the component itself
+   *  will render an appropriate empty state). */
+  const [relTypesConfigured, setRelTypesConfigured] =
+    useState<boolean>(true);
   useEffect(() => {
     if (!selectedEnrolment) {
       setNotesCount(0);
@@ -278,6 +286,29 @@ export function TrackerDetailPage(
     })();
     return () => { cancelled = true; };
   }, [selectedEnrolment, teiId, railCountsTick, api]);
+
+  // Detect whether any relationship types exist for this TET so
+  // the rail entry can hide when the program has zero relationship
+  // metadata configured (spec §REL-C-002 / operator feedback: "if
+  // no relationships are configured on a program, hide that
+  // section"). We re-check when tetUid resolves.
+  useEffect(() => {
+    if (!tetUid) { setRelTypesConfigured(true); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const types = await api.listRelationshipTypes(tetUid);
+        if (!cancelled) {
+          setRelTypesConfigured((types ?? []).length > 0);
+        }
+      } catch {
+        // On fetch failure leave the rail visible — safer than
+        // silently hiding a feature the operator might need.
+        if (!cancelled) setRelTypesConfigured(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [tetUid, api]);
 
   const eventsByStage = useMemo(() => {
     const m = new Map<string, TrackerEvent[]>();
@@ -501,24 +532,32 @@ export function TrackerDetailPage(
                 {notesCount}
               </span>
             </button>
-            <button type="button"
-                    className={'cap-stage-rail__item'
-                      + (railKind === 'relationships'
-                        ? ' cap-stage-rail__item--active' : '')}
-                    data-test="tr-rail-relationships"
-                    onClick={() => setRailKind('relationships')}>
-              <RailIcon kind="relationships" />
-              <span className="cap-stage-rail__name">
-                Relationships
-              </span>
-              <span className="cap-stage-rail__count"
-                    title={relationshipsCount === 0
-                      ? 'No relationships yet'
-                      : `${relationshipsCount} link`
-                        + (relationshipsCount === 1 ? '' : 's')}>
-                {relationshipsCount}
-              </span>
-            </button>
+            {/* Only render the Relationships rail entry when the
+             *  current TET has at least one relationship type
+             *  configured OR the record already has existing links.
+             *  Otherwise the entry would lead to a dead screen with
+             *  no actions — spec requires hiding the section under
+             *  that condition. */}
+            {(relTypesConfigured || relationshipsCount > 0) && (
+              <button type="button"
+                      className={'cap-stage-rail__item'
+                        + (railKind === 'relationships'
+                          ? ' cap-stage-rail__item--active' : '')}
+                      data-test="tr-rail-relationships"
+                      onClick={() => setRailKind('relationships')}>
+                <RailIcon kind="relationships" />
+                <span className="cap-stage-rail__name">
+                  Relationships
+                </span>
+                <span className="cap-stage-rail__count"
+                      title={relationshipsCount === 0
+                        ? 'No relationships yet'
+                        : `${relationshipsCount} link`
+                          + (relationshipsCount === 1 ? '' : 's')}>
+                  {relationshipsCount}
+                </span>
+              </button>
+            )}
           </nav>
 
           <div className="cap-stage-pane" data-test="tr-stage-pane">

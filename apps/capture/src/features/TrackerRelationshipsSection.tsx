@@ -95,7 +95,8 @@ interface RelRow {
  * use POST /api/tracker?importStrategy=DELETE (2.44 shape).
  */
 export function TrackerRelationshipsSection(
-  { api, tei, programUid, orgUnitUid, tetUid, currentEnrollmentUid }: {
+  { api, tei, programUid, orgUnitUid, tetUid,
+    currentEnrollmentUid }: {
     api: CaptureApi; tei: string;
     programUid: string; orgUnitUid: string;
     tetUid: string | null;
@@ -342,6 +343,7 @@ export function TrackerRelationshipsSection(
     return fromOk || toOk;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [types, tetUid, selfEnrollments, selfEvents]);
+
 
   const pickedType = eligibleTypes.find((t) => t.id === pickedTypeId);
 
