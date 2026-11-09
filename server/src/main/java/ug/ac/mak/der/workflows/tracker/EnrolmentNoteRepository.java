@@ -39,6 +39,17 @@ public class EnrolmentNoteRepository {
         return n;
     }
 
+    /** Called by the drain on a successful central POST. Stamps
+     *  the server-assigned (or replayed-client) UID so the dirty-
+     *  subset lookup can exclude it on the next drain tick. */
+    public int markSynced(final String noteUid, final String centralUid) {
+        return jdbc.update(
+                "UPDATE der.edge_enrollment_note "
+                        + "SET central_uid = ? "
+                        + "WHERE note_uid = ?",
+                centralUid, noteUid);
+    }
+
     public List<EnrolmentNote> findByEnrollment(final String enrollmentUid) {
         return jdbc.query(
                 "SELECT note_uid, enrollment_uid, note_text, "

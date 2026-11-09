@@ -6,8 +6,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -19,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.security.EdgeUserPrincipal;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 import ug.ac.mak.der.workflows.tracker.EnrolmentNoteRepository;
 import ug.ac.mak.der.workflows.tracker.EnrolmentNoteRepository.EnrolmentNote;
 
@@ -34,11 +39,17 @@ import ug.ac.mak.der.workflows.tracker.EnrolmentNoteRepository.EnrolmentNote;
 public class EnrolmentNoteController {
 
     private final EnrolmentNoteRepository repo;
+    private final OperationJournalRepository journal;
+    private final ObjectMapper json;
     private final Clock clock;
 
     public EnrolmentNoteController(final EnrolmentNoteRepository repo,
+                                     final OperationJournalRepository journal,
+                                     final ObjectMapper json,
                                      final Clock clock) {
         this.repo = Objects.requireNonNull(repo, "repo");
+        this.journal = Objects.requireNonNull(journal, "journal");
+        this.json = Objects.requireNonNull(json, "json");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -79,6 +90,22 @@ public class EnrolmentNoteController {
                     "code", "NOTE_INVALID", "message", ex.getMessage()));
         }
         repo.insert(note);
+        // Enqueue a journal entry so the drain POSTs this note to
+        // central as an enrollment update envelope. On ACCEPTED the
+        // publisher stamps central_uid via noteRepo.markSynced.
+        final ObjectNode payload = json.createObjectNode();
+        payload.put("operation", "CREATE");
+        payload.put("enrollmentUid", enrollmentUid);
+        payload.put("noteUid", note.noteUid());
+        payload.put("noteText", note.noteText());
+        final Instant nowJournal = Instant.now(clock);
+        journal.insert(new OperationJournalEntry(
+                UUID.randomUUID(),
+                OperationJournalEntry.EntityType.ENROLMENT_NOTE,
+                note.noteUid(),
+                payload,
+                OperationJournalEntry.State.PENDING,
+                0, null, principal.userId(), nowJournal, nowJournal));
         return ResponseEntity.ok(toJson(note));
     }
 

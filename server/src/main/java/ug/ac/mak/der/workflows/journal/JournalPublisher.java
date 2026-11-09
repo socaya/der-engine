@@ -24,6 +24,7 @@ import ug.ac.mak.der.dhis2.compatibility.Dhis2CompatibilityEngine;
 import ug.ac.mak.der.dhis2.compatibility.Dhis2CompatibilityUnavailableException;
 import ug.ac.mak.der.dhis2.compatibility.EndpointId;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
+import ug.ac.mak.der.workflows.tracker.EnrolmentNoteRepository;
 import ug.ac.mak.der.workflows.tracker.TrackerRelationshipRepository;
 
 /**
@@ -53,19 +54,35 @@ public class JournalPublisher {
      *  still make the central round-trip so the journal entry
      *  terminates correctly. */
     private final TrackerRelationshipRepository relationshipRepo;
+    /** Nullable, same pattern as relationshipRepo — ENROLMENT_NOTE
+     *  publish calls fall back to no-op markSynced when absent. */
+    private final EnrolmentNoteRepository noteRepo;
 
     @Autowired
     public JournalPublisher(final HttpClient http, final Dhis2Properties props,
                              final Dhis2CompatibilityEngine engine,
                              final ReferralPayloadEncoder referralEncoder,
                              final ObjectMapper jsonMapper,
-                             final TrackerRelationshipRepository relationshipRepo) {
+                             final TrackerRelationshipRepository relationshipRepo,
+                             final EnrolmentNoteRepository noteRepo) {
         this.http = Objects.requireNonNull(http, "http");
         this.props = Objects.requireNonNull(props, "props");
         this.engine = Objects.requireNonNull(engine, "engine");
         this.referralEncoder = Objects.requireNonNull(referralEncoder, "referralEncoder");
         this.jsonMapper = Objects.requireNonNull(jsonMapper, "jsonMapper");
         this.relationshipRepo = relationshipRepo;
+        this.noteRepo = noteRepo;
+    }
+
+    /** Back-compat ctor without the note repo — relationship tests
+     *  that predate slice-notes can keep constructing without
+     *  touching their mocks. */
+    public JournalPublisher(final HttpClient http, final Dhis2Properties props,
+                             final Dhis2CompatibilityEngine engine,
+                             final ReferralPayloadEncoder referralEncoder,
+                             final ObjectMapper jsonMapper,
+                             final TrackerRelationshipRepository relationshipRepo) {
+        this(http, props, engine, referralEncoder, jsonMapper, relationshipRepo, null);
     }
 
     /** Back-compat ctor for pre-slice-3 callers (tests). Omitting
@@ -75,14 +92,14 @@ public class JournalPublisher {
                              final Dhis2CompatibilityEngine engine,
                              final ReferralPayloadEncoder referralEncoder,
                              final ObjectMapper jsonMapper) {
-        this(http, props, engine, referralEncoder, jsonMapper, null);
+        this(http, props, engine, referralEncoder, jsonMapper, null, null);
     }
 
     /** Back-compat ctor for pre-R-D/tracker-async callers (tests). */
     public JournalPublisher(final HttpClient http, final Dhis2Properties props,
                              final Dhis2CompatibilityEngine engine,
                              final ReferralPayloadEncoder referralEncoder) {
-        this(http, props, engine, referralEncoder, new ObjectMapper(), null);
+        this(http, props, engine, referralEncoder, new ObjectMapper(), null, null);
     }
 
     public PublishResult publish(final OperationJournalEntry entry) {
@@ -97,6 +114,9 @@ public class JournalPublisher {
          * to grow method-override awareness. */
         if (entry.entityType() == OperationJournalEntry.EntityType.RELATIONSHIP) {
             return publishRelationship(entry);
+        }
+        if (entry.entityType() == OperationJournalEntry.EntityType.ENROLMENT_NOTE) {
+            return publishEnrolmentNote(entry);
         }
         final String path;
         try {
@@ -464,6 +484,83 @@ public class JournalPublisher {
         return side;
     }
 
+    /** Enrolment-note drain handler. Reads the enqueued payload
+     *  (operation=CREATE, enrollmentUid, noteUid, noteText), posts
+     *  a tracker-envelope update to central that attaches the note
+     *  to its parent enrolment, and on ACCEPTED stamps central_uid
+     *  on the local note row so the dirty-subset lookup excludes
+     *  it next tick. */
+    private PublishResult publishEnrolmentNote(final OperationJournalEntry entry) {
+        final JsonNode payload = entry.payload();
+        if (!(payload instanceof ObjectNode obj)) {
+            return new PublishResult(-1,
+                    "enrolment-note payload missing or not an object",
+                    TerminalState.REJECTED);
+        }
+        final String enrollmentUid = textOrNull(obj, "enrollmentUid");
+        final String noteUid = textOrNull(obj, "noteUid");
+        final String noteText = textOrNull(obj, "noteText");
+        if (enrollmentUid == null || noteUid == null || noteText == null) {
+            return new PublishResult(-1,
+                    "enrolment-note payload missing required fields",
+                    TerminalState.REJECTED);
+        }
+        try {
+            final URI uri = URI.create(
+                    props.central().baseUrl() + "/api/tracker");
+            final HttpRequest.Builder req = HttpRequest.newBuilder(uri)
+                    .timeout(Duration.ofMillis(Math.max(1_000,
+                            props.central().connectTimeoutMillis())))
+                    .header("Accept", "application/json")
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(
+                            buildEnrolmentNoteBody(enrollmentUid,
+                                    noteUid, noteText),
+                            StandardCharsets.UTF_8));
+            if (props.central().username() != null
+                    && !props.central().username().isBlank()) {
+                final String token = props.central().username() + ":"
+                        + (props.central().password() == null ? ""
+                        : props.central().password());
+                req.header("Authorization", "Basic "
+                        + Base64.getEncoder().encodeToString(
+                                token.getBytes(StandardCharsets.UTF_8)));
+            }
+            final HttpResponse<String> resp = http.send(req.build(),
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            final int status = resp.statusCode();
+            final String respBody = resp.body() == null ? "" : resp.body();
+            final TerminalState terminal = ResponseClassifier.classify(status);
+            if (terminal == TerminalState.ACCEPTED && noteRepo != null) {
+                noteRepo.markSynced(noteUid, noteUid);
+            }
+            return new PublishResult(status, respBody, terminal);
+        } catch (IOException ex) {
+            LOG.warn("enrolment-note publish I/O failure: {}", ex.getMessage());
+            return new PublishResult(-1, ex.getMessage(), TerminalState.RETRYABLE);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return new PublishResult(-1, "interrupted", TerminalState.RETRYABLE);
+        }
+    }
+
+    /** DHIS2 2.44 tracker envelope — enrolment notes attach as
+     *  {@code {enrollments: [{enrollment, notes: [{note, value}]}]}}.
+     *  Central merges the note onto the existing enrolment. */
+    private String buildEnrolmentNoteBody(final String enrollmentUid,
+                                             final String noteUid,
+                                             final String noteText) {
+        final ObjectNode envelope = jsonMapper.createObjectNode();
+        final ObjectNode enrolment = jsonMapper.createObjectNode();
+        enrolment.put("enrollment", enrollmentUid);
+        final ObjectNode note = jsonMapper.createObjectNode();
+        note.put("note", noteUid);
+        note.put("value", noteText);
+        enrolment.putArray("notes").add(note);
+        envelope.putArray("enrollments").add(enrolment);
+        return envelope.toString();
+    }
+
     private static String sideFieldName(final String kind) {
         return switch (kind) {
             case "TRACKED_ENTITY" -> "trackedEntity";
@@ -491,11 +588,13 @@ public class JournalPublisher {
                 yield caps.endpointPolicy(EndpointId.TRACKER_EVENTS).path();
             }
             case TRACKED_ENTITY, ENROLLMENT -> caps.endpointPolicy(EndpointId.TRACKER_IMPORT).path();
-            /* RELATIONSHIP entries never reach targetPath — they're
-             * dispatched inline via publishRelationship(). Returning
-             * the base path keeps the switch exhaustive without
-             * misrouting any caller that bypasses publish(). */
+            /* RELATIONSHIP + ENROLMENT_NOTE entries never reach
+             * targetPath — they're dispatched inline by their own
+             * publishX methods. Returning a sentinel keeps the
+             * switch exhaustive without misrouting any caller that
+             * bypasses publish(). */
             case RELATIONSHIP -> "/api/relationships";
+            case ENROLMENT_NOTE -> "/api/tracker";
         };
     }
 

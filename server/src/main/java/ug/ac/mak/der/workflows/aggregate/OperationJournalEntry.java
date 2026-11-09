@@ -73,7 +73,12 @@ public record OperationJournalEntry(
          *  carry the TEI↔TEI link payload so the drain can
          *  POST /api/relationships or DELETE /api/relationships/{uid}
          *  against central DHIS2. */
-        RELATIONSHIP
+        RELATIONSHIP,
+        /** Enrolment note. Journal entries carry the note text +
+         *  its parent enrolment UID so the drain can POST a tracker
+         *  envelope ({enrollments:[{enrollment, notes:[{note, value}]}]})
+         *  to central. */
+        ENROLMENT_NOTE
     }
 
     public enum State {
