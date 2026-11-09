@@ -629,41 +629,47 @@ export function TrackerRelationshipWizardPage(
                 admin to configure a relationship type first.
               </div>
             ) : (
-              <>
-                <p className="cap-sub" style={{ marginTop: 0 }}>
-                  Pick what you want to link this record to.
-                </p>
-                <ul className="cap-rel-wiz__typelist"
-                    data-test="tr-rel-wiz-typelist">
+              <label className="cap-input"
+                     style={{ maxWidth: 520, display: 'block' }}>
+                <span className="cap-input__label">
+                  Choose a type
+                </span>
+                <select className="cap-input__ctl"
+                        data-test="tr-rel-wiz-typelist"
+                        value={pickedTypeId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setPickedTypeId(id);
+                          const t = eligibleTypes.find(
+                            (x) => x.id === id);
+                          if (!t) { setFlipped(false); return; }
+                          const fromKind = mirrorToEdgeKind(t.fromEntity);
+                          const fromCan = canAnchor(fromKind, t.fromTet,
+                            t.fromProgram, t.fromStage);
+                          setFlipped(!fromCan && t.bidirectional);
+                        }}>
+                  <option value="">— Select type —</option>
                   {eligibleTypes.map((t) => {
                     const fromKind = mirrorToEdgeKind(t.fromEntity);
                     const fromCan = canAnchor(fromKind, t.fromTet,
                       t.fromProgram, t.fromStage);
                     const optFlipped = !fromCan && t.bidirectional;
-                    const picked = t.id === pickedTypeId;
+                    const label = directionalLabel(t, optFlipped);
                     return (
-                      <li key={t.id}>
-                        <button type="button"
-                                className={'cap-rel-wiz__typeitem'
-                                  + (picked
-                                    ? ' cap-rel-wiz__typeitem--picked'
-                                    : '')}
-                                data-test={'tr-rel-wiz-type-' + t.id}
-                                onClick={() => {
-                                  setPickedTypeId(t.id);
-                                  setFlipped(optFlipped);
-                                }}>
-                          <strong>{directionalLabel(t, optFlipped)}</strong>
-                          <span className="cap-rel-wiz__typeitem-sub">
-                            {t.displayName}
-                            {t.bidirectional ? ' · both ways' : ''}
-                          </span>
-                        </button>
-                      </li>
+                      <option key={t.id} value={t.id}
+                              title={t.displayName}>
+                        {label}
+                        {t.bidirectional ? ' (both ways)' : ''}
+                      </option>
                     );
                   })}
-                </ul>
-              </>
+                </select>
+                {pickedType && (
+                  <span className="cap-input__help">
+                    {pickedType.displayName}
+                  </span>
+                )}
+              </label>
             )}
         </section>
 
