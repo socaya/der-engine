@@ -99,14 +99,50 @@ public class TrackerRelationshipRepository {
 
     public List<TrackerRelationship> findForEntity(final TrackerRelationship.EntityType type,
                                                      final String uid) {
-        return jdbc.query(
-                "SELECT * FROM der.edge_tracker_relationship "
+        return findForEntity(type, uid, Integer.MAX_VALUE, null);
+    }
+
+    /** Cursor-paginated variant (REL-S-013). Cursor is the
+     *  createdAt timestamp of the last row the client already
+     *  received; rows with strictly older createdAt are returned.
+     *  Null cursor = start from the newest.
+     *
+     *  Why timestamp-cursor and not offset: an evolving list
+     *  (operator deletes a row while scrolling) would skip rows
+     *  with offset pagination; timestamp cursoring is stable so
+     *  long as createdAt is monotonic (it is — each row is a
+     *  fresh insert). Ties on identical createdAt are unlikely at
+     *  this volume but the index secondary-orders by
+     *  relationship_uid to make the cursor deterministic either
+     *  way. */
+    public List<TrackerRelationship> findForEntity(
+            final TrackerRelationship.EntityType type,
+            final String uid,
+            final int limit,
+            final Instant cursorBefore) {
+        final int cap = Math.max(1, Math.min(limit, 500));
+        if (cursorBefore == null) {
+            return jdbc.query(
+                    "SELECT * FROM der.edge_tracker_relationship "
                         + "WHERE deleted_at IS NULL "
                         + "  AND ((from_entity_type = ? AND from_entity_uid = ?) "
                         + "    OR (to_entity_type = ? AND to_entity_uid = ? "
                         + "          AND bidirectional = TRUE)) "
-                        + "ORDER BY created_at DESC",
-                mapper(), type.name(), uid, type.name(), uid);
+                        + "ORDER BY created_at DESC, relationship_uid DESC "
+                        + "LIMIT ?",
+                    mapper(), type.name(), uid, type.name(), uid, cap);
+        }
+        return jdbc.query(
+                "SELECT * FROM der.edge_tracker_relationship "
+                    + "WHERE deleted_at IS NULL "
+                    + "  AND ((from_entity_type = ? AND from_entity_uid = ?) "
+                    + "    OR (to_entity_type = ? AND to_entity_uid = ? "
+                    + "          AND bidirectional = TRUE)) "
+                    + "  AND created_at < ? "
+                    + "ORDER BY created_at DESC, relationship_uid DESC "
+                    + "LIMIT ?",
+                mapper(), type.name(), uid, type.name(), uid,
+                Timestamp.from(cursorBefore), cap);
     }
 
     /** Dirty subset the drain worker pulls: rows that still need a

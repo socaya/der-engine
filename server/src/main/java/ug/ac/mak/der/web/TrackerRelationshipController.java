@@ -206,7 +206,13 @@ public class TrackerRelationshipController {
     @GetMapping
     public ResponseEntity<Map<String, Object>> listForEntity(final Authentication authentication,
                                                                @RequestParam("entityType") final String entityType,
-                                                               @RequestParam("entityUid") final String entityUid) {
+                                                               @RequestParam("entityUid") final String entityUid,
+                                                               @RequestParam(value = "limit",
+                                                                   required = false,
+                                                                   defaultValue = "100") final int limit,
+                                                               @RequestParam(value = "cursor",
+                                                                   required = false)
+                                                               final String cursor) {
         if (!(authentication instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
@@ -218,7 +224,24 @@ public class TrackerRelationshipController {
                     "code", "ENTITY_TYPE_INVALID",
                     "message", "entityType must be TRACKED_ENTITY, ENROLLMENT or EVENT"));
         }
-        final List<TrackerRelationship> rows = repo.findForEntity(type, entityUid);
+        // REL-S-013: cursor pagination. Cursor is an ISO-8601
+        // instant string (the previous page's last row's
+        // createdAt). Invalid cursor → 400 rather than silently
+        // returning the newest page, so a corrupt cursor doesn't
+        // make the client think it reached the end.
+        Instant cursorBefore = null;
+        if (cursor != null && !cursor.isBlank()) {
+            try {
+                cursorBefore = Instant.parse(cursor);
+            } catch (Exception ex) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "code", "CURSOR_INVALID",
+                        "message", "cursor must be an ISO-8601 instant"));
+            }
+        }
+        final int cappedLimit = Math.max(1, Math.min(limit, 500));
+        final List<TrackerRelationship> rows =
+                repo.findForEntity(type, entityUid, cappedLimit, cursorBefore);
         // Enrichment: batch-lookup enrolment + event details so the
         // client can render human-friendly endpoint labels without a
         // separate round-trip per row. N (relationships for one TEI)
@@ -256,10 +279,22 @@ public class TrackerRelationshipController {
                 lookupDisplayNames("metadata_program", programUids);
         final Map<String, String> stageNameByUid =
                 lookupDisplayNames("metadata_program_stage", stageUids);
-        return ResponseEntity.ok(Map.of("relationships",
-                rows.stream().map(r -> toJson(r,
-                        enrolByUid, eventByUid,
-                        programNameByUid, stageNameByUid)).toList()));
+        final List<Map<String, Object>> payload = rows.stream()
+                .map(r -> toJson(r, enrolByUid, eventByUid,
+                        programNameByUid, stageNameByUid)).toList();
+        // nextCursor: the oldest row's createdAt in this page,
+        // iff the page was full (i.e. there might be more). Null
+        // signals "end of list" to the client.
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("relationships", payload);
+        out.put("limit", cappedLimit);
+        if (rows.size() == cappedLimit) {
+            out.put("nextCursor",
+                    rows.get(rows.size() - 1).createdAt().toString());
+        } else {
+            out.put("nextCursor", null);
+        }
+        return ResponseEntity.ok(out);
     }
 
     private static void collectRefUid(final TrackerRelationship.EntityType t,
