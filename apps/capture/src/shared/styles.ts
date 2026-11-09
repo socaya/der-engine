@@ -1903,7 +1903,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   border-bottom: 1px solid var(--der-border-soft);
 }
 .cap-stage-rail__item {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; gap: 10px;
   padding: 8px 12px;
   background: transparent;
   border: 0;
@@ -1928,14 +1928,30 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   color: var(--der-primary-strong);
   font-weight: 500;
 }
-.cap-stage-rail__name { flex: 1; }
+/** Rail icon — stroke-based, inherits colour from the item so
+ *  hover + active states tint it automatically. Shrinks are off
+ *  so long labels can wrap without squashing the glyph. */
+.cap-stage-rail__icon {
+  flex: 0 0 16px;
+  color: var(--der-text-muted);
+  transition: color 100ms;
+}
+.cap-stage-rail__item:hover .cap-stage-rail__icon,
+.cap-stage-rail__item--active .cap-stage-rail__icon {
+  color: var(--der-primary);
+}
+.cap-stage-rail__name {
+  flex: 1 1 auto; min-width: 0;
+  overflow-wrap: anywhere;
+}
 .cap-stage-rail__count {
+  flex: 0 0 auto;
   min-width: 20px; padding: 0 6px;
-  text-align: center;
+  text-align: right;
   background: transparent; color: var(--der-text-muted);
   font-size: 13px; font-weight: 500;
   border-radius: 0;
-  margin-left: 8px;
+  margin-left: auto;
 }
 .cap-stage-rail__item--active .cap-stage-rail__count {
   background: transparent; color: var(--der-primary);

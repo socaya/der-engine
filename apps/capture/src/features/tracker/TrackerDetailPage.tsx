@@ -443,21 +443,22 @@ export function TrackerDetailPage(
         <div className="cap-stage-layout" data-test="tr-stage-layout">
           <nav className="cap-stage-rail" aria-label="Record navigation"
                data-test="tr-stage-rail">
-            {/* Profile sits above the Stages group as the identity
-             *  landing surface — selected by default so operators
-             *  see who the record is before scanning the timeline. */}
+            {/* Flat rail — Profile first, then stages, then Notes
+             *  + Relationships. No section header, no dividers;
+             *  every item carries a modern stroke icon so the
+             *  category reads at a glance and the list stays
+             *  visually uniform. */}
             <button type="button"
                     className={'cap-stage-rail__item'
                       + (railKind === 'profile'
                         ? ' cap-stage-rail__item--active' : '')}
                     data-test="tr-rail-profile"
                     onClick={() => setRailKind('profile')}>
+              <RailIcon kind="profile" />
               <span className="cap-stage-rail__name">Profile</span>
             </button>
-            <div className="cap-stage-rail__divider" aria-hidden="true" />
-            <div className="cap-stage-rail__title">Stages</div>
             {stages.length === 0 ? (
-              <p className="cap-sub" style={{ margin: 0 }}>
+              <p className="cap-sub" style={{ margin: '4px 10px 0' }}>
                 This program has no stages configured.
               </p>
             ) : stages.map((s) => {
@@ -473,6 +474,7 @@ export function TrackerDetailPage(
                           setSelectedStage(s.id);
                           setRailKind('stage');
                         }}>
+                  <RailIcon kind="stage" />
                   <span className="cap-stage-rail__name">
                     {s.displayName}
                   </span>
@@ -484,17 +486,13 @@ export function TrackerDetailPage(
                 </button>
               );
             })}
-            {/* Divider + extra rail items for enrolment-scoped
-             *  content (Notes, Relationships). Same visual pattern
-             *  as stage items so the operator has one consistent
-             *  navigation model. */}
-            <div className="cap-stage-rail__divider" aria-hidden="true" />
             <button type="button"
                     className={'cap-stage-rail__item'
                       + (railKind === 'notes'
                         ? ' cap-stage-rail__item--active' : '')}
                     data-test="tr-rail-notes"
                     onClick={() => setRailKind('notes')}>
+              <RailIcon kind="notes" />
               <span className="cap-stage-rail__name">Notes</span>
               <span className="cap-stage-rail__count"
                     title={notesCount === 0 ? 'No notes yet'
@@ -509,6 +507,7 @@ export function TrackerDetailPage(
                         ? ' cap-stage-rail__item--active' : '')}
                     data-test="tr-rail-relationships"
                     onClick={() => setRailKind('relationships')}>
+              <RailIcon kind="relationships" />
               <span className="cap-stage-rail__name">
                 Relationships
               </span>
@@ -1284,6 +1283,58 @@ function EnrolmentNotesPane(
         </ul>
       )}
     </div>
+  );
+}
+
+/** Rail-item prefix icon. 16px stroke icons at 1.75 weight —
+ *  consistent with @dhis2/ui iconography and legible against
+ *  both inactive (muted) and active (primary) rail backgrounds
+ *  via currentColor. One sprite per logical category: profile,
+ *  stage, notes, relationships. */
+function RailIcon(
+  { kind }: { kind: 'profile' | 'stage' | 'notes' | 'relationships' },
+): JSX.Element {
+  const common = {
+    width: 16, height: 16, viewBox: '0 0 24 24',
+    fill: 'none', stroke: 'currentColor',
+    strokeWidth: 1.75, strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    className: 'cap-stage-rail__icon', 'aria-hidden': true,
+  };
+  if (kind === 'profile') {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+      </svg>
+    );
+  }
+  if (kind === 'notes') {
+    return (
+      <svg {...common}>
+        <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0
+          2 2h12a2 2 0 0 0 2-2V9z" />
+        <path d="M14 3v6h6" />
+        <path d="M8 13h8M8 17h5" />
+      </svg>
+    );
+  }
+  if (kind === 'relationships') {
+    return (
+      <svg {...common}>
+        <path d="M10.5 13.5a4 4 0 0 0 5.66 0l3-3a4 4 0 1
+          0-5.66-5.66l-1 1" />
+        <path d="M13.5 10.5a4 4 0 0 0-5.66 0l-3 3a4 4 0 1
+          0 5.66 5.66l1-1" />
+      </svg>
+    );
+  }
+  // stage
+  return (
+    <svg {...common}>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M8 3v4M16 3v4M4 10h16" />
+    </svg>
   );
 }
 
