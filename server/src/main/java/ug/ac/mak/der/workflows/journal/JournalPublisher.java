@@ -360,23 +360,29 @@ public class JournalPublisher {
                     TerminalState.REJECTED);
         }
         final boolean isDelete = "DELETE".equalsIgnoreCase(operation);
+        /* DHIS2 2.44 serves all tracker writes through POST
+         * /api/tracker with an importStrategy query parameter:
+         * CREATE_AND_UPDATE (default) for creates, DELETE for
+         * deletes. The envelope shape is the same either way —
+         * {"relationships": [{...}]} — but a DELETE body only
+         * needs the UID. Earlier /api/relationships + DELETE
+         * /api/tracker/relationships/{uid} paths were removed in
+         * the 2.3x → 2.4x migration. */
         final String path = isDelete
-                ? "/api/relationships/" + uid
-                : "/api/relationships";
+                ? "/api/tracker?importStrategy=DELETE"
+                : "/api/tracker";
         try {
             final URI uri = URI.create(props.central().baseUrl() + path);
             final HttpRequest.Builder req = HttpRequest.newBuilder(uri)
                     .timeout(Duration.ofMillis(Math.max(1_000,
                             props.central().connectTimeoutMillis())))
-                    .header("Accept", "application/json");
-            if (isDelete) {
-                req.DELETE();
-            } else {
-                req.header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(
-                                buildRelationshipCreateBody(obj),
-                                StandardCharsets.UTF_8));
-            }
+                    .header("Accept", "application/json")
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(
+                            isDelete
+                                ? buildRelationshipDeleteBody(uid)
+                                : buildRelationshipCreateBody(obj),
+                            StandardCharsets.UTF_8));
             if (props.central().username() != null
                     && !props.central().username().isBlank()) {
                 final String token = props.central().username() + ":"
@@ -414,25 +420,40 @@ public class JournalPublisher {
         }
     }
 
-    /** DHIS2 wire-shape for POST /api/relationships (TEI↔TEI
-     *  today). Reads the flat payload the controller enqueued +
-     *  wraps each side in {trackedEntity:{trackedEntity:"<uid>"}}
-     *  per /api/tracker shape. ENROLLMENT / EVENT sides use the
-     *  analogous {enrollment:{enrollment:"<uid>"}} nesting. */
+    /** DHIS2 2.44 wire-shape for POST /api/tracker — relationships
+     *  live inside a top-level {@code relationships: [...]} array,
+     *  each element having relationship / relationshipType /
+     *  bidirectional + from/to sides. TEI sides wrap as
+     *  {trackedEntity:{trackedEntity:"<uid>"}}; ENROLLMENT and
+     *  EVENT sides use analogous {enrollment:{enrollment:"<uid>"}}
+     *  / {event:{event:"<uid>"}} nesting. */
     private String buildRelationshipCreateBody(final ObjectNode payload) {
-        final ObjectNode out = jsonMapper.createObjectNode();
-        out.put("relationship", payload.path("relationshipUid").asText(""));
-        out.put("relationshipType",
+        final ObjectNode rel = jsonMapper.createObjectNode();
+        rel.put("relationship", payload.path("relationshipUid").asText(""));
+        rel.put("relationshipType",
                 payload.path("relationshipType").asText(""));
-        out.put("bidirectional",
+        rel.put("bidirectional",
                 payload.path("bidirectional").asBoolean(false));
-        out.set("from", relationshipSide(
+        rel.set("from", relationshipSide(
                 payload.path("fromEntityType").asText(""),
                 payload.path("fromEntityUid").asText("")));
-        out.set("to", relationshipSide(
+        rel.set("to", relationshipSide(
                 payload.path("toEntityType").asText(""),
                 payload.path("toEntityUid").asText("")));
-        return out.toString();
+        final ObjectNode envelope = jsonMapper.createObjectNode();
+        envelope.putArray("relationships").add(rel);
+        return envelope.toString();
+    }
+
+    /** DHIS2 2.44 DELETE envelope — same {@code /api/tracker}
+     *  endpoint as CREATE but importStrategy=DELETE in the query
+     *  string. Body only needs the relationship UID. */
+    private String buildRelationshipDeleteBody(final String uid) {
+        final ObjectNode rel = jsonMapper.createObjectNode();
+        rel.put("relationship", uid);
+        final ObjectNode envelope = jsonMapper.createObjectNode();
+        envelope.putArray("relationships").add(rel);
+        return envelope.toString();
     }
 
     private ObjectNode relationshipSide(final String kind, final String uid) {
