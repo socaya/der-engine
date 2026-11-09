@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CaptureApi, StageOpt } from '../../shared/types';
 import { TrackerRelationshipsSection } from '../TrackerRelationshipsSection';
 import { TrackerStageEditor } from '../TrackerStageEditor';
@@ -44,11 +44,14 @@ export function TrackerDetailPage(
   const [stages, setStages] = useState<StageOpt[]>([]);
   const [selectedStage, setSelectedStage] = useState<string | null>(null);
   /** Unified rail selection — the sidebar is a navigation surface
-   *  for stages + Notes + Relationships, so we track which "kind"
-   *  of content the pane is showing. Stage selection is kept in
-   *  selectedStage for back-compat with the existing pane logic. */
+   *  for Profile + stages + Notes + Relationships, so we track
+   *  which "kind" of content the pane is showing. Stage selection
+   *  is kept in selectedStage for back-compat with the existing
+   *  pane logic. Profile opens by default: it's the "what / who"
+   *  landing surface for the record, consistent with how clinical
+   *  record systems lead with identity before timeline. */
   const [railKind, setRailKind] =
-    useState<'stage' | 'notes' | 'relationships'>('stage');
+    useState<'profile' | 'stage' | 'notes' | 'relationships'>('profile');
   /** Counts shown on the Notes + Relationships rail items so the
    *  operator sees them at a glance (mirrors the per-stage event
    *  count chip). Fetched when selectedEnrolment flips. */
@@ -98,7 +101,43 @@ export function TrackerDetailPage(
    *  existing toolbar-identity strip compact (4 attributes max)
    *  while making every captured attribute discoverable in one
    *  click. */
-  const [profileOpen, setProfileOpen] = useState(false);
+  /** Refetch just the identity (TEI attributes) without reloading the
+   *  whole page. Called from TrackerProfilePane after a successful
+   *  profile edit so the rail + strip pick up the new values. */
+  const refetchIdentity = useCallback(async (): Promise<void> => {
+    if (!tetUid) return;
+    const r = await api.listTrackerEntities(programUid, orgUnitUid, 500)
+      .catch(() => ({ trackedEntities: [], instances: [] }));
+    const all = r.trackedEntities ?? r.instances ?? [];
+    const me = all.find((x) => x.trackedEntity === teiId
+      || x.trackedEntityInstance === teiId);
+    if (!me) return;
+    const teaRes = await api.listCaptureTeiTypeAttributes(tetUid)
+      .catch(() => ({ attributes: [] }));
+    const byUid = new Map<string, string>();
+    const ordered = [...teaRes.attributes].sort(
+      (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    for (const a of ordered) {
+      byUid.set(a.attributeUid, a.displayName ?? a.attributeUid);
+    }
+    const full: Array<{ label: string; value: string }> = [];
+    for (const a of ordered) {
+      const v = me.attributes?.[a.attributeUid];
+      if (!v || String(v).trim() === '') continue;
+      full.push({
+        label: byUid.get(a.attributeUid) ?? a.attributeUid,
+        value: String(v),
+      });
+    }
+    setIdentity((prev) => ({
+      ...prev,
+      displayName: me.displayName ?? prev.displayName,
+      lastUpdated: me.lastUpdated ?? prev.lastUpdated,
+      attributes: full.slice(0, 4),
+      allAttributes: full,
+      rawAttributes: me.attributes ?? {},
+    }));
+  }, [api, programUid, orgUnitUid, teiId, tetUid]);
 
   useEffect(() => {
     let cancelled = false;
@@ -318,8 +357,8 @@ export function TrackerDetailPage(
                     className="cap-btn cap-btn--secondary"
                     data-test="tr-profile-open"
                     style={{ padding: '5px 13px', fontSize: 13 }}
-                    title="See every captured attribute for this tracked entity"
-                    onClick={() => setProfileOpen(true)}>
+                    title="Jump to the Profile section in the rail"
+                    onClick={() => setRailKind('profile')}>
               View profile
             </button>
           )}
@@ -400,8 +439,27 @@ export function TrackerDetailPage(
 
       {selectedEnrolment && (
         <div className="cap-stage-layout" data-test="tr-stage-layout">
-          <nav className="cap-stage-rail" aria-label="Program stages"
+          <nav className="cap-stage-rail" aria-label="Record navigation"
                data-test="tr-stage-rail">
+            {/* Profile sits above the Stages group as the identity
+             *  landing surface — selected by default so operators
+             *  see who the record is before scanning the timeline. */}
+            <button type="button"
+                    className={'cap-stage-rail__item'
+                      + (railKind === 'profile'
+                        ? ' cap-stage-rail__item--active' : '')}
+                    data-test="tr-rail-profile"
+                    onClick={() => setRailKind('profile')}>
+              <span className="cap-stage-rail__name">Profile</span>
+              <span className="cap-stage-rail__count"
+                    title={identity.allAttributes.length === 0
+                      ? 'No attributes captured yet'
+                      : `${identity.allAttributes.length} attribute`
+                        + (identity.allAttributes.length === 1 ? '' : 's')}>
+                {identity.allAttributes.length}
+              </span>
+            </button>
+            <div className="cap-stage-rail__divider" aria-hidden="true" />
             <div className="cap-stage-rail__title">Stages</div>
             {stages.length === 0 ? (
               <p className="cap-sub" style={{ margin: 0 }}>
@@ -470,7 +528,24 @@ export function TrackerDetailPage(
           </nav>
 
           <div className="cap-stage-pane" data-test="tr-stage-pane">
-            {railKind === 'notes' ? (
+            {railKind === 'profile' ? (
+              <TrackerProfilePane
+                api={api}
+                teiId={teiId}
+                programUid={programUid}
+                orgUnitUid={orgUnitUid}
+                tetUid={tetUid}
+                displayName={identity.displayName}
+                lastUpdated={identity.lastUpdated}
+                attributes={identity.allAttributes}
+                rawAttributes={identity.rawAttributes}
+                enrolment={enrolments.find(
+                  (e) => e.enrollmentUid === selectedEnrolment) ?? null}
+                notesCount={notesCount}
+                relationshipsCount={relationshipsCount}
+                onEnrolAgain={() => navTracker.enrol(programUid, teiId)}
+                onProfileSaved={() => { void refetchIdentity(); }} />
+            ) : railKind === 'notes' ? (
               <EnrolmentNotesPane api={api}
                 enrollmentUid={selectedEnrolment}
                 teiId={teiId}
@@ -639,82 +714,45 @@ export function TrackerDetailPage(
         </div>
       )}
 
-      {/* Notes + Relationships moved into the stages rail above;
-       *  the pane body now renders them inline when their rail
-       *  item is selected. No standalone sections at the bottom
-       *  of the page any more. */}
-      {profileOpen && (
-        <ProfilePopover
-          api={api}
-          displayName={identity.displayName}
-          teiId={teiId}
-          tetUid={tetUid}
-          orgUnitUid={orgUnitUid}
-          rawAttributes={identity.rawAttributes}
-          attributes={identity.allAttributes}
-          onClose={() => setProfileOpen(false)}
-          onSaved={() => {
-            // Re-run the top-level load to pick up new attribute
-            // values. Simplest refresh — the whole detail page
-            // rebuilds, but it's fast + the operator just closed
-            // a modal so there's no scroll state to preserve.
-            setProfileOpen(false);
-            setStatus('loading');
-            (async () => {
-              // Force the useEffect by toggling a dep — easier
-              // path: refetch the tracker-entities list inline.
-              const r = await api.listTrackerEntities(
-                programUid, orgUnitUid, 500)
-                .catch(() => ({ trackedEntities: [], instances: [] }));
-              const all = r.trackedEntities ?? r.instances ?? [];
-              const me = all.find((x) => x.trackedEntity === teiId
-                || x.trackedEntityInstance === teiId);
-              if (me && tetUid) {
-                const teaRes = await api.listCaptureTeiTypeAttributes(tetUid)
-                  .catch(() => ({ attributes: [] }));
-                const byUid = new Map<string, string>();
-                const ordered = [...teaRes.attributes].sort(
-                  (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-                for (const a of ordered) {
-                  byUid.set(a.attributeUid,
-                    a.displayName ?? a.attributeUid);
-                }
-                const full: Array<{ label: string; value: string }> = [];
-                for (const a of ordered) {
-                  const v = me.attributes?.[a.attributeUid];
-                  if (!v || String(v).trim() === '') continue;
-                  full.push({
-                    label: byUid.get(a.attributeUid) ?? a.attributeUid,
-                    value: String(v),
-                  });
-                }
-                setIdentity((prev) => ({
-                  ...prev,
-                  attributes: full.slice(0, 4),
-                  allAttributes: full,
-                  rawAttributes: me.attributes ?? {},
-                }));
-              }
-              setStatus('idle');
-            })();
-          }} />
-      )}
+      {/* Profile, Notes and Relationships live in the rail now
+       *  and render inline inside the stage pane — no standalone
+       *  sections or modals at the bottom of the page. */}
     </>
   );
 }
 
-function ProfilePopover(
-  { api, displayName, teiId, tetUid, orgUnitUid, rawAttributes,
-    attributes, onClose, onSaved }: {
+/** Profile pane — renders inline inside the stage pane when the
+ *  rail "Profile" item is selected (first in the rail, default
+ *  landing surface). Modern record-dashboard layout: identity
+ *  header with status pill + quick-fact chips, two-column
+ *  attributes grid, primary action bar (Edit profile, + Enrol
+ *  again, Print profile), audit footer. Edit mode swaps the
+ *  attributes grid for the FormEngine without leaving the pane,
+ *  so operators never lose their rail position.
+ *
+ *  Why a dedicated pane instead of the old popover: operators
+ *  should land on "who is this?" before scanning the timeline.
+ *  A popover made Profile feel like a side-topic; a rail item
+ *  elevates it to the primary identity surface (matching how
+ *  clinical record systems lay out the patient dashboard). */
+function TrackerProfilePane(
+  { api, teiId, programUid, orgUnitUid, tetUid, displayName,
+    lastUpdated, attributes, rawAttributes, enrolment,
+    notesCount, relationshipsCount, onEnrolAgain, onProfileSaved }: {
     api: CaptureApi;
-    displayName: string | null;
     teiId: string;
-    tetUid: string | null;
+    programUid: string;
     orgUnitUid: string;
-    rawAttributes: Readonly<Record<string, string>>;
+    tetUid: string | null;
+    displayName: string | null;
+    lastUpdated: string | null;
     attributes: ReadonlyArray<{ label: string; value: string }>;
-    onClose: () => void;
-    onSaved: () => void;
+    rawAttributes: Readonly<Record<string, string>>;
+    enrolment: TrackerEnrolment | null;
+    notesCount: number;
+    relationshipsCount: number;
+    onEnrolAgain: () => void;
+    onProfileSaved: () => void;
   },
 ): JSX.Element {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
@@ -725,6 +763,12 @@ function ProfilePopover(
     { ...rawAttributes });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Reset local edit buffer whenever the underlying raw attributes
+  // change (e.g. after a successful save from this pane, or a TEI
+  // switch). Prevents stale values lingering across identity swaps.
+  useEffect(() => { setValues({ ...rawAttributes }); },
+    [rawAttributes, teiId]);
 
   useEffect(() => {
     if (mode !== 'edit' || !tetUid) return;
@@ -759,105 +803,273 @@ function ProfilePopover(
         orgUnit: orgUnitUid,
         attributes: toSubmit,
       });
-      onSaved();
+      setMode('view');
+      setSaving(false);
+      onProfileSaved();
     } catch (e) {
       setErr((e as Error).message ?? 'Save failed');
       setSaving(false);
     }
   }
+
+  /** Print a one-page identity summary — same window.open +
+   *  template pattern as the notes PDF so operators can file a
+   *  paper copy without any new deps. */
+  function printProfile(): void {
+    const w = window.open('', '_blank', 'noopener,noreferrer');
+    if (!w) {
+      // eslint-disable-next-line no-alert
+      alert('Allow pop-ups for this site to print the profile.');
+      return;
+    }
+    w.document.open();
+    w.document.write(renderProfilePdfHtml({
+      teiId, programUid, displayName, attributes,
+      enrolment, generatedAt: new Date().toLocaleString(undefined, {
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      }),
+    }));
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch { /* user closed */ } }, 300);
+  }
+
   return (
-    <div className="cap-info-backdrop" role="dialog" aria-modal="true"
-         data-test="tr-profile-popover" onClick={onClose}>
-      <div className="cap-info"
-           onClick={(e) => e.stopPropagation()}
-           style={{ maxWidth: mode === 'edit' ? 820 : 560 }}>
-        <div className="cap-info__head">
-          <h3>{mode === 'edit' ? 'Edit profile' : 'Profile'}</h3>
-          <div style={{ display: 'flex', alignItems: 'center',
-                        gap: 8 }}>
-            {mode === 'view' && tetUid && (
-              <button type="button"
-                      className="cap-btn cap-btn--secondary"
-                      data-test="tr-profile-edit"
-                      style={{ padding: '5px 13px', fontSize: 13 }}
-                      onClick={() => setMode('edit')}>
-                Edit
-              </button>
+    <div data-test="tr-profile-pane" className="cap-profile-pane">
+      <header className="cap-profile-pane__head">
+        <div className="cap-profile-pane__ident">
+          <h2 className="cap-profile-pane__name">
+            {displayName || 'Tracked entity'}
+          </h2>
+          <div className="cap-profile-pane__chips">
+            {enrolment?.status && (
+              <span className={'cap-chip cap-chip--'
+                + (enrolment.status === 'ACTIVE' ? 'ok'
+                  : enrolment.status === 'COMPLETED' ? 'muted' : 'warn')}
+                    data-test="tr-profile-status">
+                {formatStatusLabel(enrolment.status)}
+              </span>
             )}
-            <button type="button" className="cap-info__close"
-                    aria-label="Close profile" onClick={onClose}>×</button>
+            {enrolment?.enrollmentDate && (
+              <span className="cap-chip cap-chip--neutral"
+                    title="Enrolment start date">
+                Enrolled {formatDateOnly(enrolment.enrollmentDate)}
+              </span>
+            )}
+            <span className="cap-chip cap-chip--neutral"
+                  title="Number of notes on this enrolment">
+              {notesCount} note{notesCount === 1 ? '' : 's'}
+            </span>
+            <span className="cap-chip cap-chip--neutral"
+                  title="Number of linked relationships">
+              {relationshipsCount} relationship
+              {relationshipsCount === 1 ? '' : 's'}
+            </span>
           </div>
         </div>
-        <div className="cap-info__body">
-          {displayName && mode === 'view' && (
-            <p style={{ margin: '0 0 12px 0', fontSize: 15,
-              fontWeight: 500, color: 'var(--der-text)' }}>
-              {displayName}
-            </p>
-          )}
-          {mode === 'view' ? (
-            attributes.length === 0 ? (
-              <p className="cap-sub">
-                No attributes captured for this tracked entity yet.
-              </p>
-            ) : (
-              <dl className="cap-profile-grid">
-                {attributes.map((a) => (
-                  <div key={a.label}>
-                    <dt>{a.label}</dt>
-                    <dd>{a.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            )
-          ) : (
+        <div className="cap-profile-pane__actions">
+          {mode === 'view' && (
             <>
-              {err && (
-                <div className="cap-strip cap-strip--err"
-                     data-test="tr-profile-err">
-                  {err}
-                </div>
-              )}
-              {sections.length === 0 ? (
-                <p className="cap-sub">Loading attributes…</p>
-              ) : (
-                <FormEngine api={api} sections={sections}
-                             values={values}
-                             onChange={(k, v) => setValues(
-                               (prev) => ({ ...prev, [k]: v }))} />
-              )}
-              <div style={{ display: 'flex', justifyContent: 'flex-end',
-                gap: 10, marginTop: 14, paddingTop: 14,
-                borderTop: '1px solid var(--der-border-soft)' }}>
-                <button type="button"
-                        className="cap-btn cap-btn--secondary"
-                        data-test="tr-profile-cancel"
-                        onClick={() => { setMode('view'); setErr(null); }}
-                        disabled={saving}>
-                  Cancel
-                </button>
+              {tetUid && (
                 <button type="button"
                         className="cap-btn cap-btn--primary"
-                        data-test="tr-profile-save"
-                        onClick={() => { void save(); }}
-                        disabled={saving || sections.length === 0}>
-                  {saving ? 'Saving…' : 'Save changes'}
+                        data-test="tr-profile-edit"
+                        style={{ padding: '6px 14px', fontSize: 13 }}
+                        onClick={() => setMode('edit')}>
+                  Edit profile
                 </button>
-              </div>
+              )}
+              <button type="button"
+                      className="cap-btn cap-btn--secondary"
+                      data-test="tr-profile-enrol-again"
+                      style={{ padding: '6px 14px', fontSize: 13 }}
+                      title="Create another enrolment on this tracked entity"
+                      onClick={onEnrolAgain}>
+                + Enrol again
+              </button>
+              <button type="button"
+                      className="cap-btn cap-btn--secondary"
+                      data-test="tr-profile-print"
+                      style={{ padding: '6px 14px', fontSize: 13 }}
+                      title="Open a printable one-page identity summary"
+                      onClick={printProfile}>
+                Print profile
+              </button>
             </>
           )}
-          <p style={{ margin: '14px 0 0 0', fontSize: 11,
-            color: 'var(--der-text-muted)' }}>
-            UID{' '}
-            <code style={{ background: 'var(--der-surface-subtle)',
-              padding: '1px 5px', borderRadius: 3 }}>
-              {teiId}
-            </code>
-          </p>
         </div>
-      </div>
+      </header>
+
+      {mode === 'view' ? (
+        attributes.length === 0 ? (
+          <div className="cap-placeholder" data-test="tr-profile-empty"
+               style={{ margin: 0, fontSize: 14 }}>
+            No attributes captured for this tracked entity yet.
+            {tetUid && (
+              <>
+                {' '}Use
+                <strong style={{ padding: '0 4px' }}>Edit profile</strong>
+                above to fill them in.
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="cap-profile-pane__grid"
+               data-test="tr-profile-grid">
+            {attributes.map((a) => (
+              <div key={a.label} className="cap-profile-pane__cell">
+                <div className="cap-profile-pane__cell-label">
+                  {a.label}
+                </div>
+                <div className="cap-profile-pane__cell-value">
+                  {a.value}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        <div className="cap-profile-pane__edit">
+          {err && (
+            <div className="cap-strip cap-strip--err"
+                 data-test="tr-profile-err"
+                 style={{ marginBottom: 12 }}>
+              {err}
+            </div>
+          )}
+          {sections.length === 0 ? (
+            <p className="cap-sub">Loading attributes…</p>
+          ) : (
+            <FormEngine api={api} sections={sections}
+                         values={values}
+                         onChange={(k, v) => setValues(
+                           (prev) => ({ ...prev, [k]: v }))} />
+          )}
+          <div className="cap-profile-pane__edit-foot">
+            <button type="button"
+                    className="cap-btn cap-btn--secondary"
+                    data-test="tr-profile-cancel"
+                    style={{ padding: '6px 14px', fontSize: 13 }}
+                    onClick={() => {
+                      setMode('view');
+                      setErr(null);
+                      // Revert any uncommitted edits to raw values
+                      setValues({ ...rawAttributes });
+                    }}
+                    disabled={saving}>
+              Cancel
+            </button>
+            <button type="button"
+                    className="cap-btn cap-btn--primary"
+                    data-test="tr-profile-save"
+                    style={{ padding: '6px 14px', fontSize: 13 }}
+                    onClick={() => { void save(); }}
+                    disabled={saving || sections.length === 0}>
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <footer className="cap-profile-pane__foot">
+        <div className="cap-profile-pane__meta">
+          <span className="cap-profile-pane__meta-label">TEI UID</span>
+          <code className="cap-profile-pane__meta-value">{teiId}</code>
+        </div>
+        {enrolment && (
+          <div className="cap-profile-pane__meta">
+            <span className="cap-profile-pane__meta-label">
+              Enrolment UID
+            </span>
+            <code className="cap-profile-pane__meta-value">
+              {enrolment.enrollmentUid}
+            </code>
+          </div>
+        )}
+        {lastUpdated && (
+          <div className="cap-profile-pane__meta">
+            <span className="cap-profile-pane__meta-label">Last updated</span>
+            <span className="cap-profile-pane__meta-value">
+              {formatTimestamp(lastUpdated)}
+            </span>
+          </div>
+        )}
+      </footer>
     </div>
   );
+}
+
+/** Minimal printable identity-summary template — same shape as
+ *  the notes PDF so filed paper copies feel consistent. */
+function renderProfilePdfHtml(
+  args: {
+    teiId: string;
+    programUid: string;
+    displayName: string | null;
+    attributes: ReadonlyArray<{ label: string; value: string }>;
+    enrolment: TrackerEnrolment | null;
+    generatedAt: string;
+  },
+): string {
+  const { teiId, programUid, displayName, attributes,
+    enrolment, generatedAt } = args;
+  const rows = attributes
+    .map((a) => `<tr><th>${esc(a.label)}</th>`
+      + `<td>${esc(a.value)}</td></tr>`).join('');
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8" />
+<title>Profile — ${esc(displayName || teiId)}</title>
+<style>
+  @page { size: A4; margin: 18mm; }
+  * { box-sizing: border-box; }
+  body { background: #fff; color: #101a32; margin: 0;
+    font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; }
+  header { border-bottom: 2px solid #101a32; padding-bottom: 10px;
+    margin-bottom: 18px; }
+  .eyebrow { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+      Roboto, sans-serif; font-size: 9pt; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #5b6478; margin: 0 0 4px 0; }
+  h1 { font-size: 18pt; margin: 0; font-weight: 700; }
+  .sub { color: #5b6478; margin: 4px 0 0; font-size: 10pt; }
+  table { width: 100%; border-collapse: collapse;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      sans-serif; font-size: 10.5pt; }
+  th, td { text-align: left; padding: 7px 10px 7px 0;
+    vertical-align: top; border-bottom: 1px solid #ebeef3; }
+  th { color: #5b6478; font-weight: 500; text-transform: uppercase;
+    font-size: 9pt; letter-spacing: 0.04em; width: 32%; }
+  td { color: #101a32; font-weight: 400; }
+  footer { margin-top: 24px; font-family: -apple-system,
+      BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 9pt; color: #9097a8; border-top: 1px solid #d9dde6;
+    padding-top: 8px; display: flex; justify-content: space-between; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
+      monospace; font-size: 9pt; color: #5b6478; }
+</style></head>
+<body>
+  <header>
+    <p class="eyebrow">DHIS2 Tracker · Identity Summary</p>
+    <h1>${esc(displayName || 'Tracked entity')}</h1>
+    <p class="sub">Generated ${esc(generatedAt)}</p>
+  </header>
+  <table><tbody>
+    ${rows}
+    <tr><th>Tracked entity UID</th><td><code>${esc(teiId)}</code></td></tr>
+    <tr><th>Program UID</th><td><code>${esc(programUid)}</code></td></tr>
+    ${enrolment ? `
+      <tr><th>Enrolment UID</th>
+        <td><code>${esc(enrolment.enrollmentUid)}</code></td></tr>
+      <tr><th>Enrolled on</th>
+        <td>${esc(formatDateOnly(enrolment.enrollmentDate))}</td></tr>
+      <tr><th>Status</th>
+        <td>${esc(formatStatusLabel(enrolment.status))}</td></tr>` : ''}
+  </tbody></table>
+  <footer>
+    <span><strong>DER Capture</strong></span>
+    <span>${esc(displayName || teiId)} · ${esc(generatedAt)}</span>
+  </footer>
+</body></html>`;
 }
 
 /** Enrolment notes pane — renders inline inside the stage pane

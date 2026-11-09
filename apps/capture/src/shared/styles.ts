@@ -1759,6 +1759,122 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 .cap-notes-pane__when {
   font-size: 12px; color: var(--der-text-muted);
 }
+
+/* Profile pane — rail's first item + default landing surface.
+ * Modern record-dashboard shape: identity header with status +
+ * fact chips, two-column attributes grid, inline edit via
+ * FormEngine, muted audit footer. The pane body supplies its
+ * own padding; the enclosing .cap-stage-pane already provides
+ * the top gutter so this block flows naturally inside it. */
+.cap-profile-pane {
+  display: flex; flex-direction: column; gap: 18px;
+}
+.cap-profile-pane__head {
+  display: flex; align-items: flex-start; gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--der-border-soft);
+}
+.cap-profile-pane__ident {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cap-profile-pane__name {
+  margin: 0; font-size: 20px; line-height: 1.25;
+  font-weight: 600; color: var(--der-text);
+  letter-spacing: -0.005em;
+}
+.cap-profile-pane__chips {
+  display: flex; flex-wrap: wrap; gap: 6px 10px;
+  align-items: center;
+}
+.cap-profile-pane__actions {
+  flex: 0 0 auto;
+  display: flex; gap: 8px; flex-wrap: wrap;
+  justify-content: flex-end;
+}
+/* Two-column grid at desktop widths; collapses to single column
+ * on narrow panes. 28px row-gap keeps the labels/values breathing. */
+.cap-profile-pane__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 36px;
+}
+@media (max-width: 760px) {
+  .cap-profile-pane__grid { grid-template-columns: 1fr; }
+  .cap-profile-pane__head { flex-direction: column; }
+  .cap-profile-pane__actions { justify-content: flex-start; }
+}
+.cap-profile-pane__cell {
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0;
+}
+.cap-profile-pane__cell-label {
+  font-size: 11px; font-weight: 600;
+  color: var(--der-text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.cap-profile-pane__cell-value {
+  font-size: 14px; color: var(--der-text);
+  line-height: 1.4;
+  word-break: break-word; overflow-wrap: anywhere;
+}
+.cap-profile-pane__edit {
+  display: flex; flex-direction: column;
+}
+.cap-profile-pane__edit-foot {
+  display: flex; justify-content: flex-end; gap: 10px;
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px solid var(--der-border-soft);
+}
+.cap-profile-pane__foot {
+  display: flex; flex-wrap: wrap; gap: 8px 24px;
+  padding-top: 14px;
+  border-top: 1px solid var(--der-border-soft);
+  font-size: 12px;
+}
+.cap-profile-pane__meta {
+  display: flex; align-items: baseline; gap: 6px;
+}
+.cap-profile-pane__meta-label {
+  color: var(--der-text-muted); font-weight: 500;
+  text-transform: uppercase; font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.cap-profile-pane__meta-value {
+  color: var(--der-text); font-family: ui-monospace,
+    SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--der-surface-subtle);
+  padding: 1px 6px; border-radius: 3px;
+  font-size: 11px;
+}
+.cap-profile-pane__meta-value:not(code) {
+  font-family: inherit; background: transparent; padding: 0;
+}
+
+/* Profile-pane chip modifiers — subtle tinted pills for the
+ * identity header's status + fact row. Soft backgrounds keep
+ * the chrome gentle; the colour carries the semantic. */
+.cap-chip--ok,
+.cap-chip--muted,
+.cap-chip--neutral {
+  display: inline-flex; align-items: center;
+  padding: 2px 9px; border-radius: 10px;
+  font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
+}
+.cap-chip--ok {
+  background: #e3f7eb; color: #1b8243;
+}
+.cap-chip--muted {
+  background: var(--der-surface-subtle); color: var(--der-text-muted);
+}
+.cap-chip--neutral {
+  background: transparent; color: var(--der-text-muted);
+  padding: 2px 0;
+}
+.cap-chip--neutral + .cap-chip--neutral::before {
+  content: '·'; color: var(--der-text-faint);
+  margin: 0 8px 0 0;
+}
 .cap-stage-rail__title {
   font-size: 12px; font-weight: 600;
   color: var(--der-text-muted);
