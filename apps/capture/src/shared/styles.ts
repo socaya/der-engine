@@ -1624,6 +1624,21 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   background: var(--der-danger-subtle);
 }
 
+/* Related-stage action rows below the event editor (spec §8.5 /
+ * §REL-C-013). A thin section with the existing related-events
+ * list on top and action buttons for configured EVENT↔EVENT
+ * types below. Deliberately low-chrome — this is a helper,
+ * not the primary editor. */
+.cap-related-stage {
+  margin: 24px 20px 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--der-border-soft);
+}
+.cap-related-stage__actionlist {
+  list-style: none; padding: 0; margin: 4px 0 0;
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+
 /* Relationship-type grouping on the list pane (spec §REL-C-012).
  * One section per type, with a compact header (directional label
  * + count) above a normal cap-list of rows. The outer container

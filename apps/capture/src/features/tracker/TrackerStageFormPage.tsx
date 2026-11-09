@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CaptureApi } from '../../shared/types';
 import { TrackerStageEditor } from '../TrackerStageEditor';
+import { RelatedStageActions } from './RelatedStageActions';
 import { navTracker } from '../../shared/routing';
 
 /**
@@ -110,6 +111,19 @@ export function TrackerStageFormPage(
         eventUid={eventId}
         onSaved={() => { void goBack(); }}
         onCancel={() => { void goBack(); }} />
+      {/* Spec §8.5: contextual action rows on the event detail
+       *  for related-stage links (lab request, prescription,
+       *  referral, follow-up). Only shown when editing an existing
+       *  event — a brand-new unsaved event has nothing to link to
+       *  yet. */}
+      {eventId && (
+        <RelatedStageActions api={api}
+                              programUid={programUid}
+                              enrollmentId={enrollmentId}
+                              eventId={eventId}
+                              stageUid={resolvedStage}
+                              onResolveTei={onResolveTei} />
+      )}
     </>
   );
 }

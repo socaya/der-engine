@@ -75,12 +75,23 @@ function genDhis2Uid(): string {
 }
 
 export function TrackerRelationshipWizardPage(
-  { api, programUid, orgUnitUid, teiId, step }: {
+  { api, programUid, orgUnitUid, teiId, step,
+    preFromKind, preFromUid, preTypeUid }: {
     api: CaptureApi;
     programUid: string;
     orgUnitUid: string;
     teiId: string;
     step: 1 | 2 | 3 | 4;
+    /** Pre-anchor overrides from the launching context. When
+     *  preFromKind=EVENT + preFromUid=<eventUid>, the wizard
+     *  constrains eligible types to those anchorable on that
+     *  event and skips the from-side anchor picker in Step 2.
+     *  Typical launcher: the event detail page's "Request lab
+     *  tests" / "Create prescription" / "Initiate referral"
+     *  action rows. */
+    preFromKind: 'TRACKED_ENTITY' | 'ENROLLMENT' | 'EVENT' | null;
+    preFromUid: string | null;
+    preTypeUid: string | null;
   },
 ): JSX.Element {
   const [tetUid, setTetUid] = useState<string | null>(null);
@@ -198,6 +209,16 @@ export function TrackerRelationshipWizardPage(
     stageConstraint: string | undefined,
   ): boolean {
     if (!kind) return false;
+    // When the wizard was launched with a pre-anchored from side
+    // (e.g. from an event detail page), eligibility for the anchor
+    // kind is already resolved — only types matching that kind
+    // qualify. Short-circuit here so the eligibility filter below
+    // doesn't accidentally reject a valid type because the
+    // selfEvents/selfEnrollments bulk-load hasn't matched the
+    // specific pre-anchored row.
+    if (preFromKind && preFromUid) {
+      return kind === preFromKind;
+    }
     if (kind === 'TRACKED_ENTITY') {
       if (!tetUid) return false;
       if (tetConstraint && tetConstraint !== tetUid) return false;
@@ -223,6 +244,23 @@ export function TrackerRelationshipWizardPage(
   }), [types, tetUid, selfEnrollments, selfEvents]);
 
   const pickedType = eligibleTypes.find((t) => t.id === pickedTypeId);
+
+  // Preselect the type when the wizard was launched with
+  // ?preType=<uid> from a contextual action row. The eligibility
+  // filter still runs — if the pre-type isn't eligible for the
+  // current context we don't force-select (silent fallback to the
+  // normal manual pick).
+  useEffect(() => {
+    if (pickedTypeId || !preTypeUid) return;
+    const match = eligibleTypes.find((t) => t.id === preTypeUid);
+    if (!match) return;
+    const fromKind = mirrorToEdgeKind(match.fromEntity);
+    const fromCan = canAnchor(fromKind, match.fromTet,
+      match.fromProgram, match.fromStage);
+    setPickedTypeId(match.id);
+    setFlipped(!fromCan && match.bidirectional);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eligibleTypes, preTypeUid]);
 
   const ourKind: EdgeKind | null = pickedType
     ? (flipped ? mirrorToEdgeKind(pickedType.toEntity)
@@ -452,6 +490,11 @@ export function TrackerRelationshipWizardPage(
   }
 
   function ourAnchorUid(): string {
+    // Pre-anchored launches override the normal
+    // self-anchor resolution.
+    if (preFromKind && preFromUid && preFromKind === ourKind) {
+      return preFromUid;
+    }
     if (ourKind === 'TRACKED_ENTITY') return teiId;
     if (ourKind === 'ENROLLMENT')     return anchorEnrollment;
     if (ourKind === 'EVENT')          return anchorEvent;

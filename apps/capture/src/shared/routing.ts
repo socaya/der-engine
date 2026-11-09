@@ -41,7 +41,19 @@ export type CaptureRoute =
       readonly programId: string; readonly teiId: string;
       /** 1 = type, 2 = target, 3 = review, 4 = outcome.
        *  Clamped to 1..4 on parse so a tampered URL doesn't throw. */
-      readonly step: 1 | 2 | 3 | 4 }
+      readonly step: 1 | 2 | 3 | 4;
+      /** Optional from-anchor override — present when the wizard
+       *  is launched from somewhere other than the TEI dashboard
+       *  (e.g. an event detail wanting to create a related-stage
+       *  link anchored on that event). When null the wizard
+       *  defaults to anchoring on the current TEI. */
+      readonly fromKind: 'TRACKED_ENTITY' | 'ENROLLMENT'
+                         | 'EVENT' | null;
+      readonly fromUid: string | null;
+      /** Optional type UID to preselect in step 1 — the event
+       *  detail page passes this when the action row is a
+       *  specific type ("Request lab tests"). */
+      readonly preType: string | null }
   | { readonly kind: 'tracker-stage-form';
       readonly programId: string; readonly enrollmentId: string;
       readonly stageId: string | null;
@@ -77,12 +89,20 @@ export function parseCaptureRoute(hash: string): CaptureRoute {
     }
     if (segs[2] === 'records' && segs[3]
         && segs[4] === 'relationships' && segs[5] === 'new') {
-      const stepParam = new URLSearchParams(queryPart).get('step');
+      const q = new URLSearchParams(queryPart);
+      const stepParam = q.get('step');
       const stepRaw = stepParam ? parseInt(stepParam, 10) : 1;
       const step = (stepRaw >= 1 && stepRaw <= 4 ? stepRaw : 1) as
         1 | 2 | 3 | 4;
+      const fromKindRaw = q.get('fromKind');
+      const fromKind = fromKindRaw === 'TRACKED_ENTITY'
+          || fromKindRaw === 'ENROLLMENT'
+          || fromKindRaw === 'EVENT' ? fromKindRaw : null;
+      const fromUid = q.get('fromUid');
+      const preType = q.get('preType');
       return { kind: 'tracker-relationship-wizard',
-        programId, teiId: segs[3]!, step };
+        programId, teiId: segs[3]!, step,
+        fromKind, fromUid, preType };
     }
     if (segs[2] === 'records' && segs[3]) {
       return { kind: 'tracker-detail',
@@ -149,9 +169,19 @@ export const navTracker = {
   enrol: (programId: string, teiId: string) =>
     navigateTo(`/tracker/${programId}/records/${teiId}/enrol`),
   relationshipNew: (programId: string, teiId: string,
-      step: 1 | 2 | 3 | 4 = 1) =>
+      step: 1 | 2 | 3 | 4 = 1,
+      extra?: { fromKind?: 'TRACKED_ENTITY' | 'ENROLLMENT'
+                            | 'EVENT' | null;
+                fromUid?: string | null;
+                preType?: string | null }) => {
+    const params = new URLSearchParams();
+    params.set('step', String(step));
+    if (extra?.fromKind) params.set('fromKind', extra.fromKind);
+    if (extra?.fromUid) params.set('fromUid', extra.fromUid);
+    if (extra?.preType) params.set('preType', extra.preType);
     navigateTo(`/tracker/${programId}/records/${teiId}/`
-      + `relationships/new?step=${step}`),
+      + `relationships/new?${params.toString()}`);
+  },
   newEvent: (programId: string, enrollmentId: string,
       stageId: string) =>
     navigateTo(`/tracker/${programId}/enrollments/${enrollmentId}`

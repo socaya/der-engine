@@ -96,7 +96,10 @@ export function TrackerWorkflow(
                                        programUid={programUid}
                                        orgUnitUid={orgUnitUid}
                                        teiId={route.teiId}
-                                       step={route.step} />
+                                       step={route.step}
+                                       preFromKind={route.fromKind}
+                                       preFromUid={route.fromUid}
+                                       preTypeUid={route.preType} />
     );
   }
   if (route.kind === 'tracker-register') {
