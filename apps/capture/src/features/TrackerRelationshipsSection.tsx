@@ -37,6 +37,13 @@ function directionalLabel(t: RelTypeRow, flipped: boolean): string {
   return name ?? t.displayName;
 }
 
+interface CustomAction {
+  readonly label: string;
+  readonly urlTemplate: string;
+  readonly opensInNewTab?: boolean;
+  readonly destructive?: boolean;
+}
+
 interface RelTypeRow {
   readonly id: string;
   readonly displayName: string;
@@ -51,6 +58,7 @@ interface RelTypeRow {
   readonly toProgram?: string;
   readonly fromStage?: string;
   readonly toStage?: string;
+  readonly customActions?: ReadonlyArray<CustomAction>;
 }
 
 interface RelEndpoint {
@@ -315,6 +323,8 @@ export function TrackerRelationshipsSection(
           toProgram:   t.toConstraint?.program?.id ?? undefined,
           fromStage:   t.fromConstraint?.programStage?.id ?? undefined,
           toStage:     t.toConstraint?.programStage?.id ?? undefined,
+          customActions: (t as { customActions?:
+              ReadonlyArray<CustomAction> }).customActions,
         })));
         setStatus('idle');
       } catch {
@@ -1217,7 +1227,7 @@ export function TrackerRelationshipsSection(
             {/* DER-standard borderless table — unified list,
              *  single row per link. Type · Target · Direction ·
              *  Sync · Captured · ⋯. */}
-            <table className="cap-table cap-rel-table"
+            <table className="cap-table cap-table--compact cap-rel-table"
                    data-test="tr-rel-table">
               <thead>
                 <tr>
@@ -1245,9 +1255,45 @@ export function TrackerRelationshipsSection(
                   const uid = r.relationship;
                   const captured = formatTimestamp(
                     r.lastUpdated ?? r.createdAt ?? '');
+                  // Resolve the click target the same way the
+                  // RowMenu's Open action does — so a whole-row
+                  // click behaves identically to the menu item.
+                  const openTarget = (): void => {
+                    if (kind === 'TRACKED_ENTITY') {
+                      navTracker.detail(programUid, toUid ?? '');
+                      return;
+                    }
+                    if (kind === 'ENROLLMENT') {
+                      const t = otherSide?.enrollment?.teiUid;
+                      if (t) navTracker.detail(programUid, t);
+                      return;
+                    }
+                    const enrol =
+                      otherSide?.event?.enrollmentUid;
+                    if (enrol) {
+                      navTracker.editEvent(programUid, enrol,
+                        toUid ?? '');
+                    }
+                  };
                   return (
                     <tr key={(uid ?? '') + i}
-                        data-test={'tr-rel-row-' + (uid ?? i)}>
+                        className="cap-table__row"
+                        tabIndex={0}
+                        data-test={'tr-rel-row-' + (uid ?? i)}
+                        onClick={(e) => {
+                          // Don't swallow clicks on the menu/actions
+                          // column — the ⋯ button has its own
+                          // handler that must not double-trigger.
+                          const t = e.target as HTMLElement;
+                          if (t.closest('[data-rowmenu]')) return;
+                          openTarget();
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            openTarget();
+                          }
+                        }}>
                       <td className="cap-table__cell">
                         <strong>{typeLabel}</strong>
                         {r.bidirectional && (
@@ -1289,6 +1335,10 @@ export function TrackerRelationshipsSection(
                                     targetKind={kind}
                                     targetSide={otherSide}
                                     programUid={programUid}
+                                    teiUid={tei}
+                                    customActions={typeByUid.get(
+                                      r.relationshipType ?? '')
+                                      ?.customActions ?? []}
                                     onUnlink={async () => {
                                       const ok = window.confirm(
                                         'Unlink this relationship?'
@@ -1504,12 +1554,14 @@ function RelKindIcon(
  *  confirmed via a modal from the caller. Copy UID is a utility
  *  for admins troubleshooting with a database shell. */
 function RowMenu(
-  { uid, targetUid, targetKind, targetSide, programUid,
-    onUnlink }: {
+  { uid, targetUid, targetKind, targetSide, programUid, teiUid,
+    customActions, onUnlink }: {
     uid: string; targetUid: string;
     targetKind: 'TRACKED_ENTITY' | 'ENROLLMENT' | 'EVENT';
     targetSide: RelEndpoint | undefined;
     programUid: string;
+    teiUid: string;
+    customActions: ReadonlyArray<CustomAction>;
     onUnlink: () => Promise<void> | void;
   },
 ): JSX.Element {
@@ -1603,6 +1655,34 @@ function RowMenu(
                   }}>
             Copy relationship UID
           </button>
+          {customActions.length > 0 && (
+            <div className="cap-rel-card__menu-sep"
+                 role="separator" />
+          )}
+          {customActions.map((a, i) => (
+            <button key={i} type="button" role="menuitem"
+                    data-test={'tr-rel-menu-custom-' + i + '-' + uid}
+                    className={a.destructive
+                      ? 'cap-rel-card__menu-item--destructive'
+                      : undefined}
+                    onClick={() => {
+                      setOpen(false);
+                      const url = a.urlTemplate
+                        .replaceAll('{targetUid}', targetUid)
+                        .replaceAll('{relationshipUid}', uid)
+                        .replaceAll('{teiUid}', teiUid);
+                      const newTab = a.opensInNewTab !== false;
+                      if (newTab) {
+                        window.open(url, '_blank', 'noopener');
+                      } else {
+                        window.location.href = url;
+                      }
+                    }}>
+              {a.label}
+            </button>
+          ))}
+          <div className="cap-rel-card__menu-sep"
+               role="separator" />
           <button type="button" role="menuitem"
                   className="cap-rel-card__menu-item--destructive"
                   data-test={'tr-rel-unlink-' + uid}

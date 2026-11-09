@@ -1644,6 +1644,18 @@ export interface TrackerRelationshipRow {
  *  own eligibility projection (§REL-MD-004) against this shape;
  *  we return the full constraint blocks so cross-program /
  *  cross-TET constraints can be honoured. */
+/** Admin-configured custom action — surfaces as an item in
+ *  the Capture row context menu for links of this type.
+ *  urlTemplate supports {targetUid}, {relationshipUid},
+ *  {teiUid} placeholders substituted client-side at click
+ *  time. opensInNewTab defaults to true. */
+export interface RelationshipCustomAction {
+  readonly label: string;
+  readonly urlTemplate: string;
+  readonly opensInNewTab?: boolean;
+  readonly destructive?: boolean;
+}
+
 export interface RawRelationshipType {
   readonly id: string;
   readonly displayName?: string;
@@ -1651,6 +1663,7 @@ export interface RawRelationshipType {
   readonly fromToName?: string;
   readonly toFromName?: string;
   readonly bidirectional?: boolean;
+  readonly customActions?: ReadonlyArray<RelationshipCustomAction>;
   readonly fromConstraint?: {
     readonly relationshipEntity?: string;
     readonly trackedEntityType?: { id?: string } | null;
@@ -1777,6 +1790,11 @@ export async function listRelationshipTypes(
        *  configured them in the upstream metadata. */
       fromToName?: string;
       toFromName?: string;
+      /** Admin-configured per-type actions (shipped V104) —
+       *  surfaced as menu items in the Capture relationship row
+       *  context menu. Nullable; types without custom actions
+       *  emit no field. */
+      customActions?: ReadonlyArray<RelationshipCustomAction>;
     }>;
   };
   // Adapt the edge mirror's flat shape to the RawRelationshipType
@@ -1788,6 +1806,7 @@ export async function listRelationshipTypes(
     bidirectional: t.bidirectional,
     fromToName: t.fromToName,
     toFromName: t.toFromName,
+    customActions: t.customActions,
     fromConstraint: t.fromConstraintKind ? {
       relationshipEntity: t.fromConstraintKind,
       trackedEntityType: t.fromConstraintKind === 'TRACKED_ENTITY_INSTANCE'

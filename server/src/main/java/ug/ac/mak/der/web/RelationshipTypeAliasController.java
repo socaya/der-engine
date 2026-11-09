@@ -2,11 +2,15 @@ package ug.ac.mak.der.web;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,11 +44,14 @@ public class RelationshipTypeAliasController {
 
     private final JdbcTemplate jdbc;
     private final Clock clock;
+    private final ObjectMapper jsonMapper;
 
     public RelationshipTypeAliasController(final JdbcTemplate jdbc,
-                                             final Clock clock) {
+                                             final Clock clock,
+                                             final ObjectMapper jsonMapper) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.jsonMapper = Objects.requireNonNull(jsonMapper, "jsonMapper");
     }
 
     @PutMapping(path = "/{uid}/aliases",
@@ -76,45 +83,57 @@ public class RelationshipTypeAliasController {
         // clears — treat "" same as null for ergonomics.
         final String fromTo = normalise(body.fromToName());
         final String toFrom = normalise(body.toFromName());
-        if (fromTo == null && toFrom == null) {
+        // customActions: null = leave as-is; empty array = clear
+        // overrides to the type's default (none). Non-null array
+        // replaces the stored list atomically. Validated as
+        // valid JSON before write.
+        final String customActionsJson;
+        if (body.customActions() == null) {
+            customActionsJson = null;
+        } else {
+            try {
+                customActionsJson = jsonMapper
+                        .writeValueAsString(body.customActions());
+            } catch (Exception ex) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "code", "CUSTOM_ACTIONS_INVALID",
+                        "message", "customActions must be valid JSON"));
+            }
+        }
+        if (fromTo == null && toFrom == null
+                && customActionsJson == null) {
             return ResponseEntity.badRequest().body(Map.of(
                     "code", "NO_FIELDS",
                     "message", "at least one of fromToName / "
-                        + "toFromName must be supplied (or use "
-                        + "DELETE to clear)"));
+                        + "toFromName / customActions must be "
+                        + "supplied (or use DELETE to clear)"));
         }
-        if (fromTo != null && toFrom != null) {
-            jdbc.update(
-                    "UPDATE der.metadata_relationship_type "
-                        + "SET admin_from_to_name = ?, "
-                        + "    admin_to_from_name = ?, "
-                        + "    admin_alias_updated_at = ?, "
-                        + "    admin_alias_updated_by = ? "
-                        + "WHERE dhis2_uid = ?",
-                    emptyToNull(fromTo), emptyToNull(toFrom),
-                    java.sql.Timestamp.from(now),
-                    principal.userId(), uid);
-        } else if (fromTo != null) {
-            jdbc.update(
-                    "UPDATE der.metadata_relationship_type "
-                        + "SET admin_from_to_name = ?, "
-                        + "    admin_alias_updated_at = ?, "
-                        + "    admin_alias_updated_by = ? "
-                        + "WHERE dhis2_uid = ?",
-                    emptyToNull(fromTo),
-                    java.sql.Timestamp.from(now),
-                    principal.userId(), uid);
-        } else {
-            jdbc.update(
-                    "UPDATE der.metadata_relationship_type "
-                        + "SET admin_to_from_name = ?, "
-                        + "    admin_alias_updated_at = ?, "
-                        + "    admin_alias_updated_by = ? "
-                        + "WHERE dhis2_uid = ?",
-                    emptyToNull(toFrom),
-                    java.sql.Timestamp.from(now),
-                    principal.userId(), uid);
+        /* Three write paths were a pain to maintain as sister
+         * UPDATEs. Build one dynamic SET clause instead — one
+         * update covers whatever subset of fields the caller
+         * sent. */
+        final List<String> sets = new ArrayList<>();
+        final List<Object> args = new ArrayList<>();
+        if (fromTo != null) {
+            sets.add("admin_from_to_name = ?");
+            args.add(emptyToNull(fromTo));
         }
+        if (toFrom != null) {
+            sets.add("admin_to_from_name = ?");
+            args.add(emptyToNull(toFrom));
+        }
+        if (customActionsJson != null) {
+            sets.add("admin_custom_actions = ?::jsonb");
+            args.add(customActionsJson);
+        }
+        sets.add("admin_alias_updated_at = ?");
+        args.add(java.sql.Timestamp.from(now));
+        sets.add("admin_alias_updated_by = ?");
+        args.add(principal.userId());
+        args.add(uid);
+        jdbc.update("UPDATE der.metadata_relationship_type SET "
+                + String.join(", ", sets) + " WHERE dhis2_uid = ?",
+                args.toArray());
         return readAliases(uid);
     }
 
@@ -130,6 +149,7 @@ public class RelationshipTypeAliasController {
                 "UPDATE der.metadata_relationship_type "
                     + "SET admin_from_to_name = NULL, "
                     + "    admin_to_from_name = NULL, "
+                    + "    admin_custom_actions = NULL, "
                     + "    admin_alias_updated_at = ?, "
                     + "    admin_alias_updated_by = ? "
                     + "WHERE dhis2_uid = ?",
@@ -145,7 +165,8 @@ public class RelationshipTypeAliasController {
         final Map<String, Object> out = new LinkedHashMap<>();
         jdbc.query(
                 "SELECT dhis2_uid, display_name, "
-                    + "admin_from_to_name, admin_to_from_name "
+                    + "admin_from_to_name, admin_to_from_name, "
+                    + "admin_custom_actions::text AS actions "
                     + "FROM der.metadata_relationship_type "
                     + "WHERE dhis2_uid = ?",
                 rs -> {
@@ -153,6 +174,15 @@ public class RelationshipTypeAliasController {
                     out.put("displayName", rs.getString(2));
                     out.put("adminFromToName", rs.getString(3));
                     out.put("adminToFromName", rs.getString(4));
+                    final String actions = rs.getString(5);
+                    if (actions != null) {
+                        try {
+                            out.put("customActions",
+                                    jsonMapper.readTree(actions));
+                        } catch (Exception ex) {
+                            out.put("customActions", null);
+                        }
+                    }
                 }, uid);
         return ResponseEntity.ok(out);
     }
@@ -173,5 +203,6 @@ public class RelationshipTypeAliasController {
 
     public record AliasRequest(
             @JsonProperty("fromToName") String fromToName,
-            @JsonProperty("toFromName") String toFromName) { }
+            @JsonProperty("toFromName") String toFromName,
+            @JsonProperty("customActions") JsonNode customActions) { }
 }

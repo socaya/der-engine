@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -69,21 +70,27 @@ public class RelationshipTypeController {
         return ResponseEntity.ok(Map.of("relationshipTypes", list));
     }
 
-    /** Admin alias overrides keyed by relationship-type UID.
+      /** Admin alias overrides keyed by relationship-type UID.
      *  Either field is nullable (unset override falls back to the
-     *  payload-derived name). */
-    private record AdminAliases(String fromToName, String toFromName) { }
+     *  payload-derived name). customActions is a raw JSON string
+     *  mirroring admin_custom_actions JSONB — forwarded to the
+     *  client verbatim. */
+    private record AdminAliases(String fromToName, String toFromName,
+                                  String customActions) { }
 
     private Map<String, AdminAliases> loadAliases() {
         final Map<String, AdminAliases> out = new HashMap<>();
         jdbc.query(
-                "SELECT dhis2_uid, admin_from_to_name, admin_to_from_name "
+                "SELECT dhis2_uid, admin_from_to_name, admin_to_from_name, "
+                    + "admin_custom_actions::text "
                     + "FROM der.metadata_relationship_type "
                     + "WHERE admin_from_to_name IS NOT NULL "
-                    + "   OR admin_to_from_name IS NOT NULL",
+                    + "   OR admin_to_from_name IS NOT NULL "
+                    + "   OR admin_custom_actions IS NOT NULL",
                 rs -> {
                     out.put(rs.getString(1),
-                        new AdminAliases(rs.getString(2), rs.getString(3)));
+                        new AdminAliases(rs.getString(2), rs.getString(3),
+                            rs.getString(4)));
                 });
         return out;
     }
@@ -136,6 +143,21 @@ public class RelationshipTypeController {
             }
             if (override.toFromName() != null) {
                 out.put("adminToFromName", override.toFromName());
+            }
+            if (override.customActions() != null
+                    && !override.customActions().isBlank()) {
+                // Emit the raw JSON array parsed into a tree so
+                // Jackson serialises it as an array / object, not
+                // a double-escaped string.
+                try {
+                    out.put("customActions", new ObjectMapper()
+                        .readTree(override.customActions()));
+                } catch (Exception ex) {
+                    // Malformed JSON stored in the catalogue —
+                    // swallow and skip rather than 500ing the
+                    // whole list endpoint.
+                    out.put("customActions", null);
+                }
             }
         }
         return out;

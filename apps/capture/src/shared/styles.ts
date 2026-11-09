@@ -1665,14 +1665,28 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   vertical-align: middle;
   white-space: nowrap;
 }
+/* Shrink the kind-icon bubble when the table is compact so
+ * rows stay on one baseline. */
+.cap-rel-table .cap-rel-card__icon {
+  width: 24px; height: 24px;
+}
+.cap-rel-table .cap-rel-card__icon svg {
+  width: 14px; height: 14px;
+}
 .cap-rel-table__target {
-  display: inline-flex; align-items: center; gap: 10px;
+  display: inline-flex; align-items: center; gap: 8px;
   min-width: 0;
 }
 .cap-rel-table__name {
   font-weight: 500; color: var(--der-text);
   overflow: hidden; text-overflow: ellipsis;
   max-width: 60ch;
+}
+/* Menu separator — hairline between stock items and custom
+ * actions / destructive items. */
+.cap-rel-card__menu-sep {
+  height: 1px; margin: 4px 0;
+  background: var(--der-border-soft);
 }
 
 /* Legacy card list — superseded by the DER-standard table
