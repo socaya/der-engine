@@ -20,6 +20,9 @@ export function RelationshipDiagnostics(): JSX.Element {
     useState<edgeApi.RelationshipDiagnostics | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [actionErr, setActionErr] = useState<string | null>(null);
 
   const reload = useCallback(async (): Promise<void> => {
     setLoading(true); setErr(null);
@@ -32,6 +35,30 @@ export function RelationshipDiagnostics(): JSX.Element {
     }
   }, []);
   useEffect(() => { reload().catch(() => undefined); }, [reload]);
+
+  async function doAction(
+    action: 'retry' | 'ack' | 'purge', uid: string,
+  ): Promise<void> {
+    const fn = action === 'retry' ? edgeApi.relationshipRetry
+             : action === 'ack'   ? edgeApi.relationshipAck
+             :                      edgeApi.relationshipPurge;
+    setActionBusy(action + ':' + uid);
+    setActionMsg(null); setActionErr(null);
+    try {
+      const res = await fn(uid);
+      setActionMsg(`${res.action} on ${res.relationshipUid}`
+        + (res.syncStatus ? ` → ${res.syncStatus}` : '')
+        + (res.purgedRowCount !== undefined
+          ? ` (purged ${res.purgedRowCount} row`
+            + (res.purgedRowCount === 1 ? '' : 's') + ')'
+          : ''));
+      await reload();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setActionBusy(null);
+    }
+  }
 
   if (loading && !data) {
     return <LoadingBlock testId="reldiag-loading" />;
@@ -144,11 +171,23 @@ export function RelationshipDiagnostics(): JSX.Element {
         )}
       </Panel>
 
+      {(actionMsg || actionErr) && (
+        <div style={{ padding: '10px 14px', borderRadius: 4,
+          background: actionErr ? '#fde3e3' : '#e3f7eb',
+          color: actionErr ? '#c13030' : '#1b8243',
+          fontSize: 13 }}
+             data-test="reldiag-action-status">
+          {actionErr ?? actionMsg}
+        </div>
+      )}
+
       <Panel title={`Attention queue (${data.attention.length})`}
              action={data.attention.length === 0 ? undefined : (
                <span style={{ color: '#5b6478', fontSize: 13 }}>
                  Showing the 50 most recent FAILED / BLOCKED /
-                 CONFLICT rows.
+                 CONFLICT rows. Retry re-enqueues the drain;
+                 Acknowledge marks SYNCED without a central
+                 round-trip.
                </span>)}>
         {data.attention.length === 0 ? (
           <p style={{ color: '#5b6478' }}>
@@ -168,6 +207,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                 <th style={{ padding: '8px 10px' }}>To</th>
                 <th style={{ padding: '8px 10px' }}>Class</th>
                 <th style={{ padding: '8px 10px' }}>Updated</th>
+                <th style={{ padding: '8px 10px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -208,6 +248,18 @@ export function RelationshipDiagnostics(): JSX.Element {
                     color: '#5b6478' }}>
                     {fmtAgo(r.updatedAt)}
                   </td>
+                  <td style={{ padding: '8px 10px',
+                    whiteSpace: 'nowrap' }}>
+                    <ActionButton kind="retry"
+                                   uid={r.relationshipUid}
+                                   busy={actionBusy}
+                                   onClick={doAction} />
+                    {' '}
+                    <ActionButton kind="ack"
+                                   uid={r.relationshipUid}
+                                   busy={actionBusy}
+                                   onClick={doAction} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -215,6 +267,39 @@ export function RelationshipDiagnostics(): JSX.Element {
         )}
       </Panel>
     </div>
+  );
+}
+
+function ActionButton({ kind, uid, busy, onClick }: {
+  kind: 'retry' | 'ack' | 'purge';
+  uid: string;
+  busy: string | null;
+  onClick: (k: 'retry' | 'ack' | 'purge', u: string)
+    => Promise<void>;
+}): JSX.Element {
+  const isBusy = busy === kind + ':' + uid;
+  const label = kind === 'retry' ? 'Retry'
+              : kind === 'ack'   ? 'Acknowledge'
+              :                    'Purge';
+  const title = kind === 'retry'
+      ? 'Re-enqueue a drain attempt for this relationship.'
+      : kind === 'ack'
+      ? 'Mark SYNCED without a central round-trip — use when '
+        + 'central already has this row.'
+      : 'Physically delete this soft-deleted tombstone.';
+  return (
+    <button type="button"
+            data-test={`reldiag-${kind}-${uid}`}
+            title={title}
+            disabled={busy !== null}
+            onClick={() => { void onClick(kind, uid); }}
+            style={{ padding: '3px 10px', fontSize: 12,
+              border: '1px solid #d9dde6',
+              background: isBusy ? '#f8f9fb' : '#fff',
+              color: '#101a32', borderRadius: 3,
+              cursor: busy === null ? 'pointer' : 'default' }}>
+      {isBusy ? '…' : label}
+    </button>
   );
 }
 

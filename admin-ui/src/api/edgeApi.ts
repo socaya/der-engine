@@ -1911,6 +1911,34 @@ export function relationshipDiagnostics(
     '/edge-api/v1/admin/relationships/diagnostics?' + q);
 }
 
+export interface RelationshipAdminActionAck {
+  readonly action: 'retry' | 'ack' | 'purge';
+  readonly relationshipUid: string;
+  readonly syncStatus?: string;
+  readonly purgedRowCount?: number;
+}
+
+export function relationshipRetry(uid: string):
+    Promise<RelationshipAdminActionAck> {
+  return request<RelationshipAdminActionAck>('POST',
+    '/edge-api/v1/admin/relationships/'
+      + encodeURIComponent(uid) + '/retry');
+}
+
+export function relationshipAck(uid: string):
+    Promise<RelationshipAdminActionAck> {
+  return request<RelationshipAdminActionAck>('POST',
+    '/edge-api/v1/admin/relationships/'
+      + encodeURIComponent(uid) + '/ack');
+}
+
+export function relationshipPurge(uid: string):
+    Promise<RelationshipAdminActionAck> {
+  return request<RelationshipAdminActionAck>('POST',
+    '/edge-api/v1/admin/relationships/'
+      + encodeURIComponent(uid) + '/purge');
+}
+
 export function systemInfo(): Promise<SystemInfo> {
   return request<SystemInfo>('GET', '/edge-api/v1/system/info');
 }
