@@ -153,15 +153,10 @@ export function TrackerRelationshipsSection(
 
   return (
     <>
-      <div className="cap-strip cap-strip--info"
-           data-test="tr-rel-edge-notice"
-           style={{ marginBottom: 6, fontSize: 12 }}>
-        <strong>Relationships need an online connection.</strong>{' '}
-        Links to other tracked entities are managed on the central
-        server — they aren't cached on this device. If the facility
-        is offline the list will be empty and adding or removing
-        a link will fail until connectivity returns.
-      </div>
+      {/* Relationships are now fully edge-local (full-emulation
+       *  slice 4): reads come from the mirrored edge table, writes
+       *  enqueue a journal entry that drains to central on
+       *  connectivity. No longer need the "online only" notice. */}
       <div className="cap-section-head" data-test="tr-rel-head">
         <h2 className="cap-section-head__title">Relationships</h2>
         <span className="cap-section-head__count">

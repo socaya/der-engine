@@ -1519,12 +1519,13 @@ export interface TrackerRelationshipCreate {
 }
 
 /** Delete a tracker relationship by UID. Requires explicit
- *  operator confirmation (§REL-SEC-005); the caller enforces
- *  the window.confirm prompt. */
+ *  operator confirmation; the caller enforces the window.confirm
+ *  prompt. Routes to the edge endpoint so the row is soft-deleted
+ *  locally + a journal entry is enqueued for drain → central. */
 export async function deleteTrackerRelationship(
   relationshipUid: string,
 ): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
-  const r = await fetch('/api/tracker/relationships/'
+  const r = await fetch('/edge-api/v1/tracker/relationships/'
       + encodeURIComponent(relationshipUid),
     { method: 'DELETE', credentials: 'include',
       headers: { Accept: 'application/json' } });
@@ -1542,14 +1543,18 @@ export async function deleteTrackerRelationship(
 export async function submitTrackerRelationship(
   body: TrackerRelationshipCreate,
 ): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+  // DHIS2-style 11-char UID generated client-side so the drain can
+  // POST with the same UID central will accept as the server UID.
   const payload = {
-    relationships: [{
-      relationshipType: body.relationshipType,
-      from: { trackedEntity: { trackedEntity: body.fromTei } },
-      to:   { trackedEntity: { trackedEntity: body.toTei } },
-    }],
+    relationshipUid: generateDhis2Uid(),
+    relationshipType: body.relationshipType,
+    fromEntityType: 'TRACKED_ENTITY',
+    fromEntityUid: body.fromTei,
+    toEntityType: 'TRACKED_ENTITY',
+    toEntityUid: body.toTei,
+    bidirectional: false,
   };
-  const r = await fetch('/api/tracker', {
+  const r = await fetch('/edge-api/v1/tracker/relationships', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json',
@@ -1567,51 +1572,115 @@ export async function submitTrackerRelationship(
   return { ok: true };
 }
 
-/** List relationship-type definitions from the DHIS2 metadata
- *  endpoint. The Capture app filters eligibility client-side —
- *  the server returns them all. */
-export async function listRelationshipTypes():
-    Promise<RawRelationshipType[]> {
-  const r = await fetch(
-    '/api/relationshipTypes?fields=id,name,displayName,fromToName,'
-      + 'toFromName,bidirectional,'
-      + 'fromConstraint%5BrelationshipEntity,'
-      + 'trackedEntityType%5Bid%5D,program%5Bid%5D,'
-      + 'programStage%5Bid%5D%5D,'
-      + 'toConstraint%5BrelationshipEntity,'
-      + 'trackedEntityType%5Bid%5D,program%5Bid%5D,'
-      + 'programStage%5Bid%5D%5D&paging=false',
-    { credentials: 'include',
-      headers: { Accept: 'application/json' } });
-  if (!r.ok) return [];
-  const body = await r.json() as {
-    relationshipTypes?: RawRelationshipType[];
-  };
-  return body.relationshipTypes ?? [];
+/** DHIS2 UID generator — 11 chars, first alpha, remainder
+ *  alphanumeric. Matches the server's record validator so the
+ *  edge POST never 400s on a malformed UID. */
+function generateDhis2Uid(): string {
+  const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  const alphanum = alpha + '0123456789';
+  let out = alpha[Math.floor(Math.random() * alpha.length)];
+  for (let i = 0; i < 10; i++) {
+    out += alphanum[Math.floor(Math.random() * alphanum.length)];
+  }
+  return out;
 }
 
-/** List tracker relationships for a tracked entity. Thin wrapper
- *  around /api/tracker/relationships?trackedEntity={uid} — the
- *  DHIS2 2.44 endpoint. Returns the raw rows; the Capture app
- *  parses them for display orientation (§REL-UX-006). */
-export async function listTrackerRelationships(teiUid: string):
-    Promise<TrackerRelationshipRow[]> {
-  const r = await fetch(
-    '/api/tracker/relationships?fields=relationship,relationshipType,'
-      + 'relationshipName,bidirectional,createdAt,lastUpdated,'
-      + 'from%5BtrackedEntity%5BtrackedEntity,displayName%5D,'
-      + 'enrollment%5Benrollment%5D,event%5Bevent%5D%5D,'
-      + 'to%5BtrackedEntity%5BtrackedEntity,displayName%5D,'
-      + 'enrollment%5Benrollment%5D,event%5Bevent%5D%5D'
-      + '&trackedEntity=' + encodeURIComponent(teiUid),
+/** List relationship-type definitions — slice 4 reads from the
+ *  edge mirror populated by metadata sync, so the picker works
+ *  offline. The optional trackedEntityType filter narrows the
+ *  list to types valid for the current TEI side. */
+export async function listRelationshipTypes(
+  trackedEntityTypeUid?: string,
+): Promise<RawRelationshipType[]> {
+  const qs = trackedEntityTypeUid
+    ? '?trackedEntityType=' + encodeURIComponent(trackedEntityTypeUid)
+    : '';
+  const r = await fetch('/edge-api/v1/relationship-types' + qs,
     { credentials: 'include',
       headers: { Accept: 'application/json' } });
   if (!r.ok) return [];
   const body = await r.json() as {
-    relationships?: TrackerRelationshipRow[];
-    instances?: TrackerRelationshipRow[];
+    relationshipTypes?: Array<{
+      relationshipTypeUid: string;
+      displayName: string;
+      bidirectional: boolean;
+      fromConstraintKind: string | null;
+      fromConstraintUid: string | null;
+      toConstraintKind: string | null;
+      toConstraintUid: string | null;
+    }>;
   };
-  return body.relationships ?? body.instances ?? [];
+  // Adapt the edge mirror's flat shape to the RawRelationshipType
+  // the Capture app already parses.
+  return (body.relationshipTypes ?? []).map((t) => ({
+    id: t.relationshipTypeUid,
+    name: t.displayName,
+    displayName: t.displayName,
+    bidirectional: t.bidirectional,
+    fromConstraint: t.fromConstraintKind ? {
+      relationshipEntity: t.fromConstraintKind,
+      trackedEntityType: t.fromConstraintKind === 'TRACKED_ENTITY_INSTANCE'
+        ? { id: t.fromConstraintUid ?? '' } : undefined,
+      program: t.fromConstraintKind === 'PROGRAM_INSTANCE'
+        ? { id: t.fromConstraintUid ?? '' } : undefined,
+      programStage: t.fromConstraintKind === 'PROGRAM_STAGE_INSTANCE'
+        ? { id: t.fromConstraintUid ?? '' } : undefined,
+    } : undefined,
+    toConstraint: t.toConstraintKind ? {
+      relationshipEntity: t.toConstraintKind,
+      trackedEntityType: t.toConstraintKind === 'TRACKED_ENTITY_INSTANCE'
+        ? { id: t.toConstraintUid ?? '' } : undefined,
+      program: t.toConstraintKind === 'PROGRAM_INSTANCE'
+        ? { id: t.toConstraintUid ?? '' } : undefined,
+      programStage: t.toConstraintKind === 'PROGRAM_STAGE_INSTANCE'
+        ? { id: t.toConstraintUid ?? '' } : undefined,
+    } : undefined,
+  }));
+}
+
+/** List tracker relationships for a tracked entity. Slice 4
+ *  routes to the edge endpoint which reads from the local
+ *  edge_tracker_relationship table (populated by slice 2's POST
+ *  + slice 3's drain), so the list works offline too. */
+export async function listTrackerRelationships(teiUid: string):
+    Promise<TrackerRelationshipRow[]> {
+  const r = await fetch('/edge-api/v1/tracker/relationships'
+      + '?entityType=TRACKED_ENTITY&entityUid='
+      + encodeURIComponent(teiUid),
+    { credentials: 'include',
+      headers: { Accept: 'application/json' } });
+  if (!r.ok) return [];
+  const body = await r.json() as {
+    relationships?: Array<{
+      relationshipUid: string;
+      relationshipType: string;
+      fromEntityType: string;
+      fromEntityUid: string;
+      toEntityType: string;
+      toEntityUid: string;
+      bidirectional: boolean;
+      createdAt: string;
+    }>;
+  };
+  // Adapt the edge flat shape to the TrackerRelationshipRow the
+  // Capture app already parses (DHIS2's nested from/to shape).
+  return (body.relationships ?? []).map((r) => ({
+    relationship: r.relationshipUid,
+    relationshipType: r.relationshipType,
+    bidirectional: r.bidirectional,
+    createdAt: r.createdAt,
+    lastUpdated: r.createdAt,
+    from: r.fromEntityType === 'TRACKED_ENTITY'
+      ? { trackedEntity: { trackedEntity: r.fromEntityUid } }
+      : r.fromEntityType === 'ENROLLMENT'
+      ? { enrollment: { enrollment: r.fromEntityUid } }
+      : { event: { event: r.fromEntityUid } },
+    to: r.toEntityType === 'TRACKED_ENTITY'
+      ? { trackedEntity: { trackedEntity: r.toEntityUid } }
+      : r.toEntityType === 'ENROLLMENT'
+      ? { enrollment: { enrollment: r.toEntityUid } }
+      : { event: { event: r.toEntityUid } },
+  } as TrackerRelationshipRow));
 }
 
 /** §2.3.43 — pull a program's tracked-entity-attribute UID list from
