@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { CaptureApi } from '../../shared/types';
 import { TrackerStageEditor } from '../TrackerStageEditor';
 import { RelatedStageActions } from './RelatedStageActions';
+import { DomainCompositeActions } from './DomainCompositeActions';
 import { navTracker } from '../../shared/routing';
 
 /**
@@ -123,6 +124,14 @@ export function TrackerStageFormPage(
                               eventId={eventId}
                               stageUid={resolvedStage}
                               onResolveTei={onResolveTei} />
+      )}
+      {eventId && (
+        <DomainCompositeActions api={api}
+                                 programUid={programUid}
+                                 enrollmentId={enrollmentId}
+                                 eventId={eventId}
+                                 orgUnitUid={orgUnitUid}
+                                 onResolveTei={onResolveTei} />
       )}
     </>
   );
