@@ -4,6 +4,7 @@ import { FormEngine, requiredFieldsComplete }
 import { parseTeiAttributesForm } from '../shared/parser';
 import type { CaptureFormSection } from '../shared/model';
 import type { CaptureApi } from '../shared/types';
+import { navTracker } from '../shared/routing';
 
 /** DHIS2 relationship-constraint kind as stored on the metadata
  *  mirror (verbose form, matches /api/relationshipTypes). The edge
@@ -652,13 +653,14 @@ export function TrackerRelationshipsSection(
                   className="cap-btn cap-btn--primary"
                   data-test="tr-rel-add"
                   disabled={eligibleTypes.length === 0}
-                  onClick={() => setComposing(true)}
+                  onClick={() => navTracker.relationshipNew(
+                    programUid, tei, 1)}
                   title={eligibleTypes.length === 0
                     ? (types.length === 0
                       ? 'No relationship types are configured'
                       : 'No relationship types permit this tracked '
                         + 'entity (or its enrolments/events) as an endpoint')
-                    : 'Pick a type, anchor, and target — then save'}
+                    : 'Open the add-relationship wizard'}
                   style={{ padding: '5px 13px', fontSize: 13 }}>
             + Add relationship
           </button>

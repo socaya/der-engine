@@ -1624,6 +1624,97 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   background: var(--der-danger-subtle);
 }
 
+/* Relationship wizard (spec §8.4). Four dedicated steps rendered
+ * as full-page panels; the stepper above the body is a compact
+ * progress indicator (numbered circle + label per step, filled
+ * for done/active). */
+.cap-rel-wiz { padding: 0 20px 24px; }
+.cap-rel-wiz__stepper {
+  list-style: none; padding: 0; margin: 10px 0 22px;
+  display: flex; gap: 8px; align-items: center;
+  flex-wrap: wrap;
+}
+.cap-rel-wiz__step {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 20px;
+  color: var(--der-text-muted);
+  font-size: 13px;
+}
+.cap-rel-wiz__step-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--der-surface-subtle);
+  color: var(--der-text-muted); font-weight: 600;
+  font-size: 13px;
+}
+.cap-rel-wiz__step--active {
+  color: var(--der-primary); font-weight: 500;
+}
+.cap-rel-wiz__step--active .cap-rel-wiz__step-num {
+  background: var(--der-primary); color: #fff;
+}
+.cap-rel-wiz__step--done .cap-rel-wiz__step-num {
+  background: #e3f7eb; color: #1b8243;
+}
+.cap-rel-wiz__step + .cap-rel-wiz__step::before {
+  content: '→'; color: var(--der-text-faint);
+  margin-right: 4px; font-size: 13px;
+}
+.cap-rel-wiz__body { min-height: 240px; }
+.cap-rel-wiz__typelist {
+  list-style: none; padding: 0; margin: 0;
+  display: grid; grid-template-columns:
+    repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+.cap-rel-wiz__typeitem {
+  width: 100%; text-align: left; cursor: pointer;
+  background: transparent; border: 1px solid var(--der-border-soft);
+  border-radius: 6px; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 4px;
+  font-family: inherit; color: var(--der-text);
+  transition: border-color 100ms, background 100ms;
+}
+.cap-rel-wiz__typeitem:hover {
+  background: var(--der-surface-subtle);
+  border-color: var(--der-primary);
+}
+.cap-rel-wiz__typeitem--picked {
+  background: var(--der-primary-subtle);
+  border-color: var(--der-primary);
+  color: var(--der-primary-strong);
+}
+.cap-rel-wiz__typeitem strong { font-size: 14px; }
+.cap-rel-wiz__typeitem-sub {
+  font-size: 13px; color: var(--der-text-muted);
+}
+.cap-rel-wiz__review {
+  display: grid; grid-template-columns: 180px 1fr;
+  gap: 10px 18px; margin: 0;
+  background: var(--der-surface-subtle);
+  border: 1px solid var(--der-border-soft);
+  border-radius: 6px; padding: 14px 16px;
+  max-width: 640px;
+}
+.cap-rel-wiz__review > div {
+  display: contents;
+}
+.cap-rel-wiz__review dt {
+  font-size: 13px; color: var(--der-text-muted);
+  font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cap-rel-wiz__review dd {
+  margin: 0; font-size: 14px; color: var(--der-text);
+  word-break: break-word;
+}
+.cap-rel-wiz__footer {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 22px; padding-top: 14px;
+  border-top: 1px solid var(--der-border-soft);
+}
+
 /* Relationship sync-state pill (REL-C-008). Soft tinted background
  * + weight 500 label; one modifier per state. Deliberately small
  * (13px) so the row's main label stays dominant — the badge is

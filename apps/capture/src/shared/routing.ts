@@ -14,6 +14,8 @@
  *   #/                                                        → home
  *   #/tracker/:program/records                                → tracker list
  *   #/tracker/:program/records/:tei                           → tracker detail
+ *   #/tracker/:program/records/:tei/relationships/new?step=1..4
+ *                                                             → relationship wizard
  *   #/tracker/:program/register                               → tracker register
  *   #/tracker/:program/enrollments/:enr/events/:event/edit    → tracker stage form
  *   #/tracker/:program/enrollments/:enr/stages/:stage/new     → tracker stage form (new)
@@ -35,6 +37,11 @@ export type CaptureRoute =
       readonly programId: string }
   | { readonly kind: 'tracker-enrol';
       readonly programId: string; readonly teiId: string }
+  | { readonly kind: 'tracker-relationship-wizard';
+      readonly programId: string; readonly teiId: string;
+      /** 1 = type, 2 = target, 3 = review, 4 = outcome.
+       *  Clamped to 1..4 on parse so a tampered URL doesn't throw. */
+      readonly step: 1 | 2 | 3 | 4 }
   | { readonly kind: 'tracker-stage-form';
       readonly programId: string; readonly enrollmentId: string;
       readonly stageId: string | null;
@@ -51,8 +58,14 @@ export type CaptureRoute =
 /** Split a hash like "#/tracker/abc/records" into path segments.
  *  Leading "#" and "/" are tolerated; empty segments are dropped. */
 export function parseCaptureRoute(hash: string): CaptureRoute {
-  const clean = (hash.startsWith('#') ? hash.slice(1) : hash)
-    .replace(/^\/+/, '').replace(/\/+$/, '');
+  // Strip optional query string — we use ?step=N for the
+  // relationship wizard; the path above is still what determines
+  // the route kind, the query just parameterises it.
+  const rawNoHash = hash.startsWith('#') ? hash.slice(1) : hash;
+  const qIdx = rawNoHash.indexOf('?');
+  const pathPart = qIdx >= 0 ? rawNoHash.slice(0, qIdx) : rawNoHash;
+  const queryPart = qIdx >= 0 ? rawNoHash.slice(qIdx + 1) : '';
+  const clean = pathPart.replace(/^\/+/, '').replace(/\/+$/, '');
   if (clean === '' || clean === '/') return { kind: 'home' };
   const segs = clean.split('/');
 
@@ -61,6 +74,15 @@ export function parseCaptureRoute(hash: string): CaptureRoute {
     if (segs[2] === 'records' && segs[3] && segs[4] === 'enrol') {
       return { kind: 'tracker-enrol',
         programId, teiId: segs[3]! };
+    }
+    if (segs[2] === 'records' && segs[3]
+        && segs[4] === 'relationships' && segs[5] === 'new') {
+      const stepParam = new URLSearchParams(queryPart).get('step');
+      const stepRaw = stepParam ? parseInt(stepParam, 10) : 1;
+      const step = (stepRaw >= 1 && stepRaw <= 4 ? stepRaw : 1) as
+        1 | 2 | 3 | 4;
+      return { kind: 'tracker-relationship-wizard',
+        programId, teiId: segs[3]!, step };
     }
     if (segs[2] === 'records' && segs[3]) {
       return { kind: 'tracker-detail',
@@ -126,6 +148,10 @@ export const navTracker = {
     navigateTo(`/tracker/${programId}/register`),
   enrol: (programId: string, teiId: string) =>
     navigateTo(`/tracker/${programId}/records/${teiId}/enrol`),
+  relationshipNew: (programId: string, teiId: string,
+      step: 1 | 2 | 3 | 4 = 1) =>
+    navigateTo(`/tracker/${programId}/records/${teiId}/`
+      + `relationships/new?step=${step}`),
   newEvent: (programId: string, enrollmentId: string,
       stageId: string) =>
     navigateTo(`/tracker/${programId}/enrollments/${enrollmentId}`

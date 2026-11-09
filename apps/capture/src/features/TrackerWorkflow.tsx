@@ -5,6 +5,8 @@ import { TrackerDetailPage } from './tracker/TrackerDetailPage';
 import { TrackerRegisterPage } from './tracker/TrackerRegisterPage';
 import { TrackerEnrolPage } from './tracker/TrackerEnrolPage';
 import { TrackerStageFormPage } from './tracker/TrackerStageFormPage';
+import { TrackerRelationshipWizardPage }
+  from './tracker/TrackerRelationshipWizardPage';
 import { parseCaptureRoute, navTracker } from '../shared/routing';
 
 /**
@@ -86,6 +88,15 @@ export function TrackerWorkflow(
                           programUid={programUid}
                           orgUnitUid={orgUnitUid}
                           teiId={route.teiId} />
+    );
+  }
+  if (route.kind === 'tracker-relationship-wizard') {
+    return (
+      <TrackerRelationshipWizardPage api={api}
+                                       programUid={programUid}
+                                       orgUnitUid={orgUnitUid}
+                                       teiId={route.teiId}
+                                       step={route.step} />
     );
   }
   if (route.kind === 'tracker-register') {
