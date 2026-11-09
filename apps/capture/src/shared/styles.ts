@@ -34,9 +34,16 @@ export const CAPTURE_STYLES = `
    * app shifts, so a visual rework doesn't mean a grep-and-replace
    * through dozens of selectors.
    */
-  --der-bg: #F8FAFC;
-  --der-surface: #FFFFFF;
-  --der-surface-subtle: #F3F6FA;
+  /* Page + surface tokens tuned for a calmer, lower-glare look —
+   * pure #FFF cards on an almost-white page made Capture read as
+   * aggressively bright for operator sessions that run all day.
+   * The current values sit in a soft cool-grey band where panels
+   * still read as "content" without blowing out the surrounding
+   * chrome. Depth comes from the border tokens below, not from
+   * stronger surface contrast. */
+  --der-bg: #EEF2F7;           /* page background, soft cool mist */
+  --der-surface: #FAFBFD;      /* cards/panels, gentle off-white */
+  --der-surface-subtle: #ECEFF5; /* secondary panels + input bg */
   /* Aligned to the DER ink palette used by Data Entry + admin-
    * ui so Capture reads with the same text contrast everywhere.
    * --der-text        = Data Entry's --der-ink-900 (primary).
@@ -47,8 +54,10 @@ export const CAPTURE_STYLES = `
   --der-text: #101a32;
   --der-text-muted: #5b6478;
   --der-text-faint: #9097a8;
-  --der-border: #E6EBF1;
-  --der-border-soft: #F0F3F7;
+  /* Borders pulled one step darker to keep panel separation
+   * legible against the softer surface tokens above. */
+  --der-border: #DCE2EB;
+  --der-border-soft: #E6EAF1;
   /* DHIS2 brand blue — same hue Data Entry's sectionTable
    * inputs + the sign-in InputField focus ring use, so
    * operators see one accent colour across every DER app. */
