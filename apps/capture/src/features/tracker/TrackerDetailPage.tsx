@@ -453,13 +453,6 @@ export function TrackerDetailPage(
                     data-test="tr-rail-profile"
                     onClick={() => setRailKind('profile')}>
               <span className="cap-stage-rail__name">Profile</span>
-              <span className="cap-stage-rail__count"
-                    title={identity.allAttributes.length === 0
-                      ? 'No attributes captured yet'
-                      : `${identity.allAttributes.length} attribute`
-                        + (identity.allAttributes.length === 1 ? '' : 's')}>
-                {identity.allAttributes.length}
-              </span>
             </button>
             <div className="cap-stage-rail__divider" aria-hidden="true" />
             <div className="cap-stage-rail__title">Stages</div>
