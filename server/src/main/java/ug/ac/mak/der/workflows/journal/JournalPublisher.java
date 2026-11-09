@@ -124,8 +124,18 @@ public class JournalPublisher {
         } catch (Dhis2CompatibilityUnavailableException ex) {
             return new PublishResult(-1, ex.getMessage(), TerminalState.RETRYABLE);
         }
+        // Tracker tombstones (PROGRAM_STAGE_EVENT + operation=DELETE
+        // in payload) use the same endpoint but need importStrategy=
+        // DELETE on the query string — same shape DHIS2 2.44 uses for
+        // relationship deletes. Any other PROGRAM_STAGE_EVENT entry
+        // follows the default CREATE_AND_UPDATE strategy.
+        final String effectivePath =
+                isTrackerDeleteTombstone(entry) && path.startsWith("/api/tracker")
+                        ? path + (path.contains("?") ? "&" : "?")
+                            + "importStrategy=DELETE"
+                        : path;
         try {
-            final URI uri = URI.create(props.central().baseUrl() + path);
+            final URI uri = URI.create(props.central().baseUrl() + effectivePath);
             final String body = referralEncoder.body(entry);
             final HttpRequest.Builder req = HttpRequest.newBuilder(uri)
                     .timeout(Duration.ofMillis(Math.max(1_000, props.central().connectTimeoutMillis())))
@@ -184,6 +194,22 @@ public class JournalPublisher {
             case TRACKED_ENTITY, ENROLLMENT, PROGRAM_STAGE_EVENT -> true;
             default -> false;
         };
+    }
+
+    /** True for PROGRAM_STAGE_EVENT tombstones — journal entries
+     *  whose payload carries {@code "operation":"DELETE"}, enqueued
+     *  by EventsController.deleteEvent(). Routes the drain through
+     *  /api/tracker?importStrategy=DELETE so central removes the
+     *  event instead of upserting it. */
+    private static boolean isTrackerDeleteTombstone(
+            final OperationJournalEntry entry) {
+        if (entry.entityType() != OperationJournalEntry.EntityType.PROGRAM_STAGE_EVENT) {
+            return false;
+        }
+        final JsonNode op = entry.payload() == null
+                ? null : entry.payload().get("operation");
+        return op != null && !op.isNull()
+                && "DELETE".equalsIgnoreCase(op.asText(""));
     }
 
     /**

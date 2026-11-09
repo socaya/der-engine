@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -26,8 +28,11 @@ import ug.ac.mak.der.dhis2.compatibility.CapabilityFlags;
 import ug.ac.mak.der.dhis2.compatibility.Dhis2CompatibilityEngine;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.SystemWorkflowService;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 import ug.ac.mak.der.workflows.events.Event;
 import ug.ac.mak.der.workflows.events.EventService;
+import ug.ac.mak.der.workflows.tracker.TrackerEvent;
 import ug.ac.mak.der.workflows.tracker.TrackerEventRepository;
 
 /**
@@ -47,17 +52,23 @@ public class EventsController {
     private final Dhis2CompatibilityEngine engine;
     private final SystemWorkflowService systemWorkflows;
     private final TrackerEventRepository trackerEvents;
+    private final OperationJournalRepository journal;
+    private final ObjectMapper jsonMapper;
     private final Clock clock;
 
     public EventsController(final EventService service,
                              final Dhis2CompatibilityEngine engine,
                              final SystemWorkflowService systemWorkflows,
                              final TrackerEventRepository trackerEvents,
+                             final OperationJournalRepository journal,
+                             final ObjectMapper jsonMapper,
                              final Clock clock) {
         this.service = service;
         this.engine = engine;
         this.systemWorkflows = systemWorkflows;
         this.trackerEvents = trackerEvents;
+        this.journal = journal;
+        this.jsonMapper = jsonMapper;
         this.clock = clock;
     }
 
@@ -70,23 +81,27 @@ public class EventsController {
     }
 
     /** DHIS2-parity {@code DELETE /api/events/{eventId}}. Removes
-     *  the event row + its data values from the edge mirror. The
-     *  central-sync side still needs a follow-up tracker DELETE
-     *  job when the operator is online; that's a future slice —
-     *  for now a deleted edge event stops appearing in the
-     *  Capture working list immediately. */
+     *  the event row + its data values from the edge mirror AND
+     *  enqueues a PROGRAM_STAGE_EVENT journal tombstone so the
+     *  next drain pass POSTs the matching DELETE to central
+     *  (/api/tracker?importStrategy=DELETE). Payload carries the
+     *  event's identity fields so the drain can build the DHIS2
+     *  envelope without re-reading the (now gone) row. */
     @DeleteMapping(path = "/api/events/{eventId}")
     public ResponseEntity<Map<String, Object>> deleteEvent(
             @PathVariable("eventId") final String eventId,
             final Authentication authentication) {
-        if (!(authentication instanceof EdgeUserPrincipal)) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
         }
         // DHIS2-canonical events live in edge_tracker_event (text PK);
         // legacy UUID events live in der.event. Try the canonical path
         // first — if the id is UUID-shaped we fall through to the
         // legacy service so pre-shift events still delete cleanly.
-        if (trackerEvents.delete(eventId) > 0) {
+        final TrackerEvent existing = trackerEvents.findById(eventId).orElse(null);
+        if (existing != null) {
+            trackerEvents.delete(eventId);
+            enqueueDeleteTombstone(existing, principal.userId());
             return ResponseEntity.ok(Map.of("deleted", true,
                     "eventId", eventId));
         }
@@ -101,6 +116,26 @@ public class EventsController {
                 ? ResponseEntity.ok(Map.of("deleted", true,
                         "eventId", eventId))
                 : ResponseEntity.notFound().build();
+    }
+
+    private void enqueueDeleteTombstone(final TrackerEvent e,
+                                         final UUID actor) {
+        final ObjectNode payload = jsonMapper.createObjectNode();
+        payload.put("eventUid", e.eventUid());
+        payload.put("enrollmentUid", e.enrollmentUid());
+        payload.put("program", e.programUid());
+        payload.put("programStage", e.programStageUid());
+        payload.put("orgUnit", e.orgUnitUid());
+        payload.put("occurredDate", e.occurredDate().toString());
+        payload.put("operation", "DELETE");
+        final Instant now = Instant.now(clock);
+        journal.insert(new OperationJournalEntry(
+                UUID.randomUUID(),
+                OperationJournalEntry.EntityType.PROGRAM_STAGE_EVENT,
+                e.eventUid(),
+                payload,
+                OperationJournalEntry.State.PENDING,
+                0, null, actor, now, now, null, e.workflowRunId()));
     }
 
     @PostMapping(path = "/api/tracker", consumes = MediaType.APPLICATION_JSON_VALUE)
