@@ -1658,6 +1658,31 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   color: var(--der-text);
 }
 
+/* Relationship form — single-page replacement for the earlier
+ * wizard. Sections stack top-to-bottom; the operator sees the
+ * whole flow at once and scrolls when needed. The sticky footer
+ * carries the primary Save action. */
+.cap-rel-form { padding: 0 20px 24px; }
+.cap-rel-form__body {
+  display: flex; flex-direction: column; gap: 24px;
+  margin: 18px 0;
+}
+.cap-rel-form__section {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cap-rel-form__section-title {
+  margin: 0; padding-bottom: 6px;
+  border-bottom: 1px solid var(--der-border-soft);
+  font-size: 15px; font-weight: 600;
+  color: var(--der-text);
+}
+.cap-rel-form__footer {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 8px; padding-top: 14px;
+  border-top: 1px solid var(--der-border-soft);
+  position: sticky; bottom: 0; background: #fff;
+}
+
 /* Relationship wizard (spec §8.4). Four dedicated steps rendered
  * as full-page panels; the stepper above the body is a compact
  * progress indicator (numbered circle + label per step, filled

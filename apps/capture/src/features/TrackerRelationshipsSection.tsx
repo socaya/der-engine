@@ -654,7 +654,7 @@ export function TrackerRelationshipsSection(
                   data-test="tr-rel-add"
                   disabled={eligibleTypes.length === 0}
                   onClick={() => navTracker.relationshipNew(
-                    programUid, tei, 1)}
+                    programUid, tei)}
                   title={eligibleTypes.length === 0
                     ? (types.length === 0
                       ? 'No relationship types are configured'

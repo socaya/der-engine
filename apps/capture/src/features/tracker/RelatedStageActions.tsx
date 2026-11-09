@@ -121,7 +121,7 @@ export function RelatedStageActions(
 
   function launch(typeId: string): void {
     if (!resolvedTei) return;
-    navTracker.relationshipNew(programUid, resolvedTei, 1, {
+    navTracker.relationshipNew(programUid, resolvedTei, {
       fromKind: 'EVENT', fromUid: eventId, preType: typeId,
     });
   }

@@ -75,19 +75,17 @@ function genDhis2Uid(): string {
 }
 
 export function TrackerRelationshipWizardPage(
-  { api, programUid, orgUnitUid, teiId, step,
+  { api, programUid, orgUnitUid, teiId,
     preFromKind, preFromUid, preTypeUid }: {
     api: CaptureApi;
     programUid: string;
     orgUnitUid: string;
     teiId: string;
-    step: 1 | 2 | 3 | 4;
     /** Pre-anchor overrides from the launching context. When
-     *  preFromKind=EVENT + preFromUid=<eventUid>, the wizard
+     *  preFromKind=EVENT + preFromUid=<eventUid>, the form
      *  constrains eligible types to those anchorable on that
-     *  event and skips the from-side anchor picker in Step 2.
-     *  Typical launcher: the event detail page's "Request lab
-     *  tests" / "Create prescription" / "Initiate referral"
+     *  event. Typical launcher: the event detail page's "Request
+     *  lab tests" / "Create prescription" / "Initiate referral"
      *  action rows. */
     preFromKind: 'TRACKED_ENTITY' | 'ENROLLMENT' | 'EVENT' | null;
     preFromUid: string | null;
@@ -144,7 +142,6 @@ export function TrackerRelationshipWizardPage(
   const [submit, setSubmit] =
     useState<'idle' | 'submitting' | 'ok' | 'err'>('idle');
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
-  const [savedUid, setSavedUid] = useState<string | null>(null);
 
   // --- Fetch: TET + self enrolments + self events + types -------
   useEffect(() => {
@@ -513,9 +510,6 @@ export function TrackerRelationshipWizardPage(
     && ourAnchorUid() !== theirAnchorUid()
     && !creatingTarget && !creatingEvent;
 
-  function goStep(n: 1 | 2 | 3 | 4): void {
-    navTracker.relationshipNew(programUid, teiId, n);
-  }
   function cancelAndExit(): void {
     navTracker.detail(programUid, teiId);
   }
@@ -535,9 +529,11 @@ export function TrackerRelationshipWizardPage(
         bidirectional: pickedType.bidirectional,
       });
       if (res.ok) {
-        setSavedUid(ourAnchorUid());
         setSubmit('ok');
-        goStep(4);
+        // Navigate straight back to the record after a successful
+        // save — the Relationships rail there surfaces the newly
+        // added link with its "Pending sync" badge.
+        navTracker.detail(programUid, teiId);
       } else {
         setSubmit('err');
         setSubmitMsg(res.message);
@@ -549,47 +545,37 @@ export function TrackerRelationshipWizardPage(
   }
 
   const label = pickedType ? directionalLabel(pickedType, flipped) : '';
-  const stepTitle =
-      step === 1 ? 'Choose relationship type'
-    : step === 2 ? `Pick target${label ? ' · ' + label : ''}`
-    : step === 3 ? 'Review'
-    : 'Saved';
+  const targetReady = pickedTypeId !== ''
+    && ourAnchorUid() !== '' && theirAnchorUid() !== ''
+    && ourAnchorUid() !== theirAnchorUid()
+    && !creatingTarget && !creatingEvent;
 
   return (
-    <div className="cap-rel-wiz" data-test="tr-rel-wizard">
+    <div className="cap-rel-form" data-test="tr-rel-form">
       <div className="cap-section-head">
         <button type="button"
                 className="cap-btn cap-btn--secondary"
-                data-test="tr-rel-wiz-back"
+                data-test="tr-rel-form-cancel"
                 style={{ padding: '5px 13px', fontSize: 13 }}
                 onClick={cancelAndExit}>
           ← Cancel
         </button>
         <h2 className="cap-section-head__title">Add relationship</h2>
         <span className="cap-section-head__count">
-          Step {step} of 4 · {stepTitle}
+          {pickedType
+            ? `${label} · fill the target details then save`
+            : 'pick a relationship type to start'}
         </span>
       </div>
-      <ol className="cap-rel-wiz__stepper" aria-label="Wizard progress">
-        {[1, 2, 3, 4].map((n) => (
-          <li key={n}
-              className={'cap-rel-wiz__step'
-                + (n === step  ? ' cap-rel-wiz__step--active'   : '')
-                + (n <  step   ? ' cap-rel-wiz__step--done'     : '')}>
-            <span className="cap-rel-wiz__step-num">{n}</span>
-            <span className="cap-rel-wiz__step-label">
-              {n === 1 ? 'Type'
-               : n === 2 ? 'Target'
-               : n === 3 ? 'Review'
-               : 'Saved'}
-            </span>
-          </li>
-        ))}
-      </ol>
 
-      <div className="cap-rel-wiz__body">
-        {step === 1 && (
-          <div data-test="tr-rel-wiz-step1">
+      <div className="cap-rel-form__body">
+        {/* Section 1 — Type */}
+        <section className="cap-rel-form__section"
+                 data-test="tr-rel-form-types">
+          <h3 className="cap-rel-form__section-title">
+            1. Relationship type
+            <span className="cap-input__req">*</span>
+          </h3>
             {eligibleTypes.length === 0 ? (
               <div className="cap-placeholder">
                 No relationship types permit this tracked entity
@@ -633,11 +619,16 @@ export function TrackerRelationshipWizardPage(
                 </ul>
               </>
             )}
-          </div>
-        )}
+        </section>
 
-        {step === 2 && pickedType && (
-          <div data-test="tr-rel-wiz-step2">
+        {/* Section 2 — Target */}
+        {pickedType && (
+          <section className="cap-rel-form__section"
+                   data-test="tr-rel-form-target">
+            <h3 className="cap-rel-form__section-title">
+              2. Target {label.toLowerCase()}
+              <span className="cap-input__req">*</span>
+            </h3>
             <p className="cap-sub" style={{ marginTop: 0 }}>
               Pick an existing {label.toLowerCase()} — or create a
               new one on the spot if none exist yet.
@@ -857,14 +848,22 @@ export function TrackerRelationshipWizardPage(
                 </div>
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        {step === 3 && pickedType && (
-          <div data-test="tr-rel-wiz-step3">
+        {/* Section 3 — Review */}
+        {pickedType && targetReady && (
+          <section className="cap-rel-form__section"
+                   data-test="tr-rel-form-review">
+            <h3 className="cap-rel-form__section-title">
+              3. Review
+            </h3>
             <p className="cap-sub" style={{ marginTop: 0 }}>
-              Review the link below. Nothing is saved until you
-              confirm.
+              Nothing is saved until you click
+              <strong style={{ padding: '0 3px' }}>
+                Add {label}
+              </strong>
+              below.
             </p>
             <dl className="cap-rel-wiz__review">
               <div>
@@ -898,79 +897,32 @@ export function TrackerRelationshipWizardPage(
             </dl>
             {submit === 'err' && submitMsg && (
               <div className="cap-strip cap-strip--err"
-                   data-test="tr-rel-wiz-err"
+                   data-test="tr-rel-form-err"
                    style={{ margin: '12px 0 0' }}>{submitMsg}</div>
             )}
-          </div>
-        )}
-
-        {step === 4 && (
-          <div data-test="tr-rel-wiz-step4">
-            {submit === 'ok' ? (
-              <div className="cap-strip cap-strip--ok"
-                   style={{ display: 'flex', alignItems: 'center',
-                     gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <strong>Relationship saved on device.</strong>
-                  {' '}Queued for central sync — you'll see the
-                  "Pending sync" badge on the record page until
-                  the next drain. {savedUid && <code
-                    style={{ marginLeft: 6 }}>{savedUid}</code>}
-                </div>
-              </div>
-            ) : (
-              <div className="cap-strip cap-strip--err">
-                No save was attempted. Go back to review or cancel
-                the wizard.
-              </div>
-            )}
-          </div>
+          </section>
         )}
       </div>
 
-      <div className="cap-rel-wiz__footer">
+      <div className="cap-rel-form__footer">
         <button type="button"
                 className="cap-btn cap-btn--secondary"
-                data-test="tr-rel-wiz-prev"
+                data-test="tr-rel-form-cancel-foot"
                 style={{ padding: '5px 13px', fontSize: 13 }}
-                disabled={step === 1 || step === 4
-                  || submit === 'submitting'}
-                onClick={() => goStep(
-                  (step - 1) as 1 | 2 | 3)}>
-          ← Back
+                disabled={submit === 'submitting'}
+                onClick={cancelAndExit}>
+          Cancel
         </button>
         <span style={{ flex: 1 }} />
-        {step < 3 && (
-          <button type="button"
-                  className="cap-btn cap-btn--primary"
-                  data-test="tr-rel-wiz-next"
-                  style={{ padding: '5px 13px', fontSize: 13 }}
-                  disabled={step === 1
-                    ? !canAdvanceStep1
-                    : !canAdvanceStep2}
-                  onClick={() => goStep((step + 1) as 2 | 3)}>
-            Next →
-          </button>
-        )}
-        {step === 3 && (
-          <button type="button"
-                  className="cap-btn cap-btn--primary"
-                  data-test="tr-rel-wiz-save"
-                  style={{ padding: '5px 13px', fontSize: 13 }}
-                  disabled={submit === 'submitting'}
-                  onClick={() => { void doSave(); }}>
-            {submit === 'submitting' ? 'Saving…' : 'Add ' + label}
-          </button>
-        )}
-        {step === 4 && (
-          <button type="button"
-                  className="cap-btn cap-btn--primary"
-                  data-test="tr-rel-wiz-done"
-                  style={{ padding: '5px 13px', fontSize: 13 }}
-                  onClick={cancelAndExit}>
-            Back to record
-          </button>
-        )}
+        <button type="button"
+                className="cap-btn cap-btn--primary"
+                data-test="tr-rel-form-save"
+                style={{ padding: '5px 13px', fontSize: 13 }}
+                disabled={submit === 'submitting' || !targetReady}
+                onClick={() => { void doSave(); }}>
+          {submit === 'submitting' ? 'Saving…'
+            : pickedType ? 'Add ' + label : 'Add relationship'}
+        </button>
       </div>
     </div>
   );

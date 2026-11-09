@@ -90,13 +90,12 @@ export function TrackerWorkflow(
                           teiId={route.teiId} />
     );
   }
-  if (route.kind === 'tracker-relationship-wizard') {
+  if (route.kind === 'tracker-relationship-form') {
     return (
       <TrackerRelationshipWizardPage api={api}
                                        programUid={programUid}
                                        orgUnitUid={orgUnitUid}
                                        teiId={route.teiId}
-                                       step={route.step}
                                        preFromKind={route.fromKind}
                                        preFromUid={route.fromUid}
                                        preTypeUid={route.preType} />
