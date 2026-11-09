@@ -1770,17 +1770,28 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 .cap-stage-rail__item {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 12px;
-  background: transparent; border: 0; border-radius: 3px;
+  background: transparent;
+  border: 0;
+  /* Flat left edge with a 3px transparent accent reserve so the
+   * active state can fill it without shifting the label right.
+   * Right-side rounded only (0 4px 4px 0) — matches Data Entry's
+   * section-nav tab shape so the active item reads as docked to
+   * the left rail, not a floating pill. */
+  border-left: 3px solid transparent;
+  border-radius: 0 4px 4px 0;
   cursor: pointer; font-family: inherit;
   font-size: 14px; color: var(--der-text);
   text-align: left;
-  transition: background 100ms;
+  transition: background 100ms, border-color 100ms;
 }
-.cap-stage-rail__item:hover { background: var(--der-surface-subtle); }
+.cap-stage-rail__item:hover {
+  background: var(--der-surface-subtle);
+}
 .cap-stage-rail__item--active {
-  background: var(--der-primary-subtle); color: var(--der-primary);
+  background: var(--der-primary-subtle);
+  border-left-color: var(--der-primary);
+  color: var(--der-primary-strong);
   font-weight: 500;
-  box-shadow: inset 3px 0 0 var(--der-primary);
 }
 .cap-stage-rail__name { flex: 1; }
 .cap-stage-rail__count {
