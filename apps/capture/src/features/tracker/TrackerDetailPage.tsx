@@ -473,6 +473,12 @@ export function TrackerDetailPage(
             {railKind === 'notes' ? (
               <EnrolmentNotesPane api={api}
                 enrollmentUid={selectedEnrolment}
+                teiId={teiId}
+                programUid={programUid}
+                teiDisplayName={identity.displayName}
+                teiAttributes={identity.allAttributes}
+                enrolment={enrolments.find(
+                  (e) => e.enrollmentUid === selectedEnrolment) ?? null}
                 onCountChanged={() => setRailCountsTick((t) => t + 1)} />
             ) : railKind === 'relationships' ? (
               <TrackerRelationshipsSection api={api} tei={teiId}
@@ -861,9 +867,19 @@ function ProfilePopover(
  *  + count + the + Add note action, matching the stage events
  *  pane pattern. */
 function EnrolmentNotesPane(
-  { api, enrollmentUid, onCountChanged }: {
+  { api, enrollmentUid, teiId, programUid,
+    teiDisplayName, teiAttributes, enrolment, onCountChanged }: {
     api: CaptureApi;
     enrollmentUid: string | null;
+    /** TEI context — used for the PDF header + filename. The notes
+     *  list itself keys off enrollmentUid; the rest of these are
+     *  purely identity metadata so the printed artefact is self-
+     *  contained and traceable back to a specific person/enrolment. */
+    teiId: string;
+    programUid: string;
+    teiDisplayName: string | null;
+    teiAttributes: ReadonlyArray<{ label: string; value: string }>;
+    enrolment: TrackerEnrolment | null;
     onCountChanged: () => void;
   },
 ): JSX.Element {
@@ -920,6 +936,20 @@ function EnrolmentNotesPane(
           {notes.length} note{notes.length === 1 ? '' : 's'}
         </strong>
         <span style={{ flex: 1 }} />
+        {!composing && notes.length > 0 && (
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  data-test="tr-notes-print"
+                  style={{ padding: '6px 14px', fontSize: 13 }}
+                  title={'Open a printable PDF of every note on this '
+                    + 'enrolment (opens the browser print dialog)'}
+                  onClick={() => printNotesAsPdf({
+                    notes, teiId, programUid,
+                    teiDisplayName, teiAttributes, enrolment,
+                  })}>
+            Print PDF
+          </button>
+        )}
         {!composing && (
           <button type="button"
                   className="cap-btn cap-btn--primary"
@@ -1013,6 +1043,202 @@ function formatDateOnly(iso: string | null): string {
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString(undefined,
     { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+/** Open a printable PDF rendition of every note on the current
+ *  enrolment in a new browser window and trigger the print dialog.
+ *  The window hosts a standalone HTML document with embedded print
+ *  CSS (A4, 20mm margins, serif body, clinic-friendly typography)
+ *  so the operator can use the browser's "Save as PDF" or print to
+ *  a physical printer. The document is self-contained — a copy can
+ *  be filed, emailed or attached to a paper record and still carry
+ *  enough identity metadata to be traced back to this TEI+enrolment.
+ *
+ *  Why window.open + print rather than a jsPDF/pdfkit dependency:
+ *  no new transitive deps, zero bundle cost, and the native dialog
+ *  lets the operator pick paper, printer, or PDF without us having
+ *  to ship a UI. The output is deterministic because we build the
+ *  document from a string template rather than screenshotting the
+ *  live DOM. */
+function printNotesAsPdf(
+  args: {
+    notes: ReadonlyArray<{
+      noteUid: string; noteText: string; createdAt: string;
+    }>;
+    teiId: string;
+    programUid: string;
+    teiDisplayName: string | null;
+    teiAttributes: ReadonlyArray<{ label: string; value: string }>;
+    enrolment: TrackerEnrolment | null;
+  },
+): void {
+  const { notes, teiId, programUid, teiDisplayName,
+    teiAttributes, enrolment } = args;
+  // Oldest-first for chronological reading in the printed document
+  // (the on-screen list is newest-first for scanning, which reads
+  // backwards on paper).
+  const ordered = [...notes].sort((a, b) =>
+    (a.createdAt || '').localeCompare(b.createdAt || ''));
+  const generatedAt = new Date().toLocaleString(undefined, {
+    year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+  const title = 'Enrolment notes — '
+    + (teiDisplayName || teiId);
+  const w = window.open('', '_blank', 'noopener,noreferrer');
+  if (!w) {
+    // Popup blocked — surface it inline so the operator knows the
+    // button did something and can allow pop-ups for this origin.
+    // eslint-disable-next-line no-alert
+    alert('Allow pop-ups for this site to print notes as PDF.');
+    return;
+  }
+  w.document.open();
+  w.document.write(renderNotesPdfHtml({
+    title, teiId, programUid, teiDisplayName,
+    teiAttributes, enrolment, notes: ordered, generatedAt,
+  }));
+  w.document.close();
+  // Wait for layout before invoking print — some browsers (Safari
+  // in particular) race the print dialog if we call it immediately.
+  w.focus();
+  setTimeout(() => { try { w.print(); } catch { /* user closed */ } }, 300);
+}
+
+function esc(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;',
+    '"': '&quot;', "'": '&#39;',
+  }[c] as string));
+}
+
+function renderNotesPdfHtml(
+  args: {
+    title: string;
+    teiId: string;
+    programUid: string;
+    teiDisplayName: string | null;
+    teiAttributes: ReadonlyArray<{ label: string; value: string }>;
+    enrolment: TrackerEnrolment | null;
+    notes: ReadonlyArray<{
+      noteUid: string; noteText: string; createdAt: string;
+    }>;
+    generatedAt: string;
+  },
+): string {
+  const { title, teiId, programUid, teiDisplayName,
+    teiAttributes, enrolment, notes, generatedAt } = args;
+  const identityRows = teiAttributes
+    .map((a) => `<tr><th>${esc(a.label)}</th>`
+      + `<td>${esc(a.value)}</td></tr>`).join('');
+  const notesHtml = notes.map((n, i) => `
+      <li class="note">
+        <div class="note__num">${i + 1}</div>
+        <div class="note__body">
+          <div class="note__when">${esc(formatTimestamp(n.createdAt))}</div>
+          <div class="note__text">${esc(n.noteText)
+            .replace(/\n/g, '<br />')}</div>
+          <div class="note__uid">Note UID: ${esc(n.noteUid)}</div>
+        </div>
+      </li>`).join('');
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>${esc(title)}</title>
+<style>
+  @page { size: A4; margin: 18mm 18mm 22mm 18mm; }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; color: #101a32;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 11pt; line-height: 1.45; margin: 0; padding: 0; }
+  header.doc-head { border-bottom: 2px solid #101a32;
+    padding-bottom: 10px; margin-bottom: 16px; }
+  .doc-head__eyebrow { font-family: -apple-system, BlinkMacSystemFont,
+      'Segoe UI', Roboto, sans-serif;
+    font-size: 9pt; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #5b6478; margin: 0 0 4px 0; }
+  .doc-head__title { font-size: 18pt; margin: 0;
+    font-family: Georgia, 'Times New Roman', serif; font-weight: 700; }
+  .doc-head__sub { margin: 4px 0 0; color: #5b6478; font-size: 10pt; }
+  table.identity { width: 100%; border-collapse: collapse;
+    margin: 8px 0 20px; font-family: -apple-system, BlinkMacSystemFont,
+      'Segoe UI', Roboto, sans-serif; font-size: 10pt; }
+  table.identity th, table.identity td { text-align: left;
+    padding: 5px 10px 5px 0; vertical-align: top; }
+  table.identity th { color: #5b6478; font-weight: 500;
+    text-transform: uppercase; font-size: 9pt; letter-spacing: 0.04em;
+    width: 32%; white-space: nowrap; }
+  table.identity td { color: #101a32; font-weight: 400; }
+  h2.notes-title { font-family: -apple-system, BlinkMacSystemFont,
+      'Segoe UI', Roboto, sans-serif;
+    font-size: 11pt; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #5b6478; font-weight: 600; margin: 24px 0 10px;
+    border-bottom: 1px solid #d9dde6; padding-bottom: 6px; }
+  ol.notes { list-style: none; padding: 0; margin: 0;
+    counter-reset: note; }
+  li.note { display: flex; gap: 14px; padding: 12px 0;
+    border-bottom: 1px solid #ebeef3;
+    break-inside: avoid; page-break-inside: avoid; }
+  li.note:last-child { border-bottom: 0; }
+  .note__num { flex: 0 0 28px; font-family: -apple-system,
+      BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 10pt; color: #9097a8; font-variant-numeric: tabular-nums;
+    text-align: right; padding-top: 1px; }
+  .note__body { flex: 1 1 auto; min-width: 0; }
+  .note__when { font-family: -apple-system, BlinkMacSystemFont,
+      'Segoe UI', Roboto, sans-serif;
+    font-size: 9pt; color: #5b6478; margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.04em; }
+  .note__text { color: #101a32; font-size: 11pt;
+    white-space: pre-wrap; word-wrap: break-word; }
+  .note__uid { font-family: ui-monospace, SFMono-Regular, Menlo,
+      Consolas, monospace; font-size: 8pt; color: #9097a8;
+    margin-top: 4px; }
+  footer.doc-foot { position: fixed; left: 18mm; right: 18mm;
+    bottom: 10mm; font-family: -apple-system, BlinkMacSystemFont,
+      'Segoe UI', Roboto, sans-serif;
+    font-size: 8.5pt; color: #9097a8; border-top: 1px solid #d9dde6;
+    padding-top: 6px; display: flex; justify-content: space-between; }
+  .doc-foot__brand { font-weight: 600; color: #5b6478; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+  <header class="doc-head">
+    <p class="doc-head__eyebrow">DHIS2 Tracker · Enrolment Notes</p>
+    <h1 class="doc-head__title">${esc(teiDisplayName || 'Tracked entity')}</h1>
+    <p class="doc-head__sub">
+      ${notes.length} note${notes.length === 1 ? '' : 's'}
+      · Generated ${esc(generatedAt)}
+    </p>
+  </header>
+  <table class="identity">
+    <tbody>
+      ${identityRows}
+      <tr><th>Tracked entity UID</th><td><code>${esc(teiId)}</code></td></tr>
+      <tr><th>Program UID</th><td><code>${esc(programUid)}</code></td></tr>
+      ${enrolment ? `
+        <tr><th>Enrolment UID</th>
+          <td><code>${esc(enrolment.enrollmentUid)}</code></td></tr>
+        <tr><th>Enrolled on</th>
+          <td>${esc(formatDateOnly(enrolment.enrollmentDate))}</td></tr>
+        <tr><th>Enrolment status</th>
+          <td>${esc(formatStatusLabel(enrolment.status))}</td></tr>` : ''}
+    </tbody>
+  </table>
+  <h2 class="notes-title">Notes (chronological)</h2>
+  ${notes.length === 0
+    ? '<p style="color:#5b6478;">No notes on this enrolment.</p>'
+    : `<ol class="notes">${notesHtml}</ol>`}
+  <footer class="doc-foot">
+    <span class="doc-foot__brand">DER Capture</span>
+    <span>${esc(teiDisplayName || teiId)} · ${esc(generatedAt)}</span>
+  </footer>
+</body>
+</html>`;
 }
 
 function formatStatusLabel(s: string | null | undefined): string {
