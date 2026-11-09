@@ -657,7 +657,12 @@ public class JournalPublisher {
                 if (caps.trackerApi() == CapabilityFlags.TrackerApi.LEGACY_ONLY) {
                     yield caps.endpointPolicy(EndpointId.LEGACY_EVENTS_LIST).path();
                 }
-                yield caps.endpointPolicy(EndpointId.TRACKER_EVENTS).path();
+                // DHIS2 2.44 tracker writes (including DELETE via
+                // importStrategy) go to /api/tracker, not
+                // /api/tracker/events — the latter is a read-only
+                // query endpoint that 405s on POST. TRACKER_EVENTS
+                // stays correct for GETs elsewhere.
+                yield caps.endpointPolicy(EndpointId.TRACKER_IMPORT).path();
             }
             case TRACKED_ENTITY, ENROLLMENT -> caps.endpointPolicy(EndpointId.TRACKER_IMPORT).path();
             /* RELATIONSHIP + ENROLMENT_NOTE entries never reach
