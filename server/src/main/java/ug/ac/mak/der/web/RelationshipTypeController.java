@@ -1,5 +1,7 @@
 package ug.ac.mak.der.web;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -7,6 +9,7 @@ import java.util.Objects;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,9 +36,12 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 public class RelationshipTypeController {
 
     private final ExtendedMirrorRepository mirror;
+    private final JdbcTemplate jdbc;
 
-    public RelationshipTypeController(final ExtendedMirrorRepository mirror) {
+    public RelationshipTypeController(final ExtendedMirrorRepository mirror,
+                                        final JdbcTemplate jdbc) {
         this.mirror = Objects.requireNonNull(mirror, "mirror");
+        this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 
     @GetMapping
@@ -50,11 +56,41 @@ public class RelationshipTypeController {
                 tetUid == null || tetUid.isBlank()
                         ? mirror.findAllRelationshipTypes()
                         : mirror.findRelationshipTypesForTrackedEntityType(tetUid);
-        return ResponseEntity.ok(Map.of("relationshipTypes",
-                rows.stream().map(RelationshipTypeController::toJson).toList()));
+        // REL-C-017: pull admin alias overrides for all types in
+        // one shot so the per-type toJson can coalesce them in
+        // without N+1. Overrides live outside the MirroredRelationshipType
+        // record because they're DER-side state that shouldn't
+        // round-trip through metadata sync.
+        final Map<String, AdminAliases> aliases = loadAliases();
+        final List<Map<String, Object>> list = new ArrayList<>();
+        for (final MirroredRelationshipType r : rows) {
+            list.add(toJson(r, aliases.get(r.dhis2Uid())));
+        }
+        return ResponseEntity.ok(Map.of("relationshipTypes", list));
     }
 
-    private static Map<String, Object> toJson(final MirroredRelationshipType r) {
+    /** Admin alias overrides keyed by relationship-type UID.
+     *  Either field is nullable (unset override falls back to the
+     *  payload-derived name). */
+    private record AdminAliases(String fromToName, String toFromName) { }
+
+    private Map<String, AdminAliases> loadAliases() {
+        final Map<String, AdminAliases> out = new HashMap<>();
+        jdbc.query(
+                "SELECT dhis2_uid, admin_from_to_name, admin_to_from_name "
+                    + "FROM der.metadata_relationship_type "
+                    + "WHERE admin_from_to_name IS NOT NULL "
+                    + "   OR admin_to_from_name IS NOT NULL",
+                rs -> {
+                    out.put(rs.getString(1),
+                        new AdminAliases(rs.getString(2), rs.getString(3)));
+                });
+        return out;
+    }
+
+    private static Map<String, Object> toJson(
+            final MirroredRelationshipType r,
+            final AdminAliases override) {
         final Map<String, Object> out = new LinkedHashMap<>();
         out.put("relationshipTypeUid", r.dhis2Uid());
         out.put("displayName", r.displayName());
@@ -69,13 +105,38 @@ public class RelationshipTypeController {
         // compound displayName. Null-tolerant: types that haven't
         // configured either name fall back to displayName client-
         // side.
-        final String fromToName = optionalString(r.payload(), "fromToName");
-        final String toFromName = optionalString(r.payload(), "toFromName");
-        if (fromToName != null) {
-            out.put("fromToName", fromToName);
+        //
+        // REL-C-017: admin alias override takes precedence when
+        // set. Emits adminFromToName / adminToFromName alongside
+        // the effective field so the admin UI can distinguish
+        // "no override" from "override matches central".
+        final String payloadFromTo = optionalString(r.payload(), "fromToName");
+        final String payloadToFrom = optionalString(r.payload(), "toFromName");
+        final String effFromTo = override != null
+                && override.fromToName() != null
+                ? override.fromToName() : payloadFromTo;
+        final String effToFrom = override != null
+                && override.toFromName() != null
+                ? override.toFromName() : payloadToFrom;
+        if (effFromTo != null) {
+            out.put("fromToName", effFromTo);
         }
-        if (toFromName != null) {
-            out.put("toFromName", toFromName);
+        if (effToFrom != null) {
+            out.put("toFromName", effToFrom);
+        }
+        if (payloadFromTo != null) {
+            out.put("centralFromToName", payloadFromTo);
+        }
+        if (payloadToFrom != null) {
+            out.put("centralToFromName", payloadToFrom);
+        }
+        if (override != null) {
+            if (override.fromToName() != null) {
+                out.put("adminFromToName", override.fromToName());
+            }
+            if (override.toFromName() != null) {
+                out.put("adminToFromName", override.toFromName());
+            }
         }
         return out;
     }

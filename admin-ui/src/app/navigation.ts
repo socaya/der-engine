@@ -85,6 +85,9 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'metadata-snapshots', label: 'Snapshots', to: '/metadata/snapshots', status: 'implemented' },
       { id: 'drift', label: 'Metadata drift', to: '/dhis2/metadata-drift', status: 'contextual' },
       { id: 'metadata-sync', label: 'Metadata sync', to: '/dhis2/metadata-sync', status: 'contextual' },
+      { id: 'rel-type-aliases', label: 'Relationship aliases',
+        to: '/dhis2/relationship-types',
+        status: 'implemented', tabIcon: 'metadata' },
     ],
   },
   {

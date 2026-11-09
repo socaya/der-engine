@@ -1985,6 +1985,57 @@ export function relationshipBulkPurge(uids: ReadonlyArray<string>):
     { uids });
 }
 
+/** Relationship-type payload from /edge-api/v1/relationship-types,
+ *  carrying the mirror + REL-C-017 admin alias fields. The
+ *  `fromToName` / `toFromName` fields are the EFFECTIVE labels
+ *  (admin override coalesced over central payload); the
+ *  `central*` + `admin*` siblings let the admin UI show both. */
+export interface RelationshipTypeRow {
+  readonly relationshipTypeUid: string;
+  readonly displayName: string;
+  readonly bidirectional: boolean;
+  readonly fromConstraintKind: string | null;
+  readonly fromConstraintUid: string | null;
+  readonly toConstraintKind: string | null;
+  readonly toConstraintUid: string | null;
+  readonly fromToName?: string;
+  readonly toFromName?: string;
+  readonly centralFromToName?: string;
+  readonly centralToFromName?: string;
+  readonly adminFromToName?: string;
+  readonly adminToFromName?: string;
+}
+
+export function listRelationshipTypes():
+    Promise<ReadonlyArray<RelationshipTypeRow>> {
+  return request<{ relationshipTypes: RelationshipTypeRow[] }>(
+    'GET', '/edge-api/v1/relationship-types')
+    .then((r) => r.relationshipTypes);
+}
+
+export interface RelationshipTypeAliasAck {
+  readonly relationshipTypeUid: string;
+  readonly displayName: string;
+  readonly adminFromToName: string | null;
+  readonly adminToFromName: string | null;
+}
+
+export function relationshipTypeSetAliases(
+    uid: string,
+    body: { fromToName?: string | null; toFromName?: string | null },
+): Promise<RelationshipTypeAliasAck> {
+  return request<RelationshipTypeAliasAck>('PUT',
+    '/edge-api/v1/admin/relationship-types/'
+      + encodeURIComponent(uid) + '/aliases', body);
+}
+
+export function relationshipTypeClearAliases(uid: string):
+    Promise<RelationshipTypeAliasAck> {
+  return request<RelationshipTypeAliasAck>('DELETE',
+    '/edge-api/v1/admin/relationship-types/'
+      + encodeURIComponent(uid) + '/aliases');
+}
+
 export function systemInfo(): Promise<SystemInfo> {
   return request<SystemInfo>('GET', '/edge-api/v1/system/info');
 }

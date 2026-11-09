@@ -44,6 +44,8 @@ import {
 import { LoginAppearance } from './screens/LoginAppearance';
 import { RelationshipDiagnostics }
   from './screens/RelationshipDiagnostics';
+import { RelationshipTypeAliases }
+  from './screens/RelationshipTypeAliases';
 import { AppCatalogue } from './screens/AppCatalogue';
 import { DataAggregate } from './screens/DataAggregate';
 import { DataAggregateDetail } from './screens/DataAggregateDetail';
@@ -256,6 +258,8 @@ export default function App(): JSX.Element {
           <Route path="/diagnostics" element={<RequireAuth><EADiagnostics /></RequireAuth>} />
           <Route path="/diagnostics/relationships"
                  element={<RequireAuth><RelationshipDiagnostics /></RequireAuth>} />
+          <Route path="/dhis2/relationship-types"
+                 element={<RequireAuth><RelationshipTypeAliases /></RequireAuth>} />
           <Route path="/support-bundle"
                  element={<RequireAuth><MockupSupportBundle /></RequireAuth>} />
           <Route path="/configuration"

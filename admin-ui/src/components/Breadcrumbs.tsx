@@ -59,6 +59,11 @@ const MAP: Record<string, Crumb[]> = {
     { to: '/diagnostics', label: 'Diagnostics' },
     { to: '/diagnostics/relationships', label: 'Relationships' },
   ],
+  '/dhis2/relationship-types': [
+    { to: '/dhis2', label: 'DHIS2' },
+    { to: '/dhis2/relationship-types',
+      label: 'Relationship aliases' },
+  ],
   '/settings': [{ to: '/settings', label: 'Settings' }],
 };
 
