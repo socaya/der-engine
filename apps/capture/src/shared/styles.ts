@@ -1624,6 +1624,25 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   background: var(--der-danger-subtle);
 }
 
+/* Relationship-type grouping on the list pane (spec §REL-C-012).
+ * One section per type, with a compact header (directional label
+ * + count) above a normal cap-list of rows. The outer container
+ * stacks the sections with modest spacing — the section header
+ * uses a hairline underline so the grouping reads structurally
+ * without shouting. */
+.cap-rel-groups {
+  display: flex; flex-direction: column; gap: 16px;
+}
+.cap-rel-group__head {
+  display: flex; align-items: baseline; gap: 12px;
+  margin: 0 0 4px 0; padding-bottom: 4px;
+  border-bottom: 1px solid var(--der-border-soft);
+}
+.cap-rel-group__head h3 {
+  margin: 0; font-size: 14px; font-weight: 600;
+  color: var(--der-text);
+}
+
 /* Relationship wizard (spec §8.4). Four dedicated steps rendered
  * as full-page panels; the stepper above the body is a compact
  * progress indicator (numbered circle + label per step, filled

@@ -1112,67 +1112,88 @@ export function TrackerRelationshipsSection(
             : 'No linked tracked entities yet.'}
         </div>
       ) : (
-        <ul className="cap-list" data-test="tr-rel-list">
-          {rows.map((r, i) => {
-            const label = r.relationshipName ?? r.relationshipType
-              ?? 'Linked';
-            const toUid = endpointUid(r.to);
-            const target = toUid === tei
-              ? (r.from ? describeEndpoint(r.from) : '—')
-              : (r.to ? describeEndpoint(r.to) : '—');
-            const uid = r.relationship;
-            return (
-              <li key={(uid ?? '') + i}
-                  className="cap-list__row"
-                  style={{ gridTemplateColumns: '1fr auto auto' }}>
-                <div>
-                  <strong>{label}</strong>
-                  {r.bidirectional && (
-                    <span className="cap-chip"
-                          style={{ marginLeft: 10 }}>
-                      ↔ bidirectional
-                    </span>
-                  )}
-                  <SyncBadge status={r.syncStatus ?? 'LOCAL'} />
-                  <div style={{ marginTop: 4, color: '#4a5768',
-                    fontSize: 13 }}>
-                    → {target}
-                  </div>
-                </div>
-                <span className="cap-list__when">
-                  {r.lastUpdated ?? r.createdAt ?? '—'}
+        <div className="cap-rel-groups" data-test="tr-rel-list">
+          {/* Spec §REL-C-012: group by relationship type so operators
+           *  see clusters of the same link kind together (all family
+           *  links, all clinical links, etc.) rather than an
+           *  undifferentiated timeline. Within each group rows stay
+           *  sorted newest-first — the per-row timestamp still
+           *  anchors the timeline reading. Group label uses the
+           *  type's directional name when known (resolved from the
+           *  types array mirror), falling back to the raw name. */}
+          {groupRowsByType(rows, types).map((group) => (
+            <section key={group.key}
+                     className="cap-rel-group"
+                     data-test={'tr-rel-group-' + group.key}>
+              <header className="cap-rel-group__head">
+                <h3>{group.label}</h3>
+                <span className="cap-sub">
+                  {group.rows.length} link
+                  {group.rows.length === 1 ? '' : 's'}
                 </span>
-                {uid && (
-                  <button type="button"
-                          className="cap-btn cap-btn--secondary"
-                          data-test={'tr-rel-unlink-' + uid}
-                          style={{ padding: '2px 8px', fontSize: 13 }}
-                          title={'Unlink this relationship. The DER '
-                            + 'journal keeps a tombstone (§REL-SEC-005)'}
-                          onClick={async () => {
-                            const ok = window.confirm(
-                              'Unlink this relationship? The link '
-                              + 'will be removed on the facility '
-                              + 'edge and queued for central sync.');
-                            if (!ok) return;
-                            const res = await
-                              api.deleteTrackerRelationship(uid);
-                            if (res.ok) {
-                              const fresh =
-                                await api.listTrackerRelationships(tei);
-                              setRows(Array.isArray(fresh) ? fresh : []);
-                            } else {
-                              window.alert('Unlink failed: '
-                                + res.message);
-                            }
-                          }}>
-                    Unlink
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+              </header>
+              <ul className="cap-list">
+                {group.rows.map((r, i) => {
+                  const toUid = endpointUid(r.to);
+                  const target = toUid === tei
+                    ? (r.from ? describeEndpoint(r.from) : '—')
+                    : (r.to ? describeEndpoint(r.to) : '—');
+                  const uid = r.relationship;
+                  return (
+                    <li key={(uid ?? '') + i}
+                        className="cap-list__row"
+                        style={{ gridTemplateColumns: '1fr auto auto' }}>
+                      <div>
+                        {r.bidirectional && (
+                          <span className="cap-chip"
+                                style={{ marginRight: 10 }}>
+                            ↔ bidirectional
+                          </span>
+                        )}
+                        <SyncBadge status={r.syncStatus ?? 'LOCAL'} />
+                        <div style={{ marginTop: 4, color: '#4a5768',
+                          fontSize: 13 }}>
+                          → {target}
+                        </div>
+                      </div>
+                      <span className="cap-list__when">
+                        {r.lastUpdated ?? r.createdAt ?? '—'}
+                      </span>
+                      {uid && (
+                        <button type="button"
+                                className="cap-btn cap-btn--secondary"
+                                data-test={'tr-rel-unlink-' + uid}
+                                style={{ padding: '2px 8px', fontSize: 13 }}
+                                title={'Unlink this relationship. The DER '
+                                  + 'journal keeps a tombstone '
+                                  + '(§REL-SEC-005)'}
+                                onClick={async () => {
+                                  const ok = window.confirm(
+                                    'Unlink this relationship? The link '
+                                    + 'will be removed on the facility '
+                                    + 'edge and queued for central sync.');
+                                  if (!ok) return;
+                                  const res = await
+                                    api.deleteTrackerRelationship(uid);
+                                  if (res.ok) {
+                                    const fresh =
+                                      await api.listTrackerRelationships(tei);
+                                    setRows(Array.isArray(fresh) ? fresh : []);
+                                  } else {
+                                    window.alert('Unlink failed: '
+                                      + res.message);
+                                  }
+                                }}>
+                          Unlink
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </>
   );
@@ -1211,6 +1232,39 @@ function SyncBadge({ status }: { status: RelSyncStatus }): JSX.Element {
       {label}
     </span>
   );
+}
+
+/** Bucket rows by relationship type so the list renders grouped
+ *  sections (REL-C-012). Label prefers the type's directional
+ *  name from the mirror — falls back to displayName or the raw
+ *  type UID if neither is known yet. Groups are ordered by the
+ *  most recent row's createdAt (newest cluster first); rows
+ *  within a group preserve the server's newest-first order. */
+function groupRowsByType(
+  rows: ReadonlyArray<RelRow>, types: ReadonlyArray<RelTypeRow>,
+): Array<{ key: string; label: string; rows: RelRow[] }> {
+  const byType = new Map<string, RelRow[]>();
+  for (const r of rows) {
+    const k = r.relationshipType ?? '_';
+    const list = byType.get(k) ?? [];
+    list.push(r);
+    byType.set(k, list);
+  }
+  const typeByUid = new Map(types.map((t) => [t.id, t]));
+  const out: Array<{ key: string; label: string;
+    rows: RelRow[]; latest: string }> = [];
+  for (const [k, list] of byType.entries()) {
+    const meta = typeByUid.get(k);
+    const label = meta
+      ? (meta.fromToName ?? meta.toFromName ?? meta.displayName)
+      : (list[0]?.relationshipName ?? k);
+    const latest = list.map((r) =>
+      r.lastUpdated ?? r.createdAt ?? '').sort().reverse()[0] ?? '';
+    out.push({ key: k, label, rows: list, latest });
+  }
+  out.sort((a, b) => b.latest.localeCompare(a.latest));
+  return out.map(({ key, label, rows: rs }) => ({ key, label,
+    rows: rs }));
 }
 
 function endpointUid(endpoint: RelRow['from']): string | null {
