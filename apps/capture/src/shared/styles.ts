@@ -1639,6 +1639,20 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   display: flex; flex-wrap: wrap; gap: 8px;
 }
 
+/* Filter bar above the Relationships table — Type / Status
+ * selects + text search. Flex row, collapses to stacked on
+ * narrow viewports. Inline label style reuses .cap-input so
+ * the controls match the rest of Capture's form chrome. */
+.cap-rel-list {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cap-rel-filterbar {
+  display: flex; align-items: flex-end; gap: 12px;
+  flex-wrap: wrap;
+  padding: 4px 0 8px;
+}
+.cap-input--inline { min-width: 200px; }
+
 /* DER-standard borderless table for the Relationships list.
  * Single-line rows per operator feedback — icon + target name
  * in one cell, direction / sync / timestamp / menu in their

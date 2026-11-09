@@ -1613,6 +1613,7 @@ export interface RelationshipEndpoint {
   };
   event?: {
     event?: string;
+    enrollmentUid?: string;
     programUid?: string;
     programName?: string;
     programStageUid?: string;
@@ -1898,6 +1899,7 @@ function buildSide(kind: string, uid: string,
   }
   return { event: {
     event: uid,
+    enrollmentUid: detail?.enrollmentUid,
     programUid: detail?.programUid,
     programName: detail?.programName,
     programStageUid: detail?.programStageUid,

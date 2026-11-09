@@ -66,6 +66,7 @@ interface RelEndpoint {
   };
   event?: {
     event?: string;
+    enrollmentUid?: string;
     programUid?: string;
     programName?: string;
     programStageUid?: string;
@@ -180,6 +181,14 @@ export function TrackerRelationshipsSection(
    *  orgUnitUid) swap. */
   const [candidates, setCandidates] = useState<Array<{
     uid: string; displayName: string; lastUpdated: string }>>([]);
+
+  /** Flat-list filter controls — operators asked for one unified
+   *  table rather than per-type sections. All three filters are
+   *  client-side (the row set is already loaded) so changes are
+   *  instant. */
+  const [filterType, setFilterType] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterText, setFilterText] = useState<string>('');
 
   /** Lazy caches populated when the target TEI / anchor enrolment
    *  flips — keyed by enrolment/TEI UID so the next refetch in the
@@ -1113,120 +1122,206 @@ export function TrackerRelationshipsSection(
             ? 'Relationships could not be loaded.'
             : 'No linked tracked entities yet.'}
         </div>
-      ) : (
-        <div className="cap-rel-groups" data-test="tr-rel-list">
-          {/* Spec §REL-C-012: group by relationship type so operators
-           *  see clusters of the same link kind together (all family
-           *  links, all clinical links, etc.) rather than an
-           *  undifferentiated timeline. Within each group rows stay
-           *  sorted newest-first — the per-row timestamp still
-           *  anchors the timeline reading. Group label uses the
-           *  type's directional name when known (resolved from the
-           *  types array mirror), falling back to the raw name. */}
-          {groupRowsByType(rows, types).map((group) => (
-            <section key={group.key}
-                     className="cap-rel-group"
-                     data-test={'tr-rel-group-' + group.key}>
-              <header className="cap-rel-group__head">
-                <h3>{group.label}</h3>
-                <span className="cap-sub">
-                  {group.rows.length} link
-                  {group.rows.length === 1 ? '' : 's'}
-                </span>
-              </header>
-              {/* DER-standard borderless table — single line per
-               *  row. Target | Type | Sync status | Captured | ⋯
-               *  Matches .cap-table style (hairline row separators
-               *  + sticky header + 14px body). */}
-              <table className="cap-table cap-rel-table"
-                     data-test={'tr-rel-table-' + group.key}>
-                <thead>
+      ) : (() => {
+        // Build a display-row array once, with the typeLabel +
+        // identity resolved up-front so filters can run over the
+        // same materialised values the table renders. Keeps the
+        // row-render tight and the filter cheap.
+        const typeByUid = new Map(types.map((t) => [t.id, t]));
+        const q = filterText.trim().toLowerCase();
+        const display = rows.map((r, i) => {
+          const toUid = endpointUid(r.to);
+          const otherSide = toUid === tei ? r.from : r.to;
+          const identity = endpointIdentity(otherSide);
+          const kind: 'TRACKED_ENTITY' | 'ENROLLMENT' | 'EVENT' =
+                otherSide?.event ? 'EVENT'
+              : otherSide?.enrollment ? 'ENROLLMENT'
+              : 'TRACKED_ENTITY';
+          const meta = r.relationshipType
+            ? typeByUid.get(r.relationshipType) : undefined;
+          const typeLabel = meta
+            ? (meta.fromToName ?? meta.toFromName
+                ?? meta.displayName)
+            : (r.relationshipName ?? r.relationshipType ?? '—');
+          return { r, i, toUid, otherSide, identity, kind,
+            typeLabel, typeUid: r.relationshipType ?? '',
+            status: r.syncStatus ?? 'LOCAL' };
+        });
+        const filtered = display.filter((d) =>
+          (filterType === '' || d.typeUid === filterType)
+          && (filterStatus === '' || d.status === filterStatus)
+          && (q === '' || d.typeLabel.toLowerCase().includes(q)
+              || d.identity.primary.toLowerCase().includes(q)
+              || (d.identity.secondary ?? '').toLowerCase()
+                  .includes(q)));
+        // Options for the type filter: pick types actually present
+        // in rows so the dropdown doesn't list types the operator
+        // can't action from here.
+        const typeOptions = Array.from(new Set(
+          display.map((d) => d.typeUid))).filter((u) => u !== '')
+          .map((u) => ({
+            uid: u,
+            label: display.find((d) => d.typeUid === u)?.typeLabel
+              ?? u,
+          })).sort((a, b) => a.label.localeCompare(b.label));
+        return (
+          <div className="cap-rel-list" data-test="tr-rel-list">
+            {/* Filter bar — type + sync status + text search.
+             *  Flat flex row, collapses on narrow viewports. */}
+            <div className="cap-rel-filterbar">
+              <label className="cap-input cap-input--inline">
+                <span className="cap-input__label">Type</span>
+                <select className="cap-input__ctl"
+                        data-test="tr-rel-filter-type"
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value)}>
+                  <option value="">All types</option>
+                  {typeOptions.map((t) => (
+                    <option key={t.uid} value={t.uid}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="cap-input cap-input--inline">
+                <span className="cap-input__label">Sync</span>
+                <select className="cap-input__ctl"
+                        data-test="tr-rel-filter-status"
+                        value={filterStatus}
+                        onChange={(e) =>
+                          setFilterStatus(e.target.value)}>
+                  <option value="">All states</option>
+                  <option value="SYNCED">Synced to DHIS2</option>
+                  <option value="PENDING">Pending sync</option>
+                  <option value="LOCAL">Device only</option>
+                  <option value="FAILED">Sync failed</option>
+                  <option value="CONFLICT">Conflict — review</option>
+                  <option value="BLOCKED">Blocked</option>
+                </select>
+              </label>
+              <label className="cap-input cap-input--inline"
+                     style={{ flex: 1 }}>
+                <span className="cap-input__label">Search</span>
+                <input type="search" className="cap-input__ctl"
+                       data-test="tr-rel-filter-text"
+                       value={filterText}
+                       placeholder="Type label, target name, UID…"
+                       onChange={(e) =>
+                         setFilterText(e.target.value)} />
+              </label>
+              <span className="cap-sub"
+                    style={{ alignSelf: 'end', paddingBottom: 6 }}>
+                {filtered.length} of {display.length}
+              </span>
+            </div>
+            {/* DER-standard borderless table — unified list,
+             *  single row per link. Type · Target · Direction ·
+             *  Sync · Captured · ⋯. */}
+            <table className="cap-table cap-rel-table"
+                   data-test="tr-rel-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Target</th>
+                  <th>Direction</th>
+                  <th>Sync</th>
+                  <th>Captured</th>
+                  <th style={{ width: 40 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 && (
                   <tr>
-                    <th>Target</th>
-                    <th>Direction</th>
-                    <th>Sync</th>
-                    <th>Captured</th>
-                    <th style={{ width: 40 }}></th>
+                    <td className="cap-table__cell"
+                        colSpan={6}
+                        style={{ color: 'var(--der-text-muted)',
+                          padding: '14px 12px' }}>
+                      No links match the current filters.
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {group.rows.map((r, i) => {
-                    const toUid = endpointUid(r.to);
-                    const otherSide = toUid === tei ? r.from : r.to;
-                    const identity = endpointIdentity(otherSide);
-                    const kind: 'TRACKED_ENTITY' | 'ENROLLMENT'
-                                | 'EVENT' = otherSide?.event
-                                  ? 'EVENT'
-                                  : otherSide?.enrollment
-                                  ? 'ENROLLMENT' : 'TRACKED_ENTITY';
-                    const uid = r.relationship;
-                    const captured = formatTimestamp(
-                      r.lastUpdated ?? r.createdAt ?? '');
-                    return (
-                      <tr key={(uid ?? '') + i}
-                          data-test={'tr-rel-row-' + (uid ?? i)}>
-                        <td className="cap-table__cell">
-                          <span className="cap-rel-table__target">
-                            <RelKindIcon kind={kind} />
-                            <span className="cap-rel-table__name"
-                                  title={identity.secondary
-                                    ?? identity.primary}>
-                              {identity.primary}
-                            </span>
+                )}
+                {filtered.map(({ r, i, toUid, otherSide,
+                  identity, kind, typeLabel }) => {
+                  const uid = r.relationship;
+                  const captured = formatTimestamp(
+                    r.lastUpdated ?? r.createdAt ?? '');
+                  return (
+                    <tr key={(uid ?? '') + i}
+                        data-test={'tr-rel-row-' + (uid ?? i)}>
+                      <td className="cap-table__cell">
+                        <strong>{typeLabel}</strong>
+                        {r.bidirectional && (
+                          <span className="cap-sub"
+                                style={{ marginLeft: 6,
+                                  fontSize: 12 }}>
+                            ↔
                           </span>
-                        </td>
-                        <td className="cap-table__cell"
-                            style={{ color: 'var(--der-text-muted)' }}>
-                          {r.bidirectional
-                            ? '↔ both ways' : '→ linked to'}
-                        </td>
-                        <td className="cap-table__cell">
-                          <SyncBadge status={r.syncStatus ?? 'LOCAL'} />
-                        </td>
-                        <td className="cap-table__cell"
-                            style={{ color: 'var(--der-text-muted)',
-                              whiteSpace: 'nowrap' }}>
-                          {captured}
-                        </td>
-                        <td className="cap-table__cell"
-                            style={{ textAlign: 'right' }}>
-                          {uid && (
-                            <RowMenu uid={uid}
-                                      targetUid={toUid ?? ''}
-                                      onUnlink={async () => {
-                                        const ok = window.confirm(
-                                          'Unlink this relationship?'
-                                          + ' The link will be '
-                                          + 'removed on the facility '
-                                          + 'edge and queued for '
-                                          + 'central sync.');
-                                        if (!ok) return;
-                                        const res = await api
-                                          .deleteTrackerRelationship(uid);
-                                        if (res.ok) {
-                                          const fresh = await api
-                                            .listTrackerRelationships(
-                                              tei);
-                                          setRows(
-                                            Array.isArray(fresh)
-                                              ? fresh : []);
-                                        } else {
-                                          window.alert(
-                                            'Unlink failed: '
-                                            + res.message);
-                                        }
-                                      }} />
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </section>
-          ))}
-        </div>
-      )}
+                        )}
+                      </td>
+                      <td className="cap-table__cell">
+                        <span className="cap-rel-table__target">
+                          <RelKindIcon kind={kind} />
+                          <span className="cap-rel-table__name"
+                                title={identity.secondary
+                                  ?? identity.primary}>
+                            {identity.primary}
+                          </span>
+                        </span>
+                      </td>
+                      <td className="cap-table__cell"
+                          style={{ color: 'var(--der-text-muted)' }}>
+                        {r.bidirectional
+                          ? '↔ both ways' : '→ linked to'}
+                      </td>
+                      <td className="cap-table__cell">
+                        <SyncBadge status={r.syncStatus ?? 'LOCAL'} />
+                      </td>
+                      <td className="cap-table__cell"
+                          style={{ color: 'var(--der-text-muted)',
+                            whiteSpace: 'nowrap' }}>
+                        {captured}
+                      </td>
+                      <td className="cap-table__cell"
+                          style={{ textAlign: 'right' }}>
+                        {uid && (
+                          <RowMenu uid={uid}
+                                    targetUid={toUid ?? ''}
+                                    targetKind={kind}
+                                    targetSide={otherSide}
+                                    programUid={programUid}
+                                    onUnlink={async () => {
+                                      const ok = window.confirm(
+                                        'Unlink this relationship?'
+                                        + ' The link will be '
+                                        + 'removed on the facility '
+                                        + 'edge and queued for '
+                                        + 'central sync.');
+                                      if (!ok) return;
+                                      const res = await api
+                                        .deleteTrackerRelationship(uid);
+                                      if (res.ok) {
+                                        const fresh = await api
+                                          .listTrackerRelationships(
+                                            tei);
+                                        setRows(
+                                          Array.isArray(fresh)
+                                            ? fresh : []);
+                                      } else {
+                                        window.alert(
+                                          'Unlink failed: '
+                                          + res.message);
+                                      }
+                                    }} />
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
     </>
   );
 }
@@ -1409,8 +1504,12 @@ function RelKindIcon(
  *  confirmed via a modal from the caller. Copy UID is a utility
  *  for admins troubleshooting with a database shell. */
 function RowMenu(
-  { uid, targetUid, onUnlink }: {
+  { uid, targetUid, targetKind, targetSide, programUid,
+    onUnlink }: {
     uid: string; targetUid: string;
+    targetKind: 'TRACKED_ENTITY' | 'ENROLLMENT' | 'EVENT';
+    targetSide: RelEndpoint | undefined;
+    programUid: string;
     onUnlink: () => Promise<void> | void;
   },
 ): JSX.Element {
@@ -1432,6 +1531,44 @@ function RowMenu(
       document.removeEventListener('keydown', onKey);
     };
   }, [open, uid]);
+
+  /** Navigate to the target record. Kind-specific routes:
+   *  - TRACKED_ENTITY → tracker detail page
+   *  - ENROLLMENT     → tracker detail page for the enrolment's TEI
+   *  - EVENT          → stage-form edit page for the event */
+  function openTarget(): void {
+    setOpen(false);
+    if (targetKind === 'TRACKED_ENTITY') {
+      navTracker.detail(programUid, targetUid);
+      return;
+    }
+    if (targetKind === 'ENROLLMENT') {
+      const teiUid = targetSide?.enrollment?.teiUid;
+      if (!teiUid) {
+        window.alert('Linked record has no resolvable TEI on '
+          + 'this device.');
+        return;
+      }
+      navTracker.detail(programUid, teiUid);
+      return;
+    }
+    // EVENT — jump to the edit page. We need the enrolment UID
+    // from the endpoint detail; navTracker.editEvent needs
+    // programUid + enrolmentUid + eventUid.
+    const enrolUid = targetSide?.event?.enrollmentUid;
+    if (!enrolUid) {
+      window.alert('Linked event has no resolvable enrolment on '
+        + 'this device.');
+      return;
+    }
+    navTracker.editEvent(programUid, enrolUid, targetUid);
+  }
+
+  const openLabel = targetKind === 'TRACKED_ENTITY'
+      ? 'Open tracked entity'
+    : targetKind === 'ENROLLMENT' ? 'Open enrolment'
+    : 'Open event';
+
   return (
     <div className="cap-rel-card__menu" data-rowmenu={uid}>
       <button type="button"
@@ -1445,6 +1582,11 @@ function RowMenu(
       </button>
       {open && (
         <div className="cap-rel-card__menu-pop" role="menu">
+          <button type="button" role="menuitem"
+                  data-test={'tr-rel-menu-open-' + uid}
+                  onClick={openTarget}>
+            {openLabel}
+          </button>
           <button type="button" role="menuitem"
                   data-test={'tr-rel-menu-copy-' + uid}
                   onClick={() => {
