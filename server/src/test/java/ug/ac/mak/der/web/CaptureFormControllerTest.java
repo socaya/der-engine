@@ -482,7 +482,7 @@ class CaptureFormControllerTest {
     @Test
     void listEventsReturnsRows() throws Exception {
         when(forms.listEvents("P1", "OU1", 100)).thenReturn(List.of(
-                new EventSummary(UUID.randomUUID(), "S1", "OU1",
+                new EventSummary("evtXYZ01abc", "S1", "OU1",
                         Instant.parse("2026-11-06T09:00:00Z"), "ACTIVE",
                         java.util.Map.of())));
         mockMvc.perform(get("/edge-api/v1/capture/programs/P1/events")
@@ -506,7 +506,11 @@ class CaptureFormControllerTest {
 
     @Test
     void getEventDetailReturnsEvent() throws Exception {
-        final UUID eventId = UUID.randomUUID();
+        // DHIS2-canonical shift: eventUid is now the 11-char text
+        // UID (new canonical shape); the controller accepts any
+        // String — the service tries edge_tracker_event first and
+        // falls back to der.event for legacy UUID rows.
+        final String eventId = "evtABCDEF12";
         when(forms.getEventDetail(eventId)).thenReturn(new EventDetail(
                 eventId, null, "P1", "S1", "OU1",
                 Instant.parse("2026-11-06T10:00:00Z"), "ACTIVE",
@@ -520,7 +524,7 @@ class CaptureFormControllerTest {
 
     @Test
     void getEventDetailNotFound404() throws Exception {
-        final UUID eventId = UUID.randomUUID();
+        final String eventId = "notFound01A";
         when(forms.getEventDetail(eventId))
                 .thenThrow(new CaptureFormError(
                         ErrorCode.WORKFLOW_RUN_NOT_FOUND,

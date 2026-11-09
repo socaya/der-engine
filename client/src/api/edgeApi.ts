@@ -682,24 +682,14 @@ export interface EventSubmitInput {
   readonly event?: string;
 }
 
-/** POST /api/events — DER's dhis2 emulator reads
- *  {@code {events: [...]}} and rejects bare-event bodies with
- *  'events array is required'. Wrap the single-event input so
- *  Capture's submit flow actually writes to the edge (fix for
- *  a long-standing bug uncovered during G5/G6 live verification).
- *
- *  Important: when a tracker enrolment is present, the CALLER
- *  must use {@link submitTrackerEvent} instead — /api/events
- *  silently drops the enrolment ref (it expects a UUID but DHIS2
- *  UIDs are 11-char text), so events save but never appear in the
- *  tracker detail's stage pane list. This wrapper now routes
- *  automatically: with `enrollment` set it delegates; without it
- *  the aggregate/event-program path is used. */
+/** All event saves — tracker AND event-program — route through the
+ *  canonical edge endpoint. Event-program events pass no enrolment
+ *  UID; tracker events carry their enrolment UID. Both land in
+ *  edge_tracker_event (DHIS2-shaped, text 11-char UIDs). The
+ *  legacy /api/events path that wrote to der.event with UUIDs is
+ *  no longer the default. */
 export function submitEvent(body: EventSubmitInput): Promise<unknown> {
-  if (body.enrollment && body.enrollment.trim() !== '') {
-    return submitTrackerEvent(body);
-  }
-  return request('POST', '/api/events', { events: [body] });
+  return submitTrackerEvent(body);
 }
 
 /** POST /edge-api/v1/tracker/events — writes to edge_tracker_event

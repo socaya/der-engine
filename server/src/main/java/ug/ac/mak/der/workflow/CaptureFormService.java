@@ -451,33 +451,115 @@ public class CaptureFormService {
             throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
                     "orgUnit is required");
         }
-        return events.findByProgramAndOrgUnit(programUid, orgUnitUid, limit).stream()
-                .map(e -> new EventSummary(
-                        e.eventId(),
-                        e.programStageUid(),
-                        e.orgUnitUid(),
-                        e.occurredAt(),
-                        e.status() == null ? null : e.status().name(),
-                        // §EV1-A — carry dataValues so the Capture
-                        // working list can render metadata-driven
-                        // columns (matching DHIS2's displayInList).
-                        e.dataValues()))
-                .toList();
+        /* DHIS2-canonical shift: unify reads across the legacy UUID
+         * der.event table (populated by pre-canonical POST /api/events)
+         * and the DHIS2-shaped edge_tracker_event table (populated by
+         * every new event + every tracker event). The two sources
+         * merge here so the operator sees one timeline regardless of
+         * where each row happens to live. */
+        final List<EventSummary> out = new ArrayList<>();
+        for (final TrackerEvent e : trackerEvents.findByProgramAndOrgUnit(
+                programUid, orgUnitUid, limit)) {
+            out.add(new EventSummary(
+                    e.eventUid(),
+                    e.programStageUid(),
+                    e.orgUnitUid(),
+                    e.occurredDate() == null ? null
+                            : e.occurredDate().atStartOfDay(
+                                    java.time.ZoneOffset.UTC).toInstant(),
+                    e.status() == null ? null : e.status().name(),
+                    e.dataValues() == null ? Map.of()
+                            : e.dataValues().entrySet().stream()
+                                    .collect(java.util.stream.Collectors.toMap(
+                                            Map.Entry::getKey,
+                                            en -> String.valueOf(en.getValue()),
+                                            (a, b) -> a,
+                                            java.util.LinkedHashMap::new))));
+        }
+        for (final Event e : events.findByProgramAndOrgUnit(
+                programUid, orgUnitUid, limit)) {
+            out.add(new EventSummary(
+                    e.eventId().toString(),
+                    e.programStageUid(),
+                    e.orgUnitUid(),
+                    e.occurredAt(),
+                    e.status() == null ? null : e.status().name(),
+                    e.dataValues()));
+        }
+        // Most-recent-first across both sources so operators always
+        // see fresh captures at the top.
+        out.sort((a, b) -> {
+            final var ao = a.occurredAt();
+            final var bo = b.occurredAt();
+            if (ao == null && bo == null) {
+                return 0;
+            }
+            if (ao == null) {
+                return 1;
+            }
+            if (bo == null) {
+                return -1;
+            }
+            return bo.compareTo(ao);
+        });
+        return out.size() > limit ? out.subList(0, limit) : out;
     }
 
-    /** Full event detail — row + dataValues keyed by dataElement UID. */
-    public EventDetail getEventDetail(final UUID eventUid) {
-        if (eventUid == null) {
+    /** Full event detail — row + dataValues keyed by dataElement UID.
+     *  Accepts either a DHIS2 11-char UID (new canonical shape,
+     *  stored in edge_tracker_event) or a legacy UUID (pre-canonical
+     *  rows in der.event). Tries the canonical path first so new
+     *  events don't take an extra Postgres round-trip. */
+    public EventDetail getEventDetail(final String eventUid) {
+        if (eventUid == null || eventUid.isBlank()) {
             throw new CaptureFormError(ErrorCode.CAPTURE_PARAM_INVALID,
                     "eventUid is required");
         }
-        final Event e = events.findById(eventUid)
+        // Canonical path — edge_tracker_event (text PK).
+        final var canonical = trackerEvents.findById(eventUid);
+        if (canonical.isPresent()) {
+            final var e = canonical.get();
+            return new EventDetail(
+                    e.eventUid(),
+                    e.enrollmentUid(),
+                    e.programUid(),
+                    e.programStageUid(),
+                    e.orgUnitUid(),
+                    e.occurredDate() == null ? null
+                            : e.occurredDate().atStartOfDay(
+                                    java.time.ZoneOffset.UTC).toInstant(),
+                    e.status() == null ? null : e.status().name(),
+                    /* edge_tracker_event rows carry no attribute-option-
+                     * combo today; default to the DEFAULT_COC that
+                     * matches DHIS2's implicit assignment for events
+                     * without category disaggregation. */
+                    "HllvX50cXC0",
+                    e.dataValues() == null ? Map.of()
+                            : e.dataValues().entrySet().stream()
+                                    .collect(java.util.stream.Collectors.toMap(
+                                            Map.Entry::getKey,
+                                            en -> String.valueOf(en.getValue()),
+                                            (a, b) -> a,
+                                            java.util.LinkedHashMap::new)),
+                    e.workflowRunId());
+        }
+        // Legacy UUID path — der.event. Preserved so events written
+        // before the DHIS2-canonical shift still resolve on the
+        // detail page without a backfill migration.
+        final UUID legacyUid;
+        try {
+            legacyUid = UUID.fromString(eventUid);
+        } catch (IllegalArgumentException ex) {
+            throw new CaptureFormError(ErrorCode.WORKFLOW_RUN_NOT_FOUND,
+                    "event " + eventUid + " not found");
+        }
+        final Event e = events.findById(legacyUid)
                 .orElseThrow(() -> new CaptureFormError(
                         ErrorCode.WORKFLOW_RUN_NOT_FOUND,
                         "event " + eventUid + " not found"));
         return new EventDetail(
-                e.eventId(),
-                e.enrollmentId(),
+                e.eventId().toString(),
+                e.enrollmentId() == null ? null : e.enrollmentId().toString(),
                 e.programUid(),
                 e.programStageUid(),
                 e.orgUnitUid(),
@@ -883,7 +965,14 @@ public class CaptureFormService {
             int sortOrder) { }
 
     public record EventSummary(
-            UUID eventUid,
+            /** DHIS2 Event UID — 11-char alphanumeric per standard
+             *  tracker data model. Legacy UUID rows from der.event
+             *  are serialised as their canonical UUID string so the
+             *  client can still fetch + edit them during the
+             *  post-canonical-shift transition; all newly-created
+             *  events are 11-char text UIDs that match DHIS2 wire
+             *  shape exactly. */
+            String eventUid,
             String programStageUid,
             String orgUnitUid,
             java.time.Instant occurredAt,
@@ -895,8 +984,8 @@ public class CaptureFormService {
             Map<String, String> dataValues) { }
 
     public record EventDetail(
-            UUID eventUid,
-            UUID enrollmentUid,
+            String eventUid,
+            String enrollmentUid,
             String programUid,
             String programStageUid,
             String orgUnitUid,

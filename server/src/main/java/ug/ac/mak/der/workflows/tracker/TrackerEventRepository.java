@@ -69,6 +69,26 @@ public class TrackerEventRepository {
         }
     }
 
+    /** List events by program + OU — used by Capture's event
+     *  working list (both event-program and tracker contexts). The
+     *  stage filter is applied client-side so we don't have to
+     *  branch per use case. Limit capped at 500 as a safety net. */
+    public List<TrackerEvent> findByProgramAndOrgUnit(final String programUid,
+                                                       final String orgUnitUid,
+                                                       final int limit) {
+        final int cap = Math.max(1, Math.min(limit, 500));
+        return jdbc.query(
+                "SELECT event_uid, enrollment_uid, program_uid, program_stage_uid, "
+                        + "org_unit_uid, status, occurred_date, "
+                        + "data_values::text AS data_values, "
+                        + "stored_by_dhis2_uid, created_by, created_at, updated_at, version, "
+                        + "workflow_run_id "
+                        + "FROM der.edge_tracker_event "
+                        + "WHERE program_uid = ? AND org_unit_uid = ? "
+                        + "ORDER BY occurred_date DESC LIMIT ?",
+                rowMapper(), programUid, orgUnitUid, cap);
+    }
+
     public List<TrackerEvent> findByEnrollment(final String enrollmentUid) {
         return jdbc.query(
                 "SELECT event_uid, enrollment_uid, program_uid, program_stage_uid, "

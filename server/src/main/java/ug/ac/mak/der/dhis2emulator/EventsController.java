@@ -28,6 +28,7 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.SystemWorkflowService;
 import ug.ac.mak.der.workflows.events.Event;
 import ug.ac.mak.der.workflows.events.EventService;
+import ug.ac.mak.der.workflows.tracker.TrackerEventRepository;
 
 /**
  * DER's emulation of the DHIS2 event write endpoints.
@@ -45,15 +46,18 @@ public class EventsController {
     private final EventService service;
     private final Dhis2CompatibilityEngine engine;
     private final SystemWorkflowService systemWorkflows;
+    private final TrackerEventRepository trackerEvents;
     private final Clock clock;
 
     public EventsController(final EventService service,
                              final Dhis2CompatibilityEngine engine,
                              final SystemWorkflowService systemWorkflows,
+                             final TrackerEventRepository trackerEvents,
                              final Clock clock) {
         this.service = service;
         this.engine = engine;
         this.systemWorkflows = systemWorkflows;
+        this.trackerEvents = trackerEvents;
         this.clock = clock;
     }
 
@@ -78,13 +82,19 @@ public class EventsController {
         if (!(authentication instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
+        // DHIS2-canonical events live in edge_tracker_event (text PK);
+        // legacy UUID events live in der.event. Try the canonical path
+        // first — if the id is UUID-shaped we fall through to the
+        // legacy service so pre-shift events still delete cleanly.
+        if (trackerEvents.delete(eventId) > 0) {
+            return ResponseEntity.ok(Map.of("deleted", true,
+                    "eventId", eventId));
+        }
         final UUID uid;
         try {
             uid = UUID.fromString(eventId);
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "code", "EVENT_UID_INVALID",
-                    "message", "event id must be a UUID"));
+            return ResponseEntity.notFound().build();
         }
         final boolean deleted = service.deleteEvent(uid);
         return deleted

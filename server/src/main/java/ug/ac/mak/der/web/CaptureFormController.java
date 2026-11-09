@@ -269,7 +269,7 @@ public class CaptureFormController {
     @GetMapping("/events/{eventUid}/detail")
     @PreAuthorize("hasAuthority('der.capture.read')")
     public ResponseEntity<?> getEventDetail(
-            @PathVariable("eventUid") final UUID eventUid) {
+            @PathVariable("eventUid") final String eventUid) {
         try {
             return ResponseEntity.ok(forms.getEventDetail(eventUid));
         } catch (CaptureFormError ex) {
