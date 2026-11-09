@@ -1639,6 +1639,106 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   display: flex; flex-wrap: wrap; gap: 8px;
 }
 
+/* Modern relationship cards — one row per link, replaces the
+ * old cap-list row. Icon left · headline + secondary + chips
+ * center · timestamp + context menu right. Hover tint so rows
+ * feel interactive. */
+.cap-rel-cards {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.cap-rel-card {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: start; gap: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid var(--der-border-soft);
+  border-radius: 6px;
+  transition: background 100ms, border-color 100ms;
+}
+.cap-rel-card:hover {
+  background: var(--der-surface-subtle);
+  border-color: var(--der-border);
+}
+.cap-rel-card__icon {
+  display: inline-flex; align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--der-surface-subtle);
+  color: var(--der-text-muted);
+  flex-shrink: 0;
+}
+.cap-rel-card__icon--TRACKED_ENTITY {
+  background: #e7f1fc; color: #147cd7;
+}
+.cap-rel-card__icon--ENROLLMENT {
+  background: #e3f7eb; color: #1b8243;
+}
+.cap-rel-card__icon--EVENT {
+  background: #fef0d8; color: #9b5a00;
+}
+.cap-rel-card__body { min-width: 0; }
+.cap-rel-card__primary {
+  font-size: 14px; font-weight: 600;
+  color: var(--der-text);
+  line-height: 1.3;
+  word-break: break-word;
+}
+.cap-rel-card__secondary {
+  font-size: 13px; color: var(--der-text-muted);
+  margin-top: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
+  word-break: break-all;
+}
+.cap-rel-card__chips {
+  display: flex; flex-wrap: wrap; gap: 6px 10px;
+  align-items: center;
+  margin-top: 6px;
+}
+.cap-rel-card__menu {
+  position: relative; flex-shrink: 0;
+}
+.cap-rel-card__menu-trigger {
+  background: transparent; border: 0;
+  width: 28px; height: 28px; border-radius: 4px;
+  font-size: 18px; line-height: 1;
+  color: var(--der-text-muted);
+  cursor: pointer;
+}
+.cap-rel-card__menu-trigger:hover {
+  background: var(--der-border-soft);
+  color: var(--der-text);
+}
+.cap-rel-card__menu-pop {
+  position: absolute; top: 100%; right: 0;
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid var(--der-border-soft);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(16, 26, 50, 0.08);
+  padding: 4px 0;
+  min-width: 200px;
+  z-index: 10;
+}
+.cap-rel-card__menu-pop button {
+  display: block; width: 100%;
+  padding: 8px 14px;
+  background: transparent; border: 0;
+  text-align: left; cursor: pointer;
+  font-size: 13px; color: var(--der-text);
+  font-family: inherit;
+}
+.cap-rel-card__menu-pop button:hover {
+  background: var(--der-surface-subtle);
+}
+.cap-rel-card__menu-item--destructive {
+  color: var(--der-danger, #c13030) !important;
+  border-top: 1px solid var(--der-border-soft) !important;
+  margin-top: 4px;
+}
+
 /* Relationship-type grouping on the list pane (spec §REL-C-012).
  * One section per type, with a compact header (directional label
  * + count) above a normal cap-list of rows. The outer container

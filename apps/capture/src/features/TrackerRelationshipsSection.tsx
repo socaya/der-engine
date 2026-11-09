@@ -1132,60 +1132,67 @@ export function TrackerRelationshipsSection(
                   {group.rows.length === 1 ? '' : 's'}
                 </span>
               </header>
-              <ul className="cap-list">
+              <ul className="cap-rel-cards">
                 {group.rows.map((r, i) => {
                   const toUid = endpointUid(r.to);
-                  const target = toUid === tei
-                    ? (r.from ? describeEndpoint(r.from) : '—')
-                    : (r.to ? describeEndpoint(r.to) : '—');
+                  const otherSide = toUid === tei ? r.from : r.to;
+                  const identity = endpointIdentity(otherSide);
+                  const kind: 'TRACKED_ENTITY' | 'ENROLLMENT'
+                              | 'EVENT' = otherSide?.event
+                                ? 'EVENT'
+                                : otherSide?.enrollment
+                                ? 'ENROLLMENT' : 'TRACKED_ENTITY';
                   const uid = r.relationship;
                   return (
                     <li key={(uid ?? '') + i}
-                        className="cap-list__row"
-                        style={{ gridTemplateColumns: '1fr auto auto' }}>
-                      <div>
-                        {r.bidirectional && (
-                          <span className="cap-chip"
-                                style={{ marginRight: 10 }}>
-                            ↔ bidirectional
-                          </span>
+                        className="cap-rel-card"
+                        data-test={'tr-rel-card-' + (uid ?? i)}>
+                      <RelKindIcon kind={kind} />
+                      <div className="cap-rel-card__body">
+                        <div className="cap-rel-card__primary">
+                          {identity.primary}
+                        </div>
+                        {identity.secondary && (
+                          <div className="cap-rel-card__secondary">
+                            {identity.secondary}
+                          </div>
                         )}
-                        <SyncBadge status={r.syncStatus ?? 'LOCAL'} />
-                        <div style={{ marginTop: 4, color: '#4a5768',
-                          fontSize: 13 }}>
-                          → {target}
+                        <div className="cap-rel-card__chips">
+                          <SyncBadge status={r.syncStatus ?? 'LOCAL'} />
+                          {r.bidirectional && (
+                            <span className="cap-chip cap-chip--neutral"
+                                  title="Bidirectional link — appears on both records.">
+                              ↔ both ways
+                            </span>
+                          )}
+                          <span className="cap-chip cap-chip--neutral"
+                                title="Captured on this device">
+                            {formatTimestamp(r.lastUpdated
+                              ?? r.createdAt ?? '')}
+                          </span>
                         </div>
                       </div>
-                      <span className="cap-list__when">
-                        {r.lastUpdated ?? r.createdAt ?? '—'}
-                      </span>
                       {uid && (
-                        <button type="button"
-                                className="cap-btn cap-btn--secondary"
-                                data-test={'tr-rel-unlink-' + uid}
-                                style={{ padding: '2px 8px', fontSize: 13 }}
-                                title={'Unlink this relationship. The DER '
-                                  + 'journal keeps a tombstone '
-                                  + '(§REL-SEC-005)'}
-                                onClick={async () => {
-                                  const ok = window.confirm(
-                                    'Unlink this relationship? The link '
-                                    + 'will be removed on the facility '
-                                    + 'edge and queued for central sync.');
-                                  if (!ok) return;
-                                  const res = await
-                                    api.deleteTrackerRelationship(uid);
-                                  if (res.ok) {
-                                    const fresh =
-                                      await api.listTrackerRelationships(tei);
-                                    setRows(Array.isArray(fresh) ? fresh : []);
-                                  } else {
-                                    window.alert('Unlink failed: '
-                                      + res.message);
-                                  }
-                                }}>
-                          Unlink
-                        </button>
+                        <RowMenu uid={uid} targetUid={toUid ?? ''}
+                                  onUnlink={async () => {
+                                    const ok = window.confirm(
+                                      'Unlink this relationship? The '
+                                      + 'link will be removed on the '
+                                      + 'facility edge and queued for '
+                                      + 'central sync.');
+                                    if (!ok) return;
+                                    const res = await
+                                      api.deleteTrackerRelationship(uid);
+                                    if (res.ok) {
+                                      const fresh = await api
+                                        .listTrackerRelationships(tei);
+                                      setRows(Array.isArray(fresh)
+                                        ? fresh : []);
+                                    } else {
+                                      window.alert('Unlink failed: '
+                                        + res.message);
+                                    }
+                                  }} />
                       )}
                     </li>
                   );
@@ -1265,6 +1272,187 @@ function groupRowsByType(
   out.sort((a, b) => b.latest.localeCompare(a.latest));
   return out.map(({ key, label, rows: rs }) => ({ key, label,
     rows: rs }));
+}
+
+/** Split the endpoint into a two-line identity: a primary
+ *  headline (what the operator thinks of the record as — a TEI
+ *  name, "Enrolment in HIV Pro", "Appointment event · Nov 8") and
+ *  an optional secondary line with status + dates. Falls back to
+ *  the raw UID when no display enrichment is available. */
+function endpointIdentity(endpoint: RelRow['from']): {
+  primary: string;
+  secondary: string | null;
+} {
+  if (!endpoint) return { primary: '—', secondary: null };
+  if (endpoint.trackedEntity) {
+    const t = endpoint.trackedEntity;
+    const name = t.displayName && t.displayName.trim() !== ''
+      ? t.displayName : null;
+    if (name) {
+      return {
+        primary: name,
+        secondary: t.trackedEntity
+          ? 'Tracked entity · ' + t.trackedEntity : null,
+      };
+    }
+    return {
+      primary: 'Tracked entity',
+      secondary: t.trackedEntity ?? null,
+    };
+  }
+  if (endpoint.enrollment?.enrollment) {
+    const e = endpoint.enrollment;
+    const headline = e.programName
+      ? `Enrolment · ${e.programName}`
+      : 'Enrolment';
+    const parts: string[] = [];
+    if (e.enrollmentDate) parts.push(formatDate(e.enrollmentDate));
+    if (e.status) parts.push(e.status);
+    parts.push(e.enrollment);
+    return {
+      primary: headline,
+      secondary: parts.join(' · '),
+    };
+  }
+  if (endpoint.event?.event) {
+    const ev = endpoint.event;
+    const headline = ev.programStageName
+      ? `Event · ${ev.programStageName}`
+      : ev.programName
+      ? `Event · ${ev.programName}`
+      : 'Event';
+    const parts: string[] = [];
+    if (ev.occurredDate) parts.push(formatDate(ev.occurredDate));
+    if (ev.status) parts.push(ev.status);
+    parts.push(ev.event);
+    return {
+      primary: headline,
+      secondary: parts.join(' · '),
+    };
+  }
+  return { primary: '—', secondary: null };
+}
+
+/** Icon-only visual cue for the target endpoint's kind — matches
+ *  the modern-icon rail pattern (3b5beb1). 16px stroke SVG inside
+ *  a soft tinted circle so the icon kind reads at a glance even
+ *  when the operator is scanning a long list. */
+function RelKindIcon(
+  { kind }: { kind: 'TRACKED_ENTITY' | 'ENROLLMENT' | 'EVENT' },
+): JSX.Element {
+  const common = {
+    width: 16, height: 16, viewBox: '0 0 24 24',
+    fill: 'none', stroke: 'currentColor',
+    strokeWidth: 1.75, strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+  };
+  const path = kind === 'TRACKED_ENTITY' ? (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+    </>
+  ) : kind === 'ENROLLMENT' ? (
+    <>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M8 3v4M16 3v4M4 10h16" />
+    </>
+  ) : (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  );
+  return (
+    <span className={'cap-rel-card__icon cap-rel-card__icon--' + kind}
+          title={kind === 'TRACKED_ENTITY' ? 'Tracked entity'
+            : kind === 'ENROLLMENT' ? 'Enrolment' : 'Event'}>
+      <svg {...common}>{path}</svg>
+    </span>
+  );
+}
+
+/** Row-level context menu — replaces the single Unlink button.
+ *  Dropdown opens on click, closes on blur / click outside / Esc.
+ *  Spec §REL-UX-010 + §REL-SEC-005 — Unlink is destructive and
+ *  confirmed via a modal from the caller. Copy UID is a utility
+ *  for admins troubleshooting with a database shell. */
+function RowMenu(
+  { uid, targetUid, onUnlink }: {
+    uid: string; targetUid: string;
+    onUnlink: () => Promise<void> | void;
+  },
+): JSX.Element {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent): void => {
+      const el = e.target as HTMLElement | null;
+      if (el && el.closest('[data-rowmenu="' + uid + '"]')) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('click', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, uid]);
+  return (
+    <div className="cap-rel-card__menu" data-rowmenu={uid}>
+      <button type="button"
+              className="cap-rel-card__menu-trigger"
+              data-test={'tr-rel-menu-' + uid}
+              aria-haspopup="menu"
+              aria-expanded={open}
+              title="Actions"
+              onClick={() => setOpen((v) => !v)}>
+        ⋯
+      </button>
+      {open && (
+        <div className="cap-rel-card__menu-pop" role="menu">
+          <button type="button" role="menuitem"
+                  data-test={'tr-rel-menu-copy-' + uid}
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(targetUid);
+                    setOpen(false);
+                  }}>
+            Copy target UID
+          </button>
+          <button type="button" role="menuitem"
+                  data-test={'tr-rel-menu-copy-rel-' + uid}
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(uid);
+                    setOpen(false);
+                  }}>
+            Copy relationship UID
+          </button>
+          <button type="button" role="menuitem"
+                  className="cap-rel-card__menu-item--destructive"
+                  data-test={'tr-rel-unlink-' + uid}
+                  onClick={() => {
+                    setOpen(false);
+                    void onUnlink();
+                  }}>
+            Unlink
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatTimestamp(iso: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
 }
 
 function endpointUid(endpoint: RelRow['from']): string | null {
