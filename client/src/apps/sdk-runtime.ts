@@ -47,6 +47,7 @@ function useDerApi(): {
   listEnrolmentNotes: typeof edgeApi.listEnrolmentNotes;
   addEnrolmentNote: typeof edgeApi.addEnrolmentNote;
   createEnrollment: typeof edgeApi.createEnrollment;
+  deleteEnrollment: typeof edgeApi.deleteEnrollment;
   listCaptureWorkflows: typeof edgeApi.listCaptureWorkflows;
   listCaptureRuns: typeof edgeApi.listCaptureRuns;
   startCaptureRun: typeof edgeApi.startCaptureRun;
@@ -107,6 +108,7 @@ function useDerApi(): {
     listEnrolmentNotes: edgeApi.listEnrolmentNotes,
     addEnrolmentNote: edgeApi.addEnrolmentNote,
     createEnrollment: edgeApi.createEnrollment,
+    deleteEnrollment: edgeApi.deleteEnrollment,
     listCaptureWorkflows: edgeApi.listCaptureWorkflows,
     listCaptureRuns: edgeApi.listCaptureRuns,
     startCaptureRun: edgeApi.startCaptureRun,

@@ -102,6 +102,11 @@ export interface CaptureApi {
     programUid: string; orgUnitUid: string;
     status: string; enrollmentDate: string;
     incidentDate: string | null }>;
+  /** Soft-delete an enrolment at the edge. Enqueues a journal
+   *  tombstone so the next drain pushes the matching DELETE to
+   *  central (/api/tracker?importStrategy=DELETE). */
+  deleteEnrollment: (enrollmentUid: string) =>
+    Promise<{ deleted: true }>;
   listProgramRules: (programUid?: string) => Promise<ReadonlyArray<{
     id: string; displayName?: string; name?: string;
     program?: { id?: string } | null;
