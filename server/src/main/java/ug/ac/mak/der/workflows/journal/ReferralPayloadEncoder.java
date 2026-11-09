@@ -156,6 +156,18 @@ public class ReferralPayloadEncoder {
         copyIfPresent(src, en, "status", "status");
         copyIfPresent(src, en, "enrollmentDate", "enrolledAt");
         copyIfPresent(src, en, "incidentDate", "occurredAt");
+        // Attributes are optional on the ENROLLMENT journal entry
+        // — CREATE/UPDATE enrolments don't carry them, but attribute-
+        // sync entries enqueued by TrackerService.upsertTei do. When
+        // present, convert the map shape {uid: value} to DHIS2's
+        // [{attribute, value}] array so the enrolment write lands
+        // program-scoped TEA values that only surface on the GET
+        // via the enrolment context.
+        final JsonNode attrs = src.get("attributes");
+        if (attrs != null && !attrs.isNull() && attrs.isObject()
+                && attrs.size() > 0) {
+            en.set("attributes", attrMapToArray(attrs));
+        }
         final ObjectNode root = mapper.createObjectNode();
         final ArrayNode arr = root.putArray("enrollments");
         arr.add(en);

@@ -63,7 +63,15 @@ public class TrackerService {
 
     /** Persist a tracked entity + enqueue its outbox entry
      *  atomically. The record's {@code workflowRunId} is carried
-     *  into the journal row so lineage round-trips. */
+     *  into the journal row so lineage round-trips.
+     *
+     *  <p>Additionally, if the TEI has any ACTIVE enrolments and the
+     *  payload carries attribute values, an ENROLLMENT journal entry
+     *  is enqueued per enrolment with those attributes attached.
+     *  DHIS2 2.44 scopes most TEAs to the program (not the TET), so
+     *  a plain TEI write accepts the import but the attribute values
+     *  don't surface on reads. Threading them through the enrolment
+     *  envelope lands them where DHIS2 reads expect them.</p> */
     @Transactional
     public TrackedEntityRepository.TrackedEntity upsertTei(
             final TrackedEntityRepository.TrackedEntity tei,
@@ -86,6 +94,7 @@ public class TrackerService {
                 mapper.valueToTree(payload),
                 OperationJournalEntry.State.PENDING,
                 0, null, actor, now, now, null, stored.workflowRunId()));
+        enqueueEnrolmentAttrSyncs(stored, actor, now);
         audit.append(new AuditEvent(
                 "TRACKED_ENTITY_WRITE_SUCCESS", AuditEvent.Outcome.SUCCESS,
                 actor, null, ip, userAgent,
@@ -93,6 +102,54 @@ public class TrackerService {
         ), now);
         LOG.debug("tei upsert: uid={} runId={}", stored.teiUid(), stored.workflowRunId());
         return stored;
+    }
+
+    /** For each ACTIVE enrolment of {@code tei}, enqueue an
+     *  ENROLLMENT journal entry whose payload mirrors the enrolment
+     *  identity fields + the TEI's current attributes. The journal
+     *  publisher drains these through /api/tracker so central sees
+     *  the program-scoped TEA values on the enrolment context —
+     *  without this, a Profile edit on the TEI dashboard writes
+     *  only the TEI shell and central's GET reads attributes:[]. */
+    private void enqueueEnrolmentAttrSyncs(
+            final TrackedEntityRepository.TrackedEntity tei,
+            final UUID actor, final Instant now) {
+        if (tei.attributes() == null || tei.attributes().isEmpty()) {
+            return;
+        }
+        final java.util.List<Enrollment> active;
+        try {
+            active = enrolments.findByTei(tei.teiUid()).stream()
+                    .filter(e -> e.status() == Enrollment.Status.ACTIVE)
+                    .toList();
+        } catch (RuntimeException ex) {
+            LOG.debug("enrol lookup for attr sync failed: {}",
+                    ex.getMessage());
+            return;
+        }
+        for (final Enrollment e : active) {
+            final Map<String, Object> enrolPayload = new LinkedHashMap<>();
+            enrolPayload.put("enrollmentUid", e.enrollmentUid());
+            enrolPayload.put("teiUid",        e.teiUid());
+            enrolPayload.put("program",       e.programUid());
+            enrolPayload.put("orgUnit",       e.orgUnitUid());
+            enrolPayload.put("status",        e.status().name());
+            enrolPayload.put("enrollmentDate",
+                    e.enrollmentDate().toString());
+            if (e.incidentDate() != null) {
+                enrolPayload.put("incidentDate",
+                        e.incidentDate().toString());
+            }
+            enrolPayload.put("attributes",    tei.attributes());
+            journal.insert(new OperationJournalEntry(
+                    UUID.randomUUID(),
+                    OperationJournalEntry.EntityType.ENROLLMENT,
+                    e.enrollmentUid(),
+                    mapper.valueToTree(enrolPayload),
+                    OperationJournalEntry.State.PENDING,
+                    0, null, actor, now, now, null,
+                    e.workflowRunId()));
+        }
     }
 
     /** Persist an enrolment + enqueue its outbox entry atomically. */
