@@ -202,7 +202,12 @@ export interface CaptureApi {
     };
   }>>;
   submitTrackerRelationship: (body: {
-    relationshipType: string; fromTei: string; toTei: string;
+    relationshipType: string;
+    fromEntityType: 'TRACKED_ENTITY' | 'ENROLLMENT' | 'EVENT';
+    fromEntityUid: string;
+    toEntityType: 'TRACKED_ENTITY' | 'ENROLLMENT' | 'EVENT';
+    toEntityUid: string;
+    bidirectional?: boolean;
   }) => Promise<{ ok: true } | { ok: false; status: number;
     message: string }>;
   deleteTrackerRelationship: (relationshipUid: string) =>

@@ -559,7 +559,9 @@ export function TrackerDetailPage(
               <TrackerRelationshipsSection api={api} tei={teiId}
                                              programUid={programUid}
                                              orgUnitUid={orgUnitUid}
-                                             tetUid={tetUid} />
+                                             tetUid={tetUid}
+                                             currentEnrollmentUid={
+                                               selectedEnrolment} />
             ) : selectedStage === null ? (
               <div className="cap-placeholder"
                    data-test="tr-stage-pane-unselected"

@@ -673,7 +673,9 @@ describe('edgeApi.submitTrackerRelationship', () => {
   it('POSTs the DHIS2-shaped payload for a TEI↔TEI link', async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, { status: 'OK' }));
     const r = await api.submitTrackerRelationship({
-      relationshipType: 'RT1', fromTei: 'TEI_A', toTei: 'TEI_B',
+      relationshipType: 'RT1',
+      fromEntityType: 'TRACKED_ENTITY', fromEntityUid: 'TEI_A',
+      toEntityType: 'TRACKED_ENTITY', toEntityUid: 'TEI_B',
     });
     expect(r).toEqual({ ok: true });
     const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -696,7 +698,9 @@ describe('edgeApi.submitTrackerRelationship', () => {
     fetchMock.mockResolvedValue(jsonRespond(400,
       { message: 'target not permitted' }));
     const r = await api.submitTrackerRelationship({
-      relationshipType: 'RT1', fromTei: 'TEI_A', toTei: 'TEI_B',
+      relationshipType: 'RT1',
+      fromEntityType: 'TRACKED_ENTITY', fromEntityUid: 'TEI_A',
+      toEntityType: 'TRACKED_ENTITY', toEntityUid: 'TEI_B',
     });
     expect(r).toEqual({ ok: false, status: 400,
       message: 'target not permitted' });
@@ -706,7 +710,9 @@ describe('edgeApi.submitTrackerRelationship', () => {
       async () => {
     fetchMock.mockResolvedValue(jsonRespond(500, {}));
     const r = await api.submitTrackerRelationship({
-      relationshipType: 'RT1', fromTei: 'A', toTei: 'B',
+      relationshipType: 'RT1',
+      fromEntityType: 'TRACKED_ENTITY', fromEntityUid: 'A',
+      toEntityType: 'TRACKED_ENTITY', toEntityUid: 'B',
     });
     expect(r).toEqual({ ok: false, status: 500, message: 'HTTP 500' });
   });
@@ -718,7 +724,9 @@ describe('edgeApi.submitTrackerRelationship', () => {
       text: async () => 'oops',
     } as unknown as Response);
     const r = await api.submitTrackerRelationship({
-      relationshipType: 'RT1', fromTei: 'A', toTei: 'B',
+      relationshipType: 'RT1',
+      fromEntityType: 'TRACKED_ENTITY', fromEntityUid: 'A',
+      toEntityType: 'TRACKED_ENTITY', toEntityUid: 'B',
     });
     expect(r).toEqual({ ok: false, status: 502, message: 'HTTP 502' });
   });

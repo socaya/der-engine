@@ -1641,12 +1641,18 @@ export interface RawRelationshipType {
 
 /** Body shape for a minimal TEI↔TEI relationship create via the
  *  DHIS2 tracker import endpoint (§REL-EDGE-001). G7-2b only
- *  supports TEI↔TEI; event / enrolment endpoints come in G7-2c
- *  once the capability matrix is probed per §13.3. */
+ *  Full-matrix shape — any side may be anchored on a TRACKED_ENTITY,
+ *  an ENROLLMENT, or an EVENT. The client resolves the type's
+ *  constraint-kinds from the metadata mirror and pins the UID
+ *  accordingly; the edge controller validates referential
+ *  integrity before enqueuing the drain journal entry. */
 export interface TrackerRelationshipCreate {
   readonly relationshipType: string;
-  readonly fromTei: string;
-  readonly toTei: string;
+  readonly fromEntityType: 'TRACKED_ENTITY' | 'ENROLLMENT' | 'EVENT';
+  readonly fromEntityUid: string;
+  readonly toEntityType: 'TRACKED_ENTITY' | 'ENROLLMENT' | 'EVENT';
+  readonly toEntityUid: string;
+  readonly bidirectional?: boolean;
 }
 
 /** Delete a tracker relationship by UID. Requires explicit
@@ -1679,11 +1685,11 @@ export async function submitTrackerRelationship(
   const payload = {
     relationshipUid: generateDhis2Uid(),
     relationshipType: body.relationshipType,
-    fromEntityType: 'TRACKED_ENTITY',
-    fromEntityUid: body.fromTei,
-    toEntityType: 'TRACKED_ENTITY',
-    toEntityUid: body.toTei,
-    bidirectional: false,
+    fromEntityType: body.fromEntityType,
+    fromEntityUid: body.fromEntityUid,
+    toEntityType: body.toEntityType,
+    toEntityUid: body.toEntityUid,
+    bidirectional: body.bidirectional ?? false,
   };
   const r = await fetch('/edge-api/v1/tracker/relationships', {
     method: 'POST',
