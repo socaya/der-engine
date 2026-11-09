@@ -1707,6 +1707,22 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   height: 1px; background: var(--der-border-soft);
   margin: 10px 10px;
 }
+/* Relationship compose panel — inline two-select-field form for
+ * adding a link without a modal. Lives directly below the
+ * section head when + Add relationship is clicked. */
+.cap-rel-compose {
+  margin: 12px 0 0 0;
+  padding: 14px 16px;
+  background: var(--der-surface-subtle);
+  border: 1px solid var(--der-border-soft);
+  border-radius: 4px;
+}
+.cap-rel-compose__footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid var(--der-border-soft);
+}
+
 /* Notes pane — rail-driven view. Standard DER body scale so
  * note content reads at the same weight as form input text
  * (14px minimum), label caps at 13px, timestamp 12px muted.

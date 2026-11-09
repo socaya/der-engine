@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CaptureApi } from '../shared/types';
 
 interface RelTypeRow {
@@ -58,8 +58,11 @@ export function TrackerRelationshipsSection(
   const [status, setStatus] =
     useState<'idle' | 'loading' | 'err'>('loading');
   const [types, setTypes] = useState<RelTypeRow[]>([]);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickedType, setPickedType] = useState<RelTypeRow | null>(null);
+  /** Inline compose panel toggled by + Add relationship. No
+   *  modal — two select controls (Type, Target) and a Save
+   *  button. Collapses on Save or Cancel. */
+  const [composing, setComposing] = useState(false);
+  const [pickedTypeId, setPickedTypeId] = useState('');
   const [targetTei, setTargetTei] = useState('');
   const [submit, setSubmit] =
     useState<'idle' | 'submitting' | 'ok' | 'err'>('idle');
@@ -69,7 +72,6 @@ export function TrackerRelationshipsSection(
   // operator's query. Precise cross-program search comes in G7-2d.
   const [candidates, setCandidates] = useState<Array<{
     uid: string; displayName: string; lastUpdated: string }>>([]);
-  const [candidateQuery, setCandidateQuery] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -108,15 +110,6 @@ export function TrackerRelationshipsSection(
       && (!t.toTet || t.toTet === tetUid);
     return fromOk || toOk;
   }) : types;
-
-  const filteredCandidates = (() => {
-    const q = candidateQuery.trim().toLowerCase();
-    if (q === '') return candidates.slice(0, 20);
-    return candidates.filter((c) =>
-      c.uid.toLowerCase().includes(q)
-      || c.displayName.toLowerCase().includes(q))
-      .slice(0, 20);
-  })();
 
   useEffect(() => {
     let cancelled = false;
@@ -166,167 +159,144 @@ export function TrackerRelationshipsSection(
             : `${rows.length} link${rows.length === 1 ? '' : 's'}`}
         </span>
         <span className="cap-section-head__rule" />
-        <button type="button"
-                className="cap-btn cap-btn--secondary"
-                data-test="tr-rel-add"
-                disabled={eligibleTypes.length === 0}
-                onClick={() => setPickerOpen(true)}
-                title={eligibleTypes.length === 0
-                  ? (types.length === 0
-                    ? 'No relationship types are configured'
-                    : 'No relationship types permit this tracked '
-                      + 'entity as an endpoint (§REL-MD-004)')
-                  : 'Pick a relationship type, then link a target TEI'}
-                style={{ padding: '4px 10px', fontSize: 12 }}>
-          + Add relationship
-        </button>
+        {!composing && (
+          <button type="button"
+                  className="cap-btn cap-btn--primary"
+                  data-test="tr-rel-add"
+                  disabled={eligibleTypes.length === 0}
+                  onClick={() => setComposing(true)}
+                  title={eligibleTypes.length === 0
+                    ? (types.length === 0
+                      ? 'No relationship types are configured'
+                      : 'No relationship types permit this tracked '
+                        + 'entity as an endpoint')
+                    : 'Pick a type + target TEI, then save'}
+                  style={{ padding: '5px 13px', fontSize: 13 }}>
+            + Add relationship
+          </button>
+        )}
       </div>
 
-      {pickedType && (
-        <div className="cap-strip cap-strip--info"
-             data-test="tr-rel-create"
-             style={{ display: 'flex', flexDirection: 'column',
-               gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline',
-            gap: 10 }}>
-            <strong style={{ flex: 1 }}>
-              Link {pickedType.displayName}
-            </strong>
-            <button type="button"
-                    className="cap-btn cap-btn--secondary"
-                    onClick={() => { setPickedType(null);
-                      setTargetTei(''); setCandidateQuery('');
-                      setSubmit('idle'); setSubmitMsg(null); }}
-                    data-test="tr-rel-picked-clear"
-                    style={{ padding: '2px 10px', fontSize: 12 }}>
-              Cancel
-            </button>
-          </div>
-
-          <label className="cap-input">
-            <span className="cap-toolbar__field-label">
-              Search target (program {programUid} · OU scope)
-            </span>
-            <input className="cap-input__ctl"
-                   type="search"
-                   value={candidateQuery}
-                   data-test="tr-rel-cand-search"
-                   placeholder="type a UID or name to narrow…"
-                   onChange={(e) => setCandidateQuery(e.target.value)} />
-          </label>
-
-          {filteredCandidates.length === 0 ? (
-            <p style={{ margin: 0, color: '#6e7a8a', fontSize: 12 }}>
-              {candidates.length === 0
-                ? 'No tracked entities loaded for this program at '
-                  + 'this OU.'
-                : 'No candidates match this search.'}{' '}
-              You can still paste a UID below.
-            </p>
-          ) : (
-            <ul className="cap-list" style={{ margin: 0,
-              maxHeight: 200, overflow: 'auto', background: '#fff',
-              border: '1px solid #e3e8f0', borderRadius: 4 }}
-                data-test="tr-rel-cand-list">
-              {filteredCandidates.map((c) => (
-                <li key={c.uid}
-                    className={'cap-list__row '
-                      + 'cap-list__row--clickable'
-                      + (targetTei === c.uid
-                        ? ' cap-list__row--active' : '')}
-                    data-test={'tr-rel-cand-' + c.uid}
-                    onClick={() => setTargetTei(c.uid)}
-                    role="button" tabIndex={0}
-                    onKeyDown={(ev) => {
-                      if (ev.key === 'Enter' || ev.key === ' ') {
-                        ev.preventDefault();
-                        setTargetTei(c.uid);
-                      }
-                    }}>
-                  <div>
-                    <code>{c.uid}</code>
-                    {c.displayName && (
-                      <span style={{ marginLeft: 10 }}>
-                        {c.displayName}
-                      </span>
-                    )}
-                  </div>
-                  <span className="cap-list__when">
-                    {c.lastUpdated || '—'}
+      {composing && (() => {
+        const pickedType = eligibleTypes.find(
+          (t) => t.id === pickedTypeId);
+        const selfLink = targetTei.trim() === tei;
+        const canSave = pickedTypeId !== ''
+          && targetTei.trim() !== ''
+          && !selfLink
+          && submit !== 'submitting';
+        return (
+          <div className="cap-rel-compose" data-test="tr-rel-compose">
+            <div className="cap-form-section__grid"
+                 style={{ marginTop: 0 }}>
+              <label className="cap-input">
+                <span className="cap-input__label">
+                  Relationship type
+                  <span className="cap-input__req">*</span>
+                </span>
+                <select className="cap-input__ctl"
+                        data-test="tr-rel-type-select"
+                        value={pickedTypeId}
+                        onChange={(e) => setPickedTypeId(e.target.value)}>
+                  <option value="">— Select type —</option>
+                  {eligibleTypes.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.displayName}
+                      {t.bidirectional ? ' (both ways)' : ''}
+                    </option>
+                  ))}
+                </select>
+                {pickedType?.fromToName && (
+                  <span className="cap-input__help">
+                    {pickedType.fromToName} → target
                   </span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div style={{ display: 'grid',
-            gridTemplateColumns: '1fr auto', gap: 10,
-            alignItems: 'end' }}>
-            <label className="cap-input">
-              <span className="cap-toolbar__field-label">
-                Picked target UID
-              </span>
-              <input className="cap-input__ctl"
-                     type="text"
-                     value={targetTei}
-                     data-test="tr-rel-target-uid"
-                     placeholder="paste or pick from the list above"
-                     onChange={(e) => setTargetTei(e.target.value)} />
-              {submit === 'ok' && submitMsg && (
-                <span style={{ fontSize: 11, color: '#136436' }}>
-                  {submitMsg}
+                )}
+              </label>
+              <label className="cap-input">
+                <span className="cap-input__label">
+                  Target tracked entity
+                  <span className="cap-input__req">*</span>
                 </span>
-              )}
-              {submit === 'err' && submitMsg && (
-                <span style={{ fontSize: 11, color: '#8a2525' }}>
-                  {submitMsg}
-                </span>
-              )}
-            </label>
-            <button type="button"
-                    className="cap-btn cap-btn--primary"
-                    data-test="tr-rel-link"
-                    disabled={submit === 'submitting'
-                      || targetTei.trim() === ''
-                      || targetTei.trim() === tei}
-                    title={targetTei.trim() === tei
-                      ? 'Cannot link a tracked entity to itself'
-                      : 'Create the relationship on the edge '
-                        + '(§REL-EDGE-001)'}
-                    onClick={async () => {
-                      setSubmit('submitting'); setSubmitMsg(null);
-                      const res = await api.submitTrackerRelationship({
-                        relationshipType: pickedType.id,
-                        fromTei: tei,
-                        toTei: targetTei.trim(),
-                      });
-                      if (res.ok) {
-                        setSubmit('ok');
-                        setSubmitMsg('Saved on edge · central '
-                          + 'sync is a separate step.');
-                        const r = await api
-                          .listTrackerRelationships(tei);
-                        setRows(Array.isArray(r) ? r : []);
-                        setPickedType(null);
-                        setTargetTei(''); setCandidateQuery('');
-                      } else {
-                        setSubmit('err');
-                        setSubmitMsg('Failed: ' + res.message);
-                      }
-                    }}
-                    style={{ padding: '4px 12px', fontSize: 12 }}>
-              {submit === 'submitting' ? 'Linking…' : 'Link'}
-            </button>
+                <select className="cap-input__ctl"
+                        data-test="tr-rel-target-select"
+                        value={targetTei}
+                        onChange={(e) => setTargetTei(e.target.value)}>
+                  <option value="">— Select target —</option>
+                  {candidates.map((c) => (
+                    <option key={c.uid} value={c.uid}>
+                      {c.displayName
+                        ? c.displayName + '  ·  ' + c.uid
+                        : c.uid}
+                    </option>
+                  ))}
+                </select>
+                {candidates.length === 0 && (
+                  <span className="cap-input__help">
+                    No other tracked entities loaded for this
+                    program at this facility yet.
+                  </span>
+                )}
+                {selfLink && (
+                  <span className="cap-field-warn cap-field-warn--err">
+                    A tracked entity cannot link to itself.
+                  </span>
+                )}
+              </label>
+            </div>
+            {submit === 'err' && submitMsg && (
+              <div className="cap-strip cap-strip--err"
+                   data-test="tr-rel-compose-err"
+                   style={{ margin: '12px 0 0 0' }}>
+                {submitMsg}
+              </div>
+            )}
+            <div className="cap-rel-compose__footer">
+              <button type="button"
+                      className="cap-btn cap-btn--secondary"
+                      data-test="tr-rel-cancel"
+                      disabled={submit === 'submitting'}
+                      onClick={() => {
+                        setComposing(false);
+                        setPickedTypeId(''); setTargetTei('');
+                        setSubmit('idle'); setSubmitMsg(null);
+                      }}
+                      style={{ padding: '5px 13px', fontSize: 13 }}>
+                Cancel
+              </button>
+              <button type="button"
+                      className="cap-btn cap-btn--primary"
+                      data-test="tr-rel-link"
+                      disabled={!canSave}
+                      onClick={async () => {
+                        setSubmit('submitting');
+                        setSubmitMsg(null);
+                        const res = await api.submitTrackerRelationship({
+                          relationshipType: pickedTypeId,
+                          fromTei: tei,
+                          toTei: targetTei.trim(),
+                        });
+                        if (res.ok) {
+                          const r = await api
+                            .listTrackerRelationships(tei);
+                          setRows(Array.isArray(r) ? r : []);
+                          setComposing(false);
+                          setPickedTypeId('');
+                          setTargetTei('');
+                          setSubmit('idle');
+                          setSubmitMsg(null);
+                        } else {
+                          setSubmit('err');
+                          setSubmitMsg(res.message);
+                        }
+                      }}
+                      style={{ padding: '5px 13px', fontSize: 13 }}>
+                {submit === 'submitting' ? 'Saving…'
+                  : 'Save relationship'}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-
-      {pickerOpen && (
-        <TypePickerModal types={eligibleTypes}
-                          onPick={(t) => { setPickedType(t);
-                            setPickerOpen(false); }}
-                          onClose={() => setPickerOpen(false)} />
-      )}
+        );
+      })()}
 
       {rows.length === 0 ? (
         <div className="cap-placeholder" data-test="tr-rel-empty">
@@ -397,95 +367,6 @@ export function TrackerRelationshipsSection(
         </ul>
       )}
     </>
-  );
-}
-
-function TypePickerModal(
-  { types, onPick, onClose }: {
-    types: readonly RelTypeRow[];
-    onPick: (t: RelTypeRow) => void;
-    onClose: () => void;
-  },
-): JSX.Element {
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const h = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [onClose]);
-  return (
-    <div className="cap-info-backdrop"
-         role="dialog" aria-modal="true"
-         aria-label="Pick a relationship type"
-         data-test="tr-rel-picker"
-         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="cap-info" ref={dialogRef}>
-        <header className="cap-info__head">
-          <h3 className="cap-info__title">Pick a relationship type</h3>
-          <button type="button"
-                  className="cap-info__close"
-                  aria-label="Close"
-                  onClick={onClose}>×</button>
-        </header>
-        <div className="cap-info__body">
-          {types.length === 0 ? (
-            <p style={{ margin: 0, color: '#4a5768' }}>
-              No relationship types are configured on this DHIS2
-              server.
-            </p>
-          ) : (
-            <ul className="cap-list" style={{ margin: 0,
-              maxHeight: 360, overflow: 'auto' }}>
-              {types.map((t) => (
-                <li key={t.id}
-                    className="cap-list__row cap-list__row--clickable"
-                    role="button" tabIndex={0}
-                    data-test={'tr-rel-type-' + t.id}
-                    onClick={() => onPick(t)}
-                    onKeyDown={(ev) => {
-                      if (ev.key === 'Enter' || ev.key === ' ') {
-                        ev.preventDefault();
-                        onPick(t);
-                      }
-                    }}>
-                  <div>
-                    <strong>{t.displayName}</strong>
-                    {t.bidirectional && (
-                      <span className="cap-chip"
-                            style={{ marginLeft: 10 }}>
-                        ↔ bidirectional
-                      </span>
-                    )}
-                    {!t.bidirectional && t.fromToName && (
-                      <span style={{ marginLeft: 10,
-                        color: '#4a5768', fontSize: 12 }}>
-                        {t.fromToName}
-                      </span>
-                    )}
-                    {(t.fromEntity || t.toEntity) && (
-                      <div style={{ marginTop: 2,
-                        color: '#6e7a8a', fontSize: 11 }}>
-                        {t.fromEntity ?? '—'} →{' '}
-                        {t.toEntity ?? '—'}
-                      </div>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="cap-info__note" style={{ marginTop: 8 }}>
-            After you pick a type, search the current program's
-            tracked entities and click a candidate — or paste a
-            UID directly to link across programs. Cross-program
-            candidate search + eligibility projection
-            (§REL-MD-004) arrive in slice G7-2d.
-          </p>
-        </div>
-      </div>
-    </div>
   );
 }
 
