@@ -153,6 +153,20 @@ export function TrackerRelationshipsSection(
     useState<'idle' | 'loading-form' | 'submitting' | 'err'>('idle');
   const [createMsg, setCreateMsg] = useState<string | null>(null);
 
+  /** Inline "create a new target event" flow — mirrors the TEI
+   *  creation above for EVENT-kind targets. Once the operator has
+   *  a target TEI + enrolment, they can create a fresh event in
+   *  the type's constraint stage without context-switching to the
+   *  stage editor. Minimal form: just the occurredAt date
+   *  (defaults to today) — the operator can fill in data values
+   *  later through the normal stage-editor flow. */
+  const [creatingEvent, setCreatingEvent] = useState(false);
+  const [newEventDate, setNewEventDate] =
+    useState<string>(todayIsoDate());
+  const [eventCreateState, setEventCreateState] =
+    useState<'idle' | 'submitting' | 'err'>('idle');
+  const [eventCreateMsg, setEventCreateMsg] = useState<string | null>(null);
+
   /** Tracked entities in the current program/org unit — candidates
    *  for the target-TEI dropdown. Single fetch per (programUid,
    *  orgUnitUid) swap. */
@@ -435,6 +449,8 @@ export function TrackerRelationshipsSection(
     setCreatingTarget(false); setNewTargetValues({});
     setNewTargetSections([]); setCreateState('idle');
     setCreateMsg(null); setTargetTetUid(null);
+    setCreatingEvent(false); setNewEventDate(todayIsoDate());
+    setEventCreateState('idle'); setEventCreateMsg(null);
   }
 
   /** Resolve which TET the new target should be created against.
@@ -517,6 +533,61 @@ export function TrackerRelationshipsSection(
     } catch (e) {
       setCreateState('err');
       setCreateMsg((e as Error).message ?? 'Create failed');
+    }
+  }
+
+  async function createNewTargetEvent(): Promise<void> {
+    if (theirKind !== 'EVENT') return;
+    if (!pickedTargetEnrollment) {
+      setEventCreateMsg('Pick a target enrolment first.');
+      setEventCreateState('err');
+      return;
+    }
+    if (!theirStageConstraint) {
+      setEventCreateMsg('The relationship type is missing a target '
+        + 'stage constraint — cannot create an event.');
+      setEventCreateState('err');
+      return;
+    }
+    const programForEvent = theirProgramConstraint
+      ?? targetEnrollments.find(
+        (e) => e.enrollmentUid === pickedTargetEnrollment)?.programUid
+      ?? programUid;
+    const eventUid = generateDhis2UidLocal();
+    setEventCreateState('submitting'); setEventCreateMsg(null);
+    try {
+      await api.submitEvent({
+        program: programForEvent,
+        programStage: theirStageConstraint,
+        orgUnit: orgUnitUid,
+        occurredAt: new Date(newEventDate + 'T00:00:00Z').toISOString(),
+        enrollment: pickedTargetEnrollment,
+        status: 'ACTIVE',
+        event: eventUid,
+        dataValues: [],
+      });
+      // Refetch events for the target enrolment so the new row
+      // appears in the select, then select it.
+      const evs = await api.listCaptureEnrollmentEvents(
+        pickedTargetEnrollment);
+      const refreshed = (evs.events ?? [])
+        .filter((ev) => !theirStageConstraint
+          || ev.programStageUid === theirStageConstraint)
+        .map((ev) => ({
+          eventUid: ev.eventUid,
+          enrollmentUid: ev.enrollmentUid,
+          programStageUid: ev.programStageUid,
+          occurredDate: ev.occurredDate ?? null,
+          status: ev.status ?? null,
+        }));
+      setTargetEvents(refreshed);
+      setPickedTargetEvent(eventUid);
+      setCreatingEvent(false);
+      setNewEventDate(todayIsoDate());
+      setEventCreateState('idle');
+    } catch (e) {
+      setEventCreateState('err');
+      setEventCreateMsg((e as Error).message ?? 'Create event failed');
     }
   }
 
@@ -828,15 +899,34 @@ export function TrackerRelationshipsSection(
                 )}
               </label>
             )}
-            {/* Target event — EVENT target only. */}
+            {/* Target event — EVENT target only. "+ Create new"
+             *  opens the inline event-create panel below so an
+             *  empty-events target isn't a dead end. */}
             {pickedTargetTei !== '' && theirKind === 'EVENT' && (
               <label className="cap-input">
-                <span className="cap-input__label">
-                  Target event<span className="cap-input__req">*</span>
+                <span className="cap-input__label"
+                      style={{ display: 'flex', alignItems: 'baseline',
+                        justifyContent: 'space-between' }}>
+                  <span>
+                    Target event<span className="cap-input__req">*</span>
+                  </span>
+                  {pickedTargetEnrollment && !creatingEvent && (
+                    <button type="button"
+                            className="cap-link-btn"
+                            data-test="tr-rel-new-event"
+                            style={{ fontSize: 12, padding: 0,
+                              background: 'none', border: 0,
+                              color: 'var(--der-primary)',
+                              cursor: 'pointer' }}
+                            onClick={() => setCreatingEvent(true)}>
+                      + Create new
+                    </button>
+                  )}
                 </span>
                 <select className="cap-input__ctl"
                         data-test="tr-rel-target-event"
                         value={pickedTargetEvent}
+                        disabled={creatingEvent}
                         onChange={(e) =>
                           setPickedTargetEvent(e.target.value)}>
                   <option value="">— Select event —</option>
@@ -848,13 +938,91 @@ export function TrackerRelationshipsSection(
                     </option>
                   ))}
                 </select>
-                {targetEvents.length === 0 && (
+                {targetEvents.length === 0 && !creatingEvent && (
                   <span className="cap-input__help">
                     That tracked entity has no events in the required
-                    stage.
+                    stage — use
+                    <strong style={{ padding: '0 3px' }}>
+                      + Create new
+                    </strong>
+                    above to add one.
                   </span>
                 )}
               </label>
+            )}
+
+            {/* Inline "create new target event" panel. Spans both
+             *  grid columns; minimal form (just the occurred-on
+             *  date). The event is created in ACTIVE state with
+             *  no data values — operator fills the clinical form
+             *  later through the normal stage editor. */}
+            {creatingEvent && theirKind === 'EVENT' && (
+              <div className="cap-rel-new-target"
+                   data-test="tr-rel-new-event-panel"
+                   style={{ gridColumn: '1 / -1',
+                     background: 'var(--der-surface-subtle)',
+                     border: '1px solid var(--der-border-soft)',
+                     borderRadius: 4, padding: '14px 16px',
+                     marginTop: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center',
+                  marginBottom: 12 }}>
+                  <strong style={{ fontSize: 14 }}>
+                    New event
+                  </strong>
+                  <span style={{ flex: 1 }} />
+                  <span className="cap-sub"
+                        style={{ fontSize: 12,
+                          color: 'var(--der-text-muted)' }}>
+                    Create a placeholder event — fill details in the
+                    stage editor later
+                  </span>
+                </div>
+                {eventCreateMsg && (
+                  <div className="cap-strip cap-strip--err"
+                       data-test="tr-rel-new-event-err"
+                       style={{ marginBottom: 10 }}>
+                    {eventCreateMsg}
+                  </div>
+                )}
+                <label className="cap-input"
+                       style={{ maxWidth: 260 }}>
+                  <span className="cap-input__label">
+                    Occurred on<span className="cap-input__req">*</span>
+                  </span>
+                  <input type="date" className="cap-input__ctl"
+                         data-test="tr-rel-new-event-date"
+                         value={newEventDate}
+                         onChange={(e) => setNewEventDate(e.target.value)} />
+                </label>
+                <div style={{ display: 'flex',
+                  justifyContent: 'flex-end', gap: 10,
+                  marginTop: 14, paddingTop: 14,
+                  borderTop: '1px solid var(--der-border-soft)' }}>
+                  <button type="button"
+                          className="cap-btn cap-btn--secondary"
+                          data-test="tr-rel-new-event-cancel"
+                          style={{ padding: '5px 13px', fontSize: 13 }}
+                          disabled={eventCreateState === 'submitting'}
+                          onClick={() => {
+                            setCreatingEvent(false);
+                            setEventCreateMsg(null);
+                            setEventCreateState('idle');
+                            setNewEventDate(todayIsoDate());
+                          }}>
+                    Cancel
+                  </button>
+                  <button type="button"
+                          className="cap-btn cap-btn--primary"
+                          data-test="tr-rel-new-event-save"
+                          style={{ padding: '5px 13px', fontSize: 13 }}
+                          disabled={eventCreateState === 'submitting'
+                            || newEventDate === ''}
+                          onClick={() => { void createNewTargetEvent(); }}>
+                    {eventCreateState === 'submitting' ? 'Creating…'
+                      : 'Create event'}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
           {submit === 'err' && submitMsg && (
@@ -1024,6 +1192,28 @@ function describeEndpoint(endpoint: RelRow['from']): string {
     return parts.join(' · ');
   }
   return '—';
+}
+
+/** YYYY-MM-DD for today in the operator's local zone — HTML5
+ *  date inputs expect this exact shape. */
+function todayIsoDate(): string {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/** 11-char DHIS2 UID generator — duplicates the edgeApi helper
+ *  so we can pass the UID into submitEvent and immediately use
+ *  it to select the new event without parsing the server echo. */
+function generateDhis2UidLocal(): string {
+  const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  const alphanum = alpha + '0123456789';
+  let out = alpha[Math.floor(Math.random() * alpha.length)];
+  for (let i = 0; i < 10; i++) {
+    out += alphanum[Math.floor(Math.random() * alphanum.length)];
+  }
+  return out;
 }
 
 function formatDate(iso: string): string {
