@@ -1252,13 +1252,14 @@ export function TrackerRelationshipsSection(
               </span>
             </div>
             {/* DER-standard borderless table — unified list,
-             *  single row per link. Type · Target · Direction ·
-             *  Sync · Captured · ⋯. */}
+             *  single row per link. Target carries the TEA values
+             *  inline so Type can retire — the Direction cell's
+             *  role pair ("You: Infant → Target: Biological
+             *  parent") already carries the type context. */}
             <table className="cap-table cap-table--compact cap-rel-table"
                    data-test="tr-rel-table">
               <thead>
                 <tr>
-                  <th>Type</th>
                   <th>Target</th>
                   <th>Direction</th>
                   <th>Sync</th>
@@ -1270,7 +1271,7 @@ export function TrackerRelationshipsSection(
                 {filtered.length === 0 && (
                   <tr>
                     <td className="cap-table__cell"
-                        colSpan={6}
+                        colSpan={5}
                         style={{ color: 'var(--der-text-muted)',
                           padding: '14px 12px' }}>
                       No links match the current filters.
@@ -1349,16 +1350,6 @@ export function TrackerRelationshipsSection(
                           }
                         }}>
                       <td className="cap-table__cell">
-                        <strong>{typeLabel}</strong>
-                        {r.bidirectional && (
-                          <span className="cap-sub"
-                                style={{ marginLeft: 6,
-                                  fontSize: 12 }}>
-                            ↔
-                          </span>
-                        )}
-                      </td>
-                      <td className="cap-table__cell">
                         <div className="cap-rel-table__target">
                           <RelKindIcon kind={kind} />
                           <span className="cap-rel-table__name"
@@ -1366,30 +1357,31 @@ export function TrackerRelationshipsSection(
                                   ?? identity.primary}>
                             {identity.primary}
                           </span>
-                          {/* Fallback identity — when the target TEI
-                           *  has no displayName and no summary fields
-                           *  the row would otherwise just say
-                           *  "Tracked entity". Show the UID so the
-                           *  operator can at least recognise which
-                           *  record this is. */}
-                          {kind === 'TRACKED_ENTITY'
-                              && endpointSummaryFields(otherSide).length === 0
-                              && toUid && (
+                          {/* Target UID — short DHIS2 shape (11 ch)
+                           *  shown as-is; legacy UUID shape (36 ch,
+                           *  hyphenated) truncated to the first
+                           *  segment with full on hover so it stops
+                           *  dominating the row. */}
+                          {toUid && (
                             <code className="cap-rel-table__uid"
-                                  title={'Tracked entity UID '
-                                    + toUid}>
-                              {toUid}
+                                  title={'Target UID ' + toUid}>
+                              {formatTargetUid(toUid)}
                             </code>
                           )}
+                          {/* TEA values of the related TE inline —
+                           *  "Label: value" pairs separated by dots,
+                           *  single-line, compact. */}
                           {endpointSummaryFields(otherSide)
                               .map((f, idx) => (
                             <span key={idx}
-                                  className="cap-rel-table__col"
+                                  className="cap-rel-table__tea"
                                   title={`${f.label}: ${f.value}`}>
-                              <span className="cap-rel-table__col-label">
-                                {f.label}
-                              </span>
-                              <span className="cap-rel-table__col-value">
+                              <span className="cap-rel-table__tea-sep"
+                                    aria-hidden="true">·</span>
+                              <span className="cap-rel-table__tea-label">
+                                {f.label}:
+                              </span>{' '}
+                              <span className="cap-rel-table__tea-value">
                                 {f.value}
                               </span>
                             </span>
@@ -1397,35 +1389,23 @@ export function TrackerRelationshipsSection(
                         </div>
                       </td>
                       <td className="cap-table__cell cap-rel-table__dir">
-                        {/* Role-aware direction cell — shows the
-                         *  role THIS TEI plays in the link and
-                         *  what role the target plays, so the
-                         *  operator can tell at a glance which
-                         *  side of the pair they are on. Falls
-                         *  back to the generic "linked to" when
-                         *  the type has no directional labels
-                         *  configured. */}
+                        {/* Role-aware direction cell — single-line
+                         *  pair ("Infant → Biological parent" / the
+                         *  ↔ form for bidirectional) with the type
+                         *  label implied by the role names. Falls
+                         *  back to the generic "linked to" when the
+                         *  type has no directional labels. */}
                         {(thisRole || targetRole) ? (
                           <span className="cap-rel-table__dir-pair">
-                            <span className="cap-rel-table__dir-side">
-                              <span className="cap-rel-table__dir-tag">
-                                You
-                              </span>
-                              <span className="cap-rel-table__dir-role">
-                                {thisRole ?? '—'}
-                              </span>
+                            <span className="cap-rel-table__dir-role">
+                              {thisRole ?? '—'}
                             </span>
                             <span className="cap-rel-table__dir-arrow"
                                   aria-hidden="true">
                               {r.bidirectional ? '↔' : '→'}
                             </span>
-                            <span className="cap-rel-table__dir-side">
-                              <span className="cap-rel-table__dir-tag">
-                                Target
-                              </span>
-                              <span className="cap-rel-table__dir-role">
-                                {targetRole ?? '—'}
-                              </span>
+                            <span className="cap-rel-table__dir-role">
+                              {targetRole ?? '—'}
                             </span>
                           </span>
                         ) : (
@@ -1572,6 +1552,23 @@ function groupRowsByType(
  *  hardcoded). Empty array when the row couldn't be enriched or
  *  the endpoint is an enrolment (enrolment enrichment reuses the
  *  TEI's own summary under teiSummaryFields). */
+/** DHIS2 UIDs are 11 characters [A-Za-z][A-Za-z0-9]{10}; legacy
+ *  seed data (and anything that pre-dated the server's UID
+ *  generator fix) carries 36-character UUIDs that dominate a
+ *  single-line row. Pass DHIS2 UIDs through as-is; short-form
+ *  UUIDs down to their first 8 characters + ellipsis so they
+ *  fit without wrapping. Full value still available on hover. */
+function formatTargetUid(uid: string): string {
+  if (uid.length === 11 && /^[A-Za-z][A-Za-z0-9]{10}$/.test(uid)) {
+    return uid;
+  }
+  // UUID (36 chars incl. hyphens) or any other non-DHIS2 shape
+  if (uid.length > 12) {
+    return uid.slice(0, 8) + '…';
+  }
+  return uid;
+}
+
 function endpointSummaryFields(endpoint: RelRow['from']):
     ReadonlyArray<{ label: string; value: string }> {
   if (!endpoint) return [];

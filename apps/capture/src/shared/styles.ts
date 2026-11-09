@@ -1689,60 +1689,46 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   width: 14px; height: 14px;
 }
 .cap-rel-table__target {
-  display: flex; align-items: center; gap: 12px;
-  min-width: 0; flex-wrap: wrap;
+  display: inline-flex; align-items: baseline; gap: 6px;
+  min-width: 0; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.cap-rel-table__target > .cap-rel-card__icon {
+  align-self: center;
 }
 .cap-rel-table__name {
   font-weight: 500; color: var(--der-text);
   overflow: hidden; text-overflow: ellipsis;
-  max-width: 60ch;
 }
-/* Summary field — rendered inline next to the target name as a
- * mini two-row column (label on top, value below). Driven by
- * DHIS2 metadata so the operator can identify a linked record
- * without clicking through. Up to three per row; fixed width so
- * long rows stay compact-aligned. */
-.cap-rel-table__col {
-  display: inline-flex; flex-direction: column;
-  min-width: 0; max-width: 20ch;
-  padding-left: 12px;
-  border-left: 1px solid var(--der-border-soft);
-  line-height: 1.2;
+/* Inline TEA pairs — single-line, dot-separated after the target
+ * name so the whole row reads left-to-right at a glance. Label
+ * styled quietly so the value carries the signal. */
+.cap-rel-table__tea {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  color: var(--der-text);
 }
-.cap-rel-table__col-label {
-  font-size: 11px; font-weight: 500;
-  color: var(--der-text-muted);
-  text-transform: uppercase; letter-spacing: 0.3px;
-  overflow: hidden; text-overflow: ellipsis;
-  white-space: nowrap;
+.cap-rel-table__tea-sep {
+  color: var(--der-text-faint);
+  padding-right: 4px;
 }
-.cap-rel-table__col-value {
+.cap-rel-table__tea-label {
+  font-size: 12px; color: var(--der-text-muted);
+}
+.cap-rel-table__tea-value {
   font-size: 13px; color: var(--der-text);
-  overflow: hidden; text-overflow: ellipsis;
-  white-space: nowrap;
 }
-/* Direction cell — paired side labels ("You: Index client → Target:
- * Contact") so the operator can read both ends of the link at
- * a glance. */
+/* Direction cell — single-line role pair ("Infant → Biological
+ * parent" or ↔ for bidirectional). Compact, no stacked labels. */
 .cap-rel-table__dir-pair {
-  display: inline-flex; align-items: center; gap: 10px;
+  display: inline-flex; align-items: baseline; gap: 6px;
   white-space: nowrap;
-}
-.cap-rel-table__dir-side {
-  display: inline-flex; flex-direction: column;
-  line-height: 1.2;
-}
-.cap-rel-table__dir-tag {
-  font-size: 11px; font-weight: 500;
-  color: var(--der-text-muted);
-  text-transform: uppercase; letter-spacing: 0.3px;
 }
 .cap-rel-table__dir-role {
   font-size: 13px; color: var(--der-text);
 }
 .cap-rel-table__dir-arrow {
   color: var(--der-text-muted);
-  font-size: 15px;
+  font-size: 14px;
 }
 .cap-rel-table__uid {
   background: var(--der-surface-subtle);

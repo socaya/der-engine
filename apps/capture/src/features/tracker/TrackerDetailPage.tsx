@@ -442,8 +442,79 @@ export function TrackerDetailPage(
           <RowActions
             label="Tracked entity actions"
             dataTest="tr-tei-actions"
-            actions={[
-              { label: 'Delete tracked entity',
+            actions={(() => {
+              type Act = {
+                label: string;
+                onSelect: () => void;
+                destructive?: boolean;
+                title?: string;
+              };
+              const acts: Act[] = [];
+              // Solo-enrolment lifecycle lives here so the switcher
+              // doesn't need to render a single-row strip beneath
+              // the profile pane. Multi-enrolment TEIs expose the
+              // same actions on each switcher row instead.
+              if (enrolments.length === 1) {
+                const e = enrolments[0]!;
+                const isCompleted = e.status === 'COMPLETED';
+                acts.push({
+                  label: isCompleted
+                    ? 'Reopen enrolment'
+                    : 'Mark enrolment complete',
+                  title: isCompleted
+                    ? 'Set the enrolment status back to ACTIVE'
+                    : 'Set the enrolment status to COMPLETED',
+                  onSelect: () => {
+                    void (async () => {
+                      try {
+                        await api.createEnrollment({
+                          enrollmentUid: e.enrollmentUid,
+                          teiUid: teiId,
+                          programUid: e.programUid,
+                          orgUnitUid: e.orgUnitUid,
+                          enrollmentDate:
+                            e.enrollmentDate ?? new Date()
+                              .toISOString().slice(0, 10),
+                          incidentDate: e.incidentDate ?? undefined,
+                          status: isCompleted
+                            ? 'ACTIVE' : 'COMPLETED',
+                        });
+                        setEnrolTick((t) => t + 1);
+                      } catch (err) {
+                        window.alert('Failed to update enrolment: '
+                          + ((err as Error).message
+                            ?? 'unknown error'));
+                      }
+                    })();
+                  },
+                });
+                acts.push({
+                  label: 'Delete enrolment',
+                  destructive: true,
+                  title: 'Soft-delete the enrolment + its events '
+                    + 'on the edge, queued for central sync',
+                  onSelect: () => {
+                    const ok = window.confirm('Delete this '
+                      + 'enrolment? The enrolment + its events are '
+                      + 'soft-deleted on the facility edge and '
+                      + 'queued for central sync.');
+                    if (!ok) return;
+                    void (async () => {
+                      try {
+                        await api.deleteEnrollment(e.enrollmentUid);
+                        setEnrolTick((t) => t + 1);
+                        setSelectedEnrolment(null);
+                      } catch (err) {
+                        window.alert('Failed to delete enrolment: '
+                          + ((err as Error).message
+                            ?? 'unknown error'));
+                      }
+                    })();
+                  },
+                });
+              }
+              acts.push({
+                label: 'Delete tracked entity',
                 destructive: true,
                 title: 'Soft-delete the TEI + its enrolments + '
                   + 'events on the edge, queued for central sync',
@@ -459,11 +530,14 @@ export function TrackerDetailPage(
                       navTracker.list(programUid);
                     } catch (err) {
                       window.alert('Failed to delete tracked entity: '
-                        + ((err as Error).message ?? 'unknown error'));
+                        + ((err as Error).message
+                          ?? 'unknown error'));
                     }
                   })();
-                } },
-            ]} />
+                },
+              });
+              return acts;
+            })()} />
         </div>
       </div>
 
@@ -488,12 +562,12 @@ export function TrackerDetailPage(
         </div>
       )}
 
-      {/* Enrolment switcher — now always rendered when the TEI
-       *  has any enrolment so the row carries a consistent handle
-       *  for enrolment-scoped actions (Complete / Reopen /
-       *  Delete). Multi-enrolment TEIs use the same list as the
-       *  program-pane switcher. */}
-      {enrolments.length >= 1 && (
+      {/* Enrolment switcher — only materialises when the TEI has
+       *  two or more enrolments. Solo-enrolment actions live on
+       *  the TEI header's ⋯ menu to avoid the duplicate-info row
+       *  that a single-row switcher produced below the profile
+       *  pane. */}
+      {enrolments.length >= 2 && (
         <ul className="cap-list" data-test="tr-enrolment-list">
           {enrolments.map((e) => {
             const isCompleted = e.status === 'COMPLETED';
