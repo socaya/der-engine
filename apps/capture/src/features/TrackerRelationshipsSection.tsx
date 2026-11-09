@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { FormEngine, requiredFieldsComplete }
+  from '../shared/FormEngine';
+import { parseTeiAttributesForm } from '../shared/parser';
+import type { CaptureFormSection } from '../shared/model';
 import type { CaptureApi } from '../shared/types';
 
 /** DHIS2 relationship-constraint kind as stored on the metadata
@@ -130,6 +134,24 @@ export function TrackerRelationshipsSection(
   const [submit, setSubmit] =
     useState<'idle' | 'submitting' | 'ok' | 'err'>('idle');
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
+
+  /** Inline "create a new target TEI" flow — when the operator
+   *  picks a relationship type but there's no eligible existing
+   *  TEI at this facility, instead of a dead end we let them
+   *  register one on the spot. Reuses the TEI registration
+   *  form via parseTeiAttributesForm + FormEngine so the new
+   *  record carries the right TEA set for the target TET.
+   *  Once saved, the new TEI is auto-selected as the target and
+   *  the normal save-relationship flow resumes. */
+  const [creatingTarget, setCreatingTarget] = useState(false);
+  const [targetTetUid, setTargetTetUid] = useState<string | null>(null);
+  const [newTargetSections, setNewTargetSections] =
+    useState<readonly CaptureFormSection[]>([]);
+  const [newTargetValues, setNewTargetValues] =
+    useState<Record<string, string>>({});
+  const [createState, setCreateState] =
+    useState<'idle' | 'loading-form' | 'submitting' | 'err'>('idle');
+  const [createMsg, setCreateMsg] = useState<string | null>(null);
 
   /** Tracked entities in the current program/org unit — candidates
    *  for the target-TEI dropdown. Single fetch per (programUid,
@@ -410,6 +432,92 @@ export function TrackerRelationshipsSection(
     setPickedTargetTei(''); setPickedTargetEnrollment('');
     setPickedTargetEvent(''); setAnchorEnrollment('');
     setAnchorEvent(''); setSubmit('idle'); setSubmitMsg(null);
+    setCreatingTarget(false); setNewTargetValues({});
+    setNewTargetSections([]); setCreateState('idle');
+    setCreateMsg(null); setTargetTetUid(null);
+  }
+
+  /** Resolve which TET the new target should be created against.
+   *  Prefers the type's explicit TET constraint on the target
+   *  side; falls back to the current TEI's TET (same facility,
+   *  same cohort — matches the default expectation when the type
+   *  doesn't pin a specific TET). */
+  const targetTetForCreate = theirTetConstraint ?? tetUid;
+  /** Program to enrol the new TEI into. For ENROLLMENT/EVENT
+   *  targets the type's program constraint MUST match; for plain
+   *  TRACKED_ENTITY targets we default to the current page's
+   *  program so the new record is immediately navigable. */
+  const targetProgramForCreate = theirProgramConstraint ?? programUid;
+
+  // Load the TEA form when the operator opens the create panel —
+  // separate effect so the fetch doesn't fire until actually needed.
+  useEffect(() => {
+    if (!creatingTarget || !targetTetForCreate) return;
+    let cancelled = false;
+    setCreateState('loading-form');
+    (async () => {
+      try {
+        const res = await api.listCaptureTeiTypeAttributes(
+          targetTetForCreate);
+        if (cancelled) return;
+        const parsed = parseTeiAttributesForm(res.attributes);
+        setNewTargetSections(parsed.sections);
+        setTargetTetUid(targetTetForCreate);
+        setNewTargetValues({});
+        setCreateState('idle');
+      } catch (e) {
+        if (!cancelled) {
+          setCreateState('err');
+          setCreateMsg((e as Error).message ?? 'Failed to load form');
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [creatingTarget, targetTetForCreate, api]);
+
+  async function createNewTarget(): Promise<void> {
+    if (!targetTetUid) return;
+    if (!requiredFieldsComplete(newTargetSections, newTargetValues)) {
+      setCreateMsg('Fill the required fields marked with *.');
+      setCreateState('err');
+      return;
+    }
+    setCreateState('submitting'); setCreateMsg(null);
+    try {
+      const attributes = Object.entries(newTargetValues)
+        .filter(([, v]) => v.trim() !== '')
+        .map(([attribute, value]) => ({ attribute, value }));
+      const result = await api.enrolTei({
+        program: targetProgramForCreate,
+        orgUnit: orgUnitUid,
+        trackedEntityType: targetTetUid,
+        attributes,
+      }) as { teiUid?: string; trackedEntity?: string;
+              trackedEntityUid?: string;
+              trackedEntityInstance?: string };
+      const newUid = result?.teiUid ?? result?.trackedEntity
+        ?? result?.trackedEntityUid
+        ?? result?.trackedEntityInstance ?? null;
+      if (!newUid) {
+        throw new Error('Server did not return a TEI UID');
+      }
+      // Refresh candidates so the new row appears in the select.
+      const r = await api.listTrackerEntities(targetProgramForCreate,
+        orgUnitUid, 200);
+      const list = r.trackedEntities ?? r.instances ?? [];
+      setCandidates(list.map((row) => ({
+        uid: row.trackedEntity ?? row.trackedEntityInstance ?? '',
+        displayName: row.displayName ?? '',
+        lastUpdated: row.lastUpdated ?? '',
+      })).filter((c) => c.uid !== '' && c.uid !== tei));
+      setPickedTargetTei(newUid);
+      setCreatingTarget(false);
+      setCreateState('idle');
+      setNewTargetValues({});
+    } catch (e) {
+      setCreateState('err');
+      setCreateMsg((e as Error).message ?? 'Create failed');
+    }
   }
 
   function ourAnchorUid(): string {
@@ -560,36 +668,49 @@ export function TrackerRelationshipsSection(
              *  supporter") so the form reads as a task the operator
              *  recognises, not as DHIS2 metadata jargon. */}
             <label className="cap-input">
-              <span className="cap-input__label">
-                {pickedType
-                  ? directionalLabel(pickedType, flipped)
-                  : 'Target tracked entity'}
-                <span className="cap-input__req">*</span>
+              <span className="cap-input__label"
+                    style={{ display: 'flex', alignItems: 'baseline',
+                      justifyContent: 'space-between' }}>
+                <span>
+                  {pickedType
+                    ? directionalLabel(pickedType, flipped)
+                    : 'Target tracked entity'}
+                  <span className="cap-input__req">*</span>
+                </span>
+                {pickedType && !creatingTarget && (
+                  <button type="button"
+                          className="cap-link-btn"
+                          data-test="tr-rel-new-target"
+                          style={{ fontSize: 12, padding: 0,
+                            background: 'none', border: 0,
+                            color: 'var(--der-primary)', cursor: 'pointer' }}
+                          onClick={() => setCreatingTarget(true)}>
+                    + Create new
+                  </button>
+                )}
               </span>
               <select className="cap-input__ctl"
                       data-test="tr-rel-target-select"
                       value={pickedTargetTei}
-                      disabled={!pickedType}
+                      disabled={!pickedType || creatingTarget}
                       onChange={(e) => setPickedTargetTei(e.target.value)}>
                 <option value="">— Select target —</option>
-                {candidates
-                  .filter((c) => !theirTetConstraint
-                    || theirKind !== 'TRACKED_ENTITY'
-                    // Non-TEI targets: we filter on the enrolment/event
-                    // constraint below instead of the TEI's TET.
-                    || true)
-                  .map((c) => (
-                    <option key={c.uid} value={c.uid}>
-                      {c.displayName
-                        ? c.displayName + '  ·  ' + c.uid
-                        : c.uid}
-                    </option>
-                  ))}
+                {candidates.map((c) => (
+                  <option key={c.uid} value={c.uid}>
+                    {c.displayName
+                      ? c.displayName + '  ·  ' + c.uid
+                      : c.uid}
+                  </option>
+                ))}
               </select>
-              {candidates.length === 0 && (
+              {candidates.length === 0 && !creatingTarget && (
                 <span className="cap-input__help">
                   No other tracked entities loaded for this
-                  program at this facility yet.
+                  program at this facility yet — use
+                  <strong style={{ padding: '0 3px' }}>
+                    + Create new
+                  </strong>
+                  above to register one.
                 </span>
               )}
               {selfLink && (
@@ -598,6 +719,86 @@ export function TrackerRelationshipsSection(
                 </span>
               )}
             </label>
+
+            {/* Inline "create new target" panel. Opens when there
+             *  are no eligible TEIs OR when the operator clicks
+             *  "+ Create new" above. Reuses the TEI-registration
+             *  FormEngine so the new record carries the full TEA
+             *  set configured for the target TET. Spans both grid
+             *  columns so the form has room; the normal target
+             *  pickers below are disabled while this is open. */}
+            {creatingTarget && (
+              <div className="cap-rel-new-target"
+                   data-test="tr-rel-new-target-panel"
+                   style={{ gridColumn: '1 / -1',
+                     background: 'var(--der-surface-subtle)',
+                     border: '1px solid var(--der-border-soft)',
+                     borderRadius: 4, padding: '14px 16px',
+                     marginTop: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center',
+                  marginBottom: 12 }}>
+                  <strong style={{ fontSize: 14 }}>
+                    New {pickedType
+                      ? directionalLabel(pickedType, flipped)
+                      : 'target'}
+                  </strong>
+                  <span style={{ flex: 1 }} />
+                  <span className="cap-sub"
+                        style={{ fontSize: 12,
+                          color: 'var(--der-text-muted)' }}>
+                    Register a new record to link to
+                  </span>
+                </div>
+                {createState === 'loading-form' && (
+                  <p className="cap-sub">Loading attributes…</p>
+                )}
+                {createMsg && (
+                  <div className="cap-strip cap-strip--err"
+                       data-test="tr-rel-new-target-err"
+                       style={{ marginBottom: 10 }}>
+                    {createMsg}
+                  </div>
+                )}
+                {newTargetSections.length > 0
+                  && createState !== 'loading-form' && (
+                  <FormEngine api={api} sections={newTargetSections}
+                               values={newTargetValues}
+                               onChange={(k, v) => setNewTargetValues(
+                                 (prev) => ({ ...prev, [k]: v }))} />
+                )}
+                <div style={{ display: 'flex',
+                  justifyContent: 'flex-end', gap: 10,
+                  marginTop: 14, paddingTop: 14,
+                  borderTop: '1px solid var(--der-border-soft)' }}>
+                  <button type="button"
+                          className="cap-btn cap-btn--secondary"
+                          data-test="tr-rel-new-target-cancel"
+                          style={{ padding: '5px 13px', fontSize: 13 }}
+                          disabled={createState === 'submitting'}
+                          onClick={() => {
+                            setCreatingTarget(false);
+                            setCreateMsg(null);
+                            setCreateState('idle');
+                            setNewTargetValues({});
+                          }}>
+                    Cancel
+                  </button>
+                  <button type="button"
+                          className="cap-btn cap-btn--primary"
+                          data-test="tr-rel-new-target-save"
+                          style={{ padding: '5px 13px', fontSize: 13 }}
+                          disabled={createState === 'submitting'
+                            || createState === 'loading-form'
+                            || newTargetSections.length === 0}
+                          onClick={() => { void createNewTarget(); }}>
+                    {createState === 'submitting' ? 'Creating…'
+                      : 'Create ' + (pickedType
+                        ? directionalLabel(pickedType, flipped)
+                        : 'record')}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Target enrolment — ENROLLMENT or EVENT target. */}
             {pickedTargetTei !== '' && theirKind !== 'TRACKED_ENTITY' && (
