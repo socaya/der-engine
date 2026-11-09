@@ -27,13 +27,15 @@
   --der-brand-700: #0a5497;
   --der-brand-800: #083f72;
 
-  /* chrome (topbar / dark panes) — DHIS2 blue, deepened for ink
-   * legibility. Matches the primary accent so the topbar reads
-   * as part of the brand surface instead of a third colour. */
-  --der-chrome-bg:    #0a5497;
-  --der-chrome-alt:   #083f72;
-  --der-chrome-fg:    #eaf3fc;
-  --der-chrome-muted: #a9c7e3;
+  /* chrome (topbar / dark panes) — DHIS2 blue desaturated one
+   * step toward slate so the chrome reads as a quiet frame
+   * instead of a brand-forward banner. Still recognisably the
+   * same hue; just lower-chroma so it doesn't pull attention
+   * away from operator content. */
+  --der-chrome-bg:    #22436c;
+  --der-chrome-alt:   #1a3356;
+  --der-chrome-fg:    #eaf0f7;
+  --der-chrome-muted: #a7b4c7;
 
   /* accent (sync pills / online indicators) — cyan */
   --der-accent-500: #06b6d4;
@@ -51,16 +53,22 @@
   --der-ink-500:    #5b6478;   /* muted meta */
   --der-ink-300:    #9097a8;   /* placeholder */
 
-  /* surfaces */
-  --der-canvas:         #f4f6fa;   /* app background */
-  --der-surface:        #ffffff;   /* card background */
-  --der-surface-muted:  #f4f6fa;
-  --der-surface-subtle: #eaeef5;
-  --der-surface-tinted: #f7f8fc;
+  /* surfaces — tuned to match the Capture app's softer palette
+   * so the shell + launched app read as one surface. Pure-white
+   * cards on a near-white canvas made the shell feel glaringly
+   * bright against Capture; this pulls both into a calm cool-
+   * grey band where depth comes from borders rather than
+   * surface contrast. */
+  --der-canvas:         #EEF2F7;   /* app background */
+  --der-surface:        #FAFBFD;   /* card background */
+  --der-surface-muted:  #ECEFF5;
+  --der-surface-subtle: #E4EAF2;
+  --der-surface-tinted: #F2F5F9;
 
-  /* 1 px separators */
-  --der-border:        #d8dee8;
-  --der-border-strong: #9aa3b8;
+  /* 1 px separators — pulled one step darker so panels stay
+   * legible against the softer surface tokens above. */
+  --der-border:        #D0D7E2;
+  --der-border-strong: #94A0B4;
 
   /* status */
   --der-success-bg: #e3f7eb;
