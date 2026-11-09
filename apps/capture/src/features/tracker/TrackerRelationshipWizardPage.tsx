@@ -136,8 +136,16 @@ export function TrackerRelationshipWizardPage(
   const [newEventDate, setNewEventDate] =
     useState<string>(todayIsoDate());
   const [eventCreateState, setEventCreateState] =
-    useState<'idle' | 'submitting' | 'err'>('idle');
+    useState<'idle' | 'loading-form' | 'submitting' | 'err'>('idle');
   const [eventCreateMsg, setEventCreateMsg] = useState<string | null>(null);
+  /** Event form sections + values when operator opens the inline
+   *  "+ Create new event" panel. Lets operators capture the full
+   *  DHIS2 stage data-element set up-front instead of creating an
+   *  empty placeholder event they'd have to edit later. */
+  const [newEventSections, setNewEventSections] =
+    useState<readonly CaptureFormSection[]>([]);
+  const [newEventValues, setNewEventValues] =
+    useState<Record<string, string>>({});
 
   const [submit, setSubmit] =
     useState<'idle' | 'submitting' | 'ok' | 'err'>('idle');
@@ -402,6 +410,41 @@ export function TrackerRelationshipWizardPage(
     return () => { cancelled = true; };
   }, [creatingTarget, targetTetForCreate, api]);
 
+  // Load the target-event stage form when the operator opens the
+  // inline "+ Create new event" panel. Reuses the same
+  // api.getCaptureStageForm the main TrackerStageEditor uses so
+  // the operator fills exactly the same data elements they'd
+  // see editing the event later.
+  useEffect(() => {
+    if (!creatingEvent || theirKind !== 'EVENT'
+        || !theirStageConstraint) return;
+    const programForEvent = theirProgramConstraint
+      ?? targetEnrollments.find(
+        (e) => e.enrollmentUid === pickedTargetEnrollment)?.programUid
+      ?? programUid;
+    let cancelled = false;
+    setEventCreateState('loading-form');
+    (async () => {
+      try {
+        const assembly = await api.getCaptureStageForm(
+          programForEvent, theirStageConstraint);
+        if (cancelled) return;
+        setNewEventSections(assembly.sections);
+        setNewEventValues({});
+        setEventCreateState('idle');
+      } catch (e) {
+        if (!cancelled) {
+          setEventCreateState('err');
+          setEventCreateMsg((e as Error).message
+            ?? 'Failed to load the event form');
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creatingEvent, theirKind, theirStageConstraint,
+      theirProgramConstraint, pickedTargetEnrollment]);
+
   async function createNewTarget(): Promise<void> {
     if (!targetTetForCreate) return;
     if (!requiredFieldsComplete(newTargetSections, newTargetValues)) {
@@ -455,6 +498,9 @@ export function TrackerRelationshipWizardPage(
     const eventUid = genDhis2Uid();
     setEventCreateState('submitting'); setEventCreateMsg(null);
     try {
+      const dataValues = Object.entries(newEventValues)
+        .filter(([, v]) => v && v.trim() !== '')
+        .map(([dataElement, value]) => ({ dataElement, value }));
       await api.submitEvent({
         program: programForEvent,
         programStage: theirStageConstraint,
@@ -463,7 +509,7 @@ export function TrackerRelationshipWizardPage(
         enrollment: pickedTargetEnrollment,
         status: 'ACTIVE',
         event: eventUid,
-        dataValues: [],
+        dataValues,
       });
       const evs = await api.listCaptureEnrollmentEvents(
         pickedTargetEnrollment);
@@ -807,14 +853,19 @@ export function TrackerRelationshipWizardPage(
                    style={{ background: 'var(--der-surface-subtle)',
                      border: '1px solid var(--der-border-soft)',
                      borderRadius: 4, padding: '14px 16px',
-                     marginTop: 10, maxWidth: 520 }}>
+                     marginTop: 10 }}>
                 <strong style={{ fontSize: 14 }}>New event</strong>
+                <div style={{ marginTop: 4, fontSize: 12,
+                  color: 'var(--der-text-muted)' }}>
+                  Capture the full event here — same data elements
+                  you'd see editing it later from the stage form.
+                </div>
                 {eventCreateMsg && (
                   <div className="cap-strip cap-strip--err"
-                       style={{ margin: '8px 0' }}>{eventCreateMsg}</div>
+                       style={{ margin: '10px 0' }}>{eventCreateMsg}</div>
                 )}
                 <label className="cap-input"
-                       style={{ marginTop: 10, maxWidth: 260 }}>
+                       style={{ marginTop: 12, maxWidth: 260 }}>
                   <span className="cap-input__label">Occurred on
                     <span className="cap-input__req">*</span></span>
                   <input type="date" className="cap-input__ctl"
@@ -822,6 +873,31 @@ export function TrackerRelationshipWizardPage(
                          onChange={(e) =>
                            setNewEventDate(e.target.value)} />
                 </label>
+                {eventCreateState === 'loading-form' && (
+                  <p className="cap-sub"
+                     style={{ marginTop: 12 }}>
+                    Loading event form…
+                  </p>
+                )}
+                {eventCreateState !== 'loading-form'
+                  && newEventSections.length > 0 && (
+                  <div style={{ marginTop: 14 }}>
+                    <FormEngine api={api}
+                                 sections={newEventSections}
+                                 values={newEventValues}
+                                 onChange={(k, v) => setNewEventValues(
+                                   (prev) => ({ ...prev, [k]: v }))} />
+                  </div>
+                )}
+                {eventCreateState !== 'loading-form'
+                  && newEventSections.length === 0 && (
+                  <p className="cap-sub"
+                     style={{ marginTop: 12, fontSize: 12 }}>
+                    The target stage has no data elements
+                    configured — only the occurred-on date will
+                    be captured.
+                  </p>
+                )}
                 <div style={{ display: 'flex',
                   justifyContent: 'flex-end', gap: 10,
                   marginTop: 14, paddingTop: 14,
@@ -835,11 +911,14 @@ export function TrackerRelationshipWizardPage(
                             setEventCreateMsg(null);
                             setEventCreateState('idle');
                             setNewEventDate(todayIsoDate());
+                            setNewEventSections([]);
+                            setNewEventValues({});
                           }}>Cancel</button>
                   <button type="button"
                           className="cap-btn cap-btn--primary"
                           style={{ padding: '5px 13px', fontSize: 13 }}
                           disabled={eventCreateState === 'submitting'
+                            || eventCreateState === 'loading-form'
                             || newEventDate === ''}
                           onClick={() => { void createNewTargetEvent(); }}>
                     {eventCreateState === 'submitting' ? 'Creating…'
