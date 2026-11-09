@@ -1277,7 +1277,10 @@ export function TrackerRelationshipsSection(
                       // the dashboard we're currently viewing. Fall
                       // back to the current program only if the
                       // server didn't enrich the detail (shouldn't
-                      // happen in practice).
+                      // happen in practice). Pass the enrolment UID
+                      // so the detail page auto-focuses it on load —
+                      // otherwise navigating to the same TEI's
+                      // dashboard looks like nothing happened.
                       const t = otherSide?.enrollment?.teiUid;
                       const p = otherSide?.enrollment?.programUid
                         ?? programUid;
@@ -1286,7 +1289,8 @@ export function TrackerRelationshipsSection(
                           + 'resolvable TEI on this device.');
                         return;
                       }
-                      navTracker.detail(p, t);
+                      navTracker.detail(p, t,
+                        { focusEnrollmentId: toUid ?? null });
                       return;
                     }
                     const enrol =
@@ -1659,9 +1663,11 @@ function RowMenu(
         return;
       }
       // Route to the target enrolment's OWN program, not the
-      // dashboard's — enrolment and dashboard may differ.
+      // dashboard's — enrolment and dashboard may differ. Pass
+      // the enrolment UID so the dashboard focuses it on load.
       const p = targetSide?.enrollment?.programUid ?? programUid;
-      navTracker.detail(p, teiUid);
+      navTracker.detail(p, teiUid,
+        { focusEnrollmentId: targetUid });
       return;
     }
     // EVENT — jump to the edit page. We need the enrolment UID

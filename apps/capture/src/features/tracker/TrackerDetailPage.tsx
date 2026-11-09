@@ -32,11 +32,17 @@ export interface TrackerEvent {
  * form inline.
  */
 export function TrackerDetailPage(
-  { api, programUid, orgUnitUid, teiId }: {
+  { api, programUid, orgUnitUid, teiId, focusEnrollmentId }: {
     api: CaptureApi;
     programUid: string;
     orgUnitUid: string;
     teiId: string;
+    /** Optional enrolment UID to pre-select when the page mounts
+     *  — passed via `?enrolment=UID` by relationship-list opens
+     *  so the dashboard visibly jumps to that enrolment instead
+     *  of defaulting to the newest one. Falls through silently if
+     *  the referenced enrolment isn't in the TEI's list. */
+    focusEnrollmentId?: string | null;
   },
 ): JSX.Element {
   const [enrolments, setEnrolments] = useState<TrackerEnrolment[]>([]);
@@ -217,7 +223,11 @@ export function TrackerDetailPage(
         }
         setStageRepeatable(repMap);
         if (enr.length > 0) {
-          setSelectedEnrolment(enr[0]!.enrollmentUid);
+          const focused = focusEnrollmentId
+            && enr.some((e) => e.enrollmentUid === focusEnrollmentId)
+            ? focusEnrollmentId
+            : enr[0]!.enrollmentUid;
+          setSelectedEnrolment(focused);
         }
         setStatus('idle');
       } catch {
@@ -225,7 +235,7 @@ export function TrackerDetailPage(
       }
     })();
     return () => { cancelled = true; };
-  }, [programUid, teiId, orgUnitUid]);
+  }, [programUid, teiId, orgUnitUid, focusEnrollmentId]);
 
   useEffect(() => {
     if (!selectedEnrolment) { setEvents([]); return; }

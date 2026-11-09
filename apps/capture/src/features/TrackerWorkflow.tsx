@@ -87,7 +87,9 @@ export function TrackerWorkflow(
       <TrackerDetailPage api={api}
                           programUid={programUid}
                           orgUnitUid={orgUnitUid}
-                          teiId={route.teiId} />
+                          teiId={route.teiId}
+                          focusEnrollmentId={
+                            route.focusEnrollmentId ?? null} />
     );
   }
   if (route.kind === 'tracker-relationship-form') {

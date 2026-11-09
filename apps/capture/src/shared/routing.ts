@@ -32,7 +32,12 @@ export type CaptureRoute =
   | { readonly kind: 'tracker-list';
       readonly programId: string }
   | { readonly kind: 'tracker-detail';
-      readonly programId: string; readonly teiId: string }
+      readonly programId: string; readonly teiId: string;
+      /** Optional enrolment to pre-select when the TEI dashboard
+       *  mounts — passed via `?enrolment=UID` from navigation sites
+       *  that know which enrolment the operator wanted (relationship
+       *  row "Open enrolment", scheduled-events link, etc.). */
+      readonly focusEnrollmentId?: string | null }
   | { readonly kind: 'tracker-register';
       readonly programId: string }
   | { readonly kind: 'tracker-enrol';
@@ -98,8 +103,10 @@ export function parseCaptureRoute(hash: string): CaptureRoute {
         fromKind, fromUid, preType };
     }
     if (segs[2] === 'records' && segs[3]) {
+      const focus = new URLSearchParams(queryPart).get('enrolment');
       return { kind: 'tracker-detail',
-        programId, teiId: segs[3]! };
+        programId, teiId: segs[3]!,
+        focusEnrollmentId: focus && focus.length > 0 ? focus : null };
     }
     if (segs[2] === 'records') {
       return { kind: 'tracker-list', programId };
@@ -155,8 +162,12 @@ export function navigateTo(path: string): void {
 export const navTracker = {
   list: (programId: string) =>
     navigateTo(`/tracker/${programId}/records`),
-  detail: (programId: string, teiId: string) =>
-    navigateTo(`/tracker/${programId}/records/${teiId}`),
+  detail: (programId: string, teiId: string,
+      extra?: { focusEnrollmentId?: string | null }) => {
+    const qs = extra?.focusEnrollmentId
+      ? `?enrolment=${encodeURIComponent(extra.focusEnrollmentId)}` : '';
+    navigateTo(`/tracker/${programId}/records/${teiId}${qs}`);
+  },
   register: (programId: string) =>
     navigateTo(`/tracker/${programId}/register`),
   enrol: (programId: string, teiId: string) =>
