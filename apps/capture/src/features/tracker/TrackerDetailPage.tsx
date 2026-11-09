@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CaptureApi, StageOpt } from '../../shared/types';
 import { TrackerRelationshipsSection } from '../TrackerRelationshipsSection';
+import { TrackerStageEditor } from '../TrackerStageEditor';
 import { navTracker } from '../../shared/routing';
 
 export interface TrackerEnrolment {
@@ -56,6 +57,17 @@ export function TrackerDetailPage(
       attributes: ReadonlyArray<{ label: string; value: string }>;
     }>({
       displayName: null, lastUpdated: null, attributes: [] });
+  /** Inline stage-form mode. When non-null, the stage pane body
+   *  swaps from the event list to the TrackerStageEditor so the
+   *  operator never leaves the tracker detail page. { kind:
+   *  'new' } for "+ Add event"; { kind: 'edit', eventId } when
+   *  clicking an existing row. On save/cancel we flip back to the
+   *  list and trigger a refetch via eventsTick. */
+  const [stageFormMode, setStageFormMode] =
+    useState<null | { kind: 'new' | 'edit'; eventId: string | null }>(null);
+  /** Monotonic counter — bumping it re-triggers the events
+   *  effect without having to toggle selectedEnrolment. */
+  const [eventsTick, setEventsTick] = useState(0);
   const [statusFilter, setStatusFilter] =
     useState<'all' | 'ACTIVE' | 'COMPLETED'>('all');
 
@@ -164,7 +176,14 @@ export function TrackerDetailPage(
       }
     })();
     return () => { cancelled = true; };
-  }, [selectedEnrolment]);
+  }, [selectedEnrolment, eventsTick]);
+
+  // Flipping to a different stage closes any open stage form —
+  // operators would otherwise see the wrong stage's form after
+  // swapping rails without noticing.
+  useEffect(() => {
+    setStageFormMode(null);
+  }, [selectedStage]);
 
   const eventsByStage = useMemo(() => {
     const m = new Map<string, TrackerEvent[]>();
@@ -350,6 +369,41 @@ export function TrackerDetailPage(
                    style={{ margin: 0 }}>
                 Pick a stage on the left to see its events.
               </div>
+            ) : stageFormMode && selectedEnrolment ? (
+              /* Inline stage form — stays inside the pane instead
+               * of navigating to a separate route. On save/cancel
+               * the pane flips back to the event list (refetched
+               * via eventsTick). */
+              <div data-test="tr-stage-pane-form">
+                <div style={{ display: 'flex', alignItems: 'center',
+                  gap: 14, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <button type="button"
+                          className="cap-btn cap-btn--secondary"
+                          data-test="tr-stageform-back"
+                          style={{ padding: '4px 10px', fontSize: 12 }}
+                          onClick={() => setStageFormMode(null)}
+                          title="Back to the event list (Alt+B)">
+                    ← Back to events
+                  </button>
+                  <strong style={{ fontSize: 14,
+                    color: 'var(--der-text)' }}>
+                    {stageFormMode.kind === 'edit'
+                      ? 'Edit stage event' : 'New stage event'}
+                  </strong>
+                </div>
+                <TrackerStageEditor
+                  api={api}
+                  programUid={programUid}
+                  stageUid={selectedStage}
+                  enrolmentUid={selectedEnrolment}
+                  orgUnitUid={orgUnitUid}
+                  eventUid={stageFormMode.eventId}
+                  onSaved={() => {
+                    setStageFormMode(null);
+                    setEventsTick((t) => t + 1);
+                  }}
+                  onCancel={() => setStageFormMode(null)} />
+              </div>
             ) : (
               <>
                 <div style={{ display: 'flex', alignItems: 'center',
@@ -394,12 +448,10 @@ export function TrackerDetailPage(
                               disabled={disabled || !selectedEnrolment}
                               title={disabled
                                 ? 'This stage is not repeatable — one '
-                                  + 'event already exists (TR-034)'
-                                : 'Open the stage form in a new route '
-                                  + '(Alt+N)'}
-                              onClick={() => navTracker.newEvent(
-                                programUid, selectedEnrolment,
-                                selectedStage)}>
+                                  + 'event already exists'
+                                : 'Open the stage form inline (Alt+N)'}
+                              onClick={() => setStageFormMode({
+                                kind: 'new', eventId: null })}>
                         + Add event
                       </button>
                     );
@@ -424,13 +476,13 @@ export function TrackerDetailPage(
                             + 'cap-list__row--clickable'}
                           data-test={'tr-event-row-' + e.eventUid}
                           role="button" tabIndex={0}
-                          onClick={() => navTracker.editEvent(
-                            programUid, e.enrollmentUid, e.eventUid)}
+                          onClick={() => setStageFormMode({
+                            kind: 'edit', eventId: e.eventUid })}
                           onKeyDown={(ev) => {
                             if (ev.key === 'Enter' || ev.key === ' ') {
                               ev.preventDefault();
-                              navTracker.editEvent(programUid,
-                                e.enrollmentUid, e.eventUid);
+                              setStageFormMode({
+                                kind: 'edit', eventId: e.eventUid });
                             }
                           }}>
                         <div>
