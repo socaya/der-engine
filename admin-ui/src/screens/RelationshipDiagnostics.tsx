@@ -266,6 +266,82 @@ export function RelationshipDiagnostics(): JSX.Element {
           </table>
         )}
       </Panel>
+
+      <Panel title={`Soft-deleted tombstones (${data.tombstones.length})`}
+             action={data.tombstones.length === 0 ? undefined : (
+               <span style={{ color: '#5b6478', fontSize: 13 }}>
+                 Rows unlinked by the operator but not yet
+                 physically purged (usually waiting on a
+                 central DELETE round-trip). Purge removes the
+                 row from the device.
+               </span>)}>
+        {data.tombstones.length === 0 ? (
+          <p style={{ color: '#5b6478' }}>
+            No tombstones — every unlinked row has been
+            physically purged.
+          </p>
+        ) : (
+          <table data-test="reldiag-tombstones-table"
+                 style={{ width: '100%', borderCollapse: 'collapse',
+                   fontSize: 13 }}>
+            <thead>
+              <tr style={{ textAlign: 'left',
+                borderBottom: '1px solid #d9dde6' }}>
+                <th style={{ padding: '8px 10px' }}>Status</th>
+                <th style={{ padding: '8px 10px' }}>Type</th>
+                <th style={{ padding: '8px 10px' }}>From</th>
+                <th style={{ padding: '8px 10px' }}>To</th>
+                <th style={{ padding: '8px 10px' }}>Deleted</th>
+                <th style={{ padding: '8px 10px' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.tombstones.map((r) => (
+                <tr key={r.relationshipUid}
+                    style={{ borderBottom: '1px solid #ebeef3' }}>
+                  <td style={{ padding: '8px 10px' }}>
+                    <SyncPill status={r.syncStatus} />
+                  </td>
+                  <td style={{ padding: '8px 10px',
+                    fontFamily: 'ui-monospace, Menlo, monospace',
+                    color: '#5b6478' }}>
+                    {r.relationshipType}
+                  </td>
+                  <td style={{ padding: '8px 10px' }}>
+                    <span style={{ color: '#5b6478' }}>
+                      {r.fromEntityType}
+                    </span>
+                    {' '}
+                    <code style={{ fontSize: 12 }}>
+                      {r.fromEntityUid}
+                    </code>
+                  </td>
+                  <td style={{ padding: '8px 10px' }}>
+                    <span style={{ color: '#5b6478' }}>
+                      {r.toEntityType}
+                    </span>
+                    {' '}
+                    <code style={{ fontSize: 12 }}>
+                      {r.toEntityUid}
+                    </code>
+                  </td>
+                  <td style={{ padding: '8px 10px',
+                    color: '#5b6478' }}>
+                    {fmtAgo(r.deletedAt)}
+                  </td>
+                  <td style={{ padding: '8px 10px',
+                    whiteSpace: 'nowrap' }}>
+                    <ActionButton kind="purge"
+                                   uid={r.relationshipUid}
+                                   busy={actionBusy}
+                                   onClick={doAction} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Panel>
     </div>
   );
 }

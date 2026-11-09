@@ -1901,6 +1901,20 @@ export interface RelationshipDiagnostics {
     readonly centralUid: string | null;
     readonly version: number;
   }>;
+  readonly tombstones: ReadonlyArray<{
+    readonly relationshipUid: string;
+    readonly relationshipType: string;
+    readonly fromEntityType: string;
+    readonly fromEntityUid: string;
+    readonly toEntityType: string;
+    readonly toEntityUid: string;
+    readonly syncStatus: string;
+    readonly relClass: string;
+    readonly deletedAt: string | null;
+    readonly updatedAt: string | null;
+    readonly centralUid: string | null;
+    readonly version: number;
+  }>;
 }
 
 export function relationshipDiagnostics(

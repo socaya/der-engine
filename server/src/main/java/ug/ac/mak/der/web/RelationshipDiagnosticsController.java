@@ -56,13 +56,17 @@ public class RelationshipDiagnosticsController {
     public ResponseEntity<Map<String, Object>> get(
             final Authentication authentication,
             @RequestParam(value = "attentionLimit", required = false,
-                    defaultValue = "25") final int attentionLimit) {
-        final int cappedLimit = Math.max(1, Math.min(attentionLimit, 200));
+                    defaultValue = "25") final int attentionLimit,
+            @RequestParam(value = "tombstoneLimit", required = false,
+                    defaultValue = "25") final int tombstoneLimit) {
+        final int capAttn = Math.max(1, Math.min(attentionLimit, 200));
+        final int capTomb = Math.max(1, Math.min(tombstoneLimit, 200));
         final Map<String, Object> out = new LinkedHashMap<>();
         out.put("asOf", Instant.now().toString());
         out.put("metadata", metadataCounts());
         out.put("instances", instanceCounts());
-        out.put("attention", attentionList(cappedLimit));
+        out.put("attention", attentionList(capAttn));
+        out.put("tombstones", tombstoneList(capTomb));
         return ResponseEntity.ok(out);
     }
 
@@ -121,6 +125,57 @@ public class RelationshipDiagnosticsController {
                 "SELECT COUNT(*) FROM der.edge_tracker_relationship "
                     + "WHERE deleted_at IS NOT NULL", Long.class));
         return out;
+    }
+
+    /** Soft-deleted tombstones — rows where the operator unlinked
+     *  a relationship but the drain hasn't yet physically purged
+     *  them (usually because the central DELETE round-trip is
+     *  still in flight or failed). Admins triage stuck tombstones
+     *  from the UI via the Purge action which hits
+     *  RelationshipAdminActionsController. Ordered newest-first
+     *  so the most recent unlinks surface at the top. */
+    private List<Map<String, Object>> tombstoneList(final int limit) {
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        jdbc.query(
+                "SELECT relationship_uid, relationship_type, "
+                    + "from_entity_type, from_entity_uid, "
+                    + "to_entity_type, to_entity_uid, "
+                    + "sync_status, rel_class, "
+                    + "created_at, updated_at, deleted_at, "
+                    + "central_uid, relationship_version "
+                    + "FROM der.edge_tracker_relationship "
+                    + "WHERE deleted_at IS NOT NULL "
+                    + "ORDER BY deleted_at DESC LIMIT ?",
+                rs -> {
+                    final Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("relationshipUid",
+                            rs.getString("relationship_uid"));
+                    row.put("relationshipType",
+                            rs.getString("relationship_type"));
+                    row.put("fromEntityType",
+                            rs.getString("from_entity_type"));
+                    row.put("fromEntityUid",
+                            rs.getString("from_entity_uid"));
+                    row.put("toEntityType",
+                            rs.getString("to_entity_type"));
+                    row.put("toEntityUid",
+                            rs.getString("to_entity_uid"));
+                    row.put("syncStatus", rs.getString("sync_status"));
+                    row.put("relClass", rs.getString("rel_class"));
+                    final Timestamp deleted = rs.getTimestamp("deleted_at");
+                    row.put("deletedAt",
+                            deleted == null ? null
+                                : deleted.toInstant().toString());
+                    final Timestamp updated = rs.getTimestamp("updated_at");
+                    row.put("updatedAt",
+                            updated == null ? null
+                                : updated.toInstant().toString());
+                    row.put("centralUid", rs.getString("central_uid"));
+                    row.put("version",
+                            rs.getInt("relationship_version"));
+                    rows.add(row);
+                }, limit);
+        return rows;
     }
 
     /** Rows needing operator review — anything FAILED, BLOCKED, or
