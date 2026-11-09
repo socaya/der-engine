@@ -859,6 +859,26 @@ export interface TrackerEnrolInput {
  * edge keeps the TEI available on the LAN immediately
  * (§ED-003).</p>
  */
+/** Update an existing tracked entity's attribute values in place.
+ *  POSTs to the same /edge-api/v1/tracked-entities endpoint as
+ *  enrolTei but with teiUid set, so the server UPSERTs on the
+ *  existing row instead of creating a new TEI. No enrolment
+ *  flows — this is strictly an attribute update for the profile-
+ *  edit flow on the tracker detail page. */
+export function updateTeiAttributes(input: {
+  readonly teiUid: string;
+  readonly trackedEntityType: string;
+  readonly orgUnit: string;
+  readonly attributes: Readonly<Record<string, string>>;
+}): Promise<unknown> {
+  return request('POST', '/edge-api/v1/tracked-entities', {
+    teiUid: input.teiUid,
+    trackedEntityType: input.trackedEntityType,
+    orgUnit: input.orgUnit,
+    attributes: input.attributes,
+  });
+}
+
 export function enrolTei(input: TrackerEnrolInput): Promise<unknown> {
   // Attributes are keyed by TEA UID → value on the DER native
   // endpoint, not the DHIS2 { attribute, value }[] array.

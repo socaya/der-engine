@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CaptureApi, StageOpt } from '../../shared/types';
 import { TrackerRelationshipsSection } from '../TrackerRelationshipsSection';
 import { TrackerStageEditor } from '../TrackerStageEditor';
+import { FormEngine } from '../../shared/FormEngine';
+import { parseTeiAttributesForm } from '../../shared/parser';
 import { navTracker } from '../../shared/routing';
 
 export interface TrackerEnrolment {
@@ -56,14 +58,17 @@ export function TrackerDetailPage(
        *  glance (name, age, phone, …) instead of just a UID. */
       attributes: ReadonlyArray<{ label: string; value: string }>;
       /** The full set of non-empty TEA values ordered by
-       *  sortOrder — fed to the right-rail Profile card so
-       *  operators see every captured attribute in one place.
-       *  Superset of `attributes` (which is capped at 4 for the
-       *  top-toolbar summary). */
+       *  sortOrder — fed to the Profile popover so operators
+       *  see every captured attribute in one place. Superset of
+       *  `attributes` (which is capped at 4 for the top-toolbar
+       *  summary). */
       allAttributes: ReadonlyArray<{ label: string; value: string }>;
+      /** Raw TEA uid → value map used to pre-fill the profile-edit
+       *  form so operators change only what needs changing. */
+      rawAttributes: Readonly<Record<string, string>>;
     }>({
       displayName: null, lastUpdated: null,
-      attributes: [], allAttributes: [] });
+      attributes: [], allAttributes: [], rawAttributes: {} });
   /** Inline stage-form mode. When non-null, the stage pane body
    *  swaps from the event list to the TrackerStageEditor so the
    *  operator never leaves the tracker detail page. { kind:
@@ -141,6 +146,7 @@ export function TrackerDetailPage(
           lastUpdated: me?.lastUpdated ?? null,
           attributes: attrs,
           allAttributes: allAttrs,
+          rawAttributes: me?.attributes ?? {},
         });
         const enr: TrackerEnrolment[] = (enrRes.enrollments ?? []).map((e) => ({
           enrollmentUid: e.enrollmentUid,
@@ -561,53 +567,206 @@ export function TrackerDetailPage(
                                      tetUid={tetUid} />
       {profileOpen && (
         <ProfilePopover
+          api={api}
           displayName={identity.displayName}
           teiId={teiId}
+          tetUid={tetUid}
+          orgUnitUid={orgUnitUid}
+          rawAttributes={identity.rawAttributes}
           attributes={identity.allAttributes}
-          onClose={() => setProfileOpen(false)} />
+          onClose={() => setProfileOpen(false)}
+          onSaved={() => {
+            // Re-run the top-level load to pick up new attribute
+            // values. Simplest refresh — the whole detail page
+            // rebuilds, but it's fast + the operator just closed
+            // a modal so there's no scroll state to preserve.
+            setProfileOpen(false);
+            setStatus('loading');
+            (async () => {
+              // Force the useEffect by toggling a dep — easier
+              // path: refetch the tracker-entities list inline.
+              const r = await api.listTrackerEntities(
+                programUid, orgUnitUid, 500)
+                .catch(() => ({ trackedEntities: [], instances: [] }));
+              const all = r.trackedEntities ?? r.instances ?? [];
+              const me = all.find((x) => x.trackedEntity === teiId
+                || x.trackedEntityInstance === teiId);
+              if (me && tetUid) {
+                const teaRes = await api.listCaptureTeiTypeAttributes(tetUid)
+                  .catch(() => ({ attributes: [] }));
+                const byUid = new Map<string, string>();
+                const ordered = [...teaRes.attributes].sort(
+                  (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+                for (const a of ordered) {
+                  byUid.set(a.attributeUid,
+                    a.displayName ?? a.attributeUid);
+                }
+                const full: Array<{ label: string; value: string }> = [];
+                for (const a of ordered) {
+                  const v = me.attributes?.[a.attributeUid];
+                  if (!v || String(v).trim() === '') continue;
+                  full.push({
+                    label: byUid.get(a.attributeUid) ?? a.attributeUid,
+                    value: String(v),
+                  });
+                }
+                setIdentity((prev) => ({
+                  ...prev,
+                  attributes: full.slice(0, 4),
+                  allAttributes: full,
+                  rawAttributes: me.attributes ?? {},
+                }));
+              }
+              setStatus('idle');
+            })();
+          }} />
       )}
     </>
   );
 }
 
 function ProfilePopover(
-  { displayName, teiId, attributes, onClose }: {
+  { api, displayName, teiId, tetUid, orgUnitUid, rawAttributes,
+    attributes, onClose, onSaved }: {
+    api: CaptureApi;
     displayName: string | null;
     teiId: string;
+    tetUid: string | null;
+    orgUnitUid: string;
+    rawAttributes: Readonly<Record<string, string>>;
     attributes: ReadonlyArray<{ label: string; value: string }>;
     onClose: () => void;
+    onSaved: () => void;
   },
 ): JSX.Element {
+  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [sections, setSections] =
+    useState<ReadonlyArray<ReturnType<
+      typeof parseTeiAttributesForm>['sections'][number]>>([]);
+  const [values, setValues] = useState<Record<string, string>>(
+    { ...rawAttributes });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (mode !== 'edit' || !tetUid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const teaRes = await api.listCaptureTeiTypeAttributes(tetUid);
+        if (cancelled) return;
+        const parsed = parseTeiAttributesForm(teaRes.attributes);
+        setSections(parsed.sections);
+      } catch (e) {
+        if (!cancelled) setErr((e as Error).message ?? 'Failed to load');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [mode, tetUid, api]);
+
+  async function save(): Promise<void> {
+    if (!tetUid) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      // Drop empty values so we don't clear an attribute by accident
+      // when the operator just didn't touch an unfilled field.
+      const toSubmit: Record<string, string> = {};
+      for (const [k, v] of Object.entries(values)) {
+        if (v && v.trim() !== '') toSubmit[k] = v;
+      }
+      await api.updateTeiAttributes({
+        teiUid: teiId,
+        trackedEntityType: tetUid,
+        orgUnit: orgUnitUid,
+        attributes: toSubmit,
+      });
+      onSaved();
+    } catch (e) {
+      setErr((e as Error).message ?? 'Save failed');
+      setSaving(false);
+    }
+  }
   return (
     <div className="cap-info-backdrop" role="dialog" aria-modal="true"
          data-test="tr-profile-popover" onClick={onClose}>
       <div className="cap-info"
-           onClick={(e) => e.stopPropagation()}>
+           onClick={(e) => e.stopPropagation()}
+           style={{ maxWidth: mode === 'edit' ? 820 : 560 }}>
         <div className="cap-info__head">
-          <h3>Profile</h3>
-          <button type="button" className="cap-info__close"
-                  aria-label="Close profile" onClick={onClose}>×</button>
+          <h3>{mode === 'edit' ? 'Edit profile' : 'Profile'}</h3>
+          <div style={{ display: 'flex', alignItems: 'center',
+                        gap: 8 }}>
+            {mode === 'view' && tetUid && (
+              <button type="button"
+                      className="cap-btn cap-btn--secondary"
+                      data-test="tr-profile-edit"
+                      style={{ padding: '4px 12px', fontSize: 12 }}
+                      onClick={() => setMode('edit')}>
+                Edit
+              </button>
+            )}
+            <button type="button" className="cap-info__close"
+                    aria-label="Close profile" onClick={onClose}>×</button>
+          </div>
         </div>
         <div className="cap-info__body">
-          {displayName && (
+          {displayName && mode === 'view' && (
             <p style={{ margin: '0 0 12px 0', fontSize: 15,
               fontWeight: 500, color: 'var(--der-text)' }}>
               {displayName}
             </p>
           )}
-          {attributes.length === 0 ? (
-            <p className="cap-sub">
-              No attributes captured for this tracked entity yet.
-            </p>
+          {mode === 'view' ? (
+            attributes.length === 0 ? (
+              <p className="cap-sub">
+                No attributes captured for this tracked entity yet.
+              </p>
+            ) : (
+              <dl className="cap-profile-grid">
+                {attributes.map((a) => (
+                  <div key={a.label}>
+                    <dt>{a.label}</dt>
+                    <dd>{a.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )
           ) : (
-            <dl className="cap-profile-grid">
-              {attributes.map((a) => (
-                <div key={a.label}>
-                  <dt>{a.label}</dt>
-                  <dd>{a.value}</dd>
+            <>
+              {err && (
+                <div className="cap-strip cap-strip--err"
+                     data-test="tr-profile-err">
+                  {err}
                 </div>
-              ))}
-            </dl>
+              )}
+              {sections.length === 0 ? (
+                <p className="cap-sub">Loading attributes…</p>
+              ) : (
+                <FormEngine api={api} sections={sections}
+                             values={values}
+                             onChange={(k, v) => setValues(
+                               (prev) => ({ ...prev, [k]: v }))} />
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end',
+                gap: 10, marginTop: 14, paddingTop: 14,
+                borderTop: '1px solid var(--der-border-soft)' }}>
+                <button type="button"
+                        className="cap-btn cap-btn--secondary"
+                        data-test="tr-profile-cancel"
+                        onClick={() => { setMode('view'); setErr(null); }}
+                        disabled={saving}>
+                  Cancel
+                </button>
+                <button type="button"
+                        className="cap-btn cap-btn--primary"
+                        data-test="tr-profile-save"
+                        onClick={() => { void save(); }}
+                        disabled={saving || sections.length === 0}>
+                  {saving ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            </>
           )}
           <p style={{ margin: '14px 0 0 0', fontSize: 11,
             color: 'var(--der-text-muted)' }}>

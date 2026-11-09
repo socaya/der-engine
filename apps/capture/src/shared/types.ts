@@ -77,6 +77,12 @@ export interface CaptureApi {
     trackedEntityType: string;
     attributes: Array<{ attribute: string; value: string }>;
   }) => Promise<unknown>;
+  updateTeiAttributes: (body: {
+    teiUid: string;
+    trackedEntityType: string;
+    orgUnit: string;
+    attributes: Record<string, string>;
+  }) => Promise<unknown>;
   createEnrollment: (body: {
     enrollmentUid: string;
     teiUid: string;

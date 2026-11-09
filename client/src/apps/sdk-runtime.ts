@@ -43,6 +43,7 @@ function useDerApi(): {
   // C-UI-5c slice-5 — tracker + workflow-capture surface.
   listTrackerEntities: typeof edgeApi.listTrackerEntities;
   enrolTei: typeof edgeApi.enrolTei;
+  updateTeiAttributes: typeof edgeApi.updateTeiAttributes;
   createEnrollment: typeof edgeApi.createEnrollment;
   listCaptureWorkflows: typeof edgeApi.listCaptureWorkflows;
   listCaptureRuns: typeof edgeApi.listCaptureRuns;
@@ -100,6 +101,7 @@ function useDerApi(): {
     markCompletion: edgeApi.markCompletion,
     listTrackerEntities: edgeApi.listTrackerEntities,
     enrolTei: edgeApi.enrolTei,
+    updateTeiAttributes: edgeApi.updateTeiAttributes,
     createEnrollment: edgeApi.createEnrollment,
     listCaptureWorkflows: edgeApi.listCaptureWorkflows,
     listCaptureRuns: edgeApi.listCaptureRuns,
