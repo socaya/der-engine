@@ -61,6 +61,19 @@ export function DomainCompositeActions(
     useState<Record<string, string>>({});
   const [headLoad, setHeadLoad] =
     useState<'idle' | 'loading' | 'err'>('idle');
+  /** Item-stage form, loaded once per compose session when the
+   *  kind binds an itemProgramStageUid. Shared across every
+   *  item row — each row renders its own FormEngine instance
+   *  over these sections with its own values map. */
+  const [itemSections, setItemSections] =
+    useState<readonly CaptureFormSection[]>([]);
+  const [itemLoad, setItemLoad] =
+    useState<'idle' | 'loading' | 'err' | 'unbound'>('unbound');
+  /** Draft item rows — one values map per row. Add/remove
+   *  controls splice this array; order determines the server's
+   *  line_no on submit. */
+  const [itemRows, setItemRows] =
+    useState<Array<Record<string, string>>>([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -86,23 +99,44 @@ export function DomainCompositeActions(
   }, [eventId]);
   useEffect(() => { reload().catch(() => undefined); }, [reload]);
 
-  // Load head-form sections when the operator opens a kind.
+  // Load head-form + item-form sections when the operator opens
+  // a kind. Both fire in parallel; the item form is skipped
+  // (status 'unbound') when the kind has no item stage configured.
   useEffect(() => {
     if (!composing || !composing.headProgramStageUid) {
-      setHeadSections([]); return;
+      setHeadSections([]); setItemSections([]);
+      setItemLoad('unbound'); return;
     }
     let cancelled = false;
     setHeadLoad('loading');
+    setItemLoad(composing.itemProgramStageUid
+      ? 'loading' : 'unbound');
+    setItemRows([]);
     (async () => {
       try {
-        const assembly = await api.getCaptureStageForm(programUid,
-          composing.headProgramStageUid!);
+        const assemblies = await Promise.all([
+          api.getCaptureStageForm(programUid,
+            composing.headProgramStageUid!),
+          composing.itemProgramStageUid
+            ? api.getCaptureStageForm(programUid,
+                composing.itemProgramStageUid)
+            : Promise.resolve(null),
+        ]);
         if (cancelled) return;
-        setHeadSections(assembly.sections);
+        setHeadSections(assemblies[0].sections);
         setHeadValues({});
         setHeadLoad('idle');
+        if (assemblies[1]) {
+          setItemSections(assemblies[1].sections);
+          setItemLoad('idle');
+        }
       } catch {
-        if (!cancelled) setHeadLoad('err');
+        if (!cancelled) {
+          setHeadLoad('err');
+          if (composing.itemProgramStageUid) {
+            setItemLoad('err');
+          }
+        }
       }
     })();
     return () => { cancelled = true; };
@@ -117,11 +151,27 @@ export function DomainCompositeActions(
   function openCompose(kind: Kind): void {
     if (!kind.configurationComplete) return;
     setComposing(kind);
-    setMsg(null); setErr(null); setHeadValues({});
+    setMsg(null); setErr(null);
+    setHeadValues({}); setItemRows([]);
   }
   function cancelCompose(): void {
     setComposing(null);
     setHeadSections([]); setHeadValues({});
+    setItemSections([]); setItemRows([]);
+    setItemLoad('unbound');
+  }
+  function addItemRow(): void {
+    setItemRows((prev) => [...prev, {}]);
+  }
+  function removeItemRow(i: number): void {
+    setItemRows((prev) => prev.filter((_, idx) => idx !== i));
+  }
+  function updateItemValue(i: number, key: string, val: string): void {
+    setItemRows((prev) => {
+      const next = prev.slice();
+      next[i] = { ...(next[i] ?? {}), [key]: val };
+      return next;
+    });
   }
 
   async function save(): Promise<void> {
@@ -141,6 +191,15 @@ export function DomainCompositeActions(
       for (const [k, v] of Object.entries(headValues)) {
         if (v && v.trim() !== '') headPayload[k] = v;
       }
+      const items = itemRows.map((row) => {
+        const itemPayload: Record<string, string> = {};
+        for (const [k, v] of Object.entries(row)) {
+          if (v && v.trim() !== '') itemPayload[k] = v;
+        }
+        return { itemUid: genUid(), itemPayload };
+      // Drop rows where the operator added a blank line and
+      // didn't fill anything — they were a slip, not an order.
+      }).filter((it) => Object.keys(it.itemPayload).length > 0);
       const body = {
         compositeUid: genUid(),
         kindCode: composing.kindCode,
@@ -149,7 +208,7 @@ export function DomainCompositeActions(
         anchorTeiUid: resolvedTeiId,
         orgUnitUid,
         headPayload,
-        items: [],  // Item UI lands in a follow-up slice.
+        items,
       };
       const r = await fetch('/edge-api/v1/domain/composites', {
         method: 'POST', credentials: 'include',
@@ -161,7 +220,9 @@ export function DomainCompositeActions(
         const text = await r.text();
         throw new Error(text || `HTTP ${r.status}`);
       }
-      setMsg(`${composing.displayName} saved`);
+      setMsg(`${composing.displayName} saved · `
+        + `${items.length} line`
+        + (items.length === 1 ? '' : 's'));
       setComposing(null);
       await reload();
     } catch (e) {
@@ -271,13 +332,93 @@ export function DomainCompositeActions(
               Nothing to collect at the head level.
             </p>
           )}
-          <p className="cap-sub"
-             style={{ fontSize: 12, marginTop: 14,
-               fontStyle: 'italic' }}>
-            Line-item capture for this composite is coming in a
-            follow-up slice — the data model supports it, but the
-            repeatable item form isn't wired yet.
-          </p>
+          {itemLoad === 'unbound' && (
+            <p className="cap-sub"
+               style={{ fontSize: 12, marginTop: 14,
+                 fontStyle: 'italic' }}>
+              This composite kind has no item stage bound — line
+              items aren't captured for it. An admin can wire an
+              itemProgramStageUid on the kind to enable them.
+            </p>
+          )}
+          {itemLoad === 'loading' && (
+            <p className="cap-sub"
+               style={{ marginTop: 14 }}>Loading item form…</p>
+          )}
+          {itemLoad === 'err' && (
+            <div className="cap-strip cap-strip--err"
+                 style={{ marginTop: 14 }}>
+              Could not load the item stage form — line items
+              can't be captured on this attempt. Head still
+              saveable.
+            </div>
+          )}
+          {itemLoad === 'idle' && (
+            <div className="cap-composite-items"
+                 data-test="tr-composite-items"
+                 style={{ marginTop: 18 }}>
+              <div style={{ display: 'flex',
+                alignItems: 'baseline', marginBottom: 8 }}>
+                <strong style={{ fontSize: 13 }}>
+                  Line items
+                </strong>
+                <span className="cap-sub"
+                      style={{ marginLeft: 10, fontSize: 12 }}>
+                  {itemRows.length === 0 ? 'none added'
+                    : `${itemRows.length} line`
+                      + (itemRows.length === 1 ? '' : 's')}
+                </span>
+              </div>
+              {itemRows.length === 0 ? (
+                <p className="cap-sub"
+                   style={{ fontSize: 12, marginBottom: 10 }}>
+                  Add one or more line items to this composite
+                  — each uses the same DHIS2 stage fields
+                  configured by the admin.
+                </p>
+              ) : (
+                itemRows.map((row, i) => (
+                  <div key={i}
+                       data-test={'tr-composite-item-row-' + i}
+                       style={{ border:
+                         '1px solid var(--der-border-soft)',
+                         borderRadius: 4,
+                         padding: '10px 12px',
+                         marginBottom: 10,
+                         background: '#fff' }}>
+                    <div style={{ display: 'flex',
+                      alignItems: 'center',
+                      marginBottom: 8 }}>
+                      <strong style={{ fontSize: 13 }}>
+                        Line {i + 1}
+                      </strong>
+                      <span style={{ flex: 1 }} />
+                      <button type="button"
+                              className="cap-btn cap-btn--secondary"
+                              data-test={'tr-composite-item-remove-' + i}
+                              style={{ padding: '3px 10px',
+                                fontSize: 12 }}
+                              onClick={() => removeItemRow(i)}>
+                        Remove
+                      </button>
+                    </div>
+                    <FormEngine api={api}
+                                 sections={itemSections}
+                                 values={row}
+                                 onChange={(k, v) =>
+                                   updateItemValue(i, k, v)} />
+                  </div>
+                ))
+              )}
+              <button type="button"
+                      className="cap-btn cap-btn--secondary"
+                      data-test="tr-composite-item-add"
+                      style={{ padding: '5px 14px', fontSize: 13 }}
+                      onClick={addItemRow}>
+                + Add line
+              </button>
+            </div>
+          )}
           <div style={{ display: 'flex',
             justifyContent: 'flex-end', gap: 10,
             marginTop: 14, paddingTop: 14,
