@@ -43,6 +43,17 @@ export function TrackerDetailPage(
   const [selectedEnrolment, setSelectedEnrolment] = useState<string | null>(null);
   const [stages, setStages] = useState<StageOpt[]>([]);
   const [selectedStage, setSelectedStage] = useState<string | null>(null);
+  /** Unified rail selection — the sidebar is a navigation surface
+   *  for stages + Notes + Relationships, so we track which "kind"
+   *  of content the pane is showing. Stage selection is kept in
+   *  selectedStage for back-compat with the existing pane logic. */
+  const [railKind, setRailKind] =
+    useState<'stage' | 'notes' | 'relationships'>('stage');
+  /** Counts shown on the Notes + Relationships rail items so the
+   *  operator sees them at a glance (mirrors the per-stage event
+   *  count chip). Fetched when selectedEnrolment flips. */
+  const [notesCount, setNotesCount] = useState<number>(0);
+  const [relationshipsCount, setRelationshipsCount] = useState<number>(0);
   const [stageRepeatable, setStageRepeatable] =
     useState<Map<string, boolean>>(new Map());
   const [events, setEvents] = useState<TrackerEvent[]>([]);
@@ -206,6 +217,29 @@ export function TrackerDetailPage(
     setStageFormMode(null);
   }, [selectedStage]);
 
+  // Rail chip counts for Notes + Relationships. Refetched when
+  // enrolment flips OR when the operator just added one (bump via
+  // railCountsTick). Null enrolment = zero out.
+  const [railCountsTick, setRailCountsTick] = useState(0);
+  useEffect(() => {
+    if (!selectedEnrolment) {
+      setNotesCount(0);
+      setRelationshipsCount(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const [ns, rs] = await Promise.all([
+        api.listEnrolmentNotes(selectedEnrolment).catch(() => []),
+        api.listTrackerRelationships(teiId).catch(() => []),
+      ]);
+      if (cancelled) return;
+      setNotesCount(ns.length);
+      setRelationshipsCount(rs.length);
+    })();
+    return () => { cancelled = true; };
+  }, [selectedEnrolment, teiId, railCountsTick, api]);
+
   const eventsByStage = useMemo(() => {
     const m = new Map<string, TrackerEvent[]>();
     for (const e of events) {
@@ -289,34 +323,8 @@ export function TrackerDetailPage(
               View profile
             </button>
           )}
-          {selectedEnrolment && (
-            <button type="button"
-                    className="cap-btn cap-btn--secondary"
-                    data-test="tr-notes-jump"
-                    style={{ padding: '4px 12px', fontSize: 12 }}
-                    title="Jump to the Notes section below"
-                    onClick={() => {
-                      const el = document.querySelector(
-                        '[data-test="tr-notes-head"]');
-                      if (el) el.scrollIntoView({ behavior: 'smooth',
-                        block: 'start' });
-                    }}>
-              Notes
-            </button>
-          )}
-          <button type="button"
-                  className="cap-btn cap-btn--secondary"
-                  data-test="tr-relationships-jump"
-                  style={{ padding: '4px 12px', fontSize: 12 }}
-                  title="Jump to the Relationships section below"
-                  onClick={() => {
-                    const el = document.querySelector(
-                      '[data-test="tr-rel-head"]');
-                    if (el) el.scrollIntoView({ behavior: 'smooth',
-                      block: 'start' });
-                  }}>
-            Relationships
-          </button>
+          {/* Notes + Relationships live in the stages rail now
+           *  (see below), so the toolbar jump-links are gone. */}
           {enrolments.length >= 1 && (
             <button type="button"
                     className="cap-btn cap-btn--secondary"
@@ -401,13 +409,17 @@ export function TrackerDetailPage(
               </p>
             ) : stages.map((s) => {
               const count = eventsByStage.get(s.id)?.length ?? 0;
-              const active = selectedStage === s.id;
+              const active = railKind === 'stage'
+                && selectedStage === s.id;
               return (
                 <button key={s.id} type="button"
                         className={'cap-stage-rail__item'
                           + (active ? ' cap-stage-rail__item--active' : '')}
                         data-test={'tr-stage-' + s.id}
-                        onClick={() => setSelectedStage(s.id)}>
+                        onClick={() => {
+                          setSelectedStage(s.id);
+                          setRailKind('stage');
+                        }}>
                   <span className="cap-stage-rail__name">
                     {s.displayName}
                   </span>
@@ -419,10 +431,55 @@ export function TrackerDetailPage(
                 </button>
               );
             })}
+            {/* Divider + extra rail items for enrolment-scoped
+             *  content (Notes, Relationships). Same visual pattern
+             *  as stage items so the operator has one consistent
+             *  navigation model. */}
+            <div className="cap-stage-rail__divider" aria-hidden="true" />
+            <button type="button"
+                    className={'cap-stage-rail__item'
+                      + (railKind === 'notes'
+                        ? ' cap-stage-rail__item--active' : '')}
+                    data-test="tr-rail-notes"
+                    onClick={() => setRailKind('notes')}>
+              <span className="cap-stage-rail__name">Notes</span>
+              <span className="cap-stage-rail__count"
+                    title={notesCount === 0 ? 'No notes yet'
+                      : `${notesCount} note`
+                        + (notesCount === 1 ? '' : 's')}>
+                {notesCount}
+              </span>
+            </button>
+            <button type="button"
+                    className={'cap-stage-rail__item'
+                      + (railKind === 'relationships'
+                        ? ' cap-stage-rail__item--active' : '')}
+                    data-test="tr-rail-relationships"
+                    onClick={() => setRailKind('relationships')}>
+              <span className="cap-stage-rail__name">
+                Relationships
+              </span>
+              <span className="cap-stage-rail__count"
+                    title={relationshipsCount === 0
+                      ? 'No relationships yet'
+                      : `${relationshipsCount} link`
+                        + (relationshipsCount === 1 ? '' : 's')}>
+                {relationshipsCount}
+              </span>
+            </button>
           </nav>
 
           <div className="cap-stage-pane" data-test="tr-stage-pane">
-            {selectedStage === null ? (
+            {railKind === 'notes' ? (
+              <EnrolmentNotesPane api={api}
+                enrollmentUid={selectedEnrolment}
+                onCountChanged={() => setRailCountsTick((t) => t + 1)} />
+            ) : railKind === 'relationships' ? (
+              <TrackerRelationshipsSection api={api} tei={teiId}
+                                             programUid={programUid}
+                                             orgUnitUid={orgUnitUid}
+                                             tetUid={tetUid} />
+            ) : selectedStage === null ? (
               <div className="cap-placeholder"
                    data-test="tr-stage-pane-unselected"
                    style={{ margin: 0 }}>
@@ -576,14 +633,10 @@ export function TrackerDetailPage(
         </div>
       )}
 
-      {selectedEnrolment && (
-        <EnrolmentNotesSection api={api}
-                                enrollmentUid={selectedEnrolment} />
-      )}
-      <TrackerRelationshipsSection api={api} tei={teiId}
-                                     programUid={programUid}
-                                     orgUnitUid={orgUnitUid}
-                                     tetUid={tetUid} />
+      {/* Notes + Relationships moved into the stages rail above;
+       *  the pane body now renders them inline when their rail
+       *  item is selected. No standalone sections at the bottom
+       *  of the page any more. */}
       {profileOpen && (
         <ProfilePopover
           api={api}
@@ -801,12 +854,17 @@ function ProfilePopover(
   );
 }
 
-/** Dashboard slice D — enrolment notes section. Append-only
- *  list below the stage pane with an inline textarea for a new
- *  note. Mirrors DHIS2's Note model (immutable once posted). */
-function EnrolmentNotesSection(
-  { api, enrollmentUid }: {
-    api: CaptureApi; enrollmentUid: string;
+/** Enrolment notes pane — renders inline inside the stage pane
+ *  when the rail "Notes" item is selected. Lighter chrome than
+ *  the pre-refactor standalone section: no section-head because
+ *  the rail already labels it; the pane header just has a title
+ *  + count + the + Add note action, matching the stage events
+ *  pane pattern. */
+function EnrolmentNotesPane(
+  { api, enrollmentUid, onCountChanged }: {
+    api: CaptureApi;
+    enrollmentUid: string | null;
+    onCountChanged: () => void;
   },
 ): JSX.Element {
   const [notes, setNotes] = useState<ReadonlyArray<{
@@ -814,9 +872,11 @@ function EnrolmentNotesSection(
   }>>([]);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
+  const [composing, setComposing] = useState(false);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
+    if (!enrollmentUid) { setNotes([]); return; }
     let cancelled = false;
     (async () => {
       try {
@@ -825,17 +885,28 @@ function EnrolmentNotesSection(
       } catch { if (!cancelled) setNotes([]); }
     })();
     return () => { cancelled = true; };
-  }, [enrollmentUid, tick]);
+  }, [enrollmentUid, tick, api]);
+
+  if (!enrollmentUid) {
+    return (
+      <div className="cap-placeholder" data-test="tr-notes-no-enrol"
+           style={{ margin: 0 }}>
+        Select an enrolment to view notes.
+      </div>
+    );
+  }
 
   async function submit(): Promise<void> {
     const text = draft.trim();
-    if (text === '' || saving) return;
+    if (text === '' || saving || !enrollmentUid) return;
     setSaving(true);
     try {
       const created = await api.addEnrolmentNote(enrollmentUid, text);
       if (created) {
         setDraft('');
+        setComposing(false);
         setTick((t) => t + 1);
+        onCountChanged();
       }
     } finally {
       setSaving(false);
@@ -843,59 +914,82 @@ function EnrolmentNotesSection(
   }
 
   return (
-    <>
-      <div className="cap-section-head" data-test="tr-notes-head">
-        <h2 className="cap-section-head__title">Notes</h2>
-        <span className="cap-section-head__count">
-          {notes.length === 0 ? 'none yet'
-            : `${notes.length} note${notes.length === 1 ? '' : 's'}`}
-        </span>
-        <span className="cap-section-head__rule" />
-      </div>
-      <div style={{ margin: '0 20px 14px 20px',
-        display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-          <textarea
-            className="cap-input__ctl"
-            data-test="tr-notes-draft"
-            rows={2}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Write a note about this enrolment…"
-            style={{ flex: 1, fontFamily: 'inherit', resize: 'vertical' }} />
+    <div data-test="tr-notes-pane">
+      <div style={{ display: 'flex', alignItems: 'center',
+        gap: 14, marginBottom: 12, flexWrap: 'wrap' }}>
+        <strong style={{ fontSize: 14, color: 'var(--der-text)' }}>
+          {notes.length} note{notes.length === 1 ? '' : 's'}
+        </strong>
+        <span style={{ flex: 1 }} />
+        {!composing && (
           <button type="button"
                   className="cap-btn cap-btn--primary"
-                  data-test="tr-notes-add"
-                  disabled={draft.trim() === '' || saving}
-                  onClick={() => { void submit(); }}
-                  style={{ padding: '7px 16px', fontSize: 13,
-                    alignSelf: 'flex-end' }}>
-            {saving ? 'Saving…' : 'Add note'}
+                  data-test="tr-notes-compose"
+                  style={{ padding: '4px 12px', fontSize: 12 }}
+                  onClick={() => setComposing(true)}>
+            + Add note
           </button>
-        </div>
-        {notes.length === 0 ? (
-          <div className="cap-placeholder" data-test="tr-notes-empty"
-               style={{ margin: 0 }}>
-            No notes on this enrolment yet.
-          </div>
-        ) : (
-          <ul className="cap-list" style={{ margin: 0 }}
-              data-test="tr-notes-list">
-            {notes.map((n) => (
-              <li key={n.noteUid} className="cap-list__row"
-                  style={{ gridTemplateColumns: '1fr auto',
-                    cursor: 'default' }}>
-                <div style={{ whiteSpace: 'pre-wrap',
-                  lineHeight: 1.4 }}>{n.noteText}</div>
-                <span className="cap-list__when">
-                  {formatTimestamp(n.createdAt)}
-                </span>
-              </li>
-            ))}
-          </ul>
         )}
       </div>
-    </>
+      {composing && (
+        <div style={{ display: 'flex', flexDirection: 'column',
+          gap: 10, marginBottom: 14 }}>
+          <textarea className="cap-input__ctl"
+                     data-test="tr-notes-draft"
+                     rows={3}
+                     value={draft}
+                     onChange={(e) => setDraft(e.target.value)}
+                     placeholder="Write a note about this enrolment…"
+                     autoFocus
+                     style={{ fontFamily: 'inherit',
+                       resize: 'vertical' }} />
+          <div style={{ display: 'flex',
+            justifyContent: 'flex-end', gap: 10 }}>
+            <button type="button"
+                    className="cap-btn cap-btn--secondary"
+                    data-test="tr-notes-cancel"
+                    style={{ padding: '4px 12px', fontSize: 12 }}
+                    disabled={saving}
+                    onClick={() => {
+                      setDraft(''); setComposing(false);
+                    }}>
+              Cancel
+            </button>
+            <button type="button"
+                    className="cap-btn cap-btn--primary"
+                    data-test="tr-notes-add"
+                    style={{ padding: '4px 12px', fontSize: 12 }}
+                    disabled={draft.trim() === '' || saving}
+                    onClick={() => { void submit(); }}>
+              {saving ? 'Saving…' : 'Save note'}
+            </button>
+          </div>
+        </div>
+      )}
+      {notes.length === 0 ? (
+        <div className="cap-placeholder" data-test="tr-notes-empty"
+             style={{ margin: 0 }}>
+          No notes on this enrolment yet. Use
+          <strong style={{ padding: '0 4px' }}>+ Add note</strong>
+          above to add the first one.
+        </div>
+      ) : (
+        <ul className="cap-list" style={{ margin: 0 }}
+            data-test="tr-notes-list">
+          {notes.map((n) => (
+            <li key={n.noteUid} className="cap-list__row"
+                style={{ gridTemplateColumns: '1fr auto',
+                  cursor: 'default' }}>
+              <div style={{ whiteSpace: 'pre-wrap',
+                lineHeight: 1.4 }}>{n.noteText}</div>
+              <span className="cap-list__when">
+                {formatTimestamp(n.createdAt)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

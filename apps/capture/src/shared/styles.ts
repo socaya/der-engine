@@ -1696,6 +1696,10 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   border: 0;
   align-self: start;
 }
+.cap-stage-rail__divider {
+  height: 1px; background: var(--der-border-soft);
+  margin: 10px 10px;
+}
 .cap-stage-rail__title {
   font-size: 11px; font-weight: 500;
   color: var(--der-text-muted);
