@@ -85,7 +85,7 @@ public class TrackedEntityController {
                     "message", "trackedEntityType + orgUnit required"));
         }
         final String teiUid = body.teiUid() == null || body.teiUid().isBlank()
-                ? java.util.UUID.randomUUID().toString()
+                ? generateDhis2Uid()
                 : body.teiUid().trim();
         final Instant now = Instant.now(clock);
         final java.util.UUID runId = systemWorkflows.ensureTrackerCaptureRun(
@@ -192,4 +192,24 @@ public class TrackedEntityController {
             @JsonProperty("trackedEntityType") String trackedEntityType,
             @JsonProperty("orgUnit") String orgUnit,
             @JsonProperty("attributes") Map<String, String> attributes) { }
+
+    /** DHIS2 UID — 11 chars matching [A-Za-z][A-Za-z0-9]{10}. The
+     *  previous default (java.util.UUID.toString) produced 36-char
+     *  UUIDs which DHIS2 central rejects with HTTP 400 on every
+     *  /api/tracker write. Clients may still pre-mint their own UID
+     *  for optimistic UI; this only kicks in when the body omits it. */
+    private static final java.security.SecureRandom RNG =
+            new java.security.SecureRandom();
+    private static final String UID_ALPHA =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final String UID_ALNUM = UID_ALPHA + "0123456789";
+
+    private static String generateDhis2Uid() {
+        final StringBuilder sb = new StringBuilder(11);
+        sb.append(UID_ALPHA.charAt(RNG.nextInt(UID_ALPHA.length())));
+        for (int i = 0; i < 10; i++) {
+            sb.append(UID_ALNUM.charAt(RNG.nextInt(UID_ALNUM.length())));
+        }
+        return sb.toString();
+    }
 }
