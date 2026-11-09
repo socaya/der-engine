@@ -2036,6 +2036,46 @@ export function relationshipTypeClearAliases(uid: string):
       + encodeURIComponent(uid) + '/aliases');
 }
 
+/** Composite kind catalogue row — matches the server JSON shape
+ *  from /edge-api/v1/domain/composite-kinds. configurationComplete
+ *  is server-derived (true when headProgramStageUid is set) so
+ *  the admin table can flag kinds needing wiring at a glance. */
+export interface CompositeKindRow {
+  readonly kindCode: string;
+  readonly displayName: string;
+  readonly description?: string;
+  readonly headProgramStageUid: string | null;
+  readonly itemProgramStageUid: string | null;
+  readonly syncPolicy: 'EDGE_ONLY' | 'EXPORTABLE';
+  readonly configurationComplete: boolean;
+}
+
+export function listCompositeKinds():
+    Promise<ReadonlyArray<CompositeKindRow>> {
+  return request<{ kinds: CompositeKindRow[] }>('GET',
+    '/edge-api/v1/domain/composite-kinds')
+    .then((r) => r.kinds);
+}
+
+export function upsertCompositeKind(code: string, body: {
+  displayName: string;
+  description?: string | null;
+  headProgramStageUid?: string | null;
+  itemProgramStageUid?: string | null;
+  syncPolicy?: 'EDGE_ONLY' | 'EXPORTABLE';
+}): Promise<CompositeKindRow> {
+  return request<CompositeKindRow>('PUT',
+    '/edge-api/v1/domain/composite-kinds/'
+      + encodeURIComponent(code), body);
+}
+
+export function deleteCompositeKind(code: string):
+    Promise<{ deleted: boolean; kindCode: string }> {
+  return request<{ deleted: boolean; kindCode: string }>('DELETE',
+    '/edge-api/v1/domain/composite-kinds/'
+      + encodeURIComponent(code));
+}
+
 export function systemInfo(): Promise<SystemInfo> {
   return request<SystemInfo>('GET', '/edge-api/v1/system/info');
 }

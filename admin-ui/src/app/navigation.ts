@@ -88,6 +88,9 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'rel-type-aliases', label: 'Relationship aliases',
         to: '/dhis2/relationship-types',
         status: 'implemented', tabIcon: 'metadata' },
+      { id: 'composite-kinds', label: 'Composite kinds',
+        to: '/dhis2/composite-kinds',
+        status: 'implemented', tabIcon: 'metadata' },
     ],
   },
   {

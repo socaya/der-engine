@@ -46,6 +46,8 @@ import { RelationshipDiagnostics }
   from './screens/RelationshipDiagnostics';
 import { RelationshipTypeAliases }
   from './screens/RelationshipTypeAliases';
+import { CompositeKindCatalogue }
+  from './screens/CompositeKindCatalogue';
 import { AppCatalogue } from './screens/AppCatalogue';
 import { DataAggregate } from './screens/DataAggregate';
 import { DataAggregateDetail } from './screens/DataAggregateDetail';
@@ -260,6 +262,8 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><RelationshipDiagnostics /></RequireAuth>} />
           <Route path="/dhis2/relationship-types"
                  element={<RequireAuth><RelationshipTypeAliases /></RequireAuth>} />
+          <Route path="/dhis2/composite-kinds"
+                 element={<RequireAuth><CompositeKindCatalogue /></RequireAuth>} />
           <Route path="/support-bundle"
                  element={<RequireAuth><MockupSupportBundle /></RequireAuth>} />
           <Route path="/configuration"
