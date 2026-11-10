@@ -10,6 +10,7 @@ import { exportHtmlAsPdf } from '../../shared/pdfExport';
 import {
   derPdfDocument, derPdfIdentity, derPdfSectionTitle, derPdfPill,
 } from '../../shared/pdfTemplate';
+import { EntityHeader } from '../../shared/EntityHeader';
 
 export interface TrackerEnrolment {
   readonly enrollmentUid: string;
@@ -1128,20 +1129,15 @@ function TrackerProfilePane(
 
   return (
     <div data-test="tr-profile-pane" className="cap-profile-pane">
-      <header className="cap-profile-pane__head">
-        <div className="cap-profile-pane__ident">
-          <h2 className="cap-profile-pane__name">
-            {displayName || 'Tracked entity'}
-          </h2>
-          <div className="cap-profile-pane__chips">
-            {enrolment?.status && (
-              <span className={'cap-chip cap-chip--'
-                + (enrolment.status === 'ACTIVE' ? 'ok'
-                  : enrolment.status === 'COMPLETED' ? 'muted' : 'warn')}
-                    data-test="tr-profile-status">
-                {formatStatusLabel(enrolment.status)}
-              </span>
-            )}
+      <EntityHeader
+        dataTest="tr-profile"
+        displayName={displayName}
+        status={enrolment?.status
+          ? formatStatusLabel(enrolment.status) : undefined}
+        statusTone={enrolment?.status === 'ACTIVE' ? 'ok'
+          : enrolment?.status === 'COMPLETED' ? 'muted' : 'warn'}
+        chips={(
+          <>
             {enrolment?.enrollmentDate && (
               <span className="cap-chip cap-chip--neutral"
                     title="Enrolment start date">
@@ -1157,32 +1153,30 @@ function TrackerProfilePane(
               {relationshipsCount} relationship
               {relationshipsCount === 1 ? '' : 's'}
             </span>
-          </div>
-        </div>
-        <div className="cap-profile-pane__actions">
-          {mode === 'view' && (
-            <>
-              {tetUid && (
-                <button type="button"
-                        className="cap-btn cap-btn--primary"
-                        data-test="tr-profile-edit"
-                        style={{ padding: '6px 14px', fontSize: 13 }}
-                        onClick={() => setMode('edit')}>
-                  Edit profile
-                </button>
-              )}
+          </>
+        )}
+        actions={mode === 'view' ? (
+          <>
+            {tetUid && (
               <button type="button"
-                      className="cap-btn cap-btn--secondary"
-                      data-test="tr-profile-print"
+                      className="cap-btn cap-btn--primary"
+                      data-test="tr-profile-edit"
                       style={{ padding: '6px 14px', fontSize: 13 }}
-                      title="Download a one-page PDF of this profile"
-                      onClick={() => { void exportProfilePdf(); }}>
-                Export PDF
+                      onClick={() => setMode('edit')}>
+                Edit profile
               </button>
-            </>
-          )}
-        </div>
-      </header>
+            )}
+            <button type="button"
+                    className="cap-btn cap-btn--secondary"
+                    data-test="tr-profile-print"
+                    style={{ padding: '6px 14px', fontSize: 13 }}
+                    title="Download a one-page PDF of this profile"
+                    onClick={() => { void exportProfilePdf(); }}>
+              Export PDF
+            </button>
+          </>
+        ) : undefined}
+      />
 
       {mode === 'view' ? (
         viewList.length === 0 ? (
@@ -1892,8 +1886,8 @@ function renderNotesPdfHtml(
         flex: 0 0 26px;
         text-align: center;
         font-size: 10pt; font-weight: 700;
-        color: #0f68b7;
-        background: #e6f1fb;
+        color: #0a4a92;
+        background: #e6f0fa;
         border-radius: 999px;
         padding: 2px 0;
         line-height: 1.2;

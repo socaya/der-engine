@@ -13,6 +13,7 @@ import { usePublishDirty } from '../../shared/DirtyContext';
 import { SectionNav } from '../../shared/SectionNav';
 import { useAutofocusFirstField } from '../../shared/useAutofocusFirstField';
 import { navEvent } from '../../shared/routing';
+import { EventHeader } from '../../shared/EventHeader';
 import { DerDatePicker } from '../../shared/DerDatePicker';
 
 /**
@@ -241,52 +242,53 @@ export function EventFormPage(
 
   return (
     <>
-      <div className="cap-section-head" data-test="ce-stage-head">
-        <button type="button"
-                className="cap-btn cap-btn--secondary"
-                data-test="ev-form-back"
-                title={eventId
-                  ? 'Back to the event detail page (Alt+B)'
-                  : 'Back to the events list (Alt+B)'}
-                onClick={() => {
-                  if (eventId) navEvent.detail(programUid, eventId);
-                  else navEvent.list(programUid);
-                }}
-                style={{ padding: '4px 10px', fontSize: 13 }}>
-          ← Back
-        </button>
-        <h2 className="cap-section-head__title">
-          {eventId ? 'Edit event' : 'New event'}
-        </h2>
-        {eventStatus && (
-          <span className={'cap-status cap-status--'
-              + (eventStatus === 'COMPLETED' ? 'ok' : 'active')}
-                data-test="ce-event-status">
-            {eventStatus === 'COMPLETED' ? 'Completed' : 'Active'}
-          </span>
+      <EventHeader
+        dataTest="ce-stage"
+        title={eventId ? 'Edit event' : 'New event'}
+        status={eventStatus === 'COMPLETED' ? 'Completed'
+          : eventStatus ? 'Active' : undefined}
+        statusTone={eventStatus === 'COMPLETED' ? 'ok' : 'info'}
+        leading={(
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  data-test="ev-form-back"
+                  title={eventId
+                    ? 'Back to the event detail page (Alt+B)'
+                    : 'Back to the events list (Alt+B)'}
+                  onClick={() => {
+                    if (eventId) navEvent.detail(programUid, eventId);
+                    else navEvent.list(programUid);
+                  }}
+                  style={{ padding: '4px 10px', fontSize: 13 }}>
+            ← Back
+          </button>
         )}
-        {stages.length > 1 && (
-          <StageSelect stages={stages} value={stageUid}
-                        onChange={setStageUid} />
+        meta={(
+          <>
+            {stages.length > 1 && (
+              <StageSelect stages={stages} value={stageUid}
+                            onChange={setStageUid} />
+            )}
+            <label className="cap-section-head__inline">
+              <span className="cap-section-head__inline-label">Event date</span>
+              <DerDatePicker className="cap-section-head__inline-ctl"
+                     value={occurredAt}
+                     onChange={setOccurredAt}
+                     data-test="ce-occurred-at" />
+            </label>
+            <span className="cap-section-head__count">
+              {effectiveSections.reduce((acc, s) => acc + s.fields.length, 0)}{' '}
+              field{effectiveSections.reduce((acc, s) => acc + s.fields.length, 0)
+                === 1 ? '' : 's'}
+              {rules.length > 0 && (
+                <> · <span title="Program rules loaded">
+                  {rules.length} rule{rules.length === 1 ? '' : 's'}
+                </span></>
+              )}
+            </span>
+          </>
         )}
-        <label className="cap-section-head__inline">
-          <span className="cap-section-head__inline-label">Event date</span>
-          <DerDatePicker className="cap-section-head__inline-ctl"
-                 value={occurredAt}
-                 onChange={setOccurredAt}
-                 data-test="ce-occurred-at" />
-        </label>
-        <span className="cap-section-head__count">
-          {effectiveSections.reduce((acc, s) => acc + s.fields.length, 0)}{' '}
-          field{effectiveSections.reduce((acc, s) => acc + s.fields.length, 0)
-            === 1 ? '' : 's'}
-          {rules.length > 0 && (
-            <> · <span title="Program rules loaded">
-              {rules.length} rule{rules.length === 1 ? '' : 's'}
-            </span></>
-          )}
-        </span>
-      </div>
+      />
 
       {parseIssues.length > 0 && (
         <div className="cap-strip cap-strip--info"
@@ -308,7 +310,7 @@ export function EventFormPage(
           <ul style={{ margin: '4px 0 0 20px', padding: 0 }}>
             {ruleEffects.warnings.map((w, i) => (
               <li key={i} style={{ fontSize: 13,
-                color: w.severity === 'error' ? '#8a2525' : '#0a5497' }}>
+                color: w.severity === 'error' ? 'var(--der-danger-ink)' : 'var(--der-primary-ink)' }}>
                 {w.severity === 'error' ? '✦ ' : '• '}{w.message}
               </li>
             ))}
@@ -330,7 +332,7 @@ export function EventFormPage(
                 <span data-test="ce-saved">{submitMsg}</span>
               )}
               {submitState === 'err' && submitMsg && (
-                <span data-test="ce-err" style={{ color: '#8a2525' }}>
+                <span data-test="ce-err" style={{ color: 'var(--der-danger-ink)' }}>
                   {submitMsg}
                 </span>
               )}

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as edgeApi from '../api/edgeApi';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { PageHeader } from '../components/PageHeader';
 import { useAlert } from '../components/AlertStack';
 import { CronPicker } from '../components/CronPicker';
 import { UiIcon } from '../components/UiIcon';
@@ -138,7 +138,7 @@ export function SyncPolicyScreen(
 
   return (
     <div data-test="sync-policy-screen">
-      <ScreenHeader title="Sync policy"
+      <PageHeader title="Sync policy"
         subtitle="Decide how DER ships data to — and pulls from — DHIS2 central. Applies to every sync object: outbound writes and scheduled background jobs." />
 
       {global && (

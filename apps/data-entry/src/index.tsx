@@ -1029,15 +1029,15 @@ export default function DataEntryApp(): JSX.Element {
           <span className="der-de-toolbar__brand" aria-hidden="true">
             <svg viewBox="0 0 128 128" width="26" height="26">
               <rect x="18" y="22" width="92" height="84" rx="6"
-                    fill="#e6f1fb" stroke="#147CD7" stroke-width="5" />
+                    fill="var(--der-primary-soft)" stroke="var(--der-primary)" stroke-width="5" />
               <line x1="18" y1="44" x2="110" y2="44"
-                    stroke="#147CD7" stroke-width="5" />
+                    stroke="var(--der-primary)" stroke-width="5" />
               <line x1="30" y1="60" x2="80" y2="60"
-                    stroke="#147CD7" stroke-width="3" />
+                    stroke="var(--der-primary)" stroke-width="3" />
               <line x1="30" y1="76" x2="90" y2="76"
-                    stroke="#147CD7" stroke-width="3" />
+                    stroke="var(--der-primary)" stroke-width="3" />
               <line x1="30" y1="92" x2="70" y2="92"
-                    stroke="#147CD7" stroke-width="3" />
+                    stroke="var(--der-primary)" stroke-width="3" />
             </svg>
           </span>
           <h1 className="der-de-toolbar__title">Data Entry</h1>
@@ -1225,7 +1225,7 @@ export default function DataEntryApp(): JSX.Element {
       )}
 
       {!ou.bound && (
-        <div style={{ padding: 16, color: '#8a2525' }}>
+        <div style={{ padding: 16, color: 'var(--der-danger-ink)' }}>
           Device is not bound to an organisation unit — ask an admin
           to complete provisioning before capturing data.
         </div>
@@ -2601,11 +2601,11 @@ function SaveStatePill(
       for (const i of inputs) {
         if (i.value.trim() !== '') filled++;
         const o = i.style.outline || '';
-        if (o.includes('rgb(185, 134, 10)') || o.includes('#b9860a')) saving++;
-        else if (o.includes('rgb(206, 123, 0)') || o.includes('#ce7b00')) queued++;
-        else if (o.includes('rgb(26, 135, 84)') || o.includes('#1a8754')
-                 || o.includes('rgb(183, 220, 199)') || o.includes('#b7dcc7')) saved++;
-        else if (o.includes('rgb(169, 50, 50)') || o.includes('#a93232')) error++;
+        if (o.includes('rgb(185, 134, 10)') || o.includes('var(--der-warning)')) saving++;
+        else if (o.includes('rgb(206, 123, 0)') || o.includes('var(--der-warning)')) queued++;
+        else if (o.includes('rgb(26, 135, 84)') || o.includes('var(--der-success)')
+                 || o.includes('rgb(183, 220, 199)') || o.includes('var(--der-success)')) saved++;
+        else if (o.includes('rgb(169, 50, 50)') || o.includes('var(--der-danger)')) error++;
       }
       setTally({ total: inputs.length, filled, saving, saved, queued, error });
     };
@@ -2731,7 +2731,7 @@ function CellLiveStrip(
                           fill="none" stroke="currentColor"
                           strokeWidth="1.4" strokeLinejoin="round"/>
                     {details.comment && (
-                      <circle cx="12" cy="4" r="2.5" fill="#1b8243"/>
+                      <circle cx="12" cy="4" r="2.5" fill="var(--der-success-ink)"/>
                     )}
                   </svg>
                 </button>
@@ -2938,9 +2938,9 @@ function FileIcon(
   { kind: 'csv' | 'pdf'; direction: 'down' | 'up' },
 ): JSX.Element {
   const label = kind === 'csv' ? 'CSV' : 'PDF';
-  const bandColor = kind === 'csv' ? '#1A9988' : '#D32F2F';
-  const bandDeep  = kind === 'csv' ? '#0E6D62' : '#8E1F1F';
-  const arrowBg = direction === 'down' ? '#147CD7' : '#F59E0B';
+  const bandColor = kind === 'csv' ? 'var(--der-accent)' : 'var(--der-danger)';
+  const bandDeep  = kind === 'csv' ? 'var(--der-accent-ink)' : 'var(--der-danger-ink)';
+  const arrowBg = direction === 'down' ? 'var(--der-primary)' : 'var(--der-warning)';
   const arrowPath = direction === 'down'
     ? 'M8 4v7 M5 8l3 3 3-3'   // down
     : 'M8 12V5 M5 8l3-3 3 3'; // up
@@ -2949,23 +2949,23 @@ function FileIcon(
          aria-hidden="true" className="der-de-filebtn__icon">
       {/* sheet body */}
       <path d="M4 2h9l4 4v15a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"
-            fill="#ffffff" stroke="#8993a7" strokeWidth="0.9"
+            fill="var(--der-surface)" stroke="var(--der-ink-400)" strokeWidth="0.9"
             strokeLinejoin="round" />
       {/* folded corner */}
-      <path d="M13 2v4h4" fill="#e3e8f0" stroke="#8993a7" strokeWidth="0.7"
+      <path d="M13 2v4h4" fill="var(--der-border)" stroke="var(--der-ink-400)" strokeWidth="0.7"
             strokeLinejoin="round" />
       {/* label band */}
       <rect x="3" y="13" width="14" height="6" fill={bandColor} />
       <rect x="3" y="19" width="14" height="1.2" fill={bandDeep} />
       <text x="10" y="17.5" fontFamily="system-ui, -apple-system, sans-serif"
-            fontSize="4.2" fontWeight="700" fill="#ffffff"
+            fontSize="4.2" fontWeight="700" fill="var(--der-surface)"
             textAnchor="middle" letterSpacing="0.3">{label}</text>
       {/* direction badge, bottom-right */}
       <circle cx="19" cy="19" r="4.6" fill={arrowBg}
-              stroke="#ffffff" strokeWidth="1" />
+              stroke="var(--der-surface)" strokeWidth="1" />
       <path d={arrowPath}
             transform="translate(11 11)"
-            fill="none" stroke="#ffffff" strokeWidth="1.5"
+            fill="none" stroke="var(--der-surface)" strokeWidth="1.5"
             strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -4087,11 +4087,11 @@ function attachDetailsSpy(
     });
     const outline = input.style.outline || '';
     const state: CellDetails['saveState'] =
-      outline.includes('rgb(185, 134, 10)') || outline.includes('#b9860a') ? 'saving'
-      : outline.includes('rgb(206, 123, 0)') || outline.includes('#ce7b00') ? 'queued'
-      : outline.includes('rgb(26, 135, 84)') || outline.includes('#1a8754')
-        || outline.includes('rgb(183, 220, 199)') || outline.includes('#b7dcc7') ? 'saved'
-      : outline.includes('rgb(169, 50, 50)') || outline.includes('#a93232') ? 'error'
+      outline.includes('rgb(185, 134, 10)') || outline.includes('var(--der-warning)') ? 'saving'
+      : outline.includes('rgb(206, 123, 0)') || outline.includes('var(--der-warning)') ? 'queued'
+      : outline.includes('rgb(26, 135, 84)') || outline.includes('var(--der-success)')
+        || outline.includes('rgb(183, 220, 199)') || outline.includes('var(--der-success)') ? 'saved'
+      : outline.includes('rgb(169, 50, 50)') || outline.includes('var(--der-danger)') ? 'error'
       : input.value.trim() === '' ? 'empty' : 'saved';
     return {
       deId, cocId,
@@ -4170,7 +4170,7 @@ function runValidation(
       // Empty cells only count as issues when they are flagged
       // compulsory on the dataset. §FR-09.
       if (input.getAttribute('data-compulsory') === '1') {
-        input.style.outline = '2px solid #c0392b';
+        input.style.outline = '2px solid var(--der-danger)';
         issues.push({
           deId, cocId, valueType, value: '',
           problem: 'compulsory value missing',
@@ -4183,7 +4183,7 @@ function runValidation(
     }
     const problem = validateByType(v, valueType);
     if (problem) {
-      input.style.outline = '2px solid #c0392b';
+      input.style.outline = '2px solid var(--der-danger)';
       issues.push({
         deId, cocId, valueType, value: v, problem,
         deName: de?.name ?? deId,
@@ -4254,33 +4254,55 @@ function validateByType(value: string, valueType: string): string | null {
   return null;
 }
 
+/** UX-E: per-cell save state is driven by a `data-save-state`
+ *  attribute. The inline outline is kept for legacy visual
+ *  reassurance, but the attribute is the source of truth consumed
+ *  by:
+ *
+ *   • `.der-de-form input[data-save-state=…]` CSS rules painting a
+ *     persistent inset ring + inline SVG corner badge so operators
+ *     can read state at a glance in the dense matrix,
+ *   • `aria-label` extensions so screen readers announce "saved on
+ *     edge" / "queued for central sync" / "save failed" without the
+ *     operator hovering for the tooltip,
+ *   • integration tests querying `[data-save-state="queued"]` to
+ *     assert cells landed in the right lifecycle bucket.
+ *
+ *  Saved cells no longer fade — persistent visibility was the P1
+ *  gap flagged by the UX audit. Operators should continue to see
+ *  every saved-locally vs still-queued cell for the life of the
+ *  form session. */
+const STATE_ARIA: Record<'saving' | 'saved' | 'queued' | 'error', string> = {
+  saving: 'Saving to edge',
+  saved:  'Saved on edge',
+  queued: 'Queued for central sync',
+  error:  'Save failed',
+};
+
 function paintState(
   input: HTMLInputElement,
   state: 'saving' | 'saved' | 'queued' | 'error',
 ): void {
-  const colour = state === 'saving' ? '#b9860a'
-    : state === 'saved' ? '#1a8754'
-    : state === 'queued' ? '#ce7b00'
-    : '#a93232';
-  input.style.outline = `2px solid ${colour}`;
-  input.style.transition = 'outline 150ms';
-  // `queued` — amber ring + a tooltip the operator can hover to
-  // learn the value is pending drain. Doesn't fade; the operator
-  // should keep seeing which cells are pending until a drain
-  // succeeds and the next blur paints them green.
+  input.setAttribute('data-save-state', state);
   if (state === 'queued') {
-    input.setAttribute('title', 'Queued — will sync when the edge is reachable again.');
+    input.setAttribute('title',
+      'Queued — will sync when the edge is reachable again.');
+  } else if (state === 'error') {
+    input.setAttribute('title',
+      'Save failed — edit the cell to retry.');
   } else {
     input.removeAttribute('title');
   }
-  if (state === 'saved') {
-    window.setTimeout(() => {
-      // Fade the ring so saved cells don't stay loudly highlighted.
-      if (input.style.outline.includes('#1a8754')) {
-        input.style.outline = '1px solid #b7dcc7';
-      }
-    }, 1200);
+  // Extend the field label so screen-reader users hear the save
+  // lifecycle without needing to hover. The suffix is appended to
+  // any existing aria-label already set by the form renderer.
+  const base = input.getAttribute('data-aria-label-base')
+    ?? input.getAttribute('aria-label') ?? '';
+  if (!input.getAttribute('data-aria-label-base')) {
+    input.setAttribute('data-aria-label-base', base);
   }
+  input.setAttribute('aria-label',
+    base ? `${base} — ${STATE_ARIA[state]}` : STATE_ARIA[state]);
 }
 
 /**
@@ -4670,14 +4692,14 @@ async function buildDatasetPdf(
   const LM = 36; const RM = 36; const TM = 42; const BM = 48;
   const HEADER_H = 96; const FOOTER_H = 22;
 
-  const BRAND = rgb(0.078, 0.486, 0.843);  // #147CD7
-  const BRAND_DEEP = rgb(0.039, 0.332, 0.591); // #0a5497
-  const INK   = rgb(0.063, 0.102, 0.196);  // #101a32
-  const INK_SOFT = rgb(0.165, 0.204, 0.278); // #2a3447
-  const MUTED = rgb(0.357, 0.392, 0.471);  // #5b6478
-  const HAIR  = rgb(0.847, 0.871, 0.910);  // #d8dee8
-  const TINT  = rgb(0.953, 0.973, 0.988);  // #f3f8fc
-  const GREY  = rgb(0.933, 0.941, 0.961);  // #eef0f5
+  const BRAND = rgb(0.078, 0.486, 0.843);  // var(--der-primary)
+  const BRAND_DEEP = rgb(0.039, 0.332, 0.591); // var(--der-primary-700)
+  const INK   = rgb(0.063, 0.102, 0.196);  // var(--der-ink-900)
+  const INK_SOFT = rgb(0.165, 0.204, 0.278); // var(--der-ink-800)
+  const MUTED = rgb(0.357, 0.392, 0.471);  // var(--der-ink-500)
+  const HAIR  = rgb(0.847, 0.871, 0.910);  // var(--der-border)
+  const TINT  = rgb(0.953, 0.973, 0.988);  // var(--der-primary-50)
+  const GREY  = rgb(0.933, 0.941, 0.961);  // var(--der-surface-muted)
   const RED   = rgb(0.780, 0.196, 0.169);
 
   let page = doc.addPage([W, H]);
@@ -5307,28 +5329,28 @@ function escapeAttr(v: string): string {
 
 const inputStyle = {
   display: 'block', width: '100%', marginTop: 4,
-  padding: '6px 8px', border: '1px solid #d7dde5',
+  padding: '6px 8px', border: '1px solid var(--der-border)',
   borderRadius: 0, fontSize: 13, fontFamily: 'inherit',
 };
 const primaryBtn = {
-  padding: '6px 16px', border: '1px solid #0a5497',
-  background: '#147CD7', color: '#fff',
+  padding: '6px 16px', border: '1px solid var(--der-primary-700)',
+  background: 'var(--der-primary)', color: 'var(--der-surface)',
   borderRadius: 0, fontSize: 13, fontWeight: 500, cursor: 'pointer',
 };
 const secondaryBtn = {
-  padding: '6px 16px', border: '1px solid #c0c7cf',
-  background: '#fff', color: '#2c3e4c',
+  padding: '6px 16px', border: '1px solid var(--der-ink-200)',
+  background: 'var(--der-surface)', color: 'var(--der-ink-800)',
   borderRadius: 0, fontSize: 13, fontWeight: 500, cursor: 'pointer',
 };
 const okStrip = {
   marginTop: 12, padding: '8px 12px',
-  background: '#e8f4ee', color: '#136436',
-  border: '1px solid #b7dcc7', borderRadius: 0,
+  background: 'var(--der-success-soft)', color: 'var(--der-success-ink)',
+  border: '1px solid var(--der-success)', borderRadius: 0,
 };
 const errorStrip = {
   marginTop: 12, padding: '8px 12px',
-  background: '#fbeaea', color: '#8a2525',
-  border: '1px solid #e0bcbc', borderRadius: 0,
+  background: 'var(--der-danger-soft)', color: 'var(--der-danger-ink)',
+  border: '1px solid var(--der-danger)', borderRadius: 0,
 };
 /**
  * Render a dropdown-style period picker for the dataset's
@@ -5838,37 +5860,37 @@ const APP_STYLES = `
 }
 .der-apphost .der-de-form-card .sectionTable thead th {
   background: transparent !important;
-  color: var(--der-ink-700, #2a3447);
+  color: var(--der-ink-700, var(--der-ink-800));
   font-size: 14px;
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
   padding: 6px 8px !important;
-  border-bottom: 2px solid var(--der-brand-300, #c0c8ea) !important;
+  border-bottom: 2px solid var(--der-brand-300, var(--der-primary-100)) !important;
   text-align: left;
 }
 .der-apphost .der-de-form-card .sectionTable thead th.dataElementCell {
-  color: var(--der-ink-900, #101a32);
+  color: var(--der-ink-900, var(--der-ink-900));
   font-weight: 500;
 }
 .der-apphost .der-de-form-card .sectionTable tr.indicatorRow td {
-  background: #f0f3fb !important;
+  background: var(--der-surface-muted) !important;
   font-weight: 500;
-  color: var(--der-ink-700, #2a3447);
+  color: var(--der-ink-700, var(--der-ink-800));
 }
 .der-apphost .der-de-form-card .sectionTable th.der-de-row-total-cell,
 .der-apphost .der-de-form-card .sectionTable td.der-de-row-total-cell {
   text-align: right !important;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  color: var(--der-ink-700, #2a3447);
-  background: #f6f8fd !important;
-  border-left: 1px solid var(--der-brand-100, #c7dff6) !important;
+  color: var(--der-ink-700, var(--der-ink-800));
+  background: var(--der-primary-50) !important;
+  border-left: 1px solid var(--der-brand-100, var(--der-primary-100)) !important;
   padding: 3px 10px !important;
   min-width: 48px;
 }
 .der-apphost .der-de-form-card .sectionTable th.der-de-row-total-cell {
-  color: var(--der-ink-900, #101a32);
+  color: var(--der-ink-900, var(--der-ink-900));
   font-weight: 500;
   background: transparent !important;
 }
@@ -5878,7 +5900,7 @@ const APP_STYLES = `
 .der-de-matrix-total {
   margin-left: 6px;
   font-weight: 400;
-  color: var(--der-ink-500, #5b6478);
+  color: var(--der-ink-500, var(--der-ink-500));
   font-size: 0.92em;
 }
 
@@ -5897,41 +5919,41 @@ const APP_STYLES = `
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: var(--der-ink-700, #2a3447);
+  color: var(--der-ink-700, var(--der-ink-800));
 }
 .der-de-live-strip__cell {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  color: var(--der-ink-700, #2a3447);
+  color: var(--der-ink-700, var(--der-ink-800));
   font-size: 12px;
 }
 .der-de-live-strip__de {
-  color: var(--der-ink-900, #101a32);
+  color: var(--der-ink-900, var(--der-ink-900));
   font-weight: 500;
 }
 .der-de-live-strip__coc {
-  color: var(--der-ink-500, #5b6478);
+  color: var(--der-ink-500, var(--der-ink-500));
 }
 .der-de-live-strip__value {
-  color: var(--der-ink-900, #101a32);
+  color: var(--der-ink-900, var(--der-ink-900));
   font-family: ui-monospace, monospace;
 }
 .der-de-live-strip__empty {
-  color: var(--der-ink-300, #9097a8);
+  color: var(--der-ink-300, var(--der-ink-300));
   font-style: normal;
 }
 .der-de-live-strip__sep {
-  color: var(--der-ink-300, #9097a8);
+  color: var(--der-ink-300, var(--der-ink-300));
 }
-.der-de-live-strip__state--muted  { color: #5b6478; }
-.der-de-live-strip__state--saved  { color: #1b8243; }
-.der-de-live-strip__state--saving { color: #9b5a00; }
-.der-de-live-strip__state--queued { color: #9b5a00; }
-.der-de-live-strip__state--error  { color: #c0392b; }
+.der-de-live-strip__state--muted  { color: var(--der-ink-500); }
+.der-de-live-strip__state--saved  { color: var(--der-success-ink); }
+.der-de-live-strip__state--saving { color: var(--der-warning-ink); }
+.der-de-live-strip__state--queued { color: var(--der-warning-ink); }
+.der-de-live-strip__state--error  { color: var(--der-danger); }
 .der-de-live-strip__required {
-  color: #9b5a00;
+  color: var(--der-warning-ink);
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -5946,7 +5968,7 @@ const APP_STYLES = `
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--der-ink-500, #5b6478);
+  color: var(--der-ink-500, var(--der-ink-500));
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
@@ -5955,8 +5977,8 @@ const APP_STYLES = `
 }
 .der-de-live-strip__clear:hover,
 .der-de-live-strip__clear:focus-visible {
-  background: #fbe9e7;
-  color: #a3322c;
+  background: var(--der-danger-soft);
+  color: var(--der-danger-ink);
   outline: 0;
 }
 .der-de-live-strip__comment-btn {
@@ -5969,26 +5991,26 @@ const APP_STYLES = `
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--der-ink-500, #5b6478);
+  color: var(--der-ink-500, var(--der-ink-500));
   cursor: pointer;
   border-radius: 4px;
   transition: background 120ms, color 120ms;
 }
 .der-de-live-strip__comment-btn:hover,
 .der-de-live-strip__comment-btn:focus-visible {
-  background: #e6f1fb;
-  color: var(--der-brand-500, #147CD7);
+  background: var(--der-primary-soft);
+  color: var(--der-brand-500, var(--der-primary));
   outline: 0;
 }
 .der-de-live-strip__comment-btn.has-comment {
-  color: var(--der-brand-500, #147CD7);
+  color: var(--der-brand-500, var(--der-primary));
 }
 /* Cell-comment modal — centered dialog on the shared
  * .der-de-shortcuts-backdrop (z-index 200). Matches the info-modal
  * aesthetic: eyebrow + large title, tinted header gradient, body
  * with textarea + char counter, footer with Delete/Cancel/Save. */
 .der-de-comment-modal {
-  background: #ffffff;
+  background: var(--der-surface);
   width: min(480px, calc(100vw - 32px));
   max-height: calc(100vh - 64px);
   display: flex;
@@ -6003,8 +6025,8 @@ const APP_STYLES = `
   justify-content: space-between;
   gap: 16px;
   padding: 18px 20px 14px;
-  background: linear-gradient(180deg, #f6f9ff 0%, #ffffff 100%);
-  border-bottom: 1px solid #e5e9ef;
+  background: linear-gradient(180deg, var(--der-primary-50) 0%, var(--der-surface) 100%);
+  border-bottom: 1px solid var(--der-border);
 }
 .der-de-comment-modal__title-wrap { flex: 1 1 auto; min-width: 0; }
 .der-de-comment-modal__eyebrow {
@@ -6013,26 +6035,26 @@ const APP_STYLES = `
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--der-brand-500, #147CD7);
+  color: var(--der-brand-500, var(--der-primary));
   margin-bottom: 4px;
 }
 .der-de-comment-modal__title {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: var(--der-ink-900, #101a32);
+  color: var(--der-ink-900, var(--der-ink-900));
   line-height: 1.35;
 }
 .der-de-comment-modal__sub {
   margin: 2px 0 0;
   font-size: 12px;
-  color: var(--der-ink-500, #5b6478);
+  color: var(--der-ink-500, var(--der-ink-500));
 }
 .der-de-comment-modal__close {
   background: transparent;
   border: 0;
   cursor: pointer;
-  color: var(--der-ink-500, #5b6478);
+  color: var(--der-ink-500, var(--der-ink-500));
   font-size: 24px;
   line-height: 1;
   padding: 0 6px;
@@ -6041,8 +6063,8 @@ const APP_STYLES = `
 }
 .der-de-comment-modal__close:hover,
 .der-de-comment-modal__close:focus-visible {
-  background: #e5e9ef;
-  color: var(--der-ink-900, #101a32);
+  background: var(--der-border);
+  color: var(--der-ink-900, var(--der-ink-900));
   outline: 0;
 }
 .der-de-comment-modal__body {
@@ -6056,76 +6078,76 @@ const APP_STYLES = `
   box-sizing: border-box;
   resize: none;
   padding: 10px 12px;
-  border: 1px solid #aaa;
+  border: 1px solid var(--der-border-strong);
   border-radius: 8px;
   font-family: inherit;
   font-size: 14px;
-  color: var(--der-ink-900, #101a32);
-  background: #ffffff;
+  color: var(--der-ink-900, var(--der-ink-900));
+  background: var(--der-surface);
   line-height: 1.45;
 }
 .der-de-comment-modal__textarea:focus {
   outline: 0;
-  border-color: #147CD7;
-  box-shadow: inset 0 0 0 2px #147CD7;
+  border-color: var(--der-primary);
+  box-shadow: inset 0 0 0 2px var(--der-primary);
 }
 .der-de-comment-modal__hint {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: var(--der-ink-500, #5b6478);
+  color: var(--der-ink-500, var(--der-ink-500));
 }
 .der-de-comment-modal__foot {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 20px 16px;
-  border-top: 1px solid #e5e9ef;
-  background: #ffffff;
+  border-top: 1px solid var(--der-border);
+  background: var(--der-surface);
 }
 .der-de-comment-modal__delete {
   padding: 7px 14px;
-  border: 1px solid #e9b7b2;
-  background: #ffffff;
-  color: #a3322c;
+  border: 1px solid var(--der-danger);
+  background: var(--der-surface);
+  color: var(--der-danger-ink);
   border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
   margin-right: auto;
 }
-.der-de-comment-modal__delete:hover { background: #fbe9e7; }
+.der-de-comment-modal__delete:hover { background: var(--der-danger-soft); }
 .der-de-comment-modal__cancel {
   padding: 7px 14px;
-  border: 1px solid var(--der-border, #d8dee8);
-  background: #ffffff;
-  color: var(--der-ink-700, #2a3447);
+  border: 1px solid var(--der-border, var(--der-border));
+  background: var(--der-surface);
+  color: var(--der-ink-700, var(--der-ink-800));
   border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
 }
-.der-de-comment-modal__cancel:hover { background: #f0f2f6; }
+.der-de-comment-modal__cancel:hover { background: var(--der-surface-muted); }
 .der-de-comment-modal__save {
   padding: 7px 16px;
-  border: 1px solid var(--der-brand-600, #0f68b7);
-  background: var(--der-brand-500, #147CD7);
-  color: #ffffff;
+  border: 1px solid var(--der-brand-600, var(--der-primary-ink));
+  background: var(--der-brand-500, var(--der-primary));
+  color: var(--der-surface);
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: background 120ms, opacity 120ms;
 }
-.der-de-comment-modal__save:hover { background: var(--der-brand-600, #0f68b7); }
+.der-de-comment-modal__save:hover { background: var(--der-brand-600, var(--der-primary-ink)); }
 .der-de-comment-modal__save:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 .der-de-live-strip__audit {
-  color: var(--der-ink-500, #5b6478);
+  color: var(--der-ink-500, var(--der-ink-500));
   font-size: 12px;
 }
 .der-de-live-strip__audit strong {
-  color: var(--der-ink-700, #2a3447);
+  color: var(--der-ink-700, var(--der-ink-800));
   font-weight: 500;
 }
 .der-de-sync-logos {
@@ -6146,8 +6168,8 @@ const APP_STYLES = `
 .der-de-sync-logos__pin svg { flex-shrink: 0; }
 /* Each brand mark keeps its native dark hue — status is communicated
  * by the small square dot next to it, not by recolouring the logo. */
-.der-de-sync-logos__pin--der    { color: #0B3558; }
-.der-de-sync-logos__pin--central { color: #0080d4; }
+.der-de-sync-logos__pin--der    { color: var(--der-primary-800); }
+.der-de-sync-logos__pin--central { color: var(--der-primary); }
 /* Square status dot, 8 px. Green = saved/synced, orange = pending,
  * red = error, gray = empty. */
 .der-de-sync-logos__dot {
@@ -6155,18 +6177,18 @@ const APP_STYLES = `
   width: 8px;
   height: 8px;
   border-radius: 1px;
-  background: #c6ccd7;
+  background: var(--der-ink-200);
 }
-.der-de-sync-logos__dot.is-muted   { background: #c6ccd7; }
-.der-de-sync-logos__dot.is-lit     { background: #1b8243; }
-.der-de-sync-logos__dot.is-pending { background: #c6680a; }
-.der-de-sync-logos__dot.is-error   { background: #a3322c; }
+.der-de-sync-logos__dot.is-muted   { background: var(--der-ink-200); }
+.der-de-sync-logos__dot.is-lit     { background: var(--der-success-ink); }
+.der-de-sync-logos__dot.is-pending { background: var(--der-warning); }
+.der-de-sync-logos__dot.is-error   { background: var(--der-danger-ink); }
 .der-de-sync-logos__svg {
   display: block;
   flex-shrink: 0;
 }
 .der-de-live-strip__hint {
-  color: var(--der-ink-500, #5b6478);
+  color: var(--der-ink-500, var(--der-ink-500));
   font-style: italic;
 }
 .der-apphost .der-de-form-card .sectionTable .dataElementCell {
@@ -6175,22 +6197,22 @@ const APP_STYLES = `
    * wide matrix sections. A solid white background is required so
    * data cells don't bleed through on scroll; z-index lifts the
    * sticky column above hover tints + the row-total trailing cell. */
-  background: #ffffff !important;
-  color: var(--der-ink-900, #101a32);
+  background: var(--der-surface) !important;
+  color: var(--der-ink-900, var(--der-ink-900));
   font-weight: 400;
   min-width: 220px;
   padding: 4px 8px !important;
   position: sticky;
   left: 0;
   z-index: 2;
-  box-shadow: 1px 0 0 var(--der-brand-100, #c7dff6);
+  box-shadow: 1px 0 0 var(--der-brand-100, var(--der-primary-100));
 }
 .der-apphost .der-de-form-card .sectionTable tbody tr:hover .dataElementCell,
 .der-apphost .der-de-form-card .sectionTable tbody tr:focus-within .dataElementCell {
   /* Hover wash on the sticky column: pre-blend the row tint with
    * white so the sticky column reads as part of the hovered row
    * rather than a hole against the scrolled-under cells. */
-  background: #eef3fa !important;
+  background: var(--der-primary-50) !important;
 }
 .der-apphost .der-de-form-card .sectionTable tbody tr {
   border: 0 !important;
@@ -6202,7 +6224,7 @@ const APP_STYLES = `
 }
 .der-apphost .der-de-form-card .sectionTable tbody td {
   padding: 3px 8px !important;
-  color: var(--der-ink-900, #101a32) !important;
+  color: var(--der-ink-900, var(--der-ink-900)) !important;
   line-height: 1.4;
   font-size: 14px;
 }
@@ -6212,12 +6234,12 @@ const APP_STYLES = `
 .der-apphost .der-de-form-card .sectionTable td.greyed {
   background: repeating-linear-gradient(
     45deg,
-    #eef0f9,
-    #eef0f9 6px,
-    #dde3f1 6px,
-    #dde3f1 7px
+    var(--der-surface-muted),
+    var(--der-surface-muted) 6px,
+    var(--der-border) 6px,
+    var(--der-border) 7px
   ) !important;
-  color: #8893b1 !important;
+  color: var(--der-ink-400) !important;
   text-align: center;
 }
 /* Indicator rows — computed values, not editable. Soft tint
@@ -6227,22 +6249,22 @@ const APP_STYLES = `
  * input). */
 .der-apphost .der-de-custom-form input[readonly],
 .der-apphost .der-de-form-card input[readonly] {
-  background: #f0f3fb !important;
-  color: var(--der-ink-500, #5b6478) !important;
+  background: var(--der-surface-muted) !important;
+  color: var(--der-ink-500, var(--der-ink-500)) !important;
   cursor: default;
 }
 .der-apphost .der-de-form-card .sectionTable input[type="text"] {
   width: 100%;
-  border: 1px solid #aaa !important;
-  background: #fff !important;
+  border: 1px solid var(--der-border-strong) !important;
+  background: var(--der-surface) !important;
   padding: 4px 6px;
   font-size: 14px;
-  color: var(--der-ink-900, #101a32);
+  color: var(--der-ink-900, var(--der-ink-900));
 }
 .der-apphost .der-de-form-card .sectionTable input[type="text"]:focus {
   outline: 0;
-  border-color: #147CD7 !important;
-  box-shadow: inset 0 0 0 2px #147CD7;
+  border-color: var(--der-primary) !important;
+  box-shadow: inset 0 0 0 2px var(--der-primary);
 }
 
 /* Solid-ink pills — no pastel tint, just coloured text on
@@ -6256,15 +6278,15 @@ const APP_STYLES = `
   padding: 0 4px !important;
   border: 0 !important;
 }
-.der-apphost .der-de-toolbar__status--on    { color: #1b8243 !important; }
-.der-apphost .der-de-toolbar__status--off   { color: #9b5a00 !important; }
-.der-apphost .der-de-savepill--saved        { color: #1b8243 !important; }
-.der-apphost .der-de-savepill--saving       { color: #9b5a00 !important; }
-.der-apphost .der-de-savepill--queued       { color: #9b5a00 !important; }
-.der-apphost .der-de-savepill--error        { color: #c0392b !important; }
-.der-apphost .der-de-section-nav__ratio--muted   { color: #5b6478 !important; }
-.der-apphost .der-de-section-nav__ratio--partial { color: #9b5a00 !important; }
-.der-apphost .der-de-section-nav__ratio--done    { color: #1b8243 !important; }
+.der-apphost .der-de-toolbar__status--on    { color: var(--der-success-ink) !important; }
+.der-apphost .der-de-toolbar__status--off   { color: var(--der-warning-ink) !important; }
+.der-apphost .der-de-savepill--saved        { color: var(--der-success-ink) !important; }
+.der-apphost .der-de-savepill--saving       { color: var(--der-warning-ink) !important; }
+.der-apphost .der-de-savepill--queued       { color: var(--der-warning-ink) !important; }
+.der-apphost .der-de-savepill--error        { color: var(--der-danger) !important; }
+.der-apphost .der-de-section-nav__ratio--muted   { color: var(--der-ink-500) !important; }
+.der-apphost .der-de-section-nav__ratio--partial { color: var(--der-warning-ink) !important; }
+.der-apphost .der-de-section-nav__ratio--done    { color: var(--der-success-ink) !important; }
 
 /* Single sticky toolbar — replaces the old title + chip strip.
  * SOLID background so scrolling long forms doesn't show the
@@ -6275,8 +6297,8 @@ const APP_STYLES = `
   z-index: 5;
   margin: 0 0px 12px;
   padding: 10px 20px 10px 20px;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e9ef;
+  background: var(--der-surface);
+  border-bottom: 1px solid var(--der-border);
   box-shadow: 0 1px 2px rgba(16, 26, 50, 0.04);
 }
 .der-de-toolbar__head {
@@ -6291,7 +6313,7 @@ const APP_STYLES = `
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: #e6f1fb;
+  background: var(--der-primary-soft);
   flex: 0 0 auto;
 }
 .der-de-central-badge {
@@ -6303,9 +6325,9 @@ const APP_STYLES = `
   font-size: 12px;
   font-weight: 500;
   line-height: 1.3;
-  border: 1px solid #d7dde9;
-  background: #f6f8fc;
-  color: var(--der-ink-700, #263352);
+  border: 1px solid var(--der-border);
+  background: var(--der-primary-50);
+  color: var(--der-ink-700, var(--der-ink-800));
   white-space: nowrap;
 }
 /* Central-sync badge dot — same heartbeat pulse pattern as the
@@ -6316,7 +6338,7 @@ const APP_STYLES = `
 .der-de-central-badge__dot {
   position: relative;
   width: 7px; height: 7px; border-radius: 50%;
-  background: #94a3b8; color: #94a3b8;
+  background: var(--der-ink-400); color: var(--der-ink-400);
   flex: 0 0 auto;
 }
 .der-de-central-badge__dot::before {
@@ -6333,32 +6355,32 @@ const APP_STYLES = `
 }
 .der-de-central-badge--saved  .der-de-central-badge__dot,
 .der-de-central-badge--queued .der-de-central-badge__dot {
-  background: #117a44; color: #117a44;
+  background: var(--der-success-ink); color: var(--der-success-ink);
 }
 .der-de-central-badge--review .der-de-central-badge__dot {
-  background: #147CD7; color: #147CD7;
+  background: var(--der-primary); color: var(--der-primary);
 }
 .der-de-central-badge--error  .der-de-central-badge__dot {
-  background: #D32F2F; color: #D32F2F;
+  background: var(--der-danger); color: var(--der-danger);
 }
 .der-de-central-badge--error .der-de-central-badge__dot::before {
   animation: none;
 }
-.der-de-central-badge--saved  { border-color: #c6e7d1; background: #ecf7f0; }
-.der-de-central-badge--queued { border-color: #f4d7a2; background: #fff4de; }
-.der-de-central-badge--review { border-color: #cfe1f4; background: #eaf3fc; }
-.der-de-central-badge--error  { border-color: #f1b8b8; background: #fbeaea; }
+.der-de-central-badge--saved  { border-color: var(--der-success-soft); background: var(--der-success-soft); }
+.der-de-central-badge--queued { border-color: var(--der-warning); background: var(--der-warning-soft); }
+.der-de-central-badge--review { border-color: var(--der-primary-100); background: var(--der-primary-50); }
+.der-de-central-badge--error  { border-color: var(--der-danger); background: var(--der-danger-soft); }
 .der-de-central-badge__ts {
   opacity: 0.75;
   font-weight: 400;
 }
 .der-de-filter-hit {
-  background: #fff1dc;
-  color: var(--der-ink-900, #101a32);
+  background: var(--der-warning-soft);
+  color: var(--der-ink-900, var(--der-ink-900));
   padding: 0 2px;
   border-radius: 3px;
   font-weight: 500;
-  box-shadow: 0 0 0 1px #f0ca8a;
+  box-shadow: 0 0 0 1px var(--der-warning);
 }
 .der-de-filebtn {
   display: inline-flex;
@@ -6398,9 +6420,9 @@ const APP_STYLES = `
 }
 .der-de-saveall-btn {
   padding: 6px 14px;
-  border: 1px solid var(--der-brand-600, #0f68b7);
-  background: var(--der-brand-500, #147CD7);
-  color: #fff;
+  border: 1px solid var(--der-brand-600, var(--der-primary-ink));
+  background: var(--der-brand-500, var(--der-primary));
+  color: var(--der-surface);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -6409,7 +6431,7 @@ const APP_STYLES = `
 }
 .der-de-saveall-btn:hover,
 .der-de-saveall-btn:focus-visible {
-  background: var(--der-brand-600, #0f68b7);
+  background: var(--der-brand-600, var(--der-primary-ink));
   outline: 0;
 }
 .der-de-toolbar__info-btn {
@@ -6420,7 +6442,7 @@ const APP_STYLES = `
   height: 24px;
   border: 0;
   background: transparent;
-  color: var(--der-brand-500, #147CD7);
+  color: var(--der-brand-500, var(--der-primary));
   cursor: pointer;
   padding: 0;
   margin-left: 4px;
@@ -6429,12 +6451,12 @@ const APP_STYLES = `
 }
 .der-de-toolbar__info-btn:hover,
 .der-de-toolbar__info-btn:focus-visible {
-  color: var(--der-brand-700, #0a5497);
-  background: #e6f1fb;
+  color: var(--der-brand-700, var(--der-primary-700));
+  background: var(--der-primary-soft);
   outline: 0;
 }
 .der-de-info-modal {
-  background: #fff;
+  background: var(--der-surface);
   width: min(720px, calc(100vw - 32px));
   max-height: calc(100vh - 64px);
   display: flex;
@@ -6449,8 +6471,8 @@ const APP_STYLES = `
   justify-content: space-between;
   gap: 16px;
   padding: 20px 24px 16px;
-  border-bottom: 1px solid #e5e9ef;
-  background: linear-gradient(180deg, #f6f9ff 0%, #fff 100%);
+  border-bottom: 1px solid var(--der-border);
+  background: linear-gradient(180deg, var(--der-primary-50) 0%, var(--der-surface) 100%);
 }
 .der-de-info-modal__title-wrap {
   flex: 1 1 auto;
@@ -6462,21 +6484,21 @@ const APP_STYLES = `
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--der-brand-500, #147CD7);
+  color: var(--der-brand-500, var(--der-primary));
   margin-bottom: 4px;
 }
 .der-de-info-modal__title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--der-ink-900, #101a32);
+  color: var(--der-ink-900, var(--der-ink-900));
   line-height: 1.3;
 }
 .der-de-info-modal__close {
   background: transparent;
   border: 0;
   cursor: pointer;
-  color: var(--der-ink-500, #5b6478);
+  color: var(--der-ink-500, var(--der-ink-500));
   font-size: 26px;
   line-height: 1;
   padding: 0 6px;
@@ -6485,8 +6507,8 @@ const APP_STYLES = `
 }
 .der-de-info-modal__close:hover,
 .der-de-info-modal__close:focus-visible {
-  color: var(--der-ink-900, #101a32);
-  background: #e5e9ef;
+  color: var(--der-ink-900, var(--der-ink-900));
+  background: var(--der-border);
   outline: 0;
 }
 .der-de-info-modal__body {
@@ -6495,7 +6517,7 @@ const APP_STYLES = `
 }
 .der-de-info-modal__desc {
   margin: 0 0 20px;
-  color: var(--der-ink-700, #2a3447);
+  color: var(--der-ink-700, var(--der-ink-800));
   font-size: 14px;
   line-height: 1.6;
 }
@@ -6507,8 +6529,8 @@ const APP_STYLES = `
   gap: 12px;
 }
 .der-de-info-modal__stat {
-  background: #f6f8fd;
-  border: 1px solid #e0e6f3;
+  background: var(--der-primary-50);
+  border: 1px solid var(--der-border);
   border-radius: 8px;
   padding: 12px 14px;
   margin: 0;
@@ -6519,14 +6541,14 @@ const APP_STYLES = `
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--der-ink-500, #5b6478);
+  color: var(--der-ink-500, var(--der-ink-500));
   margin-bottom: 4px;
 }
 .der-de-info-modal__stat dd {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--der-ink-900, #101a32);
+  color: var(--der-ink-900, var(--der-ink-900));
   line-height: 1.3;
   font-variant-numeric: tabular-nums;
 }
@@ -6535,13 +6557,13 @@ const APP_STYLES = `
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 24px 16px;
-  border-top: 1px solid #e5e9ef;
-  background: #fff;
+  border-top: 1px solid var(--der-border);
+  background: var(--der-surface);
 }
 .der-de-info-modal__done {
-  background: var(--der-brand-500, #147CD7);
-  color: #fff;
-  border: 1px solid var(--der-brand-600, #0f68b7);
+  background: var(--der-brand-500, var(--der-primary));
+  color: var(--der-surface);
+  border: 1px solid var(--der-brand-600, var(--der-primary-ink));
   border-radius: 6px;
   padding: 7px 18px;
   font-size: 13px;
@@ -6551,14 +6573,14 @@ const APP_STYLES = `
 }
 .der-de-info-modal__done:hover,
 .der-de-info-modal__done:focus-visible {
-  background: var(--der-brand-600, #0f68b7);
+  background: var(--der-brand-600, var(--der-primary-ink));
   outline: 0;
 }
 .der-de-toolbar__title {
   margin: 0;
   font-size: 17px;
   font-weight: 500;
-  color: #101a32;
+  color: var(--der-ink-900);
   letter-spacing: -0.01em;
 }
 /* Toolbar status indicators — brand mark + 8 px status dot, no
@@ -6574,8 +6596,8 @@ const APP_STYLES = `
   padding: 0;
   line-height: 1;
 }
-.der-de-status-icon[data-test="de-wan-status"]  { color: #0a5497; }
-.der-de-status-icon[data-test="de-edge-pill"]   { color: #0B3558; }
+.der-de-status-icon[data-test="de-wan-status"]  { color: var(--der-primary-700); }
+.der-de-status-icon[data-test="de-edge-pill"]   { color: var(--der-primary-800); }
 /* Bigger glyph on the toolbar vs the smaller cell-details strip —
  * these indicators are an always-visible top-bar affordance, not
  * an inline cell annotation, so give them room. */
@@ -6597,8 +6619,8 @@ const APP_STYLES = `
   width: 8px;
   height: 8px;
   border-radius: 50% !important;
-  background: #94a3b8;
-  color: #94a3b8;
+  background: var(--der-ink-400);
+  color: var(--der-ink-400);
   box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.18);
   flex: 0 0 auto;
 }
@@ -6616,20 +6638,20 @@ const APP_STYLES = `
 }
 .der-de-status-icon__dot.is-lit,
 .der-apphost .der-de-toolbar .der-de-status-icon__dot.is-lit {
-  background: var(--der-success, #1b9e5a);
-  color:      var(--der-success, #1b9e5a);
+  background: var(--der-success, var(--der-success));
+  color:      var(--der-success, var(--der-success));
   box-shadow: 0 0 0 2px rgba(27, 158, 90, 0.18);
 }
 .der-de-status-icon__dot.is-pending,
 .der-apphost .der-de-toolbar .der-de-status-icon__dot.is-pending {
-  background: var(--der-warning, #d68a1a);
-  color:      var(--der-warning, #d68a1a);
+  background: var(--der-warning, var(--der-warning));
+  color:      var(--der-warning, var(--der-warning));
   box-shadow: 0 0 0 2px rgba(214, 138, 26, 0.18);
 }
 .der-de-status-icon__dot.is-error,
 .der-apphost .der-de-toolbar .der-de-status-icon__dot.is-error {
-  background: var(--der-danger, #d14343);
-  color:      var(--der-danger, #d14343);
+  background: var(--der-danger, var(--der-danger));
+  color:      var(--der-danger, var(--der-danger));
   box-shadow: 0 0 0 2px rgba(209, 67, 67, 0.18);
 }
 .der-de-status-icon__dot.is-error::before,
@@ -6647,7 +6669,7 @@ const APP_STYLES = `
 .der-de-status-icon__count {
   font-size: 10px;
   font-weight: 500;
-  color: #a3322c;
+  color: var(--der-danger-ink);
   margin-left: 2px;
 }
 .der-de-toolbar__ou-wrap {
@@ -6662,10 +6684,10 @@ const APP_STYLES = `
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #9097a8;
+  color: var(--der-ink-300);
 }
 .der-de-toolbar__ou {
-  color: #101a32;
+  color: var(--der-ink-900);
   font-size: 13px;
   font-weight: 500;
   overflow: hidden;
@@ -6699,18 +6721,18 @@ const APP_STYLES = `
 .der-de-toolbar__filter-input {
   width: 100%;
   padding: 5px 24px 5px 10px;
-  border: 1px solid #d8dee8;
-  background: #fff;
+  border: 1px solid var(--der-border);
+  background: var(--der-surface);
   font-size: 13px;
-  color: #101a32;
+  color: var(--der-ink-900);
   font-family: inherit;
   transition: border-color 150ms;
 }
-.der-de-toolbar__filter-input:hover { border-color: #9aa3b8; }
+.der-de-toolbar__filter-input:hover { border-color: var(--der-ink-400); }
 .der-de-toolbar__filter-input:focus {
   outline: 0;
-  border-color: #147CD7;
-  box-shadow: inset 0 0 0 2px #147CD7;
+  border-color: var(--der-primary);
+  box-shadow: inset 0 0 0 2px var(--der-primary);
 }
 .der-de-toolbar__filter-clear {
   position: absolute;
@@ -6720,7 +6742,7 @@ const APP_STYLES = `
   background: transparent;
   border: 0;
   cursor: pointer;
-  color: #6e7a8a;
+  color: var(--der-ink-500);
   font-size: 16px;
   padding: 0 4px;
   line-height: 1;
@@ -6732,8 +6754,8 @@ const APP_STYLES = `
   transform: translateY(-50%);
   font-size: 11px;
   font-weight: 500;
-  color: #6e7a8a;
-  background: #eef2f8;
+  color: var(--der-ink-500);
+  background: var(--der-primary-50);
   padding: 2px 6px;
   border-radius: 10px;
   line-height: 1.2;
@@ -6741,7 +6763,7 @@ const APP_STYLES = `
 }
 .der-de-toolbar__field-label {
   font-size: 11px;
-  color: #6e7a8a;
+  color: var(--der-ink-500);
   letter-spacing: 0.04em;
 }
 .der-de-toolbar__select,
@@ -6751,26 +6773,26 @@ const APP_STYLES = `
   -webkit-appearance: none;
   -moz-appearance: none;
   padding: 5px 24px 5px 10px;
-  border: 1px solid #d8dee8;
+  border: 1px solid var(--der-border);
   border-radius: 0;
-  background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='none' stroke='%235b6478' stroke-width='1.5'><path d='M1 1l4 4 4-4'/></svg>")
+  background: var(--der-surface) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='none' stroke='%235b6478' stroke-width='1.5'><path d='M1 1l4 4 4-4'/></svg>")
     no-repeat right 8px center;
   background-size: 10px 6px;
   box-shadow: none;
   font-size: 13px;
-  color: #101a32;
+  color: var(--der-ink-900);
   font-family: inherit;
   transition: border-color 150ms;
 }
 .der-de-toolbar__select:hover,
 .der-apphost .der-de-period-nav select:hover {
-  border-color: #9aa3b8;
+  border-color: var(--der-ink-400);
 }
 .der-de-toolbar__select:focus,
 .der-apphost .der-de-period-nav select:focus {
   outline: 0;
-  border-color: #147CD7;
-  box-shadow: inset 0 0 0 2px #147CD7;
+  border-color: var(--der-primary);
+  box-shadow: inset 0 0 0 2px var(--der-primary);
 }
 /* Back-compat kill switch for legacy .der-de-chip classes. */
 .der-de-chip, .der-de-chip-signed,
@@ -6785,7 +6807,7 @@ const APP_STYLES = `
 .der-de-select:focus,
 .der-de-period-wrap > *:focus {
   outline: none;
-  border-color: var(--der-brand-500, #147CD7);
+  border-color: var(--der-brand-500, var(--der-primary));
 }
 /* Compound prev-[select]-next. No wrapping border; each child
  * carries its own 1 px outline so the three items read as one
@@ -6799,35 +6821,35 @@ const APP_STYLES = `
 .der-de-period-nav select {
   flex: 1 1 auto;
   padding: 4px 8px;
-  border: 1px solid #d8dee8;
-  background: #fff;
-  color: #101a32;
+  border: 1px solid var(--der-border);
+  background: var(--der-surface);
+  color: var(--der-ink-900);
   border-radius: 4px;
 }
 .der-de-period-btn {
   background: transparent;
   border: 0;
-  color: #147CD7;
+  color: var(--der-primary);
   padding: 4px 8px;
   font-size: 13px;
   cursor: pointer;
   line-height: 1;
 }
 .der-de-period-btn:hover:not(:disabled) {
-  color: #0a5497;
-  background: #e6f1fb;
+  color: var(--der-primary-700);
+  background: var(--der-primary-soft);
 }
 .der-de-period-btn:disabled {
-  color: #c0c7d2;
+  color: var(--der-ink-200);
   cursor: not-allowed;
 }
 .der-de-placeholder {
   padding: 32px 16px;
   text-align: center;
-  color: #6e7a8a;
+  color: var(--der-ink-500);
   font-size: 14px;
-  background: #fff;
-  border: 1px dashed #d7dde5;
+  background: var(--der-surface);
+  border: 1px dashed var(--der-border);
   border-radius: 3px;
 }
 /* Layout envelope — the AppHost's ScreenCard body is a flex
@@ -6879,7 +6901,7 @@ const APP_STYLES = `
 .der-de-custom-form h3.formSection {
   font-size: 16px;
   font-weight: 600;
-  color: var(--der-ink-900, #101a32);
+  color: var(--der-ink-900, var(--der-ink-900));
   letter-spacing: 0;
 }
 .der-de-custom-form p,
@@ -6899,8 +6921,8 @@ const APP_STYLES = `
   gap: 10px;
   margin: 12px -20px 0;
   padding: 12px 20px;
-  background: #fff;
-  border-top: 1px solid #e5e9ef;
+  background: var(--der-surface);
+  border-top: 1px solid var(--der-border);
 }
 .der-de-savepill {
   margin-right: auto;
@@ -6909,11 +6931,11 @@ const APP_STYLES = `
   font-size: 12px;
   letter-spacing: 0.02em;
 }
-.der-de-savepill--muted  { background: #eef0f3; color: #6e7a8a; }
-.der-de-savepill--saved  { background: #e8f4ee; color: #136436; }
-.der-de-savepill--saving { background: #fbf4e0; color: #8a6b00; }
-.der-de-savepill--queued { background: #fbeedd; color: #874a00; }
-.der-de-savepill--error  { background: #fbeaea; color: #8a2525; }
+.der-de-savepill--muted  { background: var(--der-border-subtle); color: var(--der-ink-500); }
+.der-de-savepill--saved  { background: var(--der-success-soft); color: var(--der-success-ink); }
+.der-de-savepill--saving { background: var(--der-warning-soft); color: var(--der-warning-ink); }
+.der-de-savepill--queued { background: var(--der-warning-soft); color: var(--der-warning-ink); }
+.der-de-savepill--error  { background: var(--der-danger-soft); color: var(--der-danger-ink); }
 .der-de-form-split {
   display: block;
 }
@@ -6933,7 +6955,7 @@ const APP_STYLES = `
     max-height: calc(100vh - 220px);
     overflow-y: auto;
     padding: 10px 6px;
-    background: #f7f8fc;
+    background: var(--der-surface-raised);
     border-radius: 10px;
   }
 }
@@ -6941,7 +6963,7 @@ const APP_STYLES = `
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #6e7a8a;
+  color: var(--der-ink-500);
   font-weight: 500;
   margin: 0 8px 8px;
 }
@@ -6963,7 +6985,7 @@ const APP_STYLES = `
   border: 0;
   border-left: 3px solid transparent;
   border-radius: 0 4px 4px 0;
-  color: #404b5a;
+  color: var(--der-ink-700);
   font-size: 13px;
   line-height: 1.35;
   cursor: pointer;
@@ -6979,16 +7001,16 @@ const APP_STYLES = `
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
 }
-.der-de-section-nav__ratio--muted   { background: #eef0f5; color: #6e7a8a; }
-.der-de-section-nav__ratio--partial { background: #fef0d8; color: #9b5a00; }
-.der-de-section-nav__ratio--done    { background: #e3f7eb; color: #1b8243; }
+.der-de-section-nav__ratio--muted   { background: var(--der-surface-muted); color: var(--der-ink-500); }
+.der-de-section-nav__ratio--partial { background: var(--der-warning-soft); color: var(--der-warning-ink); }
+.der-de-section-nav__ratio--done    { background: var(--der-success-soft); color: var(--der-success-ink); }
 .der-de-section-nav__item:hover {
-  background: #eef0f3;
+  background: var(--der-border-subtle);
 }
 .der-de-section-nav__item--active {
-  background: #eef4fa;
-  border-left-color: #147CD7;
-  color: #0a5497;
+  background: var(--der-primary-50);
+  border-left-color: var(--der-primary);
+  color: var(--der-primary-700);
   font-weight: 500;
 }
 /* One section at a time. Each slot stretches to fill the form
@@ -7006,8 +7028,8 @@ const APP_STYLES = `
   margin: 0 0 8px;
   font-size: 16px;
   font-weight: 500;
-  color: #0a5497;
-  border-bottom: 1px solid #e5e9ef;
+  color: var(--der-primary-700);
+  border-bottom: 1px solid var(--der-border);
   padding-bottom: 6px;
 }
 .der-de-custom-form .tblep-root,
@@ -7084,8 +7106,8 @@ const APP_STYLES = `
 }
 .der-de-custom-form .tblep-table thead th,
 .der-de-custom-form table thead th {
-  border-bottom: 2px solid var(--der-brand-300, #c0c8ea) !important;
-  color: var(--der-ink-700, #2a3447) !important;
+  border-bottom: 2px solid var(--der-brand-300, var(--der-primary-100)) !important;
+  color: var(--der-ink-700, var(--der-ink-800)) !important;
   font-weight: 500;
   font-size: 14px;
 }
@@ -7100,7 +7122,7 @@ const APP_STYLES = `
 .der-de-custom-form table th {
   background: transparent !important;
   font-weight: 500;
-  color: var(--der-ink-700, #2a3447);
+  color: var(--der-ink-700, var(--der-ink-800));
 }
 .der-de-custom-form .tblep-table input[type="text"],
 .der-de-custom-form table input[type="text"],
@@ -7108,24 +7130,24 @@ const APP_STYLES = `
 .der-de-custom-form input[name="total"] {
   width: 100% !important;
   padding: 2px 4px !important;
-  border: 1px solid #aaa !important;
-  background: #fff !important;
+  border: 1px solid var(--der-border-strong) !important;
+  background: var(--der-surface) !important;
   font-size: 14px !important;
-  color: #212934 !important;
+  color: var(--der-ink-900) !important;
   font-family: inherit;
 }
 .der-de-custom-form input[type="text"]:focus {
   outline: 0;
-  border-color: #147CD7 !important;
-  box-shadow: inset 0 0 0 2px #147CD7;
-  background: #fff !important;
+  border-color: var(--der-primary) !important;
+  box-shadow: inset 0 0 0 2px var(--der-primary);
+  background: var(--der-surface) !important;
 }
 .der-de-completion-pill {
   margin-right: auto;
   padding: 4px 10px;
   border-radius: 12px;
-  background: #eef0f3;
-  color: #404b5a;
+  background: var(--der-border-subtle);
+  color: var(--der-ink-700);
   font-size: 12px;
   letter-spacing: 0.02em;
 }
@@ -7137,7 +7159,7 @@ const APP_STYLES = `
 }
 .der-de-form-card .sectionTable th,
 .der-de-form-card .sectionTable td {
-  border: 1px solid #e5e9ef;
+  border: 1px solid var(--der-border);
   padding: var(--der-de-cell-pad, 6px 8px);
   text-align: left;
   vertical-align: middle;
@@ -7145,7 +7167,7 @@ const APP_STYLES = `
 .der-de-form-card .sectionTable thead th {
   background: transparent;
   font-weight: 500;
-  color: var(--der-ink-700, #2a3447);
+  color: var(--der-ink-700, var(--der-ink-800));
   text-align: center;
 }
 .der-de-form-card .sectionTable .dataElementCell {
@@ -7169,28 +7191,28 @@ const APP_STYLES = `
   border-collapse: collapse;
 }
 .der-de-form-card .sectionTable .indicatorRow td {
-  background: #f0f3fb;
+  background: var(--der-surface-muted);
   font-weight: 500;
 }
 .der-de-form-card .sectionTable .greyed {
-  background: #eef0f9;
-  color: #8893b1;
+  background: var(--der-surface-muted);
+  color: var(--der-ink-400);
   text-align: center;
 }
 .der-de-form-card .sectionTable input[type="text"] {
   width: 100%;
-  border: 1px solid #aaa;
-  background: #fff;
+  border: 1px solid var(--der-border-strong);
+  background: var(--der-surface);
   padding: 2px 4px;
   font-size: 14px;
-  color: #212934;
+  color: var(--der-ink-900);
   font-family: inherit;
   border-radius: 4px;
 }
 .der-de-form-card .sectionTable input[type="text"]:focus {
   outline: 0;
-  border-color: #147CD7;
-  box-shadow: inset 0 0 0 2px #147CD7;
+  border-color: var(--der-primary);
+  box-shadow: inset 0 0 0 2px var(--der-primary);
 }
 /* Compulsory cells — DHIS2 marks these with an amber left
  * rule so operators can tell at a glance which fields block
@@ -7198,11 +7220,11 @@ const APP_STYLES = `
  * CUSTOM author inputs (we tag them the same way). */
 .der-de-form-card .sectionTable input[type="text"][data-compulsory="1"],
 .der-de-custom-form input[data-compulsory="1"] {
-  border-left: 3px solid #9b5a00 !important;
+  border-left: 3px solid var(--der-warning-ink) !important;
 }
 .der-de-form-card .sectionTable input[type="text"][data-compulsory="1"]:placeholder-shown,
 .der-de-custom-form input[data-compulsory="1"]:placeholder-shown {
-  background: #fef0d8 !important;
+  background: var(--der-warning-soft) !important;
 }
 /* Row-level focus tint — SECTION renderer tables + CUSTOM
  * author tables both get a subtle indigo wash when the row
@@ -7212,12 +7234,12 @@ const APP_STYLES = `
 .der-de-form-card .sectionTable tbody tr:focus-within,
 .der-de-custom-form table tbody tr:hover,
 .der-de-custom-form table tbody tr:focus-within {
-  background: #eef4fa;
+  background: var(--der-primary-50);
 }
 .der-de-form-card .sectionTable tbody tr:focus-within
   .dataElementCell,
 .der-de-custom-form table tbody tr:focus-within td:first-child {
-  color: #083f72;
+  color: var(--der-primary-800);
   font-weight: 500;
 }
 /* Custom-form author inputs inherit the same visual language as
@@ -7226,39 +7248,67 @@ const APP_STYLES = `
 .der-de-custom-form input[name$="-val"],
 .der-de-custom-form input[name="entryfield"],
 .der-de-custom-form input[name="total"] {
-  border: 1px solid #aaa !important;
+  border: 1px solid var(--der-border-strong) !important;
   border-radius: 4px !important;
   padding: 3px 6px !important;
-  background: #fff !important;
+  background: var(--der-surface) !important;
 }
 .der-de-custom-form input[name$="-val"]:focus,
 .der-de-custom-form input[name="entryfield"]:focus,
 .der-de-custom-form input[name="total"]:focus {
   outline: 0;
-  border-color: #147CD7 !important;
-  box-shadow: inset 0 0 0 2px #147CD7;
+  border-color: var(--der-primary) !important;
+  box-shadow: inset 0 0 0 2px var(--der-primary);
 }
 /* Realtime value-type validation — attachLiveValidation stamps
  * data-de-invalid="1" + title=<reason> on inputs that don't
  * match their data element's valueType. */
 .der-de-custom-form input[data-de-invalid="1"],
 .der-apphost .der-de-form-card input[data-de-invalid="1"] {
-  border-color: #c0392b !important;
-  background: #fbeaea !important;
-  box-shadow: inset 0 0 0 1px #c0392b;
+  border-color: var(--der-danger) !important;
+  background: var(--der-danger-soft) !important;
+  box-shadow: inset 0 0 0 1px var(--der-danger);
 }
 .der-de-custom-form input[data-de-invalid="1"]:focus,
 .der-apphost .der-de-form-card input[data-de-invalid="1"]:focus,
 .der-apphost .der-de-form-card .sectionTable input[type="text"][data-de-invalid="1"]:focus {
-  border-color: #c0392b !important;
-  box-shadow: inset 0 0 0 2px #c0392b !important;
+  border-color: var(--der-danger) !important;
+  box-shadow: inset 0 0 0 2px var(--der-danger) !important;
 }
+
+/* UX-E — persistent per-cell save-state badge. One inline SVG icon
+ * per state (empty / saving / saved / queued / error) painted at
+ * the input's right edge. Operators read save lifecycle at a glance
+ * without hover and without the previous outline fading away. */
+.der-apphost .der-de-form-card input[data-save-state] {
+  padding-right: 22px;
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  background-size: 14px 14px;
+}
+.der-apphost .der-de-form-card input[data-save-state="saving"] {
+  box-shadow: inset 0 0 0 2px var(--der-warning) !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d68a1a' stroke-width='2.5' stroke-linecap='round'><path d='M12 4v3M12 17v3M4 12h3M17 12h3M6 6l2 2M16 16l2 2M6 18l2-2M16 8l2-2'/></svg>");
+}
+.der-apphost .der-de-form-card input[data-save-state="saved"] {
+  box-shadow: inset 0 0 0 2px var(--der-success) !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231b9e5a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12l5 5L20 7'/></svg>");
+}
+.der-apphost .der-de-form-card input[data-save-state="queued"] {
+  box-shadow: inset 0 0 0 2px var(--der-warning) !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d68a1a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M12 4v8l5 3'/><circle cx='12' cy='12' r='9'/></svg>");
+}
+.der-apphost .der-de-form-card input[data-save-state="error"] {
+  box-shadow: inset 0 0 0 2px var(--der-danger) !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c0392b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 7v6M12 16v.5'/></svg>");
+}
+
 .der-de-form-card h3.formSection {
   margin: 0 0 8px;
   padding: 0;
   font-size: 16px;
   font-weight: 500;
-  color: var(--der-ink-900, #101a32);
+  color: var(--der-ink-900, var(--der-ink-900));
   border: 0;
   letter-spacing: -0.01em;
 }
@@ -7299,22 +7349,22 @@ const APP_STYLES = `
 }
 .der-de-density-btn {
   padding: 4px 10px;
-  border: 1px solid #c0c7cf;
+  border: 1px solid var(--der-ink-200);
   border-radius: 10px;
-  background: #fff;
-  color: #404b5a;
+  background: var(--der-surface);
+  color: var(--der-ink-700);
   font-size: 12px;
   cursor: pointer;
 }
 .der-de-density-btn:hover {
-  background: #f3f5f7;
+  background: var(--der-surface-muted);
 }
 .der-de-issues-chip {
   padding: 4px 10px;
-  border: 1px solid #e0bcbc;
+  border: 1px solid var(--der-danger);
   border-radius: 10px;
-  background: #fbeaea;
-  color: #8a2525;
+  background: var(--der-danger-soft);
+  color: var(--der-danger-ink);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -7335,7 +7385,7 @@ const APP_STYLES = `
   z-index: 200;
 }
 .der-de-validation {
-  background: #fff;
+  background: var(--der-surface);
   width: min(720px, calc(100vw - 32px));
   max-height: calc(100vh - 64px);
   display: flex;
@@ -7348,7 +7398,7 @@ const APP_STYLES = `
   justify-content: space-between;
   gap: 12px;
   padding: 14px 20px;
-  border-bottom: 1px solid #e5e9ef;
+  border-bottom: 1px solid var(--der-border);
 }
 .der-de-validation__title {
   display: inline-flex;
@@ -7359,7 +7409,7 @@ const APP_STYLES = `
   margin: 0;
   font-size: 15px;
   font-weight: 500;
-  color: #101a32;
+  color: var(--der-ink-900);
 }
 .der-de-validation__badge {
   width: 28px;
@@ -7367,19 +7417,19 @@ const APP_STYLES = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--der-surface);
   font-weight: 600;
   font-size: 15px;
 }
 .der-de-validation--ok .der-de-validation__badge {
-  background: #1b8243;
+  background: var(--der-success-ink);
 }
 .der-de-validation--err .der-de-validation__badge {
-  background: #c0392b;
+  background: var(--der-danger);
 }
 .der-de-validation__close {
   background: transparent; border: 0; cursor: pointer;
-  color: #5b6478; font-size: 22px; line-height: 1;
+  color: var(--der-ink-500); font-size: 22px; line-height: 1;
 }
 .der-de-validation__body {
   padding: 16px 20px 20px;
@@ -7387,7 +7437,7 @@ const APP_STYLES = `
 }
 .der-de-validation__ok-prose {
   margin: 0;
-  color: #404b5a;
+  color: var(--der-ink-700);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -7400,33 +7450,33 @@ const APP_STYLES = `
 .der-de-validation__table td {
   padding: 8px 10px;
   text-align: left;
-  color: #101a32;
-  border-bottom: 1px solid #eef0f3;
+  color: var(--der-ink-900);
+  border-bottom: 1px solid var(--der-border-subtle);
 }
 .der-de-validation__table thead th {
   font-size: 12px;
   font-weight: 500;
-  color: #5b6478;
-  border-bottom: 2px solid #d8dee8;
+  color: var(--der-ink-500);
+  border-bottom: 2px solid var(--der-border);
 }
-.der-de-validation__coc { color: #5b6478; }
+.der-de-validation__coc { color: var(--der-ink-500); }
 .der-de-validation__value {
   display: inline-block;
   padding: 1px 6px;
-  background: #fbeaea;
-  color: #8a2525;
+  background: var(--der-danger-soft);
+  color: var(--der-danger-ink);
   font-family: ui-monospace, monospace;
   font-size: 11px;
 }
-.der-de-validation__why { color: #8a2525; }
+.der-de-validation__why { color: var(--der-danger-ink); }
 .der-de-validation__jump-btn {
   background: transparent;
   border: 0;
-  color: #147CD7;
+  color: var(--der-primary);
   font-size: 12px;
   cursor: pointer;
 }
-.der-de-validation__jump-btn:hover { color: #0a5497; }
+.der-de-validation__jump-btn:hover { color: var(--der-primary-700); }
 
 .der-de-shortcuts-backdrop {
   position: fixed;
@@ -7441,7 +7491,7 @@ const APP_STYLES = `
   z-index: 200;
 }
 .der-de-shortcuts {
-  background: #fff;
+  background: var(--der-surface);
   border-radius: 12px;
   padding: 0;
   width: min(520px, calc(100vw - 32px));
@@ -7464,25 +7514,25 @@ const APP_STYLES = `
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--der-brand-500, #147CD7);
+  color: var(--der-brand-500, var(--der-primary));
 }
 .der-de-shortcuts__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
-  background: #f7f8fc;
-  border-bottom: 1px solid #e5e9ef;
+  background: var(--der-surface-raised);
+  border-bottom: 1px solid var(--der-border);
 }
 .der-de-shortcuts__title {
   margin: 0;
   font-size: 14px;
   font-weight: 500;
-  color: #083f72;
+  color: var(--der-primary-800);
 }
 .der-de-shortcuts__close {
   background: transparent; border: 0; cursor: pointer;
-  font-size: 22px; line-height: 1; color: #6e7a8a;
+  font-size: 22px; line-height: 1; color: var(--der-ink-500);
 }
 .der-de-shortcuts__list {
   margin: 0;
@@ -7494,20 +7544,20 @@ const APP_STYLES = `
   align-items: center;
   gap: 14px;
   padding: 8px 0;
-  border-bottom: 1px solid #f3f5f7;
+  border-bottom: 1px solid var(--der-surface-muted);
 }
 .der-de-shortcuts__row:last-child { border-bottom: 0; }
 .der-de-shortcuts__row dt { margin: 0; }
-.der-de-shortcuts__row dd { margin: 0; color: #404b5a; font-size: 13px; }
+.der-de-shortcuts__row dd { margin: 0; color: var(--der-ink-700); font-size: 13px; }
 .der-de-shortcuts kbd {
   display: inline-block;
   padding: 2px 8px;
-  background: #eef0f5;
-  border: 1px solid #d8dee8;
+  background: var(--der-surface-muted);
+  border: 1px solid var(--der-border);
   border-radius: 4px;
   font-family: ui-monospace, monospace;
   font-size: 11px;
-  color: #101a32;
+  color: var(--der-ink-900);
   box-shadow: 0 1px 0 rgba(16, 26, 50, 0.1);
 }
 .der-de-details-drawer {
@@ -7519,8 +7569,8 @@ const APP_STYLES = `
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border: 1px solid #e5e9ef;
+  background: var(--der-surface);
+  border: 1px solid var(--der-border);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(16, 26, 50, 0.08);
   z-index: 8;
@@ -7530,21 +7580,21 @@ const APP_STYLES = `
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: #f7f8fc;
-  border-bottom: 1px solid #e5e9ef;
+  background: var(--der-surface-raised);
+  border-bottom: 1px solid var(--der-border);
 }
 .der-de-details-drawer__title {
   margin: 0;
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #6e7a8a;
+  color: var(--der-ink-500);
   font-weight: 500;
 }
 .der-de-details-drawer__close {
   padding: 0 6px;
   background: transparent; border: 0; cursor: pointer;
-  color: #6e7a8a; font-size: 20px; line-height: 1;
+  color: var(--der-ink-500); font-size: 20px; line-height: 1;
 }
 .der-de-details-drawer__body {
   padding: 12px 14px;
@@ -7553,13 +7603,13 @@ const APP_STYLES = `
 .der-de-details-drawer__empty {
   padding: 16px 14px;
   margin: 0;
-  color: #6e7a8a;
+  color: var(--der-ink-500);
   font-size: 13px;
 }
 .der-de-details-drawer__de {
   font-size: 14px;
   font-weight: 500;
-  color: #083f72;
+  color: var(--der-primary-800);
   margin-bottom: 6px;
 }
 .der-de-details-drawer__compulsory {
@@ -7567,8 +7617,8 @@ const APP_STYLES = `
   margin-left: 8px;
   padding: 1px 8px;
   border-radius: 10px;
-  background: #fef0d8;
-  color: #9b5a00;
+  background: var(--der-warning-soft);
+  color: var(--der-warning-ink);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.06em;
@@ -7582,11 +7632,11 @@ const APP_STYLES = `
   font-size: 11px;
   margin-bottom: 12px;
 }
-.der-de-details-drawer__state--muted  { background: #eef0f5; color: #475061; }
-.der-de-details-drawer__state--saved  { background: #e3f7eb; color: #1b8243; }
-.der-de-details-drawer__state--saving { background: #fef0d8; color: #9b5a00; }
-.der-de-details-drawer__state--queued { background: #fef0d8; color: #9b5a00; }
-.der-de-details-drawer__state--error  { background: #fee2e2; color: #c0392b; }
+.der-de-details-drawer__state--muted  { background: var(--der-surface-muted); color: var(--der-ink-700); }
+.der-de-details-drawer__state--saved  { background: var(--der-success-soft); color: var(--der-success-ink); }
+.der-de-details-drawer__state--saving { background: var(--der-warning-soft); color: var(--der-warning-ink); }
+.der-de-details-drawer__state--queued { background: var(--der-warning-soft); color: var(--der-warning-ink); }
+.der-de-details-drawer__state--error  { background: var(--der-danger-soft); color: var(--der-danger); }
 .der-de-details-drawer__meta {
   display: grid;
   grid-template-columns: 90px 1fr;
@@ -7596,21 +7646,21 @@ const APP_STYLES = `
   font-size: 12px;
 }
 .der-de-details-drawer__meta dt {
-  color: #6e7a8a;
+  color: var(--der-ink-500);
   font-weight: 400;
 }
 .der-de-details-drawer__meta dd {
   margin: 0;
-  color: #101a32;
+  color: var(--der-ink-900);
   overflow-wrap: anywhere;
 }
 .der-de-details-drawer__meta dd code {
   font-family: ui-monospace, monospace;
   font-size: 11px;
-  color: #475061;
+  color: var(--der-ink-700);
 }
 .der-de-details-drawer__empty-val {
-  color: #9097a8;
+  color: var(--der-ink-300);
 }
 .der-de-details-drawer__breakdown {
   list-style: none;
@@ -7625,10 +7675,10 @@ const APP_STYLES = `
   font-size: 12px;
 }
 .der-de-details-drawer__cat {
-  color: #6e7a8a;
+  color: var(--der-ink-500);
 }
 .der-de-details-drawer__opt {
-  color: #101a32;
+  color: var(--der-ink-900);
   font-weight: 500;
 }
 .der-de-issues-drawer {
@@ -7640,8 +7690,8 @@ const APP_STYLES = `
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border: 1px solid #e0bcbc;
+  background: var(--der-surface);
+  border: 1px solid var(--der-danger);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(28, 46, 70, 0.12);
   z-index: 10;
@@ -7651,20 +7701,20 @@ const APP_STYLES = `
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: #fbeaea;
-  border-bottom: 1px solid #e0bcbc;
+  background: var(--der-danger-soft);
+  border-bottom: 1px solid var(--der-danger);
 }
 .der-de-issues-drawer__title {
   margin: 0;
   font-size: 13px;
   font-weight: 500;
-  color: #8a2525;
+  color: var(--der-danger-ink);
 }
 .der-de-issues-drawer__close {
   padding: 0 6px;
   background: transparent;
   border: 0;
-  color: #8a2525;
+  color: var(--der-danger-ink);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
@@ -7683,13 +7733,13 @@ const APP_STYLES = `
   padding: 10px 14px;
   text-align: left;
   border: 0;
-  border-bottom: 1px solid #eef0f3;
+  border-bottom: 1px solid var(--der-border-subtle);
   background: transparent;
-  color: #212934;
+  color: var(--der-ink-900);
   cursor: pointer;
 }
 .der-de-issues-drawer__item:hover {
-  background: #fdf5f5;
+  background: var(--der-danger-soft);
 }
 .der-de-issues-drawer__de {
   font-size: 13px;
@@ -7697,31 +7747,31 @@ const APP_STYLES = `
 }
 .der-de-issues-drawer__coc {
   font-size: 11px;
-  color: #6e7a8a;
+  color: var(--der-ink-500);
 }
 .der-de-issues-drawer__why {
   display: flex;
   gap: 6px;
   align-items: center;
   font-size: 12px;
-  color: #8a2525;
+  color: var(--der-danger-ink);
 }
 .der-de-issues-drawer__value {
   padding: 1px 6px;
   border-radius: 3px;
-  background: #fbeaea;
+  background: var(--der-danger-soft);
   font-family: ui-monospace, monospace;
   font-size: 11px;
-  color: #8a2525;
+  color: var(--der-danger-ink);
 }
 `;
 
 function tabBtn(active: boolean): React.CSSProperties {
   return {
     padding: '6px 12px',
-    background: active ? '#147CD7' : 'transparent',
-    color: active ? '#fff' : '#147CD7',
-    border: '1px solid #147CD7',
+    background: active ? 'var(--der-primary)' : 'transparent',
+    color: active ? 'var(--der-surface)' : 'var(--der-primary)',
+    border: '1px solid var(--der-primary)',
     borderRadius: 0, fontSize: 13, cursor: 'pointer',
   };
 }

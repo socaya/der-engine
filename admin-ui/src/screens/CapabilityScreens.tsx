@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
-import { HeroHeader } from '../components/HeroHeader';
+import { PageHeader } from '../components/PageHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
 import { MetadataTabBar } from '../components/MetadataTabBar';
@@ -147,7 +147,7 @@ export function CapDashboard(): JSX.Element {
   const failedJobs = jobs?.filter((j) => j.outcome === 'FAILED').length ?? 0;
   return (
     <div className="ea-screen" data-test="cap-dashboard">
-      <HeroHeader
+      <PageHeader
         title="Dashboard"
         lastFetched={t}
       />
@@ -192,7 +192,7 @@ export function CapSystemInformation(): JSX.Element {
   if (!si) return <LoadingBlock testId="loading" />;
   return (
     <div className="ea-screen" data-test="cap-sysinfo">
-      <HeroHeader
+      <PageHeader
         title="System information"
         subtitle="Build identity, runtime, storage and probe status for this edge."
       />
@@ -2234,7 +2234,7 @@ export function CapDataOverview(): JSX.Element {
   const journal = si ? Object.values(si.journal ?? {}).reduce((a, b) => a + b, 0) : 0;
   return (
     <div className="ea-screen" data-test="cap-data-overview">
-      <HeroHeader title="Local data"
+      <PageHeader title="Local data"
         subtitle="Data captured, drafted, or awaiting push on this edge." />
       <div className="ea-stat-strip">
         <Stat label="Journal entries" value={journal} />

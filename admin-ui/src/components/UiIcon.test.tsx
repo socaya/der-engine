@@ -21,6 +21,7 @@ const ICONS: UiIconId[] = [
   'play', 'pause', 'power',
   'wifi', 'ethernet', 'access-point', 'router', 'firewall',
   'peer', 'workstation', 'qr',
+  'close', 'check',
 ] as unknown as UiIconId[];
 
 describe('UiIcon', () => {

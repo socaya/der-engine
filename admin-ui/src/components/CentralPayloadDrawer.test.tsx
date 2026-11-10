@@ -122,8 +122,10 @@ describe('CentralPayloadDrawer', () => {
     await waitFor(() =>
       expect(screen.getByTestId('central-payload-drawer'))
         .toBeInTheDocument());
-    /* Window-level keydown. */
-    fireEvent.keyDown(window, { key: 'Escape' });
+    /* UX-C: useFocusTrap owns the Escape handler on the dialog
+     * container (replaces the prior window-level listener). */
+    fireEvent.keyDown(screen.getByTestId('central-payload-drawer'),
+      { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
 

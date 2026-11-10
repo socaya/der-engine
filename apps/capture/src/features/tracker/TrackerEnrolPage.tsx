@@ -227,7 +227,7 @@ export function TrackerEnrolPage(
             )}
             {state === 'err' && msg && (
               <span data-test="tr-enrol-err"
-                    style={{ color: '#8a2525' }}>
+                    style={{ color: 'var(--der-danger-ink)' }}>
                 {msg}
               </span>
             )}

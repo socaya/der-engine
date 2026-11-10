@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as edgeApi from '../api/edgeApi';
 import { UiIcon } from './UiIcon';
+import { useFocusTrap } from './useFocusTrap';
 
 /**
  * §2.3.97 R-E — "Ready for Central" preview drawer.
@@ -34,14 +35,13 @@ export function CentralPayloadDrawer(
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  /* §2.3.122 R-AQ/followup — document-level Escape handler. */
-  useEffect(() => {
-    function onKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  /* UX-C: single focus-trap hook owns Escape + Tab-cycle + restore-
+   * focus-on-close. Supersedes the prior window-level keydown that
+   * only handled Escape. */
+  const panelRef = useFocusTrap<HTMLDivElement>({
+    active: true,
+    onClose,
+  });
 
   useEffect(() => {
     let alive = true;
@@ -79,17 +79,17 @@ export function CentralPayloadDrawer(
   return (
     <div role="dialog" aria-modal="true" aria-label={title}
          data-test="central-payload-drawer"
+         ref={panelRef}
          style={{
            position: 'fixed', inset: 0, zIndex: 1100,
            display: 'flex', alignItems: 'stretch',
            justifyContent: 'flex-end',
            background: 'rgba(15, 23, 42, 0.45)',
          }}
-         /* §2.3.122 R-AQ/followup — see PayloadLineageDrawer.tsx:
-          *   backdrop click-to-close removed to prevent the
-          *   open-then-immediate-close race on chatty mice /
-          *   trackpads. Esc + explicit Close button only. */
-         onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+         /* UX-C: Escape, Tab-cycle, and focus restoration all live in
+          *   useFocusTrap. Backdrop click-to-close still intentionally
+          *   omitted (§2.3.122 R-AQ/followup — chatty mice / trackpads
+          *   race the open). Explicit Close button + Escape only. */
          tabIndex={-1}>
       <div style={{
              background: 'var(--der-raised)',

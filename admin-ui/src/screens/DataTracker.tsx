@@ -13,6 +13,7 @@ import { WorkflowPicker } from '../components/WorkflowPicker';
 import { CentralPayloadDrawer } from '../components/CentralPayloadDrawer';
 import { PayloadLineageDrawer } from '../components/PayloadLineageDrawer';
 import { DateRangePicker } from '../components/DateRangePicker';
+import { useFocusTrap } from '../components/useFocusTrap';
 
 /**
  * §2.3.89 R-C/3 — `/data/tracker`: facility-local Tracker browse.
@@ -563,6 +564,11 @@ function PullTrackerFromCentralDialog(
   const [err, setErr] = useState<string | null>(null);
 
   const canSubmit = Boolean(program.trim() && orgUnit.trim()) && !busy;
+  /* focusContainer: true — avoids auto-opening the lazy-loading
+   * program picker on mount. See DataAggregate. */
+  const dialogRef = useFocusTrap<HTMLDivElement>({
+    active: true, onClose, focusContainer: true,
+  });
 
   async function run(): Promise<void> {
     setBusy(true); setErr(null); setResult(null);
@@ -583,6 +589,7 @@ function PullTrackerFromCentralDialog(
     <div role="dialog" aria-modal="true"
          aria-label="Pull tracker from Central DHIS2"
          data-test="pull-tracker-dialog"
+         ref={dialogRef}
          style={{
            position: 'fixed', inset: 0, zIndex: 1000,
            display: 'flex', alignItems: 'center', justifyContent: 'center',

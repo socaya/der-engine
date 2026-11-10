@@ -273,6 +273,22 @@ export interface CaptureApi {
       programStage?: { id?: string } | null;
     };
   }>>;
+  /** Batch journal-state lookup for per-row sync chips. Called by
+   *  TrackerListPage + EventListPage after the list loads to hydrate
+   *  the Sync column. Refs with no journal row are omitted — the
+   *  client treats absence as "edge-only, never attempted" which is
+   *  the correct state for a brand-new row. */
+  listJournalStateBatch: (
+    entityType: 'EVENT' | 'TRACKED_ENTITY' | 'ENROLLMENT'
+      | 'PROGRAM_STAGE_EVENT' | 'AGGREGATE_DATA_VALUE' | 'RELATIONSHIP',
+    refs: readonly string[],
+  ) => Promise<Record<string, {
+    operationId: string;
+    state: string;
+    attemptCount: number;
+    updatedAt: string | null;
+    lastError?: string;
+  }>>;
 }
 
 /** G6 — body accepted by submitEvent when editing a tracker

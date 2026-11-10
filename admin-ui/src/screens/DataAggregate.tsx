@@ -13,6 +13,7 @@ import { WorkflowPicker } from '../components/WorkflowPicker';
 import { CentralPayloadDrawer } from '../components/CentralPayloadDrawer';
 import { PeriodPicker } from '../components/PeriodPicker';
 import { PayloadLineageDrawer } from '../components/PayloadLineageDrawer';
+import { useFocusTrap } from '../components/useFocusTrap';
 
 /**
  * §2.3.81 R-C/1 — `/data/aggregate`: facility-local Aggregate data
@@ -453,6 +454,12 @@ function PullFromCentralDialog(
   const [err, setErr] = useState<string | null>(null);
 
   const canSubmit = Boolean(dataSet.trim() && orgUnit.trim() && period.trim()) && !busy;
+  /* focusContainer: true — the first focusable child is a lazy-loading
+   * picker; moving focus there on mount would auto-open the dropdown
+   * before the user interacts. Focus the dialog container instead. */
+  const dialogRef = useFocusTrap<HTMLDivElement>({
+    active: true, onClose, focusContainer: true,
+  });
 
   async function run(): Promise<void> {
     setBusy(true); setErr(null); setResult(null);
@@ -474,6 +481,7 @@ function PullFromCentralDialog(
     <div role="dialog" aria-modal="true"
          aria-label="Pull aggregate values from Central DHIS2"
          data-test="pull-from-central-dialog"
+         ref={dialogRef}
          style={{
            position: 'fixed', inset: 0, zIndex: 1000,
            display: 'flex', alignItems: 'center', justifyContent: 'center',

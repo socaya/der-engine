@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useFocusTrap } from './useFocusTrap';
 
 /**
  * C4: global keyboard shortcuts.
@@ -39,6 +40,10 @@ export function KeyboardShortcuts(): JSX.Element {
   const navigate = useNavigate();
   const [showHelp, setShowHelp] = useState(false);
   const [gPending, setGPending] = useState(false);
+  const modalRef = useFocusTrap<HTMLDivElement>({
+    active: showHelp,
+    onClose: () => setShowHelp(false),
+  });
 
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
@@ -92,6 +97,7 @@ export function KeyboardShortcuts(): JSX.Element {
       onClick={() => setShowHelp(false)}
     >
       <div
+        ref={modalRef}
         className="ea-help-modal"
         onClick={(e) => e.stopPropagation()}
       >

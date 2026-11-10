@@ -51,10 +51,10 @@ export const DER_PDF_STYLES = `
   /* Brand banner — slate-blue chrome stripe over a thin accent bar
    * in DER brand blue, matching the running app's top bar. */
   .der-pdf-banner {
-    background: #22436c;
+    background: #0d2e5c;
     color: #eaf0f7;
     padding: 12px 18px;
-    border-top: 4px solid #147CD7;
+    border-top: 4px solid #0d58a8;
   }
   .der-pdf-banner__row {
     display: flex; align-items: center; justify-content: space-between;
@@ -89,7 +89,7 @@ export const DER_PDF_STYLES = `
   .der-pdf-head__eyebrow {
     font-size: 9pt; font-weight: 600;
     letter-spacing: 0.1em; text-transform: uppercase;
-    color: #147CD7;
+    color: #0d58a8;
     margin: 0 0 6px 0;
   }
   .der-pdf-head__title {
@@ -134,7 +134,7 @@ export const DER_PDF_STYLES = `
     color: #101a32;
     margin: 22px 0 10px;
     padding: 4px 0 4px 10px;
-    border-left: 3px solid #147CD7;
+    border-left: 3px solid #0d58a8;
   }
   /* Status pill — reads on a paper copy. */
   .der-pdf-pill {

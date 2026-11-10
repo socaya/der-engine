@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { PageHeader } from '../components/PageHeader';
 import { Panel } from './shared';
 
 /** UI-1 — unified devices view.
@@ -117,7 +117,7 @@ export function DevicesScreen(
 
   return (
     <div className="ea-screen" data-test="devices-screen">
-      <ScreenHeader title="Devices"
+      <PageHeader title="Devices"
         subtitle={`${counts.total} total · ${counts.pending} awaiting approval · ${counts.fleet} in DHIS2 fleet · ${counts.lan} on local network`} />
 
       <Panel title="Filter">

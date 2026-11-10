@@ -8,6 +8,7 @@ import {
 import { UiIcon } from '../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { MetadataTabBar } from '../components/MetadataTabBar';
+import { PageHeader } from '../components/PageHeader';
 
 /**
  * Metadata — browse every mirrored DHIS2 metadata resource.
@@ -340,16 +341,16 @@ export function MetadataDetail(): JSX.Element {
   return (
     <div className="ea-screen" data-test="meta-detail">
       <BackLink to="/dhis2/metadata" label="Back to Metadata" />
-      <header className="ea-screen-header">
-        <div className="ea-screen-header-text">
-          <h1 style={{ margin: 0 }}>{sel.name || '(unnamed)'}</h1>
-          <div className="ea-screen-header-sub">
+      <PageHeader
+        title={sel.name || '(unnamed)'}
+        subtitle={(
+          <>
             <span>{typeLabel}</span>
             <span>·</span>
             <span className="ea-mono">{sel.id}</span>
-          </div>
-        </div>
-      </header>
+          </>
+        )}
+      />
       <section className="ea-panel">
         <MetadataDetailTabs sel={sel} tab={tab} setTab={setTab} />
       </section>
@@ -392,10 +393,11 @@ function MetadataHealthSummary(
   const edgeSnap = drift?.snapshotFrom != null ? String(drift.snapshotFrom) : '—';
 
   return (
-    <header className="ea-screen-header" data-test="metadata-health">
-      <div className="ea-screen-header-text">
-        <h1 style={{ margin: 0 }}>Metadata</h1>
-        <div className="ea-screen-header-sub">
+    <PageHeader
+      testId="metadata-health"
+      title="Metadata"
+      subtitle={(
+        <>
           <span>Read-only mirror of every DHIS2 metadata resource on this edge.</span>
           <span>·</span>
           <span><strong style={{ color: 'var(--der-ink-900)' }}>{totalMirror.toLocaleString()}</strong> items across {resourceCount} resources</span>
@@ -405,23 +407,25 @@ function MetadataHealthSummary(
           <span>Snapshot <strong style={{ color: 'var(--der-ink-900)' }}>{centralSnap}</strong>→<strong style={{ color: 'var(--der-ink-900)' }}>{edgeSnap}</strong></span>
           <span>·</span>
           <span style={{ color: toneColor(driftTone) }}>{driftLabel}</span>
-        </div>
-      </div>
-      <div className="ea-screen-header-right">
-        <Link to="/dhis2/metadata-sync" className="ea-btn ea-btn--primary ea-btn--sm"
-              data-test="metadata-action-sync"
-              data-cross-module="DHIS2">
-          <UiIcon icon="pull" size={14} />
-          <span>Metadata sync</span>
-        </Link>
-        <Link to="/dhis2/metadata-drift" className="ea-btn ea-btn--sm"
-              data-test="metadata-action-drift"
-              data-cross-module="DHIS2">
-          <UiIcon icon="drift" size={14} />
-          <span>Metadata drift</span>
-        </Link>
-      </div>
-    </header>
+        </>
+      )}
+      actions={(
+        <>
+          <Link to="/dhis2/metadata-sync" className="ea-btn ea-btn--primary ea-btn--sm"
+                data-test="metadata-action-sync"
+                data-cross-module="DHIS2">
+            <UiIcon icon="pull" size={14} />
+            <span>Metadata sync</span>
+          </Link>
+          <Link to="/dhis2/metadata-drift" className="ea-btn ea-btn--sm"
+                data-test="metadata-action-drift"
+                data-cross-module="DHIS2">
+            <UiIcon icon="drift" size={14} />
+            <span>Metadata drift</span>
+          </Link>
+        </>
+      )}
+    />
   );
 }
 

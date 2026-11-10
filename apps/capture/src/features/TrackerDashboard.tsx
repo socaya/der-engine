@@ -200,7 +200,7 @@ export function TrackerDashboard(
         {lastUpdated && (
           <div>
             <span className="cap-toolbar__field-label">Last updated</span>
-            <span style={{ marginLeft: 8, color: '#4a5768',
+            <span style={{ marginLeft: 8, color: 'var(--der-ink-500)',
               fontSize: 13 }}>{lastUpdated}</span>
           </div>
         )}
@@ -320,12 +320,12 @@ export function TrackerDashboard(
                 <div style={{ display: 'flex',
                   justifyContent: 'space-between', alignItems: 'center',
                   gap: 10, marginBottom: 10 }}>
-                  <strong style={{ fontSize: 13, color: '#263352' }}>
+                  <strong style={{ fontSize: 13, color: 'var(--der-ink-900)' }}>
                     {stageEvents.length} event
                     {stageEvents.length === 1 ? '' : 's'}
                     {statusFilter !== 'all' && rawStageEvents.length
                       !== stageEvents.length && (
-                      <span style={{ color: '#6e7a8a',
+                      <span style={{ color: 'var(--der-ink-500)',
                         fontWeight: 400 }}>
                         {' '}· of {rawStageEvents.length}
                       </span>
@@ -333,7 +333,7 @@ export function TrackerDashboard(
                   </strong>
                   <label style={{ display: 'flex',
                     alignItems: 'center', gap: 6, fontSize: 13,
-                    color: '#6e7a8a' }}>
+                    color: 'var(--der-ink-500)' }}>
                     status
                     <select className="cap-input__ctl"
                             data-test="tr-status-filter"

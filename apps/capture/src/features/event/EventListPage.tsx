@@ -3,6 +3,7 @@ import type { CaptureApi, EventRow } from '../../shared/types';
 import { RowActions } from '../../shared/RowActions';
 import { navEvent } from '../../shared/routing';
 import { DerDatePicker } from '../../shared/DerDatePicker';
+import { SyncChip, type SyncChipState } from '../../shared/SyncChip';
 
 /**
  * Event (WITHOUT_REGISTRATION) working-list page.
@@ -50,6 +51,8 @@ export function EventListPage(
 ): JSX.Element {
   const stateKey = 'cap:ev-list:' + programUid + ':' + orgUnitUid;
   const [recent, setRecent] = useState<EventRow[]>([]);
+  const [syncByUid, setSyncByUid] =
+    useState<Record<string, SyncChipState>>({});
   const [status, setStatus] =
     useState<'loading' | 'idle' | 'err'>('loading');
   const [metadataReady, setMetadataReady] = useState(true);
@@ -125,8 +128,30 @@ export function EventListPage(
           api.listCaptureProgramStages(programUid),
         ]);
         if (cancelled) return;
-        setRecent(evRes.events ?? []);
+        const events = evRes.events ?? [];
+        setRecent(events);
         setStatus('idle');
+        // Hydrate per-row sync state in a background pass — the list
+        // paints immediately and the Sync column fills in once the
+        // journal lookup lands. Soft-fails per row.
+        const refs = events
+          .map((e) => e.eventUid ?? e.event ?? '')
+          .filter((r) => r.length > 0);
+        if (refs.length > 0) {
+          void api.listJournalStateBatch('EVENT', refs)
+            .then((byRef) => {
+              if (cancelled) return;
+              const next: Record<string, SyncChipState> = {};
+              for (const [ref, v] of Object.entries(byRef)) {
+                next[ref] = {
+                  state: v.state,
+                  attemptCount: v.attemptCount,
+                };
+              }
+              setSyncByUid(next);
+            })
+            .catch(() => undefined);
+        }
 
         const firstStage = stageRes.stages[0];
         if (firstStage) {
@@ -542,6 +567,10 @@ export function EventListPage(
                     </span>
                   </button>
                 </th>
+                <th scope="col"
+                    title="Edge-vs-central sync state for this row">
+                  Sync
+                </th>
                 <th scope="col" aria-label="Actions" />
               </tr>
             </thead>
@@ -595,6 +624,10 @@ export function EventListPage(
                     })}
                     <td className="cap-table__cell">
                       {renderStatusPill(e.status)}
+                    </td>
+                    <td className="cap-table__cell">
+                      <SyncChip sync={syncByUid[uid]}
+                                dataTest={'ev-row-sync-' + uid} />
                     </td>
                     <td className="cap-table__cell cap-table__cell--actions"
                         onClick={(ev) => ev.stopPropagation()}>

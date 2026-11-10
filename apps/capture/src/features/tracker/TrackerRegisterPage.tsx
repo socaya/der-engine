@@ -175,7 +175,7 @@ export function TrackerRegisterPage(
             )}
             {state === 'err' && msg && (
               <span data-test="tr-reg-err"
-                    style={{ color: '#8a2525' }}>
+                    style={{ color: 'var(--der-danger-ink)' }}>
                 {msg}
               </span>
             )}

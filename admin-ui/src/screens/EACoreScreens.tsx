@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock, OfflineBanner } from '../components/ScreenStates';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { PageHeader } from '../components/PageHeader';
 import { SyncStatusBar, Panel, confirmThenRun, Status, RowMenu } from './shared';
 import { HealthCards } from '../components/HealthCards';
-import { HeroHeader } from '../components/HeroHeader';
 import { SystemComponents } from '../components/SystemComponents';
 import { QuickActions } from '../components/QuickActions';
 import { RecentActivity } from '../components/RecentActivity';
@@ -78,10 +77,9 @@ export function EASetupWelcome({ api = edgeApi }:
   if (!h || !c || !binding) return <LoadingBlock testId="ea01-loading" />;
   return (
     <div className="ea-screen ea-overview">
-      <HeroHeader
+      <PageHeader
         title="Setup overview"
-        version={h.version}
-        centralVersion={c.centralVersion ?? undefined}
+        subtitle={`DER ${h.version}${c.centralVersion ? ' · DHIS2 ' + c.centralVersion : ''}`}
         lastFetched={lastFetched}
         actions={
           <button
@@ -220,7 +218,7 @@ export function EAUsersList({ api = edgeApi }:
     : users;
   return (
     <div className="ea-screen">
-      <HeroHeader
+      <PageHeader
         title="Users"
         lastFetched={lastFetched}
         actions={
@@ -374,7 +372,7 @@ export function EAUserCreate({ api = edgeApi }:
 
   return (
     <div className="ea-screen">
-      <HeroHeader
+      <PageHeader
         title="Add user"
         actions={
           <Link to="/provisioning/users" className="ea-btn ea-btn--ghost"
@@ -605,7 +603,7 @@ export function EACompatHistory({ api = edgeApi }:
 
   return (
     <div className="ea-screen">
-      <ScreenHeader
+      <PageHeader
         title="Compat history"
         subtitle={`${rows.length} snapshots`}
         lastFetched={lastFetched}
@@ -766,7 +764,7 @@ export function EAJobsList({ api = edgeApi }:
 
   return (
     <div className="ea-screen">
-      <HeroHeader
+      <PageHeader
         title="Synchronisation jobs"
         lastFetched={lastFetched}
         actions={
@@ -926,7 +924,7 @@ export function EAJobTrigger({ api = edgeApi }:
   const current = JOB_CATALOG.find((j) => j.name === name) ?? JOB_CATALOG[0];
   return (
     <div className="ea-screen">
-      <HeroHeader
+      <PageHeader
         title="Trigger a job"
       />
       <section className="ea-trigger-card" data-test="ea07-card">
@@ -986,7 +984,7 @@ export function EADriftInspector({ api = edgeApi }:
   if (data.status === 'NO_SNAPSHOT') {
     return (
       <div className="ea-screen">
-        <HeroHeader title="Metadata drift" subtitle="No snapshot yet." />
+        <PageHeader title="Metadata drift" subtitle="No snapshot yet." />
         <EmptyBlock title="No drift snapshot" testId="ea08-empty">
           Drift is computed by diffing two metadata snapshots.  Trigger
           a metadata sync (or wait for the scheduled one) so DER has at
@@ -998,7 +996,7 @@ export function EADriftInspector({ api = edgeApi }:
   const same = data.fingerprintFrom === data.fingerprintTo;
   return (
     <div className="ea-screen">
-      <HeroHeader
+      <PageHeader
         title="Metadata drift"
         actions={
           <button type="button" data-test="ea08-refresh" disabled={refreshing}
@@ -1056,7 +1054,7 @@ export function EAConflictList({ api = edgeApi }:
   if (rows === null) return <LoadingBlock testId="ea10-loading" />;
   return (
     <div className="ea-screen">
-      <HeroHeader
+      <PageHeader
         title="Conflicts to review"
         lastFetched={lastFetched}
         actions={
@@ -1147,7 +1145,7 @@ export function EAWorkerHealth({ api = edgeApi }:
   };
   return (
     <div className="ea-screen">
-      <HeroHeader
+      <PageHeader
         title="Journal worker"
         lastFetched={lastFetched}
         actions={
@@ -2383,7 +2381,7 @@ export function EAAuditEvents({ api = edgeApi }:
 
   return (
     <div className="ea-screen">
-      <ScreenHeader
+      <PageHeader
         title="Audit events"
         subtitle={`${rows.length} most-recent events${eventTypeFilter ? ` of type ${eventTypeFilter}` : ''}`}
         lastFetched={lastFetched}

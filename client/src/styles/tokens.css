@@ -1,114 +1,13 @@
 /**
- * DER device-client design tokens (ADR-0037 + C-UI-5f slice 31).
+ * DER device-client design tokens — UX-A re-export.
  *
- * Aligned with the Vitalworks DHIS2 EMR theme in
- * /vitalworks/dhis2/shared/ui-design-system/src/tokens.js — the
- * operator-facing palette our clinical cousins already run.
- * Indigo primary, deep navy chrome, warmer neutrals, generous
- * radii and very light shadows carry the calm "flat + soft"
- * feel from the sign-in panel all the way through the device
- * client.
+ * All values live in `apps/app-sdk/src/tokens.css`; this file
+ * re-exports them so the existing client import path
+ * (`src/styles/tokens.css`) keeps working after the UX-A sweep.
  *
- * Every token is prefixed `--der-` so @dhis2/ui's own tokens
- * ({--dhis2-*}) cohabit without clashes. Tokens are the only
- * place colours + radii are hard-coded; component styles consume
- * them via var() so the palette swaps in one place.
+ * The shared sheet already provides every `--der-brand-*`,
+ * `--der-chrome-*`, `--der-ink-*`, `--der-surface*`, status, radius,
+ * shadow, motion and typography token the client shell + apps use;
+ * no per-surface overrides are needed here.
  */
-:root {
-  /* brand — DHIS2 blue (#147CD7), the same hue the sign-in InputField
-   * focus ring uses. Operators learn one accent colour across the
-   * stack: focus borders, primary buttons, topbar chrome, selection
-   * pills and the data-entry filter all share this palette. */
-  --der-brand-50:  #e6f1fb;
-  --der-brand-100: #c7dff6;
-  --der-brand-300: #78b4e9;
-  --der-brand-500: #147CD7;
-  --der-brand-600: #0f68b7;
-  --der-brand-700: #0a5497;
-  --der-brand-800: #083f72;
-
-  /* chrome (topbar / dark panes) — DHIS2 blue desaturated one
-   * step toward slate so the chrome reads as a quiet frame
-   * instead of a brand-forward banner. Still recognisably the
-   * same hue; just lower-chroma so it doesn't pull attention
-   * away from operator content. */
-  --der-chrome-bg:    #22436c;
-  --der-chrome-alt:   #1a3356;
-  --der-chrome-fg:    #eaf0f7;
-  --der-chrome-muted: #a7b4c7;
-
-  /* accent (sync pills / online indicators) — cyan */
-  --der-accent-500: #06b6d4;
-  --der-accent-600: #0891b2;
-  --der-accent-bg:  #cffafe;
-
-  /* back-compat aliases so existing component CSS keeps working. */
-  --der-topbar-bg: var(--der-chrome-bg);
-  --der-topbar-fg: var(--der-chrome-fg);
-  --der-signin-bg: var(--der-chrome-alt);
-
-  /* ink + neutrals */
-  --der-ink-900:    #101a32;   /* primary text */
-  --der-ink-700:    #2a3447;
-  --der-ink-500:    #5b6478;   /* muted meta */
-  --der-ink-300:    #9097a8;   /* placeholder */
-
-  /* surfaces — tuned to match the Capture app's softer palette
-   * so the shell + launched app read as one surface. Pure-white
-   * cards on a near-white canvas made the shell feel glaringly
-   * bright against Capture; this pulls both into a calm cool-
-   * grey band where depth comes from borders rather than
-   * surface contrast. */
-  --der-canvas:         #EEF2F7;   /* app background */
-  --der-surface:        #FAFBFD;   /* card background */
-  --der-surface-muted:  #ECEFF5;
-  --der-surface-subtle: #E4EAF2;
-  --der-surface-tinted: #F2F5F9;
-
-  /* 1 px separators — pulled one step darker so panels stay
-   * legible against the softer surface tokens above. */
-  --der-border:        #D0D7E2;
-  --der-border-strong: #94A0B4;
-
-  /* status */
-  --der-success-bg: #e3f7eb;
-  --der-success-fg: #1b8243;
-  --der-success:    #1b8243;
-  --der-warning-bg: #fef0d8;
-  --der-warning-fg: #9b5a00;
-  --der-warning:    #9b5a00;
-  --der-danger-bg:  #fee2e2;
-  --der-danger-fg:  #c0392b;
-  --der-danger:     #c0392b;
-  --der-info-bg:    #dbeafe;
-  --der-info-fg:    #1d4ed8;
-  --der-info:       #1d4ed8;
-  --der-neutral-bg: #eef0f5;
-  --der-neutral-fg: #475061;
-
-  /* generous radii — softer than the flat 2 px era. */
-  --der-radius-xs: 3px;
-  --der-radius-sm: 4px;
-  --der-radius-md: 6px;
-  --der-radius-lg: 10px;
-  --der-radius-xl: 14px;
-  --der-radius-pill: 999px;
-
-  /* very light elevation — replaces hard borders on floating bars. */
-  --der-shadow-sm: 0 1px 2px rgba(16, 26, 50, 0.04);
-  --der-shadow-md: 0 2px 6px rgba(16, 26, 50, 0.06),
-                   0 1px 3px rgba(16, 26, 50, 0.04);
-  --der-shadow-lg: 0 8px 24px rgba(16, 26, 50, 0.08),
-                   0 2px 6px rgba(16, 26, 50, 0.04);
-  --der-shadow-focus: 0 0 0 3px rgba(74, 85, 206, 0.30);
-
-  /* vertical rhythm */
-  --der-topbar-h: 52px;
-  --der-font-base: 'Inter', -apple-system, BlinkMacSystemFont,
-                    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --der-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-
-  /* motion */
-  --der-motion-fast: 120ms cubic-bezier(.2,.7,.3,1);
-  --der-motion-base: 200ms cubic-bezier(.2,.7,.3,1);
-}
+@import '../../../apps/app-sdk/src/tokens.css';

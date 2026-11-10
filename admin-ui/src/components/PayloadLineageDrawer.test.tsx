@@ -110,7 +110,7 @@ describe('PayloadLineageDrawer', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('Escape key fires onClose (window-level listener)', async () => {
+  it('Escape key fires onClose', async () => {
     vi.spyOn(edgeApi, 'aggregateRowPayload').mockResolvedValue({
       payload: {}, journal: [],
     } as never);
@@ -120,7 +120,10 @@ describe('PayloadLineageDrawer', () => {
     await waitFor(() =>
       expect(screen.getByTestId('payload-lineage-drawer'))
         .toBeInTheDocument());
-    fireEvent.keyDown(window, { key: 'Escape' });
+    /* UX-C: useFocusTrap owns the Escape handler on the drawer
+     * container (replaces the prior window-level listener). */
+    fireEvent.keyDown(screen.getByTestId('payload-lineage-drawer'),
+      { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
 

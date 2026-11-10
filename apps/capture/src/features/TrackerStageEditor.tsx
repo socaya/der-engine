@@ -13,6 +13,7 @@ import { usePublishDirty } from '../shared/DirtyContext';
 import { SectionNav } from '../shared/SectionNav';
 import { useAutofocusFirstField } from '../shared/useAutofocusFirstField';
 import { DerDatePicker } from '../shared/DerDatePicker';
+import { EventHeader } from '../shared/EventHeader';
 
 /**
  * Tracker stage event editor (requirements doc §8.5 TR-040 to
@@ -236,40 +237,31 @@ export function TrackerStageEditor(
 
   return (
     <>
-      <div className="cap-section-head" data-test="tr-editor-head">
-        <h2 className="cap-section-head__title">
-          {eventUid ? 'Edit event' : 'New event'}
-        </h2>
-        {eventStatus && (
-          <span className="cap-chip"
-                data-test="tr-editor-status"
-                style={{
-                  background: eventStatus === 'COMPLETED'
-                    ? '#ecf7f0' : '#eef2f8',
-                  color: eventStatus === 'COMPLETED'
-                    ? '#136436' : '#0a5497',
-                  borderColor: eventStatus === 'COMPLETED'
-                    ? '#b7dcc7' : '#cfe1f4',
-                }}>
-            {eventStatus}
-          </span>
+      <EventHeader
+        dataTest="tr-editor"
+        title={eventUid ? 'Edit event' : 'New event'}
+        status={eventStatus ?? undefined}
+        statusTone={eventStatus === 'COMPLETED' ? 'ok' : 'info'}
+        meta={(
+          <>
+            <label className="cap-input" style={{ minWidth: 150 }}>
+              <span className="cap-toolbar__field-label">Event date</span>
+              <DerDatePicker className="cap-input__ctl"
+                     value={occurredAt}
+                     onChange={setOccurredAt}
+                     data-test="tr-editor-occurred-at" />
+            </label>
+            <span className="cap-section-head__count">
+              {effectiveSections.reduce((a, s) => a + s.fields.length, 0)}{' '}
+              field{effectiveSections.reduce((a, s) =>
+                a + s.fields.length, 0) === 1 ? '' : 's'}
+              {rules.length > 0 && (
+                <> · {rules.length} rule{rules.length === 1 ? '' : 's'}</>
+              )}
+            </span>
+          </>
         )}
-        <label className="cap-input" style={{ minWidth: 150 }}>
-          <span className="cap-toolbar__field-label">Event date</span>
-          <DerDatePicker className="cap-input__ctl"
-                 value={occurredAt}
-                 onChange={setOccurredAt}
-                 data-test="tr-editor-occurred-at" />
-        </label>
-        <span className="cap-section-head__count">
-          {effectiveSections.reduce((a, s) => a + s.fields.length, 0)}{' '}
-          field{effectiveSections.reduce((a, s) =>
-            a + s.fields.length, 0) === 1 ? '' : 's'}
-          {rules.length > 0 && (
-            <> · {rules.length} rule{rules.length === 1 ? '' : 's'}</>
-          )}
-        </span>
-      </div>
+      />
 
       {parseIssues.length > 0 && (
         <div className="cap-strip cap-strip--info"
@@ -291,7 +283,7 @@ export function TrackerStageEditor(
           <ul style={{ margin: '4px 0 0 20px', padding: 0 }}>
             {ruleEffects.warnings.map((w, i) => (
               <li key={i} style={{ fontSize: 13,
-                color: w.severity === 'error' ? '#8a2525' : '#0a5497' }}>
+                color: w.severity === 'error' ? 'var(--der-danger-ink)' : 'var(--der-primary-ink)' }}>
                 {w.severity === 'error' ? '✦ ' : '• '}{w.message}
               </li>
             ))}
@@ -313,7 +305,7 @@ export function TrackerStageEditor(
             )}
             {state === 'err' && msg && (
               <span data-test="tr-editor-err"
-                    style={{ color: '#8a2525' }}>{msg}</span>
+                    style={{ color: 'var(--der-danger-ink)' }}>{msg}</span>
             )}
             {state === 'idle' && (
               <span>

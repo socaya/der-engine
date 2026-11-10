@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import type { UiIconId } from '../components/UiIcon';
+import { PageHeader } from '../components/PageHeader';
 
 /**
  * Mockup-matched helpers used across the Dashboard, Overview, Sync,
@@ -395,21 +396,26 @@ export function TablePager({ page, pageCount, pageSize, total, onPage, onPageSiz
         <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                 disabled={page <= 1}
                 data-test="pager-first"
+                aria-label="Go to first page"
                 onClick={() => onPage(1)}>« First</button>
         <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                 disabled={page <= 1}
                 data-test="pager-prev"
+                aria-label={`Go to page ${Math.max(1, page - 1)} of ${pageCount}`}
                 onClick={() => onPage(page - 1)}>‹ Prev</button>
-        <span style={{ fontSize: 12, padding: '0 6px' }}>
+        <span style={{ fontSize: 12, padding: '0 6px' }}
+              aria-live="polite">
           Page {page} of {pageCount}
         </span>
         <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                 disabled={page >= pageCount}
                 data-test="pager-next"
+                aria-label={`Go to page ${Math.min(pageCount, page + 1)} of ${pageCount}`}
                 onClick={() => onPage(page + 1)}>Next ›</button>
         <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                 disabled={page >= pageCount}
                 data-test="pager-last"
+                aria-label={`Go to last page (${pageCount})`}
                 onClick={() => onPage(pageCount)}>Last »</button>
       </div>
     </div>
@@ -1022,25 +1028,20 @@ export function SyncStatusBar({ tone, title, statusLabel, details, subtitle, act
   const sub = subtitle ?? details;
   const statusTone: StatusTone = tone === 'info' ? 'info' : tone;
   return (
-    <header className="ea-screen-header" data-test="sync-status-header">
-      <div className="ea-screen-header-text">
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600,
-                      display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+    <PageHeader
+      testId="sync-status-header"
+      title={(
+        <span style={{ display: 'flex', alignItems: 'center',
+                        gap: 10, flexWrap: 'wrap' }}>
           <span data-test="sync-status-title">{title}</span>
           {statusLabel && (
             <Status tone={statusTone}>{statusLabel}</Status>
           )}
-        </h1>
-        {sub && (
-          <div className="ea-screen-header-sub"
-               style={{ fontSize: 12, display: 'flex', gap: 14, flexWrap: 'wrap',
-                        alignItems: 'center' }}>
-            {sub}
-          </div>
-        )}
-      </div>
-      {actions && <div className="ea-screen-header-right">{actions}</div>}
-    </header>
+        </span>
+      )}
+      subtitle={sub}
+      actions={actions}
+    />
   );
 }
 

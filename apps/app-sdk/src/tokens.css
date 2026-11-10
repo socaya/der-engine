@@ -1,0 +1,234 @@
+/*
+ * DER unified design tokens — single source of truth consumed by
+ * admin-ui, client, and every DER-dispatched app (capture, data-entry,
+ * workflow-capture).
+ *
+ * UX-A deliverable: resolves the three divergent palettes documented
+ * in the Nov-10 UX audit (§3 P1 — split brand primaries, mismatched
+ * font-sizes, flat vs rounded radii across surfaces).
+ *
+ * Canonical names:
+ *   --der-primary*    interactive emphasis (buttons, focus, links)
+ *   --der-accent*     secondary emphasis (sync pills, teal accents)
+ *   --der-chrome-*    dark navy frame (sidebar, inverted surfaces)
+ *   --der-ink-*       text hierarchy 900 → 300 (muted → placeholder)
+ *   --der-surface-*   card and raised backgrounds
+ *   --der-border*     1px separators
+ *   --der-success|warning|danger|info  with -soft and -ink variants
+ *   --sp-N / --r-N    4px spacing grid, radius scale
+ *   --fs-*            type scale (14 body / 15 input baseline)
+ *   --el-*            elevation (very light shadows)
+ *
+ * Every component rule in the repo reads via var() so swapping
+ * palette, radius, or type scale happens here and nowhere else.
+ */
+:root{
+  /* ───────── Primary (DHIS2-aligned blue) ───────── */
+  --der-primary-50:  #e6f0fa;
+  --der-primary-100: #c6dcf3;
+  --der-primary-200: #9ac1e7;
+  --der-primary-300: #6aa4da;
+  --der-primary-400: #3e86cb;
+  --der-primary-500: #0d58a8;   /* canonical primary */
+  --der-primary-600: #0a4a92;
+  --der-primary-700: #083c78;
+  --der-primary-800: #062e5c;
+  --der-primary-900: #041e3d;
+
+  --der-primary:     var(--der-primary-500);
+  --der-primary-ink: var(--der-primary-700);
+  --der-primary-soft:#e8eff8;
+  --der-primary-ring:rgba(13,88,168,0.22);
+
+  /* ───────── Accent (teal / cyan) ───────── */
+  --der-accent-500:  #2b9eac;
+  --der-accent-600:  #1b7d8a;
+  --der-accent-soft: #e4f4f6;
+  --der-accent:      var(--der-accent-500);
+  --der-accent-ink:  var(--der-accent-600);
+
+  /* ───────── Chrome (dark sidebar / inverted) ───────── */
+  --der-chrome-bg:    #0d2e5c;
+  --der-chrome-alt:   #082148;
+  --der-chrome-fg:    #eaf0f7;
+  --der-chrome-muted: #a7b4c7;
+
+  /* ───────── Ink (text hierarchy) ───────── */
+  --der-ink-900: #0f1c2e;
+  --der-ink-800: #1b2b4a;
+  --der-ink-700: #2d3f5f;
+  --der-ink-500: #5a6a85;
+  --der-ink-400: #7585a0;
+  --der-ink-300: #9ca9bf;
+  --der-ink-200: #c4ccda;
+  --der-ink-100: #e3e8ef;
+
+  /* ───────── Surfaces ───────── */
+  --der-canvas:         #f5f7fb;
+  --der-surface:        #ffffff;
+  --der-surface-raised: #fafbfc;
+  --der-surface-muted:  #ecf0f5;
+  --der-surface-subtle: #e4eaf2;
+  --der-surface-tinted: #f2f5f9;
+  --der-raised:         var(--der-surface-raised); /* admin-ui alias */
+
+  /* ───────── Borders ───────── */
+  --der-border:         #d8dee8;
+  --der-border-strong:  #b8c0ce;
+  --der-border-subtle:  #eef0f4;
+
+  /* ───────── Status ───────── */
+  --der-success:      #1b9e5a;
+  --der-success-ink:  #117a44;
+  --der-success-soft: #e3f7ec;
+  --der-warning:      #d68a1a;
+  --der-warning-ink:  #a66807;
+  --der-warning-soft: #fdf2d9;
+  --der-danger:       #c0392b;
+  --der-danger-ink:   #8a2525;
+  --der-danger-soft:  #fde6e6;
+  --der-info:         #1d4ed8;
+  --der-info-ink:     #0a3cb7;
+  --der-info-soft:    #e3f2fd;
+  --der-neutral:      #5a6a85;
+  --der-neutral-ink:  #2d3f5f;
+  --der-neutral-soft: #eef0f5;
+
+  /* ───────── Spacing (4px grid) ───────── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 48px;
+
+  /* ───────── Radius ───────── */
+  --r-xs:   3px;
+  --r-sm:   4px;
+  --r-md:   6px;   /* default */
+  --r-lg:   8px;   /* panels, modals */
+  --r-xl:   12px;
+  --r-2xl:  16px;
+  --r-pill: 999px;
+
+  /* ───────── Typography ───────── */
+  --der-font-base: 'Inter', -apple-system, BlinkMacSystemFont,
+                    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --der-font-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono',
+                    Menlo, Consolas, monospace;
+
+  --fs-xs:   12px;  /* micro / helper */
+  --fs-sm:   13px;  /* meta, table headers */
+  --fs-md:   14px;  /* canonical body */
+  --fs-base: 14px;
+  --fs-input:15px;  /* form fields — one step above body for density legibility */
+  --fs-lg:   16px;  /* subsection titles */
+  --fs-xl:   18px;  /* section headings */
+  --fs-2xl:  20px;
+  --fs-3xl:  24px;
+  --fs-4xl:  28px;  /* page title */
+
+  --lh-tight: 1.3;
+  --lh-base:  1.45;
+  --lh-loose: 1.55;
+
+  /* ───────── Elevation ───────── */
+  --el-1: 0 1px 2px rgba(15,28,46,0.04),
+          0 1px 1px rgba(15,28,46,0.03);
+  --el-2: 0 2px 4px rgba(15,28,46,0.06),
+          0 4px 8px rgba(15,28,46,0.04);
+  --el-3: 0 4px 10px rgba(15,28,46,0.06),
+          0 12px 24px rgba(15,28,46,0.08);
+  --el-focus: 0 0 0 2px #ffffff,
+              0 0 0 4px var(--der-primary-ring);
+
+  /* back-compat shadow aliases (client naming). */
+  --der-shadow-sm:    var(--el-1);
+  --der-shadow-md:    var(--el-2);
+  --der-shadow-lg:    var(--el-3);
+  --der-shadow-focus: 0 0 0 3px var(--der-primary-ring);
+
+  /* ───────── Motion ───────── */
+  --t-fast:  120ms;
+  --t-base:  200ms;
+  --ease:    cubic-bezier(0.2, 0.0, 0.2, 1);
+  --der-motion-fast: 120ms cubic-bezier(.2,.7,.3,1);
+  --der-motion-base: 200ms cubic-bezier(.2,.7,.3,1);
+
+  /* ───────── Layout ───────── */
+  --topbar-h: 60px;
+  --sidebar-w: 252px;
+  --sidebar-w-collapsed: 72px;
+  --der-topbar-h: 52px; /* client shell override */
+
+  /* ───────── Responsive breakpoints — UX-F canonical hierarchy ─────
+     Every surface (admin-ui, client, capture, data-entry, workflow-
+     capture) uses these four widths and no others. Media queries
+     themselves must be literal in CSS; these vars document the
+     canonical values so TS + tests stay aligned.
+       sm      <=480px   portrait phone
+       md      <=768px   mobile cutoff — nav collapses to drawer
+       tablet  <=1024px  tablet portrait density
+       lg      <=1280px  tablet landscape / small desktop
+     Anything else is a bug. The audit's spec §7 requires the three
+     core bands (<768 / 768–1279 / ≥1280); `--bp-tablet` is the
+     sanctioned intermediate for 2-col → 1-col grid collapses on
+     portrait tablets. */
+  --bp-sm:     480px;
+  --bp-md:     768px;
+  --bp-tablet: 1024px;
+  --bp-lg:     1280px;
+
+  /* ───────── Back-compat aliases for client surface ───────── */
+  --der-brand-50:   var(--der-primary-50);
+  --der-brand-100:  var(--der-primary-100);
+  --der-brand-300:  var(--der-primary-300);
+  --der-brand-500:  var(--der-primary-500);
+  --der-brand-600:  var(--der-primary-600);
+  --der-brand-700:  var(--der-primary-700);
+  --der-brand-800:  var(--der-primary-800);
+
+  --der-topbar-bg:  var(--der-chrome-bg);
+  --der-topbar-fg:  var(--der-chrome-fg);
+  --der-signin-bg:  var(--der-chrome-alt);
+
+  --der-success-bg: var(--der-success-soft);
+  --der-success-fg: var(--der-success-ink);
+  --der-warning-bg: var(--der-warning-soft);
+  --der-warning-fg: var(--der-warning-ink);
+  --der-danger-bg:  var(--der-danger-soft);
+  --der-danger-fg:  var(--der-danger-ink);
+  --der-info-bg:    var(--der-info-soft);
+  --der-info-fg:    var(--der-info-ink);
+  --der-neutral-bg: var(--der-neutral-soft);
+  --der-neutral-fg: var(--der-neutral-ink);
+
+  --der-radius-xs:   var(--r-xs);
+  --der-radius-sm:   var(--r-sm);
+  --der-radius-md:   var(--r-md);
+  --der-radius-lg:   var(--r-lg);
+  --der-radius-xl:   var(--r-xl);
+  --der-radius-pill: var(--r-pill);
+
+  /* ───────── Back-compat aliases for admin-ui surface ───────── */
+  --der-navy:        var(--der-chrome-bg);
+  --der-navy-ink:    var(--der-chrome-alt);
+  --der-navy-700:    var(--der-primary-700);
+  --der-navy-500:    var(--der-primary-500);
+  --der-navy-400:    var(--der-primary-400);
+  --der-navy-soft:   var(--der-primary-soft);
+
+  --der-teal:        var(--der-accent-500);
+  --der-teal-ink:    var(--der-accent-600);
+  --der-teal-500:    var(--der-accent-500);
+  --der-teal-soft:   var(--der-accent-soft);
+
+  --der-sidebar-bg:          var(--der-chrome-bg);
+  --der-sidebar-ink:          #c7d2e3;
+  --der-sidebar-ink-hover:    #ffffff;
+  --der-sidebar-active-bg:    rgba(255,255,255,0.08);
+  --der-sidebar-active-ink:   #ffffff;
+  --der-sidebar-border:       rgba(255,255,255,0.08);
+}

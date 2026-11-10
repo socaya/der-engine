@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { HeroHeader } from '../../components/HeroHeader';
+import { PageHeader } from '../../components/PageHeader';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 import { MetadataTabBar } from '../../components/MetadataTabBar';
 
@@ -72,7 +72,7 @@ export function SnapshotList({ api = edgeApi }:
   return (
     <div className="ea-screen" data-test="snapshots-root">
       <MetadataTabBar />
-      <HeroHeader title="Snapshots" />
+      <PageHeader title="Snapshots" />
       <h1 className="ea-visually-hidden" data-test="snapshots-heading">Snapshots</h1>
 
       <table className="ea-table ea-table--dense" data-test="snapshots-table">

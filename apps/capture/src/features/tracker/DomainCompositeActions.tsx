@@ -385,7 +385,7 @@ export function DomainCompositeActions(
                          borderRadius: 4,
                          padding: '10px 12px',
                          marginBottom: 10,
-                         background: '#fff' }}>
+                         background: 'var(--der-surface)' }}>
                     <div style={{ display: 'flex',
                       alignItems: 'center',
                       marginBottom: 8 }}>

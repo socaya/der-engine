@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as edgeApi from '../api/edgeApi';
 import { UiIcon } from './UiIcon';
+import { useFocusTrap } from './useFocusTrap';
 
 /**
  * §2.3.101 R-K — Per-row payload lineage drawer.
@@ -30,16 +31,12 @@ export function PayloadLineageDrawer(
   const [retryBusy, setRetryBusy] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  /* §2.3.122 R-AQ/followup — document-level Escape handler so the
-   * key works even if the drawer backdrop never got keyboard
-   * focus. Idempotent — cleaned up on unmount. */
-  useEffect(() => {
-    function onKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  /* UX-C: single focus-trap hook owns Escape, Tab-cycle, and focus
+   * restoration. Supersedes the prior window-level Escape listener. */
+  const panelRef = useFocusTrap<HTMLDivElement>({
+    active: true,
+    onClose,
+  });
 
   useEffect(() => {
     let alive = true;
@@ -93,21 +90,17 @@ export function PayloadLineageDrawer(
   return (
     <div role="dialog" aria-modal="true" aria-label={title}
          data-test="payload-lineage-drawer"
+         ref={panelRef}
          style={{
            position: 'fixed', inset: 0, zIndex: 1100,
            display: 'flex', alignItems: 'stretch',
            justifyContent: 'flex-end',
            background: 'rgba(15, 23, 42, 0.45)',
          }}
-         /* §2.3.122 R-AQ/followup — backdrop click-to-close removed.
-          * Operators reported "Lineage not opening"; actual behaviour
-          * was open-then-immediate-close triggered by a second click
-          * landing on the backdrop (dark area around the right-side
-          * panel). On mice that chatter or trackpads where a single
-          * tap sometimes registers twice, this looked like no
-          * reaction. Esc + the Close button are the only ways to
-          * dismiss now. */
-         onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+         /* UX-C: Escape, Tab-cycle, and focus restoration owned by
+          *   useFocusTrap. Backdrop click-to-close still intentionally
+          *   omitted — §2.3.122 R-AQ/followup race on chatty mice /
+          *   trackpads. Explicit Close button + Escape only. */
          tabIndex={-1}>
       <div style={{
              background: 'var(--der-raised)',

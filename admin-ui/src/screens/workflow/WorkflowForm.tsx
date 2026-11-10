@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { HeroHeader } from '../../components/HeroHeader';
+import { PageHeader } from '../../components/PageHeader';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 import { UiIcon } from '../../components/UiIcon';
 import * as md from './wizardMetadata';
@@ -442,7 +442,7 @@ export function WorkflowForm({ api = edgeApi }:
 
   return (
     <div className="ea-screen" data-test="wf-form-root">
-      <HeroHeader
+      <PageHeader
         title={editing ? (name || 'Workflow') : 'New workflow'}
         actions={
           <>

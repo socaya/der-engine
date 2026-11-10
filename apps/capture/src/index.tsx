@@ -305,11 +305,11 @@ function CaptureAppInner(): JSX.Element {
           <span className="cap-toolbar__icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="22" height="22">
               <rect x="4" y="5" width="16" height="16" rx="3"
-                    fill="none" stroke="#147CD7" strokeWidth="1.8"/>
+                    fill="none" stroke="var(--der-primary)" strokeWidth="1.8"/>
               <rect x="9" y="3" width="6" height="4" rx="1"
-                    fill="#147CD7"/>
+                    fill="var(--der-primary)"/>
               <path d="M8 12 l2.2 2.2 L16 8.4"
-                    fill="none" stroke="#1E8E4A" strokeWidth="2"
+                    fill="none" stroke="var(--der-success)" strokeWidth="2"
                     strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </span>
@@ -701,7 +701,7 @@ function CaptureInfoPopover(
           <section data-test="cap-info-device">
             <h4 style={{ margin: '4px 0 6px 0', fontSize: 13,
               textTransform: 'uppercase', letterSpacing: '0.06em',
-              color: '#6e7a8a' }}>
+              color: 'var(--der-ink-500)' }}>
               Device
             </h4>
             <dl className="cap-info__dl">
@@ -722,7 +722,7 @@ function CaptureInfoPopover(
           <section data-test="cap-info-shortcuts">
             <h4 style={{ margin: '0 0 6px 0', fontSize: 13,
               textTransform: 'uppercase', letterSpacing: '0.06em',
-              color: '#6e7a8a' }}>
+              color: 'var(--der-ink-500)' }}>
               Keyboard shortcuts
             </h4>
             <dl className="cap-info__dl">

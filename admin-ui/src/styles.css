@@ -1,3 +1,19 @@
+/* UX-A: all token values live in apps/app-sdk/src/tokens.css —
+ * a single source consumed by admin-ui, client, capture, data-entry
+ * and workflow-capture. Any palette, radius, or type-scale change
+ * happens there; this file only owns admin-ui component rules.
+ * CSS spec requires @import before any other rule (bar @charset).
+ *
+ * UX-F canonical responsive hierarchy — these four widths are the
+ * only breakpoints used anywhere in the repo. Anything else is a
+ * bug.
+ *   @media (max-width: 480px)   sm      portrait phone
+ *   @media (max-width: 768px)   md      mobile cutoff (nav drawer)
+ *   @media (max-width: 1024px)  tablet  portrait-tablet density
+ *   @media (max-width: 1280px)  lg      tablet-landscape / small desktop
+ */
+@import '../../apps/app-sdk/src/tokens.css';
+
 /*
  * §8 A11y foundations — skip link, focus-visible outline, visually-hidden,
  * reduced-motion safety. Must stay at the top of the file so later rules
@@ -44,117 +60,24 @@
  *   - Fully responsive at 1280 / 1024 / 768 / 480
  */
 
-/* ============ Tokens ============ */
-:root{
-  /* Brand (sampled from logo) */
-  --der-navy:#0d2e5c;
-  --der-navy-ink:#082148;
-  --der-navy-700:#143d75;
-  --der-navy-500:#2458a3;
-  --der-navy-400:#4a7bc0;
-  --der-navy-soft:#e8eff8;
-
-  --der-teal:#2b9eac;
-  --der-teal-ink:#1b7d8a;
-  --der-teal-500:#45b1be;
-  --der-teal-soft:#e4f4f6;
-
-  --der-primary:var(--der-navy-500);
-  --der-primary-ink:var(--der-navy-700);
-  --der-primary-soft:var(--der-navy-soft);
-  --der-primary-ring:rgba(36,88,163,0.22);
-  --der-accent:var(--der-teal);
-  --der-accent-ink:var(--der-teal-ink);
-  --der-accent-soft:var(--der-teal-soft);
-
-  /* Status */
-  --der-success:#1b9e5a;
-  --der-success-ink:#117a44;
-  --der-success-soft:#e3f7ec;
-  --der-warning:#d68a1a;
-  --der-warning-ink:#a66807;
-  --der-warning-soft:#fdf2d9;
-  --der-danger:#d14343;
-  --der-danger-ink:#a92a2a;
-  --der-danger-soft:#fde6e6;
-  --der-info-soft:#e3f2fd;
-
-  /* Neutrals */
-  --der-ink-900:#0f1c2e;
-  --der-ink-800:#1b2b4a;
-  --der-ink-700:#2d3f5f;
-  --der-ink-500:#5a6a85;
-  --der-ink-400:#7585a0;
-  --der-ink-300:#9ca9bf;
-  --der-ink-200:#c4ccda;
-  --der-ink-100:#e3e8ef;
-  --der-surface:#ffffff;
-  --der-raised:#f8fafc;
-  --der-canvas:#fafbfc;
-  --der-border:#e2e6ec;
-  --der-border-strong:#c7cdd6;
-  --der-border-subtle:#eef0f4;
-
-  /* Sidebar */
-  --der-sidebar-bg:#0d2e5c;
-  --der-sidebar-ink:#c7d2e3;
-  --der-sidebar-ink-hover:#ffffff;
-  --der-sidebar-active-bg:rgba(255,255,255,0.08);
-  --der-sidebar-active-ink:#ffffff;
-  --der-sidebar-border:rgba(255,255,255,0.08);
-
-  /* Spacing */
-  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
-  --sp-5:20px; --sp-6:24px; --sp-7:32px; --sp-8:48px;
-
-  /* Radii — flat UI: surface radii collapsed to 0, pills/dots retain shape. */
-  --r-sm:0; --r-md:0; --r-lg:0; --r-xl:0; --r-2xl:0; --r-pill:999px;
-
-  /* Elevation */
-  --el-1:0 1px 2px rgba(15,28,46,0.04),0 1px 1px rgba(15,28,46,0.03);
-  --el-2:0 2px 4px rgba(15,28,46,0.06),0 4px 8px rgba(15,28,46,0.04);
-  --el-3:0 4px 10px rgba(15,28,46,0.06),0 12px 24px rgba(15,28,46,0.08);
-  --el-focus:0 0 0 2px #ffffff,0 0 0 4px var(--der-primary-ring);
-
-  /* Timing */
-  --t-fast:120ms; --t-base:200ms;
-  --ease:cubic-bezier(0.2,0.0,0.2,1);
-
-  /* Type scale — DER UI 10/10 Visibility standard (§4.1) */
-  --fs-xs:13px;        /* micro / helper min (§4.1: critical secondary ≥13px) */
-  --fs-sm:14px;        /* table headers, tabs */
-  --fs-md:15px;        /* standard body */
-  --fs-base:15px;      /* app baseline (§4.1: body 15–16px) */
-  --fs-lg:17px;        /* panel/section titles 17–18px */
-  --fs-xl:20px;        /* major section headings 20–22px */
-  --fs-2xl:24px;
-  --fs-3xl:28px;       /* main page title 28–30px */
-  --fs-4xl:32px;
-
-  /* Layout — sidebar 240–260px per §6.1 */
-  --sidebar-w:252px;
-  --sidebar-w-collapsed:72px;
-  --topbar-h:60px;
-}
-
 *,*::before,*::after{box-sizing:border-box}
 html,body,#root{height:100%}
 
 body{
   margin:0;
-  /* §4.3: Inter stack */
-  font-family:Inter,-apple-system,BlinkMacSystemFont,
-    'Segoe UI','Helvetica Neue',Arial,sans-serif;
+  font-family:var(--der-font-base);
   color:var(--der-ink-900);
   background:var(--der-canvas);
-  font-size:15px;                 /* §4.1 non-negotiable: body ≥15px */
-  line-height:1.5;
+  /* UX-A: 14px body / 15px input unified rule (§3). Inputs lift to
+   * --fs-input via the .ea-input + .ea-form rules; body stays at 14. */
+  font-size:var(--fs-md);
+  line-height:var(--lh-base);
   -webkit-font-smoothing:antialiased;
   text-rendering:optimizeLegibility;
 }
-.ea-mono{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,monospace;font-size:13px}
-.ea-text-muted{color:var(--der-ink-500);font-size:14px}
-code{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,monospace;font-size:13px}
+.ea-mono{font-family:var(--der-font-mono);font-size:var(--fs-sm)}
+.ea-text-muted{color:var(--der-ink-500);font-size:var(--fs-md)}
+code{font-family:var(--der-font-mono);font-size:var(--fs-sm)}
 
 /* ============ Shell layout ============ */
 .ea-shell{
@@ -286,7 +209,7 @@ code{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,mon
 @media (prefers-reduced-motion: reduce){
   .ea-sync-dot span{animation:none !important}
 }
-@media(max-width:960px){
+@media(max-width:1024px){
   .ea-mesh-grid{grid-template-columns:1fr !important}
 }
 @media(max-width:768px){
@@ -310,12 +233,21 @@ code{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,mon
   width:9px;height:9px;border-radius:50%;flex-shrink:0;
   background:var(--der-ink-300);
 }
-.ea-sidebar-footer-dot--operational{background:#2ecc71;box-shadow:0 0 7px rgba(46,204,113,0.55)}
-.ea-sidebar-footer-dot--offline-first{background:#f0c93b;box-shadow:0 0 7px rgba(240,201,59,0.55)}
-.ea-sidebar-footer-dot--recovering{background:#5aa7ff;box-shadow:0 0 7px rgba(90,167,255,0.55)}
-.ea-sidebar-footer-dot--starting{background:#8a98b6;box-shadow:0 0 7px rgba(138,152,182,0.55)}
-.ea-sidebar-footer-dot--degraded{background:#ff6a6a;box-shadow:0 0 7px rgba(255,106,106,0.55)}
+/* UX-C: decorative 7px glow removed (§2.3 elevation only via token
+ * scale) + supplementary UiIcon shipped alongside the dot so status
+ * is color + icon + text rather than color-only. */
+.ea-sidebar-footer-dot--operational{background:#2ecc71}
+.ea-sidebar-footer-dot--offline-first{background:#f0c93b}
+.ea-sidebar-footer-dot--recovering{background:#5aa7ff}
+.ea-sidebar-footer-dot--starting{background:#8a98b6}
+.ea-sidebar-footer-dot--degraded{background:#ff6a6a}
 .ea-sidebar-footer-dot--unknown{background:#8a98b6}
+.ea-sidebar-footer-icon{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:14px;height:14px;color:currentColor;flex-shrink:0;
+  margin-right:2px;
+}
+.ea-shell--collapsed .ea-sidebar-footer-icon{display:none}
 .ea-shell--collapsed .ea-sidebar-footer-text,
 .ea-shell--collapsed .ea-sidebar-footer-sub{display:none}
 .ea-shell--collapsed .ea-sidebar-footer{justify-content:center;padding:12px 0}
@@ -339,7 +271,7 @@ code{font-family:ui-monospace,SFMono-Regular,'JetBrains Mono',Menlo,Consolas,mon
 .ea-topbar-mode--degraded .ea-topbar-mode-dot{background:var(--der-danger)}
 .ea-topbar-mode--starting{color:var(--der-ink-500)}
 .ea-topbar-mode--starting .ea-topbar-mode-dot{background:var(--der-ink-400)}
-@media(max-width:900px){.ea-topbar-mode-label{display:none}}
+@media(max-width:1024px){.ea-topbar-mode-label{display:none}}
 
 /* ============ Attention Centre — §17 ============ */
 .ea-attention-centre{position:relative}
@@ -598,7 +530,8 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
 .ea-main input[type="date"],.ea-main input[type="tel"],
 .ea-main select,.ea-main textarea{
   width:100%;max-width:480px;padding:8px 12px;
-  font-family:inherit;font-size:var(--fs-base);line-height:20px;
+  /* UX-A: 14 body / 15 input rule — inputs lift one step for density legibility. */
+  font-family:inherit;font-size:var(--fs-input);line-height:20px;
   color:var(--der-ink-900);background:var(--der-raised);
   border:1px solid var(--der-border);border-radius:var(--r-md);
   outline:none;
@@ -994,7 +927,7 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
 .ea-ou-rebind details summary{cursor:pointer;color:var(--der-primary);font-weight:500;padding:var(--sp-2) 0}
 
 /* Overview responsive */
-@media(max-width:1100px){.ea-overview-grid{grid-template-columns:1fr}}
+@media(max-width:1280px){.ea-overview-grid{grid-template-columns:1fr}}
 @media(max-width:768px){
   .ea-hero{padding:var(--sp-5)}
   .ea-hero-title{font-size:var(--fs-3xl)}
@@ -1371,7 +1304,7 @@ kbd{
 .ea-sparkline-bar--bad{background:var(--der-danger);opacity:0.9}
 .ea-sparkline-bar--ok:hover,.ea-sparkline-bar--bad:hover{opacity:1}
 
-@media(max-width:720px){
+@media(max-width:768px){
   .ea-dhis2-conn-card{flex-direction:column;align-items:flex-start;gap:16px}
 }
 
@@ -1595,7 +1528,7 @@ kbd{
   display:flex;flex-direction:column;gap:var(--sp-3);
   max-height:fit-content;position:sticky;top:calc(var(--topbar-h) + var(--sp-3));
 }
-@media(max-width:1200px){
+@media(max-width:1280px){
   .ea-split{grid-template-columns:1fr}
   .ea-split-drawer{position:static}
 }
@@ -1665,7 +1598,7 @@ kbd{
 .ea-dash-middle{display:grid;grid-template-columns:2fr 1fr;gap:8px;margin:0 0 10px}
 .ea-dash-middle-left,.ea-dash-middle-right{display:flex;flex-direction:column}
 .ea-dash-middle .ea-panel{margin-bottom:8px}
-@media(max-width:1200px){.ea-dash-middle{grid-template-columns:1fr}}
+@media(max-width:1280px){.ea-dash-middle{grid-template-columns:1fr}}
 
 .ea-components-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0}
 .ea-components-list > li{
@@ -1686,7 +1619,7 @@ kbd{
 }
 .ea-components-list--grid > li{border-bottom:1px solid var(--der-border-subtle);padding:6px 0}
 .ea-components-list--grid > li:nth-last-child(-n+2){border-bottom:0}
-@media(max-width:900px){
+@media(max-width:1024px){
   .ea-components-list--grid{grid-template-columns:1fr}
   .ea-components-list--grid > li{border-bottom:1px solid var(--der-border-subtle)}
   .ea-components-list--grid > li:last-child{border-bottom:0}
@@ -1739,7 +1672,7 @@ kbd{
 .ea-topo-arrow{color:var(--der-ink-300);display:flex;align-items:center;flex-shrink:0}
 .ea-topo-arrow svg{width:48px;height:20px}
 /* Mobile: stack vertically instead of overflowing */
-@media(max-width:900px){
+@media(max-width:1024px){
   .ea-topology{flex-wrap:wrap;justify-content:center}
   .ea-topo-arrow svg{transform:rotate(90deg)}
 }
@@ -1782,7 +1715,7 @@ kbd{
 .ea-ws-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
 .ea-ws-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
 .ea-ws-grid-2 > .ea-panel,.ea-ws-grid-3 > .ea-panel{margin-bottom:0}
-@media(max-width:1200px){.ea-ws-grid-2,.ea-ws-grid-3{grid-template-columns:1fr}}
+@media(max-width:1280px){.ea-ws-grid-2,.ea-ws-grid-3{grid-template-columns:1fr}}
 
 /* Hero mini topology */
 .ea-dash-hero-topology-mini{color:var(--der-navy-700);flex-shrink:0;opacity:0.75}
@@ -2018,7 +1951,7 @@ kbd{
 .ea-role-editor-fields{
   display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);
 }
-@media(max-width:800px){.ea-role-editor-fields{grid-template-columns:1fr}}
+@media(max-width:768px){.ea-role-editor-fields{grid-template-columns:1fr}}
 .ea-role-editor-field{display:flex;flex-direction:column;gap:4px}
 .ea-role-editor-label{
   font-size:13px;color:var(--der-ink-500);font-weight:500;
@@ -2776,7 +2709,7 @@ tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
    allow — reduces wasted horizontal gap on wide monitors without
    affecting any other screen. */
 .ea-main .ea-screen.ea-screen--tight{margin:0 calc(-1 * var(--sp-3))}
-@media(max-width:900px){
+@media(max-width:1024px){
   .ea-main .ea-screen.ea-screen--tight{margin:0}
 }
 .ea-wf-monitor-split{
@@ -2811,9 +2744,65 @@ tr.is-expanded .ea-wf-steps-sp-chevron{color:var(--der-navy-700)}
 .ea-wf-monitor-panels{
   display:flex;flex-direction:column;gap:var(--sp-4);min-width:0;
 }
-@media(max-width:900px){
+@media(max-width:1024px){
   .ea-wf-monitor-split{grid-template-columns:1fr}
   .ea-wf-monitor-nav{position:static;flex-direction:row;flex-wrap:wrap;
     overflow-x:auto}
 }
+
+
+/* ============ UX-C Dialog primitive ============ */
+.ea-dialog-overlay{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(15,28,46,0.42);
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:48px 16px 16px;overflow-y:auto;
+  animation:ea-dlg-fade var(--t-fast) var(--ease);
+}
+.ea-dialog{
+  background:var(--der-surface);
+  border-radius:var(--r-lg);
+  box-shadow:var(--el-3);
+  width:100%;max-width:560px;
+  display:flex;flex-direction:column;
+  outline:none;
+  animation:ea-dlg-rise var(--t-base) var(--ease);
+}
+.ea-dialog:focus-visible{box-shadow:var(--el-3),var(--el-focus)}
+.ea-dialog-head{
+  display:flex;align-items:center;gap:var(--sp-2);
+  padding:var(--sp-4) var(--sp-5);
+  border-bottom:1px solid var(--der-border-subtle);
+}
+.ea-dialog-title{
+  margin:0;flex:1;
+  font-size:var(--fs-lg);font-weight:600;color:var(--der-ink-900);
+}
+.ea-dialog-close{
+  background:none;border:none;cursor:pointer;
+  padding:var(--sp-1);border-radius:var(--r-sm);
+  color:var(--der-ink-500);
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.ea-dialog-close:hover{background:var(--der-surface-muted);color:var(--der-ink-900)}
+.ea-dialog-close:focus-visible{outline:2px solid var(--der-primary-ink);outline-offset:2px}
+.ea-dialog-body{
+  padding:var(--sp-4) var(--sp-5);
+  overflow-y:auto;max-height:70vh;
+  font-size:var(--fs-md);line-height:var(--lh-base);
+  color:var(--der-ink-900);
+}
+.ea-dialog-foot{
+  padding:var(--sp-3) var(--sp-5);
+  border-top:1px solid var(--der-border-subtle);
+  display:flex;gap:var(--sp-2);justify-content:flex-end;
+  background:var(--der-surface-raised);
+  border-bottom-left-radius:var(--r-lg);
+  border-bottom-right-radius:var(--r-lg);
+}
+@keyframes ea-dlg-fade{from{opacity:0}to{opacity:1}}
+@keyframes ea-dlg-rise{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+/* ============ UX-C Field error ============ */
+.ea-field{display:flex;flex-direction:column;gap:var(--sp-1);margin-bottom:var(--sp-3)}
 

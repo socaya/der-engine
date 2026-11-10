@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { HeroHeader } from '../../components/HeroHeader';
+import { PageHeader } from '../../components/PageHeader';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -55,7 +55,7 @@ export function SnapshotDiff({ api = edgeApi, aOverride, bOverride }:
   }
   return (
     <div className="ea-screen" data-test="diff-root">
-      <HeroHeader
+      <PageHeader
         title={`Diff · #${a} → #${b}`}
         actions={
           <Link to="/metadata/snapshots" className="ea-btn ea-btn--ghost ea-btn--sm">

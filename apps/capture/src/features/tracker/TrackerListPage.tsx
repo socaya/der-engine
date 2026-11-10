@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CaptureApi } from '../../shared/types';
 import { RowActions } from '../../shared/RowActions';
 import { navTracker } from '../../shared/routing';
+import { SyncChip, type SyncChipState } from '../../shared/SyncChip';
 
 interface TeiRow {
   readonly trackedEntity?: string;
@@ -55,6 +56,8 @@ export function TrackerListPage(
 ): JSX.Element {
   const stateKey = 'cap:tr-list:' + programUid + ':' + orgUnitUid;
   const [rows, setRows] = useState<TeiRow[]>([]);
+  const [syncByUid, setSyncByUid] =
+    useState<Record<string, SyncChipState>>({});
   const [listStatus, setListStatus] =
     useState<'idle' | 'loading' | 'err'>('idle');
   const [query, setQuery] = useState<string>(() => {
@@ -118,8 +121,27 @@ export function TrackerListPage(
           api.getCaptureProgramTeiType(programUid),
         ]);
         if (cancelled) return;
-        setRows(listRes.trackedEntities ?? listRes.instances ?? []);
+        const teis = listRes.trackedEntities ?? listRes.instances ?? [];
+        setRows(teis);
         setListStatus('idle');
+        // Hydrate per-row sync chips from the journal batch endpoint.
+        const refs = teis
+          .map((t) => t.trackedEntity ?? t.trackedEntityInstance ?? '')
+          .filter((r) => r.length > 0);
+        if (refs.length > 0) {
+          void api.listJournalStateBatch('TRACKED_ENTITY', refs)
+            .then((byRef) => {
+              if (cancelled) return;
+              const next: Record<string, SyncChipState> = {};
+              for (const [ref, v] of Object.entries(byRef)) {
+                next[ref] = {
+                  state: v.state, attemptCount: v.attemptCount,
+                };
+              }
+              setSyncByUid(next);
+            })
+            .catch(() => undefined);
+        }
         const tet = tetRes?.trackedEntityTypeUid ?? null;
         setTetUid(tet);
         if (tet) {
@@ -443,6 +465,10 @@ export function TrackerListPage(
                     </span>
                   </button>
                 </th>
+                <th scope="col"
+                    title="Edge-vs-central sync state for this row">
+                  Sync
+                </th>
                 <th scope="col" aria-label="Actions" />
               </tr>
             </thead>
@@ -506,6 +532,10 @@ export function TrackerListPage(
                     <td className="cap-table__cell
                         cap-table__cell--date">
                       {formatTimestamp(r.lastUpdated)}
+                    </td>
+                    <td className="cap-table__cell">
+                      <SyncChip sync={syncByUid[uid]}
+                                dataTest={'tr-row-sync-' + uid} />
                     </td>
                     <td className="cap-table__cell
                         cap-table__cell--actions"

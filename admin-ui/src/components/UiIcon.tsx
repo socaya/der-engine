@@ -72,7 +72,9 @@ export type UiIconId =
   | 'tablet'          // tablet slab
   | 'mobile'          // phone slab
   | 'facility-server' // diamond (DER centre node)
-  | 'unknown-device'; // generic chip
+  | 'unknown-device' // generic chip
+  | 'close'           // × — dialog dismissal
+  | 'check';          // ✓ — operational status
 
 export function UiIcon(
   { icon, size = 16 }: { icon: UiIconId; size?: number }
@@ -207,5 +209,9 @@ export function UiIcon(
       return <svg {...common}><path d="M12 2.5l9.5 9.5-9.5 9.5-9.5-9.5z" /></svg>;
     case 'unknown-device':
       return <svg {...common}><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M9.5 10a2.5 2.5 0 115 0c0 1.5-2.5 1.8-2.5 3M12 17v.01" /></svg>;
+    case 'close':
+      return <svg {...common}><path d="M6 6l12 12M18 6L6 18" /></svg>;
+    case 'check':
+      return <svg {...common}><path d="M5 12l5 5L20 7" /></svg>;
   }
 }

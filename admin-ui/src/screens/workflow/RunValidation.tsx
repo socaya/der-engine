@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { HeroHeader } from '../../components/HeroHeader';
+import { PageHeader } from '../../components/PageHeader';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
 /**
@@ -44,7 +44,7 @@ export function RunValidation({ api = edgeApi, runId: propRunId }:
 
   return (
     <div className="ea-screen" data-test="validation-root">
-      <HeroHeader
+      <PageHeader
         title={`Validation · ${runId.slice(0, 8)}`}
         actions={
           <Link to="/workflows/queue" className="ea-btn ea-btn--ghost ea-btn--sm">

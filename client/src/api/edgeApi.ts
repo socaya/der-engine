@@ -1979,3 +1979,66 @@ export async function programTrackedEntityAttributes(programId: string):
     .map((p) => p.trackedEntityAttribute?.id)
     .filter((id): id is string => !!id);
 }
+
+/** UX deferred — batch journal-state lookup for per-row sync chips
+ *  in the Capture tracker + event lists.
+ *
+ *  The DHIS2-shaped {@code /api/events} and
+ *  {@code /api/trackedEntityInstances} responses don't carry journal
+ *  state (keeping the wire shape DHIS2-compatible). This batched
+ *  lookup hydrates the chip after the list loads: one GET per list
+ *  refresh, up to 500 refs.
+ *
+ *  Refs with no journal row are omitted — callers treat the absence
+ *  as "edge-only, never attempted", which is the correct state for
+ *  a brand-new row that hasn't entered the drain queue yet.
+ */
+export type JournalEntityType =
+  | 'EVENT'
+  | 'TRACKED_ENTITY'
+  | 'ENROLLMENT'
+  | 'PROGRAM_STAGE_EVENT'
+  | 'AGGREGATE_DATA_VALUE'
+  | 'RELATIONSHIP';
+
+export interface JournalRefState {
+  readonly operationId: string;
+  readonly state: string;
+  readonly attemptCount: number;
+  readonly updatedAt: string | null;
+  readonly lastError?: string;
+}
+
+export async function listJournalStateBatch(
+  entityType: JournalEntityType,
+  refs: readonly string[],
+): Promise<Record<string, JournalRefState>> {
+  const cleaned = refs.filter((r) => !!r && r.length > 0);
+  if (cleaned.length === 0) return {};
+  const chunks: string[][] = [];
+  for (let i = 0; i < cleaned.length; i += 500) {
+    chunks.push(cleaned.slice(i, i + 500));
+  }
+  const out: Record<string, JournalRefState> = {};
+  for (const chunk of chunks) {
+    const url = '/edge-api/v1/journal/state?entityType='
+      + encodeURIComponent(entityType)
+      + '&refs=' + chunk.map(encodeURIComponent).join(',');
+    try {
+      const r = await fetch(url, { credentials: 'include',
+        headers: { Accept: 'application/json' } });
+      if (!r.ok) continue;
+      // Match the rest of edgeApi: read response as text and parse
+      // manually. The test fixture supplies `.text()` but not
+      // `.json()`, so sticking to one path keeps tests honest.
+      const text = await r.text();
+      const body = (text ? JSON.parse(text) : {}) as {
+        refs?: Record<string, JournalRefState>;
+      };
+      Object.assign(out, body.refs ?? {});
+    } catch {
+      // Soft-fail: a missing chip is fine; the list still renders.
+    }
+  }
+  return out;
+}

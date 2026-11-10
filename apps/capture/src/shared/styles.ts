@@ -29,71 +29,45 @@ export const CAPTURE_STYLES = `
 
 :root {
   /*
-   * v3 §5.2 — DER design tokens (source of truth). Every Capture
-   * screen reads from these. Tweak a swatch here and the whole
-   * app shifts, so a visual rework doesn't mean a grep-and-replace
-   * through dozens of selectors.
+   * UX-A: Capture reads from the shared DER token sheet
+   * (apps/app-sdk/src/tokens.css) loaded by the host client shell.
+   * This block now only owns the capture-local aliases that keep
+   * existing .cap-* selectors working without a repo-wide rename.
+   *
+   * --der-text / --der-text-muted / --der-text-faint existed under
+   * capture-only names before the token unification; they now alias
+   * to the canonical --der-ink-900 / 500 / 300 hierarchy.
+   * --der-bg and --der-surface-subtle alias the shared equivalents.
+   * --der-primary-strong / --der-primary-subtle alias the shared
+   * --der-primary-ink / --der-primary-soft.
+   * --der-border-soft aliases --der-border-subtle.
+   * Radii lift to the shared 4/6/8 scale.
    */
-  /* Page + surface tokens tuned for a calmer, lower-glare look —
-   * pure #FFF cards on an almost-white page made Capture read as
-   * aggressively bright for operator sessions that run all day.
-   * The current values sit in a soft cool-grey band where panels
-   * still read as "content" without blowing out the surrounding
-   * chrome. Depth comes from the border tokens below, not from
-   * stronger surface contrast. */
-  --der-bg: #EEF2F7;           /* page background, soft cool mist */
-  --der-surface: #FAFBFD;      /* cards/panels, gentle off-white */
-  --der-surface-subtle: #ECEFF5; /* secondary panels + input bg */
-  /* Aligned to the DER ink palette used by Data Entry + admin-
-   * ui so Capture reads with the same text contrast everywhere.
-   * --der-text        = Data Entry's --der-ink-900 (primary).
-   * --der-text-muted  = Data Entry's --der-ink-500 (secondary
-   *                     metadata — darker than before so chips +
-   *                     labels still read as content, not chrome).
-   * --der-text-faint  = Data Entry's --der-ink-300 (placeholder). */
-  --der-text: #101a32;
-  --der-text-muted: #5b6478;
-  --der-text-faint: #9097a8;
-  /* Borders pulled one step darker to keep panel separation
-   * legible against the softer surface tokens above. */
-  --der-border: #DCE2EB;
-  --der-border-soft: #E6EAF1;
-  /* DHIS2 brand blue — same hue Data Entry's sectionTable
-   * inputs + the sign-in InputField focus ring use, so
-   * operators see one accent colour across every DER app. */
-  --der-primary: #147CD7;
-  --der-primary-strong: #0f68b7;
-  --der-primary-subtle: #e6f1fb;
-  --der-success: #237A57;
-  --der-success-subtle: #E6F2EC;
-  --der-warning: #A56518;
-  --der-warning-subtle: #FBEFD9;
-  --der-danger: #B74444;
-  --der-danger-subtle: #F7E0E0;
-  /* Radii are tokenised for completeness but held at 0 per operator
-   * preference (flat, clinical look — no rounded chips). Change the
-   * single value here to re-introduce rounded surfaces app-wide. */
-  --der-radius-sm: 0;
-  --der-radius-md: 0;
-  --der-radius-lg: 0;
-  --der-space-unit: 4px;
-  --der-focus-halo: 0 0 0 2px rgba(37, 99, 166, 0.35);
+  --der-bg: var(--der-canvas);
+  --der-text: var(--der-ink-900);
+  --der-text-muted: var(--der-ink-500);
+  --der-text-faint: var(--der-ink-300);
+  --der-border-soft: var(--der-border-subtle);
+  --der-primary-strong: var(--der-primary-ink);
+  --der-primary-subtle: var(--der-primary-soft);
+  --der-success-subtle: var(--der-success-soft);
+  --der-warning-subtle: var(--der-warning-soft);
+  --der-danger-subtle: var(--der-danger-soft);
 
-  /*
-   * Compatibility aliases — existing .cap-* selectors still reach
-   * for --cap-* vars; delegating to the DER tokens keeps the two
-   * naming schemes in lockstep without a sweeping find-replace.
-   */
-  --cap-ink-900: var(--der-text);
-  --cap-ink-700: var(--der-text);
-  --cap-ink-500: var(--der-text-muted);
-  --cap-ink-300: var(--der-text-faint);
+  --der-space-unit: 4px;
+  --der-focus-halo: var(--der-shadow-focus);
+
+  /* Capture-scoped .cap-* legacy aliases. */
+  --cap-ink-900: var(--der-ink-900);
+  --cap-ink-700: var(--der-ink-700);
+  --cap-ink-500: var(--der-ink-500);
+  --cap-ink-300: var(--der-ink-300);
   --cap-border: var(--der-border);
-  --cap-border-soft: var(--der-border-soft);
+  --cap-border-soft: var(--der-border-subtle);
   --cap-surface: var(--der-surface);
-  --cap-surface-soft: var(--der-surface-subtle);
+  --cap-surface-soft: var(--der-surface-muted);
   --cap-brand-500: var(--der-primary);
-  --cap-brand-700: var(--der-primary-strong);
+  --cap-brand-700: var(--der-primary-ink);
 }
 .cap-toolbar {
   position: sticky; top: 0; z-index: 10;
@@ -105,7 +79,7 @@ export const CAPTURE_STYLES = `
 .cap-toolbar__fields {
   display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
 }
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .cap-toolbar__fields {
     gap: 10px;
   }
@@ -135,7 +109,7 @@ export const CAPTURE_STYLES = `
 .cap-toolbar__icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; border-radius: 0;
-  background: #e8f0fa;
+  background: var(--der-primary-50);
 }
 .cap-toolbar__title {
   margin: 0; font-size: 18px; font-weight: 600;
@@ -235,7 +209,10 @@ export const CAPTURE_STYLES = `
   letter-spacing: 0.02em; color: var(--der-text-muted);
 }
 .cap-toolbar__select {
-  padding: 6px 8px; border: 1px solid #aaa; border-radius: 0;
+  /* UX-D §8 touch targets: desktop baseline 36px; tablet (coarse
+   * pointer) override lifts to 44px via @media below. */
+  padding: 8px 12px; min-height: 36px;
+  border: 1px solid var(--der-border-strong); border-radius: 0;
   font-size: 14px; background: var(--der-surface); appearance: none;
   background-image:
     linear-gradient(45deg, transparent 50%, var(--der-text-muted) 50%),
@@ -289,9 +266,9 @@ export const CAPTURE_STYLES = `
 .cap-strip--err { background: var(--der-danger-subtle); color: var(--der-danger);
                   border: 1px solid var(--der-danger); }
 .cap-strip--info{ background: var(--der-primary-subtle); color: var(--der-primary);
-                  border: 1px solid #cfe1f4; }
-.cap-strip--warn{ background: #fff4de; color: var(--der-warning);
-                  border: 1px solid #f4d7a2; }
+                  border: 1px solid var(--der-primary-100); }
+.cap-strip--warn{ background: var(--der-warning-soft); color: var(--der-warning);
+                  border: 1px solid var(--der-warning); }
 
 .cap-toolbar__field--wf {
   min-width: 0;
@@ -323,7 +300,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-dwf__banner {
   padding: 8px 12px;
-  background: #fafcff;
+  background: var(--der-surface-raised);
   border-left: 3px solid var(--der-primary);
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
   font-size: 13px; line-height: 1.4;
@@ -390,7 +367,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-dwf__row {
   padding: 14px 18px;
-  border-top: 1px solid #eef0f3;
+  border-top: 1px solid var(--der-border-subtle);
 }
 .cap-dwf__row:first-child { border-top: 0; }
 .cap-dwf__row-head {
@@ -410,11 +387,11 @@ export const CAPTURE_STYLES = `
 .cap-dwf__step {
   display: flex; align-items: center; gap: 10px;
   padding: 5px 10px;
-  background: #fafcff;
+  background: var(--der-surface-raised);
   font-size: 13px; color: var(--der-text-muted);
 }
 .cap-dwf__step--mine {
-  background: #ecf4fc;
+  background: var(--der-primary-50);
   color: var(--der-text); font-weight: 500;
 }
 .cap-dwf__step-ord {
@@ -443,8 +420,8 @@ export const CAPTURE_STYLES = `
 .cap-dwf__tabs {
   display: flex; gap: 2px;
   padding: 0 20px;
-  border-bottom: 1px solid #eef0f3;
-  background: #fafcff;
+  border-bottom: 1px solid var(--der-border-subtle);
+  background: var(--der-surface-raised);
   overflow-x: auto;
 }
 .cap-dwf__tab {
@@ -470,7 +447,7 @@ export const CAPTURE_STYLES = `
   margin: 10px 0;
 }
 .cap-dwf__step--current {
-  background: #fff4de; color: var(--der-warning);
+  background: var(--der-warning-soft); color: var(--der-warning);
 }
 .cap-dwf__step--current .cap-dwf__step-ord {
   background: var(--der-warning); color: var(--der-surface);
@@ -478,7 +455,7 @@ export const CAPTURE_STYLES = `
 .cap-dwf__ctx {
   margin-top: 14px;
   padding: 10px 20px;
-  background: #fafcff;
+  background: var(--der-surface-raised);
   border: 1px solid var(--der-border);
 }
 .cap-dwf__ctx-title {
@@ -489,7 +466,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-dwf__ctx-step {
   padding: 6px 0;
-  border-top: 1px solid #eef0f3;
+  border-top: 1px solid var(--der-border-subtle);
 }
 .cap-dwf__ctx-step:first-of-type { border-top: 0; }
 .cap-dwf__ctx-step-title {
@@ -521,7 +498,7 @@ export const CAPTURE_STYLES = `
 .cap-empty {
   margin: 24px 20px; padding: 24px;
   border: 1px dashed var(--der-border); border-radius: 0;
-  background: #fafcff;
+  background: var(--der-surface-raised);
   display: flex; flex-direction: column; gap: 8px;
 }
 .cap-empty__title {
@@ -593,9 +570,9 @@ export const CAPTURE_STYLES = `
 }
 .cap-section-head__inline-ctl {
   padding: 5px 10px;
-  border: 1px solid #a5adbb; border-radius: 3px;
+  border: 1px solid var(--der-ink-300); border-radius: 3px;
   font-size: 14px; line-height: 1.3;
-  background: #fff; color: var(--der-text);
+  background: var(--der-surface); color: var(--der-text);
   font-family: inherit;
   transition: border-color 100ms, box-shadow 100ms;
 }
@@ -639,7 +616,7 @@ export const CAPTURE_STYLES = `
 .cap-section-head__enrol-sel:focus {
   outline: 0;
   border-color: var(--der-primary);
-  box-shadow: 0 0 0 1px var(--der-primary-subtle, #e6f1fb);
+  box-shadow: 0 0 0 1px var(--der-primary-subtle, var(--der-primary-soft));
 }
 .cap-section-head__meta-item > strong {
   color: var(--der-text-muted); font-weight: 600;
@@ -660,7 +637,7 @@ export const CAPTURE_STYLES = `
   position: sticky; top: 56px; z-index: 6;
   display: flex; gap: 6px; overflow-x: auto;
   padding: 6px 14px;
-  background: #fafcff;
+  background: var(--der-surface-raised);
   border-bottom: 1px solid var(--der-border);
   scrollbar-width: thin;
 }
@@ -690,7 +667,7 @@ export const CAPTURE_STYLES = `
  *       - fieldset: border + padding stripped (no box)
  *       - grid: auto-fit, minmax(300px, 1fr) — fills viewport
  *       - labels: 13px var(--der-text) weight 500 (visible)
- *       - inputs: 15px, #a5adbb border, 3px radius, inset
+ *       - inputs: 15px, var(--der-ink-300) border, 3px radius, inset
  *         focus ring like the sign-in form + Data Entry
  */
 .cap-form { padding: 10px 20px 14px 20px;
@@ -733,17 +710,29 @@ export const CAPTURE_STYLES = `
 }
 .cap-input__req { color: var(--der-danger); margin-left: 3px; }
 /* Inputs — mirror Data Entry's .sectionTable input exactly so
- * operators see one field style across apps. 1px #a5adbb border,
+ * operators see one field style across apps. 1px var(--der-ink-300) border,
  * 15px font, 6/8 padding, white bg, inset focus ring in brand
  * blue (same ring the sign-in InputField uses). */
 .cap-input__ctl {
   width: 100%;
-  padding: 6px 10px;
-  border: 1px solid #a5adbb; border-radius: 3px;
+  /* UX-D §8 touch targets: desktop baseline 36px; tablet (coarse
+   * pointer) override lifts to 44px via @media below. */
+  padding: 8px 12px; min-height: 36px;
+  border: 1px solid var(--der-ink-300); border-radius: 3px;
   font-size: 15px; line-height: 1.4;
-  background: #fff;
+  background: var(--der-surface);
   color: var(--der-text); font-family: inherit;
   transition: border-color 100ms, box-shadow 100ms;
+}
+/* Coarse pointer = touchscreen primary — lift to the 44px WCAG 2.2
+ * target-size threshold. Fine pointers (desktop mouse/trackpad) stay
+ * at the denser 36px baseline. */
+@media (pointer: coarse) {
+  .cap-input__ctl,
+  .cap-toolbar__select {
+    padding: 11px 14px; min-height: 44px;
+  }
+  .cap-btn, .cap-btn--sm { min-height: 44px; }
 }
 .cap-input__ctl:hover:not(:disabled):not(:read-only) {
   border-color: var(--der-text);
@@ -754,7 +743,7 @@ export const CAPTURE_STYLES = `
   box-shadow: inset 0 0 0 2px var(--der-primary);
 }
 .cap-input__ctl--ro {
-  background: #f0f3fb; color: var(--der-text-muted);
+  background: var(--der-surface-muted); color: var(--der-text-muted);
   cursor: default;
 }
 .cap-input__help {
@@ -773,13 +762,13 @@ export const CAPTURE_STYLES = `
 .cap-toggle__track {
   position: relative; display: inline-block;
   width: 36px; height: 20px;
-  background: #cbd2dc; border-radius: 10px;
+  background: var(--der-border-strong); border-radius: 10px;
   transition: background 120ms;
 }
 .cap-toggle__dot {
   position: absolute; top: 2px; left: 2px;
   width: 16px; height: 16px; border-radius: 50%;
-  background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  background: var(--der-surface); box-shadow: 0 1px 2px rgba(0,0,0,0.15);
   transition: left 120ms;
 }
 .cap-toggle--on .cap-toggle__track {
@@ -801,8 +790,8 @@ export const CAPTURE_STYLES = `
 .cap-slider__range:disabled { cursor: not-allowed; }
 .cap-slider__value {
   width: 80px; padding: 6px 10px;
-  border: 1px solid #a5adbb; border-radius: 3px;
-  font-size: 15px; background: #fff; color: var(--der-text);
+  border: 1px solid var(--der-ink-300); border-radius: 3px;
+  font-size: 15px; background: var(--der-surface); color: var(--der-text);
   font-family: inherit;
 }
 .cap-slider__value:focus {
@@ -859,7 +848,7 @@ export const CAPTURE_STYLES = `
   padding: 10px 0; vertical-align: top;
   color: var(--der-text-muted); font-size: 13px;
 }
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .cap-form-section__matrix,
   .cap-form-section__matrix tbody,
   .cap-form-section__matrix tr,
@@ -915,14 +904,14 @@ export const CAPTURE_STYLES = `
   background: var(--der-surface);
   border-top: 1px solid var(--der-border);
 }
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .cap-action-bar {
     gap: 8px;
   }
   .cap-action-bar__state {
     flex-basis: 100%; order: -1;
     padding-bottom: 4px;
-    border-bottom: 1px solid #eef0f3;
+    border-bottom: 1px solid var(--der-border-subtle);
   }
 }
 .cap-action-bar__state {
@@ -943,10 +932,10 @@ export const CAPTURE_STYLES = `
 }
 .cap-btn--secondary:hover:not(:disabled) { background: var(--der-surface-subtle); }
 .cap-btn--danger {
-  background: var(--der-surface); color: #8a2525; border-color: #d8a7a7;
+  background: var(--der-surface); color: var(--der-danger-ink); border-color: var(--der-danger);
 }
 .cap-btn--danger:hover:not(:disabled) {
-  background: #fbecec; border-color: #8a2525;
+  background: var(--der-danger-soft); border-color: var(--der-danger-ink);
 }
 .cap-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .cap-btn:focus-visible {
@@ -1119,7 +1108,7 @@ export const CAPTURE_STYLES = `
 }
 .cap-sheet td:last-child { border-right: 0; }
 .cap-sheet__row--saving td,
-.cap-sheet__row--dirty td { background: #fffdf5; }
+.cap-sheet__row--dirty td { background: var(--der-warning-soft); }
 .cap-sheet__row--err td { background: var(--der-danger-subtle); }
 /* Frozen row (SHEET-O2) — sticky-top below the header. The last
  * frozen row carries a hairline on its bottom edge so operators
@@ -1149,12 +1138,12 @@ export const CAPTURE_STYLES = `
  * context across long/wide sheets. Chained :not() filters so
  * save-state and rule-error row tints still win when present. */
 .cap-sheet__row--active:not(.cap-sheet__row--saving):not(.cap-sheet__row--dirty):not(.cap-sheet__row--err) td {
-  background: #f3f7fb;
+  background: var(--der-surface-tinted);
 }
 .cap-sheet__row--active td.cap-sheet__date-cell,
 .cap-sheet__row--active td.cap-sheet__status-cell,
 .cap-sheet__row--active td.cap-sheet__rownum-cell {
-  background: #eef3f9;
+  background: var(--der-surface-muted);
 }
 .cap-sheet__row--active td.cap-sheet__rownum-cell {
   color: var(--der-primary); font-weight: 500;
@@ -1307,7 +1296,7 @@ body.cap-sheet__fill-dragging * { cursor: crosshair !important;
   display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
   padding: 16px 20px;
 }
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .cap-sheet__shortcuts-grid { grid-template-columns: 1fr; gap: 16px; }
 }
 .cap-sheet__shortcuts-grid h4 {
@@ -1561,7 +1550,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 /* Keep the hover tint subtle on frozen cells so they don't jump
  * visually relative to the scrolling body. */
 .cap-sheet__row--saving .cap-sheet__date-cell,
-.cap-sheet__row--dirty .cap-sheet__date-cell { background: #fffdf5; }
+.cap-sheet__row--dirty .cap-sheet__date-cell { background: var(--der-warning-soft); }
 .cap-sheet__row--err .cap-sheet__date-cell {
   background: var(--der-danger-subtle);
 }
@@ -1666,7 +1655,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   position: fixed;
   margin: 0; padding: 4px 0; list-style: none;
   background: var(--der-surface);
-  border: 1px solid #d8dee8;
+  border: 1px solid var(--der-border);
   border-radius: 3px;
   min-width: 180px;
   box-shadow: 0 4px 12px rgba(23, 38, 60, 0.12);
@@ -1846,7 +1835,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   grid-template-columns: 36px 1fr auto;
   align-items: start; gap: 12px;
   padding: 10px 12px;
-  background: #fff;
+  background: var(--der-surface);
   border: 1px solid var(--der-border-soft);
   border-radius: 6px;
   transition: background 100ms, border-color 100ms;
@@ -1864,13 +1853,13 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   flex-shrink: 0;
 }
 .cap-rel-card__icon--TRACKED_ENTITY {
-  background: #e7f1fc; color: #147cd7;
+  background: var(--der-primary-50); color: var(--der-primary);
 }
 .cap-rel-card__icon--ENROLLMENT {
-  background: #e3f7eb; color: #1b8243;
+  background: var(--der-success-soft); color: var(--der-success-ink);
 }
 .cap-rel-card__icon--EVENT {
-  background: #fef0d8; color: #9b5a00;
+  background: var(--der-warning-soft); color: var(--der-warning-ink);
 }
 .cap-rel-card__body { min-width: 0; }
 .cap-rel-card__primary {
@@ -1908,7 +1897,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 .cap-rel-card__menu-pop {
   position: absolute; top: 100%; right: 0;
   margin-top: 4px;
-  background: #fff;
+  background: var(--der-surface);
   border: 1px solid var(--der-border-soft);
   border-radius: 6px;
   box-shadow: 0 4px 16px rgba(16, 26, 50, 0.08);
@@ -1928,7 +1917,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   background: var(--der-surface-subtle);
 }
 .cap-rel-card__menu-item--destructive {
-  color: var(--der-danger, #c13030) !important;
+  color: var(--der-danger, var(--der-danger)) !important;
   border-top: 1px solid var(--der-border-soft) !important;
   margin-top: 4px;
 }
@@ -2006,10 +1995,10 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   color: var(--der-primary); font-weight: 500;
 }
 .cap-rel-wiz__step--active .cap-rel-wiz__step-num {
-  background: var(--der-primary); color: #fff;
+  background: var(--der-primary); color: var(--der-surface);
 }
 .cap-rel-wiz__step--done .cap-rel-wiz__step-num {
-  background: #e3f7eb; color: #1b8243;
+  background: var(--der-success-soft); color: var(--der-success-ink);
 }
 .cap-rel-wiz__step + .cap-rel-wiz__step::before {
   content: '→'; color: var(--der-text-faint);
@@ -2080,13 +2069,13 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   letter-spacing: 0.02em;
   vertical-align: baseline;
 }
-.cap-rel-sync--synced  { background: #e3f7eb; color: #1b8243; }
-.cap-rel-sync--pending { background: #fef0d8; color: #9b5a00; }
+.cap-rel-sync--synced  { background: var(--der-success-soft); color: var(--der-success-ink); }
+.cap-rel-sync--pending { background: var(--der-warning-soft); color: var(--der-warning-ink); }
 .cap-rel-sync--local   { background: var(--der-surface-subtle);
                          color: var(--der-text-muted); }
-.cap-rel-sync--failed  { background: #fde3e3; color: #c13030; }
-.cap-rel-sync--blocked { background: #fde3e3; color: #c13030; }
-.cap-rel-sync--conflict{ background: #fef0d8; color: #9b5a00; }
+.cap-rel-sync--failed  { background: var(--der-danger-soft); color: var(--der-danger); }
+.cap-rel-sync--blocked { background: var(--der-danger-soft); color: var(--der-danger); }
+.cap-rel-sync--conflict{ background: var(--der-warning-soft); color: var(--der-warning-ink); }
 
 /* Flat chips — no background, no border; the colour alone
  * carries the semantic. Matches the user's 'no chips styles'
@@ -2313,7 +2302,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px 36px;
 }
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .cap-profile-pane__grid { grid-template-columns: 1fr; }
   .cap-profile-pane__head { flex-direction: column; }
   .cap-profile-pane__actions { justify-content: flex-start; }
@@ -2344,7 +2333,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   letter-spacing: 0.05em;
 }
 .cap-profile-pane__cell-req {
-  color: var(--der-danger, #c13030); margin-left: 3px;
+  color: var(--der-danger, var(--der-danger)); margin-left: 3px;
   font-weight: 700;
 }
 .cap-profile-pane__cell-flag {
@@ -2399,7 +2388,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   font-size: 13px; font-weight: 500; letter-spacing: 0.02em;
 }
 .cap-chip--ok {
-  background: #e3f7eb; color: #1b8243;
+  background: var(--der-success-soft); color: var(--der-success-ink);
 }
 .cap-chip--muted {
   background: var(--der-surface-subtle); color: var(--der-text-muted);
@@ -2509,7 +2498,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   min-width: 0;
   overflow: hidden;
 }
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .cap-stage-layout {
     grid-template-columns: 1fr;
   }
@@ -2531,7 +2520,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   width: min(560px, calc(100vw - 32px));
   background: var(--der-surface);
   border-radius: 0;
-  border: 1px solid #d8dee8;
+  border: 1px solid var(--der-border);
   display: flex; flex-direction: column;
   max-height: calc(100vh - 32px);
   overflow: hidden;
@@ -2595,7 +2584,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   padding: 1px 6px; min-width: 20px;
   text-align: center;
   background: var(--der-surface-subtle); color: var(--der-text);
-  border: 1px solid #cfd7e4; border-bottom-width: 2px;
+  border: 1px solid var(--der-border); border-bottom-width: 2px;
   border-radius: 0;
   font-size: 13px; font-family: ui-monospace, Menlo, monospace;
 }
@@ -2671,7 +2660,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   color: var(--der-text-muted);
   font-size: 13px; line-height: 1.5;
 }
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .cap-insp { width: 100%; max-width: 100%; }
 }
 /* ---------------------------------------------------------------
@@ -2786,7 +2775,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 .der-dp__day.is-selected,
 .der-dp__day.is-selected:hover {
   background: var(--der-success);
-  color: #ffffff;
+  color: var(--der-surface);
   font-weight: 600;
   box-shadow: 0 1px 2px rgba(35, 122, 87, 0.3);
 }

@@ -172,19 +172,19 @@ export default function WorkflowCaptureApp(): JSX.Element {
           z-index: 5;
           margin: 0 0px 12px;
           padding: 10px 20px 10px 20px;
-          background: #ffffff;
-          border-bottom: 1px solid #e5e9ef;
+          background: var(--der-surface);
+          border-bottom: 1px solid var(--der-border);
           box-shadow: 0 1px 2px rgba(16, 26, 50, 0.04);
         }
         .der-wc-heartbeat {
           display: inline-flex; align-items: center; gap: 8px;
-          font-size: 13px; color: #117a44; font-weight: 500;
+          font-size: 13px; color: var(--der-success-ink); font-weight: 500;
         }
-        .der-wc-heartbeat--offline { color: #6e7a8a; }
+        .der-wc-heartbeat--offline { color: var(--der-ink-500); }
         .der-wc-heartbeat__dot {
           position: relative;
           width: 8px; height: 8px; border-radius: 50%;
-          background: #117a44; color: #117a44;
+          background: var(--der-success-ink); color: var(--der-success-ink);
           box-shadow: 0 0 0 2px rgba(17, 122, 68, 0.18);
         }
         .der-wc-heartbeat__dot::before {
@@ -200,7 +200,7 @@ export default function WorkflowCaptureApp(): JSX.Element {
           animation: der-wc-pulse-ring 2.4s cubic-bezier(0.2,0.6,0.4,1) infinite;
         }
         .der-wc-heartbeat--offline .der-wc-heartbeat__dot {
-          background: #94a3b8; color: #94a3b8;
+          background: var(--der-ink-400); color: var(--der-ink-400);
           box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.18);
         }
         .der-wc-heartbeat--offline .der-wc-heartbeat__dot::before {
@@ -215,12 +215,12 @@ export default function WorkflowCaptureApp(): JSX.Element {
           .der-wc-heartbeat__dot::before { animation: none; }
         }
       `}</style>
-      <p style={{ margin: 0, color: '#6e7a8a', fontSize: 13 }}>
+      <p style={{ margin: 0, color: 'var(--der-ink-500)', fontSize: 13 }}>
         Signed in as <strong>{auth.displayName}</strong> • Bound OU
         <code style={{ marginInline: 6 }} title={ou.orgUnitPath}>{ou.orgUnitDisplayName || ou.orgUnitUid}</code>
       </p>
       {!ou.bound && (
-        <p style={{ marginTop: 12, color: '#8a2525' }}>
+        <p style={{ marginTop: 12, color: 'var(--der-danger-ink)' }}>
           Device is not bound to an organisation unit — ask an admin
           to complete provisioning before capturing workflow runs.
         </p>
@@ -253,15 +253,15 @@ export default function WorkflowCaptureApp(): JSX.Element {
 
       {startOpen && (
         <form onSubmit={onStart} style={{ marginTop: 12, padding: 12,
-          border: '1px solid #d7dde5', borderRadius: 3,
-          background: '#fafbfc' }}>
+          border: '1px solid var(--der-border)', borderRadius: 3,
+          background: 'var(--der-surface-raised)' }}>
           <label>Business key
             <input value={businessKey}
                    onChange={(e) => setBusinessKey(e.target.value)}
                    placeholder="e.g. orgUnit:202611 or TEI uid"
                    style={inputStyle} />
           </label>
-          <p style={{ fontSize: 12, color: '#6e7a8a', margin: '6px 0' }}>
+          <p style={{ fontSize: 12, color: 'var(--der-ink-500)', margin: '6px 0' }}>
             Identifies this run uniquely within the workflow.
           </p>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -290,7 +290,7 @@ export default function WorkflowCaptureApp(): JSX.Element {
         Runs {runs.length > 0 && `(${runs.length})`}
       </h3>
       {runs.length === 0 ? (
-        <p style={{ color: '#6e7a8a', fontSize: 13 }}>
+        <p style={{ color: 'var(--der-ink-500)', fontSize: 13 }}>
           {workflowId === ''
             ? 'Pick a workflow to list runs.'
             : status.kind === 'loading' ? 'Loading…' : 'No runs for this workflow yet.'}
@@ -300,13 +300,13 @@ export default function WorkflowCaptureApp(): JSX.Element {
           {runs.map((r) => (
             <li key={r.runId}
                 style={{ padding: '6px 0',
-                  borderBottom: '1px solid #eef0f3',
+                  borderBottom: '1px solid var(--der-border-subtle)',
                   display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', gap: 8, fontSize: 13 }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center',
                 flex: 1, minWidth: 0 }}>
-                <code style={{ color: '#2c3e50' }}>{r.runId.slice(0, 8)}…</code>
-                <span style={{ color: '#6e7a8a' }}>
+                <code style={{ color: 'var(--der-ink-800)' }}>{r.runId.slice(0, 8)}…</code>
+                <span style={{ color: 'var(--der-ink-500)' }}>
                   {r.businessKey}
                 </span>
                 <StatusPill tone={stateTone(r.state)}>{r.state}</StatusPill>
@@ -323,13 +323,13 @@ export default function WorkflowCaptureApp(): JSX.Element {
 
       {selectedRun && (
         <section style={{ marginTop: 16, padding: 12,
-          border: '1px solid #d7dde5', borderRadius: 3,
-          background: '#fafbfc' }}
+          border: '1px solid var(--der-border)', borderRadius: 3,
+          background: 'var(--der-surface-raised)' }}
                  data-test="wc-run-card">
           <h4 style={{ margin: 0, fontSize: 14 }}>
             Run <code>{selectedRun.runId}</code>
           </h4>
-          <p style={{ margin: '6px 0', fontSize: 13, color: '#6e7a8a' }}>
+          <p style={{ margin: '6px 0', fontSize: 13, color: 'var(--der-ink-500)' }}>
             Business key <strong>{selectedRun.businessKey}</strong>
             {' · '}state <strong>{selectedRun.state}</strong>
             {' · '}step <code>{selectedRun.currentStepId ?? '—'}</code>
@@ -347,15 +347,15 @@ export default function WorkflowCaptureApp(): JSX.Element {
             <>
               <h5 style={{ margin: '12px 0 4px', fontSize: 12,
                 textTransform: 'uppercase', letterSpacing: '0.08em',
-                color: '#6e7a8a' }}>
+                color: 'var(--der-ink-500)' }}>
                 Prefill ({Object.keys(prefill.cells).length} cells)
               </h5>
               <table style={{ width: '100%', borderCollapse: 'collapse',
                 fontSize: 12 }}>
                 <tbody>
                   {Object.entries(prefill.cells).map(([k, v]) => (
-                    <tr key={k} style={{ borderBottom: '1px solid #eef0f3' }}>
-                      <td style={{ padding: '4px 4px', color: '#6e7a8a' }}>
+                    <tr key={k} style={{ borderBottom: '1px solid var(--der-border-subtle)' }}>
+                      <td style={{ padding: '4px 4px', color: 'var(--der-ink-500)' }}>
                         <code>{k}</code>
                       </td>
                       <td style={{ padding: '4px 4px' }}>{v}</td>
@@ -375,7 +375,7 @@ export default function WorkflowCaptureApp(): JSX.Element {
               {status.kind === 'advancing' ? 'Advancing…' : 'Advance run'}
             </button>
           </div>
-          <p style={{ marginTop: 10, fontSize: 12, color: '#6e7a8a' }}>
+          <p style={{ marginTop: 10, fontSize: 12, color: 'var(--der-ink-500)' }}>
             Field-value editing lands in a later slice-5 follow-up
             — use the shell&apos;s capture-run form for full write-back today.
           </p>
@@ -397,45 +397,45 @@ function stateTone(state: RunRow['state']): 'success' | 'warning' | 'neutral' | 
 const inputStyle = {
   display: 'block', width: '100%', marginTop: 4,
   padding: '6px 8px',
-  border: '1px solid #d7dde5', borderRadius: 2,
+  border: '1px solid var(--der-border)', borderRadius: 2,
   fontSize: 13, fontFamily: 'inherit',
 };
 
 const primaryBtn = {
-  padding: '6px 16px', border: '1px solid #1f4d70',
-  background: '#2c6693', color: '#fff',
+  padding: '6px 16px', border: '1px solid var(--der-primary-700)',
+  background: 'var(--der-primary-ink)', color: 'var(--der-surface)',
   borderRadius: 2, fontSize: 13, fontWeight: 500,
   cursor: 'pointer',
 };
 
 const secondaryBtn = {
-  padding: '6px 16px', border: '1px solid #d7dde5',
-  background: '#fff', color: '#2c3e50',
+  padding: '6px 16px', border: '1px solid var(--der-border)',
+  background: 'var(--der-surface)', color: 'var(--der-ink-800)',
   borderRadius: 2, fontSize: 13, fontWeight: 500,
   cursor: 'pointer',
 };
 
 const secondaryBtnActive = {
   ...secondaryBtn,
-  background: '#eaf1f8',
-  borderColor: '#2c6693',
-  color: '#1f4d70',
+  background: 'var(--der-primary-50)',
+  borderColor: 'var(--der-primary-ink)',
+  color: 'var(--der-primary-700)',
 };
 
 const okStrip = {
   marginTop: 12, padding: '8px 12px',
-  background: '#e8f4ee', color: '#136436',
-  border: '1px solid #b7dcc7', borderRadius: 3,
+  background: 'var(--der-success-soft)', color: 'var(--der-success-ink)',
+  border: '1px solid var(--der-success)', borderRadius: 3,
 };
 
 const errorStrip = {
   marginTop: 12, padding: '8px 12px',
-  background: '#fbeaea', color: '#8a2525',
-  border: '1px solid #e0bcbc', borderRadius: 3,
+  background: 'var(--der-danger-soft)', color: 'var(--der-danger-ink)',
+  border: '1px solid var(--der-danger)', borderRadius: 3,
 };
 
 const sectionHeading = {
   marginTop: 20, fontSize: 12, textTransform: 'uppercase' as const,
-  letterSpacing: '0.08em', color: '#6e7a8a',
-  borderBottom: '1px solid #d7dde5', paddingBottom: 6,
+  letterSpacing: '0.08em', color: 'var(--der-ink-500)',
+  borderBottom: '1px solid var(--der-border)', paddingBottom: 6,
 };

@@ -13,6 +13,7 @@ import { WorkflowPicker } from '../components/WorkflowPicker';
 import { CentralPayloadDrawer } from '../components/CentralPayloadDrawer';
 import { PayloadLineageDrawer } from '../components/PayloadLineageDrawer';
 import { DateRangePicker } from '../components/DateRangePicker';
+import { useFocusTrap } from '../components/useFocusTrap';
 
 /**
  * §2.3.87 R-C/2 — `/data/events`: facility-local Event / Tracker
@@ -469,6 +470,11 @@ function PullEventsFromCentralDialog(
   const [err, setErr] = useState<string | null>(null);
 
   const canSubmit = Boolean(program.trim() && orgUnit.trim()) && !busy;
+  /* focusContainer: true — avoids auto-opening the lazy-loading
+   * program picker on mount. See DataAggregate. */
+  const dialogRef = useFocusTrap<HTMLDivElement>({
+    active: true, onClose, focusContainer: true,
+  });
 
   async function run(): Promise<void> {
     setBusy(true); setErr(null); setResult(null);
@@ -492,6 +498,7 @@ function PullEventsFromCentralDialog(
     <div role="dialog" aria-modal="true"
          aria-label="Pull events from Central DHIS2"
          data-test="pull-events-dialog"
+         ref={dialogRef}
          style={{
            position: 'fixed', inset: 0, zIndex: 1000,
            display: 'flex', alignItems: 'center', justifyContent: 'center',

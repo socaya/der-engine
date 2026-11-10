@@ -8,7 +8,20 @@ import { ClockDriftBanner } from './ClockDriftBanner';
 import { OnboardingTour } from '../screens/OnboardingTour';
 import { useOrgUnit } from './OrgUnitContext';
 import { UserMenu } from './UserMenu';
+import { UiIcon, type UiIconId } from './UiIcon';
 import * as edgeApi from '../api/edgeApi';
+
+/** UX-C — second non-color cue for the runtime-mode indicator. One
+ *  icon per mode keeps the sidebar footer accessible without relying
+ *  on the dot colour alone. */
+function iconForMode(mode: string): UiIconId {
+  if (mode === 'operational') return 'check';
+  if (mode === 'degraded') return 'attention';
+  if (mode === 'offline-first') return 'pause';
+  if (mode === 'recovering') return 'refresh';
+  if (mode === 'starting') return 'schedule';
+  return 'cog';
+}
 
 /**
  * DER Runtime indicator — polled from `/edge-api/v1/system/health` and
@@ -83,6 +96,9 @@ function RuntimeFooter(): JSX.Element {
     <Link to="/sync" className="ea-sidebar-footer ea-sidebar-footer-link"
           title={r.detail} data-test="runtime-footer">
       <span className={'ea-sidebar-footer-dot ea-sidebar-footer-dot--' + r.mode} aria-hidden="true" />
+      <span className="ea-sidebar-footer-icon" aria-hidden="true">
+        <UiIcon icon={iconForMode(r.mode)} size={12} />
+      </span>
       <span className="ea-sidebar-footer-text">{r.label}</span>
       {r.sub && <span className="ea-sidebar-footer-sub">{r.sub}</span>}
     </Link>

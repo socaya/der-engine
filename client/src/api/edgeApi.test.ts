@@ -1325,3 +1325,54 @@ describe('edgeApi capture endpoints (ADR-0036)', () => {
     expect(headers['Content-Type']).toBe('application/json');
   });
 });
+
+describe('edgeApi.listJournalStateBatch', () => {
+  it('returns empty map for empty refs without calling fetch', async () => {
+    const r = await api.listJournalStateBatch('EVENT', []);
+    expect(r).toEqual({});
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('calls /edge-api/v1/journal/state with the right query', async () => {
+    fetchMock.mockResolvedValue(respond(200, {
+      entityType: 'EVENT',
+      refs: { 'ev-1': { operationId: 'op-1', state: 'CENTRAL_ACCEPTED',
+        attemptCount: 1, updatedAt: '2026-11-10T12:00:00Z' } },
+    }));
+    const r = await api.listJournalStateBatch('EVENT', ['ev-1', 'ev-2']);
+    const [url] = fetchMock.mock.calls[0] as [string, unknown];
+    expect(url).toContain('/edge-api/v1/journal/state');
+    expect(url).toContain('entityType=EVENT');
+    expect(url).toContain('ev-1');
+    expect(url).toContain('ev-2');
+    expect(r['ev-1'].state).toBe('CENTRAL_ACCEPTED');
+  });
+
+  it('soft-fails on non-ok and returns partial map', async () => {
+    fetchMock.mockResolvedValueOnce(respond(500));
+    const r = await api.listJournalStateBatch('EVENT', ['ev-1']);
+    expect(r).toEqual({});
+  });
+
+  it('swallows network exceptions', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('offline'));
+    const r = await api.listJournalStateBatch('TRACKED_ENTITY', ['t-1']);
+    expect(r).toEqual({});
+  });
+
+  it('chunks refs in 500-wide batches', async () => {
+    fetchMock.mockResolvedValue(respond(200, {
+      entityType: 'EVENT', refs: {},
+    }));
+    const refs = Array.from({ length: 1100 }, (_, i) => `r${i}`);
+    await api.listJournalStateBatch('EVENT', refs);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('skips empty-string refs before sending', async () => {
+    fetchMock.mockResolvedValue(respond(200, { refs: {} }));
+    await api.listJournalStateBatch('EVENT', ['', 'ev-1', '']);
+    const [url] = fetchMock.mock.calls[0] as [string, unknown];
+    expect(url).toContain('refs=ev-1');
+  });
+});

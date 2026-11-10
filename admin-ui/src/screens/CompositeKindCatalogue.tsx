@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import * as edgeApi from '../api/edgeApi';
 import { Panel } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { PageHeader } from '../components/PageHeader';
 
 /** Admin UI for the composite-kind catalogue (spec §4 / §3.4).
  *  Admins register composite kinds (Lab Request, Prescription,
@@ -160,7 +160,7 @@ export function CompositeKindCatalogue(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="compkinds-screen">
-      <ScreenHeader
+      <PageHeader
         title="Composite kind catalogue"
         subtitle="Register DER_DOMAIN composite kinds and bind each to the DHIS2 program stages that drive their capture forms." />
 

@@ -82,6 +82,8 @@ function useDerApi(): {
   getOptionSet: typeof edgeApi.getOptionSet;
   // G9-32 — operator-triggered journal drain.
   triggerSyncJob: typeof edgeApi.triggerSyncJob;
+  // UX deferred — batch journal-state lookup for per-row sync chips.
+  listJournalStateBatch: typeof edgeApi.listJournalStateBatch;
 } {
   return {
     submitAggregate: edgeApi.submitAggregate,
@@ -136,6 +138,7 @@ function useDerApi(): {
     deleteTrackerRelationship: edgeApi.deleteTrackerRelationship,
     getOptionSet: edgeApi.getOptionSet,
     triggerSyncJob: edgeApi.triggerSyncJob,
+    listJournalStateBatch: edgeApi.listJournalStateBatch,
   };
 }
 

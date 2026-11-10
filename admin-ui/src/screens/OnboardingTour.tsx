@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UiIcon } from '../components/UiIcon';
+import { useFocusTrap } from '../components/useFocusTrap';
 
 /** §8 — guided tour shown on first operator sign-in. Stores
  *  "tour.dismissed=true" in user_preference so it never shows
@@ -8,6 +9,10 @@ import { UiIcon } from '../components/UiIcon';
 export function OnboardingTour(): JSX.Element | null {
   const [open, setOpen]     = useState(false);
   const [step, setStep]     = useState(0);
+  const modalRef = useFocusTrap<HTMLDivElement>({
+    active: open,
+    onClose: () => dismiss(),
+  });
 
   useEffect(() => {
     fetch('/edge-api/v1/user-prefs', { credentials: 'include' })
@@ -115,6 +120,7 @@ export function OnboardingTour(): JSX.Element | null {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   zIndex: 2000 }}>
       <div className="ea-modal"
+           ref={modalRef}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
                     padding: 24, maxWidth: 520, width: '90%', boxShadow: 'var(--el-3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>

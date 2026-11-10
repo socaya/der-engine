@@ -148,7 +148,7 @@ export function RelatedStageActions(
               <div>
                 <strong>{r.relationshipName ?? r.relationshipType
                   ?? 'Linked'}</strong>
-                <div style={{ marginTop: 4, color: '#4a5768',
+                <div style={{ marginTop: 4, color: 'var(--der-ink-500)',
                   fontSize: 13 }}>→ {r.targetLabel}</div>
               </div>
               <span className="cap-sub" style={{ fontSize: 13 }}>
