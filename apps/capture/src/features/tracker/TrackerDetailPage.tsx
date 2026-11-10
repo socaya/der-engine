@@ -7,6 +7,9 @@ import { parseTeiAttributesForm } from '../../shared/parser';
 import { navTracker } from '../../shared/routing';
 import { RowActions } from '../../shared/RowActions';
 import { exportHtmlAsPdf } from '../../shared/pdfExport';
+import {
+  derPdfDocument, derPdfIdentity, derPdfSectionTitle, derPdfPill,
+} from '../../shared/pdfTemplate';
 
 export interface TrackerEnrolment {
   readonly enrollmentUid: string;
@@ -1292,62 +1295,88 @@ function renderProfilePdfHtml(
 ): string {
   const { teiId, programUid, displayName, attributes,
     enrolment, generatedAt } = args;
-  const rows = attributes
-    .map((a) => `<tr><th>${esc(a.label)}</th>`
-      + `<td>${esc(a.value)}</td></tr>`).join('');
-  return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8" />
-<title>Profile — ${esc(displayName || teiId)}</title>
-<style>
-  @page { size: A4; margin: 18mm; }
-  * { box-sizing: border-box; }
-  body { background: #fff; color: #101a32; margin: 0;
-    font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; }
-  header { border-bottom: 2px solid #101a32; padding-bottom: 10px;
-    margin-bottom: 18px; }
-  .eyebrow { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
-      Roboto, sans-serif; font-size: 9pt; letter-spacing: 0.08em;
-    text-transform: uppercase; color: #5b6478; margin: 0 0 4px 0; }
-  h1 { font-size: 18pt; margin: 0; font-weight: 700; }
-  .sub { color: #5b6478; margin: 4px 0 0; font-size: 10pt; }
-  table { width: 100%; border-collapse: collapse;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-      sans-serif; font-size: 10.5pt; }
-  th, td { text-align: left; padding: 7px 10px 7px 0;
-    vertical-align: top; border-bottom: 1px solid #ebeef3; }
-  th { color: #5b6478; font-weight: 500; text-transform: uppercase;
-    font-size: 9pt; letter-spacing: 0.04em; width: 32%; }
-  td { color: #101a32; font-weight: 400; }
-  footer { margin-top: 24px; font-family: -apple-system,
-      BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 9pt; color: #9097a8; border-top: 1px solid #d9dde6;
-    padding-top: 8px; display: flex; justify-content: space-between; }
-  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
-      monospace; font-size: 9pt; color: #5b6478; }
-</style></head>
-<body>
-  <header>
-    <p class="eyebrow">DHIS2 Tracker · Identity Summary</p>
-    <h1>${esc(displayName || 'Tracked entity')}</h1>
-    <p class="sub">Generated ${esc(generatedAt)}</p>
-  </header>
-  <table><tbody>
-    ${rows}
-    <tr><th>Tracked entity UID</th><td><code>${esc(teiId)}</code></td></tr>
-    <tr><th>Program UID</th><td><code>${esc(programUid)}</code></td></tr>
-    ${enrolment ? `
-      <tr><th>Enrolment UID</th>
-        <td><code>${esc(enrolment.enrollmentUid)}</code></td></tr>
-      <tr><th>Enrolled on</th>
-        <td>${esc(formatDateOnly(enrolment.enrollmentDate))}</td></tr>
-      <tr><th>Status</th>
-        <td>${esc(formatStatusLabel(enrolment.status))}</td></tr>` : ''}
-  </tbody></table>
-  <footer>
-    <span><strong>DER Capture</strong></span>
-    <span>${esc(displayName || teiId)} · ${esc(generatedAt)}</span>
-  </footer>
-</body></html>`;
+  const subjectName = displayName || 'Tracked entity';
+  // Identity block — program / TEI UID / enrolment context, so
+  // the printed artefact is self-traceable back to source records.
+  const identity = derPdfIdentity([
+    { label: 'Tracked entity UID', value: teiId, code: true },
+    { label: 'Program UID', value: programUid, code: true },
+    ...(enrolment ? [
+      { label: 'Enrolment UID', value: enrolment.enrollmentUid,
+        code: true },
+      { label: 'Enrolled on',
+        value: formatDateOnly(enrolment.enrollmentDate) },
+      ...(enrolment.incidentDate ? [{
+        label: 'Incident date',
+        value: formatDateOnly(enrolment.incidentDate),
+      }] : []),
+      { label: 'Enrolment status',
+        value: formatStatusLabel(enrolment.status) },
+    ] : []),
+  ]);
+  const attrRows = attributes.length === 0
+    ? '<p style="color:#5b6478; font-size:10pt; margin:8px 0;">'
+      + 'No attribute values captured for this tracked entity.</p>'
+    : '<div class="der-pdf-attr-grid">'
+      + attributes.map((a) => `
+      <div class="der-pdf-attr-grid__label">${esc(a.label)}</div>
+      <div class="der-pdf-attr-grid__value">${esc(a.value)}</div>`).join('')
+      + '</div>';
+  const body = `
+    ${identity}
+    ${derPdfSectionTitle('Attribute values')}
+    ${attrRows}
+    <style>
+      .der-pdf-attr-grid {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 0;
+        border: 1px solid #DCE2EB;
+        border-radius: 3px;
+      }
+      .der-pdf-attr-grid__label,
+      .der-pdf-attr-grid__value {
+        padding: 8px 12px;
+        border-bottom: 1px solid #ECEFF5;
+      }
+      .der-pdf-attr-grid > div:nth-last-child(-n+2) {
+        border-bottom: 0;
+      }
+      .der-pdf-attr-grid__label {
+        background: #FAFBFD;
+        font-size: 9.5pt;
+        color: #5b6478; font-weight: 600;
+        border-right: 1px solid #ECEFF5;
+      }
+      .der-pdf-attr-grid__value {
+        font-size: 10.5pt;
+        color: #101a32;
+      }
+    </style>
+  `;
+  return derPdfDocument({
+    docTitle: 'Profile — ' + subjectName,
+    header: {
+      eyebrow: 'Patient identity summary',
+      title: subjectName,
+      subtitle: attributes.length + ' attribute'
+        + (attributes.length === 1 ? '' : 's') + ' captured'
+        + (enrolment ? ' · enrolment ' + enrolment.enrollmentUid : ''),
+    },
+    body,
+    footer: {
+      left: subjectName,
+      right: 'Generated ' + generatedAt,
+    },
+    generatedAt,
+  });
+}
+
+function esc(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;',
+    '"': '&quot;', "'": '&#39;',
+  }[c] as string));
 }
 
 /** Enrolment notes pane — renders inline inside the stage pane
@@ -1622,10 +1651,8 @@ async function exportNotesPdf(
     year: 'numeric', month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
-  const title = 'Enrolment notes — '
-    + (teiDisplayName || teiId);
   const html = renderNotesPdfHtml({
-    title, teiId, programUid, teiDisplayName,
+    teiId, programUid, teiDisplayName,
     teiAttributes, enrolment, notes: ordered, generatedAt,
   });
   try {
@@ -1641,16 +1668,8 @@ async function exportNotesPdf(
   }
 }
 
-function esc(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;',
-    '"': '&quot;', "'": '&#39;',
-  }[c] as string));
-}
-
 function renderNotesPdfHtml(
   args: {
-    title: string;
     teiId: string;
     programUid: string;
     teiDisplayName: string | null;
@@ -1662,119 +1681,115 @@ function renderNotesPdfHtml(
     generatedAt: string;
   },
 ): string {
-  const { title, teiId, programUid, teiDisplayName,
+  const { teiId, programUid, teiDisplayName,
     teiAttributes, enrolment, notes, generatedAt } = args;
-  const identityRows = teiAttributes
-    .map((a) => `<tr><th>${esc(a.label)}</th>`
-      + `<td>${esc(a.value)}</td></tr>`).join('');
-  const notesHtml = notes.map((n, i) => `
-      <li class="note">
-        <div class="note__num">${i + 1}</div>
-        <div class="note__body">
-          <div class="note__when">${esc(formatTimestamp(n.createdAt))}</div>
-          <div class="note__text">${esc(n.noteText)
+  const subjectName = teiDisplayName || 'Tracked entity';
+  const identity = derPdfIdentity([
+    ...teiAttributes.slice(0, 6).map((a) => ({
+      label: a.label, value: a.value,
+    })),
+    { label: 'Tracked entity UID', value: teiId, code: true },
+    { label: 'Program UID', value: programUid, code: true },
+    ...(enrolment ? [
+      { label: 'Enrolment UID', value: enrolment.enrollmentUid,
+        code: true },
+      { label: 'Enrolled on',
+        value: formatDateOnly(enrolment.enrollmentDate) },
+      { label: 'Enrolment status',
+        value: formatStatusLabel(enrolment.status) },
+    ] : []),
+  ]);
+  const statusPill = enrolment
+    ? derPdfPill(enrolment.status) : '';
+  const notesHtml = notes.length === 0
+    ? '<p style="color:#5b6478; font-size:10pt;">'
+      + 'No notes on this enrolment yet.</p>'
+    : '<ol class="der-note-list">'
+      + notes.map((n, i) => `
+      <li class="der-note">
+        <div class="der-note__chip">${i + 1}</div>
+        <div class="der-note__body">
+          <div class="der-note__when">
+            ${esc(formatTimestamp(n.createdAt))}
+          </div>
+          <div class="der-note__text">${esc(n.noteText)
             .replace(/\n/g, '<br />')}</div>
-          <div class="note__uid">Note UID: ${esc(n.noteUid)}</div>
+          <div class="der-note__uid">
+            Note UID <code>${esc(n.noteUid)}</code>
+          </div>
         </div>
-      </li>`).join('');
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<title>${esc(title)}</title>
-<style>
-  @page { size: A4; margin: 18mm 18mm 22mm 18mm; }
-  * { box-sizing: border-box; }
-  html, body { background: #fff; color: #101a32;
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: 11pt; line-height: 1.45; margin: 0; padding: 0; }
-  header.doc-head { border-bottom: 2px solid #101a32;
-    padding-bottom: 10px; margin-bottom: 16px; }
-  .doc-head__eyebrow { font-family: -apple-system, BlinkMacSystemFont,
-      'Segoe UI', Roboto, sans-serif;
-    font-size: 9pt; letter-spacing: 0.08em; text-transform: uppercase;
-    color: #5b6478; margin: 0 0 4px 0; }
-  .doc-head__title { font-size: 18pt; margin: 0;
-    font-family: Georgia, 'Times New Roman', serif; font-weight: 700; }
-  .doc-head__sub { margin: 4px 0 0; color: #5b6478; font-size: 10pt; }
-  table.identity { width: 100%; border-collapse: collapse;
-    margin: 8px 0 20px; font-family: -apple-system, BlinkMacSystemFont,
-      'Segoe UI', Roboto, sans-serif; font-size: 10pt; }
-  table.identity th, table.identity td { text-align: left;
-    padding: 5px 10px 5px 0; vertical-align: top; }
-  table.identity th { color: #5b6478; font-weight: 500;
-    text-transform: uppercase; font-size: 9pt; letter-spacing: 0.04em;
-    width: 32%; white-space: nowrap; }
-  table.identity td { color: #101a32; font-weight: 400; }
-  h2.notes-title { font-family: -apple-system, BlinkMacSystemFont,
-      'Segoe UI', Roboto, sans-serif;
-    font-size: 11pt; text-transform: uppercase; letter-spacing: 0.06em;
-    color: #5b6478; font-weight: 600; margin: 24px 0 10px;
-    border-bottom: 1px solid #d9dde6; padding-bottom: 6px; }
-  ol.notes { list-style: none; padding: 0; margin: 0;
-    counter-reset: note; }
-  li.note { display: flex; gap: 14px; padding: 12px 0;
-    border-bottom: 1px solid #ebeef3;
-    break-inside: avoid; page-break-inside: avoid; }
-  li.note:last-child { border-bottom: 0; }
-  .note__num { flex: 0 0 28px; font-family: -apple-system,
-      BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 10pt; color: #9097a8; font-variant-numeric: tabular-nums;
-    text-align: right; padding-top: 1px; }
-  .note__body { flex: 1 1 auto; min-width: 0; }
-  .note__when { font-family: -apple-system, BlinkMacSystemFont,
-      'Segoe UI', Roboto, sans-serif;
-    font-size: 9pt; color: #5b6478; margin-bottom: 4px;
-    text-transform: uppercase; letter-spacing: 0.04em; }
-  .note__text { color: #101a32; font-size: 11pt;
-    white-space: pre-wrap; word-wrap: break-word; }
-  .note__uid { font-family: ui-monospace, SFMono-Regular, Menlo,
-      Consolas, monospace; font-size: 8pt; color: #9097a8;
-    margin-top: 4px; }
-  footer.doc-foot { position: fixed; left: 18mm; right: 18mm;
-    bottom: 10mm; font-family: -apple-system, BlinkMacSystemFont,
-      'Segoe UI', Roboto, sans-serif;
-    font-size: 8.5pt; color: #9097a8; border-top: 1px solid #d9dde6;
-    padding-top: 6px; display: flex; justify-content: space-between; }
-  .doc-foot__brand { font-weight: 600; color: #5b6478; }
-  @media print {
-    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  }
-</style>
-</head>
-<body>
-  <header class="doc-head">
-    <p class="doc-head__eyebrow">DHIS2 Tracker · Enrolment Notes</p>
-    <h1 class="doc-head__title">${esc(teiDisplayName || 'Tracked entity')}</h1>
-    <p class="doc-head__sub">
-      ${notes.length} note${notes.length === 1 ? '' : 's'}
-      · Generated ${esc(generatedAt)}
-    </p>
-  </header>
-  <table class="identity">
-    <tbody>
-      ${identityRows}
-      <tr><th>Tracked entity UID</th><td><code>${esc(teiId)}</code></td></tr>
-      <tr><th>Program UID</th><td><code>${esc(programUid)}</code></td></tr>
-      ${enrolment ? `
-        <tr><th>Enrolment UID</th>
-          <td><code>${esc(enrolment.enrollmentUid)}</code></td></tr>
-        <tr><th>Enrolled on</th>
-          <td>${esc(formatDateOnly(enrolment.enrollmentDate))}</td></tr>
-        <tr><th>Enrolment status</th>
-          <td>${esc(formatStatusLabel(enrolment.status))}</td></tr>` : ''}
-    </tbody>
-  </table>
-  <h2 class="notes-title">Notes (chronological)</h2>
-  ${notes.length === 0
-    ? '<p style="color:#5b6478;">No notes on this enrolment.</p>'
-    : `<ol class="notes">${notesHtml}</ol>`}
-  <footer class="doc-foot">
-    <span class="doc-foot__brand">DER Capture</span>
-    <span>${esc(teiDisplayName || teiId)} · ${esc(generatedAt)}</span>
-  </footer>
-</body>
-</html>`;
+      </li>`).join('') + '</ol>';
+  const body = `
+    ${identity}
+    ${statusPill ? `<p style="margin: -8px 0 16px;">
+      Enrolment is ${statusPill}
+      </p>` : ''}
+    ${derPdfSectionTitle('Enrolment notes (chronological)')}
+    ${notesHtml}
+    <style>
+      .der-note-list {
+        list-style: none; padding: 0; margin: 0;
+      }
+      .der-note {
+        display: flex; align-items: flex-start; gap: 12px;
+        padding: 12px 14px;
+        margin-bottom: 8px;
+        background: #FAFBFD;
+        border: 1px solid #DCE2EB;
+        border-left: 3px solid #147CD7;
+        border-radius: 3px;
+        break-inside: avoid; page-break-inside: avoid;
+      }
+      .der-note__chip {
+        flex: 0 0 26px;
+        text-align: center;
+        font-size: 10pt; font-weight: 700;
+        color: #0f68b7;
+        background: #e6f1fb;
+        border-radius: 999px;
+        padding: 2px 0;
+        line-height: 1.2;
+      }
+      .der-note__body { flex: 1 1 auto; min-width: 0; }
+      .der-note__when {
+        font-size: 9pt; font-weight: 600;
+        letter-spacing: 0.04em; text-transform: uppercase;
+        color: #5b6478;
+        margin-bottom: 4px;
+      }
+      .der-note__text {
+        font-size: 11pt; color: #101a32;
+        white-space: pre-wrap; word-wrap: break-word;
+      }
+      .der-note__uid {
+        margin-top: 6px;
+        font-size: 8.5pt; color: #94A0B4;
+      }
+      .der-note__uid code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        background: #ECEFF5;
+        padding: 1px 5px; border-radius: 2px;
+        color: #5b6478;
+      }
+    </style>
+  `;
+  return derPdfDocument({
+    docTitle: 'Enrolment notes — ' + subjectName,
+    header: {
+      eyebrow: 'Enrolment notes',
+      title: subjectName,
+      subtitle: notes.length + ' note'
+        + (notes.length === 1 ? '' : 's')
+        + (enrolment
+          ? ' · enrolment ' + enrolment.enrollmentUid : ''),
+    },
+    body,
+    footer: {
+      left: subjectName,
+      right: 'Generated ' + generatedAt,
+    },
+    generatedAt,
+  });
 }
 
 function formatStatusLabel(s: string | null | undefined): string {
