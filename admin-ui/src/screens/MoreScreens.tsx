@@ -11,7 +11,7 @@ import {
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
 import { ResponseBody } from '../components/ResponseBody';
-import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates';
+import { EmptyBlock, ErrorBlock, InlineLoading, LoadingBlock } from '../components/ScreenStates';
 import { PolicyPausedBanner } from '../components/PolicyPausedBanner';
 import { MetadataTabBar } from '../components/MetadataTabBar';
 
@@ -815,7 +815,7 @@ function CentralValuePanel(
   );
   if (!central) return (
     <Panel title="Central value">
-      <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>Loading…</p>
+      <InlineLoading />
     </Panel>
   );
   const hasCentral = central.lastResponse != null
@@ -2080,7 +2080,7 @@ export function BackupList(): JSX.Element {
                      </Status>
                    }>
               {!wal ? (
-                <p className="ea-text-muted" style={{ margin: 0, fontSize: 12 }}>Loading…</p>
+                <InlineLoading />
               ) : (
                 <dl className="ea-def-list">
                   <div className="ea-def-row"><dt>WAL directory</dt>

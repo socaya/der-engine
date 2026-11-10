@@ -4,7 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import {
   KpiTile, Panel, Ring, MiniBarChart, Dot, fmtDate, fmtAgo, fmtBytes, fmtDur,
 } from './shared';
-import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
+import { ErrorBlock, InlineLoading, LoadingBlock } from '../components/ScreenStates';
 
 /** DER /system/health reports `starter-ready` while live. Accept both. */
 function isDerUp(status: string | undefined | null): boolean {
@@ -199,7 +199,7 @@ export function Dashboard(): JSX.Element {
                             View audit →
                           </Link>}>
             {scope === null ? (
-              <p className="ea-text-muted" style={{ margin: 0 }}>Loading…</p>
+              <InlineLoading />
             ) : scope.boundOrgUnitId === null ? (
               <p className="ea-text-muted" style={{ margin: 0 }}>
                 Edge is unbound — bind an OU for scope checks.

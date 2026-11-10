@@ -105,7 +105,7 @@ export function RelationshipTypeAliases(): JSX.Element {
         <h1 style={{ margin: 0, fontSize: 20 }}>
           Relationship type aliases
         </h1>
-        <span style={{ color: '#5b6478', fontSize: 13, flex: 1 }}>
+        <span style={{ color: 'var(--der-text-muted)', fontSize: 13, flex: 1 }}>
           Override directional labels shown in the Capture wizard
           without touching central DHIS2 metadata.
         </span>
@@ -114,7 +114,7 @@ export function RelationshipTypeAliases(): JSX.Element {
                 onClick={() => { void reload(); }}
                 disabled={loading}
                 style={{ padding: '6px 14px', fontSize: 13,
-                  background: '#147cd7', color: '#fff',
+                  background: 'var(--der-primary)', color: '#fff',
                   border: 0, borderRadius: 3, cursor: 'pointer' }}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
@@ -122,8 +122,8 @@ export function RelationshipTypeAliases(): JSX.Element {
 
       {(actionMsg || err) && (
         <div style={{ padding: '10px 14px', borderRadius: 4,
-          background: err ? '#fde3e3' : '#e3f7eb',
-          color: err ? '#c13030' : '#1b8243',
+          background: err ? 'var(--der-danger-soft)' : 'var(--der-success-soft)',
+          color: err ? 'var(--der-danger-ink)' : 'var(--der-success-ink)',
           fontSize: 13 }}
              data-test="reltypealias-status">
           {err ?? actionMsg}
@@ -132,7 +132,7 @@ export function RelationshipTypeAliases(): JSX.Element {
 
       <Panel title={`Types (${types.length})`}>
         {types.length === 0 ? (
-          <p style={{ color: '#5b6478' }}>
+          <p style={{ color: 'var(--der-text-muted)' }}>
             No relationship types in the mirror. Sync metadata
             first.
           </p>
@@ -171,7 +171,7 @@ export function RelationshipTypeAliases(): JSX.Element {
                       style={{ borderBottom: '1px solid #ebeef3' }}>
                     <td style={{ padding: '8px 10px' }}>
                       <strong>{t.displayName}</strong>
-                      <div style={{ fontSize: 11, color: '#5b6478',
+                      <div style={{ fontSize: 11, color: 'var(--der-text-muted)',
                         fontFamily: 'ui-monospace, Menlo, monospace',
                         marginTop: 2 }}>
                         {t.relationshipTypeUid}
@@ -179,7 +179,7 @@ export function RelationshipTypeAliases(): JSX.Element {
                       </div>
                     </td>
                     <td style={{ padding: '8px 10px',
-                      color: '#5b6478' }}>
+                      color: 'var(--der-text-muted)' }}>
                       <div>→ {t.centralFromToName ?? <em>unset</em>}</div>
                       <div>← {t.centralToFromName ?? <em>unset</em>}</div>
                     </td>
@@ -221,8 +221,8 @@ export function RelationshipTypeAliases(): JSX.Element {
                                 t.relationshipTypeUid); }}
                               style={{ padding: '4px 10px',
                                 fontSize: 12,
-                                border: '1px solid #147cd7',
-                                background: dirty ? '#147cd7'
+                                border: '1px solid var(--der-primary)',
+                                background: dirty ? 'var(--der-primary)'
                                   : '#f8f9fb',
                                 color: dirty ? '#fff' : '#9097a8',
                                 borderRadius: 3,

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as edgeApi from '../api/edgeApi';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { useAlert } from '../components/AlertStack';
 import { Panel } from './shared';
 
 const ALL_ENTITY_SCOPES = [
@@ -38,13 +39,13 @@ export function SyncPolicyScreen(
   { api?: Pick<typeof edgeApi, 'listSyncPolicies' | 'upsertSyncPolicy'
             | 'resetSyncPolicy' | 'syncPolicySummary' | 'syncPolicyAudit'> } = {},
 ): JSX.Element {
+  const alert = useAlert();
   const [rows, setRows] = useState<edgeApi.SyncPolicyRow[] | null>(null);
   const [heldByScope, setHeldByScope] = useState<Map<string, number>>(
     new Map());
   const [auditEntries, setAuditEntries] = useState<edgeApi.SyncPolicyAuditEntry[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [savingScope, setSavingScope] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
 
   const refetch = useCallback(async (): Promise<void> => {
     try {
@@ -77,10 +78,12 @@ export function SyncPolicyScreen(
     setSavingScope(scope);
     try {
       await api.upsertSyncPolicy(scope, { mode, cron, reason });
-      setToast(`Saved ${SCOPE_LABEL[scope] ?? scope} → ${mode}`);
+      alert.show({ kind: 'success',
+        message: `Saved ${SCOPE_LABEL[scope] ?? scope} → ${mode}` });
       await refetch();
     } catch (e) {
-      setErr((e as Error).message);
+      alert.show({ kind: 'critical', title: 'Save failed',
+        message: (e as Error).message });
     } finally {
       setSavingScope(null);
     }
@@ -90,10 +93,12 @@ export function SyncPolicyScreen(
     setSavingScope(scope);
     try {
       await api.resetSyncPolicy(scope);
-      setToast(`Reset ${SCOPE_LABEL[scope] ?? scope} to inherit Global`);
+      alert.show({ kind: 'success',
+        message: `Reset ${SCOPE_LABEL[scope] ?? scope} to inherit Global` });
       await refetch();
     } catch (e) {
-      setErr((e as Error).message);
+      alert.show({ kind: 'critical', title: 'Reset failed',
+        message: (e as Error).message });
     } finally {
       setSavingScope(null);
     }
@@ -116,15 +121,9 @@ export function SyncPolicyScreen(
       <ScreenHeader title="Sync policy"
         subtitle="Control how DER ships writes to DHIS2 central — pick a mode globally and optionally override per data type." />
 
-      {toast && (
-        <div className="ea-toast ea-toast--ok" role="status"
-             data-test="sync-policy-toast"
-             style={{ marginBottom: 12 }}>{toast}</div>
-      )}
-      {err && rows && (
-        <div className="ea-toast ea-toast--err" role="alert"
-             style={{ marginBottom: 12 }}>{err}</div>
-      )}
+      {/* Success + failure toasts are delivered via the shared
+          AlertStack (useAlert) so operators see them in the same
+          place as every other admin-wide alert. */}
 
       <Panel title="Global default">
         <p style={{ margin: '0 0 10px', fontSize: 12,

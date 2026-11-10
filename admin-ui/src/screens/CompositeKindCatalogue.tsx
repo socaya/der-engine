@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import * as edgeApi from '../api/edgeApi';
 import { Panel } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
+import { ScreenHeader } from '../components/ScreenHeader';
 
 /** Admin UI for the composite-kind catalogue (spec §4 / §3.4).
  *  Admins register composite kinds (Lab Request, Prescription,
@@ -158,39 +159,30 @@ export function CompositeKindCatalogue(): JSX.Element {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column',
-      gap: 16, padding: 16 }}>
-      <header style={{ display: 'flex', alignItems: 'baseline',
-        gap: 12 }}>
-        <h1 style={{ margin: 0, fontSize: 20 }}>
-          Composite kind catalogue
-        </h1>
-        <span style={{ color: '#5b6478', fontSize: 13, flex: 1 }}>
-          Register DER_DOMAIN composite kinds and bind each to the
-          DHIS2 program stages that drive their capture forms.
-        </span>
-        <button type="button"
-                data-test="compkinds-refresh"
-                onClick={() => { void reload(); }}
-                disabled={loading}
-                style={{ padding: '6px 14px', fontSize: 13,
-                  background: '#147cd7', color: '#fff',
-                  border: 0, borderRadius: 3, cursor: 'pointer' }}>
-          {loading ? 'Refreshing…' : 'Refresh'}
-        </button>
-      </header>
+    <div className="ea-screen" data-test="compkinds-screen">
+      <ScreenHeader
+        title="Composite kind catalogue"
+        subtitle="Register DER_DOMAIN composite kinds and bind each to the DHIS2 program stages that drive their capture forms." />
 
       {(actionMsg || err) && (
-        <div style={{ padding: '10px 14px', borderRadius: 4,
-          background: err ? '#fde3e3' : '#e3f7eb',
-          color: err ? '#c13030' : '#1b8243',
-          fontSize: 13 }}
-             data-test="compkinds-status">
+        <div className={`ea-callout ea-callout--${err ? 'danger' : 'success'}`}
+             role={err ? 'alert' : 'status'}
+             data-test="compkinds-status"
+             style={{ marginBottom: 12 }}>
           {err ?? actionMsg}
         </div>
       )}
 
-      <Panel title="Register a new kind">
+      <Panel title="Register a new kind"
+             action={
+               <button type="button"
+                       className="ea-btn ea-btn--ghost ea-btn--sm"
+                       data-test="compkinds-refresh"
+                       onClick={() => { void reload(); }}
+                       disabled={loading}>
+                 {loading ? 'Refreshing…' : 'Refresh'}
+               </button>
+             }>
         <div style={{ display: 'grid',
           gridTemplateColumns: 'repeat(4, minmax(0, 1fr)) auto',
           gap: 10, alignItems: 'end' }}>
@@ -215,191 +207,158 @@ export function CompositeKindCatalogue(): JSX.Element {
                          placeholder="11-char program stage UID"
                          onChange={setNewItemStage} />
           <button type="button"
+                  className="ea-btn ea-btn--primary"
                   data-test="compkinds-new-create"
                   disabled={actionBusy !== null}
-                  onClick={() => { void createKind(); }}
-                  style={{ padding: '6px 14px', fontSize: 13,
-                    background: '#147cd7', color: '#fff',
-                    border: 0, borderRadius: 3, cursor: 'pointer' }}>
-            {actionBusy === 'create' ? '…' : 'Register'}
+                  onClick={() => { void createKind(); }}>
+            {actionBusy === 'create' ? 'Registering…' : 'Register'}
           </button>
         </div>
       </Panel>
 
       <Panel title={`Registered kinds (${kinds.length})`}>
         {kinds.length === 0 ? (
-          <p style={{ color: '#5b6478' }}>
+          <p className="ea-text-muted" style={{ margin: 0 }}
+             data-test="compkinds-empty">
             No composite kinds registered yet. Use the form above
             to add one.
           </p>
         ) : (
-          <table data-test="compkinds-table"
-                 style={{ width: '100%', borderCollapse: 'collapse',
-                   fontSize: 13 }}>
-            <thead>
-              <tr style={{ textAlign: 'left',
-                borderBottom: '1px solid #d9dde6' }}>
-                <th style={{ padding: '8px 10px' }}>Kind</th>
-                <th style={{ padding: '8px 10px' }}>Display + description</th>
-                <th style={{ padding: '8px 10px' }}>Head stage</th>
-                <th style={{ padding: '8px 10px' }}>Item stage</th>
-                <th style={{ padding: '8px 10px' }}>Sync policy</th>
-                <th style={{ padding: '8px 10px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {kinds.map((k) => {
-                const d = draft[k.kindCode] ?? {
-                  displayName: '', description: '',
-                  headProgramStageUid: '', itemProgramStageUid: '',
-                  syncPolicy: 'EDGE_ONLY' as const };
-                const dirty = d.displayName !== k.displayName
-                  || d.description !== (k.description ?? '')
-                  || d.headProgramStageUid
-                    !== (k.headProgramStageUid ?? '')
-                  || d.itemProgramStageUid
-                    !== (k.itemProgramStageUid ?? '')
-                  || d.syncPolicy !== k.syncPolicy;
-                const savingBusy = actionBusy === 'save:' + k.kindCode;
-                const delBusy = actionBusy === 'del:' + k.kindCode;
-                return (
-                  <tr key={k.kindCode}
-                      style={{ borderBottom: '1px solid #ebeef3',
-                        verticalAlign: 'top' }}>
-                    <td style={{ padding: '8px 10px' }}>
-                      <code style={{ fontSize: 12,
-                        fontFamily: 'ui-monospace, Menlo, monospace' }}>
-                        {k.kindCode}
-                      </code>
-                      <div style={{ marginTop: 4 }}>
-                        {k.configurationComplete ? (
-                          <span style={{ background: '#e3f7eb',
-                            color: '#1b8243', fontSize: 11,
-                            padding: '1px 8px',
-                            borderRadius: 10, fontWeight: 500 }}>
-                            configured
-                          </span>
-                        ) : (
-                          <span style={{ background: '#fef0d8',
-                            color: '#9b5a00', fontSize: 11,
-                            padding: '1px 8px',
-                            borderRadius: 10, fontWeight: 500 }}
-                                title="No head stage bound — Capture app can't offer this kind.">
-                            unconfigured
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <input type="text"
-                             data-test={`compkinds-name-${k.kindCode}`}
-                             value={d.displayName}
-                             onChange={(e) => patchDraft(k.kindCode,
-                               { displayName: e.target.value })}
-                             style={{ width: '100%', fontSize: 13,
-                               padding: '4px 8px',
-                               border: '1px solid #d9dde6',
-                               borderRadius: 3,
-                               marginBottom: 4 }} />
-                      <textarea
-                             data-test={`compkinds-desc-${k.kindCode}`}
-                             value={d.description}
-                             placeholder="Description (optional)"
-                             rows={2}
-                             onChange={(e) => patchDraft(k.kindCode,
-                               { description: e.target.value })}
-                             style={{ width: '100%', fontSize: 12,
-                               padding: '4px 8px',
-                               border: '1px solid #d9dde6',
-                               borderRadius: 3,
-                               fontFamily: 'inherit',
-                               resize: 'vertical' }} />
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <input type="text"
-                             data-test={`compkinds-head-${k.kindCode}`}
-                             value={d.headProgramStageUid}
-                             placeholder="program stage UID"
-                             onChange={(e) => patchDraft(k.kindCode,
-                               { headProgramStageUid: e.target.value })}
-                             style={{ width: '100%', fontSize: 12,
-                               padding: '4px 8px',
-                               border: '1px solid #d9dde6',
-                               borderRadius: 3,
-                               fontFamily:
-                                 'ui-monospace, Menlo, monospace' }} />
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <input type="text"
-                             data-test={`compkinds-item-${k.kindCode}`}
-                             value={d.itemProgramStageUid}
-                             placeholder="program stage UID"
-                             onChange={(e) => patchDraft(k.kindCode,
-                               { itemProgramStageUid: e.target.value })}
-                             style={{ width: '100%', fontSize: 12,
-                               padding: '4px 8px',
-                               border: '1px solid #d9dde6',
-                               borderRadius: 3,
-                               fontFamily:
-                                 'ui-monospace, Menlo, monospace' }} />
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <select data-test={`compkinds-sync-${k.kindCode}`}
-                              value={d.syncPolicy}
-                              onChange={(e) => {
-                                const v = e.target.value as
-                                  ('EDGE_ONLY' | 'EXPORTABLE');
-                                patchDraft(k.kindCode,
-                                  { syncPolicy: v });
-                              }}
-                              style={{ width: '100%', fontSize: 13,
-                                padding: '4px 8px',
-                                border: '1px solid #d9dde6',
-                                borderRadius: 3 }}>
-                        <option value="EDGE_ONLY">EDGE_ONLY</option>
-                        <option value="EXPORTABLE">EXPORTABLE</option>
-                      </select>
-                    </td>
-                    <td style={{ padding: '8px 10px',
-                      whiteSpace: 'nowrap' }}>
-                      <button type="button"
-                              data-test={`compkinds-save-${k.kindCode}`}
-                              disabled={!dirty
-                                || actionBusy !== null}
-                              onClick={() => { void saveOne(
-                                k.kindCode); }}
-                              style={{ padding: '4px 10px',
-                                fontSize: 12,
-                                border: '1px solid #147cd7',
-                                background: dirty ? '#147cd7'
-                                  : '#f8f9fb',
-                                color: dirty ? '#fff' : '#9097a8',
-                                borderRadius: 3,
-                                cursor: dirty
-                                  ? 'pointer' : 'default' }}>
-                        {savingBusy ? '…' : 'Save'}
-                      </button>
-                      {' '}
-                      <button type="button"
-                              data-test={`compkinds-del-${k.kindCode}`}
-                              disabled={actionBusy !== null}
-                              onClick={() => { void deleteOne(
-                                k.kindCode); }}
-                              style={{ padding: '4px 10px',
-                                fontSize: 12,
-                                border: '1px solid #d9dde6',
-                                background: '#fff',
-                                color: '#c13030',
-                                borderRadius: 3,
-                                cursor: 'pointer' }}>
-                        {delBusy ? '…' : 'Delete'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense"
+                   data-test="compkinds-table">
+              <thead>
+                <tr>
+                  <th>Kind</th>
+                  <th>Display + description</th>
+                  <th>Head stage</th>
+                  <th>Item stage</th>
+                  <th>Sync policy</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {kinds.map((k) => {
+                  const d = draft[k.kindCode] ?? {
+                    displayName: '', description: '',
+                    headProgramStageUid: '', itemProgramStageUid: '',
+                    syncPolicy: 'EDGE_ONLY' as const };
+                  const dirty = d.displayName !== k.displayName
+                    || d.description !== (k.description ?? '')
+                    || d.headProgramStageUid
+                      !== (k.headProgramStageUid ?? '')
+                    || d.itemProgramStageUid
+                      !== (k.itemProgramStageUid ?? '')
+                    || d.syncPolicy !== k.syncPolicy;
+                  const savingBusy = actionBusy === 'save:' + k.kindCode;
+                  const delBusy = actionBusy === 'del:' + k.kindCode;
+                  return (
+                    <tr key={k.kindCode}
+                        data-test={`compkinds-row-${k.kindCode}`}
+                        style={{ verticalAlign: 'top' }}>
+                      <td>
+                        <code className="ea-mono">
+                          {k.kindCode}
+                        </code>
+                        <div style={{ marginTop: 4 }}>
+                          {k.configurationComplete ? (
+                            <span className="ea-chip ea-chip--success"
+                                  data-test={`compkinds-chip-${k.kindCode}`}>
+                              configured
+                            </span>
+                          ) : (
+                            <span className="ea-chip ea-chip--warning"
+                                  data-test={`compkinds-chip-${k.kindCode}`}
+                                  title="No head stage bound — Capture app can't offer this kind.">
+                              unconfigured
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <input type="text"
+                               className="ea-input"
+                               data-test={`compkinds-name-${k.kindCode}`}
+                               value={d.displayName}
+                               onChange={(e) => patchDraft(k.kindCode,
+                                 { displayName: e.target.value })}
+                               style={{ width: '100%',
+                                         marginBottom: 4 }} />
+                        <textarea
+                               className="ea-input"
+                               data-test={`compkinds-desc-${k.kindCode}`}
+                               value={d.description}
+                               placeholder="Description (optional)"
+                               rows={2}
+                               onChange={(e) => patchDraft(k.kindCode,
+                                 { description: e.target.value })}
+                               style={{ width: '100%',
+                                         fontSize: 12,
+                                         resize: 'vertical' }} />
+                      </td>
+                      <td>
+                        <input type="text"
+                               className="ea-input ea-mono"
+                               data-test={`compkinds-head-${k.kindCode}`}
+                               value={d.headProgramStageUid}
+                               placeholder="program stage UID"
+                               onChange={(e) => patchDraft(k.kindCode,
+                                 { headProgramStageUid: e.target.value })}
+                               style={{ width: '100%',
+                                         fontSize: 12 }} />
+                      </td>
+                      <td>
+                        <input type="text"
+                               className="ea-input ea-mono"
+                               data-test={`compkinds-item-${k.kindCode}`}
+                               value={d.itemProgramStageUid}
+                               placeholder="program stage UID"
+                               onChange={(e) => patchDraft(k.kindCode,
+                                 { itemProgramStageUid: e.target.value })}
+                               style={{ width: '100%',
+                                         fontSize: 12 }} />
+                      </td>
+                      <td>
+                        <select className="ea-input"
+                                data-test={`compkinds-sync-${k.kindCode}`}
+                                value={d.syncPolicy}
+                                onChange={(e) => {
+                                  const v = e.target.value as
+                                    ('EDGE_ONLY' | 'EXPORTABLE');
+                                  patchDraft(k.kindCode,
+                                    { syncPolicy: v });
+                                }}
+                                style={{ width: '100%' }}>
+                          <option value="EDGE_ONLY">EDGE_ONLY</option>
+                          <option value="EXPORTABLE">EXPORTABLE</option>
+                        </select>
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <button type="button"
+                                className="ea-btn ea-btn--primary ea-btn--sm"
+                                data-test={`compkinds-save-${k.kindCode}`}
+                                disabled={!dirty
+                                  || actionBusy !== null}
+                                onClick={() => { void saveOne(
+                                  k.kindCode); }}>
+                          {savingBusy ? 'Saving…' : 'Save'}
+                        </button>
+                        {' '}
+                        <button type="button"
+                                className="ea-btn ea-btn--danger ea-btn--ghost ea-btn--sm"
+                                data-test={`compkinds-del-${k.kindCode}`}
+                                disabled={actionBusy !== null}
+                                onClick={() => { void deleteOne(
+                                  k.kindCode); }}>
+                          {delBusy ? 'Deleting…' : 'Delete'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </Panel>
     </div>
@@ -414,18 +373,19 @@ function LabeledInput({ label, value, onChange, placeholder,
 }): JSX.Element {
   return (
     <label style={{ display: 'flex', flexDirection: 'column',
-      gap: 4 }}>
+                     gap: 4 }}>
       <span style={{ fontSize: 11, fontWeight: 600,
-        letterSpacing: '0.04em', textTransform: 'uppercase',
-        color: '#5b6478' }}>{label}</span>
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                      color: 'var(--der-text-muted, #5b6478)' }}>
+        {label}
+      </span>
       <input type="text"
+             className="ea-input"
              data-test={testId}
              value={value}
              placeholder={placeholder}
-             onChange={(e) => onChange(e.target.value)}
-             style={{ fontSize: 13, padding: '5px 8px',
-               border: '1px solid #d9dde6',
-               borderRadius: 3 }} />
+             onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }

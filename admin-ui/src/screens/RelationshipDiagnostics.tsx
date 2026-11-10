@@ -118,7 +118,7 @@ export function RelationshipDiagnostics(): JSX.Element {
         <h1 style={{ margin: 0, fontSize: 20 }}>
           Relationships diagnostics
         </h1>
-        <span style={{ color: '#5b6478', fontSize: 13 }}>
+        <span style={{ color: 'var(--der-text-muted)', fontSize: 13 }}>
           as of {fmtAgo(data.asOf)}
         </span>
         <span style={{ flex: 1 }} />
@@ -127,7 +127,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                 onClick={() => { void reload(); }}
                 disabled={loading}
                 style={{ padding: '6px 14px', fontSize: 13,
-                  background: '#147cd7', color: '#fff',
+                  background: 'var(--der-primary)', color: '#fff',
                   border: 0, borderRadius: 3, cursor: 'pointer' }}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
@@ -166,7 +166,7 @@ export function RelationshipDiagnostics(): JSX.Element {
               .map((r) => r.syncStatus))).join(' · ') || 'none'} />
         </div>
         {data.instances.byStatusAndClass.length === 0 ? (
-          <p style={{ color: '#5b6478' }}>No relationship rows yet.</p>
+          <p style={{ color: 'var(--der-text-muted)' }}>No relationship rows yet.</p>
         ) : (
           <table data-test="reldiag-instances-table"
                  style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -193,7 +193,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                     <SyncPill status={r.syncStatus} />
                   </td>
                   <td style={{ padding: '8px 10px', fontSize: 13,
-                    color: '#5b6478' }}>
+                    color: 'var(--der-text-muted)' }}>
                     {r.relClass}
                   </td>
                   <td style={{ padding: '8px 10px', fontSize: 13,
@@ -210,8 +210,8 @@ export function RelationshipDiagnostics(): JSX.Element {
 
       {(actionMsg || actionErr) && (
         <div style={{ padding: '10px 14px', borderRadius: 4,
-          background: actionErr ? '#fde3e3' : '#e3f7eb',
-          color: actionErr ? '#c13030' : '#1b8243',
+          background: actionErr ? 'var(--der-danger-soft)' : 'var(--der-success-soft)',
+          color: actionErr ? 'var(--der-danger-ink)' : 'var(--der-success-ink)',
           fontSize: 13 }}
              data-test="reldiag-action-status">
           {actionErr ?? actionMsg}
@@ -220,7 +220,7 @@ export function RelationshipDiagnostics(): JSX.Element {
 
       <Panel title={`Attention queue (${data.attention.length})`}
              action={data.attention.length === 0 ? undefined : (
-               <span style={{ color: '#5b6478', fontSize: 13 }}>
+               <span style={{ color: 'var(--der-text-muted)', fontSize: 13 }}>
                  Showing the 50 most recent FAILED / BLOCKED /
                  CONFLICT rows. Retry re-enqueues the drain;
                  Acknowledge marks SYNCED without a central
@@ -239,7 +239,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                     onClear={() => setSelAttn(new Set())} />
         )}
         {data.attention.length === 0 ? (
-          <p style={{ color: '#5b6478' }}>
+          <p style={{ color: 'var(--der-text-muted)' }}>
             Nothing needs attention — all live rows are SYNCED,
             PENDING or LOCAL.
           </p>
@@ -300,11 +300,11 @@ export function RelationshipDiagnostics(): JSX.Element {
                   </td>
                   <td style={{ padding: '8px 10px',
                     fontFamily: 'ui-monospace, Menlo, monospace',
-                    color: '#5b6478' }}>
+                    color: 'var(--der-text-muted)' }}>
                     {r.relationshipType}
                   </td>
                   <td style={{ padding: '8px 10px' }}>
-                    <span style={{ color: '#5b6478' }}>
+                    <span style={{ color: 'var(--der-text-muted)' }}>
                       {r.fromEntityType}
                     </span>
                     {' '}
@@ -313,7 +313,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                     </code>
                   </td>
                   <td style={{ padding: '8px 10px' }}>
-                    <span style={{ color: '#5b6478' }}>
+                    <span style={{ color: 'var(--der-text-muted)' }}>
                       {r.toEntityType}
                     </span>
                     {' '}
@@ -322,11 +322,11 @@ export function RelationshipDiagnostics(): JSX.Element {
                     </code>
                   </td>
                   <td style={{ padding: '8px 10px',
-                    color: '#5b6478' }}>
+                    color: 'var(--der-text-muted)' }}>
                     {r.relClass}
                   </td>
                   <td style={{ padding: '8px 10px',
-                    color: '#5b6478' }}>
+                    color: 'var(--der-text-muted)' }}>
                     {fmtAgo(r.updatedAt)}
                   </td>
                   <td style={{ padding: '8px 10px',
@@ -350,7 +350,7 @@ export function RelationshipDiagnostics(): JSX.Element {
 
       <Panel title={`Soft-deleted tombstones (${data.tombstones.length})`}
              action={data.tombstones.length === 0 ? undefined : (
-               <span style={{ color: '#5b6478', fontSize: 13 }}>
+               <span style={{ color: 'var(--der-text-muted)', fontSize: 13 }}>
                  Rows unlinked by the operator but not yet
                  physically purged (usually waiting on a
                  central DELETE round-trip). Purge removes the
@@ -368,7 +368,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                     onClear={() => setSelTomb(new Set())} />
         )}
         {data.tombstones.length === 0 ? (
-          <p style={{ color: '#5b6478' }}>
+          <p style={{ color: 'var(--der-text-muted)' }}>
             No tombstones — every unlinked row has been
             physically purged.
           </p>
@@ -428,11 +428,11 @@ export function RelationshipDiagnostics(): JSX.Element {
                   </td>
                   <td style={{ padding: '8px 10px',
                     fontFamily: 'ui-monospace, Menlo, monospace',
-                    color: '#5b6478' }}>
+                    color: 'var(--der-text-muted)' }}>
                     {r.relationshipType}
                   </td>
                   <td style={{ padding: '8px 10px' }}>
-                    <span style={{ color: '#5b6478' }}>
+                    <span style={{ color: 'var(--der-text-muted)' }}>
                       {r.fromEntityType}
                     </span>
                     {' '}
@@ -441,7 +441,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                     </code>
                   </td>
                   <td style={{ padding: '8px 10px' }}>
-                    <span style={{ color: '#5b6478' }}>
+                    <span style={{ color: 'var(--der-text-muted)' }}>
                       {r.toEntityType}
                     </span>
                     {' '}
@@ -450,7 +450,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                     </code>
                   </td>
                   <td style={{ padding: '8px 10px',
-                    color: '#5b6478' }}>
+                    color: 'var(--der-text-muted)' }}>
                     {fmtAgo(r.deletedAt)}
                   </td>
                   <td style={{ padding: '8px 10px',
@@ -501,9 +501,9 @@ function BulkBar({ count, actions, busy, onApply, onClear }: {
                   disabled={anyBusy}
                   onClick={() => { void onApply(a.kind); }}
                   style={{ padding: '4px 12px', fontSize: 13,
-                    border: '1px solid #147cd7',
+                    border: '1px solid var(--der-primary)',
                     background: thisBusy ? '#cde0f3' : '#fff',
-                    color: '#147cd7', borderRadius: 3,
+                    color: 'var(--der-primary)', borderRadius: 3,
                     cursor: anyBusy ? 'default' : 'pointer' }}>
             {thisBusy ? '…' : a.label}
           </button>
@@ -515,7 +515,7 @@ function BulkBar({ count, actions, busy, onApply, onClear }: {
               onClick={onClear}
               style={{ padding: '4px 10px', fontSize: 13,
                 border: 0, background: 'transparent',
-                color: '#5b6478',
+                color: 'var(--der-text-muted)',
                 cursor: anyBusy ? 'default' : 'pointer' }}>
         Clear
       </button>
@@ -565,12 +565,12 @@ function StatCard({ label, value, hint }: {
       padding: '12px 14px' }}>
       <div style={{ fontSize: 11, fontWeight: 600,
         letterSpacing: '0.04em', textTransform: 'uppercase',
-        color: '#5b6478' }}>{label}</div>
+        color: 'var(--der-text-muted)' }}>{label}</div>
       <div style={{ fontSize: 18, fontWeight: 500,
         color: '#101a32', marginTop: 4,
         fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       {hint && (
-        <div style={{ fontSize: 12, color: '#5b6478',
+        <div style={{ fontSize: 12, color: 'var(--der-text-muted)',
           marginTop: 6 }}>{hint}</div>
       )}
     </div>
@@ -579,13 +579,13 @@ function StatCard({ label, value, hint }: {
 
 function SyncPill({ status }: { status: string }): JSX.Element {
   const [bg, fg] =
-      status === 'SYNCED'   ? ['#e3f7eb', '#1b8243']
-    : status === 'PENDING'  ? ['#fef0d8', '#9b5a00']
-    : status === 'LOCAL'    ? ['#eef0f5', '#5b6478']
-    : status === 'FAILED'   ? ['#fde3e3', '#c13030']
-    : status === 'BLOCKED'  ? ['#fde3e3', '#c13030']
-    : status === 'CONFLICT' ? ['#fef0d8', '#9b5a00']
-    : ['#eef0f5', '#5b6478'];
+      status === 'SYNCED'   ? ['var(--der-success-soft)', 'var(--der-success-ink)']
+    : status === 'PENDING'  ? ['var(--der-warning-soft)', 'var(--der-warning-ink)']
+    : status === 'LOCAL'    ? ['#eef0f5', 'var(--der-text-muted)']
+    : status === 'FAILED'   ? ['var(--der-danger-soft)', 'var(--der-danger-ink)']
+    : status === 'BLOCKED'  ? ['var(--der-danger-soft)', 'var(--der-danger-ink)']
+    : status === 'CONFLICT' ? ['var(--der-warning-soft)', 'var(--der-warning-ink)']
+    : ['#eef0f5', 'var(--der-text-muted)'];
   return (
     <span style={{ display: 'inline-block',
       background: bg, color: fg,

@@ -16,6 +16,24 @@ export function LoadingBlock({ testId }: { testId: string }): JSX.Element {
   );
 }
 
+/**
+ * Small inline variant for use inside an already-rendered panel
+ * where a full LoadingBlock would create a visual gap. Renders a
+ * muted "Loading…" line + no spinner — the panel itself is already
+ * on screen, so the load signal doesn't need to shout.
+ */
+export function InlineLoading({ testId, label = 'Loading…' }:
+    { testId?: string; label?: string }): JSX.Element {
+  return (
+    <p className="ea-text-muted"
+       role="status"
+       data-test={testId}
+       style={{ margin: 0, fontSize: 12 }}>
+      {label}
+    </p>
+  );
+}
+
 export function ErrorBlock({ title, testId, children }:
     { title: string; testId: string; children: ReactNode }): JSX.Element {
   return (
