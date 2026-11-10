@@ -1101,7 +1101,7 @@ export function EAConflictList({ api = edgeApi }:
   );
 }
 
-/* EA-20/21/23 Conflict resolve: the rich MockupConflictDetail in
+/* EA-20/21/23 Conflict resolve: the rich AttentionDetailScreen in
  * MoreScreens.tsx (routed at /sync/attention/:operationId) is the
  * canonical surface. The thin stub that once lived here, and its
  * /conflicts/:id direct mount, have been removed. */

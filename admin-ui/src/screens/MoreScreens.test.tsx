@@ -6,8 +6,8 @@ import { renderWithProviders } from '../test/renderWithProviders';
 import {
   MockupDriftInspector,
   MockupConflictList,
-  MockupConflictDetail,
-  MockupWorkerHealth,
+  AttentionDetailScreen,
+  WorkerHealthScreen,
   MockupDeviceFleet,
   MockupDeviceDetail,
   MockupApprovalQueue,
@@ -68,9 +68,9 @@ interface MountCase { name: string; component: () => JSX.Element; route?: string
 const screens: MountCase[] = [
   { name: 'MockupDriftInspector', component: MockupDriftInspector },
   { name: 'MockupConflictList',   component: MockupConflictList },
-  { name: 'MockupConflictDetail', component: MockupConflictDetail,
+  { name: 'AttentionDetailScreen', component: AttentionDetailScreen,
     route: '/admin/sync/attention/op-1' },
-  { name: 'MockupWorkerHealth',   component: MockupWorkerHealth },
+  { name: 'WorkerHealthScreen',   component: WorkerHealthScreen },
   { name: 'MockupDeviceFleet',    component: MockupDeviceFleet },
   { name: 'MockupDeviceDetail',   component: MockupDeviceDetail,
     route: '/admin/network/connected/dev-1' },
@@ -104,13 +104,13 @@ describe('MoreScreens — surface mount test', () => {
     });
   }
 
-  it('MockupWorkerHealth responds to a resolved workerHealth probe', async () => {
+  it('WorkerHealthScreen responds to a resolved workerHealth probe', async () => {
     vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
       enabled: true, probeTimestamp: 'now',
       backlog: { PENDING: 0, IN_FLIGHT: 0, RETRYABLE: 0,
                  CONFLICT_REVIEW: 0, CENTRAL_REJECTED: 0 },
     } as unknown as edgeApi.WorkerHealth);
-    renderWithProviders(<MockupWorkerHealth />, { authApi });
+    renderWithProviders(<WorkerHealthScreen />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
   });
 
@@ -501,13 +501,13 @@ describe('MoreScreens — surface mount test', () => {
       expect(document.body.textContent ?? '').toMatch(/op-approve-1|de1\|ou1/));
   });
 
-  it('MockupWorkerHealth with worker disabled surfaces the pause-flag path', async () => {
+  it('WorkerHealthScreen with worker disabled surfaces the pause-flag path', async () => {
     vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
       enabled: false, probeTimestamp: 'now',
       backlog: { PENDING: 2, IN_FLIGHT: 1, RETRYABLE: 0,
                  CONFLICT_REVIEW: 3, CENTRAL_REJECTED: 1 },
     } as unknown as edgeApi.WorkerHealth);
-    renderWithProviders(<MockupWorkerHealth />, { authApi });
+    renderWithProviders(<WorkerHealthScreen />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
     /* The disabled-worker branch surfaces 'Resume' as the action
      * verb; the enabled branch is already covered elsewhere. */
@@ -741,7 +741,7 @@ describe('MoreScreens — surface mount test', () => {
       expect(document.body.textContent ?? '').toMatch(/Workflow run wfr-abcd/));
   });
 
-  it('MockupConflictDetail — matched id renders detail panel + priority tone', async () => {
+  it('AttentionDetailScreen — matched id renders detail panel + priority tone', async () => {
     vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
       { operationId: 'op-cd-1', entityType: 'AGGREGATE_DATA_VALUE',
         entityRef: 'de-x|ou-y|2026W44', payloadJson: {},
@@ -752,14 +752,14 @@ describe('MoreScreens — surface mount test', () => {
     ] as unknown as edgeApi.ConflictRow[]);
     renderWithProviders(
       <Routes><Route path="/admin/sync/attention/:operationId"
-                      element={<MockupConflictDetail />} /></Routes>,
+                      element={<AttentionDetailScreen />} /></Routes>,
       { authApi, route: '/admin/sync/attention/op-cd-1' });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/de-x\|ou-y/));
     expect(document.body.textContent ?? '').toMatch(/High priority/);
   });
 
-  it('MockupConflictDetail — CentralValuePanel: side-by-side (lastResponse set)', async () => {
+  it('AttentionDetailScreen — CentralValuePanel: side-by-side (lastResponse set)', async () => {
     vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
       { operationId: 'op-cv-1', entityType: 'EVENT', entityRef: 'ev-x',
         payloadJson: {}, state: 'CENTRAL_REJECTED', attemptCount: 1,
@@ -774,7 +774,7 @@ describe('MoreScreens — surface mount test', () => {
     } as unknown as edgeApi.ConflictCentralResponse);
     renderWithProviders(
       <Routes><Route path="/admin/sync/attention/:operationId"
-                      element={<MockupConflictDetail />} /></Routes>,
+                      element={<AttentionDetailScreen />} /></Routes>,
       { authApi, route: '/admin/sync/attention/op-cv-1' });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/Side-by-side payload/));
@@ -784,7 +784,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(body).toMatch(/Last error/);
   });
 
-  it('MockupConflictDetail — CentralValuePanel: raw-only branch (no parsed response)', async () => {
+  it('AttentionDetailScreen — CentralValuePanel: raw-only branch (no parsed response)', async () => {
     vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
       { operationId: 'op-cv-raw', entityType: 'EVENT', entityRef: 'ev-x',
         payloadJson: {}, state: 'CENTRAL_REJECTED', attemptCount: 1,
@@ -799,13 +799,13 @@ describe('MoreScreens — surface mount test', () => {
     } as unknown as edgeApi.ConflictCentralResponse);
     renderWithProviders(
       <Routes><Route path="/admin/sync/attention/:operationId"
-                      element={<MockupConflictDetail />} /></Routes>,
+                      element={<AttentionDetailScreen />} /></Routes>,
       { authApi, route: '/admin/sync/attention/op-cv-raw' });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/bad gateway/));
   });
 
-  it('MockupConflictDetail — CentralValuePanel: no-central-response branch', async () => {
+  it('AttentionDetailScreen — CentralValuePanel: no-central-response branch', async () => {
     vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
       { operationId: 'op-cv-none', entityType: 'EVENT', entityRef: 'ev-x',
         payloadJson: { a: 1 }, state: 'CONFLICT_REVIEW', attemptCount: 1,
@@ -820,14 +820,14 @@ describe('MoreScreens — surface mount test', () => {
     } as unknown as edgeApi.ConflictCentralResponse);
     renderWithProviders(
       <Routes><Route path="/admin/sync/attention/:operationId"
-                      element={<MockupConflictDetail />} /></Routes>,
+                      element={<AttentionDetailScreen />} /></Routes>,
       { authApi, route: '/admin/sync/attention/op-cv-none' });
     await waitFor(() =>
       expect(document.body.textContent ?? "")
         .toMatch(/Central hasn.t produced a response/));
   });
 
-  it('MockupConflictDetail — CentralValuePanel: fetch rejection renders Failed-to-load', async () => {
+  it('AttentionDetailScreen — CentralValuePanel: fetch rejection renders Failed-to-load', async () => {
     vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
       { operationId: 'op-cv-fail', entityType: 'EVENT', entityRef: 'ev-x',
         payloadJson: {}, state: 'CONFLICT_REVIEW', attemptCount: 1,
@@ -838,14 +838,14 @@ describe('MoreScreens — surface mount test', () => {
       .mockRejectedValue(new Error('upstream 500'));
     renderWithProviders(
       <Routes><Route path="/admin/sync/attention/:operationId"
-                      element={<MockupConflictDetail />} /></Routes>,
+                      element={<AttentionDetailScreen />} /></Routes>,
       { authApi, route: '/admin/sync/attention/op-cv-fail' });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/upstream 500/));
     expect(document.body.textContent ?? '').toMatch(/Failed to load/);
   });
 
-  it('MockupConflictDetail — strategy=ACCEPT: picker gates submit on rationale min-length, sends ACCEPTED with rationale', async () => {
+  it('AttentionDetailScreen — strategy=ACCEPT: picker gates submit on rationale min-length, sends ACCEPTED with rationale', async () => {
     vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
       { operationId: 'op-strat-1', entityType: 'EVENT', entityRef: 'ev-x',
         payloadJson: {}, state: 'CENTRAL_REJECTED', attemptCount: 1,
@@ -860,7 +860,7 @@ describe('MoreScreens — surface mount test', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderWithProviders(
       <Routes><Route path="/admin/sync/attention/:operationId"
-                      element={<MockupConflictDetail />} /></Routes>,
+                      element={<AttentionDetailScreen />} /></Routes>,
       { authApi, route: '/admin/sync/attention/op-strat-1' });
     await waitFor(() => expect(screen.getByTestId('conflict-detail'))
       .toBeInTheDocument());
@@ -884,7 +884,7 @@ describe('MoreScreens — surface mount test', () => {
     confirmSpy.mockRestore();
   });
 
-  it('MockupConflictDetail — strategy=REJOURNAL: no rationale required, calls reJournalConflict', async () => {
+  it('AttentionDetailScreen — strategy=REJOURNAL: no rationale required, calls reJournalConflict', async () => {
     vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
       { operationId: 'op-rej-1', entityType: 'AGGREGATE_DATA_VALUE',
         entityRef: 'de|ou|p', payloadJson: {}, state: 'CENTRAL_REJECTED',
@@ -900,7 +900,7 @@ describe('MoreScreens — surface mount test', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderWithProviders(
       <Routes><Route path="/admin/sync/attention/:operationId"
-                      element={<MockupConflictDetail />} /></Routes>,
+                      element={<AttentionDetailScreen />} /></Routes>,
       { authApi, route: '/admin/sync/attention/op-rej-1' });
     await waitFor(() => expect(screen.getByTestId('conflict-detail'))
       .toBeInTheDocument());
@@ -914,7 +914,7 @@ describe('MoreScreens — surface mount test', () => {
     confirmSpy.mockRestore();
   });
 
-  it('MockupConflictDetail — cancelling the confirm leaves the server untouched', async () => {
+  it('AttentionDetailScreen — cancelling the confirm leaves the server untouched', async () => {
     vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
       { operationId: 'op-cancel', entityType: 'EVENT', entityRef: 'ev',
         payloadJson: {}, state: 'CENTRAL_REJECTED', attemptCount: 1,
@@ -929,7 +929,7 @@ describe('MoreScreens — surface mount test', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderWithProviders(
       <Routes><Route path="/admin/sync/attention/:operationId"
-                      element={<MockupConflictDetail />} /></Routes>,
+                      element={<AttentionDetailScreen />} /></Routes>,
       { authApi, route: '/admin/sync/attention/op-cancel' });
     await waitFor(() => expect(screen.getByTestId('conflict-detail'))
       .toBeInTheDocument());
@@ -1127,7 +1127,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/500 bad/);
   });
 
-  it('MockupWorkerHealth — Show breakdown reveals every backlog chip-tone arm', async () => {
+  it('WorkerHealthScreen — Show breakdown reveals every backlog chip-tone arm', async () => {
     vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
       enabled: true,
       lastRunAt: '2026-11-03T11:00:00Z',
@@ -1139,7 +1139,7 @@ describe('MoreScreens — surface mount test', () => {
         CENTRAL_ACCEPTED: 4, FAILED: 1, OTHER_STATE: 9,
       },
     } as unknown as edgeApi.WorkerHealth);
-    const { container } = renderWithProviders(<MockupWorkerHealth />, { authApi });
+    const { container } = renderWithProviders(<WorkerHealthScreen />, { authApi });
     await waitFor(() =>
       expect(container.querySelector('[data-test="ea14-show-breakdown"]'))
         .not.toBeNull());

@@ -466,7 +466,7 @@ const STRATEGY_LABELS: Record<ConflictStrategy,
   },
 };
 
-export function MockupConflictDetail(): JSX.Element {
+export function AttentionDetailScreen(): JSX.Element {
   const { operationId } = useParams<{ operationId: string }>();
   const navigate = useNavigate();
   const [row, setRow] = useState<edgeApi.ConflictRow | null>(null);
@@ -644,6 +644,8 @@ export function MockupConflictDetail(): JSX.Element {
           </button>
         </div>
       </Panel>
+      <TeiUidMigrationPanel row={row}
+                             onMigrated={() => navigate('/sync/attention')} />
       <Panel title="Record">
         <dl className="ea-def-list">
           <div className="ea-def-row"><dt>Entity type</dt>
@@ -661,6 +663,127 @@ export function MockupConflictDetail(): JSX.Element {
       </Panel>
       <CentralValuePanel operationId={row.operationId} localPayload={row.payload} />
     </div>
+  );
+}
+
+/** SM-3a — surfaced on attention rows whose central rejection was
+ *  caused by a legacy UUID-shaped TEI UID ("UID must be an
+ *  alphanumeric string of 11 characters…"). Lets the operator mint
+ *  a DHIS2-shaped UID for the TEI + requeue every row that was
+ *  stuck on it, without a shell / SQL trip.
+ *
+ *  <p>Only renders when the row's error signals the UID shape or
+ *  when the TEI UID carried in the entity_ref / payload is itself
+ *  a UUID. For non-TRACKED_ENTITY entity types we read teiUid from
+ *  the payload (ENROLLMENT, PROGRAM_STAGE_EVENT payloads carry
+ *  it).</p> */
+function TeiUidMigrationPanel(
+  { row, onMigrated }:
+    { row: edgeApi.ConflictRow; onMigrated: () => void },
+): JSX.Element | null {
+  const [newUid, setNewUid] = useState<string>('');
+  const [busy, setBusy] = useState<boolean>(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [preview, setPreview] = useState<edgeApi.TeiMigrateResult | null>(null);
+
+  const legacyTeiUid: string | null = (() => {
+    const isLegacy = (s: string | null | undefined): boolean =>
+      !!s && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(s);
+    if (isLegacy(row.entityRef)
+        && row.entityType.toUpperCase() === 'TRACKED_ENTITY') {
+      return row.entityRef;
+    }
+    const p = row.payload ?? {};
+    const candidates = ['teiUid', 'trackedEntity', 'trackedEntityUid'];
+    for (const k of candidates) {
+      const v = (p as Record<string, unknown>)[k];
+      if (typeof v === 'string' && isLegacy(v)) return v;
+    }
+    return null;
+  })();
+
+  const errorMentionsUidShape = !!row.lastError
+      && /UID must be an alphanumeric string of 11 characters/i
+        .test(row.lastError);
+
+  if (!legacyTeiUid && !errorMentionsUidShape) return null;
+  if (!legacyTeiUid) return null;
+
+  async function run(): Promise<void> {
+    if (!legacyTeiUid) return;
+    if (!window.confirm(
+        `Migrate TEI UID\n  from ${legacyTeiUid}\n  to   `
+      + `${newUid.trim() || '(server-minted)'}\n\n`
+      + 'This rewrites the UID across every table + journal row that '
+      + 'references it, and re-queues any rows stuck on the legacy '
+      + 'UID. The change is transactional but irreversible.')) {
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await edgeApi.migrateTeiUid(legacyTeiUid,
+          newUid.trim() || undefined);
+      setPreview(res);
+      setTimeout(() => onMigrated(), 1500);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Panel title="Legacy UID migration">
+      <p className="ea-text-muted" style={{ margin: '0 0 10px',
+                                             fontSize: 12 }}>
+        This TEI's UID is a 36-char UUID left over from a pre-fix
+        install. Central rejects it on every drain. Mint a valid
+        DHIS2 UID to unblock sync for this TEI and everything that
+        references it.
+      </p>
+      <div style={{ fontSize: 12, marginBottom: 10 }}>
+        <strong>Legacy UID:</strong>{' '}
+        <code>{legacyTeiUid}</code>
+      </div>
+      <label style={{ display: 'flex', gap: 8, alignItems: 'center',
+                       flexWrap: 'wrap', marginBottom: 8 }}>
+        <span style={{ fontSize: 12, minWidth: 100 }}>New UID</span>
+        <input value={newUid}
+               onChange={(e) => setNewUid(e.target.value)}
+               placeholder="(leave blank to let the server mint one)"
+               data-test="tei-migrate-newuid"
+               style={{ flex: 1, minWidth: 220, padding: '4px 8px',
+                         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                         fontSize: 13,
+                         border: '1px solid var(--der-border-soft, #cbd5e1)',
+                         borderRadius: 4 }} />
+      </label>
+      {err && (
+        <div className="ea-callout ea-callout--danger"
+             role="alert"
+             data-test="tei-migrate-err"
+             style={{ marginBottom: 8 }}>{err}</div>
+      )}
+      {preview && (
+        <div className="ea-callout ea-callout--info"
+             data-test="tei-migrate-ok"
+             style={{ marginBottom: 8 }}>
+          <strong>Migrated.</strong> {preview.oldUid} → {preview.newUid}.{' '}
+          {Object.entries(preview.affected).map(
+            ([k, v]) => `${k}=${v}`).join(', ')}.
+        </div>
+      )}
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button type="button"
+                className="ea-btn ea-btn--primary"
+                data-test="tei-migrate-run"
+                disabled={busy}
+                onClick={() => { void run(); }}>
+          {busy ? 'Migrating…' : 'Migrate TEI UID'}
+        </button>
+      </div>
+    </Panel>
   );
 }
 
@@ -754,7 +877,7 @@ function CentralValuePanel(
 /* ─── /sync/worker ───────────────────────────────────────────────── */
 /** DER Sync requirements §10. One status card + Pause/Resume + an
  *  optional queue breakdown behind "Show breakdown". */
-export function MockupWorkerHealth(): JSX.Element {
+export function WorkerHealthScreen(): JSX.Element {
   const [w, setW] = useState<edgeApi.WorkerHealth | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -877,7 +1000,127 @@ export function MockupWorkerHealth(): JSX.Element {
           )}
         </Panel>
       )}
+
+      {w.tune && (
+        <WorkerTunePanel
+          current={w.tune}
+          onApplied={() => { reload().catch(() => undefined); }} />
+      )}
     </div>
+  );
+}
+
+/** SM-3c — adjust batch size + backoff live. Values persist only
+ *  until the server restarts; the env-var baselines take back over.
+ *  Range hints come from the server's validation code: batchSize
+ *  [1, 500], backoffBase [1, cap], backoffCap [base, 86400]. */
+function WorkerTunePanel(
+  { current, onApplied }: {
+    current: edgeApi.WorkerTune;
+    onApplied: () => void;
+  },
+): JSX.Element {
+  const [batchSize, setBatchSize] = useState<number>(current.batchSize);
+  const [base, setBase] = useState<number>(current.backoffBaseSeconds);
+  const [cap, setCap] = useState<number>(current.backoffCapSeconds);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  useEffect(() => {
+    setBatchSize(current.batchSize);
+    setBase(current.backoffBaseSeconds);
+    setCap(current.backoffCapSeconds);
+  }, [current.batchSize, current.backoffBaseSeconds, current.backoffCapSeconds]);
+
+  const dirty = batchSize !== current.batchSize
+    || base !== current.backoffBaseSeconds
+    || cap !== current.backoffCapSeconds;
+
+  async function save(): Promise<void> {
+    setSaving(true);
+    setErr(null);
+    setOk(null);
+    try {
+      const body: Partial<edgeApi.WorkerTune> = {};
+      if (batchSize !== current.batchSize) body.batchSize = batchSize;
+      if (base !== current.backoffBaseSeconds) body.backoffBaseSeconds = base;
+      if (cap !== current.backoffCapSeconds) body.backoffCapSeconds = cap;
+      await edgeApi.tuneWorker(body);
+      setOk('Applied — next drain tick uses these values.');
+      onApplied();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Panel title="Worker tune">
+      <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
+        Live knobs for the drain loop. Changes apply to the next tick.
+        Reset to the env-var baselines happens on server restart.
+      </p>
+      <div style={{ display: 'grid',
+                     gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                     gap: 12 }}
+           data-test="worker-tune-grid">
+        <label>
+          <span style={{ display: 'block', fontSize: 11, fontWeight: 600 }}>
+            Batch size <span className="ea-text-muted">(1–500)</span>
+          </span>
+          <input type="number" min={1} max={500} value={batchSize}
+                 onChange={(e) => setBatchSize(Number(e.target.value))}
+                 data-test="worker-tune-batch"
+                 style={{ width: '100%', padding: '6px 8px',
+                           border: '1px solid var(--der-border-soft, #cbd5e1)',
+                           borderRadius: 4 }} />
+        </label>
+        <label>
+          <span style={{ display: 'block', fontSize: 11, fontWeight: 600 }}>
+            Backoff base (s) <span className="ea-text-muted">(≤ cap)</span>
+          </span>
+          <input type="number" min={1} value={base}
+                 onChange={(e) => setBase(Number(e.target.value))}
+                 data-test="worker-tune-base"
+                 style={{ width: '100%', padding: '6px 8px',
+                           border: '1px solid var(--der-border-soft, #cbd5e1)',
+                           borderRadius: 4 }} />
+        </label>
+        <label>
+          <span style={{ display: 'block', fontSize: 11, fontWeight: 600 }}>
+            Backoff cap (s) <span className="ea-text-muted">(≤ 86400)</span>
+          </span>
+          <input type="number" min={1} max={86400} value={cap}
+                 onChange={(e) => setCap(Number(e.target.value))}
+                 data-test="worker-tune-cap"
+                 style={{ width: '100%', padding: '6px 8px',
+                           border: '1px solid var(--der-border-soft, #cbd5e1)',
+                           borderRadius: 4 }} />
+        </label>
+      </div>
+      {err && (
+        <div className="ea-toast ea-toast--err" role="alert"
+             data-test="worker-tune-err"
+             style={{ marginTop: 10 }}>{err}</div>
+      )}
+      {ok && (
+        <div className="ea-toast ea-toast--ok" role="status"
+             data-test="worker-tune-ok"
+             style={{ marginTop: 10 }}>{ok}</div>
+      )}
+      <div style={{ marginTop: 12, display: 'flex',
+                     justifyContent: 'flex-end' }}>
+        <button type="button"
+                className="ea-btn ea-btn--primary"
+                data-test="worker-tune-save"
+                disabled={!dirty || saving}
+                onClick={() => { void save(); }}>
+          {saving ? 'Saving…' : 'Apply tune'}
+        </button>
+      </div>
+    </Panel>
   );
 }
 

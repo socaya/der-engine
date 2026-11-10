@@ -1238,11 +1238,18 @@ export function reJournalConflict(id: string): Promise<unknown> {
   return request('POST', `/edge-api/v1/journal/conflicts/${id}/re-journal`);
 }
 
+export interface WorkerTune {
+  batchSize: number;
+  backoffBaseSeconds: number;
+  backoffCapSeconds: number;
+}
+
 export interface WorkerHealth {
   enabled: boolean;
   lastTick: string | null;
   lastBatchSize: number;
   backlog: Record<string, number>;
+  tune?: WorkerTune;
 }
 
 export function workerHealth(): Promise<WorkerHealth> {
@@ -1255,6 +1262,33 @@ export function pauseWorker(): Promise<{ enabled: boolean }> {
 
 export function resumeWorker(): Promise<{ enabled: boolean }> {
   return request('POST', '/edge-api/v1/journal/worker/resume');
+}
+
+// SM-3c — live tuning of the drain worker.
+export function tuneWorker(body: Partial<WorkerTune>): Promise<WorkerTune> {
+  return request<WorkerTune>('POST', '/edge-api/v1/journal/worker/tune', body);
+}
+
+// SM-3b — cron preview + hot-reload.
+export function previewCron(cron: string, count = 3):
+    Promise<{ cron: string; next: string[] }> {
+  const qs = new URLSearchParams({ cron, count: String(count) });
+  return request<{ cron: string; next: string[] }>(
+    'GET', `/edge-api/v1/admin/settings/cron-preview?${qs.toString()}`);
+}
+
+// SM-3a — rewrite a legacy UUID-shaped TEI UID to a DHIS2 11-char UID.
+export interface TeiMigrateResult {
+  oldUid: string;
+  newUid: string;
+  affected: Record<string, number>;
+}
+
+export function migrateTeiUid(oldUid: string, newUid?: string):
+    Promise<TeiMigrateResult> {
+  return request<TeiMigrateResult>('POST',
+    `/edge-api/v1/admin/tei/${encodeURIComponent(oldUid)}/migrate-uid`,
+    { newUid: newUid ?? null });
 }
 
 export interface ProvisionedUser {

@@ -366,7 +366,7 @@ describe('EA-10 ConflictList', () => {
 });
 
 /* EA-11 ConflictResolve stub removed: canonical surface is the rich
- * MockupConflictDetail (routed at /sync/attention/:operationId),
+ * AttentionDetailScreen (routed at /sync/attention/:operationId),
  * covered by MoreScreens.test.tsx. */
 
 describe('EA-14 WorkerHealth', () => {

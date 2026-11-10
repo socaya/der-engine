@@ -70,8 +70,8 @@ import { MockupAdminTasks } from './screens/AdminTasks';
 import { MockupSystemInformation } from './screens/SystemInformation';
 import { MockupCompatMatrix } from './screens/CompatMatrix';
 import {
-  MockupDriftInspector, MockupConflictList, MockupConflictDetail,
-  MockupWorkerHealth,
+  MockupDriftInspector, MockupConflictList, AttentionDetailScreen,
+  WorkerHealthScreen,
   MockupDeviceFleet, MockupDeviceDetail, MockupApprovalQueue, MockupApprovalDetail,
   MockupReferralInbox, MockupReferralDetail,
   MockupBackupList, MockupRestoreList, MockupCompatInspector,
@@ -176,14 +176,14 @@ export default function App(): JSX.Element {
           <Route path="/sync/attention"
                  element={<RequireAuth><MockupConflictList /></RequireAuth>} />
           <Route path="/sync/attention/:operationId"
-                 element={<RequireAuth><MockupConflictDetail /></RequireAuth>} />
+                 element={<RequireAuth><AttentionDetailScreen /></RequireAuth>} />
           <Route path="/journal/conflicts" element={<Navigate to="/sync/attention" replace />} />
           <Route path="/journal/conflicts-legacy"
                  element={<RequireAuth><EAConflictList /></RequireAuth>} />
           <Route path="/conflicts/:id"
                  element={<ConflictBookmarkForward />} />
           <Route path="/sync/worker"
-                 element={<RequireAuth><MockupWorkerHealth /></RequireAuth>} />
+                 element={<RequireAuth><WorkerHealthScreen /></RequireAuth>} />
           <Route path="/journal/worker" element={<Navigate to="/sync/worker" replace />} />
           <Route path="/journal/worker-legacy"
                  element={<RequireAuth><EAWorkerHealth /></RequireAuth>} />

@@ -127,7 +127,7 @@ describe('App routing', () => {
 
   it('/conflicts/:id forwards to the attention detail route', async () => {
     await renderAt('/conflicts/op-xyz');
-    /* MockupConflictDetail (real, not stubbed) mounts; its initial
+    /* AttentionDetailScreen (real, not stubbed) mounts; its initial
      * LoadingBlock or the detail root (data-test="conflict-detail")
      * is enough to prove the Navigate happened. */
     await waitFor(() => expect(
