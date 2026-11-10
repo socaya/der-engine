@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { FormEngine, requiredFieldsComplete }
   from '../shared/FormEngine';
 import { parseTeiAttributesForm } from '../shared/parser';
@@ -141,6 +141,13 @@ export function TrackerRelationshipsSection(
   const [status, setStatus] =
     useState<'idle' | 'loading' | 'err'>('loading');
   const [types, setTypes] = useState<RelTypeRow[]>([]);
+  /** Which relationship row's inline details panel is open.
+   *  Operators flagged that clicking an enrolment row used to
+   *  swing the TEI dashboard's header selector — they want the
+   *  header fixed and the details rendered within the
+   *  Relationships pane. Click again to collapse. */
+  const [expandedRelUid, setExpandedRelUid] =
+    useState<string | null>(null);
 
   /** Inline compose panel toggled by + Add relationship. */
   const [composing, setComposing] = useState(false);
@@ -1367,12 +1374,6 @@ export function TrackerRelationshipsSection(
                       return;
                     }
                     if (kind === 'ENROLLMENT') {
-                      // Open the target in its OWN program — the
-                      // enrolment may be in a different program than
-                      // the dashboard we're currently viewing. Fall
-                      // back to the current program only if the
-                      // server didn't enrich the detail (shouldn't
-                      // happen in practice).
                       const t = otherSide?.enrollment?.teiUid;
                       const p = otherSide?.enrollment?.programUid
                         ?? programUid;
@@ -1381,14 +1382,14 @@ export function TrackerRelationshipsSection(
                           + 'resolvable TEI on this device.');
                         return;
                       }
-                      // Same-TEI, same-program: stay put, but swing
-                      // the parent's rail/selectedEnrolment via the
-                      // callback. Navigating would produce the same
-                      // hash → navigateTo short-circuits → no state
-                      // flip → the pane looks frozen on Relationships.
-                      if (t === tei && p === programUid
-                          && onFocusLocalEnrolment && toUid) {
-                        onFocusLocalEnrolment(toUid);
+                      // Same-TEI enrolment: toggle an inline details
+                      // panel inside this pane rather than swinging
+                      // the TEI header's enrolment selector. The
+                      // operator asked for the selector to stay
+                      // fixed when inspecting a related enrolment.
+                      if (t === tei && p === programUid && uid) {
+                        setExpandedRelUid((cur) =>
+                          cur === uid ? null : uid);
                         return;
                       }
                       navTracker.detail(p, t,
@@ -1405,8 +1406,8 @@ export function TrackerRelationshipsSection(
                     }
                   };
                   return (
-                    <tr key={(uid ?? '') + i}
-                        className="cap-table__row"
+                    <Fragment key={(uid ?? '') + i}>
+                    <tr className="cap-table__row"
                         tabIndex={0}
                         data-test={'tr-rel-row-' + (uid ?? i)}
                         onClick={(e) => {
@@ -1535,6 +1536,49 @@ export function TrackerRelationshipsSection(
                         )}
                       </td>
                     </tr>
+                    {expandedRelUid === uid
+                      && kind === 'ENROLLMENT'
+                      && otherSide?.enrollment && (
+                      <tr className="cap-table__row cap-rel-table__details-row"
+                          data-test={'tr-rel-details-' + uid}>
+                        <td colSpan={5}
+                            className="cap-table__cell cap-rel-table__details-cell">
+                          <dl className="cap-rel-table__details-grid">
+                            <dt>Enrolment UID</dt>
+                            <dd><code>{toUid}</code></dd>
+                            {otherSide.enrollment.programName && (
+                              <>
+                                <dt>Program</dt>
+                                <dd>{otherSide.enrollment.programName}</dd>
+                              </>
+                            )}
+                            {otherSide.enrollment.enrollmentDate && (
+                              <>
+                                <dt>Enrolled on</dt>
+                                <dd>{formatDate(
+                                  otherSide.enrollment.enrollmentDate)}</dd>
+                              </>
+                            )}
+                            {otherSide.enrollment.status && (
+                              <>
+                                <dt>Status</dt>
+                                <dd>{otherSide.enrollment.status}</dd>
+                              </>
+                            )}
+                            {otherSide.enrollment.teiUid
+                              && otherSide.enrollment.teiUid !== tei && (
+                              <>
+                                <dt>Target TEI</dt>
+                                <dd><code>
+                                  {otherSide.enrollment.teiUid}
+                                </code></dd>
+                              </>
+                            )}
+                          </dl>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                   );
                 })}
               </tbody>

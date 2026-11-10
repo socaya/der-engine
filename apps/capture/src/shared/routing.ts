@@ -42,8 +42,8 @@ export type CaptureRoute =
        *  from the URL sub-path so operators can deep-link, bookmark
        *  or share a specific view. `stages/<uid>` pins a specific
        *  program stage; `stages` alone picks the first stage. */
-      readonly section?: 'profile' | 'notes' | 'relationships'
-                        | 'stage' | null;
+      readonly section?: 'profile' | 'enrolment' | 'notes'
+                        | 'relationships' | 'stage' | null;
       readonly stageId?: string | null }
   | { readonly kind: 'tracker-register';
       readonly programId: string }
@@ -118,10 +118,11 @@ export function parseCaptureRoute(hash: string): CaptureRoute {
       //   .../records/{tei}/relationships         → relationships
       //   .../records/{tei}/stages                → first stage
       //   .../records/{tei}/stages/{stageUid}     → that stage
-      let section: 'profile' | 'notes' | 'relationships'
-        | 'stage' | null = null;
+      let section: 'profile' | 'enrolment' | 'notes'
+        | 'relationships' | 'stage' | null = null;
       let stageId: string | null = null;
       if (segs[4] === 'profile') section = 'profile';
+      else if (segs[4] === 'enrolment') section = 'enrolment';
       else if (segs[4] === 'notes') section = 'notes';
       else if (segs[4] === 'relationships') section = 'relationships';
       else if (segs[4] === 'stages') {
@@ -197,7 +198,7 @@ export const navTracker = {
    *  the URL so switching between sections doesn't lose the pinned
    *  enrolment context. */
   section: (programId: string, teiId: string,
-      section: 'profile' | 'notes' | 'relationships',
+      section: 'profile' | 'enrolment' | 'notes' | 'relationships',
       extra?: { focusEnrollmentId?: string | null }) => {
     const qs = extra?.focusEnrollmentId
       ? `?enrolment=${encodeURIComponent(extra.focusEnrollmentId)}` : '';

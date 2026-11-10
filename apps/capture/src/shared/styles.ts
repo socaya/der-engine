@@ -1799,6 +1799,34 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   font-family: var(--der-font-mono, ui-monospace,
     SFMono-Regular, Menlo, monospace);
 }
+/* Inline details row — rendered under the clicked enrolment-
+ * relationship so operators can see enrolment particulars without
+ * the TEI header's enrolment selector changing. */
+.cap-rel-table__details-row > .cap-rel-table__details-cell {
+  background: var(--der-surface-subtle);
+  padding: 12px 16px;
+  border-top: 1px solid var(--der-border-soft);
+}
+.cap-rel-table__details-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px; margin: 0;
+}
+.cap-rel-table__details-grid dt {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--der-text-muted);
+}
+.cap-rel-table__details-grid dd {
+  margin: 0; font-size: 13px; color: var(--der-text);
+}
+.cap-rel-table__details-grid code {
+  background: var(--der-surface);
+  padding: 1px 6px; border-radius: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+  font-size: 12px; color: var(--der-text-muted);
+}
 /* Menu separator — hairline between stock items and custom
  * actions / destructive items. */
 .cap-rel-card__menu-sep {

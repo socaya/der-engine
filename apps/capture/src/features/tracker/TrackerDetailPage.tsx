@@ -52,7 +52,8 @@ export function TrackerDetailPage(
     focusEnrollmentId?: string | null;
     /** Which rail section the URL asked us to open on. Null →
      *  Profile (default). */
-    section?: 'profile' | 'notes' | 'relationships' | 'stage' | null;
+    section?: 'profile' | 'enrolment' | 'notes' | 'relationships'
+             | 'stage' | null;
     /** When section === 'stage', which stage UID to pin. Null →
      *  first stage. */
     stageId?: string | null;
@@ -70,7 +71,8 @@ export function TrackerDetailPage(
    *  landing surface for the record, consistent with how clinical
    *  record systems lead with identity before timeline. */
   const [railKind, setRailKind] =
-    useState<'profile' | 'stage' | 'notes' | 'relationships'>(
+    useState<'profile' | 'enrolment' | 'stage' | 'notes'
+            | 'relationships'>(
       section ?? 'profile');
   // URL → state: when the hash section changes, swing the rail +
   // selected stage to match. Lets operators deep-link, bookmark, and
@@ -471,27 +473,9 @@ export function TrackerDetailPage(
                     </span>
                   </span>
                 )}
-                {sel.incidentDate && (
-                  <span className="cap-section-head__meta-item">
-                    <strong>Incident</strong>
-                    <span>{formatDateOnly(sel.incidentDate)}</span>
-                  </span>
-                )}
               </>
             );
           })()}
-          {identity.attributes.map((a, i) => (
-            <span key={`${a.label}:${i}`}
-                  className={'cap-section-head__meta-item '
-                    + 'cap-section-head__meta-item--tea'}>
-              <strong>{a.label}</strong>
-              <span>{a.value}</span>
-            </span>
-          ))}
-          <span className="cap-section-head__meta-item">
-            <strong>UID</strong>
-            <code>{teiId}</code>
-          </span>
         </span>
         <div className="cap-section-head__right">
           {identity.allAttributes.length > 0 && (
@@ -662,6 +646,21 @@ export function TrackerDetailPage(
               <RailIcon kind="profile" />
               <span className="cap-stage-rail__name">Profile</span>
             </button>
+            {/* Enrolment detail pane — keeps the TEI header strip
+             *  minimal (selector + status only); the full enrolment
+             *  particulars (UID, program, enrolled & incident dates,
+             *  org unit, enrolled-by) live here instead. */}
+            <button type="button"
+                    className={'cap-stage-rail__item'
+                      + (railKind === 'enrolment'
+                        ? ' cap-stage-rail__item--active' : '')}
+                    data-test="tr-rail-enrolment"
+                    onClick={() => navTracker.section(
+                      programUid, teiId, 'enrolment',
+                      { focusEnrollmentId: selectedEnrolment })}>
+              <RailIcon kind="enrolment" />
+              <span className="cap-stage-rail__name">Enrolment</span>
+            </button>
             {stages.length === 0 ? (
               <p className="cap-sub" style={{ margin: '4px 10px 0' }}>
                 This program has no stages configured.
@@ -755,6 +754,14 @@ export function TrackerDetailPage(
                 relationshipsCount={relationshipsCount}
                 onEnrolAgain={() => navTracker.enrol(programUid, teiId)}
                 onProfileSaved={() => { void refetchIdentity(); }} />
+            ) : railKind === 'enrolment' ? (
+              <TrackerEnrolmentPane
+                teiId={teiId}
+                programUid={programUid}
+                enrolment={enrolments.find(
+                  (e) => e.enrollmentUid === selectedEnrolment) ?? null}
+                onEnrolAgain={() =>
+                  navTracker.enrol(programUid, teiId)} />
             ) : railKind === 'notes' ? (
               <EnrolmentNotesPane api={api}
                 enrollmentUid={selectedEnrolment}
@@ -1378,6 +1385,95 @@ function esc(s: string): string {
   }[c] as string));
 }
 
+/** Enrolment detail pane — the "many enrolment details" surface
+ *  that pairs with the slim TEI header strip. Header carries only
+ *  selector + status; this pane carries UID, program, dates, org
+ *  unit and a + Enrol again shortcut so operators have one place
+ *  to inspect the enrolment particulars. */
+function TrackerEnrolmentPane(
+  { teiId, programUid, enrolment, onEnrolAgain }: {
+    teiId: string;
+    programUid: string;
+    enrolment: TrackerEnrolment | null;
+    onEnrolAgain: () => void;
+  },
+): JSX.Element {
+  if (!enrolment) {
+    return (
+      <div className="cap-placeholder"
+           data-test="tr-enrolment-pane-empty"
+           style={{ margin: 0, fontSize: 14 }}>
+        No enrolment selected.
+      </div>
+    );
+  }
+  const rows: ReadonlyArray<{ label: string; value: string }> = [
+    { label: 'Enrolment UID', value: enrolment.enrollmentUid },
+    { label: 'Tracked entity UID', value: teiId },
+    { label: 'Program UID', value: programUid },
+    { label: 'Org unit UID', value: enrolment.orgUnitUid || '—' },
+    { label: 'Enrolled on',
+      value: enrolment.enrollmentDate
+        ? formatDateOnly(enrolment.enrollmentDate) : '—' },
+    { label: 'Incident date',
+      value: enrolment.incidentDate
+        ? formatDateOnly(enrolment.incidentDate) : '—' },
+    { label: 'Last updated',
+      value: formatTimestamp(enrolment.lastUpdatedAt) },
+  ];
+  return (
+    <div data-test="tr-enrolment-pane" className="cap-profile-pane">
+      <header className="cap-profile-pane__head">
+        <div className="cap-profile-pane__ident">
+          <h2 className="cap-profile-pane__name">Enrolment</h2>
+          <div className="cap-profile-pane__chips">
+            {enrolment.status && (
+              <span className={'cap-chip cap-chip--'
+                + (enrolment.status === 'ACTIVE' ? 'ok'
+                  : enrolment.status === 'COMPLETED' ? 'muted'
+                  : 'warn')}
+                    data-test="tr-enrolment-status">
+                {formatStatusLabel(enrolment.status)}
+              </span>
+            )}
+            {enrolment.enrollmentDate && (
+              <span className="cap-chip cap-chip--neutral"
+                    title="Enrolment start date">
+                Enrolled {formatDateOnly(enrolment.enrollmentDate)}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="cap-profile-pane__actions">
+          <button type="button"
+                  className="cap-btn cap-btn--secondary"
+                  data-test="tr-enrolment-add"
+                  style={{ padding: '6px 14px', fontSize: 13 }}
+                  title="Create another enrolment on this tracked entity"
+                  onClick={onEnrolAgain}>
+            + Enrol again
+          </button>
+        </div>
+      </header>
+      <div className="cap-profile-pane__grid"
+           data-test="tr-enrolment-grid">
+        {rows.map((r) => (
+          <div key={r.label} className="cap-profile-pane__cell">
+            <div className="cap-profile-pane__cell-label">
+              {r.label}
+            </div>
+            <div className="cap-profile-pane__cell-value">
+              {/^[A-Za-z][A-Za-z0-9]{10}$/.test(r.value) ? (
+                <code>{r.value}</code>
+              ) : r.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Enrolment notes pane — renders inline inside the stage pane
  *  when the rail "Notes" item is selected. Lighter chrome than
  *  the pre-refactor standalone section: no section-head because
@@ -1541,7 +1637,8 @@ function EnrolmentNotesPane(
  *  via currentColor. One sprite per logical category: profile,
  *  stage, notes, relationships. */
 function RailIcon(
-  { kind }: { kind: 'profile' | 'stage' | 'notes' | 'relationships' },
+  { kind }: { kind: 'profile' | 'enrolment' | 'stage'
+                   | 'notes' | 'relationships' },
 ): JSX.Element {
   const common = {
     width: 16, height: 16, viewBox: '0 0 24 24',
@@ -1555,6 +1652,15 @@ function RailIcon(
       <svg {...common}>
         <circle cx="12" cy="8" r="4" />
         <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+      </svg>
+    );
+  }
+  if (kind === 'enrolment') {
+    return (
+      <svg {...common}>
+        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+        <path d="M17 11l2 2 3-3" />
       </svg>
     );
   }
