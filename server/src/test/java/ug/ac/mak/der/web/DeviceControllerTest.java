@@ -41,6 +41,7 @@ class DeviceControllerTest {
     @Autowired MockMvc mockMvc;
     @MockBean DeviceService svc;
     @MockBean ug.ac.mak.der.device.DeviceAdjacencyService adjacency;
+    @MockBean ug.ac.mak.der.device.UnifiedDeviceService unified;
 
     private final Instant NOW = Instant.parse("2026-10-22T00:00:00Z");
 

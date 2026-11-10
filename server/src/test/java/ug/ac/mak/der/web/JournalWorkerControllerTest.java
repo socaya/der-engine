@@ -28,6 +28,7 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 import ug.ac.mak.der.workflows.journal.JournalWorker;
+import ug.ac.mak.der.workflows.journal.JournalWorkerConfig;
 
 @WebMvcTest(JournalWorkerController.class)
 @ActiveProfiles("test")
@@ -37,6 +38,7 @@ class JournalWorkerControllerTest {
     @Autowired MockMvc mockMvc;
     @MockBean JournalWorker worker;
     @MockBean OperationJournalRepository journal;
+    @MockBean JournalWorkerConfig.JournalWorkerSettings settings;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();

@@ -61,7 +61,12 @@ class OperationJournalEntryTest {
 
     @Test
     void enumHasAllStates() {
+        // State: PENDING / IN_FLIGHT / CENTRAL_ACCEPTED / CENTRAL_REJECTED /
+        //        RETRYABLE / UNKNOWN_OUTCOME / CONFLICT_REVIEW
         assertThat(OperationJournalEntry.State.values()).hasSize(7);
-        assertThat(OperationJournalEntry.EntityType.values()).hasSize(7);
+        // EntityType: AGGREGATE_DATA_VALUE / EVENT / TRACKED_ENTITY /
+        //             ENROLLMENT / PROGRAM_STAGE_EVENT / RELATIONSHIP /
+        //             ENROLMENT_NOTE / AGGREGATE_DATASET_COMPLETION
+        assertThat(OperationJournalEntry.EntityType.values()).hasSize(8);
     }
 }
