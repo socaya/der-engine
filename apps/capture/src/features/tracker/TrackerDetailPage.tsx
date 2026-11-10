@@ -398,6 +398,67 @@ export function TrackerDetailPage(
               <span>{identity.displayName}</span>
             </span>
           )}
+          {/* Enrolment context — compact select when the TEI has
+           *  more than one, read-only chip for solo. Keeps the
+           *  enrolment switcher inside the strip so there's no
+           *  duplicate row below the dashboard content. */}
+          {enrolments.length > 0 && (() => {
+            const sel = enrolments.find(
+              (x) => x.enrollmentUid === selectedEnrolment)
+              ?? enrolments[0]!;
+            const statusTxt = sel.status
+              ? formatStatusLabel(sel.status) : '';
+            return (
+              <>
+                <span className="cap-section-head__meta-item">
+                  <strong>Enrolment</strong>
+                  {enrolments.length > 1 ? (
+                    <select className="cap-section-head__enrol-sel"
+                            data-test="tr-enrol-switcher"
+                            value={sel.enrollmentUid}
+                            onChange={(e) => setSelectedEnrolment(
+                              e.target.value)}>
+                      {enrolments.map((en) => (
+                        <option key={en.enrollmentUid}
+                                value={en.enrollmentUid}>
+                          {'Enrolled '
+                            + formatDateOnly(en.enrollmentDate
+                              ?? en.lastUpdatedAt)
+                            + (en.status
+                              ? ' · ' + formatStatusLabel(en.status)
+                              : '')}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span>
+                      Enrolled {formatDateOnly(sel.enrollmentDate
+                        ?? sel.lastUpdatedAt)}
+                    </span>
+                  )}
+                </span>
+                {statusTxt && (
+                  <span className="cap-section-head__meta-item">
+                    <strong>Status</strong>
+                    <span className={'cap-status cap-status--'
+                      + (sel.status === 'COMPLETED' ? 'ok' : 'active')}>
+                      {statusTxt}
+                    </span>
+                  </span>
+                )}
+                {sel.incidentDate && (
+                  <span className="cap-section-head__meta-item">
+                    <strong>Incident</strong>
+                    <span>{formatDateOnly(sel.incidentDate)}</span>
+                  </span>
+                )}
+                <span className="cap-section-head__meta-item">
+                  <strong>Enrol. UID</strong>
+                  <code>{sel.enrollmentUid}</code>
+                </span>
+              </>
+            );
+          })()}
           {identity.attributes.map((a, i) => (
             <span key={`${a.label}:${i}`}
                   className={'cap-section-head__meta-item '
@@ -451,12 +512,15 @@ export function TrackerDetailPage(
                 title?: string;
               };
               const acts: Act[] = [];
-              // Solo-enrolment lifecycle lives here so the switcher
-              // doesn't need to render a single-row strip beneath
-              // the profile pane. Multi-enrolment TEIs expose the
-              // same actions on each switcher row instead.
-              if (enrolments.length === 1) {
-                const e = enrolments[0]!;
+              // Enrolment lifecycle acts on the currently-selected
+              // enrolment (header's select controls which one when
+              // the TEI has more than one). Keeping the actions in
+              // this one menu avoids a second switcher row below
+              // the profile pane.
+              const e = enrolments.find(
+                (x) => x.enrollmentUid === selectedEnrolment)
+                ?? enrolments[0];
+              if (e) {
                 const isCompleted = e.status === 'COMPLETED';
                 acts.push({
                   label: isCompleted
@@ -561,112 +625,6 @@ export function TrackerDetailPage(
             Enrol in this program
           </button>
         </div>
-      )}
-
-      {/* Enrolment switcher — only materialises when the TEI has
-       *  two or more enrolments. Solo-enrolment actions live on
-       *  the TEI header's ⋯ menu to avoid the duplicate-info row
-       *  that a single-row switcher produced below the profile
-       *  pane. */}
-      {enrolments.length >= 2 && (
-        <ul className="cap-list" data-test="tr-enrolment-list">
-          {enrolments.map((e) => {
-            const isCompleted = e.status === 'COMPLETED';
-            const onToggleStatus = async (): Promise<void> => {
-              const next = isCompleted ? 'ACTIVE' : 'COMPLETED';
-              try {
-                await api.createEnrollment({
-                  enrollmentUid: e.enrollmentUid,
-                  teiUid: teiId,
-                  programUid: e.programUid,
-                  orgUnitUid: e.orgUnitUid,
-                  enrollmentDate:
-                    (e.enrollmentDate ?? new Date()
-                      .toISOString().slice(0, 10)),
-                  // Preserve the original incident date so central
-                  // doesn't reject the upsert with E1023 when the
-                  // program's displayIncidentDate is required.
-                  incidentDate: e.incidentDate ?? undefined,
-                  status: next,
-                });
-                setEnrolTick((t) => t + 1);
-              } catch (err) {
-                window.alert('Failed to update enrolment: '
-                  + ((err as Error).message ?? 'unknown error'));
-              }
-            };
-            const onDelete = async (): Promise<void> => {
-              const ok = window.confirm('Delete this enrolment?'
-                + ' The enrolment + its events are soft-deleted on'
-                + ' the facility edge and queued for central sync.');
-              if (!ok) return;
-              try {
-                await api.deleteEnrollment(e.enrollmentUid);
-                setEnrolTick((t) => t + 1);
-                // If the deleted row was selected, clear so the
-                // next effect pass picks a new one.
-                if (selectedEnrolment === e.enrollmentUid) {
-                  setSelectedEnrolment(null);
-                }
-              } catch (err) {
-                window.alert('Failed to delete enrolment: '
-                  + ((err as Error).message ?? 'unknown error'));
-              }
-            };
-            return (
-            <li key={e.enrollmentUid}
-                className={'cap-list__row cap-list__row--clickable'
-                  + (selectedEnrolment === e.enrollmentUid
-                    ? ' cap-list__row--active' : '')}
-                data-test={'tr-enrolment-' + e.enrollmentUid}
-                onClick={(ev) => {
-                  const t = ev.target as HTMLElement;
-                  if (t.closest('.cap-row-actions')) return;
-                  setSelectedEnrolment(e.enrollmentUid);
-                }}>
-              <div>
-                <strong>Enrolled {formatDateOnly(e.enrollmentDate
-                  ?? e.lastUpdatedAt)}</strong>
-                {e.status && (
-                  <span className={'cap-status cap-status--'
-                      + (e.status === 'COMPLETED' ? 'ok' : 'active')}
-                        style={{ marginLeft: 10 }}>
-                    {formatStatusLabel(e.status)}
-                  </span>
-                )}
-                <code style={{ marginLeft: 10,
-                  background: 'var(--der-surface-subtle)',
-                  padding: '2px 6px', borderRadius: 3,
-                  fontSize: 13, color: 'var(--der-text-muted)' }}>
-                  {e.enrollmentUid}
-                </code>
-              </div>
-              <span className="cap-list__when"
-                    style={{ display: 'inline-flex',
-                      alignItems: 'center', gap: 10 }}>
-                {formatTimestamp(e.lastUpdatedAt)}
-                <RowActions
-                  label="Enrolment actions"
-                  dataTest={'tr-enrolment-actions-' + e.enrollmentUid}
-                  actions={[
-                    { label: isCompleted
-                        ? 'Reopen enrolment'
-                        : 'Mark complete',
-                      onSelect: () => { void onToggleStatus(); },
-                      title: isCompleted
-                        ? 'Set status back to ACTIVE'
-                        : 'Set status to COMPLETED' },
-                    { label: 'Delete enrolment',
-                      onSelect: () => { void onDelete(); },
-                      destructive: true,
-                      title: 'Soft-delete on the edge, queued '
-                        + 'for central sync' },
-                  ]} />
-              </span>
-            </li>
-            );
-          })}
-        </ul>
       )}
 
       {selectedEnrolment && (

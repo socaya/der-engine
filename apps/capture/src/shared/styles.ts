@@ -598,6 +598,23 @@ export const CAPTURE_STYLES = `
 .cap-section-head__meta-item--tea > strong {
   text-transform: none; letter-spacing: 0;
 }
+/* Enrolment switcher embedded in the identity strip — compact
+ * select matching the strip's calm palette, no heavy chrome. */
+.cap-section-head__enrol-sel {
+  font: inherit;
+  font-size: 13px;
+  color: var(--der-text);
+  background: var(--der-surface);
+  border: 1px solid var(--der-border);
+  border-radius: 3px;
+  padding: 2px 22px 2px 6px;
+  max-width: 24ch;
+}
+.cap-section-head__enrol-sel:focus {
+  outline: 0;
+  border-color: var(--der-primary);
+  box-shadow: 0 0 0 1px var(--der-primary-subtle, #e6f1fb);
+}
 .cap-section-head__meta-item > strong {
   color: var(--der-text-muted); font-weight: 600;
   font-size: 13px; text-transform: uppercase;

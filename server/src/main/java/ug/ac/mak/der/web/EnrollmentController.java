@@ -101,6 +101,26 @@ public class EnrollmentController {
                     "code", "ENROLLMENT_STATUS_INVALID",
                     "message", "status must be ACTIVE, COMPLETED or CANCELLED"));
         }
+        // DHIS2 parity: at most one ACTIVE enrolment per (TEI, program).
+        // An operator attempting to open a second ACTIVE enrolment while
+        // one already exists would otherwise land a row the central
+        // tracker import rejects with E1015 — surface the conflict at
+        // the edge so the UI can route them to the existing one.
+        if (status == Enrollment.Status.ACTIVE) {
+            final boolean clash = repo.findByTei(body.teiUid()).stream()
+                    .filter(e -> e.status() == Enrollment.Status.ACTIVE)
+                    .filter(e -> body.programUid().equals(e.programUid()))
+                    .anyMatch(e -> !e.enrollmentUid()
+                            .equals(body.enrollmentUid()));
+            if (clash) {
+                return ResponseEntity.status(409).body(Map.of(
+                        "code", "ENROLLMENT_ACTIVE_CLASH",
+                        "message", "Tracked entity already has an "
+                            + "ACTIVE enrolment in program "
+                            + body.programUid()
+                            + ". Complete or cancel it first."));
+            }
+        }
         final Instant now = Instant.now(clock);
         final String storedBy = captorResolver.storedByFor(principal.userId()).orElse(null);
         // §2.3.89 R-C/3 — auto-wrap into TRACKER_CAPTURE system run
