@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as edgeApi from '../api/edgeApi';
 import { UiIcon } from './UiIcon';
+import { CronFieldPicker } from './CronFieldPicker';
 
 /**
  * UI-10 — friendly cron editor.
@@ -98,12 +99,13 @@ export function CronPicker(
         )}
       </div>
       {custom && (
-        <input value={value}
-               onChange={(e) => onChange(e.target.value)}
-               data-test="cron-picker-custom"
-               placeholder="0 * * * * ?"
-               className="ea-input ea-mono"
-               style={{ fontSize: 13 }} />
+        /* UI-12 — visual per-field editor replaces the raw text
+         * field. Operators pick each cron component (seconds,
+         * minutes, hours, day-of-month, month, day-of-week) from
+         * dropdowns + numeric inputs; the composed cron string is
+         * shown below for verification and flows straight into the
+         * same next-fire-times preview below. */
+        <CronFieldPicker value={value} onChange={onChange} />
       )}
       {preview && preview.length > 0 && (
         <div className="ea-text-muted"
