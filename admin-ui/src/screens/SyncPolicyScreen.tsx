@@ -35,17 +35,29 @@ const MODE_HELP: Record<edgeApi.SyncMode, string> = {
 
 export function SyncPolicyScreen(
   { api = edgeApi }:
-  { api?: Pick<typeof edgeApi, 'listSyncPolicies' | 'upsertSyncPolicy' | 'resetSyncPolicy'> } = {},
+  { api?: Pick<typeof edgeApi, 'listSyncPolicies' | 'upsertSyncPolicy'
+            | 'resetSyncPolicy' | 'syncPolicySummary' | 'syncPolicyAudit'> } = {},
 ): JSX.Element {
   const [rows, setRows] = useState<edgeApi.SyncPolicyRow[] | null>(null);
+  const [heldByScope, setHeldByScope] = useState<Map<string, number>>(
+    new Map());
+  const [auditEntries, setAuditEntries] = useState<edgeApi.SyncPolicyAuditEntry[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [savingScope, setSavingScope] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const refetch = useCallback(async (): Promise<void> => {
     try {
-      const r = await api.listSyncPolicies();
-      setRows(r.policies);
+      const [p, s, a] = await Promise.all([
+        api.listSyncPolicies(),
+        (api.syncPolicySummary ?? edgeApi.syncPolicySummary)(),
+        (api.syncPolicyAudit ?? edgeApi.syncPolicyAudit)(50),
+      ]);
+      setRows(p.policies);
+      const m = new Map<string, number>();
+      s.scopes.forEach((x) => m.set(x.scope, x.held ?? 0));
+      setHeldByScope(m);
+      setAuditEntries(a.entries);
       setErr(null);
     } catch (e) {
       setErr((e as Error).message ?? 'Failed to load sync policies');
@@ -144,6 +156,7 @@ export function SyncPolicyScreen(
               <PolicyEditor key={scope}
                             row={row ?? null}
                             scope={scope}
+                            held={heldByScope.get(scope) ?? 0}
                             canReset={row != null && !(row.inherited ?? false)}
                             saving={savingScope === scope}
                             onSave={(mode, cron, reason) =>
@@ -153,14 +166,76 @@ export function SyncPolicyScreen(
           })}
         </div>
       </Panel>
+
+      <PolicyAuditPanel entries={auditEntries} />
     </div>
   );
 }
 
+function PolicyAuditPanel(
+  { entries }: { entries: edgeApi.SyncPolicyAuditEntry[] },
+): JSX.Element {
+  return (
+    <Panel title="Recent changes">
+      <p style={{ margin: '0 0 10px', fontSize: 12,
+                   color: 'var(--der-text-muted, #6b7280)' }}>
+        Every save and reset is appended to the security audit log.
+        Newest first.
+      </p>
+      {entries.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 13,
+                     color: 'var(--der-text-muted, #6b7280)' }}>
+          No policy changes recorded yet.
+        </p>
+      ) : (
+        <table className="ea-table ea-table--dense"
+               data-test="sync-policy-audit">
+          <thead>
+            <tr><th>When</th><th>Event</th><th>Detail</th></tr>
+          </thead>
+          <tbody>
+            {entries.map((e) => (
+              <tr key={e.at + e.eventType}
+                  data-test={`sync-policy-audit-row-${e.at}`}>
+                <td className="ea-mono" style={{ fontSize: 11 }}>
+                  {new Date(e.at).toLocaleString()}
+                </td>
+                <td>
+                  <span className={'ea-chip ea-chip--'
+                      + (e.eventType === 'SYNC_POLICY_RESET' ? 'info' : 'warning')}>
+                    {e.eventType === 'SYNC_POLICY_RESET' ? 'Reset' : 'Update'}
+                  </span>
+                </td>
+                <td style={{ fontSize: 12 }}>
+                  {renderAuditDetail(e.detailJson)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Panel>
+  );
+}
+
+function renderAuditDetail(json: string): string {
+  try {
+    const d = JSON.parse(json) as Record<string, unknown>;
+    const scope = String(d.scope ?? '?');
+    const from = d.fromMode ? String(d.fromMode) : '—';
+    const to = d.toMode ? String(d.toMode) : '(reset)';
+    const reason = d.toReason ? ` · "${String(d.toReason)}"` : '';
+    return `${scope}: ${from} → ${to}${reason}`;
+  } catch {
+    return json;
+  }
+}
+
 function PolicyEditor(
-  { row, scope, canReset, saving, onSave, onReset }: {
+  { row, scope, held = 0, canReset, saving, onSave, onReset }: {
     row: edgeApi.SyncPolicyRow | null;
     scope: string;
+    held?: number;
     canReset: boolean;
     saving: boolean;
     onSave: (mode: edgeApi.SyncMode, cron?: string | null, reason?: string | null) => void;
@@ -201,7 +276,26 @@ function PolicyEditor(
       <div style={{ display: 'flex', justifyContent: 'space-between',
                      alignItems: 'baseline', gap: 12, marginBottom: 8,
                      flexWrap: 'wrap' }}>
-        <strong style={{ fontSize: 14 }}>{label}</strong>
+        <strong style={{ fontSize: 14 }}>
+          {label}
+          {held > 0 && effective === 'PAUSED' && (
+            <span
+              data-test={`sync-policy-held-${scope}`}
+              title={`${held} pending row${held === 1 ? '' : 's'} held because this scope is paused`}
+              style={{
+                marginLeft: 8,
+                display: 'inline-block',
+                padding: '1px 8px',
+                fontSize: 11,
+                fontWeight: 600,
+                background: 'rgba(214, 138, 26, 0.12)',
+                color: 'var(--der-warning, #d68a1a)',
+                borderRadius: 10,
+              }}>
+              {held} held
+            </span>
+          )}
+        </strong>
         <span style={{ fontSize: 12, color: 'var(--der-text-muted, #6b7280)' }}>
           {scope === 'GLOBAL'
             ? 'Fallback for everything else'

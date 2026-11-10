@@ -8,6 +8,7 @@ import {
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
 import { LoadingBlock } from '../components/ScreenStates';
+import { PolicyPausedBanner } from '../components/PolicyPausedBanner';
 
 /**
  * `/admin/sync` — Overview per DER Sync requirements §5.
@@ -88,6 +89,7 @@ export function SyncOverview(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="sync-hub">
+      <PolicyPausedBanner />
       <SyncStatusBar
         tone={tone}
         title="Synchronisation"

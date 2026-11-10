@@ -12,6 +12,7 @@ import {
 import { UiIcon } from '../components/UiIcon';
 import { ResponseBody } from '../components/ResponseBody';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates';
+import { PolicyPausedBanner } from '../components/PolicyPausedBanner';
 
 /* ──────────────────────────────────────────────────────────────────────
  * Mockup-aesthetic re-skins for the remaining heavily-used routes.
@@ -356,6 +357,7 @@ export function ConflictList(): JSX.Element {
 
   return (
     <div className="ea-screen">
+      <PolicyPausedBanner />
       {workflowRunId && (
         <ScopedFilterChip
           label={`Workflow run ${workflowRunId.slice(0, 8)}`}
@@ -903,6 +905,7 @@ export function WorkerHealthScreen(): JSX.Element {
 
   return (
     <div className="ea-screen">
+      <PolicyPausedBanner />
       <SyncStatusBar
         tone={w.enabled ? 'success' : 'warning'}
         title="Worker"

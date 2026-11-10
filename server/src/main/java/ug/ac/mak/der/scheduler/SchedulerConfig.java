@@ -89,6 +89,28 @@ public class SchedulerConfig {
                 .build();
     }
 
+    // SM-4d — auto-retry for CENTRAL_REJECTED after cool-down.
+    @Bean
+    public JobDetail centralRejectedReaperJobDetail() {
+        return JobBuilder.newJob(CentralRejectedReaperJob.class)
+                .withIdentity(CentralRejectedReaperJob.JOB_NAME)
+                .storeDurably()
+                .requestRecovery()
+                .build();
+    }
+
+    @Bean
+    public Trigger centralRejectedReaperTrigger(
+            final JobDetail centralRejectedReaperJobDetail,
+            @Value("${der.journal.auto-retry-rejected.cron:0 */10 * * * ?}")
+            final String cron) {
+        return TriggerBuilder.newTrigger()
+                .forJob(centralRejectedReaperJobDetail)
+                .withIdentity(CentralRejectedReaperJob.JOB_NAME + "_TRIGGER")
+                .withSchedule(CronScheduleBuilder.cronSchedule(cron))
+                .build();
+    }
+
     @Bean
     public Trigger stuckInFlightReaperTrigger(final JobDetail stuckInFlightReaperJobDetail,
                                                  @Value("${der.journal.inflight-reaper.cron:0 */5 * * * ?}")

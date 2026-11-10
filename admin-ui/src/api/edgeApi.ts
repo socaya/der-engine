@@ -3728,3 +3728,35 @@ export function resetSyncPolicy(scope: string): Promise<{ deleted: number }> {
   return request<{ deleted: number }>('DELETE',
     `/edge-api/v1/sync/policy/${encodeURIComponent(scope)}`);
 }
+
+// SM-4a + SM-4c — one call that enumerates every scope with mode +
+// held-row count. Used for banners and per-row chips.
+export interface SyncPolicySummaryScope {
+  scope: string;
+  mode: SyncMode;
+  decidedBy: string;
+  pausedReason: string;
+  held: number;
+}
+export interface SyncPolicySummary {
+  anyPaused: boolean;
+  pausedScopeCount: number;
+  totalHeld: number;
+  scopes: SyncPolicySummaryScope[];
+}
+export function syncPolicySummary(): Promise<SyncPolicySummary> {
+  return request<SyncPolicySummary>('GET', '/edge-api/v1/sync/policy/summary');
+}
+
+// SM-4b — recent policy-change audit entries.
+export interface SyncPolicyAuditEntry {
+  at: string;
+  eventType: 'SYNC_POLICY_UPSERT' | 'SYNC_POLICY_RESET';
+  actorUserId: string | null;
+  detailJson: string;
+}
+export function syncPolicyAudit(limit = 50):
+    Promise<{ entries: SyncPolicyAuditEntry[] }> {
+  return request<{ entries: SyncPolicyAuditEntry[] }>(
+    'GET', `/edge-api/v1/sync/policy/audit?limit=${limit}`);
+}
