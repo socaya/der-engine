@@ -32,6 +32,7 @@ import ug.ac.mak.der.analytics.engine.AnalyticsDefinition;
 import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
 import ug.ac.mak.der.analytics.engine.AnalyticsIngestionService;
 import ug.ac.mak.der.analytics.engine.AnalyticsPeriodEnumerator;
+import ug.ac.mak.der.analytics.expression.ExpressionCompiler;
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeSession;
 import ug.ac.mak.der.security.EdgeUser;
@@ -47,6 +48,7 @@ class AnalyticsEngineControllerTest {
     @MockBean AnalyticsPeriodEnumerator periods;
     @MockBean AnalyticsIngestionService ingestion;
     @MockBean AnalyticsContributionRepository contributions;
+    @MockBean ExpressionCompiler compiler;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -298,6 +300,56 @@ class AnalyticsEngineControllerTest {
                 .andExpect(jsonPath("$.resetContributions").doesNotExist())
                 .andExpect(jsonPath("$.results[0].metricCode")
                         .value("DER_ENROLLMENT_COUNT"));
+    }
+
+    @Test
+    void compileRequiresAdmin() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/compile")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType("application/json")
+                        .content("{\"expression\":\"1 + 1\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void compileReturnsResult() throws Exception {
+        when(compiler.compile("#{DE1} + 1")).thenReturn(
+                new ExpressionCompiler.CompileResult(
+                        null,
+                        ExpressionCompiler.SupportState.READY,
+                        List.of(),
+                        java.util.Set.of("DE1"),
+                        java.util.Set.of(),
+                        java.util.Set.of(),
+                        java.util.Set.of(),
+                        java.util.Set.of()));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/compile")
+                        .with(as(EdgeRole.ADMIN))
+                        .contentType("application/json")
+                        .content("{\"expression\":\"#{DE1} + 1\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.supportState").value("READY"))
+                .andExpect(jsonPath("$.referencedDataElements[0]")
+                        .value("DE1"));
+    }
+
+    @Test
+    void compileReportsParseError() throws Exception {
+        when(compiler.compile("1 +")).thenReturn(
+                new ExpressionCompiler.CompileResult(null,
+                        ExpressionCompiler.SupportState.PARSE_ERROR,
+                        List.of("unexpected end of expression"),
+                        java.util.Set.of(), java.util.Set.of(),
+                        java.util.Set.of(), java.util.Set.of(),
+                        java.util.Set.of()));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/compile")
+                        .with(as(EdgeRole.ADMIN))
+                        .contentType("application/json")
+                        .content("{\"expression\":\"1 +\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.supportState").value("PARSE_ERROR"))
+                .andExpect(jsonPath("$.diagnostics[0]")
+                        .value("unexpected end of expression"));
     }
 
     @Test

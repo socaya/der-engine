@@ -28,6 +28,7 @@ import ug.ac.mak.der.analytics.engine.AnalyticsDefinition;
 import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
 import ug.ac.mak.der.analytics.engine.AnalyticsIngestionService;
 import ug.ac.mak.der.analytics.engine.AnalyticsPeriodEnumerator;
+import ug.ac.mak.der.analytics.expression.ExpressionCompiler;
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 
@@ -62,15 +63,18 @@ public class AnalyticsEngineController {
     private final AnalyticsPeriodEnumerator periods;
     private final AnalyticsIngestionService ingestion;
     private final AnalyticsContributionRepository contributions;
+    private final ExpressionCompiler compiler;
 
     public AnalyticsEngineController(final AnalyticsEngineRepository repo,
                                       final AnalyticsPeriodEnumerator periods,
                                       final AnalyticsIngestionService ingestion,
-                                      final AnalyticsContributionRepository contributions) {
+                                      final AnalyticsContributionRepository contributions,
+                                      final ExpressionCompiler compiler) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
+        this.compiler = Objects.requireNonNull(compiler, "compiler");
     }
 
     /* ─────────────── /capabilities ─────────────── */
@@ -276,6 +280,38 @@ public class AnalyticsEngineController {
     public record IngestRequest(
             String orgUnit, String program,
             String fromDate, String toDate) { }
+
+    /* ─────────────── /admin/compile ─────────────── */
+
+    public record CompileRequest(String expression) { }
+
+    @PostMapping("/admin/compile")
+    public ResponseEntity<Map<String, Object>> compile(
+            @RequestBody(required = false) final CompileRequest request,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN",
+                    "message", "expression compile requires ADMIN"));
+        }
+        final String expr = request == null ? null : request.expression();
+        final ExpressionCompiler.CompileResult r = compiler.compile(expr);
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("expression", expr);
+        body.put("supportState", r.supportState().name());
+        body.put("diagnostics", r.diagnostics());
+        body.put("referencedDataElements", r.referencedDataElements());
+        body.put("referencedAttributes", r.referencedAttributes());
+        body.put("referencedVariables", r.referencedVariables());
+        body.put("referencedConstants", r.referencedConstants());
+        body.put("referencedFunctions", r.referencedFunctions());
+        body.put("parsed", r.parsed());
+        body.put("reportedAt", Instant.now().toString());
+        return ResponseEntity.ok(body);
+    }
 
     @PostMapping("/admin/recompute")
     public ResponseEntity<Map<String, Object>> recompute(
