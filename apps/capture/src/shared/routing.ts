@@ -37,7 +37,14 @@ export type CaptureRoute =
        *  mounts — passed via `?enrolment=UID` from navigation sites
        *  that know which enrolment the operator wanted (relationship
        *  row "Open enrolment", scheduled-events link, etc.). */
-      readonly focusEnrollmentId?: string | null }
+      readonly focusEnrollmentId?: string | null;
+      /** Which rail section the dashboard should open on. Derived
+       *  from the URL sub-path so operators can deep-link, bookmark
+       *  or share a specific view. `stages/<uid>` pins a specific
+       *  program stage; `stages` alone picks the first stage. */
+      readonly section?: 'profile' | 'notes' | 'relationships'
+                        | 'stage' | null;
+      readonly stageId?: string | null }
   | { readonly kind: 'tracker-register';
       readonly programId: string }
   | { readonly kind: 'tracker-enrol';
@@ -104,9 +111,27 @@ export function parseCaptureRoute(hash: string): CaptureRoute {
     }
     if (segs[2] === 'records' && segs[3]) {
       const focus = new URLSearchParams(queryPart).get('enrolment');
+      // Section deep-links:
+      //   .../records/{tei}                       → profile (default)
+      //   .../records/{tei}/profile               → profile
+      //   .../records/{tei}/notes                 → notes
+      //   .../records/{tei}/relationships         → relationships
+      //   .../records/{tei}/stages                → first stage
+      //   .../records/{tei}/stages/{stageUid}     → that stage
+      let section: 'profile' | 'notes' | 'relationships'
+        | 'stage' | null = null;
+      let stageId: string | null = null;
+      if (segs[4] === 'profile') section = 'profile';
+      else if (segs[4] === 'notes') section = 'notes';
+      else if (segs[4] === 'relationships') section = 'relationships';
+      else if (segs[4] === 'stages') {
+        section = 'stage';
+        if (segs[5]) stageId = segs[5];
+      }
       return { kind: 'tracker-detail',
         programId, teiId: segs[3]!,
-        focusEnrollmentId: focus && focus.length > 0 ? focus : null };
+        focusEnrollmentId: focus && focus.length > 0 ? focus : null,
+        section, stageId };
     }
     if (segs[2] === 'records') {
       return { kind: 'tracker-list', programId };
@@ -167,6 +192,25 @@ export const navTracker = {
     const qs = extra?.focusEnrollmentId
       ? `?enrolment=${encodeURIComponent(extra.focusEnrollmentId)}` : '';
     navigateTo(`/tracker/${programId}/records/${teiId}${qs}`);
+  },
+  /** Section deep-links. Preserves any `?enrolment=` already on
+   *  the URL so switching between sections doesn't lose the pinned
+   *  enrolment context. */
+  section: (programId: string, teiId: string,
+      section: 'profile' | 'notes' | 'relationships',
+      extra?: { focusEnrollmentId?: string | null }) => {
+    const qs = extra?.focusEnrollmentId
+      ? `?enrolment=${encodeURIComponent(extra.focusEnrollmentId)}` : '';
+    navigateTo(`/tracker/${programId}/records/${teiId}/`
+      + `${section}${qs}`);
+  },
+  stage: (programId: string, teiId: string, stageUid: string | null,
+      extra?: { focusEnrollmentId?: string | null }) => {
+    const qs = extra?.focusEnrollmentId
+      ? `?enrolment=${encodeURIComponent(extra.focusEnrollmentId)}` : '';
+    const suffix = stageUid ? '/' + encodeURIComponent(stageUid) : '';
+    navigateTo(`/tracker/${programId}/records/${teiId}/`
+      + `stages${suffix}${qs}`);
   },
   register: (programId: string) =>
     navigateTo(`/tracker/${programId}/register`),

@@ -1423,7 +1423,7 @@ export function TrackerRelationshipsSection(
                             openTarget();
                           }
                         }}>
-                      <td className="cap-table__cell">
+                      <td className="cap-table__cell cap-rel-table__target-cell">
                         <div className="cap-rel-table__target">
                           <RelKindIcon kind={kind} />
                           <span className="cap-rel-table__name"
@@ -1462,7 +1462,7 @@ export function TrackerRelationshipsSection(
                           ))}
                         </div>
                       </td>
-                      <td className="cap-table__cell cap-rel-table__dir">
+                      <td className="cap-table__cell cap-rel-table__dir cap-rel-table__dir-cell">
                         {/* Role-aware direction cell — single-line
                          *  pair ("Infant → Biological parent" / the
                          *  ↔ form for bidirectional) with the type
@@ -1490,15 +1490,14 @@ export function TrackerRelationshipsSection(
                           </span>
                         )}
                       </td>
-                      <td className="cap-table__cell">
+                      <td className="cap-table__cell cap-rel-table__sync-cell">
                         <SyncBadge status={r.syncStatus ?? 'LOCAL'} />
                       </td>
-                      <td className="cap-table__cell"
-                          style={{ color: 'var(--der-text-muted)',
-                            whiteSpace: 'nowrap' }}>
+                      <td className="cap-table__cell cap-rel-table__captured-cell"
+                          style={{ color: 'var(--der-text-muted)' }}>
                         {captured}
                       </td>
-                      <td className="cap-table__cell"
+                      <td className="cap-table__cell cap-rel-table__menu-cell"
                           style={{ textAlign: 'right' }}>
                         {uid && (
                           <RowMenu uid={uid}

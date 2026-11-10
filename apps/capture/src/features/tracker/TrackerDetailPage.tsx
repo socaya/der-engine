@@ -35,7 +35,8 @@ export interface TrackerEvent {
  * form inline.
  */
 export function TrackerDetailPage(
-  { api, programUid, orgUnitUid, teiId, focusEnrollmentId }: {
+  { api, programUid, orgUnitUid, teiId, focusEnrollmentId,
+    section, stageId }: {
     api: CaptureApi;
     programUid: string;
     orgUnitUid: string;
@@ -46,6 +47,12 @@ export function TrackerDetailPage(
      *  of defaulting to the newest one. Falls through silently if
      *  the referenced enrolment isn't in the TEI's list. */
     focusEnrollmentId?: string | null;
+    /** Which rail section the URL asked us to open on. Null →
+     *  Profile (default). */
+    section?: 'profile' | 'notes' | 'relationships' | 'stage' | null;
+    /** When section === 'stage', which stage UID to pin. Null →
+     *  first stage. */
+    stageId?: string | null;
   },
 ): JSX.Element {
   const [enrolments, setEnrolments] = useState<TrackerEnrolment[]>([]);
@@ -60,7 +67,21 @@ export function TrackerDetailPage(
    *  landing surface for the record, consistent with how clinical
    *  record systems lead with identity before timeline. */
   const [railKind, setRailKind] =
-    useState<'profile' | 'stage' | 'notes' | 'relationships'>('profile');
+    useState<'profile' | 'stage' | 'notes' | 'relationships'>(
+      section ?? 'profile');
+  // URL → state: when the hash section changes, swing the rail +
+  // selected stage to match. Lets operators deep-link, bookmark, and
+  // share the exact view they were on.
+  useEffect(() => {
+    if (section && section !== railKind) {
+      setRailKind(section);
+    }
+    if (section === 'stage' && stageId
+        && stageId !== selectedStage) {
+      setSelectedStage(stageId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section, stageId]);
   /** Counts shown on the Notes + Relationships rail items so the
    *  operator sees them at a glance (mirrors the per-stage event
    *  count chip). Fetched when selectedEnrolment flips. */
@@ -632,7 +653,9 @@ export function TrackerDetailPage(
                       + (railKind === 'profile'
                         ? ' cap-stage-rail__item--active' : '')}
                     data-test="tr-rail-profile"
-                    onClick={() => setRailKind('profile')}>
+                    onClick={() => navTracker.section(
+                      programUid, teiId, 'profile',
+                      { focusEnrollmentId: selectedEnrolment })}>
               <RailIcon kind="profile" />
               <span className="cap-stage-rail__name">Profile</span>
             </button>
@@ -649,10 +672,9 @@ export function TrackerDetailPage(
                         className={'cap-stage-rail__item'
                           + (active ? ' cap-stage-rail__item--active' : '')}
                         data-test={'tr-stage-' + s.id}
-                        onClick={() => {
-                          setSelectedStage(s.id);
-                          setRailKind('stage');
-                        }}>
+                        onClick={() => navTracker.stage(
+                          programUid, teiId, s.id,
+                          { focusEnrollmentId: selectedEnrolment })}>
                   <RailIcon kind="stage" />
                   <span className="cap-stage-rail__name">
                     {s.displayName}
@@ -670,7 +692,9 @@ export function TrackerDetailPage(
                       + (railKind === 'notes'
                         ? ' cap-stage-rail__item--active' : '')}
                     data-test="tr-rail-notes"
-                    onClick={() => setRailKind('notes')}>
+                    onClick={() => navTracker.section(
+                      programUid, teiId, 'notes',
+                      { focusEnrollmentId: selectedEnrolment })}>
               <RailIcon kind="notes" />
               <span className="cap-stage-rail__name">Notes</span>
               <span className="cap-stage-rail__count"
@@ -692,7 +716,9 @@ export function TrackerDetailPage(
                         + (railKind === 'relationships'
                           ? ' cap-stage-rail__item--active' : '')}
                       data-test="tr-rail-relationships"
-                      onClick={() => setRailKind('relationships')}>
+                      onClick={() => navTracker.section(
+                        programUid, teiId, 'relationships',
+                        { focusEnrollmentId: selectedEnrolment })}>
                 <RailIcon kind="relationships" />
                 <span className="cap-stage-rail__name">
                   Relationships

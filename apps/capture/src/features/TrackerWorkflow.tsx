@@ -89,7 +89,9 @@ export function TrackerWorkflow(
                           orgUnitUid={orgUnitUid}
                           teiId={route.teiId}
                           focusEnrollmentId={
-                            route.focusEnrollmentId ?? null} />
+                            route.focusEnrollmentId ?? null}
+                          section={route.section ?? null}
+                          stageId={route.stageId ?? null} />
     );
   }
   if (route.kind === 'tracker-relationship-form') {

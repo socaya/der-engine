@@ -1704,10 +1704,24 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
  * the tracker working list + event list + composite catalogue. */
 .cap-rel-table {
   margin-top: 4px;
+  width: 100%;
+  table-layout: auto;
 }
 .cap-rel-table .cap-table__cell {
-  vertical-align: middle;
+  vertical-align: top;
+}
+/* Target cell takes any residual width so long names + TEA pairs
+ * never collide with the Direction column; everything else stays
+ * nowrap so sync badges / timestamps don't wrap awkwardly. */
+.cap-rel-table .cap-rel-table__target-cell {
+  width: auto;
+}
+.cap-rel-table .cap-rel-table__dir-cell,
+.cap-rel-table .cap-rel-table__sync-cell,
+.cap-rel-table .cap-rel-table__captured-cell,
+.cap-rel-table .cap-rel-table__menu-cell {
   white-space: nowrap;
+  width: 1%;
 }
 /* Shrink the kind-icon bubble when the table is compact so
  * rows stay on one baseline. */
@@ -1718,16 +1732,15 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   width: 14px; height: 14px;
 }
 .cap-rel-table__target {
-  display: inline-flex; align-items: baseline; gap: 6px;
-  min-width: 0; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: baseline;
+  gap: 6px 10px; flex-wrap: wrap;
+  min-width: 0;
 }
 .cap-rel-table__target > .cap-rel-card__icon {
-  align-self: center;
+  align-self: center; flex: 0 0 auto;
 }
 .cap-rel-table__name {
   font-weight: 500; color: var(--der-text);
-  overflow: hidden; text-overflow: ellipsis;
 }
 /* Inline TEA pairs — single-line, dot-separated after the target
  * name so the whole row reads left-to-right at a glance. Label
