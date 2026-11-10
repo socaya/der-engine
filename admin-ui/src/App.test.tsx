@@ -94,33 +94,22 @@ describe('App routing', () => {
     expect(screen.getByTestId('nav-dhis2')).toBeInTheDocument();
   });
 
+  // UI-6 — legacy -legacy routes were retired after the one-release
+  // grace. Only canonical paths remain in this smoke list.
   it.each([
-    ['/setup-welcome-legacy',    's-setup'],
-    ['/provisioning/users-legacy', 's-users'],
-    ['/provisioning/users/new',  's-usernew'],
-    ['/compat-legacy',           's-compat'],
-    ['/compat/history',          's-compat-history'],
-    ['/sync/jobs-legacy',        's-jobs'],
-    ['/sync/jobs/trigger',       's-jobs-trigger'],
-    ['/sync/drift-legacy',       's-drift'],
-    ['/journal/conflicts-legacy', 's-conflicts'],
-    ['/journal/worker-legacy',  's-worker'],
-    ['/approvals-legacy',        's-approvals'],
-    ['/workflows',                     's-workflow-activity'],
-    ['/workflows/manage',              's-workflows'],
-    ['/workflows/monitoring',          's-workflow-monitoring'],
-    ['/workflows/peer-exchange',       's-peer-exchange'],
-    ['/network/workflow-sharing',      's-peer-exchange'],
-    ['/devices-legacy',          's-devices'],
-    ['/analytics-legacy',        's-analytics'],
-    ['/audit/verify',            's-audit'],
-    ['/referral/inbox-legacy', 's-referral'],
-    ['/metadata-legacy',         's-metadata'],
-    ['/recovery',                's-recovery'],
-    ['/evaluation',              's-eval'],
-    ['/apps',                    'ea-app-catalogue'],
-    ['/diagnostics',             's-diag'],
-    ['/settings',                's-settings'],
+    ['/provisioning/users/new',    's-usernew'],
+    ['/sync/jobs/trigger',         's-jobs-trigger'],
+    ['/workflows',                 's-workflow-activity'],
+    ['/workflows/manage',          's-workflows'],
+    ['/workflows/monitoring',      's-workflow-monitoring'],
+    ['/workflows/peer-exchange',   's-peer-exchange'],
+    ['/network/workflow-sharing',  's-peer-exchange'],
+    ['/audit/verify',              's-audit'],
+    ['/recovery',                  's-recovery'],
+    ['/evaluation',                's-eval'],
+    ['/apps',                      'ea-app-catalogue'],
+    ['/diagnostics',               's-diag'],
+    ['/settings',                  's-settings'],
   ])('route %s mounts %s', async (route, testId) => {
     await renderAt(route);
     await waitFor(() => expect(screen.getByTestId(testId)).toBeInTheDocument());

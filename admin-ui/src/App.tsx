@@ -7,11 +7,8 @@ import { OrgUnitProvider } from './components/OrgUnitContext';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { ActiveJobsWatcher } from './components/ActiveJobsWatcher';
 import {
-  EASetupWelcome, EAUsersList, EAUserCreate, EACompatInspector, EACompatHistory,
-  EAJobsList, EAJobTrigger, EADriftInspector, EAConflictList,
-  EAWorkerHealth, EAMetadataOverview, EAApprovalQueue, EACaptureWorkflowList,
-  EACaptureWorkflowDesigner, EADeviceFleet, EAFacilityAnalytics,
-  EAAuditVerify, EAAuditEvents, EAReferralInbox,
+  EAUserCreate, EAJobTrigger, EACaptureWorkflowList,
+  EACaptureWorkflowDesigner, EAAuditVerify,
 } from './screens/EACoreScreens';
 import {
   EARecoveryTools, EAEvaluationReports,
@@ -32,8 +29,7 @@ import { RunValidation } from './screens/workflow/RunValidation';
 import { SnapshotList } from './screens/metadata/SnapshotList';
 import { SnapshotDiff } from './screens/metadata/SnapshotDiff';
 import {
-  CapSystemInformation,
-  CapCentralConnection, CapOrgUnitBinding, CapProgramRules,
+  CapOrgUnitBinding, CapProgramRules,
   CapMetadataSync, CapSyncSchedule, CapSyncSettings,
   CapWorkflowRuns, CapStepAssignments, CapReferralHistory,
   CapDrafts, CapMaintenance,
@@ -57,8 +53,6 @@ import { DataEvents } from './screens/DataEvents';
 import { DataEventDetail } from './screens/DataEventDetail';
 import { DataTracker } from './screens/DataTracker';
 import { DataTeiDetail } from './screens/DataTeiDetail';
-import { Dashboard } from './screens/Dashboard';
-import { SystemOverview } from './screens/SystemOverview';
 import { SyncOverview } from './screens/SyncOverview';
 import { Metadata, MetadataDetail } from './screens/Metadata';
 import { DataManagement } from './screens/DataManagement';
@@ -73,16 +67,16 @@ import { CompatMatrix } from './screens/CompatMatrix';
 import {
   DriftInspector, ConflictList, AttentionDetailScreen,
   WorkerHealthScreen,
-  DeviceFleet, DeviceDetail, ApprovalQueue, ApprovalDetail,
+  DeviceDetail, ApprovalQueue, ApprovalDetail,
   ReferralInbox, ReferralDetail,
-  BackupList, RestoreList, CompatInspector,
+  BackupList, RestoreList,
   AuditEvents, FacilityAnalytics, SupportBundle,
   ConfigEditor, OperationalReport, UserScope,
   SiteConfig, Decommission, Dhis2Mappings,
   OperatorMetrics, SecurityAuditTrail,
 } from './screens/MoreScreens';
 import {
-  NetworkOverview, NetworkAccessPoint, NetworkConnectedDevices,
+  NetworkOverview, NetworkAccessPoint,
   NetworkInterfaces, NetworkPeers, NetworkSecurity,
   NetworkDiagnostics, NetworkSettings,
 } from './screens/Network';
@@ -134,66 +128,46 @@ export default function App(): JSX.Element {
           <Routes>
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/" element={<RequireAuth><Workspace /></RequireAuth>} />
-          <Route path="/overview-legacy" element={<RequireAuth><SystemOverview /></RequireAuth>} />
-          <Route path="/setup-welcome-legacy" element={<RequireAuth><EASetupWelcome /></RequireAuth>} />
           <Route path="/provisioning/users"
                  element={<RequireAuth><UsersDashboard /></RequireAuth>} />
-          <Route path="/provisioning/users-legacy"
-                 element={<RequireAuth><EAUsersList /></RequireAuth>} />
           <Route path="/provisioning/users/new"
                  element={<RequireAuth><EAUserCreate /></RequireAuth>} />
           <Route path="/provisioning/users/:userId"
                  element={<RequireAuth><UserDetail /></RequireAuth>} />
           <Route path="/provisioning/users/:userId/dhis2-mapping"
                  element={<RequireAuth><UserDhis2Mapping /></RequireAuth>} />
-          {/* der-2.0.17 — standard URL layout: /dhis2/* for every
-              DHIS2-integration surface. Legacy paths kept as
-              redirect-equivalent routes so bookmarks continue to work.
-              A single component mounts at both locations. */}
+          {/* DHIS2 integration surface — canonical paths only. */}
           <Route path="/dhis2" element={<RequireAuth><Dhis2Overview /></RequireAuth>} />
-          {/* /dhis2/connection is merged into the hub at /dhis2 (der-2.0.30). */}
           <Route path="/dhis2/connection" element={<Navigate to="/dhis2" replace />} />
           <Route path="/dhis2/organisation-unit" element={<RequireAuth><CapOrgUnitBinding /></RequireAuth>} />
           <Route path="/dhis2/program-rules" element={<RequireAuth><CapProgramRules /></RequireAuth>} />
           <Route path="/dhis2/compat" element={<RequireAuth><CompatMatrix /></RequireAuth>} />
-          <Route path="/dhis2/compat-legacy-inspector" element={<RequireAuth><CompatInspector /></RequireAuth>} />
-          <Route path="/dhis2/compat-history" element={<RequireAuth><EACompatHistory /></RequireAuth>} />
           <Route path="/dhis2/metadata" element={<RequireAuth><Metadata /></RequireAuth>} />
           <Route path="/dhis2/metadata/:resource/:id" element={<RequireAuth><MetadataDetail /></RequireAuth>} />
           <Route path="/dhis2/metadata-drift" element={<RequireAuth><DriftInspector /></RequireAuth>} />
           <Route path="/dhis2/metadata-sync" element={<RequireAuth><CapMetadataSync /></RequireAuth>} />
-          {/* Legacy aliases — kept so existing links / bookmarks still work. */}
-          <Route path="/compat" element={<RequireAuth><CompatInspector /></RequireAuth>} />
-          <Route path="/compat-legacy" element={<RequireAuth><EACompatInspector /></RequireAuth>} />
-          <Route path="/compat/history"
-                 element={<RequireAuth><EACompatHistory /></RequireAuth>} />
-          {/* /sync/jobs merged into /sync/history in der-2.1.36 — both read listJobs. */}
+          {/* UI-6 — bookmark-friendly redirects for the handful of
+              aliases shipped in earlier releases. */}
+          <Route path="/compat" element={<Navigate to="/dhis2/compat" replace />} />
+          <Route path="/compat/history" element={<Navigate to="/dhis2/compat" replace />} />
           <Route path="/sync/jobs" element={<Navigate to="/sync/history" replace />} />
-          <Route path="/sync/jobs-legacy" element={<RequireAuth><EAJobsList /></RequireAuth>} />
           <Route path="/sync/jobs/trigger"
                  element={<RequireAuth><EAJobTrigger /></RequireAuth>} />
-          <Route path="/sync/drift" element={<RequireAuth><DriftInspector /></RequireAuth>} />
-          <Route path="/sync/drift-legacy" element={<RequireAuth><EADriftInspector /></RequireAuth>} />
+          <Route path="/sync/drift" element={<Navigate to="/dhis2/metadata-drift" replace />} />
           <Route path="/sync/attention"
                  element={<RequireAuth><ConflictList /></RequireAuth>} />
           <Route path="/sync/attention/:operationId"
                  element={<RequireAuth><AttentionDetailScreen /></RequireAuth>} />
           <Route path="/journal/conflicts" element={<Navigate to="/sync/attention" replace />} />
-          <Route path="/journal/conflicts-legacy"
-                 element={<RequireAuth><EAConflictList /></RequireAuth>} />
           <Route path="/conflicts/:id"
                  element={<ConflictBookmarkForward />} />
           <Route path="/sync/worker"
                  element={<RequireAuth><WorkerHealthScreen /></RequireAuth>} />
           <Route path="/journal/worker" element={<Navigate to="/sync/worker" replace />} />
-          <Route path="/journal/worker-legacy"
-                 element={<RequireAuth><EAWorkerHealth /></RequireAuth>} />
           <Route path="/approvals"
                  element={<RequireAuth><ApprovalQueue /></RequireAuth>} />
           <Route path="/approvals/:operationId"
                  element={<RequireAuth><ApprovalDetail /></RequireAuth>} />
-          <Route path="/approvals-legacy"
-                 element={<RequireAuth><EAApprovalQueue /></RequireAuth>} />
           <Route path="/workflows"
                  element={<RequireAuth><WorkflowActivity /></RequireAuth>} />
           <Route path="/workflows/manage"
@@ -224,41 +198,28 @@ export default function App(): JSX.Element {
                  element={<RequireAuth><WorkflowForm /></RequireAuth>} />
           <Route path="/devices"
                  element={<RequireAuth><DevicesScreen /></RequireAuth>} />
-          <Route path="/devices-legacy-fleet"
-                 element={<RequireAuth><DeviceFleet /></RequireAuth>} />
-          <Route path="/devices-legacy"
-                 element={<RequireAuth><EADeviceFleet /></RequireAuth>} />
           <Route path="/devices/:deviceId"
                  element={<RequireAuth><DeviceDetail /></RequireAuth>} />
           {/* UI-1 — /fleet and /network/clients both roll into
-              /devices (unified fleet + LAN-mesh view). Preserve any
-              row-level deep link via a search-param marker. */}
+              /devices (unified fleet + LAN-mesh view). */}
           <Route path="/fleet"
                  element={<Navigate to="/devices" replace />} />
           <Route path="/network/clients"
                  element={<Navigate to="/devices?source=LAN_CLIENT" replace />} />
           <Route path="/analytics"
                  element={<RequireAuth><FacilityAnalytics /></RequireAuth>} />
-          <Route path="/analytics-legacy"
-                 element={<RequireAuth><EAFacilityAnalytics /></RequireAuth>} />
           <Route path="/audit/verify"
                  element={<RequireAuth><EAAuditVerify /></RequireAuth>} />
           <Route path="/audit/trail"
                  element={<RequireAuth><SecurityAuditTrail /></RequireAuth>} />
           <Route path="/audit/events"
                  element={<RequireAuth><AuditEvents /></RequireAuth>} />
-          <Route path="/audit/events-legacy"
-                 element={<RequireAuth><EAAuditEvents /></RequireAuth>} />
           <Route path="/referral/inbox"
                  element={<RequireAuth><ReferralInbox /></RequireAuth>} />
           <Route path="/referral/inbox/:inboxId"
                  element={<RequireAuth><ReferralDetail /></RequireAuth>} />
-          <Route path="/referral/inbox-legacy"
-                 element={<RequireAuth><EAReferralInbox /></RequireAuth>} />
           <Route path="/metadata"
-                 element={<RequireAuth><Metadata /></RequireAuth>} />
-          <Route path="/metadata-legacy"
-                 element={<RequireAuth><EAMetadataOverview /></RequireAuth>} />
+                 element={<Navigate to="/dhis2/metadata" replace />} />
           <Route path="/recovery" element={<RequireAuth><EARecoveryTools /></RequireAuth>} />
           <Route path="/backup" element={<RequireAuth><BackupList /></RequireAuth>} />
           <Route path="/restore" element={<RequireAuth><RestoreList /></RequireAuth>} />
@@ -294,8 +255,6 @@ export default function App(): JSX.Element {
           {/* UI-1 — /network/clients retired; redirect lives earlier
               in this routes table so only /network/clients-legacy
               still points at the old screen for bookmark forensics. */}
-          <Route path="/network/clients-legacy"
-                 element={<RequireAuth><NetworkConnectedDevices /></RequireAuth>} />
           <Route path="/network/interfaces" element={<RequireAuth><NetworkInterfaces /></RequireAuth>} />
           <Route path="/network/peers" element={<RequireAuth><NetworkPeers /></RequireAuth>} />
           {/* Workflow definition sharing (moved from /workflows/peer-exchange
@@ -314,15 +273,16 @@ export default function App(): JSX.Element {
           <Route path="/compliance" element={<RequireAuth><Compliance /></RequireAuth>} />
           {/* Previously capability-gap screens — now implemented against
               existing /edge-api/v1 endpoints. */}
-          <Route path="/dashboard" element={<RequireAuth><Workspace /></RequireAuth>} />
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
           <Route path="/admin-tasks" element={<RequireAuth><AdminTasks /></RequireAuth>} />
-          <Route path="/dashboard-legacy" element={<RequireAuth><Dashboard /></RequireAuth>} />
           <Route path="/system/information" element={<RequireAuth><SystemInformation /></RequireAuth>} />
-          <Route path="/system/information-legacy" element={<RequireAuth><CapSystemInformation /></RequireAuth>} />
-          <Route path="/integration" element={<RequireAuth><Dhis2Overview /></RequireAuth>} />
-          <Route path="/integration/connection" element={<RequireAuth><CapCentralConnection /></RequireAuth>} />
-          <Route path="/integration/organisation-unit" element={<RequireAuth><CapOrgUnitBinding /></RequireAuth>} />
-          <Route path="/integration/program-rules" element={<RequireAuth><CapProgramRules /></RequireAuth>} />
+          {/* /integration and /integration/* were the pre-2.0.17
+              paths for DHIS2 surfaces; canonical names now live
+              under /dhis2/*. */}
+          <Route path="/integration" element={<Navigate to="/dhis2" replace />} />
+          <Route path="/integration/connection" element={<Navigate to="/dhis2" replace />} />
+          <Route path="/integration/organisation-unit" element={<Navigate to="/dhis2/organisation-unit" replace />} />
+          <Route path="/integration/program-rules" element={<Navigate to="/dhis2/program-rules" replace />} />
           <Route path="/sync" element={<RequireAuth><SyncOverview /></RequireAuth>} />
           <Route path="/sync/history" element={<RequireAuth><SyncHistory /></RequireAuth>} />
           <Route path="/sync/history/:runId" element={<RequireAuth><SyncHistoryDetail /></RequireAuth>} />
