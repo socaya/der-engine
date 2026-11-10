@@ -107,7 +107,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'sync-policy',    label: 'Policy', to: '/sync/policy', status: 'implemented', tabIcon: 'settings' },
       { id: 'sync-schedule',  label: 'Schedule', to: '/sync/schedule', status: 'implemented', tabIcon: 'schedule' },
       { id: 'sync-history',   label: 'History', to: '/sync/history', status: 'implemented', tabIcon: 'history' },
-      { id: 'sync-settings',  label: 'Settings', to: '/sync/settings', status: 'implemented', tabIcon: 'settings' },
+      /* UI-11 — /sync/settings held DHIS2 connection health content
+       * (probe reliability, central version). That belongs under the
+       * DHIS2 module's Compatibility check, not Sync. Nav entry
+       * removed; /sync/settings redirects to /dhis2/compat for
+       * bookmark continuity. */
+      { id: 'sync-settings',  label: 'Settings', to: '/sync/settings', status: 'contextual' },
     ],
   },
   /* ──────────────────────────────────────────────────────────────── */

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { NAV_GROUPS, groupForRoute, type NavGroup } from '../app/navigation';
 import { NavIcon } from './NavIcon';
@@ -7,6 +7,7 @@ import { SectionTabs } from './SectionTabs';
 import { ClockDriftBanner } from './ClockDriftBanner';
 import { OnboardingTour } from '../screens/OnboardingTour';
 import { useOrgUnit } from './OrgUnitContext';
+import { UserMenu } from './UserMenu';
 import * as edgeApi from '../api/edgeApi';
 
 /**
@@ -74,13 +75,6 @@ function useRuntimeMode(): { mode: RuntimeMode; label: string; sub: string; deta
 
 export interface AdminShellProps {
   readonly children: ReactNode;
-}
-
-function initials(nameOrUsername: string): string {
-  const parts = nameOrUsername.trim().split(/[\s._-]+/).filter(Boolean);
-  if (parts.length === 0) return 'U';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
 function RuntimeFooter(): JSX.Element {
@@ -244,9 +238,8 @@ function SidebarPrimary({ grp, activeGroupId }: {
 }
 
 export function AdminShell({ children }: AdminShellProps): JSX.Element {
-  const { state, signOut } = useAuth();
+  const { state } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { binding: ou } = useOrgUnit();
   const onSignIn = location.pathname === '/sign-in';
@@ -256,10 +249,8 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
     setMobileOpen(false);
   }, [location.pathname]);
 
-  async function handleSignOut(): Promise<void> {
-    await signOut();
-    navigate('/sign-in', { replace: true });
-  }
+  /* UI-11 — sign-out now lives in <UserMenu />; the shell's
+   * handleSignOut / navigate-after-signout path is handled there. */
 
   const shellCls =
     'ea-shell' +
@@ -306,16 +297,30 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
       )}
 
       <header className="ea-topbar" data-test="headerbar">
-        {!onSignIn && (
-          <button
-            type="button"
-            className="ea-topbar-toggle"
-            aria-label="Toggle navigation"
-            data-test="topbar-toggle"
-            onClick={() => setMobileOpen((o) => !o)}
+        {/* UI-11 — the sidebar toggle lived here (unused since the
+         * sidebar never collapses). Replaced with the OU chip so
+         * "where is this edge bound?" is always the first thing
+         * operators read. */}
+        {!onSignIn && authed && (
+          <Link
+            to="/dhis2/organisation-unit"
+            className={'ea-topbar-ou'
+                + (ou?.bound ? ' ea-topbar-ou--bound' : ' ea-topbar-ou--unbound')}
+            aria-label={ou?.bound
+                ? `Bound organisation unit: ${ou.orgUnitDisplayName ?? ou.orgUnitId}`
+                : 'No organisation unit bound — click to bind'}
+            title={ou?.bound
+                ? `Bound to ${ou.orgUnitDisplayName ?? ou.orgUnitId}`
+                : 'No organisation unit bound — click to bind'}
+            data-test="topbar-ou"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
-          </button>
+            <span className="ea-topbar-ou-label">OU</span>
+            <span className="ea-topbar-ou-value">
+              {ou == null ? '…'
+                  : ou.bound ? (ou.orgUnitDisplayName ?? ou.orgUnitId ?? '—')
+                  : 'Not bound'}
+            </span>
+          </Link>
         )}
         {onSignIn && (
           <Link to="/" className="ea-brand" data-test="brand" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
@@ -324,8 +329,6 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
         )}
         {!onSignIn && (
           <>
-            {/* §18: Search removed until functional. Hidden by default; expose
-                via Ctrl/Cmd+K keyboard shortcut in a later release. */}
             <div style={{ flex: 1 }} />
             <div data-test="brand" style={{ display: 'none' }}>DER</div>
           </>
@@ -334,47 +337,8 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
           {authed && !onSignIn && <TopbarOperatingMode />}
           {authed && !onSignIn && (
             <>
-              <Link
-                to="/integration/organisation-unit"
-                className={'ea-topbar-ou'
-                    + (ou?.bound ? ' ea-topbar-ou--bound' : ' ea-topbar-ou--unbound')}
-                aria-label={ou?.bound
-                    ? `Bound organisation unit: ${ou.orgUnitDisplayName ?? ou.orgUnitId}`
-                    : 'No organisation unit bound — click to bind'}
-                title={ou?.bound
-                    ? `Bound to ${ou.orgUnitDisplayName ?? ou.orgUnitId}`
-                    : 'No organisation unit bound — click to bind'}
-                data-test="topbar-ou"
-              >
-                <span className="ea-topbar-ou-label">OU</span>
-                <span className="ea-topbar-ou-value">
-                  {ou == null ? '…'
-                      : ou.bound ? (ou.orgUnitDisplayName ?? ou.orgUnitId ?? '—')
-                      : 'Not bound'}
-                </span>
-              </Link>
               <AttentionCentre />
-              <div className="ea-user-chip" data-test="headerbar-user">
-                <span className="ea-user-avatar" aria-hidden="true">
-                  {initials(state.user.displayName ?? state.user.username)}
-                </span>
-                <div className="ea-user-chip-info">
-                  <span className="ea-user-chip-name">
-                    {state.user.displayName ?? state.user.username}
-                  </span>
-                  <span className="ea-user-chip-role">
-                    {state.user.roles.join(' · ')}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="ea-headerbar-signout"
-                data-test="headerbar-signout"
-                onClick={() => void handleSignOut()}
-              >
-                Sign out
-              </button>
+              <UserMenu />
             </>
           )}
         </div>

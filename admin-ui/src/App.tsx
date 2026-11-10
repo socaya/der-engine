@@ -30,7 +30,7 @@ import { SnapshotList } from './screens/metadata/SnapshotList';
 import { SnapshotDiff } from './screens/metadata/SnapshotDiff';
 import {
   CapOrgUnitBinding, CapProgramRules,
-  CapMetadataSync, CapSyncSchedule, CapSyncSettings,
+  CapMetadataSync, CapSyncSchedule,
   CapWorkflowRuns, CapStepAssignments, CapReferralHistory,
   CapDrafts, CapMaintenance,
   CapUserMappings, CapRoles, RoleEditorPage, CapAuthorities, AuthorityDetailPage,
@@ -299,7 +299,10 @@ export default function App(): JSX.Element {
           <Route path="/data/queue" element={<RequireAuth><DataQueues /></RequireAuth>} />
           <Route path="/data/queue/:operationId" element={<RequireAuth><DataDetail /></RequireAuth>} />
           <Route path="/sync/schedule" element={<RequireAuth><CapSyncSchedule /></RequireAuth>} />
-          <Route path="/sync/settings" element={<RequireAuth><CapSyncSettings /></RequireAuth>} />
+          {/* UI-11 — /sync/settings was DHIS2 connection health in
+              disguise; redirect to Compatibility check where the
+              content belongs. */}
+          <Route path="/sync/settings" element={<Navigate to="/dhis2/compat" replace />} />
           <Route path="/sync/policy" element={<RequireAuth><SyncPolicyScreen /></RequireAuth>} />
           <Route path="/workflows/runs" element={<RequireAuth><CapWorkflowRuns /></RequireAuth>} />
           <Route path="/workflows/assignments" element={<RequireAuth><CapStepAssignments /></RequireAuth>} />

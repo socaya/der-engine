@@ -87,42 +87,34 @@ describe('AdminShell — sign-in mode', () => {
 });
 
 describe('AdminShell — authenticated mode', () => {
-  it('renders sidebar, operating-mode pill, user chip, OU chip', async () => {
+  it('renders sidebar, operating-mode pill, user menu, OU chip', async () => {
     render(wrap(<AdminShell><div>child</div></AdminShell>));
     await waitFor(() =>
       expect(screen.getByTestId('sidebar')).toBeInTheDocument());
-    /* Operating-mode pill present — mounts async after the system
-     * health probe resolves, so wrap in waitFor to keep stable
-     * under coverage-instrumented timing. */
     await waitFor(() =>
       expect(screen.getByTestId('topbar-mode')).toBeInTheDocument());
-    /* OU chip shows the bound org-unit display name. */
+    /* OU chip — moved from the right side to the left slot
+     * (UI-11); still carries the bound org-unit display name. */
     await waitFor(() =>
       expect(screen.getByText('Clinic One')).toBeInTheDocument());
-    /* User chip renders initials of "Admin User" → "AU". */
+    /* User menu trigger — avatar shows initials of "Admin User"
+     * ("AU"); display name + role live in the dropdown now. */
+    expect(screen.getByTestId('user-menu-trigger')).toBeInTheDocument();
     expect(screen.getByText('AU')).toBeInTheDocument();
-    /* Display name + role chip. */
-    expect(screen.getByText('Admin User')).toBeInTheDocument();
-    expect(screen.getByText('ADMIN')).toBeInTheDocument();
   });
 
-  it('Toggling the mobile button flips the shell class', async () => {
-    const { container } = render(wrap(<AdminShell><div>c</div></AdminShell>));
-    await waitFor(() =>
-      expect(screen.getByTestId('topbar-toggle')).toBeInTheDocument());
-    const user = userEvent.setup();
-    const shell = container.firstChild as HTMLElement;
-    expect(shell.className).not.toContain('ea-shell--mobile-open');
-    await user.click(screen.getByTestId('topbar-toggle'));
-    expect(shell.className).toContain('ea-shell--mobile-open');
-  });
+  /* UI-11 — the sidebar toggle button was removed from the topbar
+   * because the sidebar never collapses. Test retired. */
 
-  it('Sign-out button triggers signOut() + navigates to /sign-in', async () => {
+  it('User menu dropdown exposes Sign out and triggers signOut()', async () => {
     render(wrap(<AdminShell><div>c</div></AdminShell>));
     await waitFor(() =>
-      expect(screen.getByTestId('headerbar-signout')).toBeInTheDocument());
+      expect(screen.getByTestId('user-menu-trigger')).toBeInTheDocument());
     const user = userEvent.setup();
-    await user.click(screen.getByTestId('headerbar-signout'));
+    await user.click(screen.getByTestId('user-menu-trigger'));
+    await waitFor(() =>
+      expect(screen.getByTestId('user-menu-signout')).toBeInTheDocument());
+    await user.click(screen.getByTestId('user-menu-signout'));
     expect(authApi.signOut).toHaveBeenCalledTimes(1);
   });
 
