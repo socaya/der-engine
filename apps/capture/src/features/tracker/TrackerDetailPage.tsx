@@ -1096,7 +1096,7 @@ function TrackerProfilePane(
    *  renders the same HTML template off-screen and streams it
    *  through jsPDF, no popup window or print dialog needed. */
   async function exportProfilePdf(): Promise<void> {
-    const html = renderProfilePdfHtml({
+    const doc = renderProfilePdfHtml({
       teiId, programUid, displayName, attributes,
       enrolment, generatedAt: new Date().toLocaleString(undefined, {
         year: 'numeric', month: 'long', day: 'numeric',
@@ -1105,7 +1105,8 @@ function TrackerProfilePane(
     });
     try {
       await exportHtmlAsPdf({
-        html,
+        html: doc.html,
+        footer: doc.footer,
         fileName: 'profile-' + (displayName || teiId)
           .replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 60),
       });
@@ -1649,13 +1650,14 @@ async function exportNotesPdf(
     year: 'numeric', month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
-  const html = renderNotesPdfHtml({
+  const doc = renderNotesPdfHtml({
     teiId, programUid, teiDisplayName,
     teiAttributes, enrolment, notes: ordered, generatedAt,
   });
   try {
     await exportHtmlAsPdf({
-      html,
+      html: doc.html,
+      footer: doc.footer,
       fileName: 'notes-' + (teiDisplayName || teiId)
         .replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 60),
     });

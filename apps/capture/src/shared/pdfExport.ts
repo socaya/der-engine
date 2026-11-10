@@ -27,6 +27,15 @@ export interface PdfExportOptions {
   /** Pixel width used for the off-screen render. 794px matches
    *  A4 at 96 dpi. */
   readonly printWidthPx?: number;
+  /** Optional per-page footer stamped at the bottom of every
+   *  rendered page via jsPDF.text(). Keeps the footer at the
+   *  physical page bottom instead of inside the content flow —
+   *  html2canvas can't render CSS @page footers and position:fixed
+   *  leaks into the content screenshot. */
+  readonly footer?: {
+    readonly left: string;
+    readonly right: string;
+  };
 }
 
 /** Render an HTML document to an A4 PDF and trigger a download.
@@ -74,8 +83,12 @@ export async function exportHtmlAsPdf(opts: PdfExportOptions): Promise<void> {
       orientation: 'portrait' });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
+    // Reserve 36pt at the bottom of every page for the footer
+    // overlay so the content image doesn't collide with it.
+    const footerHeight = opts.footer ? 28 : 0;
+    const contentPtHeight = pageHeight - footerHeight;
     const pxPerPt = canvas.width / pageWidth;
-    const pageCanvasHeight = Math.floor(pageHeight * pxPerPt);
+    const pageCanvasHeight = Math.floor(contentPtHeight * pxPerPt);
     let yOffset = 0;
     let pageIndex = 0;
     while (yOffset < canvas.height) {
@@ -95,6 +108,37 @@ export async function exportHtmlAsPdf(opts: PdfExportOptions): Promise<void> {
         pageWidth, sliceHeight / pxPerPt);
       yOffset += sliceHeight;
       pageIndex++;
+    }
+    // Stamp the footer at the physical bottom of every rendered
+    // page. jsPDF measures in points at 72dpi; the hairline rule
+    // sits 4pt above the baseline so the two text strings stay
+    // off the page edge.
+    if (opts.footer) {
+      const totalPages = pdf.getNumberOfPages();
+      const footerY = pageHeight - 14;
+      const ruleY = pageHeight - 22;
+      const sideMargin = 24;
+      for (let p = 1; p <= totalPages; p++) {
+        pdf.setPage(p);
+        // Hairline rule in the token border colour (#DCE2EB).
+        pdf.setDrawColor(220, 226, 235);
+        pdf.setLineWidth(0.5);
+        pdf.line(sideMargin, ruleY, pageWidth - sideMargin, ruleY);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.setTextColor(34, 67, 108); // --der-chrome-bg
+        pdf.text('DER', sideMargin, footerY);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(148, 160, 180); // --der-text-faint-ish
+        pdf.text(' · DHIS2 Edge Runtime',
+          sideMargin + pdf.getTextWidth('DER'), footerY);
+        const rightText = `${opts.footer.left}  ·  ${opts.footer.right}`
+          + `   Page ${p} of ${totalPages}`;
+        pdf.setFontSize(8);
+        pdf.setTextColor(148, 160, 180);
+        pdf.text(rightText, pageWidth - sideMargin, footerY,
+          { align: 'right' });
+      }
     }
     pdf.save(opts.fileName + '.pdf');
   } finally {

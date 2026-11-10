@@ -1,15 +1,17 @@
 /**
  * Shared DER-brand print templates for client-side PDF exports.
  *
- * Centralises typography, colour, and layout so every exported
- * document reads as "a DER artefact" — same brand header strip,
- * same identity grid treatment, same footer with page-number
- * stamp. Keeps the per-renderer code focused on content, not
- * chrome.
+ * Centralises typography, colour, layout + the DER brand mark so
+ * every exported document reads as "a DER artefact" — same
+ * banner, same identity grid, same per-page footer. Tokens mirror
+ * the Capture app's palette (see styles.ts) so a paper copy
+ * shows the same hues an operator sees on screen.
  *
- * Tokens mirror the Capture app's palette (see styles.ts) so a
- * paper copy shows the same hues an operator sees on screen.
+ * Page-level footer is NOT in this HTML — pdfExport.ts stamps it
+ * with jsPDF.text() on every rendered page so it always sits at
+ * the physical page bottom, not inside the content flow.
  */
+import { DER_BRAND_MARK_WHITE_SVG } from './derBrandMark';
 
 export interface DerPdfHeader {
   /** Short category label rendered above the title — e.g.
@@ -58,13 +60,23 @@ export const DER_PDF_STYLES = `
     display: flex; align-items: center; justify-content: space-between;
     gap: 16px;
   }
-  .der-pdf-banner__brand {
-    font-size: 10pt; font-weight: 600;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    color: #a7b4c7;
+  .der-pdf-banner__lockup {
+    display: flex; align-items: center; gap: 12px;
   }
-  .der-pdf-banner__brand strong {
-    color: #ffffff; font-weight: 700;
+  .der-pdf-banner__mark {
+    width: 36px; height: 36px; flex: 0 0 36px;
+    display: block;
+  }
+  .der-pdf-banner__wordmark {
+    display: flex; flex-direction: column; line-height: 1.1;
+  }
+  .der-pdf-banner__wordmark strong {
+    font-size: 13pt; font-weight: 700; color: #ffffff;
+    letter-spacing: 0.02em;
+  }
+  .der-pdf-banner__tagline {
+    font-size: 9pt; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #a7b4c7;
   }
   .der-pdf-banner__stamp {
     font-size: 9pt; color: #a7b4c7;
@@ -134,22 +146,6 @@ export const DER_PDF_STYLES = `
   .der-pdf-pill--active   { background: #E6F2EC; color: #1a6e4c; }
   .der-pdf-pill--completed{ background: #e6f1fb; color: #0f68b7; }
   .der-pdf-pill--cancelled{ background: #F7E0E0; color: #8a2525; }
-  /* Footer — rendered as a trailing block so html2canvas / jsPDF
-   * paginates it at the end of the document, not overlaid on the
-   * content area. The page-header banner already carries the
-   * generated-at timestamp on every page, so a trailing footer is
-   * sufficient. */
-  .der-pdf-footer {
-    margin-top: 24px;
-    padding-top: 8px;
-    border-top: 1px solid #DCE2EB;
-    display: flex; justify-content: space-between;
-    align-items: baseline;
-    font-size: 8.5pt; color: #94A0B4;
-  }
-  .der-pdf-footer__brand strong {
-    color: #22436c; font-weight: 700;
-  }
 `;
 
 function esc(s: string): string {
@@ -160,12 +156,23 @@ function esc(s: string): string {
 }
 
 export function derPdfBanner(generatedAt: string): string {
+  // Inline brand mark on the left + stacked wordmark + tagline;
+  // generated-at stamp on the right. The <svg> is injected as-is;
+  // the surrounding .der-pdf-banner__mark CSS rule sizes it.
+  const markWrapped = DER_BRAND_MARK_WHITE_SVG
+    .replace('<svg ', '<svg class="der-pdf-banner__mark" ');
   return `
     <div class="der-pdf-banner">
       <div class="der-pdf-banner__row">
-        <span class="der-pdf-banner__brand">
-          <strong>DHIS2</strong> Edge Runtime · Capture
-        </span>
+        <div class="der-pdf-banner__lockup">
+          ${markWrapped}
+          <span class="der-pdf-banner__wordmark">
+            <strong>DER</strong>
+            <span class="der-pdf-banner__tagline">
+              DHIS2 Edge Runtime · Capture
+            </span>
+          </span>
+        </div>
         <span class="der-pdf-banner__stamp">
           Generated ${esc(generatedAt)}
         </span>
@@ -206,14 +213,19 @@ export function derPdfPill(status: string | null | undefined): string {
   return `<span class="der-pdf-pill der-pdf-pill--${cls}">${esc(label)}</span>`;
 }
 
-export function derPdfFooter(f: DerPdfFooter): string {
-  return `
-    <div class="der-pdf-footer">
-      <span class="der-pdf-footer__brand">
-        <strong>DER</strong> · DHIS2 Edge Runtime
-      </span>
-      <span>${esc(f.left)} · ${esc(f.right)}</span>
-    </div>`;
+/** Footer text is stamped on every rendered PDF page by
+ *  pdfExport.exportHtmlAsPdf — this helper returns the two
+ *  left/right strings so callers don't have to know about the
+ *  per-page draw step. Nothing is emitted into the HTML. */
+export function derPdfFooter(f: DerPdfFooter): {
+  left: string; right: string;
+} {
+  return { left: f.left, right: f.right };
+}
+
+export interface DerPdfDocument {
+  readonly html: string;
+  readonly footer: { readonly left: string; readonly right: string };
 }
 
 export function derPdfDocument(
@@ -224,8 +236,8 @@ export function derPdfDocument(
     generatedAt: string;
     docTitle: string;
   },
-): string {
-  return `<!doctype html>
+): DerPdfDocument {
+  const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -235,10 +247,8 @@ export function derPdfDocument(
 <body>
   ${derPdfBanner(content.generatedAt)}
   ${derPdfHead(content.header)}
-  <main class="der-pdf-body">
-    ${content.body}
-    ${derPdfFooter(content.footer)}
-  </main>
+  <main class="der-pdf-body">${content.body}</main>
 </body>
 </html>`;
+  return { html, footer: derPdfFooter(content.footer) };
 }
