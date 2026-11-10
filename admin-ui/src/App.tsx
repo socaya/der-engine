@@ -18,6 +18,7 @@ import {
   EADiagnostics, EASettings,
 } from './screens/EARemainderScreens';
 import { SignIn } from './screens/SignIn';
+import { SyncPolicyScreen } from './screens/SyncPolicyScreen';
 import { WorkflowForm } from './screens/workflow/WorkflowForm';
 import { WorkflowQueue } from './screens/workflow/WorkflowQueue';
 import { WorkflowPeers } from './screens/workflow/WorkflowPeers';
@@ -325,6 +326,7 @@ export default function App(): JSX.Element {
           <Route path="/data/queue/:operationId" element={<RequireAuth><MockupDataDetail /></RequireAuth>} />
           <Route path="/sync/schedule" element={<RequireAuth><CapSyncSchedule /></RequireAuth>} />
           <Route path="/sync/settings" element={<RequireAuth><CapSyncSettings /></RequireAuth>} />
+          <Route path="/sync/policy" element={<RequireAuth><SyncPolicyScreen /></RequireAuth>} />
           <Route path="/workflows/runs" element={<RequireAuth><CapWorkflowRuns /></RequireAuth>} />
           <Route path="/workflows/assignments" element={<RequireAuth><CapStepAssignments /></RequireAuth>} />
           <Route path="/referral/history" element={<RequireAuth><CapReferralHistory /></RequireAuth>} />

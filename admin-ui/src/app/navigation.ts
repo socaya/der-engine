@@ -112,6 +112,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'sync-schedule', label: 'Schedule', to: '/sync/schedule', status: 'implemented', tabIcon: 'schedule' },
       { id: 'sync-history', label: 'History', to: '/sync/history', status: 'implemented', tabIcon: 'history' },
       { id: 'sync-settings', label: 'Settings', to: '/sync/settings', status: 'implemented', tabIcon: 'settings' },
+      { id: 'sync-policy', label: 'Policy', to: '/sync/policy', status: 'implemented', tabIcon: 'settings' },
       /* Legacy routes retained for existing bookmarks; not shown in sidebar. */
       { id: 'sync-jobs', label: 'Jobs', to: '/sync/jobs', status: 'contextual' },
       { id: 'sync-queues-legacy', label: 'Queues', to: '/sync/queues', status: 'contextual' },

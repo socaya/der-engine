@@ -27,10 +27,22 @@ public class OperationJournalRepository {
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
+    /** SM-2 — optional hook for INSTANT-mode sync. Set by Spring via
+     *  {@link #setInstantDrainNotifier}. Null in unit tests or when
+     *  the sync-policy beans are absent — insert() then behaves as
+     *  before. */
+    private java.util.function.Consumer<OperationJournalEntry.EntityType>
+            instantDrainNotifier;
 
     public OperationJournalRepository(final JdbcTemplate jdbc, final ObjectMapper json) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.json = Objects.requireNonNull(json, "json");
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setInstantDrainNotifier(
+            final java.util.function.Consumer<OperationJournalEntry.EntityType> hook) {
+        this.instantDrainNotifier = hook;
     }
 
     public OperationJournalEntry insert(final OperationJournalEntry entry) {
@@ -53,6 +65,13 @@ public class OperationJournalRepository {
                 entry.nextHopOrgUnitUid(),
                 entry.workflowRunId()
         );
+        if (instantDrainNotifier != null) {
+            try {
+                instantDrainNotifier.accept(entry.entityType());
+            } catch (RuntimeException ex) {
+                // Never let a trigger failure poison the write path.
+            }
+        }
         return entry;
     }
 

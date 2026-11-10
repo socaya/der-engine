@@ -3661,3 +3661,36 @@ export function disableApp(appId: string): Promise<void> {
 export function deleteApp(appId: string): Promise<void> {
   return request<void>('DELETE', `/edge-api/v1/admin/apps/${encodeURIComponent(appId)}`);
 }
+
+// --------------------------------------------------------------------
+// SM-2 — sync-policy (INSTANT / SCHEDULED / PAUSED, global + per-type).
+// --------------------------------------------------------------------
+
+export type SyncMode = 'INSTANT' | 'SCHEDULED' | 'PAUSED';
+
+export interface SyncPolicyRow {
+  scope: string;
+  decidedBy: string;
+  mode: SyncMode;
+  cron: string | null;
+  pausedReason: string | null;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+  inherited?: boolean;
+}
+
+export function listSyncPolicies(): Promise<{ policies: SyncPolicyRow[] }> {
+  return request<{ policies: SyncPolicyRow[] }>('GET', '/edge-api/v1/sync/policy');
+}
+
+export function upsertSyncPolicy(scope: string,
+  body: { mode: SyncMode; cron?: string | null; reason?: string | null }
+): Promise<SyncPolicyRow> {
+  return request<SyncPolicyRow>('PUT',
+    `/edge-api/v1/sync/policy/${encodeURIComponent(scope)}`, body);
+}
+
+export function resetSyncPolicy(scope: string): Promise<{ deleted: number }> {
+  return request<{ deleted: number }>('DELETE',
+    `/edge-api/v1/sync/policy/${encodeURIComponent(scope)}`);
+}

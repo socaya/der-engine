@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import ug.ac.mak.der.network.CentralReachabilityGate;
 import ug.ac.mak.der.observability.DerMetrics;
+import ug.ac.mak.der.sync.policy.SyncPolicyService;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 
@@ -33,7 +34,12 @@ public class JournalWorker {
     private final JournalWorkerConfig.JournalWorkerSettings settings;
     private final CentralReachabilityGate reachability;
     private final DerMetrics metrics;
+    /** SM-2 — optional. If null (tests that don't wire the policy
+     *  beans) the worker behaves as pre-policy: all entity types
+     *  drain. */
+    private SyncPolicyService syncPolicy;
     private volatile int skippedUnreachableTotal;
+    private volatile int skippedPausedTotal;
 
     private volatile Instant lastTick;
     private volatile int lastBatchSize;
@@ -50,6 +56,11 @@ public class JournalWorker {
         this.settings = Objects.requireNonNull(settings, "settings");
         this.reachability = Objects.requireNonNull(reachability, "reachability");
         this.metrics = Objects.requireNonNull(metrics, "metrics");
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setSyncPolicy(final SyncPolicyService syncPolicy) {
+        this.syncPolicy = syncPolicy;
     }
 
     public DrainOutcome drainBatch() {
@@ -83,6 +94,17 @@ public class JournalWorker {
             byType.merge(entry.entityType().name(), 1, Integer::sum);
             operationIds.add(entry.operationId());
             if (entry.state() != OperationJournalEntry.State.PENDING) {
+                continue;
+            }
+            // SM-2 — per-entity-type PAUSED policy. The row stays
+            // PENDING (no flipToInFlight) so the admin can see it in
+            // the backlog AND the drain cost per paused row is just
+            // a HashMap probe. Resuming the policy makes the next
+            // tick pick it up normally.
+            if (syncPolicy != null
+                    && syncPolicy.effectiveFor(entry.entityType())
+                        .isPaused()) {
+                skippedPausedTotal++;
                 continue;
             }
             flipToInFlight(entry.operationId());
@@ -144,6 +166,13 @@ public class JournalWorker {
      *  worker-health page + exported as a counter metric. */
     public int skippedUnreachableTotal() {
         return skippedUnreachableTotal;
+    }
+
+    /** SM-2 — count of rows skipped during drain because their
+     *  effective policy is PAUSED. Exposed for admin surfaces so
+     *  operators see the hold is actually being honoured. */
+    public int skippedPausedTotal() {
+        return skippedPausedTotal;
     }
 
     private void flipToInFlight(final java.util.UUID id) {
