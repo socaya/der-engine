@@ -243,8 +243,10 @@ public class AnalyticsLiveIngester {
         }
         final List<EnrollmentExpressionContext.EventRow> events =
                 loadEnrollmentEvents(enrollmentUid);
+        final java.util.Map<String, Object> attributes =
+                loadAttributesFor(enRow.teiUid());
         final ExpressionContext ctx = EnrollmentExpressionContext.of(
-                jsonMapper, enRow, events);
+                jsonMapper, enRow, events, attributes);
         final String periodKey = periods.windowContaining(
                 AnalyticsPeriodEnumerator.Type.MONTHLY,
                 enRow.enrollmentDate() == null
@@ -331,6 +333,23 @@ public class AnalyticsLiveIngester {
             return null;
         } catch (RuntimeException ex) {
             return null;
+        }
+    }
+
+    private java.util.Map<String, Object> loadAttributesFor(
+            final String teiUid) {
+        if (teiUid == null || teiUid.isBlank() || jdbc == null
+                || jsonMapper == null) {
+            return java.util.Map.of();
+        }
+        try {
+            final String raw = jdbc.queryForObject(
+                    "SELECT attributes::text FROM der.tracked_entity "
+                  + " WHERE tei_uid = ?", String.class, teiUid);
+            return EnrollmentExpressionContext.parseAttributes(
+                    jsonMapper, raw);
+        } catch (RuntimeException ex) {
+            return java.util.Map.of();
         }
     }
 

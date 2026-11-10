@@ -87,11 +87,34 @@ class EnrollmentExpressionContextTest {
     }
 
     @Test
-    void attributeRefReturnsEmptyInPhase4d() {
+    void attributeRefReturnsEmptyWhenNoTeaMap() {
         final ExpressionContext ctx = EnrollmentExpressionContext.of(
                 json, enrollment(), List.of());
-        // A{TEA1} must not fail — Phase 4e wires the TEA join.
+        // 3-arg form supplies no attributes — A{TEA1} stays empty.
         assertThat(ctx.attribute("TEA1")).isEmpty();
+    }
+
+    @Test
+    void attributeRefResolvesFromTeaMap() {
+        final ExpressionContext ctx = EnrollmentExpressionContext.of(
+                json, enrollment(), List.of(),
+                java.util.Map.of("TEA_SEX", "F",
+                        "TEA_AGE", new BigDecimal("28")));
+        assertThat(ctx.attribute("TEA_SEX").orElse(null)).isEqualTo("F");
+        assertThat(new Evaluator(ctx).eval(Parser.parse("A{TEA_AGE} + 2")))
+                .isEqualTo(new BigDecimal("30"));
+        assertThat(ctx.attribute("TEA_MISSING")).isEmpty();
+    }
+
+    @Test
+    void parseAttributesHandlesTypedJson() {
+        final java.util.Map<String, Object> m =
+                EnrollmentExpressionContext.parseAttributes(json,
+                        "{\"TEA1\":\"F\",\"TEA2\":42,\"TEA3\":true}");
+        assertThat(m)
+                .containsEntry("TEA1", "F")
+                .containsEntry("TEA2", new BigDecimal("42"))
+                .containsEntry("TEA3", true);
     }
 
     @Test

@@ -78,12 +78,23 @@ public final class EnrollmentExpressionContext {
         }
     }
 
-    /** Build a context from one enrollment + its event rows. Events
-     *  may come in any order; the resolver sorts by (occurredDate,
-     *  updatedAt) desc so the latest wins. */
+    /** Build a context from one enrollment + its event rows. No
+     *  tracked-entity attributes supplied — {@code A{uid}} returns
+     *  empty. Retained for Phase-4d call sites + tests. */
     public static ExpressionContext of(final ObjectMapper mapper,
                                          final Enrollment enrollment,
                                          final List<EventRow> events) {
+        return of(mapper, enrollment, events, Map.of());
+    }
+
+    /** Phase 4e — full form. {@code attributes} is the parsed TEA
+     *  map from {@code der.tracked_entity.attributes} (JSONB):
+     *  {@code teaUid → value}. {@code A{teaUid}} resolves against
+     *  this map; unknowns stay null-safe. */
+    public static ExpressionContext of(final ObjectMapper mapper,
+                                         final Enrollment enrollment,
+                                         final List<EventRow> events,
+                                         final Map<String, Object> attributes) {
         Objects.requireNonNull(mapper, "mapper");
         Objects.requireNonNull(enrollment, "enrollment");
         final List<EventRow> sorted = new ArrayList<>(
@@ -126,10 +137,10 @@ public final class EnrollmentExpressionContext {
 
             @Override
             public Optional<Object> attribute(final String uid) {
-                // TEA join lands with Phase 4e. Returning empty keeps
-                // d2:hasValue(A{...}) truthy=false for now, which is
-                // the safest DHIS2-aligned default.
-                return Optional.empty();
+                if (uid == null || attributes == null) {
+                    return Optional.empty();
+                }
+                return Optional.ofNullable(attributes.get(uid));
             }
 
             @Override
@@ -170,6 +181,14 @@ public final class EnrollmentExpressionContext {
         m.put("event_count", java.math.BigDecimal.valueOf(eventCount));
         m.put("current_date", LocalDate.now());
         return m;
+    }
+
+    /** Parse a {@code der.tracked_entity.attributes} JSONB blob into
+     *  a {@code teaUid → value} map with typed coercion matching the
+     *  event data_values parser. */
+    public static Map<String, Object> parseAttributes(
+            final ObjectMapper mapper, final String raw) {
+        return parseDataValues(mapper, raw);
     }
 
     private static Map<String, Object> parseDataValues(

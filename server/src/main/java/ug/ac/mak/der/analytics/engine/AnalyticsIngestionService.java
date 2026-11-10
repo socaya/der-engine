@@ -211,8 +211,10 @@ public class AnalyticsIngestionService {
 
             final List<EnrollmentExpressionContext.EventRow> events =
                     fetchEventsFor(enrollmentUid);
+            final Map<String, Object> attributes =
+                    fetchAttributesFor(teiUid);
             final ExpressionContext ctx = EnrollmentExpressionContext.of(
-                    jsonMapper, en, events);
+                    jsonMapper, en, events, attributes);
 
             final String periodKey = periods.windowContaining(
                     AnalyticsPeriodEnumerator.Type.MONTHLY,
@@ -262,6 +264,24 @@ public class AnalyticsIngestionService {
             out.add(commitBatch(c.def(), rows, touched, scanned[0]));
         }
         return out;
+    }
+
+    /** Phase 4e — load a TEI's attributes map for A{teaUid}
+     *  resolution. Returns empty map when the TEI isn't found so
+     *  the context stays valid. */
+    private Map<String, Object> fetchAttributesFor(final String teiUid) {
+        if (teiUid == null || teiUid.isBlank()) {
+            return Map.of();
+        }
+        try {
+            final String raw = jdbc.queryForObject(
+                    "SELECT attributes::text FROM der.tracked_entity "
+                  + " WHERE tei_uid = ?", String.class, teiUid);
+            return EnrollmentExpressionContext.parseAttributes(
+                    jsonMapper, raw);
+        } catch (RuntimeException ex) {
+            return Map.of();
+        }
     }
 
     private List<EnrollmentExpressionContext.EventRow> fetchEventsFor(
