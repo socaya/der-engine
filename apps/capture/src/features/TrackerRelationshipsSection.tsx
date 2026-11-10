@@ -202,7 +202,13 @@ export function TrackerRelationshipsSection(
    *  for the target-TEI dropdown. Single fetch per (programUid,
    *  orgUnitUid) swap. */
   const [candidates, setCandidates] = useState<Array<{
-    uid: string; displayName: string; lastUpdated: string }>>([]);
+    uid: string; displayName: string; lastUpdated: string;
+    attributes: Record<string, string> }>>([]);
+  /** TEA UID → display-name mirror, pulled when a target type is
+   *  picked. Lets the compose preview render attribute labels
+   *  ("First name", not just "nGUoY4GCnzE"). */
+  const [teaLabels, setTeaLabels] =
+    useState<Record<string, string>>({});
 
   /** Flat-list filter controls — operators asked for one unified
    *  table rather than per-type sections. All three filters are
@@ -261,6 +267,7 @@ export function TrackerRelationshipsSection(
           uid: row.trackedEntity ?? row.trackedEntityInstance ?? '',
           displayName: row.displayName ?? '',
           lastUpdated: row.lastUpdated ?? '',
+          attributes: row.attributes ?? {},
         })).filter((c) => c.uid !== '' && c.uid !== tei));
       } catch {
         if (!cancelled) setCandidates([]);
@@ -401,6 +408,31 @@ export function TrackerRelationshipsSection(
     : null;
   const theirTetConstraint = pickedType
     ? (flipped ? pickedType.fromTet : pickedType.toTet) : undefined;
+  /** Pull the TEA metadata for the target TET so the compose
+   *  preview can label the picked candidate's attribute values
+   *  ("First name: Rodrigo") instead of showing bare TEA UIDs. */
+  useEffect(() => {
+    if (!theirTetConstraint) {
+      setTeaLabels({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api.listCaptureTeiTypeAttributes(
+          theirTetConstraint);
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        for (const a of r.attributes) {
+          map[a.attributeUid] = a.displayName ?? a.attributeUid;
+        }
+        setTeaLabels(map);
+      } catch {
+        if (!cancelled) setTeaLabels({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [theirTetConstraint, api]);
   const theirProgramConstraint = pickedType
     ? (flipped ? pickedType.fromProgram : pickedType.toProgram) : undefined;
   const theirStageConstraint = pickedType
@@ -688,14 +720,14 @@ export function TrackerRelationshipsSection(
                   className="cap-btn cap-btn--primary"
                   data-test="tr-rel-add"
                   disabled={eligibleTypes.length === 0}
-                  onClick={() => navTracker.relationshipNew(
-                    programUid, tei)}
+                  onClick={() => setComposing(true)}
                   title={eligibleTypes.length === 0
                     ? (types.length === 0
                       ? 'No relationship types are configured'
                       : 'No relationship types permit this tracked '
                         + 'entity (or its enrolments/events) as an endpoint')
-                    : 'Open the add-relationship wizard'}
+                    : 'Open the add-relationship form inline — stays '
+                      + 'within the TEI dashboard'}
                   style={{ padding: '5px 13px', fontSize: 13 }}>
             + Add relationship
           </button>
@@ -849,6 +881,48 @@ export function TrackerRelationshipsSection(
                   An entity cannot link to itself.
                 </span>
               )}
+              {(() => {
+                const picked = candidates.find(
+                  (c) => c.uid === pickedTargetTei);
+                if (!picked) return null;
+                const pairs = Object.entries(picked.attributes ?? {})
+                  .filter(([, v]) =>
+                    v !== null && v !== undefined && String(v).trim() !== '')
+                  .map(([k, v]) => ({
+                    label: teaLabels[k] ?? k,
+                    value: String(v),
+                  }));
+                if (pairs.length === 0 && !picked.displayName) {
+                  return null;
+                }
+                return (
+                  <div className="cap-rel-target-preview"
+                       data-test="tr-rel-target-preview">
+                    <span className="cap-rel-target-preview__title">
+                      Preview
+                    </span>
+                    <dl className="cap-rel-target-preview__grid">
+                      {picked.displayName && (
+                        <>
+                          <dt>Name</dt>
+                          <dd>{picked.displayName}</dd>
+                        </>
+                      )}
+                      {pairs.map((p, i) => (
+                        <div key={i}
+                             className="cap-rel-target-preview__row">
+                          <dt>{p.label}</dt>
+                          <dd>{p.value}</dd>
+                        </div>
+                      ))}
+                      <div className="cap-rel-target-preview__row">
+                        <dt>UID</dt>
+                        <dd><code>{picked.uid}</code></dd>
+                      </div>
+                    </dl>
+                  </div>
+                );
+              })()}
             </label>
 
             {/* Inline "create new target" panel. Opens when there

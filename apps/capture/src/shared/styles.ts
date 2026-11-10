@@ -1890,7 +1890,8 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   display: flex; align-items: center; gap: 10px;
   margin-top: 8px; padding-top: 14px;
   border-top: 1px solid var(--der-border-soft);
-  position: sticky; bottom: 0; background: #fff;
+  position: sticky; bottom: 0;
+  background: var(--der-surface);
 }
 
 /* Relationship wizard (spec §8.4). Four dedicated steps rendered
@@ -2070,7 +2071,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 
 .cap-stage-layout {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 220px minmax(0, 1fr);
   gap: 20px;
   margin: 8px 20px 14px 20px;
   min-height: 240px;
@@ -2095,11 +2096,61 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   background: var(--der-surface-subtle);
   border: 1px solid var(--der-border-soft);
   border-radius: 4px;
+  /* Compose grid can carry many inputs; keep it bounded to the
+   * pane width so no column pushes the form outside the dashboard
+   * content area. */
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.cap-rel-compose .cap-form-section__grid {
+  min-width: 0;
 }
 .cap-rel-compose__footer {
   display: flex; justify-content: flex-end; gap: 10px;
   margin-top: 14px; padding-top: 14px;
   border-top: 1px solid var(--der-border-soft);
+}
+
+/* Target preview — renders the picked TEI's identifying
+ * attributes so the operator can confirm they've selected the
+ * right record before saving. Two-column key/value grid, calm
+ * surface so it reads as a summary not a form. */
+.cap-rel-target-preview {
+  margin-top: 8px; padding: 10px 12px;
+  background: var(--der-surface);
+  border: 1px solid var(--der-border-soft);
+  border-radius: 3px;
+}
+.cap-rel-target-preview__title {
+  display: block; font-size: 11px;
+  font-weight: 600; letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--der-text-muted);
+  margin-bottom: 6px;
+}
+.cap-rel-target-preview__grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  margin: 0;
+}
+.cap-rel-target-preview__grid dt {
+  font-size: 12px; color: var(--der-text-muted);
+  white-space: nowrap;
+}
+.cap-rel-target-preview__grid dd {
+  font-size: 13px; color: var(--der-text);
+  margin: 0; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.cap-rel-target-preview__row {
+  display: contents;
+}
+.cap-rel-target-preview__grid code {
+  background: var(--der-surface-subtle);
+  padding: 1px 6px; font-size: 12px;
+  color: var(--der-text-muted);
 }
 
 /* Notes pane — rail-driven view. Standard DER body scale so
@@ -2347,6 +2398,12 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   padding-left: 20px;
   border-radius: 0;
   min-height: 160px;
+  /* Keep the pane's content within the right-hand grid track —
+   * without min-width:0 a wide inner form (relationship compose,
+   * long select options) can push the track beyond its 1fr
+   * allocation and spill past the dashboard content area. */
+  min-width: 0;
+  overflow: hidden;
 }
 @media (max-width: 760px) {
   .cap-stage-layout {
