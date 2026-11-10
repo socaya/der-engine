@@ -1327,26 +1327,24 @@ function renderProfilePdfHtml(
     ${derPdfSectionTitle('Attribute values')}
     ${attrRows}
     <style>
+      /* Clean two-column attribute grid — hairline row separators,
+       * no outer frame. */
       .der-pdf-attr-grid {
         display: grid;
         grid-template-columns: 220px 1fr;
         gap: 0;
-        border: 1px solid #DCE2EB;
-        border-radius: 3px;
       }
       .der-pdf-attr-grid__label,
       .der-pdf-attr-grid__value {
-        padding: 8px 12px;
+        padding: 7px 0;
         border-bottom: 1px solid #ECEFF5;
       }
       .der-pdf-attr-grid > div:nth-last-child(-n+2) {
         border-bottom: 0;
       }
       .der-pdf-attr-grid__label {
-        background: #FAFBFD;
         font-size: 9.5pt;
         color: #5b6478; font-weight: 600;
-        border-right: 1px solid #ECEFF5;
       }
       .der-pdf-attr-grid__value {
         font-size: 10.5pt;
@@ -1727,19 +1725,19 @@ function renderNotesPdfHtml(
     ${derPdfSectionTitle('Enrolment notes (chronological)')}
     ${notesHtml}
     <style>
+      /* Note list — hairline row separators, no card frames; the
+       * numbered chip + left accent stripe on the chip itself read
+       * clearly without a wrapping box. */
       .der-note-list {
         list-style: none; padding: 0; margin: 0;
       }
       .der-note {
-        display: flex; align-items: flex-start; gap: 12px;
-        padding: 12px 14px;
-        margin-bottom: 8px;
-        background: #FAFBFD;
-        border: 1px solid #DCE2EB;
-        border-left: 3px solid #147CD7;
-        border-radius: 3px;
+        display: flex; align-items: flex-start; gap: 14px;
+        padding: 12px 0;
+        border-bottom: 1px solid #ECEFF5;
         break-inside: avoid; page-break-inside: avoid;
       }
+      .der-note:last-child { border-bottom: 0; }
       .der-note__chip {
         flex: 0 0 26px;
         text-align: center;
@@ -1767,8 +1765,6 @@ function renderNotesPdfHtml(
       }
       .der-note__uid code {
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        background: #ECEFF5;
-        padding: 1px 5px; border-radius: 2px;
         color: #5b6478;
       }
     </style>

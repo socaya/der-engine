@@ -92,16 +92,13 @@ export const DER_PDF_STYLES = `
   .der-pdf-body {
     padding: 18px 18px 24px;
   }
-  /* Identity grid — two-column key/value layout with hairline rows. */
+  /* Identity grid — two-column key/value layout. No surrounding
+   * frame; the data reads as content, not a card. */
   .der-pdf-identity {
     display: grid;
     grid-template-columns: 180px 1fr;
     gap: 6px 16px;
     margin: 0 0 20px;
-    padding: 12px 14px;
-    background: #ECEFF5;
-    border: 1px solid #DCE2EB;
-    border-radius: 3px;
   }
   .der-pdf-identity__label {
     font-size: 9pt; font-weight: 600;
@@ -116,10 +113,6 @@ export const DER_PDF_STYLES = `
   .der-pdf-identity__value code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 9.5pt;
-    background: #FAFBFD;
-    border: 1px solid #DCE2EB;
-    padding: 1px 6px;
-    border-radius: 2px;
     color: #2a3447;
   }
   /* Section title — small caps, accent-left bar in brand blue. */
@@ -141,15 +134,18 @@ export const DER_PDF_STYLES = `
   .der-pdf-pill--active   { background: #E6F2EC; color: #1a6e4c; }
   .der-pdf-pill--completed{ background: #e6f1fb; color: #0f68b7; }
   .der-pdf-pill--cancelled{ background: #F7E0E0; color: #8a2525; }
-  /* Footer — repeats on every printed page via position:fixed. */
+  /* Footer — rendered as a trailing block so html2canvas / jsPDF
+   * paginates it at the end of the document, not overlaid on the
+   * content area. The page-header banner already carries the
+   * generated-at timestamp on every page, so a trailing footer is
+   * sufficient. */
   .der-pdf-footer {
-    position: fixed;
-    bottom: 6mm; left: 18mm; right: 18mm;
-    display: flex; justify-content: space-between;
-    align-items: center;
-    font-size: 8.5pt; color: #94A0B4;
+    margin-top: 24px;
+    padding-top: 8px;
     border-top: 1px solid #DCE2EB;
-    padding-top: 5px;
+    display: flex; justify-content: space-between;
+    align-items: baseline;
+    font-size: 8.5pt; color: #94A0B4;
   }
   .der-pdf-footer__brand strong {
     color: #22436c; font-weight: 700;
@@ -239,8 +235,10 @@ export function derPdfDocument(
 <body>
   ${derPdfBanner(content.generatedAt)}
   ${derPdfHead(content.header)}
-  <main class="der-pdf-body">${content.body}</main>
-  ${derPdfFooter(content.footer)}
+  <main class="der-pdf-body">
+    ${content.body}
+    ${derPdfFooter(content.footer)}
+  </main>
 </body>
 </html>`;
 }
