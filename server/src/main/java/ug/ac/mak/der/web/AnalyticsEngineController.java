@@ -31,9 +31,16 @@ import ug.ac.mak.der.analytics.engine.AnalyticsDimension;
 import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
 import ug.ac.mak.der.analytics.engine.AnalyticsIngestionService;
 import ug.ac.mak.der.analytics.engine.AnalyticsPeriodEnumerator;
+import ug.ac.mak.der.analytics.engine.AnalyticsObservability;
 import ug.ac.mak.der.analytics.engine.OptionSetLookup;
 import ug.ac.mak.der.analytics.engine.ProgramIndicatorSyncService;
 import ug.ac.mak.der.analytics.expression.ExpressionCompiler;
+import java.util.Optional;
+
+import ug.ac.mak.der.analytics.publication.PublicationMapping;
+import ug.ac.mak.der.analytics.publication.PublicationProposal;
+import ug.ac.mak.der.analytics.publication.PublicationProposalService;
+import ug.ac.mak.der.analytics.publication.PublicationRepository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ug.ac.mak.der.security.EdgeRole;
@@ -75,6 +82,18 @@ public class AnalyticsEngineController {
     private final OptionSetLookup optionSets;
     private final ObjectMapper jsonMapper;
     private final ProgramIndicatorSyncService piSync;
+    private final PublicationProposalService publication;
+    private final PublicationRepository publicationRepo;
+    private final AnalyticsObservability metrics;
+
+    /** Phase 6 — minimum cell count for a non-suppressed value.
+     *  Cells backed by fewer than this many contributions emit as
+     *  {@code SUPPRESSED} with the value hidden. Zero disables
+     *  suppression; sites with privacy regulations typically set
+     *  this to 5. */
+    @org.springframework.beans.factory.annotation.Value(
+            "${der.analytics.min-cell-size:0}")
+    private int minCellSize;
 
     public AnalyticsEngineController(final AnalyticsEngineRepository repo,
                                       final AnalyticsPeriodEnumerator periods,
@@ -84,7 +103,10 @@ public class AnalyticsEngineController {
                                       final AnalyticsDefinitionService definitions,
                                       final OptionSetLookup optionSets,
                                       final ObjectMapper jsonMapper,
-                                      final ProgramIndicatorSyncService piSync) {
+                                      final ProgramIndicatorSyncService piSync,
+                                      final PublicationProposalService publication,
+                                      final PublicationRepository publicationRepo,
+                                      final AnalyticsObservability metrics) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -94,6 +116,304 @@ public class AnalyticsEngineController {
         this.optionSets = Objects.requireNonNull(optionSets, "optionSets");
         this.jsonMapper = Objects.requireNonNull(jsonMapper, "jsonMapper");
         this.piSync = Objects.requireNonNull(piSync, "piSync");
+        this.publication = Objects.requireNonNull(publication, "publication");
+        this.publicationRepo = Objects.requireNonNull(publicationRepo,
+                "publicationRepo");
+        this.metrics = Objects.requireNonNull(metrics, "metrics");
+    }
+
+    /* ─────────────── /admin/observability ─────────────── */
+
+    @GetMapping("/admin/observability")
+    public ResponseEntity<Map<String, Object>> observability(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        return ResponseEntity.ok(metrics.snapshot());
+    }
+
+    /* ─────────────── /publication/* ─────────────── */
+
+    public record MappingBody(
+            String datasetUid,
+            String dataElementUid,
+            String categoryOptionComboUid,
+            String attributeOptionComboUid,
+            Map<String, String> dimensionFilter,
+            String publicationMode,
+            String overlapPolicy) { }
+
+    @PostMapping("/admin/publication/mappings/{metricId}")
+    public ResponseEntity<Map<String, Object>> createMapping(
+            @PathVariable final String metricId,
+            @RequestBody final MappingBody body,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN",
+                    "message", "mapping CRUD requires ADMIN"));
+        }
+        if (body == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "BODY_REQUIRED"));
+        }
+        final UUID metric;
+        try {
+            metric = UUID.fromString(metricId);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INVALID_ID",
+                    "message", "metricId must be a UUID"));
+        }
+        final var def = repo.findDefinition(metric);
+        if (def.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of(
+                    "code", "METRIC_NOT_FOUND"));
+        }
+        final PublicationMapping m = new PublicationMapping(
+                UUID.randomUUID(),
+                metric,
+                def.get().definitionVersion(),
+                body.datasetUid(),
+                body.dataElementUid(),
+                body.categoryOptionComboUid(),
+                body.attributeOptionComboUid(),
+                body.dimensionFilter() == null
+                        ? Map.of() : body.dimensionFilter(),
+                PublicationMapping.Mode.valueOf(
+                        body.publicationMode() == null
+                                ? "REVIEW_REQUIRED"
+                                : body.publicationMode()),
+                body.overlapPolicy() == null
+                        ? "EXCLUSIVE_CELL_OWNER"
+                        : body.overlapPolicy(),
+                Instant.now(), Instant.now());
+        publicationRepo.insertMapping(m);
+        return ResponseEntity.status(201).body(Map.of(
+                "mappingId", m.mappingId().toString(),
+                "metricId", m.metricId().toString()));
+    }
+
+    @GetMapping("/publication/mappings")
+    public ResponseEntity<Map<String, Object>> listMappings(
+            @RequestParam(name = "metricId", required = false)
+            final String metricIdRaw,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        UUID metric = null;
+        if (metricIdRaw != null && !metricIdRaw.isBlank()) {
+            try {
+                metric = UUID.fromString(metricIdRaw);
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "code", "INVALID_ID"));
+            }
+        }
+        final List<PublicationMapping> rows =
+                publicationRepo.listMappings(metric);
+        return ResponseEntity.ok(Map.of(
+                "count", rows.size(),
+                "mappings", rows.stream()
+                        .map(AnalyticsEngineController::mappingJson)
+                        .toList()));
+    }
+
+    @DeleteMapping("/admin/publication/mappings/{mappingId}")
+    public ResponseEntity<Map<String, Object>> deleteMapping(
+            @PathVariable final String mappingId,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final UUID id;
+        try {
+            id = UUID.fromString(mappingId);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INVALID_ID"));
+        }
+        final int n = publicationRepo.deleteMapping(id);
+        return n > 0 ? ResponseEntity.ok(Map.of("deleted", true))
+                : ResponseEntity.status(404).body(Map.of(
+                        "code", "MAPPING_NOT_FOUND"));
+    }
+
+    public record GenerateProposalsBody(String metricId, String periodKey) { }
+
+    @PostMapping("/admin/publication/proposals")
+    public ResponseEntity<Map<String, Object>> generateProposals(
+            @RequestBody(required = false) final GenerateProposalsBody body,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        UUID metric = null;
+        if (body != null && body.metricId() != null) {
+            try {
+                metric = UUID.fromString(body.metricId());
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "code", "INVALID_ID"));
+            }
+        }
+        final var r = publication.generate(
+                new PublicationProposalService.GenerateScope(metric,
+                        body == null ? null : body.periodKey()));
+        return ResponseEntity.ok(Map.of(
+                "mappingsConsidered", r.mappingsConsidered(),
+                "cellsScanned", r.cellsScanned(),
+                "proposalsUpserted", r.proposalsUpserted(),
+                "proposalIds", r.proposalIds().stream()
+                        .map(UUID::toString).toList()));
+    }
+
+    @GetMapping("/publication/proposals")
+    public ResponseEntity<Map<String, Object>> listProposals(
+            @RequestParam(name = "metricId", required = false)
+            final String metricIdRaw,
+            @RequestParam(name = "state", required = false)
+            final String state,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        UUID metric = null;
+        if (metricIdRaw != null && !metricIdRaw.isBlank()) {
+            try {
+                metric = UUID.fromString(metricIdRaw);
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "code", "INVALID_ID"));
+            }
+        }
+        final List<PublicationProposal> rows =
+                publicationRepo.listProposals(metric, state);
+        return ResponseEntity.ok(Map.of(
+                "count", rows.size(),
+                "stateCounts", publicationRepo.stateCounts(),
+                "proposals", rows.stream()
+                        .map(AnalyticsEngineController::proposalJson)
+                        .toList()));
+    }
+
+    public record ReviewBody(
+            BigDecimal reviewedValue,
+            String reason) { }
+
+    @PostMapping("/admin/publication/proposals/{id}/approve")
+    public ResponseEntity<Map<String, Object>> approveProposal(
+            @PathVariable final String id,
+            @RequestBody(required = false) final ReviewBody body,
+            final Authentication auth) {
+        return reviewProposal(id, body, auth, true);
+    }
+
+    @PostMapping("/admin/publication/proposals/{id}/reject")
+    public ResponseEntity<Map<String, Object>> rejectProposal(
+            @PathVariable final String id,
+            @RequestBody(required = false) final ReviewBody body,
+            final Authentication auth) {
+        return reviewProposal(id, body, auth, false);
+    }
+
+    private ResponseEntity<Map<String, Object>> reviewProposal(
+            final String id, final ReviewBody body,
+            final Authentication auth, final boolean approve) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final UUID pid;
+        try {
+            pid = UUID.fromString(id);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INVALID_ID"));
+        }
+        final UUID reviewer = principal.user().userId();
+        final Optional<PublicationProposal> updated = approve
+                ? publication.approve(pid,
+                        body == null ? null : body.reviewedValue(),
+                        body == null ? null : body.reason(),
+                        reviewer)
+                : publication.reject(pid,
+                        body == null ? null : body.reason(),
+                        reviewer);
+        return updated.map(p -> ResponseEntity.ok(proposalJson(p)))
+                .orElse(ResponseEntity.status(404).body(Map.of(
+                        "code", "PROPOSAL_NOT_FOUND")));
+    }
+
+    private static Map<String, Object> mappingJson(
+            final PublicationMapping m) {
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("mappingId", m.mappingId().toString());
+        out.put("metricId", m.metricId().toString());
+        out.put("definitionVersion", m.definitionVersion());
+        out.put("datasetUid", m.datasetUid());
+        out.put("dataElementUid", m.dataElementUid());
+        out.put("categoryOptionComboUid", m.categoryOptionComboUid());
+        out.put("attributeOptionComboUid", m.attributeOptionComboUid());
+        out.put("dimensionFilter", m.dimensionFilter());
+        out.put("publicationMode", m.publicationMode().name());
+        out.put("overlapPolicy", m.overlapPolicy());
+        out.put("createdAt", m.createdAt() == null
+                ? null : m.createdAt().toString());
+        out.put("updatedAt", m.updatedAt() == null
+                ? null : m.updatedAt().toString());
+        return out;
+    }
+
+    private static Map<String, Object> proposalJson(
+            final PublicationProposal p) {
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("proposalId", p.proposalId().toString());
+        out.put("mappingId", p.mappingId().toString());
+        out.put("metricId", p.metricId().toString());
+        out.put("datasetUid", p.datasetUid());
+        out.put("dataElementUid", p.dataElementUid());
+        out.put("categoryOptionComboUid", p.categoryOptionComboUid());
+        out.put("attributeOptionComboUid", p.attributeOptionComboUid());
+        out.put("periodKey", p.periodKey());
+        out.put("orgUnitUid", p.orgUnitUid());
+        out.put("proposedValue",
+                p.proposedValue() == null ? null
+                        : p.proposedValue().toPlainString());
+        out.put("reviewedValue",
+                p.reviewedValue() == null ? null
+                        : p.reviewedValue().toPlainString());
+        out.put("state", p.state().name());
+        out.put("reviewReason", p.reviewReason());
+        out.put("reviewedBy", p.reviewedBy() == null
+                ? null : p.reviewedBy().toString());
+        out.put("reviewedAt", p.reviewedAt() == null
+                ? null : p.reviewedAt().toString());
+        out.put("createdAt", p.createdAt() == null
+                ? null : p.createdAt().toString());
+        out.put("updatedAt", p.updatedAt() == null
+                ? null : p.updatedAt().toString());
+        return out;
     }
 
     /* ─────────────── /capabilities ─────────────── */
@@ -234,51 +554,81 @@ public class AnalyticsEngineController {
     public ResponseEntity<Map<String, Object>> query(
             @RequestBody(required = false) final QueryBody body,
             final Authentication auth) {
-        if (!(auth instanceof EdgeUserPrincipal)) {
-            return ResponseEntity.status(401).build();
-        }
-        final QueryBody q = body == null
-                ? new QueryBody(List.of(), null, null, List.of(), null) : body;
-        final List<UUID> metricIds = resolveMetricIds(q.metrics());
-        final List<String> periodKeys = new ArrayList<>();
-        if (q.period() != null && q.period().id() != null) {
-            periodKeys.add(q.period().id());
-        }
-        if (q.periods() != null) {
-            for (final QueryBody.PeriodRef p : q.periods()) {
-                if (p != null && p.id() != null) {
-                    periodKeys.add(p.id());
+        final long t0 = System.currentTimeMillis();
+        try {
+            if (!(auth instanceof EdgeUserPrincipal)) {
+                return ResponseEntity.status(401).build();
+            }
+            final QueryBody q = body == null
+                    ? new QueryBody(List.of(), null, null, List.of(), null) : body;
+            final List<UUID> metricIds = resolveMetricIds(q.metrics());
+            final List<String> periodKeys = new ArrayList<>();
+            if (q.period() != null && q.period().id() != null) {
+                periodKeys.add(q.period().id());
+            }
+            if (q.periods() != null) {
+                for (final QueryBody.PeriodRef p : q.periods()) {
+                    if (p != null && p.id() != null) {
+                        periodKeys.add(p.id());
+                    }
                 }
             }
+            final AnalyticsEngineRepository.CellQuery cq =
+                    new AnalyticsEngineRepository.CellQuery(
+                            metricIds, periodKeys,
+                            q.orgUnits() == null ? List.of() : q.orgUnits(),
+                            q.dimensions() == null ? Map.of() : q.dimensions(),
+                            q.page() == null ? 500 : Math.max(1, q.page().limit()),
+                            q.page() == null || q.page().offset() == null
+                                    ? 0 : q.page().offset());
+            final List<AnalyticsCell> cells = repo.queryCells(cq);
+            final OptionSetLookup.Cache osCache = optionSets.cache();
+            final Map<java.util.UUID, List<AnalyticsDimension>> dimsByMetric
+                    = new java.util.HashMap<>();
+            for (final AnalyticsCell c : cells) {
+                dimsByMetric.computeIfAbsent(c.metricId(), id ->
+                        loadDimensions(id));
+            }
+            // Phase 6 — apply suppression: any cell whose countValue is
+            // below minCellSize emits with value/sum/numerator/denominator
+            // nulled and qualityState set to SUPPRESSED. Preserves cell
+            // existence + dimension identity so pivots don't lose
+            // columns, just the specific numbers.
+            long suppressed = 0;
+            final List<AnalyticsCell> rendered = new ArrayList<>(cells.size());
+            for (final AnalyticsCell c : cells) {
+                if (minCellSize > 0 && c.countValue() != null
+                        && c.countValue() < minCellSize) {
+                    rendered.add(suppress(c));
+                    suppressed++;
+                } else {
+                    rendered.add(c);
+                }
+            }
+            if (suppressed > 0) {
+                metrics.bumpSuppressed(suppressed);
+            }
+            final Map<String, Object> out = new LinkedHashMap<>();
+            out.put("count", rendered.size());
+            out.put("suppressedCount", suppressed);
+            out.put("freshnessAt", Instant.now().toString());
+            out.put("cells", rendered.stream()
+                    .map(c -> cellJson(c, dimsByMetric.get(c.metricId()),
+                            osCache))
+                    .toList());
+            return ResponseEntity.ok(out);
+        } finally {
+            metrics.record("query",
+                    System.currentTimeMillis() - t0);
         }
-        final AnalyticsEngineRepository.CellQuery cq =
-                new AnalyticsEngineRepository.CellQuery(
-                        metricIds, periodKeys,
-                        q.orgUnits() == null ? List.of() : q.orgUnits(),
-                        q.dimensions() == null ? Map.of() : q.dimensions(),
-                        q.page() == null ? 500 : Math.max(1, q.page().limit()),
-                        q.page() == null || q.page().offset() == null
-                                ? 0 : q.page().offset());
-        final List<AnalyticsCell> cells = repo.queryCells(cq);
-        // Phase 4b — resolve OptionSet codes to display names per
-        // metric. Group cells by metric so each metric's declared
-        // dimensions are loaded once; the lookup cache de-dupes
-        // across cells with shared OptionSets.
-        final OptionSetLookup.Cache osCache = optionSets.cache();
-        final Map<java.util.UUID, List<AnalyticsDimension>> dimsByMetric
-                = new java.util.HashMap<>();
-        for (final AnalyticsCell c : cells) {
-            dimsByMetric.computeIfAbsent(c.metricId(), id ->
-                    loadDimensions(id));
-        }
-        final Map<String, Object> out = new LinkedHashMap<>();
-        out.put("count", cells.size());
-        out.put("freshnessAt", Instant.now().toString());
-        out.put("cells", cells.stream()
-                .map(c -> cellJson(c, dimsByMetric.get(c.metricId()),
-                        osCache))
-                .toList());
-        return ResponseEntity.ok(out);
+    }
+
+    private static AnalyticsCell suppress(final AnalyticsCell c) {
+        return new AnalyticsCell(
+                c.metricId(), c.definitionVersion(),
+                c.periodKey(), c.orgUnitUid(), c.dimensionKey(),
+                null, null, null, null, null,
+                c.freshnessAt(), "SUPPRESSED");
     }
 
     /** Load a metric's declared dimensions from its stored JSONB

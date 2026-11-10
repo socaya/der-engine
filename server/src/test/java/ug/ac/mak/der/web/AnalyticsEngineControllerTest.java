@@ -54,6 +54,9 @@ class AnalyticsEngineControllerTest {
     @MockBean AnalyticsDefinitionService definitions;
     @MockBean ug.ac.mak.der.analytics.engine.OptionSetLookup optionSets;
     @MockBean ug.ac.mak.der.analytics.engine.ProgramIndicatorSyncService piSync;
+    @MockBean ug.ac.mak.der.analytics.publication.PublicationProposalService publication;
+    @MockBean ug.ac.mak.der.analytics.publication.PublicationRepository publicationRepo;
+    @MockBean ug.ac.mak.der.analytics.engine.AnalyticsObservability metrics;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
