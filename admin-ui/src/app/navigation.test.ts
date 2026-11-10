@@ -42,13 +42,15 @@ describe('groupForRoute', () => {
     /* "/settings" belongs to the settings group. */
     const grp = groupForRoute('/settings');
     expect(grp).not.toBeNull();
-    expect(grp!.id).toBe('settings');
+    /* UI-2 — Settings is a child of the System module now. */
+    expect(grp!.id).toBe('system');
   });
 
   it('matches a sub-path via startsWith', () => {
     const grp = groupForRoute('/settings/releases');
     expect(grp).not.toBeNull();
-    expect(grp!.id).toBe('settings');
+    /* UI-2 — Settings is a child of the System module now. */
+    expect(grp!.id).toBe('system');
   });
 
   it('prefers the longest matching item.to prefix', () => {

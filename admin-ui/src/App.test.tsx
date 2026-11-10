@@ -90,7 +90,8 @@ describe('App routing', () => {
     await renderAt('/');
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('nav-access')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-integration')).toBeInTheDocument();
+    // UI-2 — DHIS2 module id renamed from 'integration' to 'dhis2'.
+    expect(screen.getByTestId('nav-dhis2')).toBeInTheDocument();
   });
 
   it.each([
