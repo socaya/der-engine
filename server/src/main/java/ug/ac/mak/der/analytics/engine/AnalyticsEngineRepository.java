@@ -159,6 +159,19 @@ public class AnalyticsEngineRepository {
             sql.append(") ");
             args.addAll(q.orgUnitUids());
         }
+        // Dimension filter — Phase 4a. Each entry binds a name to a
+        // required value; the stored dimension_key is name=value|...
+        // (sorted). We filter via LIKE on the sorted partial key so
+        // the caller can supply any subset of the declared axes.
+        if (q.dimensionFilter() != null && !q.dimensionFilter().isEmpty()) {
+            for (final var e : q.dimensionFilter().entrySet()) {
+                sql.append(" AND dimension_key LIKE ? ");
+                // Match either `name=value` as a prefix or `|name=value`
+                // mid-key, so the column may order axes arbitrarily so
+                // long as the pair appears somewhere.
+                args.add("%" + e.getKey() + "=" + e.getValue() + "%");
+            }
+        }
         sql.append(" ORDER BY metric_id, period_key, org_unit_uid "
                 + " LIMIT ? OFFSET ?");
         args.add(Math.max(1, Math.min(q.limit(), 2000)));
@@ -328,12 +341,26 @@ public class AnalyticsEngineRepository {
         return rs.wasNull() ? null : v;
     }
 
-    /** Query DTO for {@link #queryCells(CellQuery)}. */
+    /** Query DTO for {@link #queryCells(CellQuery)}. The optional
+     *  {@code dimensionFilter} binds a dimension name to a required
+     *  value; the row's dimension_key must contain {@code name=value}
+     *  for every entry in the map. */
     public record CellQuery(
             List<UUID> metricIds,
             List<String> periodKeys,
             List<String> orgUnitUids,
+            Map<String, String> dimensionFilter,
             int limit,
             int offset) {
+
+        /** Legacy 5-arg form retained for Phase 1-3 call sites that
+         *  predate the dimension filter. */
+        public CellQuery(final List<UUID> metricIds,
+                           final List<String> periodKeys,
+                           final List<String> orgUnitUids,
+                           final int limit, final int offset) {
+            this(metricIds, periodKeys, orgUnitUids, Map.of(),
+                    limit, offset);
+        }
     }
 }

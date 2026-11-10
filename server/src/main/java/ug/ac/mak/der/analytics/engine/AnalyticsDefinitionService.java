@@ -39,7 +39,29 @@ public class AnalyticsDefinitionService {
             List<String> stageUids,
             String dateAnchor,
             String orgUnitAnchor,
-            String expression) {
+            String expression,
+            List<AnalyticsDimension> dimensions) {
+
+        /** Normalise dimensions to an immutable empty list so tests
+         *  that omit the field (9-field form) keep working. */
+        public CreateRequest {
+            dimensions = dimensions == null ? List.of()
+                    : List.copyOf(dimensions);
+        }
+
+        /** 9-field convenience for the Phase-3 shape. */
+        public CreateRequest(final String code, final String displayName,
+                              final String analyticsType,
+                              final String aggregationType,
+                              final String programUid,
+                              final List<String> stageUids,
+                              final String dateAnchor,
+                              final String orgUnitAnchor,
+                              final String expression) {
+            this(code, displayName, analyticsType, aggregationType,
+                    programUid, stageUids, dateAnchor, orgUnitAnchor,
+                    expression, List.of());
+        }
     }
 
     public record CreateResult(
@@ -184,11 +206,114 @@ public class AnalyticsDefinitionService {
         if (req.stageUids() != null && !req.stageUids().isEmpty()) {
             body.put("stageUids", req.stageUids());
         }
+        if (req.dimensions() != null && !req.dimensions().isEmpty()) {
+            body.put("dimensions", req.dimensions().stream()
+                    .map(AnalyticsDefinitionService::dimensionJson)
+                    .toList());
+        }
         try {
             return json.writeValueAsString(body);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException(
                     "failed to serialise definition body", ex);
+        }
+    }
+
+    /** Serialise one dimension to its JSONB shape. Exported so the
+     *  ingestion layer can round-trip it back on load. */
+    static java.util.Map<String, Object> dimensionJson(
+            final AnalyticsDimension d) {
+        final java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("name", d.name());
+        m.put("kind", d.kind().name());
+        m.put("sourceUid", d.sourceUid());
+        if (!d.buckets().isEmpty()) {
+            m.put("buckets", d.buckets().stream().map(b -> {
+                final java.util.Map<String, Object> bm = new java.util.LinkedHashMap<>();
+                bm.put("label", b.label());
+                if (b.min() != null) {
+                    bm.put("min", b.min().toPlainString());
+                }
+                if (b.max() != null) {
+                    bm.put("max", b.max().toPlainString());
+                }
+                return bm;
+            }).toList());
+        }
+        return m;
+    }
+
+    /** Parse the dimensions array out of a stored definition JSON
+     *  body. Returns empty list if none declared or parsing fails. */
+    public static List<AnalyticsDimension> parseDimensions(
+            final ObjectMapper mapper, final String definitionJson) {
+        if (definitionJson == null || definitionJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            final com.fasterxml.jackson.databind.JsonNode root =
+                    mapper.readTree(definitionJson);
+            final com.fasterxml.jackson.databind.JsonNode dims =
+                    root.get("dimensions");
+            if (dims == null || !dims.isArray()) {
+                return List.of();
+            }
+            final List<AnalyticsDimension> out = new java.util.ArrayList<>();
+            for (final com.fasterxml.jackson.databind.JsonNode dn : dims) {
+                final String name = text(dn, "name");
+                final String kindName = text(dn, "kind");
+                final String uid = text(dn, "sourceUid");
+                if (name == null || kindName == null || uid == null) {
+                    continue;
+                }
+                final AnalyticsDimension.Kind kind;
+                try {
+                    kind = AnalyticsDimension.Kind.valueOf(kindName);
+                } catch (IllegalArgumentException ex) {
+                    continue;
+                }
+                final List<AnalyticsDimension.Bucket> buckets =
+                        new java.util.ArrayList<>();
+                final com.fasterxml.jackson.databind.JsonNode bs =
+                        dn.get("buckets");
+                if (bs != null && bs.isArray()) {
+                    for (final com.fasterxml.jackson.databind.JsonNode bn : bs) {
+                        final String label = text(bn, "label");
+                        if (label == null) {
+                            continue;
+                        }
+                        buckets.add(new AnalyticsDimension.Bucket(
+                                label,
+                                decimal(bn, "min"),
+                                decimal(bn, "max")));
+                    }
+                }
+                out.add(new AnalyticsDimension(name, kind, uid, buckets));
+            }
+            return out;
+        } catch (RuntimeException | java.io.IOException ex) {
+            return List.of();
+        }
+    }
+
+    private static String text(
+            final com.fasterxml.jackson.databind.JsonNode n,
+            final String key) {
+        final com.fasterxml.jackson.databind.JsonNode v = n.get(key);
+        return v == null || v.isNull() ? null : v.asText(null);
+    }
+
+    private static java.math.BigDecimal decimal(
+            final com.fasterxml.jackson.databind.JsonNode n,
+            final String key) {
+        final com.fasterxml.jackson.databind.JsonNode v = n.get(key);
+        if (v == null || v.isNull()) {
+            return null;
+        }
+        try {
+            return new java.math.BigDecimal(v.asText().trim());
+        } catch (NumberFormatException ex) {
+            return null;
         }
     }
 

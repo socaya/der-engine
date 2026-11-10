@@ -195,7 +195,23 @@ public class AnalyticsEngineController {
             PeriodRef period,
             List<PeriodRef> periods,
             List<String> orgUnits,
+            Map<String, String> dimensions,
             Page page) {
+
+        public QueryBody {
+            dimensions = dimensions == null ? Map.of()
+                    : Map.copyOf(dimensions);
+        }
+
+        /** Legacy 5-arg form for Phase 1-3 clients. */
+        public QueryBody(final List<String> metrics,
+                           final PeriodRef period,
+                           final List<PeriodRef> periods,
+                           final List<String> orgUnits,
+                           final Page page) {
+            this(metrics, period, periods, orgUnits, Map.of(), page);
+        }
+
         public record PeriodRef(String type, String id) { }
         public record Page(int limit, Integer offset) { }
     }
@@ -225,6 +241,7 @@ public class AnalyticsEngineController {
                 new AnalyticsEngineRepository.CellQuery(
                         metricIds, periodKeys,
                         q.orgUnits() == null ? List.of() : q.orgUnits(),
+                        q.dimensions() == null ? Map.of() : q.dimensions(),
                         q.page() == null ? 500 : Math.max(1, q.page().limit()),
                         q.page() == null || q.page().offset() == null
                                 ? 0 : q.page().offset());
@@ -534,6 +551,9 @@ public class AnalyticsEngineController {
         m.put("periodKey", c.periodKey());
         m.put("orgUnitUid", c.orgUnitUid());
         m.put("dimensionKey", c.dimensionKey());
+        m.put("dimensions",
+                ug.ac.mak.der.analytics.engine.DimensionKey.decode(
+                        c.dimensionKey()));
         m.put("countValue", c.countValue());
         m.put("sumValue", decimal(c.sumValue()));
         m.put("value", decimal(c.value()));

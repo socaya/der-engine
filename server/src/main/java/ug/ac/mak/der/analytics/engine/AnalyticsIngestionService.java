@@ -130,15 +130,23 @@ public class AnalyticsIngestionService {
         // gets a FAILED result + its support_state flipped to
         // UNSUPPORTED so operators see the regression.
         record Compiled(AnalyticsDefinition def,
-                          ug.ac.mak.der.analytics.expression.Expression ast) { }
+                          ug.ac.mak.der.analytics.expression.Expression ast,
+                          List<AnalyticsDimension> dimensions) { }
         final List<Compiled> compiled = new ArrayList<>(defs.size());
         for (final AnalyticsDefinition d : defs) {
-            final String expr = extractExpression(d);
+            final String row = loadDefinitionBody(d);
+            if (row == null) {
+                continue;
+            }
+            final String expr = extractExpressionFromBody(row);
             if (expr == null || expr.isBlank()) {
                 continue;
             }
             try {
-                compiled.add(new Compiled(d, Parser.parse(expr)));
+                final List<AnalyticsDimension> dims =
+                        AnalyticsDefinitionService.parseDimensions(
+                                jsonMapper, row);
+                compiled.add(new Compiled(d, Parser.parse(expr), dims));
             } catch (RuntimeException ex) {
                 engineRepo.updateSupportState(d.id(), "UNSUPPORTED",
                         "re-compile failed: " + ex.getMessage());
@@ -205,9 +213,11 @@ public class AnalyticsIngestionService {
                     // UNSUPPORTED flip if it's structural.
                     continue;
                 }
+                final String dimensionKey = DimensionKey.encode(
+                        c.dimensions(), ctx);
                 final AnalyticsContribution ctb = contributionFor(
                         c.def(), eventUid, srcVersion, periodKey,
-                        orgUnit, value);
+                        orgUnit, dimensionKey, value);
                 if (ctb == null) {
                     continue;
                 }
@@ -216,7 +226,7 @@ public class AnalyticsIngestionService {
                 touchedByMetric.computeIfAbsent(c.def().id(),
                         k -> new java.util.HashSet<>())
                         .add(new AnalyticsContributionRepository.CellRef(
-                                periodKey, orgUnit, ""));
+                                periodKey, orgUnit, dimensionKey));
             }
             return null;
         }, args.toArray());
@@ -239,6 +249,7 @@ public class AnalyticsIngestionService {
             final AnalyticsDefinition def,
             final String eventUid, final int srcVersion,
             final String periodKey, final String orgUnit,
+            final String dimensionKey,
             final Object value) {
         final String agg = def.aggregationType() == null
                 ? "COUNT" : def.aggregationType();
@@ -263,7 +274,8 @@ public class AnalyticsIngestionService {
         }
         return new AnalyticsContribution(def.id(),
                 def.definitionVersion(), eventUid,
-                String.valueOf(srcVersion), periodKey, orgUnit, "",
+                String.valueOf(srcVersion), periodKey, orgUnit,
+                dimensionKey == null ? "" : dimensionKey,
                 numeric, eligible, "COMMITTED", null, null);
     }
 
@@ -300,18 +312,26 @@ public class AnalyticsIngestionService {
         }
     }
 
-    /** Extract the raw expression string from a stored definition's
-     *  JSON body. Phase-3b wrote it under {@code definition.expression}. */
-    private String extractExpression(final AnalyticsDefinition def) {
+    /** Load the raw JSONB body for one definition — one DB round
+     *  trip per metric per batch. Callers extract expression +
+     *  dimensions without re-querying. */
+    private String loadDefinitionBody(final AnalyticsDefinition def) {
         try {
-            final String row = jdbc.queryForObject(
+            return jdbc.queryForObject(
                     "SELECT definition::text FROM der.analytics_definition "
                   + " WHERE id = ?", String.class, def.id());
-            if (row == null) {
-                return null;
-            }
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private String extractExpressionFromBody(final String body) {
+        if (body == null) {
+            return null;
+        }
+        try {
             final com.fasterxml.jackson.databind.JsonNode node =
-                    jsonMapper.readTree(row);
+                    jsonMapper.readTree(body);
             final com.fasterxml.jackson.databind.JsonNode exprNode =
                     node.get("expression");
             return exprNode == null ? null : exprNode.asText(null);

@@ -154,16 +154,22 @@ public class AnalyticsLiveIngester {
                 stageUid, dvJson, event.occurredOn(),
                 event.orgUnitUid(), event.status());
         for (final AnalyticsDefinition def : defs) {
-            final String expr = extractExpression(def);
+            final String body = loadDefinitionBody(def);
+            final String expr = extractExpressionFromBody(body);
             if (expr == null || expr.isBlank()) {
                 continue;
             }
             try {
                 final Object value = new Evaluator(ctx)
                         .eval(Parser.parse(expr));
+                final List<AnalyticsDimension> dims =
+                        AnalyticsDefinitionService.parseDimensions(
+                                jsonMapper, body);
+                final String dimensionKey = DimensionKey.encode(dims, ctx);
                 final AnalyticsContribution c = contributionFor(def,
                         event.sourceKey(), event.sourceVersion(),
-                        periodKey, event.orgUnitUid(), value);
+                        periodKey, event.orgUnitUid(),
+                        dimensionKey, value);
                 if (c != null) {
                     materializer.applyContribution(def, c);
                 }
@@ -191,16 +197,23 @@ public class AnalyticsLiveIngester {
         }
     }
 
-    private String extractExpression(final AnalyticsDefinition def) {
+    private String loadDefinitionBody(final AnalyticsDefinition def) {
         try {
-            final String raw = jdbc.queryForObject(
+            return jdbc.queryForObject(
                     "SELECT definition::text FROM der.analytics_definition "
                   + " WHERE id = ?", String.class, def.id());
-            if (raw == null) {
-                return null;
-            }
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private String extractExpressionFromBody(final String body) {
+        if (body == null) {
+            return null;
+        }
+        try {
             final com.fasterxml.jackson.databind.JsonNode node =
-                    jsonMapper.readTree(raw);
+                    jsonMapper.readTree(body);
             final com.fasterxml.jackson.databind.JsonNode e =
                     node.get("expression");
             return e == null ? null : e.asText(null);
@@ -212,7 +225,8 @@ public class AnalyticsLiveIngester {
     private static AnalyticsContribution contributionFor(
             final AnalyticsDefinition def, final String key,
             final int version, final String periodKey,
-            final String orgUnit, final Object value) {
+            final String orgUnit, final String dimensionKey,
+            final Object value) {
         final String agg = def.aggregationType() == null
                 ? "COUNT" : def.aggregationType();
         final BigDecimal numeric;
@@ -233,7 +247,8 @@ public class AnalyticsLiveIngester {
             eligible = true;
         }
         return new AnalyticsContribution(def.id(), def.definitionVersion(),
-                key, String.valueOf(version), periodKey, orgUnit, "",
+                key, String.valueOf(version), periodKey, orgUnit,
+                dimensionKey == null ? "" : dimensionKey,
                 numeric, eligible, "COMMITTED", null, null);
     }
 
