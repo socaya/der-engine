@@ -124,7 +124,7 @@ describe('OrgUnitBindingProvider', () => {
         bound: true, orgUnitId: 'OU-A', orgUnitDisplayName: 'A',
         orgUnitPath: '/R/A', boundAt: 't', boundBy: 'admin',
       }),
-    } as never;
+    };
     render(
       <AuthProvider api={auth}>
         <OrgUnitBindingProvider api={api}><Probe /></OrgUnitBindingProvider>

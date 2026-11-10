@@ -15,7 +15,8 @@ describe('parseCaptureRoute', () => {
   it('parses tracker detail', () => {
     const r = parseCaptureRoute('#/tracker/abc/records/tei1');
     expect(r).toEqual({ kind: 'tracker-detail',
-      programId: 'abc', teiId: 'tei1' });
+      programId: 'abc', teiId: 'tei1',
+      focusEnrollmentId: null, section: null, stageId: null });
   });
 
   it('parses tracker register', () => {

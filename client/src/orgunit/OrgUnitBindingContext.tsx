@@ -38,12 +38,19 @@ const Ctx = createContext<OrgUnitBindingContextValue | null>(null);
 export interface OrgUnitBindingProviderProps {
   readonly children: ReactNode;
   readonly api?: Pick<typeof edgeApi, 'getOrgUnitBinding'>;
+  /** Test-only — seeds the provider with an already-resolved binding
+   *  so screens can be rendered without round-tripping through
+   *  AuthProvider + the binding fetch. Production code never passes
+   *  this; its presence skips the auth-gated load entirely. */
+  readonly initialBinding?: OrgUnitBinding;
 }
 
 export function OrgUnitBindingProvider(
-  { children, api = edgeApi }: OrgUnitBindingProviderProps,
+  { children, api = edgeApi, initialBinding }: OrgUnitBindingProviderProps,
 ): JSX.Element {
-  const [state, setState] = useState<State>({ status: 'LOADING' });
+  const [state, setState] = useState<State>(initialBinding
+    ? { status: 'READY', binding: initialBinding }
+    : { status: 'LOADING' });
   const auth = useAuth();
 
   const load = useCallback(async () => {
@@ -66,6 +73,10 @@ export function OrgUnitBindingProvider(
    *  auth state doesn't trigger an extra network call. */
   const lastSessionRef = useRef<string | null>(null);
   useEffect(() => {
+    // When the test harness seeded a binding, skip the auth-gated
+    // load — the state is already READY and reflects what the test
+    // wants to render.
+    if (initialBinding) return;
     if (auth.state.status !== 'AUTHENTICATED') {
       // Clear the guard so a sign-out → sign-in cycle refetches.
       lastSessionRef.current = null;
@@ -78,7 +89,7 @@ export function OrgUnitBindingProvider(
     if (lastSessionRef.current === sessionKey) return;
     lastSessionRef.current = sessionKey;
     void load();
-  }, [auth.state, load]);
+  }, [auth.state, load, initialBinding]);
 
   return (
     <Ctx.Provider value={{ state, reload: load }}>

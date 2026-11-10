@@ -525,6 +525,7 @@ describe('edgeApi.listTrackerEntities', () => {
     expect(r.trackedEntities?.[0]).toEqual({
       trackedEntity: 'TEI_A', displayName: 'Alice',
       orgUnit: 'OU1', lastUpdated: '2026-11-08T00:00:00Z',
+      attributes: {},
     });
     expect(r.total).toBe(2);
     const [tetPath] = fetchMock.mock.calls[0] as [string];
@@ -580,7 +581,7 @@ describe('edgeApi.listTrackerEntities', () => {
 });
 
 describe('edgeApi.submitEvent', () => {
-  it('wraps the single event in the DHIS2 {events:[...]} envelope',
+  it('routes to the edge tracker-event endpoint with a flat payload',
       async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, { status: 'SUCCESS' }));
     await api.submitEvent({
@@ -589,14 +590,19 @@ describe('edgeApi.submitEvent', () => {
       dataValues: [{ dataElement: 'DE1', value: '5' }],
     });
     const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(path).toBe('/api/events');
+    expect(path).toBe('/edge-api/v1/tracker/events');
     expect(init.method).toBe('POST');
     const body = JSON.parse(String(init.body)) as {
-      events: Array<{ program: string }>;
+      programUid: string; programStageUid: string; orgUnitUid: string;
+      occurredDate: string; dataValues: Record<string, string>;
+      eventUid: string;
     };
-    expect(Array.isArray(body.events)).toBe(true);
-    expect(body.events.length).toBe(1);
-    expect(body.events[0]!.program).toBe('P1');
+    expect(body.programUid).toBe('P1');
+    expect(body.programStageUid).toBe('S1');
+    expect(body.orgUnitUid).toBe('OU1');
+    expect(body.occurredDate).toBe('2026-11-08');
+    expect(body.dataValues).toEqual({ DE1: '5' });
+    expect(body.eventUid).toMatch(/^[A-Za-z][A-Za-z0-9]{10}$/);
   });
 });
 
@@ -641,13 +647,13 @@ describe('edgeApi.enrolTei', () => {
 });
 
 describe('edgeApi.deleteTrackerRelationship', () => {
-  it('sends DELETE to the relationships endpoint with an encoded UID',
+  it('sends DELETE to the edge relationships endpoint with an encoded UID',
       async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, { status: 'OK' }));
     const r = await api.deleteTrackerRelationship('a b/c');
     expect(r).toEqual({ ok: true });
     const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(path).toBe('/api/tracker/relationships/a%20b%2Fc');
+    expect(path).toBe('/edge-api/v1/tracker/relationships/a%20b%2Fc');
     expect(init.method).toBe('DELETE');
   });
 
@@ -670,7 +676,7 @@ describe('edgeApi.deleteTrackerRelationship', () => {
 });
 
 describe('edgeApi.submitTrackerRelationship', () => {
-  it('POSTs the DHIS2-shaped payload for a TEI↔TEI link', async () => {
+  it('POSTs the flat edge payload for a TEI↔TEI link', async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, { status: 'OK' }));
     const r = await api.submitTrackerRelationship({
       relationshipType: 'RT1',
@@ -679,18 +685,19 @@ describe('edgeApi.submitTrackerRelationship', () => {
     });
     expect(r).toEqual({ ok: true });
     const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(path).toBe('/api/tracker');
+    expect(path).toBe('/edge-api/v1/tracker/relationships');
     expect(init.method).toBe('POST');
     const body = JSON.parse(String(init.body)) as {
-      relationships: Array<{ relationshipType: string;
-        from: { trackedEntity: { trackedEntity: string } };
-        to:   { trackedEntity: { trackedEntity: string } } }>;
+      relationshipUid: string; relationshipType: string;
+      fromEntityType: string; fromEntityUid: string;
+      toEntityType: string; toEntityUid: string;
+      bidirectional: boolean;
     };
-    expect(body.relationships[0]!.relationshipType).toBe('RT1');
-    expect(body.relationships[0]!.from.trackedEntity.trackedEntity)
-      .toBe('TEI_A');
-    expect(body.relationships[0]!.to.trackedEntity.trackedEntity)
-      .toBe('TEI_B');
+    expect(body.relationshipUid).toMatch(/^[A-Za-z][A-Za-z0-9]{10}$/);
+    expect(body.relationshipType).toBe('RT1');
+    expect(body.fromEntityUid).toBe('TEI_A');
+    expect(body.toEntityUid).toBe('TEI_B');
+    expect(body.bidirectional).toBe(false);
   });
 
   it('returns an error result with the server message on HTTP failure',
@@ -733,15 +740,15 @@ describe('edgeApi.submitTrackerRelationship', () => {
 });
 
 describe('edgeApi.listRelationshipTypes', () => {
-  it('fetches relationship-type metadata with constraints', async () => {
+  it('fetches relationship-type metadata from the edge mirror', async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, {
       relationshipTypes: [
-        { id: 'RT1', name: 'Parent of',
+        { relationshipTypeUid: 'RT1', displayName: 'Parent of',
           bidirectional: false,
-          fromConstraint: { relationshipEntity: 'TRACKED_ENTITY_INSTANCE',
-            trackedEntityType: { id: 'TET1' } },
-          toConstraint:  { relationshipEntity: 'TRACKED_ENTITY_INSTANCE',
-            trackedEntityType: { id: 'TET1' } } },
+          fromConstraintKind: 'TRACKED_ENTITY_INSTANCE',
+          fromConstraintUid: 'TET1',
+          toConstraintKind: 'TRACKED_ENTITY_INSTANCE',
+          toConstraintUid: 'TET1' },
       ],
     }));
     const r = await api.listRelationshipTypes();
@@ -749,10 +756,7 @@ describe('edgeApi.listRelationshipTypes', () => {
     expect(r[0]!.id).toBe('RT1');
     expect(r[0]!.fromConstraint?.trackedEntityType?.id).toBe('TET1');
     const [path] = fetchMock.mock.calls[0] as [string];
-    expect(path).toContain('/api/relationshipTypes?fields=');
-    expect(path).toContain('fromConstraint');
-    expect(path).toContain('toConstraint');
-    expect(path).toContain('paging=false');
+    expect(path).toContain('/edge-api/v1/relationship-types');
   });
 
   it('returns an empty list on HTTP error', async () => {
@@ -772,12 +776,12 @@ describe('edgeApi.listRelationshipTypes', () => {
       async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, {
       relationshipTypes: [
-        { id: 'RT2', displayName: 'Linked event',
+        { relationshipTypeUid: 'RT2', displayName: 'Linked event',
           bidirectional: true,
-          fromConstraint: { relationshipEntity: 'PROGRAM_STAGE_INSTANCE',
-            program: { id: 'P1' } },
-          toConstraint:  { relationshipEntity: 'PROGRAM_STAGE_INSTANCE',
-            program: { id: 'P1' } } },
+          fromConstraintKind: 'PROGRAM_STAGE_INSTANCE',
+          fromConstraintUid: 'P1',
+          toConstraintKind: 'PROGRAM_STAGE_INSTANCE',
+          toConstraintUid: 'P1' },
       ],
     }));
     const r = await api.listRelationshipTypes();
@@ -791,26 +795,30 @@ describe('edgeApi.listTrackerRelationships', () => {
   it('fetches relationships scoped to one tracked entity', async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, {
       relationships: [
-        { relationship: 'R1', relationshipType: 'RT1',
-          relationshipName: 'Parent of', bidirectional: false,
-          from: { trackedEntity: { trackedEntity: 'TEI1',
-            displayName: 'Jane Doe' } },
-          to:   { trackedEntity: { trackedEntity: 'TEI2',
-            displayName: 'Baby Doe' } } },
+        { relationshipUid: 'R1', relationshipType: 'RT1',
+          bidirectional: false,
+          fromEntityType: 'TRACKED_ENTITY', fromEntityUid: 'TEI1',
+          toEntityType: 'TRACKED_ENTITY', toEntityUid: 'TEI2',
+          createdAt: '2026-11-08T00:00:00Z' },
       ],
     }));
     const r = await api.listTrackerRelationships('TEI1');
     expect(r.length).toBe(1);
     expect(r[0]!.relationship).toBe('R1');
     const [path] = fetchMock.mock.calls[0] as [string];
-    expect(path).toContain('/api/tracker/relationships');
-    expect(path).toContain('trackedEntity=TEI1');
-    expect(path).toContain('bidirectional');
+    expect(path).toContain('/edge-api/v1/tracker/relationships');
+    expect(path).toContain('entityType=TRACKED_ENTITY');
+    expect(path).toContain('entityUid=TEI1');
   });
 
-  it('falls back to the instances array shape', async () => {
+  it('returns an empty list when no relationships are present',
+      async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, {
-      instances: [{ relationship: 'R-only' }],
+      relationships: [{ relationshipUid: 'R-only',
+        relationshipType: 'RT1',
+        fromEntityType: 'TRACKED_ENTITY', fromEntityUid: 'TEI1',
+        toEntityType: 'TRACKED_ENTITY', toEntityUid: 'TEI2',
+        bidirectional: false, createdAt: '2026-11-08T00:00:00Z' }],
     }));
     const r = await api.listTrackerRelationships('TEI1');
     expect(r.map((x) => x.relationship)).toEqual(['R-only']);
@@ -822,7 +830,7 @@ describe('edgeApi.listTrackerRelationships', () => {
     expect(r).toEqual([]);
   });
 
-  it('returns an empty list when neither key is present in the body',
+  it('returns an empty list when relationships key is absent',
       async () => {
     fetchMock.mockResolvedValue(jsonRespond(200, {}));
     const r = await api.listTrackerRelationships('TEI1');
@@ -833,7 +841,7 @@ describe('edgeApi.listTrackerRelationships', () => {
     fetchMock.mockResolvedValue(jsonRespond(200, { relationships: [] }));
     await api.listTrackerRelationships('a b/c');
     const [path] = fetchMock.mock.calls[0] as [string];
-    expect(path).toContain('trackedEntity=a%20b%2Fc');
+    expect(path).toContain('entityUid=a%20b%2Fc');
   });
 });
 

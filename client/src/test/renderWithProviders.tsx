@@ -17,6 +17,26 @@ const DEFAULT_BINDING: OrgUnitBinding = {
   boundBy: 'admin',
 };
 
+/** Default authApi factory — resolves `session()` to a fake user so
+ *  AuthProvider lands in AUTHENTICATED. OrgUnitBindingProvider only
+ *  fetches once auth is AUTHENTICATED, so tests that don't mock
+ *  auth would otherwise stall in LOADING.
+ *
+ *  Returned as a factory because test suites commonly call
+ *  `vi.restoreAllMocks()` in afterEach, which would wipe the
+ *  mockResolvedValue off a module-level stub. Each render gets a
+ *  fresh instance. */
+function defaultAuthApi(): Pick<typeof edgeApi, 'session' | 'signIn' | 'signOut'> {
+  return {
+    session: vi.fn().mockResolvedValue({
+      userId: 'u-test', username: 'op', displayName: 'Op',
+      roles: ['OPERATOR'], expiresAt: '2099-01-01T00:00:00Z',
+    }),
+    signIn: vi.fn(),
+    signOut: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 export interface RenderOptions {
   readonly route?: string;
   readonly locationState?: unknown;
@@ -53,8 +73,9 @@ export function renderWithProviders(
           specific than Record<string,unknown>; the cast is safe because
           test fixtures supply the shape the runtime expects. */}
       <CustomDataProvider data={data as never}>
-        <AuthProvider api={options.authApi}>
-          <OrgUnitBindingProvider api={bindingApi}>
+        <AuthProvider api={options.authApi ?? defaultAuthApi()}>
+          <OrgUnitBindingProvider api={bindingApi}
+                                   initialBinding={binding}>
             {children}
           </OrgUnitBindingProvider>
         </AuthProvider>
