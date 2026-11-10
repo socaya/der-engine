@@ -131,6 +131,7 @@ public class AnalyticsIngestionService {
         // UNSUPPORTED so operators see the regression.
         record Compiled(AnalyticsDefinition def,
                           ug.ac.mak.der.analytics.expression.Expression ast,
+                          ug.ac.mak.der.analytics.expression.Expression filter,
                           List<AnalyticsDimension> dimensions) { }
         final List<Compiled> compiled = new ArrayList<>(defs.size());
         for (final AnalyticsDefinition d : defs) {
@@ -146,7 +147,12 @@ public class AnalyticsIngestionService {
                 final List<AnalyticsDimension> dims =
                         AnalyticsDefinitionService.parseDimensions(
                                 jsonMapper, row);
-                compiled.add(new Compiled(d, Parser.parse(expr), dims));
+                final String filterExpr = AnalyticsDefinitionService
+                        .parseFilterExpression(jsonMapper, row);
+                final ug.ac.mak.der.analytics.expression.Expression filterAst =
+                        filterExpr == null ? null : Parser.parse(filterExpr);
+                compiled.add(new Compiled(d, Parser.parse(expr),
+                        filterAst, dims));
             } catch (RuntimeException ex) {
                 engineRepo.updateSupportState(d.id(), "UNSUPPORTED",
                         "re-compile failed: " + ex.getMessage());
@@ -204,9 +210,24 @@ public class AnalyticsIngestionService {
                     jsonMapper, stageUid, dvJson, occurred, orgUnit,
                     status);
             for (final Compiled c : compiled) {
+                final Evaluator ev = new Evaluator(ctx);
+                // Phase 4c — gate on the filter expression. DHIS2 PI
+                // semantics: a false-y filter result means the event
+                // doesn't contribute. Null (unresolved reference)
+                // is also treated as "not eligible".
+                if (c.filter() != null) {
+                    try {
+                        final Object fv = ev.eval(c.filter());
+                        if (!isTruthy(fv)) {
+                            continue;
+                        }
+                    } catch (Evaluator.EvalException ex) {
+                        continue;
+                    }
+                }
                 final Object value;
                 try {
-                    value = new Evaluator(ctx).eval(c.ast());
+                    value = ev.eval(c.ast());
                 } catch (Evaluator.EvalException ex) {
                     // Per-event evaluation failure doesn't poison the
                     // batch — the operator sees it later via an

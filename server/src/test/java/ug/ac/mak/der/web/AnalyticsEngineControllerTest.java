@@ -2,6 +2,7 @@ package ug.ac.mak.der.web;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -52,6 +53,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ExpressionCompiler compiler;
     @MockBean AnalyticsDefinitionService definitions;
     @MockBean ug.ac.mak.der.analytics.engine.OptionSetLookup optionSets;
+    @MockBean ug.ac.mak.der.analytics.engine.ProgramIndicatorSyncService piSync;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -508,6 +510,72 @@ class AnalyticsEngineControllerTest {
                         "/edge-api/v1/analytics/v1/admin/definitions/not-a-uuid")
                         .with(as(EdgeRole.ADMIN)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void importProgramIndicatorsRequiresAdmin() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/"
+                        + "import-program-indicators")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void importProgramIndicatorsReturnsSummary() throws Exception {
+        when(piSync.importAll(any())).thenReturn(
+                new ug.ac.mak.der.analytics.engine
+                        .ProgramIndicatorSyncService.ImportSummary(
+                        3,
+                        java.util.Map.of("CREATED", 2, "UNSUPPORTED", 1),
+                        List.of(
+                            new ug.ac.mak.der.analytics.engine
+                                    .ProgramIndicatorSyncService
+                                    .ImportItemResult("pi-1",
+                                    "DHIS2_PI_A",
+                                    ug.ac.mak.der.analytics.engine
+                                        .ProgramIndicatorSyncService
+                                        .Outcome.CREATED, null),
+                            new ug.ac.mak.der.analytics.engine
+                                    .ProgramIndicatorSyncService
+                                    .ImportItemResult("pi-2",
+                                    "DHIS2_PI_B",
+                                    ug.ac.mak.der.analytics.engine
+                                        .ProgramIndicatorSyncService
+                                        .Outcome.UNSUPPORTED,
+                                    "unsupported function 'd2:nope'"))));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/"
+                        + "import-program-indicators")
+                        .with(as(EdgeRole.ADMIN))
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scanned").value(3))
+                .andExpect(jsonPath("$.outcomeCounts.CREATED").value(2))
+                .andExpect(jsonPath("$.items[0].sourceUid").value("pi-1"))
+                .andExpect(jsonPath("$.items[1].message")
+                        .value("unsupported function 'd2:nope'"));
+    }
+
+    @Test
+    void importProgramIndicatorsPassesProgramUidScope() throws Exception {
+        when(piSync.importAll(any())).thenReturn(
+                new ug.ac.mak.der.analytics.engine
+                        .ProgramIndicatorSyncService.ImportSummary(
+                        0, java.util.Map.of(), List.of()));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/"
+                        + "import-program-indicators")
+                        .with(as(EdgeRole.ADMIN))
+                        .contentType("application/json")
+                        .content("{\"programUid\":\"P1\"}"))
+                .andExpect(status().isOk());
+        final var captor = org.mockito.ArgumentCaptor.forClass(
+                ug.ac.mak.der.analytics.engine
+                        .ProgramIndicatorSyncService.ImportScope.class);
+        verify(piSync).importAll(captor.capture());
+        org.assertj.core.api.Assertions.assertThat(
+                captor.getValue().programUid()).isEqualTo("P1");
     }
 
     @Test

@@ -40,10 +40,9 @@ public class AnalyticsDefinitionService {
             String dateAnchor,
             String orgUnitAnchor,
             String expression,
-            List<AnalyticsDimension> dimensions) {
+            List<AnalyticsDimension> dimensions,
+            String filterExpression) {
 
-        /** Normalise dimensions to an immutable empty list so tests
-         *  that omit the field (9-field form) keep working. */
         public CreateRequest {
             dimensions = dimensions == null ? List.of()
                     : List.copyOf(dimensions);
@@ -60,7 +59,23 @@ public class AnalyticsDefinitionService {
                               final String expression) {
             this(code, displayName, analyticsType, aggregationType,
                     programUid, stageUids, dateAnchor, orgUnitAnchor,
-                    expression, List.of());
+                    expression, List.of(), null);
+        }
+
+        /** 10-field convenience for Phase-4a — dimensions but no
+         *  filter expression. */
+        public CreateRequest(final String code, final String displayName,
+                              final String analyticsType,
+                              final String aggregationType,
+                              final String programUid,
+                              final List<String> stageUids,
+                              final String dateAnchor,
+                              final String orgUnitAnchor,
+                              final String expression,
+                              final List<AnalyticsDimension> dimensions) {
+            this(code, displayName, analyticsType, aggregationType,
+                    programUid, stageUids, dateAnchor, orgUnitAnchor,
+                    expression, dimensions, null);
         }
     }
 
@@ -129,12 +144,41 @@ public class AnalyticsDefinitionService {
             return new CreateResult(CreateOutcome.PARSE_ERROR,
                     null, compiled, List.of());
         }
+        // Phase 4c — filter expression compiles separately. If the
+        // filter parses but references an unsupported function, the
+        // whole definition lands UNSUPPORTED so operators see the
+        // specific blocker (matches AN-FR-004).
+        ExpressionCompiler.CompileResult filterCompiled = null;
+        final boolean hasFilter = req.filterExpression() != null
+                && !req.filterExpression().isBlank();
+        if (hasFilter) {
+            filterCompiled = compiler.compile(req.filterExpression());
+            if (filterCompiled.supportState()
+                    == ExpressionCompiler.SupportState.PARSE_ERROR) {
+                return new CreateResult(CreateOutcome.PARSE_ERROR,
+                        null, filterCompiled, List.of());
+            }
+        }
         final boolean ready = compiled.supportState()
-                == ExpressionCompiler.SupportState.READY;
+                == ExpressionCompiler.SupportState.READY
+                && (!hasFilter || filterCompiled.supportState()
+                        == ExpressionCompiler.SupportState.READY);
         final String supportState = ready ? "READY" : "UNSUPPORTED";
-        final String unsupportedReason = ready
-                ? null
-                : String.join("; ", compiled.diagnostics());
+        final StringBuilder reasonBuilder = new StringBuilder();
+        if (compiled.supportState()
+                != ExpressionCompiler.SupportState.READY) {
+            reasonBuilder.append(String.join("; ", compiled.diagnostics()));
+        }
+        if (hasFilter && filterCompiled.supportState()
+                != ExpressionCompiler.SupportState.READY) {
+            if (reasonBuilder.length() > 0) {
+                reasonBuilder.append("; ");
+            }
+            reasonBuilder.append("filter: ")
+                    .append(String.join("; ", filterCompiled.diagnostics()));
+        }
+        final String unsupportedReason = ready ? null
+                : reasonBuilder.toString();
 
         final UUID id = UUID.randomUUID();
         final AnalyticsDefinition d = new AnalyticsDefinition(
@@ -211,6 +255,10 @@ public class AnalyticsDefinitionService {
                     .map(AnalyticsDefinitionService::dimensionJson)
                     .toList());
         }
+        if (req.filterExpression() != null
+                && !req.filterExpression().isBlank()) {
+            body.put("filterExpression", req.filterExpression());
+        }
         try {
             return json.writeValueAsString(body);
         } catch (JsonProcessingException ex) {
@@ -244,6 +292,28 @@ public class AnalyticsDefinitionService {
             }).toList());
         }
         return m;
+    }
+
+    /** Extract the filter expression from a stored definition body.
+     *  Returns null if absent. */
+    public static String parseFilterExpression(
+            final ObjectMapper mapper, final String definitionJson) {
+        if (definitionJson == null || definitionJson.isBlank()) {
+            return null;
+        }
+        try {
+            final com.fasterxml.jackson.databind.JsonNode root =
+                    mapper.readTree(definitionJson);
+            final com.fasterxml.jackson.databind.JsonNode n =
+                    root.get("filterExpression");
+            if (n == null || n.isNull()) {
+                return null;
+            }
+            final String v = n.asText(null);
+            return v == null || v.isBlank() ? null : v;
+        } catch (RuntimeException | java.io.IOException ex) {
+            return null;
+        }
     }
 
     /** Parse the dimensions array out of a stored definition JSON

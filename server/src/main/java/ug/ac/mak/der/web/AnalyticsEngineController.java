@@ -32,6 +32,7 @@ import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
 import ug.ac.mak.der.analytics.engine.AnalyticsIngestionService;
 import ug.ac.mak.der.analytics.engine.AnalyticsPeriodEnumerator;
 import ug.ac.mak.der.analytics.engine.OptionSetLookup;
+import ug.ac.mak.der.analytics.engine.ProgramIndicatorSyncService;
 import ug.ac.mak.der.analytics.expression.ExpressionCompiler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -73,6 +74,7 @@ public class AnalyticsEngineController {
     private final AnalyticsDefinitionService definitions;
     private final OptionSetLookup optionSets;
     private final ObjectMapper jsonMapper;
+    private final ProgramIndicatorSyncService piSync;
 
     public AnalyticsEngineController(final AnalyticsEngineRepository repo,
                                       final AnalyticsPeriodEnumerator periods,
@@ -81,7 +83,8 @@ public class AnalyticsEngineController {
                                       final ExpressionCompiler compiler,
                                       final AnalyticsDefinitionService definitions,
                                       final OptionSetLookup optionSets,
-                                      final ObjectMapper jsonMapper) {
+                                      final ObjectMapper jsonMapper,
+                                      final ProgramIndicatorSyncService piSync) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -90,6 +93,7 @@ public class AnalyticsEngineController {
         this.definitions = Objects.requireNonNull(definitions, "definitions");
         this.optionSets = Objects.requireNonNull(optionSets, "optionSets");
         this.jsonMapper = Objects.requireNonNull(jsonMapper, "jsonMapper");
+        this.piSync = Objects.requireNonNull(piSync, "piSync");
     }
 
     /* ─────────────── /capabilities ─────────────── */
@@ -444,6 +448,44 @@ public class AnalyticsEngineController {
                     "code", "RESERVED_CODE",
                     "message", ex.getMessage()));
         }
+    }
+
+    /* ─────────────── /admin/import-program-indicators ─────────────── */
+
+    public record ImportPIRequest(String programUid) { }
+
+    @PostMapping("/admin/import-program-indicators")
+    public ResponseEntity<Map<String, Object>> importProgramIndicators(
+            @RequestBody(required = false) final ImportPIRequest request,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN",
+                    "message", "PI import requires ADMIN"));
+        }
+        final ProgramIndicatorSyncService.ImportScope scope =
+                new ProgramIndicatorSyncService.ImportScope(
+                        request == null ? null : request.programUid());
+        final ProgramIndicatorSyncService.ImportSummary summary =
+                piSync.importAll(scope);
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("scanned", summary.scanned());
+        body.put("outcomeCounts", summary.outcomeCounts());
+        body.put("items", summary.items().stream().map(i -> {
+            final Map<String, Object> m = new LinkedHashMap<>();
+            m.put("sourceUid", i.sourceUid());
+            m.put("code", i.code());
+            m.put("outcome", i.outcome().name());
+            if (i.message() != null) {
+                m.put("message", i.message());
+            }
+            return m;
+        }).toList());
+        body.put("completedAt", Instant.now().toString());
+        return ResponseEntity.ok(body);
     }
 
     private static Map<String, Object> definitionResponse(

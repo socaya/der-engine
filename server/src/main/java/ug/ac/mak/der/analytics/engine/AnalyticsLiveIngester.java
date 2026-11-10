@@ -160,8 +160,18 @@ public class AnalyticsLiveIngester {
                 continue;
             }
             try {
-                final Object value = new Evaluator(ctx)
-                        .eval(Parser.parse(expr));
+                // Phase 4c — evaluate filter (if any) first; skip if
+                // false/null.
+                final String filterExpr = AnalyticsDefinitionService
+                        .parseFilterExpression(jsonMapper, body);
+                final Evaluator ev = new Evaluator(ctx);
+                if (filterExpr != null && !filterExpr.isBlank()) {
+                    final Object fv = ev.eval(Parser.parse(filterExpr));
+                    if (!isTruthy(fv)) {
+                        continue;
+                    }
+                }
+                final Object value = ev.eval(Parser.parse(expr));
                 final List<AnalyticsDimension> dims =
                         AnalyticsDefinitionService.parseDimensions(
                                 jsonMapper, body);
