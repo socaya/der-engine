@@ -13,6 +13,7 @@ import java.util.UUID;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +26,7 @@ import ug.ac.mak.der.analytics.engine.AnalyticsCapabilities;
 import ug.ac.mak.der.analytics.engine.AnalyticsCell;
 import ug.ac.mak.der.analytics.engine.AnalyticsContributionRepository;
 import ug.ac.mak.der.analytics.engine.AnalyticsDefinition;
+import ug.ac.mak.der.analytics.engine.AnalyticsDefinitionService;
 import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
 import ug.ac.mak.der.analytics.engine.AnalyticsIngestionService;
 import ug.ac.mak.der.analytics.engine.AnalyticsPeriodEnumerator;
@@ -64,17 +66,20 @@ public class AnalyticsEngineController {
     private final AnalyticsIngestionService ingestion;
     private final AnalyticsContributionRepository contributions;
     private final ExpressionCompiler compiler;
+    private final AnalyticsDefinitionService definitions;
 
     public AnalyticsEngineController(final AnalyticsEngineRepository repo,
                                       final AnalyticsPeriodEnumerator periods,
                                       final AnalyticsIngestionService ingestion,
                                       final AnalyticsContributionRepository contributions,
-                                      final ExpressionCompiler compiler) {
+                                      final ExpressionCompiler compiler,
+                                      final AnalyticsDefinitionService definitions) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
         this.compiler = Objects.requireNonNull(compiler, "compiler");
+        this.definitions = Objects.requireNonNull(definitions, "definitions");
     }
 
     /* ─────────────── /capabilities ─────────────── */
@@ -311,6 +316,106 @@ public class AnalyticsEngineController {
         body.put("parsed", r.parsed());
         body.put("reportedAt", Instant.now().toString());
         return ResponseEntity.ok(body);
+    }
+
+    /* ─────────────── /admin/definitions — CRUD ─────────────── */
+
+    @PostMapping("/admin/definitions")
+    public ResponseEntity<Map<String, Object>> createDefinition(
+            @RequestBody(required = false)
+            final AnalyticsDefinitionService.CreateRequest request,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN",
+                    "message", "definition CRUD requires ADMIN"));
+        }
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "BODY_REQUIRED",
+                    "message", "request body is required"));
+        }
+        final AnalyticsDefinitionService.CreateResult result =
+                definitions.create(request);
+        return switch (result.outcome()) {
+            case CREATED -> ResponseEntity.status(201).body(
+                    definitionResponse(result));
+            case UNSUPPORTED -> ResponseEntity.status(422).body(
+                    definitionResponse(result));
+            case PARSE_ERROR -> ResponseEntity.badRequest().body(
+                    definitionResponse(result));
+            case CODE_TAKEN -> ResponseEntity.status(409).body(
+                    definitionResponse(result));
+            case VALIDATION_ERROR -> ResponseEntity.badRequest().body(
+                    definitionResponse(result));
+        };
+    }
+
+    @DeleteMapping("/admin/definitions/{id}")
+    public ResponseEntity<Map<String, Object>> deprecateDefinition(
+            @PathVariable final String id,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN",
+                    "message", "definition deprecate requires ADMIN"));
+        }
+        final java.util.UUID uuid;
+        try {
+            uuid = java.util.UUID.fromString(id);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INVALID_ID",
+                    "message", "definition id must be a UUID"));
+        }
+        try {
+            final boolean ok = definitions.deprecate(uuid);
+            if (!ok) {
+                return ResponseEntity.status(404).body(Map.of(
+                        "code", "METRIC_NOT_FOUND",
+                        "message", "no analytics definition for '"
+                                + id + "'"));
+            }
+            return ResponseEntity.ok(Map.of(
+                    "id", id, "supportState", "DEPRECATED"));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(409).body(Map.of(
+                    "code", "RESERVED_CODE",
+                    "message", ex.getMessage()));
+        }
+    }
+
+    private static Map<String, Object> definitionResponse(
+            final AnalyticsDefinitionService.CreateResult result) {
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("outcome", result.outcome().name());
+        if (result.definition() != null) {
+            body.put("definition",
+                    definitionJson(result.definition()));
+        }
+        if (result.compile() != null) {
+            body.put("supportState",
+                    result.compile().supportState().name());
+            body.put("diagnostics", result.compile().diagnostics());
+            body.put("referencedDataElements",
+                    result.compile().referencedDataElements());
+            body.put("referencedAttributes",
+                    result.compile().referencedAttributes());
+            body.put("referencedVariables",
+                    result.compile().referencedVariables());
+            body.put("referencedFunctions",
+                    result.compile().referencedFunctions());
+        }
+        if (!result.validationErrors().isEmpty()) {
+            body.put("validationErrors", result.validationErrors());
+        }
+        return body;
     }
 
     @PostMapping("/admin/recompute")

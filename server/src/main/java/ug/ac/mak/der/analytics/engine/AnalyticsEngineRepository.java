@@ -113,6 +113,20 @@ public class AnalyticsEngineRepository {
                 definitionJson == null ? "{}" : definitionJson);
     }
 
+    /** Mark a definition's support state (READY / UNSUPPORTED /
+     *  DEPRECATED / PARSED / IMPORTED) with an optional reason.
+     *  Used by the admin deprecate endpoint + future recompile
+     *  flows when metadata changes invalidate a prior AST. */
+    public int updateSupportState(final UUID id, final String supportState,
+                                    final String reason) {
+        return jdbc.update(
+                "UPDATE der.analytics_definition "
+              + "   SET support_state = ?, unsupported_reason = ?, "
+              + "       updated_at = now() "
+              + " WHERE id = ?",
+                supportState, reason, id);
+    }
+
     /* ─────── Cell projection ─────── */
 
     public List<AnalyticsCell> queryCells(final CellQuery q) {

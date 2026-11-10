@@ -29,6 +29,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import ug.ac.mak.der.analytics.engine.AnalyticsCell;
 import ug.ac.mak.der.analytics.engine.AnalyticsContributionRepository;
 import ug.ac.mak.der.analytics.engine.AnalyticsDefinition;
+import ug.ac.mak.der.analytics.engine.AnalyticsDefinitionService;
 import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
 import ug.ac.mak.der.analytics.engine.AnalyticsIngestionService;
 import ug.ac.mak.der.analytics.engine.AnalyticsPeriodEnumerator;
@@ -49,6 +50,7 @@ class AnalyticsEngineControllerTest {
     @MockBean AnalyticsIngestionService ingestion;
     @MockBean AnalyticsContributionRepository contributions;
     @MockBean ExpressionCompiler compiler;
+    @MockBean AnalyticsDefinitionService definitions;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -350,6 +352,161 @@ class AnalyticsEngineControllerTest {
                 .andExpect(jsonPath("$.supportState").value("PARSE_ERROR"))
                 .andExpect(jsonPath("$.diagnostics[0]")
                         .value("unexpected end of expression"));
+    }
+
+    @Test
+    void createDefinitionRequiresAdmin() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/definitions")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType("application/json")
+                        .content("{\"code\":\"X\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void createDefinitionReturns201OnReady() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(definitions.create(any())).thenReturn(
+                new AnalyticsDefinitionService.CreateResult(
+                        AnalyticsDefinitionService.CreateOutcome.CREATED,
+                        new AnalyticsDefinition(id, null, "MY", "My", 1,
+                                "h", "EVENT", "COUNT", null, List.of(),
+                                "EVENT_DATE", "EVENT_ORG_UNIT", "READY",
+                                null, null, null, null),
+                        new ExpressionCompiler.CompileResult(
+                                null,
+                                ExpressionCompiler.SupportState.READY,
+                                List.of(),
+                                java.util.Set.of("DE1"),
+                                java.util.Set.of(), java.util.Set.of(),
+                                java.util.Set.of(),
+                                java.util.Set.of("d2:count")),
+                        List.of()));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/definitions")
+                        .with(as(EdgeRole.ADMIN))
+                        .contentType("application/json")
+                        .content("{\"code\":\"MY\",\"displayName\":\"My\","
+                                + "\"analyticsType\":\"EVENT\","
+                                + "\"aggregationType\":\"COUNT\","
+                                + "\"dateAnchor\":\"EVENT_DATE\","
+                                + "\"orgUnitAnchor\":\"EVENT_ORG_UNIT\","
+                                + "\"expression\":\"d2:count(#{DE1})\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.outcome").value("CREATED"))
+                .andExpect(jsonPath("$.definition.code").value("MY"))
+                .andExpect(jsonPath("$.supportState").value("READY"));
+    }
+
+    @Test
+    void createDefinition422OnUnsupported() throws Exception {
+        when(definitions.create(any())).thenReturn(
+                new AnalyticsDefinitionService.CreateResult(
+                        AnalyticsDefinitionService.CreateOutcome.UNSUPPORTED,
+                        null,
+                        new ExpressionCompiler.CompileResult(
+                                null,
+                                ExpressionCompiler.SupportState.UNSUPPORTED,
+                                List.of("unsupported function 'd2:nope'"),
+                                java.util.Set.of(), java.util.Set.of(),
+                                java.util.Set.of(), java.util.Set.of(),
+                                java.util.Set.of("d2:nope")),
+                        List.of()));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/definitions")
+                        .with(as(EdgeRole.ADMIN))
+                        .contentType("application/json")
+                        .content("{\"code\":\"X\"}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.outcome").value("UNSUPPORTED"));
+    }
+
+    @Test
+    void createDefinition400OnParseError() throws Exception {
+        when(definitions.create(any())).thenReturn(
+                new AnalyticsDefinitionService.CreateResult(
+                        AnalyticsDefinitionService.CreateOutcome.PARSE_ERROR,
+                        null,
+                        new ExpressionCompiler.CompileResult(null,
+                                ExpressionCompiler.SupportState.PARSE_ERROR,
+                                List.of("unexpected end of expression"),
+                                java.util.Set.of(), java.util.Set.of(),
+                                java.util.Set.of(), java.util.Set.of(),
+                                java.util.Set.of()),
+                        List.of()));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/definitions")
+                        .with(as(EdgeRole.ADMIN))
+                        .contentType("application/json")
+                        .content("{\"code\":\"X\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.outcome").value("PARSE_ERROR"));
+    }
+
+    @Test
+    void createDefinition409OnCodeTaken() throws Exception {
+        when(definitions.create(any())).thenReturn(
+                new AnalyticsDefinitionService.CreateResult(
+                        AnalyticsDefinitionService.CreateOutcome.CODE_TAKEN,
+                        null, null, List.of("code 'X' already exists")));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/definitions")
+                        .with(as(EdgeRole.ADMIN))
+                        .contentType("application/json")
+                        .content("{\"code\":\"X\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.outcome").value("CODE_TAKEN"));
+    }
+
+    @Test
+    void deleteDefinitionRequiresAdmin() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request
+                        .MockMvcRequestBuilders.delete(
+                        "/edge-api/v1/analytics/v1/admin/definitions/"
+                                + UUID.randomUUID())
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleteDefinitionOk() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(definitions.deprecate(id)).thenReturn(true);
+        mockMvc.perform(org.springframework.test.web.servlet.request
+                        .MockMvcRequestBuilders.delete(
+                        "/edge-api/v1/analytics/v1/admin/definitions/" + id)
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.supportState").value("DEPRECATED"));
+    }
+
+    @Test
+    void deleteDefinition404WhenMissing() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(definitions.deprecate(id)).thenReturn(false);
+        mockMvc.perform(org.springframework.test.web.servlet.request
+                        .MockMvcRequestBuilders.delete(
+                        "/edge-api/v1/analytics/v1/admin/definitions/" + id)
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteDefinition409OnReservedCode() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(definitions.deprecate(id)).thenThrow(
+                new IllegalStateException(
+                        "cannot deprecate built-in metric"));
+        mockMvc.perform(org.springframework.test.web.servlet.request
+                        .MockMvcRequestBuilders.delete(
+                        "/edge-api/v1/analytics/v1/admin/definitions/" + id)
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void deleteDefinition400OnBadId() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request
+                        .MockMvcRequestBuilders.delete(
+                        "/edge-api/v1/analytics/v1/admin/definitions/not-a-uuid")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
