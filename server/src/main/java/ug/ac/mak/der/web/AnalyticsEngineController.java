@@ -37,6 +37,7 @@ import ug.ac.mak.der.analytics.engine.ProgramIndicatorSyncService;
 import ug.ac.mak.der.analytics.expression.ExpressionCompiler;
 import java.util.Optional;
 
+import ug.ac.mak.der.analytics.drilldown.AnalyticsDrilldownService;
 import ug.ac.mak.der.analytics.publication.PublicationMapping;
 import ug.ac.mak.der.analytics.publication.PublicationProposal;
 import ug.ac.mak.der.analytics.publication.PublicationProposalService;
@@ -85,6 +86,7 @@ public class AnalyticsEngineController {
     private final PublicationProposalService publication;
     private final PublicationRepository publicationRepo;
     private final AnalyticsObservability metrics;
+    private final AnalyticsDrilldownService drilldown;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -106,7 +108,8 @@ public class AnalyticsEngineController {
                                       final ProgramIndicatorSyncService piSync,
                                       final PublicationProposalService publication,
                                       final PublicationRepository publicationRepo,
-                                      final AnalyticsObservability metrics) {
+                                      final AnalyticsObservability metrics,
+                                      final AnalyticsDrilldownService drilldown) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -120,6 +123,7 @@ public class AnalyticsEngineController {
         this.publicationRepo = Objects.requireNonNull(publicationRepo,
                 "publicationRepo");
         this.metrics = Objects.requireNonNull(metrics, "metrics");
+        this.drilldown = Objects.requireNonNull(drilldown, "drilldown");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -655,6 +659,66 @@ public class AnalyticsEngineController {
         // distinction will emerge in Phase 2 when timeseries picks up
         // partial-period flags + period alignment logic (AN-FR-033).
         return query(body, auth);
+    }
+
+    /* ─────────────── /drilldown ─────────────── */
+
+    public record DrilldownBody(
+            String metricId,
+            String periodKey,
+            String orgUnitUid,
+            String dimensionKey,
+            String purpose,
+            Integer limit) { }
+
+    /** Spec §11 drilldown + privacy contract. Returns authorised
+     *  source contributions for a specific materialised cell.
+     *  Suppressed cells, unauthorised roles and unknown cells all
+     *  land here with an audit row written before the response. */
+    @PostMapping("/drilldown")
+    public ResponseEntity<Map<String, Object>> drilldown(
+            @RequestBody(required = false) final DrilldownBody body,
+            final jakarta.servlet.http.HttpServletRequest request,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (body == null || body.metricId() == null
+                || body.periodKey() == null || body.orgUnitUid() == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INVALID_REQUEST",
+                    "message", "metricId, periodKey, orgUnitUid required"));
+        }
+        final UUID metricId;
+        try {
+            metricId = UUID.fromString(body.metricId());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INVALID_ID"));
+        }
+        final EdgeRole role = principal.user().roles().contains(EdgeRole.ADMIN)
+                ? EdgeRole.ADMIN
+                : principal.user().roles().contains(EdgeRole.REVIEWER)
+                        ? EdgeRole.REVIEWER
+                        : EdgeRole.OPERATOR;
+        final AnalyticsDrilldownService.Caller caller =
+                new AnalyticsDrilldownService.Caller(
+                        principal.user().userId(), role,
+                        request == null ? null : request.getRemoteAddr());
+        final AnalyticsDrilldownService.Request r =
+                new AnalyticsDrilldownService.Request(
+                        metricId, body.periodKey(), body.orgUnitUid(),
+                        body.dimensionKey(), body.purpose(),
+                        body.limit() == null ? 0 : body.limit());
+        final AnalyticsDrilldownService.Result result =
+                drilldown.drilldown(caller, r);
+        final int status = switch (result.outcome()) {
+            case OK, SUPPRESSED -> 200;
+            case UNAUTHORISED -> 403;
+            case METRIC_NOT_FOUND, CELL_NOT_FOUND -> 404;
+        };
+        return ResponseEntity.status(status)
+                .body(AnalyticsDrilldownService.asMap(result));
     }
 
     /* ─────────────── /quality ─────────────── */

@@ -57,6 +57,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.publication.PublicationProposalService publication;
     @MockBean ug.ac.mak.der.analytics.publication.PublicationRepository publicationRepo;
     @MockBean ug.ac.mak.der.analytics.engine.AnalyticsObservability metrics;
+    @MockBean ug.ac.mak.der.analytics.drilldown.AnalyticsDrilldownService drilldown;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -114,6 +115,68 @@ class AnalyticsEngineControllerTest {
                 .andExpect(jsonPath("$.count").value(2))
                 .andExpect(jsonPath("$.periods[0].id").value("202601"))
                 .andExpect(jsonPath("$.periods[1].endDate").value("2026-02-28"));
+    }
+
+    @Test
+    void drilldownRequiresAuth() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/drilldown"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void drilldownRejectsInvalidBody() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/drilldown")
+                        .contentType("application/json")
+                        .content("{}")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void drilldownForbiddenForOperator() throws Exception {
+        final UUID auditId = UUID.randomUUID();
+        when(drilldown.drilldown(any(), any()))
+                .thenReturn(new ug.ac.mak.der.analytics.drilldown
+                        .AnalyticsDrilldownService.Result(auditId,
+                        ug.ac.mak.der.analytics.drilldown
+                                .AnalyticsDrilldownService.DrilldownOutcome.UNAUTHORISED,
+                        false, 0, List.of(), "role OPERATOR not permitted"));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/drilldown")
+                        .contentType("application/json")
+                        .content("{\"metricId\":\"" + UUID.randomUUID()
+                                + "\",\"periodKey\":\"202611\","
+                                + "\"orgUnitUid\":\"OU-A\"}")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.outcome").value("UNAUTHORISED"));
+    }
+
+    @Test
+    void drilldownReturnsRowsForReviewer() throws Exception {
+        final UUID metricId = UUID.randomUUID();
+        when(drilldown.drilldown(any(), any()))
+                .thenReturn(new ug.ac.mak.der.analytics.drilldown
+                        .AnalyticsDrilldownService.Result(UUID.randomUUID(),
+                        ug.ac.mak.der.analytics.drilldown
+                                .AnalyticsDrilldownService.DrilldownOutcome.OK,
+                        false, 1,
+                        List.of(new ug.ac.mak.der.analytics.drilldown
+                                .AnalyticsDrilldownService.SourceRow(
+                                "ev-1", "EVENT",
+                                java.time.LocalDate.of(2026, 11, 3),
+                                "COMPLETED", "OU-A", "PS-UID", "pt-abc123")),
+                        null));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/drilldown")
+                        .contentType("application/json")
+                        .content("{\"metricId\":\"" + metricId
+                                + "\",\"periodKey\":\"202611\","
+                                + "\"orgUnitUid\":\"OU-A\"}")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.outcome").value("OK"))
+                .andExpect(jsonPath("$.rowCount").value(1))
+                .andExpect(jsonPath("$.rows[0].maskedSubjectId").value("pt-abc123"));
     }
 
     @Test

@@ -284,6 +284,30 @@ public class AnalyticsEngineRepository {
 
     /** Delete a materialised cell — used when the last contribution
      *  for a cell is retracted so the UI stops showing stale zeros. */
+    /** Single-cell lookup for drilldown (§11). Returns empty when the
+     *  cell hasn't been materialised. */
+    public Optional<AnalyticsCell> findCell(final UUID metricId,
+                                              final int definitionVersion,
+                                              final String periodKey,
+                                              final String orgUnitUid,
+                                              final String dimensionKey) {
+        try {
+            return Optional.ofNullable(jdbc.queryForObject(
+                    "SELECT metric_id, definition_version, period_key, "
+                  + "       org_unit_uid, dimension_key, count_value, "
+                  + "       sum_value, value, numerator, denominator, "
+                  + "       freshness_at, quality_state "
+                  + "  FROM der.analytics_cell "
+                  + " WHERE metric_id = ? AND definition_version = ? "
+                  + "   AND period_key = ? AND org_unit_uid = ? "
+                  + "   AND dimension_key = ?",
+                    CELL_MAPPER, metricId, definitionVersion, periodKey,
+                    orgUnitUid, dimensionKey == null ? "" : dimensionKey));
+        } catch (org.springframework.dao.EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
     public int deleteCell(final UUID metricId, final int definitionVersion,
                             final String periodKey, final String orgUnitUid,
                             final String dimensionKey) {
