@@ -27,8 +27,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import ug.ac.mak.der.analytics.engine.AnalyticsCell;
+import ug.ac.mak.der.analytics.engine.AnalyticsContributionRepository;
 import ug.ac.mak.der.analytics.engine.AnalyticsDefinition;
 import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
+import ug.ac.mak.der.analytics.engine.AnalyticsIngestionService;
 import ug.ac.mak.der.analytics.engine.AnalyticsPeriodEnumerator;
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeSession;
@@ -43,6 +45,8 @@ class AnalyticsEngineControllerTest {
     @Autowired MockMvc mockMvc;
     @MockBean AnalyticsEngineRepository repo;
     @MockBean AnalyticsPeriodEnumerator periods;
+    @MockBean AnalyticsIngestionService ingestion;
+    @MockBean AnalyticsContributionRepository contributions;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -249,13 +253,62 @@ class AnalyticsEngineControllerTest {
     }
 
     @Test
-    void recomputeReturns202ForAdmin() throws Exception {
+    void recomputeResetsAndIngests() throws Exception {
+        when(ingestion.resetBuiltIns())
+                .thenReturn(java.util.Map.of("DER_EVENT_COUNT", 10));
+        when(ingestion.ingestBuiltIns(any())).thenReturn(List.of(
+                new AnalyticsIngestionService.IngestResult(
+                        "DER_EVENT_COUNT", 100L, 100L, 5L)));
         mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/recompute")
                         .with(as(EdgeRole.ADMIN))
                         .contentType("application/json")
-                        .content("{\"scope\":\"OPPI0001\"}"))
-                .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.status").value("ACCEPTED"))
-                .andExpect(jsonPath("$.phase").value("PHASE_1_NO_MATERIALIZER"));
+                        .content("{\"orgUnit\":\"OU-A\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("OK"))
+                .andExpect(jsonPath("$.resetContributions.DER_EVENT_COUNT")
+                        .value(10))
+                .andExpect(jsonPath("$.results[0].metricCode")
+                        .value("DER_EVENT_COUNT"))
+                .andExpect(jsonPath("$.results[0].rowsScanned").value(100))
+                .andExpect(jsonPath("$.results[0].cellsMaterialised").value(5));
+    }
+
+    @Test
+    void ingestRequiresAdmin() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/ingest")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void ingestRunsWithoutReset() throws Exception {
+        when(ingestion.ingestBuiltIns(any())).thenReturn(List.of(
+                new AnalyticsIngestionService.IngestResult(
+                        "DER_ENROLLMENT_COUNT", 50L, 50L, 3L)));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/ingest")
+                        .with(as(EdgeRole.ADMIN))
+                        .contentType("application/json")
+                        .content("{\"fromDate\":\"2026-10-01\","
+                                + "\"toDate\":\"2026-11-10\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("OK"))
+                // ingest without reset — resetContributions is null
+                .andExpect(jsonPath("$.resetContributions").doesNotExist())
+                .andExpect(jsonPath("$.results[0].metricCode")
+                        .value("DER_ENROLLMENT_COUNT"));
+    }
+
+    @Test
+    void qualityReportsContributionsTotal() throws Exception {
+        when(repo.qualityCounts()).thenReturn(java.util.Map.of(
+                "VERIFIED", 5));
+        when(repo.allCursors()).thenReturn(java.util.Map.of());
+        when(contributions.countAll()).thenReturn(42L);
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/quality")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contributionsTotal").value(42));
     }
 }

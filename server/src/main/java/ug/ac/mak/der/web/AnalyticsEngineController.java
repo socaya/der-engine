@@ -23,8 +23,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.analytics.engine.AnalyticsCapabilities;
 import ug.ac.mak.der.analytics.engine.AnalyticsCell;
+import ug.ac.mak.der.analytics.engine.AnalyticsContributionRepository;
 import ug.ac.mak.der.analytics.engine.AnalyticsDefinition;
 import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
+import ug.ac.mak.der.analytics.engine.AnalyticsIngestionService;
 import ug.ac.mak.der.analytics.engine.AnalyticsPeriodEnumerator;
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
@@ -58,11 +60,17 @@ public class AnalyticsEngineController {
 
     private final AnalyticsEngineRepository repo;
     private final AnalyticsPeriodEnumerator periods;
+    private final AnalyticsIngestionService ingestion;
+    private final AnalyticsContributionRepository contributions;
 
     public AnalyticsEngineController(final AnalyticsEngineRepository repo,
-                                      final AnalyticsPeriodEnumerator periods) {
+                                      final AnalyticsPeriodEnumerator periods,
+                                      final AnalyticsIngestionService ingestion,
+                                      final AnalyticsContributionRepository contributions) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
+        this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
+        this.contributions = Objects.requireNonNull(contributions, "contributions");
     }
 
     /* ─────────────── /capabilities ─────────────── */
@@ -241,6 +249,7 @@ public class AnalyticsEngineController {
         }
         final Map<String, Object> body = new LinkedHashMap<>();
         body.put("qualityCounts", repo.qualityCounts());
+        body.put("contributionsTotal", contributions.countAll());
         body.put("sourceCursors", repo.allCursors());
         body.put("reportedAt", Instant.now().toString());
         return ResponseEntity.ok(body);
@@ -264,28 +273,71 @@ public class AnalyticsEngineController {
         return ResponseEntity.ok(body);
     }
 
+    public record IngestRequest(
+            String orgUnit, String program,
+            String fromDate, String toDate) { }
+
     @PostMapping("/admin/recompute")
     public ResponseEntity<Map<String, Object>> recompute(
-            @RequestBody(required = false) final Map<String, Object> request,
+            @RequestBody(required = false) final IngestRequest request,
             final Authentication auth) {
+        return runIngestion(request, auth, true);
+    }
+
+    @PostMapping("/admin/ingest")
+    public ResponseEntity<Map<String, Object>> ingest(
+            @RequestBody(required = false) final IngestRequest request,
+            final Authentication auth) {
+        return runIngestion(request, auth, false);
+    }
+
+    private ResponseEntity<Map<String, Object>> runIngestion(
+            final IngestRequest request, final Authentication auth,
+            final boolean resetFirst) {
         if (!(auth instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
         }
         if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
             return ResponseEntity.status(403).body(Map.of(
                     "code", "FORBIDDEN",
-                    "message", "recompute requires ADMIN"));
+                    "message", "analytics ingestion requires ADMIN"));
         }
-        // Phase 1 can't actually recompute — the materializer lands
-        // in Phase 2. Return 202 so the client's retry loop treats
-        // the ask as "accepted, work queued" rather than a hard error.
+        final AnalyticsIngestionService.IngestScope scope =
+                new AnalyticsIngestionService.IngestScope(
+                        request == null ? null : request.orgUnit(),
+                        request == null ? null : request.program(),
+                        parseDate(request == null ? null : request.fromDate()),
+                        parseDate(request == null ? null : request.toDate()));
+        Map<String, Integer> reset = null;
+        if (resetFirst) {
+            reset = ingestion.resetBuiltIns();
+        }
+        final List<AnalyticsIngestionService.IngestResult> results =
+                ingestion.ingestBuiltIns(scope);
         final Map<String, Object> body = new LinkedHashMap<>();
-        body.put("status", "ACCEPTED");
-        body.put("phase", "PHASE_1_NO_MATERIALIZER");
-        body.put("message", "recompute queued; executed when the Phase-2 "
-                + "materializer lands");
-        body.put("requestedScope", request == null ? Map.of() : request);
-        return ResponseEntity.status(202).body(body);
+        body.put("status", "OK");
+        body.put("resetContributions", reset);
+        body.put("results", results.stream().map(r -> {
+            final Map<String, Object> m = new LinkedHashMap<>();
+            m.put("metricCode", r.metricCode());
+            m.put("rowsScanned", r.rowsScanned());
+            m.put("contributionsWritten", r.contributionsWritten());
+            m.put("cellsMaterialised", r.cellsMaterialised());
+            return m;
+        }).toList());
+        body.put("completedAt", Instant.now().toString());
+        return ResponseEntity.ok(body);
+    }
+
+    private static java.time.LocalDate parseDate(final String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return java.time.LocalDate.parse(raw.trim());
+        } catch (java.time.format.DateTimeParseException ex) {
+            return null;
+        }
     }
 
     /* ─────────────── helpers ─────────────── */

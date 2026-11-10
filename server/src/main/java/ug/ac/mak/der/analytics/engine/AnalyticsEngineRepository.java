@@ -213,6 +213,48 @@ public class AnalyticsEngineRepository {
         return jdbc.update("DELETE FROM der.analytics_cell");
     }
 
+    /** Upsert one materialised cell. The materializer calls this
+     *  after aggregating contributions for the cell's key. */
+    public int upsertCell(final AnalyticsCell c) {
+        return jdbc.update(
+                "INSERT INTO der.analytics_cell ("
+              + "  metric_id, definition_version, period_key, "
+              + "  org_unit_uid, dimension_key, count_value, sum_value, "
+              + "  value, numerator_value, denominator_value, "
+              + "  freshness_at, quality_state) "
+              + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), ?) "
+              + "ON CONFLICT (metric_id, definition_version, period_key, "
+              + "              org_unit_uid, dimension_key) "
+              + "DO UPDATE SET "
+              + "  count_value = EXCLUDED.count_value, "
+              + "  sum_value = EXCLUDED.sum_value, "
+              + "  value = EXCLUDED.value, "
+              + "  numerator_value = EXCLUDED.numerator_value, "
+              + "  denominator_value = EXCLUDED.denominator_value, "
+              + "  freshness_at = now(), "
+              + "  quality_state = EXCLUDED.quality_state",
+                c.metricId(), c.definitionVersion(), c.periodKey(),
+                c.orgUnitUid(),
+                c.dimensionKey() == null ? "" : c.dimensionKey(),
+                c.countValue(), c.sumValue(), c.value(),
+                c.numeratorValue(), c.denominatorValue(),
+                c.qualityState() == null ? "PROVISIONAL" : c.qualityState());
+    }
+
+    /** Delete a materialised cell — used when the last contribution
+     *  for a cell is retracted so the UI stops showing stale zeros. */
+    public int deleteCell(final UUID metricId, final int definitionVersion,
+                            final String periodKey, final String orgUnitUid,
+                            final String dimensionKey) {
+        return jdbc.update(
+                "DELETE FROM der.analytics_cell "
+              + " WHERE metric_id = ? AND definition_version = ? "
+              + "   AND period_key = ? AND org_unit_uid = ? "
+              + "   AND dimension_key = ?",
+                metricId, definitionVersion, periodKey, orgUnitUid,
+                dimensionKey == null ? "" : dimensionKey);
+    }
+
     /* ─────── Row mappers ─────── */
 
     private static final RowMapper<AnalyticsDefinition> DEFINITION_MAPPER =
