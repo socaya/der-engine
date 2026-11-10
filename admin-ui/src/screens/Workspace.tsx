@@ -10,7 +10,7 @@ import type { SelectedNode } from '../components/network/types';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /**
- * MockupWorkspace — the single Workspace landing page.
+ * Workspace — the single Workspace landing page.
  *
  * Replaces the old `/` (SystemOverview) + `/dashboard` (DER Server
  * Operations) duplication with one professional dashboard that
@@ -28,7 +28,7 @@ import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
  *
  * Every stat comes from live /edge-api/v1 endpoints — no mocks.
  */
-export function MockupWorkspace(): JSX.Element {
+export function Workspace(): JSX.Element {
   const [h, setH] = useState<edgeApi.HealthResponse | null>(null);
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
   const [c, setC] = useState<edgeApi.CompatSnapshot | null>(null);

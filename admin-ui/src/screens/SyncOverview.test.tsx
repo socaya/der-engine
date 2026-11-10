@@ -23,7 +23,7 @@ vi.mock('../api/edgeApi', async (importOriginal) => {
 });
 
 import * as edgeApi from '../api/edgeApi';
-import { MockupSyncOverview } from './SyncOverview';
+import { SyncOverview } from './SyncOverview';
 
 const workerEnabled: edgeApiTypes.WorkerHealth = {
   enabled: true, lastTick: '2026-11-03T10:00:00Z', lastBatchSize: 0, backlog: {},
@@ -98,13 +98,13 @@ describe('SyncOverview — loading / populated / empty', () => {
     vi.mocked(edgeApi.journalStatsByType).mockReturnValue(new Promise(() => {}));
     vi.mocked(edgeApi.systemInfo).mockReturnValue(new Promise(() => {}));
     vi.mocked(edgeApi.dhis2Ping).mockReturnValue(new Promise(() => {}));
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
   it('renders populated recent-activity rows once APIs resolve', async () => {
     wireHappyPath();
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByTestId('sync-hub')).toBeInTheDocument());
     expect(screen.getByText('Recent activity')).toBeInTheDocument();
     // Each distinct activity row renders its category.
@@ -115,7 +115,7 @@ describe('SyncOverview — loading / populated / empty', () => {
 
   it('shows the "No sync runs yet" row when listJobs returns empty', async () => {
     wireHappyPath({ jobs: [] });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByTestId('sync-hub')).toBeInTheDocument());
     expect(screen.getByText(/No sync runs yet/i)).toBeInTheDocument();
   });
@@ -126,7 +126,7 @@ describe('SyncOverview — loading / populated / empty', () => {
     vi.mocked(edgeApi.journalStatsByType).mockResolvedValue({});
     vi.mocked(edgeApi.systemInfo).mockResolvedValue(sysInfoBase);
     vi.mocked(edgeApi.dhis2Ping).mockResolvedValue(pingReachable);
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     // The hub still renders (allSettled); empty-row visible.
     await waitFor(() => expect(screen.getByTestId('sync-hub')).toBeInTheDocument());
     expect(screen.getByText(/No sync runs yet/i)).toBeInTheDocument();
@@ -136,13 +136,13 @@ describe('SyncOverview — loading / populated / empty', () => {
 describe('SyncOverview — status-bar tone branches', () => {
   it('shows "Paused" when worker is disabled', async () => {
     wireHappyPath({ worker: workerPaused });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByText(/Paused/i)).toBeInTheDocument());
   });
 
   it('shows "Central unavailable" when ping is unreachable', async () => {
     wireHappyPath({ ping: pingUnreachable });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByText(/Central unavailable/i)).toBeInTheDocument());
     expect(screen.getByText(/unreachable/)).toBeInTheDocument();
   });
@@ -151,7 +151,7 @@ describe('SyncOverview — status-bar tone branches', () => {
     wireHappyPath({
       stats: { EVENT: { CONFLICT_REVIEW: 3, PENDING: 0 }, TEI: { RETRYABLE: 1 } },
     });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByText(/Needs attention/i)).toBeInTheDocument());
     // The attention link shows the plural count (4 total).
     expect(screen.getByText(/4 need[s]? attention/)).toBeInTheDocument();
@@ -159,19 +159,19 @@ describe('SyncOverview — status-bar tone branches', () => {
 
   it('shows singular "needs attention" copy for a count of 1', async () => {
     wireHappyPath({ stats: { EVENT: { CENTRAL_REJECTED: 1 } } });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByText(/1 needs attention/)).toBeInTheDocument());
   });
 
   it('shows "waiting" when PENDING/IN_FLIGHT counts are nonzero', async () => {
     wireHappyPath({ stats: { EVENT: { PENDING: 2, IN_FLIGHT: 5 } } });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByText(/7 waiting/)).toBeInTheDocument());
   });
 
   it('shows "Up to date" when all queues are empty and central is reachable', async () => {
     wireHappyPath({ jobs: [jobSuccess] });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByText(/Up to date/i)).toBeInTheDocument());
   });
 
@@ -184,7 +184,7 @@ describe('SyncOverview — status-bar tone branches', () => {
     });
     // Live ping stays pending so livePing.reachable === null.
     vi.mocked(edgeApi.dhis2Ping).mockReturnValue(new Promise(() => {}));
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByTestId('sync-hub')).toBeInTheDocument());
     // sysInfo probe says reachable, so status chip is "Up to date".
     await waitFor(() => expect(screen.getByText(/Up to date/i)).toBeInTheDocument());
@@ -194,14 +194,14 @@ describe('SyncOverview — status-bar tone branches', () => {
 describe('SyncOverview — "last successful sync" subtitle', () => {
   it('says "never" when no job has succeeded', async () => {
     wireHappyPath({ jobs: [jobFailed] });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByText(/Last successful sync/)).toBeInTheDocument());
     expect(screen.getByText('never')).toBeInTheDocument();
   });
 
   it('shows a time-ago value when a SUCCEEDED job exists', async () => {
     wireHappyPath();
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByText(/Last successful sync/)).toBeInTheDocument());
     expect(screen.queryByText('never')).toBeNull();
   });
@@ -210,7 +210,7 @@ describe('SyncOverview — "last successful sync" subtitle', () => {
 describe('SyncOverview — pull / push buttons', () => {
   it('disables pull & push when central is unreachable', async () => {
     wireHappyPath({ ping: pingUnreachable });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByTestId('sync-pull-metadata')).toBeInTheDocument());
     expect(screen.getByTestId('sync-pull-metadata')).toBeDisabled();
     expect(screen.getByTestId('sync-push-data')).toBeDisabled();
@@ -221,7 +221,7 @@ describe('SyncOverview — pull / push buttons', () => {
 
   it('disables push (only) when worker is paused but central is reachable', async () => {
     wireHappyPath({ worker: workerPaused });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByTestId('sync-push-data')).toBeInTheDocument());
     expect(screen.getByTestId('sync-pull-metadata')).not.toBeDisabled();
     expect(screen.getByTestId('sync-push-data')).toBeDisabled();
@@ -232,7 +232,7 @@ describe('SyncOverview — pull / push buttons', () => {
   it('invokes triggerJob with the right Quartz job name when Pull is clicked', async () => {
     wireHappyPath();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByTestId('sync-pull-metadata')).toBeInTheDocument());
     await user.click(screen.getByTestId('sync-pull-metadata'));
     await waitFor(() => expect(edgeApi.triggerJob).toHaveBeenCalledWith('METADATA_SYNC_FULL'));
@@ -243,7 +243,7 @@ describe('SyncOverview — pull / push buttons', () => {
   it('invokes triggerJob("JOURNAL_WORKER_DRAIN") when Push is clicked', async () => {
     wireHappyPath();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByTestId('sync-push-data')).toBeInTheDocument());
     await user.click(screen.getByTestId('sync-push-data'));
     await waitFor(() => expect(edgeApi.triggerJob).toHaveBeenCalledWith('JOURNAL_WORKER_DRAIN'));
@@ -254,7 +254,7 @@ describe('SyncOverview — pull / push buttons', () => {
     wireHappyPath();
     vi.mocked(edgeApi.triggerJob).mockResolvedValueOnce({ error: 'quartz offline' });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByTestId('sync-pull-metadata')).toBeInTheDocument());
     await user.click(screen.getByTestId('sync-pull-metadata'));
     await waitFor(() => expect(screen.getByText(/Failed/)).toBeInTheDocument());
@@ -271,7 +271,7 @@ describe('SyncOverview — pull / push buttons', () => {
     wireHappyPath();
     vi.mocked(edgeApi.triggerJob).mockRejectedValueOnce(new Error('network'));
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByTestId('sync-pull-metadata')).toBeInTheDocument());
     await user.click(screen.getByTestId('sync-pull-metadata'));
     await waitFor(() => expect(screen.getByText(/network/)).toBeInTheDocument());
@@ -281,7 +281,7 @@ describe('SyncOverview — pull / push buttons', () => {
 describe('SyncOverview — activity rows', () => {
   it('renders rows with the status chip derived from job.outcome', async () => {
     wireHappyPath({ jobs: [jobSuccess, jobFailed, jobPartial] });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByText('Recent activity')).toBeInTheDocument());
     // Metadata pull / Data push / Referral check categories visible.
     expect(screen.getByText(/Referral check/i)).toBeInTheDocument();
@@ -292,7 +292,7 @@ describe('SyncOverview — activity rows', () => {
       ...jobSuccess, runId: 200 + i, startedAt: `2026-11-03T0${i % 10}:00:00Z`,
     }));
     wireHappyPath({ jobs: many });
-    renderWithProviders(<MockupSyncOverview />);
+    renderWithProviders(<SyncOverview />);
     await waitFor(() => expect(screen.getByText('Recent activity')).toBeInTheDocument());
     // Metadata-pull category repeats one per row; cap verified via count ≤ 8.
     const cells = screen.getAllByText(/Metadata pull/i);

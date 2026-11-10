@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
-import { MockupAdminTasks } from './AdminTasks';
+import { AdminTasks } from './AdminTasks';
 import * as edgeApi from '../api/edgeApi';
 import type { LifecycleAck, LifecycleLogs, SystemInfo } from '../api/edgeApi';
 
@@ -26,20 +26,20 @@ function systemInfoFixture(): SystemInfo {
   } as unknown as SystemInfo;
 }
 
-describe('MockupAdminTasks', () => {
+describe('AdminTasks', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
   afterEach(() => { vi.restoreAllMocks(); });
 
   it('shows LoadingBlock before systemInfo resolves', () => {
     vi.spyOn(edgeApi, 'systemInfo').mockImplementation(
       () => new Promise(() => undefined /* never resolves */));
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
   it('renders Service control + Sessions + Configuration panels after load', async () => {
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /^shut down$/i }))
         .toBeInTheDocument());
@@ -50,7 +50,7 @@ describe('MockupAdminTasks', () => {
 
   it('stays on LoadingBlock when systemInfo rejects', async () => {
     vi.spyOn(edgeApi, 'systemInfo').mockRejectedValue(new Error('EDGE_UNREACHABLE'));
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     /* AdminTasks guards 'if (!si) return <LoadingBlock>'. A load
      * failure sets err but leaves si null, so LoadingBlock stays
      * — the ErrorBlock in the main body is reserved for ACTION
@@ -63,7 +63,7 @@ describe('MockupAdminTasks', () => {
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
     const shutdown = vi.spyOn(edgeApi, 'adminShutdown').mockResolvedValue(
       { status: 'ACCEPTED', effect: 'SHUTDOWN_SCHEDULED' } as unknown as LifecycleAck);
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /^shut down$/i }));
     const confirmBtn = await screen.findByRole('button',
@@ -76,7 +76,7 @@ describe('MockupAdminTasks', () => {
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
     const restart = vi.spyOn(edgeApi, 'adminRestart').mockResolvedValue(
       { status: 'ACCEPTED', effect: 'RESTART_SCHEDULED' } as unknown as LifecycleAck);
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /^restart$/i }));
     await user.click(await screen.findByRole('button', { name: /yes, restart der/i }));
@@ -87,7 +87,7 @@ describe('MockupAdminTasks', () => {
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
     const clear = vi.spyOn(edgeApi, 'adminClearSessions').mockResolvedValue(
       { status: 'ACCEPTED', effect: 'SESSIONS_CLEARED' } as unknown as LifecycleAck);
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /^clear all sessions$/i }));
     await user.click(await screen.findByRole('button', { name: /yes, revoke all sessions/i }));
@@ -98,7 +98,7 @@ describe('MockupAdminTasks', () => {
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
     const reload = vi.spyOn(edgeApi, 'adminReloadDhis2Config').mockResolvedValue(
       { status: 'ACCEPTED', effect: 'CONFIG_RELOADED' } as unknown as LifecycleAck);
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /^reload dhis2 config$/i }));
     await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
@@ -112,7 +112,7 @@ describe('MockupAdminTasks', () => {
       entries: ['[INFO] boot complete', '[WARN] slow drain'],
       totalLines: 2,
     } as unknown as LifecycleLogs);
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     const user = userEvent.setup();
     const loadBtn = await screen.findByRole('button', { name: /^load$/i });
     await user.click(loadBtn);
@@ -127,7 +127,7 @@ describe('MockupAdminTasks', () => {
       path: '/var/log/missing.log',
       entries: [], totalLines: 0,
     } as unknown as LifecycleLogs);
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /^load$/i }));
     await waitFor(() =>
@@ -143,7 +143,7 @@ describe('MockupAdminTasks', () => {
       error: 'Permission denied',
       entries: [], totalLines: 0,
     } as unknown as LifecycleLogs);
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /^load$/i }));
     await waitFor(() =>
@@ -155,7 +155,7 @@ describe('MockupAdminTasks', () => {
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
     vi.spyOn(edgeApi, 'adminLogs').mockRejectedValue(
       new Error('log fetch denied'));
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /^load$/i }));
     await waitFor(() =>
@@ -166,7 +166,7 @@ describe('MockupAdminTasks', () => {
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
     vi.spyOn(edgeApi, 'adminShutdown').mockRejectedValue(
       new Error('EDGE_UNREACHABLE: socket closed'));
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /^shut down$/i }));
     await user.click(await screen.findByRole('button',
@@ -180,7 +180,7 @@ describe('MockupAdminTasks', () => {
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
     vi.spyOn(edgeApi, 'adminShutdown').mockRejectedValue(
       new Error('generic shutdown error'));
-    renderWithProviders(<MockupAdminTasks />, { authApi });
+    renderWithProviders(<AdminTasks />, { authApi });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /^shut down$/i }));
     await user.click(await screen.findByRole('button',

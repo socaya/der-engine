@@ -19,10 +19,10 @@ import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates
  * right drawer. Data from existing /edge-api/v1 endpoints.
  * ──────────────────────────────────────────────────────────────────── */
 
-/* /sync/jobs merged into /sync/history in der-2.1.36 — see MockupSyncHistory. */
+/* /sync/jobs merged into /sync/history in der-2.1.36 — see SyncHistory. */
 
 /* ─── /sync/drift ────────────────────────────────────────────────── */
-export function MockupDriftInspector(): JSX.Element {
+export function DriftInspector(): JSX.Element {
   const [d, setD] = useState<edgeApi.DriftResponse | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -331,7 +331,7 @@ function priorityFor(r: edgeApi.ConflictRow): 'High' | 'Medium' | 'Low' {
   return 'Low';
 }
 
-export function MockupConflictList(): JSX.Element {
+export function ConflictList(): JSX.Element {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const workflowRunId = searchParams.get('workflowRunId');
@@ -1130,7 +1130,7 @@ function titleCase(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
 
-export function MockupDeviceFleet(): JSX.Element {
+export function DeviceFleet(): JSX.Element {
   const navigate = useNavigate();
   const [rows, setRows] = useState<edgeApi.EdgeDeviceRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -1257,7 +1257,7 @@ export function MockupDeviceFleet(): JSX.Element {
 
 /** `/admin/devices/:deviceId` — per-device details page.
  *  Replaces the former right-side drawer. */
-export function MockupDeviceDetail(): JSX.Element {
+export function DeviceDetail(): JSX.Element {
   const navigate = useNavigate();
   const { deviceId } = useParams<{ deviceId: string }>();
   const [device, setDevice] = useState<edgeApi.EdgeDeviceRow | null>(null);
@@ -1495,7 +1495,7 @@ function DeviceProfileEditor(
 }
 
 /* ─── /approvals ─────────────────────────────────────────────────── */
-export function MockupApprovalQueue(): JSX.Element {
+export function ApprovalQueue(): JSX.Element {
   const navigate = useNavigate();
   const [rows, setRows] = useState<edgeApi.PendingApprovalRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -1578,7 +1578,7 @@ export function MockupApprovalQueue(): JSX.Element {
 }
 
 /** `/admin/approvals/:operationId` */
-export function MockupApprovalDetail(): JSX.Element {
+export function ApprovalDetail(): JSX.Element {
   const { operationId } = useParams<{ operationId: string }>();
   const navigate = useNavigate();
   const [row, setRow] = useState<edgeApi.PendingApprovalRow | null>(null);
@@ -1713,7 +1713,7 @@ export function MockupApprovalDetail(): JSX.Element {
 }
 
 /* ─── /referral/inbox ────────────────────────────────────────────── */
-export function MockupReferralInbox(): JSX.Element {
+export function ReferralInbox(): JSX.Element {
   const navigate = useNavigate();
   const [rows, setRows] = useState<edgeApi.ReferralInboxRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -1822,7 +1822,7 @@ export function MockupReferralInbox(): JSX.Element {
 }
 
 /** `/admin/referral/inbox/:inboxId` */
-export function MockupReferralDetail(): JSX.Element {
+export function ReferralDetail(): JSX.Element {
   const { inboxId } = useParams<{ inboxId: string }>();
   const navigate = useNavigate();
   const [row, setRow] = useState<edgeApi.ReferralInboxRow | null>(null);
@@ -1936,7 +1936,7 @@ export function MockupReferralDetail(): JSX.Element {
  *  table. */
 type BackupSection = 'schedule' | 'pitr' | 'verify' | 'runs';
 
-export function MockupBackupList(): JSX.Element {
+export function BackupList(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const sectionParam = searchParams.get('section');
   const activeSection: BackupSection =
@@ -2329,7 +2329,7 @@ function BackupRunsTable({ rows }: { rows: ReadonlyArray<edgeApi.BackupRow> }): 
 }
 
 /* ─── /restore ───────────────────────────────────────────────────── */
-export function MockupRestoreList(): JSX.Element {
+export function RestoreList(): JSX.Element {
   const [rows, setRows] = useState<edgeApi.RestoreRow[] | null>(null);
   const [backups, setBackups] = useState<edgeApi.BackupRow[]>([]);
   const [verifyHist, setVerifyHist] = useState<edgeApi.BackupVerifyRow[]>([]);
@@ -2578,7 +2578,7 @@ function RestoreRunsTable({ rows }: { rows: ReadonlyArray<edgeApi.RestoreRow> })
 }
 
 /* ─── /compat ────────────────────────────────────────────────────── */
-export function MockupCompatInspector(): JSX.Element {
+export function CompatInspector(): JSX.Element {
   const [c, setC] = useState<edgeApi.CompatSnapshot | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -2630,7 +2630,7 @@ export function MockupCompatInspector(): JSX.Element {
 }
 
 /* ─── /audit/events ──────────────────────────────────────────────── */
-export function MockupAuditEvents(): JSX.Element {
+export function AuditEvents(): JSX.Element {
   const [params] = useSearchParams();
   const category      = params.get('category');
   const deviceFilter  = params.get('device');
@@ -2813,7 +2813,7 @@ export function MockupAuditEvents(): JSX.Element {
 }
 
 /* ─── /analytics ─────────────────────────────────────────────────── */
-export function MockupFacilityAnalytics(): JSX.Element {
+export function FacilityAnalytics(): JSX.Element {
   const [ctx] = useOuContext();
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
   useEffect(() => { edgeApi.systemInfo().then(setSi).catch(() => undefined); }, []);
@@ -2867,7 +2867,7 @@ export { fmtBytes };
  *  edge user, shows the current mapping (or "Unmapped"), and lets
  *  ADMINs set / clear mappings inline. Every mutation lands a
  *  USER_DHIS2_MAPPING_SET / USER_DHIS2_MAPPING_CLEARED audit event. */
-export function MockupDhis2Mappings(): JSX.Element {
+export function Dhis2Mappings(): JSX.Element {
   const [searchParams] = useSearchParams();
   const focusUserId = searchParams.get('user');
   const [users, setUsers] = useState<edgeApi.ProvisionedUser[] | null>(null);
@@ -3187,7 +3187,7 @@ export function MockupDhis2Mappings(): JSX.Element {
  *  operator can grab the archive the moment it completes. */
 const DECOMMISSION_WORD = 'DECOMMISSION';
 
-export function MockupDecommission(): JSX.Element {
+export function Decommission(): JSX.Element {
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -3358,7 +3358,7 @@ const SITE_CONFIG_LABELS: Record<string, { label: string; hint?: string }> = {
       hint: 'When true, central-sync fails unless the WireGuard tunnel is up.' },
 };
 
-export function MockupSiteConfig(): JSX.Element {
+export function SiteConfig(): JSX.Element {
   const [data, setData] = useState<edgeApi.SiteConfigResponse | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
@@ -3520,7 +3520,7 @@ export function MockupSiteConfig(): JSX.Element {
 const CANONICAL_ROLES = ['ADMIN', 'OPERATOR', 'VIEWER'] as const;
 const STALE_HOURS_THRESHOLD = 24 * 7;
 
-export function MockupUserScope(): JSX.Element {
+export function UserScope(): JSX.Element {
   const [data, setData] = useState<{
     users: edgeApi.EdgeUserScopeRow[]; generatedAt: string;
   } | null>(null);
@@ -3717,7 +3717,7 @@ export function MockupUserScope(): JSX.Element {
  *  central split, then layers in the last-50 jobs summary + current
  *  worker backlog so ADMINs get everything they need on one screen
  *  without chasing between /sync/history and /journal/worker. */
-export function MockupOperationalReport(): JSX.Element {
+export function OperationalReport(): JSX.Element {
   const [report, setReport] = useState<edgeApi.OperationalReport | null>(null);
   const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
   const [worker, setWorker] = useState<edgeApi.WorkerHealth | null>(null);
@@ -3928,7 +3928,7 @@ export function MockupOperationalReport(): JSX.Element {
  *  SETTINGS_CHANGED audit event server-side; this screen surfaces
  *  those events alongside so ADMINs can see who changed what and
  *  when without jumping to /audit/events. */
-export function MockupConfigEditor(): JSX.Element {
+export function ConfigEditor(): JSX.Element {
   const [settings, setSettings] = useState<Record<string, string> | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [history, setHistory] = useState<edgeApi.SecurityAuditEvent[]>([]);
@@ -4101,7 +4101,7 @@ export function MockupConfigEditor(): JSX.Element {
  *  via a Blob object URL so the ADMIN session cookie is used
  *  transparently. Each export is server-side audit-logged as
  *  SUPPORT_BUNDLE_EXPORTED. */
-export function MockupSupportBundle(): JSX.Element {
+export function SupportBundle(): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [lastExport, setLastExport] = useState<{
@@ -4216,10 +4216,10 @@ export function MockupSupportBundle(): JSX.Element {
  * EA-29 Audit trail. The security_audit stream is the authoritative
  * admin audit log (hash-chained, append-only, all mutation endpoints
  * emit here). This screen is the paginated/filtered explorer with CSV
- * export; MockupAuditEvents at /audit/events stays for the lighter
+ * export; AuditEvents at /audit/events stays for the lighter
  * system-activity + network-events streams.
  */
-export function MockupSecurityAuditTrail(): JSX.Element {
+export function SecurityAuditTrail(): JSX.Element {
   const [events, setEvents] = useState<edgeApi.AuditEventRow[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [prevCursors, setPrevCursors] = useState<string[]>([]);
@@ -4530,7 +4530,7 @@ interface OperatorMetricsRow {
   attentionCount: number;
 }
 
-export function MockupOperatorMetrics(): JSX.Element {
+export function OperatorMetrics(): JSX.Element {
   const navigate = useNavigate();
   const [users, setUsers] = useState<edgeApi.ProvisionedUser[] | null>(null);
   const [mappings, setMappings] =

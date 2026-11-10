@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
-import { MockupDataManagement } from './DataManagement';
+import { DataManagement } from './DataManagement';
 import * as edgeApi from '../api/edgeApi';
 
 const authApi = {
@@ -30,7 +30,7 @@ function stubAll(): void {
   vi.spyOn(edgeApi, 'listDrafts').mockResolvedValue({ drafts: [] });
 }
 
-describe('MockupDataManagement', () => {
+describe('DataManagement', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
   afterEach(() => { vi.restoreAllMocks(); });
 
@@ -39,19 +39,19 @@ describe('MockupDataManagement', () => {
     vi.spyOn(edgeApi, 'journalStatsByType').mockImplementation(() => new Promise(() => undefined));
     vi.spyOn(edgeApi, 'listJobs').mockImplementation(() => new Promise(() => undefined));
     vi.spyOn(edgeApi, 'listDrafts').mockImplementation(() => new Promise(() => undefined));
-    renderWithProviders(<MockupDataManagement />, { authApi });
+    renderWithProviders(<DataManagement />, { authApi });
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
   it('clears loading once all probes settle', async () => {
     stubAll();
-    renderWithProviders(<MockupDataManagement />, { authApi });
+    renderWithProviders(<DataManagement />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
   });
 
   it('empty records → "No records yet" status label + muted tone', async () => {
     stubAll();
-    renderWithProviders(<MockupDataManagement />, { authApi });
+    renderWithProviders(<DataManagement />, { authApi });
     await waitFor(() =>
       expect(screen.getByText(/No records yet/)).toBeInTheDocument());
   });
@@ -65,7 +65,7 @@ describe('MockupDataManagement', () => {
       TRACKED_ENTITY: { CENTRAL_ACCEPTED: 1 },
       ENROLLMENT: { CENTRAL_ACCEPTED: 1 },
     } as unknown as edgeApi.JournalStatsByType);
-    renderWithProviders(<MockupDataManagement />, { authApi });
+    renderWithProviders(<DataManagement />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('data-type-row-AGGREGATE_DATA_VALUE'))
         .toBeInTheDocument());
@@ -91,7 +91,7 @@ describe('MockupDataManagement', () => {
         PENDING: 0, CENTRAL_ACCEPTED: 42,
       },
     } as unknown as edgeApi.JournalStatsByType);
-    renderWithProviders(<MockupDataManagement />, { authApi });
+    renderWithProviders(<DataManagement />, { authApi });
     await waitFor(() =>
       expect(screen.getAllByText(/captured/).length)
         .toBeGreaterThan(0));
@@ -114,7 +114,7 @@ describe('MockupDataManagement', () => {
           state: 'DRAFT', createdAt: 'now' },
       ],
     } as never);
-    renderWithProviders(<MockupDataManagement />, { authApi });
+    renderWithProviders(<DataManagement />, { authApi });
     await waitFor(() =>
       expect(screen.getByText(/Drafts/)).toBeInTheDocument());
     /* Count surfaces. */
@@ -126,7 +126,7 @@ describe('MockupDataManagement', () => {
     vi.spyOn(edgeApi, 'journalStatsByType').mockRejectedValue(new Error('x'));
     vi.spyOn(edgeApi, 'listJobs').mockRejectedValue(new Error('x'));
     vi.spyOn(edgeApi, 'listDrafts').mockRejectedValue(new Error('x'));
-    renderWithProviders(<MockupDataManagement />, { authApi });
+    renderWithProviders(<DataManagement />, { authApi });
     /* Promise.allSettled swallows; si/stats stay null → LoadingBlock
      * remains. */
     await Promise.resolve();

@@ -16,7 +16,7 @@ import { Dhis2UserPicker } from '../components/Dhis2UserPicker';
  *    ?role=<ADMIN|OPERATOR|…|custom-role-name>  — filter by role grant
  *    ?mapped=yes|no                             — filter by DHIS2 mapping state
  */
-export function MockupUsersDashboard(): JSX.Element {
+export function UsersDashboard(): JSX.Element {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const roleFilter = searchParams.get('role');
@@ -233,7 +233,7 @@ export function MockupUsersDashboard(): JSX.Element {
 
 /** `/admin/provisioning/users/:userId` — per-user details page.
  *  Replaces the former right-side drawer. */
-export function MockupUserDetail(): JSX.Element {
+export function UserDetail(): JSX.Element {
   const { userId } = useParams<{ userId: string }>();
   const [user, setUser] = useState<edgeApi.ProvisionedUser | null>(null);
   const [mapping, setMapping] =
@@ -467,7 +467,7 @@ interface MappingDraft {
   credential: string;
 }
 
-export function MockupUserDhis2Mapping(): JSX.Element {
+export function UserDhis2Mapping(): JSX.Element {
   const { userId } = useParams<{ userId: string }>();
   const [user, setUser] = useState<edgeApi.ProvisionedUser | null>(null);
   const [mapping, setMapping] =

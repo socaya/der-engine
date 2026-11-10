@@ -6,7 +6,7 @@ import { AuthProvider } from '../auth/AuthContext';
 import { renderWithProviders } from '../test/renderWithProviders';
 
 /**
- * MockupSyncHistoryDetail reads `runId` via `useParams`, so the test
+ * SyncHistoryDetail reads `runId` via `useParams`, so the test
  * harness needs a Routes/Route tree with the `:runId` segment — the
  * flat `renderWithProviders` wraps in MemoryRouter but not Routes.
  */
@@ -15,7 +15,7 @@ function renderDetail(route: string): ReturnType<typeof render> {
     <MemoryRouter initialEntries={[route]}>
       <AuthProvider>
         <Routes>
-          <Route path="/sync/history/:runId" element={<MockupSyncHistoryDetail />} />
+          <Route path="/sync/history/:runId" element={<SyncHistoryDetail />} />
         </Routes>
       </AuthProvider>
     </MemoryRouter>,
@@ -47,7 +47,7 @@ vi.mock('../api/edgeApi', async (importOriginal) => {
 });
 
 import * as edgeApi from '../api/edgeApi';
-import { MockupSyncHistory, MockupSyncHistoryDetail } from './SyncHistory';
+import { SyncHistory, SyncHistoryDetail } from './SyncHistory';
 
 const now = Date.parse('2026-11-03T10:00:00Z');
 
@@ -104,7 +104,7 @@ afterEach(() => {
 });
 
 // ───────────────────────────────────────────────────────────────────
-// MockupSyncHistory
+// SyncHistory
 // ───────────────────────────────────────────────────────────────────
 
 describe('SyncHistory — loading / populated / empty', () => {
@@ -112,26 +112,26 @@ describe('SyncHistory — loading / populated / empty', () => {
     vi.mocked(edgeApi.listJobs).mockReturnValue(new Promise(() => {}));
     vi.mocked(edgeApi.getOrgUnitBinding).mockReturnValue(new Promise(() => {}));
     vi.mocked(edgeApi.dhis2Ping).mockReturnValue(new Promise(() => {}));
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
   it('renders the "N runs" status label when jobs resolve', async () => {
     wireHistoryHappy();
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText(/All runs/)).toBeInTheDocument());
     expect(screen.getByText(/5 runs/)).toBeInTheDocument();
   });
 
   it('shows singular "1 run" label when exactly one job exists', async () => {
     wireHistoryHappy([jobSuccess]);
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText('1 run')).toBeInTheDocument());
   });
 
   it('shows the empty-state row when listJobs returns []', async () => {
     wireHistoryHappy([]);
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText(/No matching activity/i)).toBeInTheDocument());
   });
 
@@ -139,7 +139,7 @@ describe('SyncHistory — loading / populated / empty', () => {
     vi.mocked(edgeApi.listJobs).mockRejectedValueOnce(new Error('boom'));
     vi.mocked(edgeApi.getOrgUnitBinding).mockReturnValue(new Promise(() => {}));
     vi.mocked(edgeApi.dhis2Ping).mockReturnValue(new Promise(() => {}));
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     // The internal catch swallows the error but `jobs` stays null, so
     // the loading block persists (no error-banner on this screen).
     await waitFor(() => expect(edgeApi.listJobs).toHaveBeenCalled());
@@ -150,7 +150,7 @@ describe('SyncHistory — loading / populated / empty', () => {
 describe('SyncHistory — status chips', () => {
   it('renders SUCCESS chip for SUCCEEDED and SUCCESS outcomes', async () => {
     wireHistoryHappy();
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText('All runs · 5')).toBeInTheDocument());
     // Both SUCCEEDED and SUCCESS humanise to "Succeeded".
     expect(screen.getAllByText(/Succeeded/i).length).toBeGreaterThanOrEqual(2);
@@ -158,7 +158,7 @@ describe('SyncHistory — status chips', () => {
 
   it('renders FAILED chip for the failed outcome', async () => {
     wireHistoryHappy();
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     // "Failed" shows up in both the status select option list and the
     // row chip itself, so assert ≥1 match via getAllByText.
     await waitFor(() => expect(screen.getAllByText(/Failed/i).length).toBeGreaterThan(0));
@@ -166,7 +166,7 @@ describe('SyncHistory — status chips', () => {
 
   it('shows a direction arrow for in/out jobs (Central ↔ DER)', async () => {
     wireHistoryHappy();
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText('All runs · 5')).toBeInTheDocument());
     // Both "DER" and "Central" tokens appear in the Direction column.
     expect(screen.getAllByText(/Central/i).length).toBeGreaterThan(0);
@@ -175,7 +175,7 @@ describe('SyncHistory — status chips', () => {
 
   it('renders "DER-local" direction for local-only jobs (analytics)', async () => {
     wireHistoryHappy([jobAnalytics]);
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText(/DER-local/i)).toBeInTheDocument());
   });
 });
@@ -184,7 +184,7 @@ describe('SyncHistory — filters & search', () => {
   it('filters by free-text search against jobName / triggeredBy', async () => {
     wireHistoryHappy();
     const user = userEvent.setup();
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText('All runs · 5')).toBeInTheDocument());
     const search = screen.getByPlaceholderText('Search') as HTMLInputElement;
     await user.type(search, 'METADATA');
@@ -193,7 +193,7 @@ describe('SyncHistory — filters & search', () => {
 
   it('filters by type via the type dropdown', async () => {
     wireHistoryHappy();
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText('All runs · 5')).toBeInTheDocument());
     const selects = screen.getAllByRole('combobox');
     // First select is "All types".
@@ -203,7 +203,7 @@ describe('SyncHistory — filters & search', () => {
 
   it('filters by status via the status dropdown', async () => {
     wireHistoryHappy();
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText('All runs · 5')).toBeInTheDocument());
     const selects = screen.getAllByRole('combobox');
     fireEvent.change(selects[1], { target: { value: 'FAILED' } });
@@ -212,7 +212,7 @@ describe('SyncHistory — filters & search', () => {
 
   it('filters by date range (both from/to inclusive)', async () => {
     wireHistoryHappy();
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText('All runs · 5')).toBeInTheDocument());
     const dateInputs = document.querySelectorAll('input[type="date"]');
     // Narrow to one specific day.
@@ -228,7 +228,7 @@ describe('SyncHistory — filters & search', () => {
   it('invokes listJobs again when Refresh is clicked', async () => {
     wireHistoryHappy();
     const user = userEvent.setup();
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText('All runs · 5')).toBeInTheDocument());
     expect(edgeApi.listJobs).toHaveBeenCalledTimes(1);
     await user.click(screen.getByText(/Refresh/));
@@ -239,7 +239,7 @@ describe('SyncHistory — filters & search', () => {
 describe('SyncHistory — row navigation + row menu', () => {
   it('navigates to the run detail route on row click', async () => {
     wireHistoryHappy([jobSuccess]);
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText('All runs · 1')).toBeInTheDocument());
     // The row's category cell carries the row click handler on the <tr>.
     const row = screen.getByText(/Metadata pull/i).closest('tr');
@@ -253,7 +253,7 @@ describe('SyncHistory — row navigation + row menu', () => {
   it('row-menu lists "Open details" plus any related links for the job type', async () => {
     wireHistoryHappy([jobSuccess]);
     const user = userEvent.setup();
-    renderWithProviders(<MockupSyncHistory />);
+    renderWithProviders(<SyncHistory />);
     await waitFor(() => expect(screen.getByText('All runs · 1')).toBeInTheDocument());
     // The <th aria-label="Actions"> on the header and the row's kebab
     // <summary aria-label="Actions"> both match; filter to the summary.
@@ -269,7 +269,7 @@ describe('SyncHistory — row navigation + row menu', () => {
 });
 
 // ───────────────────────────────────────────────────────────────────
-// MockupSyncHistoryDetail
+// SyncHistoryDetail
 // ───────────────────────────────────────────────────────────────────
 
 describe('SyncHistoryDetail — load + error states', () => {

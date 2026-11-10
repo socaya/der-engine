@@ -11,7 +11,7 @@ vi.mock('../api/edgeApi', () => ({
 }));
 
 import * as mockedApi from '../api/edgeApi';
-import { MockupCompatMatrix } from './CompatMatrix';
+import { CompatMatrix } from './CompatMatrix';
 
 function snap(overrides: Partial<edgeApi.CompatSnapshot> = {}): edgeApi.CompatSnapshot {
   return {
@@ -36,7 +36,7 @@ function snap(overrides: Partial<edgeApi.CompatSnapshot> = {}): edgeApi.CompatSn
 function renderScreen(route = '/') {
   return render(
     <MemoryRouter initialEntries={[route]}>
-      <MockupCompatMatrix />
+      <CompatMatrix />
     </MemoryRouter>,
   );
 }
@@ -60,7 +60,7 @@ afterEach(() => {
   if (typeof window !== 'undefined') window.location.hash = '';
 });
 
-describe('MockupCompatMatrix', () => {
+describe('CompatMatrix', () => {
   it('renders loading state before compat + history resolve', () => {
     vi.mocked(mockedApi.compat).mockReturnValue(new Promise(() => undefined));
     renderScreen();

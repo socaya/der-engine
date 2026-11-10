@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
-import { MockupDataQueues, MockupDataDetail } from './DataQueues';
+import { DataQueues, DataDetail } from './DataQueues';
 import * as edgeApi from '../api/edgeApi';
 
 const authApi = {
@@ -34,7 +34,7 @@ function stubAll(): void {
   vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([]);
 }
 
-describe('MockupDataQueues', () => {
+describe('DataQueues', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
   afterEach(() => { vi.restoreAllMocks(); });
 
@@ -43,19 +43,19 @@ describe('MockupDataQueues', () => {
     vi.spyOn(edgeApi, 'systemInfo').mockImplementation(() => new Promise(() => undefined));
     vi.spyOn(edgeApi, 'workerHealth').mockImplementation(() => new Promise(() => undefined));
     vi.spyOn(edgeApi, 'listJobs').mockImplementation(() => new Promise(() => undefined));
-    renderWithProviders(<MockupDataQueues />, { authApi });
+    renderWithProviders(<DataQueues />, { authApi });
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
   it('clears loading once all probes settle', async () => {
     stubAll();
-    renderWithProviders(<MockupDataQueues />, { authApi });
+    renderWithProviders(<DataQueues />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
   });
 
-  it('MockupDataDetail renders a BackLink target when loading a specific op', () => {
+  it('DataDetail renders a BackLink target when loading a specific op', () => {
     vi.spyOn(edgeApi, 'listJournalOperations').mockImplementation(() => new Promise(() => undefined));
-    renderWithProviders(<MockupDataDetail />,
+    renderWithProviders(<DataDetail />,
       { authApi, route: '/admin/data/queue/op-1' });
     /* The detail route lives inside the Queue surface; its loading
      * state is the same LoadingBlock as the list. */
@@ -72,7 +72,7 @@ describe('MockupDataQueues', () => {
         createdAt: '2026-11-01T00:00:00Z',
         updatedAt: '2026-11-02T00:00:00Z' },
     ] as unknown as edgeApi.JournalOperation[]);
-    renderWithProviders(<MockupDataQueues />, { authApi });
+    renderWithProviders(<DataQueues />, { authApi });
     /* The default filter ('ACTIVE') hides Sent rows. Switch to ALL
      * so the row renders. */
     const user = (await import('@testing-library/user-event')).default
@@ -99,7 +99,7 @@ describe('MockupDataQueues', () => {
       enabled: false, probeTimestamp: 'now',
       backlog: {}, lastTick: null, lastBatchSize: 0,
     } as unknown as edgeApi.WorkerHealth);
-    renderWithProviders(<MockupDataQueues />, { authApi });
+    renderWithProviders(<DataQueues />, { authApi });
     await waitFor(() =>
       expect(screen.getByText('Paused')).toBeInTheDocument());
     /* Push button disabled when worker paused. */
@@ -118,7 +118,7 @@ describe('MockupDataQueues', () => {
                buildTime: 'now', dirty: false },
       apps: { installed: 0, enabled: 0, items: [] },
     } as unknown as edgeApi.SystemInfo);
-    renderWithProviders(<MockupDataQueues />, { authApi });
+    renderWithProviders(<DataQueues />, { authApi });
     await waitFor(() =>
       expect(screen.getByText('Central unavailable')).toBeInTheDocument());
   });
@@ -135,7 +135,7 @@ describe('MockupDataQueues', () => {
         attemptCount: 3, lastError: 'rej', nextHopOrgUnitUid: null,
         createdAt: 'now', updatedAt: 'now' },
     ] as unknown as edgeApi.JournalOperation[]);
-    renderWithProviders(<MockupDataQueues />, { authApi });
+    renderWithProviders(<DataQueues />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '')
         .toMatch(/\d need[s]? attention/));
@@ -153,7 +153,7 @@ describe('MockupDataQueues', () => {
         attemptCount: 1, lastError: 'r', nextHopOrgUnitUid: null,
         createdAt: 'now', updatedAt: 'now' },
     ] as unknown as edgeApi.JournalOperation[]);
-    renderWithProviders(<MockupDataQueues />, { authApi });
+    renderWithProviders(<DataQueues />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '')
         .toMatch(/2 waiting/));
@@ -167,7 +167,7 @@ describe('MockupDataQueues', () => {
         attemptCount: 0, lastError: null, nextHopOrgUnitUid: null,
         createdAt: 'now', updatedAt: 'now' },
     ] as unknown as edgeApi.JournalOperation[]);
-    renderWithProviders(<MockupDataQueues />, { authApi });
+    renderWithProviders(<DataQueues />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('data-row-op-active'))
         .toBeInTheDocument());
@@ -182,7 +182,7 @@ describe('MockupDataQueues', () => {
 
   it('empty-backlog state surfaces when items.length === 0', async () => {
     stubAll();
-    renderWithProviders(<MockupDataQueues />, { authApi });
+    renderWithProviders(<DataQueues />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '')
         .toMatch(/outbound queue is empty/));
@@ -195,7 +195,7 @@ describe('MockupDataQueues', () => {
       rowsPurged: 12,
       olderThanDays: 0,
     } as never);
-    renderWithProviders(<MockupDataQueues />, { authApi });
+    renderWithProviders(<DataQueues />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('data-last-cleaned')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/12 row/);
@@ -203,7 +203,7 @@ describe('MockupDataQueues', () => {
 
   it('workflowRunId URL filter surfaces the scoped-filter chip', async () => {
     stubAll();
-    renderWithProviders(<MockupDataQueues />,
+    renderWithProviders(<DataQueues />,
       { authApi, route: '/admin/data/queue?workflowRunId=wfr-abcdef12' });
     await waitFor(() =>
       expect(screen.getByText(/Workflow run wfr-abcd/i))
@@ -222,7 +222,7 @@ describe('MockupDataQueues', () => {
         lastError: null, nextHopOrgUnitUid: null,
         createdAt: '2026-11-01T00:00:00Z', updatedAt: 'now' },
     ] as unknown as edgeApi.JournalOperation[]);
-    renderWithProviders(<MockupDataQueues />,
+    renderWithProviders(<DataQueues />,
       { authApi, route: '/admin/data/queue?type=AGGREGATE_DATA_VALUE' });
     await waitFor(() =>
       expect(screen.getByTestId('data-row-op-agg')).toBeInTheDocument());
@@ -233,7 +233,7 @@ describe('MockupDataQueues', () => {
     expect(typeSelect.value).toBe('AGGREGATE_DATA_VALUE');
   });
 
-  it('MockupDataDetail — populated op renders the overview + response label', async () => {
+  it('DataDetail — populated op renders the overview + response label', async () => {
     vi.spyOn(edgeApi, 'fetchJournalOperation').mockResolvedValue({
       operationId: 'op-1', entityType: 'DATA_VALUE',
       entityRef: 'VAL-1', state: 'CENTRAL_ACCEPTED',
@@ -245,7 +245,7 @@ describe('MockupDataQueues', () => {
     } as unknown as edgeApi.JournalOperation);
     renderWithProviders(
       <Routes><Route path="/admin/data/queue/:operationId"
-                      element={<MockupDataDetail />} /></Routes>,
+                      element={<DataDetail />} /></Routes>,
       { authApi, route: '/admin/data/queue/op-1' });
     await waitFor(() =>
       expect(screen.getByTestId('sync-data-detail')).toBeInTheDocument());
@@ -253,12 +253,12 @@ describe('MockupDataQueues', () => {
     expect(screen.getAllByText('VAL-1').length).toBeGreaterThan(0);
   });
 
-  it('MockupDataDetail — fetchJournalOperation rejection renders error panel', async () => {
+  it('DataDetail — fetchJournalOperation rejection renders error panel', async () => {
     vi.spyOn(edgeApi, 'fetchJournalOperation').mockRejectedValue(
       new Error('operation-not-found'));
     renderWithProviders(
       <Routes><Route path="/admin/data/queue/:operationId"
-                      element={<MockupDataDetail />} /></Routes>,
+                      element={<DataDetail />} /></Routes>,
       { authApi, route: '/admin/data/queue/op-x' });
     await waitFor(() =>
       expect(screen.getByTestId('sync-data-detail-err'))
@@ -266,7 +266,7 @@ describe('MockupDataQueues', () => {
     expect(screen.getByText(/operation-not-found/)).toBeInTheDocument();
   });
 
-  it('MockupDataDetail — Payload tab renders JsonViewer panel', async () => {
+  it('DataDetail — Payload tab renders JsonViewer panel', async () => {
     vi.spyOn(edgeApi, 'fetchJournalOperation').mockResolvedValue({
       operationId: 'op-payload', entityType: 'DATA_VALUE',
       entityRef: 'VAL-1', state: 'CENTRAL_ACCEPTED',
@@ -278,7 +278,7 @@ describe('MockupDataQueues', () => {
     } as unknown as edgeApi.JournalOperation);
     renderWithProviders(
       <Routes><Route path="/admin/data/queue/:operationId"
-                      element={<MockupDataDetail />} /></Routes>,
+                      element={<DataDetail />} /></Routes>,
       { authApi, route: '/admin/data/queue/op-payload' });
     await waitFor(() =>
       expect(screen.getByTestId('sync-data-detail')).toBeInTheDocument());
@@ -291,7 +291,7 @@ describe('MockupDataQueues', () => {
       expect(screen.getByText(/Payload JSON/)).toBeInTheDocument());
   });
 
-  it('MockupDataDetail — raw response toggle (Show full response)', async () => {
+  it('DataDetail — raw response toggle (Show full response)', async () => {
     vi.spyOn(edgeApi, 'fetchJournalOperation').mockResolvedValue({
       operationId: 'op-parsed', entityType: 'DATA_VALUE',
       entityRef: 'VAL-1', state: 'CENTRAL_ACCEPTED',
@@ -310,7 +310,7 @@ describe('MockupDataQueues', () => {
     } as unknown as edgeApi.JournalOperation);
     renderWithProviders(
       <Routes><Route path="/admin/data/queue/:operationId"
-                      element={<MockupDataDetail />} /></Routes>,
+                      element={<DataDetail />} /></Routes>,
       { authApi, route: '/admin/data/queue/op-parsed' });
     await waitFor(() =>
       expect(screen.getByTestId('sync-data-detail')).toBeInTheDocument());
@@ -326,7 +326,7 @@ describe('MockupDataQueues', () => {
       expect(screen.getByText('Show full response')).toBeInTheDocument());
   });
 
-  it('MockupDataDetail — error-state op uses "Last error" label', async () => {
+  it('DataDetail — error-state op uses "Last error" label', async () => {
     vi.spyOn(edgeApi, 'fetchJournalOperation').mockResolvedValue({
       operationId: 'op-fail', entityType: 'DATA_VALUE',
       entityRef: 'VAL-1', state: 'CENTRAL_REJECTED',
@@ -338,7 +338,7 @@ describe('MockupDataQueues', () => {
     } as unknown as edgeApi.JournalOperation);
     renderWithProviders(
       <Routes><Route path="/admin/data/queue/:operationId"
-                      element={<MockupDataDetail />} /></Routes>,
+                      element={<DataDetail />} /></Routes>,
       { authApi, route: '/admin/data/queue/op-fail' });
     await waitFor(() =>
       expect(screen.getByTestId('sync-data-detail')).toBeInTheDocument());

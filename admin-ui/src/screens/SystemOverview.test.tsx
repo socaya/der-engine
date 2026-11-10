@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
 import * as edgeApi from '../api/edgeApi';
-import { MockupSystemOverview } from './SystemOverview';
+import { SystemOverview } from './SystemOverview';
 import { health, compat, systemInfo, workerHealth } from '../test/dataModuleFixtures';
 
 beforeEach(() => {
@@ -28,7 +28,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('SystemOverview', () => {
   it('loads then shows "All systems operational"', async () => {
-    renderWithProviders(<MockupSystemOverview />);
+    renderWithProviders(<SystemOverview />);
     expect(screen.getByTestId('loading')).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByText(/All systems operational/)).toBeInTheDocument());
@@ -38,7 +38,7 @@ describe('SystemOverview', () => {
 
   it('shows Partial outage when DHIS2 central is unreachable', async () => {
     vi.spyOn(edgeApi, 'compat').mockResolvedValue(compat(false));
-    renderWithProviders(<MockupSystemOverview />);
+    renderWithProviders(<SystemOverview />);
     await waitFor(() =>
       expect(screen.getByText(/Partial outage/)).toBeInTheDocument());
   });
@@ -46,7 +46,7 @@ describe('SystemOverview', () => {
   it('empty-state messaging for workflows / devices / activity', async () => {
     vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({ devices: [] } as never);
     vi.spyOn(edgeApi, 'listWorkflows').mockResolvedValue({ workflows: [] } as never);
-    renderWithProviders(<MockupSystemOverview />);
+    renderWithProviders(<SystemOverview />);
     await waitFor(() =>
       expect(screen.getByText(/No clients enrolled/)).toBeInTheDocument());
     expect(screen.getByText(/No activity yet/)).toBeInTheDocument();
@@ -56,7 +56,7 @@ describe('SystemOverview', () => {
     vi.spyOn(edgeApi, 'health').mockResolvedValue({
       ...health(), status: 'DOWN',
     });
-    renderWithProviders(<MockupSystemOverview />);
+    renderWithProviders(<SystemOverview />);
     await waitFor(() =>
       expect(screen.getByText(/Partial outage/)).toBeInTheDocument());
     /* Status KPI tile shows the raw status when not up. */
@@ -67,7 +67,7 @@ describe('SystemOverview', () => {
     vi.spyOn(edgeApi, 'health').mockResolvedValue({
       ...health(), status: 'starter-ready',
     });
-    renderWithProviders(<MockupSystemOverview />);
+    renderWithProviders(<SystemOverview />);
     await waitFor(() =>
       expect(screen.getByText('Live')).toBeInTheDocument());
   });
@@ -82,7 +82,7 @@ describe('SystemOverview', () => {
         startedAt: nowIso, finishedAt: nowIso,
         durationMs: 10, trigger: 'CRON', detail: null, error: 'e' },
     ] as never);
-    renderWithProviders(<MockupSystemOverview />);
+    renderWithProviders(<SystemOverview />);
     await waitFor(() =>
       expect(screen.getAllByText('50%').length).toBeGreaterThan(0));
     /* "2 runs sampled" surfaces in the Reliability tile caption. */
@@ -91,7 +91,7 @@ describe('SystemOverview', () => {
 
   it('empty jobs list → 0% reliability', async () => {
     vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([] as never);
-    renderWithProviders(<MockupSystemOverview />);
+    renderWithProviders(<SystemOverview />);
     await waitFor(() =>
       expect(screen.getByText(/0 runs sampled/)).toBeInTheDocument());
   });
@@ -101,7 +101,7 @@ describe('SystemOverview', () => {
       ...workerHealth(),
       backlog: { PENDING: 10, FAILED: 3 },
     } as never);
-    renderWithProviders(<MockupSystemOverview />);
+    renderWithProviders(<SystemOverview />);
     await waitFor(() =>
       expect(screen.getByText('13')).toBeInTheDocument());
   });
@@ -113,7 +113,7 @@ describe('SystemOverview', () => {
       { auditId: 'a2', eventType: 'ACCESS_DENIED', outcome: 'DENIED',
         observedAt: new Date().toISOString() },
     ] } as never);
-    renderWithProviders(<MockupSystemOverview />);
+    renderWithProviders(<SystemOverview />);
     await waitFor(() =>
       expect(screen.getByText('SIGN_IN')).toBeInTheDocument());
     expect(screen.getByText('ACCESS_DENIED')).toBeInTheDocument();
@@ -124,7 +124,7 @@ describe('SystemOverview', () => {
       { workflowId: 'wf-1', displayName: 'WF-ANC', enabled: true, steps: [] },
       { workflowId: 'wf-2', displayName: 'WF-PNC', enabled: false, steps: [] },
     ] } as never);
-    renderWithProviders(<MockupSystemOverview />);
+    renderWithProviders(<SystemOverview />);
     await waitFor(() =>
       expect(screen.getByText(/2 defined/)).toBeInTheDocument());
     /* Edge Workflows tile shows "1" active. */
@@ -138,7 +138,7 @@ describe('SystemOverview', () => {
       { deviceId: 'd-pending-bbbbbb',  status: 'PENDING',
         displayName: null, lastSeenAt: '2026-11-03T09:00:00Z' },
     ] } as never);
-    renderWithProviders(<MockupSystemOverview />);
+    renderWithProviders(<SystemOverview />);
     await waitFor(() =>
       expect(screen.getByText('1 of 2')).toBeInTheDocument());
   });

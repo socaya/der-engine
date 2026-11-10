@@ -16,7 +16,7 @@ import { LoadingBlock } from '../components/ScreenStates';
  * Push-data as inline toolbar actions that run the Quartz triggers and
  * poll for completion. Recent activity feed below.
  */
-export function MockupSyncOverview(): JSX.Element {
+export function SyncOverview(): JSX.Element {
   const [w, setW] = useState<edgeApi.WorkerHealth | null>(null);
   const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
   const [stats, setStats] = useState<edgeApi.JournalStatsByType | null>(null);

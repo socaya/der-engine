@@ -12,7 +12,7 @@ vi.mock('../api/edgeApi', () => ({
 }));
 
 import * as mockedApi from '../api/edgeApi';
-import { MockupMetadata, MockupMetadataDetail } from './Metadata';
+import { Metadata, MetadataDetail } from './Metadata';
 
 function makeItem(id: string, overrides: Record<string, unknown> = {}): edgeApi.MetadataListItem {
   return {
@@ -32,7 +32,7 @@ function renderList(route = '/dhis2/metadata') {
   return render(
     <MemoryRouter initialEntries={[route]}>
       <Routes>
-        <Route path="/dhis2/metadata" element={<MockupMetadata />} />
+        <Route path="/dhis2/metadata" element={<Metadata />} />
         <Route path="/dhis2/metadata/:resource/:id" element={<DummyLanded />} />
       </Routes>
     </MemoryRouter>,
@@ -47,7 +47,7 @@ function renderDetail(resource: string, id: string) {
   return render(
     <MemoryRouter initialEntries={[`/dhis2/metadata/${resource}/${id}`]}>
       <Routes>
-        <Route path="/dhis2/metadata/:resource/:id" element={<MockupMetadataDetail />} />
+        <Route path="/dhis2/metadata/:resource/:id" element={<MetadataDetail />} />
         <Route path="/dhis2/metadata" element={<div data-test="landed-back">back</div>} />
       </Routes>
     </MemoryRouter>,
@@ -74,7 +74,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('MockupMetadata (list)', () => {
+describe('Metadata (list)', () => {
   it('renders loading state before metadataList resolves', () => {
     vi.mocked(mockedApi.metadataList).mockReturnValue(new Promise(() => undefined));
     renderList();
@@ -187,7 +187,7 @@ describe('MockupMetadata (list)', () => {
   });
 });
 
-describe('MockupMetadataDetail', () => {
+describe('MetadataDetail', () => {
   it('renders loading state before fetch resolves', () => {
     vi.mocked(mockedApi.metadataList).mockReturnValue(new Promise(() => undefined));
     renderDetail('dataElements', 'UID-1');

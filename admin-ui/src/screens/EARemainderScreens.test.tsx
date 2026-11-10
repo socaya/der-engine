@@ -70,7 +70,7 @@ describe('EA-19 RecoveryTools', () => {
 });
 
 /* EA-23 BackupList and EA-25 RestoreList stubs removed with the EA-30/31
- * overhaul; the canonical screens (MockupBackupList / MockupRestoreList
+ * overhaul; the canonical screens (BackupList / RestoreList
  * in MoreScreens.tsx) are covered by MoreScreens.test.tsx. */
 
 describe('EA-27 EvaluationReports', () => {

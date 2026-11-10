@@ -18,7 +18,7 @@ vi.mock('../api/edgeApi', () => ({
 
 // Re-import after the mock so we get the mocked symbols.
 import * as mockedApi from '../api/edgeApi';
-import { MockupDhis2Overview } from './Dhis2Overview';
+import { Dhis2Overview } from './Dhis2Overview';
 
 const systemInfo = () => ({
   service: 'der', timestamp: 't', build: { version: '1', commit: 'c', branch: 'b', dirty: false, buildTime: 't' },
@@ -76,7 +76,7 @@ function cfg(overrides: Partial<edgeApi.Dhis2ConnectionPayload> = {}):
 function renderScreen() {
   return render(
     <MemoryRouter>
-      <MockupDhis2Overview />
+      <Dhis2Overview />
     </MemoryRouter>,
   );
 }
@@ -98,7 +98,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('MockupDhis2Overview', () => {
+describe('Dhis2Overview', () => {
   it('renders loading state before all required fetches resolve', () => {
     // Pin systemInfo pending.
     vi.mocked(mockedApi.systemInfo).mockReturnValue(new Promise(() => undefined));

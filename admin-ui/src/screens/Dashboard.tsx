@@ -12,7 +12,7 @@ function isDerUp(status: string | undefined | null): boolean {
 }
 
 /** DER Server Operations Dashboard — matches docs/media/ui/DER Server Operations Dashboard.png */
-export function MockupDashboard(): JSX.Element {
+export function Dashboard(): JSX.Element {
   const [h, setH] = useState<edgeApi.HealthResponse | null>(null);
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
   const [c, setC] = useState<edgeApi.CompatSnapshot | null>(null);

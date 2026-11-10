@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
-import { MockupDashboard } from './Dashboard';
+import { Dashboard } from './Dashboard';
 import * as edgeApi from '../api/edgeApi';
 
 const authApi = {
@@ -61,7 +61,7 @@ function stubAll(): void {
   } as unknown as edgeApi.ScopeAuditSnapshot);
 }
 
-describe('MockupDashboard', () => {
+describe('Dashboard', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
   afterEach(() => { vi.restoreAllMocks(); });
 
@@ -75,19 +75,19 @@ describe('MockupDashboard', () => {
     vi.spyOn(edgeApi, 'listDevices').mockImplementation(() => new Promise(() => undefined));
     vi.spyOn(edgeApi, 'listWorkflows').mockImplementation(() => new Promise(() => undefined));
     vi.spyOn(edgeApi, 'scopeAudit').mockImplementation(() => new Promise(() => undefined));
-    renderWithProviders(<MockupDashboard />, { authApi });
+    renderWithProviders(<Dashboard />, { authApi });
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
   it('clears loading once all parallel probes resolve', async () => {
     stubAll();
-    renderWithProviders(<MockupDashboard />, { authApi });
+    renderWithProviders(<Dashboard />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
   });
 
   it('renders version text in the rendered body', async () => {
     stubAll();
-    renderWithProviders(<MockupDashboard />, { authApi });
+    renderWithProviders(<Dashboard />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/2\.3\.122/));
   });
@@ -102,7 +102,7 @@ describe('MockupDashboard', () => {
           observedAt: '2026-11-03T11:05:00Z' },
       ],
     } as unknown as { entries: edgeApi.ActivityEntry[] });
-    renderWithProviders(<MockupDashboard />, { authApi });
+    renderWithProviders(<Dashboard />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/SIGN_IN/));
     expect(document.body.textContent ?? '').toMatch(/DRAIN_RUN/);
@@ -134,7 +134,7 @@ describe('MockupDashboard', () => {
           displayName: null, formFactor: 'TABLET' },
       ],
     } as unknown as { devices: edgeApi.EdgeDeviceRow[] });
-    renderWithProviders(<MockupDashboard />, { authApi });
+    renderWithProviders(<Dashboard />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/d-approved/));
     expect(document.body.textContent ?? '').toMatch(/d-pending/);
@@ -159,7 +159,7 @@ describe('MockupDashboard', () => {
       },
       countsByState: {},
     } as unknown as edgeApi.ScopeAuditSnapshot);
-    renderWithProviders(<MockupDashboard />, { authApi });
+    renderWithProviders(<Dashboard />, { authApi });
     await waitFor(() =>
       expect(screen.getByText('Scope drift')).toBeInTheDocument());
     /* The populated branch renders the entity-type labels (keys
@@ -184,7 +184,7 @@ describe('MockupDashboard', () => {
       countsByEntityType: {},
       countsByState: {},
     } as unknown as edgeApi.ScopeAuditSnapshot);
-    renderWithProviders(<MockupDashboard />, { authApi });
+    renderWithProviders(<Dashboard />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '')
         .toMatch(/Edge is unbound/));
@@ -210,7 +210,7 @@ describe('MockupDashboard', () => {
           defaultDeviceId: null },
       ],
     } as unknown as { workflows: edgeApi.CaptureWorkflowSummary[] });
-    renderWithProviders(<MockupDashboard />, { authApi });
+    renderWithProviders(<Dashboard />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/ANC Visit/));
     expect(document.body.textContent ?? '').toMatch(/PNC Visit/);
@@ -259,7 +259,7 @@ describe('MockupDashboard', () => {
       mismatchCount: 0, outOfScopeCount: 0, sampleSize: 0,
       total: 0, countsByEntityType: {}, countsByState: {},
     } as unknown as edgeApi.ScopeAuditSnapshot);
-    renderWithProviders(<MockupDashboard />, { authApi });
+    renderWithProviders(<Dashboard />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/Unreachable/));
     /* Degraded status surfaces as the chip label fallback. */
@@ -274,7 +274,7 @@ describe('MockupDashboard', () => {
      * it and the Dashboard surfaces an ErrorBlock with its message. */
     vi.spyOn(edgeApi, 'scopeAudit').mockRejectedValue(
       new Error('scope-audit probe failed'));
-    renderWithProviders(<MockupDashboard />, { authApi });
+    renderWithProviders(<Dashboard />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('dashboard-err')).toBeInTheDocument());
     expect(document.body.textContent ?? '')
@@ -290,7 +290,7 @@ describe('MockupDashboard', () => {
           observedAt: '2026-11-03T11:00:00Z' },
       ],
     } as unknown as { entries: edgeApi.ActivityEntry[] });
-    renderWithProviders(<MockupDashboard />, { authApi });
+    renderWithProviders(<Dashboard />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/SYNC_SKIPPED/));
   });
@@ -321,7 +321,7 @@ describe('MockupDashboard', () => {
         startedAt: nowIso, finishedAt: nowIso,
         durationMs: 100, triggeredBy: 'SCHEDULED', detail: '{}' },
     ] as unknown as edgeApi.JobRun[]);
-    renderWithProviders(<MockupDashboard />, { authApi });
+    renderWithProviders(<Dashboard />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/High priority/));
     expect(document.body.textContent ?? '').toMatch(/Medium priority/);

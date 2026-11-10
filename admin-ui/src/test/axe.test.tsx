@@ -2,9 +2,9 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderWithProviders } from './renderWithProviders';
 import { runAxe, formatAxeViolations } from './axe';
 import * as edgeApi from '../api/edgeApi';
-import { MockupSupportBundle, MockupConfigEditor,
-         MockupOperationalReport, MockupUserScope,
-         MockupSiteConfig, MockupDecommission } from '../screens/MoreScreens';
+import { SupportBundle, ConfigEditor,
+         OperationalReport, UserScope,
+         SiteConfig, Decommission } from '../screens/MoreScreens';
 import { LocalVsCentralBadge } from '../screens/shared';
 
 /* ─────────────────────────────────────────────────────────────────
@@ -45,21 +45,21 @@ describe('NFR-26 — axe smoke on shipped admin surfaces', () => {
     await assertClean(container);
   });
 
-  it('MockupConfigEditor is accessible', async () => {
+  it('ConfigEditor is accessible', async () => {
     vi.spyOn(edgeApi, 'readOpsSettings').mockResolvedValue({
       settings: { 'der.backup.enabled': 'true' },
     });
     vi.spyOn(edgeApi, 'securityAuditEvents').mockResolvedValue([]);
-    const { container } = renderWithProviders(<MockupConfigEditor />, { authApi });
+    const { container } = renderWithProviders(<ConfigEditor />, { authApi });
     await assertClean(container);
   });
 
-  it('MockupSupportBundle is accessible', async () => {
-    const { container } = renderWithProviders(<MockupSupportBundle />, { authApi });
+  it('SupportBundle is accessible', async () => {
+    const { container } = renderWithProviders(<SupportBundle />, { authApi });
     await assertClean(container);
   });
 
-  it('MockupOperationalReport is accessible', async () => {
+  it('OperationalReport is accessible', async () => {
     vi.spyOn(edgeApi, 'fetchOperationalReport').mockResolvedValue({
       generatedAt: '2026-11-04T10:00:00Z',
       byState: { PENDING: 1, CENTRAL_ACCEPTED: 2 },
@@ -70,11 +70,11 @@ describe('NFR-26 — axe smoke on shipped admin surfaces', () => {
     vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
       enabled: true, probeTimestamp: 'now', backlog: {},
     } as unknown as edgeApi.WorkerHealth);
-    const { container } = renderWithProviders(<MockupOperationalReport />, { authApi });
+    const { container } = renderWithProviders(<OperationalReport />, { authApi });
     await assertClean(container);
   });
 
-  it('MockupUserScope is accessible', async () => {
+  it('UserScope is accessible', async () => {
     vi.spyOn(edgeApi, 'fetchUserScope').mockResolvedValue({
       generatedAt: 'now',
       users: [
@@ -83,22 +83,22 @@ describe('NFR-26 — axe smoke on shipped admin surfaces', () => {
           createdAt: 'now', updatedAt: 'now', permissionAgeHours: 1 },
       ],
     });
-    const { container } = renderWithProviders(<MockupUserScope />, { authApi });
+    const { container } = renderWithProviders(<UserScope />, { authApi });
     await assertClean(container);
   });
 
-  it('MockupSiteConfig is accessible', async () => {
+  it('SiteConfig is accessible', async () => {
     vi.spyOn(edgeApi, 'readSiteConfig').mockResolvedValue({
       values: { 'site.displayName': 'DER edge' },
       defaults: { 'site.displayName': 'DER edge' },
       updatedBy: null, updatedAt: null,
     });
-    const { container } = renderWithProviders(<MockupSiteConfig />, { authApi });
+    const { container } = renderWithProviders(<SiteConfig />, { authApi });
     await assertClean(container);
   });
 
-  it('MockupDecommission (pre-confirm view) is accessible', async () => {
-    const { container } = renderWithProviders(<MockupDecommission />, { authApi });
+  it('Decommission (pre-confirm view) is accessible', async () => {
+    const { container } = renderWithProviders(<Decommission />, { authApi });
     await assertClean(container);
   });
 });

@@ -5,7 +5,7 @@ import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { UiIcon } from '../components/UiIcon';
 
 /**
- * MockupCompatMatrix — unified Compatibility surface.
+ * CompatMatrix — unified Compatibility surface.
  *
  * Replaces the earlier two-page split (`/compat` + `/compat/history`)
  * with one page covering:
@@ -19,7 +19,7 @@ import { UiIcon } from '../components/UiIcon';
  */
 type CompatTab = 'overview' | 'history';
 
-export function MockupCompatMatrix(): JSX.Element {
+export function CompatMatrix(): JSX.Element {
   const [snap, setSnap] = useState<edgeApi.CompatSnapshot | null>(null);
   const [history, setHistory] = useState<edgeApi.CompatSnapshot[] | null>(null);
   const [err, setErr] = useState<string | null>(null);

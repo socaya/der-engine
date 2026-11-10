@@ -1433,13 +1433,13 @@ function RecentPullsTable(
 }
 
 /** /admin/sync/data — DER Sync requirements §7. Thin wrapper over the
- *  existing MockupDataQueues implementation (which already carries the
+ *  existing DataQueues implementation (which already carries the
  *  activity-feed table + payload drawer). The screen is reachable
  *  through `/sync/data` as well as the legacy `/sync/queues`. */
 export function CapDataExchange(): JSX.Element {
   // Legacy export kept so existing bookmarks still resolve; the full
-  // Data screen lives in MoreScreens → MockupDataQueues (routed on
-  // /sync/data). Rendering MockupDataQueues directly here would create
+  // Data screen lives in MoreScreens → DataQueues (routed on
+  // /sync/data). Rendering DataQueues directly here would create
   // a circular import.
   return (
     <div className="ea-screen">

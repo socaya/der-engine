@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
-import { MockupSystemInformation } from './SystemInformation';
+import { SystemInformation } from './SystemInformation';
 import * as edgeApi from '../api/edgeApi';
 import type { SystemInfo } from '../api/edgeApi';
 
@@ -42,20 +42,20 @@ function systemInfoFixture(): SystemInfo {
   } as unknown as SystemInfo;
 }
 
-describe('MockupSystemInformation', () => {
+describe('SystemInformation', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
   afterEach(() => { vi.restoreAllMocks(); });
 
   it('shows LoadingBlock before the probe resolves', () => {
     vi.spyOn(edgeApi, 'systemInfo').mockImplementation(
       () => new Promise(() => undefined));
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
   it('shows ErrorBlock with the message when systemInfo rejects', async () => {
     vi.spyOn(edgeApi, 'systemInfo').mockRejectedValue(new Error('boom'));
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByTestId('err-sysinfo'))
       .toBeInTheDocument());
     expect(screen.getByTestId('err-sysinfo')).toHaveTextContent(/boom/);
@@ -63,7 +63,7 @@ describe('MockupSystemInformation', () => {
 
   it('renders the status strip with the healthy label when all probes are up', async () => {
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(systemInfoFixture());
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByText(/all subsystems healthy/i))
       .toBeInTheDocument());
   });
@@ -72,7 +72,7 @@ describe('MockupSystemInformation', () => {
     const si = systemInfoFixture();
     (si.dhis2 as unknown as { probeReachable: boolean }).probeReachable = false;
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(si);
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByText(/degraded subsystem/i))
       .toBeInTheDocument());
   });
@@ -81,7 +81,7 @@ describe('MockupSystemInformation', () => {
     const si = systemInfoFixture();
     (si.database as unknown as { probeError: string }).probeError = 'ECONNREFUSED';
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(si);
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByText('FAIL')).toBeInTheDocument());
     /* probeError value surfaces in the Database panel. */
     expect(screen.getByText('ECONNREFUSED')).toBeInTheDocument();
@@ -92,7 +92,7 @@ describe('MockupSystemInformation', () => {
     (si.scheduler as unknown as { started: boolean }).started = false;
     (si.scheduler as unknown as { standbyMode: boolean }).standbyMode = true;
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(si);
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByText(/degraded subsystem/i))
       .toBeInTheDocument());
     /* "yes"/"no" strings surface in Scheduler panel. */
@@ -107,7 +107,7 @@ describe('MockupSystemInformation', () => {
     (si.storage as unknown as { totalBytes: number; usableBytes: number })
       .usableBytes = 10;  /* 90% used → >85 danger */
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(si);
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByText(/Space used/))
       .toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/90%/);
@@ -120,7 +120,7 @@ describe('MockupSystemInformation', () => {
     (si.storage as unknown as { totalBytes: number; usableBytes: number })
       .usableBytes = 20;  /* 80% used → warning */
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(si);
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByText(/Space used/))
       .toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/80%/);
@@ -130,7 +130,7 @@ describe('MockupSystemInformation', () => {
     const si = systemInfoFixture();
     (si.build as unknown as { dirty: boolean }).dirty = true;
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(si);
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByText(/Working tree dirty/))
       .toBeInTheDocument());
   });
@@ -141,7 +141,7 @@ describe('MockupSystemInformation', () => {
       pending: 5, in_flight: 2, central_accepted: 42,
     };
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(si);
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByText('pending')).toBeInTheDocument());
     expect(screen.getByText('in_flight')).toBeInTheDocument();
     expect(screen.getByText('central_accepted')).toBeInTheDocument();
@@ -151,7 +151,7 @@ describe('MockupSystemInformation', () => {
     const si = systemInfoFixture();
     (si as unknown as { journal: Record<string, number> }).journal = {};
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(si);
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByText('Journal is empty.'))
       .toBeInTheDocument());
   });
@@ -169,7 +169,7 @@ describe('MockupSystemInformation', () => {
       ],
     };
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(si);
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByText('App X')).toBeInTheDocument());
     expect(screen.getByText('App Y')).toBeInTheDocument();
     expect(screen.getByText('app-x')).toBeInTheDocument();
@@ -182,7 +182,7 @@ describe('MockupSystemInformation', () => {
       attribution: { configured: boolean; mappedUsers: number };
     }).attribution = { configured: true, mappedUsers: 7 };
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(si);
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByText(/User attribution/))
       .toBeInTheDocument());
     expect(screen.getByText('7')).toBeInTheDocument();
@@ -218,7 +218,7 @@ describe('MockupSystemInformation', () => {
       executingJobs: null, totalJobs: null, probeError: null,
     };
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(si);
-    renderWithProviders(<MockupSystemInformation />, { authApi });
+    renderWithProviders(<SystemInformation />, { authApi });
     await waitFor(() => expect(screen.getByText(/All subsystems healthy/i))
       .toBeInTheDocument());
     /* Multiple em-dashes surface across the nulled fields. */

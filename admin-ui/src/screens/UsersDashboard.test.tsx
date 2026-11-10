@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../test/renderWithProviders';
-import { MockupUsersDashboard, MockupUserDetail, MockupUserDhis2Mapping } from './UsersDashboard';
+import { UsersDashboard, UserDetail, UserDhis2Mapping } from './UsersDashboard';
 import * as edgeApi from '../api/edgeApi';
 import type { ProvisionedUser } from '../api/edgeApi';
 
@@ -26,14 +26,14 @@ function userFixture(over: Partial<ProvisionedUser> = {}): ProvisionedUser {
   } as ProvisionedUser;
 }
 
-describe('MockupUsersDashboard', () => {
+describe('UsersDashboard', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
   afterEach(() => { vi.restoreAllMocks(); });
 
   it('shows LoadingBlock while listUsers is pending', () => {
     vi.spyOn(edgeApi, 'listUsers').mockImplementation(
       () => new Promise(() => undefined));
-    renderWithProviders(<MockupUsersDashboard />, { authApi });
+    renderWithProviders(<UsersDashboard />, { authApi });
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
@@ -45,7 +45,7 @@ describe('MockupUsersDashboard', () => {
         userFixture({ userId: 'u-3', username: 'der-admin', roles: ['ADMIN'] }),
       ],
     });
-    renderWithProviders(<MockupUsersDashboard />, { authApi });
+    renderWithProviders(<UsersDashboard />, { authApi });
     await waitFor(() => expect(screen.getByText('nurse.alice'))
       .toBeInTheDocument());
     expect(screen.getByText('nurse.bob')).toBeInTheDocument();
@@ -59,7 +59,7 @@ describe('MockupUsersDashboard', () => {
         userFixture({ userId: 'u-b', username: 'bob',   displayName: 'Bob B' }),
       ],
     });
-    renderWithProviders(<MockupUsersDashboard />, { authApi });
+    renderWithProviders(<UsersDashboard />, { authApi });
     await waitFor(() => expect(screen.getByText('alice'))
       .toBeInTheDocument());
     const search = screen.getByPlaceholderText(/search by name/i);
@@ -73,19 +73,19 @@ describe('MockupUsersDashboard', () => {
     });
   });
 
-  /* MockupUserDetail reads :userId from the route params; without a
+  /* UserDetail reads :userId from the route params; without a
    * matched route the param stays undefined and the useEffect
    * short-circuits. Wrap in a Routes/Route block so useParams
    * returns the id. */
   function detailWithRoute(): JSX.Element {
     return (
       <Routes>
-        <Route path="/provisioning/users/:userId" element={<MockupUserDetail />} />
+        <Route path="/provisioning/users/:userId" element={<UserDetail />} />
       </Routes>
     );
   }
 
-  it('MockupUserDetail renders LoadingBlock while listUsers is pending', () => {
+  it('UserDetail renders LoadingBlock while listUsers is pending', () => {
     vi.spyOn(edgeApi, 'listUsers').mockImplementation(
       () => new Promise(() => undefined));
     renderWithProviders(detailWithRoute(),
@@ -93,7 +93,7 @@ describe('MockupUsersDashboard', () => {
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
-  it('MockupUserDetail shows ErrorBlock when the user is not found', async () => {
+  it('UserDetail shows ErrorBlock when the user is not found', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({ users: [] });
     renderWithProviders(detailWithRoute(),
       { authApi, route: '/provisioning/users/u-missing' });
@@ -103,7 +103,7 @@ describe('MockupUsersDashboard', () => {
       .toHaveTextContent(/not found/i);
   });
 
-  it('MockupUserDetail renders the matched user; Permissions tab lists derived authorities; Activity tab lists audit rows', async () => {
+  it('UserDetail renders the matched user; Permissions tab lists derived authorities; Activity tab lists audit rows', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
       users: [userFixture({ userId: 'u-live', username: 'alice',
                             displayName: 'Alice', roles: ['ADMIN'] })],
@@ -156,7 +156,7 @@ describe('MockupUsersDashboard', () => {
     expect(activity).toHaveTextContent('USER_DHIS2_MAPPING_SET');
   });
 
-  it('MockupUserDetail Reset-login confirms, calls revokeUserSessions, shows count', async () => {
+  it('UserDetail Reset-login confirms, calls revokeUserSessions, shows count', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
       users: [userFixture({ userId: 'u-live', username: 'alice',
                             displayName: 'Alice', roles: ['ADMIN'] })],
@@ -184,7 +184,7 @@ describe('MockupUsersDashboard', () => {
     confirmSpy.mockRestore();
   });
 
-  it('MockupUserDetail Reset-login is a no-op when the operator cancels the confirm', async () => {
+  it('UserDetail Reset-login is a no-op when the operator cancels the confirm', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
       users: [userFixture({ userId: 'u-live' })],
     });
@@ -207,11 +207,11 @@ describe('MockupUsersDashboard', () => {
     confirmSpy.mockRestore();
   });
 
-  it('MockupUsersDashboard renders Pending / Verified attention chips per row', async () => {
+  it('UsersDashboard renders Pending / Verified attention chips per row', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
       users: [userFixture()],
     });
-    renderWithProviders(<MockupUsersDashboard />, { authApi });
+    renderWithProviders(<UsersDashboard />, { authApi });
     await waitFor(() => expect(screen.getByText('nurse.alice'))
       .toBeInTheDocument());
     /* Every row gets a Pending/Verified chip + the "Unmapped"
@@ -228,7 +228,7 @@ describe('MockupUsersDashboard', () => {
       ],
     });
     vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
-    renderWithProviders(<MockupUsersDashboard />, { authApi,
+    renderWithProviders(<UsersDashboard />, { authApi,
       route: '/provisioning/users?role=ADMIN' });
     await waitFor(() => expect(screen.getByText('der-admin'))
       .toBeInTheDocument());
@@ -248,7 +248,7 @@ describe('MockupUsersDashboard', () => {
       ],
     });
     vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
-    renderWithProviders(<MockupUsersDashboard />, { authApi,
+    renderWithProviders(<UsersDashboard />, { authApi,
       route: '/provisioning/users?role=clinical%20nurses' });
     await waitFor(() => expect(screen.getByText('clerk.one'))
       .toBeInTheDocument());
@@ -267,7 +267,7 @@ describe('MockupUsersDashboard', () => {
         dhis2DisplayName: 'Mapped Central', mappedAt: 'now', mappedBy: 'admin',
         lastVerifiedAt: null, authType: null, hasCredential: false, credentialSetAt: null },
     ]);
-    renderWithProviders(<MockupUsersDashboard />, { authApi,
+    renderWithProviders(<UsersDashboard />, { authApi,
       route: '/provisioning/users?mapped=no' });
     await waitFor(() => expect(screen.getByText('unmapped.user'))
       .toBeInTheDocument());
@@ -277,7 +277,7 @@ describe('MockupUsersDashboard', () => {
   });
 });
 
-describe('MockupUserDhis2Mapping (per-user route)', () => {
+describe('UserDhis2Mapping (per-user route)', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
   afterEach(() => { vi.restoreAllMocks(); });
 
@@ -285,7 +285,7 @@ describe('MockupUserDhis2Mapping (per-user route)', () => {
     renderWithProviders(
       <Routes>
         <Route path="/provisioning/users/:userId/dhis2-mapping"
-               element={<MockupUserDhis2Mapping />} />
+               element={<UserDhis2Mapping />} />
       </Routes>,
       { authApi, route: path },
     );

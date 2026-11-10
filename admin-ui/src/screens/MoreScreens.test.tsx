@@ -4,30 +4,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../test/renderWithProviders';
 import {
-  MockupDriftInspector,
-  MockupConflictList,
+  DriftInspector,
+  ConflictList,
   AttentionDetailScreen,
   WorkerHealthScreen,
-  MockupDeviceFleet,
-  MockupDeviceDetail,
-  MockupApprovalQueue,
-  MockupApprovalDetail,
-  MockupReferralInbox,
-  MockupReferralDetail,
-  MockupBackupList,
-  MockupRestoreList,
-  MockupCompatInspector,
-  MockupAuditEvents,
-  MockupFacilityAnalytics,
-  MockupSupportBundle,
-  MockupConfigEditor,
-  MockupOperationalReport,
-  MockupUserScope,
-  MockupSiteConfig,
-  MockupDecommission,
-  MockupDhis2Mappings,
-  MockupOperatorMetrics,
-  MockupSecurityAuditTrail,
+  DeviceFleet,
+  DeviceDetail,
+  ApprovalQueue,
+  ApprovalDetail,
+  ReferralInbox,
+  ReferralDetail,
+  BackupList,
+  RestoreList,
+  CompatInspector,
+  AuditEvents,
+  FacilityAnalytics,
+  SupportBundle,
+  ConfigEditor,
+  OperationalReport,
+  UserScope,
+  SiteConfig,
+  Decommission,
+  Dhis2Mappings,
+  OperatorMetrics,
+  SecurityAuditTrail,
 } from './MoreScreens';
 import * as edgeApi from '../api/edgeApi';
 
@@ -66,25 +66,25 @@ function stubEverythingPending(): void {
 interface MountCase { name: string; component: () => JSX.Element; route?: string }
 
 const screens: MountCase[] = [
-  { name: 'MockupDriftInspector', component: MockupDriftInspector },
-  { name: 'MockupConflictList',   component: MockupConflictList },
+  { name: 'DriftInspector', component: DriftInspector },
+  { name: 'ConflictList',   component: ConflictList },
   { name: 'AttentionDetailScreen', component: AttentionDetailScreen,
     route: '/admin/sync/attention/op-1' },
   { name: 'WorkerHealthScreen',   component: WorkerHealthScreen },
-  { name: 'MockupDeviceFleet',    component: MockupDeviceFleet },
-  { name: 'MockupDeviceDetail',   component: MockupDeviceDetail,
+  { name: 'DeviceFleet',    component: DeviceFleet },
+  { name: 'DeviceDetail',   component: DeviceDetail,
     route: '/admin/network/connected/dev-1' },
-  { name: 'MockupApprovalQueue',  component: MockupApprovalQueue },
-  { name: 'MockupApprovalDetail', component: MockupApprovalDetail,
+  { name: 'ApprovalQueue',  component: ApprovalQueue },
+  { name: 'ApprovalDetail', component: ApprovalDetail,
     route: '/admin/sync/approvals/op-1' },
-  { name: 'MockupReferralInbox',  component: MockupReferralInbox },
-  { name: 'MockupReferralDetail', component: MockupReferralDetail,
+  { name: 'ReferralInbox',  component: ReferralInbox },
+  { name: 'ReferralDetail', component: ReferralDetail,
     route: '/admin/referrals/ref-1' },
-  { name: 'MockupBackupList',     component: MockupBackupList },
-  { name: 'MockupRestoreList',    component: MockupRestoreList },
-  { name: 'MockupCompatInspector', component: MockupCompatInspector },
-  { name: 'MockupAuditEvents',    component: MockupAuditEvents },
-  { name: 'MockupFacilityAnalytics', component: MockupFacilityAnalytics },
+  { name: 'BackupList',     component: BackupList },
+  { name: 'RestoreList',    component: RestoreList },
+  { name: 'CompatInspector', component: CompatInspector },
+  { name: 'AuditEvents',    component: AuditEvents },
+  { name: 'FacilityAnalytics', component: FacilityAnalytics },
 ];
 
 describe('MoreScreens — surface mount test', () => {
@@ -114,15 +114,15 @@ describe('MoreScreens — surface mount test', () => {
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
   });
 
-  it('MockupConflictList renders ErrorBlock when listConflicts rejects', async () => {
+  it('ConflictList renders ErrorBlock when listConflicts rejects', async () => {
     vi.spyOn(edgeApi, 'listConflicts').mockRejectedValue(new Error('rejected'));
-    renderWithProviders(<MockupConflictList />, { authApi });
+    renderWithProviders(<ConflictList />, { authApi });
     await waitFor(() => expect(screen.getByTestId('err-conflicts'))
       .toBeInTheDocument());
     expect(screen.getByTestId('err-conflicts')).toHaveTextContent(/rejected/i);
   });
 
-  it('MockupConflictList renders rows from a populated listConflicts probe', async () => {
+  it('ConflictList renders rows from a populated listConflicts probe', async () => {
     vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([
       { operationId: 'op-1', entityType: 'AGGREGATE_DATA_VALUE',
         entityRef: 'de1|ou1|2026W44', payloadJson: {},
@@ -131,12 +131,12 @@ describe('MoreScreens — surface mount test', () => {
         createdAt: 'now', updatedAt: 'now',
         nextHopOrgUnitUid: null },
     ] as unknown as edgeApi.ConflictRow[]);
-    renderWithProviders(<MockupConflictList />, { authApi });
+    renderWithProviders(<ConflictList />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/de1\|ou1\|2026W44/));
   });
 
-  it('MockupDeviceFleet renders a populated listDevices probe', async () => {
+  it('DeviceFleet renders a populated listDevices probe', async () => {
     vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
       devices: [
         { deviceId: 'dev-approved-123456', status: 'APPROVED',
@@ -153,12 +153,12 @@ describe('MoreScreens — surface mount test', () => {
           firmwareVersion: null },
       ],
     } as unknown as { devices: edgeApi.EdgeDeviceRow[] });
-    renderWithProviders(<MockupDeviceFleet />, { authApi });
+    renderWithProviders(<DeviceFleet />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/clinic kiosk/i));
   });
 
-  it('MockupReferralInbox renders a populated listReferralInbox probe', async () => {
+  it('ReferralInbox renders a populated listReferralInbox probe', async () => {
     /* ReferralInboxRow uses inboxId/sourceRef/status (not
      * operationId/entityRef/state). */
     vi.spyOn(edgeApi, 'listReferralInbox').mockResolvedValue({
@@ -171,21 +171,21 @@ describe('MoreScreens — surface mount test', () => {
           discoveredAt: '2026-11-03T10:00:00Z', status: 'ACCEPTED' },
       ],
     } as unknown as { entries: edgeApi.ReferralInboxRow[] });
-    renderWithProviders(<MockupReferralInbox />, { authApi });
+    renderWithProviders(<ReferralInbox />, { authApi });
     await waitFor(() => expect(document.body.textContent ?? '')
       .toMatch(/tei-abc|enr-xyz|1 pending/i));
   });
 
-  it('MockupReferralInbox renders an empty-state when the inbox is empty', async () => {
+  it('ReferralInbox renders an empty-state when the inbox is empty', async () => {
     vi.spyOn(edgeApi, 'listReferralInbox').mockResolvedValue({ entries: [] });
-    renderWithProviders(<MockupReferralInbox />, { authApi });
+    renderWithProviders(<ReferralInbox />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
     /* The empty-state copy varies ("No referrals" / "No pending"
      * / "Inbox empty") so match on the broader empty pattern. */
     expect(document.body.textContent ?? '').toMatch(/no referrals|no pending|empty|all clear/i);
   });
 
-  it('MockupBackupList — section sidebar renders four items; ?section=runs deep-links', async () => {
+  it('BackupList — section sidebar renders four items; ?section=runs deep-links', async () => {
     vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([
       { runId: 1, kind: 'FULL', status: 'SUCCESS',
         requestedAt: '2026-11-03T10:00:00Z' },
@@ -203,7 +203,7 @@ describe('MoreScreens — surface mount test', () => {
     vi.spyOn(edgeApi, 'readSettings').mockResolvedValue({
       cron: {}, featureFlags: {}, roles: [],
     } as unknown as edgeApi.SettingsPayload);
-    renderWithProviders(<MockupBackupList />, {
+    renderWithProviders(<BackupList />, {
       authApi, route: '/admin/backup?section=runs',
     });
     await waitFor(() => expect(screen.getByTestId('backup-sections'))
@@ -219,7 +219,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(screen.queryByTestId('backup-cron')).toBeNull();
   });
 
-  it('MockupBackupList — FR-15-07 Schedule + PITR + Verify sections populate', async () => {
+  it('BackupList — FR-15-07 Schedule + PITR + Verify sections populate', async () => {
     vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([
       { runId: 7, kind: 'FULL', status: 'SUCCESS',
         requestedAt: '2026-11-03T10:00:00Z' },
@@ -251,7 +251,7 @@ describe('MoreScreens — surface mount test', () => {
       cron: { 'backup.rotate': '0 0 2 * * ?' },
       featureFlags: {}, roles: [],
     } as unknown as edgeApi.SettingsPayload);
-    renderWithProviders(<MockupBackupList />, { authApi });
+    renderWithProviders(<BackupList />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('backup-tools')).toBeInTheDocument());
     /* Default section is Schedule — cron reflected from readSettings. */
@@ -271,7 +271,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/pg_restore exit 3/);
   });
 
-  it('MockupBackupList — Verify-now button triggers backupVerifyRun', async () => {
+  it('BackupList — Verify-now button triggers backupVerifyRun', async () => {
     vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([
       { runId: 7, kind: 'FULL', status: 'SUCCESS',
         requestedAt: '2026-11-03T10:00:00Z' },
@@ -291,7 +291,7 @@ describe('MoreScreens — surface mount test', () => {
       verifiedAt: 'now', outcome: 'PASSED', durationMs: 500,
       shadowDbName: 'der_verify_shadow', rowCounts: null, reason: null,
     } as edgeApi.BackupVerifyRow);
-    renderWithProviders(<MockupBackupList />, { authApi });
+    renderWithProviders(<BackupList />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('backup-tools')).toBeInTheDocument());
     const user = (await import('@testing-library/user-event')).default.setup();
@@ -303,7 +303,7 @@ describe('MoreScreens — surface mount test', () => {
     await waitFor(() => expect(runSpy).toHaveBeenCalledWith(7));
   });
 
-  it('MockupBackupList — inline cron editor saves the new value via /admin/settings', async () => {
+  it('BackupList — inline cron editor saves the new value via /admin/settings', async () => {
     vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([]);
     vi.spyOn(edgeApi, 'backupVerifyStatus').mockResolvedValue({
       enabled: true, pgRestore: '/usr/local/bin/pg_restore', lastRun: null,
@@ -323,7 +323,7 @@ describe('MoreScreens — surface mount test', () => {
       cron: { 'backup.rotate': '0 0 3 * * ?', 'sync.metadata': '0 */5 * * * ?' },
       featureFlags: {}, roles: [],
     } as unknown as edgeApi.SettingsPayload);
-    renderWithProviders(<MockupBackupList />, { authApi });
+    renderWithProviders(<BackupList />, { authApi });
     await waitFor(() => expect(screen.getByTestId('backup-cron'))
       .toHaveTextContent('0 0 2 * * ?'));
     const user = (await import('@testing-library/user-event')).default.setup();
@@ -343,7 +343,7 @@ describe('MoreScreens — surface mount test', () => {
       })));
   });
 
-  it('MockupBackupList renders populated backup rows (every status + kind pair)', async () => {
+  it('BackupList renders populated backup rows (every status + kind pair)', async () => {
     /* BackupRow is {runId, requestedAt, kind, status, message?}
      * — four statuses (REQUESTED / QUEUED / SUCCESS / FAILED)
      * and two kinds (AUDIT / FULL). Feed one of each so the
@@ -358,7 +358,7 @@ describe('MoreScreens — surface mount test', () => {
       { runId: 4, kind: 'AUDIT', status: 'REQUESTED',
         requestedAt: '2026-11-03T07:00:00Z' },
     ] as edgeApi.BackupRow[]);
-    renderWithProviders(<MockupBackupList />, { authApi });
+    renderWithProviders(<BackupList />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('backup-tools')).toBeInTheDocument());
     /* Backup runs table lives in the Runs section. */
@@ -370,7 +370,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/SUCCESS|QUEUED|REQUESTED/);
   });
 
-  it('MockupRestoreList renders populated restore rows', async () => {
+  it('RestoreList renders populated restore rows', async () => {
     vi.spyOn(edgeApi, 'listRestores').mockResolvedValue([
       { runId: 1, source: 'bk-full-1', status: 'SUCCESS',
         requestedAt: '2026-11-03T08:00:00Z' },
@@ -379,13 +379,13 @@ describe('MoreScreens — surface mount test', () => {
     ] as edgeApi.RestoreRow[]);
     vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([]);
     vi.spyOn(edgeApi, 'backupVerifyHistory').mockResolvedValue([]);
-    renderWithProviders(<MockupRestoreList />, { authApi });
+    renderWithProviders(<RestoreList />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/bk-full-1|bk-audit-1/));
     expect(document.body.textContent ?? '').toMatch(/SUCCESS|FAILED/);
   });
 
-  it('MockupRestoreList — LOCAL backup picker surfaces identity + verify status, submits with kind=LOCAL', async () => {
+  it('RestoreList — LOCAL backup picker surfaces identity + verify status, submits with kind=LOCAL', async () => {
     vi.spyOn(edgeApi, 'listRestores').mockResolvedValue([]);
     vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([
       { runId: 7, kind: 'FULL', status: 'SUCCESS',
@@ -403,7 +403,7 @@ describe('MoreScreens — surface mount test', () => {
       status: 'REQUESTED', requestedAt: 'now',
     });
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    renderWithProviders(<MockupRestoreList />, { authApi });
+    renderWithProviders(<RestoreList />, { authApi });
     await waitFor(() => expect(screen.getByTestId('restore-tools'))
       .toBeInTheDocument());
     /* LOCAL radio is the default; the picker dropdown lists only
@@ -422,7 +422,7 @@ describe('MoreScreens — surface mount test', () => {
     confirmSpy.mockRestore();
   });
 
-  it('MockupRestoreList — UPLOAD flow uploads then requests restore with upload key', async () => {
+  it('RestoreList — UPLOAD flow uploads then requests restore with upload key', async () => {
     vi.spyOn(edgeApi, 'listRestores').mockResolvedValue([]);
     vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([]);
     vi.spyOn(edgeApi, 'backupVerifyHistory').mockResolvedValue([]);
@@ -434,7 +434,7 @@ describe('MoreScreens — surface mount test', () => {
       status: 'REQUESTED', requestedAt: 'now',
     });
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    renderWithProviders(<MockupRestoreList />, { authApi });
+    renderWithProviders(<RestoreList />, { authApi });
     await userEvent.click(await screen.findByTestId('restore-kind-upload'));
     const file = new File(['backup contents'], 'backup.dump', {
       type: 'application/octet-stream' });
@@ -448,7 +448,7 @@ describe('MoreScreens — surface mount test', () => {
     confirmSpy.mockRestore();
   });
 
-  it('MockupRestoreList — cancelling the confirm does not submit', async () => {
+  it('RestoreList — cancelling the confirm does not submit', async () => {
     vi.spyOn(edgeApi, 'listRestores').mockResolvedValue([]);
     vi.spyOn(edgeApi, 'listBackups').mockResolvedValue([
       { runId: 1, kind: 'FULL', status: 'SUCCESS',
@@ -460,7 +460,7 @@ describe('MoreScreens — surface mount test', () => {
       status: 'REQUESTED', requestedAt: 'now',
     });
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    renderWithProviders(<MockupRestoreList />, { authApi });
+    renderWithProviders(<RestoreList />, { authApi });
     await waitFor(() => expect(screen.getByTestId('restore-tools'))
       .toBeInTheDocument());
     await userEvent.selectOptions(
@@ -470,7 +470,7 @@ describe('MoreScreens — surface mount test', () => {
     confirmSpy.mockRestore();
   });
 
-  it('MockupCompatInspector renders details from a resolved compat probe', async () => {
+  it('CompatInspector renders details from a resolved compat probe', async () => {
     vi.spyOn(edgeApi, 'compat').mockResolvedValue({
       status: 'OK', snapshotId: 442,
       capturedAt: '2026-11-03T10:00:00Z',
@@ -480,12 +480,12 @@ describe('MoreScreens — surface mount test', () => {
       capabilities: { trackerApi: 'TRACKER_ONLY' },
       pinnedVersion: '2.44-SNAPSHOT', pingHistory: [],
     } as unknown as edgeApi.CompatSnapshot);
-    renderWithProviders(<MockupCompatInspector />, { authApi });
+    renderWithProviders(<CompatInspector />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/2\.44|V2_44|TRACKER_ONLY/));
   });
 
-  it('MockupApprovalQueue renders populated approvals', async () => {
+  it('ApprovalQueue renders populated approvals', async () => {
     vi.spyOn(edgeApi, 'listPendingApprovals').mockResolvedValue({
       rows: [
         { operationId: 'op-approve-1', entityType: 'AGGREGATE_DATA_VALUE',
@@ -496,7 +496,7 @@ describe('MoreScreens — surface mount test', () => {
           approvalRequestedBy: null },
       ],
     } as unknown as { rows: edgeApi.PendingApprovalRow[] });
-    renderWithProviders(<MockupApprovalQueue />, { authApi });
+    renderWithProviders(<ApprovalQueue />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/op-approve-1|de1\|ou1/));
   });
@@ -514,7 +514,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/resume|disabled|paused/i);
   });
 
-  it('MockupDriftInspector renders the perEntity breakdown and totals', async () => {
+  it('DriftInspector renders the perEntity breakdown and totals', async () => {
     vi.spyOn(edgeApi, 'drift').mockResolvedValue({
       status: 'OK',
       fingerprintFrom: 'from-aaa',
@@ -533,14 +533,14 @@ describe('MoreScreens — surface mount test', () => {
         },
       },
     } as unknown as edgeApi.DriftResponse);
-    renderWithProviders(<MockupDriftInspector />, { authApi });
+    renderWithProviders(<DriftInspector />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('drift-hub')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/dataElements|organisationUnits/);
     expect(document.body.textContent ?? '').toMatch(/drift detected/i);
   });
 
-  it('MockupDriftInspector in-sync branch renders the success tone + \'In sync\' label', async () => {
+  it('DriftInspector in-sync branch renders the success tone + \'In sync\' label', async () => {
     vi.spyOn(edgeApi, 'drift').mockResolvedValue({
       status: 'OK',
       fingerprintFrom: 'same', fingerprintTo: 'same',  /* equal */
@@ -548,13 +548,13 @@ describe('MoreScreens — surface mount test', () => {
       capturedAt: 'now',
       perEntity: {},
     } as unknown as edgeApi.DriftResponse);
-    renderWithProviders(<MockupDriftInspector />, { authApi });
+    renderWithProviders(<DriftInspector />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('drift-hub')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/in sync/i);
   });
 
-  it('MockupDriftInspector — clicking an entity row expands the drill-down panel with the IDs', async () => {
+  it('DriftInspector — clicking an entity row expands the drill-down panel with the IDs', async () => {
     vi.spyOn(edgeApi, 'drift').mockResolvedValue({
       status: 'OK',
       fingerprintFrom: 'a', fingerprintTo: 'b',
@@ -568,7 +568,7 @@ describe('MoreScreens — surface mount test', () => {
         organisationUnits: { added: [], removed: [], changed: ['ou-1'] },
       },
     } as unknown as edgeApi.DriftResponse);
-    renderWithProviders(<MockupDriftInspector />, { authApi });
+    renderWithProviders(<DriftInspector />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('drift-row-dataElements')).toBeInTheDocument());
     /* Detail panel is hidden until a row is clicked. */
@@ -594,7 +594,7 @@ describe('MoreScreens — surface mount test', () => {
       screen.getByTestId('drift-detail-organisationUnits')).toBeInTheDocument());
   });
 
-  it('MockupDriftInspector — truncates long id lists with a +N more indicator', async () => {
+  it('DriftInspector — truncates long id lists with a +N more indicator', async () => {
     const manyIds = Array.from({ length: 28 }, (_, i) => `id-${i + 1}`);
     vi.spyOn(edgeApi, 'drift').mockResolvedValue({
       status: 'OK',
@@ -604,7 +604,7 @@ describe('MoreScreens — surface mount test', () => {
         dataElements: { added: manyIds, removed: [], changed: [] },
       },
     } as unknown as edgeApi.DriftResponse);
-    renderWithProviders(<MockupDriftInspector />, { authApi });
+    renderWithProviders(<DriftInspector />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('drift-row-dataElements')).toBeInTheDocument());
     await userEvent.click(screen.getByTestId('drift-row-dataElements'));
@@ -618,7 +618,7 @@ describe('MoreScreens — surface mount test', () => {
 
   /* ─── detail sub-screens with route params ─── */
 
-  it('MockupApprovalDetail: matched approval id renders the detail panel', async () => {
+  it('ApprovalDetail: matched approval id renders the detail panel', async () => {
     vi.spyOn(edgeApi, 'listPendingApprovals').mockResolvedValue({
       rows: [{
         operationId: 'op-match', entityType: 'AGGREGATE_DATA_VALUE',
@@ -629,7 +629,7 @@ describe('MoreScreens — surface mount test', () => {
         approvalRequestedBy: null,
       }],
     } as unknown as { rows: edgeApi.PendingApprovalRow[] });
-    renderWithProviders(<MockupApprovalDetail />,
+    renderWithProviders(<ApprovalDetail />,
       { authApi, route: '/admin/sync/approvals/op-match' });
     /* The route-param lookup inside the component uses useParams
      * which won't resolve without a matching <Route path>; the
@@ -640,9 +640,9 @@ describe('MoreScreens — surface mount test', () => {
       .toBeInTheDocument();
   });
 
-  it('MockupReferralDetail: unknown id in URL surfaces the not-found error', async () => {
+  it('ReferralDetail: unknown id in URL surfaces the not-found error', async () => {
     vi.spyOn(edgeApi, 'listReferralInbox').mockResolvedValue({ entries: [] });
-    renderWithProviders(<MockupReferralDetail />,
+    renderWithProviders(<ReferralDetail />,
       { authApi, route: '/admin/referrals/missing' });
     /* Without a <Route path> binding the useParams resolves to
      * undefined; the component short-circuits to LoadingBlock. */
@@ -650,15 +650,15 @@ describe('MoreScreens — surface mount test', () => {
       .toBeInTheDocument();
   });
 
-  it('MockupDeviceDetail: no matching deviceId surfaces an error', async () => {
+  it('DeviceDetail: no matching deviceId surfaces an error', async () => {
     vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({ devices: [] });
-    renderWithProviders(<MockupDeviceDetail />,
+    renderWithProviders(<DeviceDetail />,
       { authApi, route: '/admin/network/devices/missing' });
     expect(screen.queryByTestId('loading') ?? document.body)
       .toBeInTheDocument();
   });
 
-  it('MockupAuditEvents: default (system) mode renders recent activity rows', async () => {
+  it('AuditEvents: default (system) mode renders recent activity rows', async () => {
     vi.spyOn(edgeApi, 'recentActivity').mockResolvedValue({
       entries: [
         { auditId: 'a1', eventType: 'SIGN_IN', outcome: 'SUCCESS',
@@ -667,12 +667,12 @@ describe('MoreScreens — surface mount test', () => {
           observedAt: '2026-11-03T11:05:00Z' },
       ],
     } as unknown as { entries: edgeApi.ActivityEntry[] });
-    renderWithProviders(<MockupAuditEvents />, { authApi });
+    renderWithProviders(<AuditEvents />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/SIGN_IN|JOURNAL_DRAIN/));
   });
 
-  it('MockupFacilityAnalytics: resolved systemInfo renders the entries count', async () => {
+  it('FacilityAnalytics: resolved systemInfo renders the entries count', async () => {
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
       runtime: { heapUsedBytes: 1, heapMaxBytes: 100, uptimeMillis: 1 },
       database: { configured: true, sessionCount: 0 },
@@ -689,7 +689,7 @@ describe('MoreScreens — surface mount test', () => {
         TRACKED_ENTITY: 25,
       },
     } as unknown as edgeApi.SystemInfo);
-    renderWithProviders(<MockupFacilityAnalytics />, { authApi });
+    renderWithProviders(<FacilityAnalytics />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
     /* Total = 175 entries; the component formats via
      * toLocaleString() which may render '175' or '1,75' depending
@@ -697,7 +697,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/17[05]|facility analytics/i);
   });
 
-  it('MockupConflictList — all four problem-state branches + priorities', async () => {
+  it('ConflictList — all four problem-state branches + priorities', async () => {
     /* Feed one row per problemFor() arm so lines 203-219 all run,
      * including the two priority branches (attemptCount >=5 → High,
      * >=2 → Medium). */
@@ -719,7 +719,7 @@ describe('MoreScreens — surface mount test', () => {
         lastError: null, submittedBy: null, createdAt: 'now',
         updatedAt: 'now', nextHopOrgUnitUid: null },
     ] as unknown as edgeApi.ConflictRow[]);
-    renderWithProviders(<MockupConflictList />, { authApi });
+    renderWithProviders(<ConflictList />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/Rejected by Central/));
     const body = document.body.textContent ?? '';
@@ -731,9 +731,9 @@ describe('MoreScreens — surface mount test', () => {
     expect(body).toMatch(/Low/);
   });
 
-  it('MockupConflictList — ?workflowRunId=... shows ScopedFilterChip', async () => {
+  it('ConflictList — ?workflowRunId=... shows ScopedFilterChip', async () => {
     vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([] as never);
-    renderWithProviders(<MockupConflictList />, {
+    renderWithProviders(<ConflictList />, {
       authApi,
       route: '/admin/sync/attention?workflowRunId=wfr-abcdef-1234',
     });
@@ -941,7 +941,7 @@ describe('MoreScreens — surface mount test', () => {
     confirmSpy.mockRestore();
   });
 
-  it('MockupApprovalDetail — EVENT entity renders Data-module cross-link to /data/events', async () => {
+  it('ApprovalDetail — EVENT entity renders Data-module cross-link to /data/events', async () => {
     vi.spyOn(edgeApi, 'listPendingApprovals').mockResolvedValue({
       rows: [{
         operationId: 'op-ev-1', entityType: 'EVENT', entityRef: 'ev-abc',
@@ -952,7 +952,7 @@ describe('MoreScreens — surface mount test', () => {
     } as unknown as { rows: edgeApi.PendingApprovalRow[] });
     renderWithProviders(
       <Routes><Route path="/admin/sync/approvals/:operationId"
-                      element={<MockupApprovalDetail />} /></Routes>,
+                      element={<ApprovalDetail />} /></Routes>,
       { authApi, route: '/admin/sync/approvals/op-ev-1' });
     await waitFor(() =>
       expect(screen.getByTestId('approval-view-record')).toBeInTheDocument());
@@ -961,7 +961,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/View event/i);
   });
 
-  it('MockupApprovalDetail — TRACKED_ENTITY cross-link routes to /data/tracker/tei', async () => {
+  it('ApprovalDetail — TRACKED_ENTITY cross-link routes to /data/tracker/tei', async () => {
     vi.spyOn(edgeApi, 'listPendingApprovals').mockResolvedValue({
       rows: [{
         operationId: 'op-tei-1', entityType: 'TRACKED_ENTITY',
@@ -973,7 +973,7 @@ describe('MoreScreens — surface mount test', () => {
     } as unknown as { rows: edgeApi.PendingApprovalRow[] });
     renderWithProviders(
       <Routes><Route path="/admin/sync/approvals/:operationId"
-                      element={<MockupApprovalDetail />} /></Routes>,
+                      element={<ApprovalDetail />} /></Routes>,
       { authApi, route: '/admin/sync/approvals/op-tei-1' });
     await waitFor(() =>
       expect(screen.getByTestId('approval-view-record')).toBeInTheDocument());
@@ -981,7 +981,7 @@ describe('MoreScreens — surface mount test', () => {
       .toHaveAttribute('href', '/data/tracker/tei/tei-xyz');
   });
 
-  it('MockupApprovalDetail — AGGREGATE falls back to /data/queue by operationId', async () => {
+  it('ApprovalDetail — AGGREGATE falls back to /data/queue by operationId', async () => {
     vi.spyOn(edgeApi, 'listPendingApprovals').mockResolvedValue({
       rows: [{
         operationId: 'op-agg-1', entityType: 'AGGREGATE_DATA_VALUE',
@@ -993,7 +993,7 @@ describe('MoreScreens — surface mount test', () => {
     } as unknown as { rows: edgeApi.PendingApprovalRow[] });
     renderWithProviders(
       <Routes><Route path="/admin/sync/approvals/:operationId"
-                      element={<MockupApprovalDetail />} /></Routes>,
+                      element={<ApprovalDetail />} /></Routes>,
       { authApi, route: '/admin/sync/approvals/op-agg-1' });
     await waitFor(() =>
       expect(screen.getByTestId('approval-view-record')).toBeInTheDocument());
@@ -1002,20 +1002,20 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/View data value/i);
   });
 
-  it('MockupApprovalDetail — unmatched operationId renders the Not-found panel', async () => {
+  it('ApprovalDetail — unmatched operationId renders the Not-found panel', async () => {
     vi.spyOn(edgeApi, 'listPendingApprovals').mockResolvedValue({
       rows: [],
     } as unknown as { rows: edgeApi.PendingApprovalRow[] });
     renderWithProviders(
       <Routes><Route path="/admin/sync/approvals/:operationId"
-                      element={<MockupApprovalDetail />} /></Routes>,
+                      element={<ApprovalDetail />} /></Routes>,
       { authApi, route: '/admin/sync/approvals/op-missing' });
     await waitFor(() =>
       expect(document.body.textContent ?? '')
         .toMatch(/Approval item not found/));
   });
 
-  it('MockupDeviceDetail — matched APPROVED device renders detail + Suspend action', async () => {
+  it('DeviceDetail — matched APPROVED device renders detail + Suspend action', async () => {
     vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
       devices: [
         { deviceId: 'dev-approved-ab12cd34', status: 'APPROVED',
@@ -1028,7 +1028,7 @@ describe('MoreScreens — surface mount test', () => {
     } as unknown as { devices: edgeApi.EdgeDeviceRow[] });
     renderWithProviders(
       <Routes><Route path="/admin/network/connected/:deviceId"
-                      element={<MockupDeviceDetail />} /></Routes>,
+                      element={<DeviceDetail />} /></Routes>,
       { authApi, route: '/admin/network/connected/dev-approved-ab12cd34' });
     await waitFor(() =>
       expect(screen.getByTestId('device-detail')).toBeInTheDocument());
@@ -1040,7 +1040,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(screen.getByRole('button', { name: /Revoke/ })).toBeInTheDocument();
   });
 
-  it('MockupDeviceDetail — PENDING device surfaces the Approve button', async () => {
+  it('DeviceDetail — PENDING device surfaces the Approve button', async () => {
     vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
       devices: [
         { deviceId: 'dev-pending-xyzabc', status: 'PENDING',
@@ -1053,25 +1053,25 @@ describe('MoreScreens — surface mount test', () => {
     } as unknown as { devices: edgeApi.EdgeDeviceRow[] });
     renderWithProviders(
       <Routes><Route path="/admin/network/connected/:deviceId"
-                      element={<MockupDeviceDetail />} /></Routes>,
+                      element={<DeviceDetail />} /></Routes>,
       { authApi, route: '/admin/network/connected/dev-pending-xyzabc' });
     await waitFor(() =>
       expect(screen.getByTestId('device-detail')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /Approve/ })).toBeInTheDocument();
   });
 
-  it('MockupDeviceDetail — listDevices rejection surfaces err-device-detail', async () => {
+  it('DeviceDetail — listDevices rejection surfaces err-device-detail', async () => {
     vi.spyOn(edgeApi, 'listDevices').mockRejectedValue(new Error('500 upstream'));
     renderWithProviders(
       <Routes><Route path="/admin/network/connected/:deviceId"
-                      element={<MockupDeviceDetail />} /></Routes>,
+                      element={<DeviceDetail />} /></Routes>,
       { authApi, route: '/admin/network/connected/dev-any' });
     await waitFor(() =>
       expect(screen.getByTestId('err-device-detail')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/500 upstream/);
   });
 
-  it('MockupAuditEvents — ?category=network switches to networkEvents + filter pills', async () => {
+  it('AuditEvents — ?category=network switches to networkEvents + filter pills', async () => {
     vi.spyOn(edgeApi, 'networkEvents').mockResolvedValue({
       events: [
         { eventId: 'ev-ok', eventType: 'AP_STARTED', actor: null,
@@ -1084,7 +1084,7 @@ describe('MoreScreens — surface mount test', () => {
           observedAt: '2026-11-03T11:00:00Z' },
       ],
     } as never);
-    renderWithProviders(<MockupAuditEvents />, {
+    renderWithProviders(<AuditEvents />, {
       authApi, route: '/admin/audit/events?category=network',
     });
     await waitFor(() =>
@@ -1096,7 +1096,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(body).toMatch(/link-down/);
   });
 
-  it('MockupAuditEvents — ?device=... narrows the networkEvents feed', async () => {
+  it('AuditEvents — ?device=... narrows the networkEvents feed', async () => {
     vi.spyOn(edgeApi, 'networkEvents').mockResolvedValue({
       events: [
         { eventId: 'ev-a', eventType: 'DEVICE_APPROVED', actor: null,
@@ -1109,7 +1109,7 @@ describe('MoreScreens — surface mount test', () => {
           observedAt: '2026-11-03T11:00:00Z' },
       ],
     } as never);
-    renderWithProviders(<MockupAuditEvents />, {
+    renderWithProviders(<AuditEvents />, {
       authApi, route: '/admin/audit/events?device=dev-matcher',
     });
     await waitFor(() =>
@@ -1117,9 +1117,9 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').not.toMatch(/dev-other/);
   });
 
-  it('MockupAuditEvents — networkEvents rejection renders ErrorBlock', async () => {
+  it('AuditEvents — networkEvents rejection renders ErrorBlock', async () => {
     vi.spyOn(edgeApi, 'networkEvents').mockRejectedValue(new Error('500 bad'));
-    renderWithProviders(<MockupAuditEvents />, {
+    renderWithProviders(<AuditEvents />, {
       authApi, route: '/admin/audit/events?category=network',
     });
     await waitFor(() =>
@@ -1154,7 +1154,7 @@ describe('MoreScreens — surface mount test', () => {
       .not.toBeNull();
   });
 
-  it('MockupSupportBundle — FR-15-09 download button invokes fetchSupportBundle + updates last-export', async () => {
+  it('SupportBundle — FR-15-09 download button invokes fetchSupportBundle + updates last-export', async () => {
     const zipBlob = new Blob(['PKfake zip'],
       { type: 'application/zip' });
     const fetchSpy = vi.spyOn(edgeApi, 'fetchSupportBundle').mockResolvedValue({
@@ -1170,7 +1170,7 @@ describe('MoreScreens — surface mount test', () => {
     (URL as unknown as { revokeObjectURL: typeof URL.revokeObjectURL })
       .revokeObjectURL = (() => undefined) as never;
     try {
-      renderWithProviders(<MockupSupportBundle />, { authApi });
+      renderWithProviders(<SupportBundle />, { authApi });
       expect(screen.getByTestId('support-bundle')).toBeInTheDocument();
       const user = (await import('@testing-library/user-event')).default.setup();
       await user.click(screen.getByTestId('support-bundle-download'));
@@ -1185,10 +1185,10 @@ describe('MoreScreens — surface mount test', () => {
     }
   });
 
-  it('MockupSupportBundle — fetchSupportBundle rejection surfaces err-support-bundle', async () => {
+  it('SupportBundle — fetchSupportBundle rejection surfaces err-support-bundle', async () => {
     vi.spyOn(edgeApi, 'fetchSupportBundle')
       .mockRejectedValue(new Error('server 503'));
-    renderWithProviders(<MockupSupportBundle />, { authApi });
+    renderWithProviders(<SupportBundle />, { authApi });
     const user = (await import('@testing-library/user-event')).default.setup();
     await user.click(screen.getByTestId('support-bundle-download'));
     await waitFor(() =>
@@ -1196,7 +1196,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/server 503/);
   });
 
-  it('MockupConfigEditor — FR-15-08 renders ops settings + recent audit history', async () => {
+  it('ConfigEditor — FR-15-08 renders ops settings + recent audit history', async () => {
     vi.spyOn(edgeApi, 'readOpsSettings').mockResolvedValue({
       settings: {
         'der.backup.enabled': 'true',
@@ -1216,7 +1216,7 @@ describe('MoreScreens — surface mount test', () => {
         detail: '{"key":"der.security.require-tls","value":"notabool"}',
         observedAt: '2026-11-03T09:00:00Z' },
     ]);
-    renderWithProviders(<MockupConfigEditor />, { authApi });
+    renderWithProviders(<ConfigEditor />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('config-editor')).toBeInTheDocument());
     /* All three settings render rows + save buttons. */
@@ -1232,7 +1232,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(body).toMatch(/der\.backup\.enabled/);
   });
 
-  it('MockupConfigEditor — edit + Save invokes writeOpsSetting(key, nextValue)', async () => {
+  it('ConfigEditor — edit + Save invokes writeOpsSetting(key, nextValue)', async () => {
     vi.spyOn(edgeApi, 'readOpsSettings').mockResolvedValue({
       settings: { 'der.backup.enabled': 'true' },
     });
@@ -1240,7 +1240,7 @@ describe('MoreScreens — surface mount test', () => {
     const writeSpy = vi.spyOn(edgeApi, 'writeOpsSetting').mockResolvedValue({
       key: 'der.backup.enabled', value: 'false',
     });
-    renderWithProviders(<MockupConfigEditor />, { authApi });
+    renderWithProviders(<ConfigEditor />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('config-row-der.backup.enabled'))
         .toBeInTheDocument());
@@ -1255,27 +1255,27 @@ describe('MoreScreens — surface mount test', () => {
       expect(writeSpy).toHaveBeenCalledWith('der.backup.enabled', 'false'));
   });
 
-  it('MockupConfigEditor — readOpsSettings rejection surfaces err-config-load', async () => {
+  it('ConfigEditor — readOpsSettings rejection surfaces err-config-load', async () => {
     vi.spyOn(edgeApi, 'readOpsSettings')
       .mockRejectedValue(new Error('403 forbidden'));
     vi.spyOn(edgeApi, 'securityAuditEvents').mockResolvedValue([]);
-    renderWithProviders(<MockupConfigEditor />, { authApi });
+    renderWithProviders(<ConfigEditor />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('err-config-load')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/403 forbidden/);
   });
 
-  it('MockupConfigEditor — empty audit history renders the history-empty hint', async () => {
+  it('ConfigEditor — empty audit history renders the history-empty hint', async () => {
     vi.spyOn(edgeApi, 'readOpsSettings').mockResolvedValue({
       settings: { 'der.backup.enabled': 'true' },
     });
     vi.spyOn(edgeApi, 'securityAuditEvents').mockResolvedValue([]);
-    renderWithProviders(<MockupConfigEditor />, { authApi });
+    renderWithProviders(<ConfigEditor />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('config-history-empty')).toBeInTheDocument());
   });
 
-  it('MockupOperationalReport — FR-15-10 renders local/central split + journal by-state', async () => {
+  it('OperationalReport — FR-15-10 renders local/central split + journal by-state', async () => {
     vi.spyOn(edgeApi, 'fetchOperationalReport').mockResolvedValue({
       generatedAt: '2026-11-04T11:00:00Z',
       byState: {
@@ -1298,7 +1298,7 @@ describe('MoreScreens — surface mount test', () => {
       enabled: true, probeTimestamp: 'now',
       backlog: { PENDING: 12, RETRYABLE: 3 },
     } as unknown as edgeApi.WorkerHealth);
-    renderWithProviders(<MockupOperationalReport />, { authApi });
+    renderWithProviders(<OperationalReport />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('ops-report')).toBeInTheDocument());
     expect(screen.getByTestId('ops-central-confirmed'))
@@ -1318,20 +1318,20 @@ describe('MoreScreens — surface mount test', () => {
     expect(screen.getByTestId('ops-worker-backlog')).toHaveTextContent('15');
   });
 
-  it('MockupOperationalReport — fetchOperationalReport rejection surfaces err-ops-report', async () => {
+  it('OperationalReport — fetchOperationalReport rejection surfaces err-ops-report', async () => {
     vi.spyOn(edgeApi, 'fetchOperationalReport')
       .mockRejectedValue(new Error('503 journal unavailable'));
     vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([] as edgeApi.JobRun[]);
     vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
       enabled: true, probeTimestamp: 'now', backlog: {},
     } as unknown as edgeApi.WorkerHealth);
-    renderWithProviders(<MockupOperationalReport />, { authApi });
+    renderWithProviders(<OperationalReport />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('err-ops-report')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/503 journal unavailable/);
   });
 
-  it('MockupUserScope — FR-15-06 renders role matrix + stale-permission chip', async () => {
+  it('UserScope — FR-15-06 renders role matrix + stale-permission chip', async () => {
     vi.spyOn(edgeApi, 'fetchUserScope').mockResolvedValue({
       generatedAt: '2026-11-04T11:00:00Z',
       users: [
@@ -1361,7 +1361,7 @@ describe('MoreScreens — surface mount test', () => {
           permissionAgeHours: 1 },
       ],
     });
-    renderWithProviders(<MockupUserScope />, { authApi });
+    renderWithProviders(<UserScope />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('user-scope')).toBeInTheDocument());
     /* Alice has ADMIN + OPERATOR but not VIEWER. */
@@ -1380,7 +1380,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/1 stale/);
   });
 
-  it('MockupUserScope — role filter prunes rows to selected role', async () => {
+  it('UserScope — role filter prunes rows to selected role', async () => {
     vi.spyOn(edgeApi, 'fetchUserScope').mockResolvedValue({
       generatedAt: 'now',
       users: [
@@ -1392,7 +1392,7 @@ describe('MoreScreens — surface mount test', () => {
           createdAt: 'now', updatedAt: 'now', permissionAgeHours: 1 },
       ],
     });
-    renderWithProviders(<MockupUserScope />, { authApi });
+    renderWithProviders(<UserScope />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('user-row-alice')).toBeInTheDocument());
     const user = (await import('@testing-library/user-event')).default.setup();
@@ -1402,17 +1402,17 @@ describe('MoreScreens — surface mount test', () => {
     expect(screen.getByTestId('user-row-bob')).toBeInTheDocument();
   });
 
-  it('MockupUserScope — fetchUserScope rejection surfaces err-user-scope', async () => {
+  it('UserScope — fetchUserScope rejection surfaces err-user-scope', async () => {
     vi.spyOn(edgeApi, 'fetchUserScope')
       .mockRejectedValue(new Error('403 ADMIN required'));
-    renderWithProviders(<MockupUserScope />, { authApi });
+    renderWithProviders(<UserScope />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('err-user-scope')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/403 ADMIN required/);
   });
 
-  it('MockupDecommission — FR-01-10 button stays disabled until DECOMMISSION is typed', async () => {
-    renderWithProviders(<MockupDecommission />, { authApi });
+  it('Decommission — FR-01-10 button stays disabled until DECOMMISSION is typed', async () => {
+    renderWithProviders(<Decommission />, { authApi });
     expect(screen.getByTestId('decommission')).toBeInTheDocument();
     /* Disabled on empty input. */
     expect(screen.getByTestId('decommission-run')).toBeDisabled();
@@ -1426,13 +1426,13 @@ describe('MoreScreens — surface mount test', () => {
     expect(screen.getByTestId('decommission-run')).toBeEnabled();
   });
 
-  it('MockupDecommission — confirmed click posts to decommissionEdge + renders receipt', async () => {
+  it('Decommission — confirmed click posts to decommissionEdge + renders receipt', async () => {
     const decomSpy = vi.spyOn(edgeApi, 'decommissionEdge').mockResolvedValue({
       disabledUsers: 7,
       finalBackupRequested: true,
       actedBy: 'u-admin',
     });
-    renderWithProviders(<MockupDecommission />, { authApi });
+    renderWithProviders(<Decommission />, { authApi });
     const user = (await import('@testing-library/user-event')).default.setup();
     await user.type(screen.getByTestId('decommission-input'), 'DECOMMISSION');
     await user.click(screen.getByTestId('decommission-run'));
@@ -1448,10 +1448,10 @@ describe('MoreScreens — surface mount test', () => {
     expect(screen.getByTestId('decommission-open-support')).toBeInTheDocument();
   });
 
-  it('MockupDecommission — server rejection surfaces err-decommission', async () => {
+  it('Decommission — server rejection surfaces err-decommission', async () => {
     vi.spyOn(edgeApi, 'decommissionEdge')
       .mockRejectedValue(new Error('500 journal busy'));
-    renderWithProviders(<MockupDecommission />, { authApi });
+    renderWithProviders(<Decommission />, { authApi });
     const user = (await import('@testing-library/user-event')).default.setup();
     await user.type(screen.getByTestId('decommission-input'), 'DECOMMISSION');
     await user.click(screen.getByTestId('decommission-run'));
@@ -1460,7 +1460,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/500 journal busy/);
   });
 
-  it('MockupSiteConfig — FR-01-07 renders defaults + per-key save buttons', async () => {
+  it('SiteConfig — FR-01-07 renders defaults + per-key save buttons', async () => {
     vi.spyOn(edgeApi, 'readSiteConfig').mockResolvedValue({
       values: {
         'site.displayName': 'Kampala Clinic',
@@ -1483,7 +1483,7 @@ describe('MoreScreens — surface mount test', () => {
       updatedBy: 'u-admin',
       updatedAt: '2026-11-03T10:00:00Z',
     });
-    renderWithProviders(<MockupSiteConfig />, { authApi });
+    renderWithProviders(<SiteConfig />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('site-config')).toBeInTheDocument());
     expect(screen.getByTestId('site-input-site.displayName'))
@@ -1494,7 +1494,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(screen.getByTestId('site-save-site.displayName')).toBeDisabled();
   });
 
-  it('MockupSiteConfig — edit + Save invokes writeSiteConfig(key)', async () => {
+  it('SiteConfig — edit + Save invokes writeSiteConfig(key)', async () => {
     vi.spyOn(edgeApi, 'readSiteConfig').mockResolvedValue({
       values: { 'site.displayName': 'DER edge' },
       defaults: { 'site.displayName': 'DER edge' },
@@ -1506,7 +1506,7 @@ describe('MoreScreens — surface mount test', () => {
       updatedBy: 'u-admin',
       updatedAt: '2026-11-04T11:00:00Z',
     });
-    renderWithProviders(<MockupSiteConfig />, { authApi });
+    renderWithProviders(<SiteConfig />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('site-row-site.displayName'))
         .toBeInTheDocument());
@@ -1521,16 +1521,16 @@ describe('MoreScreens — surface mount test', () => {
       }));
   });
 
-  it('MockupSiteConfig — readSiteConfig rejection surfaces err-site-config-load', async () => {
+  it('SiteConfig — readSiteConfig rejection surfaces err-site-config-load', async () => {
     vi.spyOn(edgeApi, 'readSiteConfig')
       .mockRejectedValue(new Error('403 forbidden'));
-    renderWithProviders(<MockupSiteConfig />, { authApi });
+    renderWithProviders(<SiteConfig />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('err-site-config-load')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/403 forbidden/);
   });
 
-  it('MockupUserScope — search filter with no matches surfaces empty hint', async () => {
+  it('UserScope — search filter with no matches surfaces empty hint', async () => {
     vi.spyOn(edgeApi, 'fetchUserScope').mockResolvedValue({
       generatedAt: 'now',
       users: [
@@ -1539,7 +1539,7 @@ describe('MoreScreens — surface mount test', () => {
           createdAt: 'now', updatedAt: 'now', permissionAgeHours: 1 },
       ],
     });
-    renderWithProviders(<MockupUserScope />, { authApi });
+    renderWithProviders(<UserScope />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('user-row-alice')).toBeInTheDocument());
     const user = (await import('@testing-library/user-event')).default.setup();
@@ -1548,7 +1548,7 @@ describe('MoreScreens — surface mount test', () => {
       expect(screen.getByTestId('user-scope-empty')).toBeInTheDocument());
   });
 
-  it('MockupOperationalReport — no records yet renders the empty jobs hint', async () => {
+  it('OperationalReport — no records yet renders the empty jobs hint', async () => {
     vi.spyOn(edgeApi, 'fetchOperationalReport').mockResolvedValue({
       generatedAt: '2026-11-04T11:00:00Z',
       byState: {}, centralConfirmed: 0, localOnly: 0,
@@ -1558,14 +1558,14 @@ describe('MoreScreens — surface mount test', () => {
     vi.spyOn(edgeApi, 'workerHealth').mockResolvedValue({
       enabled: true, probeTimestamp: 'now', backlog: {},
     } as unknown as edgeApi.WorkerHealth);
-    renderWithProviders(<MockupOperationalReport />, { authApi });
+    renderWithProviders(<OperationalReport />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('ops-jobs-empty')).toBeInTheDocument());
     /* 0+0 split → status label "No records yet" + percentage stat shows em-dash. */
     expect(screen.getByTestId('ops-synced-pct')).toHaveTextContent('—');
   });
 
-  it('MockupDhis2Mappings — renders per-user mapping status with Map action on unmapped rows', async () => {
+  it('Dhis2Mappings — renders per-user mapping status with Map action on unmapped rows', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
       users: [
         { userId: 'u-alice', username: 'alice', displayName: 'Alice A',
@@ -1580,7 +1580,7 @@ describe('MoreScreens — surface mount test', () => {
         mappedAt: '2026-11-03T10:00:00Z', mappedBy: 'admin',
         lastVerifiedAt: null, authType: null, hasCredential: false, credentialSetAt: null },
     ]);
-    renderWithProviders(<MockupDhis2Mappings />, { authApi });
+    renderWithProviders(<Dhis2Mappings />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('dhis2-mappings')).toBeInTheDocument());
     /* Alice mapped — Edit action. Bob unmapped — Map action. */
@@ -1594,7 +1594,7 @@ describe('MoreScreens — surface mount test', () => {
     expect(document.body.textContent ?? '').toMatch(/1 unmapped/);
   });
 
-  it('MockupDhis2Mappings — Map click opens the dialog and Save invokes setUserDhis2Mapping', async () => {
+  it('Dhis2Mappings — Map click opens the dialog and Save invokes setUserDhis2Mapping', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
       users: [{ userId: 'u-bob', username: 'bob', displayName: 'Bob',
                  roles: ['OPERATOR'] }],
@@ -1606,7 +1606,7 @@ describe('MoreScreens — surface mount test', () => {
       mappedAt: 'now', mappedBy: 'admin', lastVerifiedAt: null,
       authType: null, hasCredential: false, credentialSetAt: null,
     });
-    renderWithProviders(<MockupDhis2Mappings />, { authApi });
+    renderWithProviders(<Dhis2Mappings />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('dhis2-mappings-edit-bob')).toBeInTheDocument());
     const user = (await import('@testing-library/user-event')).default.setup();
@@ -1625,7 +1625,7 @@ describe('MoreScreens — surface mount test', () => {
       })));
   });
 
-  it('MockupDhis2Mappings — ?user= deep-link pre-opens the dialog for that user', async () => {
+  it('Dhis2Mappings — ?user= deep-link pre-opens the dialog for that user', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
       users: [
         { userId: 'u-alice', username: 'alice', displayName: 'Alice', roles: ['ADMIN'] },
@@ -1637,7 +1637,7 @@ describe('MoreScreens — surface mount test', () => {
         dhis2DisplayName: 'Bob Central', mappedAt: 'now', mappedBy: 'admin',
         lastVerifiedAt: null, authType: null, hasCredential: false, credentialSetAt: null },
     ]);
-    renderWithProviders(<MockupDhis2Mappings />, { authApi, route: '/access/dhis2-mappings?user=u-bob' });
+    renderWithProviders(<Dhis2Mappings />, { authApi, route: '/access/dhis2-mappings?user=u-bob' });
     /* Dialog opens automatically; username is pre-filled from the existing mapping. */
     await waitFor(() =>
       expect(screen.getByTestId('dhis2-mappings-dialog')).toBeInTheDocument());
@@ -1645,16 +1645,16 @@ describe('MoreScreens — surface mount test', () => {
     expect(screen.getByTestId('dhis2-mappings-input-uid')).toHaveValue('BOB123');
   });
 
-  it('MockupDhis2Mappings — listUsers rejection surfaces err-dhis2-mappings', async () => {
+  it('Dhis2Mappings — listUsers rejection surfaces err-dhis2-mappings', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockRejectedValue(new Error('403 forbidden'));
     vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
-    renderWithProviders(<MockupDhis2Mappings />, { authApi });
+    renderWithProviders(<Dhis2Mappings />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('err-dhis2-mappings')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/403 forbidden/);
   });
 
-  it('MockupOperatorMetrics — joins users × mappings × conflicts; ranks by attention count', async () => {
+  it('OperatorMetrics — joins users × mappings × conflicts; ranks by attention count', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({
       users: [
         { userId: 'u-alice', username: 'alice', displayName: 'Alice',
@@ -1689,7 +1689,7 @@ describe('MoreScreens — surface mount test', () => {
         state: 'RETRYABLE', attemptCount: 2, createdAt: 'now',
         submittedBy: 'u-carol' },
     ] as unknown as edgeApi.ConflictRow[]);
-    renderWithProviders(<MockupOperatorMetrics />, { authApi });
+    renderWithProviders(<OperatorMetrics />, { authApi });
     await waitFor(() => expect(screen.getByTestId('operator-metrics'))
       .toBeInTheDocument());
     const table = screen.getByTestId('operator-metrics-table');
@@ -1706,26 +1706,26 @@ describe('MoreScreens — surface mount test', () => {
     expect(rows[2]).toHaveTextContent(/Unmapped/);
   });
 
-  it('MockupOperatorMetrics — empty-state when no users', async () => {
+  it('OperatorMetrics — empty-state when no users', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockResolvedValue({ users: [] });
     vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
     vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([]);
-    renderWithProviders(<MockupOperatorMetrics />, { authApi });
+    renderWithProviders(<OperatorMetrics />, { authApi });
     await waitFor(() => expect(screen.getByTestId('operator-metrics-empty'))
       .toBeInTheDocument());
   });
 
-  it('MockupOperatorMetrics — listUsers rejection surfaces the error block', async () => {
+  it('OperatorMetrics — listUsers rejection surfaces the error block', async () => {
     vi.spyOn(edgeApi, 'listUsers').mockRejectedValue(new Error('503 DB down'));
     vi.spyOn(edgeApi, 'listUserDhis2Mappings').mockResolvedValue([]);
     vi.spyOn(edgeApi, 'listConflicts').mockResolvedValue([]);
-    renderWithProviders(<MockupOperatorMetrics />, { authApi });
+    renderWithProviders(<OperatorMetrics />, { authApi });
     await waitFor(() => expect(screen.getByTestId('err-operator-metrics'))
       .toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/503 DB down/);
   });
 
-  it('MockupSecurityAuditTrail renders the page + exposes auditId per row', async () => {
+  it('SecurityAuditTrail renders the page + exposes auditId per row', async () => {
     vi.spyOn(edgeApi, 'listAuditEvents').mockResolvedValue({
       count: 2, pageSize: 100, nextCursor: null,
       events: [
@@ -1737,7 +1737,7 @@ describe('MoreScreens — surface mount test', () => {
           outcome: 'SUCCESS', detail: '{}', observedAt: '2026-11-05T10:05:00Z' },
       ],
     });
-    renderWithProviders(<MockupSecurityAuditTrail />, { authApi });
+    renderWithProviders(<SecurityAuditTrail />, { authApi });
     await waitFor(() => expect(screen.getByTestId('audit-trail'))
       .toBeInTheDocument());
     expect(screen.getByTestId('audit-trail-row-101')).toBeInTheDocument();
@@ -1746,11 +1746,11 @@ describe('MoreScreens — surface mount test', () => {
       .toBeInTheDocument();
   });
 
-  it('MockupSecurityAuditTrail — Apply fires listAuditEvents with the chosen filters', async () => {
+  it('SecurityAuditTrail — Apply fires listAuditEvents with the chosen filters', async () => {
     const spy = vi.spyOn(edgeApi, 'listAuditEvents').mockResolvedValue({
       count: 0, pageSize: 100, nextCursor: null, events: [],
     });
-    renderWithProviders(<MockupSecurityAuditTrail />, { authApi });
+    renderWithProviders(<SecurityAuditTrail />, { authApi });
     await waitFor(() => expect(screen.getByTestId('audit-trail'))
       .toBeInTheDocument());
     /* First call was the initial empty-filter load. Apply with actor set. */
@@ -1764,7 +1764,7 @@ describe('MoreScreens — surface mount test', () => {
       })));
   });
 
-  it('MockupSecurityAuditTrail — Next uses the returned cursor; Prev restores the previous page', async () => {
+  it('SecurityAuditTrail — Next uses the returned cursor; Prev restores the previous page', async () => {
     const spy = vi.spyOn(edgeApi, 'listAuditEvents')
       .mockResolvedValueOnce({
         count: 2, pageSize: 100, nextCursor: 'cursor-page2',
@@ -1790,7 +1790,7 @@ describe('MoreScreens — surface mount test', () => {
             observedAt: '2026-11-05T10:00:00Z' },
         ],
       });
-    renderWithProviders(<MockupSecurityAuditTrail />, { authApi });
+    renderWithProviders(<SecurityAuditTrail />, { authApi });
     await waitFor(() => expect(screen.getByTestId('audit-trail-row-11'))
       .toBeInTheDocument());
     await userEvent.click(screen.getByTestId('audit-trail-next'));
@@ -1803,7 +1803,7 @@ describe('MoreScreens — surface mount test', () => {
       .toBeInTheDocument());
   });
 
-  it('MockupSecurityAuditTrail — Export CSV navigates to the export URL', async () => {
+  it('SecurityAuditTrail — Export CSV navigates to the export URL', async () => {
     vi.spyOn(edgeApi, 'listAuditEvents').mockResolvedValue({
       count: 0, pageSize: 100, nextCursor: null, events: [],
     });
@@ -1811,7 +1811,7 @@ describe('MoreScreens — surface mount test', () => {
     Object.defineProperty(window, 'location', {
       value: { assign: assignSpy }, writable: true,
     });
-    renderWithProviders(<MockupSecurityAuditTrail />, { authApi });
+    renderWithProviders(<SecurityAuditTrail />, { authApi });
     await waitFor(() => expect(screen.getByTestId('audit-trail'))
       .toBeInTheDocument());
     await userEvent.click(screen.getByTestId('audit-trail-export-csv'));

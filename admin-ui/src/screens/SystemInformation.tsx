@@ -4,14 +4,14 @@ import { Panel, fmtBytes, fmtDur, fmtDate, SyncStatusBar } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /**
- * MockupSystemInformation — rich, uniform system diagnostics page.
+ * SystemInformation — rich, uniform system diagnostics page.
  *
  * Replaces the plain `DefinitionCard` list with the same Hero + KPI
  * grid + Panel pattern used across the rest of the admin UI. Every
  * section renders a 2-column key/value grid so Database, Scheduler,
  * Storage etc. no longer stack 'Field / wrapped-value' awkwardly.
  */
-export function MockupSystemInformation(): JSX.Element {
+export function SystemInformation(): JSX.Element {
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {

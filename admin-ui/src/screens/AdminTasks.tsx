@@ -5,7 +5,7 @@ import { Panel, fmtAgo, fmtDur, SyncStatusBar } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /**
- * MockupAdminTasks — ADMIN-only lifecycle + control-plane page.
+ * AdminTasks — ADMIN-only lifecycle + control-plane page.
  *
  * Surfaces the destructive operations an on-site admin may need to run
  * without opening a shell on the host:
@@ -20,7 +20,7 @@ import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
  * explicit secondary click. All actions are POST-only and gated by
  * {@code hasRole('ADMIN')} on the server.
  */
-export function MockupAdminTasks(): JSX.Element {
+export function AdminTasks(): JSX.Element {
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);

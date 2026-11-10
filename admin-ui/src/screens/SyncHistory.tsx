@@ -15,7 +15,7 @@ import { UiIcon } from '../components/UiIcon';
 import { LoadingBlock } from '../components/ScreenStates';
 
 /** `/admin/sync/history` — full-width activity feed. */
-export function MockupSyncHistory(): JSX.Element {
+export function SyncHistory(): JSX.Element {
   const [ctx] = useOuContext();
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<edgeApi.JobRun[] | null>(null);
@@ -184,7 +184,7 @@ function mirrorCountLabel(key: string): string {
 }
 
 /** `/admin/sync/history/:runId` — per-run details page. */
-export function MockupSyncHistoryDetail(): JSX.Element {
+export function SyncHistoryDetail(): JSX.Element {
   const { runId } = useParams<{ runId: string }>();
   const [sel, setSel] = useState<edgeApi.JobRun | null>(null);
   const [tab, setTab] = useState<'overview' | 'payload' | 'related'>('overview');

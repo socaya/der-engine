@@ -56,29 +56,29 @@ import { DataEvents } from './screens/DataEvents';
 import { DataEventDetail } from './screens/DataEventDetail';
 import { DataTracker } from './screens/DataTracker';
 import { DataTeiDetail } from './screens/DataTeiDetail';
-import { MockupDashboard } from './screens/Dashboard';
-import { MockupSystemOverview } from './screens/SystemOverview';
-import { MockupSyncOverview } from './screens/SyncOverview';
-import { MockupMetadata, MockupMetadataDetail } from './screens/Metadata';
-import { MockupDataManagement } from './screens/DataManagement';
-import { MockupDataQueues, MockupDataDetail } from './screens/DataQueues';
-import { MockupSyncHistory, MockupSyncHistoryDetail } from './screens/SyncHistory';
-import { MockupUsersDashboard, MockupUserDetail, MockupUserDhis2Mapping } from './screens/UsersDashboard';
-import { MockupDhis2Overview } from './screens/Dhis2Overview';
-import { MockupWorkspace } from './screens/Workspace';
-import { MockupAdminTasks } from './screens/AdminTasks';
-import { MockupSystemInformation } from './screens/SystemInformation';
-import { MockupCompatMatrix } from './screens/CompatMatrix';
+import { Dashboard } from './screens/Dashboard';
+import { SystemOverview } from './screens/SystemOverview';
+import { SyncOverview } from './screens/SyncOverview';
+import { Metadata, MetadataDetail } from './screens/Metadata';
+import { DataManagement } from './screens/DataManagement';
+import { DataQueues, DataDetail } from './screens/DataQueues';
+import { SyncHistory, SyncHistoryDetail } from './screens/SyncHistory';
+import { UsersDashboard, UserDetail, UserDhis2Mapping } from './screens/UsersDashboard';
+import { Dhis2Overview } from './screens/Dhis2Overview';
+import { Workspace } from './screens/Workspace';
+import { AdminTasks } from './screens/AdminTasks';
+import { SystemInformation } from './screens/SystemInformation';
+import { CompatMatrix } from './screens/CompatMatrix';
 import {
-  MockupDriftInspector, MockupConflictList, AttentionDetailScreen,
+  DriftInspector, ConflictList, AttentionDetailScreen,
   WorkerHealthScreen,
-  MockupDeviceFleet, MockupDeviceDetail, MockupApprovalQueue, MockupApprovalDetail,
-  MockupReferralInbox, MockupReferralDetail,
-  MockupBackupList, MockupRestoreList, MockupCompatInspector,
-  MockupAuditEvents, MockupFacilityAnalytics, MockupSupportBundle,
-  MockupConfigEditor, MockupOperationalReport, MockupUserScope,
-  MockupSiteConfig, MockupDecommission, MockupDhis2Mappings,
-  MockupOperatorMetrics, MockupSecurityAuditTrail,
+  DeviceFleet, DeviceDetail, ApprovalQueue, ApprovalDetail,
+  ReferralInbox, ReferralDetail,
+  BackupList, RestoreList, CompatInspector,
+  AuditEvents, FacilityAnalytics, SupportBundle,
+  ConfigEditor, OperationalReport, UserScope,
+  SiteConfig, Decommission, Dhis2Mappings,
+  OperatorMetrics, SecurityAuditTrail,
 } from './screens/MoreScreens';
 import {
   NetworkOverview, NetworkAccessPoint, NetworkConnectedDevices,
@@ -132,37 +132,37 @@ export default function App(): JSX.Element {
         <AdminShell>
           <Routes>
           <Route path="/sign-in" element={<SignIn />} />
-          <Route path="/" element={<RequireAuth><MockupWorkspace /></RequireAuth>} />
-          <Route path="/overview-legacy" element={<RequireAuth><MockupSystemOverview /></RequireAuth>} />
+          <Route path="/" element={<RequireAuth><Workspace /></RequireAuth>} />
+          <Route path="/overview-legacy" element={<RequireAuth><SystemOverview /></RequireAuth>} />
           <Route path="/setup-welcome-legacy" element={<RequireAuth><EASetupWelcome /></RequireAuth>} />
           <Route path="/provisioning/users"
-                 element={<RequireAuth><MockupUsersDashboard /></RequireAuth>} />
+                 element={<RequireAuth><UsersDashboard /></RequireAuth>} />
           <Route path="/provisioning/users-legacy"
                  element={<RequireAuth><EAUsersList /></RequireAuth>} />
           <Route path="/provisioning/users/new"
                  element={<RequireAuth><EAUserCreate /></RequireAuth>} />
           <Route path="/provisioning/users/:userId"
-                 element={<RequireAuth><MockupUserDetail /></RequireAuth>} />
+                 element={<RequireAuth><UserDetail /></RequireAuth>} />
           <Route path="/provisioning/users/:userId/dhis2-mapping"
-                 element={<RequireAuth><MockupUserDhis2Mapping /></RequireAuth>} />
+                 element={<RequireAuth><UserDhis2Mapping /></RequireAuth>} />
           {/* der-2.0.17 — standard URL layout: /dhis2/* for every
               DHIS2-integration surface. Legacy paths kept as
               redirect-equivalent routes so bookmarks continue to work.
               A single component mounts at both locations. */}
-          <Route path="/dhis2" element={<RequireAuth><MockupDhis2Overview /></RequireAuth>} />
+          <Route path="/dhis2" element={<RequireAuth><Dhis2Overview /></RequireAuth>} />
           {/* /dhis2/connection is merged into the hub at /dhis2 (der-2.0.30). */}
           <Route path="/dhis2/connection" element={<Navigate to="/dhis2" replace />} />
           <Route path="/dhis2/organisation-unit" element={<RequireAuth><CapOrgUnitBinding /></RequireAuth>} />
           <Route path="/dhis2/program-rules" element={<RequireAuth><CapProgramRules /></RequireAuth>} />
-          <Route path="/dhis2/compat" element={<RequireAuth><MockupCompatMatrix /></RequireAuth>} />
-          <Route path="/dhis2/compat-legacy-inspector" element={<RequireAuth><MockupCompatInspector /></RequireAuth>} />
+          <Route path="/dhis2/compat" element={<RequireAuth><CompatMatrix /></RequireAuth>} />
+          <Route path="/dhis2/compat-legacy-inspector" element={<RequireAuth><CompatInspector /></RequireAuth>} />
           <Route path="/dhis2/compat-history" element={<RequireAuth><EACompatHistory /></RequireAuth>} />
-          <Route path="/dhis2/metadata" element={<RequireAuth><MockupMetadata /></RequireAuth>} />
-          <Route path="/dhis2/metadata/:resource/:id" element={<RequireAuth><MockupMetadataDetail /></RequireAuth>} />
-          <Route path="/dhis2/metadata-drift" element={<RequireAuth><MockupDriftInspector /></RequireAuth>} />
+          <Route path="/dhis2/metadata" element={<RequireAuth><Metadata /></RequireAuth>} />
+          <Route path="/dhis2/metadata/:resource/:id" element={<RequireAuth><MetadataDetail /></RequireAuth>} />
+          <Route path="/dhis2/metadata-drift" element={<RequireAuth><DriftInspector /></RequireAuth>} />
           <Route path="/dhis2/metadata-sync" element={<RequireAuth><CapMetadataSync /></RequireAuth>} />
           {/* Legacy aliases — kept so existing links / bookmarks still work. */}
-          <Route path="/compat" element={<RequireAuth><MockupCompatInspector /></RequireAuth>} />
+          <Route path="/compat" element={<RequireAuth><CompatInspector /></RequireAuth>} />
           <Route path="/compat-legacy" element={<RequireAuth><EACompatInspector /></RequireAuth>} />
           <Route path="/compat/history"
                  element={<RequireAuth><EACompatHistory /></RequireAuth>} />
@@ -171,10 +171,10 @@ export default function App(): JSX.Element {
           <Route path="/sync/jobs-legacy" element={<RequireAuth><EAJobsList /></RequireAuth>} />
           <Route path="/sync/jobs/trigger"
                  element={<RequireAuth><EAJobTrigger /></RequireAuth>} />
-          <Route path="/sync/drift" element={<RequireAuth><MockupDriftInspector /></RequireAuth>} />
+          <Route path="/sync/drift" element={<RequireAuth><DriftInspector /></RequireAuth>} />
           <Route path="/sync/drift-legacy" element={<RequireAuth><EADriftInspector /></RequireAuth>} />
           <Route path="/sync/attention"
-                 element={<RequireAuth><MockupConflictList /></RequireAuth>} />
+                 element={<RequireAuth><ConflictList /></RequireAuth>} />
           <Route path="/sync/attention/:operationId"
                  element={<RequireAuth><AttentionDetailScreen /></RequireAuth>} />
           <Route path="/journal/conflicts" element={<Navigate to="/sync/attention" replace />} />
@@ -188,9 +188,9 @@ export default function App(): JSX.Element {
           <Route path="/journal/worker-legacy"
                  element={<RequireAuth><EAWorkerHealth /></RequireAuth>} />
           <Route path="/approvals"
-                 element={<RequireAuth><MockupApprovalQueue /></RequireAuth>} />
+                 element={<RequireAuth><ApprovalQueue /></RequireAuth>} />
           <Route path="/approvals/:operationId"
-                 element={<RequireAuth><MockupApprovalDetail /></RequireAuth>} />
+                 element={<RequireAuth><ApprovalDetail /></RequireAuth>} />
           <Route path="/approvals-legacy"
                  element={<RequireAuth><EAApprovalQueue /></RequireAuth>} />
           <Route path="/workflows"
@@ -222,36 +222,36 @@ export default function App(): JSX.Element {
           <Route path="/workflows/:id"
                  element={<RequireAuth><WorkflowForm /></RequireAuth>} />
           <Route path="/devices"
-                 element={<RequireAuth><MockupDeviceFleet /></RequireAuth>} />
+                 element={<RequireAuth><DeviceFleet /></RequireAuth>} />
           <Route path="/devices-legacy"
                  element={<RequireAuth><EADeviceFleet /></RequireAuth>} />
           <Route path="/devices/:deviceId"
-                 element={<RequireAuth><MockupDeviceDetail /></RequireAuth>} />
+                 element={<RequireAuth><DeviceDetail /></RequireAuth>} />
           <Route path="/analytics"
-                 element={<RequireAuth><MockupFacilityAnalytics /></RequireAuth>} />
+                 element={<RequireAuth><FacilityAnalytics /></RequireAuth>} />
           <Route path="/analytics-legacy"
                  element={<RequireAuth><EAFacilityAnalytics /></RequireAuth>} />
           <Route path="/audit/verify"
                  element={<RequireAuth><EAAuditVerify /></RequireAuth>} />
           <Route path="/audit/trail"
-                 element={<RequireAuth><MockupSecurityAuditTrail /></RequireAuth>} />
+                 element={<RequireAuth><SecurityAuditTrail /></RequireAuth>} />
           <Route path="/audit/events"
-                 element={<RequireAuth><MockupAuditEvents /></RequireAuth>} />
+                 element={<RequireAuth><AuditEvents /></RequireAuth>} />
           <Route path="/audit/events-legacy"
                  element={<RequireAuth><EAAuditEvents /></RequireAuth>} />
           <Route path="/referral/inbox"
-                 element={<RequireAuth><MockupReferralInbox /></RequireAuth>} />
+                 element={<RequireAuth><ReferralInbox /></RequireAuth>} />
           <Route path="/referral/inbox/:inboxId"
-                 element={<RequireAuth><MockupReferralDetail /></RequireAuth>} />
+                 element={<RequireAuth><ReferralDetail /></RequireAuth>} />
           <Route path="/referral/inbox-legacy"
                  element={<RequireAuth><EAReferralInbox /></RequireAuth>} />
           <Route path="/metadata"
-                 element={<RequireAuth><MockupMetadata /></RequireAuth>} />
+                 element={<RequireAuth><Metadata /></RequireAuth>} />
           <Route path="/metadata-legacy"
                  element={<RequireAuth><EAMetadataOverview /></RequireAuth>} />
           <Route path="/recovery" element={<RequireAuth><EARecoveryTools /></RequireAuth>} />
-          <Route path="/backup" element={<RequireAuth><MockupBackupList /></RequireAuth>} />
-          <Route path="/restore" element={<RequireAuth><MockupRestoreList /></RequireAuth>} />
+          <Route path="/backup" element={<RequireAuth><BackupList /></RequireAuth>} />
+          <Route path="/restore" element={<RequireAuth><RestoreList /></RequireAuth>} />
           <Route path="/evaluation"
                  element={<RequireAuth><EAEvaluationReports /></RequireAuth>} />
           {/* C-UI-5a merged `/apps` with the former `/apps/catalogue`
@@ -266,17 +266,17 @@ export default function App(): JSX.Element {
           <Route path="/dhis2/composite-kinds"
                  element={<RequireAuth><CompositeKindCatalogue /></RequireAuth>} />
           <Route path="/support-bundle"
-                 element={<RequireAuth><MockupSupportBundle /></RequireAuth>} />
+                 element={<RequireAuth><SupportBundle /></RequireAuth>} />
           <Route path="/configuration"
-                 element={<RequireAuth><MockupConfigEditor /></RequireAuth>} />
+                 element={<RequireAuth><ConfigEditor /></RequireAuth>} />
           <Route path="/reports/operational"
-                 element={<RequireAuth><MockupOperationalReport /></RequireAuth>} />
+                 element={<RequireAuth><OperationalReport /></RequireAuth>} />
           <Route path="/users/scope"
-                 element={<RequireAuth><MockupUserScope /></RequireAuth>} />
+                 element={<RequireAuth><UserScope /></RequireAuth>} />
           <Route path="/site/config"
-                 element={<RequireAuth><MockupSiteConfig /></RequireAuth>} />
+                 element={<RequireAuth><SiteConfig /></RequireAuth>} />
           <Route path="/decommission"
-                 element={<RequireAuth><MockupDecommission /></RequireAuth>} />
+                 element={<RequireAuth><Decommission /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><EASettings /></RequireAuth>} />
           {/* Network module per docs/requirements/DER_Network_Module_Design_Specification.md. */}
           <Route path="/network" element={<RequireAuth><NetworkOverview /></RequireAuth>} />
@@ -300,18 +300,18 @@ export default function App(): JSX.Element {
           <Route path="/compliance" element={<RequireAuth><Compliance /></RequireAuth>} />
           {/* Previously capability-gap screens — now implemented against
               existing /edge-api/v1 endpoints. */}
-          <Route path="/dashboard" element={<RequireAuth><MockupWorkspace /></RequireAuth>} />
-          <Route path="/admin-tasks" element={<RequireAuth><MockupAdminTasks /></RequireAuth>} />
-          <Route path="/dashboard-legacy" element={<RequireAuth><MockupDashboard /></RequireAuth>} />
-          <Route path="/system/information" element={<RequireAuth><MockupSystemInformation /></RequireAuth>} />
+          <Route path="/dashboard" element={<RequireAuth><Workspace /></RequireAuth>} />
+          <Route path="/admin-tasks" element={<RequireAuth><AdminTasks /></RequireAuth>} />
+          <Route path="/dashboard-legacy" element={<RequireAuth><Dashboard /></RequireAuth>} />
+          <Route path="/system/information" element={<RequireAuth><SystemInformation /></RequireAuth>} />
           <Route path="/system/information-legacy" element={<RequireAuth><CapSystemInformation /></RequireAuth>} />
-          <Route path="/integration" element={<RequireAuth><MockupDhis2Overview /></RequireAuth>} />
+          <Route path="/integration" element={<RequireAuth><Dhis2Overview /></RequireAuth>} />
           <Route path="/integration/connection" element={<RequireAuth><CapCentralConnection /></RequireAuth>} />
           <Route path="/integration/organisation-unit" element={<RequireAuth><CapOrgUnitBinding /></RequireAuth>} />
           <Route path="/integration/program-rules" element={<RequireAuth><CapProgramRules /></RequireAuth>} />
-          <Route path="/sync" element={<RequireAuth><MockupSyncOverview /></RequireAuth>} />
-          <Route path="/sync/history" element={<RequireAuth><MockupSyncHistory /></RequireAuth>} />
-          <Route path="/sync/history/:runId" element={<RequireAuth><MockupSyncHistoryDetail /></RequireAuth>} />
+          <Route path="/sync" element={<RequireAuth><SyncOverview /></RequireAuth>} />
+          <Route path="/sync/history" element={<RequireAuth><SyncHistory /></RequireAuth>} />
+          <Route path="/sync/history/:runId" element={<RequireAuth><SyncHistoryDetail /></RequireAuth>} />
           <Route path="/sync/queues" element={<Navigate to="/data/queue" replace />} />
           {/* §2.3.117 R-AN — /sync/metadata and /dhis2/metadata-sync
               both rendered CapMetadataSync. Canonicalised under the
@@ -322,15 +322,15 @@ export default function App(): JSX.Element {
               /sync/data redirects to the new canonical path. */}
           <Route path="/sync/data" element={<Navigate to="/data/queue" replace />} />
           <Route path="/sync/data/:operationId" element={<SyncDataLegacyRedirect />} />
-          <Route path="/data/queue" element={<RequireAuth><MockupDataQueues /></RequireAuth>} />
-          <Route path="/data/queue/:operationId" element={<RequireAuth><MockupDataDetail /></RequireAuth>} />
+          <Route path="/data/queue" element={<RequireAuth><DataQueues /></RequireAuth>} />
+          <Route path="/data/queue/:operationId" element={<RequireAuth><DataDetail /></RequireAuth>} />
           <Route path="/sync/schedule" element={<RequireAuth><CapSyncSchedule /></RequireAuth>} />
           <Route path="/sync/settings" element={<RequireAuth><CapSyncSettings /></RequireAuth>} />
           <Route path="/sync/policy" element={<RequireAuth><SyncPolicyScreen /></RequireAuth>} />
           <Route path="/workflows/runs" element={<RequireAuth><CapWorkflowRuns /></RequireAuth>} />
           <Route path="/workflows/assignments" element={<RequireAuth><CapStepAssignments /></RequireAuth>} />
           <Route path="/referral/history" element={<RequireAuth><CapReferralHistory /></RequireAuth>} />
-          <Route path="/data" element={<RequireAuth><MockupDataManagement /></RequireAuth>} />
+          <Route path="/data" element={<RequireAuth><DataManagement /></RequireAuth>} />
           <Route path="/data/aggregate" element={<RequireAuth><DataAggregate /></RequireAuth>} />
           <Route path="/data/aggregate/:valueId"
                  element={<RequireAuth><DataAggregateDetail /></RequireAuth>} />
@@ -352,16 +352,16 @@ export default function App(): JSX.Element {
           <Route path="/access/sessions" element={<RequireAuth><CapSessions /></RequireAuth>} />
           <Route path="/access/credentials" element={<RequireAuth><CapCredentials /></RequireAuth>} />
           <Route path="/access/dhis2-mappings"
-                 element={<RequireAuth><MockupDhis2Mappings /></RequireAuth>} />
+                 element={<RequireAuth><Dhis2Mappings /></RequireAuth>} />
           <Route path="/devices/enrolment" element={<RequireAuth><CapDeviceEnrolment /></RequireAuth>} />
           <Route path="/devices/ownership" element={<RequireAuth><CapOwnership /></RequireAuth>} />
           <Route path="/devices/connections" element={<RequireAuth><CapConnections /></RequireAuth>} />
           <Route path="/devices/diagnostics" element={<RequireAuth><CapDeviceDiagnostics /></RequireAuth>} />
           <Route path="/monitoring/metrics" element={<RequireAuth><CapOperatorMetrics /></RequireAuth>} />
           <Route path="/admin/metrics/operators"
-                 element={<RequireAuth><MockupOperatorMetrics /></RequireAuth>} />
+                 element={<RequireAuth><OperatorMetrics /></RequireAuth>} />
           <Route path="/metrics/operators"
-                 element={<RequireAuth><MockupOperatorMetrics /></RequireAuth>} />
+                 element={<RequireAuth><OperatorMetrics /></RequireAuth>} />
           <Route path="/monitoring/health" element={<RequireAuth><CapServiceHealth /></RequireAuth>} />
           <Route path="/monitoring/storage" element={<RequireAuth><CapStorage /></RequireAuth>} />
           <Route path="/setup" element={<RequireAuth><CapProvisioningSetup /></RequireAuth>} />

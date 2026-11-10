@@ -12,7 +12,7 @@ function isDerUp(status: string | undefined | null): boolean {
 }
 
 /** DER System Overview — matches docs/media/ui/DER DHIS2 Edge Runtime System Overview.png */
-export function MockupSystemOverview(): JSX.Element {
+export function SystemOverview(): JSX.Element {
   const [h, setH] = useState<edgeApi.HealthResponse | null>(null);
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
   const [c, setC] = useState<edgeApi.CompatSnapshot | null>(null);

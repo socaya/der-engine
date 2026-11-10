@@ -17,7 +17,7 @@ import { UiIcon } from '../components/UiIcon';
  *      (OU binding, compatibility, metadata, sync, drift).
  *   4. Read-only probe snapshot details.
  */
-export function MockupDhis2Overview(): JSX.Element {
+export function Dhis2Overview(): JSX.Element {
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
   const [c, setC] = useState<edgeApi.CompatSnapshot | null>(null);
   const [b, setB] = useState<edgeApi.OrgUnitBinding | null>(null);

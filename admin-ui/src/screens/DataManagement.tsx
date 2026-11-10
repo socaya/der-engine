@@ -25,7 +25,7 @@ interface DataRow {
  * Links to the capture surfaces (DHIS2 Core apps) + the Sync module's
  * data table where the per-record view lives. No fake tabs, no overlap
  * with /data/queue. */
-export function MockupDataManagement(): JSX.Element {
+export function DataManagement(): JSX.Element {
   const navigate = useNavigate();
   const [ctx] = useOuContext();
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);

@@ -15,7 +15,7 @@ import { LoadingBlock } from '../components/ScreenStates';
 /** `/admin/data/queue` — operator-facing outbound journal table. Full
  *  width, no side drawer. Row click navigates to the per-record
  *  details page. */
-export function MockupDataQueues(): JSX.Element {
+export function DataQueues(): JSX.Element {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const workflowRunId = searchParams.get('workflowRunId');
@@ -329,7 +329,7 @@ export function MockupDataQueues(): JSX.Element {
 
 /** `/admin/data/queue/:operationId` — per-record details page.
  *  Replaces the former right-side drawer. */
-export function MockupDataDetail(): JSX.Element {
+export function DataDetail(): JSX.Element {
   const { operationId } = useParams<{ operationId: string }>();
   const [op, setOp] = useState<edgeApi.JournalOperation | null>(null);
   const [err, setErr] = useState<string | null>(null);

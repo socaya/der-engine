@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
-import { MockupWorkspace } from './Workspace';
+import { Workspace } from './Workspace';
 import * as edgeApi from '../api/edgeApi';
 
 const authApi = {
@@ -47,7 +47,7 @@ function stubAll(): void {
   vi.spyOn(edgeApi, 'listWorkflows').mockResolvedValue({ workflows: [] });
 }
 
-describe('MockupWorkspace', () => {
+describe('Workspace', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
   afterEach(() => { vi.restoreAllMocks(); });
 
@@ -60,13 +60,13 @@ describe('MockupWorkspace', () => {
     vi.spyOn(edgeApi, 'listConflicts').mockImplementation(() => new Promise(() => undefined));
     vi.spyOn(edgeApi, 'listDevices').mockImplementation(() => new Promise(() => undefined));
     vi.spyOn(edgeApi, 'listWorkflows').mockImplementation(() => new Promise(() => undefined));
-    renderWithProviders(<MockupWorkspace />, { authApi });
+    renderWithProviders(<Workspace />, { authApi });
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
   it('renders the main dashboard shell once all probes resolve', async () => {
     stubAll();
-    renderWithProviders(<MockupWorkspace />, { authApi });
+    renderWithProviders(<Workspace />, { authApi });
     /* The hero header contains the version string once render
      * clears the loading state. */
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
@@ -89,7 +89,7 @@ describe('MockupWorkspace', () => {
           firmwareVersion: null, formFactor: 'TABLET' },
       ],
     } as unknown as { devices: edgeApi.EdgeDeviceRow[] });
-    renderWithProviders(<MockupWorkspace />, { authApi });
+    renderWithProviders(<Workspace />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/clinic kiosk/i));
   });
@@ -110,7 +110,7 @@ describe('MockupWorkspace', () => {
           requiresApproval: false, defaultDeviceId: null },
       ],
     } as unknown as { workflows: edgeApi.CaptureWorkflowSummary[] });
-    renderWithProviders(<MockupWorkspace />, { authApi });
+    renderWithProviders(<Workspace />, { authApi });
     await waitFor(() =>
       expect(document.body.textContent ?? '').toMatch(/weekly aggregate/i));
     expect(document.body.textContent ?? '').toMatch(/hiv disabled/i);
@@ -125,7 +125,7 @@ describe('MockupWorkspace', () => {
         lastError: 'rejected', submittedBy: null,
         createdAt: 'now', updatedAt: 'now' },
     ] as unknown as edgeApi.ConflictRow[]);
-    renderWithProviders(<MockupWorkspace />, { authApi });
+    renderWithProviders(<Workspace />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
     /* The conflict panel renders '1 ... attention' when a conflict
      * is present. We assert on the entity ref so the test anchors
@@ -137,7 +137,7 @@ describe('MockupWorkspace', () => {
     stubAll();
     vi.spyOn(edgeApi, 'listConflicts').mockRejectedValue(
       new Error('conflict load failed'));
-    renderWithProviders(<MockupWorkspace />, { authApi });
+    renderWithProviders(<Workspace />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
     expect(document.body.textContent ?? '')
       .toMatch(/conflict load failed/);
@@ -150,7 +150,7 @@ describe('MockupWorkspace', () => {
       snapshotId: 1, capturedAt: 'now', centralVersion: null,
       capabilities: {}, pingHistory: [],
     } as unknown as edgeApi.CompatSnapshot);
-    renderWithProviders(<MockupWorkspace />, { authApi });
+    renderWithProviders(<Workspace />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
     expect(document.body.textContent ?? '')
       .toMatch(/unreachable|outage|central/i);
@@ -163,7 +163,7 @@ describe('MockupWorkspace', () => {
       commit: 'abc', branch: 'main', dirty: false, buildTime: 'now',
       dhis2Integrated: true, timestamp: 'now',
     } as unknown as edgeApi.HealthResponse);
-    renderWithProviders(<MockupWorkspace />, { authApi });
+    renderWithProviders(<Workspace />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
     /* The "ready" status flips derStatusLabel to "Live"; the surface
      * doesn't always render it, but the branch itself is covered. */
@@ -177,7 +177,7 @@ describe('MockupWorkspace', () => {
       commit: 'abc', branch: 'main', dirty: false, buildTime: 'now',
       dhis2Integrated: true, timestamp: 'now',
     } as unknown as edgeApi.HealthResponse);
-    renderWithProviders(<MockupWorkspace />, { authApi });
+    renderWithProviders(<Workspace />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
     expect(document.body.textContent ?? '').toMatch(/DEGRADED/);
   });
@@ -197,7 +197,7 @@ describe('MockupWorkspace', () => {
       dhis2: { configured: true, probeReachable: true, baseUrl: 'x' },
       apps: { installed: 0, enabled: 0, items: [] },
     } as unknown as edgeApi.SystemInfo);
-    renderWithProviders(<MockupWorkspace />, { authApi });
+    renderWithProviders(<Workspace />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
   });
 
@@ -212,7 +212,7 @@ describe('MockupWorkspace', () => {
         startedAt: nowIso, finishedAt: nowIso,
         durationMs: 100, triggeredBy: 'SCHEDULED', detail: '{}' },
     ] as unknown as edgeApi.JobRun[]);
-    renderWithProviders(<MockupWorkspace />, { authApi });
+    renderWithProviders(<Workspace />, { authApi });
     await waitFor(() => expect(screen.queryByTestId('loading')).toBeNull());
     expect(document.body.textContent ?? '').toMatch(/50/);
   });

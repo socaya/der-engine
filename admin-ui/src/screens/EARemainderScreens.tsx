@@ -199,8 +199,8 @@ function RecoveryAction({ testIdPrefix, runTestId, title, description, affects, 
   );
 }
 
-/* EA-30 Backup catalogue + EA-31 Restore: the rich MockupBackupList /
- * MockupRestoreList in MoreScreens.tsx (routed at /backup and /restore)
+/* EA-30 Backup catalogue + EA-31 Restore: the rich BackupList /
+ * RestoreList in MoreScreens.tsx (routed at /backup and /restore)
  * are the canonical surfaces. The thin stubs that once lived here, and
  * their /backup-legacy + /restore-legacy routes, were removed as part
  * of the EA-30/31 overhaul. */

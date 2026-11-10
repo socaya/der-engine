@@ -9,7 +9,7 @@ import { UiIcon } from '../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 
 /**
- * MockupMetadata — browse every mirrored DHIS2 metadata resource.
+ * Metadata — browse every mirrored DHIS2 metadata resource.
  *
  * Implements §14 of DER_UI_Visibility_10_of_10_Standard:
  *  - §14.1 resources grouped by domain in a single <optgroup> picker
@@ -106,7 +106,7 @@ interface MetaRow {
   raw: Record<string, unknown>;
 }
 
-export function MockupMetadata(): JSX.Element {
+export function Metadata(): JSX.Element {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   // §2.3.80 R-B/1 — deep-link from Sync Attention: a `?resource=X`
@@ -300,7 +300,7 @@ export function MockupMetadata(): JSX.Element {
 
 /** `/admin/dhis2/metadata/:resource/:id` — per-record details page.
  *  Replaces the former right-side drawer. */
-export function MockupMetadataDetail(): JSX.Element {
+export function MetadataDetail(): JSX.Element {
   const { resource, id } = useParams<{ resource: string; id: string }>();
   const [item, setItem] = useState<Record<string, unknown> | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -349,7 +349,7 @@ export function MockupMetadataDetail(): JSX.Element {
         </div>
       </header>
       <section className="ea-panel">
-        <MetadataDetail sel={sel} tab={tab} setTab={setTab} />
+        <MetadataDetailTabs sel={sel} tab={tab} setTab={setTab} />
       </section>
     </div>
   );
@@ -431,7 +431,7 @@ function toneColor(t: 'success' | 'warning' | 'danger' | 'neutral'): string {
 }
 
 /* ─────── §14.3 Detail tabs: Summary / Relationships / Rules / Raw JSON ─────── */
-function MetadataDetail({ sel, tab, setTab }: {
+function MetadataDetailTabs({ sel, tab, setTab }: {
   sel: MetaRow;
   tab: 'summary' | 'relationships' | 'rules' | 'raw';
   setTab: (t: 'summary' | 'relationships' | 'rules' | 'raw') => void;
