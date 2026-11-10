@@ -259,16 +259,38 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
 ];
 
-/** Pure helper — find the group a route belongs to. Returns null if none. */
+/** Pure helper — find the group a route belongs to. Returns null if none.
+ *
+ *  <p>Both contextual and non-contextual items participate in
+ *  matching so that cluster sub-screens (e.g. {@code
+ *  /monitoring/metrics}, {@code /monitoring/storage}, {@code
+ *  /system/hardware} — contextual children of the System module's
+ *  Health cluster) still resolve back to their parent module. If
+ *  only non-contextual items matched, the module's SectionTabs
+ *  strip would disappear whenever an operator clicked into a
+ *  contextual child — exactly the "where did my tabs go?" bug
+ *  this helper exists to prevent.</p>
+ *
+ *  <p>Priority: non-contextual matches win over contextual on an
+ *  equal prefix length so the primary-tab decision still prefers
+ *  a visible parent. Longest matching prefix wins otherwise.</p> */
 export function groupForRoute(pathname: string): NavGroup | null {
-  let best: { grp: NavGroup; len: number } | null = null;
+  let best: { grp: NavGroup; len: number; contextual: boolean } | null = null;
   for (const grp of NAV_GROUPS) {
     for (const item of grp.items) {
-      if (item.status === 'contextual') continue;
-      if (item.to === '/' && pathname === '/') {
-        if (!best || best.len < 1) best = { grp, len: 1 };
-      } else if (item.to !== '/' && (pathname === item.to || pathname.startsWith(item.to + '/'))) {
-        if (!best || item.to.length > best.len) best = { grp, len: item.to.length };
+      const ctx = item.status === 'contextual';
+      const hit = item.to === '/' && pathname === '/'
+        ? { len: 1 }
+        : item.to !== '/'
+            && (pathname === item.to
+                || pathname.startsWith(item.to + '/'))
+          ? { len: item.to.length }
+          : null;
+      if (!hit) continue;
+      if (!best
+          || hit.len > best.len
+          || (hit.len === best.len && best.contextual && !ctx)) {
+        best = { grp, len: hit.len, contextual: ctx };
       }
     }
   }

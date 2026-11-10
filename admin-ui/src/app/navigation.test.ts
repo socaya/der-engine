@@ -62,26 +62,25 @@ describe('groupForRoute', () => {
      * match found something. */
   });
 
-  it('skips contextual items (they are hidden from top-level nav match)', () => {
-    /* Contextual items should never win a match. Pick a group that
-     * has a contextual child and probe its path — the probe returns
-     * the parent group only if a non-contextual sibling matches. */
+  it('contextual items still resolve to their parent module', () => {
+    /* UI-9 — cluster sub-screens (e.g. /monitoring/metrics,
+     * /monitoring/storage, /system/hardware) are marked contextual
+     * so they don't crowd the SectionTabs strip, but when an
+     * operator navigates into one the parent module's nav must
+     * stay visible. Enforce: every contextual item's `to` resolves
+     * back to the group that owns it. */
     for (const grp of NAV_GROUPS) {
       const contextual = grp.items.filter((it) => it.status === 'contextual');
       for (const it of contextual) {
         if (!it.to || it.to === '/') continue;
         const match = groupForRoute(it.to);
-        if (match === null) {
-          /* No non-contextual sibling matched — correct. */
-          continue;
-        }
-        /* If match is non-null, the matching item in that group must
-         * NOT be the contextual one. */
-        const winner = match.items
-          .filter((x) => x.status !== 'contextual')
-          .find((x) => x.to && (it.to === x.to
-                                 || it.to.startsWith(x.to + '/')));
-        expect(winner, `contextual-only match for ${it.to}`).toBeDefined();
+        expect(match, `contextual ${it.to} must resolve a module`)
+          .not.toBeNull();
+        const owns = match!.items.some((x) =>
+          x.to && (it.to === x.to || it.to.startsWith(x.to + '/')));
+        expect(owns,
+          `contextual ${it.to} must resolve to its own group (got ${match!.id})`)
+          .toBe(true);
       }
     }
   });
