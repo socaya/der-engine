@@ -38,11 +38,24 @@ public class PublicationProposalService {
 
     private final PublicationRepository repo;
     private final AnalyticsEngineRepository cells;
+    private final PublicationProperties properties;
 
     public PublicationProposalService(final PublicationRepository repo,
-                                        final AnalyticsEngineRepository cells) {
+                                        final AnalyticsEngineRepository cells,
+                                        final PublicationProperties properties) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.cells = Objects.requireNonNull(cells, "cells");
+        this.properties = properties == null
+                ? new PublicationProperties(null, 0L, 0, true)
+                : properties;
+    }
+
+    /** 2-arg form for tests that predate AUTO_APPROVE — defaults to a
+     *  zero threshold so auto-approve-under-threshold matches only
+     *  exact values. */
+    public PublicationProposalService(final PublicationRepository repo,
+                                        final AnalyticsEngineRepository cells) {
+        this(repo, cells, null);
     }
 
     public record GenerateScope(
@@ -99,12 +112,59 @@ public class PublicationProposalService {
                         null, null, null,
                         buildProvenance(c, m),
                         Instant.now(), Instant.now());
-                ids.add(repo.upsertProposal(p));
+                final UUID id = repo.upsertProposal(p);
+                maybeAutoApprove(m, c.periodKey(), c.orgUnitUid(), value, id);
+                ids.add(id);
                 upserts++;
             }
         }
         return new GenerateResult(mappings.size(), cellsScanned,
                 upserts, ids);
+    }
+
+    /** Spec §8 AUTO_APPROVE modes. A mapping declared
+     *  {@code AUTO_APPROVE_EXACT} flips the new proposal to APPROVED
+     *  immediately when the proposed value equals the prior approved
+     *  value for the same (mapping, period, orgUnit). The
+     *  {@code AUTO_APPROVE_UNDER_THRESHOLD} variant accepts a
+     *  configurable absolute delta — see
+     *  {@code der.analytics.publication.auto-approve-threshold}. */
+    private void maybeAutoApprove(final PublicationMapping m,
+                                     final String periodKey,
+                                     final String orgUnitUid,
+                                     final BigDecimal proposedValue,
+                                     final UUID proposalId) {
+        if (m.publicationMode() == PublicationMapping.Mode.REVIEW_REQUIRED) {
+            return;
+        }
+        final Optional<PublicationProposal> prior = repo.findPriorForCell(
+                m.mappingId(), periodKey, orgUnitUid);
+        if (prior.isEmpty()) {
+            return;
+        }
+        final BigDecimal priorValue = prior.get().reviewedValue() != null
+                ? prior.get().reviewedValue()
+                : prior.get().proposedValue();
+        if (priorValue == null) {
+            return;
+        }
+        final boolean approve = switch (m.publicationMode()) {
+            case AUTO_APPROVE_EXACT ->
+                    priorValue.compareTo(proposedValue) == 0;
+            case AUTO_APPROVE_UNDER_THRESHOLD -> {
+                final BigDecimal delta =
+                        priorValue.subtract(proposedValue).abs();
+                yield delta.compareTo(properties.autoApproveThreshold()) <= 0;
+            }
+            case REVIEW_REQUIRED -> false;
+        };
+        if (!approve) {
+            return;
+        }
+        repo.review(proposalId, PublicationProposal.State.APPROVED,
+                proposedValue,
+                "auto-approve:" + m.publicationMode().name(),
+                prior.get().reviewedBy());
     }
 
     private static String buildProvenance(

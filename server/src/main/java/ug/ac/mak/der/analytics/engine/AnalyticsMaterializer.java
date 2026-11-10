@@ -58,6 +58,20 @@ public class AnalyticsMaterializer {
                                         final String periodKey,
                                         final String orgUnitUid,
                                         final String dimensionKey) {
+        return materializeCell(def, periodKey, orgUnitUid, dimensionKey,
+                BigDecimal.ONE);
+    }
+
+    /** Full form — {@code factor} is the DHIS2 aggregate-indicator
+     *  factor (typically 1 / 100 / 1000 / 100000). Ratio metrics
+     *  compute {@code (SUM(num) / SUM(den)) * factor}. Non-ratio
+     *  metrics ignore the factor. */
+    @Transactional
+    public BigDecimal materializeCell(final AnalyticsDefinition def,
+                                        final String periodKey,
+                                        final String orgUnitUid,
+                                        final String dimensionKey,
+                                        final BigDecimal factor) {
         Objects.requireNonNull(def, "def");
         final AnalyticsContributionRepository.CellAggregate agg =
                 contributions.aggregateForCell(def.id(),
@@ -71,16 +85,42 @@ public class AnalyticsMaterializer {
         }
         final String aggType = def.aggregationType() == null
                 ? "COUNT" : def.aggregationType();
-        final BigDecimal value = switch (aggType) {
-            case "SUM" -> agg.sum();
-            case "COUNT", "COUNT_DISTINCT", "NONE" ->
-                    BigDecimal.valueOf(agg.count());
-            default -> agg.sum(); // AVERAGE/STDDEV/etc. — see JDoc note
-        };
-        final String qualityState = switch (aggType) {
-            case "COUNT", "SUM", "NONE" -> "VERIFIED";
-            default -> "PROVISIONAL";
-        };
+        final boolean isRatio = agg.sumNumerator() != null
+                || agg.sumDenominator() != null;
+
+        BigDecimal value;
+        BigDecimal numerator = null;
+        BigDecimal denominator = null;
+        String qualityState;
+        if (isRatio) {
+            numerator = agg.sumNumerator();
+            denominator = agg.sumDenominator();
+            // Vector E — a zero / null denominator is an undefined
+            // ratio, not zero. Emit PROVISIONAL with null value so
+            // the UI renders "No denominator".
+            if (denominator == null || denominator.signum() == 0
+                    || numerator == null) {
+                value = null;
+                qualityState = "PROVISIONAL";
+            } else {
+                final BigDecimal f = factor == null ? BigDecimal.ONE : factor;
+                value = numerator
+                        .multiply(f)
+                        .divide(denominator, java.math.MathContext.DECIMAL64);
+                qualityState = "VERIFIED";
+            }
+        } else {
+            value = switch (aggType) {
+                case "SUM" -> agg.sum();
+                case "COUNT", "COUNT_DISTINCT", "NONE" ->
+                        BigDecimal.valueOf(agg.count());
+                default -> agg.sum(); // AVERAGE/STDDEV/etc.
+            };
+            qualityState = switch (aggType) {
+                case "COUNT", "SUM", "NONE" -> "VERIFIED";
+                default -> "PROVISIONAL";
+            };
+        }
         final AnalyticsCell c = new AnalyticsCell(
                 def.id(), def.definitionVersion(),
                 periodKey, orgUnitUid,
@@ -88,8 +128,8 @@ public class AnalyticsMaterializer {
                 agg.count(),
                 agg.sum(),
                 value,
-                null,  // numerator — Phase 3+ ratio metrics
-                null,  // denominator — Phase 3+ ratio metrics
+                numerator,
+                denominator,
                 Instant.now(),
                 qualityState);
         cells.upsertCell(c);
@@ -107,15 +147,20 @@ public class AnalyticsMaterializer {
     @Transactional
     public void applyContribution(final AnalyticsDefinition def,
                                     final AnalyticsContribution next) {
+        applyContribution(def, next, BigDecimal.ONE);
+    }
+
+    /** Full-form apply — pass the aggregate-indicator factor so ratio
+     *  metrics compute {@code (SUM(num) / SUM(den)) * factor}. */
+    @Transactional
+    public void applyContribution(final AnalyticsDefinition def,
+                                    final AnalyticsContribution next,
+                                    final BigDecimal factor) {
         Objects.requireNonNull(def, "def");
         Objects.requireNonNull(next, "next");
-        // Capture the cells the source currently touches so we can
-        // materialise them again after the upsert (the source may have
-        // moved to a new period / orgUnit).
         final var prior = contributions.cellsForSource(def.id(),
                 def.definitionVersion(), next.sourceKey());
         contributions.upsert(next);
-        // Set of distinct cells to materialise: prior + the new one.
         final var dim = next.dimensionKey() == null ? "" : next.dimensionKey();
         final boolean overlaps = prior.stream().anyMatch(r ->
                 r.periodKey().equals(next.periodKey())
@@ -123,10 +168,11 @@ public class AnalyticsMaterializer {
              && java.util.Objects.equals(r.dimensionKey(), dim));
         for (final var ref : prior) {
             materializeCell(def, ref.periodKey(), ref.orgUnitUid(),
-                    ref.dimensionKey());
+                    ref.dimensionKey(), factor);
         }
         if (!overlaps) {
-            materializeCell(def, next.periodKey(), next.orgUnitUid(), dim);
+            materializeCell(def, next.periodKey(), next.orgUnitUid(), dim,
+                    factor);
         }
     }
 

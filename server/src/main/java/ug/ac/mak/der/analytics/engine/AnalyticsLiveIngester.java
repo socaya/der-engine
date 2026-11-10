@@ -183,12 +183,25 @@ public class AnalyticsLiveIngester {
                         AnalyticsDefinitionService.parseDimensions(
                                 jsonMapper, body);
                 final String dimensionKey = DimensionKey.encode(dims, ctx);
+                // Ratio indicators — spec §6.1.
+                final String numExpr = AnalyticsDefinitionService
+                        .parseNumeratorExpression(jsonMapper, body);
+                final String denExpr = AnalyticsDefinitionService
+                        .parseDenominatorExpression(jsonMapper, body);
+                final java.math.BigDecimal factor = AnalyticsDefinitionService
+                        .parseFactor(jsonMapper, body);
+                BigDecimal numVal = null;
+                BigDecimal denVal = null;
+                if (numExpr != null && denExpr != null) {
+                    numVal = toBigDecimal(ev.eval(Parser.parse(numExpr)));
+                    denVal = toBigDecimal(ev.eval(Parser.parse(denExpr)));
+                }
                 final AnalyticsContribution c = contributionFor(def,
                         event.sourceKey(), event.sourceVersion(),
                         periodKey, event.orgUnitUid(),
-                        dimensionKey, value);
+                        dimensionKey, value, numVal, denVal);
                 if (c != null) {
-                    materializer.applyContribution(def, c);
+                    materializer.applyContribution(def, c, factor);
                 }
             } catch (RuntimeException ex) {
                 failed.incrementAndGet();
@@ -276,13 +289,25 @@ public class AnalyticsLiveIngester {
                 final String dimensionKey = DimensionKey.encode(dims, ctx);
                 final int version = enRow.enrollmentDate() == null
                         ? 1 : enRow.enrollmentDate().hashCode();
+                final String numExpr = AnalyticsDefinitionService
+                        .parseNumeratorExpression(jsonMapper, body);
+                final String denExpr = AnalyticsDefinitionService
+                        .parseDenominatorExpression(jsonMapper, body);
+                final java.math.BigDecimal factor = AnalyticsDefinitionService
+                        .parseFactor(jsonMapper, body);
+                BigDecimal numVal = null;
+                BigDecimal denVal = null;
+                if (numExpr != null && denExpr != null) {
+                    numVal = toBigDecimal(ev.eval(Parser.parse(numExpr)));
+                    denVal = toBigDecimal(ev.eval(Parser.parse(denExpr)));
+                }
                 final AnalyticsContribution c = contributionFor(def,
                         enrollmentUid, version, periodKey,
                         enRow.orgUnitUid() == null
                                 ? event.orgUnitUid() : enRow.orgUnitUid(),
-                        dimensionKey, value);
+                        dimensionKey, value, numVal, denVal);
                 if (c != null) {
-                    materializer.applyContribution(def, c);
+                    materializer.applyContribution(def, c, factor);
                 }
             } catch (RuntimeException ex) {
                 failed.incrementAndGet();
@@ -414,7 +439,18 @@ public class AnalyticsLiveIngester {
             final AnalyticsDefinition def, final String key,
             final int version, final String periodKey,
             final String orgUnit, final String dimensionKey,
-            final Object value) {
+            final Object value,
+            final BigDecimal numerator, final BigDecimal denominator) {
+        // Ratio indicators — emit num/den contributions when both
+        // halves evaluated to numeric values. One missing half means
+        // this source doesn't contribute (spec §6.1 Vector E).
+        if (numerator != null && denominator != null) {
+            return AnalyticsContribution.ratio(def.id(),
+                    def.definitionVersion(), key, String.valueOf(version),
+                    periodKey, orgUnit,
+                    dimensionKey == null ? "" : dimensionKey,
+                    numerator, denominator);
+        }
         final String agg = def.aggregationType() == null
                 ? "COUNT" : def.aggregationType();
         final BigDecimal numeric;

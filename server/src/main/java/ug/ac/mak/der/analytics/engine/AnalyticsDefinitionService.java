@@ -41,7 +41,10 @@ public class AnalyticsDefinitionService {
             String orgUnitAnchor,
             String expression,
             List<AnalyticsDimension> dimensions,
-            String filterExpression) {
+            String filterExpression,
+            String numeratorExpression,
+            String denominatorExpression,
+            java.math.BigDecimal factor) {
 
         public CreateRequest {
             dimensions = dimensions == null ? List.of()
@@ -59,7 +62,7 @@ public class AnalyticsDefinitionService {
                               final String expression) {
             this(code, displayName, analyticsType, aggregationType,
                     programUid, stageUids, dateAnchor, orgUnitAnchor,
-                    expression, List.of(), null);
+                    expression, List.of(), null, null, null, null);
         }
 
         /** 10-field convenience for Phase-4a — dimensions but no
@@ -75,7 +78,46 @@ public class AnalyticsDefinitionService {
                               final List<AnalyticsDimension> dimensions) {
             this(code, displayName, analyticsType, aggregationType,
                     programUid, stageUids, dateAnchor, orgUnitAnchor,
-                    expression, dimensions, null);
+                    expression, dimensions, null, null, null, null);
+        }
+
+        /** 11-field convenience for Phase-4c — dimensions + filter but
+         *  no ratio expressions. */
+        public CreateRequest(final String code, final String displayName,
+                              final String analyticsType,
+                              final String aggregationType,
+                              final String programUid,
+                              final List<String> stageUids,
+                              final String dateAnchor,
+                              final String orgUnitAnchor,
+                              final String expression,
+                              final List<AnalyticsDimension> dimensions,
+                              final String filterExpression) {
+            this(code, displayName, analyticsType, aggregationType,
+                    programUid, stageUids, dateAnchor, orgUnitAnchor,
+                    expression, dimensions, filterExpression, null, null,
+                    null);
+        }
+
+        /** 13-field convenience for pre-factor ratio indicators —
+         *  legacy callers that supplied num/den without the DHIS2
+         *  aggregate-indicator factor. Equivalent to factor = 1. */
+        public CreateRequest(final String code, final String displayName,
+                              final String analyticsType,
+                              final String aggregationType,
+                              final String programUid,
+                              final List<String> stageUids,
+                              final String dateAnchor,
+                              final String orgUnitAnchor,
+                              final String expression,
+                              final List<AnalyticsDimension> dimensions,
+                              final String filterExpression,
+                              final String numeratorExpression,
+                              final String denominatorExpression) {
+            this(code, displayName, analyticsType, aggregationType,
+                    programUid, stageUids, dateAnchor, orgUnitAnchor,
+                    expression, dimensions, filterExpression,
+                    numeratorExpression, denominatorExpression, null);
         }
     }
 
@@ -159,9 +201,43 @@ public class AnalyticsDefinitionService {
                         null, filterCompiled, List.of());
             }
         }
+        // Ratio indicators — spec §6.1. Both numerator and
+        // denominator must be supplied together; a lone half is a
+        // VALIDATION_ERROR (spec forbids an implicit "assume the
+        // other is the main expression").
+        final boolean hasNum = req.numeratorExpression() != null
+                && !req.numeratorExpression().isBlank();
+        final boolean hasDen = req.denominatorExpression() != null
+                && !req.denominatorExpression().isBlank();
+        if (hasNum != hasDen) {
+            return new CreateResult(CreateOutcome.VALIDATION_ERROR,
+                    null, null, List.of(
+                            "numeratorExpression and denominatorExpression "
+                          + "must be supplied together"));
+        }
+        ExpressionCompiler.CompileResult numCompiled = null;
+        ExpressionCompiler.CompileResult denCompiled = null;
+        if (hasNum) {
+            numCompiled = compiler.compile(req.numeratorExpression());
+            denCompiled = compiler.compile(req.denominatorExpression());
+            if (numCompiled.supportState()
+                    == ExpressionCompiler.SupportState.PARSE_ERROR) {
+                return new CreateResult(CreateOutcome.PARSE_ERROR,
+                        null, numCompiled, List.of());
+            }
+            if (denCompiled.supportState()
+                    == ExpressionCompiler.SupportState.PARSE_ERROR) {
+                return new CreateResult(CreateOutcome.PARSE_ERROR,
+                        null, denCompiled, List.of());
+            }
+        }
         final boolean ready = compiled.supportState()
                 == ExpressionCompiler.SupportState.READY
                 && (!hasFilter || filterCompiled.supportState()
+                        == ExpressionCompiler.SupportState.READY)
+                && (!hasNum || numCompiled.supportState()
+                        == ExpressionCompiler.SupportState.READY)
+                && (!hasDen || denCompiled.supportState()
                         == ExpressionCompiler.SupportState.READY);
         final String supportState = ready ? "READY" : "UNSUPPORTED";
         final StringBuilder reasonBuilder = new StringBuilder();
@@ -176,6 +252,22 @@ public class AnalyticsDefinitionService {
             }
             reasonBuilder.append("filter: ")
                     .append(String.join("; ", filterCompiled.diagnostics()));
+        }
+        if (hasNum && numCompiled.supportState()
+                != ExpressionCompiler.SupportState.READY) {
+            if (reasonBuilder.length() > 0) {
+                reasonBuilder.append("; ");
+            }
+            reasonBuilder.append("numerator: ")
+                    .append(String.join("; ", numCompiled.diagnostics()));
+        }
+        if (hasDen && denCompiled.supportState()
+                != ExpressionCompiler.SupportState.READY) {
+            if (reasonBuilder.length() > 0) {
+                reasonBuilder.append("; ");
+            }
+            reasonBuilder.append("denominator: ")
+                    .append(String.join("; ", denCompiled.diagnostics()));
         }
         final String unsupportedReason = ready ? null
                 : reasonBuilder.toString();
@@ -259,6 +351,17 @@ public class AnalyticsDefinitionService {
                 && !req.filterExpression().isBlank()) {
             body.put("filterExpression", req.filterExpression());
         }
+        if (req.numeratorExpression() != null
+                && !req.numeratorExpression().isBlank()) {
+            body.put("numeratorExpression", req.numeratorExpression());
+        }
+        if (req.denominatorExpression() != null
+                && !req.denominatorExpression().isBlank()) {
+            body.put("denominatorExpression", req.denominatorExpression());
+        }
+        if (req.factor() != null) {
+            body.put("factor", req.factor().toPlainString());
+        }
         try {
             return json.writeValueAsString(body);
         } catch (JsonProcessingException ex) {
@@ -292,6 +395,62 @@ public class AnalyticsDefinitionService {
             }).toList());
         }
         return m;
+    }
+
+    /** Shared textual-field extractor for optional expression
+     *  slots stored on the definition JSON body. */
+    public static String parseOptionalExpression(
+            final ObjectMapper mapper, final String definitionJson,
+            final String fieldName) {
+        if (definitionJson == null || definitionJson.isBlank()) {
+            return null;
+        }
+        try {
+            final com.fasterxml.jackson.databind.JsonNode root =
+                    mapper.readTree(definitionJson);
+            final com.fasterxml.jackson.databind.JsonNode n =
+                    root.get(fieldName);
+            if (n == null || n.isNull()) {
+                return null;
+            }
+            final String v = n.asText(null);
+            return v == null || v.isBlank() ? null : v;
+        } catch (RuntimeException | java.io.IOException ex) {
+            return null;
+        }
+    }
+
+    public static String parseNumeratorExpression(
+            final ObjectMapper mapper, final String definitionJson) {
+        return parseOptionalExpression(mapper, definitionJson,
+                "numeratorExpression");
+    }
+
+    public static String parseDenominatorExpression(
+            final ObjectMapper mapper, final String definitionJson) {
+        return parseOptionalExpression(mapper, definitionJson,
+                "denominatorExpression");
+    }
+
+    /** Extract the aggregate-indicator factor (e.g. 100, 1000) from a
+     *  stored definition body. Returns {@link java.math.BigDecimal#ONE}
+     *  if absent — matches DHIS2 default of 1 (raw ratio). */
+    public static java.math.BigDecimal parseFactor(
+            final ObjectMapper mapper, final String definitionJson) {
+        if (definitionJson == null || definitionJson.isBlank()) {
+            return java.math.BigDecimal.ONE;
+        }
+        try {
+            final com.fasterxml.jackson.databind.JsonNode root =
+                    mapper.readTree(definitionJson);
+            final com.fasterxml.jackson.databind.JsonNode n = root.get("factor");
+            if (n == null || n.isNull()) {
+                return java.math.BigDecimal.ONE;
+            }
+            return new java.math.BigDecimal(n.asText("1").trim());
+        } catch (RuntimeException | java.io.IOException ex) {
+            return java.math.BigDecimal.ONE;
+        }
     }
 
     /** Extract the filter expression from a stored definition body.

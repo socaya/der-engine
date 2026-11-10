@@ -99,6 +99,47 @@ class AnalyticsMaterializerTest {
     }
 
     @Test
+    void ratioMetricAppliesFactorToSumNumeratorOverSumDenominator() {
+        final AnalyticsDefinition ratioDef = new AnalyticsDefinition(
+                metricId, null, "ANC1_RATE", "ANC1 coverage", 1,
+                "h", "AGGREGATE", "NONE", null, List.of(),
+                "EVENT_DATE", "EVENT_ORG_UNIT", "READY", null,
+                null, null, null);
+        when(contributions.aggregateForCell(eq(metricId), eq(1),
+                eq("202611"), eq("OU-A"), eq("")))
+                .thenReturn(new AnalyticsContributionRepository
+                        .CellAggregate(3L, new BigDecimal("0"),
+                                new BigDecimal("42"),
+                                new BigDecimal("50")));
+
+        final BigDecimal v = materializer.materializeCell(ratioDef,
+                "202611", "OU-A", "", new BigDecimal("100"));
+
+        // (42 / 50) * 100 = 84
+        assertThat(v).isEqualByComparingTo("84");
+    }
+
+    @Test
+    void ratioWithZeroDenominatorMaterialisesProvisionalWithNullValue() {
+        final AnalyticsDefinition ratioDef = new AnalyticsDefinition(
+                metricId, null, "ANC1_RATE", "ANC1 coverage", 1,
+                "h", "AGGREGATE", "NONE", null, List.of(),
+                "EVENT_DATE", "EVENT_ORG_UNIT", "READY", null,
+                null, null, null);
+        when(contributions.aggregateForCell(eq(metricId), eq(1),
+                eq("202611"), eq("OU-A"), eq("")))
+                .thenReturn(new AnalyticsContributionRepository
+                        .CellAggregate(2L, new BigDecimal("0"),
+                                new BigDecimal("12"),
+                                BigDecimal.ZERO));
+
+        final BigDecimal v = materializer.materializeCell(ratioDef,
+                "202611", "OU-A", "", new BigDecimal("100"));
+
+        assertThat(v).isNull();
+    }
+
+    @Test
     void retractSourceClearsContributionsAndRecomputesCells() {
         when(contributions.cellsForSource(eq(metricId), eq(1), eq("ev-1")))
                 .thenReturn(List.of(

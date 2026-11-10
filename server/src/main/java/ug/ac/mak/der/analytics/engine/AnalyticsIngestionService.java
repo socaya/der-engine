@@ -131,6 +131,9 @@ public class AnalyticsIngestionService {
         record Compiled(AnalyticsDefinition def,
                           ug.ac.mak.der.analytics.expression.Expression ast,
                           ug.ac.mak.der.analytics.expression.Expression filter,
+                          ug.ac.mak.der.analytics.expression.Expression numerator,
+                          ug.ac.mak.der.analytics.expression.Expression denominator,
+                          java.math.BigDecimal factor,
                           List<AnalyticsDimension> dimensions) { }
         final List<Compiled> compiled = new ArrayList<>(defs.size());
         for (final AnalyticsDefinition d : defs) {
@@ -147,8 +150,18 @@ public class AnalyticsIngestionService {
                         .parseFilterExpression(jsonMapper, row);
                 final var filterAst = filterExpr == null ? null
                         : Parser.parse(filterExpr);
+                final String numExpr = AnalyticsDefinitionService
+                        .parseNumeratorExpression(jsonMapper, row);
+                final String denExpr = AnalyticsDefinitionService
+                        .parseDenominatorExpression(jsonMapper, row);
+                final var numAst = numExpr == null ? null
+                        : Parser.parse(numExpr);
+                final var denAst = denExpr == null ? null
+                        : Parser.parse(denExpr);
+                final java.math.BigDecimal factor =
+                        AnalyticsDefinitionService.parseFactor(jsonMapper, row);
                 compiled.add(new Compiled(d, Parser.parse(expr),
-                        filterAst,
+                        filterAst, numAst, denAst, factor,
                         AnalyticsDefinitionService.parseDimensions(
                                 jsonMapper, row)));
             } catch (RuntimeException ex) {
@@ -241,7 +254,8 @@ public class AnalyticsIngestionService {
                         c.dimensions(), ctx);
                 final AnalyticsContribution ctb = contributionFor(
                         c.def(), enrollmentUid, srcVersion, periodKey,
-                        orgUnit, dimensionKey, value);
+                        orgUnit, dimensionKey, value,
+                        c.numerator(), c.denominator(), ev);
                 if (ctb == null) {
                     continue;
                 }
@@ -261,7 +275,8 @@ public class AnalyticsIngestionService {
                     batchByMetric.getOrDefault(c.def().id(), List.of());
             final Set<AnalyticsContributionRepository.CellRef> touched =
                     touchedByMetric.getOrDefault(c.def().id(), Set.of());
-            out.add(commitBatch(c.def(), rows, touched, scanned[0]));
+            out.add(commitBatch(c.def(), rows, touched, scanned[0],
+                    c.factor()));
         }
         return out;
     }
@@ -335,6 +350,9 @@ public class AnalyticsIngestionService {
         record Compiled(AnalyticsDefinition def,
                           ug.ac.mak.der.analytics.expression.Expression ast,
                           ug.ac.mak.der.analytics.expression.Expression filter,
+                          ug.ac.mak.der.analytics.expression.Expression numerator,
+                          ug.ac.mak.der.analytics.expression.Expression denominator,
+                          java.math.BigDecimal factor,
                           List<AnalyticsDimension> dimensions) { }
         final List<Compiled> compiled = new ArrayList<>(defs.size());
         for (final AnalyticsDefinition d : defs) {
@@ -354,8 +372,18 @@ public class AnalyticsIngestionService {
                         .parseFilterExpression(jsonMapper, row);
                 final ug.ac.mak.der.analytics.expression.Expression filterAst =
                         filterExpr == null ? null : Parser.parse(filterExpr);
+                final String numExpr = AnalyticsDefinitionService
+                        .parseNumeratorExpression(jsonMapper, row);
+                final String denExpr = AnalyticsDefinitionService
+                        .parseDenominatorExpression(jsonMapper, row);
+                final var numAst = numExpr == null ? null
+                        : Parser.parse(numExpr);
+                final var denAst = denExpr == null ? null
+                        : Parser.parse(denExpr);
+                final java.math.BigDecimal factor =
+                        AnalyticsDefinitionService.parseFactor(jsonMapper, row);
                 compiled.add(new Compiled(d, Parser.parse(expr),
-                        filterAst, dims));
+                        filterAst, numAst, denAst, factor, dims));
             } catch (RuntimeException ex) {
                 engineRepo.updateSupportState(d.id(), "UNSUPPORTED",
                         "re-compile failed: " + ex.getMessage());
@@ -441,7 +469,8 @@ public class AnalyticsIngestionService {
                         c.dimensions(), ctx);
                 final AnalyticsContribution ctb = contributionFor(
                         c.def(), eventUid, srcVersion, periodKey,
-                        orgUnit, dimensionKey, value);
+                        orgUnit, dimensionKey, value,
+                        c.numerator(), c.denominator(), ev);
                 if (ctb == null) {
                     continue;
                 }
@@ -461,20 +490,43 @@ public class AnalyticsIngestionService {
                     batchByMetric.getOrDefault(c.def().id(), List.of());
             final Set<AnalyticsContributionRepository.CellRef> touched =
                     touchedByMetric.getOrDefault(c.def().id(), Set.of());
-            out.add(commitBatch(c.def(), rows, touched, scanned[0]));
+            out.add(commitBatch(c.def(), rows, touched, scanned[0],
+                    c.factor()));
         }
         return out;
     }
 
-    /** Produce a contribution for one (metric, event) pair based on
+    /** Produce a contribution for one (metric, source) pair based on
      *  the definition's aggregation type + the evaluated value.
-     *  Returns null when the source should contribute nothing. */
+     *  When numeratorAst + denominatorAst are supplied, emits a ratio
+     *  contribution that the materializer can later roll up as
+     *  {@code (SUM(num) / SUM(den)) * factor}. Returns null when the
+     *  source should contribute nothing. */
     private AnalyticsContribution contributionFor(
             final AnalyticsDefinition def,
             final String eventUid, final int srcVersion,
             final String periodKey, final String orgUnit,
             final String dimensionKey,
-            final Object value) {
+            final Object value,
+            final ug.ac.mak.der.analytics.expression.Expression numeratorAst,
+            final ug.ac.mak.der.analytics.expression.Expression denominatorAst,
+            final Evaluator ev) {
+        // Ratio indicators — spec §6.1. Both numerator and denominator
+        // must evaluate to a usable value for this event to contribute.
+        // Missing / non-numeric half means the event is skipped (not
+        // counted as a zero); the cell still materialises from the
+        // remaining contributions.
+        if (numeratorAst != null && denominatorAst != null) {
+            final java.math.BigDecimal num = evalNumeric(ev, numeratorAst);
+            final java.math.BigDecimal den = evalNumeric(ev, denominatorAst);
+            if (num == null || den == null) {
+                return null;
+            }
+            return AnalyticsContribution.ratio(def.id(),
+                    def.definitionVersion(), eventUid,
+                    String.valueOf(srcVersion), periodKey, orgUnit,
+                    dimensionKey == null ? "" : dimensionKey, num, den);
+        }
         final String agg = def.aggregationType() == null
                 ? "COUNT" : def.aggregationType();
         final java.math.BigDecimal numeric;
@@ -501,6 +553,16 @@ public class AnalyticsIngestionService {
                 String.valueOf(srcVersion), periodKey, orgUnit,
                 dimensionKey == null ? "" : dimensionKey,
                 numeric, eligible, "COMMITTED", null, null);
+    }
+
+    private static java.math.BigDecimal evalNumeric(
+            final Evaluator ev,
+            final ug.ac.mak.der.analytics.expression.Expression ast) {
+        try {
+            return toBigDecimal(ev.eval(ast));
+        } catch (Evaluator.EvalException ex) {
+            return null;
+        }
     }
 
     private static boolean isTruthy(final Object v) {
@@ -676,6 +738,15 @@ public class AnalyticsIngestionService {
                                        final List<AnalyticsContribution> batch,
                                        final Set<AnalyticsContributionRepository.CellRef> touched,
                                        final long scanned) {
+        return commitBatch(def, batch, touched, scanned,
+                java.math.BigDecimal.ONE);
+    }
+
+    private IngestResult commitBatch(final AnalyticsDefinition def,
+                                       final List<AnalyticsContribution> batch,
+                                       final Set<AnalyticsContributionRepository.CellRef> touched,
+                                       final long scanned,
+                                       final java.math.BigDecimal factor) {
         int[] updates = new int[0];
         if (!batch.isEmpty()) {
             updates = contributions.upsertBatch(batch);
@@ -683,7 +754,7 @@ public class AnalyticsIngestionService {
         long cells = 0;
         for (final AnalyticsContributionRepository.CellRef ref : touched) {
             materializer.materializeCell(def, ref.periodKey(),
-                    ref.orgUnitUid(), ref.dimensionKey());
+                    ref.orgUnitUid(), ref.dimensionKey(), factor);
             cells++;
         }
         return new IngestResult(def.code(), scanned, updates.length, cells);

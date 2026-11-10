@@ -24,7 +24,24 @@ public record AnalyticsContribution(
         boolean eligibility,
         String sourceState,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt,
+        BigDecimal numeratorContribution,
+        BigDecimal denominatorContribution) {
+
+    /** 12-arg legacy form for Phase 1-6 call sites. */
+    public AnalyticsContribution(
+            final UUID metricId, final int definitionVersion,
+            final String sourceKey, final String sourceVersion,
+            final String periodKey, final String orgUnitUid,
+            final String dimensionKey,
+            final BigDecimal contributionValue,
+            final boolean eligibility, final String sourceState,
+            final Instant createdAt, final Instant updatedAt) {
+        this(metricId, definitionVersion, sourceKey, sourceVersion,
+                periodKey, orgUnitUid, dimensionKey, contributionValue,
+                eligibility, sourceState, createdAt, updatedAt,
+                null, null);
+    }
 
     /** Convenience factory for the common COUNT=1 case. */
     public static AnalyticsContribution countOne(
@@ -34,5 +51,20 @@ public record AnalyticsContribution(
         return new AnalyticsContribution(metricId, definitionVersion,
                 sourceKey, sourceVersion, periodKey, orgUnitUid,
                 "", BigDecimal.ONE, true, "COMMITTED", null, null);
+    }
+
+    /** Convenience factory for ratio indicators. */
+    public static AnalyticsContribution ratio(
+            final UUID metricId, final int definitionVersion,
+            final String sourceKey, final String sourceVersion,
+            final String periodKey, final String orgUnitUid,
+            final String dimensionKey,
+            final BigDecimal numerator, final BigDecimal denominator) {
+        return new AnalyticsContribution(metricId, definitionVersion,
+                sourceKey, sourceVersion, periodKey, orgUnitUid,
+                dimensionKey == null ? "" : dimensionKey,
+                numerator == null ? BigDecimal.ZERO : numerator,
+                true, "COMMITTED", null, null,
+                numerator, denominator);
     }
 }

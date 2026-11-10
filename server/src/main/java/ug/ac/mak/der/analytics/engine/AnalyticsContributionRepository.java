@@ -38,8 +38,9 @@ public class AnalyticsContributionRepository {
                 "INSERT INTO der.analytics_contribution ("
               + "  metric_id, definition_version, source_key, source_version, "
               + "  period_key, org_unit_uid, dimension_key, "
-              + "  contribution_value, eligibility, source_state) "
-              + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+              + "  contribution_value, eligibility, source_state, "
+              + "  numerator_contribution, denominator_contribution) "
+              + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
               + "ON CONFLICT (metric_id, definition_version, source_key, "
               + "              period_key, org_unit_uid, dimension_key) "
               + "DO UPDATE SET "
@@ -47,13 +48,17 @@ public class AnalyticsContributionRepository {
               + "  contribution_value = EXCLUDED.contribution_value, "
               + "  eligibility = EXCLUDED.eligibility, "
               + "  source_state = EXCLUDED.source_state, "
+              + "  numerator_contribution = EXCLUDED.numerator_contribution, "
+              + "  denominator_contribution = EXCLUDED.denominator_contribution, "
               + "  updated_at = now()",
                 c.metricId(), c.definitionVersion(), c.sourceKey(),
                 c.sourceVersion(), c.periodKey(), c.orgUnitUid(),
                 c.dimensionKey() == null ? "" : c.dimensionKey(),
                 c.contributionValue() == null
                         ? BigDecimal.ZERO : c.contributionValue(),
-                c.eligibility(), c.sourceState());
+                c.eligibility(), c.sourceState(),
+                c.numeratorContribution(),
+                c.denominatorContribution());
     }
 
     /** Remove every contribution for a source (across periods /
@@ -86,8 +91,10 @@ public class AnalyticsContributionRepository {
     }
 
     /** Aggregate committed, eligible contributions for one cell.
-     *  Returns (count, sum) so the materializer can cover both
-     *  COUNT and SUM aggregation types without a second trip. */
+     *  Returns (count, sum, sumNumerator, sumDenominator) so the
+     *  materializer covers COUNT, SUM, and ratio metrics without a
+     *  second trip. Sum{Num,Den} are null when no contribution in
+     *  the cell populated the ratio columns. */
     public CellAggregate aggregateForCell(final UUID metricId,
                                            final int definitionVersion,
                                            final String periodKey,
@@ -95,14 +102,18 @@ public class AnalyticsContributionRepository {
                                            final String dimensionKey) {
         return jdbc.queryForObject(
                 "SELECT COUNT(*)::bigint AS n, "
-              + "       COALESCE(SUM(contribution_value), 0) AS s "
+              + "       COALESCE(SUM(contribution_value), 0) AS s, "
+              + "       SUM(numerator_contribution) AS sum_num, "
+              + "       SUM(denominator_contribution) AS sum_den "
               + "  FROM der.analytics_contribution "
               + " WHERE metric_id = ? AND definition_version = ? "
               + "   AND period_key = ? AND org_unit_uid = ? "
               + "   AND dimension_key = ? "
               + "   AND eligibility = TRUE AND source_state = 'COMMITTED'",
                 (rs, i) -> new CellAggregate(
-                        rs.getLong("n"), rs.getBigDecimal("s")),
+                        rs.getLong("n"), rs.getBigDecimal("s"),
+                        rs.getBigDecimal("sum_num"),
+                        rs.getBigDecimal("sum_den")),
                 metricId, definitionVersion, periodKey, orgUnitUid,
                 dimensionKey == null ? "" : dimensionKey);
     }
@@ -140,7 +151,15 @@ public class AnalyticsContributionRepository {
     public record CellRef(String periodKey, String orgUnitUid,
                             String dimensionKey) { }
 
-    public record CellAggregate(long count, BigDecimal sum) { }
+    public record CellAggregate(long count, BigDecimal sum,
+                                  BigDecimal sumNumerator,
+                                  BigDecimal sumDenominator) {
+        /** 2-arg legacy form for Phase 2 call sites + tests that
+         *  predate ratio metrics. */
+        public CellAggregate(final long count, final BigDecimal sum) {
+            this(count, sum, null, null);
+        }
+    }
 
     private static final RowMapper<AnalyticsContribution> CONTRIBUTION_MAPPER =
         (rs, i) -> new AnalyticsContribution(
@@ -174,15 +193,18 @@ public class AnalyticsContributionRepository {
                 c.dimensionKey() == null ? "" : c.dimensionKey(),
                 c.contributionValue() == null
                         ? BigDecimal.ZERO : c.contributionValue(),
-                c.eligibility(), c.sourceState()
+                c.eligibility(), c.sourceState(),
+                c.numeratorContribution(),
+                c.denominatorContribution()
             });
         }
         return jdbc.batchUpdate(
                 "INSERT INTO der.analytics_contribution ("
               + "  metric_id, definition_version, source_key, source_version, "
               + "  period_key, org_unit_uid, dimension_key, "
-              + "  contribution_value, eligibility, source_state) "
-              + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+              + "  contribution_value, eligibility, source_state, "
+              + "  numerator_contribution, denominator_contribution) "
+              + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
               + "ON CONFLICT (metric_id, definition_version, source_key, "
               + "              period_key, org_unit_uid, dimension_key) "
               + "DO UPDATE SET "
@@ -190,6 +212,8 @@ public class AnalyticsContributionRepository {
               + "  contribution_value = EXCLUDED.contribution_value, "
               + "  eligibility = EXCLUDED.eligibility, "
               + "  source_state = EXCLUDED.source_state, "
+              + "  numerator_contribution = EXCLUDED.numerator_contribution, "
+              + "  denominator_contribution = EXCLUDED.denominator_contribution, "
               + "  updated_at = now()",
                 args);
     }

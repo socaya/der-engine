@@ -183,6 +183,41 @@ public class PublicationRepository {
         }
     }
 
+    /** Fetch the most-recently-reviewed proposal for a mapping /
+     *  period / orgUnit tuple. Used by AUTO_APPROVE_EXACT and
+     *  AUTO_APPROVE_UNDER_THRESHOLD to compare the new proposed
+     *  value against the prior approved value. */
+    public Optional<PublicationProposal> findPriorForCell(
+            final UUID mappingId, final String periodKey,
+            final String orgUnitUid) {
+        try {
+            return Optional.ofNullable(jdbc.queryForObject(
+                    "SELECT proposal_id, mapping_id, metric_id, "
+                  + "       definition_version, dataset_uid, "
+                  + "       data_element_uid, category_option_combo_uid, "
+                  + "       attribute_option_combo_uid, period_key, "
+                  + "       org_unit_uid, proposed_value, reviewed_value, "
+                  + "       state, review_reason, reviewed_by, "
+                  + "       reviewed_at, provenance::text AS provenance, "
+                  + "       created_at, updated_at "
+                  + "  FROM der.analytics_publication "
+                  + " WHERE mapping_id = ? AND period_key = ? "
+                  + "   AND org_unit_uid = ?",
+                    PROPOSAL_MAPPER, mappingId, periodKey, orgUnitUid));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    /** Count proposals in a given state — used by the drain worker's
+     *  idle-tick short-circuit. */
+    public int countByState(final PublicationProposal.State state) {
+        final Integer v = jdbc.queryForObject(
+                "SELECT COUNT(*)::int FROM der.analytics_publication "
+              + " WHERE state = ?", Integer.class, state.name());
+        return v == null ? 0 : v;
+    }
+
     public int review(final UUID proposalId, final PublicationProposal.State state,
                         final BigDecimal reviewedValue, final String reason,
                         final UUID reviewer) {
