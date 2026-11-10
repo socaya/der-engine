@@ -31,6 +31,7 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.SystemWorkflowService;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
+import ug.ac.mak.der.workflows.tracker.ActiveEnrollmentClashException;
 import ug.ac.mak.der.workflows.tracker.Enrollment;
 import ug.ac.mak.der.workflows.tracker.EnrollmentRepository;
 import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository;
@@ -101,26 +102,6 @@ public class EnrollmentController {
                     "code", "ENROLLMENT_STATUS_INVALID",
                     "message", "status must be ACTIVE, COMPLETED or CANCELLED"));
         }
-        // DHIS2 parity: at most one ACTIVE enrolment per (TEI, program).
-        // An operator attempting to open a second ACTIVE enrolment while
-        // one already exists would otherwise land a row the central
-        // tracker import rejects with E1015 — surface the conflict at
-        // the edge so the UI can route them to the existing one.
-        if (status == Enrollment.Status.ACTIVE) {
-            final boolean clash = repo.findByTei(body.teiUid()).stream()
-                    .filter(e -> e.status() == Enrollment.Status.ACTIVE)
-                    .filter(e -> body.programUid().equals(e.programUid()))
-                    .anyMatch(e -> !e.enrollmentUid()
-                            .equals(body.enrollmentUid()));
-            if (clash) {
-                return ResponseEntity.status(409).body(Map.of(
-                        "code", "ENROLLMENT_ACTIVE_CLASH",
-                        "message", "Tracked entity already has an "
-                            + "ACTIVE enrolment in program "
-                            + body.programUid()
-                            + ". Complete or cancel it first."));
-            }
-        }
         final Instant now = Instant.now(clock);
         final String storedBy = captorResolver.storedByFor(principal.userId()).orElse(null);
         // §2.3.89 R-C/3 — auto-wrap into TRACKER_CAPTURE system run
@@ -139,10 +120,22 @@ public class EnrollmentController {
                     "code", "ENROLLMENT_INVALID", "message", ex.getMessage()));
         }
         // §2.3.96 R-D/tracker-svc — service handles upsert + outbox
-        // + audit in one @Transactional unit.
-        trackerService.upsertEnrollment(e, principal.userId(),
-                http == null ? null : http.getRemoteAddr(),
-                http == null ? null : http.getHeader(HttpHeaders.USER_AGENT));
+        // + audit in one @Transactional unit. It also enforces the
+        // DHIS2-parity single-ACTIVE-per-(TEI, program) invariant;
+        // translate that into HTTP 409 so the UI can route the
+        // operator to the existing enrolment.
+        try {
+            trackerService.upsertEnrollment(e, principal.userId(),
+                    http == null ? null : http.getRemoteAddr(),
+                    http == null ? null : http.getHeader(HttpHeaders.USER_AGENT));
+        } catch (ActiveEnrollmentClashException clash) {
+            return ResponseEntity.status(409).body(Map.of(
+                    "code", "ENROLLMENT_ACTIVE_CLASH",
+                    "message", "Tracked entity already has an ACTIVE "
+                        + "enrolment in program " + clash.programUid()
+                        + ". Complete or cancel it first.",
+                    "conflictingEnrollmentUid", clash.conflictingEnrollmentUid()));
+        }
         return ResponseEntity.ok(toJson(e));
     }
 

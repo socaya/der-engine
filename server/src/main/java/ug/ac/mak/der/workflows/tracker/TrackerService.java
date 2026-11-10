@@ -152,13 +152,32 @@ public class TrackerService {
         }
     }
 
-    /** Persist an enrolment + enqueue its outbox entry atomically. */
+    /** Persist an enrolment + enqueue its outbox entry atomically.
+     *
+     *  <p>Enforces DHIS2 parity at the edge: at most one ACTIVE
+     *  enrolment per (TEI, program). Throws {@link
+     *  ActiveEnrollmentClashException} if the incoming row would
+     *  land a second concurrent ACTIVE. Living here (vs. the
+     *  controller) means every caller — EnrollmentController,
+     *  DraftController drain, any future write-path — gets the
+     *  same guarantee without duplicating the check.</p> */
     @Transactional
     public Enrollment upsertEnrollment(final Enrollment e,
                                          final UUID actor,
                                          final String ip, final String userAgent) {
         Objects.requireNonNull(e, "enrollment");
         Objects.requireNonNull(actor, "actor");
+        if (e.status() == Enrollment.Status.ACTIVE) {
+            final Enrollment clash = enrolments.findByTei(e.teiUid()).stream()
+                    .filter(x -> x.status() == Enrollment.Status.ACTIVE)
+                    .filter(x -> e.programUid().equals(x.programUid()))
+                    .filter(x -> !x.enrollmentUid().equals(e.enrollmentUid()))
+                    .findFirst().orElse(null);
+            if (clash != null) {
+                throw new ActiveEnrollmentClashException(e.teiUid(),
+                        e.programUid(), clash.enrollmentUid());
+            }
+        }
         final Instant now = Instant.now(clock);
         final Enrollment stored = enrolments.upsert(e);
         final Map<String, Object> payload = new LinkedHashMap<>();
