@@ -1,0 +1,7 @@
+test,source scenario,expected
+one encounter four stages,one encounter four stages,"OPD visits=1, stage events=4"
+two visits one patient,two visits one patient,"visits=2, distinct patients=1"
+duplicate event journal,duplicate event journal,no tally increment
+cross-month event correction,cross-month event correction,"old month -1, new month +1"
+zero denominator,zero denominator,undefined/null with reason
+inpatient death with secondary diagnoses,inpatient death with secondary diagnoses,all-cause deaths=1

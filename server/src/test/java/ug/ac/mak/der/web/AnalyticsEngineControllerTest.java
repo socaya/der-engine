@@ -1,0 +1,261 @@
+package ug.ac.mak.der.web;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
+
+import ug.ac.mak.der.analytics.engine.AnalyticsCell;
+import ug.ac.mak.der.analytics.engine.AnalyticsDefinition;
+import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
+import ug.ac.mak.der.analytics.engine.AnalyticsPeriodEnumerator;
+import ug.ac.mak.der.security.EdgeRole;
+import ug.ac.mak.der.security.EdgeSession;
+import ug.ac.mak.der.security.EdgeUser;
+import ug.ac.mak.der.security.EdgeUserPrincipal;
+
+@WebMvcTest(AnalyticsEngineController.class)
+@ActiveProfiles("test")
+@Import(TestSecurityConfig.class)
+class AnalyticsEngineControllerTest {
+
+    @Autowired MockMvc mockMvc;
+    @MockBean AnalyticsEngineRepository repo;
+    @MockBean AnalyticsPeriodEnumerator periods;
+
+    private RequestPostProcessor as(final EdgeRole role) {
+        final Instant now = Instant.now();
+        final EdgeUser u = new EdgeUser(UUID.randomUUID(), "op", "Op",
+                EdgeUser.Origin.BOOTSTRAP, null, false, EnumSet.of(role), now, now);
+        final EdgeSession s = new EdgeSession(UUID.randomUUID(), u.userId(), "h", now, now,
+                now.plusSeconds(3600), null, null, null);
+        return authentication(new EdgeUserPrincipal(u, s));
+    }
+
+    @Test
+    void capabilitiesRequiresAuth() throws Exception {
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/capabilities"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void capabilitiesReturnsManifest() throws Exception {
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/capabilities")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.package").value("DER Analytics engine v1"))
+                .andExpect(jsonPath("$.status").value("PHASE_1_FOUNDATION"))
+                .andExpect(jsonPath("$.targetDhis2Versions[0]").value("2.41"))
+                .andExpect(jsonPath("$.capabilities[0].feature").value("event_count"))
+                .andExpect(jsonPath("$.supportedPeriodTypes[0]").value("Daily"));
+    }
+
+    @Test
+    void periodsRejectsUnknownType() throws Exception {
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/periods")
+                        .param("type", "Biweekly")
+                        .param("year", "2026")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PERIOD_TYPE_UNSUPPORTED"));
+    }
+
+    @Test
+    void periodsReturnsWindows() throws Exception {
+        when(periods.enumerate(eq(AnalyticsPeriodEnumerator.Type.MONTHLY), eq(2026)))
+                .thenReturn(List.of(
+                        new AnalyticsPeriodEnumerator.Window("202601",
+                                java.time.LocalDate.of(2026, 1, 1),
+                                java.time.LocalDate.of(2026, 1, 31)),
+                        new AnalyticsPeriodEnumerator.Window("202602",
+                                java.time.LocalDate.of(2026, 2, 1),
+                                java.time.LocalDate.of(2026, 2, 28))));
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/periods")
+                        .param("type", "Monthly")
+                        .param("year", "2026")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("MONTHLY"))
+                .andExpect(jsonPath("$.count").value(2))
+                .andExpect(jsonPath("$.periods[0].id").value("202601"))
+                .andExpect(jsonPath("$.periods[1].endDate").value("2026-02-28"));
+    }
+
+    @Test
+    void periodsOutOfRangeYear() throws Exception {
+        when(periods.enumerate(any(), eq(1800)))
+                .thenThrow(new IllegalArgumentException("year out of range: 1800"));
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/periods")
+                        .param("type", "Yearly")
+                        .param("year", "1800")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PERIOD_YEAR_OUT_OF_RANGE"));
+    }
+
+    @Test
+    void metricsListReturnsCatalog() throws Exception {
+        final UUID id = UUID.randomUUID();
+        final AnalyticsDefinition d = new AnalyticsDefinition(id,
+                "OPPI0001", "OPPI0001", "OPD attendances", 1,
+                "hash-1", "EVENT", "COUNT", "PGM1", List.of("STG1"),
+                "EVENT_DATE", "EVENT_ORG_UNIT", "READY", null,
+                Instant.parse("2026-11-01T00:00:00Z"),
+                Instant.parse("2026-11-01T00:00:00Z"),
+                Instant.parse("2026-11-01T00:00:00Z"));
+        when(repo.listDefinitions(null, 200)).thenReturn(List.of(d));
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/metrics")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.metrics[0].code").value("OPPI0001"))
+                .andExpect(jsonPath("$.metrics[0].analyticsType").value("EVENT"))
+                .andExpect(jsonPath("$.metrics[0].stageUids[0]").value("STG1"));
+    }
+
+    @Test
+    void metricsFilterBySupportState() throws Exception {
+        when(repo.listDefinitions("UNSUPPORTED", 10)).thenReturn(List.of());
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/metrics")
+                        .param("supportState", "UNSUPPORTED")
+                        .param("limit", "10")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(0));
+    }
+
+    @Test
+    void explainByUuidReturns404WhenMissing() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(repo.findDefinition(id)).thenReturn(Optional.empty());
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/explain/" + id)
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("METRIC_NOT_FOUND"));
+    }
+
+    @Test
+    void explainByCodeFallsBackToCodeLookup() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(repo.findDefinitionByCode("OPPI0001")).thenReturn(Optional.of(
+                new AnalyticsDefinition(id, null, "OPPI0001", "OPD",
+                        1, "h", "EVENT", "COUNT", null, List.of(),
+                        "EVENT_DATE", "EVENT_ORG_UNIT", "READY", null,
+                        null, null, null)));
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/explain/OPPI0001")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OPPI0001"));
+    }
+
+    @Test
+    void queryReturnsCells() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(repo.findDefinitionByCode("OPPI0001")).thenReturn(Optional.of(
+                new AnalyticsDefinition(id, null, "OPPI0001", "OPD",
+                        1, "h", "EVENT", "COUNT", null, List.of(),
+                        "EVENT_DATE", "EVENT_ORG_UNIT", "READY", null,
+                        null, null, null)));
+        when(repo.queryCells(any())).thenReturn(List.of(
+                new AnalyticsCell(id, 1, "202611", "OU-A", "",
+                        42L, null, new BigDecimal("42"),
+                        null, null,
+                        Instant.parse("2026-11-10T12:00:00Z"),
+                        "VERIFIED")));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/query")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType("application/json")
+                        .content("{\"metrics\":[\"OPPI0001\"],"
+                                + "\"period\":{\"type\":\"Monthly\",\"id\":\"202611\"},"
+                                + "\"orgUnits\":[\"OU-A\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.cells[0].periodKey").value("202611"))
+                .andExpect(jsonPath("$.cells[0].countValue").value(42))
+                .andExpect(jsonPath("$.cells[0].qualityState").value("VERIFIED"));
+    }
+
+    @Test
+    void queryAcceptsEmptyBody() throws Exception {
+        when(repo.queryCells(any())).thenReturn(List.of());
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/query")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(0));
+    }
+
+    @Test
+    void timeseriesSharesQueryPath() throws Exception {
+        when(repo.queryCells(any())).thenReturn(List.of());
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/timeseries")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType("application/json")
+                        .content("{\"metrics\":[]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(0));
+    }
+
+    @Test
+    void qualityReturnsCounts() throws Exception {
+        when(repo.qualityCounts()).thenReturn(Map.of(
+                "PROVISIONAL", 3, "VERIFIED", 2, "FAILED", 0));
+        when(repo.allCursors()).thenReturn(Map.of("event", 42L));
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/quality")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.qualityCounts.VERIFIED").value(2))
+                .andExpect(jsonPath("$.sourceCursors.event").value(42));
+    }
+
+    @Test
+    void jobsReturnsIdlePhaseOneStub() throws Exception {
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/admin/jobs")
+                        .with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activeJobs").isArray())
+                .andExpect(jsonPath("$.deadLetters").value(0));
+    }
+
+    @Test
+    void recomputeRequiresAdmin() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/recompute")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void recomputeReturns202ForAdmin() throws Exception {
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/admin/recompute")
+                        .with(as(EdgeRole.ADMIN))
+                        .contentType("application/json")
+                        .content("{\"scope\":\"OPPI0001\"}"))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("ACCEPTED"))
+                .andExpect(jsonPath("$.phase").value("PHASE_1_NO_MATERIALIZER"));
+    }
+}

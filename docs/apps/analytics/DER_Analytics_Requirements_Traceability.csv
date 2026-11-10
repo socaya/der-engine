@@ -1,0 +1,58 @@
+id,priority,requirement,verification
+AN-FR-001,MUST,"Ingest DHIS2 programme, program stage, data element, option, tracked entity attribute, indicator, category, org unit and reporting metadata by immutable revision.",Unit + integration + acceptance test
+AN-FR-002,MUST,"Parse the configured program indicator analytics type (EVENT/ENROLLMENT), aggregation type, expression, filter, program, period boundaries and organisation-unit attribution.",Unit + integration + acceptance test
+AN-FR-003,MUST,"Maintain a versioned support matrix for DHIS2 2.41–2.44 expression functions, constructs, variable syntax and semantics.",Unit + integration + acceptance test
+AN-FR-004,MUST,Reject unknown expressions and missing metadata references with actionable diagnostics; never silently return zero.,Unit + integration + acceptance test
+AN-FR-005,MUST,"Compile valid definitions into a typed, safe internal expression AST with explicit null, numeric, date and boolean semantics.",Unit + integration + acceptance test
+AN-FR-006,MUST,Track dependency graphs so changed events or metadata invalidate only affected indicators/partitions.,Unit + integration + acceptance test
+AN-FR-007,SHOULD,"Support local derived metrics as separately governed definitions with source, owner, rationale and version.",Unit + integration + acceptance test
+AN-FR-008,MUST,Expose indicator explain plans and the exact definition version used for each result.,Unit + integration + acceptance test
+AN-FR-009,MUST,"Consume committed event, tracked entity, enrollment, relationship and approved aggregate updates from a durable change stream.",Unit + integration + acceptance test
+AN-FR-010,MUST,Deduplicate by immutable change identifier and source-record version and process updates exactly once in observable effect.,Unit + integration + acceptance test
+AN-FR-011,MUST,"Apply retraction and replacement of prior contributions when an event changes, is deleted, moves period, changes org unit, or changes eligibility.",Unit + integration + acceptance test
+AN-FR-012,MUST,"Preserve soft-deleted, quarantined, conflicted and rejected source statuses without conflating them with valid records.",Unit + integration + acceptance test
+AN-FR-013,MUST,"Define policy for completed, active, overdue, cancelled and pending event/enrollment states per metric.",Unit + integration + acceptance test
+AN-FR-014,MUST,"Handle concurrent capture, late-arriving data, delayed peer changes and deterministic replay after restart.",Unit + integration + acceptance test
+AN-FR-015,MUST,"Log data-quality exceptions, parse failures, missing codes, out-of-range values and orphaned references.",Unit + integration + acceptance test
+AN-FR-016,SHOULD,Expose indicator eligibility/exclusion counts alongside reported values where privacy rules permit.,Unit + integration + acceptance test
+AN-FR-017,MUST,"Support event count, enrollment count, distinct tracked-entity count, episodes, admissions, diagnoses, referrals, outcomes and relevant stock movement tallies as separate grains.",Unit + integration + acceptance test
+AN-FR-018,MUST,"Support counts, filtered counts, sums, minima, maxima, means, ratios, percentages, cohort retention and validated standard deviation/variance where declared.",Unit + integration + acceptance test
+AN-FR-019,MUST,"Define denominator-zero behaviour, missing-data treatment and rounding per metric, not by arbitrary frontend defaults.",Unit + integration + acceptance test
+AN-FR-020,MUST,"Support repeatable stages, latest-per-enrollment selection, stage-specific event attribution and explicit temporal windows.",Unit + integration + acceptance test
+AN-FR-021,MUST,Prevent double-counting across service points when a clinical encounter involves multiple stages or devices.,Unit + integration + acceptance test
+AN-FR-022,MUST,Support standardised diagnosis grouping via governed local-to-ICD mapping and record unknown/unmapped codes separately.,Unit + integration + acceptance test
+AN-FR-023,MUST,"Calculate all-cause and cause-specific mortality from defined death events/outcomes and cause attribution, with case-fatality defined separately.",Unit + integration + acceptance test
+AN-FR-024,SHOULD,"Support multi-stage episode-derived measures such as referral completion, lab turnaround and prescription-to-dispensing times.",Unit + integration + acceptance test
+AN-FR-025,MUST,"Mark approximate, provisional or incomplete measures explicitly and disallow publication without a configured quality gate.",Unit + integration + acceptance test
+AN-FR-026,MUST,"Provide canonical period generators for day, week, month, quarter, half-year and year with explicit time zone and calendar rules.",Unit + integration + acceptance test
+AN-FR-027,MUST,Support configured DHIS2-compatible week variants and fiscal-year types only after version-specific verification.,Unit + integration + acceptance test
+AN-FR-028,MUST,"Use half-open local instant windows [start, end) internally to avoid overlapping boundary records.",Unit + integration + acceptance test
+AN-FR-029,MUST,"Support date-of-event, date-of-enrollment, incident date, discharge date and other approved attribution bases per metric.",Unit + integration + acceptance test
+AN-FR-030,MUST,"Support org unit at event, enrollment, registration and authorised location rollups with explicit rules.",Unit + integration + acceptance test
+AN-FR-031,MUST,"Provide sex, age-at-event, age-at-outcome, diagnosis, result, service point, clinic, stage, ward and programme dimensions where metadata permits.",Unit + integration + acceptance test
+AN-FR-032,MUST,Use governed category groupings; reject overlapping additive age bands and unknown/other omission.,Unit + integration + acceptance test
+AN-FR-033,SHOULD,Support comparable period-over-period and time-series queries including partial-period warnings.,Unit + integration + acceptance test
+AN-FR-034,MUST,Store versioned mappings from indicator/measure to dataElement + categoryOptionCombo + attributeOptionCombo + orgUnit + period.,Unit + integration + acceptance test
+AN-FR-035,MUST,Generate proposals to prefill DER Aggregate Capture rather than directly marking datasets complete.,Unit + integration + acceptance test
+AN-FR-036,MUST,"Maintain human review, approval, source provenance, override reason and locking for regulated submissions.",Unit + integration + acceptance test
+AN-FR-037,MUST,Keep observed tracker-derived values and user-entered aggregate reported values separate for reconciliation.,Unit + integration + acceptance test
+AN-FR-038,MUST,Never duplicate sums of overlapping clinic sections or disaggregations to produce hospital totals.,Unit + integration + acceptance test
+AN-FR-039,SHOULD,"Support differences against central DHIS2 analytics, dataValueSets and approved hospital submissions.",Unit + integration + acceptance test
+AN-FR-040,MUST,Publish only via a mapping compatible with the target DHIS2 version and stable metadata UIDs.,Unit + integration + acceptance test
+AN-FR-041,MUST,"Provide dashboard, chart, pivot, disaggregation table, patient-safe drilldown and record detail navigation as separate views.",Unit + integration + acceptance test
+AN-FR-042,MUST,Support navigation hierarchy: overview > care setting > programme > stage/section > measure > dimension cell > source record when authorised.,Unit + integration + acceptance test
+AN-FR-043,MUST,"Include filters for periods, units, programme, stage, site, service point, category/diagnosis and quality status.",Unit + integration + acceptance test
+AN-FR-044,MUST,"Support sorting, paginated result sets, search, saved views and copy/export under per-user access controls.",Unit + integration + acceptance test
+AN-FR-045,MUST,"Explain cell numerator, denominator, count grain, period range, included states, exclusions and last updated timestamp.",Unit + integration + acceptance test
+AN-FR-046,MUST,"Display aggregation freshness, metadata revision, source version, completeness, sync state and reconciliation state.",Unit + integration + acceptance test
+AN-FR-047,MUST,Use privacy suppression and protected export for small clinical counts and identifiers.,Unit + integration + acceptance test
+AN-FR-048,SHOULD,"Offer charts (trend, bar, stacked bars, line, pivot, heatmap) selected by measure/dimension semantics.",Unit + integration + acceptance test
+AN-FR-049,SHOULD,Enable scheduled/triggered site reports through authorised operational scheduling when deployed.,Unit + integration + acceptance test
+AN-FR-050,MUST,"Apply organisation-unit and programme authorisation to the underlying query and drilldown, not solely frontend filters.",Unit + integration + acceptance test
+AN-FR-051,MUST,"Implement row/field-level protection, purpose-based audit and export logging for personally identifiable clinical data.",Unit + integration + acceptance test
+AN-FR-052,MUST,Encrypt data in transit and at rest using the platform security architecture and protect analytics caches/backups.,Unit + integration + acceptance test
+AN-FR-053,MUST,"Provide resilient queue, retry, dead-letter quarantine, replay, metrics and alerting for failed computations.",Unit + integration + acceptance test
+AN-FR-054,MUST,"Allow recomputation following changed metadata, corrections, time-zone configuration or backfilled records.",Unit + integration + acceptance test
+AN-FR-055,MUST,Support tenancy isolation per site with explicit cross-site visibility only after central authorisation.,Unit + integration + acceptance test
+AN-FR-056,SHOULD,"Offer incremental recomputation progress, worker capacity limits and rate-limited complex queries.",Unit + integration + acceptance test
+AN-FR-057,MUST,Preserve user-visible decision provenance for every aggregate cell proposed for submission.,Unit + integration + acceptance test

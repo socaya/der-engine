@@ -1,0 +1,160 @@
+{
+  "package": "DER Analytics specification",
+  "status": "PROPOSED_UNTESTED",
+  "targetDhis2Versions": [
+    "2.41",
+    "2.42",
+    "2.43",
+    "2.44"
+  ],
+  "evaluationPolicy": "deny unsupported expressions by default",
+  "capabilities": [
+    {
+      "feature": "event_count",
+      "status": "REQUIRED_IMPLEMENTATION",
+      "testing": "golden fixture + central comparison"
+    },
+    {
+      "feature": "enrollment_count",
+      "status": "REQUIRED_IMPLEMENTATION",
+      "testing": "golden fixture + central comparison"
+    },
+    {
+      "feature": "unique_patient_count",
+      "status": "DER_EXTENDED",
+      "testing": "distinct/merge/parity within site"
+    },
+    {
+      "feature": "program_indicator_event",
+      "status": "VERSION_VERIFICATION_REQUIRED",
+      "testing": "expression parser / semantics"
+    },
+    {
+      "feature": "program_indicator_enrollment",
+      "status": "VERSION_VERIFICATION_REQUIRED",
+      "testing": "repeatable stage latest-event cases"
+    },
+    {
+      "feature": "period_types",
+      "status": "VERSION_VERIFICATION_REQUIRED",
+      "testing": "native period id and boundary mapping"
+    },
+    {
+      "feature": "aggregate_proposal",
+      "status": "DER_EXTENDED",
+      "testing": "metadata-cell mapping and approval"
+    },
+    {
+      "feature": "drilldown",
+      "status": "DER_EXTENDED",
+      "testing": "permission and lineage audit"
+    }
+  ],
+  "parentDataSets": [
+    {
+      "code": "OPDS0001",
+      "name": "Outpatient Department - Monthly Report",
+      "periodType": "Monthly",
+      "sectionCount": 39,
+      "uniqueDataElementsInSections": 238
+    },
+    {
+      "code": "IPDS0001",
+      "name": "Inpatient Department - Monthly Report",
+      "periodType": "Monthly",
+      "sectionCount": 25,
+      "uniqueDataElementsInSections": 188
+    },
+    {
+      "code": "ERDS0001",
+      "name": "Emergency Department - Monthly Report",
+      "periodType": "Monthly",
+      "sectionCount": 11,
+      "uniqueDataElementsInSections": 87
+    },
+    {
+      "code": "MTDS0001",
+      "name": "Maternity and Newborn - Monthly Report",
+      "periodType": "Monthly",
+      "sectionCount": 10,
+      "uniqueDataElementsInSections": 58
+    },
+    {
+      "code": "ANDS0001",
+      "name": "Maternal, Child and Reproductive Health - Monthly Report",
+      "periodType": "Monthly",
+      "sectionCount": 14,
+      "uniqueDataElementsInSections": 54
+    },
+    {
+      "code": "IMDS0001",
+      "name": "Immunisation - Monthly Programme Report",
+      "periodType": "Monthly",
+      "sectionCount": 3,
+      "uniqueDataElementsInSections": 12
+    },
+    {
+      "code": "HVDS0001",
+      "name": "HIV Care - Monthly Programme Report",
+      "periodType": "Monthly",
+      "sectionCount": 5,
+      "uniqueDataElementsInSections": 23
+    },
+    {
+      "code": "TBDS0001",
+      "name": "Tuberculosis and Leprosy - Monthly Programme Report",
+      "periodType": "Monthly",
+      "sectionCount": 5,
+      "uniqueDataElementsInSections": 25
+    },
+    {
+      "code": "LBDS0001",
+      "name": "Diagnostic Services - Monthly Report",
+      "periodType": "Monthly",
+      "sectionCount": 15,
+      "uniqueDataElementsInSections": 86
+    },
+    {
+      "code": "SUDS0001",
+      "name": "Surgery, Procedures and Sterilisation - Monthly Report",
+      "periodType": "Monthly",
+      "sectionCount": 10,
+      "uniqueDataElementsInSections": 49
+    },
+    {
+      "code": "PHDS0001",
+      "name": "Pharmacy and Supply Chain - Monthly Report",
+      "periodType": "Monthly",
+      "sectionCount": 10,
+      "uniqueDataElementsInSections": 50
+    },
+    {
+      "code": "BLDS0001",
+      "name": "Billing and Financial Services - Monthly Report",
+      "periodType": "Monthly",
+      "sectionCount": 5,
+      "uniqueDataElementsInSections": 23
+    },
+    {
+      "code": "ICDS0001",
+      "name": "Infection Prevention and Patient Safety - Monthly Report",
+      "periodType": "Monthly",
+      "sectionCount": 5,
+      "uniqueDataElementsInSections": 21
+    },
+    {
+      "code": "HMDS0001",
+      "name": "Hospital Management, Records and Quality - Monthly Report",
+      "periodType": "Monthly",
+      "sectionCount": 15,
+      "uniqueDataElementsInSections": 53
+    },
+    {
+      "code": "SRDS0001",
+      "name": "Communicable Disease Surveillance - Weekly Report",
+      "periodType": "Weekly",
+      "sectionCount": 3,
+      "uniqueDataElementsInSections": 72
+    }
+  ]
+}
