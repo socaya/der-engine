@@ -858,17 +858,20 @@ end`},zp=function(){for(var e=[],t=0;t<arguments.length;t++)e[t]=arguments[t];re
   pointer-events: none;
   animation: der-pulse-ring 2.4s cubic-bezier(0.2,0.6,0.4,1) infinite;
 }
-.der-de-status-icon__dot.is-lit {
+.der-de-status-icon__dot.is-lit,
+.der-apphost .der-de-toolbar .der-de-status-icon__dot.is-lit {
   background: var(--der-success, #1b9e5a);
   color:      var(--der-success, #1b9e5a);
   box-shadow: 0 0 0 2px rgba(27, 158, 90, 0.18);
 }
-.der-de-status-icon__dot.is-pending {
+.der-de-status-icon__dot.is-pending,
+.der-apphost .der-de-toolbar .der-de-status-icon__dot.is-pending {
   background: var(--der-warning, #d68a1a);
   color:      var(--der-warning, #d68a1a);
   box-shadow: 0 0 0 2px rgba(214, 138, 26, 0.18);
 }
-.der-de-status-icon__dot.is-error {
+.der-de-status-icon__dot.is-error,
+.der-apphost .der-de-toolbar .der-de-status-icon__dot.is-error {
   background: var(--der-danger, #d14343);
   color:      var(--der-danger, #d14343);
   box-shadow: 0 0 0 2px rgba(209, 67, 67, 0.18);
