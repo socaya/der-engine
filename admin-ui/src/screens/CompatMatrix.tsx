@@ -3,6 +3,7 @@ import * as edgeApi from '../api/edgeApi';
 import { Panel, fmtDate, fmtAgo, SyncStatusBar } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { UiIcon } from '../components/UiIcon';
+import { MetadataTabBar } from '../components/MetadataTabBar';
 
 /**
  * CompatMatrix — unified Compatibility surface.
@@ -59,9 +60,10 @@ export function CompatMatrix(): JSX.Element {
 
   return (
     <div className="ea-screen">
+      <MetadataTabBar />
       <SyncStatusBar
         tone={snap.probeReachable ? 'success' : 'danger'}
-        title="Compatibility"
+        title="Compatibility check"
         statusLabel={snap.probeReachable ? 'Central reachable' : 'Central unreachable'}
         subtitle={
           <>

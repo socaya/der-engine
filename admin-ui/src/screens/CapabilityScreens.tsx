@@ -4,6 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
+import { MetadataTabBar } from '../components/MetadataTabBar';
 import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, ScopedFilterChip, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status, useCentralReachable, RelatedMenu, LocalVsCentralBadge } from './shared';
 import { UiIcon } from '../components/UiIcon';
 
@@ -1310,9 +1311,10 @@ export function CapMetadataSync(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="cap-metadata-sync">
+      <MetadataTabBar />
       <SyncStatusBar
         tone={tone}
-        title="Metadata"
+        title="Metadata sync"
         statusLabel={statusLabel}
         subtitle={
           <>

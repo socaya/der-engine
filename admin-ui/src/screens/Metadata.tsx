@@ -7,6 +7,7 @@ import {
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
+import { MetadataTabBar } from '../components/MetadataTabBar';
 
 /**
  * Metadata — browse every mirrored DHIS2 metadata resource.
@@ -215,6 +216,7 @@ export function Metadata(): JSX.Element {
 
   return (
     <div className="ea-screen">
+      <MetadataTabBar />
       {/* §14.2 health summary + standard screen header replace the hero */}
       <MetadataHealthSummary totalMirror={totalMirror} resourceCount={RESOURCES.length} />
 

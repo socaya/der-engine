@@ -13,6 +13,7 @@ import { UiIcon } from '../components/UiIcon';
 import { ResponseBody } from '../components/ResponseBody';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { PolicyPausedBanner } from '../components/PolicyPausedBanner';
+import { MetadataTabBar } from '../components/MetadataTabBar';
 
 /* ──────────────────────────────────────────────────────────────────────
  * Mockup-aesthetic re-skins for the remaining heavily-used routes.
@@ -61,9 +62,10 @@ export function DriftInspector(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="drift-hub">
+      <MetadataTabBar />
       <SyncStatusBar
         tone={equal ? 'success' : 'warning'}
-        title="Metadata drift"
+        title="Metadata changes"
         statusLabel={equal ? 'In sync' : 'Drift detected'}
         subtitle={
           <>

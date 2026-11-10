@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import { HeroHeader } from '../../components/HeroHeader';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
+import { MetadataTabBar } from '../../components/MetadataTabBar';
 
 /**
  * §37–§42 — metadata snapshot browser. Each snapshot is the atomic
@@ -70,6 +71,7 @@ export function SnapshotList({ api = edgeApi }:
   const latest = snapshots[0];
   return (
     <div className="ea-screen" data-test="snapshots-root">
+      <MetadataTabBar />
       <HeroHeader title="Snapshots" />
       <h1 className="ea-visually-hidden" data-test="snapshots-heading">Snapshots</h1>
 
