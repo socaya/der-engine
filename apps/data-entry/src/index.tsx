@@ -6271,15 +6271,10 @@ const APP_STYLES = `
  * grid through the header. */
 .der-de-toolbar {
   position: sticky;
-  /* Stick to the very top of the scroll container (document, in
-   * this app's layout). The shell topbar is also sticky at
-   * top:0 with a higher z-index; it visually covers this
-   * toolbar first, so scroll parks the toolbar right beneath
-   * the topbar without a gap. */
   top: 0;
   z-index: 5;
-  margin: 0 -20px 12px;
-  padding: 10px 20px 10px;
+  margin: 0 0px 12px;
+  padding: 10px 20px 10px 20px;
   background: #ffffff;
   border-bottom: 1px solid #e5e9ef;
   box-shadow: 0 1px 2px rgba(16, 26, 50, 0.04);
