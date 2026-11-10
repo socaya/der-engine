@@ -28,7 +28,10 @@ class JournalWorkerTest {
 
     private JournalWorkerConfig.JournalWorkerSettings settings(final boolean enabled) {
         return new JournalWorkerConfig.JournalWorkerSettings(
-                new AtomicBoolean(enabled), 10, 30, 3600);
+                new AtomicBoolean(enabled),
+                new java.util.concurrent.atomic.AtomicInteger(10),
+                new java.util.concurrent.atomic.AtomicLong(30),
+                new java.util.concurrent.atomic.AtomicLong(3600));
     }
 
     /** Default-reachable gate; tests that need OFFLINE build one directly. */
