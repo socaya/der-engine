@@ -1,19 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 
-/**
- * UI-3 — shared tab bar for the DHIS2 metadata cluster.
- *
- * <p>Four screens address one operator concern ("has remote metadata
- * changed and does our local mirror match?") — Catalogue (read-only
- * reference), Snapshots (point-in-time compare), Changes (drift
- * detector), Compatibility (version schema check). Before this bar
- * each lived under a different label with no visual link. The bar
- * renders at the top of all four so operators always see the
- * cluster + their current position inside it.</p>
- *
- * <p>Keeps the existing routes — zero bookmark churn. Pure visual
- * glue.</p>
- */
+/** UI-3 / UI-8 — pill-group sub-nav for the DHIS2 metadata cluster.
+ *  Visual match for the DataAggregate action strip (ea-btn--sm with
+ *  primary-for-active, ghost-for-others). */
 const TABS: ReadonlyArray<{
   to: string;
   label: string;
@@ -51,24 +40,22 @@ const TABS: ReadonlyArray<{
     to: '/dhis2/compat',
     label: 'Compatibility',
     hint: 'Schema + feature compatibility probe',
-    matches: (p) => p === '/dhis2/compat'
-      || p.startsWith('/dhis2/compat-'),
+    matches: (p) => p === '/dhis2/compat' || p.startsWith('/dhis2/compat-'),
   },
 ];
 
 export function MetadataTabBar(): JSX.Element {
   const loc = useLocation();
   return (
-    <nav className="der-metadata-tabs"
+    <div className="der-pill-group"
          data-test="metadata-tabs"
+         role="tablist"
          aria-label="Metadata sub-navigation"
          style={{
            display: 'flex',
            flexWrap: 'wrap',
-           gap: 4,
-           padding: '6px 0',
-           marginBottom: 12,
-           borderBottom: '1px solid var(--der-border-soft, #e2e6ef)',
+           gap: 6,
+           marginBottom: 10,
          }}>
       {TABS.map((t) => {
         const active = t.matches(loc.pathname);
@@ -77,24 +64,14 @@ export function MetadataTabBar(): JSX.Element {
                 to={t.to}
                 data-test={`metadata-tab-${t.label.toLowerCase()}`}
                 title={t.hint}
-                aria-current={active ? 'page' : undefined}
-                style={{
-                  padding: '6px 12px',
-                  fontSize: 13,
-                  textDecoration: 'none',
-                  color: active
-                    ? 'var(--der-primary, #2563eb)'
-                    : 'var(--der-text, #0f172a)',
-                  fontWeight: active ? 600 : 500,
-                  borderBottom: active
-                    ? '2px solid var(--der-primary, #2563eb)'
-                    : '2px solid transparent',
-                  marginBottom: -1,
-                }}>
-            {t.label}
+                role="tab"
+                aria-selected={active}
+                className={'ea-btn ea-btn--sm'
+                  + (active ? ' ea-btn--primary' : ' ea-btn--ghost')}>
+            <span>{t.label}</span>
           </Link>
         );
       })}
-    </nav>
+    </div>
   );
 }

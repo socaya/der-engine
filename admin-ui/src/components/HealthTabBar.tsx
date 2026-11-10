@@ -1,9 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 
-/** UI-7 — tab bar grouping the observability screens under one
- *  "Health" surface so the System module fits on a single nav row.
- *  Same visual pattern as MetadataTabBar (UI-3): preserves routes,
- *  highlights current tab, hover hint per tab. */
+/** UI-8 — pill-group sub-nav. Visual match for the DataAggregate
+ *  action strip at /admin/data/aggregate:
+ *  one primary pill (active) + ghost pills (others), small size,
+ *  same ea-btn classes so the rhythm is identical across screens. */
 const TABS: ReadonlyArray<{
   to: string;
   label: string;
@@ -39,16 +39,15 @@ const TABS: ReadonlyArray<{
 export function HealthTabBar(): JSX.Element {
   const loc = useLocation();
   return (
-    <nav className="der-section-tabs"
+    <div className="der-pill-group"
          data-test="health-tabs"
+         role="tablist"
          aria-label="Health sub-navigation"
          style={{
            display: 'flex',
            flexWrap: 'wrap',
-           gap: 4,
-           padding: '6px 0',
-           marginBottom: 12,
-           borderBottom: '1px solid var(--der-border-soft, #e2e6ef)',
+           gap: 6,
+           marginBottom: 10,
          }}>
       {TABS.map((t) => {
         const active = t.matches(loc.pathname);
@@ -57,24 +56,14 @@ export function HealthTabBar(): JSX.Element {
                 to={t.to}
                 data-test={`health-tab-${t.label.toLowerCase().replace(/\s+/g, '-')}`}
                 title={t.hint}
-                aria-current={active ? 'page' : undefined}
-                style={{
-                  padding: '6px 12px',
-                  fontSize: 13,
-                  textDecoration: 'none',
-                  color: active
-                    ? 'var(--der-primary, #2563eb)'
-                    : 'var(--der-text, #0f172a)',
-                  fontWeight: active ? 600 : 500,
-                  borderBottom: active
-                    ? '2px solid var(--der-primary, #2563eb)'
-                    : '2px solid transparent',
-                  marginBottom: -1,
-                }}>
-            {t.label}
+                role="tab"
+                aria-selected={active}
+                className={'ea-btn ea-btn--sm'
+                  + (active ? ' ea-btn--primary' : ' ea-btn--ghost')}>
+            <span>{t.label}</span>
           </Link>
         );
       })}
-    </nav>
+    </div>
   );
 }
