@@ -117,6 +117,13 @@ public class AnalyticsLiveIngester {
             if (event.sourceType() == AnalyticsSourceEvent.SourceType.EVENT) {
                 applyOperatorDefinitions(event, periodKey);
             }
+            // Phase 4d — ENROLLMENT-type indicators depend on cross-
+            // event state. An EVENT write may change the latest-stage
+            // value that an enrollment-grain expression references;
+            // re-evaluate the parent enrollment's ENROLLMENT metrics
+            // if any are READY. ENROLLMENT writes trigger the same
+            // path directly.
+            applyEnrollmentOperatorDefinitions(event);
         } catch (RuntimeException ex) {
             failed.incrementAndGet();
             LOG.warn("analytics live ingest failed for {} {} v{}: {}",
@@ -205,6 +212,158 @@ public class AnalyticsLiveIngester {
         } catch (RuntimeException ex) {
             return null;
         }
+    }
+
+    /** Phase 4d — evaluate every READY ENROLLMENT-type definition
+     *  against the enrollment implicated by this source change.
+     *  For EVENT source: find the parent enrollment UID; for
+     *  ENROLLMENT: it's the source key itself. */
+    private void applyEnrollmentOperatorDefinitions(
+            final AnalyticsSourceEvent event) {
+        if (jdbc == null || jsonMapper == null) {
+            return;
+        }
+        final List<AnalyticsDefinition> defs = engineRepo
+                .listDefinitions("READY", 500).stream()
+                .filter(d -> "ENROLLMENT".equals(d.analyticsType()))
+                .filter(d -> !AnalyticsSeed.EVENT_COUNT_CODE.equals(d.code())
+                          && !AnalyticsSeed.ENROLLMENT_COUNT_CODE.equals(d.code()))
+                .toList();
+        if (defs.isEmpty()) {
+            return;
+        }
+        final String enrollmentUid = resolveEnrollmentFor(event);
+        if (enrollmentUid == null) {
+            return;
+        }
+        final EnrollmentExpressionContext.Enrollment enRow =
+                loadEnrollment(enrollmentUid);
+        if (enRow == null) {
+            return;
+        }
+        final List<EnrollmentExpressionContext.EventRow> events =
+                loadEnrollmentEvents(enrollmentUid);
+        final ExpressionContext ctx = EnrollmentExpressionContext.of(
+                jsonMapper, enRow, events);
+        final String periodKey = periods.windowContaining(
+                AnalyticsPeriodEnumerator.Type.MONTHLY,
+                enRow.enrollmentDate() == null
+                        ? java.time.LocalDate.now()
+                        : enRow.enrollmentDate()).id();
+
+        for (final AnalyticsDefinition def : defs) {
+            final String body = loadDefinitionBody(def);
+            final String expr = extractExpressionFromBody(body);
+            if (expr == null || expr.isBlank()) {
+                continue;
+            }
+            try {
+                final Evaluator ev = new Evaluator(ctx);
+                final String filterExpr = AnalyticsDefinitionService
+                        .parseFilterExpression(jsonMapper, body);
+                if (filterExpr != null && !filterExpr.isBlank()) {
+                    final Object fv = ev.eval(Parser.parse(filterExpr));
+                    if (!isTruthy(fv)) {
+                        continue;
+                    }
+                }
+                final Object value = ev.eval(Parser.parse(expr));
+                final List<AnalyticsDimension> dims =
+                        AnalyticsDefinitionService.parseDimensions(
+                                jsonMapper, body);
+                final String dimensionKey = DimensionKey.encode(dims, ctx);
+                final int version = enRow.enrollmentDate() == null
+                        ? 1 : enRow.enrollmentDate().hashCode();
+                final AnalyticsContribution c = contributionFor(def,
+                        enrollmentUid, version, periodKey,
+                        enRow.orgUnitUid() == null
+                                ? event.orgUnitUid() : enRow.orgUnitUid(),
+                        dimensionKey, value);
+                if (c != null) {
+                    materializer.applyContribution(def, c);
+                }
+            } catch (RuntimeException ex) {
+                failed.incrementAndGet();
+                LOG.warn("enrollment metric {} failed on enrollment {}: {}",
+                        def.code(), enrollmentUid, ex.getMessage());
+            }
+        }
+    }
+
+    private String resolveEnrollmentFor(final AnalyticsSourceEvent event) {
+        if (event.sourceType() == AnalyticsSourceEvent.SourceType.ENROLLMENT) {
+            return event.sourceKey();
+        }
+        try {
+            return jdbc.queryForObject(
+                    "SELECT enrollment_uid FROM der.edge_tracker_event "
+                  + " WHERE event_uid = ?", String.class,
+                    event.sourceKey());
+        } catch (EmptyResultDataAccessException ex) {
+            return null;
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private EnrollmentExpressionContext.Enrollment loadEnrollment(
+            final String enrollmentUid) {
+        try {
+            return jdbc.queryForObject(
+                    "SELECT enrollment_uid, tei_uid, program_uid, "
+                  + "       org_unit_uid, enrollment_date, "
+                  + "       incident_date, status "
+                  + "  FROM der.edge_enrollment WHERE enrollment_uid = ?",
+                    (rs, i) -> new EnrollmentExpressionContext.Enrollment(
+                            rs.getString("enrollment_uid"),
+                            rs.getString("program_uid"),
+                            rs.getString("tei_uid"),
+                            rs.getString("org_unit_uid"),
+                            rs.getDate("enrollment_date") == null
+                                    ? null
+                                    : rs.getDate("enrollment_date").toLocalDate(),
+                            rs.getDate("incident_date") == null
+                                    ? null
+                                    : rs.getDate("incident_date").toLocalDate(),
+                            rs.getString("status")),
+                    enrollmentUid);
+        } catch (EmptyResultDataAccessException ex) {
+            return null;
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private List<EnrollmentExpressionContext.EventRow> loadEnrollmentEvents(
+            final String enrollmentUid) {
+        final List<EnrollmentExpressionContext.EventRow> out =
+                new java.util.ArrayList<>();
+        try {
+            jdbc.query(
+                    "SELECT event_uid, program_stage_uid, occurred_date, "
+                  + "       updated_at, status, "
+                  + "       data_values::text AS data_values "
+                  + "  FROM der.edge_tracker_event "
+                  + " WHERE enrollment_uid = ? "
+                  + " ORDER BY occurred_date DESC, updated_at DESC",
+                    (rs, i) -> {
+                        out.add(new EnrollmentExpressionContext.EventRow(
+                                rs.getString("event_uid"),
+                                rs.getString("program_stage_uid"),
+                                rs.getDate("occurred_date") == null
+                                        ? null
+                                        : rs.getDate("occurred_date").toLocalDate(),
+                                rs.getTimestamp("updated_at") == null
+                                        ? null
+                                        : rs.getTimestamp("updated_at").toInstant().toString(),
+                                rs.getString("status"),
+                                rs.getString("data_values")));
+                        return null;
+                    }, enrollmentUid);
+        } catch (RuntimeException ex) {
+            // tolerate — return whatever we accumulated
+        }
+        return out;
     }
 
     private String loadDefinitionBody(final AnalyticsDefinition def) {

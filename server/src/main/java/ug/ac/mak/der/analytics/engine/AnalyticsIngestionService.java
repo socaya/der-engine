@@ -106,6 +106,189 @@ public class AnalyticsIngestionService {
         // definition against the same event scan. One pass scans the
         // source table once, then applies every definition per row.
         out.addAll(ingestOperatorEventDefinitions(scope));
+        // Phase 4d — ENROLLMENT-type indicators traverse every event
+        // under one enrollment and resolve latest-stage values.
+        out.addAll(ingestOperatorEnrollmentDefinitions(scope));
+        return out;
+    }
+
+    /** Scan ENROLLMENT-type operator-authored definitions and
+     *  materialise cells by iterating enrollments in scope. One
+     *  cross-event {@link EnrollmentExpressionContext} is built per
+     *  enrollment; each definition evaluates against it. */
+    private List<IngestResult> ingestOperatorEnrollmentDefinitions(
+            final IngestScope scope) {
+        final List<AnalyticsDefinition> defs = engineRepo
+                .listDefinitions("READY", 500).stream()
+                .filter(d -> "ENROLLMENT".equals(d.analyticsType()))
+                .filter(d -> !AnalyticsSeed.EVENT_COUNT_CODE.equals(d.code())
+                          && !AnalyticsSeed.ENROLLMENT_COUNT_CODE.equals(d.code()))
+                .toList();
+        if (defs.isEmpty()) {
+            return List.of();
+        }
+
+        record Compiled(AnalyticsDefinition def,
+                          ug.ac.mak.der.analytics.expression.Expression ast,
+                          ug.ac.mak.der.analytics.expression.Expression filter,
+                          List<AnalyticsDimension> dimensions) { }
+        final List<Compiled> compiled = new ArrayList<>(defs.size());
+        for (final AnalyticsDefinition d : defs) {
+            final String row = loadDefinitionBody(d);
+            if (row == null) {
+                continue;
+            }
+            final String expr = extractExpressionFromBody(row);
+            if (expr == null || expr.isBlank()) {
+                continue;
+            }
+            try {
+                final String filterExpr = AnalyticsDefinitionService
+                        .parseFilterExpression(jsonMapper, row);
+                final var filterAst = filterExpr == null ? null
+                        : Parser.parse(filterExpr);
+                compiled.add(new Compiled(d, Parser.parse(expr),
+                        filterAst,
+                        AnalyticsDefinitionService.parseDimensions(
+                                jsonMapper, row)));
+            } catch (RuntimeException ex) {
+                engineRepo.updateSupportState(d.id(), "UNSUPPORTED",
+                        "re-compile failed: " + ex.getMessage());
+            }
+        }
+        if (compiled.isEmpty()) {
+            return List.of();
+        }
+
+        // Fetch enrollments in scope.
+        final StringBuilder enSql = new StringBuilder(
+                "SELECT enrollment_uid, tei_uid, program_uid, "
+              + "       org_unit_uid, enrollment_date, incident_date, "
+              + "       status, version "
+              + "  FROM der.edge_enrollment WHERE 1 = 1 ");
+        final List<Object> enArgs = new ArrayList<>();
+        if (scope.orgUnitUid() != null && !scope.orgUnitUid().isBlank()) {
+            enSql.append(" AND org_unit_uid = ?");
+            enArgs.add(scope.orgUnitUid());
+        }
+        if (scope.programUid() != null && !scope.programUid().isBlank()) {
+            enSql.append(" AND program_uid = ?");
+            enArgs.add(scope.programUid());
+        }
+        if (scope.fromDate() != null) {
+            enSql.append(" AND enrollment_date >= ?");
+            enArgs.add(java.sql.Date.valueOf(scope.fromDate()));
+        }
+        if (scope.toDate() != null) {
+            enSql.append(" AND enrollment_date <= ?");
+            enArgs.add(java.sql.Date.valueOf(scope.toDate()));
+        }
+
+        final Map<java.util.UUID, List<AnalyticsContribution>> batchByMetric
+                = new java.util.HashMap<>();
+        final Map<java.util.UUID, Set<AnalyticsContributionRepository.CellRef>>
+                touchedByMetric = new java.util.HashMap<>();
+        final long[] scanned = { 0L };
+
+        jdbc.query(enSql.toString(), (rs, i) -> {
+            scanned[0]++;
+            final String enrollmentUid = rs.getString("enrollment_uid");
+            final java.time.LocalDate enrolledOn =
+                    rs.getDate("enrollment_date").toLocalDate();
+            final java.sql.Date incidentSql = rs.getDate("incident_date");
+            final java.time.LocalDate incidentOn = incidentSql == null
+                    ? null : incidentSql.toLocalDate();
+            final String orgUnit = rs.getString("org_unit_uid");
+            final String teiUid = rs.getString("tei_uid");
+            final String programUid = rs.getString("program_uid");
+            final String status = rs.getString("status");
+            final int srcVersion = rs.getInt("version");
+
+            final EnrollmentExpressionContext.Enrollment en =
+                    new EnrollmentExpressionContext.Enrollment(
+                            enrollmentUid, programUid, teiUid,
+                            orgUnit, enrolledOn, incidentOn, status);
+
+            final List<EnrollmentExpressionContext.EventRow> events =
+                    fetchEventsFor(enrollmentUid);
+            final ExpressionContext ctx = EnrollmentExpressionContext.of(
+                    jsonMapper, en, events);
+
+            final String periodKey = periods.windowContaining(
+                    AnalyticsPeriodEnumerator.Type.MONTHLY,
+                    enrolledOn).id();
+
+            for (final Compiled c : compiled) {
+                final Evaluator ev = new Evaluator(ctx);
+                if (c.filter() != null) {
+                    try {
+                        if (!isTruthy(ev.eval(c.filter()))) {
+                            continue;
+                        }
+                    } catch (Evaluator.EvalException ex) {
+                        continue;
+                    }
+                }
+                final Object value;
+                try {
+                    value = ev.eval(c.ast());
+                } catch (Evaluator.EvalException ex) {
+                    continue;
+                }
+                final String dimensionKey = DimensionKey.encode(
+                        c.dimensions(), ctx);
+                final AnalyticsContribution ctb = contributionFor(
+                        c.def(), enrollmentUid, srcVersion, periodKey,
+                        orgUnit, dimensionKey, value);
+                if (ctb == null) {
+                    continue;
+                }
+                batchByMetric.computeIfAbsent(c.def().id(),
+                        k -> new ArrayList<>()).add(ctb);
+                touchedByMetric.computeIfAbsent(c.def().id(),
+                        k -> new java.util.HashSet<>())
+                        .add(new AnalyticsContributionRepository.CellRef(
+                                periodKey, orgUnit, dimensionKey));
+            }
+            return null;
+        }, enArgs.toArray());
+
+        final List<IngestResult> out = new ArrayList<>(compiled.size());
+        for (final Compiled c : compiled) {
+            final List<AnalyticsContribution> rows =
+                    batchByMetric.getOrDefault(c.def().id(), List.of());
+            final Set<AnalyticsContributionRepository.CellRef> touched =
+                    touchedByMetric.getOrDefault(c.def().id(), Set.of());
+            out.add(commitBatch(c.def(), rows, touched, scanned[0]));
+        }
+        return out;
+    }
+
+    private List<EnrollmentExpressionContext.EventRow> fetchEventsFor(
+            final String enrollmentUid) {
+        final List<EnrollmentExpressionContext.EventRow> out =
+                new ArrayList<>();
+        jdbc.query(
+                "SELECT event_uid, program_stage_uid, occurred_date, "
+              + "       updated_at, status, data_values::text AS data_values "
+              + "  FROM der.edge_tracker_event "
+              + " WHERE enrollment_uid = ? "
+              + " ORDER BY occurred_date DESC, updated_at DESC",
+                (rs, i) -> {
+                    out.add(new EnrollmentExpressionContext.EventRow(
+                            rs.getString("event_uid"),
+                            rs.getString("program_stage_uid"),
+                            rs.getDate("occurred_date") == null
+                                    ? null
+                                    : rs.getDate("occurred_date").toLocalDate(),
+                            rs.getTimestamp("updated_at") == null
+                                    ? null
+                                    : rs.getTimestamp("updated_at").toInstant()
+                                            .toString(),
+                            rs.getString("status"),
+                            rs.getString("data_values")));
+                    return null;
+                }, enrollmentUid);
         return out;
     }
 
