@@ -7,19 +7,29 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+
+import ug.ac.mak.der.analytics.engine.AnalyticsSourceEvent;
 
 /** JDBC access over {@code der.edge_enrollment} (V027, FR-08). */
 @Repository
 public class EnrollmentRepository {
 
     private final JdbcTemplate jdbc;
+    private ApplicationEventPublisher events;
 
     public EnrollmentRepository(final JdbcTemplate jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+    }
+
+    @Autowired(required = false)
+    public void setEvents(final ApplicationEventPublisher events) {
+        this.events = events;
     }
 
     public Enrollment upsert(final Enrollment e) {
@@ -43,6 +53,17 @@ public class EnrollmentRepository {
                 e.storedByDhis2Uid(), e.createdBy(),
                 Timestamp.from(e.createdAt()), Timestamp.from(e.updatedAt()),
                 e.version(), e.workflowRunId());
+        // Analytics Phase 2b — publish for the live ingester.
+        if (events != null) {
+            try {
+                events.publishEvent(new AnalyticsSourceEvent(
+                        AnalyticsSourceEvent.SourceType.ENROLLMENT,
+                        e.enrollmentUid(), e.version(), e.enrollmentDate(),
+                        e.orgUnitUid(), e.status().name()));
+            } catch (RuntimeException ignored) {
+                // intentionally swallowed; see Analytics Phase 2b note
+            }
+        }
         return e;
     }
 

@@ -10,10 +10,14 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+
+import ug.ac.mak.der.analytics.engine.AnalyticsSourceEvent;
 
 /** JDBC access over {@code der.edge_tracker_event} (V027, FR-08). */
 @Repository
@@ -21,10 +25,19 @@ public class TrackerEventRepository {
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
+    /** Optional — analytics Phase 2b. Set via Spring; when null the
+     *  repo still functions without the live-ingest side effect
+     *  (older tests that stub this repo without the full ApplicationContext). */
+    private ApplicationEventPublisher events;
 
     public TrackerEventRepository(final JdbcTemplate jdbc, final ObjectMapper mapper) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
+    }
+
+    @Autowired(required = false)
+    public void setEvents(final ApplicationEventPublisher events) {
+        this.events = events;
     }
 
     public TrackerEvent upsert(final TrackerEvent e) {
@@ -51,6 +64,19 @@ public class TrackerEventRepository {
                 e.storedByDhis2Uid(), e.createdBy(),
                 Timestamp.from(e.createdAt()), Timestamp.from(e.updatedAt()),
                 e.version(), e.workflowRunId());
+        // Analytics Phase 2b — notify the live ingester on commit.
+        // Soft-fail so a publisher-side glitch never fails the
+        // capture write.
+        if (events != null) {
+            try {
+                events.publishEvent(new AnalyticsSourceEvent(
+                        AnalyticsSourceEvent.SourceType.EVENT,
+                        e.eventUid(), e.version(), e.occurredDate(),
+                        e.orgUnitUid(), e.status().name()));
+            } catch (RuntimeException ignored) {
+                // intentionally swallowed; see JavaDoc
+            }
+        }
         return e;
     }
 
