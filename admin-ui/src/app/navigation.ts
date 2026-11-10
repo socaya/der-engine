@@ -129,7 +129,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       { id: 'network-overview', label: 'Overview', to: '/network', status: 'implemented', tabIcon: 'overview' },
       { id: 'network-ap', label: 'Access Point', to: '/network/access-point', status: 'implemented', tabIcon: 'access-point' },
-      { id: 'network-clients', label: 'Connected Devices', to: '/network/clients', status: 'implemented', tabIcon: 'tei' },
+      /* UI-1 — "Connected Devices", "Fleet" and top-level "Devices"
+       * all now redirect into /devices (the unified Devices screen).
+       * The nav entry is a shortcut to /devices scoped to LAN-visible
+       * clients so operators who think "what's on my WiFi?" still
+       * find it under Network. */
+      { id: 'network-clients', label: 'Connected Devices', to: '/devices?source=LAN_CLIENT', status: 'implemented', tabIcon: 'tei' },
       { id: 'network-interfaces', label: 'Interfaces', to: '/network/interfaces', status: 'implemented', tabIcon: 'ethernet' },
       { id: 'network-peers', label: 'Peers', to: '/network/peers', status: 'implemented', tabIcon: 'peer' },
       /* Workflow-definition sharing between DER edges — fleet-admin
@@ -138,7 +143,6 @@ export const NAV_GROUPS: readonly NavGroup[] = [
        * level peer management. */
       { id: 'workflow-sharing', label: 'Workflow sharing', to: '/network/workflow-sharing', status: 'implemented', tabIcon: 'metadata' },
       { id: 'network-mesh', label: 'Mesh topology', to: '/network/mesh', status: 'implemented', tabIcon: 'route' },
-      { id: 'network-fleet', label: 'Fleet', to: '/fleet', status: 'implemented', tabIcon: 'peer' },
       { id: 'network-security', label: 'Security', to: '/network/security', status: 'implemented', tabIcon: 'firewall' },
       { id: 'network-diagnostics', label: 'Diagnostics', to: '/network/diagnostics', status: 'implemented', tabIcon: 'diagnostics' },
       { id: 'network-messaging', label: 'Device messaging', to: '/network/messaging', status: 'implemented', tabIcon: 'activity' },

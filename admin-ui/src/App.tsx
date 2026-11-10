@@ -19,6 +19,7 @@ import {
 } from './screens/EARemainderScreens';
 import { SignIn } from './screens/SignIn';
 import { SyncPolicyScreen } from './screens/SyncPolicyScreen';
+import { DevicesScreen } from './screens/DevicesScreen';
 import { WorkflowForm } from './screens/workflow/WorkflowForm';
 import { WorkflowQueue } from './screens/workflow/WorkflowQueue';
 import { WorkflowPeers } from './screens/workflow/WorkflowPeers';
@@ -222,11 +223,20 @@ export default function App(): JSX.Element {
           <Route path="/workflows/:id"
                  element={<RequireAuth><WorkflowForm /></RequireAuth>} />
           <Route path="/devices"
+                 element={<RequireAuth><DevicesScreen /></RequireAuth>} />
+          <Route path="/devices-legacy-fleet"
                  element={<RequireAuth><DeviceFleet /></RequireAuth>} />
           <Route path="/devices-legacy"
                  element={<RequireAuth><EADeviceFleet /></RequireAuth>} />
           <Route path="/devices/:deviceId"
                  element={<RequireAuth><DeviceDetail /></RequireAuth>} />
+          {/* UI-1 — /fleet and /network/clients both roll into
+              /devices (unified fleet + LAN-mesh view). Preserve any
+              row-level deep link via a search-param marker. */}
+          <Route path="/fleet"
+                 element={<Navigate to="/devices" replace />} />
+          <Route path="/network/clients"
+                 element={<Navigate to="/devices?source=LAN_CLIENT" replace />} />
           <Route path="/analytics"
                  element={<RequireAuth><FacilityAnalytics /></RequireAuth>} />
           <Route path="/analytics-legacy"
@@ -281,7 +291,11 @@ export default function App(): JSX.Element {
           {/* Network module per docs/requirements/DER_Network_Module_Design_Specification.md. */}
           <Route path="/network" element={<RequireAuth><NetworkOverview /></RequireAuth>} />
           <Route path="/network/access-point" element={<RequireAuth><NetworkAccessPoint /></RequireAuth>} />
-          <Route path="/network/clients" element={<RequireAuth><NetworkConnectedDevices /></RequireAuth>} />
+          {/* UI-1 — /network/clients retired; redirect lives earlier
+              in this routes table so only /network/clients-legacy
+              still points at the old screen for bookmark forensics. */}
+          <Route path="/network/clients-legacy"
+                 element={<RequireAuth><NetworkConnectedDevices /></RequireAuth>} />
           <Route path="/network/interfaces" element={<RequireAuth><NetworkInterfaces /></RequireAuth>} />
           <Route path="/network/peers" element={<RequireAuth><NetworkPeers /></RequireAuth>} />
           {/* Workflow definition sharing (moved from /workflows/peer-exchange

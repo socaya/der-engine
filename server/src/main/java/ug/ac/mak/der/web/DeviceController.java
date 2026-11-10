@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ug.ac.mak.der.device.DeviceAdjacencyService;
 import ug.ac.mak.der.device.DeviceService;
 import ug.ac.mak.der.device.EdgeDevice;
+import ug.ac.mak.der.device.UnifiedDeviceService;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 
 /** ADR-0019 device-management REST surface. */
@@ -30,11 +31,14 @@ public class DeviceController {
 
     private final DeviceService svc;
     private final DeviceAdjacencyService adjacency;
+    private final UnifiedDeviceService unified;
 
     public DeviceController(final DeviceService svc,
-                             final DeviceAdjacencyService adjacency) {
+                             final DeviceAdjacencyService adjacency,
+                             final UnifiedDeviceService unified) {
         this.svc = Objects.requireNonNull(svc, "svc");
         this.adjacency = Objects.requireNonNull(adjacency, "adjacency");
+        this.unified = Objects.requireNonNull(unified, "unified");
     }
 
     @PostMapping(path = "/enroll", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -60,6 +64,20 @@ public class DeviceController {
     public ResponseEntity<Map<String, Object>> list() {
         return ResponseEntity.ok(Map.of("devices",
                 svc.list().stream().map(DeviceController::toJson).toList()));
+    }
+
+    /** UI-1 — merged view across the DHIS2 fleet registry
+     *  ({@code edge_device}) and the local-LAN mesh registry
+     *  ({@code network_client}). Each returned entry carries a
+     *  {@code sources} array naming the registries it was observed
+     *  in so the admin UI can render one truth for device identity
+     *  without hiding PENDING sessions or LAN-only clients. */
+    @GetMapping("/unified")
+    public ResponseEntity<Map<String, Object>> listUnified() {
+        return ResponseEntity.ok(Map.of("devices",
+                unified.list().stream()
+                        .map(UnifiedDeviceService.UnifiedDevice::toJson)
+                        .toList()));
     }
 
     @GetMapping("/{id}")

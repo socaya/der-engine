@@ -3729,6 +3729,34 @@ export function resetSyncPolicy(scope: string): Promise<{ deleted: number }> {
     `/edge-api/v1/sync/policy/${encodeURIComponent(scope)}`);
 }
 
+// UI-1 — unified devices list merging edge_device (DHIS2 fleet) +
+// network_client (LAN mesh) into one truth.
+export type DeviceSource = 'DHIS2_FLEET' | 'LAN_CLIENT';
+export interface UnifiedDevice {
+  id: string;
+  displayName: string;
+  status: 'PENDING' | 'APPROVED' | 'SUSPENDED' | 'REVOKED';
+  sources: DeviceSource[];
+  formFactor?: string | null;
+  lastSeenAt: string | null;
+  enrolledAt: string | null;
+  approvedAt: string | null;
+  userAgent?: string | null;
+  firmwareVersion?: string | null;
+  assignedUserId?: string | null;
+  fleetDeviceId?: string | null;
+  networkClientId?: string | null;
+  ip?: string | null;
+  mac?: string | null;
+  link?: string | null;
+  signalDbm?: number | null;
+  owner?: string | null;
+}
+export function listUnifiedDevices(): Promise<{ devices: UnifiedDevice[] }> {
+  return request<{ devices: UnifiedDevice[] }>(
+    'GET', '/edge-api/v1/devices/unified');
+}
+
 // SM-4a + SM-4c — one call that enumerates every scope with mode +
 // held-row count. Used for banners and per-row chips.
 export interface SyncPolicySummaryScope {
