@@ -6308,9 +6308,11 @@ const APP_STYLES = `
   color: var(--der-ink-700, #263352);
   white-space: nowrap;
 }
-/* Central-sync badge dot — same heartbeat pulse as the WAN + DER
- * edge indicators. Error states hold the halo so it reads as
- * attention-needed, not activity. */
+/* Central-sync badge dot — same heartbeat pulse pattern as the
+ * WAN + DER edge indicators. Saved + queued are both "connected"
+ * states so they share the green pulse; review flips to blue
+ * (needs operator attention but not a failure); error = solid
+ * red with no ring. */
 .der-de-central-badge__dot {
   position: relative;
   width: 7px; height: 7px; border-radius: 50%;
@@ -6324,16 +6326,14 @@ const APP_STYLES = `
   width: 7px; height: 7px;
   margin: -3.5px 0 0 -3.5px;
   border-radius: 50%;
-  background: currentColor;
+  border: 2px solid currentColor;
   opacity: 0;
-  animation: der-de-heartbeat 1.6s ease-out infinite;
   pointer-events: none;
+  animation: der-pulse-ring 2.4s cubic-bezier(0.2,0.6,0.4,1) infinite;
 }
-.der-de-central-badge--saved  .der-de-central-badge__dot {
-  background: #1E8E4A; color: #1E8E4A;
-}
+.der-de-central-badge--saved  .der-de-central-badge__dot,
 .der-de-central-badge--queued .der-de-central-badge__dot {
-  background: #F59E0B; color: #F59E0B;
+  background: #117a44; color: #117a44;
 }
 .der-de-central-badge--review .der-de-central-badge__dot {
   background: #147CD7; color: #147CD7;
@@ -6341,7 +6341,7 @@ const APP_STYLES = `
 .der-de-central-badge--error  .der-de-central-badge__dot {
   background: #D32F2F; color: #D32F2F;
 }
-.der-de-central-badge--error  .der-de-central-badge__dot::before {
+.der-de-central-badge--error .der-de-central-badge__dot::before {
   animation: none;
 }
 .der-de-central-badge--saved  { border-color: #c6e7d1; background: #ecf7f0; }
@@ -6583,53 +6583,56 @@ const APP_STYLES = `
   width: 20px;
   height: 20px;
 }
-/* Round LED dot with a pulsing halo — reads as a live heartbeat
- * instead of a static square. The halo scales from 60% to 180%
- * every 1.6s and fades out, so a healthy signal feels alive but
- * doesn't strobe. When the status is "error" we hold the halo
- * steady so the indicator still carries intent without looking
- * like it's working. */
+/* Heartbeat LED — round dot with a concentric expanding ring,
+ * matching the /admin/sync/settings live-connection pulse. Any
+ * connected signal (WAN online, DER edge up, central sync
+ * saved/queued) shares the SAME green pulse so operators read
+ * "connected" at a glance. Red error states keep a solid dot
+ * with no animation so a failure doesn't masquerade as activity;
+ * grey = off/unknown. */
 .der-de-status-icon__dot,
 .der-apphost .der-de-toolbar .der-de-status-icon__dot {
   display: inline-block;
   position: relative;
   width: 8px;
   height: 8px;
-  /* Beat the toolbar's border-radius:0 !important sweep so the
-   * heartbeat dot stays circular. */
   border-radius: 50% !important;
-  background: #c6ccd7;
+  background: #94a3b8;
+  color: #94a3b8;
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.18);
   flex: 0 0 auto;
 }
 .der-de-status-icon__dot::before {
   content: '';
   position: absolute;
-  top: 50%; left: 50%;
+  left: 50%; top: 50%;
   width: 8px; height: 8px;
   margin: -4px 0 0 -4px;
   border-radius: 50% !important;
-  background: currentColor;
+  border: 2px solid currentColor;
   opacity: 0;
-  animation: der-de-heartbeat 1.6s ease-out infinite;
   pointer-events: none;
+  animation: der-pulse-ring 2.4s cubic-bezier(0.2,0.6,0.4,1) infinite;
 }
-.der-de-status-icon__dot.is-lit {
-  background: #1b8243; color: #1b8243;
-}
+/* Any "connected" tone — live, syncing, queued, pending —
+ * renders the same green pulse. */
+.der-de-status-icon__dot.is-lit,
 .der-de-status-icon__dot.is-pending {
-  background: #c6680a; color: #c6680a;
+  background: #117a44; color: #117a44;
+  box-shadow: 0 0 0 2px rgba(17, 122, 68, 0.18);
 }
 .der-de-status-icon__dot.is-error {
   background: #a3322c; color: #a3322c;
+  box-shadow: 0 0 0 2px rgba(163, 50, 44, 0.18);
 }
 .der-de-status-icon__dot.is-error::before,
 .der-de-status-icon__dot:not(.is-lit):not(.is-pending):not(.is-error)::before {
   animation: none;
 }
-@keyframes der-de-heartbeat {
-  0%   { transform: scale(0.6); opacity: 0.55; }
-  70%  { transform: scale(2.2); opacity: 0; }
-  100% { transform: scale(2.2); opacity: 0; }
+@keyframes der-pulse-ring {
+  0%  { transform: scale(1);   opacity: 0.6; }
+  70% { opacity: 0; }
+  100%{ transform: scale(3.2); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .der-de-status-icon__dot::before { animation: none; }

@@ -167,31 +167,51 @@ export const CAPTURE_STYLES = `
   background: transparent; border: 0;
   white-space: nowrap; cursor: help;
 }
+/* Heartbeat LED — matches the /admin/sync/settings pulse: round
+ * green core + concentric expanding ring. Any connected state
+ * (live, syncing, offline-held still-queueing) shares the same
+ * green pulse per operator spec; offline collapses to a muted
+ * grey solid. */
 .cap-net-status__dot {
+  position: relative;
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--der-text-faint);
+  color: var(--der-text-faint);
   box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.18);
 }
-.cap-net-status--live .cap-net-status__dot {
+.cap-net-status__dot::before {
+  content: '';
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 8px; height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  pointer-events: none;
+  animation: der-pulse-ring 2.4s cubic-bezier(0.2,0.6,0.4,1) infinite;
+}
+.cap-net-status--live .cap-net-status__dot,
+.cap-net-status--syncing .cap-net-status__dot,
+.cap-net-status--offline-held .cap-net-status__dot {
   background: var(--der-success);
+  color: var(--der-success);
   box-shadow: 0 0 0 2px rgba(30, 142, 74, 0.2);
 }
 .cap-net-status--live { color: var(--der-success); }
-.cap-net-status--syncing .cap-net-status__dot {
-  background: var(--der-warning);
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.22);
-  animation: cap-pulse 1.6s ease-in-out infinite;
-}
-.cap-net-status--syncing { color: var(--der-warning); }
-.cap-net-status--offline-held .cap-net-status__dot {
-  background: var(--der-warning);
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.22);
-}
-.cap-net-status--offline-held { color: var(--der-warning); }
+.cap-net-status--syncing { color: var(--der-success); }
+.cap-net-status--offline-held { color: var(--der-success); }
 .cap-net-status--offline { color: var(--der-text-muted); }
-@keyframes cap-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.55; }
+.cap-net-status--offline .cap-net-status__dot::before {
+  animation: none;
+}
+@keyframes der-pulse-ring {
+  0%  { transform: scale(1);   opacity: 0.6; }
+  70% { opacity: 0; }
+  100%{ transform: scale(3.2); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cap-net-status__dot::before { animation: none; }
 }
 
 .cap-dirty-chip {

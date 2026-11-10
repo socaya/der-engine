@@ -147,13 +147,24 @@ export default function WorkflowCaptureApp(): JSX.Element {
     <ScreenCard
       title="Workflow capture"
       actions={
-        <StatusPill tone={online.isOnline ? 'success' : 'warning'}>
-          {online.isOnline ? 'online' : `offline (${online.queuedCount} queued)`}
-        </StatusPill>
+        <span className={'der-wc-heartbeat'
+          + (online.isOnline ? '' : ' der-wc-heartbeat--offline')}
+              aria-label={online.isOnline
+                ? 'Connected to DER edge'
+                : `Offline — ${online.queuedCount} queued`}
+              title={online.isOnline
+                ? 'Connected to DER edge'
+                : `Offline — ${online.queuedCount} queued`}>
+          <span className="der-wc-heartbeat__dot" aria-hidden="true" />
+          {online.isOnline
+            ? 'Live sync'
+            : `offline (${online.queuedCount} queued)`}
+        </span>
       }
     >
-      {/* Matches Data Entry's sticky toolbar treatment so the two
-       *  apps share the same chrome vocabulary. */}
+      {/* Matches Data Entry's sticky toolbar treatment + shared
+       *  green ring-pulse heartbeat (admin /sync/settings pattern)
+       *  so the two apps + Capture read as one chrome family. */}
       <style>{`
         .der-wc-toolbar {
           position: sticky;
@@ -164,6 +175,44 @@ export default function WorkflowCaptureApp(): JSX.Element {
           background: #ffffff;
           border-bottom: 1px solid #e5e9ef;
           box-shadow: 0 1px 2px rgba(16, 26, 50, 0.04);
+        }
+        .der-wc-heartbeat {
+          display: inline-flex; align-items: center; gap: 8px;
+          font-size: 13px; color: #117a44; font-weight: 500;
+        }
+        .der-wc-heartbeat--offline { color: #6e7a8a; }
+        .der-wc-heartbeat__dot {
+          position: relative;
+          width: 8px; height: 8px; border-radius: 50%;
+          background: #117a44; color: #117a44;
+          box-shadow: 0 0 0 2px rgba(17, 122, 68, 0.18);
+        }
+        .der-wc-heartbeat__dot::before {
+          content: '';
+          position: absolute;
+          left: 50%; top: 50%;
+          width: 8px; height: 8px;
+          margin: -4px 0 0 -4px;
+          border-radius: 50%;
+          border: 2px solid currentColor;
+          opacity: 0;
+          pointer-events: none;
+          animation: der-wc-pulse-ring 2.4s cubic-bezier(0.2,0.6,0.4,1) infinite;
+        }
+        .der-wc-heartbeat--offline .der-wc-heartbeat__dot {
+          background: #94a3b8; color: #94a3b8;
+          box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.18);
+        }
+        .der-wc-heartbeat--offline .der-wc-heartbeat__dot::before {
+          animation: none;
+        }
+        @keyframes der-wc-pulse-ring {
+          0%  { transform: scale(1);   opacity: 0.6; }
+          70% { opacity: 0; }
+          100%{ transform: scale(3.2); opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .der-wc-heartbeat__dot::before { animation: none; }
         }
       `}</style>
       <p style={{ margin: 0, color: '#6e7a8a', fontSize: 13 }}>
