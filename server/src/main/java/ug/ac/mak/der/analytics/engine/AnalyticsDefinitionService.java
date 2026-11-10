@@ -227,6 +227,9 @@ public class AnalyticsDefinitionService {
         m.put("name", d.name());
         m.put("kind", d.kind().name());
         m.put("sourceUid", d.sourceUid());
+        if (d.optionSetUid() != null && !d.optionSetUid().isBlank()) {
+            m.put("optionSetUid", d.optionSetUid());
+        }
         if (!d.buckets().isEmpty()) {
             m.put("buckets", d.buckets().stream().map(b -> {
                 final java.util.Map<String, Object> bm = new java.util.LinkedHashMap<>();
@@ -288,7 +291,9 @@ public class AnalyticsDefinitionService {
                                 decimal(bn, "max")));
                     }
                 }
-                out.add(new AnalyticsDimension(name, kind, uid, buckets));
+                final String optionSet = text(dn, "optionSetUid");
+                out.add(new AnalyticsDimension(name, kind, uid, buckets,
+                        optionSet));
             }
             return out;
         } catch (RuntimeException | java.io.IOException ex) {

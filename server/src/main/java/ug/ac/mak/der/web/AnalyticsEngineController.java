@@ -27,10 +27,14 @@ import ug.ac.mak.der.analytics.engine.AnalyticsCell;
 import ug.ac.mak.der.analytics.engine.AnalyticsContributionRepository;
 import ug.ac.mak.der.analytics.engine.AnalyticsDefinition;
 import ug.ac.mak.der.analytics.engine.AnalyticsDefinitionService;
+import ug.ac.mak.der.analytics.engine.AnalyticsDimension;
 import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
 import ug.ac.mak.der.analytics.engine.AnalyticsIngestionService;
 import ug.ac.mak.der.analytics.engine.AnalyticsPeriodEnumerator;
+import ug.ac.mak.der.analytics.engine.OptionSetLookup;
 import ug.ac.mak.der.analytics.expression.ExpressionCompiler;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 
@@ -67,19 +71,25 @@ public class AnalyticsEngineController {
     private final AnalyticsContributionRepository contributions;
     private final ExpressionCompiler compiler;
     private final AnalyticsDefinitionService definitions;
+    private final OptionSetLookup optionSets;
+    private final ObjectMapper jsonMapper;
 
     public AnalyticsEngineController(final AnalyticsEngineRepository repo,
                                       final AnalyticsPeriodEnumerator periods,
                                       final AnalyticsIngestionService ingestion,
                                       final AnalyticsContributionRepository contributions,
                                       final ExpressionCompiler compiler,
-                                      final AnalyticsDefinitionService definitions) {
+                                      final AnalyticsDefinitionService definitions,
+                                      final OptionSetLookup optionSets,
+                                      final ObjectMapper jsonMapper) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
         this.compiler = Objects.requireNonNull(compiler, "compiler");
         this.definitions = Objects.requireNonNull(definitions, "definitions");
+        this.optionSets = Objects.requireNonNull(optionSets, "optionSets");
+        this.jsonMapper = Objects.requireNonNull(jsonMapper, "jsonMapper");
     }
 
     /* ─────────────── /capabilities ─────────────── */
@@ -246,13 +256,41 @@ public class AnalyticsEngineController {
                         q.page() == null || q.page().offset() == null
                                 ? 0 : q.page().offset());
         final List<AnalyticsCell> cells = repo.queryCells(cq);
+        // Phase 4b — resolve OptionSet codes to display names per
+        // metric. Group cells by metric so each metric's declared
+        // dimensions are loaded once; the lookup cache de-dupes
+        // across cells with shared OptionSets.
+        final OptionSetLookup.Cache osCache = optionSets.cache();
+        final Map<java.util.UUID, List<AnalyticsDimension>> dimsByMetric
+                = new java.util.HashMap<>();
+        for (final AnalyticsCell c : cells) {
+            dimsByMetric.computeIfAbsent(c.metricId(), id ->
+                    loadDimensions(id));
+        }
         final Map<String, Object> out = new LinkedHashMap<>();
         out.put("count", cells.size());
         out.put("freshnessAt", Instant.now().toString());
         out.put("cells", cells.stream()
-                .map(AnalyticsEngineController::cellJson)
+                .map(c -> cellJson(c, dimsByMetric.get(c.metricId()),
+                        osCache))
                 .toList());
         return ResponseEntity.ok(out);
+    }
+
+    /** Load a metric's declared dimensions from its stored JSONB
+     *  body. Returns empty list on any read / parse failure so a
+     *  bad definition never fails the whole query. */
+    private List<AnalyticsDimension> loadDimensions(
+            final java.util.UUID metricId) {
+        try {
+            return repo.findDefinition(metricId).map(d -> {
+                final String body = repo.loadDefinitionBody(metricId);
+                return AnalyticsDefinitionService.parseDimensions(
+                        jsonMapper, body);
+            }).orElse(List.of());
+        } catch (RuntimeException ex) {
+            return List.of();
+        }
     }
 
     @PostMapping("/timeseries")
@@ -544,16 +582,36 @@ public class AnalyticsEngineController {
         return m;
     }
 
-    private static Map<String, Object> cellJson(final AnalyticsCell c) {
+    private static Map<String, Object> cellJson(final AnalyticsCell c,
+                                                   final List<AnalyticsDimension> dims,
+                                                   final OptionSetLookup.Cache osCache) {
         final Map<String, Object> m = new LinkedHashMap<>();
         m.put("metricId", c.metricId().toString());
         m.put("definitionVersion", c.definitionVersion());
         m.put("periodKey", c.periodKey());
         m.put("orgUnitUid", c.orgUnitUid());
         m.put("dimensionKey", c.dimensionKey());
-        m.put("dimensions",
+        final Map<String, String> codes =
                 ug.ac.mak.der.analytics.engine.DimensionKey.decode(
-                        c.dimensionKey()));
+                        c.dimensionKey());
+        m.put("dimensions", codes);
+        // Phase 4b — resolve OptionSet labels alongside the raw codes.
+        if (dims != null && !dims.isEmpty() && !codes.isEmpty()) {
+            final Map<String, String> labels = new LinkedHashMap<>();
+            for (final AnalyticsDimension d : dims) {
+                final String code = codes.get(d.name());
+                if (code == null) {
+                    continue;
+                }
+                if (d.optionSetUid() != null && osCache != null) {
+                    labels.put(d.name(),
+                            osCache.label(d.optionSetUid(), code));
+                } else {
+                    labels.put(d.name(), code);
+                }
+            }
+            m.put("dimensionLabels", labels);
+        }
         m.put("countValue", c.countValue());
         m.put("sumValue", decimal(c.sumValue()));
         m.put("value", decimal(c.value()));

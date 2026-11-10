@@ -51,6 +51,7 @@ class AnalyticsEngineControllerTest {
     @MockBean AnalyticsContributionRepository contributions;
     @MockBean ExpressionCompiler compiler;
     @MockBean AnalyticsDefinitionService definitions;
+    @MockBean ug.ac.mak.der.analytics.engine.OptionSetLookup optionSets;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();

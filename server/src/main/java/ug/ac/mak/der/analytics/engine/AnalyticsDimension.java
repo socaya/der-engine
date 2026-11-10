@@ -31,7 +31,8 @@ public record AnalyticsDimension(
         String name,
         Kind kind,
         String sourceUid,
-        List<Bucket> buckets) {
+        List<Bucket> buckets,
+        String optionSetUid) {
 
     public AnalyticsDimension {
         Objects.requireNonNull(name, "name");
@@ -42,6 +43,14 @@ public record AnalyticsDimension(
             throw new IllegalArgumentException(
                     "dimension name must not contain '=' or '|'");
         }
+    }
+
+    /** 4-arg form for Phase-4a call sites + tests that predate the
+     *  OptionSet label resolver. */
+    public AnalyticsDimension(final String name, final Kind kind,
+                                final String sourceUid,
+                                final List<Bucket> buckets) {
+        this(name, kind, sourceUid, buckets, null);
     }
 
     public enum Kind {

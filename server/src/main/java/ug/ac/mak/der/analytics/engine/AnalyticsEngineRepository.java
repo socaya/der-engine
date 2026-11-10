@@ -113,6 +113,20 @@ public class AnalyticsEngineRepository {
                 definitionJson == null ? "{}" : definitionJson);
     }
 
+    /** Fetch the raw JSONB definition body — Phase 4b uses this to
+     *  parse declared dimensions (and the OptionSet attached to each)
+     *  without re-walking the catalogue. */
+    public String loadDefinitionBody(final UUID id) {
+        try {
+            return jdbc.queryForObject(
+                    "SELECT definition::text "
+                  + "  FROM der.analytics_definition WHERE id = ?",
+                    String.class, id);
+        } catch (EmptyResultDataAccessException ex) {
+            return null;
+        }
+    }
+
     /** Mark a definition's support state (READY / UNSUPPORTED /
      *  DEPRECATED / PARSED / IMPORTED) with an optional reason.
      *  Used by the admin deprecate endpoint + future recompile
