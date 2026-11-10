@@ -37,7 +37,11 @@ class AnalyticsLiveIngesterTest {
         engineRepo = mock(AnalyticsEngineRepository.class);
         materializer = mock(AnalyticsMaterializer.class);
         periods = new AnalyticsPeriodEnumerator();
-        ingester = new AnalyticsLiveIngester(engineRepo, materializer, periods);
+        // Phase 3c — jdbc + jsonMapper are nulls here; applyOperator-
+        // Definitions early-returns when either is null so the built-in
+        // path still exercises every pre-existing scenario.
+        ingester = new AnalyticsLiveIngester(engineRepo, materializer,
+                periods, null, null);
     }
 
     @Test

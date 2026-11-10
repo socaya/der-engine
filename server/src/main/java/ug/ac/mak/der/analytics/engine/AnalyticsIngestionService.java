@@ -11,9 +11,14 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import ug.ac.mak.der.analytics.expression.ExpressionContext;
+import ug.ac.mak.der.analytics.expression.Evaluator;
+import ug.ac.mak.der.analytics.expression.Parser;
 
 /**
  * Batch ingestion for the two built-in event-/enrollment-count
@@ -52,19 +57,22 @@ public class AnalyticsIngestionService {
     private final AnalyticsMaterializer materializer;
     private final AnalyticsPeriodEnumerator periods;
     private final AnalyticsSeed seed;
+    private final ObjectMapper jsonMapper;
 
     public AnalyticsIngestionService(final JdbcTemplate jdbc,
                                        final AnalyticsEngineRepository engineRepo,
                                        final AnalyticsContributionRepository contributions,
                                        final AnalyticsMaterializer materializer,
                                        final AnalyticsPeriodEnumerator periods,
-                                       final AnalyticsSeed seed) {
+                                       final AnalyticsSeed seed,
+                                       final ObjectMapper jsonMapper) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.engineRepo = Objects.requireNonNull(engineRepo, "engineRepo");
         this.contributions = Objects.requireNonNull(contributions, "contributions");
         this.materializer = Objects.requireNonNull(materializer, "materializer");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.seed = Objects.requireNonNull(seed, "seed");
+        this.jsonMapper = Objects.requireNonNull(jsonMapper, "jsonMapper");
     }
 
     public record IngestResult(
@@ -89,12 +97,227 @@ public class AnalyticsIngestionService {
     @Transactional
     public List<IngestResult> ingestBuiltIns(final IngestScope scope) {
         Objects.requireNonNull(scope, "scope");
-        final List<IngestResult> out = new ArrayList<>(2);
+        final List<IngestResult> out = new ArrayList<>(8);
         seed.definition(AnalyticsSeed.EVENT_COUNT_CODE)
                 .ifPresent(d -> out.add(ingestEventCount(d, scope)));
         seed.definition(AnalyticsSeed.ENROLLMENT_COUNT_CODE)
                 .ifPresent(d -> out.add(ingestEnrollmentCount(d, scope)));
+        // Phase 3c — evaluate every READY operator-authored EVENT-type
+        // definition against the same event scan. One pass scans the
+        // source table once, then applies every definition per row.
+        out.addAll(ingestOperatorEventDefinitions(scope));
         return out;
+    }
+
+    /** Evaluate every READY, non-built-in, EVENT-type definition against
+     *  the current {@code edge_tracker_event} table in the supplied
+     *  scope. Returns one IngestResult per definition. */
+    private List<IngestResult> ingestOperatorEventDefinitions(
+            final IngestScope scope) {
+        final List<AnalyticsDefinition> defs = engineRepo
+                .listDefinitions("READY", 500)
+                .stream()
+                .filter(d -> "EVENT".equals(d.analyticsType()))
+                .filter(d -> !AnalyticsSeed.EVENT_COUNT_CODE.equals(d.code())
+                          && !AnalyticsSeed.ENROLLMENT_COUNT_CODE.equals(d.code()))
+                .toList();
+        if (defs.isEmpty()) {
+            return List.of();
+        }
+
+        // Compile every definition once per batch. A definition whose
+        // stored expression no longer parses (e.g. metadata drift)
+        // gets a FAILED result + its support_state flipped to
+        // UNSUPPORTED so operators see the regression.
+        record Compiled(AnalyticsDefinition def,
+                          ug.ac.mak.der.analytics.expression.Expression ast) { }
+        final List<Compiled> compiled = new ArrayList<>(defs.size());
+        for (final AnalyticsDefinition d : defs) {
+            final String expr = extractExpression(d);
+            if (expr == null || expr.isBlank()) {
+                continue;
+            }
+            try {
+                compiled.add(new Compiled(d, Parser.parse(expr)));
+            } catch (RuntimeException ex) {
+                engineRepo.updateSupportState(d.id(), "UNSUPPORTED",
+                        "re-compile failed: " + ex.getMessage());
+            }
+        }
+        if (compiled.isEmpty()) {
+            return List.of();
+        }
+
+        // SQL + arg list reused from the built-in event ingest.
+        final StringBuilder sql = new StringBuilder(
+                "SELECT event_uid, program_stage_uid, org_unit_uid, "
+              + "       occurred_date, version, status, "
+              + "       data_values::text AS data_values "
+              + "  FROM der.edge_tracker_event WHERE 1 = 1 ");
+        final List<Object> args = new ArrayList<>();
+        if (scope.orgUnitUid() != null && !scope.orgUnitUid().isBlank()) {
+            sql.append(" AND org_unit_uid = ?");
+            args.add(scope.orgUnitUid());
+        }
+        if (scope.programUid() != null && !scope.programUid().isBlank()) {
+            sql.append(" AND program_uid = ?");
+            args.add(scope.programUid());
+        }
+        if (scope.fromDate() != null) {
+            sql.append(" AND occurred_date >= ?");
+            args.add(java.sql.Date.valueOf(scope.fromDate()));
+        }
+        if (scope.toDate() != null) {
+            sql.append(" AND occurred_date <= ?");
+            args.add(java.sql.Date.valueOf(scope.toDate()));
+        }
+
+        // One batch per definition. HashMaps hold scanned/written totals
+        // so we only need one scan of the source table.
+        final Map<java.util.UUID, List<AnalyticsContribution>> batchByMetric
+                = new java.util.HashMap<>();
+        final Map<java.util.UUID, Set<AnalyticsContributionRepository.CellRef>>
+                touchedByMetric = new java.util.HashMap<>();
+        final long[] scanned = { 0L };
+        jdbc.query(sql.toString(), (rs, i) -> {
+            scanned[0]++;
+            final java.time.LocalDate occurred =
+                    rs.getDate("occurred_date").toLocalDate();
+            final String periodKey = periods.windowContaining(
+                    AnalyticsPeriodEnumerator.Type.MONTHLY,
+                    occurred).id();
+            final String orgUnit = rs.getString("org_unit_uid");
+            final String stageUid = rs.getString("program_stage_uid");
+            final String status = rs.getString("status");
+            final String eventUid = rs.getString("event_uid");
+            final int srcVersion = rs.getInt("version");
+            final String dvJson = rs.getString("data_values");
+            final ExpressionContext ctx = EventExpressionContext.of(
+                    jsonMapper, stageUid, dvJson, occurred, orgUnit,
+                    status);
+            for (final Compiled c : compiled) {
+                final Object value;
+                try {
+                    value = new Evaluator(ctx).eval(c.ast());
+                } catch (Evaluator.EvalException ex) {
+                    // Per-event evaluation failure doesn't poison the
+                    // batch — the operator sees it later via an
+                    // UNSUPPORTED flip if it's structural.
+                    continue;
+                }
+                final AnalyticsContribution ctb = contributionFor(
+                        c.def(), eventUid, srcVersion, periodKey,
+                        orgUnit, value);
+                if (ctb == null) {
+                    continue;
+                }
+                batchByMetric.computeIfAbsent(c.def().id(),
+                        k -> new ArrayList<>()).add(ctb);
+                touchedByMetric.computeIfAbsent(c.def().id(),
+                        k -> new java.util.HashSet<>())
+                        .add(new AnalyticsContributionRepository.CellRef(
+                                periodKey, orgUnit, ""));
+            }
+            return null;
+        }, args.toArray());
+
+        final List<IngestResult> out = new ArrayList<>(compiled.size());
+        for (final Compiled c : compiled) {
+            final List<AnalyticsContribution> rows =
+                    batchByMetric.getOrDefault(c.def().id(), List.of());
+            final Set<AnalyticsContributionRepository.CellRef> touched =
+                    touchedByMetric.getOrDefault(c.def().id(), Set.of());
+            out.add(commitBatch(c.def(), rows, touched, scanned[0]));
+        }
+        return out;
+    }
+
+    /** Produce a contribution for one (metric, event) pair based on
+     *  the definition's aggregation type + the evaluated value.
+     *  Returns null when the source should contribute nothing. */
+    private AnalyticsContribution contributionFor(
+            final AnalyticsDefinition def,
+            final String eventUid, final int srcVersion,
+            final String periodKey, final String orgUnit,
+            final Object value) {
+        final String agg = def.aggregationType() == null
+                ? "COUNT" : def.aggregationType();
+        final java.math.BigDecimal numeric;
+        final boolean eligible;
+        if ("COUNT".equals(agg) || "COUNT_DISTINCT".equals(agg)
+                || "NONE".equals(agg)) {
+            // Count aggregations fire once per truthy evaluation.
+            eligible = isTruthy(value);
+            numeric = eligible ? java.math.BigDecimal.ONE
+                    : java.math.BigDecimal.ZERO;
+        } else {
+            if (value == null) {
+                return null;
+            }
+            final java.math.BigDecimal n = toBigDecimal(value);
+            if (n == null) {
+                return null;
+            }
+            numeric = n;
+            eligible = true;
+        }
+        return new AnalyticsContribution(def.id(),
+                def.definitionVersion(), eventUid,
+                String.valueOf(srcVersion), periodKey, orgUnit, "",
+                numeric, eligible, "COMMITTED", null, null);
+    }
+
+    private static boolean isTruthy(final Object v) {
+        if (v == null) {
+            return false;
+        }
+        if (v instanceof Boolean b) {
+            return b;
+        }
+        if (v instanceof java.math.BigDecimal d) {
+            return d.signum() != 0;
+        }
+        if (v instanceof Number n) {
+            return n.doubleValue() != 0.0;
+        }
+        return !v.toString().isBlank();
+    }
+
+    private static java.math.BigDecimal toBigDecimal(final Object v) {
+        if (v == null) {
+            return null;
+        }
+        if (v instanceof java.math.BigDecimal d) {
+            return d;
+        }
+        if (v instanceof Number n) {
+            return new java.math.BigDecimal(n.toString());
+        }
+        try {
+            return new java.math.BigDecimal(v.toString());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    /** Extract the raw expression string from a stored definition's
+     *  JSON body. Phase-3b wrote it under {@code definition.expression}. */
+    private String extractExpression(final AnalyticsDefinition def) {
+        try {
+            final String row = jdbc.queryForObject(
+                    "SELECT definition::text FROM der.analytics_definition "
+                  + " WHERE id = ?", String.class, def.id());
+            if (row == null) {
+                return null;
+            }
+            final com.fasterxml.jackson.databind.JsonNode node =
+                    jsonMapper.readTree(row);
+            final com.fasterxml.jackson.databind.JsonNode exprNode =
+                    node.get("expression");
+            return exprNode == null ? null : exprNode.asText(null);
+        } catch (RuntimeException | java.io.IOException ex) {
+            return null;
+        }
     }
 
     private IngestResult ingestEventCount(final AnalyticsDefinition def,
