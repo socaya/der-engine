@@ -6,6 +6,7 @@ import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
 import { MetadataTabBar } from '../components/MetadataTabBar';
 import { HealthTabBar } from '../components/HealthTabBar';
+import { OrgUnitAssociations } from '../components/OrgUnitAssociations';
 import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, ScopedFilterChip, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status, useCentralReachable, RelatedMenu, LocalVsCentralBadge } from './shared';
 import { UiIcon } from '../components/UiIcon';
 
@@ -704,6 +705,22 @@ export function CapOrgUnitBinding(): JSX.Element {
               <div className="ea-stat-label">Bound by</div>
             </div>
           </div>
+        </section>
+      )}
+
+      {/* UI-13 — surface DHIS2 associations (dataSets, programs,
+          organisation-unit groups, parent / children) for the bound
+          OU so operators don't have to open DHIS2 central to see
+          what's configured. */}
+      {b.bound && (
+        <section className="ea-card" data-test="ou-associations"
+                 style={{ marginTop: 12 }}>
+          <h2 style={{ margin: '0 0 10px', fontSize: 12, fontWeight: 600,
+                        letterSpacing: '0.02em',
+                        textTransform: 'uppercase' }}>
+            Associated metadata
+          </h2>
+          <OrgUnitAssociations orgUnitId={b.orgUnitId} />
         </section>
       )}
 
