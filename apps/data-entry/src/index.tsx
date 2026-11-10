@@ -6584,12 +6584,12 @@ const APP_STYLES = `
   height: 20px;
 }
 /* Heartbeat LED — round dot with a concentric expanding ring,
- * matching the /admin/sync/settings live-connection pulse. Any
- * connected signal (WAN online, DER edge up, central sync
- * saved/queued) shares the SAME green pulse so operators read
- * "connected" at a glance. Red error states keep a solid dot
- * with no animation so a failure doesn't masquerade as activity;
- * grey = off/unknown. */
+ * matching the /admin/sync/settings live-connection pulse. Three
+ * semantic tones mapped to DER state tokens:
+ *   ONLINE   → --der-success  (steady green pulse)
+ *   DEGRADED → --der-warning  (amber pulse, slow link / queued)
+ *   OFF      → --der-danger   (solid red, no animation)
+ * Unknown/unset falls back to neutral grey with no pulse. */
 .der-de-status-icon__dot,
 .der-apphost .der-de-toolbar .der-de-status-icon__dot {
   display: inline-block;
@@ -6614,16 +6614,20 @@ const APP_STYLES = `
   pointer-events: none;
   animation: der-pulse-ring 2.4s cubic-bezier(0.2,0.6,0.4,1) infinite;
 }
-/* Any "connected" tone — live, syncing, queued, pending —
- * renders the same green pulse. */
-.der-de-status-icon__dot.is-lit,
+.der-de-status-icon__dot.is-lit {
+  background: var(--der-success, #1b9e5a);
+  color:      var(--der-success, #1b9e5a);
+  box-shadow: 0 0 0 2px rgba(27, 158, 90, 0.18);
+}
 .der-de-status-icon__dot.is-pending {
-  background: #117a44; color: #117a44;
-  box-shadow: 0 0 0 2px rgba(17, 122, 68, 0.18);
+  background: var(--der-warning, #d68a1a);
+  color:      var(--der-warning, #d68a1a);
+  box-shadow: 0 0 0 2px rgba(214, 138, 26, 0.18);
 }
 .der-de-status-icon__dot.is-error {
-  background: #a3322c; color: #a3322c;
-  box-shadow: 0 0 0 2px rgba(163, 50, 44, 0.18);
+  background: var(--der-danger, #d14343);
+  color:      var(--der-danger, #d14343);
+  box-shadow: 0 0 0 2px rgba(209, 67, 67, 0.18);
 }
 .der-de-status-icon__dot.is-error::before,
 .der-de-status-icon__dot:not(.is-lit):not(.is-pending):not(.is-error)::before {

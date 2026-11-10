@@ -12,7 +12,7 @@ import { useDirtyGuard } from '../shared/useDirtyGuard';
 import { usePublishDirty } from '../shared/DirtyContext';
 import { SectionNav } from '../shared/SectionNav';
 import { useAutofocusFirstField } from '../shared/useAutofocusFirstField';
-import { openDatePicker } from '../shared/openDatePicker';
+import { DerDatePicker } from '../shared/DerDatePicker';
 
 /**
  * Tracker stage event editor (requirements doc §8.5 TR-040 to
@@ -256,10 +256,9 @@ export function TrackerStageEditor(
         )}
         <label className="cap-input" style={{ minWidth: 150 }}>
           <span className="cap-toolbar__field-label">Event date</span>
-          <input className="cap-input__ctl" type="date"
+          <DerDatePicker className="cap-input__ctl"
                  value={occurredAt}
-                 onClick={openDatePicker}
-                 onChange={(e) => setOccurredAt(e.target.value)}
+                 onChange={setOccurredAt}
                  data-test="tr-editor-occurred-at" />
         </label>
         <span className="cap-section-head__count">

@@ -669,6 +669,7 @@ export function TrackerDetailPage(
               const count = eventsByStage.get(s.id)?.length ?? 0;
               const active = railKind === 'stage'
                 && selectedStage === s.id;
+              const repeatable = stageRepeatable.get(s.id) ?? false;
               return (
                 <button key={s.id} type="button"
                         className={'cap-stage-rail__item'
@@ -681,6 +682,7 @@ export function TrackerDetailPage(
                   <span className="cap-stage-rail__name">
                     {s.displayName}
                   </span>
+                  <RepeatableIcon repeatable={repeatable} />
                   <span className="cap-stage-rail__count"
                         title={count === 0 ? 'No events yet'
                           : `${count} event${count === 1 ? '' : 's'}`}>
@@ -1636,6 +1638,46 @@ function EnrolmentNotesPane(
  *  both inactive (muted) and active (primary) rail backgrounds
  *  via currentColor. One sprite per logical category: profile,
  *  stage, notes, relationships. */
+/** Glyph that signals whether a program stage can carry many
+ *  events on one enrolment (repeatable: looping arrow) or at most
+ *  one (non-repeatable: single-notch marker). Sits between the
+ *  stage name and the event-count chip. */
+function RepeatableIcon(
+  { repeatable }: { repeatable: boolean },
+): JSX.Element {
+  const label = repeatable
+    ? 'Repeatable stage — records multiple events per enrolment'
+    : 'Non-repeatable stage — at most one event per enrolment';
+  if (repeatable) {
+    return (
+      <span className="cap-stage-rail__rep cap-stage-rail__rep--on"
+            title={label} aria-label={label}>
+        <svg viewBox="0 0 24 24" width="14" height="14"
+             fill="none" stroke="currentColor" strokeWidth="1.9"
+             strokeLinecap="round" strokeLinejoin="round"
+             aria-hidden="true">
+          <path d="M3 12a9 9 0 0 1 15.3-6.4L21 8" />
+          <path d="M21 3v5h-5" />
+          <path d="M21 12a9 9 0 0 1-15.3 6.4L3 16" />
+          <path d="M3 21v-5h5" />
+        </svg>
+      </span>
+    );
+  }
+  return (
+    <span className="cap-stage-rail__rep cap-stage-rail__rep--off"
+          title={label} aria-label={label}>
+      <svg viewBox="0 0 24 24" width="14" height="14"
+           fill="none" stroke="currentColor" strokeWidth="1.9"
+           strokeLinecap="round" strokeLinejoin="round"
+           aria-hidden="true">
+        <circle cx="12" cy="12" r="8" />
+        <path d="M9.5 12.5l2 2 3.5-4" />
+      </svg>
+    </span>
+  );
+}
+
 function RailIcon(
   { kind }: { kind: 'profile' | 'enrolment' | 'stage'
                    | 'notes' | 'relationships' },

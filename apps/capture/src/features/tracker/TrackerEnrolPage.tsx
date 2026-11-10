@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { CaptureApi } from '../../shared/types';
 import { navTracker } from '../../shared/routing';
-import { openDatePicker } from '../../shared/openDatePicker';
+import { DerDatePicker } from '../../shared/DerDatePicker';
 
 const DHIS2_UID_ALPHABET =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -195,13 +195,10 @@ export function TrackerEnrolPage(
                 <span className="cap-input__label">
                   Enrolment date<span className="cap-input__req">*</span>
                 </span>
-                <input type="date"
-                       className="cap-input__ctl"
+                <DerDatePicker className="cap-input__ctl"
                        required
                        value={enrollmentDate}
-                       onClick={openDatePicker}
-                       onChange={(e) =>
-                         setEnrollmentDate(e.target.value)} />
+                       onChange={setEnrollmentDate} />
                 <span className="cap-input__help">
                   When the person joined the program.
                 </span>
@@ -210,12 +207,9 @@ export function TrackerEnrolPage(
                 <span className="cap-input__label">
                   Incident date
                 </span>
-                <input type="date"
-                       className="cap-input__ctl"
+                <DerDatePicker className="cap-input__ctl"
                        value={incidentDate}
-                       onClick={openDatePicker}
-                       onChange={(e) =>
-                         setIncidentDate(e.target.value)} />
+                       onChange={setIncidentDate} />
                 <span className="cap-input__help">
                   Date of the event the enrolment is tracking
                   (optional — leave blank if the program doesn't

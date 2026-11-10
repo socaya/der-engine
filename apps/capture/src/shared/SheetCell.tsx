@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CaptureField } from './model';
 import type { CaptureApi } from './types';
-import { openDatePicker, openDatePickerOnFocus } from './openDatePicker';
+import { DerDatePicker } from './DerDatePicker';
 
 /**
  * Typed cell input for the spreadsheet-mode event grid. Mirrors
@@ -58,17 +58,19 @@ export function SheetCell(
     case 'PERCENTAGE':
       return <input type="number" {...baseProps} />;
     case 'DATE':
-      return <input type="date" {...baseProps}
-                     onClick={openDatePicker}
-                     onFocus={openDatePickerOnFocus} />;
+      return <DerDatePicker
+                     className={baseProps.className}
+                     value={value}
+                     onChange={onChange}
+                     onBlur={onCommit}
+                     required={baseProps.required}
+                     disabled={baseProps.disabled}
+                     readOnly={baseProps.readOnly}
+                     autoFocus={autoFocus} />;
     case 'DATETIME':
-      return <input type="datetime-local" {...baseProps}
-                     onClick={openDatePicker}
-                     onFocus={openDatePickerOnFocus} />;
+      return <input type="datetime-local" {...baseProps} />;
     case 'TIME':
-      return <input type="time" {...baseProps}
-                     onClick={openDatePicker}
-                     onFocus={openDatePickerOnFocus} />;
+      return <input type="time" {...baseProps} />;
     case 'BOOLEAN':
       return (
         <select {...baseProps}>

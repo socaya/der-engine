@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CaptureApi, EventRow } from '../../shared/types';
 import { RowActions } from '../../shared/RowActions';
 import { navEvent } from '../../shared/routing';
-import { openDatePicker } from '../../shared/openDatePicker';
+import { DerDatePicker } from '../../shared/DerDatePicker';
 
 /**
  * Event (WITHOUT_REGISTRATION) working-list page.
@@ -353,18 +353,16 @@ export function EventListPage(
         </label>
         <label className="cap-section-head__inline">
           <span className="cap-section-head__inline-label">From</span>
-          <input className="cap-section-head__inline-ctl" type="date"
+          <DerDatePicker className="cap-section-head__inline-ctl"
                  value={fromDate}
-                 onChange={(e) => setFromDate(e.target.value)}
-                 onClick={openDatePicker}
+                 onChange={setFromDate}
                  data-test="ev-from-date" />
         </label>
         <label className="cap-section-head__inline">
           <span className="cap-section-head__inline-label">To</span>
-          <input className="cap-section-head__inline-ctl" type="date"
+          <DerDatePicker className="cap-section-head__inline-ctl"
                  value={toDate}
-                 onChange={(e) => setToDate(e.target.value)}
-                 onClick={openDatePicker}
+                 onChange={setToDate}
                  data-test="ev-to-date" />
         </label>
         {activeFilterCount > 0 && (

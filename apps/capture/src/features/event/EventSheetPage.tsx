@@ -11,8 +11,7 @@ import { enrichRulesWithActions, parseProgramRules }
 import { evaluateRules, type RuleEffectSet, type RuleWarning }
   from '../../shared/ruleEngine';
 import { SheetCell } from '../../shared/SheetCell';
-import { openDatePicker, openDatePickerOnFocus }
-  from '../../shared/openDatePicker';
+import { DerDatePicker } from '../../shared/DerDatePicker';
 import { navEvent } from '../../shared/routing';
 
 /**
@@ -2264,13 +2263,10 @@ export function EventSheetPage(
                 <td className="cap-sheet__date-cell"
                     data-cell-coord={rowIdx + ':-1'}
                     tabIndex={-1}>
-                  <input type="date"
+                  <DerDatePicker
                          className="cap-sheet__cell-input"
                          value={r.occurredAt}
-                         onChange={(e) =>
-                           updateOccurredAt(rowIdx, e.target.value)}
-                         onClick={openDatePicker}
-                         onFocus={openDatePickerOnFocus}
+                         onChange={(v) => updateOccurredAt(rowIdx, v)}
                          data-test={'ev-sheet-row-' + rowIdx + '-date'} />
                 </td>
                 {allFields.map((f, colIdx) => {

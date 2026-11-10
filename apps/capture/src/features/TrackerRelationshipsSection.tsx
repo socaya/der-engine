@@ -5,6 +5,7 @@ import { parseTeiAttributesForm } from '../shared/parser';
 import type { CaptureFormSection } from '../shared/model';
 import type { CaptureApi } from '../shared/types';
 import { navTracker } from '../shared/routing';
+import { DerDatePicker } from '../shared/DerDatePicker';
 
 /** DHIS2 relationship-constraint kind as stored on the metadata
  *  mirror (verbose form, matches /api/relationshipTypes). The edge
@@ -1130,10 +1131,10 @@ export function TrackerRelationshipsSection(
                   <span className="cap-input__label">
                     Occurred on<span className="cap-input__req">*</span>
                   </span>
-                  <input type="date" className="cap-input__ctl"
+                  <DerDatePicker className="cap-input__ctl"
                          data-test="tr-rel-new-event-date"
                          value={newEventDate}
-                         onChange={(e) => setNewEventDate(e.target.value)} />
+                         onChange={setNewEventDate} />
                 </label>
                 <div style={{ display: 'flex',
                   justifyContent: 'flex-end', gap: 10,

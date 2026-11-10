@@ -13,7 +13,7 @@ import { usePublishDirty } from '../../shared/DirtyContext';
 import { SectionNav } from '../../shared/SectionNav';
 import { useAutofocusFirstField } from '../../shared/useAutofocusFirstField';
 import { navEvent } from '../../shared/routing';
-import { openDatePicker } from '../../shared/openDatePicker';
+import { DerDatePicker } from '../../shared/DerDatePicker';
 
 /**
  * Event create / edit form page (NAV-004). Full-page form with
@@ -271,10 +271,9 @@ export function EventFormPage(
         )}
         <label className="cap-section-head__inline">
           <span className="cap-section-head__inline-label">Event date</span>
-          <input className="cap-section-head__inline-ctl" type="date"
+          <DerDatePicker className="cap-section-head__inline-ctl"
                  value={occurredAt}
-                 onChange={(e) => setOccurredAt(e.target.value)}
-                 onClick={openDatePicker}
+                 onChange={setOccurredAt}
                  data-test="ce-occurred-at" />
         </label>
         <span className="cap-section-head__count">

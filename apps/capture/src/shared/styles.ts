@@ -2462,6 +2462,26 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   flex: 1 1 auto; min-width: 0;
   overflow-wrap: anywhere;
 }
+/* Repeatable / non-repeatable glyph next to a stage name. Green
+ * loop for repeatable (infinite re-encounters), subtle outline
+ * circle with a central tick for one-shot stages. Sits between
+ * the name and the count chip; currentColor lets the active rail
+ * row tint it like the icon. */
+.cap-stage-rail__rep {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px;
+  color: var(--der-text-muted);
+  margin-left: 4px;
+}
+.cap-stage-rail__rep--on  { color: var(--der-success); }
+.cap-stage-rail__rep--off { color: var(--der-text-muted); }
+.cap-stage-rail__item--active .cap-stage-rail__rep--on  {
+  color: var(--der-success);
+}
+.cap-stage-rail__item--active .cap-stage-rail__rep--off {
+  color: var(--der-primary);
+}
 .cap-stage-rail__count {
   flex: 0 0 auto;
   min-width: 20px; padding: 0 6px;
@@ -2653,5 +2673,155 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 }
 @media (max-width: 640px) {
   .cap-insp { width: 100%; max-width: 100%; }
+}
+/* ---------------------------------------------------------------
+ * DerDatePicker — soft, modern, DER-themed calendar popover that
+ * replaces the native <input type="date"> browser widget. The
+ * wrapper is inline so the picker drops into any .cap-input__ctl
+ * slot without changing the surrounding layout. Popover anchors
+ * below the field, shadowed, rounded, with month-nav caret-style
+ * buttons and a 7×6 day grid. Today = ring; Selected = solid
+ * success-token fill; Focus-ring on arrow-key navigation.
+ * --------------------------------------------------------------- */
+.der-dp {
+  position: relative; display: inline-block; width: 100%;
+}
+.der-dp > input {
+  width: 100%;
+  padding-right: 28px;
+}
+.der-dp__icon {
+  position: absolute; right: 8px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--der-text-muted);
+  pointer-events: none;
+  display: inline-flex;
+}
+.der-dp.is-open > input {
+  outline: 2px solid var(--der-primary);
+  outline-offset: -1px;
+}
+.der-dp__pop {
+  position: absolute;
+  top: calc(100% + 6px); left: 0;
+  z-index: 200;
+  min-width: 260px;
+  background: var(--der-surface);
+  border: 1px solid var(--der-border-soft);
+  border-radius: 10px;
+  box-shadow:
+    0 1px 2px rgba(15, 25, 50, 0.04),
+    0 10px 28px rgba(15, 25, 50, 0.12);
+  padding: 10px;
+  user-select: none;
+  animation: der-dp-in 120ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+@keyframes der-dp-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: none; }
+}
+.der-dp__head {
+  display: grid;
+  grid-template-columns: 28px 1fr 28px;
+  align-items: center;
+  padding: 2px 4px 8px;
+  gap: 6px;
+}
+.der-dp__title {
+  text-align: center;
+  font-size: 13px; font-weight: 600;
+  color: var(--der-text);
+  letter-spacing: 0.01em;
+}
+.der-dp__nav {
+  width: 28px; height: 28px;
+  border: 0; background: transparent;
+  color: var(--der-text-muted);
+  border-radius: 6px; cursor: pointer;
+  font-size: 18px; line-height: 1;
+  transition: background 120ms, color 120ms;
+}
+.der-dp__nav:hover {
+  background: var(--der-surface-subtle);
+  color: var(--der-text);
+}
+.der-dp__dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 0 2px 4px;
+}
+.der-dp__dow-cell {
+  text-align: center;
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--der-text-muted);
+  text-transform: uppercase;
+}
+.der-dp__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.der-dp__day {
+  all: unset;
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 30px; min-width: 30px;
+  font-size: 13px;
+  color: var(--der-text);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 100ms, color 100ms, box-shadow 100ms;
+}
+.der-dp__day:hover {
+  background: var(--der-surface-subtle);
+}
+.der-dp__day.is-other {
+  color: var(--der-text-muted);
+  opacity: 0.55;
+}
+.der-dp__day.is-today {
+  box-shadow: inset 0 0 0 1px var(--der-primary);
+  font-weight: 600;
+}
+.der-dp__day.is-selected,
+.der-dp__day.is-selected:hover {
+  background: var(--der-success);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(35, 122, 87, 0.3);
+}
+.der-dp__day.is-focus:not(.is-selected) {
+  box-shadow: inset 0 0 0 2px var(--der-primary);
+}
+.der-dp__day.is-disabled,
+.der-dp__day:disabled {
+  color: var(--der-text-muted);
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: transparent;
+  box-shadow: none;
+}
+.der-dp__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 2px 0;
+  margin-top: 6px;
+  border-top: 1px solid var(--der-border-soft);
+}
+.der-dp__linklike {
+  all: unset;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--der-primary);
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.der-dp__linklike:hover {
+  background: var(--der-surface-subtle);
+}
+.der-dp.is-disabled { pointer-events: none; opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) {
+  .der-dp__pop { animation: none; }
 }
 `;

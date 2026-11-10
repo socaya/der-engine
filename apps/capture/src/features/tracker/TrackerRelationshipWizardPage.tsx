@@ -5,6 +5,7 @@ import { parseTeiAttributesForm } from '../../shared/parser';
 import type { CaptureFormSection } from '../../shared/model';
 import type { CaptureApi } from '../../shared/types';
 import { navTracker } from '../../shared/routing';
+import { DerDatePicker } from '../../shared/DerDatePicker';
 
 /** Relationship creation wizard (spec §8.4, REL-C-003/005/016).
  *  Four dedicated steps replace the earlier inline compose panel:
@@ -874,10 +875,9 @@ export function TrackerRelationshipWizardPage(
                        style={{ marginTop: 12, maxWidth: 260 }}>
                   <span className="cap-input__label">Occurred on
                     <span className="cap-input__req">*</span></span>
-                  <input type="date" className="cap-input__ctl"
+                  <DerDatePicker className="cap-input__ctl"
                          value={newEventDate}
-                         onChange={(e) =>
-                           setNewEventDate(e.target.value)} />
+                         onChange={setNewEventDate} />
                 </label>
                 {eventCreateState === 'loading-form' && (
                   <p className="cap-sub"
