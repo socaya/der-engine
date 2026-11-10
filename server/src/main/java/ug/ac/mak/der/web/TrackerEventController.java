@@ -10,6 +10,8 @@ import java.util.Objects;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -26,6 +28,8 @@ import org.springframework.web.bind.annotation.RestController;
 import ug.ac.mak.der.attribution.CapturedByResolver;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.SystemWorkflowService;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 import ug.ac.mak.der.workflows.tracker.EnrollmentRepository;
 import ug.ac.mak.der.workflows.tracker.TrackerEvent;
 import ug.ac.mak.der.workflows.tracker.TrackerEventRepository;
@@ -42,6 +46,8 @@ public class TrackerEventController {
     private final CapturedByResolver captorResolver;
     private final TrackerService trackerService;
     private final SystemWorkflowService systemWorkflows;
+    private final OperationJournalRepository journal;
+    private final ObjectMapper jsonMapper;
     private final Clock clock;
 
     public TrackerEventController(final TrackerEventRepository repo,
@@ -49,12 +55,16 @@ public class TrackerEventController {
                                     final CapturedByResolver captorResolver,
                                     final TrackerService trackerService,
                                     final SystemWorkflowService systemWorkflows,
+                                    final OperationJournalRepository journal,
+                                    final ObjectMapper jsonMapper,
                                     final Clock clock) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.enrollments = Objects.requireNonNull(enrollments, "enrollments");
         this.captorResolver = Objects.requireNonNull(captorResolver, "captorResolver");
         this.trackerService = Objects.requireNonNull(trackerService, "trackerService");
         this.systemWorkflows = Objects.requireNonNull(systemWorkflows, "systemWorkflows");
+        this.journal = Objects.requireNonNull(journal, "journal");
+        this.jsonMapper = Objects.requireNonNull(jsonMapper, "jsonMapper");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -137,15 +147,45 @@ public class TrackerEventController {
                 rows.stream().map(TrackerEventController::toJson).toList()));
     }
 
+    /** SM-1b — delete the event on the edge AND enqueue a
+     *  PROGRAM_STAGE_EVENT tombstone so the next drain POSTs the
+     *  matching DELETE to central (/api/tracker?importStrategy=
+     *  DELETE). Mirrors the TEI + Enrolment + Relationship patterns.
+     *  Before this fix the edge hard-deleted the row and central
+     *  never learned about the delete — orphaned events on central. */
     @DeleteMapping("/{uid}")
     public ResponseEntity<Map<String, Object>> delete(final Authentication authentication,
                                                         @PathVariable("uid") final String uid) {
-        if (!(authentication instanceof EdgeUserPrincipal)) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
         }
-        final int n = repo.delete(uid);
-        return n == 0 ? ResponseEntity.notFound().build()
-                : ResponseEntity.ok(Map.of("deleted", true));
+        final TrackerEvent existing = repo.findById(uid).orElse(null);
+        if (existing == null) {
+            return ResponseEntity.notFound().build();
+        }
+        repo.delete(uid);
+        enqueueDeleteTombstone(existing, principal.userId());
+        return ResponseEntity.ok(Map.of("deleted", true));
+    }
+
+    private void enqueueDeleteTombstone(final TrackerEvent e,
+                                          final UUID actor) {
+        final ObjectNode payload = jsonMapper.createObjectNode();
+        payload.put("eventUid", e.eventUid());
+        payload.put("enrollmentUid", e.enrollmentUid());
+        payload.put("program", e.programUid());
+        payload.put("programStage", e.programStageUid());
+        payload.put("orgUnit", e.orgUnitUid());
+        payload.put("occurredDate", e.occurredDate().toString());
+        payload.put("operation", "DELETE");
+        final Instant now = Instant.now(clock);
+        journal.insert(new OperationJournalEntry(
+                UUID.randomUUID(),
+                OperationJournalEntry.EntityType.PROGRAM_STAGE_EVENT,
+                e.eventUid(),
+                payload,
+                OperationJournalEntry.State.PENDING,
+                0, null, actor, now, now, null, e.workflowRunId()));
     }
 
     private static Map<String, Object> toJson(final TrackerEvent e) {

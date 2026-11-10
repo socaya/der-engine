@@ -29,7 +29,7 @@ public class ApprovalRequirements {
     public boolean requiresApproval(final OperationJournalEntry.EntityType type) {
         Objects.requireNonNull(type, "type");
         return switch (type) {
-            case AGGREGATE_DATA_VALUE -> requireAggregate;
+            case AGGREGATE_DATA_VALUE, AGGREGATE_DATASET_COMPLETION -> requireAggregate;
             case EVENT, PROGRAM_STAGE_EVENT -> requireEvent;
             case TRACKED_ENTITY, ENROLLMENT, RELATIONSHIP,
                  ENROLMENT_NOTE -> requireTracker;

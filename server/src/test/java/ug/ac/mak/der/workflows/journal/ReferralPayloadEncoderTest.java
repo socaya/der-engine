@@ -166,4 +166,39 @@ class ReferralPayloadEncoderTest {
         assertThatThrownBy(() -> ReferralPayloadEncoder.marker(null))
                 .isInstanceOf(NullPointerException.class);
     }
+
+    @Test
+    void wrapsDatasetCompletionIntoDhis2Envelope() throws Exception {
+        // SM-1a — flat payload {dataSet, period, orgUnit, [aoc,]
+        // completed, storedBy, date} must be shaped into DHIS2's
+        // {completeDataSetRegistrations:[{...}]} before POST or
+        // central 400s.
+        final String body = encoder.body(entry(
+                OperationJournalEntry.EntityType.AGGREGATE_DATASET_COMPLETION,
+                "{\"dataSet\":\"ds1\",\"period\":\"202611\",\"orgUnit\":\"ouA\","
+                + "\"completed\":true,\"storedBy\":\"alice\","
+                + "\"date\":\"2026-11-10T08:00:00Z\"}", null));
+        final JsonNode n = mapper.readTree(body);
+        assertThat(n.has("completeDataSetRegistrations")).isTrue();
+        final JsonNode reg = n.get("completeDataSetRegistrations").get(0);
+        assertThat(reg.get("dataSet").asText()).isEqualTo("ds1");
+        assertThat(reg.get("period").asText()).isEqualTo("202611");
+        // Note: the DHIS2 property is "organisationUnit", not "orgUnit".
+        assertThat(reg.get("organisationUnit").asText()).isEqualTo("ouA");
+        assertThat(reg.get("completed").asBoolean()).isTrue();
+        assertThat(reg.get("storedBy").asText()).isEqualTo("alice");
+    }
+
+    @Test
+    void wrapsDatasetCompletionWithAoc() throws Exception {
+        final String body = encoder.body(entry(
+                OperationJournalEntry.EntityType.AGGREGATE_DATASET_COMPLETION,
+                "{\"dataSet\":\"ds1\",\"period\":\"202611\",\"orgUnit\":\"ouA\","
+                + "\"attributeOptionCombo\":\"aocA\",\"completed\":false,"
+                + "\"storedBy\":\"bob\",\"date\":\"2026-11-10T08:00:00Z\"}", null));
+        final JsonNode reg = mapper.readTree(body)
+                .get("completeDataSetRegistrations").get(0);
+        assertThat(reg.get("attributeOptionCombo").asText()).isEqualTo("aocA");
+        assertThat(reg.get("completed").asBoolean()).isFalse();
+    }
 }

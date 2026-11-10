@@ -126,8 +126,30 @@ public class ReferralPayloadEncoder {
             case TRACKED_ENTITY -> wrapTei(src);
             case ENROLLMENT     -> wrapEnrollment(src);
             case PROGRAM_STAGE_EVENT -> wrapTrackerEvent(src);
+            // SM-1a — wrap flat completion payload into the DHIS2
+            // {completeDataSetRegistrations:[...]} envelope. Without
+            // this shim the flat shape produced by DatasetCompletion-
+            // Controller would 400 at central.
+            case AGGREGATE_DATASET_COMPLETION -> wrapCompletion(src);
             default -> raw;
         };
+    }
+
+    /** Convert flat {dataSet, period, orgUnit, [attributeOptionCombo,]
+     *  completed, storedBy, date} → DHIS2
+     *  {"completeDataSetRegistrations":[{dataSet, period, orgUnit, ...}]}. */
+    private JsonNode wrapCompletion(final ObjectNode src) {
+        final ObjectNode reg = mapper.createObjectNode();
+        copyIfPresent(src, reg, "dataSet", "dataSet");
+        copyIfPresent(src, reg, "period", "period");
+        copyIfPresent(src, reg, "orgUnit", "organisationUnit");
+        copyIfPresent(src, reg, "attributeOptionCombo", "attributeOptionCombo");
+        copyIfPresent(src, reg, "completed", "completed");
+        copyIfPresent(src, reg, "storedBy", "storedBy");
+        copyIfPresent(src, reg, "date", "date");
+        final ObjectNode env = mapper.createObjectNode();
+        env.putArray("completeDataSetRegistrations").add(reg);
+        return env;
     }
 
     /** Convert {teiUid, trackedEntityType, orgUnit, attributes} →

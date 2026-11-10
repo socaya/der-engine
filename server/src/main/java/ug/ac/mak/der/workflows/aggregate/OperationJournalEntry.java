@@ -78,7 +78,14 @@ public record OperationJournalEntry(
          *  its parent enrolment UID so the drain can POST a tracker
          *  envelope ({enrollments:[{enrollment, notes:[{note, value}]}]})
          *  to central. */
-        ENROLMENT_NOTE
+        ENROLMENT_NOTE,
+        /** Aggregate dataset completion marker. Journal entries carry
+         *  the (dataSet, period, orgUnit, categoryOptionCombo) tuple
+         *  plus completion flag + storedBy so the drain can POST
+         *  /api/completeDataSetRegistrations. Without this the "mark
+         *  dataset complete" action lived on the edge only and the
+         *  central form stayed OPEN indefinitely (SM-1a gap fix). */
+        AGGREGATE_DATASET_COMPLETION
     }
 
     public enum State {

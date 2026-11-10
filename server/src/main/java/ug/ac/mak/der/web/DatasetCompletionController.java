@@ -6,8 +6,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -20,6 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflows.aggregate.DatasetCompletionRepository;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
+import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 
 /**
  * FR-06-06: Dataset completeness surface. Maps to DHIS2's
@@ -33,11 +37,17 @@ import ug.ac.mak.der.workflows.aggregate.DatasetCompletionRepository;
 public class DatasetCompletionController {
 
     private final DatasetCompletionRepository repo;
+    private final OperationJournalRepository journal;
+    private final ObjectMapper jsonMapper;
     private final Clock clock;
 
     public DatasetCompletionController(final DatasetCompletionRepository repo,
+                                         final OperationJournalRepository journal,
+                                         final ObjectMapper jsonMapper,
                                          final Clock clock) {
         this.repo = Objects.requireNonNull(repo, "repo");
+        this.journal = Objects.requireNonNull(journal, "journal");
+        this.jsonMapper = Objects.requireNonNull(jsonMapper, "jsonMapper");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -54,10 +64,37 @@ public class DatasetCompletionController {
                     "code", "COMPLETION_INVALID",
                     "message", "dataSet, orgUnit, period required"));
         }
+        final Instant now = Instant.now(clock);
         final DatasetCompletionRepository.Record rec = repo.upsert(
                 body.dataSet(), body.orgUnit(), body.period(), body.attributeOptionCombo(),
                 body.completed() == null || body.completed(),
-                principal.userId(), Instant.now(clock));
+                principal.userId(), now);
+        // SM-1a — enqueue a journal entry so the next drain posts
+        // the completion marker to central
+        // (/api/completeDataSetRegistrations). Without this the
+        // completion lived on the edge only and central forms stayed
+        // OPEN indefinitely. entity_ref packs the natural key so
+        // replay/retry don't duplicate.
+        final String entityRef = rec.dataSet() + "|" + rec.period()
+                + "|" + rec.orgUnit()
+                + "|" + (rec.aoc() == null ? "" : rec.aoc());
+        final Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("dataSet",   rec.dataSet());
+        payload.put("period",    rec.period());
+        payload.put("orgUnit",   rec.orgUnit());
+        if (rec.aoc() != null) {
+            payload.put("attributeOptionCombo", rec.aoc());
+        }
+        payload.put("completed", rec.completed());
+        payload.put("storedBy",  principal.getName());
+        payload.put("date",      rec.completedAt().toString());
+        journal.insert(new OperationJournalEntry(
+                UUID.randomUUID(),
+                OperationJournalEntry.EntityType.AGGREGATE_DATASET_COMPLETION,
+                entityRef,
+                jsonMapper.valueToTree(payload),
+                OperationJournalEntry.State.PENDING,
+                0, null, principal.userId(), now, now, null, null));
         return ResponseEntity.ok(toJson(rec));
     }
 

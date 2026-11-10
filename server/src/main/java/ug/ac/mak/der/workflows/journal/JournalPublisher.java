@@ -679,6 +679,11 @@ public class JournalPublisher {
              * bypasses publish(). */
             case RELATIONSHIP -> "/api/relationships";
             case ENROLMENT_NOTE -> "/api/tracker";
+            // SM-1a — DatasetCompletion rows POST their marker to the
+            // standard DHIS2 completion resource. The resource accepts
+            // {completeDataSetRegistrations:[{dataSet, period, orgUnit,
+            // attributeOptionCombo?, completed, storedBy, date}]}.
+            case AGGREGATE_DATASET_COMPLETION -> "/api/completeDataSetRegistrations";
         };
     }
 
