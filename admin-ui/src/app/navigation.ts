@@ -226,18 +226,25 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     primaryId: 'health',
     icon: 'chart',
     items: [
+      /* UI-7 — six primary items so the nav strip fits on one row.
+       * Health rolls up Metrics / Storage / Host hardware via the
+       * HealthTabBar; Backup rolls up Restore / Recovery via the
+       * BackupTabBar. Both tab bars render at the top of each sub-
+       * screen so operators discover the full set from any entry
+       * point. */
       { id: 'health',         label: 'Health', to: '/monitoring/health', status: 'implemented', tabIcon: 'health' },
-      { id: 'settings',       label: 'Settings', to: '/settings', status: 'implemented', tabIcon: 'settings' },
       { id: 'backup',         label: 'Backup', to: '/backup', status: 'implemented', tabIcon: 'backup' },
-      { id: 'restore',        label: 'Restore', to: '/restore', status: 'implemented', tabIcon: 'restore' },
-      { id: 'recovery',       label: 'Recovery', to: '/recovery', status: 'implemented', tabIcon: 'recovery' },
+      { id: 'settings',       label: 'Settings', to: '/settings', status: 'implemented', tabIcon: 'settings' },
       { id: 'apps',           label: 'Apps', to: '/apps', status: 'implemented', crumb: 'Apps' },
-      { id: 'metrics',        label: 'System metrics', to: '/monitoring/metrics', status: 'implemented', tabIcon: 'analytics' },
-      { id: 'storage',        label: 'Storage', to: '/monitoring/storage', status: 'implemented', tabIcon: 'storage' },
-      { id: 'hardware',       label: 'Host hardware', to: '/system/hardware', status: 'implemented', tabIcon: 'storage' },
-      { id: 'diagnostics',    label: 'System diagnostics', to: '/diagnostics', status: 'implemented', tabIcon: 'diagnostics' },
+      { id: 'diagnostics',    label: 'Diagnostics', to: '/diagnostics', status: 'implemented', tabIcon: 'diagnostics' },
       { id: 'compliance',     label: 'Compliance', to: '/compliance', status: 'implemented', tabIcon: 'audit' },
-      /* Contextual — drill-downs + rarely-used ops surfaces. */
+      /* Contextual — reached via the tab-bars or drill-downs, not
+       * the SectionTabs strip. */
+      { id: 'metrics',        label: 'System metrics', to: '/monitoring/metrics', status: 'contextual', tabIcon: 'analytics' },
+      { id: 'storage',        label: 'Storage', to: '/monitoring/storage', status: 'contextual', tabIcon: 'storage' },
+      { id: 'hardware',       label: 'Host hardware', to: '/system/hardware', status: 'contextual', tabIcon: 'storage' },
+      { id: 'restore',        label: 'Restore', to: '/restore', status: 'contextual', tabIcon: 'restore' },
+      { id: 'recovery',       label: 'Recovery', to: '/recovery', status: 'contextual', tabIcon: 'recovery' },
       { id: 'metrics-operators', label: 'Capture operators', to: '/admin/metrics/operators', status: 'contextual', tabIcon: 'activity' },
       { id: 'reldiag',        label: 'Tracker diagnostics', to: '/diagnostics/relationships', status: 'contextual', tabIcon: 'diagnostics' },
       { id: 'analytics',      label: 'Analytics', to: '/analytics', status: 'contextual' },

@@ -3,6 +3,7 @@ import {
   Panel, fmtAgo, SyncStatusBar, Status, RowMenu,
 } from './shared';
 import { UiIcon } from '../components/UiIcon';
+import { HealthTabBar } from '../components/HealthTabBar';
 
 interface HardwareSummary {
   watchdog: {
@@ -80,6 +81,7 @@ export function Hardware(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="hardware">
+      <HealthTabBar />
       <SyncStatusBar
         tone={watchdogOk ? 'success' : 'muted'}
         title="Hardware"

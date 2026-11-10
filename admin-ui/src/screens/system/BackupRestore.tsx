@@ -4,6 +4,7 @@ import * as edgeApi from '../../api/edgeApi';
 import { Panel, fmtDate, fmtAgo, usePaged, TablePager, SyncStatusBar, Status } from '../shared';
 import { UiIcon } from '../../components/UiIcon';
 import { ErrorBlock, InlineLoading, LoadingBlock } from '../../components/ScreenStates';
+import { BackupTabBar } from '../../components/BackupTabBar';
 
 /* ─── /backup ────────────────────────────────────────────────────── */
 /** FR-15-07 — Backup tools: schedule + verify + runs.
@@ -87,6 +88,7 @@ export function BackupList(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="backup-tools">
+      <BackupTabBar />
       <SyncStatusBar
         tone={fail > 0 ? 'danger' : pend > 0 ? 'warning' : 'success'}
         title="Backup tools"
@@ -486,6 +488,7 @@ export function RestoreList(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="restore-tools">
+      <BackupTabBar />
       <SyncStatusBar
         tone="muted"
         title="Restore"

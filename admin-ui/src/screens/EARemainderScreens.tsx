@@ -4,6 +4,7 @@ import * as edgeApi from '../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { UiIcon } from '../components/UiIcon';
 import { Panel, SyncStatusBar, Status, confirmThenRun } from './shared';
+import { BackupTabBar } from '../components/BackupTabBar';
 import { getSimulateMode, setSimulateMode, subscribeSimulateMode,
          type SimulateMode } from '../features/demo/simulateStore';
 
@@ -61,6 +62,7 @@ export function EARecoveryTools({ api = edgeApi }: {
 
   return (
     <div className="ea-screen" data-test="ea19">
+      <BackupTabBar />
       <SyncStatusBar
         tone={tone}
         title="Recovery tools"

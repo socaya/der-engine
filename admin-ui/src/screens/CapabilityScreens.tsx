@@ -5,6 +5,7 @@ import { HeroHeader } from '../components/HeroHeader';
 import { useOrgUnit } from '../components/OrgUnitContext';
 import { ErrorBlock, LoadingBlock, EmptyBlock } from '../components/ScreenStates';
 import { MetadataTabBar } from '../components/MetadataTabBar';
+import { HealthTabBar } from '../components/HealthTabBar';
 import { usePaged, TablePager, describeCron, Panel, humaniseState, humaniseTrigger, ScopedFilterChip, SyncStatusBar, Spinner, useTriggerAndWatch, RowMenu, confirmThenRun, Status, useCentralReachable, RelatedMenu, LocalVsCentralBadge } from './shared';
 import { UiIcon } from '../components/UiIcon';
 
@@ -4803,9 +4804,10 @@ export function CapOperatorMetrics(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="cap-metrics">
+      <HealthTabBar />
       <SyncStatusBar
         tone={tone}
-        title="Operator metrics"
+        title="System metrics"
         statusLabel={statusLabel}
         actions={
           <>
@@ -4928,6 +4930,7 @@ export function CapServiceHealth(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="cap-health">
+      <HealthTabBar />
       <SyncStatusBar
         tone={tone}
         title="Service health"
@@ -5009,6 +5012,7 @@ export function CapStorage(): JSX.Element {
 
   return (
     <div className="ea-screen" data-test="cap-storage">
+      <HealthTabBar />
       <SyncStatusBar
         tone={tone}
         title="Storage"
