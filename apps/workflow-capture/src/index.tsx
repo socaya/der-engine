@@ -152,6 +152,20 @@ export default function WorkflowCaptureApp(): JSX.Element {
         </StatusPill>
       }
     >
+      {/* Matches Data Entry's sticky toolbar treatment so the two
+       *  apps share the same chrome vocabulary. */}
+      <style>{`
+        .der-wc-toolbar {
+          position: sticky;
+          top: 0;
+          z-index: 5;
+          margin: 0 0px 12px;
+          padding: 10px 20px 10px 20px;
+          background: #ffffff;
+          border-bottom: 1px solid #e5e9ef;
+          box-shadow: 0 1px 2px rgba(16, 26, 50, 0.04);
+        }
+      `}</style>
       <p style={{ margin: 0, color: '#6e7a8a', fontSize: 13 }}>
         Signed in as <strong>{auth.displayName}</strong> • Bound OU
         <code style={{ marginInline: 6 }} title={ou.orgUnitPath}>{ou.orgUnitDisplayName || ou.orgUnitUid}</code>
@@ -163,26 +177,29 @@ export default function WorkflowCaptureApp(): JSX.Element {
         </p>
       )}
 
-      <div style={{ marginTop: 16, display: 'grid',
-        gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end' }}>
-        <label>Workflow
-          <select value={workflowId}
-                  onChange={(e) => setWorkflowId(e.target.value)}
-                  style={inputStyle}>
-            <option value="">— pick a workflow —</option>
-            {workflows.map((w) => (
-              <option key={w.workflowId} value={w.workflowId}>
-                {w.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button"
-                onClick={() => setStartOpen(true)}
-                disabled={!ou.bound || workflowId === ''}
-                style={primaryBtn}>
-          Start run
-        </button>
+      <div className="der-wc-toolbar" data-test="der-wc-toolbar">
+        <div style={{ display: 'grid',
+          gridTemplateColumns: '1fr auto', gap: 12,
+          alignItems: 'end' }}>
+          <label>Workflow
+            <select value={workflowId}
+                    onChange={(e) => setWorkflowId(e.target.value)}
+                    style={inputStyle}>
+              <option value="">— pick a workflow —</option>
+              {workflows.map((w) => (
+                <option key={w.workflowId} value={w.workflowId}>
+                  {w.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button"
+                  onClick={() => setStartOpen(true)}
+                  disabled={!ou.bound || workflowId === ''}
+                  style={primaryBtn}>
+            Start run
+          </button>
+        </div>
       </div>
 
       {startOpen && (
