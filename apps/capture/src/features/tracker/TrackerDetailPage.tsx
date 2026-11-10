@@ -6,6 +6,7 @@ import { FormEngine } from '../../shared/FormEngine';
 import { parseTeiAttributesForm } from '../../shared/parser';
 import { navTracker } from '../../shared/routing';
 import { RowActions } from '../../shared/RowActions';
+import { exportHtmlAsPdf } from '../../shared/pdfExport';
 
 export interface TrackerEnrolment {
   readonly enrollmentUid: string;
@@ -1062,27 +1063,28 @@ function TrackerProfilePane(
     }
   }
 
-  /** Print a one-page identity summary — same window.open +
-   *  template pattern as the notes PDF so operators can file a
-   *  paper copy without any new deps. */
-  function printProfile(): void {
-    const w = window.open('', '_blank', 'noopener,noreferrer');
-    if (!w) {
-      // eslint-disable-next-line no-alert
-      alert('Allow pop-ups for this site to print the profile.');
-      return;
-    }
-    w.document.open();
-    w.document.write(renderProfilePdfHtml({
+  /** Export a one-page identity summary directly as a PDF file —
+   *  renders the same HTML template off-screen and streams it
+   *  through jsPDF, no popup window or print dialog needed. */
+  async function exportProfilePdf(): Promise<void> {
+    const html = renderProfilePdfHtml({
       teiId, programUid, displayName, attributes,
       enrolment, generatedAt: new Date().toLocaleString(undefined, {
         year: 'numeric', month: 'long', day: 'numeric',
         hour: '2-digit', minute: '2-digit',
       }),
-    }));
-    w.document.close();
-    w.focus();
-    setTimeout(() => { try { w.print(); } catch { /* user closed */ } }, 300);
+    });
+    try {
+      await exportHtmlAsPdf({
+        html,
+        fileName: 'profile-' + (displayName || teiId)
+          .replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 60),
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-alert
+      alert('PDF export failed: ' + ((err as Error).message
+        ?? 'unknown error'));
+    }
   }
 
   return (
@@ -1134,9 +1136,9 @@ function TrackerProfilePane(
                       className="cap-btn cap-btn--secondary"
                       data-test="tr-profile-print"
                       style={{ padding: '6px 14px', fontSize: 13 }}
-                      title="Open a printable one-page identity summary"
-                      onClick={printProfile}>
-                Print profile
+                      title="Download a one-page PDF of this profile"
+                      onClick={() => { void exportProfilePdf(); }}>
+                Export PDF
               </button>
             </>
           )}
@@ -1403,13 +1405,13 @@ function EnrolmentNotesPane(
                   className="cap-btn cap-btn--secondary"
                   data-test="tr-notes-print"
                   style={{ padding: '6px 14px', fontSize: 13 }}
-                  title={'Open a printable PDF of every note on this '
-                    + 'enrolment (opens the browser print dialog)'}
-                  onClick={() => printNotesAsPdf({
+                  title={'Download a PDF of every note on this '
+                    + 'enrolment'}
+                  onClick={() => { void exportNotesPdf({
                     notes, teiId, programUid,
                     teiDisplayName, teiAttributes, enrolment,
-                  })}>
-            Print PDF
+                  }); }}>
+            Export PDF
           </button>
         )}
         {!composing && (
@@ -1568,13 +1570,10 @@ function formatDateOnly(iso: string | null): string {
  *  be filed, emailed or attached to a paper record and still carry
  *  enough identity metadata to be traced back to this TEI+enrolment.
  *
- *  Why window.open + print rather than a jsPDF/pdfkit dependency:
- *  no new transitive deps, zero bundle cost, and the native dialog
- *  lets the operator pick paper, printer, or PDF without us having
- *  to ship a UI. The output is deterministic because we build the
- *  document from a string template rather than screenshotting the
- *  live DOM. */
-function printNotesAsPdf(
+ *  Renders the printable HTML template off-screen and streams it
+ *  through jsPDF so the operator gets a direct download — no popup
+ *  window, so browser popup blockers don't block it. */
+async function exportNotesPdf(
   args: {
     notes: ReadonlyArray<{
       noteUid: string; noteText: string; createdAt: string;
@@ -1585,10 +1584,10 @@ function printNotesAsPdf(
     teiAttributes: ReadonlyArray<{ label: string; value: string }>;
     enrolment: TrackerEnrolment | null;
   },
-): void {
+): Promise<void> {
   const { notes, teiId, programUid, teiDisplayName,
     teiAttributes, enrolment } = args;
-  // Oldest-first for chronological reading in the printed document
+  // Oldest-first for chronological reading in the exported document
   // (the on-screen list is newest-first for scanning, which reads
   // backwards on paper).
   const ordered = [...notes].sort((a, b) =>
@@ -1599,24 +1598,21 @@ function printNotesAsPdf(
   });
   const title = 'Enrolment notes — '
     + (teiDisplayName || teiId);
-  const w = window.open('', '_blank', 'noopener,noreferrer');
-  if (!w) {
-    // Popup blocked — surface it inline so the operator knows the
-    // button did something and can allow pop-ups for this origin.
-    // eslint-disable-next-line no-alert
-    alert('Allow pop-ups for this site to print notes as PDF.');
-    return;
-  }
-  w.document.open();
-  w.document.write(renderNotesPdfHtml({
+  const html = renderNotesPdfHtml({
     title, teiId, programUid, teiDisplayName,
     teiAttributes, enrolment, notes: ordered, generatedAt,
-  }));
-  w.document.close();
-  // Wait for layout before invoking print — some browsers (Safari
-  // in particular) race the print dialog if we call it immediately.
-  w.focus();
-  setTimeout(() => { try { w.print(); } catch { /* user closed */ } }, 300);
+  });
+  try {
+    await exportHtmlAsPdf({
+      html,
+      fileName: 'notes-' + (teiDisplayName || teiId)
+        .replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 60),
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-alert
+    alert('PDF export failed: ' + ((err as Error).message
+      ?? 'unknown error'));
+  }
 }
 
 function esc(s: string): string {
