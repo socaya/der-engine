@@ -528,8 +528,12 @@ export const CAPTURE_STYLES = `
 .cap-section-head {
   margin: 16px 20px 12px 20px;
   display: flex; align-items: center; gap: 14px;
-  flex-wrap: wrap;
+  /* Single-row header — operator preference. Allow horizontal
+   * scroll if a very long identity strip can't fit the viewport
+   * instead of collapsing into multiple lines. */
+  flex-wrap: nowrap;
   min-height: 32px;
+  overflow-x: auto;
 }
 .cap-section-head__title {
   margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0;
@@ -586,11 +590,13 @@ export const CAPTURE_STYLES = `
  * narrow viewports instead of forcing horizontal scroll. */
 .cap-section-head__meta {
   display: inline-flex; align-items: baseline;
-  flex-wrap: wrap; gap: 6px 20px;
+  flex-wrap: nowrap; gap: 6px 20px;
   font-size: 14px; color: var(--der-text);
+  white-space: nowrap;
 }
 .cap-section-head__meta-item {
   display: inline-flex; align-items: baseline; gap: 6px;
+  white-space: nowrap;
 }
 /* TEA labels in the strip come straight from DHIS2 — preserve
  * the mirror's casing instead of uppercasing it. Generic strip

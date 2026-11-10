@@ -452,10 +452,6 @@ export function TrackerDetailPage(
                     <span>{formatDateOnly(sel.incidentDate)}</span>
                   </span>
                 )}
-                <span className="cap-section-head__meta-item">
-                  <strong>Enrol. UID</strong>
-                  <code>{sel.enrollmentUid}</code>
-                </span>
               </>
             );
           })()}
@@ -467,12 +463,6 @@ export function TrackerDetailPage(
               <span>{a.value}</span>
             </span>
           ))}
-          {identity.lastUpdated && (
-            <span className="cap-section-head__meta-item">
-              <strong>Updated</strong>
-              <span>{formatTimestamp(identity.lastUpdated)}</span>
-            </span>
-          )}
           <span className="cap-section-head__meta-item">
             <strong>UID</strong>
             <code>{teiId}</code>
@@ -1140,14 +1130,6 @@ function TrackerProfilePane(
                   Edit profile
                 </button>
               )}
-              <button type="button"
-                      className="cap-btn cap-btn--secondary"
-                      data-test="tr-profile-enrol-again"
-                      style={{ padding: '6px 14px', fontSize: 13 }}
-                      title="Create another enrolment on this tracked entity"
-                      onClick={onEnrolAgain}>
-                + Enrol again
-              </button>
               <button type="button"
                       className="cap-btn cap-btn--secondary"
                       data-test="tr-profile-print"
