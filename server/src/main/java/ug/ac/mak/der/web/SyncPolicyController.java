@@ -69,6 +69,20 @@ public class SyncPolicyController {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
+    /** UI-10 — pull-side + background job scopes added to the
+     *  policy model in V109. Each maps to a Quartz job that gates
+     *  itself through SyncPolicyService before every tick. */
+    public static final List<String> SCHEDULED_SCOPES = List.of(
+            "METADATA_SYNC",
+            "DATA_PULL",
+            "COMPAT_REFRESH",
+            "DRIFT_SNAPSHOT",
+            "ANALYTICS_REFRESH",
+            "REFERRAL_INBOX",
+            "REFERRAL_ESCALATION",
+            "BACKUP_DRAIN"
+    );
+
     @GetMapping
     public ResponseEntity<Map<String, Object>> list(final Authentication authentication) {
         if (!(authentication instanceof EdgeUserPrincipal)) {
@@ -82,23 +96,30 @@ public class SyncPolicyController {
                 SyncPolicyService.GLOBAL_SCOPE));
         for (OperationJournalEntry.EntityType t
                 : OperationJournalEntry.EntityType.values()) {
-            final SyncPolicy perEntity = byScope.get(t.name());
-            final SyncPolicyService.ResolvedPolicy eff = service.effectiveFor(t);
-            final Map<String, Object> row = renderRow(perEntity, t.name(),
-                    eff.decidedBy());
-            // When this entity inherits, surface the effective mode
-            // too so the UI doesn't have to resolve it again.
-            if (perEntity == null) {
-                row.put("mode", eff.mode().name());
-                row.put("cron", eff.scheduleCron());
-                row.put("pausedReason", eff.pausedReason());
-                row.put("inherited", true);
-            } else {
-                row.put("inherited", false);
-            }
-            rows.add(row);
+            rows.add(renderOne(byScope, t.name(), "WRITE"));
+        }
+        for (String s : SCHEDULED_SCOPES) {
+            rows.add(renderOne(byScope, s, "SCHEDULED"));
         }
         return ResponseEntity.ok(Map.of("policies", rows));
+    }
+
+    private Map<String, Object> renderOne(final Map<String, SyncPolicy> byScope,
+                                            final String scope,
+                                            final String kind) {
+        final SyncPolicy stored = byScope.get(scope);
+        final SyncPolicyService.ResolvedPolicy eff = service.effectiveForScope(scope);
+        final Map<String, Object> row = renderRow(stored, scope, eff.decidedBy());
+        row.put("kind", kind);
+        if (stored == null) {
+            row.put("mode", eff.mode().name());
+            row.put("cron", eff.scheduleCron());
+            row.put("pausedReason", eff.pausedReason());
+            row.put("inherited", true);
+        } else {
+            row.put("inherited", false);
+        }
+        return row;
     }
 
     @PutMapping(path = "/{scope}", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -202,11 +223,31 @@ public class SyncPolicyController {
             }
             scopes.add(Map.of(
                     "scope", t.name(),
+                    "kind", "WRITE",
                     "mode", eff.mode().name(),
                     "decidedBy", eff.decidedBy(),
                     "pausedReason", eff.pausedReason() == null
                         ? "" : eff.pausedReason(),
                     "held", held
+            ));
+        }
+        // Scheduled-job scopes contribute to the paused-scope count
+        // but can't accumulate "held rows" the way write scopes do —
+        // a paused pull/compat/drift/referral/backup/analytics job
+        // just doesn't tick; its "held" is 0 by convention.
+        for (String s : SCHEDULED_SCOPES) {
+            final SyncPolicyService.ResolvedPolicy eff = service.effectiveForScope(s);
+            if (eff.isPaused()) {
+                pausedScopeCount++;
+            }
+            scopes.add(Map.of(
+                    "scope", s,
+                    "kind", "SCHEDULED",
+                    "mode", eff.mode().name(),
+                    "decidedBy", eff.decidedBy(),
+                    "pausedReason", eff.pausedReason() == null
+                        ? "" : eff.pausedReason(),
+                    "held", 0
             ));
         }
         return ResponseEntity.ok(Map.of(
@@ -282,6 +323,9 @@ public class SyncPolicyController {
 
     private static boolean isValidScope(final String scope) {
         if (SyncPolicyService.GLOBAL_SCOPE.equals(scope)) {
+            return true;
+        }
+        if (SCHEDULED_SCOPES.contains(scope)) {
             return true;
         }
         for (OperationJournalEntry.EntityType t

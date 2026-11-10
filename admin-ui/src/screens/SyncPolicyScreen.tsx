@@ -3,35 +3,51 @@ import * as edgeApi from '../api/edgeApi';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAlert } from '../components/AlertStack';
-import { Panel } from './shared';
+import { CronPicker } from '../components/CronPicker';
+import { UiIcon } from '../components/UiIcon';
 
-const ALL_ENTITY_SCOPES = [
-  'AGGREGATE_DATA_VALUE',
-  'AGGREGATE_DATASET_COMPLETION',
-  'EVENT',
-  'TRACKED_ENTITY',
-  'ENROLLMENT',
-  'PROGRAM_STAGE_EVENT',
-  'RELATIONSHIP',
-  'ENROLMENT_NOTE',
-] as const;
+/** UI-10 — Sync Policy admin screen.
+ *
+ *  <p>Cleaner layout + first-class coverage of EVERY DER↔DHIS2
+ *  sync object: both outbound writes (entity types) and scheduled
+ *  background jobs (metadata pull, data pull, compat probe, drift
+ *  snapshot, referral inbox/escalation, backup drain, analytics
+ *  refresh). Cron entry is a preset dropdown + optional custom
+ *  field so operators don't have to hand-write Quartz
+ *  expressions.</p>
+ */
 
 const SCOPE_LABEL: Record<string, string> = {
-  AGGREGATE_DATA_VALUE: 'Aggregate data values',
-  AGGREGATE_DATASET_COMPLETION: 'Dataset completions',
-  EVENT: 'Events (event-only programs)',
-  TRACKED_ENTITY: 'Tracked entities',
-  ENROLLMENT: 'Enrolments',
-  PROGRAM_STAGE_EVENT: 'Tracker stage events',
-  RELATIONSHIP: 'Relationships',
-  ENROLMENT_NOTE: 'Enrolment notes',
   GLOBAL: 'Global default',
+  // Writes
+  AGGREGATE_DATA_VALUE:         'Aggregate values',
+  AGGREGATE_DATASET_COMPLETION: 'Dataset completions',
+  EVENT:                         'Events',
+  TRACKED_ENTITY:                'Tracked entities',
+  ENROLLMENT:                    'Enrolments',
+  PROGRAM_STAGE_EVENT:           'Stage events',
+  RELATIONSHIP:                  'Relationships',
+  ENROLMENT_NOTE:                'Enrolment notes',
+  // Scheduled
+  METADATA_SYNC:        'Metadata sync (pull)',
+  DATA_PULL:            'Data pull',
+  COMPAT_REFRESH:       'Compatibility probe',
+  DRIFT_SNAPSHOT:       'Drift snapshot',
+  ANALYTICS_REFRESH:    'Analytics refresh',
+  REFERRAL_INBOX:       'Referral inbox poll',
+  REFERRAL_ESCALATION:  'Referral escalation',
+  BACKUP_DRAIN:         'Backup / restore drain',
 };
 
-const MODE_HELP: Record<edgeApi.SyncMode, string> = {
-  INSTANT: 'Fire a drain tick within ~200 ms of every write (when central is reachable). The scheduled cron still runs as a safety net.',
-  SCHEDULED: 'Only the scheduled cron drains rows for this scope.',
-  PAUSED: 'Hold writes locally — the drain will skip them until you resume.',
+const SCOPE_HINT: Record<string, string> = {
+  METADATA_SYNC:   'Pulls metadata catalogue from DHIS2 central',
+  DATA_PULL:       'Pulls central-side aggregate / events / tracker data',
+  COMPAT_REFRESH:  'Probes DHIS2 version + schema compatibility',
+  DRIFT_SNAPSHOT:  'Captures a metadata snapshot for change detection',
+  REFERRAL_INBOX:  'Polls the peer referral inbox',
+  REFERRAL_ESCALATION: 'Escalates overdue referrals',
+  BACKUP_DRAIN:    'Runs scheduled backup / restore jobs',
+  ANALYTICS_REFRESH: 'Refreshes the analytics cache',
 };
 
 export function SyncPolicyScreen(
@@ -41,11 +57,12 @@ export function SyncPolicyScreen(
 ): JSX.Element {
   const alert = useAlert();
   const [rows, setRows] = useState<edgeApi.SyncPolicyRow[] | null>(null);
-  const [heldByScope, setHeldByScope] = useState<Map<string, number>>(
-    new Map());
-  const [auditEntries, setAuditEntries] = useState<edgeApi.SyncPolicyAuditEntry[]>([]);
+  const [heldByScope, setHeldByScope] = useState<Map<string, number>>(new Map());
+  const [auditEntries, setAuditEntries] =
+    useState<edgeApi.SyncPolicyAuditEntry[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [savingScope, setSavingScope] = useState<string | null>(null);
+  const [openScope, setOpenScope] = useState<string | null>('GLOBAL');
 
   const refetch = useCallback(async (): Promise<void> => {
     try {
@@ -67,14 +84,19 @@ export function SyncPolicyScreen(
 
   useEffect(() => { void refetch(); }, [refetch]);
 
-  const byScope = useMemo(() => {
-    const m = new Map<string, edgeApi.SyncPolicyRow>();
-    (rows ?? []).forEach((r) => m.set(r.scope, r));
-    return m;
+  const byKind = useMemo(() => {
+    const out: Record<edgeApi.SyncPolicyKind, edgeApi.SyncPolicyRow[]> = {
+      GLOBAL: [], WRITE: [], SCHEDULED: [],
+    };
+    (rows ?? []).forEach((r) => {
+      if (r.scope === 'GLOBAL') out.GLOBAL.push(r);
+      else out[(r.kind ?? 'WRITE')].push(r);
+    });
+    return out;
   }, [rows]);
 
   async function save(scope: string, mode: edgeApi.SyncMode,
-    cron?: string | null, reason?: string | null): Promise<void> {
+      cron?: string | null, reason?: string | null): Promise<void> {
     setSavingScope(scope);
     try {
       await api.upsertSyncPolicy(scope, { mode, cron, reason });
@@ -88,7 +110,6 @@ export function SyncPolicyScreen(
       setSavingScope(null);
     }
   }
-
   async function reset(scope: string): Promise<void> {
     setSavingScope(scope);
     try {
@@ -106,63 +127,65 @@ export function SyncPolicyScreen(
 
   if (err && !rows) {
     return (
-      <ErrorBlock title="Could not load sync policies"
-                  testId="sync-policy-error">
+      <ErrorBlock title="Could not load sync policies" testId="sync-policy-error">
         {err}
       </ErrorBlock>
     );
   }
   if (!rows) return <LoadingBlock testId="sync-policy-loading" />;
 
-  const global = byScope.get('GLOBAL');
+  const global = byKind.GLOBAL[0];
 
   return (
     <div data-test="sync-policy-screen">
       <ScreenHeader title="Sync policy"
-        subtitle="Control how DER ships writes to DHIS2 central — pick a mode globally and optionally override per data type." />
+        subtitle="Decide how DER ships data to — and pulls from — DHIS2 central. Applies to every sync object: outbound writes and scheduled background jobs." />
 
-      {/* Success + failure toasts are delivered via the shared
-          AlertStack (useAlert) so operators see them in the same
-          place as every other admin-wide alert. */}
+      {global && (
+        <Panel title="Global default">
+          <PolicyRow
+            row={global}
+            held={0}
+            saving={savingScope === 'GLOBAL'}
+            isOpen={openScope === 'GLOBAL'}
+            onToggle={() => setOpenScope((v) => v === 'GLOBAL' ? null : 'GLOBAL')}
+            onSave={(mode, cron, reason) => save('GLOBAL', mode, cron, reason)}
+            allowReset={false} />
+        </Panel>
+      )}
 
-      <Panel title="Global default">
-        <p style={{ margin: '0 0 10px', fontSize: 12,
-                     color: 'var(--der-text-muted, #6b7280)' }}>
-          Applies to every data type unless an override below changes it.
-        </p>
-        {global && (
-          <PolicyEditor row={global}
-                        scope="GLOBAL"
-                        canReset={false}
-                        saving={savingScope === 'GLOBAL'}
-                        onSave={(mode, cron, reason) => save('GLOBAL', mode, cron, reason)} />
-        )}
+      <Panel title="Outbound writes"
+             subtitle="Entity types that DER pushes to DHIS2 central. Each row inherits Global unless overridden.">
+        <div style={{ display: 'grid', gap: 6 }}>
+          {byKind.WRITE.map((r) => (
+            <PolicyRow key={r.scope}
+              row={r}
+              held={heldByScope.get(r.scope) ?? 0}
+              saving={savingScope === r.scope}
+              isOpen={openScope === r.scope}
+              onToggle={() => setOpenScope((v) => v === r.scope ? null : r.scope)}
+              onSave={(mode, cron, reason) => save(r.scope, mode, cron, reason)}
+              onReset={() => reset(r.scope)}
+              allowReset={!(r.inherited ?? false)} />
+          ))}
+        </div>
       </Panel>
 
-      <Panel title="Per data-type overrides">
-        <p style={{ margin: '0 0 10px', fontSize: 12,
-                     color: 'var(--der-text-muted, #6b7280)' }}>
-          Each row inherits the global default unless you set an explicit
-          mode. Use Pause for a single type during a central-side outage
-          without stopping everything else.
-        </p>
-        <div className="sync-policy-grid"
-             data-test="sync-policy-overrides"
-             style={{ display: 'grid', gap: 10 }}>
-          {ALL_ENTITY_SCOPES.map((scope) => {
-            const row = byScope.get(scope);
-            return (
-              <PolicyEditor key={scope}
-                            row={row ?? null}
-                            scope={scope}
-                            held={heldByScope.get(scope) ?? 0}
-                            canReset={row != null && !(row.inherited ?? false)}
-                            saving={savingScope === scope}
-                            onSave={(mode, cron, reason) =>
-                              save(scope, mode, cron, reason)}
-                            onReset={() => reset(scope)} />
-            );
-          })}
+      <Panel title="Scheduled jobs"
+             subtitle="Background pulls + maintenance tasks. INSTANT doesn't apply — these are cron-only.">
+        <div style={{ display: 'grid', gap: 6 }}>
+          {byKind.SCHEDULED.map((r) => (
+            <PolicyRow key={r.scope}
+              row={r}
+              held={0}
+              saving={savingScope === r.scope}
+              isOpen={openScope === r.scope}
+              onToggle={() => setOpenScope((v) => v === r.scope ? null : r.scope)}
+              onSave={(mode, cron, reason) => save(r.scope, mode, cron, reason)}
+              onReset={() => reset(r.scope)}
+              allowReset={!(r.inherited ?? false)}
+              scheduledOnly />
+          ))}
         </div>
       </Panel>
 
@@ -171,47 +194,233 @@ export function SyncPolicyScreen(
   );
 }
 
+function Panel(
+  { title, subtitle, children }:
+  { title: string; subtitle?: string; children: React.ReactNode },
+): JSX.Element {
+  return (
+    <section className="ea-panel" style={{ marginBottom: 14 }}>
+      <header className="ea-panel-head"
+              style={{ paddingBottom: 6 }}>
+        <h2 className="ea-panel-title">{title}</h2>
+        {subtitle && (
+          <p className="ea-text-muted"
+             style={{ margin: 0, fontSize: 12 }}>
+            {subtitle}
+          </p>
+        )}
+      </header>
+      <div className="ea-panel-body">{children}</div>
+    </section>
+  );
+}
+
+/** One scope rendered as a compact row that expands into its editor. */
+function PolicyRow(
+  { row, held, saving, isOpen, onToggle, onSave, onReset,
+    allowReset, scheduledOnly = false }: {
+    row: edgeApi.SyncPolicyRow;
+    held: number;
+    saving: boolean;
+    isOpen: boolean;
+    onToggle: () => void;
+    onSave: (mode: edgeApi.SyncMode, cron?: string | null, reason?: string | null) => void;
+    onReset?: () => void;
+    allowReset: boolean;
+    scheduledOnly?: boolean;
+  },
+): JSX.Element {
+  const inherited = row.inherited ?? false;
+  const effective: edgeApi.SyncMode = row.mode;
+  const [mode, setMode] = useState<edgeApi.SyncMode>(effective);
+  const [cron, setCron] = useState<string>(row.cron ?? '0 * * * * ?');
+  const [reason, setReason] = useState<string>(row.pausedReason ?? '');
+  const [hint] = useState<string | undefined>(SCOPE_HINT[row.scope]);
+
+  useEffect(() => {
+    setMode(effective);
+    setCron(row.cron ?? '0 * * * * ?');
+    setReason(row.pausedReason ?? '');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row.mode, row.cron, row.pausedReason]);
+
+  const label = SCOPE_LABEL[row.scope] ?? row.scope;
+  const dirty = mode !== effective
+    || (mode === 'SCHEDULED' && cron !== (row.cron ?? '0 * * * * ?'))
+    || (mode === 'PAUSED' && reason !== (row.pausedReason ?? ''));
+  const canSave = dirty
+    && !(mode === 'SCHEDULED' && !cron.trim())
+    && !(mode === 'PAUSED' && !reason.trim());
+  const availableModes: edgeApi.SyncMode[] = scheduledOnly
+    ? ['SCHEDULED', 'PAUSED']
+    : ['INSTANT', 'SCHEDULED', 'PAUSED'];
+
+  return (
+    <div className="ea-policy-row"
+         data-test={`sync-policy-row-${row.scope}`}
+         style={{
+           border: '1px solid var(--der-border-soft, #e2e6ef)',
+           borderRadius: 6,
+           background: 'var(--der-surface, #fff)',
+         }}>
+      {/* Compact summary bar — click to expand editor. */}
+      <button type="button"
+              onClick={onToggle}
+              data-test={`sync-policy-toggle-${row.scope}`}
+              className="ea-policy-row__head"
+              style={{
+                width: '100%', textAlign: 'left',
+                display: 'flex', alignItems: 'center',
+                gap: 10, padding: '10px 12px',
+                background: 'transparent', border: 0, cursor: 'pointer',
+                fontSize: 13,
+              }}>
+        <UiIcon icon={isOpen ? 'edit' : 'cog'} size={12} />
+        <strong>{label}</strong>
+        <ModeChip mode={effective} />
+        {held > 0 && effective === 'PAUSED' && (
+          <span className="ea-chip ea-chip--warning"
+                data-test={`sync-policy-held-${row.scope}`}
+                title={`${held} pending row${held === 1 ? '' : 's'} held by this paused scope`}
+                style={{ fontSize: 11 }}>
+            {held} held
+          </span>
+        )}
+        {row.scope === 'GLOBAL' ? (
+          <span className="ea-text-muted" style={{ fontSize: 11,
+                                                    marginLeft: 'auto' }}>
+            Fallback for every other scope
+          </span>
+        ) : (
+          <span className="ea-text-muted" style={{ fontSize: 11,
+                                                    marginLeft: 'auto' }}>
+            {inherited ? `Inherits Global` : `Overridden`}
+            {hint ? ` · ${hint}` : ''}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="ea-policy-row__body"
+             data-test={`sync-policy-body-${row.scope}`}
+             style={{ padding: '2px 12px 12px',
+                       borderTop: '1px solid var(--der-border-soft, #edf0f5)' }}>
+          <div role="radiogroup" aria-label={`Mode for ${label}`}
+               style={{ display: 'flex', gap: 6, flexWrap: 'wrap',
+                         margin: '10px 0 10px' }}>
+            {availableModes.map((m) => (
+              <button type="button"
+                      key={m}
+                      data-test={`sync-policy-tile-${row.scope}-${m}`}
+                      onClick={() => setMode(m)}
+                      className={'ea-btn ea-btn--sm'
+                        + (mode === m ? ' ea-btn--primary' : ' ea-btn--ghost')}>
+                {m[0] + m.slice(1).toLowerCase()}
+              </button>
+            ))}
+          </div>
+
+          {mode === 'SCHEDULED' && (
+            <div style={{ marginBottom: 10 }}>
+              <div className="ea-field-label"
+                   style={{ fontSize: 11, marginBottom: 4 }}>
+                Schedule
+              </div>
+              <CronPicker value={cron}
+                           onChange={setCron} />
+            </div>
+          )}
+
+          {mode === 'PAUSED' && (
+            <label style={{ display: 'flex', gap: 8, alignItems: 'baseline',
+                             marginBottom: 10 }}>
+              <span style={{ minWidth: 80, fontSize: 12 }}>Reason</span>
+              <input value={reason}
+                     onChange={(e) => setReason(e.target.value)}
+                     placeholder="Why is this scope paused? (audit trail)"
+                     data-test={`sync-policy-reason-${row.scope}`}
+                     className="ea-input"
+                     style={{ flex: 1 }} />
+            </label>
+          )}
+
+          <div style={{ display: 'flex', gap: 8,
+                         justifyContent: 'flex-end' }}>
+            {onReset && allowReset && (
+              <button type="button"
+                      className="ea-btn ea-btn--ghost ea-btn--sm"
+                      data-test={`sync-policy-reset-${row.scope}`}
+                      disabled={saving}
+                      onClick={onReset}>
+                Reset to Global
+              </button>
+            )}
+            <button type="button"
+                    className="ea-btn ea-btn--primary ea-btn--sm"
+                    data-test={`sync-policy-save-${row.scope}`}
+                    disabled={!canSave || saving}
+                    onClick={() => onSave(mode,
+                      mode === 'SCHEDULED' ? cron : null,
+                      mode === 'PAUSED' ? reason : null)}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ModeChip({ mode }: { mode: edgeApi.SyncMode }): JSX.Element {
+  const tone = mode === 'INSTANT' ? 'success'
+    : mode === 'SCHEDULED' ? 'info' : 'warning';
+  return (
+    <span className={`ea-chip ea-chip--${tone}`}
+          style={{ fontSize: 11 }}>
+      {mode[0] + mode.slice(1).toLowerCase()}
+    </span>
+  );
+}
+
 function PolicyAuditPanel(
   { entries }: { entries: edgeApi.SyncPolicyAuditEntry[] },
 ): JSX.Element {
   return (
-    <Panel title="Recent changes">
-      <p style={{ margin: '0 0 10px', fontSize: 12,
-                   color: 'var(--der-text-muted, #6b7280)' }}>
-        Every save and reset is appended to the security audit log.
-        Newest first.
-      </p>
+    <Panel title="Recent changes"
+           subtitle="Every save and reset is appended to the security audit log. Newest first.">
       {entries.length === 0 ? (
         <p style={{ margin: 0, fontSize: 13,
                      color: 'var(--der-text-muted, #6b7280)' }}>
           No policy changes recorded yet.
         </p>
       ) : (
-        <table className="ea-table ea-table--dense"
-               data-test="sync-policy-audit">
-          <thead>
-            <tr><th>When</th><th>Event</th><th>Detail</th></tr>
-          </thead>
-          <tbody>
-            {entries.map((e) => (
-              <tr key={e.at + e.eventType}
-                  data-test={`sync-policy-audit-row-${e.at}`}>
-                <td className="ea-mono" style={{ fontSize: 11 }}>
-                  {new Date(e.at).toLocaleString()}
-                </td>
-                <td>
-                  <span className={'ea-chip ea-chip--'
-                      + (e.eventType === 'SYNC_POLICY_RESET' ? 'info' : 'warning')}>
-                    {e.eventType === 'SYNC_POLICY_RESET' ? 'Reset' : 'Update'}
-                  </span>
-                </td>
-                <td style={{ fontSize: 12 }}>
-                  {renderAuditDetail(e.detailJson)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="ea-table-wrap">
+          <table className="ea-table ea-table--dense"
+                 data-test="sync-policy-audit">
+            <thead>
+              <tr><th>When</th><th>Event</th><th>Detail</th></tr>
+            </thead>
+            <tbody>
+              {entries.map((e) => (
+                <tr key={e.at + e.eventType}
+                    data-test={`sync-policy-audit-row-${e.at}`}>
+                  <td className="ea-mono" style={{ fontSize: 11 }}>
+                    {new Date(e.at).toLocaleString()}
+                  </td>
+                  <td>
+                    <span className={'ea-chip ea-chip--'
+                        + (e.eventType === 'SYNC_POLICY_RESET' ? 'info' : 'warning')}>
+                      {e.eventType === 'SYNC_POLICY_RESET' ? 'Reset' : 'Update'}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: 12 }}>
+                    {renderAuditDetail(e.detailJson)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </Panel>
   );
@@ -224,169 +433,9 @@ function renderAuditDetail(json: string): string {
     const from = d.fromMode ? String(d.fromMode) : '—';
     const to = d.toMode ? String(d.toMode) : '(reset)';
     const reason = d.toReason ? ` · "${String(d.toReason)}"` : '';
-    return `${scope}: ${from} → ${to}${reason}`;
+    const label = SCOPE_LABEL[scope] ?? scope;
+    return `${label}: ${from} → ${to}${reason}`;
   } catch {
     return json;
   }
-}
-
-function PolicyEditor(
-  { row, scope, held = 0, canReset, saving, onSave, onReset }: {
-    row: edgeApi.SyncPolicyRow | null;
-    scope: string;
-    held?: number;
-    canReset: boolean;
-    saving: boolean;
-    onSave: (mode: edgeApi.SyncMode, cron?: string | null, reason?: string | null) => void;
-    onReset?: () => void;
-  },
-): JSX.Element {
-  const inherited = row?.inherited ?? false;
-  const effective: edgeApi.SyncMode = row?.mode ?? 'SCHEDULED';
-  const [mode, setMode] = useState<edgeApi.SyncMode>(effective);
-  const [cron, setCron] = useState<string>(row?.cron ?? '0 * * * * ?');
-  const [reason, setReason] = useState<string>(row?.pausedReason ?? '');
-
-  // Resync local state if the row is refetched (after save).
-  useEffect(() => {
-    setMode(effective);
-    setCron(row?.cron ?? '0 * * * * ?');
-    setReason(row?.pausedReason ?? '');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [row?.mode, row?.cron, row?.pausedReason]);
-
-  const label = SCOPE_LABEL[scope] ?? scope;
-  const dirty = mode !== effective
-    || (mode === 'SCHEDULED' && cron !== (row?.cron ?? '0 * * * * ?'))
-    || (mode === 'PAUSED' && reason !== (row?.pausedReason ?? ''));
-  const canSave = dirty
-    && !(mode === 'SCHEDULED' && !cron.trim())
-    && !(mode === 'PAUSED' && !reason.trim());
-
-  return (
-    <div className="sync-policy-row"
-         data-test={`sync-policy-row-${scope}`}
-         style={{
-           border: '1px solid var(--der-border-soft, #e2e6ef)',
-           borderRadius: 8,
-           padding: 12,
-           background: 'var(--der-surface, #fff)',
-         }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between',
-                     alignItems: 'baseline', gap: 12, marginBottom: 8,
-                     flexWrap: 'wrap' }}>
-        <strong style={{ fontSize: 14 }}>
-          {label}
-          {held > 0 && effective === 'PAUSED' && (
-            <span
-              data-test={`sync-policy-held-${scope}`}
-              title={`${held} pending row${held === 1 ? '' : 's'} held because this scope is paused`}
-              style={{
-                marginLeft: 8,
-                display: 'inline-block',
-                padding: '1px 8px',
-                fontSize: 11,
-                fontWeight: 600,
-                background: 'rgba(214, 138, 26, 0.12)',
-                color: 'var(--der-warning, #d68a1a)',
-                borderRadius: 10,
-              }}>
-              {held} held
-            </span>
-          )}
-        </strong>
-        <span style={{ fontSize: 12, color: 'var(--der-text-muted, #6b7280)' }}>
-          {scope === 'GLOBAL'
-            ? 'Fallback for everything else'
-            : inherited
-              ? `Inherits Global (currently ${effective})`
-              : `Overridden to ${effective}`}
-        </span>
-      </div>
-
-      <div role="radiogroup" aria-label={`Mode for ${label}`}
-           style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-        {(['INSTANT', 'SCHEDULED', 'PAUSED'] as edgeApi.SyncMode[]).map((m) => (
-          <label key={m}
-                 className={`sync-policy-tile${mode === m ? ' is-active' : ''}`}
-                 data-test={`sync-policy-tile-${scope}-${m}`}
-                 style={{
-                   flex: '1 1 160px',
-                   border: `2px solid ${mode === m
-                     ? 'var(--der-primary, #2563eb)'
-                     : 'var(--der-border-soft, #e2e6ef)'}`,
-                   borderRadius: 6,
-                   padding: '8px 12px',
-                   cursor: 'pointer',
-                   background: mode === m
-                     ? 'rgba(37, 99, 235, 0.06)' : 'transparent',
-                 }}>
-            <input type="radio"
-                   name={`mode-${scope}`}
-                   checked={mode === m}
-                   value={m}
-                   onChange={() => setMode(m)}
-                   style={{ marginRight: 6 }} />
-            <strong>{m[0] + m.slice(1).toLowerCase()}</strong>
-            <div style={{ fontSize: 11,
-                           color: 'var(--der-text-muted, #6b7280)',
-                           marginTop: 2 }}>
-              {MODE_HELP[m]}
-            </div>
-          </label>
-        ))}
-      </div>
-
-      {mode === 'SCHEDULED' && (
-        <label style={{ display: 'flex', gap: 8, alignItems: 'center',
-                         marginBottom: 6 }}>
-          <span style={{ minWidth: 80, fontSize: 12 }}>Cron</span>
-          <input value={cron}
-                 onChange={(e) => setCron(e.target.value)}
-                 placeholder="0 * * * * ?"
-                 data-test={`sync-policy-cron-${scope}`}
-                 style={{ flex: 1, padding: '4px 8px', fontSize: 13,
-                           border: '1px solid var(--der-border-soft, #cbd5e1)',
-                           borderRadius: 4,
-                           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
-        </label>
-      )}
-
-      {mode === 'PAUSED' && (
-        <label style={{ display: 'flex', gap: 8, alignItems: 'baseline',
-                         marginBottom: 6 }}>
-          <span style={{ minWidth: 80, fontSize: 12 }}>Reason</span>
-          <input value={reason}
-                 onChange={(e) => setReason(e.target.value)}
-                 placeholder="Why are you pausing this? (audit trail)"
-                 data-test={`sync-policy-reason-${scope}`}
-                 style={{ flex: 1, padding: '4px 8px', fontSize: 13,
-                           border: '1px solid var(--der-border-soft, #cbd5e1)',
-                           borderRadius: 4 }} />
-        </label>
-      )}
-
-      <div style={{ display: 'flex', gap: 8, marginTop: 8,
-                     justifyContent: 'flex-end' }}>
-        {onReset && canReset && (
-          <button type="button"
-                  className="ea-btn ea-btn--secondary"
-                  data-test={`sync-policy-reset-${scope}`}
-                  disabled={saving}
-                  onClick={onReset}>
-            Reset to Global
-          </button>
-        )}
-        <button type="button"
-                className="ea-btn ea-btn--primary"
-                data-test={`sync-policy-save-${scope}`}
-                disabled={!canSave || saving}
-                onClick={() => onSave(mode,
-                  mode === 'SCHEDULED' ? cron : null,
-                  mode === 'PAUSED' ? reason : null)}>
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </div>
-    </div>
-  );
 }

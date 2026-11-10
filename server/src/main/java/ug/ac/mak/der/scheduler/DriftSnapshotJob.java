@@ -10,6 +10,7 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ug.ac.mak.der.sync.policy.SyncPolicyService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import ug.ac.mak.der.sync.drift.DriftDetectionService;
@@ -24,12 +25,16 @@ public class DriftSnapshotJob implements Job {
     @Autowired(required = false) private DriftDetectionService drift;
     @Autowired(required = false) private ScheduledJobRepository runs;
     @Autowired(required = false) private ObjectMapper mapper;
+    @Autowired(required = false) private SyncPolicyService policy;
 
     @Override
     public void execute(final JobExecutionContext context) throws JobExecutionException {
         final long t0 = System.nanoTime();
         final String trigger = context.getMergedJobDataMap().getString("triggeredBy");
         final String triggeredBy = trigger == null || trigger.isBlank() ? "SCHEDULED" : trigger;
+        if (!JobPolicyGate.shouldRun(policy, "DRIFT_SNAPSHOT", triggeredBy)) {
+            return;
+        }
         final Long runId = runs == null ? null : runs.insertStart(JOB_NAME, triggeredBy);
         try {
             final var report = drift.recordLatestDelta("SCHEDULED");

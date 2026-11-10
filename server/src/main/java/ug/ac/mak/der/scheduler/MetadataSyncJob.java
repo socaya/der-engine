@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import ug.ac.mak.der.metadata.MetadataSnapshot;
 import ug.ac.mak.der.metadata.MetadataSyncService;
 import ug.ac.mak.der.sync.drift.DriftDetectionService;
+import ug.ac.mak.der.sync.policy.SyncPolicyService;
 
 /** Quartz job: pulls the full metadata snapshot + feeds drift detection. */
 @DisallowConcurrentExecution
@@ -37,12 +38,18 @@ public class MetadataSyncJob implements Job {
     @Autowired(required = false)
     private ObjectMapper mapper;
 
+    @Autowired(required = false)
+    private SyncPolicyService policy;
+
     @Override
     public void execute(final JobExecutionContext context) throws JobExecutionException {
         final long t0 = System.nanoTime();
         final JobDataMap data = context.getMergedJobDataMap();
         final String trigger = data.getString("triggeredBy");
         final String triggeredBy = trigger == null ? "SCHEDULED" : trigger;
+        if (!JobPolicyGate.shouldRun(policy, "METADATA_SYNC", triggeredBy)) {
+            return;
+        }
         final Long runId = runs == null ? null : runs.insertStart(JOB_NAME, triggeredBy);
         try {
             final MetadataSnapshot snapshot = metadata.syncAll(null);

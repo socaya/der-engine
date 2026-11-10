@@ -10,6 +10,7 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ug.ac.mak.der.sync.policy.SyncPolicyService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import ug.ac.mak.der.workflows.referral.ReferralInboxScanner;
@@ -25,6 +26,7 @@ public class ReferralInboxPollJob implements Job {
     @Autowired(required = false) private ReferralInboxScanner scanner;
     @Autowired(required = false) private ScheduledJobRepository runs;
     @Autowired(required = false) private ObjectMapper mapper;
+    @Autowired(required = false) private SyncPolicyService policy;
 
     @Override
     public void execute(final JobExecutionContext context) throws JobExecutionException {
@@ -33,6 +35,9 @@ public class ReferralInboxPollJob implements Job {
                 ? null : context.getMergedJobDataMap();
         final String trigger = data == null ? null : data.getString("triggeredBy");
         final String triggeredBy = trigger == null || trigger.isBlank() ? "SCHEDULED" : trigger;
+        if (!JobPolicyGate.shouldRun(policy, "REFERRAL_INBOX", triggeredBy)) {
+            return;
+        }
         final Long runId = runs == null ? null : runs.insertStart(JOB_NAME, triggeredBy);
         try {
             final ReferralInboxScanner.ScanResult result = scanner == null

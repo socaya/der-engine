@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import ug.ac.mak.der.orgunit.EdgeOrgUnitBinding;
 import ug.ac.mak.der.orgunit.OrgUnitBindingService;
+import ug.ac.mak.der.sync.policy.SyncPolicyService;
 import ug.ac.mak.der.workflows.pull.DataPullService;
 
 /**
@@ -39,12 +40,16 @@ public class DataPullJob implements Job {
     @Autowired(required = false) private OrgUnitBindingService binding;
     @Autowired(required = false) private ScheduledJobRepository runs;
     @Autowired(required = false) private ObjectMapper mapper;
+    @Autowired(required = false) private SyncPolicyService policy;
 
     @Override
     public void execute(final JobExecutionContext context) throws JobExecutionException {
         final long t0 = System.nanoTime();
         final String trigger = context.getMergedJobDataMap().getString("triggeredBy");
         final String triggeredBy = trigger == null || trigger.isBlank() ? "SCHEDULED" : trigger;
+        if (!JobPolicyGate.shouldRun(policy, "DATA_PULL", triggeredBy)) {
+            return;
+        }
         final Long runId = runs == null ? null : runs.insertStart(JOB_NAME, triggeredBy);
         try {
             if (pulls == null) {

@@ -60,19 +60,30 @@ public class SyncPolicyService {
     public ResolvedPolicy effectiveFor(
             final OperationJournalEntry.EntityType type) {
         Objects.requireNonNull(type, "type");
+        return effectiveForScope(type.name());
+    }
+
+    /** UI-10 — resolve the effective policy for an arbitrary scope
+     *  string. Accepts both entity-type scopes (write-side; backed
+     *  by OperationJournalEntry.EntityType enum values) and the
+     *  scheduled-job scopes added in V109 (metadata sync, data pull,
+     *  compat refresh, drift snapshot, referrals, backup drain,
+     *  analytics refresh). Falls through to GLOBAL and then to the
+     *  SCHEDULED default. */
+    public ResolvedPolicy effectiveForScope(final String scope) {
+        Objects.requireNonNull(scope, "scope");
         final Map<String, SyncPolicy> byScope = snapshot().byScope;
-        final SyncPolicy perEntity = byScope.get(type.name());
-        if (perEntity != null) {
-            return new ResolvedPolicy(perEntity.mode(),
-                    perEntity.scheduleCron(), perEntity.pausedReason(),
-                    type.name(), perEntity);
+        final SyncPolicy perScope = byScope.get(scope);
+        if (perScope != null) {
+            return new ResolvedPolicy(perScope.mode(),
+                    perScope.scheduleCron(), perScope.pausedReason(),
+                    scope, perScope);
         }
         final SyncPolicy global = byScope.get(GLOBAL_SCOPE);
         if (global != null) {
             return new ResolvedPolicy(global.mode(), global.scheduleCron(),
                     global.pausedReason(), GLOBAL_SCOPE, global);
         }
-        // Defensive fallback — should never hit in a seeded DB.
         return new ResolvedPolicy(SyncPolicyMode.SCHEDULED,
                 FALLBACK_CRON, null, GLOBAL_SCOPE, null);
     }

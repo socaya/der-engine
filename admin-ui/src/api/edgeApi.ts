@@ -3702,6 +3702,8 @@ export function deleteApp(appId: string): Promise<void> {
 
 export type SyncMode = 'INSTANT' | 'SCHEDULED' | 'PAUSED';
 
+export type SyncPolicyKind = 'GLOBAL' | 'WRITE' | 'SCHEDULED';
+
 export interface SyncPolicyRow {
   scope: string;
   decidedBy: string;
@@ -3711,6 +3713,11 @@ export interface SyncPolicyRow {
   updatedBy?: string | null;
   updatedAt?: string | null;
   inherited?: boolean;
+  /** UI-10 — WRITE for outbound entity-type streams, SCHEDULED
+   *  for background jobs (metadata pull, data pull, compat probe,
+   *  drift snapshot, referral inbox/escalation, backup drain,
+   *  analytics refresh). */
+  kind?: SyncPolicyKind;
 }
 
 export function listSyncPolicies(): Promise<{ policies: SyncPolicyRow[] }> {
