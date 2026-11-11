@@ -44,6 +44,8 @@ import ug.ac.mak.der.analytics.column.governor.QueryGovernor;
 import ug.ac.mak.der.analytics.column.governor.QueryToken;
 import ug.ac.mak.der.analytics.column.governor.SpillStore;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink;
+import ug.ac.mak.der.analytics.distributed.SiteContributionExporter;
+import ug.ac.mak.der.analytics.distributed.SiteContributionPacket;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarVerifier;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkRun;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkService;
@@ -119,6 +121,7 @@ public class AnalyticsEngineController {
     private final PlanSelector planSelector;
     private final QueryGovernor queryGovernor;
     private final SpillStore spillStore;
+    private final SiteContributionExporter siteExporter;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -155,7 +158,8 @@ public class AnalyticsEngineController {
                                       final ColumnarExplainer columnarExplainer,
                                       final PlanSelector planSelector,
                                       final QueryGovernor queryGovernor,
-                                      final SpillStore spillStore) {
+                                      final SpillStore spillStore,
+                                      final SiteContributionExporter siteExporter) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -196,6 +200,8 @@ public class AnalyticsEngineController {
                 "queryGovernor");
         this.spillStore = Objects.requireNonNull(spillStore,
                 "spillStore");
+        this.siteExporter = Objects.requireNonNull(siteExporter,
+                "siteExporter");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -866,6 +872,87 @@ public class AnalyticsEngineController {
                     "code", "VERIFY_IO_FAILURE",
                     "message", ex.getMessage()));
         }
+    }
+
+    /** SRS §8 site contribution export body. */
+    public record SiteExportBody(
+            List<String> metricIds,
+            List<String> periodKeys,
+            List<String> orgUnits,
+            Long sinceCursor,
+            Integer limit) { }
+
+    /** SRS FR-DIS-002 export — produce signed contribution
+     *  packets for the current site's materialised cells. */
+    @PostMapping("/admin/sites/export")
+    public ResponseEntity<Map<String, Object>> exportSiteContributions(
+            @RequestBody(required = false) final SiteExportBody body,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final List<UUID> metricIds = new ArrayList<>();
+        if (body != null && body.metricIds() != null) {
+            for (final String s : body.metricIds()) {
+                try {
+                    metricIds.add(UUID.fromString(s));
+                } catch (IllegalArgumentException ex) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "code", "INVALID_METRIC_ID",
+                            "message", s));
+                }
+            }
+        }
+        final SiteContributionExporter.ExportRequest req =
+                new SiteContributionExporter.ExportRequest(
+                        metricIds,
+                        body == null || body.periodKeys() == null
+                                ? List.of() : body.periodKeys(),
+                        body == null || body.orgUnits() == null
+                                ? List.of() : body.orgUnits(),
+                        body == null ? null : body.sinceCursor(),
+                        body == null || body.limit() == null
+                                ? 2000 : body.limit());
+        final SiteContributionExporter.ExportResult r =
+                siteExporter.export(req);
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("siteId", r.siteId());
+        out.put("cellsScanned", r.cellsScanned());
+        out.put("packetsEmitted", r.packetsEmitted());
+        out.put("maxSourceCursor", r.maxSourceCursor());
+        out.put("producedAt", r.producedAt().toString());
+        out.put("packets", r.packets().stream()
+                .map(AnalyticsEngineController::packetJson)
+                .toList());
+        return ResponseEntity.ok(out);
+    }
+
+    private static Map<String, Object> packetJson(
+            final SiteContributionPacket p) {
+        final Map<String, Object> m = new LinkedHashMap<>();
+        m.put("siteId", p.siteId());
+        m.put("packetId", p.packetId().toString());
+        m.put("metricId", p.metricId().toString());
+        m.put("definitionVersion", p.definitionVersion());
+        m.put("periodKey", p.periodKey());
+        m.put("orgUnitUid", p.orgUnitUid());
+        m.put("dimensionKey", p.dimensionKey());
+        m.put("count", p.count());
+        m.put("sum", p.sum() == null ? null : p.sum().toPlainString());
+        m.put("min", p.min() == null ? null : p.min().toPlainString());
+        m.put("max", p.max() == null ? null : p.max().toPlainString());
+        m.put("numerator", p.numerator() == null ? null
+                : p.numerator().toPlainString());
+        m.put("denominator", p.denominator() == null ? null
+                : p.denominator().toPlainString());
+        m.put("sourceCursor", p.sourceCursor());
+        m.put("producedAt", p.producedAt().toString());
+        m.put("checksumHex", p.checksumHex());
+        return m;
     }
 
     /** SRS FR-QRY-013 spill usage — per-query and global bytes. */

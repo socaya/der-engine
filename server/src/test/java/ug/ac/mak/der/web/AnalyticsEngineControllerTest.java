@@ -73,6 +73,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.column.exec.PlanSelector planSelector;
     @MockBean ug.ac.mak.der.analytics.column.governor.QueryGovernor queryGovernor;
     @MockBean ug.ac.mak.der.analytics.column.governor.SpillStore spillStore;
+    @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionExporter siteExporter;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -435,6 +436,46 @@ class AnalyticsEngineControllerTest {
                         .with(as(EdgeRole.ADMIN)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_ID"));
+    }
+
+    @Test
+    void siteExportRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/sites/export")
+                        .contentType("application/json")
+                        .content("{}")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void siteExportRejectsInvalidMetricId() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/sites/export")
+                        .contentType("application/json")
+                        .content("{\"metricIds\":[\"not-a-uuid\"]}")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_METRIC_ID"));
+    }
+
+    @Test
+    void siteExportReturnsPacketsJson() throws Exception {
+        when(siteExporter.export(any())).thenReturn(
+                new ug.ac.mak.der.analytics.distributed
+                        .SiteContributionExporter.ExportResult(
+                        "der-site-1", 4, 2, 7L,
+                        java.time.Instant.now(), java.util.List.of()));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/sites/export")
+                        .contentType("application/json")
+                        .content("{}")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.siteId").value("der-site-1"))
+                .andExpect(jsonPath("$.cellsScanned").value(4))
+                .andExpect(jsonPath("$.packetsEmitted").value(2))
+                .andExpect(jsonPath("$.maxSourceCursor").value(7));
     }
 
     @Test
