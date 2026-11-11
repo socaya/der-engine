@@ -39,6 +39,7 @@ import java.util.Optional;
 
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkFixtureGenerator;
 import ug.ac.mak.der.analytics.column.exec.ColumnarExplainer;
+import ug.ac.mak.der.analytics.column.exec.PlanSelector;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarVerifier;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkRun;
@@ -112,6 +113,7 @@ public class AnalyticsEngineController {
     private final AnalyticsColumnarSink columnarSink;
     private final AnalyticsColumnarVerifier columnarVerifier;
     private final ColumnarExplainer columnarExplainer;
+    private final PlanSelector planSelector;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -145,7 +147,8 @@ public class AnalyticsEngineController {
                                       final AnalyticsBenchmarkFixtureGenerator fixtureGenerator,
                                       final AnalyticsColumnarSink columnarSink,
                                       final AnalyticsColumnarVerifier columnarVerifier,
-                                      final ColumnarExplainer columnarExplainer) {
+                                      final ColumnarExplainer columnarExplainer,
+                                      final PlanSelector planSelector) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -180,6 +183,8 @@ public class AnalyticsEngineController {
                 "columnarVerifier");
         this.columnarExplainer = Objects.requireNonNull(columnarExplainer,
                 "columnarExplainer");
+        this.planSelector = Objects.requireNonNull(planSelector,
+                "planSelector");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -848,6 +853,64 @@ public class AnalyticsEngineController {
         } catch (java.io.IOException ex) {
             return ResponseEntity.status(500).body(Map.of(
                     "code", "VERIFY_IO_FAILURE",
+                    "message", ex.getMessage()));
+        }
+    }
+
+    /** SRS FR-QRY-004 plan selection. Shows which engine the
+     *  planner would route a query through and why. */
+    @PostMapping("/admin/segments/plan")
+    public ResponseEntity<Map<String, Object>> selectPlan(
+            @RequestBody final ExplainBody body,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final List<UUID> metricIds = new ArrayList<>();
+        if (body != null && body.metricIds() != null) {
+            for (final String s : body.metricIds()) {
+                try {
+                    metricIds.add(UUID.fromString(s));
+                } catch (IllegalArgumentException ex) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "code", "INVALID_METRIC_ID",
+                            "message", s));
+                }
+            }
+        }
+        final AnalyticsEngineRepository.CellQuery q =
+                new AnalyticsEngineRepository.CellQuery(
+                        metricIds,
+                        body == null || body.periodKeys() == null
+                                ? List.of() : body.periodKeys(),
+                        body == null || body.orgUnits() == null
+                                ? List.of() : body.orgUnits(),
+                        Map.of(),
+                        body == null || body.limit() == null
+                                ? 2000 : body.limit(),
+                        0);
+        try {
+            final var decision = planSelector.select(q);
+            final Map<String, Object> out = new LinkedHashMap<>();
+            out.put("selected", decision.selected().name());
+            out.put("columnarCost", decision.columnarCost());
+            out.put("rowStoreCost", decision.rowStoreCost());
+            out.put("columnarSegments", decision.columnarSegments());
+            out.put("rowStoreRows", decision.rowStoreRows());
+            out.put("manifestGeneration", decision.manifestGeneration());
+            out.put("manifestCreatedAt",
+                    decision.manifestCreatedAt() == null
+                            ? null : decision.manifestCreatedAt().toString());
+            out.put("manifestStale", decision.manifestStale());
+            out.put("rationale", decision.rationale());
+            return ResponseEntity.ok(out);
+        } catch (java.io.IOException ex) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "code", "PLAN_IO_FAILURE",
                     "message", ex.getMessage()));
         }
     }

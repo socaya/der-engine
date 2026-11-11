@@ -70,6 +70,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink columnarSink;
     @MockBean ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarVerifier columnarVerifier;
     @MockBean ug.ac.mak.der.analytics.column.exec.ColumnarExplainer columnarExplainer;
+    @MockBean ug.ac.mak.der.analytics.column.exec.PlanSelector planSelector;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -329,6 +330,36 @@ class AnalyticsEngineControllerTest {
                         .with(as(EdgeRole.ADMIN)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_METRIC_ID"));
+    }
+
+    @Test
+    void planSelectRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/segments/plan")
+                        .contentType("application/json")
+                        .content("{}")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void planSelectReturnsDecision() throws Exception {
+        when(planSelector.select(any())).thenReturn(
+                new ug.ac.mak.der.analytics.column.exec
+                        .PlanSelector.PlanDecision(
+                        ug.ac.mak.der.analytics.column.exec
+                                .PlanSelector.Engine.COLUMNAR,
+                        250.0, 1024.0, 3, 1000,
+                        7L, java.time.Instant.now(), false,
+                        "columnar cheaper"));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/segments/plan")
+                        .contentType("application/json")
+                        .content("{}")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.selected").value("COLUMNAR"))
+                .andExpect(jsonPath("$.rationale").value("columnar cheaper"));
     }
 
     @Test
