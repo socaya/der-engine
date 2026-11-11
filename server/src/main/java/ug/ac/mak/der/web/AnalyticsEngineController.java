@@ -44,6 +44,8 @@ import ug.ac.mak.der.analytics.column.governor.QueryGovernor;
 import ug.ac.mak.der.analytics.column.governor.QueryToken;
 import ug.ac.mak.der.analytics.column.governor.SpillStore;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink;
+import ug.ac.mak.der.analytics.distributed.ConsolidatedCell;
+import ug.ac.mak.der.analytics.distributed.SiteConsolidator;
 import ug.ac.mak.der.analytics.distributed.SiteContributionExporter;
 import ug.ac.mak.der.analytics.distributed.SiteContributionPacket;
 import ug.ac.mak.der.analytics.distributed.SiteContributionReceiver;
@@ -126,6 +128,7 @@ public class AnalyticsEngineController {
     private final SiteContributionExporter siteExporter;
     private final SiteContributionReceiver siteReceiver;
     private final SiteContributionRepository siteRepo;
+    private final SiteConsolidator siteConsolidator;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -165,7 +168,8 @@ public class AnalyticsEngineController {
                                       final SpillStore spillStore,
                                       final SiteContributionExporter siteExporter,
                                       final SiteContributionReceiver siteReceiver,
-                                      final SiteContributionRepository siteRepo) {
+                                      final SiteContributionRepository siteRepo,
+                                      final SiteConsolidator siteConsolidator) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -211,6 +215,8 @@ public class AnalyticsEngineController {
         this.siteReceiver = Objects.requireNonNull(siteReceiver,
                 "siteReceiver");
         this.siteRepo = Objects.requireNonNull(siteRepo, "siteRepo");
+        this.siteConsolidator = Objects.requireNonNull(siteConsolidator,
+                "siteConsolidator");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -881,6 +887,83 @@ public class AnalyticsEngineController {
                     "code", "VERIFY_IO_FAILURE",
                     "message", ex.getMessage()));
         }
+    }
+
+    public record ConsolidateBody(
+            List<String> metricIds,
+            List<String> periodKeys,
+            Integer limit) { }
+
+    /** SRS FR-DIS-002 / FR-DIS-004 — roll up accepted site
+     *  packets into merged cells with per-site completeness
+     *  attribution. ADMIN only. */
+    @PostMapping("/admin/sites/consolidate")
+    public ResponseEntity<Map<String, Object>> consolidateSites(
+            @RequestBody(required = false) final ConsolidateBody body,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final List<UUID> metricIds = new ArrayList<>();
+        if (body != null && body.metricIds() != null) {
+            for (final String s : body.metricIds()) {
+                try {
+                    metricIds.add(UUID.fromString(s));
+                } catch (IllegalArgumentException ex) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "code", "INVALID_METRIC_ID",
+                            "message", s));
+                }
+            }
+        }
+        final SiteConsolidator.ConsolidateRequest req =
+                new SiteConsolidator.ConsolidateRequest(
+                        metricIds,
+                        body == null || body.periodKeys() == null
+                                ? List.of() : body.periodKeys(),
+                        body == null || body.limit() == null
+                                ? 2000 : body.limit());
+        final List<ConsolidatedCell> cells =
+                siteConsolidator.consolidate(req);
+        return ResponseEntity.ok(Map.of(
+                "cellCount", cells.size(),
+                "cells", cells.stream()
+                        .map(AnalyticsEngineController
+                                ::consolidatedCellJson).toList()));
+    }
+
+    private static Map<String, Object> consolidatedCellJson(
+            final ConsolidatedCell c) {
+        final Map<String, Object> m = new LinkedHashMap<>();
+        m.put("metricId", c.metricId().toString());
+        m.put("definitionVersion", c.definitionVersion());
+        m.put("periodKey", c.periodKey());
+        m.put("orgUnitUid", c.orgUnitUid());
+        m.put("dimensionKey", c.dimensionKey());
+        m.put("totalCount", c.totalCount());
+        m.put("totalSum", c.totalSum() == null
+                ? null : c.totalSum().toPlainString());
+        m.put("mergedMin", c.mergedMin() == null
+                ? null : c.mergedMin().toPlainString());
+        m.put("mergedMax", c.mergedMax() == null
+                ? null : c.mergedMax().toPlainString());
+        m.put("totalNumerator", c.totalNumerator() == null
+                ? null : c.totalNumerator().toPlainString());
+        m.put("totalDenominator", c.totalDenominator() == null
+                ? null : c.totalDenominator().toPlainString());
+        m.put("reportingSites", c.reportingSites());
+        m.put("missingSites", c.missingSites());
+        m.put("staleSites", c.staleSites());
+        m.put("oldestProducedAt", c.oldestProducedAt() == null
+                ? null : c.oldestProducedAt().toString());
+        m.put("newestProducedAt", c.newestProducedAt() == null
+                ? null : c.newestProducedAt().toString());
+        m.put("completeness", c.completeness());
+        return m;
     }
 
     /** SRS FR-DIS-003 receive endpoint. Accepts a list of signed

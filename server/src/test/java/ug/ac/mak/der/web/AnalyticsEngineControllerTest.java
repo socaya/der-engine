@@ -76,6 +76,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionExporter siteExporter;
     @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionReceiver siteReceiver;
     @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionRepository siteRepo;
+    @MockBean ug.ac.mak.der.analytics.distributed.SiteConsolidator siteConsolidator;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -525,6 +526,52 @@ class AnalyticsEngineControllerTest {
                         .with(as(EdgeRole.ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pendingConsolidation").value(5));
+    }
+
+    @Test
+    void consolidateRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/sites/consolidate")
+                        .contentType("application/json")
+                        .content("{}")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void consolidateHappyPathReturnsCells() throws Exception {
+        when(siteConsolidator.consolidate(any())).thenReturn(
+                java.util.List.of(new ug.ac.mak.der.analytics.distributed
+                        .ConsolidatedCell(
+                        UUID.randomUUID(), 1, "202611", "OU-A", "",
+                        7L, new java.math.BigDecimal("70"),
+                        null, null, null, null,
+                        java.util.List.of("site-a", "site-b"),
+                        java.util.List.of("site-c"),
+                        java.util.List.of(),
+                        java.time.Instant.now(),
+                        java.time.Instant.now(),
+                        0.6667)));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/sites/consolidate")
+                        .contentType("application/json")
+                        .content("{}")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cellCount").value(1))
+                .andExpect(jsonPath("$.cells[0].totalCount").value(7))
+                .andExpect(jsonPath("$.cells[0].completeness").value(0.6667));
+    }
+
+    @Test
+    void consolidateRejectsInvalidMetricId() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/sites/consolidate")
+                        .contentType("application/json")
+                        .content("{\"metricIds\":[\"not-a-uuid\"]}")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_METRIC_ID"));
     }
 
     @Test

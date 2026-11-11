@@ -117,6 +117,44 @@ public class SiteContributionRepository {
                 });
     }
 
+    /** Fetch every accepted packet matching an optional
+     *  (metricIds, periodKeys) filter. Downstream consolidator
+     *  groups by (metric, period, orgUnit, dim). */
+    public List<SiteContributionPacket> findForQuery(
+            final List<UUID> metricIds,
+            final List<String> periodKeys,
+            final int limit) {
+        final StringBuilder sql = new StringBuilder(
+                "SELECT packet_id, site_id, metric_id, "
+              + "       definition_version, period_key, "
+              + "       org_unit_uid, dimension_key, source_cursor, "
+              + "       count_value, sum_value, min_value, max_value, "
+              + "       numerator_value, denominator_value, "
+              + "       produced_at, checksum_hex "
+              + "  FROM der.analytics_site_contribution "
+              + " WHERE 1 = 1 ");
+        final java.util.List<Object> args = new java.util.ArrayList<>();
+        if (metricIds != null && !metricIds.isEmpty()) {
+            sql.append(" AND metric_id IN (")
+                    .append("?,".repeat(metricIds.size()));
+            sql.setLength(sql.length() - 1);
+            sql.append(")");
+            args.addAll(metricIds);
+        }
+        if (periodKeys != null && !periodKeys.isEmpty()) {
+            sql.append(" AND period_key IN (")
+                    .append("?,".repeat(periodKeys.size()));
+            sql.setLength(sql.length() - 1);
+            sql.append(")");
+            args.addAll(periodKeys);
+        }
+        sql.append(" ORDER BY metric_id, period_key, org_unit_uid, "
+                + "          dimension_key, site_id "
+                + " LIMIT ?");
+        args.add(Math.max(1, Math.min(limit, 10_000)));
+        return jdbc.query(sql.toString(), MAPPER, args.toArray());
+    }
+
     private static final RowMapper<SiteContributionPacket> MAPPER =
         (rs, i) -> new SiteContributionPacket(
                 rs.getString("site_id"),
