@@ -1,0 +1,21 @@
+{
+  "name": "@der/app-analytics",
+  "version": "0.1.0-alpha.1",
+  "type": "module",
+  "private": true,
+  "description": "DER Analytics — site-local offline-capable analytics engine UI (docs/apps/analytics spec §10). Nine navigation sections: Overview, Explore, Metrics, Tracker Tally, Reports, Drilldowns, Saved, Quality, Administration.",
+  "derAppManifest": {
+    "appKey": "analytics",
+    "displayName": "Analytics",
+    "module": "Analytics",
+    "version": "0.1.0-alpha.1",
+    "requiresDerApi": "1.0.0"
+  },
+  "main": "src/index.tsx",
+  "exports": { ".": { "import": "./src/index.tsx" } },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@der/app-sdk": "workspace:*"
+  }
+}
