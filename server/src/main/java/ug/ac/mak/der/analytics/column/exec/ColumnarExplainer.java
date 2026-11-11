@@ -20,6 +20,8 @@ import ug.ac.mak.der.analytics.column.manifest.ManifestWriter;
 import ug.ac.mak.der.analytics.column.manifest.SegmentRef;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarProperties;
 import ug.ac.mak.der.analytics.column.stats.ColumnStatistics;
+import ug.ac.mak.der.analytics.column.stats.PlanCoster;
+import ug.ac.mak.der.analytics.column.stats.SegmentStatistics;
 import ug.ac.mak.der.analytics.column.stats.SegmentStatisticsStore;
 import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
 
@@ -54,7 +56,11 @@ public class ColumnarExplainer {
             String periodKey,
             int rowCount,
             String file,
-            String decision) {
+            String decision,
+            double estimatedSelectivity,
+            long estimatedRowsOut,
+            long estimatedBytesScanned,
+            double estimatedCost) {
     }
 
     public record QueryPlan(
@@ -68,6 +74,7 @@ public class ColumnarExplainer {
             String filterDescription,
             int rowLimit,
             int estimatedRows,
+            double estimatedTotalCost,
             String engine) {
     }
 
@@ -94,38 +101,45 @@ public class ColumnarExplainer {
         final List<SegmentPlan> matched = new ArrayList<>();
         final List<SegmentPlan> skipped = new ArrayList<>();
         int estimatedRows = 0;
+        double totalCost = 0.0;
         final int limit = q.limit() <= 0 ? 2000 : Math.min(q.limit(), 2000);
         final SegmentStatisticsStore statsStore =
                 new SegmentStatisticsStore(json);
         for (final SegmentRef ref : manifest.segments()) {
             String reason = decideSegment(ref, q);
-            if ("matched".equals(reason)
-                    && q.orgUnitUids() != null
-                    && !q.orgUnitUids().isEmpty()) {
+            Optional<SegmentStatistics> statsOpt = Optional.empty();
+            if ("matched".equals(reason)) {
                 final Path file = root.resolve(ref.file());
                 try {
-                    final var statsOpt = statsStore.read(file);
-                    if (statsOpt.isPresent()) {
-                        final ColumnStatistics ou = statsOpt.get()
-                                .column("orgUnit");
-                        if (ou != null
-                                && !canMatchOrgUnit(ou,
-                                        q.orgUnitUids())) {
-                            reason = "skipped: zone map excludes "
-                                  + "requested orgUnit";
-                        }
-                    }
+                    statsOpt = statsStore.read(file);
                 } catch (IOException ignored) {
-                    // No stats sidecar — fall back to matched.
+                    // No stats sidecar — fall back to matched with
+                    // selectivity = 1.0.
+                }
+                if (statsOpt.isPresent()
+                        && q.orgUnitUids() != null
+                        && !q.orgUnitUids().isEmpty()) {
+                    final ColumnStatistics ou = statsOpt.get()
+                            .column("orgUnit");
+                    if (ou != null
+                            && !canMatchOrgUnit(ou, q.orgUnitUids())) {
+                        reason = "skipped: zone map excludes "
+                              + "requested orgUnit";
+                    }
                 }
             }
+            final PlanCoster.CostEstimate est = PlanCoster.estimate(
+                    ref, statsOpt, q);
             final SegmentPlan plan = new SegmentPlan(
                     ref.segmentId(), ref.metricId(),
                     ref.definitionVersion(), ref.periodKey(),
-                    ref.rowCount(), ref.file(), reason);
+                    ref.rowCount(), ref.file(), reason,
+                    est.selectivity(), est.estimatedRowsOut(),
+                    est.bytesScanned(), est.totalCost());
             if ("matched".equals(reason)) {
                 matched.add(plan);
-                estimatedRows += ref.rowCount();
+                estimatedRows += est.estimatedRowsOut();
+                totalCost += est.totalCost();
             } else {
                 skipped.add(plan);
             }
@@ -138,6 +152,7 @@ public class ColumnarExplainer {
                 describeFilter(q),
                 limit,
                 Math.min(estimatedRows, limit),
+                totalCost,
                 "columnar");
     }
 
@@ -208,6 +223,7 @@ public class ColumnarExplainer {
                 describeFilter(q),
                 q.limit() <= 0 ? 2000 : q.limit(),
                 0,
+                0.0,
                 "columnar (unavailable: " + reason + ")");
     }
 }

@@ -898,20 +898,22 @@ public class AnalyticsEngineController {
                         0);
         try {
             final var plan = columnarExplainer.explain(q);
-            return ResponseEntity.ok(Map.of(
-                    "generation", plan.generation(),
-                    "segmentsMatched", plan.segmentsMatched(),
-                    "segmentsSkipped", plan.segmentsSkipped(),
-                    "projectedColumns", plan.projectedColumns(),
-                    "filter", plan.filterDescription(),
-                    "rowLimit", plan.rowLimit(),
-                    "estimatedRows", plan.estimatedRows(),
-                    "matched", plan.matched().stream()
-                            .map(AnalyticsEngineController
-                                    ::explainSegmentJson).toList(),
-                    "skipped", plan.skipped().stream()
-                            .map(AnalyticsEngineController
-                                    ::explainSegmentJson).toList()));
+            final Map<String, Object> out = new LinkedHashMap<>();
+            out.put("generation", plan.generation());
+            out.put("segmentsMatched", plan.segmentsMatched());
+            out.put("segmentsSkipped", plan.segmentsSkipped());
+            out.put("projectedColumns", plan.projectedColumns());
+            out.put("filter", plan.filterDescription());
+            out.put("rowLimit", plan.rowLimit());
+            out.put("estimatedRows", plan.estimatedRows());
+            out.put("estimatedTotalCost", plan.estimatedTotalCost());
+            out.put("matched", plan.matched().stream()
+                    .map(AnalyticsEngineController
+                            ::explainSegmentJson).toList());
+            out.put("skipped", plan.skipped().stream()
+                    .map(AnalyticsEngineController
+                            ::explainSegmentJson).toList());
+            return ResponseEntity.ok(out);
         } catch (java.io.IOException ex) {
             return ResponseEntity.status(500).body(Map.of(
                     "code", "EXPLAIN_IO_FAILURE",
@@ -929,6 +931,10 @@ public class AnalyticsEngineController {
         m.put("rowCount", s.rowCount());
         m.put("file", s.file());
         m.put("decision", s.decision());
+        m.put("estimatedSelectivity", s.estimatedSelectivity());
+        m.put("estimatedRowsOut", s.estimatedRowsOut());
+        m.put("estimatedBytesScanned", s.estimatedBytesScanned());
+        m.put("estimatedCost", s.estimatedCost());
         return m;
     }
 

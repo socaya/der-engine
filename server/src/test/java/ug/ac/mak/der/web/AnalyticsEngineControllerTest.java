@@ -307,7 +307,7 @@ class AnalyticsEngineControllerTest {
                         java.util.List.of(), java.util.List.of(),
                         java.util.List.of("orgUnit", "value"),
                         "<none>",
-                        100, 25, "columnar"));
+                        100, 25, 123.45, "columnar"));
         mockMvc.perform(post(
                         "/edge-api/v1/analytics/v1/admin/segments/explain")
                         .contentType("application/json")

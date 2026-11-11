@@ -107,6 +107,31 @@ class ZoneMapPruningTest {
     }
 
     @Test
+    void explainCarriesCostEstimates() throws IOException {
+        final UUID metric = UUID.randomUUID();
+        final List<AnalyticsCell> rows = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            rows.add(cell(metric, "202611", "OU-A"));
+        }
+        when(engineRepo.queryCells(any())).thenReturn(rows);
+        new AnalyticsColumnarSink(engineRepo, props(), json).flush();
+
+        final var plan = new ColumnarExplainer(props(), json).explain(
+                new AnalyticsEngineRepository.CellQuery(
+                        List.of(), List.of(),
+                        List.of("OU-A"), Map.of(), 100, 0));
+
+        assertThat(plan.estimatedTotalCost()).isGreaterThan(0.0);
+        assertThat(plan.matched()).hasSize(1);
+        assertThat(plan.matched().get(0).estimatedSelectivity())
+                .isGreaterThan(0.0);
+        assertThat(plan.matched().get(0).estimatedBytesScanned())
+                .isPositive();
+        assertThat(plan.matched().get(0).estimatedRowsOut())
+                .isPositive();
+    }
+
+    @Test
     void queryEngineHonoursPruningAndReturnsOracleRows()
             throws IOException {
         final UUID ma = UUID.randomUUID();
