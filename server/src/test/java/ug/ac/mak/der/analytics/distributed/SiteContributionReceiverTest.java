@@ -123,6 +123,60 @@ class SiteContributionReceiverTest {
     }
 
     @Test
+    void verifierRejectsBadSignature() {
+        final UUID metric = UUID.randomUUID();
+        final SiteContributionPacket legit = validPacket("site-a", metric);
+        final SiteContributionPacket forged = new SiteContributionPacket(
+                legit.siteId(), legit.packetId(),
+                legit.metricId(), legit.definitionVersion(),
+                legit.periodKey(), legit.orgUnitUid(),
+                legit.dimensionKey(), legit.count(), legit.sum(),
+                legit.min(), legit.max(), legit.numerator(),
+                legit.denominator(), legit.sourceCursor(),
+                legit.producedAt(), legit.checksumHex(),
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+        final SiteContributionReceiver r = new SiteContributionReceiver(
+                siteRepo);
+        r.setVerifier(new SiteSignatureVerifier(
+                new SiteTrustProperties(null,
+                        java.util.Map.of("site-a", "secret"), false)));
+
+        final var result = r.ingest(List.of(forged));
+
+        assertThat(result.rejectedSignature()).isEqualTo(1);
+        assertThat(result.accepted()).isZero();
+    }
+
+    @Test
+    void verifierPassesLegitimatePacket() {
+        final UUID metric = UUID.randomUUID();
+        final SiteContributionPacket legit = validPacket("site-a", metric);
+        final SiteSigner signer = new SiteSigner(
+                new SiteTrustProperties("secret", java.util.Map.of(),
+                        false));
+        final String sig = signer.sign(legit.checksumHex());
+        final SiteContributionPacket signed = new SiteContributionPacket(
+                legit.siteId(), legit.packetId(),
+                legit.metricId(), legit.definitionVersion(),
+                legit.periodKey(), legit.orgUnitUid(),
+                legit.dimensionKey(), legit.count(), legit.sum(),
+                legit.min(), legit.max(), legit.numerator(),
+                legit.denominator(), legit.sourceCursor(),
+                legit.producedAt(), legit.checksumHex(), sig);
+        when(siteRepo.insertIfAbsent(signed)).thenReturn(true);
+        final SiteContributionReceiver r = new SiteContributionReceiver(
+                siteRepo);
+        r.setVerifier(new SiteSignatureVerifier(
+                new SiteTrustProperties(null,
+                        java.util.Map.of("site-a", "secret"), false)));
+
+        final var result = r.ingest(List.of(signed));
+
+        assertThat(result.accepted()).isEqualTo(1);
+        assertThat(result.rejectedSignature()).isZero();
+    }
+
+    @Test
     void mixedBatchTouchesMultipleSites() {
         final SiteContributionPacket p1 = validPacket("site-1",
                 UUID.randomUUID());

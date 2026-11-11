@@ -999,12 +999,14 @@ public class AnalyticsEngineController {
         }
         final SiteContributionReceiver.IngestResult r =
                 siteReceiver.ingest(packets);
-        return ResponseEntity.ok(Map.of(
-                "received", r.received(),
-                "accepted", r.accepted(),
-                "deduped", r.deduped(),
-                "rejectedChecksum", r.rejectedChecksum(),
-                "sitesTouched", r.sitesTouched()));
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("received", r.received());
+        out.put("accepted", r.accepted());
+        out.put("deduped", r.deduped());
+        out.put("rejectedChecksum", r.rejectedChecksum());
+        out.put("rejectedSignature", r.rejectedSignature());
+        out.put("sitesTouched", r.sitesTouched());
+        return ResponseEntity.ok(out);
     }
 
     @GetMapping("/admin/sites/summary")

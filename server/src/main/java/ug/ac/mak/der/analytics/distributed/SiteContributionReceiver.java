@@ -25,9 +25,17 @@ public class SiteContributionReceiver {
             LoggerFactory.getLogger(SiteContributionReceiver.class);
 
     private final SiteContributionRepository repo;
+    private SiteSignatureVerifier verifier;
 
     public SiteContributionReceiver(final SiteContributionRepository repo) {
         this.repo = Objects.requireNonNull(repo, "repo");
+    }
+
+    /** Setter injection — the 1-arg ctor stays compatible with
+     *  pre-Gate-6.4 tests that don't need a verifier. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setVerifier(final SiteSignatureVerifier verifier) {
+        this.verifier = verifier;
     }
 
     public record IngestResult(
@@ -35,7 +43,17 @@ public class SiteContributionReceiver {
             int accepted,
             int deduped,
             int rejectedChecksum,
+            int rejectedSignature,
             long sitesTouched) {
+
+        /** Legacy 5-arg form for pre-Gate-6.4 call sites + tests. */
+        public IngestResult(final int received, final int accepted,
+                             final int deduped,
+                             final int rejectedChecksum,
+                             final long sitesTouched) {
+            this(received, accepted, deduped, rejectedChecksum,
+                    0, sitesTouched);
+        }
     }
 
     public IngestResult ingest(final List<SiteContributionPacket> packets) {
@@ -43,6 +61,7 @@ public class SiteContributionReceiver {
         int accepted = 0;
         int deduped = 0;
         int rejectedChecksum = 0;
+        int rejectedSignature = 0;
         final java.util.Set<String> sites = new java.util.HashSet<>();
         for (final SiteContributionPacket p : packets) {
             if (p == null) {
@@ -57,6 +76,16 @@ public class SiteContributionReceiver {
                         p.packetId(), expected, actual);
                 continue;
             }
+            if (verifier != null) {
+                final SiteSignatureVerifier.TrustState state =
+                        verifier.verify(p);
+                if (state != SiteSignatureVerifier.TrustState.OK) {
+                    rejectedSignature++;
+                    LOG.warn("rejected site packet {}: signature {}",
+                            p.packetId(), state);
+                    continue;
+                }
+            }
             final boolean fresh = repo.insertIfAbsent(p);
             if (fresh) {
                 accepted++;
@@ -66,7 +95,7 @@ public class SiteContributionReceiver {
             }
         }
         return new IngestResult(packets.size(), accepted, deduped,
-                rejectedChecksum, sites.size());
+                rejectedChecksum, rejectedSignature, sites.size());
     }
 
     /** SHA-256 over the canonical packet bytes. Must mirror

@@ -34,6 +34,7 @@ public class SiteContributionExporter {
     private final AnalyticsEngineRepository engineRepo;
     private final AnalyticsContributionRepository contributions;
     private final String siteId;
+    private SiteSigner signer;
 
     public SiteContributionExporter(
             final AnalyticsEngineRepository engineRepo,
@@ -44,6 +45,13 @@ public class SiteContributionExporter {
                 "contributions");
         this.siteId = (siteIdProperty == null || siteIdProperty.isBlank())
                 ? "der-local" : siteIdProperty;
+    }
+
+    /** Setter injection — keeps the 3-arg constructor compatible
+     *  with pre-Gate-6.4 tests that don't need a signer. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setSigner(final SiteSigner signer) {
+        this.signer = signer;
     }
 
     public record ExportRequest(
@@ -100,6 +108,8 @@ public class SiteContributionExporter {
             }
             final UUID packetId = UUID.randomUUID();
             final String checksum = checksum(c, agg, cursor, producedAt);
+            final String signature = signer == null
+                    ? null : signer.sign(checksum);
             packets.add(new SiteContributionPacket(
                     siteId, packetId,
                     c.metricId(), c.definitionVersion(),
@@ -109,7 +119,7 @@ public class SiteContributionExporter {
                     agg.min(), agg.max(),
                     agg.sumNumerator(), agg.sumDenominator(),
                     cursor, producedAt,
-                    checksum, null));
+                    checksum, signature));
         }
         return new ExportResult(siteId, cells.size(), packets.size(),
                 maxCursor, producedAt, packets);
