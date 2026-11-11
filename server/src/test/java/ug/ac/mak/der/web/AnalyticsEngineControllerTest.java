@@ -66,6 +66,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqRepository liveDlq;
     @MockBean ug.ac.mak.der.analytics.dlq.AnalyticsLiveRetryWorker liveRetryWorker;
     @MockBean ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkService benchmarks;
+    @MockBean ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkFixtureGenerator fixtureGenerator;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -274,6 +275,57 @@ class AnalyticsEngineControllerTest {
                         .with(as(EdgeRole.ADMIN)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_OPERATION"));
+    }
+
+    @Test
+    void benchmarkSeedRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/benchmark/seed")
+                        .contentType("application/json")
+                        .content("{\"orgUnitUid\":\"OU-A\"}")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void benchmarkSeedRequiresOrgUnit() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/benchmark/seed")
+                        .contentType("application/json")
+                        .content("{}")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void benchmarkSeedRunsForAdmin() throws Exception {
+        when(fixtureGenerator.seed(any(), any())).thenReturn(
+                new ug.ac.mak.der.analytics.benchmark
+                        .AnalyticsBenchmarkFixtureGenerator.SeedResult(
+                        10, 10, 50, "BENCHMARK01"));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/benchmark/seed")
+                        .contentType("application/json")
+                        .content("{\"orgUnitUid\":\"OU-A\","
+                                + "\"teiCount\":10,\"eventsPerTei\":5}")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.eventsCreated").value(50))
+                .andExpect(jsonPath("$.programUid").value("BENCHMARK01"));
+    }
+
+    @Test
+    void benchmarkSeedCleanupReturnsCounts() throws Exception {
+        when(fixtureGenerator.cleanup()).thenReturn(
+                new ug.ac.mak.der.analytics.benchmark
+                        .AnalyticsBenchmarkFixtureGenerator.CleanupResult(
+                        50, 10, 10));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/benchmark/seed/cleanup")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.eventsDeleted").value(50));
     }
 
     @Test

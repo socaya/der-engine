@@ -37,6 +37,7 @@ import ug.ac.mak.der.analytics.engine.ProgramIndicatorSyncService;
 import ug.ac.mak.der.analytics.expression.ExpressionCompiler;
 import java.util.Optional;
 
+import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkFixtureGenerator;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkRun;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkService;
 import ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqEntry;
@@ -104,6 +105,7 @@ public class AnalyticsEngineController {
     private final AnalyticsLiveDlqRepository liveDlq;
     private final AnalyticsLiveRetryWorker liveRetryWorker;
     private final AnalyticsBenchmarkService benchmarks;
+    private final AnalyticsBenchmarkFixtureGenerator fixtureGenerator;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -133,7 +135,8 @@ public class AnalyticsEngineController {
                                       final AnalyticsReconciliationFetcher reconciliationFetcher,
                                       final AnalyticsLiveDlqRepository liveDlq,
                                       final AnalyticsLiveRetryWorker liveRetryWorker,
-                                      final AnalyticsBenchmarkService benchmarks) {
+                                      final AnalyticsBenchmarkService benchmarks,
+                                      final AnalyticsBenchmarkFixtureGenerator fixtureGenerator) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -160,6 +163,8 @@ public class AnalyticsEngineController {
         this.liveRetryWorker = Objects.requireNonNull(liveRetryWorker,
                 "liveRetryWorker");
         this.benchmarks = Objects.requireNonNull(benchmarks, "benchmarks");
+        this.fixtureGenerator = Objects.requireNonNull(fixtureGenerator,
+                "fixtureGenerator");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -793,6 +798,68 @@ public class AnalyticsEngineController {
         }
         final var v = benchmarks.freshness(iterations, p95CeilingMillis);
         return ResponseEntity.ok(AnalyticsBenchmarkService.asJson(v));
+    }
+
+    public record BenchmarkSeedBody(
+            String orgUnitUid,
+            Integer teiCount,
+            Integer eventsPerTei,
+            Long seed) { }
+
+    @PostMapping("/admin/benchmark/seed")
+    public ResponseEntity<Map<String, Object>> benchmarkSeed(
+            @RequestBody final BenchmarkSeedBody body,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        if (body == null || body.orgUnitUid() == null
+                || body.orgUnitUid().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INVALID_REQUEST",
+                    "message", "orgUnitUid is required"));
+        }
+        final AnalyticsBenchmarkFixtureGenerator.SeedRequest req =
+                new AnalyticsBenchmarkFixtureGenerator.SeedRequest(
+                        body.orgUnitUid(),
+                        body.teiCount() == null ? 100 : body.teiCount(),
+                        body.eventsPerTei() == null ? 10
+                                : body.eventsPerTei(),
+                        body.seed() == null ? 42L : body.seed());
+        try {
+            final var r = fixtureGenerator.seed(req,
+                    principal.user().userId());
+            return ResponseEntity.ok(Map.of(
+                    "teisCreated", r.teisCreated(),
+                    "enrollmentsCreated", r.enrollmentsCreated(),
+                    "eventsCreated", r.eventsCreated(),
+                    "programUid", r.programUid()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INVALID_REQUEST",
+                    "message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/admin/benchmark/seed/cleanup")
+    public ResponseEntity<Map<String, Object>> benchmarkSeedCleanup(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final var r = fixtureGenerator.cleanup();
+        return ResponseEntity.ok(Map.of(
+                "eventsDeleted", r.eventsDeleted(),
+                "enrollmentsDeleted", r.enrollmentsDeleted(),
+                "teisDeleted", r.teisDeleted()));
     }
 
     @GetMapping("/admin/benchmark/runs")
