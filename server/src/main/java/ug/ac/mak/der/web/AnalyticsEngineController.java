@@ -37,6 +37,8 @@ import ug.ac.mak.der.analytics.engine.ProgramIndicatorSyncService;
 import ug.ac.mak.der.analytics.expression.ExpressionCompiler;
 import java.util.Optional;
 
+import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkRun;
+import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkService;
 import ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqEntry;
 import ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqRepository;
 import ug.ac.mak.der.analytics.dlq.AnalyticsLiveRetryWorker;
@@ -101,6 +103,7 @@ public class AnalyticsEngineController {
     private final AnalyticsReconciliationFetcher reconciliationFetcher;
     private final AnalyticsLiveDlqRepository liveDlq;
     private final AnalyticsLiveRetryWorker liveRetryWorker;
+    private final AnalyticsBenchmarkService benchmarks;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -129,7 +132,8 @@ public class AnalyticsEngineController {
                                       final AnalyticsBaselineVerifier replayVerifier,
                                       final AnalyticsReconciliationFetcher reconciliationFetcher,
                                       final AnalyticsLiveDlqRepository liveDlq,
-                                      final AnalyticsLiveRetryWorker liveRetryWorker) {
+                                      final AnalyticsLiveRetryWorker liveRetryWorker,
+                                      final AnalyticsBenchmarkService benchmarks) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -155,6 +159,7 @@ public class AnalyticsEngineController {
         this.liveDlq = Objects.requireNonNull(liveDlq, "liveDlq");
         this.liveRetryWorker = Objects.requireNonNull(liveRetryWorker,
                 "liveRetryWorker");
+        this.benchmarks = Objects.requireNonNull(benchmarks, "benchmarks");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -750,6 +755,74 @@ public class AnalyticsEngineController {
         };
         return ResponseEntity.status(status)
                 .body(AnalyticsDrilldownService.asMap(result));
+    }
+
+    /* ─────────────── /admin/benchmark ─────────────── */
+
+    @PostMapping("/admin/benchmark/latency")
+    public ResponseEntity<Map<String, Object>> benchLatency(
+            @RequestParam(name = "iterations", required = false,
+                    defaultValue = "100") final int iterations,
+            @RequestParam(name = "p95CeilingMillis", required = false,
+                    defaultValue = "2000") final int p95CeilingMillis,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final var v = benchmarks.latency(iterations, p95CeilingMillis);
+        return ResponseEntity.ok(AnalyticsBenchmarkService.asJson(v));
+    }
+
+    @PostMapping("/admin/benchmark/freshness")
+    public ResponseEntity<Map<String, Object>> benchFreshness(
+            @RequestParam(name = "iterations", required = false,
+                    defaultValue = "100") final int iterations,
+            @RequestParam(name = "p95CeilingMillis", required = false,
+                    defaultValue = "10000") final int p95CeilingMillis,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final var v = benchmarks.freshness(iterations, p95CeilingMillis);
+        return ResponseEntity.ok(AnalyticsBenchmarkService.asJson(v));
+    }
+
+    @GetMapping("/admin/benchmark/runs")
+    public ResponseEntity<Map<String, Object>> benchmarkRuns(
+            @RequestParam(name = "operation", required = false)
+            final String operationRaw,
+            @RequestParam(name = "limit", required = false,
+                    defaultValue = "50") final int limit,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        AnalyticsBenchmarkRun.Operation op = null;
+        if (operationRaw != null && !operationRaw.isBlank()) {
+            try {
+                op = AnalyticsBenchmarkRun.Operation.valueOf(
+                        operationRaw.toUpperCase());
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "code", "INVALID_OPERATION"));
+            }
+        }
+        final List<AnalyticsBenchmarkRun> rows = benchmarks.recent(op, limit);
+        return ResponseEntity.ok(Map.of(
+                "count", rows.size(),
+                "runs", AnalyticsBenchmarkService.asJson(rows)));
     }
 
     /* ─────────────── /admin/live-dlq ─────────────── */

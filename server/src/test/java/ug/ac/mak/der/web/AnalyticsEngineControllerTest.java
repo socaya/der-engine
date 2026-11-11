@@ -65,6 +65,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationFetcher reconciliationFetcher;
     @MockBean ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqRepository liveDlq;
     @MockBean ug.ac.mak.der.analytics.dlq.AnalyticsLiveRetryWorker liveRetryWorker;
+    @MockBean ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkService benchmarks;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -233,6 +234,56 @@ class AnalyticsEngineControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.samplesConsidered").value(1))
                 .andExpect(jsonPath("$.rowsUpserted").value(1));
+    }
+
+    @Test
+    void benchmarkLatencyRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/benchmark/latency")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void benchmarkLatencyRunsForAdmin() throws Exception {
+        final var run = new ug.ac.mak.der.analytics.benchmark
+                .AnalyticsBenchmarkRun(
+                        UUID.randomUUID(),
+                        ug.ac.mak.der.analytics.benchmark
+                                .AnalyticsBenchmarkRun.Operation.LATENCY,
+                        100, 50, 180, 420, 500, 72,
+                        1024L, "{}", java.time.Instant.now());
+        when(benchmarks.latency(anyInt(), anyInt())).thenReturn(
+                new ug.ac.mak.der.analytics.benchmark
+                        .AnalyticsBenchmarkService.Verdict(
+                        run, true, 2000, "dashboard query"));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/benchmark/latency")
+                        .param("iterations", "100")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nfrMet").value(true))
+                .andExpect(jsonPath("$.run.iterations").value(100));
+    }
+
+    @Test
+    void benchmarkRunsRejectsInvalidOperation() throws Exception {
+        mockMvc.perform(get(
+                        "/edge-api/v1/analytics/v1/admin/benchmark/runs")
+                        .param("operation", "nonsense")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_OPERATION"));
+    }
+
+    @Test
+    void benchmarkRunsListsHistory() throws Exception {
+        when(benchmarks.recent(any(), anyInt())).thenReturn(List.of());
+        mockMvc.perform(get(
+                        "/edge-api/v1/analytics/v1/admin/benchmark/runs")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(0));
     }
 
     @Test
