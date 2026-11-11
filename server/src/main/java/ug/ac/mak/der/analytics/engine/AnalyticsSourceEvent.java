@@ -49,4 +49,18 @@ public record AnalyticsSourceEvent(
         /** der.edge_enrollment — DER_ENROLLMENT_COUNT. */
         ENROLLMENT
     }
+
+    /** Sentinel status value callers emit when a record has been
+     *  physically removed from the capture tables (hard delete).
+     *  The live ingester routes a tombstone through
+     *  {@code materializer.retractSource} so the contribution is
+     *  physically cleared, not just marked ineligible (SRS
+     *  FR-ING-005 + FR-ING-006). */
+    public static final String TOMBSTONE_STATUS = "DELETED";
+
+    /** True when this event is a tombstone — i.e. the capture
+     *  side is signalling "this record no longer exists". */
+    public boolean isTombstone() {
+        return TOMBSTONE_STATUS.equalsIgnoreCase(status);
+    }
 }

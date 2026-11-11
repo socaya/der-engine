@@ -106,6 +106,19 @@ public class AnalyticsLiveIngester {
                 return;
             }
             final AnalyticsDefinition def = defOpt.get();
+            // FR-ING-005 / FR-ING-006 — a tombstone (physical delete)
+            // clears every contribution the source emitted and re-
+            // materialises the touched cells. We do this before
+            // computing the period key because a deleted source
+            // doesn't carry a meaningful occurred-on anymore.
+            if (event.isTombstone()) {
+                materializer.retractSource(def, def.id(),
+                        def.definitionVersion(), event.sourceKey());
+                applied.incrementAndGet();
+                lastAppliedAt.put(event.sourceType(),
+                        System.currentTimeMillis());
+                return;
+            }
             final String periodKey = periods.windowContaining(
                     AnalyticsPeriodEnumerator.Type.MONTHLY,
                     event.occurredOn()).id();

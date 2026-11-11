@@ -100,6 +100,47 @@ class AnalyticsLiveIngesterTest {
     }
 
     @Test
+    void tombstoneRetractsAllContributionsForSource() {
+        when(engineRepo.findDefinitionByCode(AnalyticsSeed.EVENT_COUNT_CODE))
+                .thenReturn(Optional.of(eventDef));
+
+        ingester.handle(new AnalyticsSourceEvent(
+                AnalyticsSourceEvent.SourceType.EVENT,
+                "ev-gone", 1, LocalDate.of(2026, 11, 10), "OU-A",
+                AnalyticsSourceEvent.TOMBSTONE_STATUS));
+
+        verify(materializer).retractSource(eq(eventDef),
+                eq(eventMetricId), eq(1), eq("ev-gone"));
+        verify(materializer, never()).applyContribution(any(), any());
+        assertThat(ingester.stats().applied()).isEqualTo(1L);
+    }
+
+    @Test
+    void restorationFromSoftDeleteFlipsEligibilityBack() {
+        when(engineRepo.findDefinitionByCode(AnalyticsSeed.EVENT_COUNT_CODE))
+                .thenReturn(Optional.of(eventDef));
+
+        // Soft-delete first: status SKIPPED → eligibility=false
+        ingester.handle(new AnalyticsSourceEvent(
+                AnalyticsSourceEvent.SourceType.EVENT,
+                "ev-restored", 1, LocalDate.of(2026, 11, 10), "OU-A",
+                "SKIPPED"));
+        final org.mockito.ArgumentCaptor<AnalyticsContribution> cap =
+                org.mockito.ArgumentCaptor.forClass(AnalyticsContribution.class);
+        verify(materializer).applyContribution(eq(eventDef), cap.capture());
+        assertThat(cap.getValue().eligibility()).isFalse();
+
+        // Restore: status ACTIVE → eligibility=true, same source key
+        ingester.handle(new AnalyticsSourceEvent(
+                AnalyticsSourceEvent.SourceType.EVENT,
+                "ev-restored", 2, LocalDate.of(2026, 11, 10), "OU-A",
+                "ACTIVE"));
+        verify(materializer, org.mockito.Mockito.times(2))
+                .applyContribution(eq(eventDef), cap.capture());
+        assertThat(cap.getAllValues().get(2).eligibility()).isTrue();
+    }
+
+    @Test
     void failureEnqueuesDeadLetterWhenDlqWired() {
         final var dlq = org.mockito.Mockito.mock(
                 ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqRepository.class);
