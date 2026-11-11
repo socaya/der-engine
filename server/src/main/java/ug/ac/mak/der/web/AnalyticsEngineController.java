@@ -42,6 +42,7 @@ import ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliation;
 import ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationRepository;
 import ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationService;
 import ug.ac.mak.der.analytics.publication.PublicationMapping;
+import ug.ac.mak.der.analytics.replay.AnalyticsBaselineVerifier;
 import ug.ac.mak.der.analytics.publication.PublicationProposal;
 import ug.ac.mak.der.analytics.publication.PublicationProposalService;
 import ug.ac.mak.der.analytics.publication.PublicationRepository;
@@ -92,6 +93,7 @@ public class AnalyticsEngineController {
     private final AnalyticsDrilldownService drilldown;
     private final AnalyticsReconciliationService reconciliation;
     private final AnalyticsReconciliationRepository reconciliationRepo;
+    private final AnalyticsBaselineVerifier replayVerifier;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -116,7 +118,8 @@ public class AnalyticsEngineController {
                                       final AnalyticsObservability metrics,
                                       final AnalyticsDrilldownService drilldown,
                                       final AnalyticsReconciliationService reconciliation,
-                                      final AnalyticsReconciliationRepository reconciliationRepo) {
+                                      final AnalyticsReconciliationRepository reconciliationRepo,
+                                      final AnalyticsBaselineVerifier replayVerifier) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -135,6 +138,8 @@ public class AnalyticsEngineController {
                 "reconciliation");
         this.reconciliationRepo = Objects.requireNonNull(reconciliationRepo,
                 "reconciliationRepo");
+        this.replayVerifier = Objects.requireNonNull(replayVerifier,
+                "replayVerifier");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -730,6 +735,28 @@ public class AnalyticsEngineController {
         };
         return ResponseEntity.status(status)
                 .body(AnalyticsDrilldownService.asMap(result));
+    }
+
+    /* ─────────────── /admin/replay-verify ─────────────── */
+
+    /** Spec §17 release gate — re-aggregate every materialised
+     *  cell from the ledger and report any drift. Read-only; never
+     *  rewrites cells. ADMIN only because a drifted cell is an
+     *  operational incident, not an operator-facing number. */
+    @PostMapping("/admin/replay-verify")
+    public ResponseEntity<Map<String, Object>> replayVerify(
+            @RequestParam(name = "limit", required = false,
+                    defaultValue = "2000") final int limit,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final var report = replayVerifier.verify(limit);
+        return ResponseEntity.ok(AnalyticsBaselineVerifier.asJson(report));
     }
 
     /* ─────────────── /reconciliation ─────────────── */

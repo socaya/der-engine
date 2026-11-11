@@ -1,6 +1,7 @@
 package ug.ac.mak.der.web;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,6 +61,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.drilldown.AnalyticsDrilldownService drilldown;
     @MockBean ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationService reconciliation;
     @MockBean ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationRepository reconciliationRepo;
+    @MockBean ug.ac.mak.der.analytics.replay.AnalyticsBaselineVerifier replayVerifier;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -205,6 +207,30 @@ class AnalyticsEngineControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.samplesConsidered").value(1))
                 .andExpect(jsonPath("$.rowsUpserted").value(1));
+    }
+
+    @Test
+    void replayVerifyRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/replay-verify")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void replayVerifyReturnsReport() throws Exception {
+        when(replayVerifier.verify(anyInt())).thenReturn(
+                new ug.ac.mak.der.analytics.replay
+                        .AnalyticsBaselineVerifier.BaselineReport(
+                        3, 3, 0, 0, List.of()));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/replay-verify")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cellsChecked").value(3))
+                .andExpect(jsonPath("$.cellsOk").value(3))
+                .andExpect(jsonPath("$.cellsDrifted").value(0));
     }
 
     @Test
