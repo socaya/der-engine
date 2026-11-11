@@ -42,6 +42,7 @@ import ug.ac.mak.der.analytics.column.exec.ColumnarExplainer;
 import ug.ac.mak.der.analytics.column.exec.PlanSelector;
 import ug.ac.mak.der.analytics.column.governor.QueryGovernor;
 import ug.ac.mak.der.analytics.column.governor.QueryToken;
+import ug.ac.mak.der.analytics.column.governor.SpillStore;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarVerifier;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkRun;
@@ -117,6 +118,7 @@ public class AnalyticsEngineController {
     private final ColumnarExplainer columnarExplainer;
     private final PlanSelector planSelector;
     private final QueryGovernor queryGovernor;
+    private final SpillStore spillStore;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -152,7 +154,8 @@ public class AnalyticsEngineController {
                                       final AnalyticsColumnarVerifier columnarVerifier,
                                       final ColumnarExplainer columnarExplainer,
                                       final PlanSelector planSelector,
-                                      final QueryGovernor queryGovernor) {
+                                      final QueryGovernor queryGovernor,
+                                      final SpillStore spillStore) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -191,6 +194,8 @@ public class AnalyticsEngineController {
                 "planSelector");
         this.queryGovernor = Objects.requireNonNull(queryGovernor,
                 "queryGovernor");
+        this.spillStore = Objects.requireNonNull(spillStore,
+                "spillStore");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -861,6 +866,31 @@ public class AnalyticsEngineController {
                     "code", "VERIFY_IO_FAILURE",
                     "message", ex.getMessage()));
         }
+    }
+
+    /** SRS FR-QRY-013 spill usage — per-query and global bytes. */
+    @GetMapping("/admin/queries/spill")
+    public ResponseEntity<Map<String, Object>> listSpillUsage(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        for (final Map.Entry<UUID, Long> e : spillStore.listUsage()) {
+            final Map<String, Object> m = new LinkedHashMap<>();
+            m.put("queryId", e.getKey().toString());
+            m.put("bytes", e.getValue());
+            rows.add(m);
+        }
+        return ResponseEntity.ok(Map.of(
+                "globalBytes", spillStore.globalBytes(),
+                "globalByteLimit", spillStore.globalByteLimit(),
+                "perQueryByteLimit", spillStore.perQueryByteLimit(),
+                "queries", rows));
     }
 
     /** SRS §6 governor list — every in-flight query with its

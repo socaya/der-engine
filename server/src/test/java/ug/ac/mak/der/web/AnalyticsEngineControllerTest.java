@@ -72,6 +72,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.column.exec.ColumnarExplainer columnarExplainer;
     @MockBean ug.ac.mak.der.analytics.column.exec.PlanSelector planSelector;
     @MockBean ug.ac.mak.der.analytics.column.governor.QueryGovernor queryGovernor;
+    @MockBean ug.ac.mak.der.analytics.column.governor.SpillStore spillStore;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -368,6 +369,29 @@ class AnalyticsEngineControllerTest {
         mockMvc.perform(get("/edge-api/v1/analytics/v1/admin/queries")
                         .with(as(EdgeRole.REVIEWER)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listSpillUsageRejectsNonAdmin() throws Exception {
+        mockMvc.perform(get(
+                        "/edge-api/v1/analytics/v1/admin/queries/spill")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listSpillUsageReturnsLimitsAndRows() throws Exception {
+        when(spillStore.globalBytes()).thenReturn(1024L);
+        when(spillStore.globalByteLimit())
+                .thenReturn(10L * 1024L * 1024L * 1024L);
+        when(spillStore.perQueryByteLimit())
+                .thenReturn(1024L * 1024L * 1024L);
+        when(spillStore.listUsage()).thenReturn(java.util.List.of());
+        mockMvc.perform(get(
+                        "/edge-api/v1/analytics/v1/admin/queries/spill")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.globalBytes").value(1024));
     }
 
     @Test
