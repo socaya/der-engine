@@ -40,6 +40,8 @@ import java.util.Optional;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkFixtureGenerator;
 import ug.ac.mak.der.analytics.column.exec.ColumnarExplainer;
 import ug.ac.mak.der.analytics.column.exec.PlanSelector;
+import ug.ac.mak.der.analytics.column.governor.QueryGovernor;
+import ug.ac.mak.der.analytics.column.governor.QueryToken;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarVerifier;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkRun;
@@ -114,6 +116,7 @@ public class AnalyticsEngineController {
     private final AnalyticsColumnarVerifier columnarVerifier;
     private final ColumnarExplainer columnarExplainer;
     private final PlanSelector planSelector;
+    private final QueryGovernor queryGovernor;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -148,7 +151,8 @@ public class AnalyticsEngineController {
                                       final AnalyticsColumnarSink columnarSink,
                                       final AnalyticsColumnarVerifier columnarVerifier,
                                       final ColumnarExplainer columnarExplainer,
-                                      final PlanSelector planSelector) {
+                                      final PlanSelector planSelector,
+                                      final QueryGovernor queryGovernor) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -185,6 +189,8 @@ public class AnalyticsEngineController {
                 "columnarExplainer");
         this.planSelector = Objects.requireNonNull(planSelector,
                 "planSelector");
+        this.queryGovernor = Objects.requireNonNull(queryGovernor,
+                "queryGovernor");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -855,6 +861,68 @@ public class AnalyticsEngineController {
                     "code", "VERIFY_IO_FAILURE",
                     "message", ex.getMessage()));
         }
+    }
+
+    /** SRS §6 governor list — every in-flight query with its
+     *  bytes accounted, elapsed time and current state. */
+    @GetMapping("/admin/queries")
+    public ResponseEntity<Map<String, Object>> listInFlightQueries(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final List<Map<String, Object>> rows =
+                new ArrayList<>();
+        for (final QueryToken t : queryGovernor.list()) {
+            final Map<String, Object> m = new LinkedHashMap<>();
+            m.put("queryId", t.queryId().toString());
+            m.put("principal", t.principal());
+            m.put("startedAt", t.startedAt().toString());
+            m.put("elapsedMillis", System.currentTimeMillis()
+                    - t.startedAt().toEpochMilli());
+            m.put("bytesAccounted", t.bytesAccounted());
+            m.put("maxBytes", t.maxBytes());
+            m.put("state", t.state().name());
+            rows.add(m);
+        }
+        return ResponseEntity.ok(Map.of(
+                "inFlight", queryGovernor.inFlightCount(),
+                "maxConcurrent", queryGovernor.maxConcurrent(),
+                "queries", rows));
+    }
+
+    /** Admin cancel for a specific query id. */
+    @PostMapping("/admin/queries/{id}/cancel")
+    public ResponseEntity<Map<String, Object>> cancelQuery(
+            @PathVariable final String id,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final UUID queryId;
+        try {
+            queryId = UUID.fromString(id);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INVALID_ID"));
+        }
+        final boolean cancelled = queryGovernor.cancel(queryId);
+        if (!cancelled) {
+            return ResponseEntity.status(404).body(Map.of(
+                    "code", "NOT_FOUND",
+                    "message", "query not in flight"));
+        }
+        return ResponseEntity.ok(Map.of(
+                "cancelled", true,
+                "queryId", queryId.toString()));
     }
 
     /** SRS FR-QRY-004 plan selection. Shows which engine the

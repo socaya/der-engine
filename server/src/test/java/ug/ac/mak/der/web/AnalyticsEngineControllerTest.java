@@ -71,6 +71,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarVerifier columnarVerifier;
     @MockBean ug.ac.mak.der.analytics.column.exec.ColumnarExplainer columnarExplainer;
     @MockBean ug.ac.mak.der.analytics.column.exec.PlanSelector planSelector;
+    @MockBean ug.ac.mak.der.analytics.column.governor.QueryGovernor queryGovernor;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -360,6 +361,56 @@ class AnalyticsEngineControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.selected").value("COLUMNAR"))
                 .andExpect(jsonPath("$.rationale").value("columnar cheaper"));
+    }
+
+    @Test
+    void listQueriesRejectsNonAdmin() throws Exception {
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/admin/queries")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listQueriesReturnsGovernorSnapshot() throws Exception {
+        when(queryGovernor.inFlightCount()).thenReturn(2);
+        when(queryGovernor.maxConcurrent()).thenReturn(4);
+        when(queryGovernor.list()).thenReturn(java.util.List.of());
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/admin/queries")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.inFlight").value(2))
+                .andExpect(jsonPath("$.maxConcurrent").value(4));
+    }
+
+    @Test
+    void cancelQueryNotFoundReturns404() throws Exception {
+        when(queryGovernor.cancel(any())).thenReturn(false);
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/queries/"
+                        + UUID.randomUUID() + "/cancel")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    @Test
+    void cancelQueryHappyPath() throws Exception {
+        when(queryGovernor.cancel(any())).thenReturn(true);
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/queries/"
+                        + UUID.randomUUID() + "/cancel")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cancelled").value(true));
+    }
+
+    @Test
+    void cancelQueryRejectsInvalidId() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/queries/not-a-uuid/cancel")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_ID"));
     }
 
     @Test
