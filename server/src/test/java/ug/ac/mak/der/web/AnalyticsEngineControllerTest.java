@@ -58,6 +58,8 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.publication.PublicationRepository publicationRepo;
     @MockBean ug.ac.mak.der.analytics.engine.AnalyticsObservability metrics;
     @MockBean ug.ac.mak.der.analytics.drilldown.AnalyticsDrilldownService drilldown;
+    @MockBean ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationService reconciliation;
+    @MockBean ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationRepository reconciliationRepo;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -150,6 +152,59 @@ class AnalyticsEngineControllerTest {
                         .with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.outcome").value("UNAUTHORISED"));
+    }
+
+    @Test
+    void reconciliationRequiresAuth() throws Exception {
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/reconciliation"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void reconciliationListsRowsForAuthenticatedUser() throws Exception {
+        when(reconciliationRepo.list(any(), any(), eq(200)))
+                .thenReturn(List.of());
+        when(reconciliationRepo.classificationCounts())
+                .thenReturn(ug.ac.mak.der.analytics.reconciliation
+                        .AnalyticsReconciliationService
+                        .emptyClassificationHistogram());
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/reconciliation")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(0))
+                .andExpect(jsonPath("$.byClassification.IN_AGREEMENT").value(0));
+    }
+
+    @Test
+    void reconciliationCompareRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/reconciliation/compare")
+                        .contentType("application/json")
+                        .content("[]")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void reconciliationCompareAcceptsAdmin() throws Exception {
+        when(reconciliation.compare(any())).thenReturn(
+                new ug.ac.mak.der.analytics.reconciliation
+                        .AnalyticsReconciliationService.CompareResult(
+                        1, 1, ug.ac.mak.der.analytics.reconciliation
+                                .AnalyticsReconciliationService
+                                .emptyClassificationHistogram()));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/reconciliation/compare")
+                        .contentType("application/json")
+                        .content("[{\"metricId\":\"" + UUID.randomUUID()
+                                + "\",\"periodKey\":\"202611\","
+                                + "\"orgUnitUid\":\"OU-A\","
+                                + "\"centralValue\":42}]")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.samplesConsidered").value(1))
+                .andExpect(jsonPath("$.rowsUpserted").value(1));
     }
 
     @Test

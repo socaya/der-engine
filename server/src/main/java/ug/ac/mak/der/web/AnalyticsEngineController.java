@@ -38,6 +38,9 @@ import ug.ac.mak.der.analytics.expression.ExpressionCompiler;
 import java.util.Optional;
 
 import ug.ac.mak.der.analytics.drilldown.AnalyticsDrilldownService;
+import ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliation;
+import ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationRepository;
+import ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationService;
 import ug.ac.mak.der.analytics.publication.PublicationMapping;
 import ug.ac.mak.der.analytics.publication.PublicationProposal;
 import ug.ac.mak.der.analytics.publication.PublicationProposalService;
@@ -87,6 +90,8 @@ public class AnalyticsEngineController {
     private final PublicationRepository publicationRepo;
     private final AnalyticsObservability metrics;
     private final AnalyticsDrilldownService drilldown;
+    private final AnalyticsReconciliationService reconciliation;
+    private final AnalyticsReconciliationRepository reconciliationRepo;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -109,7 +114,9 @@ public class AnalyticsEngineController {
                                       final PublicationProposalService publication,
                                       final PublicationRepository publicationRepo,
                                       final AnalyticsObservability metrics,
-                                      final AnalyticsDrilldownService drilldown) {
+                                      final AnalyticsDrilldownService drilldown,
+                                      final AnalyticsReconciliationService reconciliation,
+                                      final AnalyticsReconciliationRepository reconciliationRepo) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -124,6 +131,10 @@ public class AnalyticsEngineController {
                 "publicationRepo");
         this.metrics = Objects.requireNonNull(metrics, "metrics");
         this.drilldown = Objects.requireNonNull(drilldown, "drilldown");
+        this.reconciliation = Objects.requireNonNull(reconciliation,
+                "reconciliation");
+        this.reconciliationRepo = Objects.requireNonNull(reconciliationRepo,
+                "reconciliationRepo");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -719,6 +730,119 @@ public class AnalyticsEngineController {
         };
         return ResponseEntity.status(status)
                 .body(AnalyticsDrilldownService.asMap(result));
+    }
+
+    /* ─────────────── /reconciliation ─────────────── */
+
+    @GetMapping("/reconciliation")
+    public ResponseEntity<Map<String, Object>> listReconciliations(
+            @RequestParam(name = "metricId", required = false)
+            final String metricIdRaw,
+            @RequestParam(name = "classification", required = false)
+            final String classification,
+            @RequestParam(name = "limit", required = false,
+                    defaultValue = "200") final int limit,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        UUID metricId = null;
+        if (metricIdRaw != null && !metricIdRaw.isBlank()) {
+            try {
+                metricId = UUID.fromString(metricIdRaw);
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "code", "INVALID_ID"));
+            }
+        }
+        final List<AnalyticsReconciliation> rows =
+                reconciliationRepo.list(metricId, classification, limit);
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("count", rows.size());
+        body.put("byClassification",
+                reconciliationRepo.classificationCounts());
+        body.put("rows", AnalyticsReconciliationService.asJson(rows));
+        return ResponseEntity.ok(body);
+    }
+
+    public record CentralSampleBody(
+            String metricId,
+            String periodKey,
+            String orgUnitUid,
+            String dimensionKey,
+            BigDecimal centralValue,
+            Integer centralDefinitionVersion,
+            String centralRefreshAt,
+            Boolean metricFormulaCompatibleWithCentral,
+            Boolean sameOrgUnitAnchor,
+            Boolean sameDateAnchor,
+            Boolean sameDedupPolicy,
+            Boolean hasRejectedTrackerUpdate,
+            Boolean localHasUnpublishedSources,
+            Boolean lateDataAfterRefresh,
+            String lastLocalPublishAt) { }
+
+    /** Post a batch of authoritative central samples for comparison.
+     *  Classifier-only slice — the DHIS2 /api/analytics fetch worker
+     *  lands in a later slice; this endpoint lets admin tooling (or
+     *  tests) drive the comparison deterministically. */
+    @PostMapping("/admin/reconciliation/compare")
+    public ResponseEntity<Map<String, Object>> compareReconciliations(
+            @RequestBody(required = false) final List<CentralSampleBody> body,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final List<AnalyticsReconciliationService.CentralSample> samples =
+                new ArrayList<>();
+        if (body != null) {
+            for (final CentralSampleBody b : body) {
+                if (b == null || b.metricId() == null
+                        || b.periodKey() == null || b.orgUnitUid() == null) {
+                    continue;
+                }
+                final UUID id;
+                try {
+                    id = UUID.fromString(b.metricId());
+                } catch (IllegalArgumentException ex) {
+                    continue;
+                }
+                samples.add(new AnalyticsReconciliationService.CentralSample(
+                        id, b.periodKey(), b.orgUnitUid(),
+                        b.dimensionKey(), b.centralValue(),
+                        b.centralDefinitionVersion(),
+                        parseInstant(b.centralRefreshAt()),
+                        Boolean.TRUE.equals(
+                                b.metricFormulaCompatibleWithCentral()),
+                        !Boolean.FALSE.equals(b.sameOrgUnitAnchor()),
+                        !Boolean.FALSE.equals(b.sameDateAnchor()),
+                        !Boolean.FALSE.equals(b.sameDedupPolicy()),
+                        Boolean.TRUE.equals(b.hasRejectedTrackerUpdate()),
+                        Boolean.TRUE.equals(b.localHasUnpublishedSources()),
+                        Boolean.TRUE.equals(b.lateDataAfterRefresh()),
+                        parseInstant(b.lastLocalPublishAt())));
+            }
+        }
+        final var result = reconciliation.compare(samples);
+        return ResponseEntity.ok(Map.of(
+                "samplesConsidered", result.samplesConsidered(),
+                "rowsUpserted", result.rowsUpserted(),
+                "byClassification", result.byClassification()));
+    }
+
+    private static Instant parseInstant(final String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        try {
+            return Instant.parse(s);
+        } catch (RuntimeException ex) {
+            return null;
+        }
     }
 
     /* ─────────────── /quality ─────────────── */
