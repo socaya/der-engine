@@ -72,6 +72,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.column.exec.ColumnarExplainer columnarExplainer;
     @MockBean ug.ac.mak.der.analytics.column.exec.PlanSelector planSelector;
     @MockBean ug.ac.mak.der.analytics.column.exec.ColumnarQueryEngine columnarQueryEngine;
+    @MockBean ug.ac.mak.der.analytics.column.feedback.PlanFeedbackStore planFeedbackStore;
     @MockBean ug.ac.mak.der.analytics.column.governor.QueryGovernor queryGovernor;
     @MockBean ug.ac.mak.der.analytics.column.governor.SpillStore spillStore;
     @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionExporter siteExporter;
@@ -374,6 +375,30 @@ class AnalyticsEngineControllerTest {
         mockMvc.perform(get("/edge-api/v1/analytics/v1/admin/queries")
                         .with(as(EdgeRole.REVIEWER)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listPlanFeedbackRejectsNonAdmin() throws Exception {
+        mockMvc.perform(get(
+                        "/edge-api/v1/analytics/v1/admin/queries/feedback")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listPlanFeedbackReturnsStoreSnapshot() throws Exception {
+        when(planFeedbackStore.size()).thenReturn(3);
+        when(planFeedbackStore.capacity()).thenReturn(512);
+        when(planFeedbackStore.recent(anyInt())).thenReturn(
+                java.util.List.of());
+        when(planFeedbackStore.averageRatioByShape()).thenReturn(
+                java.util.Map.of());
+        mockMvc.perform(get(
+                        "/edge-api/v1/analytics/v1/admin/queries/feedback")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.observations").value(3))
+                .andExpect(jsonPath("$.capacity").value(512));
     }
 
     @Test

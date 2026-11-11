@@ -41,6 +41,8 @@ import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkFixtureGenerator;
 import ug.ac.mak.der.analytics.column.exec.ColumnarExplainer;
 import ug.ac.mak.der.analytics.column.exec.ColumnarQueryEngine;
 import ug.ac.mak.der.analytics.column.exec.PlanSelector;
+import ug.ac.mak.der.analytics.column.feedback.PlanFeedback;
+import ug.ac.mak.der.analytics.column.feedback.PlanFeedbackStore;
 import ug.ac.mak.der.analytics.column.governor.QueryGovernor;
 import ug.ac.mak.der.analytics.column.governor.QueryToken;
 import ug.ac.mak.der.analytics.column.governor.SpillStore;
@@ -125,6 +127,7 @@ public class AnalyticsEngineController {
     private final ColumnarExplainer columnarExplainer;
     private final PlanSelector planSelector;
     private final ColumnarQueryEngine columnarQueryEngine;
+    private final PlanFeedbackStore planFeedbackStore;
     private final QueryGovernor queryGovernor;
     private final SpillStore spillStore;
     private final SiteContributionExporter siteExporter;
@@ -167,6 +170,7 @@ public class AnalyticsEngineController {
                                       final ColumnarExplainer columnarExplainer,
                                       final PlanSelector planSelector,
                                       final ColumnarQueryEngine columnarQueryEngine,
+                                      final PlanFeedbackStore planFeedbackStore,
                                       final QueryGovernor queryGovernor,
                                       final SpillStore spillStore,
                                       final SiteContributionExporter siteExporter,
@@ -211,6 +215,8 @@ public class AnalyticsEngineController {
                 "planSelector");
         this.columnarQueryEngine = Objects.requireNonNull(columnarQueryEngine,
                 "columnarQueryEngine");
+        this.planFeedbackStore = Objects.requireNonNull(planFeedbackStore,
+                "planFeedbackStore");
         this.queryGovernor = Objects.requireNonNull(queryGovernor,
                 "queryGovernor");
         this.spillStore = Objects.requireNonNull(spillStore,
@@ -689,6 +695,8 @@ public class AnalyticsEngineController {
             // stale (SRS FR-QRY-004).
             PlanSelector.Engine engineUsed = PlanSelector.Engine.ROW_STORE;
             String engineRationale = "row-store default";
+            double estimatedCost = 0.0;
+            long estimatedRows = 0L;
             List<AnalyticsCell> cells;
             try {
                 final PlanSelector.PlanDecision decision =
@@ -696,6 +704,11 @@ public class AnalyticsEngineController {
                 if (decision != null) {
                     engineUsed = decision.selected();
                     engineRationale = decision.rationale();
+                    estimatedCost = engineUsed
+                            == PlanSelector.Engine.COLUMNAR
+                            ? decision.columnarCost()
+                            : decision.rowStoreCost();
+                    estimatedRows = decision.rowStoreRows();
                 }
             } catch (java.io.IOException ex) {
                 engineRationale = "planner I/O failed: " + ex.getMessage();
@@ -750,6 +763,20 @@ public class AnalyticsEngineController {
                     .map(c -> cellJson(c, dimsByMetric.get(c.metricId()),
                             osCache))
                     .toList());
+            // Gate 7.1 — record estimate-vs-reality for the
+            // adaptive optimizer to consume later.
+            try {
+                planFeedbackStore.record(new PlanFeedback(
+                        Instant.now(),
+                        engineUsed.name().toLowerCase(),
+                        PlanFeedbackStore.shapeKeyFor(cq),
+                        estimatedRows,
+                        cells.size(),
+                        estimatedCost,
+                        System.currentTimeMillis() - t0));
+            } catch (RuntimeException ex) {
+                // Feedback accounting must never fail the query.
+            }
             return ResponseEntity.ok(out);
         } finally {
             metrics.record("query",
@@ -1179,6 +1206,44 @@ public class AnalyticsEngineController {
         m.put("producedAt", p.producedAt().toString());
         m.put("checksumHex", p.checksumHex());
         return m;
+    }
+
+    /** SRS FR-QRY-015 adaptive feedback window. Lists recent
+     *  estimate-vs-reality observations + per-shape ratio
+     *  averages so operators can see where the planner's
+     *  estimates drift. */
+    @GetMapping("/admin/queries/feedback")
+    public ResponseEntity<Map<String, Object>> listPlanFeedback(
+            @RequestParam(name = "limit", required = false,
+                    defaultValue = "100") final int limit,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final List<PlanFeedback> recent = planFeedbackStore.recent(limit);
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        for (final PlanFeedback f : recent) {
+            final Map<String, Object> m = new LinkedHashMap<>();
+            m.put("observedAt", f.observedAt().toString());
+            m.put("engine", f.engine());
+            m.put("shapeKey", f.shapeKey());
+            m.put("estimatedRows", f.estimatedRows());
+            m.put("actualRows", f.actualRows());
+            m.put("estimatedCost", f.estimatedCost());
+            m.put("elapsedMillis", f.elapsedMillis());
+            m.put("observedRatio", f.observedRatio());
+            rows.add(m);
+        }
+        return ResponseEntity.ok(Map.of(
+                "observations", planFeedbackStore.size(),
+                "capacity", planFeedbackStore.capacity(),
+                "recent", rows,
+                "ratioByShape",
+                planFeedbackStore.averageRatioByShape()));
     }
 
     /** SRS FR-QRY-013 spill usage — per-query and global bytes. */
