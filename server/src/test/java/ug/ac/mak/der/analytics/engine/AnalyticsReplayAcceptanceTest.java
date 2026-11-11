@@ -120,6 +120,28 @@ class AnalyticsReplayAcceptanceTest {
     }
 
     @Test
+    void fixture7OutOfOrderRevisionNeverRegressesState() {
+        // SRS §12 fixture 7: revision 8 arriving before revision 7
+        // never regresses current state to revision 7. We simulate
+        // the raw ledger here (not the live ingester) to exercise
+        // the upsert version guard directly.
+        final AnalyticsContribution rev8 = new AnalyticsContribution(
+                metricId, 1, "ev-ooo", "8", "202611", "OU-A", "",
+                BigDecimal.ONE, true, "COMMITTED", null, null);
+        final AnalyticsContribution rev7 = new AnalyticsContribution(
+                metricId, 1, "ev-ooo", "7", "202611", "OU-A", "",
+                BigDecimal.ONE, false, "COMMITTED", null, null);
+
+        contributions.upsert(rev8);
+        contributions.upsert(rev7); // older, should be dropped
+
+        assertThat(contributions.rows()).hasSize(1);
+        assertThat(contributions.rows().get(0).sourceVersion())
+                .isEqualTo("8");
+        assertThat(contributions.rows().get(0).eligibility()).isTrue();
+    }
+
+    @Test
     void verifierReportsZeroDriftOnCleanRun() {
         when(cellsRepo.findDefinition(metricId))
                 .thenReturn(Optional.of(def));
@@ -174,16 +196,33 @@ class AnalyticsReplayAcceptanceTest {
                 failNext = false;
                 throw new RuntimeException("simulated mid-tx crash");
             }
-            // Upsert-by-key.
+            // Upsert-by-key with SRS fixture-7 version guard: an older
+            // revision arriving after a newer one leaves state alone.
             for (int i = 0; i < rows.size(); i++) {
                 final AnalyticsContribution r = rows.get(i);
                 if (sameTuple(r, c)) {
+                    if (!atLeast(c.sourceVersion(), r.sourceVersion())) {
+                        return 0;
+                    }
                     rows.set(i, c);
                     return 1;
                 }
             }
             rows.add(c);
             return 1;
+        }
+
+        private static boolean atLeast(final String incoming,
+                                         final String existing) {
+            if (incoming == null || existing == null) {
+                return true;
+            }
+            if (incoming.matches("^[0-9]+$")
+                    && existing.matches("^[0-9]+$")) {
+                return Long.parseLong(incoming)
+                        >= Long.parseLong(existing);
+            }
+            return incoming.compareTo(existing) >= 0;
         }
 
         @Override

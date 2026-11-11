@@ -30,9 +30,13 @@ public class AnalyticsContributionRepository {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 
-    /** Upsert one contribution. Replays with the same
-     *  (metric, source_key, period, orgUnit, dimension) tuple update
-     *  value + eligibility + source_version idempotently. */
+    /** Upsert one contribution with version-aware reordering guard
+     *  (SRS §12 fixture 7 + FR-ING-007). Only applies the update
+     *  when the incoming {@code source_version} is at least as high
+     *  as the stored one — numerically when both sides are digit
+     *  strings, lexically otherwise. An older revision arriving
+     *  after a newer one is silently dropped so current state never
+     *  regresses. */
     public int upsert(final AnalyticsContribution c) {
         return jdbc.update(
                 "INSERT INTO der.analytics_contribution ("
@@ -50,7 +54,8 @@ public class AnalyticsContributionRepository {
               + "  source_state = EXCLUDED.source_state, "
               + "  numerator_contribution = EXCLUDED.numerator_contribution, "
               + "  denominator_contribution = EXCLUDED.denominator_contribution, "
-              + "  updated_at = now()",
+              + "  updated_at = now() "
+              + " WHERE " + VERSION_GUARD,
                 c.metricId(), c.definitionVersion(), c.sourceKey(),
                 c.sourceVersion(), c.periodKey(), c.orgUnitUid(),
                 c.dimensionKey() == null ? "" : c.dimensionKey(),
@@ -60,6 +65,22 @@ public class AnalyticsContributionRepository {
                 c.numeratorContribution(),
                 c.denominatorContribution());
     }
+
+    /** Postgres predicate that admits the UPDATE only when the
+     *  incoming source_version is at least as high as the stored
+     *  value. Castable numeric strings are compared numerically;
+     *  anything else falls back to lexical compare so a non-digit
+     *  version (hash, uuid) still has a stable total order. */
+    private static final String VERSION_GUARD =
+            "CASE "
+          + "  WHEN der.analytics_contribution.source_version "
+          + "       ~ '^[0-9]+$' "
+          + "   AND EXCLUDED.source_version ~ '^[0-9]+$' "
+          + "  THEN EXCLUDED.source_version::BIGINT "
+          + "        >= der.analytics_contribution.source_version::BIGINT "
+          + "  ELSE EXCLUDED.source_version "
+          + "        >= der.analytics_contribution.source_version "
+          + "END";
 
     /** Remove every contribution for a source (across periods /
      *  dimensions / orgUnits). Used when a source is deleted or
@@ -214,7 +235,8 @@ public class AnalyticsContributionRepository {
               + "  source_state = EXCLUDED.source_state, "
               + "  numerator_contribution = EXCLUDED.numerator_contribution, "
               + "  denominator_contribution = EXCLUDED.denominator_contribution, "
-              + "  updated_at = now()",
+              + "  updated_at = now() "
+              + " WHERE " + VERSION_GUARD,
                 args);
     }
 }
