@@ -22,6 +22,9 @@ import ug.ac.mak.der.analytics.column.manifest.ManifestStore;
 import ug.ac.mak.der.analytics.column.manifest.ManifestWriter;
 import ug.ac.mak.der.analytics.column.manifest.SegmentRef;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarProperties;
+import ug.ac.mak.der.analytics.column.stats.ColumnStatistics;
+import ug.ac.mak.der.analytics.column.stats.SegmentStatistics;
+import ug.ac.mak.der.analytics.column.stats.SegmentStatisticsStore;
 import ug.ac.mak.der.analytics.engine.AnalyticsCell;
 import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
 
@@ -75,11 +78,29 @@ public class ColumnarQueryEngine {
         int emitted = 0;
         final int limit = q.limit() <= 0 ? 2000 : Math.min(q.limit(), 2000);
 
+        final SegmentStatisticsStore statsStore =
+                new SegmentStatisticsStore(json);
         for (final SegmentRef ref : manifest.segments()) {
             if (!matchesSegment(ref, q)) {
                 continue;
             }
             final Path file = root.resolve(ref.file());
+            // Zone-map pruning (SRS FR-STO-008) — skip segments
+            // whose orgUnit min/max band can't contain any of the
+            // requested org units.
+            if (q.orgUnitUids() != null && !q.orgUnitUids().isEmpty()) {
+                final java.util.Optional<SegmentStatistics> statsOpt =
+                        statsStore.read(file);
+                if (statsOpt.isPresent()) {
+                    final ColumnStatistics ouStats = statsOpt.get()
+                            .column("orgUnit");
+                    if (ouStats != null
+                            && !canMatchOrgUnit(ouStats,
+                                    q.orgUnitUids())) {
+                        continue;
+                    }
+                }
+            }
             final ColumnScanner.ScannedSegment scanned =
                     ColumnScanner.load(file, PROJECTED_COLUMNS);
             final Filter filter = buildFilter(q);
@@ -97,6 +118,38 @@ public class ColumnarQueryEngine {
             }
         }
         return out;
+    }
+
+    /** Zone-map decision: can any requested orgUnit lie within the
+     *  segment's [min, max] band? When the stats carry an exhaustive
+     *  distinct sample, the test is exact — otherwise falls back to
+     *  lex-range inclusion. */
+    private static boolean canMatchOrgUnit(final ColumnStatistics stats,
+                                              final java.util.List<String>
+                                                      wanted) {
+        if (stats == null || stats.rowCount() == 0) {
+            return true;
+        }
+        if (stats.distinctSampleExhaustive()
+                && !stats.distinctSample().isEmpty()) {
+            for (final String w : wanted) {
+                if (stats.distinctSample().contains(w)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        final String min = (String) stats.minValue();
+        final String max = (String) stats.maxValue();
+        if (min == null || max == null) {
+            return true;
+        }
+        for (final String w : wanted) {
+            if (w.compareTo(min) >= 0 && w.compareTo(max) <= 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean matchesSegment(

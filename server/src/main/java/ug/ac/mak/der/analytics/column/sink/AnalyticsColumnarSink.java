@@ -262,6 +262,27 @@ public class AnalyticsColumnarSink {
         final Path file = root.resolve(relative);
         SegmentWriter.writeAtomically(segment, file);
 
+        // Gate 4.1 — write segment statistics sidecar for the
+        // zone-map pruner. Computed from the live sealed batches
+        // before they go out of scope, so no re-decode cost.
+        final java.util.Map<String, ColumnBatch> liveBatches =
+                new java.util.LinkedHashMap<>();
+        liveBatches.put("orgUnit", orgUnit);
+        liveBatches.put("dimensionKey", dim);
+        liveBatches.put("count", count);
+        liveBatches.put("sum", sum);
+        liveBatches.put("value", value);
+        liveBatches.put("numerator", num);
+        liveBatches.put("denominator", den);
+        liveBatches.put("freshnessAt", fresh);
+        liveBatches.put("qualityState", quality);
+        final ug.ac.mak.der.analytics.column.stats.SegmentStatistics stats
+                = ug.ac.mak.der.analytics.column.stats
+                    .SegmentStatisticsBuilder.compute(segmentId, n,
+                            liveBatches);
+        new ug.ac.mak.der.analytics.column.stats.SegmentStatisticsStore(
+                json).writeAtomically(stats, file);
+
         final SegmentRef ref = new SegmentRef(segmentId, relative,
                 key.metricId(), key.definitionVersion(),
                 key.periodKey(),

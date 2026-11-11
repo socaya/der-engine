@@ -19,6 +19,8 @@ import ug.ac.mak.der.analytics.column.manifest.ManifestStore;
 import ug.ac.mak.der.analytics.column.manifest.ManifestWriter;
 import ug.ac.mak.der.analytics.column.manifest.SegmentRef;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarProperties;
+import ug.ac.mak.der.analytics.column.stats.ColumnStatistics;
+import ug.ac.mak.der.analytics.column.stats.SegmentStatisticsStore;
 import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
 
 /**
@@ -93,8 +95,30 @@ public class ColumnarExplainer {
         final List<SegmentPlan> skipped = new ArrayList<>();
         int estimatedRows = 0;
         final int limit = q.limit() <= 0 ? 2000 : Math.min(q.limit(), 2000);
+        final SegmentStatisticsStore statsStore =
+                new SegmentStatisticsStore(json);
         for (final SegmentRef ref : manifest.segments()) {
-            final String reason = decideSegment(ref, q);
+            String reason = decideSegment(ref, q);
+            if ("matched".equals(reason)
+                    && q.orgUnitUids() != null
+                    && !q.orgUnitUids().isEmpty()) {
+                final Path file = root.resolve(ref.file());
+                try {
+                    final var statsOpt = statsStore.read(file);
+                    if (statsOpt.isPresent()) {
+                        final ColumnStatistics ou = statsOpt.get()
+                                .column("orgUnit");
+                        if (ou != null
+                                && !canMatchOrgUnit(ou,
+                                        q.orgUnitUids())) {
+                            reason = "skipped: zone map excludes "
+                                  + "requested orgUnit";
+                        }
+                    }
+                } catch (IOException ignored) {
+                    // No stats sidecar — fall back to matched.
+                }
+            }
             final SegmentPlan plan = new SegmentPlan(
                     ref.segmentId(), ref.metricId(),
                     ref.definitionVersion(), ref.periodKey(),
@@ -115,6 +139,33 @@ public class ColumnarExplainer {
                 limit,
                 Math.min(estimatedRows, limit),
                 "columnar");
+    }
+
+    private static boolean canMatchOrgUnit(final ColumnStatistics stats,
+                                              final List<String> wanted) {
+        if (stats == null || stats.rowCount() == 0) {
+            return true;
+        }
+        if (stats.distinctSampleExhaustive()
+                && !stats.distinctSample().isEmpty()) {
+            for (final String w : wanted) {
+                if (stats.distinctSample().contains(w)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        final String min = (String) stats.minValue();
+        final String max = (String) stats.maxValue();
+        if (min == null || max == null) {
+            return true;
+        }
+        for (final String w : wanted) {
+            if (w.compareTo(min) >= 0 && w.compareTo(max) <= 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String decideSegment(
