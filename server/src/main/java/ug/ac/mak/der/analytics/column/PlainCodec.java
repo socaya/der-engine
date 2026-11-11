@@ -60,20 +60,9 @@ public final class PlainCodec {
         return buf;
     }
 
-    private static Header readHeader(final byte[] blob) {
-        final ByteBuffer buf = ByteBuffer.wrap(blob);
-        final int rowCount = buf.getInt();
-        final int wordCount = buf.getInt();
-        final long[] words = new long[wordCount];
-        for (int i = 0; i < wordCount; i++) {
-            words[i] = buf.getLong();
-        }
-        final int nullCount = buf.getInt();
-        final NullBitmap nulls = new NullBitmap(words, rowCount, nullCount);
-        return new Header(rowCount, nulls, buf);
+    private static PlainCodecHeader readHeader(final byte[] blob) {
+        return PlainCodecHeader.read(blob);
     }
-
-    private record Header(int rowCount, NullBitmap nulls, ByteBuffer buf) { }
 
     /* ───── INT64 ───── */
 
@@ -101,7 +90,7 @@ public final class PlainCodec {
 
         @Override
         public ColumnBatch decode(final byte[] blob, final int rowCount) {
-            final Header h = readHeader(blob);
+            final PlainCodecHeader h = readHeader(blob);
             final long[] values = new long[rowCount];
             for (int i = 0; i < rowCount; i++) {
                 values[i] = h.buf().getLong();
@@ -156,7 +145,7 @@ public final class PlainCodec {
 
         @Override
         public ColumnBatch decode(final byte[] blob, final int rowCount) {
-            final Header h = readHeader(blob);
+            final PlainCodecHeader h = readHeader(blob);
             final BigDecimal[] values = new BigDecimal[rowCount];
             for (int i = 0; i < rowCount; i++) {
                 final int scale = h.buf().getInt();
@@ -213,7 +202,7 @@ public final class PlainCodec {
 
         @Override
         public ColumnBatch decode(final byte[] blob, final int rowCount) {
-            final Header h = readHeader(blob);
+            final PlainCodecHeader h = readHeader(blob);
             final String[] values = new String[rowCount];
             for (int i = 0; i < rowCount; i++) {
                 final int len = h.buf().getInt();
@@ -259,7 +248,7 @@ public final class PlainCodec {
 
         @Override
         public ColumnBatch decode(final byte[] blob, final int rowCount) {
-            final Header h = readHeader(blob);
+            final PlainCodecHeader h = readHeader(blob);
             final int wordCount = h.buf().getInt();
             final long[] bits = new long[wordCount];
             for (int i = 0; i < wordCount; i++) {
@@ -298,7 +287,7 @@ public final class PlainCodec {
 
         @Override
         public ColumnBatch decode(final byte[] blob, final int rowCount) {
-            final Header h = readHeader(blob);
+            final PlainCodecHeader h = readHeader(blob);
             final int[] values = new int[rowCount];
             for (int i = 0; i < rowCount; i++) {
                 values[i] = h.buf().getInt();
