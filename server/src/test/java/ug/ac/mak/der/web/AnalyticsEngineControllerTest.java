@@ -67,6 +67,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.dlq.AnalyticsLiveRetryWorker liveRetryWorker;
     @MockBean ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkService benchmarks;
     @MockBean ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkFixtureGenerator fixtureGenerator;
+    @MockBean ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink columnarSink;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -235,6 +236,42 @@ class AnalyticsEngineControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.samplesConsidered").value(1))
                 .andExpect(jsonPath("$.rowsUpserted").value(1));
+    }
+
+    @Test
+    void columnarFlushRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/segments/flush")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void columnarFlushReturnsCompressionEvidence() throws Exception {
+        when(columnarSink.flush()).thenReturn(
+                new ug.ac.mak.der.analytics.column.sink
+                        .AnalyticsColumnarSink.FlushResult(
+                        1L, 3, 500, 42_000L, 0.25,
+                        "/tmp/analytics-store/manifests/000000001.json"));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/segments/flush")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.generation").value(1))
+                .andExpect(jsonPath("$.segmentsWritten").value(3))
+                .andExpect(jsonPath("$.compressionRatio").value(0.25));
+    }
+
+    @Test
+    void columnarManifestReturnsEmptyWhenNothingPublished()
+            throws Exception {
+        when(columnarSink.currentManifest()).thenReturn(
+                java.util.Optional.empty());
+        mockMvc.perform(get(
+                        "/edge-api/v1/analytics/v1/admin/segments/manifest")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.generation").value(-1));
     }
 
     @Test

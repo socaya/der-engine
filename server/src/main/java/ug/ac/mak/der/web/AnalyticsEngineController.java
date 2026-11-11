@@ -38,6 +38,7 @@ import ug.ac.mak.der.analytics.expression.ExpressionCompiler;
 import java.util.Optional;
 
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkFixtureGenerator;
+import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkRun;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkService;
 import ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqEntry;
@@ -106,6 +107,7 @@ public class AnalyticsEngineController {
     private final AnalyticsLiveRetryWorker liveRetryWorker;
     private final AnalyticsBenchmarkService benchmarks;
     private final AnalyticsBenchmarkFixtureGenerator fixtureGenerator;
+    private final AnalyticsColumnarSink columnarSink;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -136,7 +138,8 @@ public class AnalyticsEngineController {
                                       final AnalyticsLiveDlqRepository liveDlq,
                                       final AnalyticsLiveRetryWorker liveRetryWorker,
                                       final AnalyticsBenchmarkService benchmarks,
-                                      final AnalyticsBenchmarkFixtureGenerator fixtureGenerator) {
+                                      final AnalyticsBenchmarkFixtureGenerator fixtureGenerator,
+                                      final AnalyticsColumnarSink columnarSink) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -165,6 +168,8 @@ public class AnalyticsEngineController {
         this.benchmarks = Objects.requireNonNull(benchmarks, "benchmarks");
         this.fixtureGenerator = Objects.requireNonNull(fixtureGenerator,
                 "fixtureGenerator");
+        this.columnarSink = Objects.requireNonNull(columnarSink,
+                "columnarSink");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -760,6 +765,69 @@ public class AnalyticsEngineController {
         };
         return ResponseEntity.status(status)
                 .body(AnalyticsDrilldownService.asMap(result));
+    }
+
+    /* ─────────────── /admin/segments ─────────────── */
+
+    /** SRS Gate 2.8 — snapshot every materialised cell into
+     *  columnar segments and publish a new manifest generation.
+     *  Returns compression evidence so the operator can see the
+     *  ratio against the uncompressed baseline (owner emphasis). */
+    @PostMapping("/admin/segments/flush")
+    public ResponseEntity<Map<String, Object>> flushColumnarSegments(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        try {
+            final var r = columnarSink.flush();
+            return ResponseEntity.ok(Map.of(
+                    "generation", r.generation(),
+                    "segmentsWritten", r.segmentsWritten(),
+                    "rowsWritten", r.rowsWritten(),
+                    "bytesWritten", r.bytesWritten(),
+                    "compressionRatio", r.compressionRatio(),
+                    "manifestPath", r.manifestPath()));
+        } catch (java.io.IOException ex) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "code", "FLUSH_IO_FAILURE",
+                    "message", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/admin/segments/manifest")
+    public ResponseEntity<Map<String, Object>> currentColumnarManifest(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        try {
+            final var opt = columnarSink.currentManifest();
+            if (opt.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                        "generation", -1,
+                        "segmentCount", 0,
+                        "message", "no manifest published yet"));
+            }
+            final var m = opt.get();
+            return ResponseEntity.ok(Map.of(
+                    "generation", m.generation(),
+                    "createdAt", m.createdAt().toString(),
+                    "engineVersion", m.engineVersion(),
+                    "segmentCount", m.segments().size()));
+        } catch (java.io.IOException ex) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "code", "MANIFEST_IO_FAILURE",
+                    "message", ex.getMessage()));
+        }
     }
 
     /* ─────────────── /admin/benchmark ─────────────── */
