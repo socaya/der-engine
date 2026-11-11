@@ -34,8 +34,28 @@ public final class CodecSelector {
         for (final ColumnType t : ColumnType.values()) {
             out.add(PlainCodec.forType(t));
         }
-        out.add(new DictionaryStringCodec());
-        out.add(new BitPackedInt64Codec());
+        final DictionaryStringCodec dict = new DictionaryStringCodec();
+        final BitPackedInt64Codec bp = new BitPackedInt64Codec();
+        out.add(dict);
+        out.add(bp);
+
+        // Wrap the typed encoders in Zstd + LZ4 so the entropy
+        // coders compete with the structural codecs. Zstd is level
+        // 3 (default); LZ4 is the fast decompressor — selector
+        // picks whichever saves more bytes on the measured batch.
+        final Compressor zstd = new ZstdCompressor();
+        final Compressor lz4 = new Lz4Compressor();
+        for (final Compressor comp : new Compressor[] { zstd, lz4 }) {
+            for (final ColumnType t : ColumnType.values()) {
+                out.add(new CompressedCodec(comp,
+                        PlainCodec.forType(t),
+                        BuiltinCodecs::lookup));
+            }
+            out.add(new CompressedCodec(comp, dict,
+                    BuiltinCodecs::lookup));
+            out.add(new CompressedCodec(comp, bp,
+                    BuiltinCodecs::lookup));
+        }
         return new CodecSelector(out);
     }
 

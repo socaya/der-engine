@@ -142,6 +142,21 @@
       <groupId>io.micrometer</groupId>
       <artifactId>micrometer-registry-prometheus</artifactId>
     </dependency>
+    <!-- Analytics Gate 2.5 — native columnar compression (SRS
+         FR-STO-007 + owner emphasis). zstd-jni ships native Zstd
+         binaries for Linux/Mac/Windows; lz4-java provides LZ4 and
+         the xxHash64 we use for page-level integrity. Both are
+         Apache-2.0 / BSD-2-Clause, no runtime server dependency. -->
+    <dependency>
+      <groupId>com.github.luben</groupId>
+      <artifactId>zstd-jni</artifactId>
+      <version>1.5.6-4</version>
+    </dependency>
+    <dependency>
+      <groupId>org.lz4</groupId>
+      <artifactId>lz4-java</artifactId>
+      <version>1.8.0</version>
+    </dependency>
   </dependencies>
 
   <build>
