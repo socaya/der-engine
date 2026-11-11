@@ -38,6 +38,7 @@ import ug.ac.mak.der.analytics.expression.ExpressionCompiler;
 import java.util.Optional;
 
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkFixtureGenerator;
+import ug.ac.mak.der.analytics.column.exec.ColumnarExplainer;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarVerifier;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkRun;
@@ -110,6 +111,7 @@ public class AnalyticsEngineController {
     private final AnalyticsBenchmarkFixtureGenerator fixtureGenerator;
     private final AnalyticsColumnarSink columnarSink;
     private final AnalyticsColumnarVerifier columnarVerifier;
+    private final ColumnarExplainer columnarExplainer;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -142,7 +144,8 @@ public class AnalyticsEngineController {
                                       final AnalyticsBenchmarkService benchmarks,
                                       final AnalyticsBenchmarkFixtureGenerator fixtureGenerator,
                                       final AnalyticsColumnarSink columnarSink,
-                                      final AnalyticsColumnarVerifier columnarVerifier) {
+                                      final AnalyticsColumnarVerifier columnarVerifier,
+                                      final ColumnarExplainer columnarExplainer) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -175,6 +178,8 @@ public class AnalyticsEngineController {
                 "columnarSink");
         this.columnarVerifier = Objects.requireNonNull(columnarVerifier,
                 "columnarVerifier");
+        this.columnarExplainer = Objects.requireNonNull(columnarExplainer,
+                "columnarExplainer");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -845,6 +850,86 @@ public class AnalyticsEngineController {
                     "code", "VERIFY_IO_FAILURE",
                     "message", ex.getMessage()));
         }
+    }
+
+    public record ExplainBody(
+            List<String> metricIds,
+            List<String> periodKeys,
+            List<String> orgUnits,
+            Integer limit) { }
+
+    /** SRS FR-QRY-007 EXPLAIN. Shows which segments the columnar
+     *  engine would open for a query and which it would prune,
+     *  plus projected columns + filter description + estimated
+     *  row count. Read-only — never touches segment bytes. */
+    @PostMapping("/admin/segments/explain")
+    public ResponseEntity<Map<String, Object>> explainColumnarQuery(
+            @RequestBody final ExplainBody body,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final List<UUID> metricIds = new ArrayList<>();
+        if (body != null && body.metricIds() != null) {
+            for (final String s : body.metricIds()) {
+                try {
+                    metricIds.add(UUID.fromString(s));
+                } catch (IllegalArgumentException ex) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "code", "INVALID_METRIC_ID",
+                            "message", s));
+                }
+            }
+        }
+        final AnalyticsEngineRepository.CellQuery q =
+                new AnalyticsEngineRepository.CellQuery(
+                        metricIds,
+                        body == null || body.periodKeys() == null
+                                ? List.of() : body.periodKeys(),
+                        body == null || body.orgUnits() == null
+                                ? List.of() : body.orgUnits(),
+                        Map.of(),
+                        body == null || body.limit() == null
+                                ? 2000 : body.limit(),
+                        0);
+        try {
+            final var plan = columnarExplainer.explain(q);
+            return ResponseEntity.ok(Map.of(
+                    "generation", plan.generation(),
+                    "segmentsMatched", plan.segmentsMatched(),
+                    "segmentsSkipped", plan.segmentsSkipped(),
+                    "projectedColumns", plan.projectedColumns(),
+                    "filter", plan.filterDescription(),
+                    "rowLimit", plan.rowLimit(),
+                    "estimatedRows", plan.estimatedRows(),
+                    "matched", plan.matched().stream()
+                            .map(AnalyticsEngineController
+                                    ::explainSegmentJson).toList(),
+                    "skipped", plan.skipped().stream()
+                            .map(AnalyticsEngineController
+                                    ::explainSegmentJson).toList()));
+        } catch (java.io.IOException ex) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "code", "EXPLAIN_IO_FAILURE",
+                    "message", ex.getMessage()));
+        }
+    }
+
+    private static Map<String, Object> explainSegmentJson(
+            final ColumnarExplainer.SegmentPlan s) {
+        final Map<String, Object> m = new LinkedHashMap<>();
+        m.put("segmentId", s.segmentId().toString());
+        m.put("metricId", s.metricId().toString());
+        m.put("definitionVersion", s.definitionVersion());
+        m.put("periodKey", s.periodKey());
+        m.put("rowCount", s.rowCount());
+        m.put("file", s.file());
+        m.put("decision", s.decision());
+        return m;
     }
 
     @GetMapping("/admin/segments/manifest")

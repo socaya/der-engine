@@ -69,6 +69,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkFixtureGenerator fixtureGenerator;
     @MockBean ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink columnarSink;
     @MockBean ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarVerifier columnarVerifier;
+    @MockBean ug.ac.mak.der.analytics.column.exec.ColumnarExplainer columnarExplainer;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -284,6 +285,50 @@ class AnalyticsEngineControllerTest {
                 .andExpect(jsonPath("$.generation").value(1))
                 .andExpect(jsonPath("$.rowsOk").value(10))
                 .andExpect(jsonPath("$.rowsDrifted").value(0));
+    }
+
+    @Test
+    void explainRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/segments/explain")
+                        .contentType("application/json")
+                        .content("{}")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void explainReturnsPlanJson() throws Exception {
+        when(columnarExplainer.explain(any())).thenReturn(
+                new ug.ac.mak.der.analytics.column.exec
+                        .ColumnarExplainer.QueryPlan(
+                        7L, java.time.Instant.now(),
+                        2, 1,
+                        java.util.List.of(), java.util.List.of(),
+                        java.util.List.of("orgUnit", "value"),
+                        "<none>",
+                        100, 25, "columnar"));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/segments/explain")
+                        .contentType("application/json")
+                        .content("{}")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.generation").value(7))
+                .andExpect(jsonPath("$.segmentsMatched").value(2))
+                .andExpect(jsonPath("$.segmentsSkipped").value(1))
+                .andExpect(jsonPath("$.estimatedRows").value(25));
+    }
+
+    @Test
+    void explainRejectsInvalidMetricId() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/segments/explain")
+                        .contentType("application/json")
+                        .content("{\"metricIds\":[\"not-a-uuid\"]}")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_METRIC_ID"));
     }
 
     @Test
