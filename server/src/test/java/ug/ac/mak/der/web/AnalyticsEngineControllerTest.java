@@ -62,6 +62,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationService reconciliation;
     @MockBean ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationRepository reconciliationRepo;
     @MockBean ug.ac.mak.der.analytics.replay.AnalyticsBaselineVerifier replayVerifier;
+    @MockBean ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationFetcher reconciliationFetcher;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -175,6 +176,29 @@ class AnalyticsEngineControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.count").value(0))
                 .andExpect(jsonPath("$.byClassification.IN_AGREEMENT").value(0));
+    }
+
+    @Test
+    void reconciliationFetchRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/reconciliation/fetch")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void reconciliationFetchRunsForAdmin() throws Exception {
+        when(reconciliationFetcher.runNow()).thenReturn(5);
+        when(reconciliationFetcher.stats()).thenReturn(
+                new ug.ac.mak.der.analytics.reconciliation
+                        .AnalyticsReconciliationFetcher.FetchStats(5, 0, 123L));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/reconciliation/fetch")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rowsUpserted").value(5))
+                .andExpect(jsonPath("$.sampled").value(5));
     }
 
     @Test

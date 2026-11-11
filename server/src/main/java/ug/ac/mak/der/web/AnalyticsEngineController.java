@@ -39,6 +39,7 @@ import java.util.Optional;
 
 import ug.ac.mak.der.analytics.drilldown.AnalyticsDrilldownService;
 import ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliation;
+import ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationFetcher;
 import ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationRepository;
 import ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationService;
 import ug.ac.mak.der.analytics.publication.PublicationMapping;
@@ -94,6 +95,7 @@ public class AnalyticsEngineController {
     private final AnalyticsReconciliationService reconciliation;
     private final AnalyticsReconciliationRepository reconciliationRepo;
     private final AnalyticsBaselineVerifier replayVerifier;
+    private final AnalyticsReconciliationFetcher reconciliationFetcher;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -119,7 +121,8 @@ public class AnalyticsEngineController {
                                       final AnalyticsDrilldownService drilldown,
                                       final AnalyticsReconciliationService reconciliation,
                                       final AnalyticsReconciliationRepository reconciliationRepo,
-                                      final AnalyticsBaselineVerifier replayVerifier) {
+                                      final AnalyticsBaselineVerifier replayVerifier,
+                                      final AnalyticsReconciliationFetcher reconciliationFetcher) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -140,6 +143,8 @@ public class AnalyticsEngineController {
                 "reconciliationRepo");
         this.replayVerifier = Objects.requireNonNull(replayVerifier,
                 "replayVerifier");
+        this.reconciliationFetcher = Objects.requireNonNull(
+                reconciliationFetcher, "reconciliationFetcher");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -808,6 +813,29 @@ public class AnalyticsEngineController {
             Boolean localHasUnpublishedSources,
             Boolean lateDataAfterRefresh,
             String lastLocalPublishAt) { }
+
+    /** On-demand central fetch — polls DHIS2 /api/analytics.json
+     *  for every PUBLISHED proposal and compares the result. The
+     *  scheduler runs this at a fixed cadence; this endpoint
+     *  lets admin tooling force an immediate pass. */
+    @PostMapping("/admin/reconciliation/fetch")
+    public ResponseEntity<Map<String, Object>> runReconciliationFetch(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final int upserts = reconciliationFetcher.runNow();
+        final var stats = reconciliationFetcher.stats();
+        return ResponseEntity.ok(Map.of(
+                "rowsUpserted", upserts,
+                "sampled", stats.sampled(),
+                "fetchFailed", stats.fetchFailed(),
+                "lastRunAt", stats.lastRunAt()));
+    }
 
     /** Post a batch of authoritative central samples for comparison.
      *  Classifier-only slice — the DHIS2 /api/analytics fetch worker
