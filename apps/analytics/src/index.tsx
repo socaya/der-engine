@@ -8,18 +8,14 @@ import { useAuth, useOrgUnitBinding, useOnlineStatus,
  * navigation section routed below a persistent sidebar.
  *
  *   1. Overview        — KPIs, freshness
- *   2. Explore         — pivot + chart builder (stub)
- *   3. Metrics         — definition catalogue (live)
- *   4. Tracker Tally   — event/enrollment tally (stub)
- *   5. Reports         — generic reports catalogue (stub)
- *   6. Drilldowns      — authorised lineage → source rows (live)
- *   7. Saved           — saved views (stub)
- *   8. Quality         — quality + reconciliation (live)
- *   9. Admin           — definitions, publication, jobs (stub)
- *
- * Pages marked (live) call the DER edge-API; stubs show a
- * "coming soon" strip with a link to the backing endpoint so
- * operators know what's wired vs. pending without guessing.
+ *   2. Explore         — pivot query builder → /query
+ *   3. Metrics         — definition catalogue → /metrics
+ *   4. Tracker Tally   — built-in counts over last 6 months
+ *   5. Reports         — publication mappings + proposal state
+ *   6. Drilldowns      — authorised lineage → /drilldown
+ *   7. Saved           — shareable hash URL for current filters
+ *   8. Quality         — reconciliation → /reconciliation
+ *   9. Admin           — capabilities + DLQ + action triggers
  */
 
 const API = '/edge-api/v1/analytics/v1';
@@ -37,22 +33,22 @@ interface NavEntry {
 const NAV: readonly NavEntry[] = [
   { id: 'overview', label: 'Overview', live: true,
     hint: 'KPIs and data freshness' },
-  { id: 'explore', label: 'Explore', live: false,
-    hint: 'Pivot and chart builder' },
+  { id: 'explore', label: 'Explore', live: true,
+    hint: 'Pivot query builder' },
   { id: 'metrics', label: 'Program Indicators', live: true,
     hint: 'Definition catalogue + support state' },
-  { id: 'tally', label: 'Tracker & Event Tally', live: false,
-    hint: 'Event + enrollment throughput' },
-  { id: 'reports', label: 'Reports', live: false,
-    hint: 'Datasets, sections, calculated contributions' },
+  { id: 'tally', label: 'Tracker & Event Tally', live: true,
+    hint: 'Event + enrollment throughput by month' },
+  { id: 'reports', label: 'Reports', live: true,
+    hint: 'Publication mappings + proposal review' },
   { id: 'drilldowns', label: 'Drilldowns', live: true,
     hint: 'Authorised lineage to source records' },
-  { id: 'saved', label: 'Saved Analytics', live: false,
-    hint: 'Shared dashboards + snapshots' },
+  { id: 'saved', label: 'Saved Analytics', live: true,
+    hint: 'Shareable URL for current filters' },
   { id: 'quality', label: 'Quality & Reconciliation', live: true,
     hint: 'Divergence classification + replay audit' },
-  { id: 'admin', label: 'Administration', live: false,
-    hint: 'Definitions, publication, rebuild jobs' },
+  { id: 'admin', label: 'Administration', live: true,
+    hint: 'Capabilities + DLQ + action triggers' },
 ];
 
 export default function AnalyticsApp(): JSX.Element {
@@ -132,10 +128,14 @@ function Sidebar({ current, onSelect }: {
 function Page({ section }: { section: Section }): JSX.Element {
   switch (section) {
     case 'overview': return <OverviewPage />;
+    case 'explore': return <ExplorePage />;
     case 'metrics': return <MetricsPage />;
+    case 'tally': return <TallyPage />;
+    case 'reports': return <ReportsPage />;
     case 'drilldowns': return <DrilldownPage />;
+    case 'saved': return <SavedPage />;
     case 'quality': return <QualityPage />;
-    default: return <StubPage id={section} />;
+    case 'admin': return <AdminPage />;
   }
 }
 
@@ -525,20 +525,569 @@ function classificationTone(c: string):
   return 'neutral';
 }
 
-/* ─────────────── Stubs ─────────────── */
+/* ─────────────── Explore ─────────────── */
 
-function StubPage({ id }: { id: Section }): JSX.Element {
-  const entry = NAV.find((n) => n.id === id);
+interface Cell {
+  readonly metricId: string;
+  readonly periodKey: string;
+  readonly orgUnitUid: string;
+  readonly dimensionKey: string;
+  readonly value?: string | null;
+  readonly countValue?: number | null;
+  readonly qualityState?: string | null;
+}
+
+function ExplorePage(): JSX.Element {
+  const [metrics, setMetrics] = useState<readonly MetricRow[]>([]);
+  const [selectedMetric, setSelectedMetric] = useState('');
+  const [periodKey, setPeriodKey] = useState(defaultPeriodKey());
+  const [orgUnitUid, setOrgUnitUid] = useState('');
+  const [rows, setRows] = useState<readonly Cell[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [suppressed, setSuppressed] = useState(0);
+  useEffect(() => {
+    fetch(`${API}/metrics`, { credentials: 'include' })
+      .then(parseOrThrow)
+      .then((r: { metrics?: readonly MetricRow[] }) =>
+        setMetrics(r.metrics ?? []))
+      .catch((e: Error) => setError(e.message));
+  }, []);
+  const submit = useCallback(async () => {
+    if (!selectedMetric) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const resp = await fetch(`${API}/query`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          metrics: [selectedMetric],
+          period: periodKey ? { id: periodKey } : null,
+          orgUnits: orgUnitUid ? [orgUnitUid] : [],
+          page: { limit: 200 },
+        }),
+      });
+      const body = await parseOrThrow(resp) as {
+        count?: number;
+        suppressedCount?: number;
+        cells?: readonly Cell[];
+      };
+      setRows(body.cells ?? []);
+      setSuppressed(body.suppressedCount ?? 0);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'request failed');
+      setRows([]);
+    } finally {
+      setBusy(false);
+    }
+  }, [selectedMetric, periodKey, orgUnitUid]);
   return (
-    <section className="an-page" data-test={`an-${id}`}>
-      <h1 className="an-h1">{entry?.label ?? id}</h1>
-      <p className="an-sub">{entry?.hint}</p>
-      <div className="an-strip an-strip--info">
-        This section ships in a later slice. The server endpoint
-        for this view isn&rsquo;t fully wired yet — the shell has
-        the nav in place so the muscle memory stays stable.
+    <section className="an-page" data-test="an-explore">
+      <h1 className="an-h1">Explore</h1>
+      <p className="an-sub">
+        Build a quick cell query — pick a metric, period and org unit
+        to see the matrix. Small cells are returned as
+        <code> SUPPRESSED</code> per the privacy threshold (§11).
+      </p>
+      <div className="an-form">
+        <label className="an-field">
+          <span className="an-field-label">Metric</span>
+          <select className="an-input"
+            value={selectedMetric}
+            onChange={(e) => setSelectedMetric(e.target.value)}
+            data-test="an-explore-metric">
+            <option value="">— choose —</option>
+            {metrics.map((m) => (
+              <option key={m.id} value={m.id}>{m.displayName}</option>
+            ))}
+          </select>
+        </label>
+        <Field label="Period key"
+          value={periodKey} onChange={setPeriodKey}
+          placeholder="e.g. 202611" />
+        <Field label="Org unit UID (optional)"
+          value={orgUnitUid} onChange={setOrgUnitUid} />
+        <div className="an-actions">
+          <button type="button" className="an-btn-primary"
+            onClick={submit}
+            disabled={!selectedMetric || busy}
+            data-test="an-explore-run">
+            {busy ? 'Running…' : 'Run query'}
+          </button>
+        </div>
+      </div>
+      {error && <ErrorStrip message={error} />}
+      {rows.length > 0 && (
+        <p className="an-sub">
+          {rows.length} cell{rows.length === 1 ? '' : 's'}
+          {suppressed > 0 && (
+            <> • {suppressed} suppressed by small-cell threshold</>
+          )}
+        </p>
+      )}
+      <div className="an-table-wrap">
+        <table className="an-table">
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th>Org unit</th>
+              <th>Dimension</th>
+              <th>Value</th>
+              <th>Count</th>
+              <th>Quality</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!busy && rows.length === 0 && (
+              <tr><td colSpan={6} className="an-empty">
+                No results yet. Pick a metric and run.
+              </td></tr>
+            )}
+            {rows.map((c) => (
+              <tr key={`${c.metricId}-${c.periodKey}-${c.orgUnitUid}-${c.dimensionKey}`}>
+                <td>{c.periodKey}</td>
+                <td>{c.orgUnitUid}</td>
+                <td>{c.dimensionKey || '—'}</td>
+                <td>{c.value ?? '—'}</td>
+                <td>{c.countValue ?? '—'}</td>
+                <td>
+                  <StatusPill tone={qualityTone(c.qualityState)}>
+                    {c.qualityState ?? '—'}
+                  </StatusPill>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </section>
+  );
+}
+
+function qualityTone(s: string | null | undefined):
+    'success' | 'warning' | 'danger' | 'neutral' {
+  if (s === 'VERIFIED') return 'success';
+  if (s === 'PROVISIONAL') return 'warning';
+  if (s === 'SUPPRESSED') return 'neutral';
+  return 'neutral';
+}
+
+function defaultPeriodKey(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}${m}`;
+}
+
+/* ─────────────── Tracker & Event Tally ─────────────── */
+
+interface TallyMetric {
+  readonly code: string;
+  readonly label: string;
+  readonly cells: readonly Cell[];
+}
+
+function TallyPage(): JSX.Element {
+  const [metrics, setMetrics] = useState<readonly TallyMetric[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const periods = useMemo(() => lastNMonths(6), []);
+  useEffect(() => {
+    const builtins = [
+      { code: 'DER_EVENT_COUNT', label: 'Events' },
+      { code: 'DER_ENROLLMENT_COUNT', label: 'Enrollments' },
+    ];
+    Promise.all(builtins.map(async (b) => {
+      const defsResp = await fetch(`${API}/metrics?code=${b.code}`,
+        { credentials: 'include' });
+      const defs = (await parseOrThrow(defsResp)) as {
+        metrics?: readonly MetricRow[];
+      };
+      const metric = (defs.metrics ?? []).find(
+        (m) => m.code === b.code);
+      if (!metric) return { ...b, cells: [] as Cell[] };
+      const resp = await fetch(`${API}/query`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          metrics: [metric.id],
+          periods: periods.map((p) => ({ id: p })),
+          page: { limit: 500 },
+        }),
+      });
+      const body = (await parseOrThrow(resp)) as {
+        cells?: readonly Cell[];
+      };
+      return { ...b, cells: body.cells ?? [] };
+    }))
+      .then(setMetrics)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [periods]);
+  return (
+    <section className="an-page" data-test="an-tally">
+      <h1 className="an-h1">Tracker &amp; Event Tally</h1>
+      <p className="an-sub">
+        Built-in event and enrollment counts over the last six
+        months. Each column is a reporting period; values are sums
+        across every org unit in scope.
+      </p>
+      {error && <ErrorStrip message={error} />}
+      <div className="an-table-wrap">
+        <table className="an-table">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              {periods.map((p) => (
+                <th key={p}>{p}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading && (
+              <tr><td colSpan={periods.length + 1} className="an-empty">
+                Loading…
+              </td></tr>
+            )}
+            {!loading && metrics.map((m) => (
+              <tr key={m.code}>
+                <td><strong>{m.label}</strong></td>
+                {periods.map((p) => {
+                  const total = m.cells
+                    .filter((c) => c.periodKey === p)
+                    .reduce((a, c) => a + (c.countValue ?? 0), 0);
+                  return <td key={p}>{total.toLocaleString()}</td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function lastNMonths(n: number): string[] {
+  const out: string[] = [];
+  const now = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    out.push(`${y}${m}`);
+  }
+  return out;
+}
+
+/* ─────────────── Reports ─────────────── */
+
+interface PublicationMapping {
+  readonly mappingId: string;
+  readonly metricId: string;
+  readonly datasetUid: string;
+  readonly dataElementUid: string;
+  readonly publicationMode: string;
+}
+
+interface ProposalStateCounts {
+  readonly PROPOSED: number;
+  readonly APPROVED: number;
+  readonly REJECTED: number;
+  readonly PUBLISHED: number;
+  readonly RECONCILED: number;
+  readonly DIVERGED: number;
+}
+
+function ReportsPage(): JSX.Element {
+  const [mappings, setMappings] = useState<readonly PublicationMapping[]>([]);
+  const [states, setStates] = useState<Partial<ProposalStateCounts>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    Promise.all([
+      fetch(`${API}/publication/mappings`, { credentials: 'include' })
+        .then(parseOrThrow)
+        .then((r: { mappings?: readonly PublicationMapping[] }) =>
+          setMappings(r.mappings ?? [])),
+      fetch(`${API}/publication/proposals`, { credentials: 'include' })
+        .then(parseOrThrow)
+        .then((r: { stateCounts?: ProposalStateCounts }) =>
+          setStates(r.stateCounts ?? {})),
+    ])
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+  const byDataset = useMemo(() => {
+    const groups = new Map<string, PublicationMapping[]>();
+    for (const m of mappings) {
+      const g = groups.get(m.datasetUid) ?? [];
+      g.push(m);
+      groups.set(m.datasetUid, g);
+    }
+    return Array.from(groups.entries());
+  }, [mappings]);
+  return (
+    <section className="an-page" data-test="an-reports">
+      <h1 className="an-h1">Reports</h1>
+      <p className="an-sub">
+        Publication mappings — one row per DER metric cell that will
+        flow into a DHIS2 dataset element. Proposals are reviewed
+        here before they reach <code>/api/dataValueSets</code>.
+      </p>
+      {error && <ErrorStrip message={error} />}
+      <div className="an-chips">
+        {(Object.keys(states) as Array<keyof ProposalStateCounts>).map((k) => {
+          const n = states[k] ?? 0;
+          if (n === 0) return null;
+          return (
+            <span key={k} className="an-chip">
+              <strong>{n}</strong> {k.toLowerCase()}
+            </span>
+          );
+        })}
+      </div>
+      {loading && <p className="an-sub">Loading…</p>}
+      {!loading && byDataset.length === 0 && (
+        <div className="an-strip an-strip--info">
+          No publication mappings yet. Admins create mappings under
+          <strong> Administration → Publication</strong>; each mapping
+          generates proposals via <code>/admin/publication/proposals</code>.
+        </div>
+      )}
+      {byDataset.map(([ds, rows]) => (
+        <div key={ds} className="an-report-group">
+          <h2 className="an-h2">Dataset <code>{ds}</code></h2>
+          <div className="an-table-wrap">
+            <table className="an-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Data element</th>
+                  <th>Mode</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((m) => (
+                  <tr key={m.mappingId}>
+                    <td><code>{m.metricId.slice(0, 8)}</code></td>
+                    <td><code>{m.dataElementUid}</code></td>
+                    <td>{m.publicationMode}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/* ─────────────── Saved (shareable URL) ─────────────── */
+
+function SavedPage(): JSX.Element {
+  const [copied, setCopied] = useState(false);
+  const url = window.location.href;
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fall-through — operator can still select + copy manually.
+    }
+  }, [url]);
+  return (
+    <section className="an-page" data-test="an-saved">
+      <h1 className="an-h1">Saved Analytics</h1>
+      <p className="an-sub">
+        Persisted saved views ship in a later slice. For now, the
+        URL below encodes the current section — paste it into a
+        chat or a ticket to share the exact view.
+      </p>
+      <div className="an-form">
+        <label className="an-field" style={{ gridColumn: '1 / -1' }}>
+          <span className="an-field-label">Current view URL</span>
+          <input className="an-input" readOnly value={url}
+            onFocus={(e) => e.currentTarget.select()}
+            data-test="an-saved-url" />
+        </label>
+        <div className="an-actions">
+          <button type="button" className="an-btn-primary"
+            onClick={copy}
+            data-test="an-saved-copy">
+            {copied ? 'Copied' : 'Copy link'}
+          </button>
+        </div>
+      </div>
+      <div className="an-strip an-strip--info">
+        Later slice: persistent named views via a new
+        <code> /saved-views </code> endpoint, shareable with other
+        operators subject to org-unit scope.
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────── Administration ─────────────── */
+
+interface Capability {
+  readonly feature: string;
+  readonly supportState: string;
+  readonly target?: string;
+}
+
+interface DlqStatus {
+  readonly totalCount: number;
+  readonly gaveUpCount: number;
+  readonly worker?: {
+    readonly retried: number;
+    readonly recovered: number;
+    readonly gaveUp: number;
+  };
+}
+
+function AdminPage(): JSX.Element {
+  const [caps, setCaps] = useState<readonly Capability[]>([]);
+  const [dlq, setDlq] = useState<DlqStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [actionResult, setActionResult] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const loadStatus = useCallback(() => {
+    Promise.all([
+      fetch(`${API}/capabilities`, { credentials: 'include' })
+        .then(parseOrThrow)
+        .then((r: { capabilities?: readonly Capability[] }) =>
+          setCaps(r.capabilities ?? [])),
+      fetch(`${API}/admin/live-dlq?limit=1`, { credentials: 'include' })
+        .then(parseOrThrow)
+        .then((r: DlqStatus) => setDlq(r))
+        .catch(() => { /* non-admin */ }),
+    ]).catch((e: Error) => setError(e.message));
+  }, []);
+  useEffect(loadStatus, [loadStatus]);
+  const runAction = useCallback(async (
+      label: string, url: string, method: 'POST' | 'GET') => {
+    setActionBusy(label);
+    setActionResult(null);
+    setError(null);
+    try {
+      const resp = await fetch(`${API}${url}`, {
+        method, credentials: 'include',
+      });
+      const body = await resp.json() as Record<string, unknown>;
+      if (!resp.ok) {
+        setError(`${label}: HTTP ${resp.status}`);
+      } else {
+        setActionResult(`${label}: ${JSON.stringify(body)}`);
+      }
+      loadStatus();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `${label} failed`);
+    } finally {
+      setActionBusy(null);
+    }
+  }, [loadStatus]);
+  return (
+    <section className="an-page" data-test="an-admin">
+      <h1 className="an-h1">Administration</h1>
+      <p className="an-sub">
+        Operator-only controls — compatibility matrix, retry queue
+        status, and manual-run triggers for the scheduled workers.
+      </p>
+      {error && <ErrorStrip message={error} />}
+      <h2 className="an-h2">Actions</h2>
+      <div className="an-admin-actions">
+        <AdminButton label="Replay-verify"
+          hint="Re-aggregate every cell from the ledger"
+          busy={actionBusy === 'Replay-verify'}
+          onClick={() => runAction('Replay-verify',
+            '/admin/replay-verify', 'POST')} />
+        <AdminButton label="Drain publications"
+          hint="Push APPROVED proposals to central"
+          busy={actionBusy === 'Drain publications'}
+          onClick={() => runAction('Drain publications',
+            '/admin/publication/proposals', 'POST')} />
+        <AdminButton label="Fetch central samples"
+          hint="Poll /api/analytics for PUBLISHED cells"
+          busy={actionBusy === 'Fetch central samples'}
+          onClick={() => runAction('Fetch central samples',
+            '/admin/reconciliation/fetch', 'POST')} />
+      </div>
+      {actionResult && (
+        <pre className="an-pre" data-test="an-admin-result">{actionResult}</pre>
+      )}
+      <h2 className="an-h2">Live ingester DLQ</h2>
+      {dlq ? (
+        <div className="an-kpi-grid">
+          <KpiCard label="Entries queued"
+            value={String(dlq.totalCount)}
+            tone={dlq.totalCount > 0 ? 'warning' : 'success'} />
+          <KpiCard label="Gave up"
+            value={String(dlq.gaveUpCount)}
+            tone={dlq.gaveUpCount > 0 ? 'danger' : 'success'} />
+          <KpiCard label="Retried"
+            value={String(dlq.worker?.retried ?? 0)} />
+          <KpiCard label="Recovered"
+            value={String(dlq.worker?.recovered ?? 0)}
+            tone="success" />
+        </div>
+      ) : (
+        <p className="an-sub">
+          DLQ status requires ADMIN — sign in as an operator with the
+          ADMIN role to view queued failures.
+        </p>
+      )}
+      <h2 className="an-h2">Capabilities</h2>
+      <div className="an-table-wrap">
+        <table className="an-table">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Support</th>
+              <th>Target</th>
+            </tr>
+          </thead>
+          <tbody>
+            {caps.length === 0 && (
+              <tr><td colSpan={3} className="an-empty">Loading…</td></tr>
+            )}
+            {caps.map((c) => (
+              <tr key={c.feature}>
+                <td>{c.feature}</td>
+                <td>
+                  <StatusPill tone={supportTone(c.supportState)}>
+                    {c.supportState}
+                  </StatusPill>
+                </td>
+                <td>{c.target ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function AdminButton({ label, hint, busy, onClick }: {
+  label: string;
+  hint: string;
+  busy: boolean;
+  onClick: () => void;
+}): JSX.Element {
+  return (
+    <button type="button" className="an-admin-btn"
+      onClick={onClick} disabled={busy}
+      data-test={`an-admin-${label.toLowerCase().replace(/\s+/g, '-')}`}>
+      <span className="an-admin-btn-label">
+        {busy ? 'Running…' : label}
+      </span>
+      <span className="an-admin-btn-hint">{hint}</span>
+    </button>
   );
 }
 
@@ -758,5 +1307,51 @@ const STYLES = `
 .an-strip--info {
   background: #eff6ff; color: #1d4ed8;
   border: 1px solid #bfdbfe;
+}
+
+.an-h2 {
+  margin: 20px 0 8px 0;
+  font-size: 15px; font-weight: 500;
+  color: var(--der-ink-900, #111827);
+}
+.an-report-group { margin-top: 16px; }
+
+.an-admin-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.an-admin-btn {
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--der-divider, #e5e7eb);
+  border-radius: 6px;
+  background: var(--der-surface, #ffffff);
+  cursor: pointer;
+  font: inherit;
+}
+.an-admin-btn:hover { border-color: var(--der-accent, #1d4ed8); }
+.an-admin-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.an-admin-btn-label {
+  display: block;
+  font-weight: 500;
+  color: var(--der-ink-900, #111827);
+}
+.an-admin-btn-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--der-ink-500, #6b7280);
+}
+.an-pre {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--der-surface-subtle, #fafafa);
+  border: 1px solid var(--der-divider, #e5e7eb);
+  border-radius: 4px;
+  font-size: 12px;
+  overflow: auto;
+  white-space: pre-wrap;
 }
 `;
