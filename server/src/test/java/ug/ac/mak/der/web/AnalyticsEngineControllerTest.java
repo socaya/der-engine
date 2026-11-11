@@ -71,6 +71,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarVerifier columnarVerifier;
     @MockBean ug.ac.mak.der.analytics.column.exec.ColumnarExplainer columnarExplainer;
     @MockBean ug.ac.mak.der.analytics.column.exec.PlanSelector planSelector;
+    @MockBean ug.ac.mak.der.analytics.column.exec.ColumnarQueryEngine columnarQueryEngine;
     @MockBean ug.ac.mak.der.analytics.column.governor.QueryGovernor queryGovernor;
     @MockBean ug.ac.mak.der.analytics.column.governor.SpillStore spillStore;
     @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionExporter siteExporter;
@@ -884,6 +885,91 @@ class AnalyticsEngineControllerTest {
                         .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.count").value(0));
+    }
+
+    @Test
+    void queryRoutesToColumnarWhenPlannerPicksIt() throws Exception {
+        final UUID metric = UUID.randomUUID();
+        when(planSelector.select(any())).thenReturn(
+                new ug.ac.mak.der.analytics.column.exec
+                        .PlanSelector.PlanDecision(
+                        ug.ac.mak.der.analytics.column.exec
+                                .PlanSelector.Engine.COLUMNAR,
+                        50.0, 500.0, 1, 10,
+                        1L, java.time.Instant.now(), false,
+                        "columnar cheaper"));
+        when(columnarQueryEngine.query(any())).thenReturn(List.of(
+                new AnalyticsCell(metric, 1, "202611", "OU-A", "",
+                        5L, null, new BigDecimal("5"),
+                        null, null,
+                        Instant.parse("2026-11-10T12:00:00Z"),
+                        "VERIFIED")));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/query")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.engine").value("columnar"))
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.cells[0].countValue").value(5));
+    }
+
+    @Test
+    void queryRoutesToRowStoreWhenPlannerPrefersIt() throws Exception {
+        final UUID metric = UUID.randomUUID();
+        when(planSelector.select(any())).thenReturn(
+                new ug.ac.mak.der.analytics.column.exec
+                        .PlanSelector.PlanDecision(
+                        ug.ac.mak.der.analytics.column.exec
+                                .PlanSelector.Engine.ROW_STORE,
+                        9999.0, 100.0, 0, 5,
+                        null, null, false,
+                        "no columnar segments"));
+        when(repo.queryCells(any())).thenReturn(List.of(
+                new AnalyticsCell(metric, 1, "202611", "OU-A", "",
+                        7L, null, new BigDecimal("7"),
+                        null, null,
+                        Instant.parse("2026-11-10T12:00:00Z"),
+                        "VERIFIED")));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/query")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.engine").value("row_store"))
+                .andExpect(jsonPath("$.engineRationale")
+                        .value("no columnar segments"))
+                .andExpect(jsonPath("$.count").value(1));
+    }
+
+    @Test
+    void queryFallsBackToRowStoreWhenColumnarIoFails() throws Exception {
+        final UUID metric = UUID.randomUUID();
+        when(planSelector.select(any())).thenReturn(
+                new ug.ac.mak.der.analytics.column.exec
+                        .PlanSelector.PlanDecision(
+                        ug.ac.mak.der.analytics.column.exec
+                                .PlanSelector.Engine.COLUMNAR,
+                        50.0, 500.0, 1, 10,
+                        1L, java.time.Instant.now(), false,
+                        "columnar cheaper"));
+        when(columnarQueryEngine.query(any()))
+                .thenThrow(new java.io.IOException("disk gone"));
+        when(repo.queryCells(any())).thenReturn(List.of(
+                new AnalyticsCell(metric, 1, "202611", "OU-A", "",
+                        3L, null, new BigDecimal("3"),
+                        null, null,
+                        Instant.parse("2026-11-10T12:00:00Z"),
+                        "VERIFIED")));
+        mockMvc.perform(post("/edge-api/v1/analytics/v1/query")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.engine").value("row_store"))
+                .andExpect(jsonPath("$.engineRationale")
+                        .value(org.hamcrest.Matchers.containsString(
+                                "columnar I/O failed")));
     }
 
     @Test

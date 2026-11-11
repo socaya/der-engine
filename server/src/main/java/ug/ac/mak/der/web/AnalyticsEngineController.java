@@ -39,6 +39,7 @@ import java.util.Optional;
 
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkFixtureGenerator;
 import ug.ac.mak.der.analytics.column.exec.ColumnarExplainer;
+import ug.ac.mak.der.analytics.column.exec.ColumnarQueryEngine;
 import ug.ac.mak.der.analytics.column.exec.PlanSelector;
 import ug.ac.mak.der.analytics.column.governor.QueryGovernor;
 import ug.ac.mak.der.analytics.column.governor.QueryToken;
@@ -123,6 +124,7 @@ public class AnalyticsEngineController {
     private final AnalyticsColumnarVerifier columnarVerifier;
     private final ColumnarExplainer columnarExplainer;
     private final PlanSelector planSelector;
+    private final ColumnarQueryEngine columnarQueryEngine;
     private final QueryGovernor queryGovernor;
     private final SpillStore spillStore;
     private final SiteContributionExporter siteExporter;
@@ -164,6 +166,7 @@ public class AnalyticsEngineController {
                                       final AnalyticsColumnarVerifier columnarVerifier,
                                       final ColumnarExplainer columnarExplainer,
                                       final PlanSelector planSelector,
+                                      final ColumnarQueryEngine columnarQueryEngine,
                                       final QueryGovernor queryGovernor,
                                       final SpillStore spillStore,
                                       final SiteContributionExporter siteExporter,
@@ -206,6 +209,8 @@ public class AnalyticsEngineController {
                 "columnarExplainer");
         this.planSelector = Objects.requireNonNull(planSelector,
                 "planSelector");
+        this.columnarQueryEngine = Objects.requireNonNull(columnarQueryEngine,
+                "columnarQueryEngine");
         this.queryGovernor = Objects.requireNonNull(queryGovernor,
                 "queryGovernor");
         this.spillStore = Objects.requireNonNull(spillStore,
@@ -678,7 +683,37 @@ public class AnalyticsEngineController {
                             q.page() == null ? 500 : Math.max(1, q.page().limit()),
                             q.page() == null || q.page().offset() == null
                                     ? 0 : q.page().offset());
-            final List<AnalyticsCell> cells = repo.queryCells(cq);
+            // Gate 4.3 integration — ask the planner which engine
+            // to serve this query. Columnar wins when its cost
+            // estimate beats the row-store and the manifest isn't
+            // stale (SRS FR-QRY-004).
+            PlanSelector.Engine engineUsed = PlanSelector.Engine.ROW_STORE;
+            String engineRationale = "row-store default";
+            List<AnalyticsCell> cells;
+            try {
+                final PlanSelector.PlanDecision decision =
+                        planSelector.select(cq);
+                if (decision != null) {
+                    engineUsed = decision.selected();
+                    engineRationale = decision.rationale();
+                }
+            } catch (java.io.IOException ex) {
+                engineRationale = "planner I/O failed: " + ex.getMessage();
+            } catch (RuntimeException ex) {
+                engineRationale = "planner error: " + ex.getMessage();
+            }
+            if (engineUsed == PlanSelector.Engine.COLUMNAR) {
+                try {
+                    cells = columnarQueryEngine.query(cq);
+                } catch (java.io.IOException ex) {
+                    engineUsed = PlanSelector.Engine.ROW_STORE;
+                    engineRationale = "columnar I/O failed; "
+                            + "fell back to row-store: " + ex.getMessage();
+                    cells = repo.queryCells(cq);
+                }
+            } else {
+                cells = repo.queryCells(cq);
+            }
             final OptionSetLookup.Cache osCache = optionSets.cache();
             final Map<java.util.UUID, List<AnalyticsDimension>> dimsByMetric
                     = new java.util.HashMap<>();
@@ -708,6 +743,8 @@ public class AnalyticsEngineController {
             final Map<String, Object> out = new LinkedHashMap<>();
             out.put("count", rendered.size());
             out.put("suppressedCount", suppressed);
+            out.put("engine", engineUsed.name().toLowerCase());
+            out.put("engineRationale", engineRationale);
             out.put("freshnessAt", Instant.now().toString());
             out.put("cells", rendered.stream()
                     .map(c -> cellJson(c, dimsByMetric.get(c.metricId()),
