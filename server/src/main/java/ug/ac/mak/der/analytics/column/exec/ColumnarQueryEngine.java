@@ -21,6 +21,7 @@ import ug.ac.mak.der.analytics.column.manifest.ManifestReader;
 import ug.ac.mak.der.analytics.column.manifest.ManifestStore;
 import ug.ac.mak.der.analytics.column.manifest.ManifestWriter;
 import ug.ac.mak.der.analytics.column.manifest.SegmentRef;
+import ug.ac.mak.der.analytics.column.governor.QueryToken;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarProperties;
 import ug.ac.mak.der.analytics.column.stats.ColumnStatistics;
 import ug.ac.mak.der.analytics.column.stats.SegmentStatistics;
@@ -61,6 +62,20 @@ public class ColumnarQueryEngine {
     public List<AnalyticsCell> query(
             final AnalyticsEngineRepository.CellQuery q)
             throws IOException {
+        return query(q, null);
+    }
+
+    /** SRS Gate 5.2 — token-aware query. Calls {@link
+     *  QueryToken#throwIfAborted()} at every segment boundary and
+     *  accounts decoded-column bytes through {@link
+     *  QueryToken#accountBytes(long)} so admin cancel / deadline /
+     *  memory-budget all propagate as {@code QueryAbortedException}.
+     *  Pass {@code null} for the same behaviour as the no-token
+     *  overload — governor checks are no-ops. */
+    public List<AnalyticsCell> query(
+            final AnalyticsEngineRepository.CellQuery q,
+            final QueryToken token)
+            throws IOException {
         Objects.requireNonNull(q, "query");
         final Path root = properties.rootPathResolved();
         if (!Files.isDirectory(root)) {
@@ -81,13 +96,13 @@ public class ColumnarQueryEngine {
         final SegmentStatisticsStore statsStore =
                 new SegmentStatisticsStore(json);
         for (final SegmentRef ref : manifest.segments()) {
+            if (token != null) {
+                token.throwIfAborted();
+            }
             if (!matchesSegment(ref, q)) {
                 continue;
             }
             final Path file = root.resolve(ref.file());
-            // Zone-map pruning (SRS FR-STO-008) — skip segments
-            // whose orgUnit min/max band can't contain any of the
-            // requested org units.
             if (q.orgUnitUids() != null && !q.orgUnitUids().isEmpty()) {
                 final java.util.Optional<SegmentStatistics> statsOpt =
                         statsStore.read(file);
@@ -100,6 +115,14 @@ public class ColumnarQueryEngine {
                         continue;
                     }
                 }
+            }
+            // Account the uncompressed on-disk size of this segment
+            // against the token's memory budget before decoding.
+            // The SegmentRef carries rowCount; use a conservative
+            // bytes-per-row estimate to stay portable across codecs.
+            if (token != null) {
+                token.accountBytes((long) ref.rowCount() * 48L);
+                token.throwIfAborted();
             }
             final ColumnScanner.ScannedSegment scanned =
                     ColumnScanner.load(file, PROJECTED_COLUMNS);
