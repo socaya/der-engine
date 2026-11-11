@@ -87,6 +87,29 @@ describe('ensureInstalled', () => {
     expect(e.code).toBe('SHA256_MISMATCH');
   });
 
+  it('revalidates a stale mounted catalogue after a same-version upload', async () => {
+    const updatedBundle = 'export default () => null; // replacement';
+    const updatedSha = await sha(updatedBundle);
+    const stale = { ...APP, bundleSha256: 'ff'.repeat(32) };
+    const refreshed = {
+      ...APP,
+      bundleSha256: updatedSha,
+      signatureB64: 'replacement-signature',
+    };
+    vi.mocked(globalThis.fetch)
+      .mockResolvedValueOnce(bundleResponse(updatedBundle))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ apps: [refreshed] }),
+      } as unknown as Response);
+
+    await expect(ensureInstalled(stale)).resolves.toBe(updatedBundle);
+    expect(signatures.verifyBundle).toHaveBeenCalledWith(
+      expect.any(Uint8Array), 'replacement-signature', 'pk');
+    expect((await listInstalled()).some((k) => k.endsWith(`@${updatedSha}`)))
+      .toBe(true);
+  });
+
   it('throws SIGNING_KEY_UNAVAILABLE when the key fetch fails', async () => {
     vi.mocked(signatures.fetchSigningKey).mockRejectedValue(new Error('down'));
     const e = await ensureInstalled(APP).catch((x) => x) as InstallError;

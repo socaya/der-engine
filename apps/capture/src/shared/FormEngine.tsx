@@ -323,6 +323,7 @@ function FieldInput(
                      className={common.className}
                      value={value}
                      onChange={onChange}
+                     allowFuture={field.allowFutureDate}
                      required={field.required}
                      disabled={field.readonly}
                      readOnly={field.readonly} />;

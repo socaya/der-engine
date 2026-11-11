@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +41,7 @@ public class PublicationProposalService {
     private final AnalyticsEngineRepository cells;
     private final PublicationProperties properties;
 
+    @Autowired
     public PublicationProposalService(final PublicationRepository repo,
                                         final AnalyticsEngineRepository cells,
                                         final PublicationProperties properties) {

@@ -1,0 +1,37 @@
+test_id,area,expected_result,evidence
+VIS-AT-001,Catalogue,Metadata search returns only authorised codes and preserves clinical names,Synthetic fixture + automated assertion or QA capture
+VIS-AT-002,Chart,"OPD monthly visits uses encounter count, not event count",Synthetic fixture + automated assertion or QA capture
+VIS-AT-003,Chart,Blank period distinguishes missing data from zero,Synthetic fixture + automated assertion or QA capture
+VIS-AT-004,Chart,Stacked percentage rejects nonexclusive categories or warns,Synthetic fixture + automated assertion or QA capture
+VIS-AT-005,Chart,Nonadditive unique-patient metric is recomputed across period totals,Synthetic fixture + automated assertion or QA capture
+VIS-AT-006,Pivot,Diagnosis × age × sex pivot matches governed source totals,Synthetic fixture + automated assertion or QA capture
+VIS-AT-007,Pivot,Small suppressed cells cannot be recovered from subtotals,Synthetic fixture + automated assertion or QA capture
+VIS-AT-008,Pivot,10k-cell pivot remains responsive under reference-load test,Synthetic fixture + automated assertion or QA capture
+VIS-AT-009,Map,No unauthorised facility point or fine-grained location leakage,Synthetic fixture + automated assertion or QA capture
+VIS-AT-010,Map,Missing geometry yields a clear unavailable state,Synthetic fixture + automated assertion or QA capture
+VIS-AT-011,Drill,Aggregate bar click opens correct period/category breakdown,Synthetic fixture + automated assertion or QA capture
+VIS-AT-012,Drill,Rate drill displays numerator and denominator with definitions,Synthetic fixture + automated assertion or QA capture
+VIS-AT-013,Drill,Unauthorised user cannot resolve contributor records,Synthetic fixture + automated assertion or QA capture
+VIS-AT-014,Drill,Changing filters cannot reveal suppressed small cells,Synthetic fixture + automated assertion or QA capture
+VIS-AT-015,Dashboard,Global period filter only applies to compatible widgets,Synthetic fixture + automated assertion or QA capture
+VIS-AT-016,Dashboard,Concurrent edits produce revision conflict and recovery flow,Synthetic fixture + automated assertion or QA capture
+VIS-AT-017,Dashboard,Per-widget freshness shows mixed source watermarks,Synthetic fixture + automated assertion or QA capture
+VIS-AT-018,Story,Pinned PDF snapshot reproduces approved chart values,Synthetic fixture + automated assertion or QA capture
+VIS-AT-019,Story,Live presentation clearly labels provisional data,Synthetic fixture + automated assertion or QA capture
+VIS-AT-020,Share,Dashboard shared to another user rechecks their scope,Synthetic fixture + automated assertion or QA capture
+VIS-AT-021,Share,Link cannot elevate recipient to creator permissions,Synthetic fixture + automated assertion or QA capture
+VIS-AT-022,Export,No clinical identifiers in manager-level PDF/CSV export,Synthetic fixture + automated assertion or QA capture
+VIS-AT-023,Export,CSV protects against spreadsheet formula injection,Synthetic fixture + automated assertion or QA capture
+VIS-AT-024,Offline,WAN outage leaves local site visualisation operational,Synthetic fixture + automated assertion or QA capture
+VIS-AT-025,Offline,Client-server outage shows cached data as stale/read-only,Synthetic fixture + automated assertion or QA capture
+VIS-AT-026,Metadata,Renamed indicator retains UID and visual spec validity,Synthetic fixture + automated assertion or QA capture
+VIS-AT-027,Metadata,Removed/incompatible dimension flags definition for review,Synthetic fixture + automated assertion or QA capture
+VIS-AT-028,Interop,DHIS2 2.41–2.44 adapter reports supported/unsupported options,Synthetic fixture + automated assertion or QA capture
+VIS-AT-029,Interop,Local vs central charts do not conflate different data status,Synthetic fixture + automated assertion or QA capture
+VIS-AT-030,Security,Direct API call cannot bypass chart UI filters,Synthetic fixture + automated assertion or QA capture
+VIS-AT-031,Performance,Cached dashboard meets agreed reference p95 target,Synthetic fixture + automated assertion or QA capture
+VIS-AT-032,Performance,Heavy export respects concurrency and timeout limits,Synthetic fixture + automated assertion or QA capture
+VIS-AT-033,Recovery,Render job retries remain idempotent after restart,Synthetic fixture + automated assertion or QA capture
+VIS-AT-034,Accessibility,All chart values accessible via equivalent table/summary,Synthetic fixture + automated assertion or QA capture
+VIS-AT-035,Audit,Record-level drill and export logged without PII,Synthetic fixture + automated assertion or QA capture
+VIS-AT-036,Clinical,IPD deaths correctly distinguish death events and discharge outcomes,Synthetic fixture + automated assertion or QA capture

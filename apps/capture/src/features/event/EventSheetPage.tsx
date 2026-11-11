@@ -477,14 +477,14 @@ export function EventSheetPage(
 
   /** Per-column sticky-left style for data columns in the frozen
    *  range. Index by colIdx; undefined for non-frozen columns.
-   *  Cumulative left starts at 60 (rownum+status) + measured date
+   *  Cumulative left starts at 48 (rownum+status) + measured date
    *  width, then adds each prior frozen column's measured width.
    *  Falls back to stored width (if resized) or 160. */
   const frozenStyles = useMemo(() => {
     const out: Array<CSSProperties | undefined> =
       new Array(allFields.length).fill(undefined);
     if (frozenCols === 0) return out;
-    let cursor = 60 + measuredDateWidth.current;
+    let cursor = 48 + measuredDateWidth.current;
     for (let i = 0; i < Math.min(frozenCols, allFields.length); i++) {
       const f = allFields[i];
       if (!f) continue;

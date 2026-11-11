@@ -1,0 +1,64 @@
+id,area,requirement,priority,verification
+VIS-FR-001,Catalogue and discovery,"Search and filter authorised data items by metadata code, UID, label, programme, stage, dataset, service group and data type",SHOULD,API/UI integration + policy test
+VIS-FR-002,Catalogue and discovery,"Show metric definition, counting grain, data type, unit, valid dimensions, source status, metadata version and owner",MUST,API/UI integration + policy test
+VIS-FR-003,Catalogue and discovery,Expose canonical dimensions and categorical hierarchies from DER Analytics and actual installed metadata,MUST,API/UI integration + policy test
+VIS-FR-004,Catalogue and discovery,Restrict available source items to user scope before displaying catalog results,MUST,API/UI integration + policy test
+VIS-FR-005,Catalogue and discovery,"Allow governed favourite collections, recently used items and reusable filter presets",MUST,API/UI integration + policy test
+VIS-FR-006,Catalogue and discovery,Identify incompatible or deprecated metadata items and offer safe migration review,MUST,API/UI integration + policy test
+VIS-FR-007,Visual builder,"Support a chart type registry covering KPI, line, area, bar, stacked, combo, scatter, histogram, heatmap, funnel, cohort, pivot and map",MUST,API/UI integration + policy test
+VIS-FR-008,Visual builder,"Build charts by selecting measures, categories, series, filters and optional facets with compatibility validation",SHOULD,API/UI integration + policy test
+VIS-FR-009,Visual builder,Provide drag-and-drop dimension placement and equivalent keyboard controls,MUST,API/UI integration + policy test
+VIS-FR-010,Visual builder,Show live preview with validated sample and full-query run action,MUST,API/UI integration + policy test
+VIS-FR-011,Visual builder,"Display provenance, unit, date anchor, period, source watermark, partialness and suppression state on each visual",MUST,API/UI integration + policy test
+VIS-FR-012,Visual builder,"Provide sorting, top N, other bucket, legend, labels, axes and optional goal/reference lines with guardrails",MUST,API/UI integration + policy test
+VIS-FR-013,Visual builder,Provide supported visual-specific presets with no silent semantic changes,MUST,API/UI integration + policy test
+VIS-FR-014,Visual builder,"Save, duplicate, rename, revise, archive, restore and inspect a visualisation with optimistic concurrency",MUST,API/UI integration + policy test
+VIS-FR-015,Visual builder,Prevent unsupported combinations or ambiguous totals and explain remediation,SHOULD,API/UI integration + policy test
+VIS-FR-016,Pivot and tables,"Offer pivot rows, columns, filters, subtotals, grand totals, formatting and export for permitted measures",MUST,API/UI integration + policy test
+VIS-FR-017,Pivot and tables,Handle mathematically non-additive totals through recalculation or explicit unavailable state,MUST,API/UI integration + policy test
+VIS-FR-018,Pivot and tables,Paginate or virtualise large pivots and enforce total-cell limits,MUST,API/UI integration + policy test
+VIS-FR-019,Pivot and tables,"Allow hierarchy expansion, frozen headings, accessible table alternatives and copy of approved cells",MUST,API/UI integration + policy test
+VIS-FR-020,Maps,Use governed DHIS2 organisation-unit geometries or configured facility coordinates for maps,MUST,API/UI integration + policy test
+VIS-FR-021,Maps,"Provide thematic areas, facility point layers, legends, classifications and missing-data styles",MUST,API/UI integration + policy test
+VIS-FR-022,Maps,Permit geographic drill based on user OU access without leaking individual patient coordinates,SHOULD,API/UI integration + policy test
+VIS-FR-023,Maps,Allow offline approved tile/geometry cache and warn on stale boundaries,MUST,API/UI integration + policy test
+VIS-FR-024,Dashboards,"Create responsive dashboards with charts, KPIs, tables, maps, text and methodology blocks",MUST,API/UI integration + policy test
+VIS-FR-025,Dashboards,Provide view/edit mode separation and accessible grid positioning/resizing,MUST,API/UI integration + policy test
+VIS-FR-026,Dashboards,"Apply compatible global filters, explain incompatible widgets and support per-widget overrides",MUST,API/UI integration + policy test
+VIS-FR-027,Dashboards,"Enable cross-filter, linked highlighting, drill actions and reset with no surprise data recalculation",MUST,API/UI integration + policy test
+VIS-FR-028,Dashboards,Allow role-scoped dashboard templates and controlled duplication/publication,MUST,API/UI integration + policy test
+VIS-FR-029,Dashboards,"Show per-widget freshness and partial state, not a falsely unified refresh state",SHOULD,API/UI integration + policy test
+VIS-FR-030,Presentation and publishing,Create ordered narrative stories/reports from pinned or selected visuals with editable text and notes,MUST,API/UI integration + policy test
+VIS-FR-031,Presentation and publishing,Provide 16:9 fullscreen presentation mode with clearly labelled live or snapshot data,MUST,API/UI integration + policy test
+VIS-FR-032,Presentation and publishing,"Export permitted visualisations and report stories as accessible PDF and PNG, and safe aggregate CSV",MUST,API/UI integration + policy test
+VIS-FR-033,Presentation and publishing,"Maintain export history, expiration, share scope, author, timestamp, data as-of, and methodology",MUST,API/UI integration + policy test
+VIS-FR-034,Presentation and publishing,"Offer asynchronous rendering jobs with bounded resources, cancellation and retries",MUST,API/UI integration + policy test
+VIS-FR-035,Presentation and publishing,Enable controlled links and group sharing that never elevates viewer permissions,MUST,API/UI integration + policy test
+VIS-FR-036,Presentation and publishing,Provide explicit data classification and policy confirmation before bulk export,SHOULD,API/UI integration + policy test
+VIS-FR-037,Drilldown and lineage,"Support dimensional drill through period, OU, programme, section, category and permitted disaggregation",MUST,API/UI integration + policy test
+VIS-FR-038,Drilldown and lineage,"Provide metric component drill into numerator, denominator, exclusions and counting rules",MUST,API/UI integration + policy test
+VIS-FR-039,Drilldown and lineage,Provide lineage drill to contributor counts and redacted record summaries for eligible roles,MUST,API/UI integration + policy test
+VIS-FR-040,Drilldown and lineage,Reauthorise each drill and record-open step and log protected actions,MUST,API/UI integration + policy test
+VIS-FR-041,Drilldown and lineage,"Enforce small-cell suppression, secondary suppression and differencing guardrails across query, export and drill",MUST,API/UI integration + policy test
+VIS-FR-042,Drilldown and lineage,"Provide breadcrumbs, back navigation and reproducible filter context",MUST,API/UI integration + policy test
+VIS-FR-043,Interoperability,Read local Analytics results and versioned metadata without recalculating program indicators in client,SHOULD,API/UI integration + policy test
+VIS-FR-044,Interoperability,"Expose an optional central-DHIS2 comparison source, visibly separated from site-local values",MUST,API/UI integration + policy test
+VIS-FR-045,Interoperability,Import only demonstrably supported native DHIS2 visualisations/dashboards with mapping diagnostics,MUST,API/UI integration + policy test
+VIS-FR-046,Interoperability,Export supported native DHIS2 visualisation definitions only after capability validation,MUST,API/UI integration + policy test
+VIS-FR-047,Interoperability,"Retain code/UID mappings, original option values, compatible period and OU semantics",MUST,API/UI integration + policy test
+VIS-FR-048,Interoperability,Report unsupported API features or visualisation types for DHIS2 2.41–2.44 without guessing,MUST,API/UI integration + policy test
+VIS-FR-049,Offline and consistency,Remain functional on site LAN with central WAN unavailable,MUST,API/UI integration + policy test
+VIS-FR-050,Offline and consistency,Allow clearly stale read-only authorised snapshots when the client cannot contact the DER Server,SHOULD,API/UI integration + policy test
+VIS-FR-051,Offline and consistency,"Invalidate caches on metric, source data, permissions, metadata and suppression policy changes",MUST,API/UI integration + policy test
+VIS-FR-052,Offline and consistency,"Render no-data, zero, suppressed, partial, stale and error states distinctly",MUST,API/UI integration + policy test
+VIS-FR-053,Offline and consistency,Protect unpublished aggregate estimates from being displayed as accepted DHIS2 reports,MUST,API/UI integration + policy test
+VIS-FR-054,Admin and operations,"Provide visual object permissions for owner, editors, viewers and governed organisational groups",MUST,API/UI integration + policy test
+VIS-FR-055,Admin and operations,"Configure chart libraries, renderer version, map sources, export limits, retention and privacy rules",MUST,API/UI integration + policy test
+VIS-FR-056,Admin and operations,"Log visualisation reads when required, queries, record drills, sharing, publishing and exports",MUST,API/UI integration + policy test
+VIS-FR-057,Admin and operations,"Expose query performance, cache behaviour, render job failures and compatibility metrics",SHOULD,API/UI integration + policy test
+VIS-FR-058,Admin and operations,"Support immutable revisions, rollback and selective import/export of configuration bundles",MUST,API/UI integration + policy test
+VIS-FR-059,Admin and operations,Provide schema migrations and deprecation notices on metadata or renderer changes,MUST,API/UI integration + policy test
+VIS-FR-060,Quality and usability,"Offer responsive viewing on desktop, tablet and mobile with dedicated desktop authoring",MUST,API/UI integration + policy test
+VIS-FR-061,Quality and usability,"Provide keyboard-accessible controls, descriptive chart alternatives and WCAG-oriented semantics",MUST,API/UI integration + policy test
+VIS-FR-062,Quality and usability,"Support configurable locale, timezone, calendar labels and number/unit formatting",MUST,API/UI integration + policy test
+VIS-FR-063,Quality and usability,Generate explainable warning messages for inconsistent counting grains or invalid denominator usage,MUST,API/UI integration + policy test

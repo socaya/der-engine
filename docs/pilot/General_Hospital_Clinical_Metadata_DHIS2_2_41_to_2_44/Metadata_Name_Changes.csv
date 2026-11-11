@@ -1,0 +1,928 @@
+type,uid,code,previousName,revisedName
+trackedEntityTypes,hdXaIIpaUo2,PTTE0001,DER EMR - Patient,Patient
+trackedEntityTypes,DLNDk0kBuly,IVTE0001,DER Inventory Commodity,Inventory Commodity
+trackedEntityTypes,HRI6eWV6XmC,EQTE0001,DER HOSP - Facility Equipment,Facility Equipment
+trackedEntityAttributes,iifSGt6SMQV,PTTA0006,DER EMR - Patient Identifier,Patient Identifier
+trackedEntityAttributes,T4bPqr9y3Ki,PTTA0003,DER EMR - Given Name,Given Name
+trackedEntityAttributes,pZpCAu1WPk0,PTTA0002,DER EMR - Family Name,Family Name
+trackedEntityAttributes,GY6o8lcSPIk,PTTA0001,DER EMR - Date of Birth,Date of Birth
+trackedEntityAttributes,fjAAqRxSNqo,PTTA0008,DER EMR - Sex,Sex
+trackedEntityAttributes,D5Xhct0BO6F,PTTA0007,DER EMR - Phone Number,Phone Number
+trackedEntityAttributes,ul2VWF8SvNA,PTTA0005,DER EMR - National Identifier,National Identifier
+trackedEntityAttributes,oLIXkGZhz05,PTTA0004,DER EMR - Home Address,Home Address
+trackedEntityAttributes,DgABILuF9tu,PTTA0011,DER Inventory - Commodity Code,Inventory - Commodity Code
+trackedEntityAttributes,D8xi9XFuimA,PTTA0012,DER Inventory - Commodity Description,Inventory - Commodity Description
+trackedEntityAttributes,DhiyQJkKuYG,PTTA0014,DER Inventory - Generic Name,Inventory - Generic Name
+trackedEntityAttributes,Dp5uU38tIkL,PTTA0015,DER Inventory - Product Category,Inventory - Product Category
+trackedEntityAttributes,DstAF8INjf7,PTTA0010,DER Inventory - Base Unit of Measure,Inventory - Base Unit of Measure
+trackedEntityAttributes,DabXNO2d7Fl,PTTA0016,DER Inventory - Strength or Specification,Inventory - Strength or Specification
+trackedEntityAttributes,DMzeGddihe3,PTTA0013,DER Inventory - GTIN or Barcode,Inventory - GTIN or Barcode
+trackedEntityAttributes,DjQHVrLhb2W,PTTA0009,DER Inventory - Active Status,Inventory - Active Status
+optionSets,awcHPASyp2O,PTOS0001,DER EMR - Sex,Sex
+optionSets,oeGXhecYf0p,OPOS0015,DER EMR - Yesno,Yes/No
+optionSets,IpcLmfFerUg,OPOS0013,DER EMR - Triage,Triage
+optionSets,BbsbL8RitxR,OPOS0010,DER EMR - Service,Service
+optionSets,en0BCepr0f6,OPOS0012,DER EMR - Status,Status
+optionSets,ad5Ys7DgVGH,OPOS0009,DER EMR - Result,Result
+optionSets,LRWUf1UwBnd,OPOS0002,DER EMR - Disposition,Disposition
+optionSets,Rdwn7oJLc1J,OPOS0005,DER EMR - Payment,Payment
+optionSets,gdHXdoOj4aZ,OPOS0004,DER EMR - Payer,Payer
+optionSets,gJDsAeyEhqa,OPOS0003,DER EMR - Invoice,Invoice
+optionSets,BwRXoRFDfEN,OPOS0006,DER EMR - Payment Status,Payment Status
+optionSets,daZbicJnAa1,OPOS0014,DER EMR - Unit,Unit
+optionSets,MAzC70poR7K,OPOS0011,DER EMR - Service Charge,Service Charge
+optionSets,sqgALYZlpZJ,OPOS0008,DER EMR - Referral,Referral
+optionSets,KY3Eb14c671,OPOS0007,DER EMR - Priority,Priority
+optionSets,VpxmqGyGSPo,OPOS0001,DER EMR - Clinical Outcome,Clinical Outcome
+optionSets,DkmyRBdEEiS,IPOS0002,DER DER IPD Admission Source,IPD Admission Source
+optionSets,Ddyc8UVow4i,IPOS0003,DER DER IPD Consent Status,IPD Consent Status
+optionSets,DuaVNJCDCwZ,IPOS0004,DER DER IPD Diagnosis Classification,IPD Diagnosis Classification
+optionSets,DSANQsnYb0C,IPOS0005,DER DER IPD Diagnosis Status,IPD Diagnosis Status
+optionSets,D9FZcMyVbr8,IPOS0017,DER DER IPD Workflow Status,IPD Workflow Status
+optionSets,DIl1K4u31Am,IPOS0009,DER DER IPD Medication Reconciliation Action,IPD Medication Reconciliation Action
+optionSets,DvvkajLPdWG,IPOS0014,DER DER IPD Route,IPD Route
+optionSets,Dm9AXXH91tD,IPOS0001,DER DER IPD Administration Outcome,IPD Administration Outcome
+optionSets,D7PZE63HbVo,IPOS0015,DER DER IPD Shift,IPD Shift
+optionSets,DbAXMCcZoUm,IPOS0016,DER DER IPD Transfusion Outcome,IPD Transfusion Outcome
+optionSets,DXrED2jGxtY,IPOS0007,DER DER IPD Escalation Level,IPD Escalation Level
+optionSets,DyYaLbAga4x,IPOS0010,DER DER IPD Payer Type,IPD Payer Type
+optionSets,D45BmZ18q2r,IPOS0012,DER DER IPD Payment Status,IPD Payment Status
+optionSets,DJvHXLAlYEQ,IPOS0011,DER DER IPD Payment Method,IPD Payment Method
+optionSets,D93uRycoN32,IPOS0008,DER DER IPD Financial Clearance Status,IPD Financial Clearance Status
+optionSets,D4Z4SqNJxuz,IPOS0006,DER DER IPD Disposition,IPD Disposition
+optionSets,D8Xd3aHtD7e,IPOS0013,DER DER IPD Referral Status,IPD Referral Status
+optionSets,D3ZZx6GNioN,IVOS0002,DER DER INV Stock Location,INV Stock Location
+optionSets,D0J5lRnaKGD,IVOS0004,DER DER INV Transaction Type,INV Transaction Type
+optionSets,DVM51hs05j0,IVOS0003,DER DER INV Stock Reason,INV Stock Reason
+optionSets,DtXzqHRyZGl,IVOS0001,DER DER INV Status,INV Status
+optionSets,H41kM1yFfvO,GNOS0011,DER HOSP - Visit Status,Visit Status
+optionSets,HkrkKio6AXj,EROS0002,DER HOSP - Referral Priority,Referral Priority
+optionSets,HDeR0sLFEZ1,GNOS0004,DER HOSP - Encounter Disposition,Encounter Disposition
+optionSets,HOP3MUR7Re5,EROS0001,DER HOSP - Clinical Acuity,Clinical Acuity
+optionSets,H8HvoCuhqzt,LBOS0001,DER HOSP - Order Status,Order Status
+optionSets,H6EWZoAgoZl,GNOS0002,DER HOSP - Clinical Result,Clinical Result
+optionSets,HcIztD1Gnjp,GNOS0001,DER HOSP - Care Plan Status,Care Plan Status
+optionSets,H4M0vWG0BcV,GNOS0010,DER HOSP - Treatment Adherence,Treatment Adherence
+optionSets,H5dUWwIOynz,TBOS0001,DER HOSP - TB Treatment Outcome,TB Treatment Outcome
+optionSets,HkEKpprVKam,GNOS0008,DER HOSP - Pregnancy Outcome,Pregnancy Outcome
+optionSets,H7mygUCReUk,MTOS0001,DER HOSP - Birth Mode,Birth Mode
+optionSets,H1THKCyNriG,IMOS0001,DER HOSP - Vaccination Status,Vaccination Status
+optionSets,HwZhrUvHSB5,SUOS0001,DER HOSP - Wound Classification,Wound Classification
+optionSets,H212gEnr76Q,MHOS0001,DER HOSP - Mental Health Risk,Mental Health Risk
+optionSets,Homm8nwqxvv,SCOS0001,DER HOSP - Screening Outcome,Screening Outcome
+optionSets,HHhJOVI9bA7,GNOS0006,DER HOSP - Nutrition Classification,Nutrition Classification
+optionSets,HTkhhRRjKs0,GNOS0009,DER HOSP - Procedure Status,Procedure Status
+optionSets,HpQhg3SoqNY,RNOS0001,DER HOSP - Renal Session Status,Renal Session Status
+optionSets,HrnrsNakczS,BBOS0001,DER HOSP - Blood Compatibility,Blood Compatibility
+optionSets,HqK0NQrB5fc,GNOS0005,DER HOSP - Follow-up Status,Follow-up Status
+optionSets,HM1mroUPUeG,GNOS0007,DER HOSP - Payment Status,Payment Status
+optionSets,Huz7B2tIbfy,GNOS0003,DER HOSP - Consent Status,Consent Status
+optionSets,HWVomD67Yhd,GNOS0012,DER HOSP - Yes No Unknown,Yes No Unknown
+optionSets,HBHl0hDw7nr,LBOS0002,DER HOSP - Specimen Status,Specimen Status
+dataElements,MLiyhjKhJC4,OPDE0094,DER EMR - Visit Reference,Visit Reference
+dataElements,Q6ZdIFn2h0J,OPDE0055,DER EMR - Order Reference,Order Reference
+dataElements,z6I0XXAaboV,GNDE0002,DER EMR - Performed By,Performed By
+dataElements,QnvZEWCbmQQ,GNDE0003,DER EMR - Service Point,Service Point
+dataElements,m9ZQM3M2Mqm,GNDE0001,DER EMR - Clinical Notes,Clinical Notes
+dataElements,ITXtwwBSzdd,OPDE0072,DER EMR - Reason for Visit,Reason for Visit
+dataElements,DdVH1NiGFoG,OPDE0037,DER EMR - Identity Verified,Identity Verified
+dataElements,Kw6CM3sF7Kw,OPDE0078,DER EMR - Registration Notes,Registration Notes
+dataElements,I01ldw4QusM,OPDE0081,DER EMR - Requested Service,Requested Service
+dataElements,Y58nOwapzbi,OPDE0016,DER EMR - Check-in Time,Check-in Time
+dataElements,lg7THTAWSwL,OPDE0071,DER EMR - Queue Number,Queue Number
+dataElements,FKydhMfv9wK,OPDE0093,DER EMR - Visit Payment Category,Visit Payment Category
+dataElements,F8aapqvM3yZ,OPDE0091,DER EMR - Triage Category,Triage Category
+dataElements,e4CbkbM8XvT,OPDE0090,DER EMR - Temperature Celsius,Temperature Celsius
+dataElements,IISaWvQqqyK,OPDE0089,DER EMR - Systolic Blood Pressure,Systolic Blood Pressure
+dataElements,FZWMNHhcNwn,OPDE0022,DER EMR - Diastolic Blood Pressure,Diastolic Blood Pressure
+dataElements,bsH7b31XSp1,OPDE0034,DER EMR - Heart Rate,Heart Rate
+dataElements,YwbRXPvRZbM,OPDE0082,DER EMR - Respiratory Rate,Respiratory Rate
+dataElements,CkBQRwg4C5E,OPDE0056,DER EMR - Oxygen Saturation Percent,Oxygen Saturation Percent
+dataElements,dhjdir9A12r,OPDE0095,DER EMR - Weight Kg,Weight Kg
+dataElements,PGG66BHAtSu,OPDE0035,DER EMR - Height Cm,Height Cm
+dataElements,Ygmvo1IAIj3,OPDE0092,DER EMR - Triage Complaint,Triage Complaint
+dataElements,JekIUukihQV,OPDE0036,DER EMR - History of Present Illness,History of Present Illness
+dataElements,K3cwFIla1r0,OPDE0017,DER EMR - Clinical Examination,Clinical Examination
+dataElements,mZYFbKOf28Z,OPDE0068,DER EMR - Provisional Diagnosis,Provisional Diagnosis
+dataElements,w7btIxqqjSW,OPDE0030,DER EMR - Final Diagnosis,Final Diagnosis
+dataElements,VbWxEfveicC,OPDE0019,DER EMR - Clinical Plan,Clinical Plan
+dataElements,gBMTjtlAPqt,OPDE0051,DER EMR - Laboratory Test Requested,Laboratory Test Requested
+dataElements,KKgRkLR4W06,OPDE0054,DER EMR - Order Priority,Order Priority
+dataElements,QYqNn8GVVET,OPDE0088,DER EMR - Specimen Type,Specimen Type
+dataElements,fbJFqGvH3QD,OPDE0079,DER EMR - Request Indication,Request Indication
+dataElements,zuZLgm2elXn,OPDE0080,DER EMR - Request Status,Request Status
+dataElements,LNYww7b1r9W,OPDE0085,DER EMR - Specimen Identifier,Specimen Identifier
+dataElements,mCJ31juQRFk,OPDE0020,DER EMR - Collection Date Time,Collection Date Time
+dataElements,oAiISQ6KYRB,OPDE0087,DER EMR - Specimen Received Date Time,Specimen Received Date Time
+dataElements,n2KOmleSSz7,OPDE0086,DER EMR - Specimen Notes,Specimen Notes
+dataElements,wHnsdbvdtlO,OPDE0050,DER EMR - Laboratory Test Name,Laboratory Test Name
+dataElements,QPWxtDsWMru,OPDE0049,DER EMR - Laboratory Result Value,Laboratory Result Value
+dataElements,lMbZRhGtVjc,OPDE0047,DER EMR - Laboratory Result Interpretation,Laboratory Result Interpretation
+dataElements,sFXz1zcpehe,OPDE0048,DER EMR - Laboratory Result Units,Laboratory Result Units
+dataElements,vT1VBMkf8K9,OPDE0045,DER EMR - Laboratory Reference Range,Laboratory Reference Range
+dataElements,Qfo92BqZe7R,OPDE0046,DER EMR - Laboratory Report Date Time,Laboratory Report Date Time
+dataElements,JJRdcQKp4Mn,OPDE0021,DER EMR - Critical Result Escalated,Critical Result Escalated
+dataElements,C5AlvNhIYMZ,OPDE0042,DER EMR - Imaging Modality,Imaging Modality
+dataElements,Pzd603DsP95,OPDE0038,DER EMR - Imaging Body Site,Imaging Body Site
+dataElements,zGnXHgWiyrg,OPDE0039,DER EMR - Imaging Clinical Indication,Imaging Clinical Indication
+dataElements,ughIxnF6KRC,OPDE0040,DER EMR - Imaging Findings,Imaging Findings
+dataElements,eVSQ13hLak5,OPDE0041,DER EMR - Imaging Impression,Imaging Impression
+dataElements,mIO7qigQjjG,OPDE0043,DER EMR - Imaging Performed Date Time,Imaging Performed Date Time
+dataElements,nYCuCC4aoav,OPDE0066,DER EMR - Procedure Name,Procedure Name
+dataElements,d2xdqDRNFOR,OPDE0065,DER EMR - Procedure Date Time,Procedure Date Time
+dataElements,Baq89wvW6ta,OPDE0067,DER EMR - Procedure Outcome,Procedure Outcome
+dataElements,JSTDN5ML11s,OPDE0001,DER EMR - Adverse Event,Adverse Event
+dataElements,uSUM8U1H6c4,OPDE0053,DER EMR - Medicine Prescribed,Medicine Prescribed
+dataElements,snmIFD3DjsH,OPDE0064,DER EMR - Prescribed Dose,Prescribed Dose
+dataElements,Rjf7aDB8pPE,OPDE0027,DER EMR - Dose Unit,Dose Unit
+dataElements,kqzapKW926V,OPDE0084,DER EMR - Route of Administration,Route of Administration
+dataElements,YQfkXxueI51,OPDE0033,DER EMR - Frequency,Frequency
+dataElements,cMoj7FndH3T,OPDE0028,DER EMR - Duration Days,Duration Days
+dataElements,LDRrvPqFIMA,OPDE0070,DER EMR - Quantity Prescribed,Quantity Prescribed
+dataElements,BF4zmVLQ2Sv,OPDE0052,DER EMR - Medicine Dispensed,Medicine Dispensed
+dataElements,Nhvqt5jfwXB,OPDE0069,DER EMR - Quantity Dispensed,Quantity Dispensed
+dataElements,rnOCJxyE9Um,OPDE0024,DER EMR - Dispensing Date Time,Dispensing Date Time
+dataElements,tu1oN7V23Jh,OPDE0025,DER EMR - Dispensing Notes,Dispensing Notes
+dataElements,hQwOaFPYBM1,OPDE0044,DER EMR - Invoice Reference,Invoice Reference
+dataElements,cAiZWl4ostU,OPDE0009,DER EMR - Charge Line Reference,Charge Line Reference
+dataElements,e2aBCmkcRP6,OPDE0012,DER EMR - Charge Service Category,Charge Service Category
+dataElements,B9d93gyKRx0,OPDE0006,DER EMR - Charge Description,Charge Description
+dataElements,QHwARbkSxbD,OPDE0011,DER EMR - Charge Quantity,Charge Quantity
+dataElements,kA6ThoVe1ei,OPDE0015,DER EMR - Charge Unit Price UGX,Charge Unit Price UGX
+dataElements,TmJASWfQlni,OPDE0008,DER EMR - Charge Gross Amount UGX,Charge Gross Amount UGX
+dataElements,FWzqGhf7uR1,OPDE0007,DER EMR - Charge Discount Amount UGX,Charge Discount Amount UGX
+dataElements,PaPPGTMuVfg,OPDE0010,DER EMR - Charge Net Amount UGX,Charge Net Amount UGX
+dataElements,JsE9SrSf1ry,OPDE0013,DER EMR - Charge Source Reference,Charge Source Reference
+dataElements,xdItAwT1hYB,OPDE0057,DER EMR - Payer Category,Payer Category
+dataElements,N4BsFNOagGG,OPDE0014,DER EMR - Charge Status,Charge Status
+dataElements,JsXTXHc0u1u,OPDE0062,DER EMR - Payment Reference,Payment Reference
+dataElements,Dv9oBPvlx8C,OPDE0060,DER EMR - Payment Method,Payment Method
+dataElements,a8Op1iayadA,OPDE0058,DER EMR - Payment Amount UGX,Payment Amount UGX
+dataElements,lVJ8FCghjVv,OPDE0059,DER EMR - Payment Date Time,Payment Date Time
+dataElements,RG1dTY1RJII,OPDE0063,DER EMR - Payment Status,Payment Status
+dataElements,Qu9aWiwEdaH,OPDE0029,DER EMR - External Transaction Reference,External Transaction Reference
+dataElements,HPjswWrS6w0,OPDE0061,DER EMR - Payment Notes,Payment Notes
+dataElements,yfALr2pNyWd,OPDE0002,DER EMR - Billing Balance UGX,Billing Balance UGX
+dataElements,P8iBD3JVd4q,OPDE0004,DER EMR - Billing Clearance Granted,Billing Clearance Granted
+dataElements,cuOtWEsDt7Z,OPDE0005,DER EMR - Billing Clearance Reason,Billing Clearance Reason
+dataElements,CwosBazBdIc,OPDE0003,DER EMR - Billing Clearance Date Time,Billing Clearance Date Time
+dataElements,MTwiQujixct,OPDE0026,DER EMR - Disposition,Disposition
+dataElements,AP6pqf6uIh9,OPDE0018,DER EMR - Clinical Outcome,Clinical Outcome
+dataElements,xYhUtmh1F6t,OPDE0023,DER EMR - Discharge Summary,Discharge Summary
+dataElements,g5BwPt8XqOK,OPDE0031,DER EMR - Follow-up Date,Follow-up Date
+dataElements,roUamZGN2HO,OPDE0083,DER EMR - Return Precautions,Return Precautions
+dataElements,DAcGbnJReG0,OPDE0077,DER EMR - Referral Type,Referral Type
+dataElements,QIGAYJhVkWg,OPDE0074,DER EMR - Referral Destination,Referral Destination
+dataElements,CQ1B6fza3dC,OPDE0075,DER EMR - Referral Reason,Referral Reason
+dataElements,gqlyizTdwgq,OPDE0073,DER EMR - Referral Date,Referral Date
+dataElements,V1x9lxvpQfP,OPDE0076,DER EMR - Referral Status,Referral Status
+dataElements,ZVajqwWJ3sn,OPDE0032,DER EMR - Follow-up Findings,Follow-up Findings
+dataElements,DrJyo3O3g88,IPDE0007,DER IPD - Admission Request ID,Admission Request ID
+dataElements,DL2Yot0DUK1,IPDE0131,DER IPD - Originating OPD Event ID,Originating OPD Event ID
+dataElements,Dyr8dL2Y9J9,IPDE0164,DER IPD - Proposed Admission Type,Proposed Admission Type
+dataElements,DFyK8hIj76S,IPDE0190,DER IPD - Requested Ward,Requested Ward
+dataElements,DFQ9aZ2yqbH,IPDE0020,DER IPD - Bed Request Time,Bed Request Time
+dataElements,DbD1fWoQ15v,IPDE0024,DER IPD - Booking Outcome,Booking Outcome
+dataElements,DNC8mRTqekF,IPDE0006,DER IPD - Admission ID,Admission ID
+dataElements,Dre9M5jHnKA,IPDE0004,DER IPD - Admission Date and Time,Admission Date and Time
+dataElements,DActECf9YNH,IPDE0185,DER IPD - Referred From,Referred From
+dataElements,DVy5miCZsNi,IPDE0008,DER IPD - Admission Source,Admission Source
+dataElements,DSIzsDNtugi,IPDE0169,DER IPD - Reason for Admission,Reason for Admission
+dataElements,DCYF9fHARKN,IPDE0005,DER IPD - Admission Diagnosis,Admission Diagnosis
+dataElements,DZ7VHPEeXlM,IPDE0009,DER IPD - Admitting Clinician,Admitting Clinician
+dataElements,DuI8S52cHf9,IPDE0017,DER IPD - Assigned Ward,Assigned Ward
+dataElements,DzPtHSQZtkb,IPDE0016,DER IPD - Assigned Bed,Assigned Bed
+dataElements,DDNP5OKSrkb,IPDE0070,DER IPD - Encounter ID,Encounter ID
+dataElements,DUdbTVrwvKT,IPDE0100,DER IPD - Identity Verified,Identity Verified
+dataElements,DdAdNnoEh9M,IPDE0043,DER IPD - Consent Status,Consent Status
+dataElements,Dv65KpkJZSU,IPDE0124,DER IPD - Next of Kin Contact,Next of Kin Contact
+dataElements,DRhBI3R5D5z,IPDE0015,DER IPD - Assessment Time,Assessment Time
+dataElements,DGM3apKe27d,IPDE0149,DER IPD - Presenting Concerns,Presenting Concerns
+dataElements,DLU0k3wU81y,IPDE0222,DER IPD - Temperature Celsius,Temperature Celsius
+dataElements,DrKAlXKu7XY,IPDE0165,DER IPD - Pulse Per Minute,Pulse Per Minute
+dataElements,DspxlHyMCLb,IPDE0191,DER IPD - Respiratory Rate Per Minute,Respiratory Rate Per Minute
+dataElements,D2s4pEceWVd,IPDE0221,DER IPD - Systolic BP,Systolic BP
+dataElements,Dp6AuEYtWBb,IPDE0058,DER IPD - Diastolic BP,Diastolic BP
+dataElements,DxNmkHVjP2C,IPDE0135,DER IPD - Oxygen Saturation Percent,Oxygen Saturation Percent
+dataElements,DgZy6I35Hj9,IPDE0136,DER IPD - Pain Score,Pain Score
+dataElements,Dq04BXrrKim,IPDE0078,DER IPD - Fall Risk,Fall Risk
+dataElements,DKvAUyX5lHV,IPDE0150,DER IPD - Pressure Injury Risk,Pressure Injury Risk
+dataElements,DDApfmuqEor,IPDE0125,DER IPD - Nursing Care Needs,Nursing Care Needs
+dataElements,D1t1kqqhSXy,IPDE0096,DER IPD - History of Present Illness,History of Present Illness
+dataElements,DGqraeKX8Nl,IPDE0137,DER IPD - Past Medical History,Past Medical History
+dataElements,DAbjnPNQbdp,IPDE0219,DER IPD - Surgical History,Surgical History
+dataElements,DpVIgDLgynU,IPDE0012,DER IPD - Allergy Description,Allergy Description
+dataElements,DTauYcF8n80,IPDE0050,DER IPD - Current Medicines,Current Medicines
+dataElements,DmdiZKf5nt6,IPDE0144,DER IPD - Physical Examination,Physical Examination
+dataElements,Da1qzcK0nqU,IPDE0241,DER IPD - Working Diagnosis,Working Diagnosis
+dataElements,DAhFd3WjfHp,IPDE0026,DER IPD - Care Plan,Care Plan
+dataElements,DQrjVhLWbo4,IPDE0037,DER IPD - Clinical Priority,Clinical Priority
+dataElements,D5WnYtuRP8g,IPDE0054,DER IPD - Diagnosis Code,Diagnosis Code
+dataElements,DffxxwQxsDG,IPDE0055,DER IPD - Diagnosis Description,Diagnosis Description
+dataElements,DMQjrQIJfXN,IPDE0053,DER IPD - Diagnosis Classification,Diagnosis Classification
+dataElements,DSnQRw2NveT,IPDE0056,DER IPD - Diagnosis Onset Date,Diagnosis Onset Date
+dataElements,DMO4lBa3uaJ,IPDE0057,DER IPD - Diagnosis Status,Diagnosis Status
+dataElements,DbmKC7DN1dc,IPDE0193,DER IPD - Responsible Clinician,Responsible Clinician
+dataElements,DJsR1gsjmE5,IPDE0200,DER IPD - Round Time,Round Time
+dataElements,DL7frQLAxia,IPDE0163,DER IPD - Progress SOAP Subjective,Progress SOAP Subjective
+dataElements,DgzHOVdlomf,IPDE0161,DER IPD - Progress SOAP Objective,Progress SOAP Objective
+dataElements,D0uJsn7FwsD,IPDE0160,DER IPD - Progress SOAP Assessment,Progress SOAP Assessment
+dataElements,DDmjgiqb6UD,IPDE0162,DER IPD - Progress SOAP Plan,Progress SOAP Plan
+dataElements,DeWKMKUre5h,IPDE0044,DER IPD - Consultant ID,Consultant ID
+dataElements,DktgBLxdPb5,IPDE0240,DER IPD - Workflow Status,Workflow Status
+dataElements,DfD3yWBTG0H,IPDE0117,DER IPD - Measurement Time,Measurement Time
+dataElements,DDxhd2qmpuA,IPDE0134,DER IPD - Oxygen Delivery,Oxygen Delivery
+dataElements,Ddk5oERPQLY,IPDE0092,DER IPD - Glasgow Coma Score,Glasgow Coma Score
+dataElements,DpFR0gg4KEE,IPDE0069,DER IPD - Early Warning Score,Early Warning Score
+dataElements,DEZeGab7vKU,IPDE0072,DER IPD - Escalation Action,Escalation Action
+dataElements,DCabfiPOhyq,IPDE0118,DER IPD - Medication Name,Medication Name
+dataElements,D3ieoJzhxjs,IPDE0097,DER IPD - Home Medication Dose,Home Medication Dose
+dataElements,DGdzqU8BwJO,IPDE0098,DER IPD - Home Medication Frequency,Home Medication Frequency
+dataElements,DlW05r3Rlbw,IPDE0120,DER IPD - Medication Reconciliation Action,Medication Reconciliation Action
+dataElements,DbI6DHnzP4r,IPDE0175,DER IPD - Reconciliation Reason,Reconciliation Reason
+dataElements,DxkDxXEBxQf,IPDE0199,DER IPD - Reviewed By,Reviewed By
+dataElements,DI91djvTJMz,IPDE0148,DER IPD - Prescription ID,Prescription ID
+dataElements,DEbN8CU5mEB,IPDE0119,DER IPD - Medication Order ID,Medication Order ID
+dataElements,DHGPWHGVSo2,IPDE0121,DER IPD - Medicine Code,Medicine Code
+dataElements,DHorACimDai,IPDE0122,DER IPD - Medicine Name,Medicine Name
+dataElements,DoU19EvZeMM,IPDE0066,DER IPD - Dose,Dose
+dataElements,DMxFe3L2qA1,IPDE0068,DER IPD - Dose Unit,Dose Unit
+dataElements,DTtS8FrZef7,IPDE0201,DER IPD - Route,Route
+dataElements,DZ67oIMZXmC,IPDE0089,DER IPD - Frequency,Frequency
+dataElements,Dd1S4JzbJMR,IPDE0212,DER IPD - Start Date Time,Start Date Time
+dataElements,DYBJwCNxQAa,IPDE0071,DER IPD - End Date Time,End Date Time
+dataElements,DzkCvZ9wZea,IPDE0167,DER IPD - Quantity Ordered,Quantity Ordered
+dataElements,DkbZDOz3HBt,IPDE0147,DER IPD - Prescriber,Prescriber
+dataElements,D7jSMoO3SjA,IPDE0064,DER IPD - Dispensing ID,Dispensing ID
+dataElements,DpkwJ9wccYR,IPDE0166,DER IPD - Quantity Issued,Quantity Issued
+dataElements,DyEcFA6VeLm,IPDE0019,DER IPD - Batch Number,Batch Number
+dataElements,DkSBJRAsoCe,IPDE0077,DER IPD - Expiry Date,Expiry Date
+dataElements,DbSVRiTTzIw,IPDE0143,DER IPD - Pharmacist ID,Pharmacist ID
+dataElements,D1VqrlN0CXU,IPDE0204,DER IPD - Scheduled Dose Time,Scheduled Dose Time
+dataElements,DxSmqAkjoQG,IPDE0001,DER IPD - Actual Administration Time,Actual Administration Time
+dataElements,DoBn0gGH0FV,IPDE0067,DER IPD - Dose Administered,Dose Administered
+dataElements,DnMJlRhfWGL,IPDE0003,DER IPD - Administration Outcome,Administration Outcome
+dataElements,DGlgoGB9fEh,IPDE0129,DER IPD - Omission Reason,Omission Reason
+dataElements,D6dh6shUPA4,IPDE0002,DER IPD - Administered By,Administered By
+dataElements,DCyNW7o7CER,IPDE0239,DER IPD - Witnessed By,Witnessed By
+dataElements,DbDZI7IpztJ,IPDE0106,DER IPD - Infusion Order ID,Infusion Order ID
+dataElements,D9FUGElcSTh,IPDE0083,DER IPD - Fluid Type,Fluid Type
+dataElements,DiaCGlM1FSn,IPDE0228,DER IPD - Total Volume ML,Total Volume ML
+dataElements,DY5aqpYnM97,IPDE0107,DER IPD - Infusion Rate ML Per Hour,Infusion Rate ML Per Hour
+dataElements,DoDZTfB0c1m,IPDE0176,DER IPD - Recorded By,Recorded By
+dataElements,DxQAS2lsvWZ,IPDE0116,DER IPD - Laboratory Request ID,Laboratory Request ID
+dataElements,D1MFDVCC2UD,IPDE0225,DER IPD - Test Order ID,Test Order ID
+dataElements,D0XkVq22ibL,IPDE0223,DER IPD - Test Code,Test Code
+dataElements,DYe8K5MsI5M,IPDE0224,DER IPD - Test Name,Test Name
+dataElements,DaA7XLpB0Ja,IPDE0203,DER IPD - Sample Type,Sample Type
+dataElements,DORlgBBHc5M,IPDE0035,DER IPD - Clinical Indication,Clinical Indication
+dataElements,D2zpchuGIuv,IPDE0189,DER IPD - Request Time,Request Time
+dataElements,Dip1nYGIXii,IPDE0211,DER IPD - Specimen ID,Specimen ID
+dataElements,DmOfViFTplI,IPDE0038,DER IPD - Collection Time,Collection Time
+dataElements,DX4DbePXcUz,IPDE0039,DER IPD - Collector ID,Collector ID
+dataElements,DlsG9S6uEAu,IPDE0210,DER IPD - Specimen Condition,Specimen Condition
+dataElements,DaLWscER5cF,IPDE0095,DER IPD - Handover Time,Handover Time
+dataElements,DYDoF2JjNol,IPDE0198,DER IPD - Result Value,Result Value
+dataElements,Dtfp6FakCse,IPDE0197,DER IPD - Result Unit,Result Unit
+dataElements,DckumxbIQLZ,IPDE0180,DER IPD - Reference Range,Reference Range
+dataElements,DhTjKtnYcJY,IPDE0195,DER IPD - Result Interpretation,Result Interpretation
+dataElements,DbtcOhNadMq,IPDE0196,DER IPD - Result Time,Result Time
+dataElements,DNf19GRLFpr,IPDE0237,DER IPD - Verified By,Verified By
+dataElements,Djia2zAUWDV,IPDE0048,DER IPD - Critical Result Alert,Critical Result Alert
+dataElements,D8zq2xHQ9Ji,IPDE0102,DER IPD - Imaging Request ID,Imaging Request ID
+dataElements,DavmLJlsZIB,IPDE0101,DER IPD - Imaging Modality,Imaging Modality
+dataElements,DjeosQhq9tg,IPDE0023,DER IPD - Body Region,Body Region
+dataElements,DfUZJTN7J6A,IPDE0214,DER IPD - Study Reference,Study Reference
+dataElements,DObVhzAL7RL,IPDE0213,DER IPD - Study Date Time,Study Date Time
+dataElements,DwoOHquutuY,IPDE0186,DER IPD - Report Findings,Report Findings
+dataElements,DdG5uSS6nT7,IPDE0187,DER IPD - Report Impression,Report Impression
+dataElements,D9NnzyDjz6T,IPDE0188,DER IPD - Reporting Clinician,Reporting Clinician
+dataElements,D9t7TupfehE,IPDE0154,DER IPD - Procedure ID,Procedure ID
+dataElements,DWBHS3TkNJr,IPDE0152,DER IPD - Procedure Code,Procedure Code
+dataElements,DkE90vyW1Fr,IPDE0155,DER IPD - Procedure Name,Procedure Name
+dataElements,DhGcOvoNkCP,IPDE0153,DER IPD - Procedure Date Time,Procedure Date Time
+dataElements,DghHheSzexh,IPDE0156,DER IPD - Procedure Notes,Procedure Notes
+dataElements,Da2iteHqRqQ,IPDE0157,DER IPD - Procedure Outcome,Procedure Outcome
+dataElements,DU5mktB9enB,IPDE0151,DER IPD - Procedure Clinician,Procedure Clinician
+dataElements,DBktLK0qmBY,IPDE0042,DER IPD - Complications,Complications
+dataElements,DnAHF4WwKbz,IPDE0217,DER IPD - Surgery ID,Surgery ID
+dataElements,DQbqvbaAS86,IPDE0220,DER IPD - Surgical Procedure,Surgical Procedure
+dataElements,DlSYDuvuyGG,IPDE0146,DER IPD - Preoperative Diagnosis,Preoperative Diagnosis
+dataElements,DpYBJMNPJOh,IPDE0218,DER IPD - Surgery Start Time,Surgery Start Time
+dataElements,DKpEHhezvd6,IPDE0216,DER IPD - Surgery End Time,Surgery End Time
+dataElements,DmPySGznn9g,IPDE0215,DER IPD - Surgeon ID,Surgeon ID
+dataElements,DXGBxeHNcZf,IPDE0013,DER IPD - Anesthesia Type,Anesthesia Type
+dataElements,Da775TgNRi3,IPDE0202,DER IPD - Safety Checklist Complete,Safety Checklist Complete
+dataElements,DG8PYdSrTJG,IPDE0130,DER IPD - Operation Notes,Operation Notes
+dataElements,DzG80BHgAkw,IPDE0145,DER IPD - Postoperative Diagnosis,Postoperative Diagnosis
+dataElements,DLVxECG6BJj,IPDE0179,DER IPD - Recovery Start Time,Recovery Start Time
+dataElements,DDMiUEUXlKq,IPDE0178,DER IPD - Recovery Score,Recovery Score
+dataElements,DC3FzE7gqdu,IPDE0011,DER IPD - Airway Status,Airway Status
+dataElements,DPynJvqE7pz,IPDE0177,DER IPD - Recovery Disposition,Recovery Disposition
+dataElements,DstUXScTl9H,IPDE0173,DER IPD - Receiving Staff,Receiving Staff
+dataElements,DEIXAe53z1r,IPDE0127,DER IPD - Nursing Problem,Nursing Problem
+dataElements,D563mEfyTFk,IPDE0126,DER IPD - Nursing Intervention,Nursing Intervention
+dataElements,D4LTX5nbz6Q,IPDE0025,DER IPD - Care Goal,Care Goal
+dataElements,DIJ2AbKdD1s,IPDE0111,DER IPD - Intervention Date Time,Intervention Date Time
+dataElements,DUKycEEOHD9,IPDE0192,DER IPD - Response to Care,Response to Care
+dataElements,DBHJn9HAiIG,IPDE0194,DER IPD - Responsible Nurse,Responsible Nurse
+dataElements,DxqocYI26M1,IPDE0128,DER IPD - Observation Time,Observation Time
+dataElements,DLaZkOBEoVd,IPDE0108,DER IPD - Intake Type,Intake Type
+dataElements,DXTLd66tV3f,IPDE0109,DER IPD - Intake Volume ML,Intake Volume ML
+dataElements,DTxukn7zeVJ,IPDE0132,DER IPD - Output Type,Output Type
+dataElements,DDEAaiDSkJV,IPDE0133,DER IPD - Output Volume ML,Output Volume ML
+dataElements,DxkDYY5GTvw,IPDE0208,DER IPD - Shift,Shift
+dataElements,DDyXvBBahMq,IPDE0082,DER IPD - Fluid Balance Note,Fluid Balance Note
+dataElements,DSyEss0OS4m,IPDE0233,DER IPD - Transfusion Order ID,Transfusion Order ID
+dataElements,Drl9zkhWm4I,IPDE0021,DER IPD - Blood Product Code,Blood Product Code
+dataElements,DpyDF7QZTRJ,IPDE0022,DER IPD - Blood Unit Identifier,Blood Unit Identifier
+dataElements,DpquD7PeBi4,IPDE0040,DER IPD - Compatibility Result,Compatibility Result
+dataElements,DzLHuHII6pv,IPDE0235,DER IPD - Transfusion Start,Transfusion Start
+dataElements,DEytBg0Aqco,IPDE0232,DER IPD - Transfusion End,Transfusion End
+dataElements,DF6M0DUHp1m,IPDE0234,DER IPD - Transfusion Outcome,Transfusion Outcome
+dataElements,DAXReIeVeQP,IPDE0010,DER IPD - Adverse Reaction,Adverse Reaction
+dataElements,DDdQFlPW1Fd,IPDE0046,DER IPD - Consultation Request ID,Consultation Request ID
+dataElements,DdMM0xAG4DZ,IPDE0209,DER IPD - Specialty,Specialty
+dataElements,DbNZN1zO0LQ,IPDE0170,DER IPD - Reason for Consultation,Reason for Consultation
+dataElements,DYrfjZZsqnx,IPDE0045,DER IPD - Consultation Date Time,Consultation Date Time
+dataElements,DWelAFiQmD3,IPDE0036,DER IPD - Clinical Opinion,Clinical Opinion
+dataElements,DtiXTwV652V,IPDE0174,DER IPD - Recommendations,Recommendations
+dataElements,DBCmEmzePEU,IPDE0229,DER IPD - Transfer ID,Transfer ID
+dataElements,DPU8oGvWrl7,IPDE0091,DER IPD - From Ward,From Ward
+dataElements,DOa86wJIGzI,IPDE0090,DER IPD - From Bed,From Bed
+dataElements,D5I7oemCink,IPDE0227,DER IPD - To Ward,To Ward
+dataElements,DGRXTAbNVOm,IPDE0226,DER IPD - To Bed,To Bed
+dataElements,DJnNXtlzKd8,IPDE0230,DER IPD - Transfer Reason,Transfer Reason
+dataElements,D4HjKe7d5OB,IPDE0231,DER IPD - Transfer Time,Transfer Time
+dataElements,DdHd3t7q4A0,IPDE0094,DER IPD - Handover Summary,Handover Summary
+dataElements,DRENB14Jb9T,IPDE0074,DER IPD - Escalation Time,Escalation Time
+dataElements,Dll8Nrq8vcO,IPDE0075,DER IPD - Escalation Trigger,Escalation Trigger
+dataElements,DL9d2VgggwN,IPDE0073,DER IPD - Escalation Level,Escalation Level
+dataElements,DxHhhF255tP,IPDE0047,DER IPD - Critical Care Plan,Critical Care Plan
+dataElements,DeKJeK4dPcP,IPDE0206,DER IPD - Service Category,Service Category
+dataElements,DPQphXAypfG,IPDE0014,DER IPD - Assessment Summary,Assessment Summary
+dataElements,D8Y6Gvycqxm,IPDE0110,DER IPD - Intervention,Intervention
+dataElements,DE38uvDwzEE,IPDE0207,DER IPD - Session Date Time,Session Date Time
+dataElements,D2R2HB8E6Q1,IPDE0159,DER IPD - Progress Note,Progress Note
+dataElements,DSnAPHDEcH1,IPDE0088,DER IPD - Follow Up Required,Follow Up Required
+dataElements,DDtsXFF0vCu,IPDE0105,DER IPD - Infection Risk,Infection Risk
+dataElements,DQuHsihLvrF,IPDE0115,DER IPD - Isolation Type,Isolation Type
+dataElements,DNk1PfuKhDj,IPDE0114,DER IPD - Isolation Start,Isolation Start
+dataElements,DUgGEcdno9b,IPDE0113,DER IPD - Isolation End,Isolation End
+dataElements,Dn5zjMCBASb,IPDE0103,DER IPD - Infection Control Action,Infection Control Action
+dataElements,Dy22ofRsMri,IPDE0104,DER IPD - Infection Control Review,Infection Control Review
+dataElements,DdPnnsi3b1f,IPDE0031,DER IPD - Charge ID,Charge ID
+dataElements,D09mGDJrSxd,IPDE0033,DER IPD - Charge Source Event ID,Charge Source Event ID
+dataElements,DybunE5Evaj,IPDE0032,DER IPD - Charge Item Code,Charge Item Code
+dataElements,DEohe8LJX4C,IPDE0030,DER IPD - Charge Amount,Charge Amount
+dataElements,DzYNpCAboKu,IPDE0049,DER IPD - Currency Code,Currency Code
+dataElements,Dr05H55YYAM,IPDE0138,DER IPD - Payer Type,Payer Type
+dataElements,DX2egjemTmB,IPDE0034,DER IPD - Claim Reference,Claim Reference
+dataElements,DNcmcf97YsA,IPDE0142,DER IPD - Payment Status,Payment Status
+dataElements,DI1M8PDucqe,IPDE0112,DER IPD - Invoice ID,Invoice ID
+dataElements,DUkp4g6HchT,IPDE0141,DER IPD - Payment Reference,Payment Reference
+dataElements,DD9V0HQKeRd,IPDE0139,DER IPD - Payment Amount,Payment Amount
+dataElements,D7ue7VsW3Y8,IPDE0140,DER IPD - Payment Method,Payment Method
+dataElements,DIsX6kLZGxQ,IPDE0238,DER IPD - Waiver or Exemption,Waiver or Exemption
+dataElements,DEnHdWBFtgd,IPDE0081,DER IPD - Financial Clearance Status,Financial Clearance Status
+dataElements,D7CTyM29xJE,IPDE0076,DER IPD - Estimated Discharge Date,Estimated Discharge Date
+dataElements,DjRp7u2qaJK,IPDE0062,DER IPD - Discharge Education,Discharge Education
+dataElements,Du49YPBQEcZ,IPDE0099,DER IPD - Home Medicines,Home Medicines
+dataElements,Dlj1Db6zjwb,IPDE0084,DER IPD - Follow Up Appointment,Follow Up Appointment
+dataElements,DuW3f9TpmfI,IPDE0059,DER IPD - Discharge Barriers,Discharge Barriers
+dataElements,DbNG7JMXzmX,IPDE0027,DER IPD - Caregiver Instructions,Caregiver Instructions
+dataElements,DANZ5KUnaEh,IPDE0061,DER IPD - Discharge Date Time,Discharge Date Time
+dataElements,D7s7nfMaN9w,IPDE0080,DER IPD - Final Diagnosis,Final Diagnosis
+dataElements,D7EkTCGCAfu,IPDE0205,DER IPD - Secondary Diagnoses,Secondary Diagnoses
+dataElements,DLuobQoaXRF,IPDE0236,DER IPD - Treatment Summary,Treatment Summary
+dataElements,DEoaZK9p7v3,IPDE0158,DER IPD - Procedures Summary,Procedures Summary
+dataElements,DB3jEbm3ohB,IPDE0063,DER IPD - Discharge Medicines,Discharge Medicines
+dataElements,DFiRwYJSjT6,IPDE0060,DER IPD - Discharge Condition,Discharge Condition
+dataElements,DFMGbyG2NC7,IPDE0065,DER IPD - Disposition,Disposition
+dataElements,D21ylVuFEwj,IPDE0087,DER IPD - Follow Up Plan,Follow Up Plan
+dataElements,D8Kft5YLr9K,IPDE0018,DER IPD - Authorising Clinician,Authorising Clinician
+dataElements,D4rjnVunoyg,IPDE0181,DER IPD - Referral ID,Referral ID
+dataElements,DA51S3BsLy7,IPDE0172,DER IPD - Receiving Facility,Receiving Facility
+dataElements,D3qa8UNFIX3,IPDE0183,DER IPD - Referral Reason,Referral Reason
+dataElements,DvVmV719igh,IPDE0182,DER IPD - Referral Priority,Referral Priority
+dataElements,DG8EVlqrgS1,IPDE0171,DER IPD - Receiving Contact,Receiving Contact
+dataElements,D7wBUvdxcJe,IPDE0093,DER IPD - Handover Completed,Handover Completed
+dataElements,DUMnweveXbP,IPDE0184,DER IPD - Referral Status,Referral Status
+dataElements,DVx1UFeXXdI,IPDE0051,DER IPD - Date Time of Death,Date Time of Death
+dataElements,DZbZRzFkOmC,IPDE0052,DER IPD - Death Certification Reference,Death Certification Reference
+dataElements,D4mRvIL3r5o,IPDE0028,DER IPD - Cause of Death Summary,Cause of Death Summary
+dataElements,DnmBNs8rmBO,IPDE0029,DER IPD - Certifying Clinician,Certifying Clinician
+dataElements,DPi9bVK2zBK,IPDE0123,DER IPD - Mortuary Transfer Reference,Mortuary Transfer Reference
+dataElements,DOMSODJJ94B,IPDE0079,DER IPD - Family Notified,Family Notified
+dataElements,DoSvAON9J4N,IPDE0085,DER IPD - Follow Up Date,Follow Up Date
+dataElements,DoxUfYQTBEi,IPDE0086,DER IPD - Follow Up Outcome,Follow Up Outcome
+dataElements,DNX73q14FVQ,IPDE0041,DER IPD - Complication Identified,Complication Identified
+dataElements,DBLfiA3Jh2s,IPDE0168,DER IPD - Readmission Reference,Readmission Reference
+dataElements,DOMNNA1xwo3,IVDE0018,DER INV - Opening Quantity,INV - Opening Quantity
+dataElements,D5wJymCaDcJ,IVDE0007,DER INV - Count Date,INV - Count Date
+dataElements,DkiXeo0RwCJ,IVDE0038,DER INV - Stock Location,INV - Stock Location
+dataElements,DH0vvFZDTAM,IVDE0005,DER INV - Batch or Lot Number,INV - Batch or Lot Number
+dataElements,DFf6TAjY1lE,IVDE0014,DER INV - Expiry Date,INV - Expiry Date
+dataElements,DIJ2rgpQbjF,IVDE0008,DER INV - Count Reference,INV - Count Reference
+dataElements,DGHFKF0f6UC,IVDE0002,DER INV - Approved By,INV - Approved By
+dataElements,DSNpBnjHGvd,IVDE0041,DER INV - Transaction ID,INV - Transaction ID
+dataElements,DaggyFjCrc0,IVDE0036,DER INV - Source Operation ID,INV - Source Operation ID
+dataElements,DAGCsQomip3,IVDE0044,DER INV - Transaction Type,INV - Transaction Type
+dataElements,DfFqD1IiInT,IVDE0043,DER INV - Transaction Time,INV - Transaction Time
+dataElements,DGB3gcmaEen,IVDE0025,DER INV - Quantity,INV - Quantity
+dataElements,DAulDBcDzAZ,IVDE0004,DER INV - Base Unit,INV - Base Unit
+dataElements,D45Pd8m2LaG,IVDE0017,DER INV - Linked Visit ID,INV - Linked Visit ID
+dataElements,DwGSKqujFeV,IVDE0016,DER INV - Linked Order ID,INV - Linked Order ID
+dataElements,DXrHm7vRnkN,IVDE0026,DER INV - Reason,INV - Reason
+dataElements,DtFyqkoR17o,IVDE0021,DER INV - Performed By User ID,INV - Performed By User ID
+dataElements,Dx6IwelZN47,IVDE0042,DER INV - Transaction Status,INV - Transaction Status
+dataElements,D5Eb8HsHkHs,IVDE0039,DER INV - Supplier Name,INV - Supplier Name
+dataElements,DPezGdE59YB,IVDE0015,DER INV - Goods Received Note,INV - Goods Received Note
+dataElements,DmiyUxmwqgP,IVDE0023,DER INV - Purchase Order Reference,INV - Purchase Order Reference
+dataElements,DGYbM0E8DWd,IVDE0046,DER INV - Unit Cost,INV - Unit Cost
+dataElements,D6WKGpQVEZ6,IVDE0010,DER INV - Destination Stock Location,INV - Destination Stock Location
+dataElements,D9qpxk3zyDx,IVDE0030,DER INV - Requisition ID,INV - Requisition ID
+dataElements,DkB7ZeXc5AT,IVDE0011,DER INV - Dispatch Reference,INV - Dispatch Reference
+dataElements,DAPgD58bKsn,IVDE0037,DER INV - Source Stock Location,INV - Source Stock Location
+dataElements,DHSORUwll8h,IVDE0022,DER INV - Prescription ID,INV - Prescription ID
+dataElements,DEPS9oGGJoh,IVDE0020,DER INV - Patient Reference Token,INV - Patient Reference Token
+dataElements,DF7qnKqKnbx,IVDE0035,DER INV - Service Event ID,INV - Service Event ID
+dataElements,DOeXSP9M9aA,IVDE0006,DER INV - Consumption Context,INV - Consumption Context
+dataElements,DytbwSkPzve,IVDE0034,DER INV - Return Source,INV - Return Source
+dataElements,D9KSrgbwnCm,IVDE0024,DER INV - Quality Assessment,INV - Quality Assessment
+dataElements,DiBrzWYLMCe,IVDE0045,DER INV - Transfer Reference,INV - Transfer Reference
+dataElements,DYKDwqxFHMy,IVDE0012,DER INV - Disposal Method,INV - Disposal Method
+dataElements,Dh2ltky3nJV,IVDE0003,DER INV - Authorisation Reference,INV - Authorisation Reference
+dataElements,DJ3cZHG1jQv,IVDE0009,DER INV - Counted Quantity,INV - Counted Quantity
+dataElements,DLwPDE70uGa,IVDE0040,DER INV - System Quantity,INV - System Quantity
+dataElements,DrOPyVLJmGk,IVDE0001,DER INV - Adjustment Approval,INV - Adjustment Approval
+dataElements,DV2CgQc1JC9,IVDE0032,DER INV - Reservation ID,INV - Reservation ID
+dataElements,DUERMoNTIO0,IVDE0033,DER INV - Reserved Quantity,INV - Reserved Quantity
+dataElements,DnE5zmX9B7a,IVDE0031,DER INV - Reservation Expiry,INV - Reservation Expiry
+dataElements,DBhHqSKIDa6,IVDE0027,DER INV - Requested Quantity,INV - Requested Quantity
+dataElements,DrkXqE6VLuQ,IVDE0028,DER INV - Requesting Service Point,INV - Requesting Service Point
+dataElements,DIqtLT1FhvU,IVDE0029,DER INV - Required By,INV - Required By
+dataElements,DoykD1wX9FG,IVDE0019,DER INV - Ordered Quantity,INV - Ordered Quantity
+dataElements,DhcENATNsjz,IVDE0013,DER INV - Expected Delivery,INV - Expected Delivery
+dataElements,HtU5Xg29Fqe,WFDE0001,DER HOSP - Encounter reference,Encounter reference
+dataElements,HOzKnEUK7bH,GNDE0013,DER HOSP - Encounter date,Encounter date
+dataElements,H4sglzZg1Xz,ICDE0008,DER HOSP - Service point,Service point
+dataElements,HOjILHBAwVW,GNDE0027,DER HOSP - Responsible clinician identifier,Responsible clinician identifier
+dataElements,HLMwyQQBdAf,GNDE0005,DER HOSP - Clinical note,Clinical note
+dataElements,HwRs5lghvYF,RFDE0001,DER HOSP - Referral reference,Referral reference
+dataElements,HkrMdFvoghk,WFDE0002,DER HOSP - Order reference,Order reference
+dataElements,HN8VDUhP89M,LBDE0012,DER HOSP - Specimen reference,Specimen reference
+dataElements,HmFDJb4E3ee,MDDE0001,DER HOSP - Prescription reference,Prescription reference
+dataElements,HzO3rShQp4Z,HVDE0007,DER HOSP - Stock transaction reference,Stock transaction reference
+dataElements,H4a9sUCYBvf,GNDE0017,DER HOSP - Invoice reference,Invoice reference
+dataElements,Hs3mEsESYIj,GNDE0012,DER HOSP - Diagnosis coding system,Diagnosis coding system
+dataElements,HqRAG8tPMbp,DXDE0001,DER HOSP - Diagnosis code,Diagnosis code
+dataElements,HuR348A5RLN,GNDE0023,DER HOSP - Procedure coding system,Procedure coding system
+dataElements,HvzUYvB8nk2,GNDE0022,DER HOSP - Procedure code,Procedure code
+dataElements,HsA2ZFIbdsU,GNDE0007,DER HOSP - Consent status,Consent status
+dataElements,HeQiQT265bk,GNDE0031,DER HOSP - Workflow status,Workflow status
+dataElements,H2tOHEIt9gK,GNDE0004,DER HOSP - Care plan status,Care plan status
+dataElements,HL7f5uEAoAl,TBDE0005,DER HOSP - Screening result,Screening result
+dataElements,Hkphxqak9l3,ERDE0016,DER HOSP - Urgency,Urgency
+dataElements,HR2Qy02j3dN,GNDE0006,DER HOSP - Clinical result,Clinical result
+dataElements,HkUb6U6Yh4o,ERDE0006,DER HOSP - Encounter disposition,Encounter disposition
+dataElements,Hq6Pbkre7Ko,GNDE0015,DER HOSP - Follow-up status,Follow-up status
+dataElements,HpcKZ88Sgh4,GNDE0021,DER HOSP - Payment status,Payment status
+dataElements,Hb4D1MPPxXp,VSDE0006,DER HOSP - Weight (kg),Weight (kg)
+dataElements,HNKa4QwkdTR,VSDE0003,DER HOSP - Height (cm),Height (cm)
+dataElements,HNmwErt7AL9,GNDE0028,DER HOSP - Temperature (C),Temperature (C)
+dataElements,H7Z2yp0Z94q,ERDE0009,DER HOSP - Heart rate (per min),Heart rate (per min)
+dataElements,HoGAHT72rm4,GNDE0026,DER HOSP - Respiratory rate (per min),Respiratory rate (per min)
+dataElements,H7CxstReTAT,VSDE0005,DER HOSP - Systolic BP (mmHg),Systolic BP (mmHg)
+dataElements,H23gpbln4hi,VSDE0002,DER HOSP - Diastolic BP (mmHg),Diastolic BP (mmHg)
+dataElements,HcHxSMjr7MI,ERDE0014,DER HOSP - SpO2 (%),SpO2 (%)
+dataElements,H3U0ZdAyFE6,GNDE0020,DER HOSP - Pain score (0-10),Pain score (0-10)
+dataElements,HhjA7rRYhV8,GNDE0025,DER HOSP - Quantity,Quantity
+dataElements,H9oIuXnPgix,GNDE0008,DER HOSP - Cost (local currency),Cost (local currency)
+dataElements,HfQAZLBRFdu,GNDE0011,DER HOSP - Date and time,Date and time
+dataElements,HIg0qeZ5Yij,ERDE0002,DER HOSP - Arrival mechanism,Arrival mechanism
+dataElements,HOPlGkJ4X7Y,ERDE0011,DER HOSP - Presenting complaint,Presenting complaint
+dataElements,H3Ku43A1RK0,ERDE0005,DER HOSP - Clinical acuity,Clinical acuity
+dataElements,HxBts5fpYCQ,ERDE0012,DER HOSP - Red flag finding,Red flag finding
+dataElements,HCvZvxJGINb,ERDE0001,DER HOSP - Airway status,Airway status
+dataElements,HqCQIKgSJ6N,ERDE0003,DER HOSP - Breathing status,Breathing status
+dataElements,HDgSgKXKRXN,ERDE0004,DER HOSP - Circulation status,Circulation status
+dataElements,HOKHwxjggtw,ERDE0013,DER HOSP - Resuscitation intervention,Resuscitation intervention
+dataElements,HZU6kalPvKx,ERDE0015,DER HOSP - Time of intervention,Time of intervention
+dataElements,HNIImfL98kY,GNDE0024,DER HOSP - Procedure status,Procedure status
+dataElements,Hm2cVlMb2Pm,ERDE0010,DER HOSP - Observation note,Observation note
+dataElements,HdXj3MILprk,ERDE0007,DER HOSP - Handover recipient,Handover recipient
+dataElements,H92dn45EQAA,ERDE0008,DER HOSP - Handover time,Handover time
+dataElements,Hb8DcpqP6hn,ANDE0005,DER HOSP - Last menstrual period,Last menstrual period
+dataElements,HtcxtA5dWhf,ANDE0001,DER HOSP - Estimated delivery date,Estimated delivery date
+dataElements,HGnKsAGRFlW,ANDE0002,DER HOSP - Gravidity,Gravidity
+dataElements,HyOrWXwbJxu,ANDE0006,DER HOSP - Parity,Parity
+dataElements,HqnSgenO5t9,ANDE0008,DER HOSP - Pregnancy risk history,Pregnancy risk history
+dataElements,H6OENvmxVuN,GNDE0016,DER HOSP - Gestational age weeks,Gestational age weeks
+dataElements,HPvBbBFljnP,GNDE0010,DER HOSP - Danger signs,Danger signs
+dataElements,HLPNtceynOS,ANDE0003,DER HOSP - HIV test result,HIV test result
+dataElements,HU2kHJZCNXa,ANDE0011,DER HOSP - Syphilis screening,Syphilis screening
+dataElements,Huot1DfyUkd,ANDE0004,DER HOSP - Haemoglobin (g/dL),Haemoglobin (g/dL)
+dataElements,HIby0ReJOZL,ANDE0012,DER HOSP - Ultrasound order reference,Ultrasound order reference
+dataElements,H5h07fJHpTH,ANDE0009,DER HOSP - Preventive intervention,Preventive intervention
+dataElements,HTBneTnmcVQ,ANDE0010,DER HOSP - Supplement issued,Supplement issued
+dataElements,HforjmzzzJB,GNDE0009,DER HOSP - Counselling note,Counselling note
+dataElements,Hkoa54vbmDm,GNDE0014,DER HOSP - Follow-up appointment,Follow-up appointment
+dataElements,HZR5NjXXZDG,ANDE0007,DER HOSP - Pregnancy outcome,Pregnancy outcome
+dataElements,HBJVpiEIwld,GNDE0019,DER HOSP - Outcome date,Outcome date
+dataElements,HtBDlD82Yum,MTDE0010,DER HOSP - Labour onset time,Labour onset time
+dataElements,HLlos7BT8CM,MTDE0012,DER HOSP - Maternal risk note,Maternal risk note
+dataElements,HfcppzHHwvS,MTDE0004,DER HOSP - Cervical dilatation cm,Cervical dilatation cm
+dataElements,HWhVKRYOTaO,MTDE0008,DER HOSP - Fetal heart rate,Fetal heart rate
+dataElements,HwWf2CXqx1y,MTDE0005,DER HOSP - Contraction frequency,Contraction frequency
+dataElements,HxD6Z4m3Mz4,MTDE0009,DER HOSP - Intervention indication,Intervention indication
+dataElements,HWk0OvpA8oS,MTDE0002,DER HOSP - Birth mode,Birth mode
+dataElements,HoGrbmzT2E9,MTDE0001,DER HOSP - Birth date and time,Birth date and time
+dataElements,HqPBfaQvX1T,MTDE0003,DER HOSP - Birth outcome,Birth outcome
+dataElements,HusWxNQdY39,VSDE0001,DER HOSP - Birth weight (g),Birth weight (g)
+dataElements,HrvEbt1hOfa,MTDE0013,DER HOSP - Newborn linked patient identifier,Newborn linked patient identifier
+dataElements,HJoRpwOPeRp,MTDE0007,DER HOSP - Estimated blood loss (mL),Estimated blood loss (mL)
+dataElements,H1d6SPOrCj1,MTDE0014,DER HOSP - Postpartum complication,Postpartum complication
+dataElements,HbBBAXLsOTY,MTDE0011,DER HOSP - Maternal disposition,Maternal disposition
+dataElements,HK7yTMi03BS,MTDE0006,DER HOSP - Discharge date,Discharge date
+dataElements,HIjmSRm6Qcn,PNDE0002,DER HOSP - Delivery date,Delivery date
+dataElements,HiTysXPbUa9,PNDE0003,DER HOSP - Delivery facility,Delivery facility
+dataElements,HkJXwUTKXZZ,PNDE0005,DER HOSP - Mother linked patient identifier,Mother linked patient identifier
+dataElements,HyEoZU077We,PNDE0001,DER HOSP - Breastfeeding counselling,Breastfeeding counselling
+dataElements,H6Eqfb0i1MA,PNDE0006,DER HOSP - Newborn danger signs,Newborn danger signs
+dataElements,HVMy8bZZoRU,PNDE0004,DER HOSP - Jaundice assessment,Jaundice assessment
+dataElements,HfwPZzlDt9P,IMDE0006,DER HOSP - Caregiver identifier,Caregiver identifier
+dataElements,HsxmENq1Gfu,IMDE0005,DER HOSP - Birth date verified,Birth date verified
+dataElements,H7yePy8QvUY,IMDE0009,DER HOSP - Vaccination card reference,Vaccination card reference
+dataElements,HNrOf13uZBh,VSDE0004,DER HOSP - MUAC (mm),MUAC (mm)
+dataElements,HAfhMmKNL4F,GNDE0018,DER HOSP - Nutrition classification,Nutrition classification
+dataElements,HFyQfLyw9HM,IMDE0012,DER HOSP - Vaccine antigen code,Vaccine antigen code
+dataElements,HEmDhciRSPS,IMDE0007,DER HOSP - Dose sequence,Dose sequence
+dataElements,Hwgh2Dos7qu,IMDE0010,DER HOSP - Vaccination status,Vaccination status
+dataElements,Hb1oGhC9Jhw,IMDE0008,DER HOSP - Due date,Due date
+dataElements,Hn8lP1dgCgt,IMDE0013,DER HOSP - Vaccine lot number,Vaccine lot number
+dataElements,Hukxxv8pMuB,IMDE0004,DER HOSP - Administration date,Administration date
+dataElements,HyPqT0Zi6UJ,IMDE0011,DER HOSP - Vaccinator identifier,Vaccinator identifier
+dataElements,HQNXi1Iu45x,IMDE0002,DER HOSP - AEFI onset,AEFI onset
+dataElements,HOgrwAEKDH6,IMDE0003,DER HOSP - AEFI severity,AEFI severity
+dataElements,HKDVnwKYOaN,IMDE0001,DER HOSP - AEFI clinical description,AEFI clinical description
+dataElements,HGvAjCzoDC0,HVDE0004,DER HOSP - Confirmed diagnosis date,Confirmed diagnosis date
+dataElements,Hb1xJkD6UMa,HVDE0001,DER HOSP - ART start date,ART start date
+dataElements,HnmHd9gj08Z,HVDE0002,DER HOSP - Baseline clinical stage,Baseline clinical stage
+dataElements,HKDp9P7a85S,MDDE0002,DER HOSP - Treatment regimen code,Treatment regimen code
+dataElements,HolFauat5Hv,GNDE0029,DER HOSP - Treatment adherence,Treatment adherence
+dataElements,HuKR3ReV9eT,HVDE0005,DER HOSP - Next review date,Next review date
+dataElements,HZU6FjUbNz0,HVDE0008,DER HOSP - Viral load copies/mL,Viral load copies/mL
+dataElements,HLmihPnT7yD,HVDE0003,DER HOSP - CD4 count,CD4 count
+dataElements,H67vn6zfxPy,HVDE0006,DER HOSP - Service delivery model,Service delivery model
+dataElements,HCujIKUf9AB,TBDE0002,DER HOSP - Disease classification,Disease classification
+dataElements,HkwlhDCBhlC,TBDE0007,DER HOSP - Symptoms duration days,Symptoms duration days
+dataElements,HNx2JsdH6BJ,TBDE0003,DER HOSP - Index case reference,Index case reference
+dataElements,HECG2xWo1sF,TBDE0004,DER HOSP - Molecular test result,Molecular test result
+dataElements,HfrmccP2PBa,TBDE0006,DER HOSP - Smear result,Smear result
+dataElements,HPfK3pwv0h9,TBDE0010,DER HOSP - Treatment start date,Treatment start date
+dataElements,H2NgaCxpJN3,TBDE0009,DER HOSP - Treatment phase,Treatment phase
+dataElements,HPbmn75R0G1,GNDE0030,DER HOSP - Treatment adverse effect,Treatment adverse effect
+dataElements,H37CjDtiMq7,TBDE0001,DER HOSP - Contact patient identifier,Contact patient identifier
+dataElements,HHerxkXE1qB,TBDE0008,DER HOSP - TB outcome,TB outcome
+dataElements,HkU1DK4cXsX,NCDE0002,DER HOSP - Diabetes type,Diabetes type
+dataElements,HEYeuSCJSou,NCDE0006,DER HOSP - Hypertension diagnosis,Hypertension diagnosis
+dataElements,H7Gflmryp3W,NCDE0001,DER HOSP - Cardiovascular risk factors,Cardiovascular risk factors
+dataElements,HTAFrafbEoz,NCDE0005,DER HOSP - HbA1c (%),HbA1c (%)
+dataElements,HSdkLXakTTG,NCDE0003,DER HOSP - Fasting glucose (mmol/L),Fasting glucose (mmol/L)
+dataElements,HPVLKWcI9sS,NCDE0009,DER HOSP - Urine albumin result,Urine albumin result
+dataElements,H3XC3BLoa1C,NCDE0004,DER HOSP - Foot exam result,Foot exam result
+dataElements,HlR13G9i19l,NCDE0008,DER HOSP - Retinal screening result,Retinal screening result
+dataElements,H9VJkBl6FjZ,NCDE0007,DER HOSP - Renal risk note,Renal risk note
+dataElements,H6SPlWTUd3c,ONDE0006,DER HOSP - Primary cancer site code,Primary cancer site code
+dataElements,HH7muo54iuX,ONDE0004,DER HOSP - Histology terminology code,Histology terminology code
+dataElements,H5qakBJyy9R,ONDE0003,DER HOSP - Diagnosis date,Diagnosis date
+dataElements,HJw5kXCspgj,ONDE0009,DER HOSP - Stage at diagnosis,Stage at diagnosis
+dataElements,HAHwMqckIUq,ONDE0002,DER HOSP - Decision date,Decision date
+dataElements,HjbA74pqxeq,ONDE0007,DER HOSP - Protocol code,Protocol code
+dataElements,H32QZzYdfA1,ONDE0001,DER HOSP - Cycle number,Cycle number
+dataElements,HrsupNUz2Wj,ONDE0010,DER HOSP - Treatment administration date,Treatment administration date
+dataElements,HkKleg0wToQ,ONDE0008,DER HOSP - Radiotherapy course reference,Radiotherapy course reference
+dataElements,HI52uoiNt8E,ONDE0011,DER HOSP - Treatment response code,Treatment response code
+dataElements,HQ3KUDPq5t1,ONDE0005,DER HOSP - Palliative intervention,Palliative intervention
+dataElements,HfMhpGeTTfg,MHDE0003,DER HOSP - Presenting concern,Presenting concern
+dataElements,Hwjo0vghV6u,MHDE0001,DER HOSP - Mental health risk,Mental health risk
+dataElements,HVplbji5Cgk,MHDE0002,DER HOSP - Mental state examination,Mental state examination
+dataElements,HeYexq9E9PY,MHDE0004,DER HOSP - Suicide risk note,Suicide risk note
+dataElements,HYCWbu2JawS,MHDE0005,DER HOSP - Therapy session summary,Therapy session summary
+dataElements,H0oVVQI2VLI,SUDE0003,DER HOSP - Planned procedure code,Planned procedure code
+dataElements,HMjrnftU3xe,SUDE0010,DER HOSP - Surgery date,Surgery date
+dataElements,HBq5TZ4GfYK,SUDE0001,DER HOSP - Anaesthesia risk classification,Anaesthesia risk classification
+dataElements,HQGOe6PSY2G,SUDE0005,DER HOSP - Preoperative findings,Preoperative findings
+dataElements,HikmR2X7F01,SUDE0008,DER HOSP - Sign-in completed,Sign-in completed
+dataElements,H1wZwRLPohZ,SUDE0011,DER HOSP - Time-out completed,Time-out completed
+dataElements,HtOLiQbsApW,SUDE0009,DER HOSP - Sign-out completed,Sign-out completed
+dataElements,Hp8AtieF5S3,SUDE0007,DER HOSP - Procedure start time,Procedure start time
+dataElements,HyRyg4UufrJ,SUDE0006,DER HOSP - Procedure end time,Procedure end time
+dataElements,Hroqp78ZW4C,SUDE0002,DER HOSP - Operative note,Operative note
+dataElements,HRJtzwPEc2S,SUDE0012,DER HOSP - Wound classification,Wound classification
+dataElements,Haom4c0Pw3n,SUDE0004,DER HOSP - Postoperative complication,Postoperative complication
+dataElements,HPcSN7CM8Ve,DNDE0003,DER HOSP - Tooth notation system,Tooth notation system
+dataElements,HBiaBFmHc1r,DNDE0002,DER HOSP - Tooth identifier,Tooth identifier
+dataElements,HhvgFM4ejwI,DNDE0001,DER HOSP - Dental finding code,Dental finding code
+dataElements,HakYpbGLSsJ,EYDE0005,DER HOSP - Visual acuity left,Visual acuity left
+dataElements,H3b2ea3Bh4c,EYDE0006,DER HOSP - Visual acuity right,Visual acuity right
+dataElements,Hej0VDSzEbv,EYDE0004,DER HOSP - Presenting symptom,Presenting symptom
+dataElements,HJ4ZcO1jKtn,EYDE0002,DER HOSP - Intraocular pressure left,Intraocular pressure left
+dataElements,H60aT4L3Cgr,EYDE0003,DER HOSP - Intraocular pressure right,Intraocular pressure right
+dataElements,HSu0hFEJCQZ,EYDE0001,DER HOSP - Eye finding code,Eye finding code
+dataElements,HErc4TJknYb,ENDE0001,DER HOSP - ENT chief complaint,ENT chief complaint
+dataElements,HCBSaUyB5DQ,ENDE0003,DER HOSP - Otoscopy finding,Otoscopy finding
+dataElements,HVyjmj6TMma,ENDE0002,DER HOSP - Hearing screening result,Hearing screening result
+dataElements,Hte8e6Cfn2z,RHDE0002,DER HOSP - Functional baseline scale,Functional baseline scale
+dataElements,HqZejcJVCQU,RHDE0005,DER HOSP - Therapy goal,Therapy goal
+dataElements,HqQoDtuERJg,RHDE0006,DER HOSP - Therapy intervention code,Therapy intervention code
+dataElements,HaAZxNLss5r,RHDE0004,DER HOSP - Session duration minutes,Session duration minutes
+dataElements,HTyvLPHDl3u,RHDE0003,DER HOSP - Functional outcome score,Functional outcome score
+dataElements,HaN0CPTYJnh,RHDE0001,DER HOSP - Discharge recommendation,Discharge recommendation
+dataElements,Hw2F1F7Ccmg,RNDE0007,DER HOSP - Renal diagnosis code,Renal diagnosis code
+dataElements,Huke9hGOnYU,RNDE0008,DER HOSP - Vascular access type,Vascular access type
+dataElements,HYdqg0PHKXJ,RNDE0001,DER HOSP - Baseline renal function note,Baseline renal function note
+dataElements,HbcJjpqqNAU,RNDE0004,DER HOSP - Dialysis session status,Dialysis session status
+dataElements,HUT8jHWbvii,RNDE0006,DER HOSP - Pre dialysis weight kg,Pre dialysis weight kg
+dataElements,HDD2hwopjFO,RNDE0005,DER HOSP - Post dialysis weight kg,Post dialysis weight kg
+dataElements,HLdnqG8987Z,RNDE0003,DER HOSP - Dialysis duration minutes,Dialysis duration minutes
+dataElements,HaRnEPMxHH2,RNDE0002,DER HOSP - Complication note,Complication note
+dataElements,HeMflijpfPs,FPDE0003,DER HOSP - Method preference,Method preference
+dataElements,HtqyBGXJxBK,FPDE0002,DER HOSP - Contraceptive method code,Contraceptive method code
+dataElements,H7BX8FUs8Eb,FPDE0004,DER HOSP - Service date,Service date
+dataElements,HxBnlLiQkIH,FPDE0001,DER HOSP - Adverse effect note,Adverse effect note
+dataElements,HxNZwvVEqzt,LBDE0014,DER HOSP - Test catalogue code,Test catalogue code
+dataElements,Hbi6f3MGbLl,LBDE0006,DER HOSP - Order status,Order status
+dataElements,HHxQ5EQcd7Z,LBDE0013,DER HOSP - Specimen status,Specimen status
+dataElements,HfjiZXDN0ri,LBDE0002,DER HOSP - Collection date and time,Collection date and time
+dataElements,HIeQ5WBF7Uu,LBDE0001,DER HOSP - Analyzer reference,Analyzer reference
+dataElements,HvAqOPXQ4fV,LBDE0007,DER HOSP - Quality control result,Quality control result
+dataElements,HUML66SMd66,LBDE0011,DER HOSP - Result value text,Result value text
+dataElements,H5YOQipibCR,LBDE0010,DER HOSP - Result units,Result units
+dataElements,HJPqZRjmBno,LBDE0008,DER HOSP - Reference interval,Reference interval
+dataElements,HNdK2SMHg3c,LBDE0009,DER HOSP - Result authorised by,Result authorised by
+dataElements,H9DH12dCOqg,LBDE0003,DER HOSP - Critical result alert,Critical result alert
+dataElements,H8RskQ8atLJ,LBDE0005,DER HOSP - Notified clinician ID,Notified clinician ID
+dataElements,HS4dTMKR3hA,LBDE0004,DER HOSP - Notification time,Notification time
+dataElements,HfZ0NtgpqTz,RDDE0005,DER HOSP - Modality code,Modality code
+dataElements,HHIMFPavVxZ,RDDE0002,DER HOSP - Body site code,Body site code
+dataElements,HQAXTr2UiyW,RDDE0001,DER HOSP - Appointment date,Appointment date
+dataElements,HLT1qKlve7e,RDDE0004,DER HOSP - Imaging study identifier,Imaging study identifier
+dataElements,H5yBF2uqSMf,RDDE0003,DER HOSP - Contrast administered,Contrast administered
+dataElements,HBw9DJgEkjh,RDDE0006,DER HOSP - Radiology report,Radiology report
+dataElements,HQx87eFdpE3,RDDE0007,DER HOSP - Reported date,Reported date
+dataElements,HqSHe9MmlTj,BBDE0002,DER HOSP - Blood component code,Blood component code
+dataElements,H8usrpngZQs,BBDE0009,DER HOSP - Units requested,Units requested
+dataElements,H0TdD7PxP07,BBDE0004,DER HOSP - Clinical indication,Clinical indication
+dataElements,HryvEUqa7hs,BBDE0003,DER HOSP - Blood unit identifier,Blood unit identifier
+dataElements,HZXHpLkeU8i,BBDE0001,DER HOSP - Blood compatibility,Blood compatibility
+dataElements,HCvQ3nNGyzL,BBDE0006,DER HOSP - Issue date and time,Issue date and time
+dataElements,Hc0gseEupPq,BBDE0007,DER HOSP - Start date and time,Start date and time
+dataElements,HHqRUWVBbft,BBDE0005,DER HOSP - End date and time,End date and time
+dataElements,H3PAlasFxDr,BBDE0008,DER HOSP - Transfusion reaction,Transfusion reaction
+dataElements,HHRyQYDXCyv,NUDE0001,DER HOSP - Diet plan reference,Diet plan reference
+dataElements,HEc4rhsbLNL,NUDE0002,DER HOSP - Nutrition response,Nutrition response
+dataElements,Hg9HprG5vpx,EQDE0001,DER HOSP - Asset identifier,Asset identifier
+dataElements,HPwBMsOuIJh,EQDE0004,DER HOSP - Equipment category,Equipment category
+dataElements,Hj4uDgBDtWT,EQDE0010,DER HOSP - Manufacturer,Manufacturer
+dataElements,HzYOwZL21AL,EQDE0013,DER HOSP - Serial number,Serial number
+dataElements,HN4xciPpBQx,EQDE0005,DER HOSP - Equipment location,Equipment location
+dataElements,Ha4tFDwUT6p,EQDE0008,DER HOSP - Maintenance date,Maintenance date
+dataElements,HjtMKnhVBKx,EQDE0009,DER HOSP - Maintenance outcome,Maintenance outcome
+dataElements,HmFYYtTQFZK,EQDE0011,DER HOSP - Next maintenance date,Next maintenance date
+dataElements,HCG7obHvgRL,EQDE0007,DER HOSP - Fault reported at,Fault reported at
+dataElements,HAr60ZlLzN2,EQDE0012,DER HOSP - Repair action,Repair action
+dataElements,HqpA7uG9mH5,EQDE0006,DER HOSP - Equipment return to service,Equipment return to service
+dataElements,HIZhL2Hscph,EQDE0002,DER HOSP - Decommission date,Decommission date
+dataElements,HgofjqsBc5z,EQDE0003,DER HOSP - Decommission reason,Decommission reason
+dataElements,H629b3vhoEV,ICDE0004,DER HOSP - Incident reference,Incident reference
+dataElements,HpBAh1QuHyW,ICDE0003,DER HOSP - Incident date,Incident date
+dataElements,HRNyZyN2SXL,ICDE0002,DER HOSP - IPC event classification,IPC event classification
+dataElements,HV2MRvxYEnB,ICDE0006,DER HOSP - Investigation findings,Investigation findings
+dataElements,HRUj4MrtFKt,ICDE0005,DER HOSP - Intervention action,Intervention action
+dataElements,HNJWDvtBytk,ICDE0001,DER HOSP - Closure date,Closure date
+dataElements,H1ntPYp52kq,ICDE0007,DER HOSP - Lessons learned,Lessons learned
+programs,ameSURm0Nn8,OPPG0001,DER Integrated Outpatient EMR,Integrated Outpatient EMR
+programs,DQbs7i4ttUh,IPPG0001,DER Integrated Inpatient EMR,Integrated Inpatient EMR
+programs,DPzv7D5wo4j,IVPG0001,DER Inventory and Supplies Tracker,Inventory and Supplies Tracker
+programs,H65DZNt2TRB,ERPG0001,DER HOSP - Emergency and Resuscitation,Emergency and Resuscitation
+programs,HuEuaY1AKep,ANPG0001,DER HOSP - Maternal Antenatal Care,Antenatal Care
+programs,HD7oMLZ4j0Y,MTPG0001,DER HOSP - Maternity Labour and Delivery,Labour and Delivery Care
+programs,HhLq1Yjz2Di,PNPG0001,DER HOSP - Postnatal and Newborn Follow-up,Postnatal and Newborn Follow-up
+programs,HhDv3eSyCge,IMPG0001,DER HOSP - Child Health and Immunisation,Child Health and Immunisation
+programs,HpJ2ra87Xf0,HVPG0001,DER HOSP - HIV Care and ART,HIV Care and Antiretroviral Therapy
+programs,HPZl44929JX,TBPG0001,DER HOSP - Tuberculosis and Leprosy Care,Tuberculosis and Leprosy Care
+programs,HoZIgfkgoj3,NCPG0001,DER HOSP - NCD Diabetes and Hypertension,Diabetes and Hypertension Care
+programs,H9tHfuRRwz8,ONPG0001,DER HOSP - Cancer and Oncology,Cancer and Oncology
+programs,HI3GdfLab02,MHPG0001,DER HOSP - Mental Health and Psychiatry,Mental Health and Psychiatry
+programs,HyzFOp4dLxv,SUPG0001,DER HOSP - Surgical and Theatre Services,Surgical and Theatre Services
+programs,H2VReg9adke,DNPG0001,DER HOSP - Dental and Oral Health,Dental and Oral Health
+programs,Hd2rUBMah0V,EYPG0001,DER HOSP - Eye and Vision Care,Eye and Vision Care
+programs,HoPwIyI4b7C,ENPG0001,DER HOSP - ENT Services,"Ear, Nose and Throat Services"
+programs,H33xoCTq4VH,RHPG0001,DER HOSP - Rehabilitation and Physiotherapy,Rehabilitation and Physiotherapy
+programs,HlcGwKikspd,RNPG0001,DER HOSP - Renal Care and Dialysis,Renal Care and Dialysis
+programs,Hq91qzagmQl,FPPG0001,DER HOSP - Family Planning and Reproductive Health,Family Planning and Reproductive Health
+programs,HtWDrIXqjOe,LBPG0001,DER HOSP - Laboratory Diagnostics,Laboratory Diagnostics
+programs,HoztxkNA6aK,RDPG0001,DER HOSP - Imaging and Radiology,Imaging and Radiology
+programs,HSXTX6niXrS,BBPG0001,DER HOSP - Blood Bank and Transfusion,Blood Bank and Transfusion
+programs,HRSESTYcId9,NUPG0001,DER HOSP - Nutrition and Dietetics,Nutrition and Dietetics
+programs,HbtX2GbjAHH,EQPG0001,DER HOSP - Facility Equipment and Maintenance,Facility Equipment and Maintenance
+programs,HWdmR0B71sB,ICPG0001,DER HOSP - Hospital Infection Prevention and Control,Hospital Infection Prevention and Control
+programStages,XOUDAWyRDy6,OPPS0016,DER EMR - Registration Verification,Registration Verification
+programStages,gy9Qx7YNWAS,OPPS0018,DER EMR - Visit Check-in,Visit Check-in
+programStages,GHRzOHjtb7Y,OPPS0017,DER EMR - Triage and Vital Signs,Triage and Vital Signs
+programStages,KVbU5ceSQdU,OPPS0004,DER EMR - Clinical Consultation,Clinical Consultation
+programStages,gQ6Kou7ttWf,OPPS0009,DER EMR - Laboratory Request,Laboratory Request
+programStages,l6kkm5f4Yxn,OPPS0011,DER EMR - Laboratory Specimen Collection,Laboratory Specimen Collection
+programStages,m6rFpNHjBPP,OPPS0010,DER EMR - Laboratory Results,Laboratory Results
+programStages,maW1W4wiyjO,OPPS0008,DER EMR - Imaging Request,Imaging Request
+programStages,K6dMj0Zn2AU,OPPS0007,DER EMR - Imaging Report,Imaging Report
+programStages,hf7V7gqS77X,OPPS0014,DER EMR - Procedure and Treatment,Procedure and Treatment
+programStages,uczhsAtYhph,OPPS0013,DER EMR - Prescription,Prescription
+programStages,kO0IUJuUvhl,OPPS0012,DER EMR - Pharmacy Dispensing,Pharmacy Dispensing
+programStages,eXsY6eKM80J,OPPS0001,DER EMR - Billing Charge,Billing Charge
+programStages,rAz9hOpTIbx,OPPS0003,DER EMR - Billing Payment,Billing Payment
+programStages,GiYnyJKCrnw,OPPS0002,DER EMR - Billing Clearance,Billing Clearance
+programStages,DxtuLI2Ytqn,OPPS0005,DER EMR - Clinical Review and Disposition,Clinical Review and Disposition
+programStages,eK7ouBibDby,OPPS0015,DER EMR - Referral and Transfer,Referral and Transfer
+programStages,rExx1Cqb54j,OPPS0006,DER EMR - Follow-up Encounter,Follow-up Encounter
+programStages,D0h1lyTWz1Z,IPPS0002,DER IPD - Admission Request and Bed Booking,Admission Request and Bed Booking
+programStages,Dxbjh1JidSX,IPPS0003,DER IPD - Admission and Identity Verification,Admission and Identity Verification
+programStages,DIfTpEG3SD0,IPPS0015,DER IPD - Initial Nursing Assessment,Initial Nursing Assessment
+programStages,Dk4HLrbJTKQ,IPPS0001,DER IPD - Admission History and Physical,Admission History and Physical
+programStages,DzEj1hgXfjH,IPPS0024,DER IPD - Patient Problems and Diagnoses,Patient Problems and Diagnoses
+programStages,Dm54LlBYuq5,IPPS0035,DER IPD - Ward Round and Clinical Progress,Ward Round and Clinical Progress
+programStages,D2A7Zp9H3NS,IPPS0033,DER IPD - Vital Signs and Early Warning,Vital Signs and Early Warning
+programStages,DdrRrXMdcTo,IPPS0022,DER IPD - Medication Reconciliation,Medication Reconciliation
+programStages,DDb3l1WFOaH,IPPS0021,DER IPD - Medication Prescription,Medication Prescription
+programStages,DbK6fEw2iya,IPPS0026,DER IPD - Pharmacy Verification and Issue,Pharmacy Verification and Issue
+programStages,DDeu9jCqshT,IPPS0020,DER IPD - Medication Administration Record,Medication Administration Record
+programStages,DHZqfscwvPG,IPPS0017,DER IPD - Intravenous Fluids and Infusions,Intravenous Fluids and Infusions
+programStages,DJMddvta8E3,IPPS0018,DER IPD - Laboratory Investigation Request,Laboratory Investigation Request
+programStages,DXXFv1oGTk1,IPPS0031,DER IPD - Specimen Collection and Handover,Specimen Collection and Handover
+programStages,DjuALT651e7,IPPS0019,DER IPD - Laboratory Results and Validation,Laboratory Results and Validation
+programStages,D4kD9n1BYRB,IPPS0013,DER IPD - Imaging and Diagnostics Request,Imaging and Diagnostics Request
+programStages,DWEZZc2tTdw,IPPS0012,DER IPD - Imaging Result and Report,Imaging Result and Report
+programStages,DY09GZOcixd,IPPS0029,DER IPD - Procedure and Intervention,Procedure and Intervention
+programStages,Dxm5QsNLq5W,IPPS0032,DER IPD - Surgery and Operating Theatre,Surgery and Operating Theatre
+programStages,DCvdquvhdpS,IPPS0027,DER IPD - Post Anaesthesia and Recovery,Post Anaesthesia and Recovery
+programStages,Ddm5KiCDGNT,IPPS0023,DER IPD - Nursing Care Plan and Interventions,Nursing Care Plan and Interventions
+programStages,DD91iDmxxCV,IPPS0016,DER IPD - Intake Output and Fluid Balance,Intake Output and Fluid Balance
+programStages,DKLjUYKi3KO,IPPS0006,DER IPD - Blood and Transfusion,Blood and Transfusion
+programStages,DGbUvAMjPzX,IPPS0007,DER IPD - Consultation and Specialty Review,Consultation and Specialty Review
+programStages,DsfP19E1p4L,IPPS0034,DER IPD - Ward Bed Transfer and Handover,Ward Bed Transfer and Handover
+programStages,DyDuKslH6a2,IPPS0008,DER IPD - Critical Care and Escalation,Critical Care and Escalation
+programStages,DplmSw7QYkO,IPPS0004,DER IPD - Allied Health and Rehabilitation,Allied Health and Rehabilitation
+programStages,DWnYqkrSpnC,IPPS0014,DER IPD - Infection Prevention and Isolation,Infection Prevention and Isolation
+programStages,DEr0IKfDBRb,IPPS0005,DER IPD - Billing Charge and Claims,Billing Charge and Claims
+programStages,DNqTEKFaZFu,IPPS0025,DER IPD - Payment and Financial Clearance,Payment and Financial Clearance
+programStages,Dz3m795TrY6,IPPS0010,DER IPD - Discharge Planning and Education,Discharge Planning and Education
+programStages,DyDmQkv0xN8,IPPS0011,DER IPD - Discharge Summary and Disposition,Discharge Summary and Disposition
+programStages,D14LAAl93u2,IPPS0030,DER IPD - Referral Transfer Out and Continuity,Referral Transfer Out and Continuity
+programStages,DJ2DD0mqsaj,IPPS0009,DER IPD - Death and Mortuary Handover,Death and Mortuary Handover
+programStages,DWKCtSkzUAx,IPPS0028,DER IPD - Post Discharge Follow-up and Readmission,Post Discharge Follow-up and Readmission
+programStages,DXa6yrHXUOO,IVPS0006,DER INV - Opening Balance and Stocktake,INV - Opening Balance and Stocktake
+programStages,DUZyMc1rOMo,IVPS0004,DER INV - Goods Receipt,INV - Goods Receipt
+programStages,DFr3vUYJ56g,IVPS0005,DER INV - Issue to Service Point,INV - Issue to Service Point
+programStages,D5OFZFwk7Iw,IVPS0002,DER INV - Department Receipt,INV - Department Receipt
+programStages,DOFxMoMkjmw,IVPS0007,DER INV - Patient Dispensing,INV - Patient Dispensing
+programStages,D8vDiWVx9dv,IVPS0001,DER INV - Clinical Consumption,INV - Clinical Consumption
+programStages,Di6bXFdm2E2,IVPS0009,DER INV - Return and Quarantine,INV - Return and Quarantine
+programStages,DCvGNDZMiT4,IVPS0013,DER INV - Stock Transfer Dispatch,INV - Stock Transfer Dispatch
+programStages,DegnPHlwX4G,IVPS0003,DER INV - Expiry Damage and Disposal,INV - Expiry Damage and Disposal
+programStages,Dw0cOL4mPo5,IVPS0010,DER INV - Stock Adjustment,INV - Stock Adjustment
+programStages,DIWGuJQ4xia,IVPS0012,DER INV - Stock Reservation,INV - Stock Reservation
+programStages,DXlxkJ207g2,IVPS0011,DER INV - Stock Requisition,INV - Stock Requisition
+programStages,DVCmzWxmeMj,IVPS0008,DER INV - Procurement and Replenishment,INV - Procurement and Replenishment
+programStages,HgZH6k55WKW,ERPS0001,DER HOSP - Arrival and Emergency Registration,Arrival and Emergency Registration
+programStages,Hjkxu04G1Hb,ERPS0005,DER HOSP - Emergency Triage,Emergency Triage
+programStages,HCaH1EBgMEl,ERPS0006,DER HOSP - Primary Survey and Resuscitation,Primary Survey and Resuscitation
+programStages,HYtr3D5cRtd,ERPS0002,DER HOSP - Emergency Consultation and Orders,Emergency Consultation and Orders
+programStages,Hh8W8oNfm1j,ERPS0004,DER HOSP - Emergency Procedures and Observation,Emergency Procedures and Observation
+programStages,HYSeAeoIdc8,ERPS0003,DER HOSP - Emergency Disposition and Handover,Emergency Disposition and Handover
+programStages,HWl5Gwxdoxr,ANPS0003,DER HOSP - ANC Registration and Pregnancy Dating,ANC Registration and Pregnancy Dating
+programStages,HUeJzZO9bh2,ANPS0005,DER HOSP - ANC Visit and Risk Assessment,ANC Visit and Risk Assessment
+programStages,HAe1DfAm8ye,ANPS0004,DER HOSP - ANC Screening and Diagnostics,ANC Screening and Diagnostics
+programStages,HJSh622nxxE,ANPS0001,DER HOSP - ANC Preventive Care and Counselling,ANC Preventive Care and Counselling
+programStages,Hzrg1Y74swP,ANPS0002,DER HOSP - ANC Referral and Outcome,ANC Referral and Outcome
+programStages,HtgtmB0D9IS,MTPS0002,DER HOSP - Labour Admission,Labour Admission
+programStages,H97RSInewzh,MTPS0003,DER HOSP - Labour Monitoring,Labour Monitoring
+programStages,HSf370ajbwA,MTPS0005,DER HOSP - Obstetric Intervention,Obstetric Intervention
+programStages,Hxi76f61Bjb,MTPS0001,DER HOSP - Delivery and Birth Record,Delivery and Birth Record
+programStages,H0QbkkvgJpW,MTPS0006,DER HOSP - Postpartum Immediate Care,Postpartum Immediate Care
+programStages,HnBSDvJOiEV,MTPS0004,DER HOSP - Maternity Discharge and Handover,Maternity Discharge and Handover
+programStages,HP7u952ABr3,PNPS0003,DER HOSP - Postnatal Enrollment,Postnatal Enrollment
+programStages,HxuQb3rTKvR,PNPS0004,DER HOSP - Postnatal Maternal Assessment,Postnatal Maternal Assessment
+programStages,HEUqQ5UnMSU,PNPS0001,DER HOSP - Newborn Assessment,Newborn Assessment
+programStages,HTd6BOxCaju,PNPS0002,DER HOSP - Postnatal Counselling and Referral,Postnatal Counselling and Referral
+programStages,HNq18uRgv7g,IMPS0003,DER HOSP - Child Registration and Eligibility,Child Registration and Eligibility
+programStages,HXnsSR9OBik,IMPS0004,DER HOSP - Growth and Nutrition Assessment,Growth and Nutrition Assessment
+programStages,H4o0GbpdSD6,IMPS0005,DER HOSP - Immunisation Due Assessment,Immunisation Due Assessment
+programStages,HpR9oOgpvTu,IMPS0006,DER HOSP - Vaccination Administration,Vaccination Administration
+programStages,HIYkoswb7gr,IMPS0001,DER HOSP - Adverse Event Following Immunisation,Adverse Event Following Immunisation
+programStages,HYQdoZzooby,IMPS0002,DER HOSP - Child Clinical Review and Referral,Child Clinical Review and Referral
+programStages,HYCvUNFxgJL,HVPS0004,DER HOSP - HIV Enrollment and Baseline,HIV Enrollment and Baseline
+programStages,HqYaulhrhKA,HVPS0002,DER HOSP - HIV Clinical Follow-up,HIV Clinical Follow-up
+programStages,HOYs7xLLrZF,HVPS0005,DER HOSP - HIV Laboratory Monitoring,HIV Laboratory Monitoring
+programStages,Hhz4nu88obt,HVPS0001,DER HOSP - ART Prescription and Dispensing,ART Prescription and Dispensing
+programStages,H6VzuDTfuF5,HVPS0003,DER HOSP - HIV Differentiated Service and Referral,HIV Differentiated Service and Referral
+programStages,HOgiccvmi8Q,TBPS0003,DER HOSP - TB/Leprosy Screening and Classification,TB/Leprosy Screening and Classification
+programStages,H9tnX8sZJe6,TBPS0002,DER HOSP - Microbiology and Diagnostic Workup,Microbiology and Diagnostic Workup
+programStages,HHXAkDf0owk,TBPS0005,DER HOSP - Treatment Initiation,Treatment Initiation
+programStages,HD9odWImACb,TBPS0004,DER HOSP - Treatment Adherence and Follow-up,Treatment Adherence and Follow-up
+programStages,Hdh2Ttz3Owj,TBPS0001,DER HOSP - Contact Tracing and Referral,Contact Tracing and Referral
+programStages,HWsQA3toMFE,TBPS0006,DER HOSP - Treatment Outcome,Treatment Outcome
+programStages,H7SfnVzWjzm,NCPS0003,DER HOSP - NCD Enrollment and Risk Profile,NCD Enrollment and Risk Profile
+programStages,HBiCkFPu8iv,NCPS0004,DER HOSP - NCD Review and Vitals,NCD Review and Vitals
+programStages,Ht8cGOsdvkQ,NCPS0001,DER HOSP - Diabetes Laboratory Monitoring,Diabetes Laboratory Monitoring
+programStages,HcvxNB1RdlH,NCPS0002,DER HOSP - NCD Complications Screening,NCD Complications Screening
+programStages,H4oUBSyL7OP,NCPS0005,DER HOSP - NCD Treatment and Review,NCD Treatment and Review
+programStages,HRCSW4mVjtM,ONPS0002,DER HOSP - Oncology Registration and Diagnosis,Oncology Registration and Diagnosis
+programStages,Hf0WWYiN3IR,ONPS0001,DER HOSP - Multidisciplinary Tumour Board,Multidisciplinary Tumour Board
+programStages,HRf4X2zNUaW,ONPS0006,DER HOSP - Systemic Therapy Plan and Cycle,Systemic Therapy Plan and Cycle
+programStages,H3rBwZdFKTw,ONPS0005,DER HOSP - Surgery and Radiation Coordination,Surgery and Radiation Coordination
+programStages,HGirtkpkOmB,ONPS0003,DER HOSP - Oncology Response and Survivorship,Oncology Response and Survivorship
+programStages,H3hAWLcob0Y,ONPS0004,DER HOSP - Palliative Oncology and Outcome,Palliative Oncology and Outcome
+programStages,He5i09anUX4,MHPS0001,DER HOSP - Mental Health Intake and Consent,Mental Health Intake and Consent
+programStages,H7ma5s1EeQe,MHPS0003,DER HOSP - Mental Status and Risk Assessment,Mental Status and Risk Assessment
+programStages,HSqgoAcdiCv,MHPS0002,DER HOSP - Mental Health Treatment Planning,Mental Health Treatment Planning
+programStages,HbvgPqpbPUD,MHPS0004,DER HOSP - Psychotherapy and Follow-up,Psychotherapy and Follow-up
+programStages,HVXypJlb1AH,SUPS0004,DER HOSP - Surgical Booking and Consent,Surgical Booking and Consent
+programStages,HEfWm0hybL0,SUPS0003,DER HOSP - Preoperative Assessment,Preoperative Assessment
+programStages,H3hWMdu8reG,SUPS0005,DER HOSP - Theatre Safety Checklist,Theatre Safety Checklist
+programStages,HJPj5ZrtOzj,SUPS0001,DER HOSP - Operative Record,Operative Record
+programStages,HdPFYM6wFqN,SUPS0002,DER HOSP - Postoperative and Surgical Review,Postoperative and Surgical Review
+programStages,HH75tUORPv7,DNPS0001,DER HOSP - Dental Assessment,Dental Assessment
+programStages,HFXWJptVLyi,DNPS0003,DER HOSP - Dental Procedure and Treatment,Dental Procedure and Treatment
+programStages,HKlsZUzCQjj,DNPS0002,DER HOSP - Dental Follow-up,Dental Follow-up
+programStages,HVX3c5qAFCj,EYPS0003,DER HOSP - Ophthalmology Screening,Ophthalmology Screening
+programStages,HbZneqDJox0,EYPS0002,DER HOSP - Ophthalmology Examination,Ophthalmology Examination
+programStages,HEHIysQ2R4c,EYPS0001,DER HOSP - Eye Procedure and Referral,Eye Procedure and Referral
+programStages,HN7AFc7Moq9,ENPS0001,DER HOSP - ENT Assessment,ENT Assessment
+programStages,HXK0H8BZSeg,ENPS0002,DER HOSP - ENT Investigation and Procedure,ENT Investigation and Procedure
+programStages,HB2ZNuJgAQd,ENPS0003,DER HOSP - ENT Review and Referral,ENT Review and Referral
+programStages,HZgJValrLBg,RHPS0001,DER HOSP - Rehabilitation Intake,Rehabilitation Intake
+programStages,HFbFDRTZ8AM,RHPS0003,DER HOSP - Rehabilitation Session,Rehabilitation Session
+programStages,Hfh2Go08S0z,RHPS0002,DER HOSP - Rehabilitation Reassessment and Discharge,Rehabilitation Reassessment and Discharge
+programStages,HNv2LY8SrFq,RNPS0003,DER HOSP - Renal Assessment and Access,Renal Assessment and Access
+programStages,H79V4mEultZ,RNPS0002,DER HOSP - Dialysis Session,Dialysis Session
+programStages,HMo5Rp73GZP,RNPS0001,DER HOSP - Dialysis Complication and Review,Dialysis Complication and Review
+programStages,HfbzcMkRLJ5,FPPS0002,DER HOSP - Family Planning Counselling,Family Planning Counselling
+programStages,HbMsmFImk7y,FPPS0001,DER HOSP - Contraceptive Service,Contraceptive Service
+programStages,HH1Yt253kS6,FPPS0003,DER HOSP - Family Planning Follow-up,Family Planning Follow-up
+programStages,HmFT5Fl5FmE,LBPS0002,DER HOSP - Laboratory Order Intake,Laboratory Order Intake
+programStages,HpLOJ8EgFkS,LBPS0005,DER HOSP - Specimen Collection and Accession,Specimen Collection and Accession
+programStages,H5hly3ZXVsw,LBPS0004,DER HOSP - Laboratory Test Processing,Laboratory Test Processing
+programStages,Hmzk3GNyvut,LBPS0003,DER HOSP - Laboratory Results and Validation,Laboratory Results and Validation
+programStages,HlJ1k7EkK37,LBPS0001,DER HOSP - Laboratory Critical Result Communication,Laboratory Critical Result Communication
+programStages,H41wYyyIBKj,RDPS0003,DER HOSP - Imaging Request and Scheduling,Imaging Request and Scheduling
+programStages,HUxFrSY2XOR,RDPS0001,DER HOSP - Imaging Acquisition,Imaging Acquisition
+programStages,HaZlb15pDH0,RDPS0002,DER HOSP - Imaging Reporting and Communication,Imaging Reporting and Communication
+programStages,H5T2Al7ybgz,BBPS0003,DER HOSP - Transfusion Request and Eligibility,Transfusion Request and Eligibility
+programStages,HlBOFjzQAVy,BBPS0001,DER HOSP - Crossmatch and Component Issue,Crossmatch and Component Issue
+programStages,HH7VO6xfOu4,BBPS0002,DER HOSP - Transfusion Administration and Monitoring,Transfusion Administration and Monitoring
+programStages,Hmg1QffarCc,NUPS0003,DER HOSP - Nutrition Screening,Nutrition Screening
+programStages,HzQla1YYZrG,NUPS0002,DER HOSP - Nutrition Plan and Counselling,Nutrition Plan and Counselling
+programStages,HBajvnYhXTD,NUPS0001,DER HOSP - Nutrition Monitoring,Nutrition Monitoring
+programStages,HEaTlQIN9Qq,EQPS0003,DER HOSP - Equipment Registration,Equipment Registration
+programStages,HtMPwVpZFX9,EQPS0004,DER HOSP - Preventive Maintenance,Preventive Maintenance
+programStages,HydqqBTT6po,EQPS0001,DER HOSP - Equipment Breakdown and Repair,Equipment Breakdown and Repair
+programStages,HUs7MJpvUZy,EQPS0002,DER HOSP - Equipment Decommissioning,Equipment Decommissioning
+programStages,H2CLy320GKz,ICPS0002,DER HOSP - IPC Incident Notification,IPC Incident Notification
+programStages,HamkNW8Q6mQ,ICPS0003,DER HOSP - IPC Investigation and Measures,IPC Investigation and Measures
+programStages,H79TEdoZr6V,ICPS0001,DER HOSP - IPC Closure and Review,IPC Closure and Review
+programRules,HKAjvbWBH9J,ERPR0002,DER HOSP - SpO2 (%) warning,Oxygen Saturation (SpO2) (%) warning
+programRules,HaXNMyubkXm,ANPR0002,DER HOSP - Systolic BP (mmHg) warning,Systolic BP (mmHg) warning
+programRules,HtgKjSKj0IG,NCPR0002,DER HOSP - Systolic BP (mmHg) warning,Systolic BP (mmHg) warning
+programRules,HgGFBk8TUjg,NCPR0001,DER HOSP - HbA1c (%) warning,Glycated Haemoglobin (HbA1c) (%) warning
+programRules,H2NWiMyn8uB,IMPR0001,DER HOSP - Weight (kg) warning,Weight (kg) warning
+programRules,HWf3mz8QLYm,RNPR0001,DER HOSP - Dialysis duration minutes warning,Dialysis duration minutes warning
+programRules,HfCGTP9fqou,ERPR0001,DER HOSP - Heart rate (per min) warning,Heart rate (per min) warning
+programRules,Hjw9Q6noyC7,ANPR0001,DER HOSP - Gestational age weeks warning,Gestational age weeks warning
+programIndicators,H9cPh7tc3Fz,OPPI0001,DER HOSP - Events - DER Integrated Outpatient EMR,Integrated Outpatient EMR - Recorded Events
+programIndicators,Hqwewb2PdaE,IPPI0001,DER HOSP - Events - DER Integrated Inpatient EMR,Integrated Inpatient EMR - Recorded Events
+programIndicators,HeaHphDek0O,IVPI0001,DER HOSP - Events - DER Inventory and Supplies Tracker,Inventory and Supplies Tracker - Recorded Events
+programIndicators,Hn41zhp9nXL,ERPI0001,DER HOSP - Events - DER HOSP - Emergency and Resuscitation,Emergency and Resuscitation - Recorded Events
+programIndicators,H4tqpe8iX7j,ANPI0001,DER HOSP - Events - DER HOSP - Maternal Antenatal Care,Antenatal Care - Recorded Events
+programIndicators,HhpyaQBIuT0,MTPI0001,DER HOSP - Events - DER HOSP - Maternity Labour and Delivery,Labour and Delivery Care - Recorded Events
+programIndicators,Ha88tJA4hsq,PNPI0001,DER HOSP - Events - DER HOSP - Postnatal and Newborn Follow-up,Postnatal and Newborn Follow-up - Recorded Events
+programIndicators,HNWB7OMHPmp,IMPI0001,DER HOSP - Events - DER HOSP - Child Health and Immunisation,Child Health and Immunisation - Recorded Events
+programIndicators,HMN1bwfhJyU,HVPI0001,DER HOSP - Events - DER HOSP - HIV Care and ART,HIV Care and Antiretroviral Therapy - Recorded Events
+programIndicators,HH2Bw7XDUjS,TBPI0001,DER HOSP - Events - DER HOSP - Tuberculosis and Leprosy Care,Tuberculosis and Leprosy Care - Recorded Events
+programIndicators,HjtBHIUihjV,NCPI0001,DER HOSP - Events - DER HOSP - NCD Diabetes and Hypertension,Diabetes and Hypertension Care - Recorded Events
+programIndicators,HKwWAwymMJZ,ONPI0001,DER HOSP - Events - DER HOSP - Cancer and Oncology,Cancer and Oncology - Recorded Events
+programIndicators,HJJZCppfLMj,MHPI0001,DER HOSP - Events - DER HOSP - Mental Health and Psychiatry,Mental Health and Psychiatry - Recorded Events
+programIndicators,HQ6VkLhuZKj,SUPI0001,DER HOSP - Events - DER HOSP - Surgical and Theatre Services,Surgical and Theatre Services - Recorded Events
+programIndicators,HSvCKIZX5Yp,DNPI0001,DER HOSP - Events - DER HOSP - Dental and Oral Health,Dental and Oral Health - Recorded Events
+programIndicators,HEjfgLeCivw,EYPI0001,DER HOSP - Events - DER HOSP - Eye and Vision Care,Eye and Vision Care - Recorded Events
+programIndicators,HI4UA2xTQE4,ENPI0001,DER HOSP - Events - DER HOSP - ENT Services,"Ear, Nose and Throat Services - Recorded Events"
+programIndicators,HMF4MJ1gZvr,RHPI0001,DER HOSP - Events - DER HOSP - Rehabilitation and Physiotherapy,Rehabilitation and Physiotherapy - Recorded Events
+programIndicators,H31BAQDs2Xt,RNPI0001,DER HOSP - Events - DER HOSP - Renal Care and Dialysis,Renal Care and Dialysis - Recorded Events
+programIndicators,H2jpYmFwOCZ,FPPI0001,DER HOSP - Events - DER HOSP - Family Planning and Reproductive Health,Family Planning and Reproductive Health - Recorded Events
+programIndicators,HLam66hSBwN,LBPI0001,DER HOSP - Events - DER HOSP - Laboratory Diagnostics,Laboratory Diagnostics - Recorded Events
+programIndicators,Htff9ejIxdC,RDPI0001,DER HOSP - Events - DER HOSP - Imaging and Radiology,Imaging and Radiology - Recorded Events
+programIndicators,H8Yvziea9gD,BBPI0001,DER HOSP - Events - DER HOSP - Blood Bank and Transfusion,Blood Bank and Transfusion - Recorded Events
+programIndicators,H5VdOFieNFJ,NUPI0001,DER HOSP - Events - DER HOSP - Nutrition and Dietetics,Nutrition and Dietetics - Recorded Events
+programIndicators,HoOt6YShDpw,EQPI0001,DER HOSP - Events - DER HOSP - Facility Equipment and Maintenance,Facility Equipment and Maintenance - Recorded Events
+programIndicators,Hvdn6uyfEj0,ICPI0001,DER HOSP - Events - DER HOSP - Hospital Infection Prevention and Control,Hospital Infection Prevention and Control - Recorded Events

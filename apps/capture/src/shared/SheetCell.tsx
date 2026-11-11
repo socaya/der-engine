@@ -62,6 +62,7 @@ export function SheetCell(
                      className={baseProps.className}
                      value={value}
                      onChange={onChange}
+                     allowFuture={field.allowFutureDate}
                      onBlur={onCommit}
                      required={baseProps.required}
                      disabled={baseProps.disabled}

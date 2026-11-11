@@ -19,7 +19,7 @@ function mkField(id: string, required = false): CaptureField {
     id, fieldRef: id, domain: 'EVENT_DATA_ELEMENT', valueType: 'TEXT',
     label: id, description: null, required, readonly: false,
     optionSetId: null, sortOrder: 0, sectionId: null,
-    renderType: 'DEFAULT',
+    renderType: 'DEFAULT', allowFutureDate: false,
   };
 }
 

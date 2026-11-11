@@ -63,8 +63,8 @@ end`},zh=function(){for(var e=[],t=0;t<arguments.length;t++)e[t]=arguments[t];re
 }
 
 /* Section tables \u2014 adopt the admin-ui ea-table look: collapsed
- * borders, uppercase 13 px sticky thead with a 2 px underline,
- * no cell borders, subtle hover tint. */
+ * borders, restrained sticky headers, no cell borders, subtle
+ * hover tint. */
 .der-apphost .der-de-form-card .sectionTable {
   border-collapse: collapse;
   width: 100%;
@@ -88,7 +88,6 @@ end`},zh=function(){for(var e=[],t=0;t<arguments.length;t++)e[t]=arguments[t];re
   letter-spacing: 0;
   text-transform: none;
   padding: 6px 8px !important;
-  border-bottom: 2px solid var(--der-brand-300, var(--der-primary-100)) !important;
   text-align: left;
 }
 .der-apphost .der-de-form-card .sectionTable thead th.dataElementCell {
@@ -1328,7 +1327,6 @@ end`},zh=function(){for(var e=[],t=0;t<arguments.length;t++)e[t]=arguments[t];re
 }
 .der-de-custom-form .tblep-table thead th,
 .der-de-custom-form table thead th {
-  border-bottom: 2px solid var(--der-brand-300, var(--der-primary-100)) !important;
   color: var(--der-ink-700, var(--der-ink-800)) !important;
   font-weight: 500;
   font-size: 14px;

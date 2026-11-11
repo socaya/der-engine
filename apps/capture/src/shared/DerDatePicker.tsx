@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef,
+  useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /** Soft, modern, DER-themed date picker. Replaces the native
  *  `<input type="date">` browser widget with a popover calendar
@@ -19,13 +21,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
  *  Values are always ISO YYYY-MM-DD (date only, no timezone), the
  *  same shape native `<input type="date">` emits. */
 export function DerDatePicker(
-  { value, onChange, min, max, required, disabled, readOnly,
+  { value, onChange, min, max, allowFuture = false, required, disabled, readOnly,
     placeholder, className, id, name, 'data-test': dataTest,
     autoFocus, onBlur }: {
     value: string;
     onChange: (iso: string) => void;
     min?: string;
     max?: string;
+    /** Future dates are blocked unless DHIS2 metadata explicitly allows them. */
+    allowFuture?: boolean;
     required?: boolean;
     disabled?: boolean;
     readOnly?: boolean;
@@ -42,8 +46,11 @@ export function DerDatePicker(
   const [viewYm, setViewYm] = useState<{ y: number; m: number }>(() =>
     initialView(value));
   const [focusIso, setFocusIso] = useState<string>(value || todayIso());
+  const [popPosition, setPopPosition] = useState({ top: 0, left: 0 });
   const rootRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const popRef = useRef<HTMLDivElement | null>(null);
+  const effectiveMax = max ?? (allowFuture ? undefined : todayIso());
 
   useEffect(() => {
     if (value) {
@@ -59,7 +66,8 @@ export function DerDatePicker(
     if (!open) return;
     function onDocClick(e: MouseEvent): void {
       if (!rootRef.current) return;
-      if (!rootRef.current.contains(e.target as Node)) {
+      if (!rootRef.current.contains(e.target as Node)
+          && !popRef.current?.contains(e.target as Node)) {
         setOpen(false);
         if (onBlur) onBlur();
       }
@@ -67,6 +75,39 @@ export function DerDatePicker(
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [open, onBlur]);
+
+  const positionPopover = useCallback((): void => {
+    const anchor = inputRef.current?.getBoundingClientRect();
+    if (!anchor) return;
+    const margin = 8;
+    const gap = 6;
+    const popWidth = popRef.current?.offsetWidth ?? 260;
+    const popHeight = popRef.current?.offsetHeight ?? 360;
+    const maxLeft = Math.max(margin, window.innerWidth - popWidth - margin);
+    const left = Math.min(Math.max(margin, anchor.left), maxLeft);
+    const roomBelow = window.innerHeight - anchor.bottom - margin;
+    const placeAbove = roomBelow < popHeight
+      && anchor.top - margin >= popHeight + gap;
+    const preferredTop = placeAbove
+      ? anchor.top - popHeight - gap
+      : anchor.bottom + gap;
+    const maxTop = Math.max(margin, window.innerHeight - popHeight - margin);
+    const top = Math.min(Math.max(margin, preferredTop), maxTop);
+    setPopPosition({ top, left });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    positionPopover();
+    const frame = requestAnimationFrame(positionPopover);
+    window.addEventListener('resize', positionPopover);
+    window.addEventListener('scroll', positionPopover, true);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', positionPopover);
+      window.removeEventListener('scroll', positionPopover, true);
+    };
+  }, [open, positionPopover, viewYm]);
 
   const openIfEditable = useCallback((): void => {
     if (disabled || readOnly) return;
@@ -79,11 +120,11 @@ export function DerDatePicker(
   }, [disabled, readOnly, value]);
 
   const commit = useCallback((iso: string): void => {
-    if (!isWithin(iso, min, max)) return;
+    if (!isWithin(iso, min, effectiveMax)) return;
     onChange(iso);
     setOpen(false);
     inputRef.current?.focus();
-  }, [onChange, min, max]);
+  }, [onChange, min, effectiveMax]);
 
   const onFieldKey = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter' || e.key === ' '
@@ -135,46 +176,12 @@ export function DerDatePicker(
   const monthLabel = new Date(viewYm.y, viewYm.m, 1)
     .toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
-  return (
-    <div className={'der-dp' + (open ? ' is-open' : '')
-      + (disabled ? ' is-disabled' : '')}
-         ref={rootRef}>
-      <input
-        ref={inputRef}
-        type="text"
-        inputMode="numeric"
-        autoComplete="off"
-        className={className}
-        id={id}
-        name={name}
-        data-test={dataTest}
-        placeholder={placeholder ?? 'YYYY-MM-DD'}
-        value={value ?? ''}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v)) {
-            onChange(v);
-          }
-        }}
-        onClick={openIfEditable}
-        onFocus={openIfEditable}
-        onKeyDown={onFieldKey}
-        required={required}
-        disabled={disabled}
-        readOnly={readOnly}
-        autoFocus={autoFocus}
-        aria-haspopup="dialog"
-        aria-expanded={open} />
-      <span className="der-dp__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="14" height="14"
-             fill="none" stroke="currentColor" strokeWidth="1.75"
-             strokeLinecap="round" strokeLinejoin="round">
-          <rect x="4" y="5" width="16" height="15" rx="2" />
-          <path d="M8 3v4M16 3v4M4 10h16" />
-        </svg>
-      </span>
-      {open && !disabled && !readOnly && (
-        <div className="der-dp__pop" role="dialog" aria-label="Pick a date"
+  const popover = open && !disabled && !readOnly
+    ? createPortal(
+        <div ref={popRef}
+             className="der-dp__pop"
+             role="dialog" aria-label="Pick a date"
+             style={{ top: popPosition.top, left: popPosition.left }}
              onKeyDown={onGridKey}
              tabIndex={-1}>
           <div className="der-dp__head">
@@ -203,7 +210,7 @@ export function DerDatePicker(
               const isToday = iso === todayIso();
               const isSel = iso === value;
               const isFocus = iso === focusIso;
-              const disabledDay = !isWithin(iso, min, max);
+              const disabledDay = !isWithin(iso, min, effectiveMax);
               return (
                 <button key={iso}
                         type="button"
@@ -234,9 +241,54 @@ export function DerDatePicker(
               </button>
             )}
           </div>
-        </div>
-      )}
-    </div>
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <>
+      <div className={'der-dp' + (open ? ' is-open' : '')
+        + (disabled ? ' is-disabled' : '')}
+           ref={rootRef}>
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          className={className}
+          id={id}
+          name={name}
+          data-test={dataTest}
+          placeholder={placeholder ?? 'YYYY-MM-DD'}
+          value={value ?? ''}
+          onChange={(e) => {
+            const v = e.target.value;
+            if ((v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v))
+                && isWithin(v, min, effectiveMax)) {
+              onChange(v);
+            }
+          }}
+          onClick={openIfEditable}
+          onFocus={openIfEditable}
+          onKeyDown={onFieldKey}
+          required={required}
+          disabled={disabled}
+          readOnly={readOnly}
+          autoFocus={autoFocus}
+          aria-haspopup="dialog"
+          aria-expanded={open} />
+        <span className="der-dp__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="14" height="14"
+               fill="none" stroke="currentColor" strokeWidth="1.75"
+               strokeLinecap="round" strokeLinejoin="round">
+            <rect x="4" y="5" width="16" height="15" rx="2" />
+            <path d="M8 3v4M16 3v4M4 10h16" />
+          </svg>
+        </span>
+      </div>
+      {popover}
+    </>
   );
 }
 

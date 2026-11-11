@@ -215,6 +215,7 @@ function CaptureAppInner(): JSX.Element {
       : route.kind === 'tracker-enrol' ? route.programId
       : route.kind === 'tracker-stage-form' ? route.programId
       : route.kind === 'event-list' ? route.programId
+      : route.kind === 'event-sheet' ? route.programId
       : route.kind === 'event-detail' ? route.programId
       : route.kind === 'event-form' ? route.programId
       : null;

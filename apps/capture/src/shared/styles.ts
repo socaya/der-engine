@@ -1485,7 +1485,7 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
  * while the data columns scroll horizontally. SHEET-J1 adds a
  * row-number gutter in front of them that uses the same sticky-
  * left trick. Left offsets are stacked: rownum at 0, status at
- * 36, date at 60. Needs higher specificity than the generic
+ * 36, date at 48. Needs higher specificity than the generic
  * .cap-sheet td position:relative rule used for fill-handle
  * anchoring, so the selectors double up on the cap-sheet qualifier.
  * position:sticky inside a table only works when border-collapse
@@ -1524,14 +1524,15 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
 }
 .cap-sheet .cap-sheet__status-col,
 .cap-sheet td.cap-sheet__status-cell {
-  width: 24px; text-align: center; padding: 0 4px;
+  width: 12px; min-width: 12px; max-width: 12px;
+  text-align: center; padding: 0;
   background: var(--der-surface-subtle);
   position: sticky; left: 36px; z-index: 4;
 }
 .cap-sheet .cap-sheet__date-col,
 .cap-sheet td.cap-sheet__date-cell {
   width: 160px; min-width: 160px; max-width: 160px;
-  position: sticky; left: 60px; z-index: 4;
+  position: sticky; left: 48px; z-index: 4;
   background: var(--der-surface);
   /* Clip anything the inner input or placeholder tries to render
    * past the right edge — without this a long value bleeds across
@@ -2691,9 +2692,8 @@ body.cap-sheet__resizing * { cursor: col-resize !important;
   outline-offset: -1px;
 }
 .der-dp__pop {
-  position: absolute;
-  top: calc(100% + 6px); left: 0;
-  z-index: 200;
+  position: fixed;
+  z-index: 2200;
   min-width: 260px;
   background: var(--der-surface);
   border: 1px solid var(--der-border-soft);

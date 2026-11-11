@@ -1,0 +1,2214 @@
+[
+  {
+    "derCatalogCode": "BBOP0001",
+    "dhis2OptionCode": "COMPATIBLE",
+    "uid": "Hi5ea4MyYNr",
+    "name": "Compatible",
+    "optionSetUID": "HrnrsNakczS"
+  },
+  {
+    "derCatalogCode": "BBOP0002",
+    "dhis2OptionCode": "INCOMPATIBLE",
+    "uid": "HGhTI2nPcao",
+    "name": "Incompatible",
+    "optionSetUID": "HrnrsNakczS"
+  },
+  {
+    "derCatalogCode": "BBOP0003",
+    "dhis2OptionCode": "NOT_DETERMINED",
+    "uid": "HS3fUddFtvC",
+    "name": "Not determined",
+    "optionSetUID": "HrnrsNakczS"
+  },
+  {
+    "derCatalogCode": "EROP0001",
+    "dhis2OptionCode": "EMERGENCY",
+    "uid": "HEZHQb87Sze",
+    "name": "Emergency",
+    "optionSetUID": "HkrkKio6AXj"
+  },
+  {
+    "derCatalogCode": "EROP0002",
+    "dhis2OptionCode": "IMMEDIATE",
+    "uid": "Heo9tJrZLSQ",
+    "name": "Immediate",
+    "optionSetUID": "HOP3MUR7Re5"
+  },
+  {
+    "derCatalogCode": "EROP0003",
+    "dhis2OptionCode": "NON_URGENT",
+    "uid": "HnAHmwckmBG",
+    "name": "Non urgent",
+    "optionSetUID": "HOP3MUR7Re5"
+  },
+  {
+    "derCatalogCode": "EROP0004",
+    "dhis2OptionCode": "ROUTINE",
+    "uid": "HNtKdbCdmz0",
+    "name": "Routine",
+    "optionSetUID": "HkrkKio6AXj"
+  },
+  {
+    "derCatalogCode": "EROP0005",
+    "dhis2OptionCode": "STANDARD",
+    "uid": "HG3CVekUsgl",
+    "name": "Standard",
+    "optionSetUID": "HOP3MUR7Re5"
+  },
+  {
+    "derCatalogCode": "EROP0006",
+    "dhis2OptionCode": "URGENT",
+    "uid": "HCe7bdKkFIA",
+    "name": "Urgent",
+    "optionSetUID": "HOP3MUR7Re5"
+  },
+  {
+    "derCatalogCode": "EROP0007",
+    "dhis2OptionCode": "URGENT",
+    "uid": "HHL6TgDf7n2",
+    "name": "Urgent",
+    "optionSetUID": "HkrkKio6AXj"
+  },
+  {
+    "derCatalogCode": "EROP0008",
+    "dhis2OptionCode": "VERY_URGENT",
+    "uid": "HlCkPl4Sfvl",
+    "name": "Very urgent",
+    "optionSetUID": "HOP3MUR7Re5"
+  },
+  {
+    "derCatalogCode": "GNOP0001",
+    "dhis2OptionCode": "ABANDONED",
+    "uid": "Hrb4OltbAiW",
+    "name": "Abandoned",
+    "optionSetUID": "HTkhhRRjKs0"
+  },
+  {
+    "derCatalogCode": "GNOP0002",
+    "dhis2OptionCode": "ABNORMAL",
+    "uid": "H6VKPp3Sc0T",
+    "name": "Abnormal",
+    "optionSetUID": "H6EWZoAgoZl"
+  },
+  {
+    "derCatalogCode": "GNOP0003",
+    "dhis2OptionCode": "ACTIVE",
+    "uid": "HDKaJ2SWADJ",
+    "name": "Active",
+    "optionSetUID": "HcIztD1Gnjp"
+  },
+  {
+    "derCatalogCode": "GNOP0004",
+    "dhis2OptionCode": "ADMITTED",
+    "uid": "HcCnLnBd06B",
+    "name": "Admitted",
+    "optionSetUID": "HDeR0sLFEZ1"
+  },
+  {
+    "derCatalogCode": "GNOP0005",
+    "dhis2OptionCode": "ARRIVED",
+    "uid": "H3vkLQKqqOQ",
+    "name": "Arrived",
+    "optionSetUID": "H41kM1yFfvO"
+  },
+  {
+    "derCatalogCode": "GNOP0006",
+    "dhis2OptionCode": "CANCELLED",
+    "uid": "HI2krfhaats",
+    "name": "Cancelled",
+    "optionSetUID": "HcIztD1Gnjp"
+  },
+  {
+    "derCatalogCode": "GNOP0007",
+    "dhis2OptionCode": "CANCELLED",
+    "uid": "HfJCoWhuAZ8",
+    "name": "Cancelled",
+    "optionSetUID": "H41kM1yFfvO"
+  },
+  {
+    "derCatalogCode": "GNOP0008",
+    "dhis2OptionCode": "CANCELLED",
+    "uid": "HoH0r8mOdNE",
+    "name": "Cancelled",
+    "optionSetUID": "HTkhhRRjKs0"
+  },
+  {
+    "derCatalogCode": "GNOP0009",
+    "dhis2OptionCode": "COMPLETED",
+    "uid": "H17m7gvTd0Y",
+    "name": "Completed",
+    "optionSetUID": "HqK0NQrB5fc"
+  },
+  {
+    "derCatalogCode": "GNOP0010",
+    "dhis2OptionCode": "COMPLETED",
+    "uid": "H53MrpX4BID",
+    "name": "Completed",
+    "optionSetUID": "H41kM1yFfvO"
+  },
+  {
+    "derCatalogCode": "GNOP0011",
+    "dhis2OptionCode": "COMPLETED",
+    "uid": "HaKQWQxcJC2",
+    "name": "Completed",
+    "optionSetUID": "HcIztD1Gnjp"
+  },
+  {
+    "derCatalogCode": "GNOP0012",
+    "dhis2OptionCode": "COMPLETED",
+    "uid": "HotJQkC4qxF",
+    "name": "Completed",
+    "optionSetUID": "HTkhhRRjKs0"
+  },
+  {
+    "derCatalogCode": "GNOP0013",
+    "dhis2OptionCode": "CRITICAL",
+    "uid": "HHFu7n9jXaQ",
+    "name": "Critical",
+    "optionSetUID": "H6EWZoAgoZl"
+  },
+  {
+    "derCatalogCode": "GNOP0014",
+    "dhis2OptionCode": "DECEASED",
+    "uid": "HBut4c8OvzY",
+    "name": "Deceased",
+    "optionSetUID": "HDeR0sLFEZ1"
+  },
+  {
+    "derCatalogCode": "GNOP0015",
+    "dhis2OptionCode": "DECLINED",
+    "uid": "HLC1xxGXU6C",
+    "name": "Declined",
+    "optionSetUID": "Huz7B2tIbfy"
+  },
+  {
+    "derCatalogCode": "GNOP0016",
+    "dhis2OptionCode": "DEFERRED",
+    "uid": "H44xDCaASEw",
+    "name": "Deferred",
+    "optionSetUID": "HM1mroUPUeG"
+  },
+  {
+    "derCatalogCode": "GNOP0017",
+    "dhis2OptionCode": "DID_NOT_ATTEND",
+    "uid": "HT0esxukNbc",
+    "name": "Did not attend",
+    "optionSetUID": "H41kM1yFfvO"
+  },
+  {
+    "derCatalogCode": "GNOP0018",
+    "dhis2OptionCode": "DUE",
+    "uid": "H1tcWkTD7kh",
+    "name": "Due",
+    "optionSetUID": "HqK0NQrB5fc"
+  },
+  {
+    "derCatalogCode": "GNOP0019",
+    "dhis2OptionCode": "ECTOPIC",
+    "uid": "H0NLIhMW6Wr",
+    "name": "Ectopic",
+    "optionSetUID": "HkEKpprVKam"
+  },
+  {
+    "derCatalogCode": "GNOP0020",
+    "dhis2OptionCode": "EXEMPT",
+    "uid": "H7Akb4KnOUV",
+    "name": "Exempt",
+    "optionSetUID": "HM1mroUPUeG"
+  },
+  {
+    "derCatalogCode": "GNOP0021",
+    "dhis2OptionCode": "GIVEN",
+    "uid": "H3qUr0outw4",
+    "name": "Given",
+    "optionSetUID": "Huz7B2tIbfy"
+  },
+  {
+    "derCatalogCode": "GNOP0022",
+    "dhis2OptionCode": "GOOD",
+    "uid": "Hv8XB3xk6sh",
+    "name": "Good",
+    "optionSetUID": "H4M0vWG0BcV"
+  },
+  {
+    "derCatalogCode": "GNOP0023",
+    "dhis2OptionCode": "HOME",
+    "uid": "HYK6tMmOJxt",
+    "name": "Home",
+    "optionSetUID": "HDeR0sLFEZ1"
+  },
+  {
+    "derCatalogCode": "GNOP0024",
+    "dhis2OptionCode": "IN_PROGRESS",
+    "uid": "HxB6Pi0CYLP",
+    "name": "In progress",
+    "optionSetUID": "H41kM1yFfvO"
+  },
+  {
+    "derCatalogCode": "GNOP0025",
+    "dhis2OptionCode": "INDETERMINATE",
+    "uid": "HwS0A8DPzGb",
+    "name": "Indeterminate",
+    "optionSetUID": "H6EWZoAgoZl"
+  },
+  {
+    "derCatalogCode": "GNOP0026",
+    "dhis2OptionCode": "LEFT_AGAINST_ADVICE",
+    "uid": "HNHgv0hBvnH",
+    "name": "Left against advice",
+    "optionSetUID": "HDeR0sLFEZ1"
+  },
+  {
+    "derCatalogCode": "GNOP0027",
+    "dhis2OptionCode": "LIVE_BIRTH",
+    "uid": "HvZRkCQgYNy",
+    "name": "Live birth",
+    "optionSetUID": "HkEKpprVKam"
+  },
+  {
+    "derCatalogCode": "GNOP0028",
+    "dhis2OptionCode": "MISCARRIAGE",
+    "uid": "HFNFIvfFq86",
+    "name": "Miscarriage",
+    "optionSetUID": "HkEKpprVKam"
+  },
+  {
+    "derCatalogCode": "GNOP0029",
+    "dhis2OptionCode": "MISSED",
+    "uid": "H1mpAOC8xcn",
+    "name": "Missed",
+    "optionSetUID": "HqK0NQrB5fc"
+  },
+  {
+    "derCatalogCode": "GNOP0030",
+    "dhis2OptionCode": "MODERATE_ACUTE_MALNUTRITION",
+    "uid": "HVZhhD4FNKQ",
+    "name": "Moderate acute malnutrition",
+    "optionSetUID": "HHhJOVI9bA7"
+  },
+  {
+    "derCatalogCode": "GNOP0031",
+    "dhis2OptionCode": "NO",
+    "uid": "H6lTjg4BL79",
+    "name": "No",
+    "optionSetUID": "HWVomD67Yhd"
+  },
+  {
+    "derCatalogCode": "GNOP0032",
+    "dhis2OptionCode": "NORMAL",
+    "uid": "HA6UfgVSUTL",
+    "name": "Normal",
+    "optionSetUID": "HHhJOVI9bA7"
+  },
+  {
+    "derCatalogCode": "GNOP0033",
+    "dhis2OptionCode": "NORMAL",
+    "uid": "HqzRx1CNAOx",
+    "name": "Normal",
+    "optionSetUID": "H6EWZoAgoZl"
+  },
+  {
+    "derCatalogCode": "GNOP0034",
+    "dhis2OptionCode": "NOT_APPLICABLE",
+    "uid": "H2pK9TdBMky",
+    "name": "Not applicable",
+    "optionSetUID": "Huz7B2tIbfy"
+  },
+  {
+    "derCatalogCode": "GNOP0035",
+    "dhis2OptionCode": "NOT_PERFORMED",
+    "uid": "H5oR6BFJYpo",
+    "name": "Not performed",
+    "optionSetUID": "H6EWZoAgoZl"
+  },
+  {
+    "derCatalogCode": "GNOP0036",
+    "dhis2OptionCode": "OBESITY",
+    "uid": "HlRFjQrYRsK",
+    "name": "Obesity",
+    "optionSetUID": "HHhJOVI9bA7"
+  },
+  {
+    "derCatalogCode": "GNOP0037",
+    "dhis2OptionCode": "ON_HOLD",
+    "uid": "HNK6Ov9gjAk",
+    "name": "On hold",
+    "optionSetUID": "HcIztD1Gnjp"
+  },
+  {
+    "derCatalogCode": "GNOP0038",
+    "dhis2OptionCode": "OVERWEIGHT",
+    "uid": "HgUIePSTgWM",
+    "name": "Overweight",
+    "optionSetUID": "HHhJOVI9bA7"
+  },
+  {
+    "derCatalogCode": "GNOP0039",
+    "dhis2OptionCode": "PAID",
+    "uid": "Hj5mxHpZFmy",
+    "name": "Paid",
+    "optionSetUID": "HM1mroUPUeG"
+  },
+  {
+    "derCatalogCode": "GNOP0040",
+    "dhis2OptionCode": "PARTIAL",
+    "uid": "HxMxIqXFDo8",
+    "name": "Partial",
+    "optionSetUID": "H4M0vWG0BcV"
+  },
+  {
+    "derCatalogCode": "GNOP0041",
+    "dhis2OptionCode": "PARTIALLY_PAID",
+    "uid": "HSAkPL1UHvt",
+    "name": "Partially paid",
+    "optionSetUID": "HM1mroUPUeG"
+  },
+  {
+    "derCatalogCode": "GNOP0042",
+    "dhis2OptionCode": "PENDING",
+    "uid": "HUDD3b1vzKU",
+    "name": "Pending",
+    "optionSetUID": "HM1mroUPUeG"
+  },
+  {
+    "derCatalogCode": "GNOP0043",
+    "dhis2OptionCode": "PLANNED",
+    "uid": "HDOyZbNU93a",
+    "name": "Planned",
+    "optionSetUID": "HTkhhRRjKs0"
+  },
+  {
+    "derCatalogCode": "GNOP0044",
+    "dhis2OptionCode": "PLANNED",
+    "uid": "Hk75xESbpBL",
+    "name": "Planned",
+    "optionSetUID": "HcIztD1Gnjp"
+  },
+  {
+    "derCatalogCode": "GNOP0045",
+    "dhis2OptionCode": "POOR",
+    "uid": "H3EGfU65NAI",
+    "name": "Poor",
+    "optionSetUID": "H4M0vWG0BcV"
+  },
+  {
+    "derCatalogCode": "GNOP0046",
+    "dhis2OptionCode": "REFERRED",
+    "uid": "HqRvfL9Nogd",
+    "name": "Referred",
+    "optionSetUID": "HDeR0sLFEZ1"
+  },
+  {
+    "derCatalogCode": "GNOP0047",
+    "dhis2OptionCode": "RESCHEDULED",
+    "uid": "HeM0QBnYe45",
+    "name": "Rescheduled",
+    "optionSetUID": "HqK0NQrB5fc"
+  },
+  {
+    "derCatalogCode": "GNOP0048",
+    "dhis2OptionCode": "SCHEDULED",
+    "uid": "HEGHor5gCzC",
+    "name": "Scheduled",
+    "optionSetUID": "H41kM1yFfvO"
+  },
+  {
+    "derCatalogCode": "GNOP0049",
+    "dhis2OptionCode": "SEVERE_ACUTE_MALNUTRITION",
+    "uid": "HA8AwNh7KSi",
+    "name": "Severe acute malnutrition",
+    "optionSetUID": "HHhJOVI9bA7"
+  },
+  {
+    "derCatalogCode": "GNOP0050",
+    "dhis2OptionCode": "STARTED",
+    "uid": "HRv12XU4djf",
+    "name": "Started",
+    "optionSetUID": "HTkhhRRjKs0"
+  },
+  {
+    "derCatalogCode": "GNOP0051",
+    "dhis2OptionCode": "STILLBIRTH",
+    "uid": "HIApMJat6TA",
+    "name": "Stillbirth",
+    "optionSetUID": "HkEKpprVKam"
+  },
+  {
+    "derCatalogCode": "GNOP0052",
+    "dhis2OptionCode": "TERMINATION",
+    "uid": "H40gwvlReZr",
+    "name": "Termination",
+    "optionSetUID": "HkEKpprVKam"
+  },
+  {
+    "derCatalogCode": "GNOP0053",
+    "dhis2OptionCode": "TRANSFERRED",
+    "uid": "HXVtVhmJW0i",
+    "name": "Transferred",
+    "optionSetUID": "HDeR0sLFEZ1"
+  },
+  {
+    "derCatalogCode": "GNOP0054",
+    "dhis2OptionCode": "UNBILLED",
+    "uid": "HaWM5uqEC7j",
+    "name": "Unbilled",
+    "optionSetUID": "HM1mroUPUeG"
+  },
+  {
+    "derCatalogCode": "GNOP0055",
+    "dhis2OptionCode": "UNKNOWN",
+    "uid": "H3vnxJkncUk",
+    "name": "Unknown",
+    "optionSetUID": "H4M0vWG0BcV"
+  },
+  {
+    "derCatalogCode": "GNOP0056",
+    "dhis2OptionCode": "UNKNOWN",
+    "uid": "HDNbtTkVNWP",
+    "name": "Unknown",
+    "optionSetUID": "HWVomD67Yhd"
+  },
+  {
+    "derCatalogCode": "GNOP0057",
+    "dhis2OptionCode": "UNKNOWN",
+    "uid": "HN8xgzvlhpI",
+    "name": "Unknown",
+    "optionSetUID": "HkEKpprVKam"
+  },
+  {
+    "derCatalogCode": "GNOP0058",
+    "dhis2OptionCode": "WITHDRAWN",
+    "uid": "H7MjvtxrzI2",
+    "name": "Withdrawn",
+    "optionSetUID": "Huz7B2tIbfy"
+  },
+  {
+    "derCatalogCode": "GNOP0059",
+    "dhis2OptionCode": "YES",
+    "uid": "H3tAB8NplCG",
+    "name": "Yes",
+    "optionSetUID": "HWVomD67Yhd"
+  },
+  {
+    "derCatalogCode": "IMOP0001",
+    "dhis2OptionCode": "ADMINISTERED",
+    "uid": "HtgkeN7pjP0",
+    "name": "Administered",
+    "optionSetUID": "H1THKCyNriG"
+  },
+  {
+    "derCatalogCode": "IMOP0002",
+    "dhis2OptionCode": "CONTRAINDICATED",
+    "uid": "H3KvMX3Ay4w",
+    "name": "Contraindicated",
+    "optionSetUID": "H1THKCyNriG"
+  },
+  {
+    "derCatalogCode": "IMOP0003",
+    "dhis2OptionCode": "DEFERRED",
+    "uid": "HAjF0SEjX9b",
+    "name": "Deferred",
+    "optionSetUID": "H1THKCyNriG"
+  },
+  {
+    "derCatalogCode": "IMOP0004",
+    "dhis2OptionCode": "DUE",
+    "uid": "H32bU2KSrlQ",
+    "name": "Due",
+    "optionSetUID": "H1THKCyNriG"
+  },
+  {
+    "derCatalogCode": "IMOP0005",
+    "dhis2OptionCode": "REFUSED",
+    "uid": "HsWlnynDoYk",
+    "name": "Refused",
+    "optionSetUID": "H1THKCyNriG"
+  },
+  {
+    "derCatalogCode": "IPOP0001",
+    "dhis2OptionCode": "ABSCONDED",
+    "uid": "DFyzYy0OD7A",
+    "name": "Absconded",
+    "optionSetUID": "D4Z4SqNJxuz"
+  },
+  {
+    "derCatalogCode": "IPOP0002",
+    "dhis2OptionCode": "ACCEPTED",
+    "uid": "DE1ujs1Y2oE",
+    "name": "Accepted",
+    "optionSetUID": "D8Xd3aHtD7e"
+  },
+  {
+    "derCatalogCode": "IPOP0003",
+    "dhis2OptionCode": "ACTIVE",
+    "uid": "DdHexwbOUBR",
+    "name": "Active",
+    "optionSetUID": "DSANQsnYb0C"
+  },
+  {
+    "derCatalogCode": "IPOP0004",
+    "dhis2OptionCode": "BANK_TRANSFER",
+    "uid": "Du8lw1FMWrC",
+    "name": "Bank Transfer",
+    "optionSetUID": "DJvHXLAlYEQ"
+  },
+  {
+    "derCatalogCode": "IPOP0005",
+    "dhis2OptionCode": "CANCELLED",
+    "uid": "D8z62z7DinW",
+    "name": "Cancelled",
+    "optionSetUID": "DbAXMCcZoUm"
+  },
+  {
+    "derCatalogCode": "IPOP0006",
+    "dhis2OptionCode": "CANCELLED",
+    "uid": "DCAeVjY3j3e",
+    "name": "Cancelled",
+    "optionSetUID": "D9FZcMyVbr8"
+  },
+  {
+    "derCatalogCode": "IPOP0007",
+    "dhis2OptionCode": "CARD",
+    "uid": "Dtm1ZBumDfc",
+    "name": "Card",
+    "optionSetUID": "DJvHXLAlYEQ"
+  },
+  {
+    "derCatalogCode": "IPOP0008",
+    "dhis2OptionCode": "CASH",
+    "uid": "DcnAX2A5Pir",
+    "name": "Cash",
+    "optionSetUID": "DJvHXLAlYEQ"
+  },
+  {
+    "derCatalogCode": "IPOP0009",
+    "dhis2OptionCode": "CLEARED",
+    "uid": "DKaNFsRXIjW",
+    "name": "Cleared",
+    "optionSetUID": "D93uRycoN32"
+  },
+  {
+    "derCatalogCode": "IPOP0010",
+    "dhis2OptionCode": "COMPLETED",
+    "uid": "DG4YPjpPHKL",
+    "name": "Completed",
+    "optionSetUID": "D8Xd3aHtD7e"
+  },
+  {
+    "derCatalogCode": "IPOP0011",
+    "dhis2OptionCode": "COMPLETED",
+    "uid": "DL5OVYiDVcJ",
+    "name": "Completed",
+    "optionSetUID": "D9FZcMyVbr8"
+  },
+  {
+    "derCatalogCode": "IPOP0012",
+    "dhis2OptionCode": "COMPLETED",
+    "uid": "DrS0DQ2MCrh",
+    "name": "Completed",
+    "optionSetUID": "DbAXMCcZoUm"
+  },
+  {
+    "derCatalogCode": "IPOP0013",
+    "dhis2OptionCode": "CONTINUE",
+    "uid": "DZUa8tVQE37",
+    "name": "Continue",
+    "optionSetUID": "DIl1K4u31Am"
+  },
+  {
+    "derCatalogCode": "IPOP0014",
+    "dhis2OptionCode": "DAY",
+    "uid": "DHpArJ24oQI",
+    "name": "Day",
+    "optionSetUID": "D7PZE63HbVo"
+  },
+  {
+    "derCatalogCode": "IPOP0015",
+    "dhis2OptionCode": "DECEASED",
+    "uid": "DWtV4hSc0PO",
+    "name": "Deceased",
+    "optionSetUID": "D4Z4SqNJxuz"
+  },
+  {
+    "derCatalogCode": "IPOP0016",
+    "dhis2OptionCode": "DECLINED",
+    "uid": "DE2mhHHyYsM",
+    "name": "Declined",
+    "optionSetUID": "D8Xd3aHtD7e"
+  },
+  {
+    "derCatalogCode": "IPOP0017",
+    "dhis2OptionCode": "DECLINED",
+    "uid": "DPnG2rxUzpa",
+    "name": "Declined",
+    "optionSetUID": "Ddyc8UVow4i"
+  },
+  {
+    "derCatalogCode": "IPOP0018",
+    "dhis2OptionCode": "DEFERRED",
+    "uid": "DJtELu1UEc7",
+    "name": "Deferred",
+    "optionSetUID": "D45BmZ18q2r"
+  },
+  {
+    "derCatalogCode": "IPOP0019",
+    "dhis2OptionCode": "DEFERRED",
+    "uid": "Dcg0d6obKjm",
+    "name": "Deferred",
+    "optionSetUID": "Ddyc8UVow4i"
+  },
+  {
+    "derCatalogCode": "IPOP0020",
+    "dhis2OptionCode": "DEFERRED",
+    "uid": "DluFACeZyYH",
+    "name": "Deferred",
+    "optionSetUID": "D93uRycoN32"
+  },
+  {
+    "derCatalogCode": "IPOP0021",
+    "dhis2OptionCode": "DIFFERENTIAL",
+    "uid": "D3IRdjDDkvP",
+    "name": "Differential",
+    "optionSetUID": "DuaVNJCDCwZ"
+  },
+  {
+    "derCatalogCode": "IPOP0022",
+    "dhis2OptionCode": "DIRECT_ADMISSION",
+    "uid": "DeEnvKA3Irf",
+    "name": "Direct Admission",
+    "optionSetUID": "DkmyRBdEEiS"
+  },
+  {
+    "derCatalogCode": "IPOP0023",
+    "dhis2OptionCode": "DISCHARGED_HOME",
+    "uid": "D8qFsI4mmQw",
+    "name": "Discharged Home",
+    "optionSetUID": "D4Z4SqNJxuz"
+  },
+  {
+    "derCatalogCode": "IPOP0024",
+    "dhis2OptionCode": "DRAFT",
+    "uid": "DMbtS9mKhIK",
+    "name": "Draft",
+    "optionSetUID": "D9FZcMyVbr8"
+  },
+  {
+    "derCatalogCode": "IPOP0025",
+    "dhis2OptionCode": "EMERGENCY",
+    "uid": "DBjjrxNJnma",
+    "name": "Emergency",
+    "optionSetUID": "DXrED2jGxtY"
+  },
+  {
+    "derCatalogCode": "IPOP0026",
+    "dhis2OptionCode": "EMERGENCY",
+    "uid": "DzkFMyyNFMz",
+    "name": "Emergency",
+    "optionSetUID": "DkmyRBdEEiS"
+  },
+  {
+    "derCatalogCode": "IPOP0027",
+    "dhis2OptionCode": "EMERGENCY_EXCEPTION",
+    "uid": "DWbUeGLbr8H",
+    "name": "Emergency Exception",
+    "optionSetUID": "Ddyc8UVow4i"
+  },
+  {
+    "derCatalogCode": "IPOP0028",
+    "dhis2OptionCode": "EVENING",
+    "uid": "DUNnzcm22RW",
+    "name": "Evening",
+    "optionSetUID": "D7PZE63HbVo"
+  },
+  {
+    "derCatalogCode": "IPOP0029",
+    "dhis2OptionCode": "EXEMPT",
+    "uid": "DdXzKFiVfMp",
+    "name": "Exempt",
+    "optionSetUID": "DyYaLbAga4x"
+  },
+  {
+    "derCatalogCode": "IPOP0030",
+    "dhis2OptionCode": "EXEMPTED",
+    "uid": "DHcE9VLCYVd",
+    "name": "Exempted",
+    "optionSetUID": "D93uRycoN32"
+  },
+  {
+    "derCatalogCode": "IPOP0031",
+    "dhis2OptionCode": "EXTERNAL_REFERRAL",
+    "uid": "DNvPsyV8fFF",
+    "name": "External Referral",
+    "optionSetUID": "DkmyRBdEEiS"
+  },
+  {
+    "derCatalogCode": "IPOP0032",
+    "dhis2OptionCode": "GIVEN",
+    "uid": "DiP7vjs0Snz",
+    "name": "Given",
+    "optionSetUID": "Dm9AXXH91tD"
+  },
+  {
+    "derCatalogCode": "IPOP0033",
+    "dhis2OptionCode": "GOVERNMENT",
+    "uid": "DildhGRviSb",
+    "name": "Government",
+    "optionSetUID": "DyYaLbAga4x"
+  },
+  {
+    "derCatalogCode": "IPOP0034",
+    "dhis2OptionCode": "GRANTED",
+    "uid": "DYKyGEYaQ5l",
+    "name": "Granted",
+    "optionSetUID": "Ddyc8UVow4i"
+  },
+  {
+    "derCatalogCode": "IPOP0035",
+    "dhis2OptionCode": "HDU",
+    "uid": "DfXGalYaLKJ",
+    "name": "HDU",
+    "optionSetUID": "DXrED2jGxtY"
+  },
+  {
+    "derCatalogCode": "IPOP0036",
+    "dhis2OptionCode": "HELD",
+    "uid": "DEhH2JHiRHk",
+    "name": "Held",
+    "optionSetUID": "Dm9AXXH91tD"
+  },
+  {
+    "derCatalogCode": "IPOP0037",
+    "dhis2OptionCode": "ICU",
+    "uid": "D5TG9JDH5Sq",
+    "name": "ICU",
+    "optionSetUID": "DXrED2jGxtY"
+  },
+  {
+    "derCatalogCode": "IPOP0038",
+    "dhis2OptionCode": "IN_PROGRESS",
+    "uid": "DhoLWVkZpCX",
+    "name": "In Progress",
+    "optionSetUID": "D9FZcMyVbr8"
+  },
+  {
+    "derCatalogCode": "IPOP0039",
+    "dhis2OptionCode": "INHALED",
+    "uid": "D6ZtODcUCkA",
+    "name": "Inhaled",
+    "optionSetUID": "DvvkajLPdWG"
+  },
+  {
+    "derCatalogCode": "IPOP0040",
+    "dhis2OptionCode": "INSURANCE",
+    "uid": "DQtneF6RbzX",
+    "name": "Insurance",
+    "optionSetUID": "DyYaLbAga4x"
+  },
+  {
+    "derCatalogCode": "IPOP0041",
+    "dhis2OptionCode": "INSURANCE",
+    "uid": "DiNKGQ9FL9W",
+    "name": "Insurance",
+    "optionSetUID": "DJvHXLAlYEQ"
+  },
+  {
+    "derCatalogCode": "IPOP0042",
+    "dhis2OptionCode": "INTRAMUSCULAR",
+    "uid": "DJ5fceWjhEM",
+    "name": "Intramuscular",
+    "optionSetUID": "DvvkajLPdWG"
+  },
+  {
+    "derCatalogCode": "IPOP0043",
+    "dhis2OptionCode": "INTRAVENOUS",
+    "uid": "DTKgZMkiLhM",
+    "name": "Intravenous",
+    "optionSetUID": "DvvkajLPdWG"
+  },
+  {
+    "derCatalogCode": "IPOP0044",
+    "dhis2OptionCode": "LEFT_AGAINST_ADVICE",
+    "uid": "DaHPRBFqhkA",
+    "name": "Left Against Advice",
+    "optionSetUID": "D4Z4SqNJxuz"
+  },
+  {
+    "derCatalogCode": "IPOP0045",
+    "dhis2OptionCode": "MOBILE_MONEY",
+    "uid": "DgFTvdJ5wWG",
+    "name": "Mobile Money",
+    "optionSetUID": "DJvHXLAlYEQ"
+  },
+  {
+    "derCatalogCode": "IPOP0046",
+    "dhis2OptionCode": "MODIFY",
+    "uid": "DgHfGVjgaIr",
+    "name": "Modify",
+    "optionSetUID": "DIl1K4u31Am"
+  },
+  {
+    "derCatalogCode": "IPOP0047",
+    "dhis2OptionCode": "NEW",
+    "uid": "DBl3C0syv9d",
+    "name": "New",
+    "optionSetUID": "DIl1K4u31Am"
+  },
+  {
+    "derCatalogCode": "IPOP0048",
+    "dhis2OptionCode": "NIGHT",
+    "uid": "Dm01CSCVhgf",
+    "name": "Night",
+    "optionSetUID": "D7PZE63HbVo"
+  },
+  {
+    "derCatalogCode": "IPOP0049",
+    "dhis2OptionCode": "NOT_BILLED",
+    "uid": "D9CyWYCAqTr",
+    "name": "Not Billed",
+    "optionSetUID": "D45BmZ18q2r"
+  },
+  {
+    "derCatalogCode": "IPOP0050",
+    "dhis2OptionCode": "NOT_CLEARED",
+    "uid": "DZc2TVzRgJ3",
+    "name": "Not Cleared",
+    "optionSetUID": "D93uRycoN32"
+  },
+  {
+    "derCatalogCode": "IPOP0051",
+    "dhis2OptionCode": "NOT_GIVEN",
+    "uid": "DCIc0IPB07K",
+    "name": "Not Given",
+    "optionSetUID": "Dm9AXXH91tD"
+  },
+  {
+    "derCatalogCode": "IPOP0052",
+    "dhis2OptionCode": "NOT_REQUIRED",
+    "uid": "DSzPBdIz9ne",
+    "name": "Not Required",
+    "optionSetUID": "Ddyc8UVow4i"
+  },
+  {
+    "derCatalogCode": "IPOP0053",
+    "dhis2OptionCode": "ON_HOLD",
+    "uid": "Dxz9LfTwr0y",
+    "name": "On Hold",
+    "optionSetUID": "D9FZcMyVbr8"
+  },
+  {
+    "derCatalogCode": "IPOP0054",
+    "dhis2OptionCode": "ORAL",
+    "uid": "DLp3hOEgOiX",
+    "name": "Oral",
+    "optionSetUID": "DvvkajLPdWG"
+  },
+  {
+    "derCatalogCode": "IPOP0055",
+    "dhis2OptionCode": "OTHER",
+    "uid": "D0wM6Osw2Vk",
+    "name": "Other",
+    "optionSetUID": "DJvHXLAlYEQ"
+  },
+  {
+    "derCatalogCode": "IPOP0056",
+    "dhis2OptionCode": "OTHER",
+    "uid": "DtHrbmLlRgo",
+    "name": "Other",
+    "optionSetUID": "DvvkajLPdWG"
+  },
+  {
+    "derCatalogCode": "IPOP0057",
+    "dhis2OptionCode": "OUTPATIENT",
+    "uid": "DvFtPdDk1H8",
+    "name": "Outpatient",
+    "optionSetUID": "DkmyRBdEEiS"
+  },
+  {
+    "derCatalogCode": "IPOP0058",
+    "dhis2OptionCode": "PAID",
+    "uid": "DYncqVfWxOm",
+    "name": "Paid",
+    "optionSetUID": "D45BmZ18q2r"
+  },
+  {
+    "derCatalogCode": "IPOP0059",
+    "dhis2OptionCode": "PART_PAID",
+    "uid": "Dn4Hao10aoC",
+    "name": "Part Paid",
+    "optionSetUID": "D45BmZ18q2r"
+  },
+  {
+    "derCatalogCode": "IPOP0060",
+    "dhis2OptionCode": "PARTIALLY_GIVEN",
+    "uid": "DV0Tf1V6c8t",
+    "name": "Partially Given",
+    "optionSetUID": "Dm9AXXH91tD"
+  },
+  {
+    "derCatalogCode": "IPOP0061",
+    "dhis2OptionCode": "PENDING",
+    "uid": "D1ZUTAdPkLo",
+    "name": "Pending",
+    "optionSetUID": "D45BmZ18q2r"
+  },
+  {
+    "derCatalogCode": "IPOP0062",
+    "dhis2OptionCode": "PENDING",
+    "uid": "DZzM7F26mcY",
+    "name": "Pending",
+    "optionSetUID": "D8Xd3aHtD7e"
+  },
+  {
+    "derCatalogCode": "IPOP0063",
+    "dhis2OptionCode": "PRIMARY",
+    "uid": "DleWDTr1XNE",
+    "name": "Primary",
+    "optionSetUID": "DuaVNJCDCwZ"
+  },
+  {
+    "derCatalogCode": "IPOP0064",
+    "dhis2OptionCode": "REACTION",
+    "uid": "Dj7smPf3jIc",
+    "name": "Reaction",
+    "optionSetUID": "DbAXMCcZoUm"
+  },
+  {
+    "derCatalogCode": "IPOP0065",
+    "dhis2OptionCode": "REFERRED",
+    "uid": "DPUympB685V",
+    "name": "Referred",
+    "optionSetUID": "D4Z4SqNJxuz"
+  },
+  {
+    "derCatalogCode": "IPOP0066",
+    "dhis2OptionCode": "REFUSED",
+    "uid": "DQnWLtWZIj5",
+    "name": "Refused",
+    "optionSetUID": "Dm9AXXH91tD"
+  },
+  {
+    "derCatalogCode": "IPOP0067",
+    "dhis2OptionCode": "REQUESTED",
+    "uid": "DQUdJHl56My",
+    "name": "Requested",
+    "optionSetUID": "D9FZcMyVbr8"
+  },
+  {
+    "derCatalogCode": "IPOP0068",
+    "dhis2OptionCode": "RESOLVED",
+    "uid": "D8FW4F7X8t6",
+    "name": "Resolved",
+    "optionSetUID": "DSANQsnYb0C"
+  },
+  {
+    "derCatalogCode": "IPOP0069",
+    "dhis2OptionCode": "RULED_OUT",
+    "uid": "DGKnCOlE2qN",
+    "name": "Ruled Out",
+    "optionSetUID": "DSANQsnYb0C"
+  },
+  {
+    "derCatalogCode": "IPOP0070",
+    "dhis2OptionCode": "SECONDARY",
+    "uid": "DBzm0HZWDhr",
+    "name": "Secondary",
+    "optionSetUID": "DuaVNJCDCwZ"
+  },
+  {
+    "derCatalogCode": "IPOP0071",
+    "dhis2OptionCode": "SELF_PAY",
+    "uid": "DzGbWkMN4O6",
+    "name": "Self Pay",
+    "optionSetUID": "DyYaLbAga4x"
+  },
+  {
+    "derCatalogCode": "IPOP0072",
+    "dhis2OptionCode": "STOP",
+    "uid": "D1wMGhDoD4Q",
+    "name": "Stop",
+    "optionSetUID": "DIl1K4u31Am"
+  },
+  {
+    "derCatalogCode": "IPOP0073",
+    "dhis2OptionCode": "STOPPED",
+    "uid": "DU4W6zBnmHQ",
+    "name": "Stopped",
+    "optionSetUID": "DbAXMCcZoUm"
+  },
+  {
+    "derCatalogCode": "IPOP0074",
+    "dhis2OptionCode": "SUBCUTANEOUS",
+    "uid": "D9PwdWPkzDB",
+    "name": "Subcutaneous",
+    "optionSetUID": "DvvkajLPdWG"
+  },
+  {
+    "derCatalogCode": "IPOP0075",
+    "dhis2OptionCode": "TOPICAL",
+    "uid": "D2vzCTsTCMG",
+    "name": "Topical",
+    "optionSetUID": "DvvkajLPdWG"
+  },
+  {
+    "derCatalogCode": "IPOP0076",
+    "dhis2OptionCode": "TRANSFER_IN",
+    "uid": "D6oO1J6MKZe",
+    "name": "Transfer In",
+    "optionSetUID": "DkmyRBdEEiS"
+  },
+  {
+    "derCatalogCode": "IPOP0077",
+    "dhis2OptionCode": "TRANSFERRED",
+    "uid": "DEoIRoEO5r7",
+    "name": "Transferred",
+    "optionSetUID": "D4Z4SqNJxuz"
+  },
+  {
+    "derCatalogCode": "IPOP0078",
+    "dhis2OptionCode": "UNKNOWN",
+    "uid": "D31kd57pREp",
+    "name": "Unknown",
+    "optionSetUID": "DIl1K4u31Am"
+  },
+  {
+    "derCatalogCode": "IPOP0079",
+    "dhis2OptionCode": "WAIVED",
+    "uid": "DgV5kkHDxSp",
+    "name": "Waived",
+    "optionSetUID": "D45BmZ18q2r"
+  },
+  {
+    "derCatalogCode": "IPOP0080",
+    "dhis2OptionCode": "WARD",
+    "uid": "DAeiHH0XY5D",
+    "name": "Ward",
+    "optionSetUID": "DXrED2jGxtY"
+  },
+  {
+    "derCatalogCode": "IVOP0001",
+    "dhis2OptionCode": "ADJUSTMENT_DECREASE",
+    "uid": "DjH63nHnJm9",
+    "name": "Adjustment Decrease",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0002",
+    "dhis2OptionCode": "ADJUSTMENT_INCREASE",
+    "uid": "DhCMe1kb6E3",
+    "name": "Adjustment Increase",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0003",
+    "dhis2OptionCode": "CANCELLED",
+    "uid": "DzEPjNn0soR",
+    "name": "Cancelled",
+    "optionSetUID": "DtXzqHRyZGl"
+  },
+  {
+    "derCatalogCode": "IVOP0004",
+    "dhis2OptionCode": "CLINICAL_CONSUMPTION",
+    "uid": "DZPEHSrGpTP",
+    "name": "Clinical Consumption",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0005",
+    "dhis2OptionCode": "COMPLETED",
+    "uid": "D1hmciBjuyS",
+    "name": "Completed",
+    "optionSetUID": "DtXzqHRyZGl"
+  },
+  {
+    "derCatalogCode": "IVOP0006",
+    "dhis2OptionCode": "CONSUMPTION",
+    "uid": "DkRWlwrucuy",
+    "name": "Consumption",
+    "optionSetUID": "DVM51hs05j0"
+  },
+  {
+    "derCatalogCode": "IVOP0007",
+    "dhis2OptionCode": "COUNT_VARIANCE",
+    "uid": "Dcj4em9H54Y",
+    "name": "Count Variance",
+    "optionSetUID": "DVM51hs05j0"
+  },
+  {
+    "derCatalogCode": "IVOP0008",
+    "dhis2OptionCode": "DAMAGE",
+    "uid": "DGlzFsT324U",
+    "name": "Damage",
+    "optionSetUID": "DVM51hs05j0"
+  },
+  {
+    "derCatalogCode": "IVOP0009",
+    "dhis2OptionCode": "DISCARD",
+    "uid": "DKSEi1Dzscr",
+    "name": "Discard",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0010",
+    "dhis2OptionCode": "DISPENSING",
+    "uid": "DJfutjvLvE9",
+    "name": "Dispensing",
+    "optionSetUID": "DVM51hs05j0"
+  },
+  {
+    "derCatalogCode": "IVOP0011",
+    "dhis2OptionCode": "DISPENSING",
+    "uid": "DW7NmxBupIJ",
+    "name": "Dispensing",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0012",
+    "dhis2OptionCode": "DONATION",
+    "uid": "DV3LFj1bOTh",
+    "name": "Donation",
+    "optionSetUID": "DVM51hs05j0"
+  },
+  {
+    "derCatalogCode": "IVOP0013",
+    "dhis2OptionCode": "DRAFT",
+    "uid": "DuUoe6KYrq3",
+    "name": "Draft",
+    "optionSetUID": "DtXzqHRyZGl"
+  },
+  {
+    "derCatalogCode": "IVOP0014",
+    "dhis2OptionCode": "EMERGENCY_DEPARTMENT",
+    "uid": "DcXFOklXKBV",
+    "name": "Emergency Department",
+    "optionSetUID": "D3ZZx6GNioN"
+  },
+  {
+    "derCatalogCode": "IVOP0015",
+    "dhis2OptionCode": "EXPIRY",
+    "uid": "DHWYBW68z4G",
+    "name": "Expiry",
+    "optionSetUID": "DVM51hs05j0"
+  },
+  {
+    "derCatalogCode": "IVOP0016",
+    "dhis2OptionCode": "IMAGING",
+    "uid": "DhBAldIO4OJ",
+    "name": "Imaging",
+    "optionSetUID": "D3ZZx6GNioN"
+  },
+  {
+    "derCatalogCode": "IVOP0017",
+    "dhis2OptionCode": "IN_PROGRESS",
+    "uid": "DCATKROomwE",
+    "name": "In Progress",
+    "optionSetUID": "DtXzqHRyZGl"
+  },
+  {
+    "derCatalogCode": "IVOP0018",
+    "dhis2OptionCode": "INPATIENT_PHARMACY",
+    "uid": "DT3plkyleLT",
+    "name": "Inpatient Pharmacy",
+    "optionSetUID": "D3ZZx6GNioN"
+  },
+  {
+    "derCatalogCode": "IVOP0019",
+    "dhis2OptionCode": "INTERNAL_TRANSFER",
+    "uid": "D7aEst2XGbe",
+    "name": "Internal Transfer",
+    "optionSetUID": "DVM51hs05j0"
+  },
+  {
+    "derCatalogCode": "IVOP0020",
+    "dhis2OptionCode": "ISSUE_TO_DEPARTMENT",
+    "uid": "DIcqPkOLEz0",
+    "name": "Issue to Department",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0021",
+    "dhis2OptionCode": "LABORATORY_STORE",
+    "uid": "Dpyn5TdbjnL",
+    "name": "Laboratory Store",
+    "optionSetUID": "D3ZZx6GNioN"
+  },
+  {
+    "derCatalogCode": "IVOP0022",
+    "dhis2OptionCode": "LOSS",
+    "uid": "DmrEyDSzZzt",
+    "name": "Loss",
+    "optionSetUID": "DVM51hs05j0"
+  },
+  {
+    "derCatalogCode": "IVOP0023",
+    "dhis2OptionCode": "MAIN_STORE",
+    "uid": "Dp15FCO0ikQ",
+    "name": "Main Store",
+    "optionSetUID": "D3ZZx6GNioN"
+  },
+  {
+    "derCatalogCode": "IVOP0024",
+    "dhis2OptionCode": "OPD_PHARMACY",
+    "uid": "Dj5c2m7M68E",
+    "name": "OPD Pharmacy",
+    "optionSetUID": "D3ZZx6GNioN"
+  },
+  {
+    "derCatalogCode": "IVOP0025",
+    "dhis2OptionCode": "ON_HOLD",
+    "uid": "DGfF3ZDhTPO",
+    "name": "On Hold",
+    "optionSetUID": "DtXzqHRyZGl"
+  },
+  {
+    "derCatalogCode": "IVOP0026",
+    "dhis2OptionCode": "OPERATING_THEATRE",
+    "uid": "DYZMREzqXeM",
+    "name": "Operating Theatre",
+    "optionSetUID": "D3ZZx6GNioN"
+  },
+  {
+    "derCatalogCode": "IVOP0027",
+    "dhis2OptionCode": "OTHER",
+    "uid": "D6XguBDXpC9",
+    "name": "Other",
+    "optionSetUID": "DVM51hs05j0"
+  },
+  {
+    "derCatalogCode": "IVOP0028",
+    "dhis2OptionCode": "OTHER",
+    "uid": "DUx2XX7YlFp",
+    "name": "Other",
+    "optionSetUID": "D3ZZx6GNioN"
+  },
+  {
+    "derCatalogCode": "IVOP0029",
+    "dhis2OptionCode": "PURCHASE",
+    "uid": "DknU9QAKcHJ",
+    "name": "Purchase",
+    "optionSetUID": "DVM51hs05j0"
+  },
+  {
+    "derCatalogCode": "IVOP0030",
+    "dhis2OptionCode": "QUARANTINE",
+    "uid": "DjUGoZiHZmv",
+    "name": "Quarantine",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0031",
+    "dhis2OptionCode": "RECALL",
+    "uid": "D0BxqlShpe3",
+    "name": "Recall",
+    "optionSetUID": "DVM51hs05j0"
+  },
+  {
+    "derCatalogCode": "IVOP0032",
+    "dhis2OptionCode": "RECEIPT",
+    "uid": "DrLGskpcMDp",
+    "name": "Receipt",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0033",
+    "dhis2OptionCode": "RELEASE_FROM_QUARANTINE",
+    "uid": "DcxphVsui6t",
+    "name": "Release from Quarantine",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0034",
+    "dhis2OptionCode": "REQUESTED",
+    "uid": "DzLj4UAoWx1",
+    "name": "Requested",
+    "optionSetUID": "DtXzqHRyZGl"
+  },
+  {
+    "derCatalogCode": "IVOP0035",
+    "dhis2OptionCode": "RETURN",
+    "uid": "DZYaD4G4YrC",
+    "name": "Return",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0036",
+    "dhis2OptionCode": "STOCK_COUNT",
+    "uid": "DlZ2oVC7Com",
+    "name": "Stock Count",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0037",
+    "dhis2OptionCode": "TRANSFER_DISPATCH",
+    "uid": "DZVeaIUjoc9",
+    "name": "Transfer Dispatch",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0038",
+    "dhis2OptionCode": "TRANSFER_RECEIPT",
+    "uid": "DkqhcF8HzvI",
+    "name": "Transfer Receipt",
+    "optionSetUID": "D0J5lRnaKGD"
+  },
+  {
+    "derCatalogCode": "IVOP0039",
+    "dhis2OptionCode": "WARD_STORE",
+    "uid": "DXbuFDMcUl2",
+    "name": "Ward Store",
+    "optionSetUID": "D3ZZx6GNioN"
+  },
+  {
+    "derCatalogCode": "LBOP0001",
+    "dhis2OptionCode": "ACCEPTED",
+    "uid": "HQzHU9uZ67C",
+    "name": "Accepted",
+    "optionSetUID": "H8HvoCuhqzt"
+  },
+  {
+    "derCatalogCode": "LBOP0002",
+    "dhis2OptionCode": "CANCELLED",
+    "uid": "HVJLUhlvrUI",
+    "name": "Cancelled",
+    "optionSetUID": "H8HvoCuhqzt"
+  },
+  {
+    "derCatalogCode": "LBOP0003",
+    "dhis2OptionCode": "COLLECTED",
+    "uid": "HA8VM8OXG8A",
+    "name": "Collected",
+    "optionSetUID": "HBHl0hDw7nr"
+  },
+  {
+    "derCatalogCode": "LBOP0004",
+    "dhis2OptionCode": "COMPLETED",
+    "uid": "Hi6cfnt8vc5",
+    "name": "Completed",
+    "optionSetUID": "H8HvoCuhqzt"
+  },
+  {
+    "derCatalogCode": "LBOP0005",
+    "dhis2OptionCode": "IN_PROGRESS",
+    "uid": "Ha3jSLFH0tD",
+    "name": "In progress",
+    "optionSetUID": "H8HvoCuhqzt"
+  },
+  {
+    "derCatalogCode": "LBOP0006",
+    "dhis2OptionCode": "PROCESSED",
+    "uid": "HxKxmq2lHD5",
+    "name": "Processed",
+    "optionSetUID": "HBHl0hDw7nr"
+  },
+  {
+    "derCatalogCode": "LBOP0007",
+    "dhis2OptionCode": "RECEIVED",
+    "uid": "Hsp9cQ5Ssaa",
+    "name": "Received",
+    "optionSetUID": "HBHl0hDw7nr"
+  },
+  {
+    "derCatalogCode": "LBOP0008",
+    "dhis2OptionCode": "REJECTED",
+    "uid": "H8WuQGiLzf6",
+    "name": "Rejected",
+    "optionSetUID": "H8HvoCuhqzt"
+  },
+  {
+    "derCatalogCode": "LBOP0009",
+    "dhis2OptionCode": "REJECTED",
+    "uid": "HExGzD6RzN6",
+    "name": "Rejected",
+    "optionSetUID": "HBHl0hDw7nr"
+  },
+  {
+    "derCatalogCode": "LBOP0010",
+    "dhis2OptionCode": "REPORTED",
+    "uid": "HeKkEPdfx4f",
+    "name": "Reported",
+    "optionSetUID": "HBHl0hDw7nr"
+  },
+  {
+    "derCatalogCode": "LBOP0011",
+    "dhis2OptionCode": "REQUESTED",
+    "uid": "H7fXnxzCTk5",
+    "name": "Requested",
+    "optionSetUID": "H8HvoCuhqzt"
+  },
+  {
+    "derCatalogCode": "LBOP0012",
+    "dhis2OptionCode": "REQUESTED",
+    "uid": "HPDBygxiJXV",
+    "name": "Requested",
+    "optionSetUID": "HBHl0hDw7nr"
+  },
+  {
+    "derCatalogCode": "MHOP0001",
+    "dhis2OptionCode": "HIGH",
+    "uid": "HE2WDNufnZr",
+    "name": "High",
+    "optionSetUID": "H212gEnr76Q"
+  },
+  {
+    "derCatalogCode": "MHOP0002",
+    "dhis2OptionCode": "IMMINENT",
+    "uid": "HM8uUWleKNw",
+    "name": "Imminent",
+    "optionSetUID": "H212gEnr76Q"
+  },
+  {
+    "derCatalogCode": "MHOP0003",
+    "dhis2OptionCode": "LOW",
+    "uid": "HtOge7jCUss",
+    "name": "Low",
+    "optionSetUID": "H212gEnr76Q"
+  },
+  {
+    "derCatalogCode": "MHOP0004",
+    "dhis2OptionCode": "MODERATE",
+    "uid": "H3RLkizMFt5",
+    "name": "Moderate",
+    "optionSetUID": "H212gEnr76Q"
+  },
+  {
+    "derCatalogCode": "MTOP0001",
+    "dhis2OptionCode": "ASSISTED_VAGINAL",
+    "uid": "HmHaRPBiJT8",
+    "name": "Assisted vaginal",
+    "optionSetUID": "H7mygUCReUk"
+  },
+  {
+    "derCatalogCode": "MTOP0002",
+    "dhis2OptionCode": "CAESAREAN",
+    "uid": "HRE9pA74PnX",
+    "name": "Caesarean",
+    "optionSetUID": "H7mygUCReUk"
+  },
+  {
+    "derCatalogCode": "MTOP0003",
+    "dhis2OptionCode": "SPONTANEOUS_VAGINAL",
+    "uid": "Ha27WkZeVsI",
+    "name": "Spontaneous vaginal",
+    "optionSetUID": "H7mygUCReUk"
+  },
+  {
+    "derCatalogCode": "OPOP0001",
+    "dhis2OptionCode": "ABNORMAL",
+    "uid": "AmwkJUIxIcC",
+    "name": "Abnormal",
+    "optionSetUID": "ad5Ys7DgVGH"
+  },
+  {
+    "derCatalogCode": "OPOP0002",
+    "dhis2OptionCode": "ADMIT",
+    "uid": "vHTDb9UJbwf",
+    "name": "Admit",
+    "optionSetUID": "LRWUf1UwBnd"
+  },
+  {
+    "derCatalogCode": "OPOP0003",
+    "dhis2OptionCode": "AMPOULE",
+    "uid": "aQW9cMA7zFS",
+    "name": "Ampoule",
+    "optionSetUID": "daZbicJnAa1"
+  },
+  {
+    "derCatalogCode": "OPOP0004",
+    "dhis2OptionCode": "BANK",
+    "uid": "JEKI4N6ars0",
+    "name": "Bank",
+    "optionSetUID": "Rdwn7oJLc1J"
+  },
+  {
+    "derCatalogCode": "OPOP0005",
+    "dhis2OptionCode": "CANCELLED",
+    "uid": "vxwcWqRxm52",
+    "name": "Cancelled",
+    "optionSetUID": "en0BCepr0f6"
+  },
+  {
+    "derCatalogCode": "OPOP0006",
+    "dhis2OptionCode": "CAPSULE",
+    "uid": "iNrBihp3Z3n",
+    "name": "Capsule",
+    "optionSetUID": "daZbicJnAa1"
+  },
+  {
+    "derCatalogCode": "OPOP0007",
+    "dhis2OptionCode": "CARD",
+    "uid": "sDt8ryzrnkH",
+    "name": "Card",
+    "optionSetUID": "Rdwn7oJLc1J"
+  },
+  {
+    "derCatalogCode": "OPOP0008",
+    "dhis2OptionCode": "CASH",
+    "uid": "afhU52heQPq",
+    "name": "Cash",
+    "optionSetUID": "Rdwn7oJLc1J"
+  },
+  {
+    "derCatalogCode": "OPOP0009",
+    "dhis2OptionCode": "COMPLETED",
+    "uid": "jlsFL9OihtQ",
+    "name": "Completed",
+    "optionSetUID": "en0BCepr0f6"
+  },
+  {
+    "derCatalogCode": "OPOP0010",
+    "dhis2OptionCode": "CONSULTATION",
+    "uid": "UwY0smWXzNU",
+    "name": "Consultation",
+    "optionSetUID": "MAzC70poR7K"
+  },
+  {
+    "derCatalogCode": "OPOP0011",
+    "dhis2OptionCode": "CRITICAL",
+    "uid": "RqNvZLR4C3l",
+    "name": "Critical",
+    "optionSetUID": "ad5Ys7DgVGH"
+  },
+  {
+    "derCatalogCode": "OPOP0012",
+    "dhis2OptionCode": "DECEASED",
+    "uid": "sm2Up0ka4hK",
+    "name": "Deceased",
+    "optionSetUID": "LRWUf1UwBnd"
+  },
+  {
+    "derCatalogCode": "OPOP0013",
+    "dhis2OptionCode": "DEFERRED",
+    "uid": "IKwhJXmPPim",
+    "name": "Deferred",
+    "optionSetUID": "en0BCepr0f6"
+  },
+  {
+    "derCatalogCode": "OPOP0014",
+    "dhis2OptionCode": "DETERIORATED",
+    "uid": "F5saKhOyMpK",
+    "name": "Deteriorated",
+    "optionSetUID": "VpxmqGyGSPo"
+  },
+  {
+    "derCatalogCode": "OPOP0015",
+    "dhis2OptionCode": "DRAFT",
+    "uid": "fKkmUEUR0cj",
+    "name": "Draft",
+    "optionSetUID": "gJDsAeyEhqa"
+  },
+  {
+    "derCatalogCode": "OPOP0016",
+    "dhis2OptionCode": "EMERGENCY",
+    "uid": "L1KOacw7m4Z",
+    "name": "Emergency",
+    "optionSetUID": "IpcLmfFerUg"
+  },
+  {
+    "derCatalogCode": "OPOP0017",
+    "dhis2OptionCode": "EMERGENCY",
+    "uid": "M3dO9w7MeUo",
+    "name": "Emergency",
+    "optionSetUID": "sqgALYZlpZJ"
+  },
+  {
+    "derCatalogCode": "OPOP0018",
+    "dhis2OptionCode": "EMERGENCY",
+    "uid": "OoQ8371IrPK",
+    "name": "Emergency",
+    "optionSetUID": "BbsbL8RitxR"
+  },
+  {
+    "derCatalogCode": "OPOP0019",
+    "dhis2OptionCode": "EMPLOYER",
+    "uid": "JTZR4BdZN3u",
+    "name": "Employer",
+    "optionSetUID": "gdHXdoOj4aZ"
+  },
+  {
+    "derCatalogCode": "OPOP0020",
+    "dhis2OptionCode": "EXEMPT",
+    "uid": "YVUa4KTaj92",
+    "name": "Exempt",
+    "optionSetUID": "gdHXdoOj4aZ"
+  },
+  {
+    "derCatalogCode": "OPOP0021",
+    "dhis2OptionCode": "EXTERNAL",
+    "uid": "PVo9TldclI7",
+    "name": "External",
+    "optionSetUID": "sqgALYZlpZJ"
+  },
+  {
+    "derCatalogCode": "OPOP0022",
+    "dhis2OptionCode": "FAILED",
+    "uid": "R3w3Gh9n1h7",
+    "name": "Failed",
+    "optionSetUID": "BwRXoRFDfEN"
+  },
+  {
+    "derCatalogCode": "OPOP0023",
+    "dhis2OptionCode": "GENERAL_OPD",
+    "uid": "tx2pxnLpKJT",
+    "name": "General OPD",
+    "optionSetUID": "BbsbL8RitxR"
+  },
+  {
+    "derCatalogCode": "OPOP0024",
+    "dhis2OptionCode": "GOVERNMENT",
+    "uid": "bsubTtuuHm3",
+    "name": "Government",
+    "optionSetUID": "gdHXdoOj4aZ"
+  },
+  {
+    "derCatalogCode": "OPOP0025",
+    "dhis2OptionCode": "HIV",
+    "uid": "hIGouxtMcEj",
+    "name": "HIV",
+    "optionSetUID": "BbsbL8RitxR"
+  },
+  {
+    "derCatalogCode": "OPOP0026",
+    "dhis2OptionCode": "HOME",
+    "uid": "UPgJdVWBeUg",
+    "name": "Home",
+    "optionSetUID": "LRWUf1UwBnd"
+  },
+  {
+    "derCatalogCode": "OPOP0027",
+    "dhis2OptionCode": "IMAGING",
+    "uid": "Pjk2DutDmzF",
+    "name": "Imaging",
+    "optionSetUID": "MAzC70poR7K"
+  },
+  {
+    "derCatalogCode": "OPOP0028",
+    "dhis2OptionCode": "IMPROVED",
+    "uid": "LSjCbDfg8qs",
+    "name": "Improved",
+    "optionSetUID": "VpxmqGyGSPo"
+  },
+  {
+    "derCatalogCode": "OPOP0029",
+    "dhis2OptionCode": "IN_PROGRESS",
+    "uid": "oEsdd7hDbBP",
+    "name": "In progress",
+    "optionSetUID": "en0BCepr0f6"
+  },
+  {
+    "derCatalogCode": "OPOP0030",
+    "dhis2OptionCode": "INSURANCE",
+    "uid": "jzfGj2tpsUR",
+    "name": "Insurance",
+    "optionSetUID": "gdHXdoOj4aZ"
+  },
+  {
+    "derCatalogCode": "OPOP0031",
+    "dhis2OptionCode": "INSURANCE",
+    "uid": "pVASdWFURWS",
+    "name": "Insurance",
+    "optionSetUID": "Rdwn7oJLc1J"
+  },
+  {
+    "derCatalogCode": "OPOP0032",
+    "dhis2OptionCode": "INTERNAL",
+    "uid": "PmRQQCkGpNY",
+    "name": "Internal",
+    "optionSetUID": "sqgALYZlpZJ"
+  },
+  {
+    "derCatalogCode": "OPOP0033",
+    "dhis2OptionCode": "ISSUED",
+    "uid": "TVSnvVmb4j2",
+    "name": "Issued",
+    "optionSetUID": "gJDsAeyEhqa"
+  },
+  {
+    "derCatalogCode": "OPOP0034",
+    "dhis2OptionCode": "LABORATORY",
+    "uid": "YyT3JSAJC8e",
+    "name": "Laboratory",
+    "optionSetUID": "MAzC70poR7K"
+  },
+  {
+    "derCatalogCode": "OPOP0035",
+    "dhis2OptionCode": "LEFT_BEFORE_COMPLETION",
+    "uid": "GLZPJnEPOPr",
+    "name": "Left before completion",
+    "optionSetUID": "LRWUf1UwBnd"
+  },
+  {
+    "derCatalogCode": "OPOP0036",
+    "dhis2OptionCode": "MATERNAL_HEALTH",
+    "uid": "FCADaEXp6qo",
+    "name": "Maternal health",
+    "optionSetUID": "BbsbL8RitxR"
+  },
+  {
+    "derCatalogCode": "OPOP0037",
+    "dhis2OptionCode": "MEDICATION",
+    "uid": "t24Esi4pYNd",
+    "name": "Medication",
+    "optionSetUID": "MAzC70poR7K"
+  },
+  {
+    "derCatalogCode": "OPOP0038",
+    "dhis2OptionCode": "MOBILE_MONEY",
+    "uid": "ubNYcMeDvpb",
+    "name": "Mobile money",
+    "optionSetUID": "Rdwn7oJLc1J"
+  },
+  {
+    "derCatalogCode": "OPOP0039",
+    "dhis2OptionCode": "NCD",
+    "uid": "GKn412JG1vf",
+    "name": "NCD",
+    "optionSetUID": "BbsbL8RitxR"
+  },
+  {
+    "derCatalogCode": "OPOP0040",
+    "dhis2OptionCode": "NO",
+    "uid": "QRB7PC0Nkl5",
+    "name": "No",
+    "optionSetUID": "oeGXhecYf0p"
+  },
+  {
+    "derCatalogCode": "OPOP0041",
+    "dhis2OptionCode": "NON_URGENT",
+    "uid": "B8SUBtZQyNU",
+    "name": "Non urgent",
+    "optionSetUID": "IpcLmfFerUg"
+  },
+  {
+    "derCatalogCode": "OPOP0042",
+    "dhis2OptionCode": "NORMAL",
+    "uid": "dRvOPEcAMkL",
+    "name": "Normal",
+    "optionSetUID": "ad5Ys7DgVGH"
+  },
+  {
+    "derCatalogCode": "OPOP0043",
+    "dhis2OptionCode": "OTHER",
+    "uid": "CNEQ20rml5y",
+    "name": "Other",
+    "optionSetUID": "BbsbL8RitxR"
+  },
+  {
+    "derCatalogCode": "OPOP0044",
+    "dhis2OptionCode": "OTHER",
+    "uid": "JuZ4hqXsJO3",
+    "name": "Other",
+    "optionSetUID": "Rdwn7oJLc1J"
+  },
+  {
+    "derCatalogCode": "OPOP0045",
+    "dhis2OptionCode": "OTHER",
+    "uid": "NIY1TE3QZHG",
+    "name": "Other",
+    "optionSetUID": "gdHXdoOj4aZ"
+  },
+  {
+    "derCatalogCode": "OPOP0046",
+    "dhis2OptionCode": "OTHER",
+    "uid": "VBJcyvFmXDw",
+    "name": "Other",
+    "optionSetUID": "MAzC70poR7K"
+  },
+  {
+    "derCatalogCode": "OPOP0047",
+    "dhis2OptionCode": "OTHER",
+    "uid": "VvRGNqxTLGZ",
+    "name": "Other",
+    "optionSetUID": "daZbicJnAa1"
+  },
+  {
+    "derCatalogCode": "OPOP0048",
+    "dhis2OptionCode": "PAID",
+    "uid": "h68kTQUnFvf",
+    "name": "Paid",
+    "optionSetUID": "gJDsAeyEhqa"
+  },
+  {
+    "derCatalogCode": "OPOP0049",
+    "dhis2OptionCode": "PARTIAL",
+    "uid": "iMrouyKnLmG",
+    "name": "Partial",
+    "optionSetUID": "BwRXoRFDfEN"
+  },
+  {
+    "derCatalogCode": "OPOP0050",
+    "dhis2OptionCode": "PARTIALLY_PAID",
+    "uid": "ZSPSCc5UN6z",
+    "name": "Partially paid",
+    "optionSetUID": "gJDsAeyEhqa"
+  },
+  {
+    "derCatalogCode": "OPOP0051",
+    "dhis2OptionCode": "PENDING",
+    "uid": "Osi4nVvTHfH",
+    "name": "Pending",
+    "optionSetUID": "ad5Ys7DgVGH"
+  },
+  {
+    "derCatalogCode": "OPOP0052",
+    "dhis2OptionCode": "PENDING",
+    "uid": "VMZM3t7eeDR",
+    "name": "Pending",
+    "optionSetUID": "BwRXoRFDfEN"
+  },
+  {
+    "derCatalogCode": "OPOP0053",
+    "dhis2OptionCode": "PROCEDURE",
+    "uid": "bJFX34Zasb1",
+    "name": "Procedure",
+    "optionSetUID": "MAzC70poR7K"
+  },
+  {
+    "derCatalogCode": "OPOP0054",
+    "dhis2OptionCode": "REFER",
+    "uid": "oKUtOxumqCQ",
+    "name": "Refer",
+    "optionSetUID": "LRWUf1UwBnd"
+  },
+  {
+    "derCatalogCode": "OPOP0055",
+    "dhis2OptionCode": "REFUNDED",
+    "uid": "v2jL5vX5LLW",
+    "name": "Refunded",
+    "optionSetUID": "BwRXoRFDfEN"
+  },
+  {
+    "derCatalogCode": "OPOP0056",
+    "dhis2OptionCode": "REGISTRATION",
+    "uid": "mYJ8e73AwYU",
+    "name": "Registration",
+    "optionSetUID": "MAzC70poR7K"
+  },
+  {
+    "derCatalogCode": "OPOP0057",
+    "dhis2OptionCode": "REQUESTED",
+    "uid": "uHoVO6JBZVU",
+    "name": "Requested",
+    "optionSetUID": "en0BCepr0f6"
+  },
+  {
+    "derCatalogCode": "OPOP0058",
+    "dhis2OptionCode": "ROUTINE",
+    "uid": "No603bUCgaf",
+    "name": "Routine",
+    "optionSetUID": "KY3Eb14c671"
+  },
+  {
+    "derCatalogCode": "OPOP0059",
+    "dhis2OptionCode": "STAT",
+    "uid": "ml6aaiaG7qT",
+    "name": "STAT",
+    "optionSetUID": "KY3Eb14c671"
+  },
+  {
+    "derCatalogCode": "OPOP0060",
+    "dhis2OptionCode": "SELF_PAY",
+    "uid": "mPVnDk9LKcF",
+    "name": "Self-pay",
+    "optionSetUID": "gdHXdoOj4aZ"
+  },
+  {
+    "derCatalogCode": "OPOP0061",
+    "dhis2OptionCode": "SETTLED",
+    "uid": "zPwYkQdy4kp",
+    "name": "Settled",
+    "optionSetUID": "BwRXoRFDfEN"
+  },
+  {
+    "derCatalogCode": "OPOP0062",
+    "dhis2OptionCode": "STABLE",
+    "uid": "xMBHXDSFJMX",
+    "name": "Stable",
+    "optionSetUID": "VpxmqGyGSPo"
+  },
+  {
+    "derCatalogCode": "OPOP0063",
+    "dhis2OptionCode": "STANDARD",
+    "uid": "GPhSgGiF2Fi",
+    "name": "Standard",
+    "optionSetUID": "IpcLmfFerUg"
+  },
+  {
+    "derCatalogCode": "OPOP0064",
+    "dhis2OptionCode": "TB",
+    "uid": "RN5LlTulo2d",
+    "name": "TB",
+    "optionSetUID": "BbsbL8RitxR"
+  },
+  {
+    "derCatalogCode": "OPOP0065",
+    "dhis2OptionCode": "TABLET",
+    "uid": "K5KXQmbtvFx",
+    "name": "Tablet",
+    "optionSetUID": "daZbicJnAa1"
+  },
+  {
+    "derCatalogCode": "OPOP0066",
+    "dhis2OptionCode": "TRANSFER",
+    "uid": "QIc4q9CulSb",
+    "name": "Transfer",
+    "optionSetUID": "LRWUf1UwBnd"
+  },
+  {
+    "derCatalogCode": "OPOP0067",
+    "dhis2OptionCode": "UNIT",
+    "uid": "cYOLAESN8cC",
+    "name": "Unit",
+    "optionSetUID": "daZbicJnAa1"
+  },
+  {
+    "derCatalogCode": "OPOP0068",
+    "dhis2OptionCode": "UNKNOWN",
+    "uid": "ojyORm0j0nh",
+    "name": "Unknown",
+    "optionSetUID": "oeGXhecYf0p"
+  },
+  {
+    "derCatalogCode": "OPOP0069",
+    "dhis2OptionCode": "UNKNOWN",
+    "uid": "zCdkuduOgbk",
+    "name": "Unknown",
+    "optionSetUID": "VpxmqGyGSPo"
+  },
+  {
+    "derCatalogCode": "OPOP0070",
+    "dhis2OptionCode": "URGENT",
+    "uid": "PGl1dWnfERB",
+    "name": "Urgent",
+    "optionSetUID": "KY3Eb14c671"
+  },
+  {
+    "derCatalogCode": "OPOP0071",
+    "dhis2OptionCode": "URGENT",
+    "uid": "rpTxw42jDhe",
+    "name": "Urgent",
+    "optionSetUID": "IpcLmfFerUg"
+  },
+  {
+    "derCatalogCode": "OPOP0072",
+    "dhis2OptionCode": "VERY_URGENT",
+    "uid": "AmU68jVwdp7",
+    "name": "Very urgent",
+    "optionSetUID": "IpcLmfFerUg"
+  },
+  {
+    "derCatalogCode": "OPOP0073",
+    "dhis2OptionCode": "VIAL",
+    "uid": "Mvt3D13oVi5",
+    "name": "Vial",
+    "optionSetUID": "daZbicJnAa1"
+  },
+  {
+    "derCatalogCode": "OPOP0074",
+    "dhis2OptionCode": "VOIDED",
+    "uid": "dR7shZupATL",
+    "name": "Voided",
+    "optionSetUID": "gJDsAeyEhqa"
+  },
+  {
+    "derCatalogCode": "OPOP0075",
+    "dhis2OptionCode": "WAIVER",
+    "uid": "BCNkhYGISBb",
+    "name": "Waiver",
+    "optionSetUID": "Rdwn7oJLc1J"
+  },
+  {
+    "derCatalogCode": "OPOP0076",
+    "dhis2OptionCode": "WRITTEN_OFF",
+    "uid": "L7k1amW3byb",
+    "name": "Written off",
+    "optionSetUID": "gJDsAeyEhqa"
+  },
+  {
+    "derCatalogCode": "OPOP0077",
+    "dhis2OptionCode": "YES",
+    "uid": "cZfgLKfsVqn",
+    "name": "Yes",
+    "optionSetUID": "oeGXhecYf0p"
+  },
+  {
+    "derCatalogCode": "OPOP0078",
+    "dhis2OptionCode": "G",
+    "uid": "LPL4zqe9duC",
+    "name": "g",
+    "optionSetUID": "daZbicJnAa1"
+  },
+  {
+    "derCatalogCode": "OPOP0079",
+    "dhis2OptionCode": "ML",
+    "uid": "QhLKNgiHzUh",
+    "name": "mL",
+    "optionSetUID": "daZbicJnAa1"
+  },
+  {
+    "derCatalogCode": "OPOP0080",
+    "dhis2OptionCode": "MG",
+    "uid": "rPPcmdJ1TOs",
+    "name": "mg",
+    "optionSetUID": "daZbicJnAa1"
+  },
+  {
+    "derCatalogCode": "PTOP0001",
+    "dhis2OptionCode": "FEMALE",
+    "uid": "oDNYtPrLW6G",
+    "name": "Female",
+    "optionSetUID": "awcHPASyp2O"
+  },
+  {
+    "derCatalogCode": "PTOP0002",
+    "dhis2OptionCode": "MALE",
+    "uid": "vvRq4SUR98l",
+    "name": "Male",
+    "optionSetUID": "awcHPASyp2O"
+  },
+  {
+    "derCatalogCode": "PTOP0003",
+    "dhis2OptionCode": "OTHER",
+    "uid": "sCWmLCJifTv",
+    "name": "Other",
+    "optionSetUID": "awcHPASyp2O"
+  },
+  {
+    "derCatalogCode": "PTOP0004",
+    "dhis2OptionCode": "UNKNOWN",
+    "uid": "xvcpxhNwU85",
+    "name": "Unknown",
+    "optionSetUID": "awcHPASyp2O"
+  },
+  {
+    "derCatalogCode": "RNOP0001",
+    "dhis2OptionCode": "ACTIVE",
+    "uid": "HAJFWsfqiTJ",
+    "name": "Active",
+    "optionSetUID": "HpQhg3SoqNY"
+  },
+  {
+    "derCatalogCode": "RNOP0002",
+    "dhis2OptionCode": "CANCELLED",
+    "uid": "H9Ws55opOZL",
+    "name": "Cancelled",
+    "optionSetUID": "HpQhg3SoqNY"
+  },
+  {
+    "derCatalogCode": "RNOP0003",
+    "dhis2OptionCode": "COMPLETED",
+    "uid": "HJy2mE73yek",
+    "name": "Completed",
+    "optionSetUID": "HpQhg3SoqNY"
+  },
+  {
+    "derCatalogCode": "RNOP0004",
+    "dhis2OptionCode": "INTERRUPTED",
+    "uid": "HXBSTx1eX9X",
+    "name": "Interrupted",
+    "optionSetUID": "HpQhg3SoqNY"
+  },
+  {
+    "derCatalogCode": "RNOP0005",
+    "dhis2OptionCode": "PLANNED",
+    "uid": "HDBcJ75grek",
+    "name": "Planned",
+    "optionSetUID": "HpQhg3SoqNY"
+  },
+  {
+    "derCatalogCode": "SCOP0001",
+    "dhis2OptionCode": "INDETERMINATE",
+    "uid": "HVf4l7ii2Ct",
+    "name": "Indeterminate",
+    "optionSetUID": "Homm8nwqxvv"
+  },
+  {
+    "derCatalogCode": "SCOP0002",
+    "dhis2OptionCode": "NEGATIVE",
+    "uid": "HzUF6nwXQpF",
+    "name": "Negative",
+    "optionSetUID": "Homm8nwqxvv"
+  },
+  {
+    "derCatalogCode": "SCOP0003",
+    "dhis2OptionCode": "NOT_DONE",
+    "uid": "HZPl2C5VaFi",
+    "name": "Not done",
+    "optionSetUID": "Homm8nwqxvv"
+  },
+  {
+    "derCatalogCode": "SCOP0004",
+    "dhis2OptionCode": "POSITIVE",
+    "uid": "HLfBLC31FuS",
+    "name": "Positive",
+    "optionSetUID": "Homm8nwqxvv"
+  },
+  {
+    "derCatalogCode": "SUOP0001",
+    "dhis2OptionCode": "CLEAN",
+    "uid": "HgWu5KsLb7U",
+    "name": "Clean",
+    "optionSetUID": "HwZhrUvHSB5"
+  },
+  {
+    "derCatalogCode": "SUOP0002",
+    "dhis2OptionCode": "CLEAN_CONTAMINATED",
+    "uid": "H442R6afrUl",
+    "name": "Clean-contaminated",
+    "optionSetUID": "HwZhrUvHSB5"
+  },
+  {
+    "derCatalogCode": "SUOP0003",
+    "dhis2OptionCode": "CONTAMINATED",
+    "uid": "HMOKesWgeoM",
+    "name": "Contaminated",
+    "optionSetUID": "HwZhrUvHSB5"
+  },
+  {
+    "derCatalogCode": "SUOP0004",
+    "dhis2OptionCode": "DIRTY",
+    "uid": "HpKet7HEsB6",
+    "name": "Dirty",
+    "optionSetUID": "HwZhrUvHSB5"
+  },
+  {
+    "derCatalogCode": "TBOP0001",
+    "dhis2OptionCode": "CURED",
+    "uid": "HksbDeAAwvz",
+    "name": "Cured",
+    "optionSetUID": "H5dUWwIOynz"
+  },
+  {
+    "derCatalogCode": "TBOP0002",
+    "dhis2OptionCode": "DIED",
+    "uid": "Hdu1fiXcb4v",
+    "name": "Died",
+    "optionSetUID": "H5dUWwIOynz"
+  },
+  {
+    "derCatalogCode": "TBOP0003",
+    "dhis2OptionCode": "LOST_TO_FOLLOW_UP",
+    "uid": "H5ewEJdDfKF",
+    "name": "Lost to follow up",
+    "optionSetUID": "H5dUWwIOynz"
+  },
+  {
+    "derCatalogCode": "TBOP0004",
+    "dhis2OptionCode": "NOT_EVALUATED",
+    "uid": "H5PS69bWz50",
+    "name": "Not evaluated",
+    "optionSetUID": "H5dUWwIOynz"
+  },
+  {
+    "derCatalogCode": "TBOP0005",
+    "dhis2OptionCode": "TREATMENT_COMPLETED",
+    "uid": "HKBNoRnUKwL",
+    "name": "Treatment completed",
+    "optionSetUID": "H5dUWwIOynz"
+  },
+  {
+    "derCatalogCode": "TBOP0006",
+    "dhis2OptionCode": "TREATMENT_FAILED",
+    "uid": "HWvIwzcy9jP",
+    "name": "Treatment failed",
+    "optionSetUID": "H5dUWwIOynz"
+  }
+]

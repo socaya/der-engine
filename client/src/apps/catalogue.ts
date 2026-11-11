@@ -50,6 +50,25 @@ function sanitize(raw: unknown): CatalogueApp[] {
 }
 
 /**
+ * Fetch the current server catalogue without consulting an HTTP cache.
+ * Kept outside the hook so the bundle installer can revalidate metadata
+ * after an administrator replaces an app without changing its version.
+ */
+export async function fetchAppCatalogue(): Promise<CatalogueApp[]> {
+  try {
+    const r = await fetch('/edge-api/v1/apps', {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+    if (!r.ok) return [];
+    return sanitize(await r.json() as unknown);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Fetches the DER app catalogue from
  * `/edge-api/v1/apps` once per `enabled` transition from false→true.
  * Returns an empty list while loading and on any error — the
@@ -70,14 +89,8 @@ export function useAppCatalogue(enabled: boolean): CatalogueResult {
         // source of truth for app version + bundleSha256; a stale
         // browser-cached response can sustain a stale IDB bundle
         // for hours even after the operator uploaded a new build.
-        const r = await fetch('/edge-api/v1/apps', {
-          credentials: 'include',
-          cache: 'no-store',
-          headers: { Accept: 'application/json' },
-        });
-        if (!r.ok) return;
-        const json: unknown = await r.json();
-        if (!cancelled) setApps(sanitize(json));
+        const current = await fetchAppCatalogue();
+        if (!cancelled) setApps(current);
       } catch {
         // offline / server down — stay empty.
       } finally {

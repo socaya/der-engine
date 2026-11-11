@@ -49,6 +49,7 @@ export interface RawStageField {
    *  Nullable at the wire — null falls through to DEFAULT and the
    *  value-type-chosen input renders. */
   readonly renderType?: string | null;
+  readonly allowFutureDate?: boolean;
 }
 
 export interface RawStageSection {
@@ -169,6 +170,7 @@ export function parseStageForm(
           sortOrder: f.sortOrder ?? fi,
           sectionId,
           renderType: normalizeFieldRenderType(f.renderType),
+          allowFutureDate: f.allowFutureDate === true,
         };
         return field;
       });
@@ -256,6 +258,7 @@ export function parseTeiAttributesForm(
       // TEI attributes don't carry a DHIS2 renderType today; default
       // path keeps the value-type-chosen input.
       renderType: 'DEFAULT',
+      allowFutureDate: false,
     };
   });
   const section: CaptureFormSection = {

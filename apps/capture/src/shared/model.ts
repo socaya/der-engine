@@ -70,6 +70,8 @@ export interface CaptureField {
   readonly sortOrder: number;
   readonly sectionId: string | null;
   readonly renderType: FieldRenderType;
+  /** DHIS2 program-stage field permission. False unless explicitly enabled. */
+  readonly allowFutureDate: boolean;
 }
 
 export interface CaptureFormSection {

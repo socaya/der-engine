@@ -1,0 +1,19 @@
+id,area,requirement,verification
+VIS-NFR-001,Performance,Cached dashboard first meaningful paint p95 <= 2s on reference LAN hardware,Benchmark/security/a11y test
+VIS-NFR-002,Performance,Normal bounded chart preview p95 <= 3s on reference LAN hardware,Benchmark/security/a11y test
+VIS-NFR-003,Performance,"Bounded pivot of 10,000 cells p95 <= 5s; test actual client memory",Benchmark/security/a11y test
+VIS-NFR-004,Performance,Long exports execute asynchronously with concurrency caps and cancellation,Benchmark/security/a11y test
+VIS-NFR-005,Security,"Server-side authorisation for every query, drill and export regardless of client access",Benchmark/security/a11y test
+VIS-NFR-006,Security,Strict scope-specific cache keys; prohibit cache leakage across users,Benchmark/security/a11y test
+VIS-NFR-007,Security,Encrypt stored artifacts and transport; expire shared files and access tokens,Benchmark/security/a11y test
+VIS-NFR-008,Security,"No arbitrary executable expressions, SQL, HTML or unapproved remote assets in chart spec",Benchmark/security/a11y test
+VIS-NFR-009,Reliability,No false live status during WAN/server outages or stale caches,Benchmark/security/a11y test
+VIS-NFR-010,Reliability,Immutable revisions and reproducible pinned data snapshots,Benchmark/security/a11y test
+VIS-NFR-011,Reliability,Idempotent retry of render jobs and safe recovery after restart,Benchmark/security/a11y test
+VIS-NFR-012,Reliability,No source-data mutation by Visualiser queries,Benchmark/security/a11y test
+VIS-NFR-013,Accessibility,"WCAG 2.2 AA-oriented contrast, focus, keyboard operation and chart alternatives",Benchmark/security/a11y test
+VIS-NFR-014,Accessibility,Responsive views and accessible exported summaries,Benchmark/security/a11y test
+VIS-NFR-015,Maintainability,Typed versioned JSON schemas and compatibility matrix with target versions,Benchmark/security/a11y test
+VIS-NFR-016,Maintainability,Contract/visual regression tests across supported renderer versions,Benchmark/security/a11y test
+VIS-NFR-017,Observability,"Trace query ID, source watermark, authorisation decision and server-side error classification",Benchmark/security/a11y test
+VIS-NFR-018,Observability,No direct PII or hidden sensitive filters in logs or telemetry,Benchmark/security/a11y test

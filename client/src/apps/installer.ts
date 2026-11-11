@@ -1,5 +1,5 @@
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb';
-import type { CatalogueApp } from './catalogue';
+import { fetchAppCatalogue, type CatalogueApp } from './catalogue';
 import * as signatures from './signatures';
 
 const DB_NAME = 'der-apps';
@@ -137,7 +137,21 @@ export async function ensureInstalled(app: CatalogueApp): Promise<string> {
   const bundleBytes = new Uint8Array(await r.arrayBuffer());
 
   const sha = await signatures.sha256Hex(bundleBytes);
+  let effectiveApp = app;
   if (sha !== app.bundleSha256) {
+    // The catalogue hook may already be mounted when an administrator
+    // replaces an app under the same version. Re-read the authoritative
+    // row once before failing. The new bytes are accepted only when both
+    // the refreshed hash below and its refreshed signature verify.
+    const refreshed = (await fetchAppCatalogue())
+      .find((candidate) => candidate.appId === app.appId);
+    if (refreshed?.version === app.version
+        && refreshed.bundleUrl === app.bundleUrl
+        && refreshed.bundleSha256 === sha) {
+      effectiveApp = refreshed;
+    }
+  }
+  if (sha !== effectiveApp.bundleSha256) {
     // Catalogue is stale (admin just re-uploaded; the client
     // cached the previous catalogue row). Prefer a working old
     // bundle over a hard failure — the next catalogue refresh
@@ -161,20 +175,22 @@ export async function ensureInstalled(app: CatalogueApp): Promise<string> {
   } catch {
     throw err('SIGNING_KEY_UNAVAILABLE', 'DER signing key is unavailable');
   }
-  const ok = await signatures.verifyBundle(bundleBytes, app.signatureB64, publicKeyB64);
+  const ok = await signatures.verifyBundle(
+    bundleBytes, effectiveApp.signatureB64, publicKeyB64);
   if (!ok) throw err('SIGNATURE_INVALID', 'bundle signature did not verify');
 
   const bundleText = new TextDecoder().decode(bundleBytes);
   try {
     await d.put('installed', {
-      appId: app.appId,
-      appKey: app.appKey,
-      version: app.version,
+      appId: effectiveApp.appId,
+      appKey: effectiveApp.appKey,
+      version: effectiveApp.version,
       bundleText,
       sha256: sha,
-      signatureB64: app.signatureB64,
+      signatureB64: effectiveApp.signatureB64,
       installedAt: new Date().toISOString(),
-    }, key(app.appId, app.version, app.bundleSha256));
+    }, key(effectiveApp.appId, effectiveApp.version,
+      effectiveApp.bundleSha256));
   }
   /* v8 ignore start — IDB put only throws if the DB is being
    * upgraded concurrently or the browser kills the storage

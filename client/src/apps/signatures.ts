@@ -1,3 +1,6 @@
+import { ed25519 } from '@noble/curves/ed25519.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+
 /**
  * Ed25519 signature verification for DER-dispatched app bundles.
  *
@@ -7,9 +10,9 @@
  * WebCrypto `CryptoKey` and verifies each bundle's signature
  * before the module is ever imported.
  *
- * Browser support: Ed25519 landed in Chrome 113 (May 2023),
- * Firefox 130 (Sep 2024), Safari 17 (Sep 2023). DER targets modern
- * evergreen browsers; a feature-detect shim is unnecessary.
+ * Native WebCrypto is preferred. Audited pure-JS fallbacks preserve
+ * verification on LAN HTTP origins (where SubtleCrypto is unavailable)
+ * and in browsers without native Ed25519 support.
  */
 
 const SIGNING_KEY_URL = '/edge-api/v1/apps/signing-key';
@@ -41,7 +44,9 @@ export async function fetchSigningKey(): Promise<SigningKeyInfo> {
 
 export async function importVerifyKey(publicKeyB64: string): Promise<CryptoKey> {
   const raw = base64ToBytes(publicKeyB64);
-  return crypto.subtle.importKey(
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) throw new Error('WebCrypto SubtleCrypto is unavailable');
+  return subtle.importKey(
     'raw', raw.buffer as ArrayBuffer, { name: 'Ed25519' } as never,
     false, ['verify'],
   );
@@ -59,14 +64,28 @@ export async function verifyBundle(
   publicKeyB64: string,
 ): Promise<boolean> {
   try {
-    const key = await importVerifyKey(publicKeyB64);
     const signature = base64ToBytes(signatureB64);
-    return await crypto.subtle.verify(
-      { name: 'Ed25519' } as never,
-      key,
-      signature.buffer as ArrayBuffer,
-      bundleBytes.buffer as ArrayBuffer,
-    );
+    const publicKey = base64ToBytes(publicKeyB64);
+    const subtle = globalThis.crypto?.subtle;
+
+    // Prefer the browser implementation when it supports Ed25519. Browsers
+    // served over a LAN HTTP origin may omit SubtleCrypto entirely, while
+    // some older secure-context browsers expose it without Ed25519 support.
+    // In either case, retain the same verification gate via noble-curves.
+    if (subtle) {
+      try {
+        const key = await importVerifyKey(publicKeyB64);
+        return await subtle.verify(
+          { name: 'Ed25519' } as never,
+          key,
+          signature.slice().buffer,
+          bundleBytes.slice().buffer,
+        );
+      } catch {
+        // Fall through to the audited pure-JS implementation.
+      }
+    }
+    return ed25519.verify(signature, bundleBytes, publicKey);
   } catch {
     return false;
   }
@@ -78,9 +97,18 @@ export async function verifyBundle(
  * a cheap integrity gate before the expensive crypto call.
  */
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    'SHA-256', bytes.buffer as ArrayBuffer);
-  const view = new Uint8Array(digest);
+  const subtle = globalThis.crypto?.subtle;
+  let view: Uint8Array;
+  if (subtle) {
+    try {
+      const digest = await subtle.digest('SHA-256', bytes.slice().buffer);
+      view = new Uint8Array(digest);
+    } catch {
+      view = sha256(bytes);
+    }
+  } else {
+    view = sha256(bytes);
+  }
   let hex = '';
   for (const b of view) hex += b.toString(16).padStart(2, '0');
   return hex;

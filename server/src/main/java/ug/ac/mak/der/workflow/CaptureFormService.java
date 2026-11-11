@@ -376,7 +376,8 @@ public class CaptureFormService {
                             compulsory ? Requirement.REQUIRED
                                     : Requirement.OPTIONAL,
                             psde == null ? null
-                                    : psde.renderTypeDesktop()));
+                                    : psde.renderTypeDesktop(),
+                            allowFutureDate(stage, deUid)));
                     seen.add(deUid);
                 }
                 formSections.add(new FormSection(
@@ -400,7 +401,8 @@ public class CaptureFormService {
                         de.valueType(), readOptionSetUid(de),
                         psde.compulsory() ? Requirement.REQUIRED
                                 : Requirement.OPTIONAL,
-                        psde.renderTypeDesktop()));
+                        psde.renderTypeDesktop(),
+                        allowFutureDate(stage, psde.dataElementUid())));
             }
             if (!unassigned.isEmpty()) {
                 formSections.add(new FormSection(null, "Other",
@@ -424,7 +426,8 @@ public class CaptureFormService {
                         de.valueType(), readOptionSetUid(de),
                         psde.compulsory() ? Requirement.REQUIRED
                                 : Requirement.OPTIONAL,
-                        psde.renderTypeDesktop()));
+                        psde.renderTypeDesktop(),
+                        allowFutureDate(stage, psde.dataElementUid())));
             }
             formSections.add(new FormSection(null,
                     stage.displayName(), fields));
@@ -578,6 +581,29 @@ public class CaptureFormService {
         }
         final var n = payload.path(name);
         return n.isMissingNode() || !n.isNumber() ? 0 : n.asInt();
+    }
+
+    /** Read the PSDE future-date permission from the mirrored raw stage
+     * payload. It is deliberately fail-closed: absent or malformed metadata
+     * means future dates remain disabled in Capture. */
+    private static boolean allowFutureDate(
+            final MirroredProgramStage stage,
+            final String dataElementUid) {
+        if (stage == null || stage.payload() == null) {
+            return false;
+        }
+        final var fields = stage.payload().path("programStageDataElements");
+        if (!fields.isArray()) {
+            return false;
+        }
+        for (final var field : fields) {
+            final String uid = field.path("dataElement").path("id")
+                    .asText(null);
+            if (dataElementUid.equals(uid)) {
+                return field.path("allowFutureDate").asBoolean(false);
+            }
+        }
+        return false;
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -901,7 +927,24 @@ public class CaptureFormService {
              * AUTOCOMPLETE / DEFAULT / ...). Nullable; client
              * falls back to a value-type-chosen input when absent.
              */
-            String renderType) {
+            String renderType,
+            boolean allowFutureDate) {
+
+        /** Back-compat overload for callers that carry renderType but not
+         *  the future-date permission. */
+        public FormField(final String fieldRef,
+                         final String dataElementUid,
+                         final String categoryOptionComboUid,
+                         final String dataElementDisplayName,
+                         final String categoryOptionComboDisplayName,
+                         final String valueType,
+                         final String optionSetUid,
+                         final Requirement requirement,
+                         final String renderType) {
+            this(fieldRef, dataElementUid, categoryOptionComboUid,
+                    dataElementDisplayName, categoryOptionComboDisplayName,
+                    valueType, optionSetUid, requirement, renderType, false);
+        }
 
         /** Back-compat shorthand for aggregate + upstream-context
          *  callers that don't carry a renderType hint. */
@@ -915,7 +958,7 @@ public class CaptureFormService {
                           final Requirement requirement) {
             this(fieldRef, dataElementUid, categoryOptionComboUid,
                     dataElementDisplayName, categoryOptionComboDisplayName,
-                    valueType, optionSetUid, requirement, null);
+                    valueType, optionSetUid, requirement, null, false);
         }
     }
 

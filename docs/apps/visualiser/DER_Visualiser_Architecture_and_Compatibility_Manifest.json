@@ -1,0 +1,30 @@
+{
+  "package": "DER Visualiser SRS and Architecture",
+  "version": "1.0",
+  "date": "2026-11-10",
+  "status": "design only; not implemented or live-tested",
+  "functionalRequirements": 63,
+  "nonfunctionalRequirements": 18,
+  "acceptanceScenarios": 36,
+  "integration": {
+    "derAnalytics": "site-local governed query and lineage",
+    "derCapture": "authorised source drill only",
+    "aggregateReporting": {
+      "parentDatasetCount": 15,
+      "source": "previous DER hospital consolidated metadata",
+      "verifyOnTargetInstance": true
+    },
+    "dhis2Versions": [
+      "2.41",
+      "2.42",
+      "2.43",
+      "2.44"
+    ],
+    "compatibilityTested": false
+  },
+  "security": {
+    "queryScopeValidation": true,
+    "serverSideSuppressionRequired": true,
+    "patientDetailByDefault": false
+  }
+}

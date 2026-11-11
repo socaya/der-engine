@@ -1100,6 +1100,7 @@ export interface CaptureFormField {
   valueType: string;
   optionSetUid: string | null;
   requirement: 'REQUIRED' | 'OPTIONAL' | 'READONLY';
+  allowFutureDate?: boolean;
 }
 
 export interface CaptureFormUpstreamContext {

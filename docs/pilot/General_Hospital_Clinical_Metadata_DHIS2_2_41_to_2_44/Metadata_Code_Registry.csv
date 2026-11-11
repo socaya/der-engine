@@ -1,0 +1,1260 @@
+derCode,dhis2Code,previousDHIS2Code,uid,type,name,domain,classification,usedByPrograms,codeAppliedToDHIS2
+ANDE0001,ANDE0001,DER_HOSP_DE_ESTIMATED_DELIVERY_DATE,HtcxtA5dWhf,dataElements,Estimated delivery date,AN,service-specific,['AN'],True
+ANDE0002,ANDE0002,DER_HOSP_DE_GRAVIDITY,HGnKsAGRFlW,dataElements,Gravidity,AN,service-specific,['AN'],True
+ANDE0003,ANDE0003,DER_HOSP_DE_HIV_TEST_RESULT,HLPNtceynOS,dataElements,HIV test result,AN,service-specific,['AN'],True
+ANDE0004,ANDE0004,DER_HOSP_DE_HAEMOGLOBIN_G_DL,Huot1DfyUkd,dataElements,Haemoglobin (g/dL),AN,service-specific,['AN'],True
+ANDE0005,ANDE0005,DER_HOSP_DE_LAST_MENSTRUAL_PERIOD,Hb8DcpqP6hn,dataElements,Last menstrual period,AN,service-specific,['AN'],True
+ANDE0006,ANDE0006,DER_HOSP_DE_PARITY,HyOrWXwbJxu,dataElements,Parity,AN,service-specific,['AN'],True
+ANDE0007,ANDE0007,DER_HOSP_DE_PREGNANCY_OUTCOME,HZR5NjXXZDG,dataElements,Pregnancy outcome,AN,service-specific,['AN'],True
+ANDE0008,ANDE0008,DER_HOSP_DE_PREGNANCY_RISK_HISTORY,HqnSgenO5t9,dataElements,Pregnancy risk history,AN,service-specific,['AN'],True
+ANDE0009,ANDE0009,DER_HOSP_DE_PREVENTIVE_INTERVENTION,H5h07fJHpTH,dataElements,Preventive intervention,AN,service-specific,['AN'],True
+ANDE0010,ANDE0010,DER_HOSP_DE_SUPPLEMENT_ISSUED,HTBneTnmcVQ,dataElements,Supplement issued,AN,service-specific,['AN'],True
+ANDE0011,ANDE0011,DER_HOSP_DE_SYPHILIS_SCREENING,HU2kHJZCNXa,dataElements,Syphilis screening,AN,service-specific,['AN'],True
+ANDE0012,ANDE0012,DER_HOSP_DE_ULTRASOUND_ORDER_REFERENCE,HIby0ReJOZL,dataElements,Ultrasound order reference,AN,service-specific,['AN'],True
+ANPA0001,ANPA0001,,H5wDi3N7JS7,programRuleActions,,AN,service-specific,[],True
+ANPA0002,ANPA0002,,HlorhRp7NEX,programRuleActions,,AN,service-specific,[],True
+ANPG0001,ANPG0001,DER_HOSP_PRG_MATERNAL_ANTENATAL_CARE,HuEuaY1AKep,programs,Antenatal Care,AN,service-specific,[],True
+ANPI0001,ANPI0001,DER_HOSP_PI_HOSP_MATERNAL_ANTENATAL_CARE_H4tqpe8iX7j,H4tqpe8iX7j,programIndicators,Antenatal Care - Recorded Events,AN,service-specific,[],True
+ANPR0001,ANPR0001,,Hjw9Q6noyC7,programRules,Gestational age weeks warning,AN,service-specific,[],True
+ANPR0002,ANPR0002,,HaXNMyubkXm,programRules,Systolic BP (mmHg) warning,AN,service-specific,[],True
+ANPS0001,ANPS0001,DER_HOSP_PS_MATERNAL_ANTENATAL_CARE_ANC_PREVENTIVE_CARE_AND_COUNSELLING,HJSh622nxxE,programStages,ANC Preventive Care and Counselling,AN,service-specific,[],True
+ANPS0002,ANPS0002,DER_HOSP_PS_MATERNAL_ANTENATAL_CARE_ANC_REFERRAL_AND_OUTCOME,Hzrg1Y74swP,programStages,ANC Referral and Outcome,AN,service-specific,[],True
+ANPS0003,ANPS0003,DER_HOSP_PS_MATERNAL_ANTENATAL_CARE_ANC_REGISTRATION_AND_PREGNANCY_DATI,HWl5Gwxdoxr,programStages,ANC Registration and Pregnancy Dating,AN,service-specific,[],True
+ANPS0004,ANPS0004,DER_HOSP_PS_MATERNAL_ANTENATAL_CARE_ANC_SCREENING_AND_DIAGNOSTICS,HAe1DfAm8ye,programStages,ANC Screening and Diagnostics,AN,service-specific,[],True
+ANPS0005,ANPS0005,DER_HOSP_PS_MATERNAL_ANTENATAL_CARE_ANC_VISIT_AND_RISK_ASSESSMENT,HUeJzZO9bh2,programStages,ANC Visit and Risk Assessment,AN,service-specific,[],True
+ANPV0001,ANPV0001,,HLO5IbN62ai,programRuleVariables,check_2,AN,service-specific,[],True
+ANPV0002,ANPV0002,,HT53hEE0GH0,programRuleVariables,check_8,AN,service-specific,[],True
+BBDE0001,BBDE0001,DER_HOSP_DE_BLOOD_COMPATIBILITY,HZXHpLkeU8i,dataElements,Blood compatibility,BB,service-specific,['BB'],True
+BBDE0002,BBDE0002,DER_HOSP_DE_BLOOD_COMPONENT_CODE,HqSHe9MmlTj,dataElements,Blood component code,BB,service-specific,['BB'],True
+BBDE0003,BBDE0003,DER_HOSP_DE_BLOOD_UNIT_IDENTIFIER,HryvEUqa7hs,dataElements,Blood unit identifier,BB,service-specific,['BB'],True
+BBDE0004,BBDE0004,DER_HOSP_DE_CLINICAL_INDICATION,H0TdD7PxP07,dataElements,Clinical indication,BB,service-specific,['BB'],True
+BBDE0005,BBDE0005,DER_HOSP_DE_END_DATE_AND_TIME,HHqRUWVBbft,dataElements,End date and time,BB,service-specific,['BB'],True
+BBDE0006,BBDE0006,DER_HOSP_DE_ISSUE_DATE_AND_TIME,HCvQ3nNGyzL,dataElements,Issue date and time,BB,service-specific,['BB'],True
+BBDE0007,BBDE0007,DER_HOSP_DE_START_DATE_AND_TIME,Hc0gseEupPq,dataElements,Start date and time,BB,service-specific,['BB'],True
+BBDE0008,BBDE0008,DER_HOSP_DE_TRANSFUSION_REACTION,H3PAlasFxDr,dataElements,Transfusion reaction,BB,service-specific,['BB'],True
+BBDE0009,BBDE0009,DER_HOSP_DE_UNITS_REQUESTED,H8usrpngZQs,dataElements,Units requested,BB,service-specific,['BB'],True
+BBOP0001,COMPATIBLE,COMPATIBLE,Hi5ea4MyYNr,options,Compatible,BB,service-specific,[],False
+BBOP0002,INCOMPATIBLE,INCOMPATIBLE,HGhTI2nPcao,options,Incompatible,BB,service-specific,[],False
+BBOP0003,NOT_DETERMINED,NOT_DETERMINED,HS3fUddFtvC,options,Not determined,BB,service-specific,[],False
+BBOS0001,BBOS0001,DER_HOSP_OS_BLOOD_COMPATIBILITY,HrnrsNakczS,optionSets,Blood Compatibility,BB,service-specific,['BB'],True
+BBPG0001,BBPG0001,DER_HOSP_PRG_BLOOD_BANK_AND_TRANSFUSION,HSXTX6niXrS,programs,Blood Bank and Transfusion,BB,service-specific,[],True
+BBPI0001,BBPI0001,DER_HOSP_PI_HOSP_BLOOD_BANK_AND_TRANSFUSION_H8Yvziea9gD,H8Yvziea9gD,programIndicators,Blood Bank and Transfusion - Recorded Events,BB,service-specific,[],True
+BBPS0001,BBPS0001,DER_HOSP_PS_BLOOD_BANK_AND_TRANSFUSION_CROSSMATCH_AND_COMPONENT_ISSUE,HlBOFjzQAVy,programStages,Crossmatch and Component Issue,BB,service-specific,[],True
+BBPS0002,BBPS0002,DER_HOSP_PS_BLOOD_BANK_AND_TRANSFUSION_TRANSFUSION_ADMINISTRATION_AND_MONI,HH7VO6xfOu4,programStages,Transfusion Administration and Monitoring,BB,service-specific,[],True
+BBPS0003,BBPS0003,DER_HOSP_PS_BLOOD_BANK_AND_TRANSFUSION_TRANSFUSION_REQUEST_AND_ELIGIBILITY,H5T2Al7ybgz,programStages,Transfusion Request and Eligibility,BB,service-specific,[],True
+DNDE0001,DNDE0001,DER_HOSP_DE_DENTAL_FINDING_CODE,HhvgFM4ejwI,dataElements,Dental finding code,DN,service-specific,['DN'],True
+DNDE0002,DNDE0002,DER_HOSP_DE_TOOTH_IDENTIFIER,HBiaBFmHc1r,dataElements,Tooth identifier,DN,service-specific,['DN'],True
+DNDE0003,DNDE0003,DER_HOSP_DE_TOOTH_NOTATION_SYSTEM,HPcSN7CM8Ve,dataElements,Tooth notation system,DN,service-specific,['DN'],True
+DNPG0001,DNPG0001,DER_HOSP_PRG_DENTAL_AND_ORAL_HEALTH,H2VReg9adke,programs,Dental and Oral Health,DN,service-specific,[],True
+DNPI0001,DNPI0001,DER_HOSP_PI_HOSP_DENTAL_AND_ORAL_HEALTH_HSvCKIZX5Yp,HSvCKIZX5Yp,programIndicators,Dental and Oral Health - Recorded Events,DN,service-specific,[],True
+DNPS0001,DNPS0001,DER_HOSP_PS_DENTAL_AND_ORAL_HEALTH_DENTAL_ASSESSMENT,HH75tUORPv7,programStages,Dental Assessment,DN,service-specific,[],True
+DNPS0002,DNPS0002,DER_HOSP_PS_DENTAL_AND_ORAL_HEALTH_DENTAL_FOLLOW_UP,HKlsZUzCQjj,programStages,Dental Follow-up,DN,service-specific,[],True
+DNPS0003,DNPS0003,DER_HOSP_PS_DENTAL_AND_ORAL_HEALTH_DENTAL_PROCEDURE_AND_TREATMENT,HFXWJptVLyi,programStages,Dental Procedure and Treatment,DN,service-specific,[],True
+DXDE0001,DXDE0001,DER_HOSP_DE_DIAGNOSIS_CODE,HqRAG8tPMbp,dataElements,Diagnosis code,DX,cross-cutting,"['ER', 'IM', 'MH', 'TB']",True
+ENDE0001,ENDE0001,DER_HOSP_DE_ENT_CHIEF_COMPLAINT,HErc4TJknYb,dataElements,ENT chief complaint,EN,service-specific,['EN'],True
+ENDE0002,ENDE0002,DER_HOSP_DE_HEARING_SCREENING_RESULT,HVyjmj6TMma,dataElements,Hearing screening result,EN,service-specific,['EN'],True
+ENDE0003,ENDE0003,DER_HOSP_DE_OTOSCOPY_FINDING,HCBSaUyB5DQ,dataElements,Otoscopy finding,EN,service-specific,['EN'],True
+ENPG0001,ENPG0001,DER_HOSP_PRG_ENT_SERVICES,HoPwIyI4b7C,programs,"Ear, Nose and Throat Services",EN,service-specific,[],True
+ENPI0001,ENPI0001,DER_HOSP_PI_HOSP_ENT_SERVICES_HI4UA2xTQE4,HI4UA2xTQE4,programIndicators,"Ear, Nose and Throat Services - Recorded Events",EN,service-specific,[],True
+ENPS0001,ENPS0001,DER_HOSP_PS_ENT_SERVICES_ENT_ASSESSMENT,HN7AFc7Moq9,programStages,ENT Assessment,EN,service-specific,[],True
+ENPS0002,ENPS0002,DER_HOSP_PS_ENT_SERVICES_ENT_INVESTIGATION_AND_PROCEDURE,HXK0H8BZSeg,programStages,ENT Investigation and Procedure,EN,service-specific,[],True
+ENPS0003,ENPS0003,DER_HOSP_PS_ENT_SERVICES_ENT_REVIEW_AND_REFERRAL,HB2ZNuJgAQd,programStages,ENT Review and Referral,EN,service-specific,[],True
+EQDE0001,EQDE0001,DER_HOSP_DE_ASSET_IDENTIFIER,Hg9HprG5vpx,dataElements,Asset identifier,EQ,service-specific,['EQ'],True
+EQDE0002,EQDE0002,DER_HOSP_DE_DECOMMISSION_DATE,HIZhL2Hscph,dataElements,Decommission date,EQ,service-specific,['EQ'],True
+EQDE0003,EQDE0003,DER_HOSP_DE_DECOMMISSION_REASON,HgofjqsBc5z,dataElements,Decommission reason,EQ,service-specific,['EQ'],True
+EQDE0004,EQDE0004,DER_HOSP_DE_EQUIPMENT_CATEGORY,HPwBMsOuIJh,dataElements,Equipment category,EQ,service-specific,['EQ'],True
+EQDE0005,EQDE0005,DER_HOSP_DE_EQUIPMENT_LOCATION,HN4xciPpBQx,dataElements,Equipment location,EQ,service-specific,['EQ'],True
+EQDE0006,EQDE0006,DER_HOSP_DE_EQUIPMENT_RETURN_TO_SERVICE,HqpA7uG9mH5,dataElements,Equipment return to service,EQ,service-specific,['EQ'],True
+EQDE0007,EQDE0007,DER_HOSP_DE_FAULT_REPORTED_AT,HCG7obHvgRL,dataElements,Fault reported at,EQ,service-specific,['EQ'],True
+EQDE0008,EQDE0008,DER_HOSP_DE_MAINTENANCE_DATE,Ha4tFDwUT6p,dataElements,Maintenance date,EQ,service-specific,['EQ'],True
+EQDE0009,EQDE0009,DER_HOSP_DE_MAINTENANCE_OUTCOME,HjtMKnhVBKx,dataElements,Maintenance outcome,EQ,service-specific,['EQ'],True
+EQDE0010,EQDE0010,DER_HOSP_DE_MANUFACTURER,Hj4uDgBDtWT,dataElements,Manufacturer,EQ,service-specific,['EQ'],True
+EQDE0011,EQDE0011,DER_HOSP_DE_NEXT_MAINTENANCE_DATE,HmFYYtTQFZK,dataElements,Next maintenance date,EQ,service-specific,['EQ'],True
+EQDE0012,EQDE0012,DER_HOSP_DE_REPAIR_ACTION,HAr60ZlLzN2,dataElements,Repair action,EQ,service-specific,['EQ'],True
+EQDE0013,EQDE0013,DER_HOSP_DE_SERIAL_NUMBER,HzYOwZL21AL,dataElements,Serial number,EQ,service-specific,['EQ'],True
+EQPG0001,EQPG0001,DER_HOSP_PRG_FACILITY_EQUIPMENT_AND_MAINTENANCE,HbtX2GbjAHH,programs,Facility Equipment and Maintenance,EQ,service-specific,[],True
+EQPI0001,EQPI0001,DER_HOSP_PI_HOSP_FACILITY_EQUIPMENT_AND_MAINTENANCE_HoOt6YShDpw,HoOt6YShDpw,programIndicators,Facility Equipment and Maintenance - Recorded Events,EQ,service-specific,[],True
+EQPS0001,EQPS0001,DER_HOSP_PS_FACILITY_EQUIPMENT_AND_MAINTEN_EQUIPMENT_BREAKDOWN_AND_REPAIR,HydqqBTT6po,programStages,Equipment Breakdown and Repair,EQ,service-specific,[],True
+EQPS0002,EQPS0002,DER_HOSP_PS_FACILITY_EQUIPMENT_AND_MAINTEN_EQUIPMENT_DECOMMISSIONING,HUs7MJpvUZy,programStages,Equipment Decommissioning,EQ,service-specific,[],True
+EQPS0003,EQPS0003,DER_HOSP_PS_FACILITY_EQUIPMENT_AND_MAINTEN_EQUIPMENT_REGISTRATION,HEaTlQIN9Qq,programStages,Equipment Registration,EQ,service-specific,[],True
+EQPS0004,EQPS0004,DER_HOSP_PS_FACILITY_EQUIPMENT_AND_MAINTEN_PREVENTIVE_MAINTENANCE,HtMPwVpZFX9,programStages,Preventive Maintenance,EQ,service-specific,[],True
+EQTE0001,EQTE0001,,HRI6eWV6XmC,trackedEntityTypes,Facility Equipment,EQ,service-specific,[],True
+ERDE0001,ERDE0001,DER_HOSP_DE_AIRWAY_STATUS,HCvZvxJGINb,dataElements,Airway status,ER,service-specific,['ER'],True
+ERDE0002,ERDE0002,DER_HOSP_DE_ARRIVAL_MECHANISM,HIg0qeZ5Yij,dataElements,Arrival mechanism,ER,service-specific,['ER'],True
+ERDE0003,ERDE0003,DER_HOSP_DE_BREATHING_STATUS,HqCQIKgSJ6N,dataElements,Breathing status,ER,service-specific,['ER'],True
+ERDE0004,ERDE0004,DER_HOSP_DE_CIRCULATION_STATUS,HDgSgKXKRXN,dataElements,Circulation status,ER,service-specific,['ER'],True
+ERDE0005,ERDE0005,DER_HOSP_DE_CLINICAL_ACUITY,H3Ku43A1RK0,dataElements,Clinical acuity,ER,service-specific,['ER'],True
+ERDE0006,ERDE0006,DER_HOSP_DE_ENCOUNTER_DISPOSITION,HkUb6U6Yh4o,dataElements,Encounter disposition,ER,service-specific,['ER'],True
+ERDE0007,ERDE0007,DER_HOSP_DE_HANDOVER_RECIPIENT,HdXj3MILprk,dataElements,Handover recipient,ER,service-specific,['ER'],True
+ERDE0008,ERDE0008,DER_HOSP_DE_HANDOVER_TIME,H92dn45EQAA,dataElements,Handover time,ER,service-specific,['ER'],True
+ERDE0009,ERDE0009,DER_HOSP_DE_HEART_RATE_PER_MIN,H7Z2yp0Z94q,dataElements,Heart rate (per min),ER,service-specific,['ER'],True
+ERDE0010,ERDE0010,DER_HOSP_DE_OBSERVATION_NOTE,Hm2cVlMb2Pm,dataElements,Observation note,ER,service-specific,['ER'],True
+ERDE0011,ERDE0011,DER_HOSP_DE_PRESENTING_COMPLAINT,HOPlGkJ4X7Y,dataElements,Presenting complaint,ER,service-specific,['ER'],True
+ERDE0012,ERDE0012,DER_HOSP_DE_RED_FLAG_FINDING,HxBts5fpYCQ,dataElements,Red flag finding,ER,service-specific,['ER'],True
+ERDE0013,ERDE0013,DER_HOSP_DE_RESUSCITATION_INTERVENTION,HOKHwxjggtw,dataElements,Resuscitation intervention,ER,service-specific,['ER'],True
+ERDE0014,ERDE0014,DER_HOSP_DE_SPO2,HcHxSMjr7MI,dataElements,SpO2 (%),ER,service-specific,['ER'],True
+ERDE0015,ERDE0015,DER_HOSP_DE_TIME_OF_INTERVENTION,HZU6kalPvKx,dataElements,Time of intervention,ER,service-specific,['ER'],True
+ERDE0016,ERDE0016,DER_HOSP_DE_URGENCY,Hkphxqak9l3,dataElements,Urgency,ER,service-specific,['ER'],True
+EROP0001,EMERGENCY,EMERGENCY,HEZHQb87Sze,options,Emergency,ER,service-specific,[],False
+EROP0002,IMMEDIATE,IMMEDIATE,Heo9tJrZLSQ,options,Immediate,ER,service-specific,[],False
+EROP0003,NON_URGENT,NON_URGENT,HnAHmwckmBG,options,Non urgent,ER,service-specific,[],False
+EROP0004,ROUTINE,ROUTINE,HNtKdbCdmz0,options,Routine,ER,service-specific,[],False
+EROP0005,STANDARD,STANDARD,HG3CVekUsgl,options,Standard,ER,service-specific,[],False
+EROP0006,URGENT,URGENT,HCe7bdKkFIA,options,Urgent,ER,service-specific,[],False
+EROP0007,URGENT,URGENT,HHL6TgDf7n2,options,Urgent,ER,service-specific,[],False
+EROP0008,VERY_URGENT,VERY_URGENT,HlCkPl4Sfvl,options,Very urgent,ER,service-specific,[],False
+EROS0001,EROS0001,DER_HOSP_OS_CLINICAL_ACUITY,HOP3MUR7Re5,optionSets,Clinical Acuity,ER,service-specific,['ER'],True
+EROS0002,EROS0002,DER_HOSP_OS_REFERRAL_PRIORITY,HkrkKio6AXj,optionSets,Referral Priority,ER,service-specific,['ER'],True
+ERPA0001,ERPA0001,,HFEMOT1xn3b,programRuleActions,,ER,service-specific,[],True
+ERPA0002,ERPA0002,,HuBsyLqeAHB,programRuleActions,,ER,service-specific,[],True
+ERPG0001,ERPG0001,DER_HOSP_PRG_EMERGENCY_AND_RESUSCITATION,H65DZNt2TRB,programs,Emergency and Resuscitation,ER,service-specific,[],True
+ERPI0001,ERPI0001,DER_HOSP_PI_HOSP_EMERGENCY_AND_RESUSCITATION_Hn41zhp9nXL,Hn41zhp9nXL,programIndicators,Emergency and Resuscitation - Recorded Events,ER,service-specific,[],True
+ERPR0001,ERPR0001,,HfCGTP9fqou,programRules,Heart rate (per min) warning,ER,service-specific,[],True
+ERPR0002,ERPR0002,,HKAjvbWBH9J,programRules,Oxygen Saturation (SpO2) (%) warning,ER,service-specific,[],True
+ERPS0001,ERPS0001,DER_HOSP_PS_EMERGENCY_AND_RESUSCITATION_ARRIVAL_AND_EMERGENCY_REGISTRATION,HgZH6k55WKW,programStages,Arrival and Emergency Registration,ER,service-specific,[],True
+ERPS0002,ERPS0002,DER_HOSP_PS_EMERGENCY_AND_RESUSCITATION_EMERGENCY_CONSULTATION_AND_ORDERS,HYtr3D5cRtd,programStages,Emergency Consultation and Orders,ER,service-specific,[],True
+ERPS0003,ERPS0003,DER_HOSP_PS_EMERGENCY_AND_RESUSCITATION_EMERGENCY_DISPOSITION_AND_HANDOVER,HYSeAeoIdc8,programStages,Emergency Disposition and Handover,ER,service-specific,[],True
+ERPS0004,ERPS0004,DER_HOSP_PS_EMERGENCY_AND_RESUSCITATION_EMERGENCY_PROCEDURES_AND_OBSERVATIO,Hh8W8oNfm1j,programStages,Emergency Procedures and Observation,ER,service-specific,[],True
+ERPS0005,ERPS0005,DER_HOSP_PS_EMERGENCY_AND_RESUSCITATION_EMERGENCY_TRIAGE,Hjkxu04G1Hb,programStages,Emergency Triage,ER,service-specific,[],True
+ERPS0006,ERPS0006,DER_HOSP_PS_EMERGENCY_AND_RESUSCITATION_PRIMARY_SURVEY_AND_RESUSCITATION,HCaH1EBgMEl,programStages,Primary Survey and Resuscitation,ER,service-specific,[],True
+ERPV0001,ERPV0001,,HGXwu5ymnZU,programRuleVariables,check_1,ER,service-specific,[],True
+ERPV0002,ERPV0002,,HFt65FNgwdL,programRuleVariables,check_7,ER,service-specific,[],True
+EYDE0001,EYDE0001,DER_HOSP_DE_EYE_FINDING_CODE,HSu0hFEJCQZ,dataElements,Eye finding code,EY,service-specific,['EY'],True
+EYDE0002,EYDE0002,DER_HOSP_DE_INTRAOCULAR_PRESSURE_LEFT,HJ4ZcO1jKtn,dataElements,Intraocular pressure left,EY,service-specific,['EY'],True
+EYDE0003,EYDE0003,DER_HOSP_DE_INTRAOCULAR_PRESSURE_RIGHT,H60aT4L3Cgr,dataElements,Intraocular pressure right,EY,service-specific,['EY'],True
+EYDE0004,EYDE0004,DER_HOSP_DE_PRESENTING_SYMPTOM,Hej0VDSzEbv,dataElements,Presenting symptom,EY,service-specific,['EY'],True
+EYDE0005,EYDE0005,DER_HOSP_DE_VISUAL_ACUITY_LEFT,HakYpbGLSsJ,dataElements,Visual acuity left,EY,service-specific,['EY'],True
+EYDE0006,EYDE0006,DER_HOSP_DE_VISUAL_ACUITY_RIGHT,H3b2ea3Bh4c,dataElements,Visual acuity right,EY,service-specific,['EY'],True
+EYPG0001,EYPG0001,DER_HOSP_PRG_EYE_AND_VISION_CARE,Hd2rUBMah0V,programs,Eye and Vision Care,EY,service-specific,[],True
+EYPI0001,EYPI0001,DER_HOSP_PI_HOSP_EYE_AND_VISION_CARE_HEjfgLeCivw,HEjfgLeCivw,programIndicators,Eye and Vision Care - Recorded Events,EY,service-specific,[],True
+EYPS0001,EYPS0001,DER_HOSP_PS_EYE_AND_VISION_CARE_EYE_PROCEDURE_AND_REFERRAL,HEHIysQ2R4c,programStages,Eye Procedure and Referral,EY,service-specific,[],True
+EYPS0002,EYPS0002,DER_HOSP_PS_EYE_AND_VISION_CARE_OPHTHALMOLOGY_EXAMINATION,HbZneqDJox0,programStages,Ophthalmology Examination,EY,service-specific,[],True
+EYPS0003,EYPS0003,DER_HOSP_PS_EYE_AND_VISION_CARE_OPHTHALMOLOGY_SCREENING,HVX3c5qAFCj,programStages,Ophthalmology Screening,EY,service-specific,[],True
+FPDE0001,FPDE0001,DER_HOSP_DE_ADVERSE_EFFECT_NOTE,HxBnlLiQkIH,dataElements,Adverse effect note,FP,service-specific,['FP'],True
+FPDE0002,FPDE0002,DER_HOSP_DE_CONTRACEPTIVE_METHOD_CODE,HtqyBGXJxBK,dataElements,Contraceptive method code,FP,service-specific,['FP'],True
+FPDE0003,FPDE0003,DER_HOSP_DE_METHOD_PREFERENCE,HeMflijpfPs,dataElements,Method preference,FP,service-specific,['FP'],True
+FPDE0004,FPDE0004,DER_HOSP_DE_SERVICE_DATE,H7BX8FUs8Eb,dataElements,Service date,FP,service-specific,['FP'],True
+FPPG0001,FPPG0001,DER_HOSP_PRG_FAMILY_PLANNING_AND_REPRODUCTIVE_HEALTH,Hq91qzagmQl,programs,Family Planning and Reproductive Health,FP,service-specific,[],True
+FPPI0001,FPPI0001,DER_HOSP_PI_HOSP_FAMILY_PLANNING_AND_REPRODUCTIVE_HEALTH_H2jpYmFwOCZ,H2jpYmFwOCZ,programIndicators,Family Planning and Reproductive Health - Recorded Events,FP,service-specific,[],True
+FPPS0001,FPPS0001,DER_HOSP_PS_FAMILY_PLANNING_AND_REPRODUCTI_CONTRACEPTIVE_SERVICE,HbMsmFImk7y,programStages,Contraceptive Service,FP,service-specific,[],True
+FPPS0002,FPPS0002,DER_HOSP_PS_FAMILY_PLANNING_AND_REPRODUCTI_FAMILY_PLANNING_COUNSELLING,HfbzcMkRLJ5,programStages,Family Planning Counselling,FP,service-specific,[],True
+FPPS0003,FPPS0003,DER_HOSP_PS_FAMILY_PLANNING_AND_REPRODUCTI_FAMILY_PLANNING_FOLLOW_UP,HH1Yt253kS6,programStages,Family Planning Follow-up,FP,service-specific,[],True
+GNDE0001,GNDE0001,,m9ZQM3M2Mqm,dataElements,Clinical Notes,GN,cross-cutting,[],True
+GNDE0002,GNDE0002,,z6I0XXAaboV,dataElements,Performed By,GN,cross-cutting,[],True
+GNDE0003,GNDE0003,,QnvZEWCbmQQ,dataElements,Service Point,GN,cross-cutting,[],True
+GNDE0004,GNDE0004,DER_HOSP_DE_CARE_PLAN_STATUS,H2tOHEIt9gK,dataElements,Care plan status,GN,cross-cutting,"['IC', 'MH', 'NU', 'ON']",True
+GNDE0005,GNDE0005,DER_HOSP_DE_CLINICAL_NOTE,HLMwyQQBdAf,dataElements,Clinical note,GN,cross-cutting,"['DN', 'EN', 'ER', 'HV', 'IM', 'NC', 'ON']",True
+GNDE0006,GNDE0006,DER_HOSP_DE_CLINICAL_RESULT,HR2Qy02j3dN,dataElements,Clinical result,GN,cross-cutting,"['AN', 'EN', 'ER', 'HV', 'LB', 'RD']",True
+GNDE0007,GNDE0007,DER_HOSP_DE_CONSENT_STATUS,HsA2ZFIbdsU,dataElements,Consent status,GN,cross-cutting,"['FP', 'MH', 'SU']",True
+GNDE0008,GNDE0008,DER_HOSP_DE_COST_LOCAL_CURRENCY,H9oIuXnPgix,dataElements,Cost (local currency),GN,cross-cutting,[],True
+GNDE0009,GNDE0009,DER_HOSP_DE_COUNSELLING_NOTE,HforjmzzzJB,dataElements,Counselling note,GN,cross-cutting,"['AN', 'FP', 'NU', 'PN']",True
+GNDE0010,GNDE0010,DER_HOSP_DE_DANGER_SIGNS,HPvBbBFljnP,dataElements,Danger signs,GN,cross-cutting,"['AN', 'PN']",True
+GNDE0011,GNDE0011,DER_HOSP_DE_DATE_AND_TIME,HfQAZLBRFdu,dataElements,Date and time,GN,cross-cutting,[],True
+GNDE0012,GNDE0012,DER_HOSP_DE_DIAGNOSIS_CODING_SYSTEM,Hs3mEsESYIj,dataElements,Diagnosis coding system,GN,cross-cutting,[],True
+GNDE0013,GNDE0013,DER_HOSP_DE_ENCOUNTER_DATE,HOzKnEUK7bH,dataElements,Encounter date,GN,cross-cutting,[],True
+GNDE0014,GNDE0014,DER_HOSP_DE_FOLLOW_UP_APPOINTMENT,Hkoa54vbmDm,dataElements,Follow-up appointment,GN,cross-cutting,"['AN', 'DN', 'EY', 'MT', 'NC', 'NU', 'ON', 'RN', 'SU']",True
+GNDE0015,GNDE0015,DER_HOSP_DE_FOLLOW_UP_STATUS,Hq6Pbkre7Ko,dataElements,Follow-up status,GN,cross-cutting,"['FP', 'HV', 'MH', 'PN']",True
+GNDE0016,GNDE0016,DER_HOSP_DE_GESTATIONAL_AGE_WEEKS,H6OENvmxVuN,dataElements,Gestational age weeks,GN,cross-cutting,"['AN', 'MT']",True
+GNDE0017,GNDE0017,DER_HOSP_DE_INVOICE_REFERENCE,H4a9sUCYBvf,dataElements,Invoice reference,GN,cross-cutting,[],True
+GNDE0018,GNDE0018,DER_HOSP_DE_NUTRITION_CLASSIFICATION,HAfhMmKNL4F,dataElements,Nutrition classification,GN,cross-cutting,"['IM', 'NU']",True
+GNDE0019,GNDE0019,DER_HOSP_DE_OUTCOME_DATE,HBJVpiEIwld,dataElements,Outcome date,GN,cross-cutting,"['AN', 'ON', 'TB']",True
+GNDE0020,GNDE0020,DER_HOSP_DE_PAIN_SCORE_0_10,H3U0ZdAyFE6,dataElements,Pain score (0-10),GN,cross-cutting,"['DN', 'ON', 'SU']",True
+GNDE0021,GNDE0021,DER_HOSP_DE_PAYMENT_STATUS,HpcKZ88Sgh4,dataElements,Payment status,GN,cross-cutting,[],True
+GNDE0022,GNDE0022,DER_HOSP_DE_PROCEDURE_CODE,HvzUYvB8nk2,dataElements,Procedure code,GN,cross-cutting,"['DN', 'EN', 'ER', 'EY', 'FP', 'MT', 'ON', 'SU']",True
+GNDE0023,GNDE0023,DER_HOSP_DE_PROCEDURE_CODING_SYSTEM,HuR348A5RLN,dataElements,Procedure coding system,GN,cross-cutting,[],True
+GNDE0024,GNDE0024,DER_HOSP_DE_PROCEDURE_STATUS,HNIImfL98kY,dataElements,Procedure status,GN,cross-cutting,"['DN', 'ER', 'MT', 'ON', 'RD', 'SU']",True
+GNDE0025,GNDE0025,DER_HOSP_DE_QUANTITY,HhjA7rRYhV8,dataElements,Quantity,GN,cross-cutting,"['FP', 'HV']",True
+GNDE0026,GNDE0026,DER_HOSP_DE_RESPIRATORY_RATE_PER_MIN,HoGAHT72rm4,dataElements,Respiratory rate (per min),GN,cross-cutting,[],True
+GNDE0027,GNDE0027,DER_HOSP_DE_RESPONSIBLE_CLINICIAN_IDENTIFIER,HOjILHBAwVW,dataElements,Responsible clinician identifier,GN,cross-cutting,[],True
+GNDE0028,GNDE0028,DER_HOSP_DE_TEMPERATURE_C,HNmwErt7AL9,dataElements,Temperature (C),GN,cross-cutting,[],True
+GNDE0029,GNDE0029,DER_HOSP_DE_TREATMENT_ADHERENCE,HolFauat5Hv,dataElements,Treatment adherence,GN,cross-cutting,"['HV', 'NC', 'TB']",True
+GNDE0030,GNDE0030,DER_HOSP_DE_TREATMENT_ADVERSE_EFFECT,HPbmn75R0G1,dataElements,Treatment adverse effect,GN,cross-cutting,"['ON', 'TB']",True
+GNDE0031,GNDE0031,DER_HOSP_DE_WORKFLOW_STATUS,HeQiQT265bk,dataElements,Workflow status,GN,cross-cutting,[],True
+GNOP0001,ABANDONED,ABANDONED,Hrb4OltbAiW,options,Abandoned,GN,cross-cutting,[],False
+GNOP0002,ABNORMAL,ABNORMAL,H6VKPp3Sc0T,options,Abnormal,GN,cross-cutting,[],False
+GNOP0003,ACTIVE,ACTIVE,HDKaJ2SWADJ,options,Active,GN,cross-cutting,[],False
+GNOP0004,ADMITTED,ADMITTED,HcCnLnBd06B,options,Admitted,GN,cross-cutting,[],False
+GNOP0005,ARRIVED,ARRIVED,H3vkLQKqqOQ,options,Arrived,GN,cross-cutting,[],False
+GNOP0006,CANCELLED,CANCELLED,HI2krfhaats,options,Cancelled,GN,cross-cutting,[],False
+GNOP0007,CANCELLED,CANCELLED,HfJCoWhuAZ8,options,Cancelled,GN,cross-cutting,[],False
+GNOP0008,CANCELLED,CANCELLED,HoH0r8mOdNE,options,Cancelled,GN,cross-cutting,[],False
+GNOP0009,COMPLETED,COMPLETED,H17m7gvTd0Y,options,Completed,GN,cross-cutting,[],False
+GNOP0010,COMPLETED,COMPLETED,H53MrpX4BID,options,Completed,GN,cross-cutting,[],False
+GNOP0011,COMPLETED,COMPLETED,HaKQWQxcJC2,options,Completed,GN,cross-cutting,[],False
+GNOP0012,COMPLETED,COMPLETED,HotJQkC4qxF,options,Completed,GN,cross-cutting,[],False
+GNOP0013,CRITICAL,CRITICAL,HHFu7n9jXaQ,options,Critical,GN,cross-cutting,[],False
+GNOP0014,DECEASED,DECEASED,HBut4c8OvzY,options,Deceased,GN,cross-cutting,[],False
+GNOP0015,DECLINED,DECLINED,HLC1xxGXU6C,options,Declined,GN,cross-cutting,[],False
+GNOP0016,DEFERRED,DEFERRED,H44xDCaASEw,options,Deferred,GN,cross-cutting,[],False
+GNOP0017,DID_NOT_ATTEND,DID_NOT_ATTEND,HT0esxukNbc,options,Did not attend,GN,cross-cutting,[],False
+GNOP0018,DUE,DUE,H1tcWkTD7kh,options,Due,GN,cross-cutting,[],False
+GNOP0019,ECTOPIC,ECTOPIC,H0NLIhMW6Wr,options,Ectopic,GN,cross-cutting,[],False
+GNOP0020,EXEMPT,EXEMPT,H7Akb4KnOUV,options,Exempt,GN,cross-cutting,[],False
+GNOP0021,GIVEN,GIVEN,H3qUr0outw4,options,Given,GN,cross-cutting,[],False
+GNOP0022,GOOD,GOOD,Hv8XB3xk6sh,options,Good,GN,cross-cutting,[],False
+GNOP0023,HOME,HOME,HYK6tMmOJxt,options,Home,GN,cross-cutting,[],False
+GNOP0024,IN_PROGRESS,IN_PROGRESS,HxB6Pi0CYLP,options,In progress,GN,cross-cutting,[],False
+GNOP0025,INDETERMINATE,INDETERMINATE,HwS0A8DPzGb,options,Indeterminate,GN,cross-cutting,[],False
+GNOP0026,LEFT_AGAINST_ADVICE,LEFT_AGAINST_ADVICE,HNHgv0hBvnH,options,Left against advice,GN,cross-cutting,[],False
+GNOP0027,LIVE_BIRTH,LIVE_BIRTH,HvZRkCQgYNy,options,Live birth,GN,cross-cutting,[],False
+GNOP0028,MISCARRIAGE,MISCARRIAGE,HFNFIvfFq86,options,Miscarriage,GN,cross-cutting,[],False
+GNOP0029,MISSED,MISSED,H1mpAOC8xcn,options,Missed,GN,cross-cutting,[],False
+GNOP0030,MODERATE_ACUTE_MALNUTRITION,MODERATE_ACUTE_MALNUTRITION,HVZhhD4FNKQ,options,Moderate acute malnutrition,GN,cross-cutting,[],False
+GNOP0031,NO,NO,H6lTjg4BL79,options,No,GN,cross-cutting,[],False
+GNOP0032,NORMAL,NORMAL,HA6UfgVSUTL,options,Normal,GN,cross-cutting,[],False
+GNOP0033,NORMAL,NORMAL,HqzRx1CNAOx,options,Normal,GN,cross-cutting,[],False
+GNOP0034,NOT_APPLICABLE,NOT_APPLICABLE,H2pK9TdBMky,options,Not applicable,GN,cross-cutting,[],False
+GNOP0035,NOT_PERFORMED,NOT_PERFORMED,H5oR6BFJYpo,options,Not performed,GN,cross-cutting,[],False
+GNOP0036,OBESITY,OBESITY,HlRFjQrYRsK,options,Obesity,GN,cross-cutting,[],False
+GNOP0037,ON_HOLD,ON_HOLD,HNK6Ov9gjAk,options,On hold,GN,cross-cutting,[],False
+GNOP0038,OVERWEIGHT,OVERWEIGHT,HgUIePSTgWM,options,Overweight,GN,cross-cutting,[],False
+GNOP0039,PAID,PAID,Hj5mxHpZFmy,options,Paid,GN,cross-cutting,[],False
+GNOP0040,PARTIAL,PARTIAL,HxMxIqXFDo8,options,Partial,GN,cross-cutting,[],False
+GNOP0041,PARTIALLY_PAID,PARTIALLY_PAID,HSAkPL1UHvt,options,Partially paid,GN,cross-cutting,[],False
+GNOP0042,PENDING,PENDING,HUDD3b1vzKU,options,Pending,GN,cross-cutting,[],False
+GNOP0043,PLANNED,PLANNED,HDOyZbNU93a,options,Planned,GN,cross-cutting,[],False
+GNOP0044,PLANNED,PLANNED,Hk75xESbpBL,options,Planned,GN,cross-cutting,[],False
+GNOP0045,POOR,POOR,H3EGfU65NAI,options,Poor,GN,cross-cutting,[],False
+GNOP0046,REFERRED,REFERRED,HqRvfL9Nogd,options,Referred,GN,cross-cutting,[],False
+GNOP0047,RESCHEDULED,RESCHEDULED,HeM0QBnYe45,options,Rescheduled,GN,cross-cutting,[],False
+GNOP0048,SCHEDULED,SCHEDULED,HEGHor5gCzC,options,Scheduled,GN,cross-cutting,[],False
+GNOP0049,SEVERE_ACUTE_MALNUTRITION,SEVERE_ACUTE_MALNUTRITION,HA8AwNh7KSi,options,Severe acute malnutrition,GN,cross-cutting,[],False
+GNOP0050,STARTED,STARTED,HRv12XU4djf,options,Started,GN,cross-cutting,[],False
+GNOP0051,STILLBIRTH,STILLBIRTH,HIApMJat6TA,options,Stillbirth,GN,cross-cutting,[],False
+GNOP0052,TERMINATION,TERMINATION,H40gwvlReZr,options,Termination,GN,cross-cutting,[],False
+GNOP0053,TRANSFERRED,TRANSFERRED,HXVtVhmJW0i,options,Transferred,GN,cross-cutting,[],False
+GNOP0054,UNBILLED,UNBILLED,HaWM5uqEC7j,options,Unbilled,GN,cross-cutting,[],False
+GNOP0055,UNKNOWN,UNKNOWN,H3vnxJkncUk,options,Unknown,GN,cross-cutting,[],False
+GNOP0056,UNKNOWN,UNKNOWN,HDNbtTkVNWP,options,Unknown,GN,cross-cutting,[],False
+GNOP0057,UNKNOWN,UNKNOWN,HN8xgzvlhpI,options,Unknown,GN,cross-cutting,[],False
+GNOP0058,WITHDRAWN,WITHDRAWN,H7MjvtxrzI2,options,Withdrawn,GN,cross-cutting,[],False
+GNOP0059,YES,YES,H3tAB8NplCG,options,Yes,GN,cross-cutting,[],False
+GNOS0001,GNOS0001,DER_HOSP_OS_CARE_PLAN_STATUS,HcIztD1Gnjp,optionSets,Care Plan Status,GN,cross-cutting,"['IC', 'MH', 'NU', 'ON']",True
+GNOS0002,GNOS0002,DER_HOSP_OS_CLINICAL_RESULT,H6EWZoAgoZl,optionSets,Clinical Result,GN,cross-cutting,"['AN', 'EN', 'ER', 'HV', 'LB', 'RD', 'TB']",True
+GNOS0003,GNOS0003,DER_HOSP_OS_CONSENT_STATUS,Huz7B2tIbfy,optionSets,Consent Status,GN,cross-cutting,"['FP', 'MH', 'SU']",True
+GNOS0004,GNOS0004,DER_HOSP_OS_ENCOUNTER_DISPOSITION,HDeR0sLFEZ1,optionSets,Encounter Disposition,GN,cross-cutting,"['ER', 'MT']",True
+GNOS0005,GNOS0005,DER_HOSP_OS_FOLLOW_UP_STATUS,HqK0NQrB5fc,optionSets,Follow-up Status,GN,cross-cutting,"['FP', 'HV', 'MH', 'PN']",True
+GNOS0006,GNOS0006,DER_HOSP_OS_NUTRITION_CLASSIFICATION,HHhJOVI9bA7,optionSets,Nutrition Classification,GN,cross-cutting,"['IM', 'NU']",True
+GNOS0007,GNOS0007,DER_HOSP_OS_PAYMENT_STATUS,HM1mroUPUeG,optionSets,Payment Status,GN,cross-cutting,[],True
+GNOS0008,GNOS0008,DER_HOSP_OS_PREGNANCY_OUTCOME,HkEKpprVKam,optionSets,Pregnancy Outcome,GN,cross-cutting,"['AN', 'MT']",True
+GNOS0009,GNOS0009,DER_HOSP_OS_PROCEDURE_STATUS,HTkhhRRjKs0,optionSets,Procedure Status,GN,cross-cutting,"['DN', 'ER', 'MT', 'ON', 'RD', 'SU']",True
+GNOS0010,GNOS0010,DER_HOSP_OS_TREATMENT_ADHERENCE,H4M0vWG0BcV,optionSets,Treatment Adherence,GN,cross-cutting,"['HV', 'NC', 'TB']",True
+GNOS0011,GNOS0011,DER_HOSP_OS_VISIT_STATUS,H41kM1yFfvO,optionSets,Visit Status,GN,cross-cutting,[],True
+GNOS0012,GNOS0012,DER_HOSP_OS_YES_NO_UNKNOWN,HWVomD67Yhd,optionSets,Yes No Unknown,GN,cross-cutting,[],True
+HVDE0001,HVDE0001,DER_HOSP_DE_ART_START_DATE,Hb1xJkD6UMa,dataElements,ART start date,HV,service-specific,['HV'],True
+HVDE0002,HVDE0002,DER_HOSP_DE_BASELINE_CLINICAL_STAGE,HnmHd9gj08Z,dataElements,Baseline clinical stage,HV,service-specific,['HV'],True
+HVDE0003,HVDE0003,DER_HOSP_DE_CD4_COUNT,HLmihPnT7yD,dataElements,CD4 count,HV,service-specific,['HV'],True
+HVDE0004,HVDE0004,DER_HOSP_DE_CONFIRMED_DIAGNOSIS_DATE,HGvAjCzoDC0,dataElements,Confirmed diagnosis date,HV,service-specific,['HV'],True
+HVDE0005,HVDE0005,DER_HOSP_DE_NEXT_REVIEW_DATE,HuKR3ReV9eT,dataElements,Next review date,HV,service-specific,['HV'],True
+HVDE0006,HVDE0006,DER_HOSP_DE_SERVICE_DELIVERY_MODEL,H67vn6zfxPy,dataElements,Service delivery model,HV,service-specific,['HV'],True
+HVDE0007,HVDE0007,DER_HOSP_DE_STOCK_TRANSACTION_REFERENCE,HzO3rShQp4Z,dataElements,Stock transaction reference,HV,service-specific,['HV'],True
+HVDE0008,HVDE0008,DER_HOSP_DE_VIRAL_LOAD_COPIES_ML,HZU6FjUbNz0,dataElements,Viral load copies/mL,HV,service-specific,['HV'],True
+HVPG0001,HVPG0001,DER_HOSP_PRG_HIV_CARE_AND_ART,HpJ2ra87Xf0,programs,HIV Care and Antiretroviral Therapy,HV,service-specific,[],True
+HVPI0001,HVPI0001,DER_HOSP_PI_HOSP_HIV_CARE_AND_ART_HMN1bwfhJyU,HMN1bwfhJyU,programIndicators,HIV Care and Antiretroviral Therapy - Recorded Events,HV,service-specific,[],True
+HVPS0001,HVPS0001,DER_HOSP_PS_HIV_CARE_AND_ART_ART_PRESCRIPTION_AND_DISPENSING,Hhz4nu88obt,programStages,ART Prescription and Dispensing,HV,service-specific,[],True
+HVPS0002,HVPS0002,DER_HOSP_PS_HIV_CARE_AND_ART_HIV_CLINICAL_FOLLOW_UP,HqYaulhrhKA,programStages,HIV Clinical Follow-up,HV,service-specific,[],True
+HVPS0003,HVPS0003,DER_HOSP_PS_HIV_CARE_AND_ART_HIV_DIFFERENTIATED_SERVICE_AND_REFE,H6VzuDTfuF5,programStages,HIV Differentiated Service and Referral,HV,service-specific,[],True
+HVPS0004,HVPS0004,DER_HOSP_PS_HIV_CARE_AND_ART_HIV_ENROLLMENT_AND_BASELINE,HYCvUNFxgJL,programStages,HIV Enrollment and Baseline,HV,service-specific,[],True
+HVPS0005,HVPS0005,DER_HOSP_PS_HIV_CARE_AND_ART_HIV_LABORATORY_MONITORING,HOYs7xLLrZF,programStages,HIV Laboratory Monitoring,HV,service-specific,[],True
+ICDE0001,ICDE0001,DER_HOSP_DE_CLOSURE_DATE,HNJWDvtBytk,dataElements,Closure date,IC,service-specific,['IC'],True
+ICDE0002,ICDE0002,DER_HOSP_DE_IPC_EVENT_CLASSIFICATION,HRNyZyN2SXL,dataElements,IPC event classification,IC,service-specific,['IC'],True
+ICDE0003,ICDE0003,DER_HOSP_DE_INCIDENT_DATE,HpBAh1QuHyW,dataElements,Incident date,IC,service-specific,['IC'],True
+ICDE0004,ICDE0004,DER_HOSP_DE_INCIDENT_REFERENCE,H629b3vhoEV,dataElements,Incident reference,IC,service-specific,['IC'],True
+ICDE0005,ICDE0005,DER_HOSP_DE_INTERVENTION_ACTION,HRUj4MrtFKt,dataElements,Intervention action,IC,service-specific,['IC'],True
+ICDE0006,ICDE0006,DER_HOSP_DE_INVESTIGATION_FINDINGS,HV2MRvxYEnB,dataElements,Investigation findings,IC,service-specific,['IC'],True
+ICDE0007,ICDE0007,DER_HOSP_DE_LESSONS_LEARNED,H1ntPYp52kq,dataElements,Lessons learned,IC,service-specific,['IC'],True
+ICDE0008,ICDE0008,DER_HOSP_DE_SERVICE_POINT,H4sglzZg1Xz,dataElements,Service point,IC,service-specific,['IC'],True
+ICPG0001,ICPG0001,DER_HOSP_PRG_HOSPITAL_INFECTION_PREVENTION_AND_CONTROL,HWdmR0B71sB,programs,Hospital Infection Prevention and Control,IC,service-specific,[],True
+ICPI0001,ICPI0001,DER_HOSP_PI_HOSP_HOSPITAL_INFECTION_PREVENTION_AND_CONTROL_Hvdn6uyfEj0,Hvdn6uyfEj0,programIndicators,Hospital Infection Prevention and Control - Recorded Events,IC,service-specific,[],True
+ICPS0001,ICPS0001,DER_HOSP_PS_HOSPITAL_INFECTION_PREVENTION__IPC_CLOSURE_AND_REVIEW,H79TEdoZr6V,programStages,IPC Closure and Review,IC,service-specific,[],True
+ICPS0002,ICPS0002,DER_HOSP_PS_HOSPITAL_INFECTION_PREVENTION__IPC_INCIDENT_NOTIFICATION,H2CLy320GKz,programStages,IPC Incident Notification,IC,service-specific,[],True
+ICPS0003,ICPS0003,DER_HOSP_PS_HOSPITAL_INFECTION_PREVENTION__IPC_INVESTIGATION_AND_MEASURES,HamkNW8Q6mQ,programStages,IPC Investigation and Measures,IC,service-specific,[],True
+IMDE0001,IMDE0001,DER_HOSP_DE_AEFI_CLINICAL_DESCRIPTION,HKDVnwKYOaN,dataElements,AEFI clinical description,IM,service-specific,['IM'],True
+IMDE0002,IMDE0002,DER_HOSP_DE_AEFI_ONSET,HQNXi1Iu45x,dataElements,AEFI onset,IM,service-specific,['IM'],True
+IMDE0003,IMDE0003,DER_HOSP_DE_AEFI_SEVERITY,HOgrwAEKDH6,dataElements,AEFI severity,IM,service-specific,['IM'],True
+IMDE0004,IMDE0004,DER_HOSP_DE_ADMINISTRATION_DATE,Hukxxv8pMuB,dataElements,Administration date,IM,service-specific,['IM'],True
+IMDE0005,IMDE0005,DER_HOSP_DE_BIRTH_DATE_VERIFIED,HsxmENq1Gfu,dataElements,Birth date verified,IM,service-specific,['IM'],True
+IMDE0006,IMDE0006,DER_HOSP_DE_CAREGIVER_IDENTIFIER,HfwPZzlDt9P,dataElements,Caregiver identifier,IM,service-specific,['IM'],True
+IMDE0007,IMDE0007,DER_HOSP_DE_DOSE_SEQUENCE,HEmDhciRSPS,dataElements,Dose sequence,IM,service-specific,['IM'],True
+IMDE0008,IMDE0008,DER_HOSP_DE_DUE_DATE,Hb1oGhC9Jhw,dataElements,Due date,IM,service-specific,['IM'],True
+IMDE0009,IMDE0009,DER_HOSP_DE_VACCINATION_CARD_REFERENCE,H7yePy8QvUY,dataElements,Vaccination card reference,IM,service-specific,['IM'],True
+IMDE0010,IMDE0010,DER_HOSP_DE_VACCINATION_STATUS,Hwgh2Dos7qu,dataElements,Vaccination status,IM,service-specific,['IM'],True
+IMDE0011,IMDE0011,DER_HOSP_DE_VACCINATOR_IDENTIFIER,HyPqT0Zi6UJ,dataElements,Vaccinator identifier,IM,service-specific,['IM'],True
+IMDE0012,IMDE0012,DER_HOSP_DE_VACCINE_ANTIGEN_CODE,HFyQfLyw9HM,dataElements,Vaccine antigen code,IM,service-specific,['IM'],True
+IMDE0013,IMDE0013,DER_HOSP_DE_VACCINE_LOT_NUMBER,Hn8lP1dgCgt,dataElements,Vaccine lot number,IM,service-specific,['IM'],True
+IMOP0001,ADMINISTERED,ADMINISTERED,HtgkeN7pjP0,options,Administered,IM,service-specific,[],False
+IMOP0002,CONTRAINDICATED,CONTRAINDICATED,H3KvMX3Ay4w,options,Contraindicated,IM,service-specific,[],False
+IMOP0003,DEFERRED,DEFERRED,HAjF0SEjX9b,options,Deferred,IM,service-specific,[],False
+IMOP0004,DUE,DUE,H32bU2KSrlQ,options,Due,IM,service-specific,[],False
+IMOP0005,REFUSED,REFUSED,HsWlnynDoYk,options,Refused,IM,service-specific,[],False
+IMOS0001,IMOS0001,DER_HOSP_OS_VACCINATION_STATUS,H1THKCyNriG,optionSets,Vaccination Status,IM,service-specific,['IM'],True
+IMPA0001,IMPA0001,,HxXMlvytM4r,programRuleActions,,IM,service-specific,[],True
+IMPG0001,IMPG0001,DER_HOSP_PRG_CHILD_HEALTH_AND_IMMUNISATION,HhDv3eSyCge,programs,Child Health and Immunisation,IM,service-specific,[],True
+IMPI0001,IMPI0001,DER_HOSP_PI_HOSP_CHILD_HEALTH_AND_IMMUNISATION_HNWB7OMHPmp,HNWB7OMHPmp,programIndicators,Child Health and Immunisation - Recorded Events,IM,service-specific,[],True
+IMPR0001,IMPR0001,,H2NWiMyn8uB,programRules,Weight (kg) warning,IM,service-specific,[],True
+IMPS0001,IMPS0001,DER_HOSP_PS_CHILD_HEALTH_AND_IMMUNISATION_ADVERSE_EVENT_FOLLOWING_IMMUNISATIO,HIYkoswb7gr,programStages,Adverse Event Following Immunisation,IM,service-specific,[],True
+IMPS0002,IMPS0002,DER_HOSP_PS_CHILD_HEALTH_AND_IMMUNISATION_CHILD_CLINICAL_REVIEW_AND_REFERRAL,HYQdoZzooby,programStages,Child Clinical Review and Referral,IM,service-specific,[],True
+IMPS0003,IMPS0003,DER_HOSP_PS_CHILD_HEALTH_AND_IMMUNISATION_CHILD_REGISTRATION_AND_ELIGIBILITY,HNq18uRgv7g,programStages,Child Registration and Eligibility,IM,service-specific,[],True
+IMPS0004,IMPS0004,DER_HOSP_PS_CHILD_HEALTH_AND_IMMUNISATION_GROWTH_AND_NUTRITION_ASSESSMENT,HXnsSR9OBik,programStages,Growth and Nutrition Assessment,IM,service-specific,[],True
+IMPS0005,IMPS0005,DER_HOSP_PS_CHILD_HEALTH_AND_IMMUNISATION_IMMUNISATION_DUE_ASSESSMENT,H4o0GbpdSD6,programStages,Immunisation Due Assessment,IM,service-specific,[],True
+IMPS0006,IMPS0006,DER_HOSP_PS_CHILD_HEALTH_AND_IMMUNISATION_VACCINATION_ADMINISTRATION,HpR9oOgpvTu,programStages,Vaccination Administration,IM,service-specific,[],True
+IMPV0001,IMPV0001,,H6jYfqTx9vN,programRuleVariables,check_5,IM,service-specific,[],True
+IPDE0001,IPDE0001,DER_IPD_ACTUAL_ADMINISTRATION_TIME,DxSmqAkjoQG,dataElements,Actual Administration Time,IP,service-specific,['IP'],True
+IPDE0002,IPDE0002,DER_IPD_ADMINISTERED_BY,D6dh6shUPA4,dataElements,Administered By,IP,service-specific,['IP'],True
+IPDE0003,IPDE0003,DER_IPD_ADMINISTRATION_OUTCOME,DnMJlRhfWGL,dataElements,Administration Outcome,IP,service-specific,['IP'],True
+IPDE0004,IPDE0004,DER_IPD_ADMISSION_DATE_AND_TIME,Dre9M5jHnKA,dataElements,Admission Date and Time,IP,service-specific,['IP'],True
+IPDE0005,IPDE0005,DER_IPD_ADMISSION_DIAGNOSIS,DCYF9fHARKN,dataElements,Admission Diagnosis,IP,service-specific,['IP'],True
+IPDE0006,IPDE0006,DER_IPD_ADMISSION_ID,DNC8mRTqekF,dataElements,Admission ID,IP,service-specific,['IP'],True
+IPDE0007,IPDE0007,DER_IPD_ADMISSION_REQUEST_ID,DrJyo3O3g88,dataElements,Admission Request ID,IP,service-specific,['IP'],True
+IPDE0008,IPDE0008,DER_IPD_ADMISSION_SOURCE,DVy5miCZsNi,dataElements,Admission Source,IP,service-specific,['IP'],True
+IPDE0009,IPDE0009,DER_IPD_ADMITTING_CLINICIAN,DZ7VHPEeXlM,dataElements,Admitting Clinician,IP,service-specific,['IP'],True
+IPDE0010,IPDE0010,DER_IPD_ADVERSE_REACTION,DAXReIeVeQP,dataElements,Adverse Reaction,IP,service-specific,['IP'],True
+IPDE0011,IPDE0011,DER_IPD_AIRWAY_STATUS,DC3FzE7gqdu,dataElements,Airway Status,IP,service-specific,['IP'],True
+IPDE0012,IPDE0012,DER_IPD_ALLERGY_DESCRIPTION,DpVIgDLgynU,dataElements,Allergy Description,IP,service-specific,['IP'],True
+IPDE0013,IPDE0013,DER_IPD_ANESTHESIA_TYPE,DXGBxeHNcZf,dataElements,Anesthesia Type,IP,service-specific,['IP'],True
+IPDE0014,IPDE0014,DER_IPD_ASSESSMENT_SUMMARY,DPQphXAypfG,dataElements,Assessment Summary,IP,service-specific,['IP'],True
+IPDE0015,IPDE0015,DER_IPD_ASSESSMENT_TIME,DRhBI3R5D5z,dataElements,Assessment Time,IP,service-specific,['IP'],True
+IPDE0016,IPDE0016,DER_IPD_ASSIGNED_BED,DzPtHSQZtkb,dataElements,Assigned Bed,IP,service-specific,['IP'],True
+IPDE0017,IPDE0017,DER_IPD_ASSIGNED_WARD,DuI8S52cHf9,dataElements,Assigned Ward,IP,service-specific,['IP'],True
+IPDE0018,IPDE0018,DER_IPD_AUTHORISING_CLINICIAN,D8Kft5YLr9K,dataElements,Authorising Clinician,IP,service-specific,['IP'],True
+IPDE0019,IPDE0019,DER_IPD_BATCH_NUMBER,DyEcFA6VeLm,dataElements,Batch Number,IP,service-specific,['IP'],True
+IPDE0020,IPDE0020,DER_IPD_BED_REQUEST_TIME,DFQ9aZ2yqbH,dataElements,Bed Request Time,IP,service-specific,['IP'],True
+IPDE0021,IPDE0021,DER_IPD_BLOOD_PRODUCT_CODE,Drl9zkhWm4I,dataElements,Blood Product Code,IP,service-specific,['IP'],True
+IPDE0022,IPDE0022,DER_IPD_BLOOD_UNIT_IDENTIFIER,DpyDF7QZTRJ,dataElements,Blood Unit Identifier,IP,service-specific,['IP'],True
+IPDE0023,IPDE0023,DER_IPD_BODY_REGION,DjeosQhq9tg,dataElements,Body Region,IP,service-specific,['IP'],True
+IPDE0024,IPDE0024,DER_IPD_BOOKING_OUTCOME,DbD1fWoQ15v,dataElements,Booking Outcome,IP,service-specific,['IP'],True
+IPDE0025,IPDE0025,DER_IPD_CARE_GOAL,D4LTX5nbz6Q,dataElements,Care Goal,IP,service-specific,['IP'],True
+IPDE0026,IPDE0026,DER_IPD_CARE_PLAN,DAhFd3WjfHp,dataElements,Care Plan,IP,service-specific,['IP'],True
+IPDE0027,IPDE0027,DER_IPD_CAREGIVER_INSTRUCTIONS,DbNG7JMXzmX,dataElements,Caregiver Instructions,IP,service-specific,['IP'],True
+IPDE0028,IPDE0028,DER_IPD_CAUSE_OF_DEATH_SUMMARY,D4mRvIL3r5o,dataElements,Cause of Death Summary,IP,service-specific,['IP'],True
+IPDE0029,IPDE0029,DER_IPD_CERTIFYING_CLINICIAN,DnmBNs8rmBO,dataElements,Certifying Clinician,IP,service-specific,['IP'],True
+IPDE0030,IPDE0030,DER_IPD_CHARGE_AMOUNT,DEohe8LJX4C,dataElements,Charge Amount,IP,service-specific,['IP'],True
+IPDE0031,IPDE0031,DER_IPD_CHARGE_ID,DdPnnsi3b1f,dataElements,Charge ID,IP,service-specific,['IP'],True
+IPDE0032,IPDE0032,DER_IPD_CHARGE_ITEM_CODE,DybunE5Evaj,dataElements,Charge Item Code,IP,service-specific,['IP'],True
+IPDE0033,IPDE0033,DER_IPD_CHARGE_SOURCE_EVENT_ID,D09mGDJrSxd,dataElements,Charge Source Event ID,IP,service-specific,['IP'],True
+IPDE0034,IPDE0034,DER_IPD_CLAIM_REFERENCE,DX2egjemTmB,dataElements,Claim Reference,IP,service-specific,['IP'],True
+IPDE0035,IPDE0035,DER_IPD_CLINICAL_INDICATION,DORlgBBHc5M,dataElements,Clinical Indication,IP,service-specific,['IP'],True
+IPDE0036,IPDE0036,DER_IPD_CLINICAL_OPINION,DWelAFiQmD3,dataElements,Clinical Opinion,IP,service-specific,['IP'],True
+IPDE0037,IPDE0037,DER_IPD_CLINICAL_PRIORITY,DQrjVhLWbo4,dataElements,Clinical Priority,IP,service-specific,['IP'],True
+IPDE0038,IPDE0038,DER_IPD_COLLECTION_TIME,DmOfViFTplI,dataElements,Collection Time,IP,service-specific,['IP'],True
+IPDE0039,IPDE0039,DER_IPD_COLLECTOR_ID,DX4DbePXcUz,dataElements,Collector ID,IP,service-specific,['IP'],True
+IPDE0040,IPDE0040,DER_IPD_COMPATIBILITY_RESULT,DpquD7PeBi4,dataElements,Compatibility Result,IP,service-specific,['IP'],True
+IPDE0041,IPDE0041,DER_IPD_COMPLICATION_IDENTIFIED,DNX73q14FVQ,dataElements,Complication Identified,IP,service-specific,['IP'],True
+IPDE0042,IPDE0042,DER_IPD_COMPLICATIONS,DBktLK0qmBY,dataElements,Complications,IP,service-specific,['IP'],True
+IPDE0043,IPDE0043,DER_IPD_CONSENT_STATUS,DdAdNnoEh9M,dataElements,Consent Status,IP,service-specific,['IP'],True
+IPDE0044,IPDE0044,DER_IPD_CONSULTANT_ID,DeWKMKUre5h,dataElements,Consultant ID,IP,service-specific,['IP'],True
+IPDE0045,IPDE0045,DER_IPD_CONSULTATION_DATE_TIME,DYrfjZZsqnx,dataElements,Consultation Date Time,IP,service-specific,['IP'],True
+IPDE0046,IPDE0046,DER_IPD_CONSULTATION_REQUEST_ID,DDdQFlPW1Fd,dataElements,Consultation Request ID,IP,service-specific,['IP'],True
+IPDE0047,IPDE0047,DER_IPD_CRITICAL_CARE_PLAN,DxHhhF255tP,dataElements,Critical Care Plan,IP,service-specific,['IP'],True
+IPDE0048,IPDE0048,DER_IPD_CRITICAL_RESULT_ALERT,Djia2zAUWDV,dataElements,Critical Result Alert,IP,service-specific,['IP'],True
+IPDE0049,IPDE0049,DER_IPD_CURRENCY_CODE,DzYNpCAboKu,dataElements,Currency Code,IP,service-specific,['IP'],True
+IPDE0050,IPDE0050,DER_IPD_CURRENT_MEDICINES,DTauYcF8n80,dataElements,Current Medicines,IP,service-specific,['IP'],True
+IPDE0051,IPDE0051,DER_IPD_DATE_TIME_OF_DEATH,DVx1UFeXXdI,dataElements,Date Time of Death,IP,service-specific,['IP'],True
+IPDE0052,IPDE0052,DER_IPD_DEATH_CERTIFICATION_REFERENCE,DZbZRzFkOmC,dataElements,Death Certification Reference,IP,service-specific,['IP'],True
+IPDE0053,IPDE0053,DER_IPD_DIAGNOSIS_CLASSIFICATION,DMQjrQIJfXN,dataElements,Diagnosis Classification,IP,service-specific,['IP'],True
+IPDE0054,IPDE0054,DER_IPD_DIAGNOSIS_CODE,D5WnYtuRP8g,dataElements,Diagnosis Code,IP,service-specific,['IP'],True
+IPDE0055,IPDE0055,DER_IPD_DIAGNOSIS_DESCRIPTION,DffxxwQxsDG,dataElements,Diagnosis Description,IP,service-specific,['IP'],True
+IPDE0056,IPDE0056,DER_IPD_DIAGNOSIS_ONSET_DATE,DSnQRw2NveT,dataElements,Diagnosis Onset Date,IP,service-specific,['IP'],True
+IPDE0057,IPDE0057,DER_IPD_DIAGNOSIS_STATUS,DMO4lBa3uaJ,dataElements,Diagnosis Status,IP,service-specific,['IP'],True
+IPDE0058,IPDE0058,DER_IPD_DIASTOLIC_BP,Dp6AuEYtWBb,dataElements,Diastolic BP,IP,service-specific,['IP'],True
+IPDE0059,IPDE0059,DER_IPD_DISCHARGE_BARRIERS,DuW3f9TpmfI,dataElements,Discharge Barriers,IP,service-specific,['IP'],True
+IPDE0060,IPDE0060,DER_IPD_DISCHARGE_CONDITION,DFiRwYJSjT6,dataElements,Discharge Condition,IP,service-specific,['IP'],True
+IPDE0061,IPDE0061,DER_IPD_DISCHARGE_DATE_TIME,DANZ5KUnaEh,dataElements,Discharge Date Time,IP,service-specific,['IP'],True
+IPDE0062,IPDE0062,DER_IPD_DISCHARGE_EDUCATION,DjRp7u2qaJK,dataElements,Discharge Education,IP,service-specific,['IP'],True
+IPDE0063,IPDE0063,DER_IPD_DISCHARGE_MEDICINES,DB3jEbm3ohB,dataElements,Discharge Medicines,IP,service-specific,['IP'],True
+IPDE0064,IPDE0064,DER_IPD_DISPENSING_ID,D7jSMoO3SjA,dataElements,Dispensing ID,IP,service-specific,['IP'],True
+IPDE0065,IPDE0065,DER_IPD_DISPOSITION,DFMGbyG2NC7,dataElements,Disposition,IP,service-specific,['IP'],True
+IPDE0066,IPDE0066,DER_IPD_DOSE,DoU19EvZeMM,dataElements,Dose,IP,service-specific,['IP'],True
+IPDE0067,IPDE0067,DER_IPD_DOSE_ADMINISTERED,DoBn0gGH0FV,dataElements,Dose Administered,IP,service-specific,['IP'],True
+IPDE0068,IPDE0068,DER_IPD_DOSE_UNIT,DMxFe3L2qA1,dataElements,Dose Unit,IP,service-specific,['IP'],True
+IPDE0069,IPDE0069,DER_IPD_EARLY_WARNING_SCORE,DpFR0gg4KEE,dataElements,Early Warning Score,IP,service-specific,['IP'],True
+IPDE0070,IPDE0070,DER_IPD_ENCOUNTER_ID,DDNP5OKSrkb,dataElements,Encounter ID,IP,service-specific,['IP'],True
+IPDE0071,IPDE0071,DER_IPD_END_DATE_TIME,DYBJwCNxQAa,dataElements,End Date Time,IP,service-specific,['IP'],True
+IPDE0072,IPDE0072,DER_IPD_ESCALATION_ACTION,DEZeGab7vKU,dataElements,Escalation Action,IP,service-specific,['IP'],True
+IPDE0073,IPDE0073,DER_IPD_ESCALATION_LEVEL,DL9d2VgggwN,dataElements,Escalation Level,IP,service-specific,['IP'],True
+IPDE0074,IPDE0074,DER_IPD_ESCALATION_TIME,DRENB14Jb9T,dataElements,Escalation Time,IP,service-specific,['IP'],True
+IPDE0075,IPDE0075,DER_IPD_ESCALATION_TRIGGER,Dll8Nrq8vcO,dataElements,Escalation Trigger,IP,service-specific,['IP'],True
+IPDE0076,IPDE0076,DER_IPD_ESTIMATED_DISCHARGE_DATE,D7CTyM29xJE,dataElements,Estimated Discharge Date,IP,service-specific,['IP'],True
+IPDE0077,IPDE0077,DER_IPD_EXPIRY_DATE,DkSBJRAsoCe,dataElements,Expiry Date,IP,service-specific,['IP'],True
+IPDE0078,IPDE0078,DER_IPD_FALL_RISK,Dq04BXrrKim,dataElements,Fall Risk,IP,service-specific,['IP'],True
+IPDE0079,IPDE0079,DER_IPD_FAMILY_NOTIFIED,DOMSODJJ94B,dataElements,Family Notified,IP,service-specific,['IP'],True
+IPDE0080,IPDE0080,DER_IPD_FINAL_DIAGNOSIS,D7s7nfMaN9w,dataElements,Final Diagnosis,IP,service-specific,['IP'],True
+IPDE0081,IPDE0081,DER_IPD_FINANCIAL_CLEARANCE_STATUS,DEnHdWBFtgd,dataElements,Financial Clearance Status,IP,service-specific,['IP'],True
+IPDE0082,IPDE0082,DER_IPD_FLUID_BALANCE_NOTE,DDyXvBBahMq,dataElements,Fluid Balance Note,IP,service-specific,['IP'],True
+IPDE0083,IPDE0083,DER_IPD_FLUID_TYPE,D9FUGElcSTh,dataElements,Fluid Type,IP,service-specific,['IP'],True
+IPDE0084,IPDE0084,DER_IPD_FOLLOW_UP_APPOINTMENT,Dlj1Db6zjwb,dataElements,Follow Up Appointment,IP,service-specific,['IP'],True
+IPDE0085,IPDE0085,DER_IPD_FOLLOW_UP_DATE,DoSvAON9J4N,dataElements,Follow Up Date,IP,service-specific,['IP'],True
+IPDE0086,IPDE0086,DER_IPD_FOLLOW_UP_OUTCOME,DoxUfYQTBEi,dataElements,Follow Up Outcome,IP,service-specific,['IP'],True
+IPDE0087,IPDE0087,DER_IPD_FOLLOW_UP_PLAN,D21ylVuFEwj,dataElements,Follow Up Plan,IP,service-specific,['IP'],True
+IPDE0088,IPDE0088,DER_IPD_FOLLOW_UP_REQUIRED,DSnAPHDEcH1,dataElements,Follow Up Required,IP,service-specific,['IP'],True
+IPDE0089,IPDE0089,DER_IPD_FREQUENCY,DZ67oIMZXmC,dataElements,Frequency,IP,service-specific,['IP'],True
+IPDE0090,IPDE0090,DER_IPD_FROM_BED,DOa86wJIGzI,dataElements,From Bed,IP,service-specific,['IP'],True
+IPDE0091,IPDE0091,DER_IPD_FROM_WARD,DPU8oGvWrl7,dataElements,From Ward,IP,service-specific,['IP'],True
+IPDE0092,IPDE0092,DER_IPD_GLASGOW_COMA_SCORE,Ddk5oERPQLY,dataElements,Glasgow Coma Score,IP,service-specific,['IP'],True
+IPDE0093,IPDE0093,DER_IPD_HANDOVER_COMPLETED,D7wBUvdxcJe,dataElements,Handover Completed,IP,service-specific,['IP'],True
+IPDE0094,IPDE0094,DER_IPD_HANDOVER_SUMMARY,DdHd3t7q4A0,dataElements,Handover Summary,IP,service-specific,['IP'],True
+IPDE0095,IPDE0095,DER_IPD_HANDOVER_TIME,DaLWscER5cF,dataElements,Handover Time,IP,service-specific,['IP'],True
+IPDE0096,IPDE0096,DER_IPD_HISTORY_OF_PRESENT_ILLNESS,D1t1kqqhSXy,dataElements,History of Present Illness,IP,service-specific,['IP'],True
+IPDE0097,IPDE0097,DER_IPD_HOME_MEDICATION_DOSE,D3ieoJzhxjs,dataElements,Home Medication Dose,IP,service-specific,['IP'],True
+IPDE0098,IPDE0098,DER_IPD_HOME_MEDICATION_FREQUENCY,DGdzqU8BwJO,dataElements,Home Medication Frequency,IP,service-specific,['IP'],True
+IPDE0099,IPDE0099,DER_IPD_HOME_MEDICINES,Du49YPBQEcZ,dataElements,Home Medicines,IP,service-specific,['IP'],True
+IPDE0100,IPDE0100,DER_IPD_IDENTITY_VERIFIED,DUdbTVrwvKT,dataElements,Identity Verified,IP,service-specific,['IP'],True
+IPDE0101,IPDE0101,DER_IPD_IMAGING_MODALITY,DavmLJlsZIB,dataElements,Imaging Modality,IP,service-specific,['IP'],True
+IPDE0102,IPDE0102,DER_IPD_IMAGING_REQUEST_ID,D8zq2xHQ9Ji,dataElements,Imaging Request ID,IP,service-specific,['IP'],True
+IPDE0103,IPDE0103,DER_IPD_INFECTION_CONTROL_ACTION,Dn5zjMCBASb,dataElements,Infection Control Action,IP,service-specific,['IP'],True
+IPDE0104,IPDE0104,DER_IPD_INFECTION_CONTROL_REVIEW,Dy22ofRsMri,dataElements,Infection Control Review,IP,service-specific,['IP'],True
+IPDE0105,IPDE0105,DER_IPD_INFECTION_RISK,DDtsXFF0vCu,dataElements,Infection Risk,IP,service-specific,['IP'],True
+IPDE0106,IPDE0106,DER_IPD_INFUSION_ORDER_ID,DbDZI7IpztJ,dataElements,Infusion Order ID,IP,service-specific,['IP'],True
+IPDE0107,IPDE0107,DER_IPD_INFUSION_RATE_ML_PER_HOUR,DY5aqpYnM97,dataElements,Infusion Rate ML Per Hour,IP,service-specific,['IP'],True
+IPDE0108,IPDE0108,DER_IPD_INTAKE_TYPE,DLaZkOBEoVd,dataElements,Intake Type,IP,service-specific,['IP'],True
+IPDE0109,IPDE0109,DER_IPD_INTAKE_VOLUME_ML,DXTLd66tV3f,dataElements,Intake Volume ML,IP,service-specific,['IP'],True
+IPDE0110,IPDE0110,DER_IPD_INTERVENTION,D8Y6Gvycqxm,dataElements,Intervention,IP,service-specific,['IP'],True
+IPDE0111,IPDE0111,DER_IPD_INTERVENTION_DATE_TIME,DIJ2AbKdD1s,dataElements,Intervention Date Time,IP,service-specific,['IP'],True
+IPDE0112,IPDE0112,DER_IPD_INVOICE_ID,DI1M8PDucqe,dataElements,Invoice ID,IP,service-specific,['IP'],True
+IPDE0113,IPDE0113,DER_IPD_ISOLATION_END,DUgGEcdno9b,dataElements,Isolation End,IP,service-specific,['IP'],True
+IPDE0114,IPDE0114,DER_IPD_ISOLATION_START,DNk1PfuKhDj,dataElements,Isolation Start,IP,service-specific,['IP'],True
+IPDE0115,IPDE0115,DER_IPD_ISOLATION_TYPE,DQuHsihLvrF,dataElements,Isolation Type,IP,service-specific,['IP'],True
+IPDE0116,IPDE0116,DER_IPD_LABORATORY_REQUEST_ID,DxQAS2lsvWZ,dataElements,Laboratory Request ID,IP,service-specific,['IP'],True
+IPDE0117,IPDE0117,DER_IPD_MEASUREMENT_TIME,DfD3yWBTG0H,dataElements,Measurement Time,IP,service-specific,['IP'],True
+IPDE0118,IPDE0118,DER_IPD_MEDICATION_NAME,DCabfiPOhyq,dataElements,Medication Name,IP,service-specific,['IP'],True
+IPDE0119,IPDE0119,DER_IPD_MEDICATION_ORDER_ID,DEbN8CU5mEB,dataElements,Medication Order ID,IP,service-specific,['IP'],True
+IPDE0120,IPDE0120,DER_IPD_MEDICATION_RECONCILIATION_ACTION,DlW05r3Rlbw,dataElements,Medication Reconciliation Action,IP,service-specific,['IP'],True
+IPDE0121,IPDE0121,DER_IPD_MEDICINE_CODE,DHGPWHGVSo2,dataElements,Medicine Code,IP,service-specific,['IP'],True
+IPDE0122,IPDE0122,DER_IPD_MEDICINE_NAME,DHorACimDai,dataElements,Medicine Name,IP,service-specific,['IP'],True
+IPDE0123,IPDE0123,DER_IPD_MORTUARY_TRANSFER_REFERENCE,DPi9bVK2zBK,dataElements,Mortuary Transfer Reference,IP,service-specific,['IP'],True
+IPDE0124,IPDE0124,DER_IPD_NEXT_OF_KIN_CONTACT,Dv65KpkJZSU,dataElements,Next of Kin Contact,IP,service-specific,['IP'],True
+IPDE0125,IPDE0125,DER_IPD_NURSING_CARE_NEEDS,DDApfmuqEor,dataElements,Nursing Care Needs,IP,service-specific,['IP'],True
+IPDE0126,IPDE0126,DER_IPD_NURSING_INTERVENTION,D563mEfyTFk,dataElements,Nursing Intervention,IP,service-specific,['IP'],True
+IPDE0127,IPDE0127,DER_IPD_NURSING_PROBLEM,DEIXAe53z1r,dataElements,Nursing Problem,IP,service-specific,['IP'],True
+IPDE0128,IPDE0128,DER_IPD_OBSERVATION_TIME,DxqocYI26M1,dataElements,Observation Time,IP,service-specific,['IP'],True
+IPDE0129,IPDE0129,DER_IPD_OMISSION_REASON,DGlgoGB9fEh,dataElements,Omission Reason,IP,service-specific,['IP'],True
+IPDE0130,IPDE0130,DER_IPD_OPERATION_NOTES,DG8PYdSrTJG,dataElements,Operation Notes,IP,service-specific,['IP'],True
+IPDE0131,IPDE0131,DER_IPD_ORIGINATING_OPD_EVENT_ID,DL2Yot0DUK1,dataElements,Originating OPD Event ID,IP,service-specific,['IP'],True
+IPDE0132,IPDE0132,DER_IPD_OUTPUT_TYPE,DTxukn7zeVJ,dataElements,Output Type,IP,service-specific,['IP'],True
+IPDE0133,IPDE0133,DER_IPD_OUTPUT_VOLUME_ML,DDEAaiDSkJV,dataElements,Output Volume ML,IP,service-specific,['IP'],True
+IPDE0134,IPDE0134,DER_IPD_OXYGEN_DELIVERY,DDxhd2qmpuA,dataElements,Oxygen Delivery,IP,service-specific,['IP'],True
+IPDE0135,IPDE0135,DER_IPD_OXYGEN_SATURATION_PERCENT,DxNmkHVjP2C,dataElements,Oxygen Saturation Percent,IP,service-specific,['IP'],True
+IPDE0136,IPDE0136,DER_IPD_PAIN_SCORE,DgZy6I35Hj9,dataElements,Pain Score,IP,service-specific,['IP'],True
+IPDE0137,IPDE0137,DER_IPD_PAST_MEDICAL_HISTORY,DGqraeKX8Nl,dataElements,Past Medical History,IP,service-specific,['IP'],True
+IPDE0138,IPDE0138,DER_IPD_PAYER_TYPE,Dr05H55YYAM,dataElements,Payer Type,IP,service-specific,['IP'],True
+IPDE0139,IPDE0139,DER_IPD_PAYMENT_AMOUNT,DD9V0HQKeRd,dataElements,Payment Amount,IP,service-specific,['IP'],True
+IPDE0140,IPDE0140,DER_IPD_PAYMENT_METHOD,D7ue7VsW3Y8,dataElements,Payment Method,IP,service-specific,['IP'],True
+IPDE0141,IPDE0141,DER_IPD_PAYMENT_REFERENCE,DUkp4g6HchT,dataElements,Payment Reference,IP,service-specific,['IP'],True
+IPDE0142,IPDE0142,DER_IPD_PAYMENT_STATUS,DNcmcf97YsA,dataElements,Payment Status,IP,service-specific,['IP'],True
+IPDE0143,IPDE0143,DER_IPD_PHARMACIST_ID,DbSVRiTTzIw,dataElements,Pharmacist ID,IP,service-specific,['IP'],True
+IPDE0144,IPDE0144,DER_IPD_PHYSICAL_EXAMINATION,DmdiZKf5nt6,dataElements,Physical Examination,IP,service-specific,['IP'],True
+IPDE0145,IPDE0145,DER_IPD_POSTOPERATIVE_DIAGNOSIS,DzG80BHgAkw,dataElements,Postoperative Diagnosis,IP,service-specific,['IP'],True
+IPDE0146,IPDE0146,DER_IPD_PREOPERATIVE_DIAGNOSIS,DlSYDuvuyGG,dataElements,Preoperative Diagnosis,IP,service-specific,['IP'],True
+IPDE0147,IPDE0147,DER_IPD_PRESCRIBER,DkbZDOz3HBt,dataElements,Prescriber,IP,service-specific,['IP'],True
+IPDE0148,IPDE0148,DER_IPD_PRESCRIPTION_ID,DI91djvTJMz,dataElements,Prescription ID,IP,service-specific,['IP'],True
+IPDE0149,IPDE0149,DER_IPD_PRESENTING_CONCERNS,DGM3apKe27d,dataElements,Presenting Concerns,IP,service-specific,['IP'],True
+IPDE0150,IPDE0150,DER_IPD_PRESSURE_INJURY_RISK,DKvAUyX5lHV,dataElements,Pressure Injury Risk,IP,service-specific,['IP'],True
+IPDE0151,IPDE0151,DER_IPD_PROCEDURE_CLINICIAN,DU5mktB9enB,dataElements,Procedure Clinician,IP,service-specific,['IP'],True
+IPDE0152,IPDE0152,DER_IPD_PROCEDURE_CODE,DWBHS3TkNJr,dataElements,Procedure Code,IP,service-specific,['IP'],True
+IPDE0153,IPDE0153,DER_IPD_PROCEDURE_DATE_TIME,DhGcOvoNkCP,dataElements,Procedure Date Time,IP,service-specific,['IP'],True
+IPDE0154,IPDE0154,DER_IPD_PROCEDURE_ID,D9t7TupfehE,dataElements,Procedure ID,IP,service-specific,['IP'],True
+IPDE0155,IPDE0155,DER_IPD_PROCEDURE_NAME,DkE90vyW1Fr,dataElements,Procedure Name,IP,service-specific,['IP'],True
+IPDE0156,IPDE0156,DER_IPD_PROCEDURE_NOTES,DghHheSzexh,dataElements,Procedure Notes,IP,service-specific,['IP'],True
+IPDE0157,IPDE0157,DER_IPD_PROCEDURE_OUTCOME,Da2iteHqRqQ,dataElements,Procedure Outcome,IP,service-specific,['IP'],True
+IPDE0158,IPDE0158,DER_IPD_PROCEDURES_SUMMARY,DEoaZK9p7v3,dataElements,Procedures Summary,IP,service-specific,['IP'],True
+IPDE0159,IPDE0159,DER_IPD_PROGRESS_NOTE,D2R2HB8E6Q1,dataElements,Progress Note,IP,service-specific,['IP'],True
+IPDE0160,IPDE0160,DER_IPD_PROGRESS_SOAP_ASSESSMENT,D0uJsn7FwsD,dataElements,Progress SOAP Assessment,IP,service-specific,['IP'],True
+IPDE0161,IPDE0161,DER_IPD_PROGRESS_SOAP_OBJECTIVE,DgzHOVdlomf,dataElements,Progress SOAP Objective,IP,service-specific,['IP'],True
+IPDE0162,IPDE0162,DER_IPD_PROGRESS_SOAP_PLAN,DDmjgiqb6UD,dataElements,Progress SOAP Plan,IP,service-specific,['IP'],True
+IPDE0163,IPDE0163,DER_IPD_PROGRESS_SOAP_SUBJECTIVE,DL7frQLAxia,dataElements,Progress SOAP Subjective,IP,service-specific,['IP'],True
+IPDE0164,IPDE0164,DER_IPD_PROPOSED_ADMISSION_TYPE,Dyr8dL2Y9J9,dataElements,Proposed Admission Type,IP,service-specific,['IP'],True
+IPDE0165,IPDE0165,DER_IPD_PULSE_PER_MINUTE,DrKAlXKu7XY,dataElements,Pulse Per Minute,IP,service-specific,['IP'],True
+IPDE0166,IPDE0166,DER_IPD_QUANTITY_ISSUED,DpkwJ9wccYR,dataElements,Quantity Issued,IP,service-specific,['IP'],True
+IPDE0167,IPDE0167,DER_IPD_QUANTITY_ORDERED,DzkCvZ9wZea,dataElements,Quantity Ordered,IP,service-specific,['IP'],True
+IPDE0168,IPDE0168,DER_IPD_READMISSION_REFERENCE,DBLfiA3Jh2s,dataElements,Readmission Reference,IP,service-specific,['IP'],True
+IPDE0169,IPDE0169,DER_IPD_REASON_FOR_ADMISSION,DSIzsDNtugi,dataElements,Reason for Admission,IP,service-specific,['IP'],True
+IPDE0170,IPDE0170,DER_IPD_REASON_FOR_CONSULTATION,DbNZN1zO0LQ,dataElements,Reason for Consultation,IP,service-specific,['IP'],True
+IPDE0171,IPDE0171,DER_IPD_RECEIVING_CONTACT,DG8EVlqrgS1,dataElements,Receiving Contact,IP,service-specific,['IP'],True
+IPDE0172,IPDE0172,DER_IPD_RECEIVING_FACILITY,DA51S3BsLy7,dataElements,Receiving Facility,IP,service-specific,['IP'],True
+IPDE0173,IPDE0173,DER_IPD_RECEIVING_STAFF,DstUXScTl9H,dataElements,Receiving Staff,IP,service-specific,['IP'],True
+IPDE0174,IPDE0174,DER_IPD_RECOMMENDATIONS,DtiXTwV652V,dataElements,Recommendations,IP,service-specific,['IP'],True
+IPDE0175,IPDE0175,DER_IPD_RECONCILIATION_REASON,DbI6DHnzP4r,dataElements,Reconciliation Reason,IP,service-specific,['IP'],True
+IPDE0176,IPDE0176,DER_IPD_RECORDED_BY,DoDZTfB0c1m,dataElements,Recorded By,IP,service-specific,['IP'],True
+IPDE0177,IPDE0177,DER_IPD_RECOVERY_DISPOSITION,DPynJvqE7pz,dataElements,Recovery Disposition,IP,service-specific,['IP'],True
+IPDE0178,IPDE0178,DER_IPD_RECOVERY_SCORE,DDMiUEUXlKq,dataElements,Recovery Score,IP,service-specific,['IP'],True
+IPDE0179,IPDE0179,DER_IPD_RECOVERY_START_TIME,DLVxECG6BJj,dataElements,Recovery Start Time,IP,service-specific,['IP'],True
+IPDE0180,IPDE0180,DER_IPD_REFERENCE_RANGE,DckumxbIQLZ,dataElements,Reference Range,IP,service-specific,['IP'],True
+IPDE0181,IPDE0181,DER_IPD_REFERRAL_ID,D4rjnVunoyg,dataElements,Referral ID,IP,service-specific,['IP'],True
+IPDE0182,IPDE0182,DER_IPD_REFERRAL_PRIORITY,DvVmV719igh,dataElements,Referral Priority,IP,service-specific,['IP'],True
+IPDE0183,IPDE0183,DER_IPD_REFERRAL_REASON,D3qa8UNFIX3,dataElements,Referral Reason,IP,service-specific,['IP'],True
+IPDE0184,IPDE0184,DER_IPD_REFERRAL_STATUS,DUMnweveXbP,dataElements,Referral Status,IP,service-specific,['IP'],True
+IPDE0185,IPDE0185,DER_IPD_REFERRED_FROM,DActECf9YNH,dataElements,Referred From,IP,service-specific,['IP'],True
+IPDE0186,IPDE0186,DER_IPD_REPORT_FINDINGS,DwoOHquutuY,dataElements,Report Findings,IP,service-specific,['IP'],True
+IPDE0187,IPDE0187,DER_IPD_REPORT_IMPRESSION,DdG5uSS6nT7,dataElements,Report Impression,IP,service-specific,['IP'],True
+IPDE0188,IPDE0188,DER_IPD_REPORTING_CLINICIAN,D9NnzyDjz6T,dataElements,Reporting Clinician,IP,service-specific,['IP'],True
+IPDE0189,IPDE0189,DER_IPD_REQUEST_TIME,D2zpchuGIuv,dataElements,Request Time,IP,service-specific,['IP'],True
+IPDE0190,IPDE0190,DER_IPD_REQUESTED_WARD,DFyK8hIj76S,dataElements,Requested Ward,IP,service-specific,['IP'],True
+IPDE0191,IPDE0191,DER_IPD_RESPIRATORY_RATE_PER_MINUTE,DspxlHyMCLb,dataElements,Respiratory Rate Per Minute,IP,service-specific,['IP'],True
+IPDE0192,IPDE0192,DER_IPD_RESPONSE_TO_CARE,DUKycEEOHD9,dataElements,Response to Care,IP,service-specific,['IP'],True
+IPDE0193,IPDE0193,DER_IPD_RESPONSIBLE_CLINICIAN,DbmKC7DN1dc,dataElements,Responsible Clinician,IP,service-specific,['IP'],True
+IPDE0194,IPDE0194,DER_IPD_RESPONSIBLE_NURSE,DBHJn9HAiIG,dataElements,Responsible Nurse,IP,service-specific,['IP'],True
+IPDE0195,IPDE0195,DER_IPD_RESULT_INTERPRETATION,DhTjKtnYcJY,dataElements,Result Interpretation,IP,service-specific,['IP'],True
+IPDE0196,IPDE0196,DER_IPD_RESULT_TIME,DbtcOhNadMq,dataElements,Result Time,IP,service-specific,['IP'],True
+IPDE0197,IPDE0197,DER_IPD_RESULT_UNIT,Dtfp6FakCse,dataElements,Result Unit,IP,service-specific,['IP'],True
+IPDE0198,IPDE0198,DER_IPD_RESULT_VALUE,DYDoF2JjNol,dataElements,Result Value,IP,service-specific,['IP'],True
+IPDE0199,IPDE0199,DER_IPD_REVIEWED_BY,DxkDxXEBxQf,dataElements,Reviewed By,IP,service-specific,['IP'],True
+IPDE0200,IPDE0200,DER_IPD_ROUND_TIME,DJsR1gsjmE5,dataElements,Round Time,IP,service-specific,['IP'],True
+IPDE0201,IPDE0201,DER_IPD_ROUTE,DTtS8FrZef7,dataElements,Route,IP,service-specific,['IP'],True
+IPDE0202,IPDE0202,DER_IPD_SAFETY_CHECKLIST_COMPLETE,Da775TgNRi3,dataElements,Safety Checklist Complete,IP,service-specific,['IP'],True
+IPDE0203,IPDE0203,DER_IPD_SAMPLE_TYPE,DaA7XLpB0Ja,dataElements,Sample Type,IP,service-specific,['IP'],True
+IPDE0204,IPDE0204,DER_IPD_SCHEDULED_DOSE_TIME,D1VqrlN0CXU,dataElements,Scheduled Dose Time,IP,service-specific,['IP'],True
+IPDE0205,IPDE0205,DER_IPD_SECONDARY_DIAGNOSES,D7EkTCGCAfu,dataElements,Secondary Diagnoses,IP,service-specific,['IP'],True
+IPDE0206,IPDE0206,DER_IPD_SERVICE_CATEGORY,DeKJeK4dPcP,dataElements,Service Category,IP,service-specific,['IP'],True
+IPDE0207,IPDE0207,DER_IPD_SESSION_DATE_TIME,DE38uvDwzEE,dataElements,Session Date Time,IP,service-specific,['IP'],True
+IPDE0208,IPDE0208,DER_IPD_SHIFT,DxkDYY5GTvw,dataElements,Shift,IP,service-specific,['IP'],True
+IPDE0209,IPDE0209,DER_IPD_SPECIALTY,DdMM0xAG4DZ,dataElements,Specialty,IP,service-specific,['IP'],True
+IPDE0210,IPDE0210,DER_IPD_SPECIMEN_CONDITION,DlsG9S6uEAu,dataElements,Specimen Condition,IP,service-specific,['IP'],True
+IPDE0211,IPDE0211,DER_IPD_SPECIMEN_ID,Dip1nYGIXii,dataElements,Specimen ID,IP,service-specific,['IP'],True
+IPDE0212,IPDE0212,DER_IPD_START_DATE_TIME,Dd1S4JzbJMR,dataElements,Start Date Time,IP,service-specific,['IP'],True
+IPDE0213,IPDE0213,DER_IPD_STUDY_DATE_TIME,DObVhzAL7RL,dataElements,Study Date Time,IP,service-specific,['IP'],True
+IPDE0214,IPDE0214,DER_IPD_STUDY_REFERENCE,DfUZJTN7J6A,dataElements,Study Reference,IP,service-specific,['IP'],True
+IPDE0215,IPDE0215,DER_IPD_SURGEON_ID,DmPySGznn9g,dataElements,Surgeon ID,IP,service-specific,['IP'],True
+IPDE0216,IPDE0216,DER_IPD_SURGERY_END_TIME,DKpEHhezvd6,dataElements,Surgery End Time,IP,service-specific,['IP'],True
+IPDE0217,IPDE0217,DER_IPD_SURGERY_ID,DnAHF4WwKbz,dataElements,Surgery ID,IP,service-specific,['IP'],True
+IPDE0218,IPDE0218,DER_IPD_SURGERY_START_TIME,DpYBJMNPJOh,dataElements,Surgery Start Time,IP,service-specific,['IP'],True
+IPDE0219,IPDE0219,DER_IPD_SURGICAL_HISTORY,DAbjnPNQbdp,dataElements,Surgical History,IP,service-specific,['IP'],True
+IPDE0220,IPDE0220,DER_IPD_SURGICAL_PROCEDURE,DQbqvbaAS86,dataElements,Surgical Procedure,IP,service-specific,['IP'],True
+IPDE0221,IPDE0221,DER_IPD_SYSTOLIC_BP,D2s4pEceWVd,dataElements,Systolic BP,IP,service-specific,['IP'],True
+IPDE0222,IPDE0222,DER_IPD_TEMPERATURE_CELSIUS,DLU0k3wU81y,dataElements,Temperature Celsius,IP,service-specific,['IP'],True
+IPDE0223,IPDE0223,DER_IPD_TEST_CODE,D0XkVq22ibL,dataElements,Test Code,IP,service-specific,['IP'],True
+IPDE0224,IPDE0224,DER_IPD_TEST_NAME,DYe8K5MsI5M,dataElements,Test Name,IP,service-specific,['IP'],True
+IPDE0225,IPDE0225,DER_IPD_TEST_ORDER_ID,D1MFDVCC2UD,dataElements,Test Order ID,IP,service-specific,['IP'],True
+IPDE0226,IPDE0226,DER_IPD_TO_BED,DGRXTAbNVOm,dataElements,To Bed,IP,service-specific,['IP'],True
+IPDE0227,IPDE0227,DER_IPD_TO_WARD,D5I7oemCink,dataElements,To Ward,IP,service-specific,['IP'],True
+IPDE0228,IPDE0228,DER_IPD_TOTAL_VOLUME_ML,DiaCGlM1FSn,dataElements,Total Volume ML,IP,service-specific,['IP'],True
+IPDE0229,IPDE0229,DER_IPD_TRANSFER_ID,DBCmEmzePEU,dataElements,Transfer ID,IP,service-specific,['IP'],True
+IPDE0230,IPDE0230,DER_IPD_TRANSFER_REASON,DJnNXtlzKd8,dataElements,Transfer Reason,IP,service-specific,['IP'],True
+IPDE0231,IPDE0231,DER_IPD_TRANSFER_TIME,D4HjKe7d5OB,dataElements,Transfer Time,IP,service-specific,['IP'],True
+IPDE0232,IPDE0232,DER_IPD_TRANSFUSION_END,DEytBg0Aqco,dataElements,Transfusion End,IP,service-specific,['IP'],True
+IPDE0233,IPDE0233,DER_IPD_TRANSFUSION_ORDER_ID,DSyEss0OS4m,dataElements,Transfusion Order ID,IP,service-specific,['IP'],True
+IPDE0234,IPDE0234,DER_IPD_TRANSFUSION_OUTCOME,DF6M0DUHp1m,dataElements,Transfusion Outcome,IP,service-specific,['IP'],True
+IPDE0235,IPDE0235,DER_IPD_TRANSFUSION_START,DzLHuHII6pv,dataElements,Transfusion Start,IP,service-specific,['IP'],True
+IPDE0236,IPDE0236,DER_IPD_TREATMENT_SUMMARY,DLuobQoaXRF,dataElements,Treatment Summary,IP,service-specific,['IP'],True
+IPDE0237,IPDE0237,DER_IPD_VERIFIED_BY,DNf19GRLFpr,dataElements,Verified By,IP,service-specific,['IP'],True
+IPDE0238,IPDE0238,DER_IPD_WAIVER_OR_EXEMPTION,DIsX6kLZGxQ,dataElements,Waiver or Exemption,IP,service-specific,['IP'],True
+IPDE0239,IPDE0239,DER_IPD_WITNESSED_BY,DCyNW7o7CER,dataElements,Witnessed By,IP,service-specific,['IP'],True
+IPDE0240,IPDE0240,DER_IPD_WORKFLOW_STATUS,DktgBLxdPb5,dataElements,Workflow Status,IP,service-specific,['IP'],True
+IPDE0241,IPDE0241,DER_IPD_WORKING_DIAGNOSIS,Da1qzcK0nqU,dataElements,Working Diagnosis,IP,service-specific,['IP'],True
+IPOP0001,ABSCONDED,ABSCONDED,DFyzYy0OD7A,options,Absconded,IP,service-specific,[],False
+IPOP0002,ACCEPTED,ACCEPTED,DE1ujs1Y2oE,options,Accepted,IP,service-specific,[],False
+IPOP0003,ACTIVE,ACTIVE,DdHexwbOUBR,options,Active,IP,service-specific,[],False
+IPOP0004,BANK_TRANSFER,BANK_TRANSFER,Du8lw1FMWrC,options,Bank Transfer,IP,service-specific,[],False
+IPOP0005,CANCELLED,CANCELLED,D8z62z7DinW,options,Cancelled,IP,service-specific,[],False
+IPOP0006,CANCELLED,CANCELLED,DCAeVjY3j3e,options,Cancelled,IP,service-specific,[],False
+IPOP0007,CARD,CARD,Dtm1ZBumDfc,options,Card,IP,service-specific,[],False
+IPOP0008,CASH,CASH,DcnAX2A5Pir,options,Cash,IP,service-specific,[],False
+IPOP0009,CLEARED,CLEARED,DKaNFsRXIjW,options,Cleared,IP,service-specific,[],False
+IPOP0010,COMPLETED,COMPLETED,DG4YPjpPHKL,options,Completed,IP,service-specific,[],False
+IPOP0011,COMPLETED,COMPLETED,DL5OVYiDVcJ,options,Completed,IP,service-specific,[],False
+IPOP0012,COMPLETED,COMPLETED,DrS0DQ2MCrh,options,Completed,IP,service-specific,[],False
+IPOP0013,CONTINUE,CONTINUE,DZUa8tVQE37,options,Continue,IP,service-specific,[],False
+IPOP0014,DAY,DAY,DHpArJ24oQI,options,Day,IP,service-specific,[],False
+IPOP0015,DECEASED,DECEASED,DWtV4hSc0PO,options,Deceased,IP,service-specific,[],False
+IPOP0016,DECLINED,DECLINED,DE2mhHHyYsM,options,Declined,IP,service-specific,[],False
+IPOP0017,DECLINED,DECLINED,DPnG2rxUzpa,options,Declined,IP,service-specific,[],False
+IPOP0018,DEFERRED,DEFERRED,DJtELu1UEc7,options,Deferred,IP,service-specific,[],False
+IPOP0019,DEFERRED,DEFERRED,Dcg0d6obKjm,options,Deferred,IP,service-specific,[],False
+IPOP0020,DEFERRED,DEFERRED,DluFACeZyYH,options,Deferred,IP,service-specific,[],False
+IPOP0021,DIFFERENTIAL,DIFFERENTIAL,D3IRdjDDkvP,options,Differential,IP,service-specific,[],False
+IPOP0022,DIRECT_ADMISSION,DIRECT_ADMISSION,DeEnvKA3Irf,options,Direct Admission,IP,service-specific,[],False
+IPOP0023,DISCHARGED_HOME,DISCHARGED_HOME,D8qFsI4mmQw,options,Discharged Home,IP,service-specific,[],False
+IPOP0024,DRAFT,DRAFT,DMbtS9mKhIK,options,Draft,IP,service-specific,[],False
+IPOP0025,EMERGENCY,EMERGENCY,DBjjrxNJnma,options,Emergency,IP,service-specific,[],False
+IPOP0026,EMERGENCY,EMERGENCY,DzkFMyyNFMz,options,Emergency,IP,service-specific,[],False
+IPOP0027,EMERGENCY_EXCEPTION,EMERGENCY_EXCEPTION,DWbUeGLbr8H,options,Emergency Exception,IP,service-specific,[],False
+IPOP0028,EVENING,EVENING,DUNnzcm22RW,options,Evening,IP,service-specific,[],False
+IPOP0029,EXEMPT,EXEMPT,DdXzKFiVfMp,options,Exempt,IP,service-specific,[],False
+IPOP0030,EXEMPTED,EXEMPTED,DHcE9VLCYVd,options,Exempted,IP,service-specific,[],False
+IPOP0031,EXTERNAL_REFERRAL,EXTERNAL_REFERRAL,DNvPsyV8fFF,options,External Referral,IP,service-specific,[],False
+IPOP0032,GIVEN,GIVEN,DiP7vjs0Snz,options,Given,IP,service-specific,[],False
+IPOP0033,GOVERNMENT,GOVERNMENT,DildhGRviSb,options,Government,IP,service-specific,[],False
+IPOP0034,GRANTED,GRANTED,DYKyGEYaQ5l,options,Granted,IP,service-specific,[],False
+IPOP0035,HDU,HDU,DfXGalYaLKJ,options,HDU,IP,service-specific,[],False
+IPOP0036,HELD,HELD,DEhH2JHiRHk,options,Held,IP,service-specific,[],False
+IPOP0037,ICU,ICU,D5TG9JDH5Sq,options,ICU,IP,service-specific,[],False
+IPOP0038,IN_PROGRESS,IN_PROGRESS,DhoLWVkZpCX,options,In Progress,IP,service-specific,[],False
+IPOP0039,INHALED,INHALED,D6ZtODcUCkA,options,Inhaled,IP,service-specific,[],False
+IPOP0040,INSURANCE,INSURANCE,DQtneF6RbzX,options,Insurance,IP,service-specific,[],False
+IPOP0041,INSURANCE,INSURANCE,DiNKGQ9FL9W,options,Insurance,IP,service-specific,[],False
+IPOP0042,INTRAMUSCULAR,INTRAMUSCULAR,DJ5fceWjhEM,options,Intramuscular,IP,service-specific,[],False
+IPOP0043,INTRAVENOUS,INTRAVENOUS,DTKgZMkiLhM,options,Intravenous,IP,service-specific,[],False
+IPOP0044,LEFT_AGAINST_ADVICE,LEFT_AGAINST_ADVICE,DaHPRBFqhkA,options,Left Against Advice,IP,service-specific,[],False
+IPOP0045,MOBILE_MONEY,MOBILE_MONEY,DgFTvdJ5wWG,options,Mobile Money,IP,service-specific,[],False
+IPOP0046,MODIFY,MODIFY,DgHfGVjgaIr,options,Modify,IP,service-specific,[],False
+IPOP0047,NEW,NEW,DBl3C0syv9d,options,New,IP,service-specific,[],False
+IPOP0048,NIGHT,NIGHT,Dm01CSCVhgf,options,Night,IP,service-specific,[],False
+IPOP0049,NOT_BILLED,NOT_BILLED,D9CyWYCAqTr,options,Not Billed,IP,service-specific,[],False
+IPOP0050,NOT_CLEARED,NOT_CLEARED,DZc2TVzRgJ3,options,Not Cleared,IP,service-specific,[],False
+IPOP0051,NOT_GIVEN,NOT_GIVEN,DCIc0IPB07K,options,Not Given,IP,service-specific,[],False
+IPOP0052,NOT_REQUIRED,NOT_REQUIRED,DSzPBdIz9ne,options,Not Required,IP,service-specific,[],False
+IPOP0053,ON_HOLD,ON_HOLD,Dxz9LfTwr0y,options,On Hold,IP,service-specific,[],False
+IPOP0054,ORAL,ORAL,DLp3hOEgOiX,options,Oral,IP,service-specific,[],False
+IPOP0055,OTHER,OTHER,D0wM6Osw2Vk,options,Other,IP,service-specific,[],False
+IPOP0056,OTHER,OTHER,DtHrbmLlRgo,options,Other,IP,service-specific,[],False
+IPOP0057,OUTPATIENT,OUTPATIENT,DvFtPdDk1H8,options,Outpatient,IP,service-specific,[],False
+IPOP0058,PAID,PAID,DYncqVfWxOm,options,Paid,IP,service-specific,[],False
+IPOP0059,PART_PAID,PART_PAID,Dn4Hao10aoC,options,Part Paid,IP,service-specific,[],False
+IPOP0060,PARTIALLY_GIVEN,PARTIALLY_GIVEN,DV0Tf1V6c8t,options,Partially Given,IP,service-specific,[],False
+IPOP0061,PENDING,PENDING,D1ZUTAdPkLo,options,Pending,IP,service-specific,[],False
+IPOP0062,PENDING,PENDING,DZzM7F26mcY,options,Pending,IP,service-specific,[],False
+IPOP0063,PRIMARY,PRIMARY,DleWDTr1XNE,options,Primary,IP,service-specific,[],False
+IPOP0064,REACTION,REACTION,Dj7smPf3jIc,options,Reaction,IP,service-specific,[],False
+IPOP0065,REFERRED,REFERRED,DPUympB685V,options,Referred,IP,service-specific,[],False
+IPOP0066,REFUSED,REFUSED,DQnWLtWZIj5,options,Refused,IP,service-specific,[],False
+IPOP0067,REQUESTED,REQUESTED,DQUdJHl56My,options,Requested,IP,service-specific,[],False
+IPOP0068,RESOLVED,RESOLVED,D8FW4F7X8t6,options,Resolved,IP,service-specific,[],False
+IPOP0069,RULED_OUT,RULED_OUT,DGKnCOlE2qN,options,Ruled Out,IP,service-specific,[],False
+IPOP0070,SECONDARY,SECONDARY,DBzm0HZWDhr,options,Secondary,IP,service-specific,[],False
+IPOP0071,SELF_PAY,SELF_PAY,DzGbWkMN4O6,options,Self Pay,IP,service-specific,[],False
+IPOP0072,STOP,STOP,D1wMGhDoD4Q,options,Stop,IP,service-specific,[],False
+IPOP0073,STOPPED,STOPPED,DU4W6zBnmHQ,options,Stopped,IP,service-specific,[],False
+IPOP0074,SUBCUTANEOUS,SUBCUTANEOUS,D9PwdWPkzDB,options,Subcutaneous,IP,service-specific,[],False
+IPOP0075,TOPICAL,TOPICAL,D2vzCTsTCMG,options,Topical,IP,service-specific,[],False
+IPOP0076,TRANSFER_IN,TRANSFER_IN,D6oO1J6MKZe,options,Transfer In,IP,service-specific,[],False
+IPOP0077,TRANSFERRED,TRANSFERRED,DEoIRoEO5r7,options,Transferred,IP,service-specific,[],False
+IPOP0078,UNKNOWN,UNKNOWN,D31kd57pREp,options,Unknown,IP,service-specific,[],False
+IPOP0079,WAIVED,WAIVED,DgV5kkHDxSp,options,Waived,IP,service-specific,[],False
+IPOP0080,WARD,WARD,DAeiHH0XY5D,options,Ward,IP,service-specific,[],False
+IPOS0001,IPOS0001,,Dm9AXXH91tD,optionSets,IPD Administration Outcome,IP,service-specific,['IP'],True
+IPOS0002,IPOS0002,,DkmyRBdEEiS,optionSets,IPD Admission Source,IP,service-specific,['IP'],True
+IPOS0003,IPOS0003,,Ddyc8UVow4i,optionSets,IPD Consent Status,IP,service-specific,['IP'],True
+IPOS0004,IPOS0004,,DuaVNJCDCwZ,optionSets,IPD Diagnosis Classification,IP,service-specific,['IP'],True
+IPOS0005,IPOS0005,,DSANQsnYb0C,optionSets,IPD Diagnosis Status,IP,service-specific,['IP'],True
+IPOS0006,IPOS0006,,D4Z4SqNJxuz,optionSets,IPD Disposition,IP,service-specific,['IP'],True
+IPOS0007,IPOS0007,,DXrED2jGxtY,optionSets,IPD Escalation Level,IP,service-specific,['IP'],True
+IPOS0008,IPOS0008,,D93uRycoN32,optionSets,IPD Financial Clearance Status,IP,service-specific,['IP'],True
+IPOS0009,IPOS0009,,DIl1K4u31Am,optionSets,IPD Medication Reconciliation Action,IP,service-specific,['IP'],True
+IPOS0010,IPOS0010,,DyYaLbAga4x,optionSets,IPD Payer Type,IP,service-specific,['IP'],True
+IPOS0011,IPOS0011,,DJvHXLAlYEQ,optionSets,IPD Payment Method,IP,service-specific,['IP'],True
+IPOS0012,IPOS0012,,D45BmZ18q2r,optionSets,IPD Payment Status,IP,service-specific,['IP'],True
+IPOS0013,IPOS0013,,D8Xd3aHtD7e,optionSets,IPD Referral Status,IP,service-specific,['IP'],True
+IPOS0014,IPOS0014,,DvvkajLPdWG,optionSets,IPD Route,IP,service-specific,['IP'],True
+IPOS0015,IPOS0015,,D7PZE63HbVo,optionSets,IPD Shift,IP,service-specific,['IP'],True
+IPOS0016,IPOS0016,,DbAXMCcZoUm,optionSets,IPD Transfusion Outcome,IP,service-specific,['IP'],True
+IPOS0017,IPOS0017,,D9FZcMyVbr8,optionSets,IPD Workflow Status,IP,service-specific,['IP'],True
+IPPG0001,IPPG0001,DER_IPD_TRACKER,DQbs7i4ttUh,programs,Integrated Inpatient EMR,IP,service-specific,[],True
+IPPI0001,IPPI0001,DER_HOSP_PI_DER_INTEGRATED_INPATIENT_EMR_Hqwewb2PdaE,Hqwewb2PdaE,programIndicators,Integrated Inpatient EMR - Recorded Events,IP,service-specific,[],True
+IPPS0001,IPPS0001,,Dk4HLrbJTKQ,programStages,Admission History and Physical,IP,service-specific,[],True
+IPPS0002,IPPS0002,,D0h1lyTWz1Z,programStages,Admission Request and Bed Booking,IP,service-specific,[],True
+IPPS0003,IPPS0003,,Dxbjh1JidSX,programStages,Admission and Identity Verification,IP,service-specific,[],True
+IPPS0004,IPPS0004,,DplmSw7QYkO,programStages,Allied Health and Rehabilitation,IP,service-specific,[],True
+IPPS0005,IPPS0005,,DEr0IKfDBRb,programStages,Billing Charge and Claims,IP,service-specific,[],True
+IPPS0006,IPPS0006,,DKLjUYKi3KO,programStages,Blood and Transfusion,IP,service-specific,[],True
+IPPS0007,IPPS0007,,DGbUvAMjPzX,programStages,Consultation and Specialty Review,IP,service-specific,[],True
+IPPS0008,IPPS0008,,DyDuKslH6a2,programStages,Critical Care and Escalation,IP,service-specific,[],True
+IPPS0009,IPPS0009,,DJ2DD0mqsaj,programStages,Death and Mortuary Handover,IP,service-specific,[],True
+IPPS0010,IPPS0010,,Dz3m795TrY6,programStages,Discharge Planning and Education,IP,service-specific,[],True
+IPPS0011,IPPS0011,,DyDmQkv0xN8,programStages,Discharge Summary and Disposition,IP,service-specific,[],True
+IPPS0012,IPPS0012,,DWEZZc2tTdw,programStages,Imaging Result and Report,IP,service-specific,[],True
+IPPS0013,IPPS0013,,D4kD9n1BYRB,programStages,Imaging and Diagnostics Request,IP,service-specific,[],True
+IPPS0014,IPPS0014,,DWnYqkrSpnC,programStages,Infection Prevention and Isolation,IP,service-specific,[],True
+IPPS0015,IPPS0015,,DIfTpEG3SD0,programStages,Initial Nursing Assessment,IP,service-specific,[],True
+IPPS0016,IPPS0016,,DD91iDmxxCV,programStages,Intake Output and Fluid Balance,IP,service-specific,[],True
+IPPS0017,IPPS0017,,DHZqfscwvPG,programStages,Intravenous Fluids and Infusions,IP,service-specific,[],True
+IPPS0018,IPPS0018,,DJMddvta8E3,programStages,Laboratory Investigation Request,IP,service-specific,[],True
+IPPS0019,IPPS0019,,DjuALT651e7,programStages,Laboratory Results and Validation,IP,service-specific,[],True
+IPPS0020,IPPS0020,,DDeu9jCqshT,programStages,Medication Administration Record,IP,service-specific,[],True
+IPPS0021,IPPS0021,,DDb3l1WFOaH,programStages,Medication Prescription,IP,service-specific,[],True
+IPPS0022,IPPS0022,,DdrRrXMdcTo,programStages,Medication Reconciliation,IP,service-specific,[],True
+IPPS0023,IPPS0023,,Ddm5KiCDGNT,programStages,Nursing Care Plan and Interventions,IP,service-specific,[],True
+IPPS0024,IPPS0024,,DzEj1hgXfjH,programStages,Patient Problems and Diagnoses,IP,service-specific,[],True
+IPPS0025,IPPS0025,,DNqTEKFaZFu,programStages,Payment and Financial Clearance,IP,service-specific,[],True
+IPPS0026,IPPS0026,,DbK6fEw2iya,programStages,Pharmacy Verification and Issue,IP,service-specific,[],True
+IPPS0027,IPPS0027,,DCvdquvhdpS,programStages,Post Anaesthesia and Recovery,IP,service-specific,[],True
+IPPS0028,IPPS0028,,DWKCtSkzUAx,programStages,Post Discharge Follow-up and Readmission,IP,service-specific,[],True
+IPPS0029,IPPS0029,,DY09GZOcixd,programStages,Procedure and Intervention,IP,service-specific,[],True
+IPPS0030,IPPS0030,,D14LAAl93u2,programStages,Referral Transfer Out and Continuity,IP,service-specific,[],True
+IPPS0031,IPPS0031,,DXXFv1oGTk1,programStages,Specimen Collection and Handover,IP,service-specific,[],True
+IPPS0032,IPPS0032,,Dxm5QsNLq5W,programStages,Surgery and Operating Theatre,IP,service-specific,[],True
+IPPS0033,IPPS0033,,D2A7Zp9H3NS,programStages,Vital Signs and Early Warning,IP,service-specific,[],True
+IPPS0034,IPPS0034,,DsfP19E1p4L,programStages,Ward Bed Transfer and Handover,IP,service-specific,[],True
+IPPS0035,IPPS0035,,Dm54LlBYuq5,programStages,Ward Round and Clinical Progress,IP,service-specific,[],True
+IVDE0001,IVDE0001,DER_INV_ADJUSTMENT_APPROVAL,DrOPyVLJmGk,dataElements,INV - Adjustment Approval,IV,service-specific,['IV'],True
+IVDE0002,IVDE0002,DER_INV_APPROVED_BY,DGHFKF0f6UC,dataElements,INV - Approved By,IV,service-specific,['IV'],True
+IVDE0003,IVDE0003,DER_INV_AUTHORISATION_REFERENCE,Dh2ltky3nJV,dataElements,INV - Authorisation Reference,IV,service-specific,['IV'],True
+IVDE0004,IVDE0004,DER_INV_BASE_UNIT,DAulDBcDzAZ,dataElements,INV - Base Unit,IV,service-specific,['IV'],True
+IVDE0005,IVDE0005,DER_INV_BATCH_OR_LOT_NUMBER,DH0vvFZDTAM,dataElements,INV - Batch or Lot Number,IV,service-specific,['IV'],True
+IVDE0006,IVDE0006,DER_INV_CONSUMPTION_CONTEXT,DOeXSP9M9aA,dataElements,INV - Consumption Context,IV,service-specific,['IV'],True
+IVDE0007,IVDE0007,DER_INV_COUNT_DATE,D5wJymCaDcJ,dataElements,INV - Count Date,IV,service-specific,['IV'],True
+IVDE0008,IVDE0008,DER_INV_COUNT_REFERENCE,DIJ2rgpQbjF,dataElements,INV - Count Reference,IV,service-specific,['IV'],True
+IVDE0009,IVDE0009,DER_INV_COUNTED_QUANTITY,DJ3cZHG1jQv,dataElements,INV - Counted Quantity,IV,service-specific,['IV'],True
+IVDE0010,IVDE0010,DER_INV_DESTINATION_STOCK_LOCATION,D6WKGpQVEZ6,dataElements,INV - Destination Stock Location,IV,service-specific,['IV'],True
+IVDE0011,IVDE0011,DER_INV_DISPATCH_REFERENCE,DkB7ZeXc5AT,dataElements,INV - Dispatch Reference,IV,service-specific,['IV'],True
+IVDE0012,IVDE0012,DER_INV_DISPOSAL_METHOD,DYKDwqxFHMy,dataElements,INV - Disposal Method,IV,service-specific,['IV'],True
+IVDE0013,IVDE0013,DER_INV_EXPECTED_DELIVERY,DhcENATNsjz,dataElements,INV - Expected Delivery,IV,service-specific,['IV'],True
+IVDE0014,IVDE0014,DER_INV_EXPIRY_DATE,DFf6TAjY1lE,dataElements,INV - Expiry Date,IV,service-specific,['IV'],True
+IVDE0015,IVDE0015,DER_INV_GOODS_RECEIVED_NOTE,DPezGdE59YB,dataElements,INV - Goods Received Note,IV,service-specific,['IV'],True
+IVDE0016,IVDE0016,DER_INV_LINKED_ORDER_ID,DwGSKqujFeV,dataElements,INV - Linked Order ID,IV,service-specific,['IV'],True
+IVDE0017,IVDE0017,DER_INV_LINKED_VISIT_ID,D45Pd8m2LaG,dataElements,INV - Linked Visit ID,IV,service-specific,['IV'],True
+IVDE0018,IVDE0018,DER_INV_OPENING_QUANTITY,DOMNNA1xwo3,dataElements,INV - Opening Quantity,IV,service-specific,['IV'],True
+IVDE0019,IVDE0019,DER_INV_ORDERED_QUANTITY,DoykD1wX9FG,dataElements,INV - Ordered Quantity,IV,service-specific,['IV'],True
+IVDE0020,IVDE0020,DER_INV_PATIENT_REFERENCE_TOKEN,DEPS9oGGJoh,dataElements,INV - Patient Reference Token,IV,service-specific,['IV'],True
+IVDE0021,IVDE0021,DER_INV_PERFORMED_BY_USER_ID,DtFyqkoR17o,dataElements,INV - Performed By User ID,IV,service-specific,['IV'],True
+IVDE0022,IVDE0022,DER_INV_PRESCRIPTION_ID,DHSORUwll8h,dataElements,INV - Prescription ID,IV,service-specific,['IV'],True
+IVDE0023,IVDE0023,DER_INV_PURCHASE_ORDER_REFERENCE,DmiyUxmwqgP,dataElements,INV - Purchase Order Reference,IV,service-specific,['IV'],True
+IVDE0024,IVDE0024,DER_INV_QUALITY_ASSESSMENT,D9KSrgbwnCm,dataElements,INV - Quality Assessment,IV,service-specific,['IV'],True
+IVDE0025,IVDE0025,DER_INV_QUANTITY,DGB3gcmaEen,dataElements,INV - Quantity,IV,service-specific,['IV'],True
+IVDE0026,IVDE0026,DER_INV_REASON,DXrHm7vRnkN,dataElements,INV - Reason,IV,service-specific,['IV'],True
+IVDE0027,IVDE0027,DER_INV_REQUESTED_QUANTITY,DBhHqSKIDa6,dataElements,INV - Requested Quantity,IV,service-specific,['IV'],True
+IVDE0028,IVDE0028,DER_INV_REQUESTING_SERVICE_POINT,DrkXqE6VLuQ,dataElements,INV - Requesting Service Point,IV,service-specific,['IV'],True
+IVDE0029,IVDE0029,DER_INV_REQUIRED_BY,DIqtLT1FhvU,dataElements,INV - Required By,IV,service-specific,['IV'],True
+IVDE0030,IVDE0030,DER_INV_REQUISITION_ID,D9qpxk3zyDx,dataElements,INV - Requisition ID,IV,service-specific,['IV'],True
+IVDE0031,IVDE0031,DER_INV_RESERVATION_EXPIRY,DnE5zmX9B7a,dataElements,INV - Reservation Expiry,IV,service-specific,['IV'],True
+IVDE0032,IVDE0032,DER_INV_RESERVATION_ID,DV2CgQc1JC9,dataElements,INV - Reservation ID,IV,service-specific,['IV'],True
+IVDE0033,IVDE0033,DER_INV_RESERVED_QUANTITY,DUERMoNTIO0,dataElements,INV - Reserved Quantity,IV,service-specific,['IV'],True
+IVDE0034,IVDE0034,DER_INV_RETURN_SOURCE,DytbwSkPzve,dataElements,INV - Return Source,IV,service-specific,['IV'],True
+IVDE0035,IVDE0035,DER_INV_SERVICE_EVENT_ID,DF7qnKqKnbx,dataElements,INV - Service Event ID,IV,service-specific,['IV'],True
+IVDE0036,IVDE0036,DER_INV_SOURCE_OPERATION_ID,DaggyFjCrc0,dataElements,INV - Source Operation ID,IV,service-specific,['IV'],True
+IVDE0037,IVDE0037,DER_INV_SOURCE_STOCK_LOCATION,DAPgD58bKsn,dataElements,INV - Source Stock Location,IV,service-specific,['IV'],True
+IVDE0038,IVDE0038,DER_INV_STOCK_LOCATION,DkiXeo0RwCJ,dataElements,INV - Stock Location,IV,service-specific,['IV'],True
+IVDE0039,IVDE0039,DER_INV_SUPPLIER_NAME,D5Eb8HsHkHs,dataElements,INV - Supplier Name,IV,service-specific,['IV'],True
+IVDE0040,IVDE0040,DER_INV_SYSTEM_QUANTITY,DLwPDE70uGa,dataElements,INV - System Quantity,IV,service-specific,['IV'],True
+IVDE0041,IVDE0041,DER_INV_TRANSACTION_ID,DSNpBnjHGvd,dataElements,INV - Transaction ID,IV,service-specific,['IV'],True
+IVDE0042,IVDE0042,DER_INV_TRANSACTION_STATUS,Dx6IwelZN47,dataElements,INV - Transaction Status,IV,service-specific,['IV'],True
+IVDE0043,IVDE0043,DER_INV_TRANSACTION_TIME,DfFqD1IiInT,dataElements,INV - Transaction Time,IV,service-specific,['IV'],True
+IVDE0044,IVDE0044,DER_INV_TRANSACTION_TYPE,DAGCsQomip3,dataElements,INV - Transaction Type,IV,service-specific,['IV'],True
+IVDE0045,IVDE0045,DER_INV_TRANSFER_REFERENCE,DiBrzWYLMCe,dataElements,INV - Transfer Reference,IV,service-specific,['IV'],True
+IVDE0046,IVDE0046,DER_INV_UNIT_COST,DGYbM0E8DWd,dataElements,INV - Unit Cost,IV,service-specific,['IV'],True
+IVOP0001,ADJUSTMENT_DECREASE,ADJUSTMENT_DECREASE,DjH63nHnJm9,options,Adjustment Decrease,IV,service-specific,[],False
+IVOP0002,ADJUSTMENT_INCREASE,ADJUSTMENT_INCREASE,DhCMe1kb6E3,options,Adjustment Increase,IV,service-specific,[],False
+IVOP0003,CANCELLED,CANCELLED,DzEPjNn0soR,options,Cancelled,IV,service-specific,[],False
+IVOP0004,CLINICAL_CONSUMPTION,CLINICAL_CONSUMPTION,DZPEHSrGpTP,options,Clinical Consumption,IV,service-specific,[],False
+IVOP0005,COMPLETED,COMPLETED,D1hmciBjuyS,options,Completed,IV,service-specific,[],False
+IVOP0006,CONSUMPTION,CONSUMPTION,DkRWlwrucuy,options,Consumption,IV,service-specific,[],False
+IVOP0007,COUNT_VARIANCE,COUNT_VARIANCE,Dcj4em9H54Y,options,Count Variance,IV,service-specific,[],False
+IVOP0008,DAMAGE,DAMAGE,DGlzFsT324U,options,Damage,IV,service-specific,[],False
+IVOP0009,DISCARD,DISCARD,DKSEi1Dzscr,options,Discard,IV,service-specific,[],False
+IVOP0010,DISPENSING,DISPENSING,DJfutjvLvE9,options,Dispensing,IV,service-specific,[],False
+IVOP0011,DISPENSING,DISPENSING,DW7NmxBupIJ,options,Dispensing,IV,service-specific,[],False
+IVOP0012,DONATION,DONATION,DV3LFj1bOTh,options,Donation,IV,service-specific,[],False
+IVOP0013,DRAFT,DRAFT,DuUoe6KYrq3,options,Draft,IV,service-specific,[],False
+IVOP0014,EMERGENCY_DEPARTMENT,EMERGENCY_DEPARTMENT,DcXFOklXKBV,options,Emergency Department,IV,service-specific,[],False
+IVOP0015,EXPIRY,EXPIRY,DHWYBW68z4G,options,Expiry,IV,service-specific,[],False
+IVOP0016,IMAGING,IMAGING,DhBAldIO4OJ,options,Imaging,IV,service-specific,[],False
+IVOP0017,IN_PROGRESS,IN_PROGRESS,DCATKROomwE,options,In Progress,IV,service-specific,[],False
+IVOP0018,INPATIENT_PHARMACY,INPATIENT_PHARMACY,DT3plkyleLT,options,Inpatient Pharmacy,IV,service-specific,[],False
+IVOP0019,INTERNAL_TRANSFER,INTERNAL_TRANSFER,D7aEst2XGbe,options,Internal Transfer,IV,service-specific,[],False
+IVOP0020,ISSUE_TO_DEPARTMENT,ISSUE_TO_DEPARTMENT,DIcqPkOLEz0,options,Issue to Department,IV,service-specific,[],False
+IVOP0021,LABORATORY_STORE,LABORATORY_STORE,Dpyn5TdbjnL,options,Laboratory Store,IV,service-specific,[],False
+IVOP0022,LOSS,LOSS,DmrEyDSzZzt,options,Loss,IV,service-specific,[],False
+IVOP0023,MAIN_STORE,MAIN_STORE,Dp15FCO0ikQ,options,Main Store,IV,service-specific,[],False
+IVOP0024,OPD_PHARMACY,OPD_PHARMACY,Dj5c2m7M68E,options,OPD Pharmacy,IV,service-specific,[],False
+IVOP0025,ON_HOLD,ON_HOLD,DGfF3ZDhTPO,options,On Hold,IV,service-specific,[],False
+IVOP0026,OPERATING_THEATRE,OPERATING_THEATRE,DYZMREzqXeM,options,Operating Theatre,IV,service-specific,[],False
+IVOP0027,OTHER,OTHER,D6XguBDXpC9,options,Other,IV,service-specific,[],False
+IVOP0028,OTHER,OTHER,DUx2XX7YlFp,options,Other,IV,service-specific,[],False
+IVOP0029,PURCHASE,PURCHASE,DknU9QAKcHJ,options,Purchase,IV,service-specific,[],False
+IVOP0030,QUARANTINE,QUARANTINE,DjUGoZiHZmv,options,Quarantine,IV,service-specific,[],False
+IVOP0031,RECALL,RECALL,D0BxqlShpe3,options,Recall,IV,service-specific,[],False
+IVOP0032,RECEIPT,RECEIPT,DrLGskpcMDp,options,Receipt,IV,service-specific,[],False
+IVOP0033,RELEASE_FROM_QUARANTINE,RELEASE_FROM_QUARANTINE,DcxphVsui6t,options,Release from Quarantine,IV,service-specific,[],False
+IVOP0034,REQUESTED,REQUESTED,DzLj4UAoWx1,options,Requested,IV,service-specific,[],False
+IVOP0035,RETURN,RETURN,DZYaD4G4YrC,options,Return,IV,service-specific,[],False
+IVOP0036,STOCK_COUNT,STOCK_COUNT,DlZ2oVC7Com,options,Stock Count,IV,service-specific,[],False
+IVOP0037,TRANSFER_DISPATCH,TRANSFER_DISPATCH,DZVeaIUjoc9,options,Transfer Dispatch,IV,service-specific,[],False
+IVOP0038,TRANSFER_RECEIPT,TRANSFER_RECEIPT,DkqhcF8HzvI,options,Transfer Receipt,IV,service-specific,[],False
+IVOP0039,WARD_STORE,WARD_STORE,DXbuFDMcUl2,options,Ward Store,IV,service-specific,[],False
+IVOS0001,IVOS0001,,DtXzqHRyZGl,optionSets,INV Status,IV,service-specific,['IV'],True
+IVOS0002,IVOS0002,,D3ZZx6GNioN,optionSets,INV Stock Location,IV,service-specific,['IV'],True
+IVOS0003,IVOS0003,,DVM51hs05j0,optionSets,INV Stock Reason,IV,service-specific,['IV'],True
+IVOS0004,IVOS0004,,D0J5lRnaKGD,optionSets,INV Transaction Type,IV,service-specific,['IV'],True
+IVPG0001,IVPG0001,DER_INV_TRACKER,DPzv7D5wo4j,programs,Inventory and Supplies Tracker,IV,service-specific,[],True
+IVPI0001,IVPI0001,DER_HOSP_PI_DER_INVENTORY_AND_SUPPLIES_TRACKER_HeaHphDek0O,HeaHphDek0O,programIndicators,Inventory and Supplies Tracker - Recorded Events,IV,service-specific,[],True
+IVPS0001,IVPS0001,,D8vDiWVx9dv,programStages,INV - Clinical Consumption,IV,service-specific,[],True
+IVPS0002,IVPS0002,,D5OFZFwk7Iw,programStages,INV - Department Receipt,IV,service-specific,[],True
+IVPS0003,IVPS0003,,DegnPHlwX4G,programStages,INV - Expiry Damage and Disposal,IV,service-specific,[],True
+IVPS0004,IVPS0004,,DUZyMc1rOMo,programStages,INV - Goods Receipt,IV,service-specific,[],True
+IVPS0005,IVPS0005,,DFr3vUYJ56g,programStages,INV - Issue to Service Point,IV,service-specific,[],True
+IVPS0006,IVPS0006,,DXa6yrHXUOO,programStages,INV - Opening Balance and Stocktake,IV,service-specific,[],True
+IVPS0007,IVPS0007,,DOFxMoMkjmw,programStages,INV - Patient Dispensing,IV,service-specific,[],True
+IVPS0008,IVPS0008,,DVCmzWxmeMj,programStages,INV - Procurement and Replenishment,IV,service-specific,[],True
+IVPS0009,IVPS0009,,Di6bXFdm2E2,programStages,INV - Return and Quarantine,IV,service-specific,[],True
+IVPS0010,IVPS0010,,Dw0cOL4mPo5,programStages,INV - Stock Adjustment,IV,service-specific,[],True
+IVPS0011,IVPS0011,,DXlxkJ207g2,programStages,INV - Stock Requisition,IV,service-specific,[],True
+IVPS0012,IVPS0012,,DIWGuJQ4xia,programStages,INV - Stock Reservation,IV,service-specific,[],True
+IVPS0013,IVPS0013,,DCvGNDZMiT4,programStages,INV - Stock Transfer Dispatch,IV,service-specific,[],True
+IVTE0001,IVTE0001,,DLNDk0kBuly,trackedEntityTypes,Inventory Commodity,IV,service-specific,[],True
+LBDE0001,LBDE0001,DER_HOSP_DE_ANALYZER_REFERENCE,HIeQ5WBF7Uu,dataElements,Analyzer reference,LB,cross-cutting,['LB'],True
+LBDE0002,LBDE0002,DER_HOSP_DE_COLLECTION_DATE_AND_TIME,HfjiZXDN0ri,dataElements,Collection date and time,LB,cross-cutting,['LB'],True
+LBDE0003,LBDE0003,DER_HOSP_DE_CRITICAL_RESULT_ALERT,H9DH12dCOqg,dataElements,Critical result alert,LB,cross-cutting,['LB'],True
+LBDE0004,LBDE0004,DER_HOSP_DE_NOTIFICATION_TIME,HS4dTMKR3hA,dataElements,Notification time,LB,cross-cutting,['LB'],True
+LBDE0005,LBDE0005,DER_HOSP_DE_NOTIFIED_CLINICIAN_ID,H8RskQ8atLJ,dataElements,Notified clinician ID,LB,cross-cutting,['LB'],True
+LBDE0006,LBDE0006,DER_HOSP_DE_ORDER_STATUS,Hbi6f3MGbLl,dataElements,Order status,LB,cross-cutting,['LB'],True
+LBDE0007,LBDE0007,DER_HOSP_DE_QUALITY_CONTROL_RESULT,HvAqOPXQ4fV,dataElements,Quality control result,LB,cross-cutting,['LB'],True
+LBDE0008,LBDE0008,DER_HOSP_DE_REFERENCE_INTERVAL,HJPqZRjmBno,dataElements,Reference interval,LB,cross-cutting,['LB'],True
+LBDE0009,LBDE0009,DER_HOSP_DE_RESULT_AUTHORISED_BY,HNdK2SMHg3c,dataElements,Result authorised by,LB,cross-cutting,['LB'],True
+LBDE0010,LBDE0010,DER_HOSP_DE_RESULT_UNITS,H5YOQipibCR,dataElements,Result units,LB,cross-cutting,['LB'],True
+LBDE0011,LBDE0011,DER_HOSP_DE_RESULT_VALUE_TEXT,HUML66SMd66,dataElements,Result value text,LB,cross-cutting,['LB'],True
+LBDE0012,LBDE0012,DER_HOSP_DE_SPECIMEN_REFERENCE,HN8VDUhP89M,dataElements,Specimen reference,LB,cross-cutting,"['HV', 'LB', 'TB']",True
+LBDE0013,LBDE0013,DER_HOSP_DE_SPECIMEN_STATUS,HHxQ5EQcd7Z,dataElements,Specimen status,LB,cross-cutting,['LB'],True
+LBDE0014,LBDE0014,DER_HOSP_DE_TEST_CATALOGUE_CODE,HxNZwvVEqzt,dataElements,Test catalogue code,LB,cross-cutting,['LB'],True
+LBOP0001,ACCEPTED,ACCEPTED,HQzHU9uZ67C,options,Accepted,LB,cross-cutting,[],False
+LBOP0002,CANCELLED,CANCELLED,HVJLUhlvrUI,options,Cancelled,LB,cross-cutting,[],False
+LBOP0003,COLLECTED,COLLECTED,HA8VM8OXG8A,options,Collected,LB,cross-cutting,[],False
+LBOP0004,COMPLETED,COMPLETED,Hi6cfnt8vc5,options,Completed,LB,cross-cutting,[],False
+LBOP0005,IN_PROGRESS,IN_PROGRESS,Ha3jSLFH0tD,options,In progress,LB,cross-cutting,[],False
+LBOP0006,PROCESSED,PROCESSED,HxKxmq2lHD5,options,Processed,LB,cross-cutting,[],False
+LBOP0007,RECEIVED,RECEIVED,Hsp9cQ5Ssaa,options,Received,LB,cross-cutting,[],False
+LBOP0008,REJECTED,REJECTED,H8WuQGiLzf6,options,Rejected,LB,cross-cutting,[],False
+LBOP0009,REJECTED,REJECTED,HExGzD6RzN6,options,Rejected,LB,cross-cutting,[],False
+LBOP0010,REPORTED,REPORTED,HeKkEPdfx4f,options,Reported,LB,cross-cutting,[],False
+LBOP0011,REQUESTED,REQUESTED,H7fXnxzCTk5,options,Requested,LB,cross-cutting,[],False
+LBOP0012,REQUESTED,REQUESTED,HPDBygxiJXV,options,Requested,LB,cross-cutting,[],False
+LBOS0001,LBOS0001,DER_HOSP_OS_ORDER_STATUS,H8HvoCuhqzt,optionSets,Order Status,LB,cross-cutting,['LB'],True
+LBOS0002,LBOS0002,DER_HOSP_OS_SPECIMEN_STATUS,HBHl0hDw7nr,optionSets,Specimen Status,LB,cross-cutting,['LB'],True
+LBPG0001,LBPG0001,DER_HOSP_PRG_LABORATORY_DIAGNOSTICS,HtWDrIXqjOe,programs,Laboratory Diagnostics,LB,cross-cutting,[],True
+LBPI0001,LBPI0001,DER_HOSP_PI_HOSP_LABORATORY_DIAGNOSTICS_HLam66hSBwN,HLam66hSBwN,programIndicators,Laboratory Diagnostics - Recorded Events,LB,cross-cutting,[],True
+LBPS0001,LBPS0001,DER_HOSP_PS_LABORATORY_DIAGNOSTICS_LABORATORY_CRITICAL_RESULT_COMMUNIC,HlJ1k7EkK37,programStages,Laboratory Critical Result Communication,LB,cross-cutting,[],True
+LBPS0002,LBPS0002,DER_HOSP_PS_LABORATORY_DIAGNOSTICS_LABORATORY_ORDER_INTAKE,HmFT5Fl5FmE,programStages,Laboratory Order Intake,LB,cross-cutting,[],True
+LBPS0003,LBPS0003,DER_HOSP_PS_LABORATORY_DIAGNOSTICS_LABORATORY_RESULTS_AND_VALIDATION,Hmzk3GNyvut,programStages,Laboratory Results and Validation,LB,cross-cutting,[],True
+LBPS0004,LBPS0004,DER_HOSP_PS_LABORATORY_DIAGNOSTICS_LABORATORY_TEST_PROCESSING,H5hly3ZXVsw,programStages,Laboratory Test Processing,LB,cross-cutting,[],True
+LBPS0005,LBPS0005,DER_HOSP_PS_LABORATORY_DIAGNOSTICS_SPECIMEN_COLLECTION_AND_ACCESSION,HpLOJ8EgFkS,programStages,Specimen Collection and Accession,LB,cross-cutting,[],True
+MDDE0001,MDDE0001,DER_HOSP_DE_PRESCRIPTION_REFERENCE,HmFDJb4E3ee,dataElements,Prescription reference,MD,cross-cutting,"['DN', 'ER', 'HV', 'MH', 'NC']",True
+MDDE0002,MDDE0002,DER_HOSP_DE_TREATMENT_REGIMEN_CODE,HKDp9P7a85S,dataElements,Treatment regimen code,MD,cross-cutting,"['HV', 'TB']",True
+MHDE0001,MHDE0001,DER_HOSP_DE_MENTAL_HEALTH_RISK,Hwjo0vghV6u,dataElements,Mental health risk,MH,service-specific,['MH'],True
+MHDE0002,MHDE0002,DER_HOSP_DE_MENTAL_STATE_EXAMINATION,HVplbji5Cgk,dataElements,Mental state examination,MH,service-specific,['MH'],True
+MHDE0003,MHDE0003,DER_HOSP_DE_PRESENTING_CONCERN,HfMhpGeTTfg,dataElements,Presenting concern,MH,service-specific,['MH'],True
+MHDE0004,MHDE0004,DER_HOSP_DE_SUICIDE_RISK_NOTE,HeYexq9E9PY,dataElements,Suicide risk note,MH,service-specific,['MH'],True
+MHDE0005,MHDE0005,DER_HOSP_DE_THERAPY_SESSION_SUMMARY,HYCWbu2JawS,dataElements,Therapy session summary,MH,service-specific,['MH'],True
+MHOP0001,HIGH,HIGH,HE2WDNufnZr,options,High,MH,service-specific,[],False
+MHOP0002,IMMINENT,IMMINENT,HM8uUWleKNw,options,Imminent,MH,service-specific,[],False
+MHOP0003,LOW,LOW,HtOge7jCUss,options,Low,MH,service-specific,[],False
+MHOP0004,MODERATE,MODERATE,H3RLkizMFt5,options,Moderate,MH,service-specific,[],False
+MHOS0001,MHOS0001,DER_HOSP_OS_MENTAL_HEALTH_RISK,H212gEnr76Q,optionSets,Mental Health Risk,MH,service-specific,['MH'],True
+MHPG0001,MHPG0001,DER_HOSP_PRG_MENTAL_HEALTH_AND_PSYCHIATRY,HI3GdfLab02,programs,Mental Health and Psychiatry,MH,service-specific,[],True
+MHPI0001,MHPI0001,DER_HOSP_PI_HOSP_MENTAL_HEALTH_AND_PSYCHIATRY_HJJZCppfLMj,HJJZCppfLMj,programIndicators,Mental Health and Psychiatry - Recorded Events,MH,service-specific,[],True
+MHPS0001,MHPS0001,DER_HOSP_PS_MENTAL_HEALTH_AND_PSYCHIATRY_MENTAL_HEALTH_INTAKE_AND_CONSENT,He5i09anUX4,programStages,Mental Health Intake and Consent,MH,service-specific,[],True
+MHPS0002,MHPS0002,DER_HOSP_PS_MENTAL_HEALTH_AND_PSYCHIATRY_MENTAL_HEALTH_TREATMENT_PLANNING,HSqgoAcdiCv,programStages,Mental Health Treatment Planning,MH,service-specific,[],True
+MHPS0003,MHPS0003,DER_HOSP_PS_MENTAL_HEALTH_AND_PSYCHIATRY_MENTAL_STATUS_AND_RISK_ASSESSMENT,H7ma5s1EeQe,programStages,Mental Status and Risk Assessment,MH,service-specific,[],True
+MHPS0004,MHPS0004,DER_HOSP_PS_MENTAL_HEALTH_AND_PSYCHIATRY_PSYCHOTHERAPY_AND_FOLLOW_UP,HbvgPqpbPUD,programStages,Psychotherapy and Follow-up,MH,service-specific,[],True
+MTDE0001,MTDE0001,DER_HOSP_DE_BIRTH_DATE_AND_TIME,HoGrbmzT2E9,dataElements,Birth date and time,MT,service-specific,['MT'],True
+MTDE0002,MTDE0002,DER_HOSP_DE_BIRTH_MODE,HWk0OvpA8oS,dataElements,Birth mode,MT,service-specific,['MT'],True
+MTDE0003,MTDE0003,DER_HOSP_DE_BIRTH_OUTCOME,HqPBfaQvX1T,dataElements,Birth outcome,MT,service-specific,['MT'],True
+MTDE0004,MTDE0004,DER_HOSP_DE_CERVICAL_DILATATION_CM,HfcppzHHwvS,dataElements,Cervical dilatation cm,MT,service-specific,['MT'],True
+MTDE0005,MTDE0005,DER_HOSP_DE_CONTRACTION_FREQUENCY,HwWf2CXqx1y,dataElements,Contraction frequency,MT,service-specific,['MT'],True
+MTDE0006,MTDE0006,DER_HOSP_DE_DISCHARGE_DATE,HK7yTMi03BS,dataElements,Discharge date,MT,service-specific,['MT'],True
+MTDE0007,MTDE0007,DER_HOSP_DE_ESTIMATED_BLOOD_LOSS_ML,HJoRpwOPeRp,dataElements,Estimated blood loss (mL),MT,service-specific,['MT'],True
+MTDE0008,MTDE0008,DER_HOSP_DE_FETAL_HEART_RATE,HWhVKRYOTaO,dataElements,Fetal heart rate,MT,service-specific,['MT'],True
+MTDE0009,MTDE0009,DER_HOSP_DE_INTERVENTION_INDICATION,HxD6Z4m3Mz4,dataElements,Intervention indication,MT,service-specific,['MT'],True
+MTDE0010,MTDE0010,DER_HOSP_DE_LABOUR_ONSET_TIME,HtBDlD82Yum,dataElements,Labour onset time,MT,service-specific,['MT'],True
+MTDE0011,MTDE0011,DER_HOSP_DE_MATERNAL_DISPOSITION,HbBBAXLsOTY,dataElements,Maternal disposition,MT,service-specific,['MT'],True
+MTDE0012,MTDE0012,DER_HOSP_DE_MATERNAL_RISK_NOTE,HLlos7BT8CM,dataElements,Maternal risk note,MT,service-specific,['MT'],True
+MTDE0013,MTDE0013,DER_HOSP_DE_NEWBORN_LINKED_PATIENT_IDENTIFIER,HrvEbt1hOfa,dataElements,Newborn linked patient identifier,MT,service-specific,['MT'],True
+MTDE0014,MTDE0014,DER_HOSP_DE_POSTPARTUM_COMPLICATION,H1d6SPOrCj1,dataElements,Postpartum complication,MT,service-specific,['MT'],True
+MTOP0001,ASSISTED_VAGINAL,ASSISTED_VAGINAL,HmHaRPBiJT8,options,Assisted vaginal,MT,service-specific,[],False
+MTOP0002,CAESAREAN,CAESAREAN,HRE9pA74PnX,options,Caesarean,MT,service-specific,[],False
+MTOP0003,SPONTANEOUS_VAGINAL,SPONTANEOUS_VAGINAL,Ha27WkZeVsI,options,Spontaneous vaginal,MT,service-specific,[],False
+MTOS0001,MTOS0001,DER_HOSP_OS_BIRTH_MODE,H7mygUCReUk,optionSets,Birth Mode,MT,service-specific,['MT'],True
+MTPG0001,MTPG0001,DER_HOSP_PRG_MATERNITY_LABOUR_AND_DELIVERY,HD7oMLZ4j0Y,programs,Labour and Delivery Care,MT,service-specific,[],True
+MTPI0001,MTPI0001,DER_HOSP_PI_HOSP_MATERNITY_LABOUR_AND_DELIVERY_HhpyaQBIuT0,HhpyaQBIuT0,programIndicators,Labour and Delivery Care - Recorded Events,MT,service-specific,[],True
+MTPS0001,MTPS0001,DER_HOSP_PS_MATERNITY_LABOUR_AND_DELIVERY_DELIVERY_AND_BIRTH_RECORD,Hxi76f61Bjb,programStages,Delivery and Birth Record,MT,service-specific,[],True
+MTPS0002,MTPS0002,DER_HOSP_PS_MATERNITY_LABOUR_AND_DELIVERY_LABOUR_ADMISSION,HtgtmB0D9IS,programStages,Labour Admission,MT,service-specific,[],True
+MTPS0003,MTPS0003,DER_HOSP_PS_MATERNITY_LABOUR_AND_DELIVERY_LABOUR_MONITORING,H97RSInewzh,programStages,Labour Monitoring,MT,service-specific,[],True
+MTPS0004,MTPS0004,DER_HOSP_PS_MATERNITY_LABOUR_AND_DELIVERY_MATERNITY_DISCHARGE_AND_HANDOVER,HnBSDvJOiEV,programStages,Maternity Discharge and Handover,MT,service-specific,[],True
+MTPS0005,MTPS0005,DER_HOSP_PS_MATERNITY_LABOUR_AND_DELIVERY_OBSTETRIC_INTERVENTION,HSf370ajbwA,programStages,Obstetric Intervention,MT,service-specific,[],True
+MTPS0006,MTPS0006,DER_HOSP_PS_MATERNITY_LABOUR_AND_DELIVERY_POSTPARTUM_IMMEDIATE_CARE,H0QbkkvgJpW,programStages,Postpartum Immediate Care,MT,service-specific,[],True
+NCDE0001,NCDE0001,DER_HOSP_DE_CARDIOVASCULAR_RISK_FACTORS,H7Gflmryp3W,dataElements,Cardiovascular risk factors,NC,service-specific,['NC'],True
+NCDE0002,NCDE0002,DER_HOSP_DE_DIABETES_TYPE,HkU1DK4cXsX,dataElements,Diabetes type,NC,service-specific,['NC'],True
+NCDE0003,NCDE0003,DER_HOSP_DE_FASTING_GLUCOSE_MMOL_L,HSdkLXakTTG,dataElements,Fasting glucose (mmol/L),NC,service-specific,['NC'],True
+NCDE0004,NCDE0004,DER_HOSP_DE_FOOT_EXAM_RESULT,H3XC3BLoa1C,dataElements,Foot exam result,NC,service-specific,['NC'],True
+NCDE0005,NCDE0005,DER_HOSP_DE_HBA1C,HTAFrafbEoz,dataElements,HbA1c (%),NC,service-specific,['NC'],True
+NCDE0006,NCDE0006,DER_HOSP_DE_HYPERTENSION_DIAGNOSIS,HEYeuSCJSou,dataElements,Hypertension diagnosis,NC,service-specific,['NC'],True
+NCDE0007,NCDE0007,DER_HOSP_DE_RENAL_RISK_NOTE,H9VJkBl6FjZ,dataElements,Renal risk note,NC,service-specific,['NC'],True
+NCDE0008,NCDE0008,DER_HOSP_DE_RETINAL_SCREENING_RESULT,HlR13G9i19l,dataElements,Retinal screening result,NC,service-specific,['NC'],True
+NCDE0009,NCDE0009,DER_HOSP_DE_URINE_ALBUMIN_RESULT,HPVLKWcI9sS,dataElements,Urine albumin result,NC,service-specific,['NC'],True
+NCPA0001,NCPA0001,,H63heFm5Dl5,programRuleActions,,NC,service-specific,[],True
+NCPA0002,NCPA0002,,HrlkRyFhdjw,programRuleActions,,NC,service-specific,[],True
+NCPG0001,NCPG0001,DER_HOSP_PRG_NCD_DIABETES_AND_HYPERTENSION,HoZIgfkgoj3,programs,Diabetes and Hypertension Care,NC,service-specific,[],True
+NCPI0001,NCPI0001,DER_HOSP_PI_HOSP_NCD_DIABETES_AND_HYPERTENSION_HjtBHIUihjV,HjtBHIUihjV,programIndicators,Diabetes and Hypertension Care - Recorded Events,NC,service-specific,[],True
+NCPR0001,NCPR0001,,HgGFBk8TUjg,programRules,Glycated Haemoglobin (HbA1c) (%) warning,NC,service-specific,[],True
+NCPR0002,NCPR0002,,HtgKjSKj0IG,programRules,Systolic BP (mmHg) warning,NC,service-specific,[],True
+NCPS0001,NCPS0001,DER_HOSP_PS_NCD_DIABETES_AND_HYPERTENSION_DIABETES_LABORATORY_MONITORING,Ht8cGOsdvkQ,programStages,Diabetes Laboratory Monitoring,NC,service-specific,[],True
+NCPS0002,NCPS0002,DER_HOSP_PS_NCD_DIABETES_AND_HYPERTENSION_NCD_COMPLICATIONS_SCREENING,HcvxNB1RdlH,programStages,NCD Complications Screening,NC,service-specific,[],True
+NCPS0003,NCPS0003,DER_HOSP_PS_NCD_DIABETES_AND_HYPERTENSION_NCD_ENROLLMENT_AND_RISK_PROFILE,H7SfnVzWjzm,programStages,NCD Enrollment and Risk Profile,NC,service-specific,[],True
+NCPS0004,NCPS0004,DER_HOSP_PS_NCD_DIABETES_AND_HYPERTENSION_NCD_REVIEW_AND_VITALS,HBiCkFPu8iv,programStages,NCD Review and Vitals,NC,service-specific,[],True
+NCPS0005,NCPS0005,DER_HOSP_PS_NCD_DIABETES_AND_HYPERTENSION_NCD_TREATMENT_AND_REVIEW,H4oUBSyL7OP,programStages,NCD Treatment and Review,NC,service-specific,[],True
+NCPV0001,NCPV0001,,HaCClFKddG3,programRuleVariables,check_3,NC,service-specific,[],True
+NCPV0002,NCPV0002,,Hcle09HgP9r,programRuleVariables,check_4,NC,service-specific,[],True
+NUDE0001,NUDE0001,DER_HOSP_DE_DIET_PLAN_REFERENCE,HHRyQYDXCyv,dataElements,Diet plan reference,NU,service-specific,['NU'],True
+NUDE0002,NUDE0002,DER_HOSP_DE_NUTRITION_RESPONSE,HEc4rhsbLNL,dataElements,Nutrition response,NU,service-specific,['NU'],True
+NUPG0001,NUPG0001,DER_HOSP_PRG_NUTRITION_AND_DIETETICS,HRSESTYcId9,programs,Nutrition and Dietetics,NU,service-specific,[],True
+NUPI0001,NUPI0001,DER_HOSP_PI_HOSP_NUTRITION_AND_DIETETICS_H5VdOFieNFJ,H5VdOFieNFJ,programIndicators,Nutrition and Dietetics - Recorded Events,NU,service-specific,[],True
+NUPS0001,NUPS0001,DER_HOSP_PS_NUTRITION_AND_DIETETICS_NUTRITION_MONITORING,HBajvnYhXTD,programStages,Nutrition Monitoring,NU,service-specific,[],True
+NUPS0002,NUPS0002,DER_HOSP_PS_NUTRITION_AND_DIETETICS_NUTRITION_PLAN_AND_COUNSELLING,HzQla1YYZrG,programStages,Nutrition Plan and Counselling,NU,service-specific,[],True
+NUPS0003,NUPS0003,DER_HOSP_PS_NUTRITION_AND_DIETETICS_NUTRITION_SCREENING,Hmg1QffarCc,programStages,Nutrition Screening,NU,service-specific,[],True
+ONDE0001,ONDE0001,DER_HOSP_DE_CYCLE_NUMBER,H32QZzYdfA1,dataElements,Cycle number,ON,service-specific,['ON'],True
+ONDE0002,ONDE0002,DER_HOSP_DE_DECISION_DATE,HAHwMqckIUq,dataElements,Decision date,ON,service-specific,['ON'],True
+ONDE0003,ONDE0003,DER_HOSP_DE_DIAGNOSIS_DATE,H5qakBJyy9R,dataElements,Diagnosis date,ON,service-specific,['ON'],True
+ONDE0004,ONDE0004,DER_HOSP_DE_HISTOLOGY_TERMINOLOGY_CODE,HH7muo54iuX,dataElements,Histology terminology code,ON,service-specific,['ON'],True
+ONDE0005,ONDE0005,DER_HOSP_DE_PALLIATIVE_INTERVENTION,HQ3KUDPq5t1,dataElements,Palliative intervention,ON,service-specific,['ON'],True
+ONDE0006,ONDE0006,DER_HOSP_DE_PRIMARY_CANCER_SITE_CODE,H6SPlWTUd3c,dataElements,Primary cancer site code,ON,service-specific,['ON'],True
+ONDE0007,ONDE0007,DER_HOSP_DE_PROTOCOL_CODE,HjbA74pqxeq,dataElements,Protocol code,ON,service-specific,['ON'],True
+ONDE0008,ONDE0008,DER_HOSP_DE_RADIOTHERAPY_COURSE_REFERENCE,HkKleg0wToQ,dataElements,Radiotherapy course reference,ON,service-specific,['ON'],True
+ONDE0009,ONDE0009,DER_HOSP_DE_STAGE_AT_DIAGNOSIS,HJw5kXCspgj,dataElements,Stage at diagnosis,ON,service-specific,['ON'],True
+ONDE0010,ONDE0010,DER_HOSP_DE_TREATMENT_ADMINISTRATION_DATE,HrsupNUz2Wj,dataElements,Treatment administration date,ON,service-specific,['ON'],True
+ONDE0011,ONDE0011,DER_HOSP_DE_TREATMENT_RESPONSE_CODE,HI52uoiNt8E,dataElements,Treatment response code,ON,service-specific,['ON'],True
+ONPG0001,ONPG0001,DER_HOSP_PRG_CANCER_AND_ONCOLOGY,H9tHfuRRwz8,programs,Cancer and Oncology,ON,service-specific,[],True
+ONPI0001,ONPI0001,DER_HOSP_PI_HOSP_CANCER_AND_ONCOLOGY_HKwWAwymMJZ,HKwWAwymMJZ,programIndicators,Cancer and Oncology - Recorded Events,ON,service-specific,[],True
+ONPS0001,ONPS0001,DER_HOSP_PS_CANCER_AND_ONCOLOGY_MULTIDISCIPLINARY_TUMOUR_BOARD,Hf0WWYiN3IR,programStages,Multidisciplinary Tumour Board,ON,service-specific,[],True
+ONPS0002,ONPS0002,DER_HOSP_PS_CANCER_AND_ONCOLOGY_ONCOLOGY_REGISTRATION_AND_DIAGNOSIS,HRCSW4mVjtM,programStages,Oncology Registration and Diagnosis,ON,service-specific,[],True
+ONPS0003,ONPS0003,DER_HOSP_PS_CANCER_AND_ONCOLOGY_ONCOLOGY_RESPONSE_AND_SURVIVORSHIP,HGirtkpkOmB,programStages,Oncology Response and Survivorship,ON,service-specific,[],True
+ONPS0004,ONPS0004,DER_HOSP_PS_CANCER_AND_ONCOLOGY_PALLIATIVE_ONCOLOGY_AND_OUTCOME,H3hAWLcob0Y,programStages,Palliative Oncology and Outcome,ON,service-specific,[],True
+ONPS0005,ONPS0005,DER_HOSP_PS_CANCER_AND_ONCOLOGY_SURGERY_AND_RADIATION_COORDINATION,H3rBwZdFKTw,programStages,Surgery and Radiation Coordination,ON,service-specific,[],True
+ONPS0006,ONPS0006,DER_HOSP_PS_CANCER_AND_ONCOLOGY_SYSTEMIC_THERAPY_PLAN_AND_CYCLE,HRf4X2zNUaW,programStages,Systemic Therapy Plan and Cycle,ON,service-specific,[],True
+OPDE0001,OPDE0001,,JSTDN5ML11s,dataElements,Adverse Event,OP,service-specific,['OP'],True
+OPDE0002,OPDE0002,,yfALr2pNyWd,dataElements,Billing Balance UGX,OP,service-specific,['OP'],True
+OPDE0003,OPDE0003,,CwosBazBdIc,dataElements,Billing Clearance Date Time,OP,service-specific,['OP'],True
+OPDE0004,OPDE0004,,P8iBD3JVd4q,dataElements,Billing Clearance Granted,OP,service-specific,['OP'],True
+OPDE0005,OPDE0005,,cuOtWEsDt7Z,dataElements,Billing Clearance Reason,OP,service-specific,['OP'],True
+OPDE0006,OPDE0006,,B9d93gyKRx0,dataElements,Charge Description,OP,service-specific,['OP'],True
+OPDE0007,OPDE0007,,FWzqGhf7uR1,dataElements,Charge Discount Amount UGX,OP,service-specific,['OP'],True
+OPDE0008,OPDE0008,,TmJASWfQlni,dataElements,Charge Gross Amount UGX,OP,service-specific,['OP'],True
+OPDE0009,OPDE0009,,cAiZWl4ostU,dataElements,Charge Line Reference,OP,service-specific,['OP'],True
+OPDE0010,OPDE0010,,PaPPGTMuVfg,dataElements,Charge Net Amount UGX,OP,service-specific,['OP'],True
+OPDE0011,OPDE0011,,QHwARbkSxbD,dataElements,Charge Quantity,OP,service-specific,['OP'],True
+OPDE0012,OPDE0012,,e2aBCmkcRP6,dataElements,Charge Service Category,OP,service-specific,['OP'],True
+OPDE0013,OPDE0013,,JsE9SrSf1ry,dataElements,Charge Source Reference,OP,service-specific,['OP'],True
+OPDE0014,OPDE0014,,N4BsFNOagGG,dataElements,Charge Status,OP,service-specific,['OP'],True
+OPDE0015,OPDE0015,,kA6ThoVe1ei,dataElements,Charge Unit Price UGX,OP,service-specific,['OP'],True
+OPDE0016,OPDE0016,,Y58nOwapzbi,dataElements,Check-in Time,OP,service-specific,['OP'],True
+OPDE0017,OPDE0017,,K3cwFIla1r0,dataElements,Clinical Examination,OP,service-specific,['OP'],True
+OPDE0018,OPDE0018,,AP6pqf6uIh9,dataElements,Clinical Outcome,OP,service-specific,['OP'],True
+OPDE0019,OPDE0019,,VbWxEfveicC,dataElements,Clinical Plan,OP,service-specific,['OP'],True
+OPDE0020,OPDE0020,,mCJ31juQRFk,dataElements,Collection Date Time,OP,service-specific,['OP'],True
+OPDE0021,OPDE0021,,JJRdcQKp4Mn,dataElements,Critical Result Escalated,OP,service-specific,['OP'],True
+OPDE0022,OPDE0022,,FZWMNHhcNwn,dataElements,Diastolic Blood Pressure,OP,service-specific,['OP'],True
+OPDE0023,OPDE0023,,xYhUtmh1F6t,dataElements,Discharge Summary,OP,service-specific,['OP'],True
+OPDE0024,OPDE0024,,rnOCJxyE9Um,dataElements,Dispensing Date Time,OP,service-specific,['OP'],True
+OPDE0025,OPDE0025,,tu1oN7V23Jh,dataElements,Dispensing Notes,OP,service-specific,['OP'],True
+OPDE0026,OPDE0026,,MTwiQujixct,dataElements,Disposition,OP,service-specific,['OP'],True
+OPDE0027,OPDE0027,,Rjf7aDB8pPE,dataElements,Dose Unit,OP,service-specific,['OP'],True
+OPDE0028,OPDE0028,,cMoj7FndH3T,dataElements,Duration Days,OP,service-specific,['OP'],True
+OPDE0029,OPDE0029,,Qu9aWiwEdaH,dataElements,External Transaction Reference,OP,service-specific,['OP'],True
+OPDE0030,OPDE0030,,w7btIxqqjSW,dataElements,Final Diagnosis,OP,service-specific,['OP'],True
+OPDE0031,OPDE0031,,g5BwPt8XqOK,dataElements,Follow-up Date,OP,service-specific,['OP'],True
+OPDE0032,OPDE0032,,ZVajqwWJ3sn,dataElements,Follow-up Findings,OP,service-specific,['OP'],True
+OPDE0033,OPDE0033,,YQfkXxueI51,dataElements,Frequency,OP,service-specific,['OP'],True
+OPDE0034,OPDE0034,,bsH7b31XSp1,dataElements,Heart Rate,OP,service-specific,['OP'],True
+OPDE0035,OPDE0035,,PGG66BHAtSu,dataElements,Height Cm,OP,service-specific,['OP'],True
+OPDE0036,OPDE0036,,JekIUukihQV,dataElements,History of Present Illness,OP,service-specific,['OP'],True
+OPDE0037,OPDE0037,,DdVH1NiGFoG,dataElements,Identity Verified,OP,service-specific,['OP'],True
+OPDE0038,OPDE0038,,Pzd603DsP95,dataElements,Imaging Body Site,OP,service-specific,['OP'],True
+OPDE0039,OPDE0039,,zGnXHgWiyrg,dataElements,Imaging Clinical Indication,OP,service-specific,['OP'],True
+OPDE0040,OPDE0040,,ughIxnF6KRC,dataElements,Imaging Findings,OP,service-specific,['OP'],True
+OPDE0041,OPDE0041,,eVSQ13hLak5,dataElements,Imaging Impression,OP,service-specific,['OP'],True
+OPDE0042,OPDE0042,,C5AlvNhIYMZ,dataElements,Imaging Modality,OP,service-specific,['OP'],True
+OPDE0043,OPDE0043,,mIO7qigQjjG,dataElements,Imaging Performed Date Time,OP,service-specific,['OP'],True
+OPDE0044,OPDE0044,,hQwOaFPYBM1,dataElements,Invoice Reference,OP,service-specific,['OP'],True
+OPDE0045,OPDE0045,,vT1VBMkf8K9,dataElements,Laboratory Reference Range,OP,service-specific,['OP'],True
+OPDE0046,OPDE0046,,Qfo92BqZe7R,dataElements,Laboratory Report Date Time,OP,service-specific,['OP'],True
+OPDE0047,OPDE0047,,lMbZRhGtVjc,dataElements,Laboratory Result Interpretation,OP,service-specific,['OP'],True
+OPDE0048,OPDE0048,,sFXz1zcpehe,dataElements,Laboratory Result Units,OP,service-specific,['OP'],True
+OPDE0049,OPDE0049,,QPWxtDsWMru,dataElements,Laboratory Result Value,OP,service-specific,['OP'],True
+OPDE0050,OPDE0050,,wHnsdbvdtlO,dataElements,Laboratory Test Name,OP,service-specific,['OP'],True
+OPDE0051,OPDE0051,,gBMTjtlAPqt,dataElements,Laboratory Test Requested,OP,service-specific,['OP'],True
+OPDE0052,OPDE0052,,BF4zmVLQ2Sv,dataElements,Medicine Dispensed,OP,service-specific,['OP'],True
+OPDE0053,OPDE0053,,uSUM8U1H6c4,dataElements,Medicine Prescribed,OP,service-specific,['OP'],True
+OPDE0054,OPDE0054,,KKgRkLR4W06,dataElements,Order Priority,OP,service-specific,['OP'],True
+OPDE0055,OPDE0055,,Q6ZdIFn2h0J,dataElements,Order Reference,OP,service-specific,['OP'],True
+OPDE0056,OPDE0056,,CkBQRwg4C5E,dataElements,Oxygen Saturation Percent,OP,service-specific,['OP'],True
+OPDE0057,OPDE0057,,xdItAwT1hYB,dataElements,Payer Category,OP,service-specific,['OP'],True
+OPDE0058,OPDE0058,,a8Op1iayadA,dataElements,Payment Amount UGX,OP,service-specific,['OP'],True
+OPDE0059,OPDE0059,,lVJ8FCghjVv,dataElements,Payment Date Time,OP,service-specific,['OP'],True
+OPDE0060,OPDE0060,,Dv9oBPvlx8C,dataElements,Payment Method,OP,service-specific,['OP'],True
+OPDE0061,OPDE0061,,HPjswWrS6w0,dataElements,Payment Notes,OP,service-specific,['OP'],True
+OPDE0062,OPDE0062,,JsXTXHc0u1u,dataElements,Payment Reference,OP,service-specific,['OP'],True
+OPDE0063,OPDE0063,,RG1dTY1RJII,dataElements,Payment Status,OP,service-specific,['OP'],True
+OPDE0064,OPDE0064,,snmIFD3DjsH,dataElements,Prescribed Dose,OP,service-specific,['OP'],True
+OPDE0065,OPDE0065,,d2xdqDRNFOR,dataElements,Procedure Date Time,OP,service-specific,['OP'],True
+OPDE0066,OPDE0066,,nYCuCC4aoav,dataElements,Procedure Name,OP,service-specific,['OP'],True
+OPDE0067,OPDE0067,,Baq89wvW6ta,dataElements,Procedure Outcome,OP,service-specific,['OP'],True
+OPDE0068,OPDE0068,,mZYFbKOf28Z,dataElements,Provisional Diagnosis,OP,service-specific,['OP'],True
+OPDE0069,OPDE0069,,Nhvqt5jfwXB,dataElements,Quantity Dispensed,OP,service-specific,['OP'],True
+OPDE0070,OPDE0070,,LDRrvPqFIMA,dataElements,Quantity Prescribed,OP,service-specific,['OP'],True
+OPDE0071,OPDE0071,,lg7THTAWSwL,dataElements,Queue Number,OP,service-specific,['OP'],True
+OPDE0072,OPDE0072,,ITXtwwBSzdd,dataElements,Reason for Visit,OP,service-specific,['OP'],True
+OPDE0073,OPDE0073,,gqlyizTdwgq,dataElements,Referral Date,OP,service-specific,['OP'],True
+OPDE0074,OPDE0074,,QIGAYJhVkWg,dataElements,Referral Destination,OP,service-specific,['OP'],True
+OPDE0075,OPDE0075,,CQ1B6fza3dC,dataElements,Referral Reason,OP,service-specific,['OP'],True
+OPDE0076,OPDE0076,,V1x9lxvpQfP,dataElements,Referral Status,OP,service-specific,['OP'],True
+OPDE0077,OPDE0077,,DAcGbnJReG0,dataElements,Referral Type,OP,service-specific,['OP'],True
+OPDE0078,OPDE0078,,Kw6CM3sF7Kw,dataElements,Registration Notes,OP,service-specific,['OP'],True
+OPDE0079,OPDE0079,,fbJFqGvH3QD,dataElements,Request Indication,OP,service-specific,['OP'],True
+OPDE0080,OPDE0080,,zuZLgm2elXn,dataElements,Request Status,OP,service-specific,['OP'],True
+OPDE0081,OPDE0081,,I01ldw4QusM,dataElements,Requested Service,OP,service-specific,['OP'],True
+OPDE0082,OPDE0082,,YwbRXPvRZbM,dataElements,Respiratory Rate,OP,service-specific,['OP'],True
+OPDE0083,OPDE0083,,roUamZGN2HO,dataElements,Return Precautions,OP,service-specific,['OP'],True
+OPDE0084,OPDE0084,,kqzapKW926V,dataElements,Route of Administration,OP,service-specific,['OP'],True
+OPDE0085,OPDE0085,,LNYww7b1r9W,dataElements,Specimen Identifier,OP,service-specific,['OP'],True
+OPDE0086,OPDE0086,,n2KOmleSSz7,dataElements,Specimen Notes,OP,service-specific,['OP'],True
+OPDE0087,OPDE0087,,oAiISQ6KYRB,dataElements,Specimen Received Date Time,OP,service-specific,['OP'],True
+OPDE0088,OPDE0088,,QYqNn8GVVET,dataElements,Specimen Type,OP,service-specific,['OP'],True
+OPDE0089,OPDE0089,,IISaWvQqqyK,dataElements,Systolic Blood Pressure,OP,service-specific,['OP'],True
+OPDE0090,OPDE0090,,e4CbkbM8XvT,dataElements,Temperature Celsius,OP,service-specific,['OP'],True
+OPDE0091,OPDE0091,,F8aapqvM3yZ,dataElements,Triage Category,OP,service-specific,['OP'],True
+OPDE0092,OPDE0092,,Ygmvo1IAIj3,dataElements,Triage Complaint,OP,service-specific,['OP'],True
+OPDE0093,OPDE0093,,FKydhMfv9wK,dataElements,Visit Payment Category,OP,service-specific,['OP'],True
+OPDE0094,OPDE0094,,MLiyhjKhJC4,dataElements,Visit Reference,OP,service-specific,['OP'],True
+OPDE0095,OPDE0095,,dhjdir9A12r,dataElements,Weight Kg,OP,service-specific,['OP'],True
+OPOP0001,ABNORMAL,ABNORMAL,AmwkJUIxIcC,options,Abnormal,OP,service-specific,[],False
+OPOP0002,ADMIT,ADMIT,vHTDb9UJbwf,options,Admit,OP,service-specific,[],False
+OPOP0003,AMPOULE,AMPOULE,aQW9cMA7zFS,options,Ampoule,OP,service-specific,[],False
+OPOP0004,BANK,BANK,JEKI4N6ars0,options,Bank,OP,service-specific,[],False
+OPOP0005,CANCELLED,CANCELLED,vxwcWqRxm52,options,Cancelled,OP,service-specific,[],False
+OPOP0006,CAPSULE,CAPSULE,iNrBihp3Z3n,options,Capsule,OP,service-specific,[],False
+OPOP0007,CARD,CARD,sDt8ryzrnkH,options,Card,OP,service-specific,[],False
+OPOP0008,CASH,CASH,afhU52heQPq,options,Cash,OP,service-specific,[],False
+OPOP0009,COMPLETED,COMPLETED,jlsFL9OihtQ,options,Completed,OP,service-specific,[],False
+OPOP0010,CONSULTATION,CONSULTATION,UwY0smWXzNU,options,Consultation,OP,service-specific,[],False
+OPOP0011,CRITICAL,CRITICAL,RqNvZLR4C3l,options,Critical,OP,service-specific,[],False
+OPOP0012,DECEASED,DECEASED,sm2Up0ka4hK,options,Deceased,OP,service-specific,[],False
+OPOP0013,DEFERRED,DEFERRED,IKwhJXmPPim,options,Deferred,OP,service-specific,[],False
+OPOP0014,DETERIORATED,DETERIORATED,F5saKhOyMpK,options,Deteriorated,OP,service-specific,[],False
+OPOP0015,DRAFT,DRAFT,fKkmUEUR0cj,options,Draft,OP,service-specific,[],False
+OPOP0016,EMERGENCY,EMERGENCY,L1KOacw7m4Z,options,Emergency,OP,service-specific,[],False
+OPOP0017,EMERGENCY,EMERGENCY,M3dO9w7MeUo,options,Emergency,OP,service-specific,[],False
+OPOP0018,EMERGENCY,EMERGENCY,OoQ8371IrPK,options,Emergency,OP,service-specific,[],False
+OPOP0019,EMPLOYER,EMPLOYER,JTZR4BdZN3u,options,Employer,OP,service-specific,[],False
+OPOP0020,EXEMPT,EXEMPT,YVUa4KTaj92,options,Exempt,OP,service-specific,[],False
+OPOP0021,EXTERNAL,EXTERNAL,PVo9TldclI7,options,External,OP,service-specific,[],False
+OPOP0022,FAILED,FAILED,R3w3Gh9n1h7,options,Failed,OP,service-specific,[],False
+OPOP0023,GENERAL_OPD,GENERAL_OPD,tx2pxnLpKJT,options,General OPD,OP,service-specific,[],False
+OPOP0024,GOVERNMENT,GOVERNMENT,bsubTtuuHm3,options,Government,OP,service-specific,[],False
+OPOP0025,HIV,HIV,hIGouxtMcEj,options,HIV,OP,service-specific,[],False
+OPOP0026,HOME,HOME,UPgJdVWBeUg,options,Home,OP,service-specific,[],False
+OPOP0027,IMAGING,IMAGING,Pjk2DutDmzF,options,Imaging,OP,service-specific,[],False
+OPOP0028,IMPROVED,IMPROVED,LSjCbDfg8qs,options,Improved,OP,service-specific,[],False
+OPOP0029,IN_PROGRESS,IN_PROGRESS,oEsdd7hDbBP,options,In progress,OP,service-specific,[],False
+OPOP0030,INSURANCE,INSURANCE,jzfGj2tpsUR,options,Insurance,OP,service-specific,[],False
+OPOP0031,INSURANCE,INSURANCE,pVASdWFURWS,options,Insurance,OP,service-specific,[],False
+OPOP0032,INTERNAL,INTERNAL,PmRQQCkGpNY,options,Internal,OP,service-specific,[],False
+OPOP0033,ISSUED,ISSUED,TVSnvVmb4j2,options,Issued,OP,service-specific,[],False
+OPOP0034,LABORATORY,LABORATORY,YyT3JSAJC8e,options,Laboratory,OP,service-specific,[],False
+OPOP0035,LEFT_BEFORE_COMPLETION,LEFT_BEFORE_COMPLETION,GLZPJnEPOPr,options,Left before completion,OP,service-specific,[],False
+OPOP0036,MATERNAL_HEALTH,MATERNAL_HEALTH,FCADaEXp6qo,options,Maternal health,OP,service-specific,[],False
+OPOP0037,MEDICATION,MEDICATION,t24Esi4pYNd,options,Medication,OP,service-specific,[],False
+OPOP0038,MOBILE_MONEY,MOBILE_MONEY,ubNYcMeDvpb,options,Mobile money,OP,service-specific,[],False
+OPOP0039,NCD,NCD,GKn412JG1vf,options,NCD,OP,service-specific,[],False
+OPOP0040,NO,NO,QRB7PC0Nkl5,options,No,OP,service-specific,[],False
+OPOP0041,NON_URGENT,NON_URGENT,B8SUBtZQyNU,options,Non urgent,OP,service-specific,[],False
+OPOP0042,NORMAL,NORMAL,dRvOPEcAMkL,options,Normal,OP,service-specific,[],False
+OPOP0043,OTHER,OTHER,CNEQ20rml5y,options,Other,OP,service-specific,[],False
+OPOP0044,OTHER,OTHER,JuZ4hqXsJO3,options,Other,OP,service-specific,[],False
+OPOP0045,OTHER,OTHER,NIY1TE3QZHG,options,Other,OP,service-specific,[],False
+OPOP0046,OTHER,OTHER,VBJcyvFmXDw,options,Other,OP,service-specific,[],False
+OPOP0047,OTHER,OTHER,VvRGNqxTLGZ,options,Other,OP,service-specific,[],False
+OPOP0048,PAID,PAID,h68kTQUnFvf,options,Paid,OP,service-specific,[],False
+OPOP0049,PARTIAL,PARTIAL,iMrouyKnLmG,options,Partial,OP,service-specific,[],False
+OPOP0050,PARTIALLY_PAID,PARTIALLY_PAID,ZSPSCc5UN6z,options,Partially paid,OP,service-specific,[],False
+OPOP0051,PENDING,PENDING,Osi4nVvTHfH,options,Pending,OP,service-specific,[],False
+OPOP0052,PENDING,PENDING,VMZM3t7eeDR,options,Pending,OP,service-specific,[],False
+OPOP0053,PROCEDURE,PROCEDURE,bJFX34Zasb1,options,Procedure,OP,service-specific,[],False
+OPOP0054,REFER,REFER,oKUtOxumqCQ,options,Refer,OP,service-specific,[],False
+OPOP0055,REFUNDED,REFUNDED,v2jL5vX5LLW,options,Refunded,OP,service-specific,[],False
+OPOP0056,REGISTRATION,REGISTRATION,mYJ8e73AwYU,options,Registration,OP,service-specific,[],False
+OPOP0057,REQUESTED,REQUESTED,uHoVO6JBZVU,options,Requested,OP,service-specific,[],False
+OPOP0058,ROUTINE,ROUTINE,No603bUCgaf,options,Routine,OP,service-specific,[],False
+OPOP0059,STAT,STAT,ml6aaiaG7qT,options,STAT,OP,service-specific,[],False
+OPOP0060,SELF_PAY,SELF_PAY,mPVnDk9LKcF,options,Self-pay,OP,service-specific,[],False
+OPOP0061,SETTLED,SETTLED,zPwYkQdy4kp,options,Settled,OP,service-specific,[],False
+OPOP0062,STABLE,STABLE,xMBHXDSFJMX,options,Stable,OP,service-specific,[],False
+OPOP0063,STANDARD,STANDARD,GPhSgGiF2Fi,options,Standard,OP,service-specific,[],False
+OPOP0064,TB,TB,RN5LlTulo2d,options,TB,OP,service-specific,[],False
+OPOP0065,TABLET,TABLET,K5KXQmbtvFx,options,Tablet,OP,service-specific,[],False
+OPOP0066,TRANSFER,TRANSFER,QIc4q9CulSb,options,Transfer,OP,service-specific,[],False
+OPOP0067,UNIT,UNIT,cYOLAESN8cC,options,Unit,OP,service-specific,[],False
+OPOP0068,UNKNOWN,UNKNOWN,ojyORm0j0nh,options,Unknown,OP,service-specific,[],False
+OPOP0069,UNKNOWN,UNKNOWN,zCdkuduOgbk,options,Unknown,OP,service-specific,[],False
+OPOP0070,URGENT,URGENT,PGl1dWnfERB,options,Urgent,OP,service-specific,[],False
+OPOP0071,URGENT,URGENT,rpTxw42jDhe,options,Urgent,OP,service-specific,[],False
+OPOP0072,VERY_URGENT,VERY_URGENT,AmU68jVwdp7,options,Very urgent,OP,service-specific,[],False
+OPOP0073,VIAL,VIAL,Mvt3D13oVi5,options,Vial,OP,service-specific,[],False
+OPOP0074,VOIDED,VOIDED,dR7shZupATL,options,Voided,OP,service-specific,[],False
+OPOP0075,WAIVER,WAIVER,BCNkhYGISBb,options,Waiver,OP,service-specific,[],False
+OPOP0076,WRITTEN_OFF,WRITTEN_OFF,L7k1amW3byb,options,Written off,OP,service-specific,[],False
+OPOP0077,YES,YES,cZfgLKfsVqn,options,Yes,OP,service-specific,[],False
+OPOP0078,G,G,LPL4zqe9duC,options,g,OP,service-specific,[],False
+OPOP0079,ML,ML,QhLKNgiHzUh,options,mL,OP,service-specific,[],False
+OPOP0080,MG,MG,rPPcmdJ1TOs,options,mg,OP,service-specific,[],False
+OPOS0001,OPOS0001,,VpxmqGyGSPo,optionSets,Clinical Outcome,OP,service-specific,['OP'],True
+OPOS0002,OPOS0002,,LRWUf1UwBnd,optionSets,Disposition,OP,service-specific,['OP'],True
+OPOS0003,OPOS0003,,gJDsAeyEhqa,optionSets,Invoice,OP,service-specific,['OP'],True
+OPOS0004,OPOS0004,,gdHXdoOj4aZ,optionSets,Payer,OP,service-specific,['OP'],True
+OPOS0005,OPOS0005,,Rdwn7oJLc1J,optionSets,Payment,OP,service-specific,['OP'],True
+OPOS0006,OPOS0006,,BwRXoRFDfEN,optionSets,Payment Status,OP,service-specific,['OP'],True
+OPOS0007,OPOS0007,,KY3Eb14c671,optionSets,Priority,OP,service-specific,['OP'],True
+OPOS0008,OPOS0008,,sqgALYZlpZJ,optionSets,Referral,OP,service-specific,['OP'],True
+OPOS0009,OPOS0009,,ad5Ys7DgVGH,optionSets,Result,OP,service-specific,['OP'],True
+OPOS0010,OPOS0010,,BbsbL8RitxR,optionSets,Service,OP,service-specific,['OP'],True
+OPOS0011,OPOS0011,,MAzC70poR7K,optionSets,Service Charge,OP,service-specific,['OP'],True
+OPOS0012,OPOS0012,,en0BCepr0f6,optionSets,Status,OP,service-specific,['OP'],True
+OPOS0013,OPOS0013,,IpcLmfFerUg,optionSets,Triage,OP,service-specific,['OP'],True
+OPOS0014,OPOS0014,,daZbicJnAa1,optionSets,Unit,OP,service-specific,['OP'],True
+OPOS0015,OPOS0015,,oeGXhecYf0p,optionSets,Yes/No,OP,service-specific,['OP'],True
+OPPG0001,OPPG0001,,ameSURm0Nn8,programs,Integrated Outpatient EMR,OP,service-specific,[],True
+OPPI0001,OPPI0001,DER_HOSP_PI_DER_OPD_EMR_H9cPh7tc3Fz,H9cPh7tc3Fz,programIndicators,Integrated Outpatient EMR - Recorded Events,OP,service-specific,[],True
+OPPS0001,OPPS0001,,eXsY6eKM80J,programStages,Billing Charge,OP,service-specific,[],True
+OPPS0002,OPPS0002,,GiYnyJKCrnw,programStages,Billing Clearance,OP,service-specific,[],True
+OPPS0003,OPPS0003,,rAz9hOpTIbx,programStages,Billing Payment,OP,service-specific,[],True
+OPPS0004,OPPS0004,,KVbU5ceSQdU,programStages,Clinical Consultation,OP,service-specific,[],True
+OPPS0005,OPPS0005,,DxtuLI2Ytqn,programStages,Clinical Review and Disposition,OP,service-specific,[],True
+OPPS0006,OPPS0006,,rExx1Cqb54j,programStages,Follow-up Encounter,OP,service-specific,[],True
+OPPS0007,OPPS0007,,K6dMj0Zn2AU,programStages,Imaging Report,OP,service-specific,[],True
+OPPS0008,OPPS0008,,maW1W4wiyjO,programStages,Imaging Request,OP,service-specific,[],True
+OPPS0009,OPPS0009,,gQ6Kou7ttWf,programStages,Laboratory Request,OP,service-specific,[],True
+OPPS0010,OPPS0010,,m6rFpNHjBPP,programStages,Laboratory Results,OP,service-specific,[],True
+OPPS0011,OPPS0011,,l6kkm5f4Yxn,programStages,Laboratory Specimen Collection,OP,service-specific,[],True
+OPPS0012,OPPS0012,,kO0IUJuUvhl,programStages,Pharmacy Dispensing,OP,service-specific,[],True
+OPPS0013,OPPS0013,,uczhsAtYhph,programStages,Prescription,OP,service-specific,[],True
+OPPS0014,OPPS0014,,hf7V7gqS77X,programStages,Procedure and Treatment,OP,service-specific,[],True
+OPPS0015,OPPS0015,,eK7ouBibDby,programStages,Referral and Transfer,OP,service-specific,[],True
+OPPS0016,OPPS0016,,XOUDAWyRDy6,programStages,Registration Verification,OP,service-specific,[],True
+OPPS0017,OPPS0017,,GHRzOHjtb7Y,programStages,Triage and Vital Signs,OP,service-specific,[],True
+OPPS0018,OPPS0018,,gy9Qx7YNWAS,programStages,Visit Check-in,OP,service-specific,[],True
+PNDE0001,PNDE0001,DER_HOSP_DE_BREASTFEEDING_COUNSELLING,HyEoZU077We,dataElements,Breastfeeding counselling,PN,service-specific,['PN'],True
+PNDE0002,PNDE0002,DER_HOSP_DE_DELIVERY_DATE,HIjmSRm6Qcn,dataElements,Delivery date,PN,service-specific,['PN'],True
+PNDE0003,PNDE0003,DER_HOSP_DE_DELIVERY_FACILITY,HiTysXPbUa9,dataElements,Delivery facility,PN,service-specific,['PN'],True
+PNDE0004,PNDE0004,DER_HOSP_DE_JAUNDICE_ASSESSMENT,HVMy8bZZoRU,dataElements,Jaundice assessment,PN,service-specific,['PN'],True
+PNDE0005,PNDE0005,DER_HOSP_DE_MOTHER_LINKED_PATIENT_IDENTIFIER,HkJXwUTKXZZ,dataElements,Mother linked patient identifier,PN,service-specific,['PN'],True
+PNDE0006,PNDE0006,DER_HOSP_DE_NEWBORN_DANGER_SIGNS,H6Eqfb0i1MA,dataElements,Newborn danger signs,PN,service-specific,['PN'],True
+PNPG0001,PNPG0001,DER_HOSP_PRG_POSTNATAL_AND_NEWBORN_FOLLOW_UP,HhLq1Yjz2Di,programs,Postnatal and Newborn Follow-up,PN,service-specific,[],True
+PNPI0001,PNPI0001,DER_HOSP_PI_HOSP_POSTNATAL_AND_NEWBORN_FOLLOW_UP_Ha88tJA4hsq,Ha88tJA4hsq,programIndicators,Postnatal and Newborn Follow-up - Recorded Events,PN,service-specific,[],True
+PNPS0001,PNPS0001,DER_HOSP_PS_POSTNATAL_AND_NEWBORN_FOLLOW_U_NEWBORN_ASSESSMENT,HEUqQ5UnMSU,programStages,Newborn Assessment,PN,service-specific,[],True
+PNPS0002,PNPS0002,DER_HOSP_PS_POSTNATAL_AND_NEWBORN_FOLLOW_U_POSTNATAL_COUNSELLING_AND_REFERRAL,HTd6BOxCaju,programStages,Postnatal Counselling and Referral,PN,service-specific,[],True
+PNPS0003,PNPS0003,DER_HOSP_PS_POSTNATAL_AND_NEWBORN_FOLLOW_U_POSTNATAL_ENROLLMENT,HP7u952ABr3,programStages,Postnatal Enrollment,PN,service-specific,[],True
+PNPS0004,PNPS0004,DER_HOSP_PS_POSTNATAL_AND_NEWBORN_FOLLOW_U_POSTNATAL_MATERNAL_ASSESSMENT,HxuQb3rTKvR,programStages,Postnatal Maternal Assessment,PN,service-specific,[],True
+PTOP0001,FEMALE,FEMALE,oDNYtPrLW6G,options,Female,PT,cross-cutting,[],False
+PTOP0002,MALE,MALE,vvRq4SUR98l,options,Male,PT,cross-cutting,[],False
+PTOP0003,OTHER,OTHER,sCWmLCJifTv,options,Other,PT,cross-cutting,[],False
+PTOP0004,UNKNOWN,UNKNOWN,xvcpxhNwU85,options,Unknown,PT,cross-cutting,[],False
+PTOS0001,PTOS0001,,awcHPASyp2O,optionSets,Sex,PT,cross-cutting,['PT'],True
+PTTA0001,PTTA0001,,GY6o8lcSPIk,trackedEntityAttributes,Date of Birth,PT,cross-cutting,[],True
+PTTA0002,PTTA0002,,pZpCAu1WPk0,trackedEntityAttributes,Family Name,PT,cross-cutting,[],True
+PTTA0003,PTTA0003,,T4bPqr9y3Ki,trackedEntityAttributes,Given Name,PT,cross-cutting,[],True
+PTTA0004,PTTA0004,,oLIXkGZhz05,trackedEntityAttributes,Home Address,PT,cross-cutting,[],True
+PTTA0005,PTTA0005,,ul2VWF8SvNA,trackedEntityAttributes,National Identifier,PT,cross-cutting,[],True
+PTTA0006,PTTA0006,,iifSGt6SMQV,trackedEntityAttributes,Patient Identifier,PT,cross-cutting,[],True
+PTTA0007,PTTA0007,,D5Xhct0BO6F,trackedEntityAttributes,Phone Number,PT,cross-cutting,[],True
+PTTA0008,PTTA0008,,fjAAqRxSNqo,trackedEntityAttributes,Sex,PT,cross-cutting,[],True
+PTTA0009,PTTA0009,,DjQHVrLhb2W,trackedEntityAttributes,Inventory - Active Status,PT,cross-cutting,[],True
+PTTA0010,PTTA0010,,DstAF8INjf7,trackedEntityAttributes,Inventory - Base Unit of Measure,PT,cross-cutting,[],True
+PTTA0011,PTTA0011,,DgABILuF9tu,trackedEntityAttributes,Inventory - Commodity Code,PT,cross-cutting,[],True
+PTTA0012,PTTA0012,,D8xi9XFuimA,trackedEntityAttributes,Inventory - Commodity Description,PT,cross-cutting,[],True
+PTTA0013,PTTA0013,,DMzeGddihe3,trackedEntityAttributes,Inventory - GTIN or Barcode,PT,cross-cutting,[],True
+PTTA0014,PTTA0014,,DhiyQJkKuYG,trackedEntityAttributes,Inventory - Generic Name,PT,cross-cutting,[],True
+PTTA0015,PTTA0015,,Dp5uU38tIkL,trackedEntityAttributes,Inventory - Product Category,PT,cross-cutting,[],True
+PTTA0016,PTTA0016,,DabXNO2d7Fl,trackedEntityAttributes,Inventory - Strength or Specification,PT,cross-cutting,[],True
+PTTE0001,PTTE0001,,hdXaIIpaUo2,trackedEntityTypes,Patient,PT,cross-cutting,[],True
+RDDE0001,RDDE0001,DER_HOSP_DE_APPOINTMENT_DATE,HQAXTr2UiyW,dataElements,Appointment date,RD,service-specific,['RD'],True
+RDDE0002,RDDE0002,DER_HOSP_DE_BODY_SITE_CODE,HHIMFPavVxZ,dataElements,Body site code,RD,service-specific,['RD'],True
+RDDE0003,RDDE0003,DER_HOSP_DE_CONTRAST_ADMINISTERED,H5yBF2uqSMf,dataElements,Contrast administered,RD,service-specific,['RD'],True
+RDDE0004,RDDE0004,DER_HOSP_DE_IMAGING_STUDY_IDENTIFIER,HLT1qKlve7e,dataElements,Imaging study identifier,RD,service-specific,['RD'],True
+RDDE0005,RDDE0005,DER_HOSP_DE_MODALITY_CODE,HfZ0NtgpqTz,dataElements,Modality code,RD,service-specific,['RD'],True
+RDDE0006,RDDE0006,DER_HOSP_DE_RADIOLOGY_REPORT,HBw9DJgEkjh,dataElements,Radiology report,RD,service-specific,['RD'],True
+RDDE0007,RDDE0007,DER_HOSP_DE_REPORTED_DATE,HQx87eFdpE3,dataElements,Reported date,RD,service-specific,['RD'],True
+RDPG0001,RDPG0001,DER_HOSP_PRG_IMAGING_AND_RADIOLOGY,HoztxkNA6aK,programs,Imaging and Radiology,RD,service-specific,[],True
+RDPI0001,RDPI0001,DER_HOSP_PI_HOSP_IMAGING_AND_RADIOLOGY_Htff9ejIxdC,Htff9ejIxdC,programIndicators,Imaging and Radiology - Recorded Events,RD,service-specific,[],True
+RDPS0001,RDPS0001,DER_HOSP_PS_IMAGING_AND_RADIOLOGY_IMAGING_ACQUISITION,HUxFrSY2XOR,programStages,Imaging Acquisition,RD,service-specific,[],True
+RDPS0002,RDPS0002,DER_HOSP_PS_IMAGING_AND_RADIOLOGY_IMAGING_REPORTING_AND_COMMUNICATION,HaZlb15pDH0,programStages,Imaging Reporting and Communication,RD,service-specific,[],True
+RDPS0003,RDPS0003,DER_HOSP_PS_IMAGING_AND_RADIOLOGY_IMAGING_REQUEST_AND_SCHEDULING,H41wYyyIBKj,programStages,Imaging Request and Scheduling,RD,service-specific,[],True
+RFDE0001,RFDE0001,DER_HOSP_DE_REFERRAL_REFERENCE,HwRs5lghvYF,dataElements,Referral reference,RF,cross-cutting,"['AN', 'EN', 'ER', 'EY', 'HV', 'IM', 'MH', 'MT', 'PN', 'RN', 'TB']",True
+RHDE0001,RHDE0001,DER_HOSP_DE_DISCHARGE_RECOMMENDATION,HaN0CPTYJnh,dataElements,Discharge recommendation,RH,service-specific,['RH'],True
+RHDE0002,RHDE0002,DER_HOSP_DE_FUNCTIONAL_BASELINE_SCALE,Hte8e6Cfn2z,dataElements,Functional baseline scale,RH,service-specific,['RH'],True
+RHDE0003,RHDE0003,DER_HOSP_DE_FUNCTIONAL_OUTCOME_SCORE,HTyvLPHDl3u,dataElements,Functional outcome score,RH,service-specific,['RH'],True
+RHDE0004,RHDE0004,DER_HOSP_DE_SESSION_DURATION_MINUTES,HaAZxNLss5r,dataElements,Session duration minutes,RH,service-specific,['RH'],True
+RHDE0005,RHDE0005,DER_HOSP_DE_THERAPY_GOAL,HqZejcJVCQU,dataElements,Therapy goal,RH,service-specific,['RH'],True
+RHDE0006,RHDE0006,DER_HOSP_DE_THERAPY_INTERVENTION_CODE,HqQoDtuERJg,dataElements,Therapy intervention code,RH,service-specific,['RH'],True
+RHPG0001,RHPG0001,DER_HOSP_PRG_REHABILITATION_AND_PHYSIOTHERAPY,H33xoCTq4VH,programs,Rehabilitation and Physiotherapy,RH,service-specific,[],True
+RHPI0001,RHPI0001,DER_HOSP_PI_HOSP_REHABILITATION_AND_PHYSIOTHERAPY_HMF4MJ1gZvr,HMF4MJ1gZvr,programIndicators,Rehabilitation and Physiotherapy - Recorded Events,RH,service-specific,[],True
+RHPS0001,RHPS0001,DER_HOSP_PS_REHABILITATION_AND_PHYSIOTHERA_REHABILITATION_INTAKE,HZgJValrLBg,programStages,Rehabilitation Intake,RH,service-specific,[],True
+RHPS0002,RHPS0002,DER_HOSP_PS_REHABILITATION_AND_PHYSIOTHERA_REHABILITATION_REASSESSMENT_AND_DIS,Hfh2Go08S0z,programStages,Rehabilitation Reassessment and Discharge,RH,service-specific,[],True
+RHPS0003,RHPS0003,DER_HOSP_PS_REHABILITATION_AND_PHYSIOTHERA_REHABILITATION_SESSION,HFbFDRTZ8AM,programStages,Rehabilitation Session,RH,service-specific,[],True
+RNDE0001,RNDE0001,DER_HOSP_DE_BASELINE_RENAL_FUNCTION_NOTE,HYdqg0PHKXJ,dataElements,Baseline renal function note,RN,service-specific,['RN'],True
+RNDE0002,RNDE0002,DER_HOSP_DE_COMPLICATION_NOTE,HaRnEPMxHH2,dataElements,Complication note,RN,service-specific,['RN'],True
+RNDE0003,RNDE0003,DER_HOSP_DE_DIALYSIS_DURATION_MINUTES,HLdnqG8987Z,dataElements,Dialysis duration minutes,RN,service-specific,['RN'],True
+RNDE0004,RNDE0004,DER_HOSP_DE_DIALYSIS_SESSION_STATUS,HbcJjpqqNAU,dataElements,Dialysis session status,RN,service-specific,['RN'],True
+RNDE0005,RNDE0005,DER_HOSP_DE_POST_DIALYSIS_WEIGHT_KG,HDD2hwopjFO,dataElements,Post dialysis weight kg,RN,service-specific,['RN'],True
+RNDE0006,RNDE0006,DER_HOSP_DE_PRE_DIALYSIS_WEIGHT_KG,HUT8jHWbvii,dataElements,Pre dialysis weight kg,RN,service-specific,['RN'],True
+RNDE0007,RNDE0007,DER_HOSP_DE_RENAL_DIAGNOSIS_CODE,Hw2F1F7Ccmg,dataElements,Renal diagnosis code,RN,service-specific,['RN'],True
+RNDE0008,RNDE0008,DER_HOSP_DE_VASCULAR_ACCESS_TYPE,Huke9hGOnYU,dataElements,Vascular access type,RN,service-specific,['RN'],True
+RNOP0001,ACTIVE,ACTIVE,HAJFWsfqiTJ,options,Active,RN,service-specific,[],False
+RNOP0002,CANCELLED,CANCELLED,H9Ws55opOZL,options,Cancelled,RN,service-specific,[],False
+RNOP0003,COMPLETED,COMPLETED,HJy2mE73yek,options,Completed,RN,service-specific,[],False
+RNOP0004,INTERRUPTED,INTERRUPTED,HXBSTx1eX9X,options,Interrupted,RN,service-specific,[],False
+RNOP0005,PLANNED,PLANNED,HDBcJ75grek,options,Planned,RN,service-specific,[],False
+RNOS0001,RNOS0001,DER_HOSP_OS_RENAL_SESSION_STATUS,HpQhg3SoqNY,optionSets,Renal Session Status,RN,service-specific,['RN'],True
+RNPA0001,RNPA0001,,H7qUhSboDmJ,programRuleActions,,RN,service-specific,[],True
+RNPG0001,RNPG0001,DER_HOSP_PRG_RENAL_CARE_AND_DIALYSIS,HlcGwKikspd,programs,Renal Care and Dialysis,RN,service-specific,[],True
+RNPI0001,RNPI0001,DER_HOSP_PI_HOSP_RENAL_CARE_AND_DIALYSIS_H31BAQDs2Xt,H31BAQDs2Xt,programIndicators,Renal Care and Dialysis - Recorded Events,RN,service-specific,[],True
+RNPR0001,RNPR0001,,HWf3mz8QLYm,programRules,Dialysis duration minutes warning,RN,service-specific,[],True
+RNPS0001,RNPS0001,DER_HOSP_PS_RENAL_CARE_AND_DIALYSIS_DIALYSIS_COMPLICATION_AND_REVIEW,HMo5Rp73GZP,programStages,Dialysis Complication and Review,RN,service-specific,[],True
+RNPS0002,RNPS0002,DER_HOSP_PS_RENAL_CARE_AND_DIALYSIS_DIALYSIS_SESSION,H79V4mEultZ,programStages,Dialysis Session,RN,service-specific,[],True
+RNPS0003,RNPS0003,DER_HOSP_PS_RENAL_CARE_AND_DIALYSIS_RENAL_ASSESSMENT_AND_ACCESS,HNv2LY8SrFq,programStages,Renal Assessment and Access,RN,service-specific,[],True
+RNPV0001,RNPV0001,,Hxk5xoQKoEg,programRuleVariables,check_6,RN,service-specific,[],True
+SCOP0001,INDETERMINATE,INDETERMINATE,HVf4l7ii2Ct,options,Indeterminate,SC,service-specific,[],False
+SCOP0002,NEGATIVE,NEGATIVE,HzUF6nwXQpF,options,Negative,SC,service-specific,[],False
+SCOP0003,NOT_DONE,NOT_DONE,HZPl2C5VaFi,options,Not done,SC,service-specific,[],False
+SCOP0004,POSITIVE,POSITIVE,HLfBLC31FuS,options,Positive,SC,service-specific,[],False
+SCOS0001,SCOS0001,DER_HOSP_OS_SCREENING_OUTCOME,Homm8nwqxvv,optionSets,Screening Outcome,SC,cross-cutting,"['AN', 'EN', 'TB']",True
+SUDE0001,SUDE0001,DER_HOSP_DE_ANAESTHESIA_RISK_CLASSIFICATION,HBq5TZ4GfYK,dataElements,Anaesthesia risk classification,SU,service-specific,['SU'],True
+SUDE0002,SUDE0002,DER_HOSP_DE_OPERATIVE_NOTE,Hroqp78ZW4C,dataElements,Operative note,SU,service-specific,['SU'],True
+SUDE0003,SUDE0003,DER_HOSP_DE_PLANNED_PROCEDURE_CODE,H0oVVQI2VLI,dataElements,Planned procedure code,SU,service-specific,['SU'],True
+SUDE0004,SUDE0004,DER_HOSP_DE_POSTOPERATIVE_COMPLICATION,Haom4c0Pw3n,dataElements,Postoperative complication,SU,service-specific,['SU'],True
+SUDE0005,SUDE0005,DER_HOSP_DE_PREOPERATIVE_FINDINGS,HQGOe6PSY2G,dataElements,Preoperative findings,SU,service-specific,['SU'],True
+SUDE0006,SUDE0006,DER_HOSP_DE_PROCEDURE_END_TIME,HyRyg4UufrJ,dataElements,Procedure end time,SU,service-specific,['SU'],True
+SUDE0007,SUDE0007,DER_HOSP_DE_PROCEDURE_START_TIME,Hp8AtieF5S3,dataElements,Procedure start time,SU,service-specific,['SU'],True
+SUDE0008,SUDE0008,DER_HOSP_DE_SIGN_IN_COMPLETED,HikmR2X7F01,dataElements,Sign-in completed,SU,service-specific,['SU'],True
+SUDE0009,SUDE0009,DER_HOSP_DE_SIGN_OUT_COMPLETED,HtOLiQbsApW,dataElements,Sign-out completed,SU,service-specific,['SU'],True
+SUDE0010,SUDE0010,DER_HOSP_DE_SURGERY_DATE,HMjrnftU3xe,dataElements,Surgery date,SU,service-specific,['SU'],True
+SUDE0011,SUDE0011,DER_HOSP_DE_TIME_OUT_COMPLETED,H1wZwRLPohZ,dataElements,Time-out completed,SU,service-specific,['SU'],True
+SUDE0012,SUDE0012,DER_HOSP_DE_WOUND_CLASSIFICATION,HRJtzwPEc2S,dataElements,Wound classification,SU,service-specific,['SU'],True
+SUOP0001,CLEAN,CLEAN,HgWu5KsLb7U,options,Clean,SU,service-specific,[],False
+SUOP0002,CLEAN_CONTAMINATED,CLEAN_CONTAMINATED,H442R6afrUl,options,Clean-contaminated,SU,service-specific,[],False
+SUOP0003,CONTAMINATED,CONTAMINATED,HMOKesWgeoM,options,Contaminated,SU,service-specific,[],False
+SUOP0004,DIRTY,DIRTY,HpKet7HEsB6,options,Dirty,SU,service-specific,[],False
+SUOS0001,SUOS0001,DER_HOSP_OS_WOUND_CLASSIFICATION,HwZhrUvHSB5,optionSets,Wound Classification,SU,service-specific,['SU'],True
+SUPG0001,SUPG0001,DER_HOSP_PRG_SURGICAL_AND_THEATRE_SERVICES,HyzFOp4dLxv,programs,Surgical and Theatre Services,SU,service-specific,[],True
+SUPI0001,SUPI0001,DER_HOSP_PI_HOSP_SURGICAL_AND_THEATRE_SERVICES_HQ6VkLhuZKj,HQ6VkLhuZKj,programIndicators,Surgical and Theatre Services - Recorded Events,SU,service-specific,[],True
+SUPS0001,SUPS0001,DER_HOSP_PS_SURGICAL_AND_THEATRE_SERVICES_OPERATIVE_RECORD,HJPj5ZrtOzj,programStages,Operative Record,SU,service-specific,[],True
+SUPS0002,SUPS0002,DER_HOSP_PS_SURGICAL_AND_THEATRE_SERVICES_POSTOPERATIVE_AND_SURGICAL_REVIEW,HdPFYM6wFqN,programStages,Postoperative and Surgical Review,SU,service-specific,[],True
+SUPS0003,SUPS0003,DER_HOSP_PS_SURGICAL_AND_THEATRE_SERVICES_PREOPERATIVE_ASSESSMENT,HEfWm0hybL0,programStages,Preoperative Assessment,SU,service-specific,[],True
+SUPS0004,SUPS0004,DER_HOSP_PS_SURGICAL_AND_THEATRE_SERVICES_SURGICAL_BOOKING_AND_CONSENT,HVXypJlb1AH,programStages,Surgical Booking and Consent,SU,service-specific,[],True
+SUPS0005,SUPS0005,DER_HOSP_PS_SURGICAL_AND_THEATRE_SERVICES_THEATRE_SAFETY_CHECKLIST,H3hWMdu8reG,programStages,Theatre Safety Checklist,SU,service-specific,[],True
+TBDE0001,TBDE0001,DER_HOSP_DE_CONTACT_PATIENT_IDENTIFIER,H37CjDtiMq7,dataElements,Contact patient identifier,TB,service-specific,['TB'],True
+TBDE0002,TBDE0002,DER_HOSP_DE_DISEASE_CLASSIFICATION,HCujIKUf9AB,dataElements,Disease classification,TB,service-specific,['TB'],True
+TBDE0003,TBDE0003,DER_HOSP_DE_INDEX_CASE_REFERENCE,HNx2JsdH6BJ,dataElements,Index case reference,TB,service-specific,['TB'],True
+TBDE0004,TBDE0004,DER_HOSP_DE_MOLECULAR_TEST_RESULT,HECG2xWo1sF,dataElements,Molecular test result,TB,service-specific,['TB'],True
+TBDE0005,TBDE0005,DER_HOSP_DE_SCREENING_RESULT,HL7f5uEAoAl,dataElements,Screening result,TB,service-specific,['TB'],True
+TBDE0006,TBDE0006,DER_HOSP_DE_SMEAR_RESULT,HfrmccP2PBa,dataElements,Smear result,TB,service-specific,['TB'],True
+TBDE0007,TBDE0007,DER_HOSP_DE_SYMPTOMS_DURATION_DAYS,HkwlhDCBhlC,dataElements,Symptoms duration days,TB,service-specific,['TB'],True
+TBDE0008,TBDE0008,DER_HOSP_DE_TB_OUTCOME,HHerxkXE1qB,dataElements,TB outcome,TB,service-specific,['TB'],True
+TBDE0009,TBDE0009,DER_HOSP_DE_TREATMENT_PHASE,H2NgaCxpJN3,dataElements,Treatment phase,TB,service-specific,['TB'],True
+TBDE0010,TBDE0010,DER_HOSP_DE_TREATMENT_START_DATE,HPfK3pwv0h9,dataElements,Treatment start date,TB,service-specific,['TB'],True
+TBOP0001,CURED,CURED,HksbDeAAwvz,options,Cured,TB,service-specific,[],False
+TBOP0002,DIED,DIED,Hdu1fiXcb4v,options,Died,TB,service-specific,[],False
+TBOP0003,LOST_TO_FOLLOW_UP,LOST_TO_FOLLOW_UP,H5ewEJdDfKF,options,Lost to follow up,TB,service-specific,[],False
+TBOP0004,NOT_EVALUATED,NOT_EVALUATED,H5PS69bWz50,options,Not evaluated,TB,service-specific,[],False
+TBOP0005,TREATMENT_COMPLETED,TREATMENT_COMPLETED,HKBNoRnUKwL,options,Treatment completed,TB,service-specific,[],False
+TBOP0006,TREATMENT_FAILED,TREATMENT_FAILED,HWvIwzcy9jP,options,Treatment failed,TB,service-specific,[],False
+TBOS0001,TBOS0001,DER_HOSP_OS_TB_TREATMENT_OUTCOME,H5dUWwIOynz,optionSets,TB Treatment Outcome,TB,service-specific,['TB'],True
+TBPG0001,TBPG0001,DER_HOSP_PRG_TUBERCULOSIS_AND_LEPROSY_CARE,HPZl44929JX,programs,Tuberculosis and Leprosy Care,TB,service-specific,[],True
+TBPI0001,TBPI0001,DER_HOSP_PI_HOSP_TUBERCULOSIS_AND_LEPROSY_CARE_HH2Bw7XDUjS,HH2Bw7XDUjS,programIndicators,Tuberculosis and Leprosy Care - Recorded Events,TB,service-specific,[],True
+TBPS0001,TBPS0001,DER_HOSP_PS_TUBERCULOSIS_AND_LEPROSY_CARE_CONTACT_TRACING_AND_REFERRAL,Hdh2Ttz3Owj,programStages,Contact Tracing and Referral,TB,service-specific,[],True
+TBPS0002,TBPS0002,DER_HOSP_PS_TUBERCULOSIS_AND_LEPROSY_CARE_MICROBIOLOGY_AND_DIAGNOSTIC_WORKUP,H9tnX8sZJe6,programStages,Microbiology and Diagnostic Workup,TB,service-specific,[],True
+TBPS0003,TBPS0003,DER_HOSP_PS_TUBERCULOSIS_AND_LEPROSY_CARE_TB_LEPROSY_SCREENING_AND_CLASSIFICA,HOgiccvmi8Q,programStages,TB/Leprosy Screening and Classification,TB,service-specific,[],True
+TBPS0004,TBPS0004,DER_HOSP_PS_TUBERCULOSIS_AND_LEPROSY_CARE_TREATMENT_ADHERENCE_AND_FOLLOW_UP,HD9odWImACb,programStages,Treatment Adherence and Follow-up,TB,service-specific,[],True
+TBPS0005,TBPS0005,DER_HOSP_PS_TUBERCULOSIS_AND_LEPROSY_CARE_TREATMENT_INITIATION,HHXAkDf0owk,programStages,Treatment Initiation,TB,service-specific,[],True
+TBPS0006,TBPS0006,DER_HOSP_PS_TUBERCULOSIS_AND_LEPROSY_CARE_TREATMENT_OUTCOME,HWsQA3toMFE,programStages,Treatment Outcome,TB,service-specific,[],True
+VSDE0001,VSDE0001,DER_HOSP_DE_BIRTH_WEIGHT_G,HusWxNQdY39,dataElements,Birth weight (g),VS,cross-cutting,"['MT', 'PN']",True
+VSDE0002,VSDE0002,DER_HOSP_DE_DIASTOLIC_BP_MMHG,H23gpbln4hi,dataElements,Diastolic BP (mmHg),VS,cross-cutting,"['AN', 'NC']",True
+VSDE0003,VSDE0003,DER_HOSP_DE_HEIGHT_CM,HNKa4QwkdTR,dataElements,Height (cm),VS,cross-cutting,"['IM', 'NU']",True
+VSDE0004,VSDE0004,DER_HOSP_DE_MUAC_MM,HNrOf13uZBh,dataElements,MUAC (mm),VS,cross-cutting,"['IM', 'NU']",True
+VSDE0005,VSDE0005,DER_HOSP_DE_SYSTOLIC_BP_MMHG,H7CxstReTAT,dataElements,Systolic BP (mmHg),VS,cross-cutting,"['AN', 'ER', 'MT', 'NC', 'PN']",True
+VSDE0006,VSDE0006,DER_HOSP_DE_WEIGHT_KG,Hb4D1MPPxXp,dataElements,Weight (kg),VS,cross-cutting,"['AN', 'HV', 'IM', 'NC', 'NU', 'PN', 'TB']",True
+WFDE0001,WFDE0001,DER_HOSP_DE_ENCOUNTER_REFERENCE,HtU5Xg29Fqe,dataElements,Encounter reference,WF,cross-cutting,"['ER', 'LB']",True
+WFDE0002,WFDE0002,DER_HOSP_DE_ORDER_REFERENCE,HkrMdFvoghk,dataElements,Order reference,WF,cross-cutting,"['BB', 'EN', 'ER', 'LB', 'RD']",True

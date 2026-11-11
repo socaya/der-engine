@@ -1,0 +1,34 @@
+{
+  "edition": "3.0",
+  "date": "2026-11-10",
+  "schema": "SSTTNNNN",
+  "versions": [
+    "2.41",
+    "2.42",
+    "2.43",
+    "2.44"
+  ],
+  "metadataCounts": {
+    "trackedEntityTypes": 3,
+    "trackedEntityAttributes": 16,
+    "optionSets": 61,
+    "options": 316,
+    "dataElements": 624,
+    "programs": 26,
+    "programStages": 163,
+    "programRuleVariables": 8,
+    "programRules": 8,
+    "programRuleActions": 8,
+    "programIndicators": 26
+  },
+  "objectCount": 1259,
+  "nameChanges": 927,
+  "uidAndCodePreserved": true,
+  "optionValuesPreserved": true,
+  "validation": "Static checks only; live DHIS2 version-specific import and clinical validation required",
+  "limitations": [
+    "Names are cleaned and selectively clinically clarified, not independently certified against terminology systems",
+    "Option codes remain original for patient data compatibility",
+    "Program rule and indicator execution not validated on servers"
+  ]
+}

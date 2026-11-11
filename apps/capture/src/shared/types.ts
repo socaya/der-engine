@@ -47,7 +47,8 @@ export interface CaptureApi {
     sections: Array<{ displayName: string;
       fields: Array<{ fieldRef: string; dataElementUid: string;
         dataElementDisplayName: string; valueType: string;
-        requirement: 'REQUIRED' | 'OPTIONAL' | 'READONLY' }>;
+        requirement: 'REQUIRED' | 'OPTIONAL' | 'READONLY';
+        allowFutureDate?: boolean }>;
     }>;
   }>;
   listCaptureProgramEvents: (programUid: string, orgUnit: string,
