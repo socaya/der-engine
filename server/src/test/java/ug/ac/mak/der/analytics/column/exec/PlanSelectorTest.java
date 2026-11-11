@@ -148,4 +148,50 @@ class PlanSelectorTest {
         assertThat(PlanSelector.pick(50.0, 100.0))
                 .isEqualTo(PlanSelector.Engine.COLUMNAR);
     }
+
+    @Test
+    void feedbackLowersColumnarCostWhenHistoricalSelectivityIsLow()
+            throws IOException {
+        // Seed one segment so columnar is a candidate.
+        final UUID metric = UUID.randomUUID();
+        final List<AnalyticsCell> smallCells = new java.util.ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            smallCells.add(cell(metric, "202611", "OU-A",
+                    Instant.parse("2026-11-01T00:00:00Z")));
+        }
+        when(engineRepo.queryCells(any())).thenReturn(smallCells);
+        new AnalyticsColumnarSink(engineRepo, props(), json).flush();
+        when(engineRepo.queryCells(any())).thenReturn(smallCells);
+
+        final var cq = new AnalyticsEngineRepository.CellQuery(
+                List.of(), List.of(), List.of(), java.util.Map.of(),
+                100, 0);
+
+        // Baseline — no feedback wired.
+        final var baselineSelector = new PlanSelector(props(),
+                engineRepo, json);
+        final var baseline = baselineSelector.select(cq);
+
+        // With-feedback — record that this shape returns only 10 %
+        // of the estimated rows.
+        final var feedbackSelector = new PlanSelector(props(),
+                engineRepo, json);
+        final var feedback = new ug.ac.mak.der.analytics.column.feedback
+                .PlanFeedbackStore(
+                new ug.ac.mak.der.analytics.column.feedback
+                        .PlanFeedbackProperties(10));
+        feedback.record(new ug.ac.mak.der.analytics.column.feedback
+                .PlanFeedback(Instant.now(), "columnar",
+                ug.ac.mak.der.analytics.column.feedback
+                        .PlanFeedbackStore.shapeKeyFor(cq),
+                1000L, 100L, 1000.0, 50L));
+        feedbackSelector.setFeedbackStore(feedback);
+        final var adjusted = feedbackSelector.select(cq);
+
+        // Feedback scales selectivity down (ratio 0.1), so columnar
+        // cost shrinks — strictly smaller than baseline for the
+        // same query.
+        assertThat(adjusted.columnarCost())
+                .isLessThan(baseline.columnarCost());
+    }
 }

@@ -62,6 +62,8 @@ public class PlanSelector {
     private final AnalyticsColumnarProperties properties;
     private final AnalyticsEngineRepository rowStore;
     private final ObjectMapper json;
+    private ug.ac.mak.der.analytics.column.feedback.PlanFeedbackStore
+            feedbackStore;
 
     public PlanSelector(final AnalyticsColumnarProperties properties,
                           final AnalyticsEngineRepository rowStore,
@@ -69,6 +71,16 @@ public class PlanSelector {
         this.properties = Objects.requireNonNull(properties, "properties");
         this.rowStore = Objects.requireNonNull(rowStore, "rowStore");
         this.json = Objects.requireNonNull(json, "json");
+    }
+
+    /** Setter-injected so pre-Gate-7 tests that don't need
+     *  feedback keep working. When null, the planner uses the
+     *  static estimates only. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setFeedbackStore(
+            final ug.ac.mak.der.analytics.column.feedback.PlanFeedbackStore
+                    feedbackStore) {
+        this.feedbackStore = feedbackStore;
     }
 
     public enum Engine { COLUMNAR, ROW_STORE }
@@ -137,6 +149,10 @@ public class PlanSelector {
         // Compute columnar cost — iterate matching segments.
         final SegmentStatisticsStore statsStore =
                 new SegmentStatisticsStore(json);
+        // SRS FR-QRY-015: pull the observed ratio for this
+        // query's shape so the static selectivity self-corrects
+        // toward recently-measured reality.
+        final Double observedRatio = feedbackRatioFor(q);
         double columnarCost = 0.0;
         int matched = 0;
         for (final SegmentRef ref : manifest.segments()) {
@@ -151,7 +167,7 @@ public class PlanSelector {
                 // Fall back to selectivity = 1.
             }
             final PlanCoster.CostEstimate est = PlanCoster.estimate(
-                    ref, statsOpt, q);
+                    ref, statsOpt, q, observedRatio);
             columnarCost += est.totalCost();
         }
         if (matched == 0) {
@@ -186,6 +202,25 @@ public class PlanSelector {
             return false;
         }
         return true;
+    }
+
+    /** Shape ratio from the feedback store, or null if no
+     *  feedback is wired or no ratio is recorded for this
+     *  shape. Null leaves the static selectivity unchanged. */
+    private Double feedbackRatioFor(
+            final AnalyticsEngineRepository.CellQuery q) {
+        if (feedbackStore == null) {
+            return null;
+        }
+        try {
+            final String shape = ug.ac.mak.der.analytics.column.feedback
+                    .PlanFeedbackStore.shapeKeyFor(q);
+            final java.util.Map<String, Double> ratios =
+                    feedbackStore.averageRatioByShape();
+            return ratios.get(shape);
+        } catch (RuntimeException ex) {
+            return null;
+        }
     }
 
     /** Helper used by tests when they want to assert "columnar

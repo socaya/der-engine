@@ -44,10 +44,27 @@ public final class PlanCoster {
             final SegmentRef ref,
             final Optional<SegmentStatistics> statsOpt,
             final AnalyticsEngineRepository.CellQuery query) {
+        return estimate(ref, statsOpt, query, null);
+    }
+
+    /** SRS FR-QRY-015 adaptive form. {@code observedRatio} is the
+     *  recent actual/estimate for the query's shape (from the
+     *  feedback store); the static selectivity is scaled by it so
+     *  repeatedly-wrong plans self-correct toward reality. Pass
+     *  null when no feedback is available — behaviour matches the
+     *  base overload. */
+    public static CostEstimate estimate(
+            final SegmentRef ref,
+            final Optional<SegmentStatistics> statsOpt,
+            final AnalyticsEngineRepository.CellQuery query,
+            final Double observedRatio) {
         Objects.requireNonNull(ref, "ref");
         Objects.requireNonNull(query, "query");
         final int rowsIn = ref.rowCount();
-        final double selectivity = estimateSelectivity(statsOpt, query);
+        double selectivity = estimateSelectivity(statsOpt, query);
+        if (observedRatio != null && observedRatio > 0.0) {
+            selectivity = Math.min(1.0, selectivity * observedRatio);
+        }
         final long rowsOut = Math.round(rowsIn * selectivity);
         final long bytes = Math.round(rowsIn * BYTES_PER_ROW);
         final double totalCost = FIXED_OPEN_COST
