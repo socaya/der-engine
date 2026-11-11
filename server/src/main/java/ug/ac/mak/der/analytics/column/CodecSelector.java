@@ -36,8 +36,14 @@ public final class CodecSelector {
         }
         final DictionaryStringCodec dict = new DictionaryStringCodec();
         final BitPackedInt64Codec bp = new BitPackedInt64Codec();
+        final DeltaInt64Codec delta = new DeltaInt64Codec();
+        final RleInt64Codec rleI64 = new RleInt64Codec();
+        final RleStringCodec rleStr = new RleStringCodec();
         out.add(dict);
         out.add(bp);
+        out.add(delta);
+        out.add(rleI64);
+        out.add(rleStr);
 
         // Wrap the typed encoders in Zstd + LZ4 so the entropy
         // coders compete with the structural codecs. Zstd is level
@@ -51,10 +57,11 @@ public final class CodecSelector {
                         PlainCodec.forType(t),
                         BuiltinCodecs::lookup));
             }
-            out.add(new CompressedCodec(comp, dict,
-                    BuiltinCodecs::lookup));
-            out.add(new CompressedCodec(comp, bp,
-                    BuiltinCodecs::lookup));
+            for (final Codec inner : new Codec[] {
+                    dict, bp, delta, rleI64, rleStr }) {
+                out.add(new CompressedCodec(comp, inner,
+                        BuiltinCodecs::lookup));
+            }
         }
         return new CodecSelector(out);
     }

@@ -65,7 +65,10 @@ migrations after V118 — columnar state lives on disk under
 | `column/CodecSelector.java` | Measurement-based codec selection (SRS FR-STO-007) |
 | `column/PlainCodec.java` + `PlainCodecHeader.java` | Reference uncompressed oracle |
 | `column/BitPacker.java` + `BitPackedInt64Codec.java` | Frame-of-reference + bit-pack |
+| `column/DeltaInt64Codec.java` | Delta + zig-zag + bit-pack for monotonic INT64 |
 | `column/DictionaryStringCodec.java` | Low-cardinality string dictionary |
+| `column/RleStringCodec.java` | Run-length encoding for clustered strings |
+| `column/RleInt64Codec.java` | Run-length encoding for repeated INT64 (enums/flags) |
 | `column/Compressor.java` + `ZstdCompressor.java` + `Lz4Compressor.java` | Page-level compressors |
 | `column/CompressedCodec.java` | Zstd/LZ4 wrapper with xxHash64 integrity |
 
@@ -196,8 +199,6 @@ Row-store reference engine is profile-agnostic.
 
 | Area | SRS ID | Status | Notes |
 |---|---|---|---|
-| Delta + varint codec | FR-STO-007 | ⏳ deferred | Low marginal value until pilot data shows demand |
-| RLE codec | FR-STO-007 | ⏳ deferred | Same |
 | Operator spill adoption | FR-QRY-013 | ⏳ | Governor + store done; operators don't spill yet |
 | SIMD acceleration | FR-QRY-017 | ⏳ | Scalar path everywhere today |
 | Adaptive optimizer feedback | FR-QRY-015 | ⏳ (Gate 7) | Cost model collects stats but doesn't yet learn |

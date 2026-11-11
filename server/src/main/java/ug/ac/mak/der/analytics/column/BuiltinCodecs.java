@@ -26,6 +26,12 @@ public final class BuiltinCodecs {
         m.put(dict.codecId(), dict);
         final BitPackedInt64Codec bp = new BitPackedInt64Codec();
         m.put(bp.codecId(), bp);
+        final DeltaInt64Codec delta = new DeltaInt64Codec();
+        m.put(delta.codecId(), delta);
+        final RleInt64Codec rleI64 = new RleInt64Codec();
+        m.put(rleI64.codecId(), rleI64);
+        final RleStringCodec rleStr = new RleStringCodec();
+        m.put(rleStr.codecId(), rleStr);
         BY_ID = Map.copyOf(m);
     }
 

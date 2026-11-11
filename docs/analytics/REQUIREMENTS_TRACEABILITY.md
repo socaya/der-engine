@@ -40,7 +40,7 @@ paths relative to repo root.
 | FR-STO-004 | ✅ | `SegmentReader.projection` reads only requested columns |
 | FR-STO-005 | ✅ | Segment partitioning on `(domain, site, period)` |
 | FR-STO-006 | ✅ | Manifest atomic generation swap + per-segment CRC + per-manifest CRC |
-| FR-STO-007 | ✅ | Dictionary + bit-pack + Zstd + LZ4 + `CodecSelector`; delta + RLE deferred |
+| FR-STO-007 | ✅ | Dictionary + bit-pack + delta + RLE (str/int64) + Zstd + LZ4 + `CodecSelector` |
 | FR-STO-008 | ✅ | Zone-map pruning (`PlanCoster` + `ColumnarQueryEngine`) |
 | FR-STO-009 | ✅ | Upsert-by-key in row-store ledger; columnar oracle-verified |
 | FR-STO-010 | ❌ | No background compaction |
@@ -234,10 +234,9 @@ Ordered by remaining value:
 2. **Operator spill adoption** — vectorised operators call
    `SpillStore.allocate()` when intermediate state would exceed
    the memory budget (FR-QRY-013 operator-level).
-3. **Delta + RLE codecs** — when pilot data shows demand.
-4. **Metadata-edit rebuild** — shadow-rebuild + atomic switch
+3. **Metadata-edit rebuild** — shadow-rebuild + atomic switch
    (§12 fixture 9, FR-INC-009).
-5. **Structured observability** — Micrometer exports for ingest
+4. **Structured observability** — Micrometer exports for ingest
    lag, query p95, DLQ depth, compression ratios (NFR-OPS-03).
-6. **Age-band / cross-site identity** — §12 fixtures 6 + 8;
+5. **Age-band / cross-site identity** — §12 fixtures 6 + 8;
    requires a dedicated identity resolution service.
