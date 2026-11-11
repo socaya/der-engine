@@ -74,6 +74,8 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.column.governor.QueryGovernor queryGovernor;
     @MockBean ug.ac.mak.der.analytics.column.governor.SpillStore spillStore;
     @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionExporter siteExporter;
+    @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionReceiver siteReceiver;
+    @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionRepository siteRepo;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -476,6 +478,53 @@ class AnalyticsEngineControllerTest {
                 .andExpect(jsonPath("$.cellsScanned").value(4))
                 .andExpect(jsonPath("$.packetsEmitted").value(2))
                 .andExpect(jsonPath("$.maxSourceCursor").value(7));
+    }
+
+    @Test
+    void siteImportRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/sites/import")
+                        .contentType("application/json")
+                        .content("[]")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void siteImportHappyPathReturnsCounters() throws Exception {
+        when(siteReceiver.ingest(any())).thenReturn(
+                new ug.ac.mak.der.analytics.distributed
+                        .SiteContributionReceiver.IngestResult(
+                        3, 2, 1, 0, 1));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/sites/import")
+                        .contentType("application/json")
+                        .content("[]")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.received").value(3))
+                .andExpect(jsonPath("$.accepted").value(2))
+                .andExpect(jsonPath("$.deduped").value(1));
+    }
+
+    @Test
+    void siteImportRejectsMissingBody() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/sites/import")
+                        .contentType("application/json")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void siteSummaryReturnsRepoRows() throws Exception {
+        when(siteRepo.countPendingConsolidation()).thenReturn(5L);
+        when(siteRepo.siteSummary()).thenReturn(java.util.List.of());
+        mockMvc.perform(get(
+                        "/edge-api/v1/analytics/v1/admin/sites/summary")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pendingConsolidation").value(5));
     }
 
     @Test

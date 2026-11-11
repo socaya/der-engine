@@ -46,6 +46,8 @@ import ug.ac.mak.der.analytics.column.governor.SpillStore;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink;
 import ug.ac.mak.der.analytics.distributed.SiteContributionExporter;
 import ug.ac.mak.der.analytics.distributed.SiteContributionPacket;
+import ug.ac.mak.der.analytics.distributed.SiteContributionReceiver;
+import ug.ac.mak.der.analytics.distributed.SiteContributionRepository;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarVerifier;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkRun;
 import ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkService;
@@ -122,6 +124,8 @@ public class AnalyticsEngineController {
     private final QueryGovernor queryGovernor;
     private final SpillStore spillStore;
     private final SiteContributionExporter siteExporter;
+    private final SiteContributionReceiver siteReceiver;
+    private final SiteContributionRepository siteRepo;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -159,7 +163,9 @@ public class AnalyticsEngineController {
                                       final PlanSelector planSelector,
                                       final QueryGovernor queryGovernor,
                                       final SpillStore spillStore,
-                                      final SiteContributionExporter siteExporter) {
+                                      final SiteContributionExporter siteExporter,
+                                      final SiteContributionReceiver siteReceiver,
+                                      final SiteContributionRepository siteRepo) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -202,6 +208,9 @@ public class AnalyticsEngineController {
                 "spillStore");
         this.siteExporter = Objects.requireNonNull(siteExporter,
                 "siteExporter");
+        this.siteReceiver = Objects.requireNonNull(siteReceiver,
+                "siteReceiver");
+        this.siteRepo = Objects.requireNonNull(siteRepo, "siteRepo");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -872,6 +881,101 @@ public class AnalyticsEngineController {
                     "code", "VERIFY_IO_FAILURE",
                     "message", ex.getMessage()));
         }
+    }
+
+    /** SRS FR-DIS-003 receive endpoint. Accepts a list of signed
+     *  packets; checksum-verifies each, dedups against the server
+     *  ledger, returns per-batch counters. ADMIN only. */
+    @PostMapping("/admin/sites/import")
+    public ResponseEntity<Map<String, Object>> importSiteContributions(
+            @RequestBody final List<Map<String, Object>> body,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        if (body == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INVALID_REQUEST",
+                    "message", "expected an array of packets"));
+        }
+        final List<SiteContributionPacket> packets =
+                new ArrayList<>(body.size());
+        for (int i = 0; i < body.size(); i++) {
+            try {
+                packets.add(parsePacket(body.get(i)));
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "code", "INVALID_PACKET",
+                        "index", i,
+                        "message", ex.getMessage()));
+            }
+        }
+        final SiteContributionReceiver.IngestResult r =
+                siteReceiver.ingest(packets);
+        return ResponseEntity.ok(Map.of(
+                "received", r.received(),
+                "accepted", r.accepted(),
+                "deduped", r.deduped(),
+                "rejectedChecksum", r.rejectedChecksum(),
+                "sitesTouched", r.sitesTouched()));
+    }
+
+    @GetMapping("/admin/sites/summary")
+    public ResponseEntity<Map<String, Object>> siteContributionSummary(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        return ResponseEntity.ok(Map.of(
+                "pendingConsolidation",
+                siteRepo.countPendingConsolidation(),
+                "sites", siteRepo.siteSummary()));
+    }
+
+    private static SiteContributionPacket parsePacket(
+            final Map<String, Object> raw) {
+        try {
+            return new SiteContributionPacket(
+                    (String) raw.get("siteId"),
+                    UUID.fromString((String) raw.get("packetId")),
+                    UUID.fromString((String) raw.get("metricId")),
+                    ((Number) raw.get("definitionVersion")).intValue(),
+                    (String) raw.get("periodKey"),
+                    (String) raw.get("orgUnitUid"),
+                    (String) raw.getOrDefault("dimensionKey", ""),
+                    ((Number) raw.get("count")).longValue(),
+                    parseDecimal(raw.get("sum")),
+                    parseDecimal(raw.get("min")),
+                    parseDecimal(raw.get("max")),
+                    parseDecimal(raw.get("numerator")),
+                    parseDecimal(raw.get("denominator")),
+                    ((Number) raw.get("sourceCursor")).longValue(),
+                    Instant.parse((String) raw.get("producedAt")),
+                    (String) raw.get("checksumHex"),
+                    (String) raw.get("signatureHex"));
+        } catch (RuntimeException ex) {
+            throw new IllegalArgumentException(
+                    "packet parse failed: " + ex.getMessage(), ex);
+        }
+    }
+
+    private static java.math.BigDecimal parseDecimal(final Object v) {
+        if (v == null) {
+            return null;
+        }
+        if (v instanceof Number n) {
+            return new java.math.BigDecimal(n.toString());
+        }
+        final String s = v.toString();
+        return s.isEmpty() ? null : new java.math.BigDecimal(s);
     }
 
     /** SRS §8 site contribution export body. */
