@@ -68,6 +68,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkService benchmarks;
     @MockBean ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkFixtureGenerator fixtureGenerator;
     @MockBean ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink columnarSink;
+    @MockBean ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarVerifier columnarVerifier;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -260,6 +261,29 @@ class AnalyticsEngineControllerTest {
                 .andExpect(jsonPath("$.generation").value(1))
                 .andExpect(jsonPath("$.segmentsWritten").value(3))
                 .andExpect(jsonPath("$.compressionRatio").value(0.25));
+    }
+
+    @Test
+    void columnarVerifyRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/segments/verify")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void columnarVerifyReturnsDriftReport() throws Exception {
+        when(columnarVerifier.verify()).thenReturn(
+                new ug.ac.mak.der.analytics.column.sink
+                        .AnalyticsColumnarVerifier.VerifyReport(
+                        1L, 2, 10, 10, 0, java.util.List.of()));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/segments/verify")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.generation").value(1))
+                .andExpect(jsonPath("$.rowsOk").value(10))
+                .andExpect(jsonPath("$.rowsDrifted").value(0));
     }
 
     @Test
