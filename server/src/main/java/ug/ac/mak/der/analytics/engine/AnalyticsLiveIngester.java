@@ -45,6 +45,10 @@ public class AnalyticsLiveIngester {
     private final AnalyticsPeriodEnumerator periods;
     private final JdbcTemplate jdbc;
     private final ObjectMapper jsonMapper;
+    /** Nullable — older callers constructed the ingester without the
+     *  DLQ. When null, a hot-path failure just bumps the counter;
+     *  when wired, the failing event lands in V116 for retry. */
+    private ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqRepository dlq;
 
     // Cheap in-memory counters for the /quality + /admin/jobs
     // endpoints so operators see live ingestion health without
@@ -67,6 +71,15 @@ public class AnalyticsLiveIngester {
         this.jsonMapper = jsonMapper;
     }
 
+    /** Spring setter-injection for the DLQ repo. Done this way so
+     *  the pre-DLQ 5-arg constructor keeps working for every test
+     *  and pre-V116 wiring path. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setDeadLetterQueue(
+            final ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqRepository repo) {
+        this.dlq = repo;
+    }
+
     /** Transactional listener — runs after the capture transaction
      *  commits, so a rolled-back source never produces an analytics
      *  contribution. */
@@ -76,10 +89,11 @@ public class AnalyticsLiveIngester {
         handle(event);
     }
 
-    /** Synchronous handler — exposed for tests and for environments
-     *  where the Spring transaction manager hasn't been configured.
-     *  The transactional listener delegates here too. */
-    void handle(final AnalyticsSourceEvent event) {
+    /** Synchronous handler — exposed for tests, for environments
+     *  where the Spring transaction manager hasn't been configured,
+     *  and for the DLQ retry worker. The transactional listener
+     *  delegates here too. */
+    public void handle(final AnalyticsSourceEvent event) {
         try {
             final String code = codeFor(event.sourceType());
             final Optional<AnalyticsDefinition> defOpt =
@@ -129,6 +143,40 @@ public class AnalyticsLiveIngester {
             LOG.warn("analytics live ingest failed for {} {} v{}: {}",
                     event.sourceType(), event.sourceKey(),
                     event.sourceVersion(), ex.getMessage());
+            enqueueDeadLetter(event, ex);
+        }
+    }
+
+    /** Spec §4.1 AN-FR-053 resilient queue. On a hot-path failure
+     *  the event lands in V116 with a scheduled retry one minute
+     *  out — the retry worker picks it up and re-invokes
+     *  {@link #handle}. The upsert is keyed on source_type +
+     *  source_key + source_version so a duplicate-delivery after
+     *  a prior enqueue doesn't inflate the queue. */
+    private void enqueueDeadLetter(final AnalyticsSourceEvent event,
+                                      final RuntimeException ex) {
+        if (dlq == null) {
+            return; // Pre-DLQ wiring or tests that skipped the setter.
+        }
+        try {
+            final java.time.Instant now = java.time.Instant.now();
+            dlq.enqueue(new ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqEntry(
+                    java.util.UUID.randomUUID(),
+                    event.sourceType(), event.sourceKey(),
+                    event.sourceVersion(),
+                    event.occurredOn(),
+                    event.orgUnitUid(), event.status(),
+                    ex.getClass().getSimpleName() + ": "
+                          + (ex.getMessage() == null ? "" : ex.getMessage()),
+                    1, now.plusSeconds(60L), false,
+                    now, now));
+        } catch (RuntimeException enqueueFailure) {
+            // Last-resort guard — if the DLQ itself fails we don't
+            // want to propagate into the TransactionalEventListener.
+            LOG.error("analytics DLQ enqueue failed for {} {} v{}: {}",
+                    event.sourceType(), event.sourceKey(),
+                    event.sourceVersion(),
+                    enqueueFailure.getMessage());
         }
     }
 

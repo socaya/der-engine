@@ -63,6 +63,8 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationRepository reconciliationRepo;
     @MockBean ug.ac.mak.der.analytics.replay.AnalyticsBaselineVerifier replayVerifier;
     @MockBean ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationFetcher reconciliationFetcher;
+    @MockBean ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqRepository liveDlq;
+    @MockBean ug.ac.mak.der.analytics.dlq.AnalyticsLiveRetryWorker liveRetryWorker;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -231,6 +233,49 @@ class AnalyticsEngineControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.samplesConsidered").value(1))
                 .andExpect(jsonPath("$.rowsUpserted").value(1));
+    }
+
+    @Test
+    void liveDlqListRejectsNonAdmin() throws Exception {
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/admin/live-dlq")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void liveDlqListReturnsEntries() throws Exception {
+        when(liveDlq.list(eq(false), eq(200)))
+                .thenReturn(List.of());
+        when(liveDlq.countAll()).thenReturn(0L);
+        when(liveDlq.countGaveUp()).thenReturn(0L);
+        when(liveRetryWorker.stats()).thenReturn(
+                new ug.ac.mak.der.analytics.dlq
+                        .AnalyticsLiveRetryWorker.RetryStats(0, 0, 0, 0));
+        mockMvc.perform(get("/edge-api/v1/analytics/v1/admin/live-dlq")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(0))
+                .andExpect(jsonPath("$.worker.retried").value(0));
+    }
+
+    @Test
+    void liveDlqRetryNotFoundReturns404() throws Exception {
+        when(liveRetryWorker.retryNow(any())).thenReturn(false);
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/live-dlq/"
+                        + UUID.randomUUID() + "/retry")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    @Test
+    void liveDlqRetryRejectsInvalidId() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/live-dlq/not-a-uuid/retry")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_ID"));
     }
 
     @Test

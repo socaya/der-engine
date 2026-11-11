@@ -100,6 +100,25 @@ class AnalyticsLiveIngesterTest {
     }
 
     @Test
+    void failureEnqueuesDeadLetterWhenDlqWired() {
+        final var dlq = org.mockito.Mockito.mock(
+                ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqRepository.class);
+        ingester.setDeadLetterQueue(dlq);
+        when(engineRepo.findDefinitionByCode(AnalyticsSeed.EVENT_COUNT_CODE))
+                .thenReturn(Optional.of(eventDef));
+        org.mockito.Mockito.doThrow(new RuntimeException("db down"))
+                .when(materializer).applyContribution(any(), any());
+
+        ingester.handle(new AnalyticsSourceEvent(
+                AnalyticsSourceEvent.SourceType.EVENT,
+                "ev-fail", 1, LocalDate.of(2026, 11, 10), "OU-A",
+                "ACTIVE"));
+
+        verify(dlq, org.mockito.Mockito.times(1)).enqueue(any());
+        assertThat(ingester.stats().failed()).isEqualTo(1L);
+    }
+
+    @Test
     void enrollmentEventRoutesToEnrollmentMetric() {
         final UUID enrollMetricId = UUID.randomUUID();
         final AnalyticsDefinition enrollDef = new AnalyticsDefinition(

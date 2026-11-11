@@ -37,6 +37,9 @@ import ug.ac.mak.der.analytics.engine.ProgramIndicatorSyncService;
 import ug.ac.mak.der.analytics.expression.ExpressionCompiler;
 import java.util.Optional;
 
+import ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqEntry;
+import ug.ac.mak.der.analytics.dlq.AnalyticsLiveDlqRepository;
+import ug.ac.mak.der.analytics.dlq.AnalyticsLiveRetryWorker;
 import ug.ac.mak.der.analytics.drilldown.AnalyticsDrilldownService;
 import ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliation;
 import ug.ac.mak.der.analytics.reconciliation.AnalyticsReconciliationFetcher;
@@ -96,6 +99,8 @@ public class AnalyticsEngineController {
     private final AnalyticsReconciliationRepository reconciliationRepo;
     private final AnalyticsBaselineVerifier replayVerifier;
     private final AnalyticsReconciliationFetcher reconciliationFetcher;
+    private final AnalyticsLiveDlqRepository liveDlq;
+    private final AnalyticsLiveRetryWorker liveRetryWorker;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -122,7 +127,9 @@ public class AnalyticsEngineController {
                                       final AnalyticsReconciliationService reconciliation,
                                       final AnalyticsReconciliationRepository reconciliationRepo,
                                       final AnalyticsBaselineVerifier replayVerifier,
-                                      final AnalyticsReconciliationFetcher reconciliationFetcher) {
+                                      final AnalyticsReconciliationFetcher reconciliationFetcher,
+                                      final AnalyticsLiveDlqRepository liveDlq,
+                                      final AnalyticsLiveRetryWorker liveRetryWorker) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -145,6 +152,9 @@ public class AnalyticsEngineController {
                 "replayVerifier");
         this.reconciliationFetcher = Objects.requireNonNull(
                 reconciliationFetcher, "reconciliationFetcher");
+        this.liveDlq = Objects.requireNonNull(liveDlq, "liveDlq");
+        this.liveRetryWorker = Objects.requireNonNull(liveRetryWorker,
+                "liveRetryWorker");
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -740,6 +750,111 @@ public class AnalyticsEngineController {
         };
         return ResponseEntity.status(status)
                 .body(AnalyticsDrilldownService.asMap(result));
+    }
+
+    /* ─────────────── /admin/live-dlq ─────────────── */
+
+    @GetMapping("/admin/live-dlq")
+    public ResponseEntity<Map<String, Object>> listLiveDlq(
+            @RequestParam(name = "gaveUpOnly", required = false,
+                    defaultValue = "false") final boolean gaveUpOnly,
+            @RequestParam(name = "limit", required = false,
+                    defaultValue = "200") final int limit,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final List<AnalyticsLiveDlqEntry> rows = liveDlq.list(
+                gaveUpOnly, limit);
+        return ResponseEntity.ok(Map.of(
+                "count", rows.size(),
+                "totalCount", liveDlq.countAll(),
+                "gaveUpCount", liveDlq.countGaveUp(),
+                "entries", rows.stream()
+                        .map(AnalyticsEngineController::liveDlqJson)
+                        .toList(),
+                "worker", Map.of(
+                        "retried", liveRetryWorker.stats().retried(),
+                        "recovered", liveRetryWorker.stats().recovered(),
+                        "gaveUp", liveRetryWorker.stats().gaveUp(),
+                        "lastRunAt", liveRetryWorker.stats().lastRunAt())));
+    }
+
+    @PostMapping("/admin/live-dlq/{id}/retry")
+    public ResponseEntity<Map<String, Object>> retryLiveDlqEntry(
+            @PathVariable final String id,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final UUID dlqId;
+        try {
+            dlqId = UUID.fromString(id);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INVALID_ID"));
+        }
+        final boolean ok = liveRetryWorker.retryNow(dlqId);
+        if (!ok) {
+            return ResponseEntity.status(404).body(Map.of(
+                    "code", "NOT_FOUND"));
+        }
+        return ResponseEntity.ok(Map.of("scheduled", true,
+                "dlqId", dlqId.toString()));
+    }
+
+    @DeleteMapping("/admin/live-dlq/{id}")
+    public ResponseEntity<Map<String, Object>> deleteLiveDlqEntry(
+            @PathVariable final String id,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final UUID dlqId;
+        try {
+            dlqId = UUID.fromString(id);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "INVALID_ID"));
+        }
+        final int removed = liveDlq.remove(dlqId);
+        if (removed == 0) {
+            return ResponseEntity.status(404).body(Map.of(
+                    "code", "NOT_FOUND"));
+        }
+        return ResponseEntity.ok(Map.of("removed", true,
+                "dlqId", dlqId.toString()));
+    }
+
+    private static Map<String, Object> liveDlqJson(
+            final AnalyticsLiveDlqEntry e) {
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("dlqId", e.dlqId().toString());
+        out.put("sourceType", e.sourceType().name());
+        out.put("sourceKey", e.sourceKey());
+        out.put("sourceVersion", e.sourceVersion());
+        out.put("occurredOn", e.occurredOn().toString());
+        out.put("orgUnitUid", e.orgUnitUid());
+        out.put("status", e.status());
+        out.put("errorSummary", e.errorSummary());
+        out.put("attemptCount", e.attemptCount());
+        out.put("nextRetryAt", e.nextRetryAt().toString());
+        out.put("gaveUp", e.gaveUp());
+        out.put("lastAttemptedAt", e.lastAttemptedAt() == null ? null
+                : e.lastAttemptedAt().toString());
+        return out;
     }
 
     /* ─────────────── /admin/replay-verify ─────────────── */
