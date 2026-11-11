@@ -156,6 +156,52 @@ class AnalyticsReconciliationFetcherTest {
     }
 
     @Test
+    void piReconciliationWithoutEngineRepoIsNoOp() {
+        // engineRepo setter never called — the second direction
+        // short-circuits so pre-PI wiring stays safe.
+        assertThat(fetcher.reconcilePiMetrics()).isZero();
+        verify(reconciliation, never()).compare(any());
+    }
+
+    @Test
+    void piReconciliationFeedsSamplesForEachMaterialisedCell()
+            throws Exception {
+        final ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository engineRepo
+                = mock(ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository.class);
+        fetcher.setEngineRepo(engineRepo);
+        final UUID metricId = UUID.randomUUID();
+        final ug.ac.mak.der.analytics.engine.AnalyticsDefinition def
+                = new ug.ac.mak.der.analytics.engine.AnalyticsDefinition(
+                        metricId, "PI-ABC12345678",
+                        "OPPI0001", "OPD attendance", 1,
+                        "h", "EVENT", "COUNT", null, List.of(),
+                        "EVENT_DATE", "EVENT_ORG_UNIT",
+                        "READY", null, null, null, null);
+        when(engineRepo.listPiBackedMetrics(anyInt()))
+                .thenReturn(List.of(def));
+        when(engineRepo.queryCells(any()))
+                .thenReturn(List.of(
+                        new ug.ac.mak.der.analytics.engine.AnalyticsCell(
+                                metricId, 1, "202611", "OU-A", "",
+                                3L, new BigDecimal("3"), new BigDecimal("3"),
+                                null, null, Instant.now(), "VERIFIED")));
+        final HttpResponse<String> ok = response(200,
+                "{\"rows\":[[\"PI-ABC12345678\",\"202611\",\"OU-A\",\"3\"]]}");
+        when(http.<String>send(any(HttpRequest.class), any())).thenReturn(ok);
+        when(reconciliation.compare(any())).thenReturn(
+                new AnalyticsReconciliationService.CompareResult(1, 1,
+                        AnalyticsReconciliationService
+                                .emptyClassificationHistogram()));
+
+        assertThat(fetcher.reconcilePiMetrics()).isEqualTo(1);
+        verify(reconciliation, times(1)).compare(any());
+    }
+
+    private static int anyInt() {
+        return org.mockito.ArgumentMatchers.anyInt();
+    }
+
+    @Test
     void emptyPublishedListIsNoOp() {
         when(publications.listProposals(eq(null), eq("PUBLISHED")))
                 .thenReturn(List.of());

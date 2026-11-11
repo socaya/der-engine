@@ -58,6 +58,28 @@ public class AnalyticsEngineRepository {
         return jdbc.query(sql.toString(), DEFINITION_MAPPER, args.toArray());
     }
 
+    /** Metrics whose {@code source_uid} points at a DHIS2 program
+     *  indicator — i.e. imported via ProgramIndicatorSyncService.
+     *  These are the ones central reconciliation can compare
+     *  symmetrically because the formula is literally the same on
+     *  both sides. Only READY metrics are returned so a parse
+     *  regression doesn't trigger a phantom divergence. */
+    public List<AnalyticsDefinition> listPiBackedMetrics(final int limit) {
+        final int cap = Math.max(1, Math.min(limit, 500));
+        return jdbc.query(
+                "SELECT id, source_uid, code, display_name, "
+              + "       definition_version, metadata_hash, analytics_type, "
+              + "       aggregation_type, program_uid, stage_uids, "
+              + "       date_anchor, org_unit_anchor, support_state, "
+              + "       unsupported_reason, effective_from, "
+              + "       created_at, updated_at "
+              + "  FROM der.analytics_definition "
+              + " WHERE support_state = 'READY' "
+              + "   AND source_uid IS NOT NULL "
+              + " ORDER BY code LIMIT ?",
+                DEFINITION_MAPPER, cap);
+    }
+
     public Optional<AnalyticsDefinition> findDefinition(final UUID id) {
         try {
             return Optional.ofNullable(jdbc.queryForObject(

@@ -24,6 +24,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import ug.ac.mak.der.analytics.engine.AnalyticsCell;
+import ug.ac.mak.der.analytics.engine.AnalyticsDefinition;
+import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
 import ug.ac.mak.der.analytics.publication.PublicationProposal;
 import ug.ac.mak.der.analytics.publication.PublicationRepository;
 import ug.ac.mak.der.dhis2.Dhis2Properties;
@@ -56,6 +59,10 @@ public class AnalyticsReconciliationFetcher {
     private final ReconciliationFetchProperties properties;
     private final HttpClient http;
     private final ObjectMapper json;
+    /** Nullable — older constructor path left this off. Only the
+     *  PI reconciliation pass needs it; the publication-mapped
+     *  pass still works without it. */
+    private AnalyticsEngineRepository engineRepo;
 
     private final AtomicLong sampled = new AtomicLong();
     private final AtomicLong fetchFailed = new AtomicLong();
@@ -77,6 +84,14 @@ public class AnalyticsReconciliationFetcher {
                 : properties;
         this.http = Objects.requireNonNull(http, "http");
         this.json = Objects.requireNonNull(json, "json");
+    }
+
+    /** Spring setter-injection for the engine repo. Kept optional
+     *  so the 6-arg constructor stays valid for pre-PI tests;
+     *  without this, {@link #reconcilePiMetrics()} is a no-op. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setEngineRepo(final AnalyticsEngineRepository repo) {
+        this.engineRepo = repo;
     }
 
     public record FetchStats(long sampled, long fetchFailed,
@@ -128,11 +143,132 @@ public class AnalyticsReconciliationFetcher {
             samples.add(sampleFor(p, central));
             sampled.incrementAndGet();
         }
+        int upserts = 0;
+        if (!samples.isEmpty()) {
+            upserts += reconciliation.compare(samples).rowsUpserted();
+        }
+        // Second direction — compare DER's local evaluation of each
+        // imported DHIS2 PI against DHIS2's own evaluation. This
+        // closes the loop for metrics DER never published (spec §12
+        // like-for-like comparison).
+        upserts += reconcilePiMetrics();
+        return upserts;
+    }
+
+    /** Spec §12 PI-side reconciliation pass. For every metric
+     *  imported from a DHIS2 program indicator (source_uid
+     *  non-null), find the materialised cells and fetch DHIS2's
+     *  own PI evaluation for each (period, orgUnit). A difference
+     *  between "DER-evaluates-the-PI-locally" and
+     *  "DHIS2-evaluates-the-PI-centrally" is a genuine reconciliation
+     *  signal — the formula is the same on both sides, so divergence
+     *  usually means late-arriving data or a refresh-timing gap.
+     *
+     *  <p>Returns the number of reconciliation rows upserted this
+     *  pass. Returns 0 when the engine repo wasn't injected (pre-
+     *  PI construction path).</p> */
+    public int reconcilePiMetrics() {
+        if (engineRepo == null) {
+            return 0;
+        }
+        final List<AnalyticsDefinition> defs = engineRepo
+                .listPiBackedMetrics(properties.batchSize());
+        if (defs.isEmpty()) {
+            return 0;
+        }
+        final List<AnalyticsReconciliationService.CentralSample> samples =
+                new ArrayList<>();
+        for (final AnalyticsDefinition def : defs) {
+            final AnalyticsEngineRepository.CellQuery q =
+                    new AnalyticsEngineRepository.CellQuery(
+                            List.of(def.id()), List.of(), List.of(),
+                            java.util.Map.of(),
+                            Math.max(1, properties.batchSize()), 0);
+            for (final AnalyticsCell cell : engineRepo.queryCells(q)) {
+                final BigDecimal central = fetchPiCentralValue(
+                        def.sourceUid(), cell.periodKey(),
+                        cell.orgUnitUid());
+                if (central != null) {
+                    sampled.incrementAndGet();
+                }
+                samples.add(piSampleFor(def.id(), cell.periodKey(),
+                        cell.orgUnitUid(), cell.dimensionKey(),
+                        central));
+            }
+        }
         if (samples.isEmpty()) {
             return 0;
         }
-        final var result = reconciliation.compare(samples);
-        return result.rowsUpserted();
+        return reconciliation.compare(samples).rowsUpserted();
+    }
+
+    private BigDecimal fetchPiCentralValue(final String piUid,
+                                             final String periodKey,
+                                             final String orgUnitUid) {
+        final String base = dhis2.central().baseUrl();
+        if (base == null || base.isBlank() || piUid == null) {
+            return null;
+        }
+        final String url = base + "/api/analytics.json?"
+                + "dimension=" + encode("dx:" + piUid)
+                + "&dimension=" + encode("pe:" + periodKey)
+                + "&dimension=" + encode("ou:" + orgUnitUid)
+                + "&skipMeta=true";
+        final HttpRequest.Builder req = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(20))
+                .header("Accept", "application/json")
+                .GET();
+        if (dhis2.central().username() != null
+                && !dhis2.central().username().isBlank()) {
+            final String token = dhis2.central().username() + ":"
+                    + (dhis2.central().password() == null ? ""
+                            : dhis2.central().password());
+            req.header("Authorization", "Basic " + Base64.getEncoder()
+                    .encodeToString(token.getBytes(StandardCharsets.UTF_8)));
+        }
+        final HttpResponse<String> resp;
+        try {
+            resp = http.send(req.build(),
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            fetchFailed.incrementAndGet();
+            return null;
+        } catch (IOException ex) {
+            fetchFailed.incrementAndGet();
+            return null;
+        }
+        if (resp.statusCode() / 100 != 2) {
+            fetchFailed.incrementAndGet();
+            return null;
+        }
+        return parseValue(resp.body());
+    }
+
+    private AnalyticsReconciliationService.CentralSample piSampleFor(
+            final UUID metricId, final String periodKey,
+            final String orgUnitUid, final String dimensionKey,
+            final BigDecimal centralValue) {
+        return new AnalyticsReconciliationService.CentralSample(
+                metricId, periodKey, orgUnitUid,
+                dimensionKey == null ? "" : dimensionKey,
+                centralValue,
+                /* centralDefinitionVersion */ null,
+                /* centralRefreshAt */ Instant.now(),
+                // DHIS2 evaluated its own PI, so by construction the
+                // formula side is compatible. If the operator later
+                // rewrites the DER metric's expression that'd bump
+                // definition_version — the classifier catches that
+                // before the numeric compare.
+                /* metricFormulaCompatibleWithCentral */ true,
+                /* sameOrgUnitAnchor */ true,
+                /* sameDateAnchor */ true,
+                /* sameDedupPolicy */ true,
+                /* hasRejectedTrackerUpdate */ false,
+                /* localHasUnpublishedSources */ false,
+                /* lateDataAfterRefresh */ false,
+                /* lastLocalPublishAt */ null);
     }
 
     /** Fetch one {@code /api/analytics.json} cell value. Returns
