@@ -258,6 +258,8 @@ class AnalyticsReplayAcceptanceTest {
                                                 final String dimensionKey) {
             long count = 0;
             BigDecimal sum = BigDecimal.ZERO;
+            BigDecimal min = null;
+            BigDecimal max = null;
             BigDecimal num = null;
             BigDecimal den = null;
             for (final AnalyticsContribution r : rows) {
@@ -281,8 +283,15 @@ class AnalyticsReplayAcceptanceTest {
                     continue;
                 }
                 count++;
-                if (r.contributionValue() != null) {
-                    sum = sum.add(r.contributionValue());
+                final BigDecimal v = r.contributionValue();
+                if (v != null) {
+                    sum = sum.add(v);
+                    if (min == null || v.compareTo(min) < 0) {
+                        min = v;
+                    }
+                    if (max == null || v.compareTo(max) > 0) {
+                        max = v;
+                    }
                 }
                 if (r.numeratorContribution() != null) {
                     num = num == null ? r.numeratorContribution()
@@ -293,7 +302,7 @@ class AnalyticsReplayAcceptanceTest {
                             : den.add(r.denominatorContribution());
                 }
             }
-            return new CellAggregate(count, sum, num, den);
+            return new CellAggregate(count, sum, min, max, num, den);
         }
 
         @Override

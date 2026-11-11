@@ -99,6 +99,67 @@ class AnalyticsMaterializerTest {
     }
 
     @Test
+    void minAggTypeUsesMinOfContributionValues() {
+        final AnalyticsDefinition minDef = new AnalyticsDefinition(
+                metricId, null, "MIN_WEIGHT", "Min weight", 1,
+                "h", "EVENT", "MIN", null, List.of(),
+                "EVENT_DATE", "EVENT_ORG_UNIT", "READY", null,
+                null, null, null);
+        when(contributions.aggregateForCell(eq(metricId), eq(1),
+                eq("202611"), eq("OU-A"), eq("")))
+                .thenReturn(new AnalyticsContributionRepository.CellAggregate(
+                        3L, new BigDecimal("210"),
+                        new BigDecimal("60"), new BigDecimal("90"),
+                        null, null));
+
+        final BigDecimal v = materializer.materializeCell(minDef,
+                "202611", "OU-A", "");
+
+        assertThat(v).isEqualByComparingTo("60");
+    }
+
+    @Test
+    void maxAggTypeUsesMaxOfContributionValues() {
+        final AnalyticsDefinition maxDef = new AnalyticsDefinition(
+                metricId, null, "MAX_WEIGHT", "Max weight", 1,
+                "h", "EVENT", "MAX", null, List.of(),
+                "EVENT_DATE", "EVENT_ORG_UNIT", "READY", null,
+                null, null, null);
+        when(contributions.aggregateForCell(eq(metricId), eq(1),
+                eq("202611"), eq("OU-A"), eq("")))
+                .thenReturn(new AnalyticsContributionRepository.CellAggregate(
+                        3L, new BigDecimal("210"),
+                        new BigDecimal("60"), new BigDecimal("90"),
+                        null, null));
+
+        final BigDecimal v = materializer.materializeCell(maxDef,
+                "202611", "OU-A", "");
+
+        assertThat(v).isEqualByComparingTo("90");
+    }
+
+    @Test
+    void averageAggTypeDividesSumByCount() {
+        final AnalyticsDefinition avgDef = new AnalyticsDefinition(
+                metricId, null, "AVG_WEIGHT", "Average weight", 1,
+                "h", "EVENT", "AVERAGE", null, List.of(),
+                "EVENT_DATE", "EVENT_ORG_UNIT", "READY", null,
+                null, null, null);
+        when(contributions.aggregateForCell(eq(metricId), eq(1),
+                eq("202611"), eq("OU-A"), eq("")))
+                .thenReturn(new AnalyticsContributionRepository.CellAggregate(
+                        3L, new BigDecimal("210"),
+                        new BigDecimal("60"), new BigDecimal("90"),
+                        null, null));
+
+        final BigDecimal v = materializer.materializeCell(avgDef,
+                "202611", "OU-A", "");
+
+        // 210 / 3 = 70
+        assertThat(v).isEqualByComparingTo("70");
+    }
+
+    @Test
     void ratioMetricAppliesFactorToSumNumeratorOverSumDenominator() {
         final AnalyticsDefinition ratioDef = new AnalyticsDefinition(
                 metricId, null, "ANC1_RATE", "ANC1 coverage", 1,

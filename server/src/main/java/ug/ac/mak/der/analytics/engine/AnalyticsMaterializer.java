@@ -114,10 +114,25 @@ public class AnalyticsMaterializer {
                 case "SUM" -> agg.sum();
                 case "COUNT", "COUNT_DISTINCT", "NONE" ->
                         BigDecimal.valueOf(agg.count());
-                default -> agg.sum(); // AVERAGE/STDDEV/etc.
+                case "MIN" -> agg.min();
+                case "MAX" -> agg.max();
+                case "AVERAGE" ->
+                        // Multiset-aware: recompute from the current
+                        // ledger each pass so a deletion that drops
+                        // the former average participant doesn't
+                        // leave the cell holding a stale divisor
+                        // (SRS FR-INC-003).
+                        agg.sum() == null || agg.count() == 0L
+                                ? null
+                                : agg.sum().divide(
+                                        java.math.BigDecimal.valueOf(
+                                                agg.count()),
+                                        java.math.MathContext.DECIMAL64);
+                default -> agg.sum(); // STDDEV / VARIANCE — Gate 4
             };
             qualityState = switch (aggType) {
-                case "COUNT", "SUM", "NONE" -> "VERIFIED";
+                case "COUNT", "SUM", "NONE", "MIN", "MAX", "AVERAGE" ->
+                        "VERIFIED";
                 default -> "PROVISIONAL";
             };
         }

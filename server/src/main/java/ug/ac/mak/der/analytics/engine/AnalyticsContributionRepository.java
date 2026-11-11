@@ -112,10 +112,10 @@ public class AnalyticsContributionRepository {
     }
 
     /** Aggregate committed, eligible contributions for one cell.
-     *  Returns (count, sum, sumNumerator, sumDenominator) so the
-     *  materializer covers COUNT, SUM, and ratio metrics without a
-     *  second trip. Sum{Num,Den} are null when no contribution in
-     *  the cell populated the ratio columns. */
+     *  Returns count + sum + min + max + ratio components so the
+     *  materializer covers COUNT / SUM / MIN / MAX / ratio in one
+     *  trip. min and max are null when the cell has no eligible
+     *  contributions. */
     public CellAggregate aggregateForCell(final UUID metricId,
                                            final int definitionVersion,
                                            final String periodKey,
@@ -124,6 +124,8 @@ public class AnalyticsContributionRepository {
         return jdbc.queryForObject(
                 "SELECT COUNT(*)::bigint AS n, "
               + "       COALESCE(SUM(contribution_value), 0) AS s, "
+              + "       MIN(contribution_value) AS min_v, "
+              + "       MAX(contribution_value) AS max_v, "
               + "       SUM(numerator_contribution) AS sum_num, "
               + "       SUM(denominator_contribution) AS sum_den "
               + "  FROM der.analytics_contribution "
@@ -133,6 +135,8 @@ public class AnalyticsContributionRepository {
               + "   AND eligibility = TRUE AND source_state = 'COMMITTED'",
                 (rs, i) -> new CellAggregate(
                         rs.getLong("n"), rs.getBigDecimal("s"),
+                        rs.getBigDecimal("min_v"),
+                        rs.getBigDecimal("max_v"),
                         rs.getBigDecimal("sum_num"),
                         rs.getBigDecimal("sum_den")),
                 metricId, definitionVersion, periodKey, orgUnitUid,
@@ -173,12 +177,21 @@ public class AnalyticsContributionRepository {
                             String dimensionKey) { }
 
     public record CellAggregate(long count, BigDecimal sum,
+                                  BigDecimal min,
+                                  BigDecimal max,
                                   BigDecimal sumNumerator,
                                   BigDecimal sumDenominator) {
         /** 2-arg legacy form for Phase 2 call sites + tests that
          *  predate ratio metrics. */
         public CellAggregate(final long count, final BigDecimal sum) {
-            this(count, sum, null, null);
+            this(count, sum, null, null, null, null);
+        }
+
+        /** 4-arg ratio-only legacy form predating MIN/MAX support. */
+        public CellAggregate(final long count, final BigDecimal sum,
+                              final BigDecimal sumNumerator,
+                              final BigDecimal sumDenominator) {
+            this(count, sum, null, null, sumNumerator, sumDenominator);
         }
     }
 
