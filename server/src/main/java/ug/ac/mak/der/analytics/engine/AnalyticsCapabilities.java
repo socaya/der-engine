@@ -35,7 +35,7 @@ public final class AnalyticsCapabilities {
     public static Map<String, Object> manifest() {
         final Map<String, Object> out = new LinkedHashMap<>();
         out.put("package", "DER Analytics engine v1");
-        out.put("status", "PHASE_1_FOUNDATION");
+        out.put("status", "OPERATIONAL_DUAL_ENGINE");
         out.put("targetDhis2Versions", List.of("2.41", "2.42", "2.43", "2.44"));
         out.put("evaluationPolicy", "deny unsupported expressions by default");
 
@@ -76,10 +76,9 @@ public final class AnalyticsCapabilities {
         out.put("notes", List.of(
                 "Fiscal-year variants are NOT auto-enabled; each needs "
               + "per-target DHIS2 verification (AN-FR-027).",
-                "Phase 1 ships the foundation tables, period service, "
-              + "capabilities + metrics + cell query surface. Phase 2 "
-              + "wires the incremental materializer that writes "
-              + "analytics_cell from the journal."));
+                "Postgres remains the correctness oracle; verified "
+              + "columnar generations serve eligible queries after an "
+              + "atomic shadow-build publication."));
         return out;
     }
 

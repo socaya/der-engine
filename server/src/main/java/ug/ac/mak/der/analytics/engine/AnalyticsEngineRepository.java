@@ -233,6 +233,13 @@ public class AnalyticsEngineRepository {
         return out;
     }
 
+    public java.time.Instant latestFreshness() {
+        final Timestamp ts = jdbc.queryForObject(
+                "SELECT MAX(freshness_at) FROM der.analytics_cell",
+                Timestamp.class);
+        return ts == null ? null : ts.toInstant();
+    }
+
     /* ─────── Source cursor ─────── */
 
     public long cursorFor(final String stream) {

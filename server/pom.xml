@@ -45,6 +45,10 @@
     <testcontainers.version>1.20.4</testcontainers.version>
     <failsafe.version>3.5.1</failsafe.version>
     <surefire.version>3.5.1</surefire.version>
+    <!-- Mockito 5 uses the inline mock maker. JDK 21 no longer permits its
+         self-attach path reliably, so preload the managed Byte Buddy agent
+         in forked test JVMs (the approach recommended for JEP 451). -->
+    <byte-buddy-agent.version>1.14.19</byte-buddy-agent.version>
 
     <!-- Toggle to skip the dependency-check offline-sensitive goal. -->
     <der.dependency-check.skip>false</der.dependency-check.skip>
@@ -243,6 +247,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${surefire.version}</version>
         <configuration>
+          <argLine>-javaagent:${settings.localRepository}/net/bytebuddy/byte-buddy-agent/${byte-buddy-agent.version}/byte-buddy-agent-${byte-buddy-agent.version}.jar</argLine>
           <includes>
             <include>**/*Test.java</include>
             <include>**/*Tests.java</include>

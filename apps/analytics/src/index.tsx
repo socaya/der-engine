@@ -43,7 +43,7 @@ const NAV: readonly NavEntry[] = [
     hint: 'Publication mappings + proposal review' },
   { id: 'drilldowns', label: 'Drilldowns', live: true,
     hint: 'Authorised lineage to source records' },
-  { id: 'saved', label: 'Saved Analytics', live: true,
+  { id: 'saved', label: 'Saved Analytics', live: false,
     hint: 'Shareable URL for current filters' },
   { id: 'quality', label: 'Quality & Reconciliation', live: true,
     hint: 'Divergence classification + replay audit' },
@@ -152,12 +152,18 @@ function OverviewPage(): JSX.Element {
   const [metrics, setMetrics] = useState<readonly MetricRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [freshness, setFreshness] = useState<string | null>(null);
   useEffect(() => {
     setLoading(true);
-    fetch(`${API}/metrics`, { credentials: 'include' })
-      .then(parseOrThrow)
-      .then((r: { metrics?: readonly MetricRow[] }) => {
+    Promise.all([
+      fetch(`${API}/metrics`, { credentials: 'include' }).then(parseOrThrow),
+      fetch(`${API}/quality`, { credentials: 'include' }).then(parseOrThrow),
+    ])
+      .then(([metricBody, qualityBody]) => {
+        const r = metricBody as { metrics?: readonly MetricRow[] };
+        const q = qualityBody as { freshnessAt?: string | null };
         setMetrics(r.metrics ?? []);
+        setFreshness(q.freshnessAt ?? null);
         setError(null);
       })
       .catch((e: Error) => setError(e.message))
@@ -184,7 +190,7 @@ function OverviewPage(): JSX.Element {
           value={loading ? '…' : String(unsupported)}
           tone={unsupported > 0 ? 'warning' : 'neutral'} />
         <KpiCard label="Data as of"
-          value={new Date().toLocaleString()} />
+          value={freshness ? new Date(freshness).toLocaleString() : 'No cells'} />
       </div>
       <p className="an-note">
         Use the <strong>Program Indicators</strong> section to inspect
@@ -262,8 +268,9 @@ function MetricsPage(): JSX.Element {
 
 function supportTone(s: string):
     'success' | 'warning' | 'danger' | 'neutral' {
-  if (s === 'READY') return 'success';
-  if (s === 'UNSUPPORTED') return 'warning';
+  if (s === 'READY' || s === 'REQUIRED_IMPLEMENTATION'
+      || s === 'DER_EXTENDED') return 'success';
+  if (s === 'UNSUPPORTED' || s === 'VERSION_VERIFICATION_REQUIRED') return 'warning';
   if (s === 'DEPRECATED') return 'danger';
   return 'neutral';
 }
@@ -936,7 +943,7 @@ function SavedPage(): JSX.Element {
 
 interface Capability {
   readonly feature: string;
-  readonly supportState: string;
+  readonly status: string;
   readonly target?: string;
 }
 
@@ -950,9 +957,20 @@ interface DlqStatus {
   };
 }
 
+interface ColumnarLifecycleStatus {
+  readonly state: string;
+  readonly generation: number;
+  readonly rowsWritten: number;
+  readonly rowsVerified: number;
+  readonly rowsDrifted: number;
+  readonly completedAt?: string | null;
+  readonly error?: string | null;
+}
+
 function AdminPage(): JSX.Element {
   const [caps, setCaps] = useState<readonly Capability[]>([]);
   const [dlq, setDlq] = useState<DlqStatus | null>(null);
+  const [columnar, setColumnar] = useState<ColumnarLifecycleStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
@@ -965,6 +983,10 @@ function AdminPage(): JSX.Element {
       fetch(`${API}/admin/live-dlq?limit=1`, { credentials: 'include' })
         .then(parseOrThrow)
         .then((r: DlqStatus) => setDlq(r))
+        .catch(() => { /* non-admin */ }),
+      fetch(`${API}/admin/segments/lifecycle`, { credentials: 'include' })
+        .then(parseOrThrow)
+        .then((r: ColumnarLifecycleStatus) => setColumnar(r))
         .catch(() => { /* non-admin */ }),
     ]).catch((e: Error) => setError(e.message));
   }, []);
@@ -1010,7 +1032,12 @@ function AdminPage(): JSX.Element {
           hint="Push APPROVED proposals to central"
           busy={actionBusy === 'Drain publications'}
           onClick={() => runAction('Drain publications',
-            '/admin/publication/proposals', 'POST')} />
+            '/admin/publication/drain', 'POST')} />
+        <AdminButton label="Build columnar generation"
+          hint="Shadow build, verify parity, publish and compact"
+          busy={actionBusy === 'Build columnar generation'}
+          onClick={() => runAction('Build columnar generation',
+            '/admin/segments/run', 'POST')} />
         <AdminButton label="Fetch central samples"
           hint="Poll /api/analytics for PUBLISHED cells"
           busy={actionBusy === 'Fetch central samples'}
@@ -1019,6 +1046,22 @@ function AdminPage(): JSX.Element {
       </div>
       {actionResult && (
         <pre className="an-pre" data-test="an-admin-result">{actionResult}</pre>
+      )}
+      <h2 className="an-h2">Columnar lifecycle</h2>
+      {columnar && (
+        <div className="an-kpi-grid">
+          <KpiCard label="State" value={columnar.state}
+            tone={columnar.rowsDrifted > 0 || columnar.error
+              ? 'danger' : columnar.state === 'PUBLISHED'
+                ? 'success' : 'neutral'} />
+          <KpiCard label="Generation" value={columnar.generation < 0
+            ? '—' : String(columnar.generation)} />
+          <KpiCard label="Rows verified"
+            value={String(columnar.rowsVerified)} tone="success" />
+          <KpiCard label="Rows drifted"
+            value={String(columnar.rowsDrifted)}
+            tone={columnar.rowsDrifted > 0 ? 'danger' : 'success'} />
+        </div>
       )}
       <h2 className="an-h2">Live ingester DLQ</h2>
       {dlq ? (
@@ -1059,8 +1102,8 @@ function AdminPage(): JSX.Element {
               <tr key={c.feature}>
                 <td>{c.feature}</td>
                 <td>
-                  <StatusPill tone={supportTone(c.supportState)}>
-                    {c.supportState}
+                  <StatusPill tone={supportTone(c.status)}>
+                    {c.status}
                   </StatusPill>
                 </td>
                 <td>{c.target ?? '—'}</td>

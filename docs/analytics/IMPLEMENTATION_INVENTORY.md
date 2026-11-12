@@ -1,13 +1,13 @@
 # DER Analytics — implementation inventory
 
 **Document ID:** DER-AN-INV-001
-**Baseline:** 2026-11-11 (commit `eb221865`)
+**Baseline:** 2026-11-12 (post-Gate-7 operational verification)
 **SRS:** DER-AN-SRS-001 (`DER_Native_Analytics_Engine_SRS_Claude.md`)
 
-Gate 0 artefact mandated by SRS §14, refreshed after Gates 2-6
-shipped. Row-store reference engine stays as the correctness
-oracle; the native columnar OLAP pipeline is now in place end-to-
-end alongside it.
+Gate 0 artefact mandated by SRS §14, refreshed after the verified
+columnar lifecycle and controlled benchmark work shipped. The row-store
+reference engine remains the correctness oracle; columnar generations are
+now built as shadows, verified, atomically published, and retention-compacted.
 
 ---
 
@@ -98,6 +98,9 @@ migrations after V118 — columnar state lives on disk under
 | `column/sink/AnalyticsColumnarProperties.java` | `der.analytics.columnar.*` config |
 | `column/sink/AnalyticsColumnarSink.java` | Row-store cells → columnar segments + manifest publish |
 | `column/sink/AnalyticsColumnarVerifier.java` | Oracle-matched row-by-row comparison |
+| `column/sink/AnalyticsColumnarLifecycle.java` | Scheduled shadow build → parity verification → atomic publication |
+| `column/sink/AnalyticsColumnarCompactor.java` | Rollback-window retention + unreferenced segment/stat cleanup |
+| `column/sink/AnalyticsColumnarLifecycleProperties.java` | Lifecycle schedule + retained-generation policy |
 
 ### 2.5 Statistics + planner (Gate 4)
 
@@ -108,6 +111,7 @@ migrations after V118 — columnar state lives on disk under
 | `column/stats/SegmentStatisticsBuilder.java` | Compute at write time (walks sealed batches) |
 | `column/stats/SegmentStatisticsStore.java` | Sidecar `.stats.json` writer / reader |
 | `column/stats/PlanCoster.java` | CostEstimate from stats (SRS FR-QRY-008/009) |
+| `column/feedback/*` | Bounded observations + shape ratios consumed by the adaptive cost model |
 
 ### 2.6 Vectorised executor (Gate 3)
 
@@ -174,7 +178,7 @@ migrations after V118 — columnar state lives on disk under
 | ARCH-12 | Distributed summaries | ✅ | Gate 6.1-6.4 — export, receive, dedup, consolidate, signed |
 | ARCH-13 | Analytics serving | ✅ | Full REST surface + nine-section UI |
 | ARCH-14 | Security/audit | ✅ | Drilldown audit + PHI masking + HMAC transport trust |
-| ARCH-15 | Observability | ⚠️ partial | In-memory counters + EXPLAIN; structured Micrometer export still pending |
+| ARCH-15 | Observability | ⚠️ partial | In-memory counters + EXPLAIN + lifecycle status + persisted benchmark runs; structured Micrometer export still pending |
 
 Legend: ✅ implemented · ⚠️ partial · ❌ missing
 
@@ -201,7 +205,6 @@ Row-store reference engine is profile-agnostic.
 |---|---|---|---|
 | Operator spill adoption | FR-QRY-013 | ⏳ | Governor + store done; operators don't spill yet |
 | SIMD acceleration | FR-QRY-017 | ⏳ | Scalar path everywhere today |
-| Adaptive optimizer feedback | FR-QRY-015 | ⏳ (Gate 7) | Cost model collects stats but doesn't yet learn |
 | Auto-propose preaggregations | FR-INC-013 | ⏳ (Gate 7) | Materialisation budget concept not surfaced |
 | Dedicated canonical fact builder | ARCH-03 | ⏳ | Fact shape is implicit today |
 | Structured Micrometer observability | NFR-OPS-03 | ⏳ | Counters exist in-memory; no Prometheus export |
@@ -224,9 +227,16 @@ Row-store reference engine is profile-agnostic.
 - Replay baseline verifier — ✅ §12 fixture #3.
 - Benchmark run history — ✅ §11.1 gates measurable.
 - Oracle verification harness — ✅ `AnalyticsColumnarVerifier` compares
-  every cell row-by-row.
+  every cell row-by-row in both directions before publication.
+- Verified lifecycle — ✅ scheduled shadow generation, parity rejection,
+  atomic manifest publication, and rollback-window compaction.
+- Metadata revision — ✅ every manifest carries a deterministic SHA-256
+  revision derived from definitions plus separately recorded source cursors.
+- Adaptive optimizer feedback — ✅ query-shape observations adjust later
+  planner estimates (`PlanFeedbackStore` + `PlanCoster`).
 - Compression evidence — ✅ Zstd + LZ4 + dict + bit-pack with selector
-  measurement; 5000-row repeated-label fixture lands below 10% of plain.
+  measurement; the controlled 500-row repetitive fixture records a 0.0535
+  encoded/plain ratio. See `PERFORMANCE_BENCHMARKS.md`.
 
 All seven stay intact behind Gates 2-6 — the columnar pipeline mirrors
 the row-store's semantics and the oracle verifier is the live proof.

@@ -144,16 +144,17 @@ metric unless the segment exceeds a configured size threshold.
 
 ## 4. Mutable-key overlay (SRS FR-STO-009)
 
-Once a segment is published it is immutable. Mutations arrive as new
-contributions in the row-store; the columnar store mirrors them as:
+Once a segment is published it is immutable. Mutations are first applied to
+the authoritative contribution ledger and materialized row-store cells. The
+scheduled columnar lifecycle then writes a complete shadow generation,
+verifies every row in both directions, and atomically publishes the manifest
+only when drift is zero. A retention compactor preserves the configured
+rollback window and deletes manifests, segments, and statistics sidecars no
+longer referenced by a retained generation (FR-STO-010).
 
-- **Delta segments** holding the new values + a tombstone per
-  superseded source_key.
-- At scan time, a per-query overlay merges base segments with
-  outstanding deltas via a priority-sorted iterator — newest wins.
-- A background **compaction** worker folds delta segments into their
-  parent on an I/O budget (FR-STO-010), publishing a new generation
-  on completion.
+This full-snapshot strategy deliberately favours correctness and recovery
+simplicity at the current scale. Delta-segment overlays remain a future
+throughput optimization, not a prerequisite for correct mutation handling.
 
 ---
 

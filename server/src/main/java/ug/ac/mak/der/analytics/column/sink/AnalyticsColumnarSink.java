@@ -1,8 +1,11 @@
 package ug.ac.mak.der.analytics.column.sink;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -13,6 +16,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.HexFormat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -35,9 +39,9 @@ import ug.ac.mak.der.analytics.engine.AnalyticsEngineRepository;
 
 /**
  * Sidecar that persists the row-store's materialised cells as
- * columnar segments (SRS FR-STO-001..006). Operator-triggered so
- * the hot path stays decoupled; a scheduled flush lands in Gate
- * 2.8b once the pilot has validated the output shape.
+ * columnar segments (SRS FR-STO-001..006). A flush is split into a
+ * shadow build and an atomic publish so the lifecycle worker can
+ * prove row-store parity before readers can observe a generation.
  *
  * <p>Each flush snapshots every materialised cell, groups by
  * {@code (metricId, periodKey)}, writes one segment per group,
@@ -74,10 +78,21 @@ public class AnalyticsColumnarSink {
             double compressionRatio,
             String manifestPath) { }
 
+    public record PreparedFlush(Manifest manifest, FlushResult result) { }
+
     public FlushResult flush() throws IOException {
+        final PreparedFlush prepared = prepare();
+        if (prepared.manifest() != null) {
+            publish(prepared);
+        }
+        return prepared.result();
+    }
+
+    /** Build a complete shadow generation without making it visible. */
+    public PreparedFlush prepare() throws IOException {
         if (!properties.enabled()) {
-            return new FlushResult(-1, 0, 0, 0L, 1.0,
-                    "disabled");
+            return new PreparedFlush(null,
+                    new FlushResult(-1, 0, 0, 0L, 1.0, "disabled"));
         }
         final Path root = properties.rootPathResolved();
         Files.createDirectories(root);
@@ -94,10 +109,7 @@ public class AnalyticsColumnarSink {
         // in memory then group — cells are a projection of the
         // ledger so this is bounded by the materialised set, not
         // the source data.
-        final List<AnalyticsCell> cells = engineRepo.queryCells(
-                new AnalyticsEngineRepository.CellQuery(
-                        List.of(), List.of(), List.of(),
-                        Map.of(), 50_000, 0));
+        final List<AnalyticsCell> cells = snapshotCells();
 
         final Map<GroupKey, List<AnalyticsCell>> grouped =
                 new LinkedHashMap<>();
@@ -133,9 +145,8 @@ public class AnalyticsColumnarSink {
         }
 
         final Manifest manifest = new Manifest(
-                generation, Instant.now(), null,
-                Map.of(), ENGINE_VERSION, refs);
-        store.publish(manifest);
+                generation, Instant.now(), metadataRevision(),
+                engineRepo.allCursors(), ENGINE_VERSION, refs);
         final Path manifestFile = root
                 .resolve(ug.ac.mak.der.analytics.column.manifest
                         .ManifestFormat.MANIFESTS_DIR)
@@ -147,8 +158,37 @@ public class AnalyticsColumnarSink {
         LOG.info("columnar flush gen={} segments={} rows={} bytes={} "
                 + "ratio={}",
                 generation, refs.size(), totalRows, totalBytes, ratio);
-        return new FlushResult(generation, refs.size(), (int) totalRows,
-                totalBytes, ratio, manifestFile.toString());
+        return new PreparedFlush(manifest,
+                new FlushResult(generation, refs.size(), (int) totalRows,
+                        totalBytes, ratio, manifestFile.toString()));
+    }
+
+    /** Atomically expose a previously prepared and verified generation. */
+    public void publish(final PreparedFlush prepared) throws IOException {
+        Objects.requireNonNull(prepared, "prepared");
+        if (prepared.manifest() == null) {
+            return;
+        }
+        final Path root = properties.rootPathResolved();
+        final ManifestStore store = new ManifestStore(root,
+                new ManifestReader(json), new ManifestWriter(json));
+        store.publish(prepared.manifest());
+        LOG.info("columnar generation {} published after verification",
+                prepared.manifest().generation());
+    }
+
+    /** Remove files belonging to a shadow generation that failed parity. */
+    public void discard(final PreparedFlush prepared) throws IOException {
+        if (prepared == null || prepared.manifest() == null) {
+            return;
+        }
+        final Path root = properties.rootPathResolved();
+        for (final SegmentRef ref : prepared.manifest().segments()) {
+            final Path file = root.resolve(ref.file());
+            Files.deleteIfExists(file);
+            Files.deleteIfExists(ug.ac.mak.der.analytics.column.stats
+                    .SegmentStatisticsStore.sidecar(file));
+        }
     }
 
     public Optional<Manifest> currentManifest() throws IOException {
@@ -157,6 +197,41 @@ public class AnalyticsColumnarSink {
         final ManifestStore store = new ManifestStore(
                 properties.rootPathResolved(), reader, writer);
         return store.currentGeneration();
+    }
+
+    private List<AnalyticsCell> snapshotCells() {
+        final int pageSize = 50_000;
+        final List<AnalyticsCell> out = new ArrayList<>();
+        int offset = 0;
+        while (true) {
+            final List<AnalyticsCell> page = engineRepo.queryCells(
+                    new AnalyticsEngineRepository.CellQuery(
+                            List.of(), List.of(), List.of(), Map.of(),
+                            pageSize, offset));
+            out.addAll(page);
+            if (page.size() < pageSize) {
+                return out;
+            }
+            offset += page.size();
+        }
+    }
+
+    /** Stable revision of the definition catalogue used by this snapshot. */
+    private String metadataRevision() {
+        try {
+            final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            engineRepo.listDefinitions(null, 500).stream()
+                    .sorted(java.util.Comparator
+                            .comparing(d -> d.id().toString()))
+                    .forEach(d -> digest.update((d.id() + "\0"
+                            + d.definitionVersion() + "\0"
+                            + d.metadataHash() + "\0"
+                            + d.supportState() + "\n")
+                            .getBytes(StandardCharsets.UTF_8)));
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 unavailable", ex);
+        }
     }
 
     /* ─────── internal ─────── */

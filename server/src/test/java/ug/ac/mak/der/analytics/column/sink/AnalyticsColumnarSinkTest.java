@@ -94,6 +94,7 @@ class AnalyticsColumnarSinkTest {
                 .orElseThrow();
         assertThat(manifest.generation()).isEqualTo(1L);
         assertThat(manifest.segments()).hasSize(3);
+        assertThat(manifest.metadataRevision()).isNotBlank();
     }
 
     @Test

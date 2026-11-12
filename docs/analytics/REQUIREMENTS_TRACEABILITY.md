@@ -1,10 +1,11 @@
 # DER Analytics — requirements traceability matrix
 
 **Document ID:** DER-AN-TRACE-001
-**Baseline:** 2026-11-11 (commit `eb221865`)
+**Baseline:** 2026-11-12 (post-Gate-7 operational verification)
 **SRS:** DER-AN-SRS-001
 
-Gate 0 artefact per SRS §14, refreshed after Gates 2-6 shipped.
+Gate 0 artefact per SRS §14, refreshed after verified publication,
+compaction, controlled benchmarking, and API/UI contract repair.
 Legend: ✅ implemented · ⚠️ partial · ❌ missing · 🛈 reference-
 engine-only (mirrored in columnar via oracle verifier). File
 paths relative to repo root.
@@ -43,8 +44,8 @@ paths relative to repo root.
 | FR-STO-007 | ✅ | Dictionary + bit-pack + delta + RLE (str/int64) + Zstd + LZ4 + `CodecSelector` |
 | FR-STO-008 | ✅ | Zone-map pruning (`PlanCoster` + `ColumnarQueryEngine`) |
 | FR-STO-009 | ✅ | Upsert-by-key in row-store ledger; columnar oracle-verified |
-| FR-STO-010 | ❌ | No background compaction |
-| FR-STO-011 | ⚠️ partial | Definition versioning present; rebuild on metadata edit still manual |
+| FR-STO-010 | ✅ | Scheduled lifecycle retains a rollback window and removes unreferenced manifests, segments, and statistics sidecars |
+| FR-STO-011 | ⚠️ partial | Deterministic metadata revision + shadow columnar rebuild are automatic; row-store definition recomputation on metadata edit remains explicit |
 | FR-STO-012 | ⚠️ partial | Spill limits enforced (`SpillStore`); no global disk quota yet |
 | FR-STO-013 | ❌ | No secondary projections |
 | FR-STO-014 | ❌ | No cold tiering |
@@ -67,7 +68,7 @@ paths relative to repo root.
 | FR-QRY-012 | ⚠️ partial | Batches are fixed-size; adaptive batch sizing deferred |
 | FR-QRY-013 | ✅ core | `SpillStore` + `QueryToken` abort path; operator spill adoption pending |
 | FR-QRY-014 | ✅ | Per-query byte + deadline ceilings via `QueryToken` |
-| FR-QRY-015 | ⏳ Gate 7 | No adaptive optimizer feedback |
+| FR-QRY-015 | ✅ | `PlanFeedbackStore` observations adjust `PlanCoster` estimates by stable query shape |
 | FR-QRY-016 | ❌ | No plan cache |
 | FR-QRY-017 | ❌ | No SIMD path |
 | FR-QRY-018 | ⚠️ partial | `EXPLAIN` returns cost + segments; no per-operator wall-time ANALYZE yet |
@@ -84,7 +85,7 @@ paths relative to repo root.
 | FR-INC-006 | ⚠️ partial | `freshness_at` + `quality_state`; no materialisation generation on cell yet |
 | FR-INC-007 | ⚠️ partial | COUNT + COUNT_DISTINCT via upsert-by-source-key; no sketches |
 | FR-INC-008 | ⚠️ partial | Repeat-stage counts covered; dedicated multi-stage event tally not a first-class metric type |
-| FR-INC-009 | ❌ | No shadow rebuild / atomic switch on definition change |
+| FR-INC-009 | ⚠️ partial | Columnar shadow build, full parity gate, metadata revision, and atomic switch shipped; automatic row-store definition recompute remains |
 | FR-INC-010 | ⚠️ partial | Aggregate facts + PI results shipped; event / tracker / line-list products not first-class |
 | FR-INC-011 | ⚠️ partial | Enrollment-grain evaluation present; no first-class cohort API |
 | FR-INC-012 | ❌ | No relationship-derived measures |
@@ -126,7 +127,8 @@ Admin surface added in Gates 2-6:
 
 | Endpoint | Role |
 |---|---|
-| `POST /admin/segments/flush` | Row-store → columnar sidecar |
+| `POST /admin/segments/flush` | Compatibility alias for verified lifecycle run |
+| `POST /admin/segments/run` + `GET /admin/segments/lifecycle` | Build/verify/publish/compact + current lifecycle status |
 | `GET /admin/segments/manifest` | Current manifest |
 | `POST /admin/segments/verify` | Oracle comparison |
 | `POST /admin/segments/explain` | Static plan |
@@ -141,6 +143,7 @@ Admin surface added in Gates 2-6:
 | `POST /admin/reconciliation/compare` | Classifier |
 | `POST /admin/replay-verify` | Baseline verifier |
 | `GET /admin/live-dlq` + `/{id}/retry` + `/{id}` | DLQ management |
+| `POST /admin/publication/drain` | Run the real publication drain worker |
 | `POST /admin/benchmark/{latency,freshness,seed,seed/cleanup}` + `GET /admin/benchmark/runs` | NFR harness |
 
 ## FR-NFR — non-functional (SRS §11)
@@ -149,15 +152,15 @@ Admin surface added in Gates 2-6:
 
 | ID | Status |
 |---|---|
-| NFR-PERF-01 (p95 ≤ 500 ms warm) | ⚠️ measurable via `AnalyticsBenchmarkService.latency` |
+| NFR-PERF-01 (p95 ≤ 500 ms warm) | ✅ controlled smoke: p95 0 ms over 500 warm iterations; larger pilot still required |
 | NFR-PERF-02 (p95 ≤ 2 s on 10M facts) | ⚠️ fixture generator ready; no measured pilot result |
 | NFR-PERF-03 (p95 ≤ 10 s on 100M facts) | ❌ no 100M fixture / hardware |
-| NFR-PERF-04 (ingest-to-visible p95 ≤ 5 s) | ⚠️ measurable via `freshness()` |
+| NFR-PERF-04 (ingest-to-visible p95 ≤ 5 s) | ✅ controlled smoke: p95 0 ms over 200 samples |
 | NFR-PERF-05 (retraction ≤ 10 s) | ⚠️ not yet benchmarked |
 | NFR-PERF-06 (Capture degradation ≤ 10 %) | ❌ no comparison harness |
 | NFR-PERF-07 (replay zero duplicate) | ✅ `AnalyticsReplayAcceptanceTest` |
 | NFR-PERF-08 (memory governor) | ✅ `QueryGovernor` + `QueryToken.accountBytes` |
-| NFR-PERF-09 (rebuild throughput) | ❌ no rebuild tool |
+| NFR-PERF-09 (rebuild throughput) | ⚠️ verified lifecycle records rows and bytes per generation; large-scale throughput run pending |
 | NFR-PERF-10 (plan regression ≤ 20 %) | ⚠️ planner exists; no regression harness |
 
 ### Reliability (SRS §11.2)
@@ -166,7 +169,7 @@ Admin surface added in Gates 2-6:
 |---|---|
 | NFR-REL-01 | ✅ Cursor advances after durable upsert |
 | NFR-REL-02 | ✅ Baseline verifier confirms replay = fresh recompute |
-| NFR-REL-03 | ⚠️ partial — definition-version rebuild deferred |
+| NFR-REL-03 | ⚠️ partial — metadata-revision shadow publication shipped; source definition recompute trigger deferred |
 | NFR-REL-04 | ✅ Manifest atomic generation swap |
 | NFR-REL-05 | ⚠️ DLQ + retry cover transient; disk-full handling partial |
 | NFR-REL-06 | ✅ Flyway V110..V118 |
@@ -193,7 +196,7 @@ Admin surface added in Gates 2-6:
 | NFR-OPS-03 | ⚠️ In-memory counters; no Prometheus export |
 | NFR-OPS-04 | ❌ no backfill tool |
 | NFR-OPS-05 | ⚠️ correlation partial |
-| NFR-OPS-06 | ⚠️ standard DER backup covers all analytics tables; no analytics-specific runbook |
+| NFR-OPS-06 | ⚠️ standard DER backup covers analytics tables; lifecycle/benchmark procedure is documented, restore drill pending |
 | NFR-OPS-07 | ✅ JDK portable; SIMD deferred |
 
 ---
@@ -210,7 +213,7 @@ Admin surface added in Gates 2-6:
 | 6 Age change | ❌ | ❌ |
 | 7 Out-of-order change | `AnalyticsReplayAcceptanceTest.fixture7*` | ✅ |
 | 8 Cross-site patient | ❌ | ❌ |
-| 9 Metadata edit → rebuild | ❌ (Gate 7) | ❌ |
+| 9 Metadata edit → rebuild | Columnar metadata-revision shadow lifecycle; row recompute trigger outstanding | ⚠️ |
 | 10 Permission change → cache invalidation | ❌ | ❌ |
 | 11 Partial sync | ✅ `SiteConsolidator` completeness attribution | ✅ |
 | 12 Rebuild race | ❌ | ❌ |
@@ -219,9 +222,9 @@ Admin surface added in Gates 2-6:
 | 15 Relationship edit | ❌ | ❌ |
 | 16 Expired cached query | ❌ (no plan cache) | ❌ |
 
-**8 of 16 §12 fixtures have dedicated regressions**, up from 5 at
-baseline; 11 (partial sync) landed implicitly via Gate 6.3
-completeness attribution.
+**8 of 16 §12 fixtures have dedicated regressions**, with fixture 9 now
+partially covered by the shadow lifecycle. Fixture 11 (partial sync) landed
+implicitly via Gate 6.3 completeness attribution.
 
 ---
 
@@ -229,13 +232,13 @@ completeness attribution.
 
 Ordered by remaining value:
 
-1. **Gate 7** — adaptive optimizer feedback (FR-QRY-015) +
-   auto-propose preaggregations (FR-INC-013).
+1. **Auto-propose preaggregations** — complete the remaining Gate 7
+   materialisation-budget work (FR-INC-013).
 2. **Operator spill adoption** — vectorised operators call
    `SpillStore.allocate()` when intermediate state would exceed
    the memory budget (FR-QRY-013 operator-level).
-3. **Metadata-edit rebuild** — shadow-rebuild + atomic switch
-   (§12 fixture 9, FR-INC-009).
+3. **Metadata-edit recompute trigger** — rebuild row-store definitions before
+   the already-automatic shadow columnar publication (§12 fixture 9).
 4. **Structured observability** — Micrometer exports for ingest
    lag, query p95, DLQ depth, compression ratios (NFR-OPS-03).
 5. **Age-band / cross-site identity** — §12 fixtures 6 + 8;

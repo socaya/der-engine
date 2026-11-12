@@ -47,6 +47,7 @@ import ug.ac.mak.der.analytics.column.governor.QueryGovernor;
 import ug.ac.mak.der.analytics.column.governor.QueryToken;
 import ug.ac.mak.der.analytics.column.governor.SpillStore;
 import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink;
+import ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarLifecycle;
 import ug.ac.mak.der.analytics.distributed.ConsolidatedCell;
 import ug.ac.mak.der.analytics.distributed.SiteConsolidator;
 import ug.ac.mak.der.analytics.distributed.SiteContributionExporter;
@@ -69,6 +70,7 @@ import ug.ac.mak.der.analytics.replay.AnalyticsBaselineVerifier;
 import ug.ac.mak.der.analytics.publication.PublicationProposal;
 import ug.ac.mak.der.analytics.publication.PublicationProposalService;
 import ug.ac.mak.der.analytics.publication.PublicationRepository;
+import ug.ac.mak.der.analytics.publication.PublicationDrainWorker;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ug.ac.mak.der.security.EdgeRole;
@@ -124,6 +126,7 @@ public class AnalyticsEngineController {
     private final AnalyticsBenchmarkFixtureGenerator fixtureGenerator;
     private final AnalyticsColumnarSink columnarSink;
     private final AnalyticsColumnarVerifier columnarVerifier;
+    private final AnalyticsColumnarLifecycle columnarLifecycle;
     private final ColumnarExplainer columnarExplainer;
     private final PlanSelector planSelector;
     private final ColumnarQueryEngine columnarQueryEngine;
@@ -134,6 +137,7 @@ public class AnalyticsEngineController {
     private final SiteContributionReceiver siteReceiver;
     private final SiteContributionRepository siteRepo;
     private final SiteConsolidator siteConsolidator;
+    private final PublicationDrainWorker publicationDrain;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -167,6 +171,7 @@ public class AnalyticsEngineController {
                                       final AnalyticsBenchmarkFixtureGenerator fixtureGenerator,
                                       final AnalyticsColumnarSink columnarSink,
                                       final AnalyticsColumnarVerifier columnarVerifier,
+                                      final AnalyticsColumnarLifecycle columnarLifecycle,
                                       final ColumnarExplainer columnarExplainer,
                                       final PlanSelector planSelector,
                                       final ColumnarQueryEngine columnarQueryEngine,
@@ -176,7 +181,8 @@ public class AnalyticsEngineController {
                                       final SiteContributionExporter siteExporter,
                                       final SiteContributionReceiver siteReceiver,
                                       final SiteContributionRepository siteRepo,
-                                      final SiteConsolidator siteConsolidator) {
+                                      final SiteConsolidator siteConsolidator,
+                                      final PublicationDrainWorker publicationDrain) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -209,6 +215,8 @@ public class AnalyticsEngineController {
                 "columnarSink");
         this.columnarVerifier = Objects.requireNonNull(columnarVerifier,
                 "columnarVerifier");
+        this.columnarLifecycle = Objects.requireNonNull(columnarLifecycle,
+                "columnarLifecycle");
         this.columnarExplainer = Objects.requireNonNull(columnarExplainer,
                 "columnarExplainer");
         this.planSelector = Objects.requireNonNull(planSelector,
@@ -228,6 +236,46 @@ public class AnalyticsEngineController {
         this.siteRepo = Objects.requireNonNull(siteRepo, "siteRepo");
         this.siteConsolidator = Objects.requireNonNull(siteConsolidator,
                 "siteConsolidator");
+        this.publicationDrain = Objects.requireNonNull(publicationDrain,
+                "publicationDrain");
+    }
+
+    @GetMapping("/admin/segments/lifecycle")
+    public ResponseEntity<?> columnarLifecycleStatus(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of("code", "FORBIDDEN"));
+        }
+        return ResponseEntity.ok(columnarLifecycle.status());
+    }
+
+    @PostMapping("/admin/segments/run")
+    public ResponseEntity<?> runColumnarLifecycle(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of("code", "FORBIDDEN"));
+        }
+        return ResponseEntity.ok(columnarLifecycle.runNow());
+    }
+
+    @PostMapping("/admin/publication/drain")
+    public ResponseEntity<?> drainPublications(final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of("code", "FORBIDDEN"));
+        }
+        final int published = publicationDrain.runNow();
+        return ResponseEntity.ok(Map.of(
+                "published", published,
+                "stats", publicationDrain.stats()));
     }
 
     /* ─────────────── /admin/observability ─────────────── */
@@ -894,20 +942,12 @@ public class AnalyticsEngineController {
             return ResponseEntity.status(403).body(Map.of(
                     "code", "FORBIDDEN"));
         }
-        try {
-            final var r = columnarSink.flush();
-            return ResponseEntity.ok(Map.of(
-                    "generation", r.generation(),
-                    "segmentsWritten", r.segmentsWritten(),
-                    "rowsWritten", r.rowsWritten(),
-                    "bytesWritten", r.bytesWritten(),
-                    "compressionRatio", r.compressionRatio(),
-                    "manifestPath", r.manifestPath()));
-        } catch (java.io.IOException ex) {
-            return ResponseEntity.status(500).body(Map.of(
-                    "code", "FLUSH_IO_FAILURE",
-                    "message", ex.getMessage()));
-        }
+        final var result = columnarLifecycle.runNow();
+        return "FAILED".equals(result.state())
+                ? ResponseEntity.status(500).body(Map.of(
+                        "code", "FLUSH_FAILURE",
+                        "status", result))
+                : ResponseEntity.ok(Map.of("status", result));
     }
 
     /** SRS §13.1 oracle verification. Read every segment from the
@@ -1913,6 +1953,8 @@ public class AnalyticsEngineController {
         body.put("qualityCounts", repo.qualityCounts());
         body.put("contributionsTotal", contributions.countAll());
         body.put("sourceCursors", repo.allCursors());
+        final Instant freshness = repo.latestFreshness();
+        body.put("freshnessAt", freshness == null ? null : freshness.toString());
         body.put("reportedAt", Instant.now().toString());
         return ResponseEntity.ok(body);
     }
@@ -1924,12 +1966,16 @@ public class AnalyticsEngineController {
         if (!(auth instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
-        // Phase 1 has no background materializer yet — report an idle
-        // state so the admin UI can render the panel against a stable
-        // contract. Phase 2 will fill `activeJobs` + lag metrics.
         final Map<String, Object> body = new LinkedHashMap<>();
-        body.put("activeJobs", List.of());
-        body.put("deadLetters", 0);
+        final var columnarStatus = columnarLifecycle.status();
+        body.put("activeJobs", columnarStatus == null || "IDLE".equals(
+                columnarStatus.state())
+                ? List.of() : List.of(Map.of(
+                        "name", "columnar-lifecycle",
+                        "state", columnarStatus.state())));
+        body.put("columnar", columnarStatus == null
+                ? Map.of("state", "UNKNOWN") : columnarStatus);
+        body.put("deadLetters", liveDlq.countAll());
         body.put("staleCells", 0);
         body.put("reportedAt", Instant.now().toString());
         return ResponseEntity.ok(body);

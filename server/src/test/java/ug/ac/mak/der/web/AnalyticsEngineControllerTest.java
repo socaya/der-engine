@@ -69,6 +69,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.benchmark.AnalyticsBenchmarkFixtureGenerator fixtureGenerator;
     @MockBean ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarSink columnarSink;
     @MockBean ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarVerifier columnarVerifier;
+    @MockBean ug.ac.mak.der.analytics.column.sink.AnalyticsColumnarLifecycle columnarLifecycle;
     @MockBean ug.ac.mak.der.analytics.column.exec.ColumnarExplainer columnarExplainer;
     @MockBean ug.ac.mak.der.analytics.column.exec.PlanSelector planSelector;
     @MockBean ug.ac.mak.der.analytics.column.exec.ColumnarQueryEngine columnarQueryEngine;
@@ -79,6 +80,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionReceiver siteReceiver;
     @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionRepository siteRepo;
     @MockBean ug.ac.mak.der.analytics.distributed.SiteConsolidator siteConsolidator;
+    @MockBean ug.ac.mak.der.analytics.publication.PublicationDrainWorker publicationDrain;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -101,7 +103,7 @@ class AnalyticsEngineControllerTest {
                         .with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.package").value("DER Analytics engine v1"))
-                .andExpect(jsonPath("$.status").value("PHASE_1_FOUNDATION"))
+                .andExpect(jsonPath("$.status").value("OPERATIONAL_DUAL_ENGINE"))
                 .andExpect(jsonPath("$.targetDhis2Versions[0]").value("2.41"))
                 .andExpect(jsonPath("$.capabilities[0].feature").value("event_count"))
                 .andExpect(jsonPath("$.supportedPeriodTypes[0]").value("Daily"));
@@ -259,18 +261,18 @@ class AnalyticsEngineControllerTest {
 
     @Test
     void columnarFlushReturnsCompressionEvidence() throws Exception {
-        when(columnarSink.flush()).thenReturn(
+        when(columnarLifecycle.runNow()).thenReturn(
                 new ug.ac.mak.der.analytics.column.sink
-                        .AnalyticsColumnarSink.FlushResult(
-                        1L, 3, 500, 42_000L, 0.25,
-                        "/tmp/analytics-store/manifests/000000001.json"));
+                        .AnalyticsColumnarLifecycle.LifecycleStatus(
+                        "PUBLISHED", Instant.now(), Instant.now(),
+                        1L, 500, 500, 0, 0L, 42_000L, 0.25, null));
         mockMvc.perform(post(
                         "/edge-api/v1/analytics/v1/admin/segments/flush")
                         .with(as(EdgeRole.ADMIN)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.generation").value(1))
-                .andExpect(jsonPath("$.segmentsWritten").value(3))
-                .andExpect(jsonPath("$.compressionRatio").value(0.25));
+                .andExpect(jsonPath("$.status.generation").value(1))
+                .andExpect(jsonPath("$.status.rowsVerified").value(500))
+                .andExpect(jsonPath("$.status.compressionRatio").value(0.25));
     }
 
     @Test

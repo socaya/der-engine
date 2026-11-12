@@ -1,6 +1,7 @@
 package ug.ac.mak.der.analytics.benchmark;
 
 import java.sql.Date;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +39,9 @@ public class AnalyticsBenchmarkFixtureGenerator {
     static final String BENCHMARK_PROGRAM_UID = "BENCHMARK01";
     static final String BENCHMARK_STAGE_UID = "BENCHMARKS1";
     static final String BENCHMARK_TET_UID = "BENCHMARKT1";
+    private static final UUID TRACKER_WORKFLOW_ID = UUID.fromString(
+            "00000000-0000-0000-0000-000000000005");
+    private static final String RUN_KEY_PREFIX = "_ANALYTICS_BENCHMARK_|";
 
     /** Hard safety ceiling so a typo doesn't seed an eye-watering
      *  amount of data. Operators running the 1 M soak need to
@@ -86,6 +90,16 @@ public class AnalyticsBenchmarkFixtureGenerator {
                   + " events per run exceeded");
         }
         final java.util.Random rng = new java.util.Random(req.seed());
+        final String runKey = RUN_KEY_PREFIX + req.orgUnitUid();
+        final UUID workflowRunId = UUID.nameUUIDFromBytes(
+                runKey.getBytes(StandardCharsets.UTF_8));
+        jdbc.update(
+                "INSERT INTO der.capture_workflow_run ("
+              + "  run_id, workflow_id, workflow_version, business_key, "
+              + "  state, created_by) VALUES (?, ?, 1, ?, 'OPEN', ?) "
+              + "ON CONFLICT (workflow_id, workflow_version, business_key) "
+              + "DO UPDATE SET updated_at = now()",
+                workflowRunId, TRACKER_WORKFLOW_ID, runKey, createdBy);
 
         final List<String> teiUids = new ArrayList<>(teiCount);
         for (int i = 0; i < teiCount; i++) {
@@ -95,14 +109,14 @@ public class AnalyticsBenchmarkFixtureGenerator {
         for (final String uid : teiUids) {
             teiArgs.add(new Object[] {
                 uid, BENCHMARK_TET_UID, req.orgUnitUid(),
-                "{}", createdBy,
+                "{}", createdBy, workflowRunId,
             });
         }
         jdbc.batchUpdate(
                 "INSERT INTO der.tracked_entity ("
               + "  tei_uid, tracked_entity_type, org_unit_uid, "
-              + "  attributes, created_by) "
-              + "VALUES (?, ?, ?, CAST(? AS JSONB), ?) "
+              + "  attributes, created_by, workflow_run_id) "
+              + "VALUES (?, ?, ?, CAST(? AS JSONB), ?, ?) "
               + "ON CONFLICT (tei_uid) DO NOTHING",
                 teiArgs);
 
@@ -117,14 +131,14 @@ public class AnalyticsBenchmarkFixtureGenerator {
                 BENCHMARK_PROGRAM_UID, req.orgUnitUid(),
                 "ACTIVE",
                 Date.valueOf(LocalDate.now().minusDays(rng.nextInt(90))),
-                createdBy,
+                createdBy, workflowRunId,
             });
         }
         jdbc.batchUpdate(
                 "INSERT INTO der.edge_enrollment ("
               + "  enrollment_uid, tei_uid, program_uid, org_unit_uid, "
-              + "  status, enrollment_date, created_by) "
-              + "VALUES (?, ?, ?, ?, ?, ?, ?) "
+              + "  status, enrollment_date, created_by, workflow_run_id) "
+              + "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
               + "ON CONFLICT (enrollment_uid) DO NOTHING",
                 enrollArgs);
 
@@ -140,7 +154,7 @@ public class AnalyticsBenchmarkFixtureGenerator {
                     eventUid, enrollmentUids.get(t),
                     BENCHMARK_PROGRAM_UID, BENCHMARK_STAGE_UID,
                     req.orgUnitUid(), "COMPLETED",
-                    Date.valueOf(day), "{}", createdBy,
+                    Date.valueOf(day), "{}", createdBy, workflowRunId,
                 });
             }
         }
@@ -148,8 +162,8 @@ public class AnalyticsBenchmarkFixtureGenerator {
                 "INSERT INTO der.edge_tracker_event ("
               + "  event_uid, enrollment_uid, program_uid, "
               + "  program_stage_uid, org_unit_uid, status, "
-              + "  occurred_date, data_values, created_by) "
-              + "VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS JSONB), ?) "
+              + "  occurred_date, data_values, created_by, workflow_run_id) "
+              + "VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS JSONB), ?, ?) "
               + "ON CONFLICT (event_uid) DO NOTHING",
                 eventArgs);
         return new SeedResult(teiArgs.size(), enrollArgs.size(),
@@ -174,6 +188,8 @@ public class AnalyticsBenchmarkFixtureGenerator {
                 "DELETE FROM der.tracked_entity "
               + " WHERE tracked_entity_type = ?",
                 BENCHMARK_TET_UID);
+        jdbc.update("DELETE FROM der.capture_workflow_run "
+                + "WHERE business_key LIKE ?", RUN_KEY_PREFIX + "%");
         return new CleanupResult(events, enrollments, teis);
     }
 

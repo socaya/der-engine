@@ -14,6 +14,7 @@ target/
 docs/evaluation/evidence/phase-unknown/
 .DS_Store
 coverage/
+analytics-store/
 
 # TypeScript incremental build output
 *.tsbuildinfo

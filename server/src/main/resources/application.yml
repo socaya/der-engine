@@ -78,6 +78,18 @@ logging:
 
 # DHIS2 adapter — Phase 01 (ADR-0002, ADR-0003).
 der:
+  analytics:
+    # Verified columnar snapshots are safe by default: each generation is
+    # built in shadow storage, compared with Postgres, then atomically exposed.
+    columnar:
+      enabled: ${DER_ANALYTICS_COLUMNAR_ENABLED:true}
+      root-path: ${DER_ANALYTICS_COLUMNAR_ROOT:analytics-store}
+      rows-per-segment-cap: ${DER_ANALYTICS_ROWS_PER_SEGMENT:100000}
+      lifecycle:
+        enabled: ${DER_ANALYTICS_COLUMNAR_LIFECYCLE_ENABLED:true}
+        retain-generations: ${DER_ANALYTICS_RETAIN_GENERATIONS:3}
+        initial-delay-millis: ${DER_ANALYTICS_FLUSH_INITIAL_DELAY_MILLIS:15000}
+        fixed-delay-millis: ${DER_ANALYTICS_FLUSH_INTERVAL_MILLIS:60000}
   peer:
     # §2.3.42 — AES-256-GCM key for peer service-account password
     # at rest. Falls back to a well-known dev-only key when unset
