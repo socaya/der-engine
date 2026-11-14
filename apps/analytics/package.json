@@ -3,7 +3,7 @@
   "version": "0.1.0-alpha.1",
   "type": "module",
   "private": true,
-  "description": "DER Analytics — site-local offline-capable analytics engine UI (docs/apps/analytics spec §10). Nine navigation sections: Overview, Explore, Metrics, Tracker Tally, Reports, Drilldowns, Saved, Quality, Administration.",
+  "description": "DER Analytics — site-local offline-capable analytics engine UI (docs/apps/analytics spec §10). Three navigation sections: Explore, Data catalogue, Data quality.",
   "derAppManifest": {
     "appKey": "analytics",
     "displayName": "Analytics",

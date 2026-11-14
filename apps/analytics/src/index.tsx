@@ -52,6 +52,14 @@ interface ReconciliationRow {
   readonly localValue?: string | null; readonly centralValue?: string | null;
   readonly classification: string; readonly explanation?: string | null;
 }
+interface PreaggProposal {
+  readonly proposalId: string; readonly shapeKey: string;
+  readonly observations: number; readonly avgElapsedMillis: number;
+  readonly score: number; readonly estimatedBytes: number;
+  readonly firstObservedAt: string; readonly lastObservedAt: string;
+  readonly rationale: string; readonly state: string;
+  readonly decisionReason?: string | null;
+}
 interface DataSetRow { readonly id: string; readonly displayName?: string; readonly name?: string; readonly periodType?: string; }
 interface AggregateField {
   readonly fieldRef: string; readonly dataElementUid: string;
@@ -599,6 +607,8 @@ function CataloguePage({ onExplore }: { onExplore: (metricId: string) => void })
 }
 
 function QualityPage(): JSX.Element {
+  const auth = useAuth();
+  const isAdmin = Boolean(auth?.roles?.includes('ADMIN'));
   const [quality, setQuality] = useState<QualityResponse | null>(null);
   const [rows, setRows] = useState<readonly ReconciliationRow[]>([]);
   const [classifications, setClassifications] = useState<Readonly<Record<string, number>>>({});
@@ -628,6 +638,60 @@ function QualityPage(): JSX.Element {
         <tbody>{rows.map((row) => <tr key={row.reconciliationId} title={row.explanation ?? undefined}><td><code>{row.metricId.slice(0, 8)}</code></td><td>{row.periodKey}</td><td className="an-numeric">{row.localValue ?? '—'}</td><td className="an-numeric">{row.centralValue ?? '—'}</td><td><QualityText state={row.classification} /></td></tr>)}
         {!rows.length && <tr><td colSpan={5} className="an-empty-cell">No comparison records are available.</td></tr>}</tbody></table></div>
     </section>
+    {isAdmin && <PreaggProposalsSection />}
+  </section>;
+}
+
+function PreaggProposalsSection(): JSX.Element {
+  const [proposals, setProposals] = useState<readonly PreaggProposal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch(`${API}/admin/preagg/proposals?limit=50`, { credentials: 'include' })
+      .then(parseOrThrow)
+      .then((r) => setProposals(((r as { proposals?: readonly PreaggProposal[] }).proposals) ?? []))
+      .catch((cause: unknown) => setError(errorMessage(cause)))
+      .finally(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const trigger = useCallback(async (path: string, init?: RequestInit) => {
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch(path, { credentials: 'include', ...init });
+      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+      load();
+    } catch (cause: unknown) { setError(errorMessage(cause)); setBusy(false); }
+  }, [load]);
+  const propose = () => trigger(`${API}/admin/preagg/propose`, { method: 'POST' });
+  const decide = (id: string, action: 'approve' | 'reject') =>
+    trigger(`${API}/admin/preagg/proposals/${id}/${action}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+  return <section className="an-quality-section" aria-labelledby="preagg-title" data-test="an-preagg">
+    <div className="an-section-head">
+      <div><h2 id="preagg-title">Preaggregation proposals</h2><p>{proposals.length} {proposals.length === 1 ? 'proposal' : 'proposals'}</p></div>
+      <button type="button" className="an-text-button" onClick={propose} disabled={busy} data-test="an-preagg-propose">Run proposer</button>
+    </div>
+    {error && <Message kind="error">{error}</Message>}
+    {loading ? <div className="an-inline-stats"><span>Loading…</span></div> : (
+      <div className="an-table-wrap"><table className="an-table"><thead><tr><th>Shape</th><th>Observations</th><th>Avg ms</th><th>Score</th><th>State</th><th aria-label="Actions" /></tr></thead>
+        <tbody>{proposals.map((p) => <tr key={p.proposalId}>
+          <td title={p.rationale}><code>{p.shapeKey.slice(0, 10)}</code></td>
+          <td className="an-numeric">{p.observations.toLocaleString()}</td>
+          <td className="an-numeric">{p.avgElapsedMillis.toFixed(1)}</td>
+          <td className="an-numeric">{p.score.toFixed(0)}</td>
+          <td>{p.state}</td>
+          <td>{p.state === 'PROPOSED'
+            ? <><button type="button" className="an-text-button" onClick={() => decide(p.proposalId, 'approve')} disabled={busy}>Approve</button>
+              <button type="button" className="an-text-button" onClick={() => decide(p.proposalId, 'reject')} disabled={busy}>Reject</button></>
+            : <span>—</span>}</td>
+        </tr>)}
+        {!proposals.length && <tr><td colSpan={6} className="an-empty-cell">No proposals yet.</td></tr>}</tbody></table></div>
+    )}
   </section>;
 }
 
