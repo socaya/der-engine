@@ -112,9 +112,14 @@ export async function ensureInstalled(app: CatalogueApp): Promise<string> {
 
   let r: Response;
   try {
+    const headers: Record<string, string> = {};
+    let device: string | null = null;
+    try { device = window.localStorage.getItem('der_device_id'); } catch { /* storage unavailable */ }
+    if (device) headers['X-DER-Device-Id'] = device;
     r = await fetch(app.bundleUrl, {
       credentials: 'include',
       cache: 'no-store',
+      headers,
     });
   } catch (fetchErr) {
     if (fallback) {

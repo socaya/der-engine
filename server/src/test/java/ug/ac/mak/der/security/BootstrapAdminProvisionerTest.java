@@ -24,7 +24,8 @@ class BootstrapAdminProvisionerTest {
         return new SecurityProperties(
                 new SecurityProperties.Session(Duration.ofHours(1), "C", false, "Strict", "s"),
                 new SecurityProperties.SignIn(10, 10),
-                new SecurityProperties.Bootstrap(user, pwd));
+                new SecurityProperties.Bootstrap(user, pwd),
+                new SecurityProperties.DeviceApproval(false));
     }
 
     @Test

@@ -18,3 +18,5 @@ der:
     bootstrap:
       admin-username: ""
       admin-password: ""
+    device-approval:
+      required: false

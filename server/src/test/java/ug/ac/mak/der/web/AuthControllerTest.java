@@ -55,7 +55,8 @@ class AuthControllerTest {
             return new SecurityProperties(
                     new SecurityProperties.Session(Duration.ofHours(1), "DER_SESSION", false, "Strict", "s"),
                     new SecurityProperties.SignIn(10, 5),
-                    new SecurityProperties.Bootstrap("", ""));
+                    new SecurityProperties.Bootstrap("", ""),
+                    new SecurityProperties.DeviceApproval(false));
         }
     }
 

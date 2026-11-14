@@ -158,21 +158,25 @@ export function Workspace(): JSX.Element {
       <div className="ea-ws-grid-3">
         <Panel title="Client devices"
                action={<Link to="/devices" className="ea-link-btn">All</Link>}>
-          {(devices ?? []).length === 0 ? (
-            <p className="ea-text-muted" style={{ margin: 0 }}>No devices enrolled.</p>
-          ) : (
-            <ul className="ea-dash-device-list">
-              {(devices ?? []).slice(0, 5).map((d) => (
-                <li key={d.deviceId}>
-                  <Dot tone={d.status === 'APPROVED' ? 'success' : d.status === 'PENDING' ? 'warning' : 'danger'} />
-                  <div>
-                    <div className="ea-mono">{d.displayName ?? d.deviceId.slice(0, 8) + '…'}</div>
-                    <div className="ea-dash-activity-meta">{d.status} · {fmtAgo(d.lastSeenAt)}</div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          {(() => {
+            const approved = (devices ?? []).filter((d) => d.status === 'APPROVED');
+            if (approved.length === 0) {
+              return <p className="ea-text-muted" style={{ margin: 0 }}>No approved devices yet.</p>;
+            }
+            return (
+              <ul className="ea-dash-device-list">
+                {approved.slice(0, 5).map((d) => (
+                  <li key={d.deviceId}>
+                    <Dot tone="success" />
+                    <div>
+                      <div className="ea-mono">{d.displayName ?? d.deviceId.slice(0, 8) + '…'}</div>
+                      <div className="ea-dash-activity-meta">{d.status} · {fmtAgo(d.lastSeenAt)}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            );
+          })()}
         </Panel>
 
         <Panel title="Edge workflows"

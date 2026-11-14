@@ -28,7 +28,8 @@ class AuthenticationServiceTest {
         return new SecurityProperties(
                 new SecurityProperties.Session(Duration.ofHours(1), "DER_SESSION", false, "Strict", "s"),
                 new SecurityProperties.SignIn(ipLimit, userLimit),
-                new SecurityProperties.Bootstrap("", ""));
+                new SecurityProperties.Bootstrap("", ""),
+                new SecurityProperties.DeviceApproval(false));
     }
 
     private static EdgeUser user(final boolean disabled) {

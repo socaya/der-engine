@@ -10,7 +10,7 @@ class SecurityPropertiesTest {
 
     @Test
     void defaultsApplied() {
-        final SecurityProperties p = new SecurityProperties(null, null, null);
+        final SecurityProperties p = new SecurityProperties(null, null, null, null);
         assertThat(p.session().ttl()).isEqualTo(Duration.ofHours(4));
         assertThat(p.session().cookieName()).isEqualTo("DER_SESSION");
         assertThat(p.session().cookieSecure()).isFalse();
@@ -19,6 +19,7 @@ class SecurityPropertiesTest {
         assertThat(p.signIn().rateLimitPerIpPerMinute()).isEqualTo(30);
         assertThat(p.signIn().rateLimitPerUserPerMinute()).isEqualTo(10);
         assertThat(p.bootstrap().isConfigured()).isFalse();
+        assertThat(p.deviceApproval().required()).isTrue();
     }
 
     @Test
@@ -26,7 +27,8 @@ class SecurityPropertiesTest {
         final SecurityProperties p = new SecurityProperties(
                 new SecurityProperties.Session(Duration.ofHours(1), "C", true, "Lax", "s"),
                 new SecurityProperties.SignIn(10, 5),
-                new SecurityProperties.Bootstrap("u", "p"));
+                new SecurityProperties.Bootstrap("u", "p"),
+                new SecurityProperties.DeviceApproval(false));
         assertThat(p.session().ttl()).isEqualTo(Duration.ofHours(1));
         assertThat(p.signIn().rateLimitPerIpPerMinute()).isEqualTo(10);
         assertThat(p.bootstrap().isConfigured()).isTrue();

@@ -7,12 +7,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * Typed Phase 02 security configuration.
  *
- * @param session   session cookie policy
- * @param signIn    rate-limit bounds applied to {@code /auth/sign-in}
- * @param bootstrap first-boot administrator provisioning
+ * @param session         session cookie policy
+ * @param signIn          rate-limit bounds applied to {@code /auth/sign-in}
+ * @param bootstrap       first-boot administrator provisioning
+ * @param deviceApproval  ADR-0019 slice B — gate app access on APPROVED trust
  */
 @ConfigurationProperties(prefix = "der.security")
-public record SecurityProperties(Session session, SignIn signIn, Bootstrap bootstrap) {
+public record SecurityProperties(Session session, SignIn signIn, Bootstrap bootstrap,
+                                    DeviceApproval deviceApproval) {
 
     public SecurityProperties {
         if (session == null) {
@@ -23,6 +25,9 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
         }
         if (bootstrap == null) {
             bootstrap = new Bootstrap("", "");
+        }
+        if (deviceApproval == null) {
+            deviceApproval = new DeviceApproval(true);
         }
     }
 
@@ -52,4 +57,16 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
                     && adminPassword != null && !adminPassword.isBlank();
         }
     }
+
+    /**
+     * ADR-0019 slice B — gate client-app access on device trust.
+     *
+     * @param required when {@code true}, only devices with
+     *                 {@code network_client.trust = APPROVED} may fetch
+     *                 app bundles or write; see
+     *                 {@code DeviceApprovalInterceptor}. When
+     *                 {@code false}, the server reverts to the slice-A
+     *                 non-blocking banner posture.
+     */
+    public record DeviceApproval(boolean required) { }
 }

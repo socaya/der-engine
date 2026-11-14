@@ -56,15 +56,26 @@ function sanitize(raw: unknown): CatalogueApp[] {
  */
 export async function fetchAppCatalogue(): Promise<CatalogueApp[]> {
   try {
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    const device = readDeviceHeader();
+    if (device) headers['X-DER-Device-Id'] = device;
     const r = await fetch('/edge-api/v1/apps', {
       credentials: 'include',
       cache: 'no-store',
-      headers: { Accept: 'application/json' },
+      headers,
     });
     if (!r.ok) return [];
     return sanitize(await r.json() as unknown);
   } catch {
     return [];
+  }
+}
+
+function readDeviceHeader(): string | null {
+  try {
+    return window.localStorage.getItem('der_device_id');
+  } catch {
+    return null;
   }
 }
 
