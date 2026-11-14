@@ -100,9 +100,9 @@ export function Dhis2Mappings(): JSX.Element {
           : `${unmapped} unmapped`}
         subtitle={
           <>
-            <span>Mapped <strong style={{ color: 'var(--der-ink-900)' }}>{mappedCount}</strong></span>
+            <span>Mapped <strong>{mappedCount}</strong></span>
             <span>·</span>
-            <span>Total <strong style={{ color: 'var(--der-ink-900)' }}>{users.length}</strong></span>
+            <span>Total <strong>{users.length}</strong></span>
           </>
         }
         actions={

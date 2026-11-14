@@ -299,7 +299,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
   }
 
   const bold = (v: string | number): JSX.Element =>
-    <strong style={{ color: 'var(--der-ink-900)' }}>{v}</strong>;
+    <strong>{v}</strong>;
 
   return (
     <div className="ea-screen ea-screen--tight" data-test="wf-monitor-root">

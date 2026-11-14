@@ -107,7 +107,7 @@ export function NetworkOverview(): JSX.Element {
           <>
             <span>Trusted local network for this edge.</span>
             <span>·</span>
-            <span>Operating mode <strong style={{ color: 'var(--der-ink-900)' }}>{overallLabel}</strong></span>
+            <span>Operating mode <strong>{overallLabel}</strong></span>
           </>
         }
         actions={
@@ -652,7 +652,7 @@ export function NetworkConnectedDevices(): JSX.Element {
         subtitle={
           <>
             <span>Devices on the DER local network.</span>
-            {approved > 0 && (<><span>·</span><span>Approved <strong style={{ color: 'var(--der-ink-900)' }}>{approved}</strong></span></>)}
+            {approved > 0 && (<><span>·</span><span>Approved <strong>{approved}</strong></span></>)}
             {pending > 0 && (<><span>·</span><span>Pending <strong style={{ color: 'var(--der-warning-ink)' }}>{pending}</strong></span></>)}
           </>
         }

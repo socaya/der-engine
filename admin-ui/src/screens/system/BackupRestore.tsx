@@ -97,8 +97,8 @@ export function BackupList(): JSX.Element {
           <>
             <span>Scheduled backups, point-in-time recovery, and automated restore verification.</span>
             <span>·</span>
-            <span>Successful <strong style={{ color: 'var(--der-ink-900)' }}>{succ}</strong></span>
-            {pend > 0 && (<><span>·</span><span>In flight <strong style={{ color: 'var(--der-ink-900)' }}>{pend}</strong></span></>)}
+            <span>Successful <strong>{succ}</strong></span>
+            {pend > 0 && (<><span>·</span><span>In flight <strong>{pend}</strong></span></>)}
             {fail > 0 && (<><span>·</span><span>Failed <strong style={{ color: 'var(--der-danger-ink)' }}>{fail}</strong></span></>)}
           </>
         }

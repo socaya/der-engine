@@ -40,15 +40,15 @@ export function SystemInformation(): JSX.Element {
         statusLabel={dhis2Up && dbUp && schedUp ? 'All subsystems healthy' : 'Degraded subsystem'}
         subtitle={
           <>
-            <span>Uptime <strong style={{ color: 'var(--der-ink-900)' }}>{fmtDur(si.runtime.uptimeMillis)}</strong></span>
+            <span>Uptime <strong>{fmtDur(si.runtime.uptimeMillis)}</strong></span>
             <span>·</span>
-            <span>Heap <strong style={{ color: 'var(--der-ink-900)' }}>{heapPct}%</strong></span>
+            <span>Heap <strong>{heapPct}%</strong></span>
             <span>·</span>
-            <span>Storage <strong style={{ color: 'var(--der-ink-900)' }}>{storagePct}%</strong></span>
+            <span>Storage <strong>{storagePct}%</strong></span>
             <span>·</span>
-            <span>Database <strong style={{ color: 'var(--der-ink-900)' }}>{dbUp ? 'OK' : 'FAIL'}</strong></span>
+            <span>Database <strong>{dbUp ? 'OK' : 'FAIL'}</strong></span>
             <span>·</span>
-            <span>Captured <strong style={{ color: 'var(--der-ink-900)' }}>{fmtDate(si.timestamp)}</strong></span>
+            <span>Captured <strong>{fmtDate(si.timestamp)}</strong></span>
           </>
         }
       />

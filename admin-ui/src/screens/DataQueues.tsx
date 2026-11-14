@@ -168,7 +168,7 @@ export function DataQueues(): JSX.Element {
             {lastPush && (<>
               <span>·</span>
               <span>Last successful push{' '}
-                <strong style={{ color: 'var(--der-ink-900)' }}>{fmtAgo(lastPush.startedAt)}</strong>
+                <strong>{fmtAgo(lastPush.startedAt)}</strong>
               </span>
             </>)}
             <span>·</span>
@@ -181,7 +181,7 @@ export function DataQueues(): JSX.Element {
               <span>·</span>
               <span data-test="data-last-cleaned">
                 Last cleaned{' '}
-                <strong style={{ color: 'var(--der-ink-900)' }}>{fmtAgo(lastPurge.observedAt)}</strong>
+                <strong>{fmtAgo(lastPurge.observedAt)}</strong>
                 {lastPurge.rowsPurged > 0 && (<> · {lastPurge.rowsPurged} row{lastPurge.rowsPurged === 1 ? '' : 's'}</>)}
               </span>
             </>)}
@@ -214,7 +214,7 @@ export function DataQueues(): JSX.Element {
               : push.state === 'done' ? 'Completed'
               : push.state === 'failed' ? 'Failed' : 'Still running'}
           </Status>
-          <strong style={{ color: 'var(--der-ink-900)' }}>Push data</strong>
+          <strong>Push data</strong>
           <span style={{ flex: 1 }}>{push.message}</span>
           {(push.state === 'done' || push.state === 'failed' || push.state === 'timeout') && (
             <button type="button" className="ea-link-btn"
@@ -377,12 +377,12 @@ export function DataDetail(): JSX.Element {
           <>
             <span className="ea-mono" style={{ color: 'var(--der-ink-900)' }}>{op.entityRef}</span>
             <span>·</span>
-            <span>Captured <strong style={{ color: 'var(--der-ink-900)' }}>{fmtDate(op.createdAt)}</strong></span>
+            <span>Captured <strong>{fmtDate(op.createdAt)}</strong></span>
             <span>·</span>
-            <span>Last attempt <strong style={{ color: 'var(--der-ink-900)' }}>{fmtDate(op.updatedAt)}</strong></span>
+            <span>Last attempt <strong>{fmtDate(op.updatedAt)}</strong></span>
             {op.attemptCount > 0 && (<>
               <span>·</span>
-              <span>Attempts <strong style={{ color: 'var(--der-ink-900)' }}>{op.attemptCount}</strong></span>
+              <span>Attempts <strong>{op.attemptCount}</strong></span>
             </>)}
           </>
         }

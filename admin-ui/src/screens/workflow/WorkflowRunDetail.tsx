@@ -58,7 +58,7 @@ export function WorkflowRunDetail(): JSX.Element {
   else if (r.state === 'AWAITING')  tone = 'info';
   else                              tone = 'muted';
   const bold = (v: string | number): JSX.Element =>
-    <strong style={{ color: 'var(--der-ink-900)' }}>{v}</strong>;
+    <strong>{v}</strong>;
 
   const completed = detail.steps.filter((s) => s.state === 'COMPLETE').length;
   const blocked   = detail.steps.filter((s) => s.state === 'BLOCKED').length;

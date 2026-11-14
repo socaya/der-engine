@@ -136,7 +136,7 @@ export function ApprovalDetail(): JSX.Element {
         tone="warning"
         title={`${entityTypeLabel(row.entityType)} · ${row.entityRef}`}
         statusLabel="Pending approval"
-        subtitle={<span>Submitted by <strong style={{ color: 'var(--der-ink-900)' }}>{row.submittedBy ?? 'unknown'}</strong>{row.createdAt && <> · {fmtDate(row.createdAt)}</>}</span>}
+        subtitle={<span>Submitted by <strong>{row.submittedBy ?? 'unknown'}</strong>{row.createdAt && <> · {fmtDate(row.createdAt)}</>}</span>}
         actions={
           <>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"

@@ -27,11 +27,11 @@ export function CompatInspector(): JSX.Element {
         statusLabel={c.probeReachable ? 'Reachable' : 'Unreachable'}
         subtitle={
           <>
-            <span>Profile <strong style={{ color: 'var(--der-ink-900)' }}>{c.profileName ?? '—'}</strong></span>
+            <span>Profile <strong>{c.profileName ?? '—'}</strong></span>
             <span>·</span>
-            <span>Central <strong style={{ color: 'var(--der-ink-900)' }}>{c.centralVersion ?? '—'}</strong></span>
+            <span>Central <strong>{c.centralVersion ?? '—'}</strong></span>
             <span>·</span>
-            <span>Engine <strong style={{ color: 'var(--der-ink-900)' }}>{c.engineVersion ?? '—'}</strong></span>
+            <span>Engine <strong>{c.engineVersion ?? '—'}</strong></span>
           </>
         }
         actions={

@@ -59,11 +59,11 @@ export function DeviceMessaging(): JSX.Element {
             <span>DER-MSG v2 — devices on this edge exchange data over DER with SSE push, E2E encryption, CRDT docs, and edge-to-edge relay.</span>
             {stats && (<>
               <span>·</span>
-              <span>Devices subscribed <strong style={{ color: 'var(--der-ink-900)' }}>{stats.devicesSubscribed}</strong></span>
+              <span>Devices subscribed <strong>{stats.devicesSubscribed}</strong></span>
               <span>·</span>
-              <span>Channels active <strong style={{ color: 'var(--der-ink-900)' }}>{stats.channelsActive}</strong></span>
+              <span>Channels active <strong>{stats.channelsActive}</strong></span>
               <span>·</span>
-              <span>Last hour <strong style={{ color: 'var(--der-ink-900)' }}>{stats.messagesLastHour}</strong></span>
+              <span>Last hour <strong>{stats.messagesLastHour}</strong></span>
             </>)}
             <span>·</span>
             <Status tone={sseConnected ? 'success' : 'muted'}>

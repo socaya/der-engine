@@ -42,8 +42,8 @@ export function ReferralInbox(): JSX.Element {
           <>
             <span>Referrals from the central hub awaiting local handling.</span>
             <span>·</span>
-            <span>Total <strong style={{ color: 'var(--der-ink-900)' }}>{rows.length}</strong></span>
-            {accepted > 0 && (<><span>·</span><span>Accepted <strong style={{ color: 'var(--der-ink-900)' }}>{accepted}</strong></span></>)}
+            <span>Total <strong>{rows.length}</strong></span>
+            {accepted > 0 && (<><span>·</span><span>Accepted <strong>{accepted}</strong></span></>)}
           </>
         }
       />

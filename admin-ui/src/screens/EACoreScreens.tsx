@@ -233,7 +233,7 @@ export function EAUsersList({ api = edgeApi }:
       <section className="ea-screen-header-sub" role="group" aria-label="User summary"
                style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12,
                         margin: '0 0 var(--sp-3)' }}>
-        <span>Total users <strong style={{ color: 'var(--der-ink-900)' }}>{total}</strong></span>
+        <span>Total users <strong>{total}</strong></span>
         <span>·</span>
         <span style={{ color: 'var(--der-success-ink)' }}>Administrators <strong>{admins}</strong></span>
         <span>·</span>
@@ -787,7 +787,7 @@ export function EAJobsList({ api = edgeApi }:
       <section className="ea-screen-header-sub" data-test="ea06-strip"
                style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12,
                         margin: '0 0 var(--sp-3)' }}>
-        <span>Total runs <strong style={{ color: 'var(--der-ink-900)' }}>{total}</strong></span>
+        <span>Total runs <strong>{total}</strong></span>
         <span>·</span>
         <span style={{ color: 'var(--der-success-ink)' }}>Succeeded <strong>{nSuccess}</strong></span>
         {nFailed > 0 && (<><span>·</span><span style={{ color: 'var(--der-danger-ink)' }}>Failed <strong>{nFailed}</strong></span></>)}

@@ -400,11 +400,11 @@ function MetadataHealthSummary(
         <>
           <span>Read-only mirror of every DHIS2 metadata resource on this edge.</span>
           <span>·</span>
-          <span><strong style={{ color: 'var(--der-ink-900)' }}>{totalMirror.toLocaleString()}</strong> items across {resourceCount} resources</span>
+          <span><strong>{totalMirror.toLocaleString()}</strong> items across {resourceCount} resources</span>
           <span>·</span>
           <span style={{ color: toneColor(syncTone) }}>{syncLabel}</span>
           <span>·</span>
-          <span>Snapshot <strong style={{ color: 'var(--der-ink-900)' }}>{centralSnap}</strong>→<strong style={{ color: 'var(--der-ink-900)' }}>{edgeSnap}</strong></span>
+          <span>Snapshot <strong>{centralSnap}</strong>→<strong>{edgeSnap}</strong></span>
           <span>·</span>
           <span style={{ color: toneColor(driftTone) }}>{driftLabel}</span>
         </>

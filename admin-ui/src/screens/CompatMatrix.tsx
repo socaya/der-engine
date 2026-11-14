@@ -67,13 +67,13 @@ export function CompatMatrix(): JSX.Element {
         statusLabel={snap.probeReachable ? 'Central reachable' : 'Central unreachable'}
         subtitle={
           <>
-            <span>Central <strong style={{ color: 'var(--der-ink-900)' }}>{snap.centralVersion ?? '—'}</strong></span>
+            <span>Central <strong>{snap.centralVersion ?? '—'}</strong></span>
             <span>·</span>
-            <span>Profile <strong style={{ color: 'var(--der-ink-900)' }}>{snap.profileName ?? '—'}</strong></span>
+            <span>Profile <strong>{snap.profileName ?? '—'}</strong></span>
             <span>·</span>
-            <span>Probe RTT <strong style={{ color: 'var(--der-ink-900)' }}>{snap.probeDurationMs != null ? `${snap.probeDurationMs} ms` : '—'}</strong></span>
+            <span>Probe RTT <strong>{snap.probeDurationMs != null ? `${snap.probeDurationMs} ms` : '—'}</strong></span>
             <span>·</span>
-            <span>Captured <strong style={{ color: 'var(--der-ink-900)' }}>{fmtAgo(snap.capturedAt)}</strong></span>
+            <span>Captured <strong>{fmtAgo(snap.capturedAt)}</strong></span>
             <span>·</span>
             <span>{reliability}% reliability over last {history.length} probe{history.length === 1 ? '' : 's'}</span>
           </>

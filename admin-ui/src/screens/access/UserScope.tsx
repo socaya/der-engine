@@ -62,7 +62,7 @@ export function UserScope(): JSX.Element {
           <>
             <span>Every user on this edge, their roles, and how recently their permissions were refreshed.</span>
             <span>·</span>
-            <span>Admins <strong style={{ color: 'var(--der-ink-900)' }}>{admins}</strong></span>
+            <span>Admins <strong>{admins}</strong></span>
             {stale > 0 && (<>
               <span>·</span>
               <span>
@@ -72,7 +72,7 @@ export function UserScope(): JSX.Element {
               </span>
             </>)}
             <span>·</span>
-            <span>Generated <strong style={{ color: 'var(--der-ink-900)' }}>
+            <span>Generated <strong>
               {fmtAgo(data.generatedAt)}
             </strong></span>
           </>

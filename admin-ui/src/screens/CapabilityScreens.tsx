@@ -1341,7 +1341,7 @@ export function CapMetadataSync(): JSX.Element {
               <>
                 <span>·</span>
                 <span>Last successful pull{' '}
-                  <strong style={{ color: 'var(--der-ink-900)' }}>
+                  <strong>
                     {new Date(lastSuccess.startedAt).toLocaleString()}
                   </strong>
                 </span>
@@ -1349,7 +1349,7 @@ export function CapMetadataSync(): JSX.Element {
             )}
             <span>·</span>
             <span>Central DHIS2{' '}
-              <strong style={{ color: 'var(--der-ink-900)' }}>
+              <strong>
                 {centralReachable ? 'reachable' : 'unreachable'}
               </strong>
             </span>
@@ -1382,7 +1382,7 @@ export function CapMetadataSync(): JSX.Element {
               : pull.state === 'done' ? 'Completed'
               : pull.state === 'failed' ? 'Failed' : 'Still running'}
           </Status>
-          <strong style={{ color: 'var(--der-ink-900)' }}>Pull metadata</strong>
+          <strong>Pull metadata</strong>
           <span style={{ flex: 1 }}>{pull.message}</span>
           {(pull.state === 'done' || pull.state === 'failed' || pull.state === 'timeout') && (
             <button type="button" className="ea-link-btn"
@@ -1962,14 +1962,14 @@ export function CapWorkflowRuns(): JSX.Element {
             <>
               <Link to="/workflows" data-cross-module="Workflows">← Back to workflows</Link>
               <span>·</span>
-              <span>Runs for <strong style={{ color: 'var(--der-ink-900)' }}>{scopedWorkflow.displayName}</strong></span>
+              <span>Runs for <strong>{scopedWorkflow.displayName}</strong></span>
             </>
           ) : (
             <>
               <span>Workflow runs across every workflow definition on this edge.</span>
               <span>·</span>
-              <span>Workflows <strong style={{ color: 'var(--der-ink-900)' }}>{wfs.length}</strong></span>
-              {completed > 0 && (<><span>·</span><span>Completed <strong style={{ color: 'var(--der-ink-900)' }}>{completed}</strong></span></>)}
+              <span>Workflows <strong>{wfs.length}</strong></span>
+              {completed > 0 && (<><span>·</span><span>Completed <strong>{completed}</strong></span></>)}
             </>
           )
         }
@@ -2054,13 +2054,13 @@ export function CapStepAssignments(): JSX.Element {
             <>
               <Link to="/workflows" data-cross-module="Workflows">← Back to workflows</Link>
               <span>·</span>
-              <span>Role assignments for <strong style={{ color: 'var(--der-ink-900)' }}>{scopedWorkflow.displayName}</strong></span>
+              <span>Role assignments for <strong>{scopedWorkflow.displayName}</strong></span>
             </>
           ) : (
             <>
               <span>Which role is responsible for each workflow step.</span>
               <span>·</span>
-              <span>Workflows <strong style={{ color: 'var(--der-ink-900)' }}>{wfs.length}</strong></span>
+              <span>Workflows <strong>{wfs.length}</strong></span>
             </>
           )
         }
@@ -2140,11 +2140,11 @@ export function CapReferralHistory(): JSX.Element {
           <>
             <span>Every referral this edge has received.</span>
             <span>·</span>
-            <span>Accepted <strong style={{ color: 'var(--der-ink-900)' }}>{accepted}</strong></span>
+            <span>Accepted <strong>{accepted}</strong></span>
             <span>·</span>
-            <span>Dismissed <strong style={{ color: 'var(--der-ink-900)' }}>{dismissed}</strong></span>
+            <span>Dismissed <strong>{dismissed}</strong></span>
             <span>·</span>
-            <span>Pending <strong style={{ color: 'var(--der-ink-900)' }}>{pending}</strong></span>
+            <span>Pending <strong>{pending}</strong></span>
           </>
         }
         actions={
@@ -3133,7 +3133,7 @@ export function CapUserMappings(): JSX.Element {
             <span>Edge accounts and their mapping to DHIS2 central users.</span>
             {admins > 0 && (<>
               <span>·</span>
-              <span>Admins <strong style={{ color: 'var(--der-ink-900)' }}>{admins}</strong></span>
+              <span>Admins <strong>{admins}</strong></span>
             </>)}
           </>
         }
@@ -3964,7 +3964,7 @@ export function CapSessions(): JSX.Element {
           <>
             <span>Live sign-in sessions on this edge. Sessions auto-expire with the <code>DER_SESSION</code> cookie.</span>
             <span>·</span>
-            <span>Known users <strong style={{ color: 'var(--der-ink-900)' }}>{users.length}</strong></span>
+            <span>Known users <strong>{users.length}</strong></span>
           </>
         }
         actions={
@@ -4215,9 +4215,9 @@ export function CapDeviceEnrolment(): JSX.Element {
           <>
             <span>Devices that have requested access and are awaiting ADMIN approval.</span>
             <span>·</span>
-            <span>Approved <strong style={{ color: 'var(--der-ink-900)' }}>{approved.length}</strong></span>
+            <span>Approved <strong>{approved.length}</strong></span>
             <span>·</span>
-            <span>Total <strong style={{ color: 'var(--der-ink-900)' }}>{rows.length}</strong></span>
+            <span>Total <strong>{rows.length}</strong></span>
           </>
         }
         actions={
@@ -4519,7 +4519,7 @@ export function CapConnections(): JSX.Element {
           <>
             <span>Approved devices sorted by most recent check-in. Stale = no activity in the last 24h.</span>
             <span>·</span>
-            <span>Fleet <strong style={{ color: 'var(--der-ink-900)' }}>{rows.length}</strong></span>
+            <span>Fleet <strong>{rows.length}</strong></span>
           </>
         }
         actions={
@@ -4648,11 +4648,11 @@ export function CapDeviceDiagnostics(): JSX.Element {
           <>
             <span>Per-device check-in + firmware state.</span>
             <span>·</span>
-            <span>Stale (&gt;24h) <strong style={{ color: 'var(--der-ink-900)' }}>{stale.length}</strong></span>
+            <span>Stale (&gt;24h) <strong>{stale.length}</strong></span>
             <span>·</span>
-            <span>Pending <strong style={{ color: 'var(--der-ink-900)' }}>{pending}</strong></span>
+            <span>Pending <strong>{pending}</strong></span>
             <span>·</span>
-            <span>Revoked <strong style={{ color: 'var(--der-ink-900)' }}>{revoked}</strong></span>
+            <span>Revoked <strong>{revoked}</strong></span>
           </>
         }
         actions={

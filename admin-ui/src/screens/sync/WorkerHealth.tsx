@@ -50,9 +50,9 @@ export function WorkerHealthScreen(): JSX.Element {
                 : `${total.toLocaleString()} item${total === 1 ? '' : 's'} in queue · last activity ${fmtAgo(w.lastTick)}`}
             </span>
             <span>·</span>
-            <span>Waiting <strong style={{ color: 'var(--der-ink-900)' }}>{waiting.toLocaleString()}</strong></span>
+            <span>Waiting <strong>{waiting.toLocaleString()}</strong></span>
             <span>·</span>
-            <span>Retrying <strong style={{ color: 'var(--der-ink-900)' }}>{retrying.toLocaleString()}</strong></span>
+            <span>Retrying <strong>{retrying.toLocaleString()}</strong></span>
             {attention > 0 && (
               <>
                 <span>·</span>
@@ -75,7 +75,7 @@ export function WorkerHealthScreen(): JSX.Element {
               </>
             )}
             <span>·</span>
-            <span>Last batch <strong style={{ color: 'var(--der-ink-900)' }}>{w.lastBatchSize}</strong></span>
+            <span>Last batch <strong>{w.lastBatchSize}</strong></span>
           </>
         }
         actions={

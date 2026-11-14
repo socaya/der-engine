@@ -63,15 +63,15 @@ export function DriftInspector(): JSX.Element {
               </p>
             </InfoPopover>
             <span>·</span>
-            <span>Added <strong style={{ color: 'var(--der-ink-900)' }}>{totalAdded}</strong></span>
+            <span>Added <strong>{totalAdded}</strong></span>
             <span>·</span>
-            <span>Removed <strong style={{ color: 'var(--der-ink-900)' }}>{totalRemoved}</strong></span>
+            <span>Removed <strong>{totalRemoved}</strong></span>
             <span>·</span>
-            <span>Modified <strong style={{ color: 'var(--der-ink-900)' }}>{totalModified}</strong></span>
+            <span>Modified <strong>{totalModified}</strong></span>
             <span>·</span>
-            <span>Entities <strong style={{ color: 'var(--der-ink-900)' }}>{rowSummaries.length}</strong></span>
+            <span>Entities <strong>{rowSummaries.length}</strong></span>
             <span>·</span>
-            <span>Snapshot <strong style={{ color: 'var(--der-ink-900)' }}>{d.snapshotTo ?? '—'}</strong></span>
+            <span>Snapshot <strong>{d.snapshotTo ?? '—'}</strong></span>
           </>
         }
         actions={

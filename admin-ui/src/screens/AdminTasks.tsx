@@ -79,13 +79,13 @@ export function AdminTasks(): JSX.Element {
         statusLabel="ADMIN only"
         subtitle={
           <>
-            <span>Uptime <strong style={{ color: 'var(--der-ink-900)' }}>{uptime}</strong></span>
+            <span>Uptime <strong>{uptime}</strong></span>
             <span>·</span>
-            <span>Heap <strong style={{ color: 'var(--der-ink-900)' }}>{heap}%</strong></span>
+            <span>Heap <strong>{heap}%</strong></span>
             <span>·</span>
-            <span>DB sessions <strong style={{ color: 'var(--der-ink-900)' }}>{sessions}</strong></span>
+            <span>DB sessions <strong>{sessions}</strong></span>
             <span>·</span>
-            <span>Scheduler <strong style={{ color: 'var(--der-ink-900)' }}>{si.scheduler.started ? 'running' : 'standby'}</strong> ({si.scheduler.executingJobs ?? 0}/{si.scheduler.totalJobs ?? 0})</span>
+            <span>Scheduler <strong>{si.scheduler.started ? 'running' : 'standby'}</strong> ({si.scheduler.executingJobs ?? 0}/{si.scheduler.totalJobs ?? 0})</span>
             <span>·</span>
             <span>Destructive operations — service lifecycle, session invalidation, config reload.</span>
           </>

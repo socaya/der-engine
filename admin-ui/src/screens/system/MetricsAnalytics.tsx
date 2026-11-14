@@ -84,13 +84,13 @@ export function OperatorMetrics(): JSX.Element {
         statusLabel={`${totalOperators} operator${totalOperators === 1 ? '' : 's'}`}
         subtitle={
           <>
-            <span>With attention <strong style={{ color: 'var(--der-ink-900)' }}>{withAttention}</strong></span>
+            <span>With attention <strong>{withAttention}</strong></span>
             <span>·</span>
-            <span>Unmapped <strong style={{ color: 'var(--der-ink-900)' }}>{unmapped}</strong></span>
+            <span>Unmapped <strong>{unmapped}</strong></span>
             <span>·</span>
-            <span>Missing credential <strong style={{ color: 'var(--der-ink-900)' }}>{needCredential}</strong></span>
+            <span>Missing credential <strong>{needCredential}</strong></span>
             <span>·</span>
-            <span>Total attention items <strong style={{ color: 'var(--der-ink-900)' }}>{totalAttention}</strong></span>
+            <span>Total attention items <strong>{totalAttention}</strong></span>
           </>
         }
         actions={
@@ -195,7 +195,7 @@ export function FacilityAnalytics(): JSX.Element {
           <>
             <span>Capture throughput for the bound organisation unit.</span>
             <span>·</span>
-            <span>Entity kinds <strong style={{ color: 'var(--der-ink-900)' }}>{journal.length}</strong></span>
+            <span>Entity kinds <strong>{journal.length}</strong></span>
           </>
         }
       />

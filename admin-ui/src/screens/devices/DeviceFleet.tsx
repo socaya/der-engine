@@ -43,8 +43,8 @@ export function DeviceFleet(): JSX.Element {
           <>
             <span>Edge devices registered against this DER instance.</span>
             <span>·</span>
-            <span>Approved <strong style={{ color: 'var(--der-ink-900)' }}>{approved}</strong></span>
-            {pending > 0 && (<><span>·</span><span>Pending <strong style={{ color: 'var(--der-ink-900)' }}>{pending}</strong></span></>)}
+            <span>Approved <strong>{approved}</strong></span>
+            {pending > 0 && (<><span>·</span><span>Pending <strong>{pending}</strong></span></>)}
             {suspended > 0 && (<><span>·</span><span>Suspended / revoked <strong style={{ color: 'var(--der-danger-ink)' }}>{suspended}</strong></span></>)}
           </>
         }

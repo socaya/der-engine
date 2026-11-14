@@ -93,7 +93,7 @@ export function WorkflowActivity({ api = edgeApi }:
   }
 
   const bold = (v: string | number): JSX.Element =>
-    <strong style={{ color: 'var(--der-ink-900)' }}>{v}</strong>;
+    <strong>{v}</strong>;
 
   return (
     <div className="ea-screen" data-test="wf-activity-root">

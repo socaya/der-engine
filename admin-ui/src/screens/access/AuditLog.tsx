@@ -151,7 +151,7 @@ export function AuditEvents(): JSX.Element {
           <>
             <span>Audit stream for every security-relevant event handled by this edge.</span>
             <span>·</span>
-            <span>Success <strong style={{ color: 'var(--der-ink-900)' }}>{success}</strong></span>
+            <span>Success <strong>{success}</strong></span>
             {failure > 0 && (<><span>·</span><span>Failures <strong style={{ color: 'var(--der-danger-ink)' }}>{failure}</strong></span></>)}
           </>
         }

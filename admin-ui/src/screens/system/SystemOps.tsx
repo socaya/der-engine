@@ -219,7 +219,7 @@ export function SiteConfig(): JSX.Element {
             <span>Site-level connectivity policies, limits, local URL and time-zone.</span>
             {data.updatedAt && (<>
               <span>·</span>
-              <span>Last changed <strong style={{ color: 'var(--der-ink-900)' }}>
+              <span>Last changed <strong>
                 {fmtAgo(data.updatedAt)}
               </strong></span>
             </>)}
@@ -539,7 +539,7 @@ export function OperationalReport(): JSX.Element {
           <>
             <span>Local-vs-central reconciliation across captured records.</span>
             <span>·</span>
-            <span>Generated <strong style={{ color: 'var(--der-ink-900)' }}>
+            <span>Generated <strong>
               {fmtAgo(report.generatedAt)}
             </strong></span>
           </>
@@ -731,7 +731,7 @@ export function SupportBundle(): JSX.Element {
             </span>
             <span>·</span>
             <span>
-              <strong style={{ color: 'var(--der-ink-900)' }}>No PHI / operational
+              <strong>No PHI / operational
               data</strong> is included — only operator identities and
               per-operation metadata.
             </span>

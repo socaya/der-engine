@@ -82,7 +82,7 @@ export function UsersDashboard(): JSX.Element {
             <span>Operators and administrators provisioned on this edge.</span>
             {admins > 0 && (<>
               <span>·</span>
-              <span>Admins <strong style={{ color: 'var(--der-ink-900)' }}>{admins}</strong></span>
+              <span>Admins <strong>{admins}</strong></span>
             </>)}
           </>
         }

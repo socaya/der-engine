@@ -92,7 +92,7 @@ export function DataManagement(): JSX.Element {
             <span>Data captured locally and tracked by DER.</span>
             {totalPending > 0 && (<>
               <span>·</span>
-              <span>Waiting to send <strong style={{ color: 'var(--der-ink-900)' }}>{totalPending.toLocaleString()}</strong></span>
+              <span>Waiting to send <strong>{totalPending.toLocaleString()}</strong></span>
             </>)}
             {drafts !== null && drafts > 0 && (<>
               <span>·</span>
