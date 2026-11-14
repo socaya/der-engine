@@ -92,7 +92,8 @@ public class NetworkRepository {
 
     public AccessPointStatus loadAp() {
         final int clients = jdbc.queryForObject(
-            "SELECT COUNT(*)::int FROM der.network_client WHERE trust='APPROVED'",
+            "SELECT COUNT(*)::int FROM der.edge_device "
+          + " WHERE status='APPROVED' AND source IN ('LAN','BOTH')",
             Integer.class);
         return jdbc.queryForObject(
             "SELECT * FROM der.network_access_point WHERE id = 1",
@@ -163,15 +164,21 @@ public class NetworkRepository {
 
     public List<NetworkClient> listClients() {
         return jdbc.query(
-            "SELECT * FROM der.network_client ORDER BY last_seen_at DESC",
+            "SELECT * FROM der.edge_device "
+          + " WHERE source IN ('LAN','BOTH') "
+          + " ORDER BY last_seen_at DESC NULLS LAST",
             clientMapper());
     }
 
     public Optional<NetworkClient> findClient(final String deviceId) {
+        final UUID id = toDeviceUuid(deviceId);
+        if (id == null) {
+            return Optional.empty();
+        }
         try {
             return Optional.ofNullable(jdbc.queryForObject(
-                "SELECT * FROM der.network_client WHERE device_id=?",
-                clientMapper(), deviceId));
+                "SELECT * FROM der.edge_device WHERE device_id=?",
+                clientMapper(), id));
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         }
@@ -179,27 +186,61 @@ public class NetworkRepository {
 
     /** Idempotent upsert — a device that scans the QR + hits the
      *  enrolment endpoint lands as PENDING on first contact and
-     *  refreshes its last-seen on subsequent heartbeats. */
+     *  refreshes its last-seen on subsequent heartbeats. V120 unified
+     *  edge_device: a LAN observation on a device already enrolled as
+     *  FLEET promotes source to BOTH without touching the status. */
     public NetworkClient upsertEnrol(final String deviceId, final String owner,
                                         final String hostname, final String ip,
                                         final String mac, final ClientLink link,
                                         final String certFingerprint) {
+        final UUID id = requireDeviceUuid(deviceId);
         jdbc.update(
-            "INSERT INTO der.network_client "
-          + "(device_id, owner, hostname, ip, mac, link, trust, "
-          + " certificate_fingerprint, first_seen_at, last_seen_at) "
-          + "VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, now(), now()) "
+            "INSERT INTO der.edge_device "
+          + "(device_id, owner, hostname, ip, mac, link, status, source, "
+          + " certificate_fingerprint, enrolled_at, first_seen_at, last_seen_at) "
+          + "VALUES (?, ?, ?, ?, ?, ?, 'PENDING', 'LAN', ?, now(), now(), now()) "
           + "ON CONFLICT (device_id) DO UPDATE SET "
           + "  last_seen_at = now(), "
           + "  ip = EXCLUDED.ip, "
-          + "  mac = COALESCE(EXCLUDED.mac, der.network_client.mac), "
-          + "  hostname = COALESCE(EXCLUDED.hostname, der.network_client.hostname), "
-          + "  owner = COALESCE(EXCLUDED.owner, der.network_client.owner), "
+          + "  mac = COALESCE(EXCLUDED.mac, der.edge_device.mac), "
+          + "  hostname = COALESCE(EXCLUDED.hostname, der.edge_device.hostname), "
+          + "  owner = COALESCE(EXCLUDED.owner, der.edge_device.owner), "
+          + "  link = COALESCE(EXCLUDED.link, der.edge_device.link), "
+          + "  source = CASE "
+          + "    WHEN der.edge_device.source = 'FLEET' THEN 'BOTH' "
+          + "    ELSE der.edge_device.source "
+          + "  END, "
           + "  certificate_fingerprint = COALESCE(EXCLUDED.certificate_fingerprint, "
-          + "                                      der.network_client.certificate_fingerprint)",
-            deviceId, owner, hostname, ip, mac, link.name(), certFingerprint);
-        return findClient(deviceId).orElseThrow(() ->
+          + "                                      der.edge_device.certificate_fingerprint)",
+            id, owner, hostname, ip, mac, link.name(), certFingerprint);
+        return findClient(id.toString()).orElseThrow(() ->
             new IllegalStateException("enrol row disappeared"));
+    }
+
+    /** Parse an incoming device identifier into the UUID form the
+     *  unified edge_device table uses. Non-UUID inputs (legacy
+     *  hostname-style LAN identifiers like {@code tab-sec-01})
+     *  are hashed into a deterministic v3 UUID so repeat
+     *  observations hit the same row. */
+    private static UUID toDeviceUuid(final String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(raw.trim());
+        } catch (IllegalArgumentException ex) {
+            return UUID.nameUUIDFromBytes(
+                ("lan:" + raw.trim())
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+    }
+
+    private static UUID requireDeviceUuid(final String raw) {
+        final UUID id = toDeviceUuid(raw);
+        if (id == null) {
+            throw new IllegalArgumentException("deviceId must not be blank");
+        }
+        return id;
     }
 
     public int upsertLease(final String mac, final String ip, final String hostname,
@@ -361,20 +402,24 @@ public class NetworkRepository {
 
     public int updateClientTrust(final String deviceId, final ClientTrust trust,
                                    final UUID actor) {
+        final UUID id = toDeviceUuid(deviceId);
+        if (id == null) {
+            return 0;
+        }
         if (trust == ClientTrust.APPROVED) {
             return jdbc.update(
-                "UPDATE der.network_client SET trust='APPROVED', "
+                "UPDATE der.edge_device SET status='APPROVED', "
               + "       approved_by=?, approved_at=now(), revoked_at=NULL "
-              + "WHERE device_id=?", actor, deviceId);
+              + "WHERE device_id=?", actor, id);
         }
         if (trust == ClientTrust.REVOKED) {
             return jdbc.update(
-                "UPDATE der.network_client SET trust='REVOKED', revoked_at=now() "
-              + "WHERE device_id=?", deviceId);
+                "UPDATE der.edge_device SET status='REVOKED', revoked_at=now() "
+              + "WHERE device_id=?", id);
         }
         return jdbc.update(
-            "UPDATE der.network_client SET trust=? WHERE device_id=?",
-            trust.name(), deviceId);
+            "UPDATE der.edge_device SET status=? WHERE device_id=?",
+            trust.name(), id);
     }
 
     public List<NetworkEvent> listEvents(final int limit) {
@@ -511,22 +556,40 @@ public class NetworkRepository {
 
     public int updateClientLabel(final String deviceId, final String owner,
                                     final String hostname) {
+        final UUID id = toDeviceUuid(deviceId);
+        if (id == null) {
+            return 0;
+        }
         return jdbc.update(
-            "UPDATE der.network_client SET "
+            "UPDATE der.edge_device SET "
           + "  owner    = COALESCE(?, owner), "
           + "  hostname = COALESCE(?, hostname) "
           + "WHERE device_id = ?",
-            owner, hostname, deviceId);
+            owner, hostname, id);
     }
 
-    /** §2.2.7 — hard-delete a client row. Dependent FK rows
-     *  (DHCP leases keyed on MAC, auth tokens referencing deviceId)
-     *  are allowed to live on; they're keyed differently and
-     *  eventually TTL out. */
+    /** §2.2.7 — drop the LAN observation from a unified edge_device
+     *  row. For a FLEET-only row this is a no-op (nothing to erase).
+     *  For a LAN-only row the whole row is deleted. For BOTH, the
+     *  row survives with source='FLEET' and LAN columns cleared.
+     *  DHCP leases keyed on MAC live on; they TTL out. */
     public int deleteClient(final String deviceId) {
+        final UUID id = toDeviceUuid(deviceId);
+        if (id == null) {
+            return 0;
+        }
+        final int pure = jdbc.update(
+            "DELETE FROM der.edge_device "
+          + " WHERE device_id = ? AND source = 'LAN'", id);
+        if (pure > 0) {
+            return pure;
+        }
         return jdbc.update(
-            "DELETE FROM der.network_client WHERE device_id = ?",
-            deviceId);
+            "UPDATE der.edge_device SET "
+          + "  source = 'FLEET', ip = NULL, mac = NULL, link = NULL, "
+          + "  signal_dbm = NULL, hostname = NULL, "
+          + "  certificate_fingerprint = NULL "
+          + " WHERE device_id = ? AND source = 'BOTH'", id);
     }
 
     public int updateInterfaceConfig(final String name, final Integer priority,
@@ -591,20 +654,26 @@ public class NetworkRepository {
     }
 
     private RowMapper<NetworkClient> clientMapper() {
-        return (ResultSet rs, int row) -> new NetworkClient(
-            rs.getString("device_id"), (UUID) rs.getObject("der_device_id"),
-            rs.getString("owner"), rs.getString("hostname"),
-            rs.getString("ip"), rs.getString("mac"),
-            ClientLink.valueOf(rs.getString("link")),
-            optInt(rs, "signal_dbm"),
-            ClientTrust.valueOf(rs.getString("trust")),
-            rs.getString("certificate_fingerprint"),
-            optLong(rs, "bytes_tx"), optLong(rs, "bytes_rx"),
-            optInstant(rs.getTimestamp("first_seen_at")),
-            optInstant(rs.getTimestamp("last_seen_at")),
-            (UUID) rs.getObject("approved_by"),
-            optInstant(rs.getTimestamp("approved_at")),
-            optInstant(rs.getTimestamp("revoked_at")));
+        return (ResultSet rs, int row) -> {
+            final UUID id = (UUID) rs.getObject("device_id");
+            final String linkRaw = rs.getString("link");
+            final String statusRaw = rs.getString("status");
+            return new NetworkClient(
+                id.toString(), id,
+                rs.getString("owner"), rs.getString("hostname"),
+                rs.getString("ip"), rs.getString("mac"),
+                linkRaw == null ? ClientLink.wifi : ClientLink.valueOf(linkRaw),
+                optInt(rs, "signal_dbm"),
+                statusRaw == null ? ClientTrust.UNKNOWN
+                    : ClientTrust.valueOf(statusRaw),
+                rs.getString("certificate_fingerprint"),
+                optLong(rs, "bytes_tx"), optLong(rs, "bytes_rx"),
+                optInstant(rs.getTimestamp("first_seen_at")),
+                optInstant(rs.getTimestamp("last_seen_at")),
+                (UUID) rs.getObject("approved_by"),
+                optInstant(rs.getTimestamp("approved_at")),
+                optInstant(rs.getTimestamp("revoked_at")));
+        };
     }
 
     private RowMapper<NetworkEvent> eventMapper() {

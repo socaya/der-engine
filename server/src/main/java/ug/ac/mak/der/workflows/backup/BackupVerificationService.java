@@ -34,7 +34,7 @@ public class BackupVerificationService {
 
     private static final Logger LOG = LoggerFactory.getLogger(BackupVerificationService.class);
     private static final List<String> VERIFY_TABLES = List.of(
-        "der.network_event", "der.device_message", "der.network_client",
+        "der.network_event", "der.device_message", "der.edge_device",
         "der.network_peer", "der.audit_anchor");
 
     private final JdbcTemplate jdbc;

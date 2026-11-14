@@ -76,7 +76,7 @@ public final class NetworkEntities {
 
     /* ─── Phase N2 — clients + events ────────────────────────────── */
 
-    public enum ClientTrust { PENDING, APPROVED, REVOKED, BLOCKED, UNKNOWN }
+    public enum ClientTrust { PENDING, APPROVED, SUSPENDED, REVOKED, BLOCKED, UNKNOWN }
     public enum ClientLink { wifi, ethernet, cellular }
 
     public record NetworkClient(

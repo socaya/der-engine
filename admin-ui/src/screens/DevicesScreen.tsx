@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -284,6 +284,13 @@ function StatusChip({ status }:
   );
 }
 
+interface MenuItem {
+  key: string;
+  label: string;
+  tone?: 'primary' | 'danger' | 'default';
+  onSelect: () => void;
+}
+
 function RowActions(
   { device, busy, onRun }: {
     device: edgeApi.UnifiedDevice;
@@ -291,50 +298,107 @@ function RowActions(
     onRun: (a: 'approve' | 'suspend' | 'revoke') => void;
   },
 ): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent): void => {
+      const t = e.target as Node | null;
+      if (menuRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') { setOpen(false); triggerRef.current?.focus(); }
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+
   const inFleet = device.sources.includes('DHIS2_FLEET');
+  const items: MenuItem[] = [];
+  if (inFleet && device.status === 'PENDING') {
+    items.push({ key: 'approve', label: 'Approve', tone: 'primary',
+      onSelect: () => onRun('approve') });
+  }
+  if (inFleet && device.status === 'APPROVED') {
+    items.push({ key: 'suspend', label: 'Suspend',
+      onSelect: () => onRun('suspend') });
+  }
+  if (inFleet && device.status === 'SUSPENDED') {
+    items.push({ key: 'reapprove', label: 'Reapprove', tone: 'primary',
+      onSelect: () => onRun('approve') });
+  }
+  if (inFleet && device.status !== 'REVOKED') {
+    items.push({ key: 'revoke', label: 'Revoke', tone: 'danger',
+      onSelect: () => onRun('revoke') });
+  }
+
+  if (!inFleet && items.length === 0) {
+    return <span style={{ color: 'var(--der-ink-500)' }}>—</span>;
+  }
+
   return (
-    <div style={{ display: 'inline-flex', gap: 6 }}>
-      {inFleet && device.status === 'PENDING' && (
-        <button type="button"
-                className="ea-btn ea-btn--primary ea-btn--sm"
-                data-test={`devices-approve-${device.id}`}
-                disabled={busy}
-                onClick={() => onRun('approve')}>
-          Approve
-        </button>
-      )}
-      {inFleet && device.status === 'APPROVED' && (
-        <button type="button"
-                className="ea-btn ea-btn--ghost ea-btn--sm"
-                data-test={`devices-suspend-${device.id}`}
-                disabled={busy}
-                onClick={() => onRun('suspend')}>
-          Suspend
-        </button>
-      )}
-      {inFleet && device.status === 'SUSPENDED' && (
-        <button type="button"
-                className="ea-btn ea-btn--primary ea-btn--sm"
-                data-test={`devices-reapprove-${device.id}`}
-                disabled={busy}
-                onClick={() => onRun('approve')}>
-          Reapprove
-        </button>
-      )}
-      {inFleet && device.status !== 'REVOKED' && (
-        <button type="button"
-                className="ea-btn ea-btn--danger ea-btn--sm"
-                data-test={`devices-revoke-${device.id}`}
-                disabled={busy}
-                onClick={() => onRun('revoke')}>
-          Revoke
-        </button>
-      )}
-      {inFleet && (
-        <Link to={`/devices/${device.id}`}
-              className="ea-btn ea-btn--ghost ea-btn--sm">
-          Details
-        </Link>
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <button type="button"
+              ref={triggerRef}
+              className="ea-btn ea-btn--ghost ea-btn--sm"
+              data-test={`devices-actions-${device.id}`}
+              aria-haspopup="menu"
+              aria-expanded={open}
+              disabled={busy}
+              onClick={() => setOpen((v) => !v)}>
+        Actions ▾
+      </button>
+      {open && (
+        <div ref={menuRef}
+             role="menu"
+             data-test={`devices-actions-menu-${device.id}`}
+             style={{
+               position: 'absolute', top: 'calc(100% + 4px)', right: 0,
+               minWidth: 160, zIndex: 20,
+               background: 'var(--der-surface, #fff)',
+               border: '1px solid var(--der-border, #d4d9e2)',
+               borderRadius: 6,
+               boxShadow: '0 6px 16px rgba(15, 23, 42, 0.12)',
+               padding: 4,
+             }}>
+          {items.map((it) => (
+            <button key={it.key}
+                    type="button"
+                    role="menuitem"
+                    data-test={`devices-${it.key}-${device.id}`}
+                    disabled={busy}
+                    onClick={() => { setOpen(false); it.onSelect(); }}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      padding: '6px 10px', border: 0, background: 'transparent',
+                      cursor: 'pointer', borderRadius: 4,
+                      color: it.tone === 'danger' ? 'var(--der-danger, #c53030)'
+                        : it.tone === 'primary' ? 'var(--der-primary, #1a56db)'
+                        : 'inherit',
+                    }}>
+              {it.label}
+            </button>
+          ))}
+          {inFleet && (
+            <Link to={`/devices/${device.id}`}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  style={{
+                    display: 'block', padding: '6px 10px',
+                    borderRadius: 4, color: 'inherit',
+                    textDecoration: 'none',
+                  }}>
+              Details
+            </Link>
+          )}
+        </div>
       )}
     </div>
   );

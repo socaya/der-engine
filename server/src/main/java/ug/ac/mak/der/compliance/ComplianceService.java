@@ -135,8 +135,15 @@ public class ComplianceService {
             "DELETE FROM der.network_event WHERE device_id = ?", subjectId));
         affected.put("device_message", jdbc.update(
             "DELETE FROM der.device_message WHERE from_device_id = ?", subjectId));
+        // V120 — LAN axis is now part of der.edge_device. Clear the
+        // LAN-identifying columns for GDPR erasure without nuking the
+        // row (the row may still be referenced by workflows via FK).
         affected.put("network_client", jdbc.update(
-            "DELETE FROM der.network_client WHERE device_id = ?", subjectId));
+            "UPDATE der.edge_device SET "
+          + "  ip = NULL, mac = NULL, hostname = NULL, owner = NULL, "
+          + "  certificate_fingerprint = NULL, "
+          + "  source = CASE WHEN source = 'LAN' THEN 'FLEET' ELSE source END "
+          + " WHERE device_id::text = ?", subjectId));
         final String receipt = sha256Hex(requestId + "|" + subjectId + "|" + affected + "|" + Instant.now());
         try {
             jdbc.update(

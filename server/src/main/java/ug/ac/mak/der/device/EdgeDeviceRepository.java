@@ -24,7 +24,10 @@ public class EdgeDeviceRepository {
     }
 
     public List<EdgeDevice> findAll() {
-        return jdbc.query(selectAll() + " ORDER BY enrolled_at DESC", mapper());
+        return jdbc.query(
+                selectAll() + " WHERE" + FLEET_SOURCE_CLAUSE
+                        + " ORDER BY enrolled_at DESC",
+                mapper());
     }
 
     public Optional<EdgeDevice> findById(final UUID deviceId) {
@@ -33,7 +36,9 @@ public class EdgeDeviceRepository {
         }
         try {
             return Optional.ofNullable(jdbc.queryForObject(
-                    selectAll() + " WHERE device_id = ?", mapper(), deviceId));
+                    selectAll() + " WHERE device_id = ? AND"
+                            + FLEET_SOURCE_CLAUSE,
+                    mapper(), deviceId));
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         }
@@ -51,13 +56,18 @@ public class EdgeDeviceRepository {
         jdbc.update(
                 "INSERT INTO der.edge_device "
                         + "(device_id, assigned_user_id, enrolment_token_hash, "
-                        + " enrolled_at, last_seen_at, user_agent, status) "
-                        + "VALUES (?, ?, ?, now(), now(), ?, 'PENDING') "
+                        + " enrolled_at, first_seen_at, last_seen_at, user_agent, "
+                        + " status, source) "
+                        + "VALUES (?, ?, ?, now(), now(), now(), ?, 'PENDING', 'FLEET') "
                         + "ON CONFLICT (device_id) DO UPDATE SET "
                         + "  last_seen_at = now(), "
                         + "  user_agent = COALESCE(EXCLUDED.user_agent, der.edge_device.user_agent), "
                         + "  assigned_user_id = COALESCE(der.edge_device.assigned_user_id, "
-                        + "                               EXCLUDED.assigned_user_id)",
+                        + "                               EXCLUDED.assigned_user_id), "
+                        + "  source = CASE "
+                        + "    WHEN der.edge_device.source = 'LAN' THEN 'BOTH' "
+                        + "    ELSE der.edge_device.source "
+                        + "  END",
                 deviceId, actingUser, enrolmentTokenHash, userAgent);
         return findById(deviceId).orElseThrow(() ->
                 new IllegalStateException("enrol row disappeared"));
@@ -114,6 +124,12 @@ public class EdgeDeviceRepository {
                 + "user_agent, firmware_version, status, "
                 + "display_name, form_factor FROM der.edge_device";
     }
+
+    /** V120 — the DHIS2 fleet view limits itself to rows with a
+     *  session identity (FLEET-only or BOTH); pure-LAN observations
+     *  surface through NetworkRepository instead. */
+    private static final String FLEET_SOURCE_CLAUSE =
+            " source IN ('FLEET','BOTH')";
 
     private RowMapper<EdgeDevice> mapper() {
         return (ResultSet rs, int row) -> new EdgeDevice(
