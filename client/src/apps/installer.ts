@@ -1,6 +1,8 @@
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb';
 import { fetchAppCatalogue, type CatalogueApp } from './catalogue';
 import * as signatures from './signatures';
+import { deviceApprovalMode } from '../api/edgeApi';
+import { getStoredDeviceStatus } from '../device/DeviceEnrollment';
 
 const DB_NAME = 'der-apps';
 const DB_VERSION = 1;
@@ -66,13 +68,32 @@ function key(appId: string, version: string, sha256: string): string {
 export interface InstallError extends Error {
   readonly code:
     | 'FETCH_FAILED' | 'SHA256_MISMATCH' | 'SIGNATURE_INVALID'
-    | 'SIGNING_KEY_UNAVAILABLE' | 'IDB_FAILED';
+    | 'SIGNING_KEY_UNAVAILABLE' | 'IDB_FAILED'
+    | 'DEVICE_NOT_APPROVED';
 }
 
 function err(code: InstallError['code'], message: string): InstallError {
   const e = new Error(message) as InstallError & { code: InstallError['code'] };
   e.code = code;
   return e;
+}
+
+/** Decide whether a bundle may be returned from the installer. Returns
+ *  true when the server is permissive, when the stored device status
+ *  is APPROVED, or when the mode probe cannot reach the server (true
+ *  offline-first). Returns false only when the server was reached and
+ *  reported strict mode on a non-APPROVED device. */
+async function isEligibleToRunApps(): Promise<boolean> {
+  let mode;
+  try {
+    mode = await deviceApprovalMode();
+  } catch {
+    return true;
+  }
+  if (!mode || mode.required === false) {
+    return true;
+  }
+  return getStoredDeviceStatus() === 'APPROVED';
 }
 
 /**
@@ -88,6 +109,14 @@ function err(code: InstallError['code'], message: string): InstallError {
  * memory once the entry lands in IDB.
  */
 export async function ensureInstalled(app: CatalogueApp): Promise<string> {
+  // ADR-0019 slice B — if the server is in strict mode AND this
+  // device isn't APPROVED, no bundle (cached or fresh) may run.
+  // The probe fails open on network error so offline sessions that
+  // were already approved continue to work from cache.
+  if (!(await isEligibleToRunApps())) {
+    throw err('DEVICE_NOT_APPROVED',
+      'this device is not approved to run client apps');
+  }
   const d = await db();
   const cached = await d.get('installed',
     key(app.appId, app.version, app.bundleSha256));
@@ -131,6 +160,13 @@ export async function ensureInstalled(app: CatalogueApp): Promise<string> {
     throw err('FETCH_FAILED', `bundle fetch failed: ${String(fetchErr)}`);
   }
   if (!r.ok) {
+    // ADR-0019 slice B — don't fall back to cache on an authoritative
+    // 403 from the approval interceptor. Cache shadow access is the
+    // exact behaviour slice B was designed to prevent.
+    if (r.status === 403) {
+      throw err('DEVICE_NOT_APPROVED',
+        'this device is not approved to run client apps');
+    }
     if (fallback) {
       console.warn(`[installer] bundle fetch returned ${r.status}; `
         + 'falling back to previously installed version');

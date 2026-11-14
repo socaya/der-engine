@@ -12,6 +12,14 @@ vi.mock('./signatures', async () => {
   };
 });
 
+// Pre-existing installer tests don't mock the device-approval-mode
+// probe. Make it a permissive no-op so the installer's ADR-0019
+// eligibility gate (slice B) doesn't short-circuit these assertions
+// or inject an extra fetch count.
+vi.mock('../api/edgeApi', () => ({
+  deviceApprovalMode: vi.fn().mockResolvedValue({ required: false }),
+}));
+
 const signatures = await import('./signatures');
 const {
   __resetForTests, ensureInstalled, evictApp, listInstalled,

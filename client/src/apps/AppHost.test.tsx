@@ -58,15 +58,31 @@ describe('AppHost', () => {
     renderAt('hello');
     await waitFor(() => expect(screen.getByTestId('der-apphost-install-error'))
       .toBeInTheDocument());
-    expect(screen.getByTestId('der-apphost-install-error'))
-      .toHaveTextContent('SIGNATURE_INVALID');
+    const el = screen.getByTestId('der-apphost-install-error');
+    expect(el.getAttribute('data-error-code')).toBe('SIGNATURE_INVALID');
+    expect(el).toHaveTextContent(/could not be verified/i);
   });
 
-  it('falls back to FETCH_FAILED when the error has no code', async () => {
+  it('shows the production fallback copy when the error has no code', async () => {
     vi.spyOn(installer, 'ensureInstalled').mockRejectedValue(new Error('x'));
     renderAt('hello');
     await waitFor(() => expect(screen.getByTestId('der-apphost-install-error'))
-      .toHaveTextContent('FETCH_FAILED'));
+      .toHaveTextContent(/app could not be loaded/i));
+  });
+
+  it('shows the device-not-approved copy with no raw code in UI', async () => {
+    vi.spyOn(installer, 'ensureInstalled').mockRejectedValue(
+      Object.assign(new Error('nope'),
+        { code: 'DEVICE_NOT_APPROVED' as const }));
+    renderAt('hello');
+    await waitFor(() => expect(screen.getByTestId('der-apphost-install-error'))
+      .toBeInTheDocument());
+    const el = screen.getByTestId('der-apphost-install-error');
+    expect(el).toHaveTextContent(/this device is not approved/i);
+    expect(el).toHaveTextContent(/administrator/i);
+    // Raw code preserved for operator diagnostics but not surfaced as text.
+    expect(el.getAttribute('data-error-code')).toBe('DEVICE_NOT_APPROVED');
+    expect(el.textContent).not.toMatch(/DEVICE_NOT_APPROVED/);
   });
 
   it('shows import-error when the bundle has no default export', async () => {

@@ -97,11 +97,13 @@ export function AppHost(): JSX.Element {
     );
   }
   if (status.kind === 'install-error') {
+    const friendly = friendlyInstallError(status.code);
     return (
       <div className="der-apphost der-apphost--error"
-           data-test="der-apphost-install-error">
-        <h2>Could not load {appKey}</h2>
-        <p><code>{status.code}</code>: {status.message}</p>
+           data-test="der-apphost-install-error"
+           data-error-code={status.code}>
+        <h2>{friendly.title}</h2>
+        <p>{friendly.body}</p>
       </div>
     );
   }
@@ -127,4 +129,51 @@ export function findAppByKey(
   apps: readonly CatalogueApp[], appKey: string,
 ): CatalogueApp | null {
   return apps.find((a) => a.appKey === appKey) ?? null;
+}
+
+/** Production-ready copy for installer error codes. The raw code is
+ *  still exposed via data-error-code for operator diagnostics. */
+export function friendlyInstallError(
+  code: string | undefined,
+): { readonly title: string; readonly body: string } {
+  switch (code) {
+    case 'DEVICE_NOT_APPROVED':
+      return {
+        title: 'This device is not approved',
+        body:
+          'Client apps can only run on devices an administrator has approved. '
+          + 'Ask an admin to open the Devices screen and approve this device.',
+      };
+    case 'SIGNATURE_INVALID':
+    case 'SHA256_MISMATCH':
+      return {
+        title: 'App could not be verified',
+        body:
+          'The server returned a bundle that failed its signature or '
+          + 'checksum check. This device will not run it. Contact support.',
+      };
+    case 'SIGNING_KEY_UNAVAILABLE':
+      return {
+        title: 'App signing key unavailable',
+        body:
+          'This device cannot verify the app bundle because the server '
+          + 'signing key is unreachable. Try again once connectivity is '
+          + 'restored.',
+      };
+    case 'IDB_FAILED':
+      return {
+        title: 'Could not open local app cache',
+        body:
+          'This browser session is unable to read or write the local app '
+          + 'cache. Try reloading the page or clearing site storage.',
+      };
+    case 'FETCH_FAILED':
+    default:
+      return {
+        title: 'App could not be loaded',
+        body:
+          'The server did not return the app bundle. Check your connection '
+          + 'and try again, or ask an administrator to check the server.',
+      };
+  }
 }
