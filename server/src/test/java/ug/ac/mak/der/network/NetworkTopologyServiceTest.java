@@ -38,7 +38,7 @@ class NetworkTopologyServiceTest {
                 0L, 0L,
                 NOW.minusSeconds(3600), NOW.minusSeconds(30),
                 null, trust == ClientTrust.APPROVED ? NOW.minusSeconds(60) : null,
-                null);
+                null, null);
     }
 
     private NetworkTopologyService svc(final List<NetworkClient> clients) {

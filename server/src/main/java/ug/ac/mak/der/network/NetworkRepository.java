@@ -684,7 +684,8 @@ public class NetworkRepository {
                 optInstant(rs.getTimestamp("last_seen_at")),
                 (UUID) rs.getObject("approved_by"),
                 optInstant(rs.getTimestamp("approved_at")),
-                optInstant(rs.getTimestamp("revoked_at")));
+                optInstant(rs.getTimestamp("revoked_at")),
+                rs.getString("display_name"));
         };
     }
 

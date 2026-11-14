@@ -40,7 +40,7 @@ class UnifiedDeviceServiceTest {
         return new NetworkEntities.NetworkClient(
                 deviceId, derId, "alice", hostname, ip, "aa:bb:cc:dd:ee:ff",
                 ClientLink.wifi, -55, trust, "fp",
-                0L, 0L, NOW, NOW, null, null, null);
+                0L, 0L, NOW, NOW, null, null, null, null);
     }
 
     @Test

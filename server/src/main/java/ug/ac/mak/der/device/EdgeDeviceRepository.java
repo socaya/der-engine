@@ -89,18 +89,28 @@ public class EdgeDeviceRepository {
     }
 
     public int heartbeat(final UUID deviceId) {
-        return heartbeat(deviceId, null);
+        return heartbeat(deviceId, null, null);
     }
 
-    /** V120 — a heartbeat that carries the client IP opportunistically
-     *  stamps it on the row so FLEET-only devices acquire the LAN axis
-     *  without a separate observation path. Updates ip only if it was
-     *  previously null (preserves an authoritative LAN observation). */
     public int heartbeat(final UUID deviceId, final String clientIp) {
+        return heartbeat(deviceId, clientIp, null);
+    }
+
+    /** V120 — a heartbeat that carries the client IP + an auto-label
+     *  (typically {@code "Client <port>"} derived from the Origin
+     *  header) opportunistically stamps them on the row so FLEET-only
+     *  devices acquire the LAN axis without a separate observation
+     *  path. Both columns use COALESCE to preserve any authoritative
+     *  value already present (an admin-set display_name or a real LAN
+     *  observation). */
+    public int heartbeat(final UUID deviceId, final String clientIp,
+                             final String autoLabel) {
         if (deviceId == null) {
             return 0;
         }
-        if (clientIp == null || clientIp.isBlank()) {
+        final boolean haveIp = clientIp != null && !clientIp.isBlank();
+        final boolean haveLabel = autoLabel != null && !autoLabel.isBlank();
+        if (!haveIp && !haveLabel) {
             return jdbc.update(
                     "UPDATE der.edge_device SET last_seen_at = now() "
                   + " WHERE device_id = ?",
@@ -108,9 +118,12 @@ public class EdgeDeviceRepository {
         }
         return jdbc.update(
                 "UPDATE der.edge_device SET last_seen_at = now(), "
-              + "       ip = COALESCE(ip, ?) "
+              + "       ip = COALESCE(ip, ?), "
+              + "       display_name = COALESCE(display_name, ?) "
               + " WHERE device_id = ?",
-                clientIp, deviceId);
+                haveIp ? clientIp : null,
+                haveLabel ? autoLabel : null,
+                deviceId);
     }
 
     public int delete(final UUID deviceId) {

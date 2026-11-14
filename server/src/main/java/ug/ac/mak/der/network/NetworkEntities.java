@@ -85,7 +85,8 @@ public final class NetworkEntities {
             ClientTrust trust, String certificateFingerprint,
             Long bytesTx, Long bytesRx,
             Instant firstSeenAt, Instant lastSeenAt,
-            UUID approvedBy, Instant approvedAt, Instant revokedAt) { }
+            UUID approvedBy, Instant approvedAt, Instant revokedAt,
+            String displayName) { }
 
     public record NetworkEvent(
             UUID eventId, String eventType, String outcome,

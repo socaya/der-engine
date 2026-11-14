@@ -112,7 +112,9 @@ public class DeviceController {
         if (!(authentication instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
-        return switch (svc.heartbeat(id, request == null ? null : request.getRemoteAddr())) {
+        final String ip = request == null ? null : request.getRemoteAddr();
+        final String autoLabel = originLabel(request);
+        return switch (svc.heartbeat(id, ip, autoLabel)) {
             case OK -> ResponseEntity.ok(Map.of("outcome", "OK"));
             case NOT_FOUND -> ResponseEntity.notFound().build();
             case REVOKED -> ResponseEntity.status(403).body(Map.of(
@@ -259,4 +261,41 @@ public class DeviceController {
             @JsonProperty("peerDeviceId") UUID peerDeviceId,
             @JsonProperty("linkType") String linkType,
             @JsonProperty("state") String state) { }
+
+    /** Derive a human-friendly label from the browser session's Origin
+     *  (or Referer) header. Loopback dev sessions share 127.0.0.1 so
+     *  only the port distinguishes them — the resulting label is
+     *  {@code "Client 5174"} for the client dev server, {@code "Client 5173"}
+     *  for admin-ui, etc. Returns null when no meaningful port can be
+     *  extracted so the caller falls back to the existing name. */
+    static String originLabel(final jakarta.servlet.http.HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        final String origin = firstNonBlank(
+                request.getHeader("Origin"), request.getHeader("Referer"));
+        if (origin == null) {
+            return null;
+        }
+        try {
+            final java.net.URI uri = java.net.URI.create(origin);
+            final int port = uri.getPort();
+            if (port > 0) {
+                return "Client " + port;
+            }
+        } catch (IllegalArgumentException ex) {
+            // fall through
+        }
+        return null;
+    }
+
+    private static String firstNonBlank(final String a, final String b) {
+        if (a != null && !a.isBlank()) {
+            return a;
+        }
+        if (b != null && !b.isBlank()) {
+            return b;
+        }
+        return null;
+    }
 }

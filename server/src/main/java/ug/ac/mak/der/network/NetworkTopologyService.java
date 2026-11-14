@@ -218,6 +218,9 @@ public class NetworkTopologyService {
     }
 
     private static String clientDisplay(final NetworkClient c) {
+        if (c.displayName() != null && !c.displayName().isBlank()) {
+            return c.displayName();
+        }
         if (c.hostname() != null && !c.hostname().isBlank()) {
             return c.hostname();
         }
