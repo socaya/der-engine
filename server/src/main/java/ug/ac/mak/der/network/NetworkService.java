@@ -341,6 +341,12 @@ public class NetworkService {
         return repo.listClients();
     }
 
+    /** V120 — every device for the mesh view, regardless of source.
+     *  See {@link NetworkRepository#listAllForTopology()}. */
+    public List<NetworkClient> listAllForTopology() {
+        return repo.listAllForTopology();
+    }
+
     /** Phase N2 — a client that scanned the QR + joined DER-EDGE calls
      *  this endpoint from <code>https://der.local</code>. Lands as
      *  PENDING; an operator approves from the Clients page.

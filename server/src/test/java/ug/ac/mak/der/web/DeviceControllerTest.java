@@ -169,7 +169,7 @@ class DeviceControllerTest {
 
     @Test
     void heartbeatOk() throws Exception {
-        when(svc.heartbeat(any())).thenReturn(DeviceService.HeartbeatOutcome.OK);
+        when(svc.heartbeat(any(), any())).thenReturn(DeviceService.HeartbeatOutcome.OK);
         mockMvc.perform(post("/edge-api/v1/devices/" + UUID.randomUUID() + "/heartbeat")
                         .with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isOk());
@@ -177,7 +177,7 @@ class DeviceControllerTest {
 
     @Test
     void heartbeatNotFound() throws Exception {
-        when(svc.heartbeat(any())).thenReturn(DeviceService.HeartbeatOutcome.NOT_FOUND);
+        when(svc.heartbeat(any(), any())).thenReturn(DeviceService.HeartbeatOutcome.NOT_FOUND);
         mockMvc.perform(post("/edge-api/v1/devices/" + UUID.randomUUID() + "/heartbeat")
                         .with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isNotFound());
@@ -185,7 +185,7 @@ class DeviceControllerTest {
 
     @Test
     void heartbeatRevoked() throws Exception {
-        when(svc.heartbeat(any())).thenReturn(DeviceService.HeartbeatOutcome.REVOKED);
+        when(svc.heartbeat(any(), any())).thenReturn(DeviceService.HeartbeatOutcome.REVOKED);
         mockMvc.perform(post("/edge-api/v1/devices/" + UUID.randomUUID() + "/heartbeat")
                         .with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isForbidden())

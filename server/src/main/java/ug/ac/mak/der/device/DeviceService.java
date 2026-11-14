@@ -62,6 +62,10 @@ public class DeviceService {
     }
 
     public HeartbeatOutcome heartbeat(final UUID deviceId) {
+        return heartbeat(deviceId, null);
+    }
+
+    public HeartbeatOutcome heartbeat(final UUID deviceId, final String clientIp) {
         final Optional<EdgeDevice> d = repo.findById(deviceId);
         if (d.isEmpty()) {
             return HeartbeatOutcome.NOT_FOUND;
@@ -69,7 +73,7 @@ public class DeviceService {
         if (d.get().status() == EdgeDevice.Status.REVOKED) {
             return HeartbeatOutcome.REVOKED;
         }
-        repo.heartbeat(deviceId);
+        repo.heartbeat(deviceId, clientIp);
         return HeartbeatOutcome.OK;
     }
 

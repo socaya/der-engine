@@ -89,12 +89,28 @@ public class EdgeDeviceRepository {
     }
 
     public int heartbeat(final UUID deviceId) {
+        return heartbeat(deviceId, null);
+    }
+
+    /** V120 — a heartbeat that carries the client IP opportunistically
+     *  stamps it on the row so FLEET-only devices acquire the LAN axis
+     *  without a separate observation path. Updates ip only if it was
+     *  previously null (preserves an authoritative LAN observation). */
+    public int heartbeat(final UUID deviceId, final String clientIp) {
         if (deviceId == null) {
             return 0;
         }
+        if (clientIp == null || clientIp.isBlank()) {
+            return jdbc.update(
+                    "UPDATE der.edge_device SET last_seen_at = now() "
+                  + " WHERE device_id = ?",
+                    deviceId);
+        }
         return jdbc.update(
-                "UPDATE der.edge_device SET last_seen_at = now() WHERE device_id = ?",
-                deviceId);
+                "UPDATE der.edge_device SET last_seen_at = now(), "
+              + "       ip = COALESCE(ip, ?) "
+              + " WHERE device_id = ?",
+                clientIp, deviceId);
     }
 
     public int delete(final UUID deviceId) {

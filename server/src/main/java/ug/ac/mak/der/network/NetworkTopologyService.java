@@ -102,7 +102,11 @@ public class NetworkTopologyService {
         // don't belong on the topology — their presence confuses
         // operators with "Device <uid>" placeholder labels before an
         // admin has approved them.
-        final List<NetworkClient> clients = network.listClients().stream()
+        // V120 — unified device table; the mesh view spans FLEET + LAN
+        // observations. listAllForTopology() returns every row so an
+        // approved browser session (FLEET-only, no LAN axis) renders as
+        // a device even without an AP sighting.
+        final List<NetworkClient> clients = network.listAllForTopology().stream()
                 .filter(c -> c.trust() == NetworkEntities.ClientTrust.APPROVED)
                 .toList();
         final List<Map<String, Object>> deviceJson = new ArrayList<>();

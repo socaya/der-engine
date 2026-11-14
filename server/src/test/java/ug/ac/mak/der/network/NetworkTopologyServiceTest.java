@@ -48,6 +48,7 @@ class NetworkTopologyServiceTest {
         when(repo.listPeers()).thenReturn(List.of());
         final NetworkService net = mock(NetworkService.class);
         when(net.listClients()).thenReturn(clients);
+        when(net.listAllForTopology()).thenReturn(clients);
         when(net.status()).thenReturn(new NetworkStatus(
                 ConnectivityState.CONNECTED,
                 true, true, true, true, true,

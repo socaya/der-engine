@@ -170,6 +170,18 @@ public class NetworkRepository {
             clientMapper());
     }
 
+    /** V120 — every device the mesh view should render. Includes
+     *  FLEET-only enrolments (browser sessions with no LAN
+     *  observation yet) so operators see the full fabric, not just
+     *  AP-observed hosts. {@link NetworkTopologyService} consumes
+     *  this + filters by APPROVED on its own. */
+    public List<NetworkClient> listAllForTopology() {
+        return jdbc.query(
+            "SELECT * FROM der.edge_device "
+          + " ORDER BY last_seen_at DESC NULLS LAST",
+            clientMapper());
+    }
+
     public Optional<NetworkClient> findClient(final String deviceId) {
         final UUID id = toDeviceUuid(deviceId);
         if (id == null) {

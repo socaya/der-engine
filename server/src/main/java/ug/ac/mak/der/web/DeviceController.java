@@ -107,11 +107,12 @@ public class DeviceController {
 
     @PostMapping("/{id}/heartbeat")
     public ResponseEntity<Map<String, Object>> heartbeat(final Authentication authentication,
-                                                           @PathVariable("id") final UUID id) {
+                                                           @PathVariable("id") final UUID id,
+                                                           final jakarta.servlet.http.HttpServletRequest request) {
         if (!(authentication instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
-        return switch (svc.heartbeat(id)) {
+        return switch (svc.heartbeat(id, request == null ? null : request.getRemoteAddr())) {
             case OK -> ResponseEntity.ok(Map.of("outcome", "OK"));
             case NOT_FOUND -> ResponseEntity.notFound().build();
             case REVOKED -> ResponseEntity.status(403).body(Map.of(
