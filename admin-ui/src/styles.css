@@ -1110,15 +1110,22 @@ kbd{
 .ea-btn > svg{flex-shrink:0}
 .ea-btn--primary{
   color:#fff;background:var(--der-primary);border-color:var(--der-primary-ink);
-  box-shadow:0 1px 2px rgba(13,46,92,0.18);
 }
-.ea-btn--primary:hover{background:var(--der-navy-700);border-color:var(--der-navy-ink)}
+.ea-btn--primary:hover{background:var(--der-primary-ink);border-color:var(--der-primary-ink)}
 .ea-btn--primary:focus-visible{box-shadow:0 0 0 3px var(--der-primary-ring)}
 .ea-btn--primary:disabled{opacity:0.55;cursor:not-allowed}
 .ea-btn--ghost{
   color:var(--der-ink-700);background:transparent;border-color:var(--der-border);
 }
 .ea-btn--ghost:hover{background:var(--der-raised);color:var(--der-ink-900);border-color:var(--der-border-strong)}
+.ea-btn--danger{
+  color:var(--der-danger-ink);background:transparent;border-color:var(--der-border);
+}
+.ea-btn--danger:hover{
+  background:var(--der-danger-soft);border-color:var(--der-danger);
+  color:var(--der-danger-ink);
+}
+.ea-btn:disabled,.ea-btn--muted{opacity:0.55;cursor:not-allowed}
 
 /* Accessibility helper */
 .ea-visually-hidden{
@@ -1844,19 +1851,11 @@ kbd{
   font-size:12px;display:flex;justify-content:space-between;align-items:center;
   gap:12px;flex-wrap:wrap;
 }
-/* Compact pager buttons so the row stays tight with the dense table. */
-.ea-main .ea-btn--sm{height:24px;padding:0 8px;font-size:11px}
 .ea-main .ea-panel-action input.ea-input,
 .ea-main .ea-panel-action select.ea-input{padding:4px 8px;font-size:var(--fs-sm);max-width:260px}
 .ea-main .ea-panel-action{flex-wrap:wrap;gap:8px;justify-content:flex-end;flex:1 1 auto}
 
 /* ============ M4 Apps module ============ */
-.ea-btn--muted{opacity:0.65;cursor:not-allowed}
-.ea-btn--danger{color:var(--der-danger-ink)}
-.ea-btn--danger:hover{
-  background:var(--der-danger-soft);border-color:var(--der-danger);
-  color:var(--der-danger-ink);
-}
 
 .ea-app-grid{
   display:grid;
