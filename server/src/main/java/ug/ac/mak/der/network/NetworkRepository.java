@@ -685,7 +685,8 @@ public class NetworkRepository {
                 (UUID) rs.getObject("approved_by"),
                 optInstant(rs.getTimestamp("approved_at")),
                 optInstant(rs.getTimestamp("revoked_at")),
-                rs.getString("display_name"));
+                rs.getString("display_name"),
+                rs.getString("form_factor"));
         };
     }
 

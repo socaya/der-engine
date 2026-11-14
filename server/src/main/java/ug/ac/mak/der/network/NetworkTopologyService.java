@@ -27,8 +27,12 @@ import ug.ac.mak.der.network.NetworkEntities.NetworkClient;
 @Service
 public class NetworkTopologyService {
 
-    private static final Duration ONLINE_WINDOW   = Duration.ofMinutes(2);
-    private static final Duration DEGRADED_WINDOW = Duration.ofMinutes(10);
+    // Aligned to the client-side heartbeat cadence (5 min, see
+    // useDeviceEnrollment.ts). An idle approved session heartbeats
+    // once per 5 min; ONLINE covers ~2 heartbeats worth of slack,
+    // DEGRADED gives up after ~6 missed beats before OFFLINE.
+    private static final Duration ONLINE_WINDOW   = Duration.ofMinutes(10);
+    private static final Duration DEGRADED_WINDOW = Duration.ofMinutes(30);
 
     private final NetworkCaService ca;
     private final NetworkRepository networkRepo;
@@ -120,7 +124,8 @@ public class NetworkTopologyService {
             dj.put("id", c.deviceId());
             dj.put("name", clientDisplay(c));
             dj.put("type", "device");
-            dj.put("formFactor", "UNKNOWN");
+            dj.put("formFactor", c.formFactor() == null
+                    ? "UNKNOWN" : c.formFactor());
             dj.put("status", devStatus);
             dj.put("lastSeen", c.lastSeenAt() == null ? null : c.lastSeenAt().toString());
             dj.put("userAgent", null);

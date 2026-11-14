@@ -53,12 +53,13 @@ public class EdgeDeviceRepository {
                                     final String userAgent,
                                     final String enrolmentTokenHash) {
         Objects.requireNonNull(deviceId, "deviceId");
+        final String inferredFormFactor = inferFormFactor(userAgent).name();
         jdbc.update(
                 "INSERT INTO der.edge_device "
                         + "(device_id, assigned_user_id, enrolment_token_hash, "
                         + " enrolled_at, first_seen_at, last_seen_at, user_agent, "
-                        + " status, source) "
-                        + "VALUES (?, ?, ?, now(), now(), now(), ?, 'PENDING', 'FLEET') "
+                        + " status, source, form_factor) "
+                        + "VALUES (?, ?, ?, now(), now(), now(), ?, 'PENDING', 'FLEET', ?) "
                         + "ON CONFLICT (device_id) DO UPDATE SET "
                         + "  last_seen_at = now(), "
                         + "  user_agent = COALESCE(EXCLUDED.user_agent, der.edge_device.user_agent), "
@@ -67,10 +68,38 @@ public class EdgeDeviceRepository {
                         + "  source = CASE "
                         + "    WHEN der.edge_device.source = 'LAN' THEN 'BOTH' "
                         + "    ELSE der.edge_device.source "
+                        + "  END, "
+                        + "  form_factor = CASE "
+                        + "    WHEN der.edge_device.form_factor = 'UNKNOWN' THEN EXCLUDED.form_factor "
+                        + "    ELSE der.edge_device.form_factor "
                         + "  END",
-                deviceId, actingUser, enrolmentTokenHash, userAgent);
+                deviceId, actingUser, enrolmentTokenHash, userAgent, inferredFormFactor);
         return findById(deviceId).orElseThrow(() ->
                 new IllegalStateException("enrol row disappeared"));
+    }
+
+    /** Best-effort form-factor inference from the user-agent string so
+     *  a brand-new enrolment renders with the right icon in the mesh
+     *  view. The admin-UI rename endpoint can still override. */
+    static EdgeDevice.FormFactor inferFormFactor(final String userAgent) {
+        if (userAgent == null || userAgent.isBlank()) {
+            return EdgeDevice.FormFactor.UNKNOWN;
+        }
+        final String ua = userAgent.toLowerCase(java.util.Locale.ROOT);
+        if (ua.contains("ipad") || ua.contains("tablet")
+                || (ua.contains("android") && !ua.contains("mobile"))) {
+            return EdgeDevice.FormFactor.TABLET;
+        }
+        if (ua.contains("iphone") || ua.contains("android")
+                || ua.contains("mobile")) {
+            return EdgeDevice.FormFactor.MOBILE;
+        }
+        if (ua.contains("macintosh") || ua.contains("mac os x")
+                || ua.contains("windows") || ua.contains("linux")
+                || ua.contains("x11")) {
+            return EdgeDevice.FormFactor.LAPTOP;
+        }
+        return EdgeDevice.FormFactor.UNKNOWN;
     }
 
     public int updateStatus(final UUID deviceId, final EdgeDevice.Status status,

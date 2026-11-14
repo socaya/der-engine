@@ -86,7 +86,7 @@ public final class NetworkEntities {
             Long bytesTx, Long bytesRx,
             Instant firstSeenAt, Instant lastSeenAt,
             UUID approvedBy, Instant approvedAt, Instant revokedAt,
-            String displayName) { }
+            String displayName, String formFactor) { }
 
     public record NetworkEvent(
             UUID eventId, String eventType, String outcome,

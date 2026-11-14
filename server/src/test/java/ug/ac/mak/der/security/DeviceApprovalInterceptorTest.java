@@ -36,7 +36,7 @@ class DeviceApprovalInterceptorTest {
                 trust, "fp", 0L, 0L,
                 Instant.now(CLOCK), Instant.now(CLOCK),
                 null, trust == ClientTrust.APPROVED ? Instant.now(CLOCK) : null, null,
-                null);
+                null, null);
     }
 
     private DeviceApprovalPolicy policy(final boolean required) {
