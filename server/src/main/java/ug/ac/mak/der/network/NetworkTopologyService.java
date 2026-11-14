@@ -95,7 +95,16 @@ public class NetworkTopologyService {
         // devices, which confused operators. Both views now read from
         // der.network_client via NetworkService.listClients() so a
         // device appears in the mesh only when it's on this LAN.
-        final List<NetworkClient> clients = network.listClients();
+        //
+        // Trust filter: the mesh view is a map of the operational
+        // fabric, not a device-approval queue. PENDING / REVOKED /
+        // BLOCKED devices are reviewed on the Devices screen; they
+        // don't belong on the topology — their presence confuses
+        // operators with "Device <uid>" placeholder labels before an
+        // admin has approved them.
+        final List<NetworkClient> clients = network.listClients().stream()
+                .filter(c -> c.trust() == NetworkEntities.ClientTrust.APPROVED)
+                .toList();
         final List<Map<String, Object>> deviceJson = new ArrayList<>();
         final List<Map<String, Object>> connections = new ArrayList<>();
         for (final NetworkClient c : clients) {
@@ -211,8 +220,10 @@ public class NetworkTopologyService {
         if (c.owner() != null && !c.owner().isBlank()) {
             return c.owner();
         }
-        final String id = c.deviceId();
-        return "Device " + (id.length() > 8 ? id.substring(0, 8) : id);
+        if (c.ip() != null && !c.ip().isBlank()) {
+            return c.ip();
+        }
+        return "Unnamed device";
     }
 
     /** ONLINE if last-seen within 2 min, DEGRADED up to 10 min, OFFLINE after.
