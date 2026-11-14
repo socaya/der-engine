@@ -84,15 +84,15 @@ export function Dhis2Overview(): JSX.Element {
         statusLabel={reach ? 'Central reachable' : 'Central unreachable'}
         subtitle={
           <>
-            <span>Central <strong style={{ color: 'var(--der-ink-900)' }}>{c.centralVersion ?? '—'}</strong></span>
+            <span>Central <strong>{c.centralVersion ?? '—'}</strong></span>
             <span>·</span>
-            <span>Profile <strong style={{ color: 'var(--der-ink-900)' }}>{c.profileName ?? '—'}</strong></span>
+            <span>Profile <strong>{c.profileName ?? '—'}</strong></span>
             <span>·</span>
-            <span>RTT <strong style={{ color: 'var(--der-ink-900)' }}>{si.dhis2.probeDurationMs != null ? `${si.dhis2.probeDurationMs} ms` : '—'}</strong></span>
+            <span>RTT <strong>{si.dhis2.probeDurationMs != null ? `${si.dhis2.probeDurationMs} ms` : '—'}</strong></span>
             <span>·</span>
-            <span>Auth <strong style={{ color: 'var(--der-ink-900)' }}>{authKind === 'PAT' ? 'PAT (Bearer)' : authKind === 'Basic' ? 'Basic' : 'none'}</strong></span>
+            <span>Auth <strong>{authKind === 'PAT' ? 'PAT (Bearer)' : authKind === 'Basic' ? 'Basic' : 'none'}</strong></span>
             <span>·</span>
-            <span>Last probe <strong style={{ color: 'var(--der-ink-900)' }}>{c.capturedAt ? fmtAgo(c.capturedAt) : '—'}</strong></span>
+            <span>Last probe <strong>{c.capturedAt ? fmtAgo(c.capturedAt) : '—'}</strong></span>
           </>
         }
         actions={

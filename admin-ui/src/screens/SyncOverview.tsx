@@ -98,14 +98,14 @@ export function SyncOverview(): JSX.Element {
           <>
             <span>
               Last successful sync{' '}
-              <strong style={{ color: 'var(--der-ink-900)' }}>
+              <strong>
                 {lastSuccess ? fmtAgo(lastSuccess.startedAt) : 'never'}
               </strong>
             </span>
             <span>·</span>
             <span>
               Central DHIS2{' '}
-              <strong style={{ color: 'var(--der-ink-900)' }}>
+              <strong>
                 {centralReachable ? 'reachable' : 'unreachable'}
               </strong>
             </span>
@@ -226,7 +226,7 @@ function ProgressRow({ label, state, message, onDismiss }: {
          }}>
       {busy && <Spinner />}
       <Status tone={statusTone}>{chipLabel}</Status>
-      <strong style={{ color: 'var(--der-ink-900)' }}>{label}</strong>
+      <strong>{label}</strong>
       <span style={{ flex: 1 }}>{message}</span>
       {onDismiss && (
         <button type="button" className="ea-link-btn"
