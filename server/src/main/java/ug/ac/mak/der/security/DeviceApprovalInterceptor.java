@@ -42,18 +42,18 @@ public class DeviceApprovalInterceptor implements HandlerInterceptor {
     static final String DEVICE_HEADER = "X-DER-Device-Id";
 
     private final NetworkRepository networkRepo;
-    private final SecurityProperties props;
+    private final DeviceApprovalPolicy policy;
     private final SecurityAuditRepository audit;
     private final ObjectMapper mapper;
     private final Clock clock;
 
     public DeviceApprovalInterceptor(final NetworkRepository networkRepo,
-                                        final SecurityProperties props,
+                                        final DeviceApprovalPolicy policy,
                                         final SecurityAuditRepository audit,
                                         final ObjectMapper mapper,
                                         final Clock clock) {
         this.networkRepo = Objects.requireNonNull(networkRepo, "networkRepo");
-        this.props = Objects.requireNonNull(props, "props");
+        this.policy = Objects.requireNonNull(policy, "policy");
         this.audit = Objects.requireNonNull(audit, "audit");
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -63,7 +63,7 @@ public class DeviceApprovalInterceptor implements HandlerInterceptor {
     public boolean preHandle(final HttpServletRequest request,
                                 final HttpServletResponse response,
                                 final Object handler) throws IOException {
-        if (!props.deviceApproval().required()) {
+        if (!policy.required()) {
             return true;
         }
         if (isExempt(request.getRequestURI())) {

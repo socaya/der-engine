@@ -38,13 +38,10 @@ class DeviceApprovalInterceptorTest {
                 null, trust == ClientTrust.APPROVED ? Instant.now(CLOCK) : null, null);
     }
 
-    private SecurityProperties props(final boolean required) {
-        return new SecurityProperties(
-                new SecurityProperties.Session(java.time.Duration.ofHours(1),
-                        "DER_SESSION", false, "Strict", "s"),
-                new SecurityProperties.SignIn(30, 10),
-                new SecurityProperties.Bootstrap("", ""),
-                new SecurityProperties.DeviceApproval(required));
+    private DeviceApprovalPolicy policy(final boolean required) {
+        final DeviceApprovalPolicy p = mock(DeviceApprovalPolicy.class);
+        when(p.required()).thenReturn(required);
+        return p;
     }
 
     private DeviceApprovalInterceptor interceptor(
@@ -52,7 +49,7 @@ class DeviceApprovalInterceptorTest {
             final NetworkRepository repo,
             final SecurityAuditRepository audit) {
         return new DeviceApprovalInterceptor(
-                repo, props(required), audit, new ObjectMapper(), CLOCK);
+                repo, policy(required), audit, new ObjectMapper(), CLOCK);
     }
 
     private MockHttpServletRequest req(final String path) {

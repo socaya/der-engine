@@ -22,7 +22,8 @@ import { Panel } from './shared';
 export function DevicesScreen(
   { api = edgeApi }:
   { api?: Pick<typeof edgeApi, 'listUnifiedDevices'
-            | 'approveDevice' | 'suspendDevice' | 'revokeDevice'> } = {},
+            | 'approveDevice' | 'suspendDevice' | 'revokeDevice'
+            | 'getDeviceApprovalPolicy' | 'setDeviceApprovalPolicy'> } = {},
 ): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialFilter = (searchParams.get('filter')
@@ -119,6 +120,8 @@ export function DevicesScreen(
     <div className="ea-screen" data-test="devices-screen">
       <PageHeader title="Devices"
         subtitle={`${counts.total} total · ${counts.pending} awaiting approval · ${counts.fleet} in DHIS2 fleet · ${counts.lan} on local network`} />
+
+      <ApprovalPolicyPanel api={api} />
 
       <Panel title="Filter">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8,
@@ -354,4 +357,58 @@ function fmtRel(iso: string): string {
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} h ago`;
   if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)} d ago`;
   return new Date(iso).toLocaleDateString();
+}
+
+function ApprovalPolicyPanel({ api }: {
+  api: Pick<typeof edgeApi,
+    'getDeviceApprovalPolicy' | 'setDeviceApprovalPolicy'>;
+}): JSX.Element | null {
+  const [required, setRequired] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    api.getDeviceApprovalPolicy()
+      .then((r) => setRequired(r.required))
+      .catch((e) => setErr((e as Error).message));
+  }, [api]);
+  const toggle = useCallback(async () => {
+    if (required === null) return;
+    const next = !required;
+    const label = next ? 'strict' : 'permissive';
+    if (!window.confirm(`Switch device approval to ${label} mode?`)) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await api.setDeviceApprovalPolicy(next);
+      setRequired(r.required);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }, [api, required]);
+  if (required === null && !err) return null;
+  return (
+    <Panel title="Approval policy">
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12,
+                     alignItems: 'center', justifyContent: 'space-between' }}>
+        <div data-test="approval-policy-state">
+          <strong>{required ? 'Strict' : 'Permissive'}</strong>
+          {' · '}
+          <span style={{ color: 'var(--der-ink-500)' }}>
+            {required
+              ? 'Only APPROVED devices can run client apps or write.'
+              : 'Any enrolled device can run client apps; approval is advisory only.'}
+          </span>
+        </div>
+        <button type="button"
+                className="ea-btn ea-btn--sm ea-btn--ghost"
+                onClick={toggle}
+                disabled={busy || required === null}
+                data-test="approval-policy-toggle">
+          {busy ? 'Saving…' : required ? 'Switch to permissive' : 'Switch to strict'}
+        </button>
+      </div>
+      {err && <p style={{ color: 'var(--der-danger)', marginTop: 8 }}>{err}</p>}
+    </Panel>
+  );
 }

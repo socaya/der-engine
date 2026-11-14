@@ -3001,6 +3001,20 @@ export function updateDeviceProfile(
   return request<EdgeDeviceRow>('PATCH', `/edge-api/v1/devices/${id}/profile`, body);
 }
 
+export interface DeviceApprovalPolicy { readonly required: boolean }
+
+export function getDeviceApprovalPolicy(): Promise<DeviceApprovalPolicy> {
+  return request<DeviceApprovalPolicy>(
+    'GET', '/edge-api/v1/admin/security/device-approval');
+}
+
+export function setDeviceApprovalPolicy(
+  required: boolean,
+): Promise<DeviceApprovalPolicy> {
+  return request<DeviceApprovalPolicy>(
+    'PUT', '/edge-api/v1/admin/security/device-approval', { required });
+}
+
 // ---- der-1.2.0-alpha.4 Initiative 7: analytics (ADR-0020) ----
 
 export type AnalyticsKind = 'AGGREGATE' | 'EVENT';
