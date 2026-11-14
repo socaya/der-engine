@@ -7,10 +7,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 import ug.ac.mak.der.build.BuildInfo;
 import ug.ac.mak.der.build.BuildInfoProvider;
 import ug.ac.mak.der.dhis2.Dhis2ConnectionConfig;
 import ug.ac.mak.der.dhis2.Dhis2ConnectionConfigRepository;
+import ug.ac.mak.der.security.DeviceApprovalPolicy;
 
 /**
  * System endpoints. Exposes {@code GET /edge-api/v1/system/health} with
@@ -30,12 +33,16 @@ public class SystemController {
     private final BuildInfoProvider buildInfo;
     private final Clock clock;
     private final Dhis2ConnectionConfigRepository dhis2;
+    private final DeviceApprovalPolicy deviceApprovalPolicy;
 
     public SystemController(final BuildInfoProvider buildInfo, final Clock clock,
-                              final Dhis2ConnectionConfigRepository dhis2) {
+                              final Dhis2ConnectionConfigRepository dhis2,
+                              @org.springframework.beans.factory.annotation.Autowired(required = false)
+                              final DeviceApprovalPolicy deviceApprovalPolicy) {
         this.buildInfo = buildInfo;
         this.clock = clock;
         this.dhis2 = dhis2;
+        this.deviceApprovalPolicy = deviceApprovalPolicy;
     }
 
     @GetMapping("/health")
@@ -56,6 +63,18 @@ public class SystemController {
                 new SystemHealthResponse.Dhis2Reference(info.dhis2ReferenceVersion()),
                 Instant.now(clock)
         );
+    }
+
+    /** Public — the current device-approval policy mode. Exposes only
+     *  the strict/permissive boolean so clients can tailor their pending
+     *  banner copy without exposing any other admin configuration.
+     *  Returns {@code required=true} when the policy service isn't wired
+     *  (the strict default per SecurityProperties). */
+    @GetMapping("/device-approval-mode")
+    public Map<String, Object> deviceApprovalMode() {
+        final boolean required = deviceApprovalPolicy == null
+                ? true : deviceApprovalPolicy.required();
+        return Map.of("required", required);
     }
 
     /** True when the runtime config carries a central base URL and at

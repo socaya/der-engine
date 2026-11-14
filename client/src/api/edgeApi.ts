@@ -364,6 +364,16 @@ export function health(): Promise<HealthResponse> {
   return request<HealthResponse>('GET', '/edge-api/v1/system/health');
 }
 
+export interface DeviceApprovalMode { readonly required: boolean }
+
+/** ADR-0019 slice B — public read of the server's current
+ *  strict/permissive posture so the DeviceBoot banner can tailor its
+ *  wording. Not an admin surface; only the boolean leaks. */
+export function deviceApprovalMode(): Promise<DeviceApprovalMode> {
+  return request<DeviceApprovalMode>('GET',
+    '/edge-api/v1/system/device-approval-mode');
+}
+
 /* ───── Module status (Server Modules alignment) ────────────────────
  *
  * DHIS2 / Synchronisation / Network status endpoints that the device

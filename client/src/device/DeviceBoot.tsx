@@ -1,18 +1,32 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useDeviceEnrollment } from './useDeviceEnrollment';
 import { getStoredDeviceStatus } from './DeviceEnrollment';
+import { deviceApprovalMode } from '../api/edgeApi';
 
 /**
  * Fires the enrol-and-heartbeat loop whenever the session is
  * AUTHENTICATED, and surfaces a non-blocking pending-approval
  * notice. Renders nothing when the server reports APPROVED (or
- * when the session is anonymous). ADR-0019 slice A: non-blocking
- * on purpose; approval gating lives with Initiative 10 slice B.
+ * when the session is anonymous).
+ *
+ * ADR-0019 slice B: the server-side DeviceApprovalInterceptor now
+ * actually blocks bundle fetch + writes for non-APPROVED devices when
+ * strict mode is on. The banner copy reflects that — "Writes still
+ * work" is correct only in permissive mode. The mode is fetched once
+ * on mount from the public /system/device-approval-mode endpoint.
  */
 export function DeviceBoot(): JSX.Element | null {
   const { state } = useAuth();
   const enrolled = state.status === 'AUTHENTICATED';
   const device = useDeviceEnrollment({ enabled: enrolled });
+  const [strict, setStrict] = useState(true);
+  useEffect(() => {
+    if (!enrolled) return;
+    deviceApprovalMode()
+      .then((m) => setStrict(m.required))
+      .catch(() => setStrict(true));
+  }, [enrolled]);
 
   if (!enrolled) {
     return null;
@@ -28,11 +42,22 @@ export function DeviceBoot(): JSX.Element | null {
       {status === 'PENDING' && (
         <>
           {' — '}
-          <span>awaiting admin approval. Writes still work.</span>
+          <span>
+            awaiting admin approval.{' '}
+            {strict
+              ? 'Client apps and data entry are blocked until approved.'
+              : 'Writes still work.'}
+          </span>
         </>
       )}
       {status === 'SUSPENDED' && (
-        <>{' — '}<span>suspended by an admin.</span></>
+        <>
+          {' — '}
+          <span>
+            suspended by an admin.
+            {strict && ' Client apps and data entry are blocked.'}
+          </span>
+        </>
       )}
       {status === 'REVOKED' && (
         <>{' — '}<span>revoked; contact an admin to re-enrol.</span></>

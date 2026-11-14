@@ -193,9 +193,13 @@ toggle to Permissive and the interceptor becomes a no-op.
 - MDM integration / enterprise fleet management.
 - Push notifications to a specific device.
 - Per-device permissions (role still lives on the user).
-- DeviceBoot banner copy adjustment for strict mode ("Writes
-  still work" wording predates slice B — surface improvement
-  deferred).
+
+The DeviceBoot banner copy was updated 2026-11-14 to reflect
+strict mode (the "Writes still work" wording was slice-A-era and
+misleading under slice B). The banner probes the public
+`GET /edge-api/v1/system/device-approval-mode` endpoint and shows
+one of two messages on PENDING: "Client apps and data entry are
+blocked until approved" (strict) or "Writes still work" (permissive).
 
 ## Consequences
 

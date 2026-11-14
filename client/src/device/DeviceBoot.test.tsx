@@ -84,4 +84,49 @@ describe('DeviceBoot', () => {
     }));
     await waitFor(() => expect(screen.getByText(/revoked; contact an admin/i)).toBeInTheDocument());
   });
+
+  it('defaults to strict copy when the mode probe fails', async () => {
+    window.localStorage.setItem('der_device_id', '11111111-1111-1111-1111-111111111111');
+    window.localStorage.setItem('der_device_status', 'PENDING');
+    render(wrap(<DeviceBoot />, {
+      session: vi.fn().mockResolvedValue({
+        userId: 'u', username: 'a', displayName: 'A', roles: ['OPERATOR'], expiresAt: 'x',
+      }),
+      signIn: vi.fn(), signOut: vi.fn(),
+    }));
+    await waitFor(() => expect(
+      screen.getByText(/client apps and data entry are blocked/i)
+    ).toBeInTheDocument());
+  });
+
+  it('shows permissive copy when the mode probe returns required=false', async () => {
+    window.localStorage.setItem('der_device_id', '11111111-1111-1111-1111-111111111111');
+    window.localStorage.setItem('der_device_status', 'PENDING');
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn((url: RequestInfo | URL) => {
+      if (typeof url === 'string'
+          && url.includes('/system/device-approval-mode')) {
+        return Promise.resolve(new Response(
+          JSON.stringify({ required: false }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ));
+      }
+      return Promise.reject(new Error('unmocked fetch'));
+    }) as typeof fetch;
+    try {
+      render(wrap(<DeviceBoot />, {
+        session: vi.fn().mockResolvedValue({
+          userId: 'u', username: 'a', displayName: 'A', roles: ['OPERATOR'], expiresAt: 'x',
+        }),
+        signIn: vi.fn(), signOut: vi.fn(),
+      }));
+      await waitFor(() => expect(screen.getByTestId('device-banner'))
+        .toBeInTheDocument());
+      await waitFor(() => expect(
+        screen.getByText(/writes still work/i)
+      ).toBeInTheDocument());
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
