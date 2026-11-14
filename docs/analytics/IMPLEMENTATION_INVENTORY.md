@@ -156,7 +156,7 @@ migrations after V118 — columnar state lives on disk under
 | File | Role |
 |---|---|
 | `web/AnalyticsEngineController.java` | REST surface under `/edge-api/v1/analytics/v1/*` (query / drilldown / reconciliation / replay / DLQ / benchmark / segments / queries / sites) |
-| `apps/analytics/src/index.tsx` | Nine-section DER-dispatched app |
+| `apps/analytics/src/index.tsx` | Three-section DER-dispatched app (Explore, Data catalogue, Data quality) |
 
 ---
 
@@ -176,7 +176,7 @@ migrations after V118 — columnar state lives on disk under
 | ARCH-10 | Incremental maintenance | ✅ | Contribution ledger + materializer + applyContribution + retract |
 | ARCH-11 | Scheduler/resource governor | ✅ core | Gate 5.1/5.2/5.3 — governor + spill store; operator-level spill adoption deferred |
 | ARCH-12 | Distributed summaries | ✅ | Gate 6.1-6.4 — export, receive, dedup, consolidate, signed |
-| ARCH-13 | Analytics serving | ✅ | Full REST surface + nine-section UI |
+| ARCH-13 | Analytics serving | ✅ | Full REST surface + three-section UI (Explore / Data catalogue / Data quality) |
 | ARCH-14 | Security/audit | ✅ | Drilldown audit + PHI masking + HMAC transport trust |
 | ARCH-15 | Observability | ⚠️ partial | In-memory counters + EXPLAIN + lifecycle status + persisted benchmark runs; structured Micrometer export still pending |
 
