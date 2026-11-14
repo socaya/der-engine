@@ -43,6 +43,7 @@ import ug.ac.mak.der.analytics.column.exec.ColumnarQueryEngine;
 import ug.ac.mak.der.analytics.column.exec.PlanSelector;
 import ug.ac.mak.der.analytics.column.feedback.PlanFeedback;
 import ug.ac.mak.der.analytics.column.feedback.PlanFeedbackStore;
+import ug.ac.mak.der.analytics.column.feedback.WorkloadStatsStore;
 import ug.ac.mak.der.analytics.column.governor.QueryGovernor;
 import ug.ac.mak.der.analytics.column.governor.QueryToken;
 import ug.ac.mak.der.analytics.column.governor.SpillStore;
@@ -131,6 +132,7 @@ public class AnalyticsEngineController {
     private final PlanSelector planSelector;
     private final ColumnarQueryEngine columnarQueryEngine;
     private final PlanFeedbackStore planFeedbackStore;
+    private final WorkloadStatsStore workloadStats;
     private final QueryGovernor queryGovernor;
     private final SpillStore spillStore;
     private final SiteContributionExporter siteExporter;
@@ -176,6 +178,7 @@ public class AnalyticsEngineController {
                                       final PlanSelector planSelector,
                                       final ColumnarQueryEngine columnarQueryEngine,
                                       final PlanFeedbackStore planFeedbackStore,
+                                      final WorkloadStatsStore workloadStats,
                                       final QueryGovernor queryGovernor,
                                       final SpillStore spillStore,
                                       final SiteContributionExporter siteExporter,
@@ -225,6 +228,8 @@ public class AnalyticsEngineController {
                 "columnarQueryEngine");
         this.planFeedbackStore = Objects.requireNonNull(planFeedbackStore,
                 "planFeedbackStore");
+        this.workloadStats = Objects.requireNonNull(workloadStats,
+                "workloadStats");
         this.queryGovernor = Objects.requireNonNull(queryGovernor,
                 "queryGovernor");
         this.spillStore = Objects.requireNonNull(spillStore,
@@ -811,17 +816,17 @@ public class AnalyticsEngineController {
                     .map(c -> cellJson(c, dimsByMetric.get(c.metricId()),
                             osCache))
                     .toList());
-            // Gate 7.1 — record estimate-vs-reality for the
-            // adaptive optimizer to consume later.
             try {
-                planFeedbackStore.record(new PlanFeedback(
+                final PlanFeedback fb = new PlanFeedback(
                         Instant.now(),
                         engineUsed.name().toLowerCase(),
                         PlanFeedbackStore.shapeKeyFor(cq),
                         estimatedRows,
                         cells.size(),
                         estimatedCost,
-                        System.currentTimeMillis() - t0));
+                        System.currentTimeMillis() - t0);
+                planFeedbackStore.record(fb);
+                workloadStats.observe(fb);
             } catch (RuntimeException ex) {
                 // Feedback accounting must never fail the query.
             }

@@ -74,6 +74,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.column.exec.PlanSelector planSelector;
     @MockBean ug.ac.mak.der.analytics.column.exec.ColumnarQueryEngine columnarQueryEngine;
     @MockBean ug.ac.mak.der.analytics.column.feedback.PlanFeedbackStore planFeedbackStore;
+    @MockBean ug.ac.mak.der.analytics.column.feedback.WorkloadStatsStore workloadStats;
     @MockBean ug.ac.mak.der.analytics.column.governor.QueryGovernor queryGovernor;
     @MockBean ug.ac.mak.der.analytics.column.governor.SpillStore spillStore;
     @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionExporter siteExporter;
