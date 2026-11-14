@@ -1855,6 +1855,37 @@ kbd{
 .ea-main .ea-panel-action select.ea-input{padding:4px 8px;font-size:var(--fs-sm);max-width:260px}
 .ea-main .ea-panel-action{flex-wrap:wrap;gap:8px;justify-content:flex-end;flex:1 1 auto}
 
+/* ============ Row action menu (Actions ▾) ============ */
+.ea-row-menu{position:relative;display:inline-block}
+.ea-row-menu-panel{
+  position:absolute;top:calc(100% + 4px);right:0;
+  min-width:160px;z-index:20;
+  background:var(--der-surface);border:1px solid var(--der-border);
+  border-radius:var(--r-sm);box-shadow:var(--el-2);
+  padding:4px;
+}
+.ea-row-menu-item{
+  display:block;width:100%;text-align:left;
+  padding:6px 10px;border:0;background:transparent;
+  color:var(--der-ink-900);cursor:pointer;border-radius:var(--r-xs);
+  font:inherit;text-decoration:none;
+}
+.ea-row-menu-item:hover{background:var(--der-raised)}
+.ea-row-menu-item:disabled{opacity:0.55;cursor:not-allowed}
+.ea-row-menu-item--primary{color:var(--der-primary-ink)}
+.ea-row-menu-item--danger{color:var(--der-danger-ink)}
+.ea-row-menu-item--danger:hover{background:var(--der-danger-soft)}
+
+/* ============ Approval policy strip (Devices > top panel) ============ */
+.ea-policy-strip{
+  display:flex;flex-wrap:wrap;gap:var(--sp-3);
+  align-items:center;justify-content:space-between;
+}
+.ea-policy-strip-desc{color:var(--der-ink-500)}
+.ea-policy-strip-err{color:var(--der-danger);margin-top:var(--sp-2)}
+
+.ea-empty-cell{color:var(--der-ink-500)}
+
 /* ============ M4 Apps module ============ */
 
 .ea-app-grid{

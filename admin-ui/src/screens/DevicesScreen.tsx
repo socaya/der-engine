@@ -340,11 +340,11 @@ function RowActions(
   }
 
   if (!inFleet && items.length === 0) {
-    return <span style={{ color: 'var(--der-ink-500)' }}>—</span>;
+    return <span className="ea-empty-cell">—</span>;
   }
 
   return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
+    <div className="ea-row-menu">
       <button type="button"
               ref={triggerRef}
               className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -358,43 +358,27 @@ function RowActions(
       {open && (
         <div ref={menuRef}
              role="menu"
-             data-test={`devices-actions-menu-${device.id}`}
-             style={{
-               position: 'absolute', top: 'calc(100% + 4px)', right: 0,
-               minWidth: 160, zIndex: 20,
-               background: 'var(--der-surface, #fff)',
-               border: '1px solid var(--der-border, #d4d9e2)',
-               borderRadius: 6,
-               boxShadow: '0 6px 16px rgba(15, 23, 42, 0.12)',
-               padding: 4,
-             }}>
+             className="ea-row-menu-panel"
+             data-test={`devices-actions-menu-${device.id}`}>
           {items.map((it) => (
             <button key={it.key}
                     type="button"
                     role="menuitem"
+                    className={`ea-row-menu-item${
+                      it.tone === 'danger' ? ' ea-row-menu-item--danger'
+                      : it.tone === 'primary' ? ' ea-row-menu-item--primary'
+                      : ''}`}
                     data-test={`devices-${it.key}-${device.id}`}
                     disabled={busy}
-                    onClick={() => { setOpen(false); it.onSelect(); }}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left',
-                      padding: '6px 10px', border: 0, background: 'transparent',
-                      cursor: 'pointer', borderRadius: 4,
-                      color: it.tone === 'danger' ? 'var(--der-danger, #c53030)'
-                        : it.tone === 'primary' ? 'var(--der-primary, #1a56db)'
-                        : 'inherit',
-                    }}>
+                    onClick={() => { setOpen(false); it.onSelect(); }}>
               {it.label}
             </button>
           ))}
           {inFleet && (
             <Link to={`/devices/${device.id}`}
                   role="menuitem"
-                  onClick={() => setOpen(false)}
-                  style={{
-                    display: 'block', padding: '6px 10px',
-                    borderRadius: 4, color: 'inherit',
-                    textDecoration: 'none',
-                  }}>
+                  className="ea-row-menu-item"
+                  onClick={() => setOpen(false)}>
               Details
             </Link>
           )}
@@ -453,12 +437,11 @@ function ApprovalPolicyPanel({ api }: {
   if (required === null && !err) return null;
   return (
     <Panel title="Approval policy">
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12,
-                     alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="ea-policy-strip">
         <div data-test="approval-policy-state">
           <strong>{required ? 'Strict' : 'Permissive'}</strong>
           {' · '}
-          <span style={{ color: 'var(--der-ink-500)' }}>
+          <span className="ea-policy-strip-desc">
             {required
               ? 'Only APPROVED devices can run client apps or write.'
               : 'Any enrolled device can run client apps; approval is advisory only.'}
@@ -472,7 +455,7 @@ function ApprovalPolicyPanel({ api }: {
           {busy ? 'Saving…' : required ? 'Switch to permissive' : 'Switch to strict'}
         </button>
       </div>
-      {err && <p style={{ color: 'var(--der-danger)', marginTop: 8 }}>{err}</p>}
+      {err && <p className="ea-policy-strip-err">{err}</p>}
     </Panel>
   );
 }
