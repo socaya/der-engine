@@ -1,7 +1,8 @@
 # ADR-0019: Edge device-client management
 
-- Status: **ACCEPTED (slice A — enrol / approve / monitor)**
-- Date decided: 2026-10-22
+- Status: **ACCEPTED**
+  - Slice A (enrol / approve / monitor) — shipped 2026-10-22
+  - Slice B (approval-gated client-app access) — shipped 2026-11-14
 - Deciders: socaya
 - Related: ADR-0002 (DHIS2 pin), ADR-0015 (orgUnit binding),
   ADR-0017 (TLS + PII), ADR-0018 (capture workflows), post-1.0
@@ -143,11 +144,46 @@ install:
 
 The client does **not** block the UI while awaiting approval in
 slice A — writes still work (ADR-0016 approval handles that layer
-when a workflow is active). "Awaiting approval" UI gating ships
-with Initiative 3 / Initiative 10 slice B when the device identity
-actually controls behaviour.
+when a workflow is active). Slice B below adds a server-side
+enforcement layer that can block an unapproved device at the
+app-bundle and write boundaries.
 
-## Not in scope (slice B promises)
+## Slice B — approval-gated client-app access (shipped 2026-11-14)
+
+Slice A left `status` advisory: the admin saw PENDING devices but
+the server didn't act on their trust. Slice B moves that decision
+to the server:
+
+- **`DeviceApprovalInterceptor`** reads `X-DER-Device-Id` from the
+  request. When the policy is strict, non-APPROVED devices get
+  `403 { code: "DEVICE_NOT_APPROVED" }` on:
+  - `GET /edge-api/v1/apps/*/*/bundle.js` — the executable surface
+  - `POST /api/dataValueSets|events|tracker/**` — writes
+- Metadata surfaces stay open so an unapproved device can still
+  enrol: `/edge-api/v1/apps` (catalogue), `/edge-api/v1/apps/*/*/icon`,
+  `/edge-api/v1/apps/signing-key`, `/edge-api/v1/devices/enrol`, and
+  `/edge-api/v1/auth/**`.
+- **`DeviceApprovalPolicy`** service wraps the setting with a
+  volatile cache; `der.admin_setting` key
+  `security.device-approval-required` overrides the compile-time
+  baseline so an admin's choice survives restarts.
+- **Admin UI toggle** on the Devices screen (`/devices`) flips
+  between Strict (default) and Permissive via
+  `PUT /edge-api/v1/admin/security/device-approval`.
+- Deny events land in `security_audit` as `DEVICE_APPROVAL_DENIED`.
+
+Related:
+- Topology + Workspace client-devices panel now filter to
+  APPROVED-only (`NetworkTopologyService`, `Workspace.tsx`).
+- The client's app-bundle fetch (`client/src/apps/installer.ts`)
+  and catalogue hook (`client/src/apps/catalogue.ts`) attach
+  `X-DER-Device-Id` so approved sessions continue to work.
+
+The setting is reversible: operators who need slice A's
+non-blocking posture (open-pilot scenarios, bootstrap) flip the
+toggle to Permissive and the interceptor becomes a no-op.
+
+## Not in scope (deferred from slice B)
 
 - EA-DVC-02 dependency editor UI.
 - `/devices/{id}/dependencies` CRUD endpoints.
@@ -157,6 +193,9 @@ actually controls behaviour.
 - MDM integration / enterprise fleet management.
 - Push notifications to a specific device.
 - Per-device permissions (role still lives on the user).
+- DeviceBoot banner copy adjustment for strict mode ("Writes
+  still work" wording predates slice B — surface improvement
+  deferred).
 
 ## Consequences
 
