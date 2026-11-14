@@ -82,6 +82,7 @@ class AnalyticsEngineControllerTest {
     @MockBean ug.ac.mak.der.analytics.distributed.SiteContributionRepository siteRepo;
     @MockBean ug.ac.mak.der.analytics.distributed.SiteConsolidator siteConsolidator;
     @MockBean ug.ac.mak.der.analytics.publication.PublicationDrainWorker publicationDrain;
+    @MockBean ug.ac.mak.der.analytics.column.preagg.PreaggregationProposalService preaggProposals;
 
     private RequestPostProcessor as(final EdgeRole role) {
         final Instant now = Instant.now();
@@ -1370,5 +1371,102 @@ class AnalyticsEngineControllerTest {
                         .with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.contributionsTotal").value(42));
+    }
+
+    /* ─────── preaggregation proposals ─────── */
+
+    @Test
+    void listPreaggProposalsRejectsNonAdmin() throws Exception {
+        mockMvc.perform(get(
+                        "/edge-api/v1/analytics/v1/admin/preagg/proposals")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listPreaggProposalsReturnsRecords() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(preaggProposals.list(any(), anyInt())).thenReturn(List.of(
+                new ug.ac.mak.der.analytics.column.preagg
+                        .PreaggregationProposalRecord(
+                        id, "shape-abc", 25L, 42.0, 1050.0, 4096L,
+                        Instant.parse("2026-11-14T09:00:00Z"),
+                        Instant.parse("2026-11-14T10:00:00Z"),
+                        "observed 25x avg 42.0ms",
+                        ug.ac.mak.der.analytics.column.preagg
+                                .PreaggregationProposalRecord.State.PROPOSED,
+                        null, null, null,
+                        Instant.parse("2026-11-14T10:00:00Z"),
+                        Instant.parse("2026-11-14T10:00:00Z"))));
+        mockMvc.perform(get(
+                        "/edge-api/v1/analytics/v1/admin/preagg/proposals")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.proposals[0].proposalId")
+                        .value(id.toString()))
+                .andExpect(jsonPath("$.proposals[0].state")
+                        .value("PROPOSED"));
+    }
+
+    @Test
+    void listPreaggProposalsRejectsBadState() throws Exception {
+        mockMvc.perform(get(
+                        "/edge-api/v1/analytics/v1/admin/preagg/proposals?state=garbage")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_STATE"));
+    }
+
+    @Test
+    void approvePreaggProposalReturns404WhenClosed() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(preaggProposals.approve(eq(id), any(UUID.class), any()))
+                .thenReturn(Optional.empty());
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/preagg/proposals/"
+                                + id + "/approve")
+                        .contentType("application/json")
+                        .content("{}")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND_OR_CLOSED"));
+    }
+
+    @Test
+    void approvePreaggProposalReturnsUpdatedRecord() throws Exception {
+        final UUID id = UUID.randomUUID();
+        when(preaggProposals.approve(eq(id), any(UUID.class), eq("go")))
+                .thenReturn(Optional.of(
+                        new ug.ac.mak.der.analytics.column.preagg
+                                .PreaggregationProposalRecord(
+                                id, "shape-xyz", 5L, 10.0, 50.0, 100L,
+                                Instant.parse("2026-11-14T09:00:00Z"),
+                                Instant.parse("2026-11-14T10:00:00Z"),
+                                "r",
+                                ug.ac.mak.der.analytics.column.preagg
+                                        .PreaggregationProposalRecord.State
+                                        .APPROVED,
+                                "go", UUID.randomUUID(),
+                                Instant.parse("2026-11-14T10:05:00Z"),
+                                Instant.parse("2026-11-14T10:00:00Z"),
+                                Instant.parse("2026-11-14T10:05:00Z"))));
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/preagg/proposals/"
+                                + id + "/approve")
+                        .contentType("application/json")
+                        .content("{\"reason\":\"go\"}")
+                        .with(as(EdgeRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("APPROVED"))
+                .andExpect(jsonPath("$.decisionReason").value("go"));
+    }
+
+    @Test
+    void generatePreaggProposalsRejectsNonAdmin() throws Exception {
+        mockMvc.perform(post(
+                        "/edge-api/v1/analytics/v1/admin/preagg/propose")
+                        .with(as(EdgeRole.REVIEWER)))
+                .andExpect(status().isForbidden());
     }
 }

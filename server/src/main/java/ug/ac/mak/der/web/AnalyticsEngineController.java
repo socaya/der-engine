@@ -44,6 +44,8 @@ import ug.ac.mak.der.analytics.column.exec.PlanSelector;
 import ug.ac.mak.der.analytics.column.feedback.PlanFeedback;
 import ug.ac.mak.der.analytics.column.feedback.PlanFeedbackStore;
 import ug.ac.mak.der.analytics.column.feedback.WorkloadStatsStore;
+import ug.ac.mak.der.analytics.column.preagg.PreaggregationProposalRecord;
+import ug.ac.mak.der.analytics.column.preagg.PreaggregationProposalService;
 import ug.ac.mak.der.analytics.column.governor.QueryGovernor;
 import ug.ac.mak.der.analytics.column.governor.QueryToken;
 import ug.ac.mak.der.analytics.column.governor.SpillStore;
@@ -140,6 +142,7 @@ public class AnalyticsEngineController {
     private final SiteContributionRepository siteRepo;
     private final SiteConsolidator siteConsolidator;
     private final PublicationDrainWorker publicationDrain;
+    private final PreaggregationProposalService preaggProposals;
 
     /** Phase 6 — minimum cell count for a non-suppressed value.
      *  Cells backed by fewer than this many contributions emit as
@@ -185,7 +188,8 @@ public class AnalyticsEngineController {
                                       final SiteContributionReceiver siteReceiver,
                                       final SiteContributionRepository siteRepo,
                                       final SiteConsolidator siteConsolidator,
-                                      final PublicationDrainWorker publicationDrain) {
+                                      final PublicationDrainWorker publicationDrain,
+                                      final PreaggregationProposalService preaggProposals) {
         this.repo = Objects.requireNonNull(repo, "repo");
         this.periods = Objects.requireNonNull(periods, "periods");
         this.ingestion = Objects.requireNonNull(ingestion, "ingestion");
@@ -243,6 +247,8 @@ public class AnalyticsEngineController {
                 "siteConsolidator");
         this.publicationDrain = Objects.requireNonNull(publicationDrain,
                 "publicationDrain");
+        this.preaggProposals = Objects.requireNonNull(preaggProposals,
+                "preaggProposals");
     }
 
     @GetMapping("/admin/segments/lifecycle")
@@ -2312,5 +2318,128 @@ public class AnalyticsEngineController {
 
     private static Object decimal(final BigDecimal v) {
         return v == null ? null : v.toPlainString();
+    }
+
+    /* ─────── Gate 8 — preaggregation proposals (SRS FR-INC-013) ─────── */
+
+    @GetMapping("/admin/preagg/proposals")
+    public ResponseEntity<Map<String, Object>> listPreaggProposals(
+            @RequestParam(name = "state", required = false) final String state,
+            @RequestParam(name = "limit", required = false,
+                    defaultValue = "100") final int limit,
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        PreaggregationProposalRecord.State filter = null;
+        if (state != null && !state.isBlank()) {
+            try {
+                filter = PreaggregationProposalRecord.State.valueOf(
+                        state.toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "code", "BAD_STATE",
+                        "allowed", java.util.Arrays.stream(
+                                PreaggregationProposalRecord.State.values())
+                                .map(Enum::name).toList()));
+            }
+        }
+        final List<PreaggregationProposalRecord> rows =
+                preaggProposals.list(filter, limit);
+        return ResponseEntity.ok(Map.of(
+                "count", rows.size(),
+                "proposals", rows.stream()
+                        .map(AnalyticsEngineController::preaggJson)
+                        .toList()));
+    }
+
+    @PostMapping("/admin/preagg/propose")
+    public ResponseEntity<Map<String, Object>> generatePreaggProposals(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final List<PreaggregationProposalRecord> created =
+                preaggProposals.generate();
+        return ResponseEntity.ok(Map.of(
+                "count", created.size(),
+                "proposals", created.stream()
+                        .map(AnalyticsEngineController::preaggJson)
+                        .toList()));
+    }
+
+    @PostMapping("/admin/preagg/proposals/{id}/approve")
+    public ResponseEntity<Map<String, Object>> approvePreaggProposal(
+            @PathVariable("id") final UUID id,
+            @RequestBody(required = false) final Map<String, Object> body,
+            final Authentication auth) {
+        return decidePreaggProposal(id, body, auth, true);
+    }
+
+    @PostMapping("/admin/preagg/proposals/{id}/reject")
+    public ResponseEntity<Map<String, Object>> rejectPreaggProposal(
+            @PathVariable("id") final UUID id,
+            @RequestBody(required = false) final Map<String, Object> body,
+            final Authentication auth) {
+        return decidePreaggProposal(id, body, auth, false);
+    }
+
+    private ResponseEntity<Map<String, Object>> decidePreaggProposal(
+            final UUID id,
+            final Map<String, Object> body,
+            final Authentication auth,
+            final boolean approve) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "code", "FORBIDDEN"));
+        }
+        final String reason = body == null ? null
+                : (body.get("reason") == null ? null
+                        : String.valueOf(body.get("reason")));
+        final java.util.Optional<PreaggregationProposalRecord> result =
+                approve
+                        ? preaggProposals.approve(id,
+                                principal.user().userId(), reason)
+                        : preaggProposals.reject(id,
+                                principal.user().userId(), reason);
+        if (result.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of(
+                    "code", "NOT_FOUND_OR_CLOSED"));
+        }
+        return ResponseEntity.ok(preaggJson(result.get()));
+    }
+
+    private static Map<String, Object> preaggJson(
+            final PreaggregationProposalRecord r) {
+        final Map<String, Object> m = new LinkedHashMap<>();
+        m.put("proposalId", r.proposalId().toString());
+        m.put("shapeKey", r.shapeKey());
+        m.put("observations", r.observations());
+        m.put("avgElapsedMillis", r.avgElapsedMillis());
+        m.put("score", r.score());
+        m.put("estimatedBytes", r.estimatedBytes());
+        m.put("firstObservedAt", r.firstObservedAt().toString());
+        m.put("lastObservedAt", r.lastObservedAt().toString());
+        m.put("rationale", r.rationale());
+        m.put("state", r.state().name());
+        m.put("decisionReason", r.decisionReason());
+        m.put("decidedBy", r.decidedBy() == null ? null
+                : r.decidedBy().toString());
+        m.put("decidedAt", r.decidedAt() == null ? null
+                : r.decidedAt().toString());
+        m.put("createdAt", r.createdAt().toString());
+        m.put("updatedAt", r.updatedAt().toString());
+        return m;
     }
 }
