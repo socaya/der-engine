@@ -85,7 +85,7 @@ export function SnapshotDiff({ api = edgeApi, aOverride, bOverride }:
             <tbody>
               {Object.entries(counters.deltas).map(([k, v]) => (
                 <tr key={k}>
-                  <td style={{ fontWeight: 500 }}>{k}</td>
+                  <td className="ea-fw-medium">{k}</td>
                   <td style={{ textAlign: 'right' }}>{v.a}</td>
                   <td style={{ textAlign: 'right' }}>{v.b}</td>
                   <td style={{ textAlign: 'right',
@@ -166,7 +166,7 @@ function DiffGroup({ label, tone, items, testIdPrefix }:
       <ul>
         {items.slice(0, 100).map((it) => (
           <li key={it.id} data-test={`${testIdPrefix}-${it.id}`}>
-            <span style={{ fontWeight: 500 }}>
+            <span className="ea-fw-medium">
               {it.displayName ?? <em className="ea-text-muted">no mirror row</em>}
             </span>
             <span className="ea-mono ea-text-muted" style={{ marginLeft: 6, fontSize: 11 }}>

@@ -308,7 +308,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                       {r.fromEntityType}
                     </span>
                     {' '}
-                    <code style={{ fontSize: 12 }}>
+                    <code className="ea-text-xs">
                       {r.fromEntityUid}
                     </code>
                   </td>
@@ -317,7 +317,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                       {r.toEntityType}
                     </span>
                     {' '}
-                    <code style={{ fontSize: 12 }}>
+                    <code className="ea-text-xs">
                       {r.toEntityUid}
                     </code>
                   </td>
@@ -436,7 +436,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                       {r.fromEntityType}
                     </span>
                     {' '}
-                    <code style={{ fontSize: 12 }}>
+                    <code className="ea-text-xs">
                       {r.fromEntityUid}
                     </code>
                   </td>
@@ -445,7 +445,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                       {r.toEntityType}
                     </span>
                     {' '}
-                    <code style={{ fontSize: 12 }}>
+                    <code className="ea-text-xs">
                       {r.toEntityUid}
                     </code>
                   </td>

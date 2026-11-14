@@ -435,7 +435,7 @@ export function EADiagnostics({ api = edgeApi }: {
       />
       <Panel title="Runtime"
              action={
-               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+               <span className="ea-text-muted ea-text-xs">
                  Live from /edge-api/v1/system/diagnostics
                </span>
              }>
@@ -462,7 +462,7 @@ export function EADiagnostics({ api = edgeApi }: {
       </Panel>
       <Panel title="Journal backlog"
              action={
-               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+               <span className="ea-text-muted ea-text-xs">
                  Total: <strong>{journalTotal}</strong>
                </span>
              }>
@@ -590,7 +590,7 @@ export function EASettings({ api = edgeApi }: {
 
       <Panel title="Cron overrides"
              action={
-               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+               <span className="ea-text-muted ea-text-xs">
                  Quartz syntax · blank = compiled default
                </span>
              }>
@@ -617,7 +617,7 @@ export function EASettings({ api = edgeApi }: {
 
       <Panel title="Feature flags"
              action={
-               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+               <span className="ea-text-muted ea-text-xs">
                  {enabledFlags} / {flagEntries.length} enabled
                </span>
              }>

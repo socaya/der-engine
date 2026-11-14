@@ -164,15 +164,15 @@ export function BackupList(): JSX.Element {
               ) : (
                 <dl className="ea-def-list">
                   <div className="ea-def-row"><dt>WAL directory</dt>
-                    <dd className="ea-mono" style={{ fontSize: 12 }}>{wal.walDirectory}</dd></div>
+                    <dd className="ea-mono ea-text-xs">{wal.walDirectory}</dd></div>
                   <div className="ea-def-row"><dt>Archived segments</dt>
                     <dd className="ea-mono" data-test="wal-segments">{wal.segmentCount ?? 0}</dd></div>
                   <div className="ea-def-row"><dt>Earliest archive</dt>
-                    <dd className="ea-mono" style={{ fontSize: 12 }}>
+                    <dd className="ea-mono ea-text-xs">
                       {wal.earliestArchive ? fmtDate(wal.earliestArchive) : '—'}
                     </dd></div>
                   <div className="ea-def-row"><dt>Latest archive</dt>
-                    <dd className="ea-mono" style={{ fontSize: 12 }}>
+                    <dd className="ea-mono ea-text-xs">
                       {wal.latestArchive ? fmtDate(wal.latestArchive) : '—'}
                     </dd></div>
                 </dl>
@@ -198,7 +198,7 @@ export function BackupList(): JSX.Element {
                 <div className="ea-def-row"><dt>Verification enabled</dt>
                   <dd data-test="verify-enabled">{verify?.enabled ? 'yes' : 'no'}</dd></div>
                 <div className="ea-def-row"><dt>pg_restore</dt>
-                  <dd className="ea-mono" style={{ fontSize: 12 }}>
+                  <dd className="ea-mono ea-text-xs">
                     {verify?.pgRestore ?? <span className="ea-text-muted">not found</span>}
                   </dd></div>
                 <div className="ea-def-row"><dt>Last verify outcome</dt>
@@ -223,7 +223,7 @@ export function BackupList(): JSX.Element {
                     <tbody>
                       {verifyHist.map((v) => (
                         <tr key={v.verificationId}>
-                          <td className="ea-mono" style={{ fontSize: 12 }}>{fmtDate(v.verifiedAt)}</td>
+                          <td className="ea-mono ea-text-xs">{fmtDate(v.verifiedAt)}</td>
                           <td className="ea-mono">{v.backupRunId}</td>
                           <td>
                             <Status tone={
@@ -394,7 +394,7 @@ function BackupRunsTable({ rows }: { rows: ReadonlyArray<edgeApi.BackupRow> }): 
           {paged.rows.map((r) => (
             <tr key={r.runId}>
               <td className="ea-mono">{r.runId}</td>
-              <td style={{ fontWeight: 500 }}>{r.kind}</td>
+              <td className="ea-fw-medium">{r.kind}</td>
               <td>
                 <Status tone={
                   r.status === 'SUCCESS' ? 'success'

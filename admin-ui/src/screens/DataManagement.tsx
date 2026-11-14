@@ -106,7 +106,7 @@ export function DataManagement(): JSX.Element {
 
       <Panel title="Captured data by type"
              action={
-               <Link to="/data/queue" className="ea-link-btn" style={{ fontSize: 12 }}>
+               <Link to="/data/queue" className="ea-link-btn ea-text-xs">
                  Open full records view →
                </Link>
              }>
@@ -130,7 +130,7 @@ export function DataManagement(): JSX.Element {
                       title={r.type}>
                     <UiIcon icon={entityTypeIcon(r.typeKey)} size={18} />
                   </td>
-                  <td style={{ fontWeight: 500 }}>{r.type}</td>
+                  <td className="ea-fw-medium">{r.type}</td>
                   <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.typeKey}</td>
                   <td className="ea-mono">{r.values.toLocaleString()}</td>
                   <td>

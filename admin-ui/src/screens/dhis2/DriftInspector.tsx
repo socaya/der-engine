@@ -104,7 +104,7 @@ export function DriftInspector(): JSX.Element {
       </Panel>
 
       <Panel title="Per-entity breakdown"
-             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+             action={<span className="ea-text-muted ea-text-xs">
                {totalChanged.toLocaleString()} delta{totalChanged === 1 ? '' : 's'}
              </span>}>
         {rowSummaries.length === 0 ? (

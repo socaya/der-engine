@@ -222,7 +222,7 @@ export function NetworkOverview(): JSX.Element {
                 {events.slice(0, 12).map((e) => (
                   <tr key={e.eventId}>
                     <td className="ea-mono">{fmtAgo(e.observedAt)}</td>
-                    <td style={{ fontWeight: 500 }}>{humaniseEventType(e.eventType)}</td>
+                    <td className="ea-fw-medium">{humaniseEventType(e.eventType)}</td>
                     <td className="ea-mono ea-text-muted">{e.interfaceName ?? '—'}</td>
                     <td className="ea-mono ea-text-muted" style={{ fontSize: 13 }}>
                       {e.deviceId ?? e.nodeId ?? '—'}
@@ -447,24 +447,24 @@ function ApEditDialog({ ap, onClose, onSaved }: {
           Changes take effect on the next AP (re)start. Clients will need the new PSK on security-mode change.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <label style={{ fontSize: 12 }}>SSID
+          <label className="ea-text-xs">SSID
             <input className="ea-input" value={ssid} onChange={(e) => setSsid(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Interface
+          <label className="ea-text-xs">Interface
             <input className="ea-input" value={iface} onChange={(e) => setIface(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Band
+          <label className="ea-text-xs">Band
             <select className="ea-input" value={band} onChange={(e) => setBand(e.target.value)}>
               <option value="2.4GHz">2.4 GHz</option>
               <option value="5GHz">5 GHz</option>
               <option value="6GHz">6 GHz</option>
             </select>
           </label>
-          <label style={{ fontSize: 12 }}>Channel
+          <label className="ea-text-xs">Channel
             <input className="ea-input" type="number" value={channel}
                    onChange={(e) => setChannel(Number(e.target.value))} />
           </label>
-          <label style={{ fontSize: 12 }}>Security
+          <label className="ea-text-xs">Security
             <select className="ea-input" value={security}
                     onChange={(e) => setSecurity(e.target.value)}>
               <option value="WPA3-SAE">WPA3-SAE</option>
@@ -472,7 +472,7 @@ function ApEditDialog({ ap, onClose, onSaved }: {
               <option value="OWE">OWE (enhanced-open)</option>
             </select>
           </label>
-          <label style={{ fontSize: 12 }}>Gateway
+          <label className="ea-text-xs">Gateway
             <input className="ea-input" value={gateway}
                    onChange={(e) => setGateway(e.target.value)} />
           </label>
@@ -574,7 +574,7 @@ function QrEnrolDialog({ onClose }: { onClose: () => void }): JSX.Element {
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span className="ea-text-muted" style={{ fontSize: 12 }}>
+              <span className="ea-text-muted ea-text-xs">
                 Hand this token to a specific device for a managed first-contact.
               </span>
               <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -844,12 +844,12 @@ function ClientLabelDialog({ client, onClose, onSaved }: {
                     padding: 24, maxWidth: 460, width: '90%', boxShadow: 'var(--el-3)' }}>
         <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Edit label — {client.deviceId}</h3>
         <div style={{ display: 'grid', gap: 10 }}>
-          <label style={{ fontSize: 12 }}>Owner / role
+          <label className="ea-text-xs">Owner / role
             <input className="ea-input" value={owner}
                    placeholder="e.g. Registration, Laboratory"
                    onChange={(e) => setOwner(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Hostname
+          <label className="ea-text-xs">Hostname
             <input className="ea-input" value={hostname}
                    placeholder="e.g. tab-reg-01"
                    onChange={(e) => setHostname(e.target.value)} />
@@ -992,7 +992,7 @@ export function NetworkInterfaces(): JSX.Element {
               <tbody>
                 {(ifaces ?? []).map((i) => (
                   <tr key={i.name}>
-                    <td className="ea-mono" style={{ fontWeight: 500 }}>{i.name}</td>
+                    <td className="ea-mono ea-fw-medium">{i.name}</td>
                     <td>{humaniseKind(i.kind)}</td>
                     <td>{humanisePurpose(i.purpose)}</td>
                     <td>
@@ -1003,7 +1003,7 @@ export function NetworkInterfaces(): JSX.Element {
                       </Status>
                     </td>
                     <td className="ea-mono">{i.address ?? '—'}</td>
-                    <td className="ea-mono ea-text-muted" style={{ fontSize: 12 }}>{i.mac ?? '—'}</td>
+                    <td className="ea-mono ea-text-muted ea-text-xs">{i.mac ?? '—'}</td>
                     <td className="ea-text-muted">{i.linkSpeed ?? '—'}</td>
                     <td style={{ textAlign: 'right' }}>
                       <RowMenu items={[
@@ -1025,7 +1025,7 @@ export function NetworkInterfaces(): JSX.Element {
       )}
 
       <Panel title={`Routes · ${routes.length}`}
-             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>Lower metric evaluated first.</span>}>
+             action={<span className="ea-text-muted ea-text-xs">Lower metric evaluated first.</span>}>
         {routes.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>No routes.</p>
         ) : (
@@ -1138,17 +1138,17 @@ function StaticLeaseDialog({ onClose, onSaved }: {
           hand out this IP when the device joins the network.
         </p>
         <div style={{ display: 'grid', gap: 10 }}>
-          <label style={{ fontSize: 12 }}>MAC address
+          <label className="ea-text-xs">MAC address
             <input className="ea-input" value={mac}
                    placeholder="aa:bb:cc:00:00:01"
                    onChange={(e) => setMac(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>IP address
+          <label className="ea-text-xs">IP address
             <input className="ea-input" value={ip}
                    placeholder="10.88.0.60"
                    onChange={(e) => setIp(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Hostname (optional)
+          <label className="ea-text-xs">Hostname (optional)
             <input className="ea-input" value={hostname}
                    placeholder="tab-reg-01"
                    onChange={(e) => setHostname(e.target.value)} />
@@ -1199,7 +1199,7 @@ function InterfaceConfigDialog({ iface, onClose, onSaved }: {
           controls whether the interface is eligible as a WAN candidate.
         </p>
         <div style={{ display: 'grid', gap: 10 }}>
-          <label style={{ fontSize: 12 }}>Purpose
+          <label className="ea-text-xs">Purpose
             <select className="ea-input" value={purpose}
                     onChange={(e) => setPurpose(e.target.value)}>
               <option value="local-ap">Local AP</option>
@@ -1209,7 +1209,7 @@ function InterfaceConfigDialog({ iface, onClose, onSaved }: {
               <option value="unknown">—</option>
             </select>
           </label>
-          <label style={{ fontSize: 12 }}>Priority (lower = preferred for WAN)
+          <label className="ea-text-xs">Priority (lower = preferred for WAN)
             <input className="ea-input" type="number" value={priority}
                    onChange={(e) => setPriority(Number(e.target.value))} />
           </label>
@@ -1404,28 +1404,28 @@ function PeerDialog({ mode, peer, onClose, onSaved }: {
           on the Peers row.
         </p>
         <div style={{ display: 'grid', gap: 10 }}>
-          <label style={{ fontSize: 12 }}>Node ID
+          <label className="ea-text-xs">Node ID
             <input className="ea-input" value={nodeId}
                    placeholder="edge-012" onChange={(e) => setNodeId(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Site ID (optional)
+          <label className="ea-text-xs">Site ID (optional)
             <input className="ea-input" value={siteId}
                    placeholder="e.g. health-centre-nakawa"
                    onChange={(e) => setSiteId(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Endpoint (host:port)
+          <label className="ea-text-xs">Endpoint (host:port)
             <input className="ea-input" value={endpoint}
                    placeholder="203.0.113.9:51820"
                    onChange={(e) => setEndpoint(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>WireGuard public key
+          <label className="ea-text-xs">WireGuard public key
             <textarea className="ea-input" rows={2}
                       style={{ fontFamily: 'monospace', fontSize: 11, resize: 'vertical' }}
                       value={publicKey}
                       placeholder="base64 public key"
                       onChange={(e) => setPublicKey(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Allowed IPs
+          <label className="ea-text-xs">Allowed IPs
             <input className="ea-input" value={allowedIps}
                    onChange={(e) => setAllowedIps(e.target.value)} />
           </label>
@@ -1546,7 +1546,7 @@ export function NetworkSecurity(): JSX.Element {
                     </Status>
                   </button>
                 </td>
-                <td className="ea-text-muted" style={{ fontSize: 12 }}>{r.note ?? '—'}</td>
+                <td className="ea-text-muted ea-text-xs">{r.note ?? '—'}</td>
                 <td style={{ textAlign: 'right' }}>
                   <RowMenu items={[
                     { label: 'Edit rule', onSelect: () => setEditRule(r) },
@@ -1680,15 +1680,15 @@ function PolicyDialog({ mode, rule, onClose, onSaved }: {
           {mode === 'edit' ? 'Edit firewall rule' : 'Add firewall rule'}
         </h3>
         <div style={{ display: 'grid', gap: 10 }}>
-          <label style={{ fontSize: 12 }}>Source zone
+          <label className="ea-text-xs">Source zone
             <input className="ea-input" value={src} onChange={(e) => setSrc(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Destination zone
+          <label className="ea-text-xs">Destination zone
             <input className="ea-input" value={dst}
                    placeholder="e.g. DHIS2 Central"
                    onChange={(e) => setDst(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Action
+          <label className="ea-text-xs">Action
             <select className="ea-input" value={action}
                     onChange={(e) => setAction(e.target.value as typeof action)}>
               <option value="allow">allow</option>
@@ -1696,11 +1696,11 @@ function PolicyDialog({ mode, rule, onClose, onSaved }: {
               <option value="deny">deny</option>
             </select>
           </label>
-          <label style={{ fontSize: 12 }}>Position (lower = evaluated first)
+          <label className="ea-text-xs">Position (lower = evaluated first)
             <input className="ea-input" type="number" value={position}
                    onChange={(e) => setPosition(Number(e.target.value))} />
           </label>
-          <label style={{ fontSize: 12 }}>Note (optional)
+          <label className="ea-text-xs">Note (optional)
             <input className="ea-input" value={note}
                    placeholder="rationale shown in the policy table"
                    onChange={(e) => setNote(e.target.value)} />
@@ -1835,7 +1835,7 @@ export function NetworkDiagnostics(): JSX.Element {
                 {paged.rows.map((e) => (
                   <tr key={e.eventId}>
                     <td className="ea-mono">{fmtDate(e.observedAt)}</td>
-                    <td style={{ fontWeight: 500 }}>{humaniseEventType(e.eventType)}</td>
+                    <td className="ea-fw-medium">{humaniseEventType(e.eventType)}</td>
                     <td className="ea-mono ea-text-muted">{e.interfaceName ?? '—'}</td>
                     <td className="ea-mono ea-text-muted" style={{ fontSize: 13 }}>
                       {e.deviceId ?? e.nodeId ?? '—'}
@@ -1879,7 +1879,7 @@ function MdnsPanel(): JSX.Element {
   }, []);
   return (
     <Panel title={`mDNS / service discovery · ${services.length}`}
-           action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+           action={<span className="ea-text-muted ea-text-xs">
              Advertised on the local segment via Avahi.
            </span>}>
       {services.length === 0 ? (
@@ -2042,7 +2042,7 @@ export function NetworkSettings(): JSX.Element {
               <tbody>
                 {keys.map((k) => (
                   <tr key={k}>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{k}</td>
+                    <td className="ea-mono ea-text-xs">{k}</td>
                     <td className="ea-mono">
                       {editKey === k ? (
                         <input className="ea-input" value={editValue}

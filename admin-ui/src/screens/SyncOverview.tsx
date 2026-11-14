@@ -177,7 +177,7 @@ export function SyncOverview(): JSX.Element {
                     <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true">
                       <UiIcon icon={shape.icon} size={18} />
                     </td>
-                    <td style={{ fontWeight: 500 }}>{shape.category}</td>
+                    <td className="ea-fw-medium">{shape.category}</td>
                     <td className="ea-text-muted">{shape.sentence}</td>
                     <td className="ea-text-muted"
                         title={j.startedAt}>{fmtAgo(j.startedAt)}</td>

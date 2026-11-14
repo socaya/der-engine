@@ -263,7 +263,7 @@ export function DataTeiDetail(): JSX.Element {
                     <td>
                       {e.programName
                         ? <>
-                            <div style={{ fontWeight: 500 }}>{e.programName}</div>
+                            <div className="ea-fw-medium">{e.programName}</div>
                             <div className="ea-mono ea-text-muted"
                                  style={{ fontSize: 10 }}>
                               {e.programUid}
@@ -331,7 +331,7 @@ export function DataTeiDetail(): JSX.Element {
                       {e.eventUid}
                     </td>
                     <td>
-                      <div style={{ fontWeight: 500 }}>
+                      <div className="ea-fw-medium">
                         {e.programName ?? e.programUid}
                       </div>
                       <div className="ea-text-muted" style={{ fontSize: 11 }}>

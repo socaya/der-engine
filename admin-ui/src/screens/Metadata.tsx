@@ -252,7 +252,7 @@ export function Metadata(): JSX.Element {
             <input className="ea-input" style={{ maxWidth: 240 }}
                    type="search" placeholder="Search by name, ID or code"
                    value={query} onChange={(e) => setQuery(e.target.value)} />
-            <span className="ea-text-muted" style={{ fontSize: 12 }}>
+            <span className="ea-text-muted ea-text-xs">
               {query
                 ? `${filtered.length.toLocaleString()} match${filtered.length === 1 ? '' : 'es'} on this page`
                 : `${pageTotal.toLocaleString()} items`}
@@ -515,8 +515,7 @@ function MetadataDetailTabs({ sel, tab, setTab }: {
                   );
                   return (
                     <tr key={r.field + ':' + r.id + ':' + i}>
-                      <td className="ea-text-muted"
-                          style={{ fontSize: 12 }}>
+                      <td className="ea-text-muted ea-text-xs">
                         {r.field}
                       </td>
                       <td>{r.name ?? <span className="ea-text-muted"

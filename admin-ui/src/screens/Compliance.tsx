@@ -140,7 +140,7 @@ export function Compliance(): JSX.Element {
                   </td>
                   <td className="ea-text-muted">{p.lastPurgeAt ? fmtAgo(p.lastPurgeAt) : '—'}</td>
                   <td className="ea-mono">{p.lastPurgeRows}</td>
-                  <td className="ea-text-muted" style={{ fontSize: 12 }}>{p.description}</td>
+                  <td className="ea-text-muted ea-text-xs">{p.description}</td>
                   <td style={{ textAlign: 'right' }}>
                     {editKey === p.category ? (
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
@@ -182,7 +182,7 @@ export function Compliance(): JSX.Element {
                 {requests.map((r) => (
                   <tr key={r.requestId}>
                     <td className="ea-text-muted">{fmtAgo(r.requestedAt)}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>
+                    <td className="ea-mono ea-text-xs">
                       {r.subjectType}:{r.subjectId}
                     </td>
                     <td>
@@ -303,7 +303,7 @@ function ErasureDialog({ onClose, onSaved }: {
           which actually purges + stores a signed receipt hash.
         </p>
         <div style={{ display: 'grid', gap: 10 }}>
-          <label style={{ fontSize: 12 }}>Subject type
+          <label className="ea-text-xs">Subject type
             <select className="ea-input" value={subjectType}
                     onChange={(e) => setSubjectType(e.target.value)}>
               <option value="device">device</option>
@@ -311,12 +311,12 @@ function ErasureDialog({ onClose, onSaved }: {
               <option value="user">user</option>
             </select>
           </label>
-          <label style={{ fontSize: 12 }}>Subject ID
+          <label className="ea-text-xs">Subject ID
             <input className="ea-input" value={subjectId}
                    onChange={(e) => setSubjectId(e.target.value)}
                    placeholder="e.g. TAB-REG-01" />
           </label>
-          <label style={{ fontSize: 12 }}>Reason (recorded in audit)
+          <label className="ea-text-xs">Reason (recorded in audit)
             <input className="ea-input" value={reason}
                    onChange={(e) => setReason(e.target.value)}
                    placeholder="GDPR Art. 17 · patient request · device decommission" />

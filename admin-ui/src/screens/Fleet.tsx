@@ -104,8 +104,8 @@ export function Fleet(): JSX.Element {
                       </Status>
                     </td>
                     <td>{e.displayName ?? '—'}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{e.siteId ?? '—'}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{e.announcedVersion ?? '—'}</td>
+                    <td className="ea-mono ea-text-xs">{e.siteId ?? '—'}</td>
+                    <td className="ea-mono ea-text-xs">{e.announcedVersion ?? '—'}</td>
                     <td className="ea-text-muted">{fmtAgo(e.firstSeenAt)}</td>
                     <td className="ea-text-muted">{fmtAgo(e.lastSeenAt)}</td>
                   </tr>
@@ -138,7 +138,7 @@ export function Fleet(): JSX.Element {
                 {data.peers.map((p) => (
                   <tr key={p.peerId}>
                     <td className="ea-mono">{p.nodeId ?? '—'}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{p.endpoint}</td>
+                    <td className="ea-mono ea-text-xs">{p.endpoint}</td>
                     <td>
                       <Status tone={p.trust === 'TRUSTED' ? 'success' : 'warning'}>
                         {p.trust}
@@ -152,7 +152,7 @@ export function Fleet(): JSX.Element {
                       </Status>
                     </td>
                     <td className="ea-mono">{p.lastLatencyMs != null ? p.lastLatencyMs + ' ms' : '—'}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{p.remoteVersion ?? '—'}</td>
+                    <td className="ea-mono ea-text-xs">{p.remoteVersion ?? '—'}</td>
                     <td className="ea-mono">
                       {p.uptime24h == null ? '—' : p.uptime24h + ' %'}
                     </td>

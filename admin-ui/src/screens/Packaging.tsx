@@ -96,8 +96,8 @@ export function Packaging(): JSX.Element {
                 <tr key={k.kitId}>
                   <td className="ea-mono">{k.kitId}</td>
                   <td>{k.name}</td>
-                  <td className="ea-text-muted" style={{ fontSize: 12 }}>{k.specs}</td>
-                  <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                  <td className="ea-text-muted ea-text-xs">{k.specs}</td>
+                  <td className="ea-text-muted ea-text-xs">
                     {k.bestFor.join(' · ')}
                   </td>
                 </tr>
@@ -146,7 +146,7 @@ export function Packaging(): JSX.Element {
                       {a.sourceCommit ? a.sourceCommit.slice(0, 8) : '—'}
                     </td>
                     <td className="ea-mono" style={{ fontSize: 11 }}>{a.outputPath}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{a.builtBy ?? '—'}</td>
+                    <td className="ea-mono ea-text-xs">{a.builtBy ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -169,7 +169,7 @@ export function Packaging(): JSX.Element {
               bash packaging/tarball/build.sh
             </code>
           </p>
-          <p className="ea-text-muted" style={{ fontSize: 12 }}>
+          <p className="ea-text-muted ea-text-xs">
             Both scripts expect the server JAR and admin UI to be built first.
           </p>
         </div>

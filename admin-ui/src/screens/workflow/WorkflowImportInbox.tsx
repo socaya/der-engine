@@ -192,14 +192,14 @@ export function WorkflowImportInbox({ api = edgeApi, embedded = false }:
           <tbody>
             {entries.flatMap((e) => [
               <tr key={e.importId} data-test={`inbox-row-${e.importId}`}>
-                <td style={{ fontWeight: 500 }}>{e.displayName}</td>
-                <td className="ea-mono" style={{ fontSize: 12 }}>
+                <td className="ea-fw-medium">{e.displayName}</td>
+                <td className="ea-mono ea-text-xs">
                   {e.fromLabel ?? '—'}
                 </td>
-                <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                <td className="ea-text-muted ea-text-xs">
                   {new Date(e.receivedAt).toLocaleString()}
                 </td>
-                <td className="ea-mono" style={{ fontSize: 12 }}>
+                <td className="ea-mono ea-text-xs">
                   {e.boundKind}:{e.boundId}
                 </td>
                 <td data-test={`inbox-row-${e.importId}-status`}>
@@ -240,7 +240,7 @@ export function WorkflowImportInbox({ api = edgeApi, embedded = false }:
                       </button>
                     </div>
                   ) : (
-                    <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                    <span className="ea-text-muted ea-text-xs">
                       {e.decidedAt && new Date(e.decidedAt).toLocaleString()}
                       {e.decisionNote ? ' · ' + e.decisionNote : ''}
                     </span>
@@ -252,7 +252,7 @@ export function WorkflowImportInbox({ api = edgeApi, embedded = false }:
                      data-test={`inbox-row-${e.importId}-diff`}>
                   <td colSpan={6} className="ea-wizard-fields-row">
                     {diffs[e.importId] === 'loading' ? (
-                      <span className="ea-text-muted" style={{ fontSize: 12 }}>Loading diff…</span>
+                      <span className="ea-text-muted ea-text-xs">Loading diff…</span>
                     ) : (
                       <InboxDiffBlock diff={diffs[e.importId] as edgeApi.ImportInboxDiff} />
                     )}

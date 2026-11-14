@@ -302,7 +302,7 @@ export function DataQueues(): JSX.Element {
                         title={entityTypeLabel(op.entityType)}>
                       <UiIcon icon={entityTypeIcon(op.entityType)} size={18} />
                     </td>
-                    <td style={{ fontWeight: 500 }}>{entityTypeLabel(op.entityType)}</td>
+                    <td className="ea-fw-medium">{entityTypeLabel(op.entityType)}</td>
                     <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{op.entityType}</td>
                     <td className="ea-mono" style={{ fontSize: 13 }}>{op.entityRef}</td>
                     <td className="ea-text-muted"

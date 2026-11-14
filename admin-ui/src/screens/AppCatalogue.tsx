@@ -413,7 +413,7 @@ export function AppCatalogue(): JSX.Element {
                     <td style={{ padding: '6px 8px' }}>
                       <div style={{ fontWeight: 600 }}>{a.displayName}</div>
                       {a.module && (
-                        <div className="ea-text-muted" style={{ fontSize: 12 }}>
+                        <div className="ea-text-muted ea-text-xs">
                           {a.module}
                         </div>
                       )}

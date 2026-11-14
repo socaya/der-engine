@@ -1503,7 +1503,7 @@ export function EACaptureWorkflowList({ api = edgeApi }:
                     <td>
                       <Link to={`/workflows/${w.workflowId}`}
                             data-test={`cwf01-open-${w.workflowId}`}
-                            style={{ fontWeight: 500 }}>
+                            className="ea-fw-medium">
                         {w.displayName}
                       </Link>
                     </td>
@@ -1531,13 +1531,13 @@ export function EACaptureWorkflowList({ api = edgeApi }:
                     <td className="ea-mono">v{w.version}</td>
                     <td>
                       <Link to={`/workflows/${w.workflowId}#assignments`}
-                            className="ea-link-btn" style={{ fontSize: 12 }}>
+                            className="ea-link-btn ea-text-xs">
                         {(w.steps?.length ?? 0).toLocaleString()}
                       </Link>
                     </td>
                     <td>
                       <Link to={`/workflows/runs?workflow=${w.workflowId}`}
-                            className="ea-link-btn" style={{ fontSize: 12 }}>
+                            className="ea-link-btn ea-text-xs">
                         {(runCounts[w.workflowId] ?? 0).toLocaleString()}
                       </Link>
                     </td>
@@ -2218,7 +2218,7 @@ export function EAAuditVerify({ api = edgeApi }:
             </div>
             <div className="ea-def-row">
               <dt>Last verified</dt>
-              <dd className="ea-mono" style={{ fontSize: 12 }}>
+              <dd className="ea-mono ea-text-xs">
                 {lastVerifiedAt ? lastVerifiedAt.toLocaleString() : '—'}
               </dd>
             </div>

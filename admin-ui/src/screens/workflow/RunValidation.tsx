@@ -88,7 +88,7 @@ function Section({ title, tone, issues, testIdPrefix }: {
       <ul>
         {issues.map((i) => (
           <li key={i.issueId} data-test={`${testIdPrefix}-${i.code.toLowerCase()}`}>
-            <strong className="ea-mono" style={{ fontSize: 12 }}>{i.code}</strong>
+            <strong className="ea-mono ea-text-xs">{i.code}</strong>
             <span style={{ marginLeft: 8 }}>{i.message}</span>
             {i.fieldRef && (
               <span className="ea-text-muted" style={{ marginLeft: 8, fontSize: 12 }}>

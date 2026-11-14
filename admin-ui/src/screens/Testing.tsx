@@ -144,7 +144,7 @@ export function Testing(): JSX.Element {
                   <tr key={r.runId}>
                     <td className="ea-text-muted">{fmtAgo(r.startedAt)}</td>
                     <td className="ea-mono">{r.kind}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{r.scenario}</td>
+                    <td className="ea-mono ea-text-xs">{r.scenario}</td>
                     <td>
                       <Status tone={r.outcome === 'PASS' ? 'success'
                                      : r.outcome === 'FAIL' ? 'danger'
@@ -159,7 +159,7 @@ export function Testing(): JSX.Element {
                     <td className="ea-mono">{r.latencyP95Ms ?? '—'}</td>
                     <td className="ea-mono">{r.latencyP99Ms ?? '—'}</td>
                     <td className="ea-mono">{r.throughputRps != null ? r.throughputRps.toFixed(1) : '—'}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{r.triggeredBy ?? '—'}</td>
+                    <td className="ea-mono ea-text-xs">{r.triggeredBy ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>

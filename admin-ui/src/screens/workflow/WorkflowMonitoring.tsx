@@ -88,7 +88,7 @@ function PrefetchReadinessTable({ devices }: {
             return (
               <tr key={d.deviceId}
                    data-test={`wf-monitor-prefetch-${d.deviceId}`}>
-                <td style={{ fontWeight: 500 }}>
+                <td className="ea-fw-medium">
                   {d.displayName ?? d.deviceId.slice(0, 8)}
                 </td>
                 <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
@@ -405,13 +405,13 @@ export function WorkflowMonitoring({ api = edgeApi }:
               ) : blockages.map((b) => (
                 <tr key={b.runId + ':' + b.stepId}
                      data-test={`wf-monitor-blocked-${b.stepId}`}>
-                  <td style={{ fontWeight: 500 }}>
+                  <td className="ea-fw-medium">
                     {b.stepName ?? '—'}
                     <div className="ea-text-muted" style={{ fontSize: 11 }}>
                       <Link to={`/workflows/${b.workflowId}`}>{b.workflowName ?? '—'}</Link>
                     </div>
                   </td>
-                  <td className="ea-mono" style={{ fontSize: 12 }}>
+                  <td className="ea-mono ea-text-xs">
                     <Link to={`/workflows/monitoring/runs/${b.runId}`}>
                       {b.businessKey}
                     </Link>
@@ -467,7 +467,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                   <td>
                     <Link to={`/workflows/monitoring/runs/${i.runId}`}>{i.message}</Link>
                   </td>
-                  <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                  <td className="ea-text-muted ea-text-xs">
                     {i.stepName ?? '—'}
                     <br/>
                     <Link to={`/workflows/${i.workflowId}`}>{i.workflowName ?? '—'}</Link>
@@ -513,7 +513,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                   <td>
                     <Link to={`/workflows/${c.workflowId}`}>{c.workflowName ?? '—'}</Link>
                   </td>
-                  <td className="ea-mono" style={{ fontSize: 12 }}>
+                  <td className="ea-mono ea-text-xs">
                     <Link to={`/workflows/monitoring/runs/${c.runId}`}>
                       {c.businessKey}
                     </Link>
@@ -559,13 +559,13 @@ export function WorkflowMonitoring({ api = edgeApi }:
               ) : drafts.slice(0, 15).map((d) => (
                 <tr key={d.contributionId}
                      data-test={`wf-monitor-draft-${d.contributionId}`}>
-                  <td style={{ fontWeight: 500 }}>
+                  <td className="ea-fw-medium">
                     {d.stepName ?? '—'}
                     <div className="ea-text-muted" style={{ fontSize: 11 }}>
                       <Link to={`/workflows/${d.workflowId}`}>{d.workflowName ?? '—'}</Link>
                     </div>
                   </td>
-                  <td className="ea-mono" style={{ fontSize: 12 }}>
+                  <td className="ea-mono ea-text-xs">
                     <Link to={`/workflows/monitoring/runs/${d.runId}`}>
                       {d.businessKey}
                     </Link>
@@ -622,7 +622,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                     </Status>
                   </td>
                   <td>
-                    <span style={{ fontWeight: 500 }}>{f.stepName ?? '—'}</span>
+                    <span className="ea-fw-medium">{f.stepName ?? '—'}</span>
                     <div className="ea-text-muted" style={{ fontSize: 11 }}>
                       <Link to={`/workflows/${f.workflowId}`}>{f.workflowName ?? '—'}</Link>
                       {' · '}
@@ -669,7 +669,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
               ) : byWorkflow.map((b) => (
                 <tr key={b.workflowId}
                      data-test={`wf-monitor-wf-${b.workflowId}`}>
-                  <td style={{ fontWeight: 500 }}>
+                  <td className="ea-fw-medium">
                     <Link to={`/workflows/${b.workflowId}`}>{b.workflowName}</Link>
                   </td>
                   <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
@@ -722,7 +722,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                 return (
                   <tr key={b.deviceId ?? '__any__'}
                        data-test={`wf-monitor-dev-${b.deviceId ?? 'any'}`}>
-                    <td style={{ fontWeight: 500 }}>
+                    <td className="ea-fw-medium">
                       {b.deviceName}
                       {b.deviceId == null && (
                         <>  <Status tone="muted">pooled</Status></>
@@ -794,7 +794,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                   .map((s) => (
                 <tr key={s.workflowId + s.stepId}
                      data-test={`wf-monitor-ta-${s.stepId}`}>
-                  <td style={{ fontWeight: 500 }}>{s.stepName ?? '—'}</td>
+                  <td className="ea-fw-medium">{s.stepName ?? '—'}</td>
                   <td className="ea-text-muted">
                     <Link to={`/workflows/${s.workflowId}`}>{s.workflowName ?? '—'}</Link>
                   </td>
@@ -843,7 +843,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                   .map((d) => (
                 <tr key={d.deviceId}
                      data-test={`wf-monitor-dev-ta-${d.deviceId}`}>
-                  <td style={{ fontWeight: 500 }}>{d.deviceName ?? d.deviceId.slice(0, 8)}</td>
+                  <td className="ea-fw-medium">{d.deviceName ?? d.deviceId.slice(0, 8)}</td>
                   <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
                     {d.completedCount}
                   </td>
@@ -879,7 +879,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                 </td></tr>
               ) : byStep.slice(0, 12).map((s) => (
                 <tr key={s.workflowId + s.stepId}>
-                  <td style={{ fontWeight: 500 }}>{s.stepName}</td>
+                  <td className="ea-fw-medium">{s.stepName}</td>
                   <td className="ea-text-muted">
                     <Link to={`/workflows/${s.workflowId}`}>{s.workflowName}</Link>
                   </td>

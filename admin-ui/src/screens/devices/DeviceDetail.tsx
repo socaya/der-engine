@@ -238,7 +238,7 @@ function DeviceProfileEditor(
                 onClick={() => { save().catch(() => undefined); }}>
           {busy ? 'Saving…' : 'Save profile'}
         </button>
-        {err && <span className="ea-text-danger" style={{ fontSize: 12 }}>{err}</span>}
+        {err && <span className="ea-text-danger ea-text-xs">{err}</span>}
       </div>
     </section>
   );

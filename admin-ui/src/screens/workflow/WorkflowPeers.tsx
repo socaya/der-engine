@@ -238,9 +238,9 @@ export function WorkflowPeers({ api = edgeApi, embedded = false }:
               <tbody>
                 {peers.map((p) => (
                   <tr key={p.peerId} data-test={`peers-row-${p.peerId}`}>
-                    <td style={{ fontWeight: 500 }}>{p.displayName}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{p.baseUrl}</td>
-                    <td style={{ fontSize: 12 }}>
+                    <td className="ea-fw-medium">{p.displayName}</td>
+                    <td className="ea-mono ea-text-xs">{p.baseUrl}</td>
+                    <td className="ea-text-xs">
                       {p.authUsername ? (
                         <span data-test={`peers-row-${p.peerId}-auth`}>
                           <Status tone="success">Signed in</Status>
@@ -314,10 +314,10 @@ export function WorkflowPeers({ api = edgeApi, embedded = false }:
                         <span>{p.directImport ? 'direct' : 'via inbox'}</span>
                       </label>
                     </td>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                    <td className="ea-text-muted ea-text-xs">
                       {new Date(p.addedAt).toLocaleDateString()}
                     </td>
-                    <td style={{ fontSize: 12 }}
+                    <td className="ea-text-xs"
                         data-test={`peers-row-${p.peerId}-last-push`}>
                       {p.lastPushAt ? (
                         <>

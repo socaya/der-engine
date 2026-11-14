@@ -230,7 +230,7 @@ export function DevicesScreen(
                     <td className="ea-mono" style={{ fontSize: 11 }}>
                       {d.lastSeenAt ? fmtRel(d.lastSeenAt) : '—'}
                     </td>
-                    <td style={{ fontSize: 12 }}>
+                    <td className="ea-text-xs">
                       {d.ip ? (
                         <>
                           <code>{d.ip}</code>

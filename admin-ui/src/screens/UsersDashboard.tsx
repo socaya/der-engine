@@ -169,7 +169,7 @@ export function UsersDashboard(): JSX.Element {
                         {initials(u.displayName || u.username)}
                       </span>
                     </td>
-                    <td style={{ fontWeight: 500 }}>{u.displayName}</td>
+                    <td className="ea-fw-medium">{u.displayName}</td>
                     <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{u.username}</td>
                     <td>
                       {u.roles.map((r) => (
@@ -417,7 +417,7 @@ export function UserDetail(): JSX.Element {
                   <tbody>
                     {events.map((e, i) => (
                       <tr key={i} data-test={`user-detail-activity-row-${i}`}>
-                        <td className="ea-mono" style={{ fontSize: 12 }}>
+                        <td className="ea-mono ea-text-xs">
                           {new Date(e.observedAt).toLocaleString()}
                         </td>
                         <td className="ea-mono">{e.eventType}</td>
@@ -427,7 +427,7 @@ export function UserDetail(): JSX.Element {
                             {e.outcome}
                           </Status>
                         </td>
-                        <td className="ea-mono" style={{ fontSize: 12 }}>
+                        <td className="ea-mono ea-text-xs">
                           {e.clientIp ?? '—'}
                         </td>
                       </tr>
@@ -765,7 +765,7 @@ export function UserDhis2Mapping(): JSX.Element {
                     <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
                       <Status tone="success">Stored</Status>
                       {mapping!.credentialSetAt && (
-                        <span className="ea-text-muted" style={{ fontSize: 12 }}>
+                        <span className="ea-text-muted ea-text-xs">
                           {new Date(mapping!.credentialSetAt).toLocaleString()}
                         </span>
                       )}

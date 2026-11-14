@@ -1030,7 +1030,7 @@ export function CapSyncOverview(): JSX.Element {
 
       <Panel title="Jump to"
              action={
-               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+               <span className="ea-text-muted ea-text-xs">
                  Deep-dive into the specific sync surfaces
                </span>
              }>
@@ -1572,7 +1572,7 @@ export function CapSyncSettings(): JSX.Element {
       <section className="ea-panel" data-test="sync-reliability">
         <div className="ea-panel-head">
           <div className="ea-panel-title">Reliability — last 100 probes</div>
-          <div className="ea-text-muted" style={{ fontSize: 12 }}>
+          <div className="ea-text-muted ea-text-xs">
             {successCount} succeeded · {totalCount - successCount} failed · {reliability}% uptime
           </div>
         </div>
@@ -1846,7 +1846,7 @@ function ScheduleRow({ cronKey, value, onChange, onRunNow, lastRun, flash }: {
           <UiIcon icon={icon} size={18} />
         </td>
         <td>
-          <div style={{ fontWeight: 500 }}>{info.title}</div>
+          <div className="ea-fw-medium">{info.title}</div>
           <div className="ea-text-muted" style={{ fontSize: 12, lineHeight: 1.4 }}>
             {info.desc}
           </div>
@@ -1858,7 +1858,7 @@ function ScheduleRow({ cronKey, value, onChange, onRunNow, lastRun, flash }: {
         </td>
         <td>
           <div>{describeCron(value)}</div>
-          <div className="ea-text-muted ea-mono" style={{ fontSize: 12 }}>{value}</div>
+          <div className="ea-text-muted ea-mono ea-text-xs">{value}</div>
         </td>
         <td className="ea-text-muted">
           {lastRun?.startedAt ? fmtAgo(lastRun.startedAt) : '—'}
@@ -2005,7 +2005,7 @@ function WorkflowRunsTable(
         <tbody>
           {paged.rows.map((r) => (
             <tr key={r.runId}>
-              <td style={{ fontWeight: 500 }}>{r.workflowName}</td>
+              <td className="ea-fw-medium">{r.workflowName}</td>
               <td>
                 <Status tone={
                   r.state === 'COMPLETED' ? 'success'
@@ -2085,19 +2085,18 @@ export function CapStepAssignments(): JSX.Element {
             </tr></thead><tbody>
               {displayed.flatMap((w) => (w.steps ?? []).map((s) => (
                 <tr key={w.workflowId + '-' + s.ordinal}>
-                  {!scopedWorkflow && <td style={{ fontWeight: 500 }}>{w.displayName}</td>}
+                  {!scopedWorkflow && <td className="ea-fw-medium">{w.displayName}</td>}
                   <td className="ea-mono">{s.ordinal}</td>
                   <td>{s.displayName}</td>
                   <td><span className="ea-chip ea-chip--info" title={s.ownerRole}>{humaniseState(s.ownerRole)}</span></td>
                   <td><span className="ea-chip ea-chip--neutral" title={s.stepKind}>{humaniseState(s.stepKind)}</span></td>
-                  <td className="ea-mono" style={{ fontSize: 12 }}>
+                  <td className="ea-mono ea-text-xs">
                     {s.ownerDeviceId
                       ? s.ownerDeviceId.slice(0, 8) + '…'
                       : <span className="ea-text-muted">any</span>}
                   </td>
                   <td>
-                    <Link to={`/workflows/${w.workflowId}`} className="ea-link-btn"
-                           style={{ fontSize: 12 }}>Edit</Link>
+                    <Link to={`/workflows/${w.workflowId}`} className="ea-link-btn ea-text-xs">Edit</Link>
                   </td>
                 </tr>
               )))}
@@ -2559,7 +2558,7 @@ export function CapDrafts(): JSX.Element {
                       onClick={() => setSelected(new Set())}>
                 Clear selection
               </button>
-              <span className="ea-text-muted" style={{ fontSize: 12 }}>
+              <span className="ea-text-muted ea-text-xs">
                 Server batch cap: 100 drafts per request.
               </span>
             </div>
@@ -3146,7 +3145,7 @@ export function CapUserMappings(): JSX.Element {
             {users.map((u) => (
               <tr key={u.userId}>
                 <td>
-                  <div style={{ fontWeight: 500 }}>{u.displayName}</div>
+                  <div className="ea-fw-medium">{u.displayName}</div>
                   <div className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>{u.username}</div>
                 </td>
                 <td>
@@ -3307,7 +3306,7 @@ export function CapRoles(): JSX.Element {
                         {r.name}
                       </Link>
                       {r.description && (
-                        <div className="ea-text-muted" style={{ fontSize: 12 }}>
+                        <div className="ea-text-muted ea-text-xs">
                           {r.description}
                         </div>
                       )}
@@ -3325,7 +3324,7 @@ export function CapRoles(): JSX.Element {
                         data-test={`cap-roles-userct-${r.roleId}`}>
                       {r.userCount}
                     </td>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                    <td className="ea-text-muted ea-text-xs">
                       {r.updatedAt.replace('T', ' ').slice(0, 16)}
                     </td>
                     <td>
@@ -3589,9 +3588,8 @@ export function CapAuthorities(): JSX.Element {
                       <td data-test={`cap-authorities-allows-${a.authority}`}>
                         {a.allows ?? a.description}
                       </td>
-                      <td className="ea-text-muted"
-                          data-test={`cap-authorities-restricts-${a.authority}`}
-                          style={{ fontSize: 12 }}>
+                      <td className="ea-text-muted ea-text-xs"
+                          data-test={`cap-authorities-restricts-${a.authority}`}>
                         {a.restricts ?? '—'}
                       </td>
                       <td style={{ textAlign: 'right' }}
@@ -3811,7 +3809,7 @@ function RoleEditor(props: RoleEditorProps): JSX.Element {
     <Panel
       title={title}
       action={
-        <span className="ea-text-muted" style={{ fontSize: 12 }}>
+        <span className="ea-text-muted ea-text-xs">
           {authCount} / {props.catalog.length} authorit{authCount === 1 ? 'y' : 'ies'} selected
         </span>
       }>
@@ -4032,9 +4030,9 @@ export function CapSessions(): JSX.Element {
               <tbody>
                 {recentAuth.map((e, i) => (
                   <tr key={`${e.observedAt}-${i}`}>
-                    <td className="ea-mono" style={{ fontSize: 12 }}
+                    <td className="ea-mono ea-text-xs"
                         title={e.observedAt}>{fmtAgo(e.observedAt)}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>
+                    <td className="ea-mono ea-text-xs">
                       {e.actorUserId?.slice(0, 8) ?? '—'}
                     </td>
                     <td>
@@ -4044,7 +4042,7 @@ export function CapSessions(): JSX.Element {
                         {e.outcome}
                       </Status>
                     </td>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                    <td className="ea-text-muted ea-text-xs">
                       {e.clientIp ?? '—'}
                     </td>
                   </tr>
@@ -4266,7 +4264,7 @@ export function CapDeviceEnrolment(): JSX.Element {
                     <tr key={r.deviceId}
                         data-test={`cap-enrolment-row-${r.deviceId}`}>
                       <td>
-                        <div className="ea-mono" style={{ fontSize: 12 }}>
+                        <div className="ea-mono ea-text-xs">
                           {r.deviceId}
                         </div>
                         {r.displayName && (
@@ -4276,8 +4274,7 @@ export function CapDeviceEnrolment(): JSX.Element {
                         )}
                       </td>
                       <td>{r.formFactor ?? '—'}</td>
-                      <td className="ea-text-muted"
-                          style={{ fontSize: 12 }}
+                      <td className="ea-text-muted ea-text-xs"
                           title={r.enrolledAt}>{fmtAgo(r.enrolledAt)}</td>
                       <td className="ea-text-muted"
                           style={{ fontSize: 11, wordBreak: 'break-all' }}>
@@ -4436,7 +4433,7 @@ export function CapOwnership(): JSX.Element {
                     <tr key={r.deviceId}
                         data-test={`cap-ownership-row-${r.deviceId}`}>
                       <td>
-                        <div className="ea-mono" style={{ fontSize: 12 }}>
+                        <div className="ea-mono ea-text-xs">
                           {r.deviceId}
                         </div>
                         {r.displayName && (
@@ -4461,7 +4458,7 @@ export function CapOwnership(): JSX.Element {
                           {r.status}
                         </Status>
                       </td>
-                      <td className="ea-text-muted" style={{ fontSize: 12 }}
+                      <td className="ea-text-muted ea-text-xs"
                           title={r.lastSeenAt ?? ''}>
                         {r.lastSeenAt ? fmtAgo(r.lastSeenAt) : '—'}
                       </td>
@@ -4569,7 +4566,7 @@ export function CapConnections(): JSX.Element {
                       <tr key={r.deviceId}
                           data-test={`cap-connections-row-${r.deviceId}`}>
                         <td>
-                          <div className="ea-mono" style={{ fontSize: 12 }}>
+                          <div className="ea-mono ea-text-xs">
                             {r.deviceId}
                           </div>
                           {r.displayName && (
@@ -4578,11 +4575,11 @@ export function CapConnections(): JSX.Element {
                             </div>
                           )}
                         </td>
-                        <td className="ea-text-muted" style={{ fontSize: 12 }}
+                        <td className="ea-text-muted ea-text-xs"
                             title={r.lastSeenAt ?? 'never'}>
                           {r.lastSeenAt ? fmtAgo(r.lastSeenAt) : 'never'}
                         </td>
-                        <td className="ea-mono" style={{ fontSize: 12 }}>
+                        <td className="ea-mono ea-text-xs">
                           {r.firmwareVersion ?? '—'}
                         </td>
                         <td className="ea-text-muted"
@@ -4729,7 +4726,7 @@ export function CapDeviceDiagnostics(): JSX.Element {
                     <tr key={r.deviceId}
                         data-test={`cap-dev-diag-row-${r.deviceId}`}>
                       <td>
-                        <div className="ea-mono" style={{ fontSize: 12 }}>
+                        <div className="ea-mono ea-text-xs">
                           {r.deviceId}
                         </div>
                         {r.displayName && (
@@ -4760,7 +4757,7 @@ export function CapDeviceDiagnostics(): JSX.Element {
                           {r.lastSeenAt ? fmtAgo(r.lastSeenAt) : 'never'}
                         </Status>
                       </td>
-                      <td className="ea-text-muted" style={{ fontSize: 12 }}
+                      <td className="ea-text-muted ea-text-xs"
                           title={r.enrolledAt}>{fmtAgo(r.enrolledAt)}</td>
                     </tr>
                   );
@@ -4857,7 +4854,7 @@ export function CapOperatorMetrics(): JSX.Element {
       </Panel>
       <Panel title="Job reliability"
              action={
-               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+               <span className="ea-text-muted ea-text-xs">
                  Grouped by job name · last 100 runs
                </span>
              }>
@@ -4974,7 +4971,7 @@ export function CapServiceHealth(): JSX.Element {
       />
       <Panel title="Components"
              action={
-               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+               <span className="ea-text-muted ea-text-xs">
                  {components.length} components probed
                </span>
              }>

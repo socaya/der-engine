@@ -114,9 +114,9 @@ export function ConflictList(): JSX.Element {
                           title={entityTypeLabel(r.entityType)}>
                         <UiIcon icon={entityTypeIcon(r.entityType)} size={18} />
                       </td>
-                      <td style={{ fontWeight: 500 }}>{entityTypeLabel(r.entityType)}</td>
+                      <td className="ea-fw-medium">{entityTypeLabel(r.entityType)}</td>
                       <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.entityRef}</td>
-                      <td style={{ fontWeight: 500 }}>{problem.label}</td>
+                      <td className="ea-fw-medium">{problem.label}</td>
                       <td className="ea-text-muted">{problem.summary}</td>
                       <td>
                         <span className={'ea-chip ea-chip--'
@@ -124,7 +124,7 @@ export function ConflictList(): JSX.Element {
                           {prio}
                         </span>
                       </td>
-                      <td className="ea-text-muted" style={{ fontSize: 12 }}
+                      <td className="ea-text-muted ea-text-xs"
                           title={fmtDate(r.createdAt)}>{fmtAgo(r.createdAt)}</td>
                       <td style={{ textAlign: 'right' }}>
                         <RowMenu items={[

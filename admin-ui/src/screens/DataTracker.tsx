@@ -360,12 +360,12 @@ function TrackerTable(
               </td>
               <td title={r.programUid ?? ''}>
                 {r.kind === 'TEI' ? (
-                  <span style={{ fontWeight: 500 }}>
+                  <span className="ea-fw-medium">
                     {r.teTypeName ?? r.teType ?? 'Tracked entity'}
                   </span>
                 ) : r.programName ? (
                   <>
-                    <div style={{ fontWeight: 500 }}>{r.programName}</div>
+                    <div className="ea-fw-medium">{r.programName}</div>
                     {r.programStageName && (
                       <div className="ea-text-muted"
                            style={{ fontSize: 11 }}>
@@ -416,7 +416,7 @@ function TrackerTable(
                       <span className="ea-chip ea-chip--neutral"
                             style={{ marginRight: 2 }}>SYS</span>
                     )}
-                    <span style={{ fontSize: 12 }}>
+                    <span className="ea-text-xs">
                       {r.workflowName ?? r.workflowRunId.slice(0, 8)}
                     </span>
                     <span aria-hidden="true"
@@ -654,7 +654,7 @@ function PullTrackerFromCentralDialog(
             )}
             <div style={{ marginTop: 4 }}>
               <Link to={`/workflows/monitoring/runs/${result.runId}`}
-                     style={{ fontSize: 12 }}>
+                     className="ea-text-xs">
                 Open workflow run →
               </Link>
             </div>

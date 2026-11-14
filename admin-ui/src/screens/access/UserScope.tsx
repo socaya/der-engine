@@ -143,7 +143,7 @@ export function UserScope(): JSX.Element {
                     <tr key={u.userId}
                         data-test={`user-row-${u.username}`}>
                       <td>
-                        <div style={{ fontWeight: 500 }}>
+                        <div className="ea-fw-medium">
                           {u.displayName || u.username}
                         </div>
                         <div className="ea-text-muted ea-mono"
@@ -168,7 +168,7 @@ export function UserScope(): JSX.Element {
                                      className="ea-text-muted">·</span>}
                         </td>
                       ))}
-                      <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                      <td className="ea-text-muted ea-text-xs">
                         {otherRoles.length === 0 ? '—' : otherRoles.join(', ')}
                       </td>
                       <td>

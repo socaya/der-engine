@@ -157,7 +157,7 @@ export function Dhis2Mappings(): JSX.Element {
                     <tr key={u.userId}
                         data-test={`dhis2-mappings-row-${u.username}`}>
                       <td>
-                        <div style={{ fontWeight: 500 }}>
+                        <div className="ea-fw-medium">
                           {u.displayName || u.username}
                         </div>
                         <div className="ea-text-muted ea-mono"
@@ -165,7 +165,7 @@ export function Dhis2Mappings(): JSX.Element {
                           @{u.username}
                         </div>
                       </td>
-                      <td className="ea-mono" style={{ fontSize: 12 }}>
+                      <td className="ea-mono ea-text-xs">
                         {m
                           ? m.dhis2UserUid
                           : <span className="ea-chip ea-chip--warning"
@@ -173,11 +173,10 @@ export function Dhis2Mappings(): JSX.Element {
                               Unmapped
                             </span>}
                       </td>
-                      <td className="ea-mono" style={{ fontSize: 12 }}>
+                      <td className="ea-mono ea-text-xs">
                         {m ? m.dhis2Username : '—'}
                       </td>
-                      <td className="ea-text-muted"
-                          style={{ fontSize: 12 }}
+                      <td className="ea-text-muted ea-text-xs"
                           title={m?.mappedAt}>
                         {m ? fmtAgo(m.mappedAt) : '—'}
                       </td>
@@ -259,7 +258,7 @@ export function Dhis2Mappings(): JSX.Element {
               familiar sign-in handle.
             </p>
             <div style={{ display: 'grid', gap: 10 }}>
-              <label style={{ fontSize: 12 }}>DHIS2 UID (11 chars)
+              <label className="ea-text-xs">DHIS2 UID (11 chars)
                 <input className="ea-input ea-mono"
                        value={editDraft.uid}
                        aria-label="DHIS2 UID"
@@ -267,7 +266,7 @@ export function Dhis2Mappings(): JSX.Element {
                        onChange={(e) => setEditDraft(
                          (d) => d && { ...d, uid: e.target.value })} />
               </label>
-              <label style={{ fontSize: 12 }}>DHIS2 username
+              <label className="ea-text-xs">DHIS2 username
                 <input className="ea-input"
                        value={editDraft.username}
                        aria-label="DHIS2 username"
@@ -275,7 +274,7 @@ export function Dhis2Mappings(): JSX.Element {
                        onChange={(e) => setEditDraft(
                          (d) => d && { ...d, username: e.target.value })} />
               </label>
-              <label style={{ fontSize: 12 }}>DHIS2 display name (optional)
+              <label className="ea-text-xs">DHIS2 display name (optional)
                 <input className="ea-input"
                        value={editDraft.displayName}
                        aria-label="DHIS2 display name"

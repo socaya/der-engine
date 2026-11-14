@@ -111,7 +111,7 @@ export function DeviceMessaging(): JSX.Element {
       </Panel>
 
       <Panel title={`Recent messages · ${messages.length}`}
-             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+             action={<span className="ea-text-muted ea-text-xs">
                Auto-refreshing every 5 s.
              </span>}>
         {messages.length === 0 ? (
@@ -129,9 +129,9 @@ export function DeviceMessaging(): JSX.Element {
                 {paged.rows.map((m) => (
                   <tr key={m.messageId}>
                     <td className="ea-text-muted">{fmtAgo(m.createdAt)}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{m.channel}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{m.fromDeviceId}</td>
-                    <td style={{ fontWeight: 500 }}>
+                    <td className="ea-mono ea-text-xs">{m.channel}</td>
+                    <td className="ea-mono ea-text-xs">{m.fromDeviceId}</td>
+                    <td className="ea-fw-medium">
                       {m.messageType}
                       {(m as unknown as { encrypted?: boolean }).encrypted
                         && <Status tone="info">E2E</Status>}
@@ -171,8 +171,8 @@ export function DeviceMessaging(): JSX.Element {
               <tbody>
                 {subs.map((s) => (
                   <tr key={s.deviceId + s.channel}>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{s.deviceId}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{s.channel}</td>
+                    <td className="ea-mono ea-text-xs">{s.deviceId}</td>
+                    <td className="ea-mono ea-text-xs">{s.channel}</td>
                     <td className="ea-text-muted">{s.cursorAt ? fmtAgo(s.cursorAt) : '—'}</td>
                     <td className="ea-text-muted">
                       <Status tone={s.lastPollAt
@@ -199,7 +199,7 @@ export function DeviceMessaging(): JSX.Element {
       </Panel>
 
       <Panel title={`Device cryptographic keys · ${keys.length}`}
-             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+             action={<span className="ea-text-muted ea-text-xs">
                X25519 pubkeys for E2E encryption; Ed25519 for signing.
              </span>}>
         {keys.length === 0 ? (
@@ -238,7 +238,7 @@ export function DeviceMessaging(): JSX.Element {
       </Panel>
 
       <Panel title={`CRDT documents · ${docs.length}`}
-             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+             action={<span className="ea-text-muted ea-text-xs">
                Channel prefix <code>crdt:</code> routes LWW-Map ops.
              </span>}>
         {docs.length === 0 ? (
@@ -258,7 +258,7 @@ export function DeviceMessaging(): JSX.Element {
                   <tr key={d.docId}>
                     <td className="ea-mono">{d.docId}</td>
                     <td>{d.docType}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{d.createdBy}</td>
+                    <td className="ea-mono ea-text-xs">{d.createdBy}</td>
                     <td className="ea-mono">{d.opCount}</td>
                     <td className="ea-text-muted">{d.lastOpAt ? fmtAgo(d.lastOpAt) : '—'}</td>
                   </tr>
@@ -270,7 +270,7 @@ export function DeviceMessaging(): JSX.Element {
       </Panel>
 
       <Panel title={`Edge-to-edge forwards · ${forwards.length}`}
-             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+             action={<span className="ea-text-muted ea-text-xs">
                Channel prefix <code>edge:&lt;peerNodeId&gt;:&lt;sub&gt;</code> relays over WireGuard.
              </span>}>
         {forwards.length === 0 ? (
@@ -289,7 +289,7 @@ export function DeviceMessaging(): JSX.Element {
                 {forwards.map((f) => (
                   <tr key={f.forwardId}>
                     <td className="ea-text-muted">{fmtAgo(f.attemptedAt)}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{f.targetEdgeId}</td>
+                    <td className="ea-mono ea-text-xs">{f.targetEdgeId}</td>
                     <td>
                       <Status tone={f.outcome === 'SUCCESS' ? 'success'
                                      : f.outcome === 'NO_PEER' ? 'warning'
@@ -298,7 +298,7 @@ export function DeviceMessaging(): JSX.Element {
                       </Status>
                     </td>
                     <td className="ea-mono">{f.httpStatus ?? '—'}</td>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                    <td className="ea-text-muted ea-text-xs">
                       {f.reason ?? '—'}
                     </td>
                   </tr>
@@ -353,15 +353,15 @@ function PublishDialog({ onClose, onSaved }: {
           role fan-out, <code>broadcast</code> for everyone.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <label style={{ fontSize: 12 }}>From device
+          <label className="ea-text-xs">From device
             <input className="ea-input" value={fromDevice}
                    onChange={(e) => setFromDevice(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Channel
+          <label className="ea-text-xs">Channel
             <input className="ea-input" value={channel}
                    onChange={(e) => setChannel(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Message type
+          <label className="ea-text-xs">Message type
             <select className="ea-input" value={messageType}
                     onChange={(e) => setMessageType(e.target.value)}>
               <option value="REFERRAL_INTERNAL">REFERRAL_INTERNAL</option>
@@ -371,7 +371,7 @@ function PublishDialog({ onClose, onSaved }: {
               <option value="PRESENCE">PRESENCE</option>
             </select>
           </label>
-          <label style={{ fontSize: 12 }}>TTL (minutes, 0 = no expiry)
+          <label className="ea-text-xs">TTL (minutes, 0 = no expiry)
             <input className="ea-input" type="number" value={ttlMinutes}
                    onChange={(e) => setTtlMinutes(Number(e.target.value))} />
           </label>

@@ -113,7 +113,7 @@ export function AuditEvents(): JSX.Element {
                   {paged.rows.map((e) => (
                     <tr key={e.eventId}>
                       <td className="ea-mono">{fmtDate(e.observedAt)}</td>
-                      <td style={{ fontWeight: 500 }}>{e.eventType}</td>
+                      <td className="ea-fw-medium">{e.eventType}</td>
                       <td className="ea-mono ea-text-muted">{e.interfaceName ?? '—'}</td>
                       <td className="ea-mono ea-text-muted" style={{ fontSize: 13 }}>
                         {e.deviceId ?? e.nodeId ?? '—'}
@@ -446,7 +446,7 @@ export function SecurityAuditTrail(): JSX.Element {
                     {events.map((e) => (
                       <tr key={e.auditId}
                           data-test={`audit-trail-row-${e.auditId}`}>
-                        <td className="ea-mono" style={{ fontSize: 12 }}>
+                        <td className="ea-mono ea-text-xs">
                           {new Date(e.observedAt).toLocaleString()}
                         </td>
                         <td className="ea-mono">{e.eventType}</td>
@@ -464,8 +464,7 @@ export function SecurityAuditTrail(): JSX.Element {
                             style={{ fontSize: 11 }}>
                           {e.subjectUserId?.slice(0, 8) ?? '—'}
                         </td>
-                        <td className="ea-mono ea-text-muted"
-                            style={{ fontSize: 12 }}>
+                        <td className="ea-mono ea-text-muted ea-text-xs">
                           {e.clientIp ?? '—'}
                         </td>
                       </tr>

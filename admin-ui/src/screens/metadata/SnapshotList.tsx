@@ -106,11 +106,11 @@ export function SnapshotList({ api = edgeApi }:
                 </td>
                 <td>
                   <div>{new Date(s.importedAt).toLocaleString()}</div>
-                  <div className="ea-text-muted" style={{ fontSize: 12 }}>
+                  <div className="ea-text-muted ea-text-xs">
                     from {new URL(s.importedFrom).host}
                   </div>
                 </td>
-                <td className="ea-mono" style={{ fontSize: 12 }}>
+                <td className="ea-mono ea-text-xs">
                   {s.centralVersion ?? '—'}
                   {s.centralRevision && (
                     <div className="ea-text-muted">{s.centralRevision.slice(0, 7)}</div>
@@ -123,7 +123,7 @@ export function SnapshotList({ api = edgeApi }:
                       {s.pinnedWorkflows} workflow{s.pinnedWorkflows === 1 ? '' : 's'}
                     </span>
                   ) : (
-                    <span className="ea-text-muted" style={{ fontSize: 12 }}>—</span>
+                    <span className="ea-text-muted ea-text-xs">—</span>
                   )}
                 </td>
                 <td>
@@ -134,7 +134,7 @@ export function SnapshotList({ api = edgeApi }:
                 <td>
                   {latest && s.snapshotId !== latest.snapshotId && (
                     <Link to={`/metadata/snapshots/${s.snapshotId}/diff/${latest.snapshotId}`}
-                           className="ea-link-btn" style={{ fontSize: 12 }}
+                           className="ea-link-btn ea-text-xs"
                            data-test={`snapshot-row-${s.snapshotId}-diff`}>
                       vs #{latest.snapshotId}
                     </Link>

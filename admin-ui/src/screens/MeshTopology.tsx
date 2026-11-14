@@ -146,7 +146,7 @@ export function MeshTopology(): JSX.Element {
                 {(topology?.peers ?? []).map((p) => (
                   <tr key={p.id}>
                     <td className="ea-mono">{p.name}</td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{p.endpoint}</td>
+                    <td className="ea-mono ea-text-xs">{p.endpoint}</td>
                     <td>
                       <Status tone={p.status === 'online' ? 'success'
                                      : p.status === 'degraded' ? 'warning' : 'danger'}>
@@ -171,7 +171,7 @@ export function MeshTopology(): JSX.Element {
       </Panel>
 
       <Panel title={`Transitive reachability · ${adjacency.length}`}
-             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+             action={<span className="ea-text-muted ea-text-xs">
                Lowest-hop route wins; direct peers = hop 1.
              </span>}>
         {adjacency.length === 0 ? (
@@ -190,7 +190,7 @@ export function MeshTopology(): JSX.Element {
               <tbody>
                 {adjacency.map((a) => (
                   <tr key={a.localPeerId + a.reachableEdge}>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{a.localNodeId}</td>
+                    <td className="ea-mono ea-text-xs">{a.localNodeId}</td>
                     <td className="ea-mono" style={{ fontSize: 11 }} title={a.reachableEdge}>
                       {a.reachableEdge.slice(0, 24)}…
                     </td>

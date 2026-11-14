@@ -170,11 +170,11 @@ export function WorkflowQueue({ api = edgeApi }:
                   <tr key={`${r.runId}-${r.stepId}`}
                       data-test={`queue-row-${r.runId}-${r.stepId}`}
                       className={r.readiness === 'BLOCKED' ? 'is-dim' : ''}>
-                    <td style={{ fontWeight: 500 }}>
+                    <td className="ea-fw-medium">
                       <Link to={`/workflows/${r.workflowId}`}>
                         {r.workflowName}
                       </Link>
-                      <div className="ea-text-muted" style={{ fontSize: 12 }}>
+                      <div className="ea-text-muted ea-text-xs">
                         run · {r.businessKey ?? r.runId.slice(0, 8)}
                       </div>
                     </td>

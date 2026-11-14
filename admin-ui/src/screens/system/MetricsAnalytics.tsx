@@ -105,7 +105,7 @@ export function OperatorMetrics(): JSX.Element {
       />
       <Panel title="Per-operator breakdown"
              action={
-               <span className="ea-text-muted" style={{ fontSize: 12 }}>
+               <span className="ea-text-muted ea-text-xs">
                  Click a row for user detail
                </span>
              }>
@@ -135,8 +135,8 @@ export function OperatorMetrics(): JSX.Element {
                         `/provisioning/users/${encodeURIComponent(r.userId)}`)}
                       style={{ cursor: 'pointer' }}>
                     <td>
-                      <div style={{ fontWeight: 500 }}>{r.displayName}</div>
-                      <div className="ea-mono ea-text-muted" style={{ fontSize: 12 }}>
+                      <div className="ea-fw-medium">{r.displayName}</div>
+                      <div className="ea-mono ea-text-muted ea-text-xs">
                         @{r.username}
                       </div>
                     </td>

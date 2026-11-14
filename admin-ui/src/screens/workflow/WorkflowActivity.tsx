@@ -160,11 +160,10 @@ export function WorkflowActivity({ api = edgeApi }:
               {workflows.slice(0, 8).map((w) => (
                 <tr key={w.workflowId}
                      data-test={`wf-activity-row-${w.workflowId}`}>
-                  <td style={{ fontWeight: 500 }}>
+                  <td className="ea-fw-medium">
                     <Link to={`/workflows/${w.workflowId}`}>{w.displayName}</Link>
                   </td>
-                  <td className="ea-text-muted ea-mono"
-                      style={{ fontSize: 12 }}>
+                  <td className="ea-text-muted ea-mono ea-text-xs">
                     {w.boundMetadataKind}
                   </td>
                   <td className="ea-text-muted">{w.steps?.length ?? 0}</td>
@@ -250,7 +249,7 @@ function QueueRow({ icon, label, to, value, status }: {
       <td style={{ textAlign: 'center', color: 'var(--der-ink-500)' }} aria-hidden="true">
         <UiIcon icon={icon} size={18} />
       </td>
-      <td style={{ fontWeight: 500 }}>
+      <td className="ea-fw-medium">
         <Link to={to}>{label}</Link>
       </td>
       <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>

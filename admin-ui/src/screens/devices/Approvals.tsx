@@ -53,7 +53,7 @@ export function ApprovalQueue(): JSX.Element {
                         title={entityTypeLabel(r.entityType)}>
                       <UiIcon icon={entityTypeIcon(r.entityType)} size={18} />
                     </td>
-                    <td style={{ fontWeight: 500 }}>{entityTypeLabel(r.entityType)}</td>
+                    <td className="ea-fw-medium">{entityTypeLabel(r.entityType)}</td>
                     <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.entityRef}</td>
                     <td>{r.submittedBy ?? '—'}</td>
                     <td className="ea-text-muted"

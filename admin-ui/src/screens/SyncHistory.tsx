@@ -119,7 +119,7 @@ export function SyncHistory(): JSX.Element {
                         aria-hidden="true" title={shape.category}>
                       <UiIcon icon={shape.icon} size={18} />
                     </td>
-                    <td style={{ fontWeight: 500 }}>{shape.category}</td>
+                    <td className="ea-fw-medium">{shape.category}</td>
                     <td className="ea-text-muted">{shape.sentence}</td>
                     <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
                       {shape.direction === 'local' ? (
@@ -136,7 +136,7 @@ export function SyncHistory(): JSX.Element {
                         </>
                       )}
                     </td>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}
+                    <td className="ea-text-muted ea-text-xs"
                         title={fmtDate(j.startedAt)}>{fmtAgo(j.startedAt)}</td>
                     <td className="ea-mono">{fmtDur(j.durationMs)}</td>
                     <td>
@@ -334,7 +334,7 @@ export function SyncHistoryDetail(): JSX.Element {
                 <tbody>
                   {Object.entries(metaDiag.mirrorCounts).map(([k, v]) => (
                     <tr key={k}>
-                      <td style={{ fontWeight: 500 }}>{mirrorCountLabel(k)}</td>
+                      <td className="ea-fw-medium">{mirrorCountLabel(k)}</td>
                       <td className="ea-mono" style={{ textAlign: 'right', fontWeight: 600 }}>
                         {(v ?? 0).toLocaleString()}
                       </td>
@@ -411,7 +411,7 @@ export function SyncHistoryDetail(): JSX.Element {
                     <tr key={type}>
                       <td style={{ color: 'var(--der-ink-500)' }} aria-hidden="true"><UiIcon icon={entityTypeIcon(type)} size={16} /></td>
                       <td>
-                        <div style={{ fontWeight: 500 }}>{entityTypeLabel(type)}</div>
+                        <div className="ea-fw-medium">{entityTypeLabel(type)}</div>
                         <div className="ea-text-muted ea-mono" style={{ fontSize: 10 }}>{type}</div>
                       </td>
                       <td className="ea-mono"
@@ -444,7 +444,7 @@ export function SyncHistoryDetail(): JSX.Element {
                         <span aria-hidden="true" style={{ color: 'var(--der-ink-500)' }}>
                           <UiIcon icon={entityTypeIcon(op.entityType)} size={16} />
                         </span>
-                        <span style={{ fontWeight: 500 }}>{entityTypeLabel(op.entityType)}</span>
+                        <span className="ea-fw-medium">{entityTypeLabel(op.entityType)}</span>
                         <span className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>
                           {op.entityRef}
                         </span>

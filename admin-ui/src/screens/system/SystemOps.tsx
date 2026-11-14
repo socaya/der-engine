@@ -50,7 +50,7 @@ export function Decommission(): JSX.Element {
                 {receipt.finalBackupRequested ? 'yes' : 'no'}
               </dd></div>
             <div className="ea-def-row"><dt>Acted by</dt>
-              <dd className="ea-mono" style={{ fontSize: 12 }}>
+              <dd className="ea-mono ea-text-xs">
                 {receipt.actedBy}
               </dd></div>
           </dl>
@@ -258,7 +258,7 @@ export function SiteConfig(): JSX.Element {
                 return (
                   <tr key={k} data-test={`site-row-${k}`}>
                     <td>
-                      <div style={{ fontWeight: 500 }}>{meta.label}</div>
+                      <div className="ea-fw-medium">{meta.label}</div>
                       <div className="ea-text-muted ea-mono"
                            style={{ fontSize: 11 }}>
                         {k}
@@ -404,7 +404,7 @@ export function ConfigEditor(): JSX.Element {
                 const saving = savingKey === k;
                 return (
                   <tr key={k} data-test={`config-row-${k}`}>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>{k}</td>
+                    <td className="ea-mono ea-text-xs">{k}</td>
                     <td>
                       <input className="ea-input ea-mono" type="text"
                              style={{ width: '100%', fontSize: 12 }}
@@ -454,11 +454,11 @@ export function ConfigEditor(): JSX.Element {
               <tbody>
                 {history.map((e, i) => (
                   <tr key={`${e.observedAt}-${i}`}>
-                    <td className="ea-mono" style={{ fontSize: 12 }}
+                    <td className="ea-mono ea-text-xs"
                         title={e.observedAt}>
                       {fmtAgo(e.observedAt)}
                     </td>
-                    <td className="ea-mono" style={{ fontSize: 12 }}>
+                    <td className="ea-mono ea-text-xs">
                       {e.actorUserId?.slice(0, 8) ?? '—'}
                     </td>
                     <td className="ea-mono" style={{ fontSize: 12,

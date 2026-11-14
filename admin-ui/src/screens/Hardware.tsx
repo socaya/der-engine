@@ -109,12 +109,12 @@ export function Hardware(): JSX.Element {
           <div className="ea-def-row"><dt>Ping count</dt>
             <dd className="ea-mono">{data?.watchdog.pingCount ?? 0}</dd></div>
           <div className="ea-def-row"><dt>Notify socket</dt>
-            <dd className="ea-mono" style={{ fontSize: 12 }}>
+            <dd className="ea-mono ea-text-xs">
               {data?.watchdog.notifySocket ?? '—'}
             </dd></div>
           {data?.watchdog.lastFailureMsg && (
             <div className="ea-def-row"><dt>Last failure</dt>
-              <dd className="ea-text-muted" style={{ fontSize: 12 }}>
+              <dd className="ea-text-muted ea-text-xs">
                 {data.watchdog.lastFailureMsg}
               </dd></div>
           )}
@@ -186,7 +186,7 @@ export function Hardware(): JSX.Element {
       </Panel>
 
       <Panel title={`Status LEDs · ${data?.leds.length ?? 0}`}
-             action={<span className="ea-text-muted" style={{ fontSize: 12 }}>
+             action={<span className="ea-text-muted ea-text-xs">
                Pi-side daemon polls <code>GET /system/hardware/leds</code> every 2 s.
              </span>}>
         {!data?.leds.length ? (
@@ -284,7 +284,7 @@ export function Hardware(): JSX.Element {
                     <td className="ea-text-muted">
                       {s.lastUnsealAt ? fmtAgo(s.lastUnsealAt) : '—'}
                     </td>
-                    <td className="ea-text-muted" style={{ fontSize: 12 }}>
+                    <td className="ea-text-muted ea-text-xs">
                       {s.description ?? '—'}
                     </td>
                   </tr>
@@ -331,16 +331,16 @@ function SealDialog({ onClose, onSaved }: {
           + <code>tpm2-tools</code> present, otherwise file-sealed with PBKDF2-of-machine-id.
         </p>
         <div style={{ display: 'grid', gap: 10 }}>
-          <label style={{ fontSize: 12 }}>Secret ID
+          <label className="ea-text-xs">Secret ID
             <input className="ea-input" value={secretId}
                    placeholder="dhis2-token"
                    onChange={(e) => setSecretId(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Description
+          <label className="ea-text-xs">Description
             <input className="ea-input" value={description}
                    onChange={(e) => setDescription(e.target.value)} />
           </label>
-          <label style={{ fontSize: 12 }}>Plaintext
+          <label className="ea-text-xs">Plaintext
             <textarea className="ea-input" rows={4}
                       style={{ fontFamily: 'monospace', fontSize: 12 }}
                       value={plaintext}

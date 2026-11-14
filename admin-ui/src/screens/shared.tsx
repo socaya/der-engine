@@ -377,7 +377,7 @@ export function TablePager({ page, pageCount, pageSize, total, onPage, onPageSiz
   return (
     <div className="ea-table-footer" data-test="table-pager">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span className="ea-text-muted" style={{ fontSize: 12 }}>
+        <span className="ea-text-muted ea-text-xs">
           {from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()}
         </span>
         {onPageSize && (

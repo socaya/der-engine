@@ -413,7 +413,7 @@ function PolicyAuditPanel(
                       {e.eventType === 'SYNC_POLICY_RESET' ? 'Reset' : 'Update'}
                     </span>
                   </td>
-                  <td style={{ fontSize: 12 }}>
+                  <td className="ea-text-xs">
                     {renderAuditDetail(e.detailJson)}
                   </td>
                 </tr>

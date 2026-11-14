@@ -267,7 +267,7 @@ export function JournalPanel(
                                 fontVariantNumeric: 'tabular-nums' }}>
                     {e.attemptCount}
                   </td>
-                  <td style={{ fontSize: 12 }}>
+                  <td className="ea-text-xs">
                     {e.lastError
                       ? <ResponseBody text={e.lastError}
                                        dataTest={`journal-body-${e.operationId}`} />

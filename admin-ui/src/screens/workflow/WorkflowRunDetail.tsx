@@ -165,7 +165,7 @@ export function WorkflowRunDetail(): JSX.Element {
                       style={{ fontVariantNumeric: 'tabular-nums' }}>
                     {s.ordinal + 1}
                   </td>
-                  <td style={{ fontWeight: 500 }}>
+                  <td className="ea-fw-medium">
                     {s.stepName}
                     {s.state === 'BLOCKED' && s.blockedBy.length > 0 && (
                       <div className="ea-text-muted" style={{ fontSize: 11 }}>
@@ -384,26 +384,23 @@ function OutboundBundlePanel({ runId }: { runId: string }): JSX.Element {
   if (err) {
     return (
       <Panel title="Outbound bundle">
-        <p className="ea-text-muted"
-           data-test="wf-run-manifest-error"
-           style={{ fontSize: 12 }}>{err}</p>
+        <p className="ea-text-muted ea-text-xs"
+           data-test="wf-run-manifest-error">{err}</p>
       </Panel>
     );
   }
   if (!m) {
     return (
       <Panel title="Outbound bundle">
-        <p className="ea-text-muted"
-           style={{ fontSize: 12 }}>Loading manifest…</p>
+        <p className="ea-text-muted ea-text-xs">Loading manifest…</p>
       </Panel>
     );
   }
   if (m.total === 0) {
     return (
       <Panel title="Outbound bundle">
-        <p className="ea-text-muted"
-           data-test="wf-run-manifest-empty"
-           style={{ fontSize: 12 }}>
+        <p className="ea-text-muted ea-text-xs"
+           data-test="wf-run-manifest-empty">
           This run hasn&apos;t produced any outbox entries yet.
         </p>
       </Panel>
