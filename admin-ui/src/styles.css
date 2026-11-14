@@ -77,6 +77,8 @@ body{
 }
 .ea-mono{font-family:var(--der-font-mono);font-size:var(--fs-sm)}
 .ea-text-muted{color:var(--der-ink-500);font-size:var(--fs-md)}
+.ea-text-right{text-align:right}
+.ea-text-center{text-align:center}
 code{font-family:var(--der-font-mono);font-size:var(--fs-sm)}
 
 /* ============ Shell layout ============ */
