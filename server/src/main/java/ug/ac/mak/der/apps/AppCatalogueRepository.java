@@ -1,6 +1,7 @@
 package ug.ac.mak.der.apps;
 
 import java.sql.ResultSet;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -206,6 +207,71 @@ public class AppCatalogueRepository {
                 requiresDerApi, uploadedBy, manifestJson, iconBytes, iconMime, iconEtag);
         return versionId;
     }
+
+    /**
+     * DER-APPS-DHIS2-001 FR-SYNC-006 — list every known version of an
+     * app, active + superseded, newest-upload first. Used by the
+     * rollback admin surface.
+     */
+    public List<VersionRow> listVersions(final UUID appId) {
+        return jdbc.query(
+                "SELECT version, bundle_sha256, uploaded_at, superseded_at, "
+                        + "       uploaded_by "
+                        + "FROM der.installed_app_version "
+                        + "WHERE app_id = ? "
+                        + "ORDER BY uploaded_at DESC",
+                (ResultSet rs, int n) -> new VersionRow(
+                        rs.getString("version"),
+                        rs.getString("bundle_sha256"),
+                        rs.getTimestamp("uploaded_at").toInstant(),
+                        rs.getTimestamp("superseded_at") == null ? null
+                                : rs.getTimestamp("superseded_at").toInstant(),
+                        (UUID) rs.getObject("uploaded_by")),
+                appId);
+    }
+
+    /**
+     * DER-APPS-DHIS2-001 FR-SYNC-006 — flip which version is active.
+     * Supersedes any currently-active row and un-supersedes the target.
+     * Returns the number of rows the UPDATE touched (0 when the target
+     * version doesn't exist for this app).
+     */
+    public int rollbackToVersion(final UUID appId, final String version) {
+        if (appId == null || version == null) {
+            return 0;
+        }
+        jdbc.update(
+                "UPDATE der.installed_app_version SET superseded_at = now() "
+                        + "WHERE app_id = ? AND superseded_at IS NULL "
+                        + "AND version <> ?",
+                appId, version);
+        return jdbc.update(
+                "UPDATE der.installed_app_version SET superseded_at = NULL "
+                        + "WHERE app_id = ? AND version = ?",
+                appId, version);
+    }
+
+    /**
+     * FR-SYNC-006 retention — drop version rows that have been
+     * superseded for more than {@code retentionDays} days. Callers
+     * supply the retention window so the daily sweep + ad-hoc admin
+     * clean-up can share one statement.
+     */
+    public int pruneSupersededVersions(final int retentionDays) {
+        final int days = Math.max(1, retentionDays);
+        return jdbc.update(
+                "DELETE FROM der.installed_app_version "
+                        + "WHERE superseded_at IS NOT NULL "
+                        + "  AND superseded_at < now() - (? || ' days')::interval",
+                String.valueOf(days));
+    }
+
+    /** Version metadata row for {@link #listVersions}. */
+    public record VersionRow(String version,
+                              String sha256,
+                              Instant uploadedAt,
+                              Instant supersededAt,
+                              UUID uploadedBy) { }
 
     /** Flip {@code installed_app.enabled} + stamp {@code installed_by}. */
     public int setEnabled(final UUID appId, final boolean enabled,

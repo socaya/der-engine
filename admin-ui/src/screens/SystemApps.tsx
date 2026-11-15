@@ -78,6 +78,35 @@ export function SystemApps(): JSX.Element {
     && (policy.mode !== policyDraft.mode
       || policy.keys.join(', ') !== policyDraft.keysText.trim());
 
+  const onRollback = async (row: edgeApi.AdminAppRow): Promise<void> => {
+    let versions: edgeApi.AppVersionRow[];
+    try {
+      const r = await edgeApi.listAppVersions(row.appId);
+      versions = r.versions;
+    } catch (e) {
+      alert(`Could not load versions: ${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
+    const superseded = versions.filter((v) => !v.active);
+    if (superseded.length === 0) {
+      alert(`No prior versions retained for ${row.displayName}.`);
+      return;
+    }
+    const choices = superseded
+      .map((v) => `${v.version} (superseded ${v.supersededAt})`).join('\n');
+    const pick = window.prompt(
+      `Rollback "${row.displayName}" to which prior version?\n\n${choices}`,
+      superseded[0]!.version);
+    if (pick === null || pick.trim() === '') return;
+    try {
+      await edgeApi.rollbackApp(row.appId, pick.trim());
+      const r = await edgeApi.listAdminApps();
+      setRows(r.apps);
+    } catch (e) {
+      alert(`Rollback failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
   const onPreview = async (): Promise<void> => {
     setSyncBusy(true); setSyncErr(null);
     try {
@@ -160,6 +189,7 @@ export function SystemApps(): JSX.Element {
                   <th className="ea-col-w-100">Status</th>
                   <th className="ea-col-w-140">Installed</th>
                   <th className="ea-col-w-120">Last opened</th>
+                  <th className="ea-col-w-90">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -206,6 +236,14 @@ export function SystemApps(): JSX.Element {
                     <td className="ea-text-muted ea-text-xs"
                         title={r.lastOpenedAt ?? undefined}>
                       {r.lastOpenedAt ? fmtAgo(r.lastOpenedAt) : '—'}
+                    </td>
+                    <td>
+                      <button className="ea-btn ea-btn--secondary ea-btn--xs"
+                              type="button"
+                              onClick={() => { void onRollback(r); }}
+                              data-test={`system-apps-rollback-${r.appKey}`}>
+                        Rollback
+                      </button>
                     </td>
                   </tr>
                 ))}

@@ -334,6 +334,73 @@ public class AppCatalogueController {
         return toggle(authentication, appId, false);
     }
 
+    /** DER-APPS-DHIS2-001 FR-SYNC-006 — list every version ever
+     *  installed for this app, active + superseded. Powers the admin
+     *  rollback picker. ADMIN-only. */
+    @GetMapping(path = "/edge-api/v1/admin/apps/{appId}/versions",
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> listVersions(
+            final Authentication authentication,
+            @PathVariable("appId") final UUID appId) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(
+                ug.ac.mak.der.security.EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of("code", "FORBIDDEN"));
+        }
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        for (final AppCatalogueRepository.VersionRow v : repo.listVersions(appId)) {
+            final Map<String, Object> m = new LinkedHashMap<>();
+            m.put("version", v.version());
+            m.put("sha256", v.sha256());
+            m.put("uploadedAt", v.uploadedAt().toString());
+            m.put("supersededAt", v.supersededAt() == null ? null
+                    : v.supersededAt().toString());
+            m.put("active", v.supersededAt() == null);
+            m.put("uploadedBy", v.uploadedBy() == null ? null
+                    : v.uploadedBy().toString());
+            rows.add(m);
+        }
+        return ResponseEntity.ok(Map.of("appId", appId.toString(),
+                "versions", rows));
+    }
+
+    /** DER-APPS-DHIS2-001 FR-SYNC-006 — reactivate a prior version.
+     *  Supersedes whatever is currently active and un-supersedes the
+     *  target. 404 when the target version doesn't exist for this app.
+     *  Admin-only. */
+    @PostMapping(path = "/edge-api/v1/admin/apps/{appId}/rollback",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> rollback(
+            final Authentication authentication,
+            @PathVariable("appId") final UUID appId,
+            @org.springframework.web.bind.annotation.RequestBody
+                final Map<String, Object> body) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(
+                ug.ac.mak.der.security.EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of("code", "FORBIDDEN"));
+        }
+        final String version = body == null ? null
+                : String.valueOf(body.get("version"));
+        if (version == null || version.isBlank() || "null".equals(version)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "version required in body"));
+        }
+        final int touched = repo.rollbackToVersion(appId, version);
+        if (touched == 0) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(Map.of(
+                "appId", appId.toString(),
+                "activeVersion", version,
+                "rolledBackBy", principal.user().userId().toString()));
+    }
+
     @DeleteMapping(path = "/edge-api/v1/admin/apps/{appId}")
     public ResponseEntity<Map<String, Object>> delete(
             final Authentication authentication,

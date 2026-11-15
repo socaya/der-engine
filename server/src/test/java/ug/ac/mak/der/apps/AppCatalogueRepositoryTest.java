@@ -267,6 +267,52 @@ class AppCatalogueRepositoryTest {
         assertThat(sk.sealedSecret()).isEqualTo("sealed");
     }
 
+    // ---- FR-SYNC-006 rollback -----------------------------------------
+
+    @Test
+    void rollbackSupersedesCurrentAndActivatesTarget() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final UUID appId = UUID.randomUUID();
+        when(jdbc.update(contains("superseded_at = now()"),
+                eq(appId), eq("1.0"))).thenReturn(1);
+        when(jdbc.update(contains("superseded_at = NULL"),
+                eq(appId), eq("1.0"))).thenReturn(1);
+        final int touched = new AppCatalogueRepository(jdbc)
+                .rollbackToVersion(appId, "1.0");
+        assertThat(touched).isEqualTo(1);
+        verify(jdbc).update(contains("superseded_at = now()"),
+                eq(appId), eq("1.0"));
+        verify(jdbc).update(contains("superseded_at = NULL"),
+                eq(appId), eq("1.0"));
+    }
+
+    @Test
+    void rollbackReturns0OnNullArgs() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        assertThat(new AppCatalogueRepository(jdbc)
+                .rollbackToVersion(null, "x")).isEqualTo(0);
+        assertThat(new AppCatalogueRepository(jdbc)
+                .rollbackToVersion(UUID.randomUUID(), null)).isEqualTo(0);
+    }
+
+    @Test
+    void pruneSupersededClampsRetentionTo1Minimum() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.update(anyString(), eq("1"))).thenReturn(3);
+        final int pruned = new AppCatalogueRepository(jdbc)
+                .pruneSupersededVersions(0);
+        assertThat(pruned).isEqualTo(3);
+        verify(jdbc).update(contains("superseded_at < now()"), eq("1"));
+    }
+
+    @Test
+    void pruneSupersededUsesConfiguredRetention() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.update(anyString(), eq("14"))).thenReturn(5);
+        new AppCatalogueRepository(jdbc).pruneSupersededVersions(14);
+        verify(jdbc).update(anyString(), eq("14"));
+    }
+
     @Test
     void catalogueEntryRecordExposesFields() {
         final UUID id = UUID.randomUUID();

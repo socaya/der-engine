@@ -3076,6 +3076,27 @@ export function putCentralSyncPolicy(
 ): Promise<CentralSyncPolicy> {
   return request('PUT', '/edge-api/v1/admin/apps/central-sync/policy', policy);
 }
+
+/** DER-APPS-DHIS2-001 FR-SYNC-006 — per-app version history + rollback. */
+export interface AppVersionRow {
+  readonly version: string;
+  readonly sha256: string;
+  readonly uploadedAt: string;
+  readonly supersededAt: string | null;
+  readonly active: boolean;
+  readonly uploadedBy: string | null;
+}
+export function listAppVersions(
+  appId: string,
+): Promise<{ appId: string; versions: AppVersionRow[] }> {
+  return request('GET', `/edge-api/v1/admin/apps/${appId}/versions`);
+}
+export function rollbackApp(appId: string, version: string): Promise<{
+  appId: string; activeVersion: string; rolledBackBy: string;
+}> {
+  return request('POST', `/edge-api/v1/admin/apps/${appId}/rollback`,
+    { version });
+}
 export function centralSyncPreview(): Promise<CentralSyncReport> {
   return request('GET', '/edge-api/v1/admin/apps/central-sync/preview');
 }
