@@ -218,7 +218,7 @@ export function CompositeKindCatalogue(): JSX.Element {
 
       <Panel title={`Registered kinds (${kinds.length})`}>
         {kinds.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}
+          <p className="ea-text-muted"
              data-test="compkinds-empty">
             No composite kinds registered yet. Use the form above
             to add one.

@@ -149,7 +149,7 @@ export function CompatMatrix(): JSX.Element {
       <Panel title="Live profile capabilities"
              action={<span className="ea-text-muted">from the latest probe</span>}>
         {!snap.capabilities ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             Probe hasn&apos;t returned a capabilities snapshot yet.
           </p>
         ) : (
@@ -191,7 +191,7 @@ function SnapshotHistoryPanel({ history }: { history: edgeApi.CompatSnapshot[] }
     <Panel title="Snapshot history"
            action={<span className="ea-text-muted">{total} snapshot{total === 1 ? '' : 's'}</span>}>
       {total === 0 ? (
-        <p className="ea-text-muted" style={{ margin: 0 }}>No snapshots recorded.</p>
+        <p className="ea-text-muted">No snapshots recorded.</p>
       ) : (
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense">

@@ -124,7 +124,7 @@ export function Compliance(): JSX.Element {
             <thead><tr>
               <th>Category</th><th>Keep (days)</th><th>Last purge</th>
               <th>Last removed</th><th>Description</th>
-              <th style={{ width: 48 }} aria-label="Actions"></th>
+              <th className="ea-col-w-48" aria-label="Actions"></th>
             </tr></thead>
             <tbody>
               {policies.map((p) => (
@@ -176,7 +176,7 @@ export function Compliance(): JSX.Element {
               <thead><tr>
                 <th>Requested</th><th>Subject</th><th>Status</th>
                 <th>Receipt (SHA-256)</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th>
+                <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {requests.map((r) => (

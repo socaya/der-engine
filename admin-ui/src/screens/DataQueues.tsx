@@ -274,7 +274,7 @@ export function DataQueues(): JSX.Element {
                </>
              }>
         {filtered.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             {items.length === 0
               ? 'The outbound queue is empty — nothing to send.'
               : 'No records match the current filters.'}
@@ -284,14 +284,14 @@ export function DataQueues(): JSX.Element {
             <table className="ea-table ea-table--dense ea-table--selectable"
                    style={{ width: '100%', tableLayout: 'auto' }}>
               <thead><tr>
-                <th style={{ width: 32 }}></th>
+                <th className="ea-col-w-32"></th>
                 <th>Type</th>
                 <th>Backend key</th>
                 <th>Record</th>
-                <th style={{ width: 110 }}>Captured</th>
+                <th className="ea-col-w-110">Captured</th>
                 <th style={{ width: 150 }}>Status</th>
-                <th style={{ width: 110 }}>Last attempt</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th>
+                <th className="ea-col-w-110">Last attempt</th>
+                <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {paged.rows.map(({ op, state }) => (

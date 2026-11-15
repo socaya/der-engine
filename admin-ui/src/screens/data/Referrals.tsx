@@ -49,19 +49,19 @@ export function ReferralInbox(): JSX.Element {
       />
       <Panel title={rows.length === 0 ? 'Inbox empty' : `${rows.length} referral${rows.length === 1 ? '' : 's'}`}>
         {rows.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             No referrals have been received by this edge yet.
           </p>
         ) : (
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
               <thead><tr>
-                <th style={{ width: 32 }}></th>
+                <th className="ea-col-w-32"></th>
                 <th>Kind</th>
                 <th>Source ref</th>
-                <th style={{ width: 110 }}>Received</th>
+                <th className="ea-col-w-110">Received</th>
                 <th style={{ width: 150 }}>Status</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th>
+                <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {paged.rows.map((r) => (

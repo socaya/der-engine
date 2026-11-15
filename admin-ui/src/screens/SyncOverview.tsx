@@ -162,11 +162,11 @@ export function SyncOverview(): JSX.Element {
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense">
             <thead><tr>
-              <th style={{ width: 32 }}></th>
-              <th style={{ width: 180 }}>Activity</th>
+              <th className="ea-col-w-32"></th>
+              <th className="ea-col-w-180">Activity</th>
               <th>Detail</th>
-              <th style={{ width: 90 }}>When</th>
-              <th style={{ width: 110 }}>Result</th>
+              <th className="ea-col-w-90">When</th>
+              <th className="ea-col-w-110">Result</th>
             </tr></thead>
             <tbody>
               {(jobs ?? []).slice(0, 8).map((j) => {

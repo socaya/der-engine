@@ -698,7 +698,7 @@ export function NetworkConnectedDevices(): JSX.Element {
                 <thead><tr>
                   <th>Device</th><th>User / Owner</th><th>IP</th>
                   <th>Link</th><th>Signal</th><th>Trust</th><th>Last seen</th>
-                  <th style={{ width: 48 }} aria-label="Actions"></th>
+                  <th className="ea-col-w-48" aria-label="Actions"></th>
                 </tr></thead>
                 <tbody>
                   {paged.rows.map((c) => (
@@ -780,7 +780,7 @@ function EnrolTokensPanel(): JSX.Element {
           <table className="ea-table ea-table--dense">
             <thead><tr>
               <th>Token (truncated)</th><th>Hint</th><th>Issued</th><th>Expires</th>
-              <th>Status</th><th style={{ width: 48 }} aria-label="Actions"></th>
+              <th>Status</th><th className="ea-col-w-48" aria-label="Actions"></th>
             </tr></thead>
             <tbody>
               {tokens.map((t) => {
@@ -987,7 +987,7 @@ export function NetworkInterfaces(): JSX.Element {
               <thead><tr>
                 <th>Name</th><th>Kind</th><th>Purpose</th>
                 <th>State</th><th>Address</th><th>MAC</th><th>Link</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th>
+                <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {(ifaces ?? []).map((i) => (
@@ -1074,7 +1074,7 @@ export function NetworkInterfaces(): JSX.Element {
             <table className="ea-table ea-table--dense">
               <thead><tr>
                 <th>MAC</th><th>IP</th><th>Hostname</th><th>Issued</th><th>Expires</th><th>Kind</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th>
+                <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {leases.map((l) => (
@@ -1313,7 +1313,7 @@ export function NetworkPeers(): JSX.Element {
               <thead><tr>
                 <th>Node</th><th>Site</th><th>Endpoint</th><th>State</th>
                 <th>Last handshake</th><th>Trust</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th>
+                <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {(peers ?? []).map((p) => (
@@ -1526,7 +1526,7 @@ export function NetworkSecurity(): JSX.Element {
           <thead><tr>
             <th style={{ width: 56 }}>#</th>
             <th>Source</th><th>Destination</th><th>Action</th><th>Note</th>
-            <th style={{ width: 48 }} aria-label="Actions"></th>
+            <th className="ea-col-w-48" aria-label="Actions"></th>
           </tr></thead>
           <tbody>
             {rules.map((r) => (
@@ -1829,7 +1829,7 @@ export function NetworkDiagnostics(): JSX.Element {
               <thead><tr>
                 <th>Observed</th><th>Event</th><th>Interface</th>
                 <th>Device / node</th><th>Outcome</th><th>Reason</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th>
+                <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {paged.rows.map((e) => (
@@ -2038,7 +2038,7 @@ export function NetworkSettings(): JSX.Element {
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense">
               <thead><tr><th style={{ width: 280 }}>Key</th><th>Value</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th></tr></thead>
+                <th className="ea-col-w-48" aria-label="Actions"></th></tr></thead>
               <tbody>
                 {keys.map((k) => (
                   <tr key={k}>

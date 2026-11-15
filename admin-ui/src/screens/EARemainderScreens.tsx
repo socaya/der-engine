@@ -474,7 +474,7 @@ export function EADiagnostics({ api = edgeApi }: {
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense" data-test="ea35-journal">
               <thead><tr>
-                <th style={{ width: 140 }}>State</th>
+                <th className="ea-col-w-140">State</th>
                 <th className="ea-text-right">Operations</th>
               </tr></thead>
               <tbody>

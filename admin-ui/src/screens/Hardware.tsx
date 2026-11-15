@@ -197,7 +197,7 @@ export function Hardware(): JSX.Element {
               <thead><tr>
                 <th>Zone</th><th>Color</th><th>Pattern</th><th>Period</th>
                 <th>Label</th><th>Updated</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th>
+                <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {data.leds.map((l) => (
@@ -205,9 +205,8 @@ export function Hardware(): JSX.Element {
                     <td className="ea-mono">{l.zone}</td>
                     <td>
                       {editLed === l.zone ? (
-                        <input className="ea-input" value={editColor}
-                               onChange={(e) => setEditColor(e.target.value)}
-                               style={{ width: 100 }} />
+                        <input className="ea-input ea-col-w-100" value={editColor}
+                               onChange={(e) => setEditColor(e.target.value)} />
                       ) : (
                         <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                           <span style={{ width: 14, height: 14, borderRadius: '50%',

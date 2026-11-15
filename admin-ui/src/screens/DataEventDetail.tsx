@@ -184,7 +184,7 @@ export function DataEventDetail(): JSX.Element {
 
       <Panel title={`Data values · ${detail.dataValues.length}`}>
         {detail.dataValues.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             This event has no data values recorded yet.
           </p>
         ) : (

@@ -268,7 +268,7 @@ export function DataTracker(): JSX.Element {
         }
       >
         {filtered.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             No matching tracker rows. Try widening the filters or
             capturing data via <strong>Open DHIS2 capture</strong>.
           </p>
@@ -306,17 +306,17 @@ function TrackerTable(
       <table className="ea-table ea-table--dense ea-table--clickable"
              data-test="data-tracker-table">
         <thead><tr>
-          <th style={{ width: 110 }}>Updated</th>
-          <th style={{ width: 90 }}>Kind</th>
+          <th className="ea-col-w-110">Updated</th>
+          <th className="ea-col-w-90">Kind</th>
           <th>Row</th>
-          <th style={{ width: 140 }}>TEI</th>
+          <th className="ea-col-w-140">TEI</th>
           <th>Program</th>
-          <th style={{ width: 100 }}>Org unit</th>
-          <th style={{ width: 100 }}>Status / Date</th>
-          <th style={{ width: 180 }}>Workflow</th>
-          <th style={{ width: 140 }}>Sync state</th>
-          <th style={{ width: 50, textAlign: 'right' }}>v</th>
-          <th style={{ width: 90 }}></th>
+          <th className="ea-col-w-100">Org unit</th>
+          <th className="ea-col-w-100">Status / Date</th>
+          <th className="ea-col-w-180">Workflow</th>
+          <th className="ea-col-w-140">Sync state</th>
+          <th className="ea-text-right" style={{ width: 50 }}>v</th>
+          <th className="ea-col-w-90"></th>
         </tr></thead>
         <tbody>
           {rows.map((r) => (

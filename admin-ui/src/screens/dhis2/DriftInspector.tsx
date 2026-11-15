@@ -108,7 +108,7 @@ export function DriftInspector(): JSX.Element {
                {totalChanged.toLocaleString()} delta{totalChanged === 1 ? '' : 's'}
              </span>}>
         {rowSummaries.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>No per-entity drift recorded.</p>
+          <p className="ea-text-muted">No per-entity drift recorded.</p>
         ) : (
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense ea-table--selectable"

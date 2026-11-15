@@ -31,19 +31,19 @@ export function ApprovalQueue(): JSX.Element {
       />
       <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} pending`}>
         {rows.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             No records are waiting for an approval decision.
           </p>
         ) : (
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
               <thead><tr>
-                <th style={{ width: 32 }}></th>
+                <th className="ea-col-w-32"></th>
                 <th>Record type</th>
                 <th>Record ID</th>
                 <th>Submitted by</th>
-                <th style={{ width: 110 }}>Submitted</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th>
+                <th className="ea-col-w-110">Submitted</th>
+                <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {paged.rows.map((r) => (

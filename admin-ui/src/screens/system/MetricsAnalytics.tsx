@@ -202,7 +202,7 @@ export function FacilityAnalytics(): JSX.Element {
       <OuPicker ctx={ctx} />
       <Panel title="By entity kind">
         {journal.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>No captured data yet.</p>
+          <p className="ea-text-muted">No captured data yet.</p>
         ) : (
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense">

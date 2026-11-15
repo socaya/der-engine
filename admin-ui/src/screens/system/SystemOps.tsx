@@ -244,7 +244,7 @@ export function SiteConfig(): JSX.Element {
           <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
             <thead><tr>
               <th>Setting</th><th>Value</th>
-              <th style={{ width: 120 }}>
+              <th className="ea-col-w-120">
                 <span className="ea-visually-hidden">Actions</span>
               </th>
             </tr></thead>
@@ -392,7 +392,7 @@ export function ConfigEditor(): JSX.Element {
           <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
             <thead><tr>
               <th>Key</th><th>Value</th>
-              <th style={{ width: 120 }}>
+              <th className="ea-col-w-120">
                 <span className="ea-visually-hidden">Actions</span>
               </th>
             </tr></thead>

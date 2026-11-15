@@ -239,7 +239,7 @@ export function DataEvents(): JSX.Element {
         }
       >
         {filtered.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             No matching events. Try widening the filters or capturing
             events via <strong>Open DHIS2 capture</strong>.
           </p>
@@ -269,13 +269,13 @@ function EventsTable(
           <th style={{ width: 130 }}>Occurred</th>
           <th>Program</th>
           <th>Stage</th>
-          <th style={{ width: 120 }}>Org unit</th>
-          <th style={{ width: 90 }}>Status</th>
-          <th style={{ width: 180 }}>Workflow</th>
-          <th style={{ width: 60, textAlign: 'right' }}>Vals</th>
-          <th style={{ width: 60, textAlign: 'right' }}>v</th>
-          <th style={{ width: 140 }}>Sync state</th>
-          <th style={{ width: 90 }}></th>
+          <th className="ea-col-w-120">Org unit</th>
+          <th className="ea-col-w-90">Status</th>
+          <th className="ea-col-w-180">Workflow</th>
+          <th className="ea-text-right" style={{ width: 60 }}>Vals</th>
+          <th className="ea-text-right" style={{ width: 60 }}>v</th>
+          <th className="ea-col-w-140">Sync state</th>
+          <th className="ea-col-w-90"></th>
         </tr></thead>
         <tbody>
           {rows.map((r) => (

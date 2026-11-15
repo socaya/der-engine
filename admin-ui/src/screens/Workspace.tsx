@@ -161,7 +161,7 @@ export function Workspace(): JSX.Element {
           {(() => {
             const approved = (devices ?? []).filter((d) => d.status === 'APPROVED');
             if (approved.length === 0) {
-              return <p className="ea-text-muted" style={{ margin: 0 }}>No approved devices yet.</p>;
+              return <p className="ea-text-muted">No approved devices yet.</p>;
             }
             return (
               <ul className="ea-dash-device-list">

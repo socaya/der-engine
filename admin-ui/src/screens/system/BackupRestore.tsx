@@ -246,7 +246,7 @@ export function BackupList(): JSX.Element {
         {activeSection === 'runs' && (
           <Panel title="Backup runs">
             {rows.length === 0 ? (
-              <p className="ea-text-muted" style={{ margin: 0 }}>No backups yet.</p>
+              <p className="ea-text-muted">No backups yet.</p>
             ) : (
               <BackupRunsTable rows={rows} />
             )}
@@ -626,7 +626,7 @@ export function RestoreList(): JSX.Element {
 
       <Panel title="History">
         {rows.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>No restores recorded.</p>
+          <p className="ea-text-muted">No restores recorded.</p>
         ) : (
           <RestoreRunsTable rows={rows} />
         )}

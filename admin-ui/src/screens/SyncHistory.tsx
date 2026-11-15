@@ -100,14 +100,14 @@ export function SyncHistory(): JSX.Element {
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
             <thead><tr>
-              <th style={{ width: 32 }}></th>
-              <th style={{ width: 180 }}>What was synced</th>
+              <th className="ea-col-w-32"></th>
+              <th className="ea-col-w-180">What was synced</th>
               <th>Detail</th>
               <th style={{ width: 150 }}>Direction</th>
-              <th style={{ width: 110 }}>When</th>
-              <th style={{ width: 70 }}>Duration</th>
-              <th style={{ width: 110 }}>Status</th>
-              <th style={{ width: 48 }} aria-label="Actions"></th>
+              <th className="ea-col-w-110">When</th>
+              <th className="ea-col-w-70">Duration</th>
+              <th className="ea-col-w-110">Status</th>
+              <th className="ea-col-w-48" aria-label="Actions"></th>
             </tr></thead>
             <tbody>
               {paged.rows.map((j) => {
@@ -329,7 +329,7 @@ export function SyncHistoryDetail(): JSX.Element {
               <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
                 <thead><tr>
                   <th>Metadata type</th>
-                  <th style={{ width: 120, textAlign: 'right' }}>Records</th>
+                  <th className="ea-text-right ea-col-w-120">Records</th>
                 </tr></thead>
                 <tbody>
                   {Object.entries(metaDiag.mirrorCounts).map(([k, v]) => (
@@ -402,9 +402,9 @@ export function SyncHistoryDetail(): JSX.Element {
             <Panel title="Breakdown by data type">
               <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
                 <thead><tr>
-                  <th style={{ width: 32 }}></th>
+                  <th className="ea-col-w-32"></th>
                   <th>Data type</th>
-                  <th style={{ width: 120, textAlign: 'right' }}>Records</th>
+                  <th className="ea-text-right ea-col-w-120">Records</th>
                 </tr></thead>
                 <tbody>
                   {parseByType(sel.detail).map(([type, count]) => (

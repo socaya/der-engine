@@ -74,9 +74,9 @@ function PrefetchReadinessTable({ devices }: {
         <thead>
           <tr>
             <th>Device</th>
-            <th style={{ width: 100 }}>Pending</th>
-            <th style={{ width: 160 }}>Oldest unacked</th>
-            <th style={{ width: 140 }}>Status</th>
+            <th className="ea-col-w-100">Pending</th>
+            <th className="ea-col-w-160">Oldest unacked</th>
+            <th className="ea-col-w-140">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -393,7 +393,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                 <th>Blocked step</th>
                 <th>Run</th>
                 <th>Blocked by</th>
-                <th style={{ width: 110 }}>Since</th>
+                <th className="ea-col-w-110">Since</th>
               </tr>
             </thead>
             <tbody>
@@ -442,11 +442,11 @@ export function WorkflowMonitoring({ api = edgeApi }:
                  data-test="wf-monitor-issues">
             <thead>
               <tr>
-                <th style={{ width: 90 }}>Severity</th>
+                <th className="ea-col-w-90">Severity</th>
                 <th>Message</th>
                 <th>Step · workflow</th>
-                <th style={{ width: 110 }}>Field</th>
-                <th style={{ width: 110 }}>Detected</th>
+                <th className="ea-col-w-110">Field</th>
+                <th className="ea-col-w-110">Detected</th>
               </tr>
             </thead>
             <tbody>
@@ -499,7 +499,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                 <th>Workflow</th>
                 <th>Run</th>
                 <th style={{ width: 170 }}>Category</th>
-                <th style={{ width: 110 }}>Detected</th>
+                <th className="ea-col-w-110">Detected</th>
               </tr>
             </thead>
             <tbody>
@@ -544,10 +544,10 @@ export function WorkflowMonitoring({ api = edgeApi }:
               <tr>
                 <th>Service point</th>
                 <th>Run</th>
-                <th style={{ width: 70 }}>Fields</th>
+                <th className="ea-col-w-70">Fields</th>
                 <th>Captured by</th>
                 <th>Payload preview</th>
-                <th style={{ width: 110 }}>Captured</th>
+                <th className="ea-col-w-110">Captured</th>
               </tr>
             </thead>
             <tbody>
@@ -600,10 +600,10 @@ export function WorkflowMonitoring({ api = edgeApi }:
                  data-test="wf-monitor-feed">
             <thead>
               <tr>
-                <th style={{ width: 110 }}>Event</th>
+                <th className="ea-col-w-110">Event</th>
                 <th>Step · workflow</th>
                 <th>Device</th>
-                <th style={{ width: 110 }}>When</th>
+                <th className="ea-col-w-110">When</th>
               </tr>
             </thead>
             <tbody>
@@ -654,10 +654,10 @@ export function WorkflowMonitoring({ api = edgeApi }:
             <thead>
               <tr>
                 <th>Workflow</th>
-                <th style={{ width: 80 }}>Ready</th>
-                <th style={{ width: 80 }}>Blocked</th>
-                <th style={{ width: 180 }}>Oldest ready step</th>
-                <th style={{ width: 90 }}>Age</th>
+                <th className="ea-col-w-80">Ready</th>
+                <th className="ea-col-w-80">Blocked</th>
+                <th className="ea-col-w-180">Oldest ready step</th>
+                <th className="ea-col-w-90">Age</th>
               </tr>
             </thead>
             <tbody>
@@ -701,10 +701,10 @@ export function WorkflowMonitoring({ api = edgeApi }:
             <thead>
               <tr>
                 <th>Device</th>
-                <th style={{ width: 80 }}>Ready</th>
-                <th style={{ width: 80 }}>Blocked</th>
-                <th style={{ width: 180 }}>Oldest ready step</th>
-                <th style={{ width: 90 }}>Age</th>
+                <th className="ea-col-w-80">Ready</th>
+                <th className="ea-col-w-80">Blocked</th>
+                <th className="ea-col-w-180">Oldest ready step</th>
+                <th className="ea-col-w-90">Age</th>
               </tr>
             </thead>
             <tbody>
@@ -775,10 +775,10 @@ export function WorkflowMonitoring({ api = edgeApi }:
               <tr>
                 <th>Service point</th>
                 <th>Workflow</th>
-                <th style={{ width: 80 }}>Completed</th>
-                <th style={{ width: 80 }}>p50</th>
-                <th style={{ width: 80 }}>p95</th>
-                <th style={{ width: 80 }}>Max</th>
+                <th className="ea-col-w-80">Completed</th>
+                <th className="ea-col-w-80">p50</th>
+                <th className="ea-col-w-80">p95</th>
+                <th className="ea-col-w-80">Max</th>
               </tr>
             </thead>
             <tbody>
@@ -826,9 +826,9 @@ export function WorkflowMonitoring({ api = edgeApi }:
             <thead>
               <tr>
                 <th>Device</th>
-                <th style={{ width: 80 }}>Completed</th>
-                <th style={{ width: 80 }}>p50</th>
-                <th style={{ width: 80 }}>p95</th>
+                <th className="ea-col-w-80">Completed</th>
+                <th className="ea-col-w-80">p50</th>
+                <th className="ea-col-w-80">p95</th>
               </tr>
             </thead>
             <tbody>
@@ -867,8 +867,8 @@ export function WorkflowMonitoring({ api = edgeApi }:
               <tr>
                 <th>Service point</th>
                 <th>Workflow</th>
-                <th style={{ width: 80 }}>Ready</th>
-                <th style={{ width: 80 }}>Blocked</th>
+                <th className="ea-col-w-80">Ready</th>
+                <th className="ea-col-w-80">Blocked</th>
               </tr>
             </thead>
             <tbody>

@@ -150,10 +150,10 @@ export function WorkflowActivity({ api = edgeApi }:
             <thead>
               <tr>
                 <th>Workflow</th>
-                <th style={{ width: 140 }}>Bound to</th>
-                <th style={{ width: 100 }}>Steps</th>
-                <th style={{ width: 110 }}>Status</th>
-                <th style={{ width: 160 }}>Updated</th>
+                <th className="ea-col-w-140">Bound to</th>
+                <th className="ea-col-w-100">Steps</th>
+                <th className="ea-col-w-110">Status</th>
+                <th className="ea-col-w-160">Updated</th>
               </tr>
             </thead>
             <tbody>
@@ -197,11 +197,11 @@ export function WorkflowActivity({ api = edgeApi }:
                  data-test="wf-activity-queues">
             <thead>
               <tr>
-                <th style={{ width: 32 }}></th>
+                <th className="ea-col-w-32"></th>
                 <th>Queue</th>
-                <th style={{ width: 90 }}>Depth</th>
-                <th style={{ width: 140 }}>Status</th>
-                <th style={{ width: 160 }}></th>
+                <th className="ea-col-w-90">Depth</th>
+                <th className="ea-col-w-140">Status</th>
+                <th className="ea-col-w-160"></th>
               </tr>
             </thead>
             <tbody>

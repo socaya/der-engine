@@ -86,21 +86,21 @@ export function ConflictList(): JSX.Element {
 
       <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} attention item${rows.length === 1 ? '' : 's'}`}>
         {rows.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             Every captured record either reached Central DHIS2 or is still safely queued.
           </p>
         ) : (
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
               <thead><tr>
-                <th style={{ width: 32 }}></th>
+                <th className="ea-col-w-32"></th>
                 <th>Record type</th>
                 <th>Record ID</th>
                 <th>Problem</th>
                 <th>Why</th>
-                <th style={{ width: 90 }}>Priority</th>
-                <th style={{ width: 90 }}>Since</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th>
+                <th className="ea-col-w-90">Priority</th>
+                <th className="ea-col-w-90">Since</th>
+                <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {paged.rows.map((r) => {

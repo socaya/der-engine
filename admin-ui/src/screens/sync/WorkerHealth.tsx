@@ -105,7 +105,7 @@ export function WorkerHealthScreen(): JSX.Element {
       {showBreakdown && (
         <Panel title="Queue breakdown">
           {Object.keys(w.backlog).length === 0 ? (
-            <p className="ea-text-muted" style={{ margin: 0 }}>Nothing pending.</p>
+            <p className="ea-text-muted">Nothing pending.</p>
           ) : (
             <div className="ea-table-wrap">
               <table className="ea-table ea-table--dense">

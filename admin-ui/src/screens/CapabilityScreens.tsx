@@ -1133,8 +1133,8 @@ export function CapSyncHistory(): JSX.Element {
                        data-test="cap-sync-history-filter"
                        value={filter}
                        onChange={(e) => setFilter(e.target.value as typeof filter)}
-                       className="ea-input"
-                       style={{ width: 140 }}>
+                       className="ea-input ea-col-w-140"
+                       >
                  <option value="ALL">All outcomes</option>
                  <option value="SUCCEEDED">Succeeded</option>
                  <option value="FAILED">Failed</option>
@@ -1154,7 +1154,7 @@ export function CapSyncHistory(): JSX.Element {
                 <th>Started</th>
                 <th>Job</th>
                 <th style={{ width: 130 }}>Outcome</th>
-                <th style={{ width: 100 }}>Duration</th>
+                <th className="ea-col-w-100">Duration</th>
                 <th>Triggered by</th>
               </tr></thead>
               <tbody>
@@ -1264,7 +1264,7 @@ export function CapDataQueues(): JSX.Element {
             <table className="ea-table ea-table--dense"
                    data-test="cap-queues-backlog">
               <thead><tr>
-                <th style={{ width: 140 }}>State</th>
+                <th className="ea-col-w-140">State</th>
                 <th className="ea-text-right">Operations</th>
               </tr></thead>
               <tbody>
@@ -1401,7 +1401,7 @@ export function CapMetadataSync(): JSX.Element {
 
       <Panel title="Recent pulls">
         {!history || history.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>Never run on this edge.</p>
+          <p className="ea-text-muted">Never run on this edge.</p>
         ) : (
           <RecentPullsTable history={history} navigate={navigate} />
         )}
@@ -1424,7 +1424,7 @@ function RecentPullsTable(
           <th>Result</th>
           <th>Duration</th>
           <th>Triggered by</th>
-          <th style={{ width: 48 }} aria-label="Actions"></th>
+          <th className="ea-col-w-48" aria-label="Actions"></th>
         </tr></thead>
         <tbody>
           {paged.rows.map((h) => {
@@ -1463,7 +1463,7 @@ export function CapDataExchange(): JSX.Element {
   // a circular import.
   return (
     <div className="ea-screen">
-      <p className="ea-text-muted" style={{ margin: 0 }}>
+      <p className="ea-text-muted">
         The Data page has moved. <Link to="/data/queue"
                                         data-cross-module="Data">
           Open the Data queue →
@@ -1772,12 +1772,12 @@ export function CapSyncSchedule(): JSX.Element {
             <table className="ea-table ea-table--dense ea-table--selectable">
               <thead>
                 <tr>
-                  <th style={{ width: 32 }}></th>
+                  <th className="ea-col-w-32"></th>
                   <th>Flow</th>
                   <th>Runs</th>
                   <th>Last run</th>
                   <th>Status</th>
-                  <th style={{ width: 48 }} aria-label="Actions"></th>
+                  <th className="ea-col-w-48" aria-label="Actions"></th>
                 </tr>
               </thead>
               <tbody>
@@ -3140,7 +3140,7 @@ export function CapUserMappings(): JSX.Element {
       <Panel title="Edge users">
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense"><thead><tr>
-            <th>Edge user</th><th>Roles</th><th style={{ width: 160 }}>DHIS2 mapping</th>
+            <th>Edge user</th><th>Roles</th><th className="ea-col-w-160">DHIS2 mapping</th>
           </tr></thead><tbody>
             {users.map((u) => (
               <tr key={u.userId}>
@@ -3263,8 +3263,8 @@ export function CapRoles(): JSX.Element {
                    placeholder="Search…"
                    value={search}
                    onChange={(e) => setSearch(e.target.value)}
-                   className="ea-input"
-                   style={{ width: 180 }} />
+                   className="ea-input ea-col-w-180"
+                    />
             <select aria-label="Filter roles by type"
                     data-test="cap-roles-filter"
                     value={typeFilter}
@@ -3289,10 +3289,10 @@ export function CapRoles(): JSX.Element {
             <table className="ea-table" data-test="cap-roles-table">
               <thead><tr>
                 <th>Role</th>
-                <th style={{ width: 110 }}>Type</th>
-                <th style={{ width: 120, textAlign: 'right' }}>Authorities</th>
-                <th style={{ width: 90, textAlign: 'right' }}>Users</th>
-                <th style={{ width: 160 }}>Updated</th>
+                <th className="ea-col-w-110">Type</th>
+                <th className="ea-text-right ea-col-w-120">Authorities</th>
+                <th className="ea-text-right ea-col-w-90">Users</th>
+                <th className="ea-col-w-160">Updated</th>
                 <th style={{ width: 40 }} aria-label="actions"></th>
               </tr></thead>
               <tbody>
@@ -3539,14 +3539,14 @@ export function CapAuthorities(): JSX.Element {
                    placeholder="Search…"
                    value={search}
                    onChange={(e) => setSearch(e.target.value)}
-                   className="ea-input"
-                   style={{ width: 180 }} />
+                   className="ea-input ea-col-w-180"
+                    />
             <select aria-label="Filter authorities by module"
                     data-test="cap-authorities-filter"
                     value={moduleFilter}
                     onChange={(e) => setModuleFilter(e.target.value)}
-                    className="ea-input"
-                    style={{ width: 160 }}>
+                    className="ea-input ea-col-w-160"
+                    >
               <option value="ALL">All modules</option>
               {modules.map((m) => (
                 <option key={m} value={m}>{m}</option>
@@ -3563,11 +3563,11 @@ export function CapAuthorities(): JSX.Element {
           <div className="ea-table-wrap">
             <table className="ea-table" data-test="cap-authorities-table">
               <thead><tr>
-                <th style={{ width: 110 }}>Module</th>
+                <th className="ea-col-w-110">Module</th>
                 <th style={{ width: 260 }}>Authority</th>
                 <th>Allows</th>
                 <th>Restricts (when absent)</th>
-                <th style={{ width: 90, textAlign: 'right' }}>Roles</th>
+                <th className="ea-text-right ea-col-w-90">Roles</th>
               </tr></thead>
               <tbody>
                 {filtered.map((a) => {
@@ -3693,9 +3693,9 @@ export function AuthorityDetailPage(): JSX.Element {
             <table className="ea-table" data-test="authority-detail-roles">
               <thead><tr>
                 <th>Role</th>
-                <th style={{ width: 110 }}>Type</th>
-                <th style={{ width: 120, textAlign: 'right' }}>Authorities</th>
-                <th style={{ width: 90, textAlign: 'right' }}>Users</th>
+                <th className="ea-col-w-110">Type</th>
+                <th className="ea-text-right ea-col-w-120">Authorities</th>
+                <th className="ea-text-right ea-col-w-90">Users</th>
               </tr></thead>
               <tbody>
                 {holding.map((r) => (
@@ -4424,7 +4424,7 @@ export function CapOwnership(): JSX.Element {
                 <thead><tr>
                   <th>Device</th><th>Assigned user</th>
                   <th>Status</th><th>Last seen</th>
-                  <th style={{ width: 48 }}>
+                  <th className="ea-col-w-48">
                     <span className="ea-visually-hidden">Actions</span>
                   </th>
                 </tr></thead>
@@ -4556,7 +4556,7 @@ export function CapConnections(): JSX.Element {
                 <thead><tr>
                   <th>Device</th><th>Last seen</th>
                   <th>Firmware</th><th>User agent</th>
-                  <th style={{ width: 90 }}>Freshness</th>
+                  <th className="ea-col-w-90">Freshness</th>
                 </tr></thead>
                 <tbody>
                   {filtered.map((r) => {
@@ -4867,9 +4867,9 @@ export function CapOperatorMetrics(): JSX.Element {
             <table className="ea-table ea-table--dense" data-test="cap-metrics-table">
               <thead><tr>
                 <th>Job</th>
-                <th style={{ width: 100, textAlign: 'right' }}>Succeeded</th>
-                <th style={{ width: 90, textAlign: 'right' }}>Failed</th>
-                <th style={{ width: 120 }}>Reliability</th>
+                <th className="ea-text-right ea-col-w-100">Succeeded</th>
+                <th className="ea-text-right ea-col-w-90">Failed</th>
+                <th className="ea-col-w-120">Reliability</th>
               </tr></thead>
               <tbody>
                 {Object.entries(byJob).map(([name, b]) => {
@@ -4979,7 +4979,7 @@ export function CapServiceHealth(): JSX.Element {
           <table className="ea-table ea-table--dense" data-test="cap-health-components">
             <thead><tr>
               <th>Component</th>
-              <th style={{ width: 90 }}>Status</th>
+              <th className="ea-col-w-90">Status</th>
               <th>Detail</th>
             </tr></thead>
             <tbody>

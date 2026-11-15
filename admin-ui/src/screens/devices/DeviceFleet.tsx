@@ -87,7 +87,7 @@ export function DeviceFleet(): JSX.Element {
               <th>Status</th>
               <th>Enrolled</th>
               <th>Last seen</th>
-              <th style={{ width: 48 }} aria-label="Actions"></th>
+              <th className="ea-col-w-48" aria-label="Actions"></th>
             </tr></thead>
             <tbody>
               {paged.rows.map((r) => (

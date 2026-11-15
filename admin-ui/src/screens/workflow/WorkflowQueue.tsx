@@ -158,11 +158,11 @@ export function WorkflowQueue({ api = edgeApi }:
                 <tr>
                   <th>Workflow</th>
                   <th>Step</th>
-                  <th style={{ width: 110 }}>Role</th>
-                  <th style={{ width: 110 }}>Readiness</th>
-                  <th style={{ width: 110 }}>Issues</th>
-                  <th style={{ width: 160 }}>Updated</th>
-                  <th style={{ width: 90 }} aria-label="actions"></th>
+                  <th className="ea-col-w-110">Role</th>
+                  <th className="ea-col-w-110">Readiness</th>
+                  <th className="ea-col-w-110">Issues</th>
+                  <th className="ea-col-w-160">Updated</th>
+                  <th className="ea-col-w-90" aria-label="actions"></th>
                 </tr>
               </thead>
               <tbody>

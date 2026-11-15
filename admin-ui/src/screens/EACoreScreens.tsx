@@ -1490,11 +1490,11 @@ export function EACaptureWorkflowList({ api = edgeApi }:
                 <tr>
                   <th>Name</th>
                   <th>Binding</th>
-                  <th style={{ width: 70 }}>Version</th>
-                  <th style={{ width: 70 }}>Steps</th>
-                  <th style={{ width: 70 }}>Runs</th>
-                  <th style={{ width: 90 }}>Enabled</th>
-                  <th style={{ width: 90 }}>Action</th>
+                  <th className="ea-col-w-70">Version</th>
+                  <th className="ea-col-w-70">Steps</th>
+                  <th className="ea-col-w-70">Runs</th>
+                  <th className="ea-col-w-90">Enabled</th>
+                  <th className="ea-col-w-90">Action</th>
                 </tr>
               </thead>
               <tbody>

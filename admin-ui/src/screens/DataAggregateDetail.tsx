@@ -227,7 +227,7 @@ export function JournalPanel(
   return (
     <Panel title={`Sync history · ${entries.length}`}>
       {entries.length === 0 ? (
-        <p className="ea-text-muted" style={{ margin: 0 }}>
+        <p className="ea-text-muted">
           No outbox entries yet — this row has never been queued for
           Central DHIS2. It may be a brand-new local write, or it may
           have been pulled down from Central and attached to its
@@ -240,9 +240,9 @@ export function JournalPanel(
             <thead><tr>
               <th style={{ width: 130 }}>Logged</th>
               <th style={{ width: 170 }}>State</th>
-              <th style={{ width: 70, textAlign: 'right' }}>Attempts</th>
+              <th className="ea-text-right ea-col-w-70">Attempts</th>
               <th>Last error / notes</th>
-              <th style={{ width: 160 }}>Operation ID</th>
+              <th className="ea-col-w-160">Operation ID</th>
             </tr></thead>
             <tbody>
               {entries.map((e) => (

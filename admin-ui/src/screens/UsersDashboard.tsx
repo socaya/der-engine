@@ -153,8 +153,8 @@ export function UsersDashboard(): JSX.Element {
               <th>Roles</th>
               <th style={{ width: 150 }}>DHIS2 mapping</th>
               <th style={{ width: 170 }}>Central permissions verified</th>
-              <th style={{ width: 110 }}>Last login</th>
-              <th style={{ width: 48 }} aria-label="Actions"></th>
+              <th className="ea-col-w-110">Last login</th>
+              <th className="ea-col-w-48" aria-label="Actions"></th>
             </tr></thead>
             <tbody>
               {paged.rows.map((u) => {

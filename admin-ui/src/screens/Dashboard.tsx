@@ -201,7 +201,7 @@ export function Dashboard(): JSX.Element {
             {scope === null ? (
               <InlineLoading />
             ) : scope.boundOrgUnitId === null ? (
-              <p className="ea-text-muted" style={{ margin: 0 }}>
+              <p className="ea-text-muted">
                 Edge is unbound — bind an OU for scope checks.
               </p>
             ) : scope.total === 0 ? (

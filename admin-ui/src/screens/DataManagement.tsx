@@ -113,13 +113,13 @@ export function DataManagement(): JSX.Element {
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense ea-table--selectable">
             <thead><tr>
-              <th style={{ width: 32 }}></th>
+              <th className="ea-col-w-32"></th>
               <th>Data type</th>
               <th>Backend key</th>
-              <th style={{ width: 110 }}>Records</th>
-              <th style={{ width: 140 }}>Waiting to send</th>
-              <th style={{ width: 140 }}>Last activity</th>
-              <th style={{ width: 48 }} aria-label="Actions"></th>
+              <th className="ea-col-w-110">Records</th>
+              <th className="ea-col-w-140">Waiting to send</th>
+              <th className="ea-col-w-140">Last activity</th>
+              <th className="ea-col-w-48" aria-label="Actions"></th>
             </tr></thead>
             <tbody>
               {rows.map((r) => (

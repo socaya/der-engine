@@ -152,10 +152,10 @@ export function WorkflowRunDetail(): JSX.Element {
               <tr>
                 <th style={{ width: 40 }}>#</th>
                 <th>Step</th>
-                <th style={{ width: 110 }}>State</th>
-                <th style={{ width: 100 }}>Role</th>
+                <th className="ea-col-w-110">State</th>
+                <th className="ea-col-w-100">Role</th>
                 <th>Device</th>
-                <th style={{ width: 120 }}>Last change</th>
+                <th className="ea-col-w-120">Last change</th>
               </tr>
             </thead>
             <tbody>
@@ -237,11 +237,11 @@ export function WorkflowRunDetail(): JSX.Element {
                    data-test="wf-run-detail-issues">
               <thead>
                 <tr>
-                  <th style={{ width: 90 }}>Severity</th>
+                  <th className="ea-col-w-90">Severity</th>
                   <th>Message</th>
                   <th>Step</th>
-                  <th style={{ width: 110 }}>Field</th>
-                  <th style={{ width: 110 }}>Detected</th>
+                  <th className="ea-col-w-110">Field</th>
+                  <th className="ea-col-w-110">Detected</th>
                 </tr>
               </thead>
               <tbody>
@@ -281,8 +281,8 @@ export function WorkflowRunDetail(): JSX.Element {
                 <tr>
                   <th>Category</th>
                   <th>Identity</th>
-                  <th style={{ width: 140 }}>Status</th>
-                  <th style={{ width: 110 }}>Detected</th>
+                  <th className="ea-col-w-140">Status</th>
+                  <th className="ea-col-w-110">Detected</th>
                 </tr>
               </thead>
               <tbody>
@@ -487,7 +487,7 @@ function OutboundBundlePanel({ runId }: { runId: string }): JSX.Element {
             <th>State</th>
             <th className="ea-text-right">Att.</th>
             <th>Updated</th>
-            <th style={{ width: 80 }}></th>
+            <th className="ea-col-w-80"></th>
           </tr></thead>
           <tbody>
             {m.operations.map((o) => (

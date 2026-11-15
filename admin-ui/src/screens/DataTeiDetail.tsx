@@ -212,7 +212,7 @@ export function DataTeiDetail(): JSX.Element {
 
       <Panel title={`Attributes · ${attrEntries.length}`}>
         {attrEntries.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             No attributes recorded for this TEI.
           </p>
         ) : (
@@ -238,7 +238,7 @@ export function DataTeiDetail(): JSX.Element {
 
       <Panel title={`Enrolments · ${detail.enrolments.length}`}>
         {detail.enrolments.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             This TEI has no enrolments yet.
           </p>
         ) : (
@@ -246,13 +246,13 @@ export function DataTeiDetail(): JSX.Element {
             <table className="ea-table ea-table--dense"
                    data-test="tei-enrolments">
               <thead><tr>
-                <th style={{ width: 140 }}>Enrollment UID</th>
+                <th className="ea-col-w-140">Enrollment UID</th>
                 <th>Program</th>
-                <th style={{ width: 100 }}>Status</th>
-                <th style={{ width: 110 }}>Enrolled</th>
-                <th style={{ width: 110 }}>Incident</th>
-                <th style={{ width: 180 }}>Workflow</th>
-                <th style={{ width: 50, textAlign: 'right' }}>v</th>
+                <th className="ea-col-w-100">Status</th>
+                <th className="ea-col-w-110">Enrolled</th>
+                <th className="ea-col-w-110">Incident</th>
+                <th className="ea-col-w-180">Workflow</th>
+                <th className="ea-text-right" style={{ width: 50 }}>v</th>
               </tr></thead>
               <tbody>
                 {detail.enrolments.map((e) => (
@@ -308,7 +308,7 @@ export function DataTeiDetail(): JSX.Element {
 
       <Panel title={`Tracker events · ${detail.trackerEvents.length}`}>
         {detail.trackerEvents.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             No stage events recorded for this TEI.
           </p>
         ) : (
@@ -316,13 +316,13 @@ export function DataTeiDetail(): JSX.Element {
             <table className="ea-table ea-table--dense"
                    data-test="tei-tracker-events">
               <thead><tr>
-                <th style={{ width: 140 }}>Event UID</th>
+                <th className="ea-col-w-140">Event UID</th>
                 <th>Program · Stage</th>
-                <th style={{ width: 140 }}>Enrollment</th>
-                <th style={{ width: 100 }}>Status</th>
-                <th style={{ width: 110 }}>Occurred</th>
-                <th style={{ width: 110 }}>Updated</th>
-                <th style={{ width: 50, textAlign: 'right' }}>v</th>
+                <th className="ea-col-w-140">Enrollment</th>
+                <th className="ea-col-w-100">Status</th>
+                <th className="ea-col-w-110">Occurred</th>
+                <th className="ea-col-w-110">Updated</th>
+                <th className="ea-text-right" style={{ width: 50 }}>v</th>
               </tr></thead>
               <tbody>
                 {detail.trackerEvents.map((e) => (

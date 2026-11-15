@@ -490,10 +490,10 @@ function MetadataDetailTabs({ sel, tab, setTab }: {
             <table className="ea-table ea-table--dense"
                    data-test="meta-relationships">
               <thead><tr>
-                <th style={{ width: 180 }}>Field</th>
+                <th className="ea-col-w-180">Field</th>
                 <th>Name</th>
-                <th style={{ width: 140 }}>UID</th>
-                <th style={{ width: 50, textAlign: 'right' }}></th>
+                <th className="ea-col-w-140">UID</th>
+                <th className="ea-text-right" style={{ width: 50 }}></th>
               </tr></thead>
               <tbody>
                 {rels.map((r, i) => {
@@ -549,7 +549,7 @@ function MetadataDetailTabs({ sel, tab, setTab }: {
             <table className="ea-table ea-table--dense"
                    data-test="meta-rules">
               <thead><tr>
-                <th style={{ width: 140 }}>Kind</th>
+                <th className="ea-col-w-140">Kind</th>
                 <th>Expression</th>
               </tr></thead>
               <tbody>

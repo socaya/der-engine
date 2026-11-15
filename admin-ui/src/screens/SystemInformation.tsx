@@ -165,7 +165,7 @@ export function SystemInformation(): JSX.Element {
 
         <Panel title="Journal backlog">
           {!si.journal || Object.keys(si.journal).length === 0 ? (
-            <p className="ea-text-muted" style={{ margin: 0 }}>Journal is empty.</p>
+            <p className="ea-text-muted">Journal is empty.</p>
           ) : (
             <KvGrid rows={Object.entries(si.journal).map(([k, v]) => [k, String(v)])} />
           )}

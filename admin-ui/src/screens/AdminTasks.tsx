@@ -189,11 +189,11 @@ export function AdminTasks(): JSX.Element {
                </div>
              }>
         {!logs ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             Click Load to tail the server log file.
           </p>
         ) : logs.status !== 'OK' ? (
-          <p className="ea-text-muted" style={{ margin: 0 }}>
+          <p className="ea-text-muted">
             {logs.status === 'NO_LOG_FILE'
               ? `No log file at ${logs.path}. Pass -Dder.lifecycle.log-path=... when starting DER to point this at the real log.`
               : `Could not read ${logs.path}: ${logs.error ?? 'unknown error'}`}

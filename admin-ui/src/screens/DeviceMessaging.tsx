@@ -166,7 +166,7 @@ export function DeviceMessaging(): JSX.Element {
             <table className="ea-table ea-table--dense">
               <thead><tr>
                 <th>Device</th><th>Channel</th><th>Cursor</th><th>Last poll</th>
-                <th style={{ width: 48 }} aria-label="Actions"></th>
+                <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {subs.map((s) => (

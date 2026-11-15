@@ -223,7 +223,7 @@ export function LoginAppearance(): JSX.Element {
                 data-test="current-bg"
               />
             ) : (
-              <p className="ea-text-muted" style={{ margin: 0 }}>
+              <p className="ea-text-muted">
                 No custom background set — device clients show the bundled default.
               </p>
             )}

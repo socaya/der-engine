@@ -83,6 +83,19 @@ body{
 .ea-text-xs{font-size:var(--fs-xs)}
 .ea-text-sm{font-size:var(--fs-sm)}
 .ea-fw-medium{font-weight:500}
+/* Fixed column widths for dense tables. Ladder follows the sampled
+ * frequency across admin-ui — anything else is left inline. */
+.ea-col-w-32{width:32px}
+.ea-col-w-48{width:48px}
+.ea-col-w-70{width:70px}
+.ea-col-w-80{width:80px}
+.ea-col-w-90{width:90px}
+.ea-col-w-100{width:100px}
+.ea-col-w-110{width:110px}
+.ea-col-w-120{width:120px}
+.ea-col-w-140{width:140px}
+.ea-col-w-160{width:160px}
+.ea-col-w-180{width:180px}
 code{font-family:var(--der-font-mono);font-size:var(--fs-sm)}
 
 /* ============ Shell layout ============ */
@@ -1522,6 +1535,9 @@ kbd{
 .ea-main .ea-panel-action .ea-chip{padding:0;font-size:12px}
 .ea-panel-body{padding:0}
 .ea-panel-body--flush{padding:0}
+/* Panels take their own vertical rhythm from PanelHead + table margins;
+ * trailing <p> inside a panel body would otherwise double-margin. */
+.ea-panel-body > p{margin:0}
 
 /* Split layout with right drawer */
 .ea-split{
