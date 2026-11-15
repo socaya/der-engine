@@ -55,7 +55,7 @@ class AppsControllerTest {
     }
 
     private InstalledApp sample() {
-        return new InstalledApp(UUID.randomUUID(), "key", "1", "name", "{}", "/tmp",
+        return InstalledApp.legacy(UUID.randomUUID(), "key", "1", "name", "{}", "/tmp",
                 UUID.randomUUID(), Instant.now(), true);
     }
 

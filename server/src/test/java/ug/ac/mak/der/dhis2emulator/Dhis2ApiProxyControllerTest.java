@@ -2,7 +2,10 @@ package ug.ac.mak.der.dhis2emulator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.net.http.HttpClient;
@@ -11,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 
@@ -36,34 +40,61 @@ class Dhis2ApiProxyControllerTest {
         return r;
     }
 
+    @SuppressWarnings("unchecked")
+    private static ObjectProvider<EmulatorMissRepository> missProvider(
+            final EmulatorMissRepository repo) {
+        final ObjectProvider<EmulatorMissRepository> p = mock(ObjectProvider.class);
+        when(p.getIfAvailable()).thenReturn(repo);
+        return p;
+    }
+
     @Test
-    void returns501WhenDisabled() {
+    void returnsEmulatorNotImplementedWhenDisabled() {
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
         final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
-                mock(HttpClient.class), props(), false, false, "");
+                mock(HttpClient.class), props(), false, false, "", missProvider(miss));
         final MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/analytics");
         final ResponseEntity<byte[]> res = p.proxy(req, null);
-        assertThat(res.getStatusCode().value()).isEqualTo(501);
-        assertThat(new String(res.getBody())).contains("NotImplemented");
+        assertThat(res.getStatusCode().value()).isEqualTo(404);
+        assertThat(new String(res.getBody())).contains("EMULATOR_NOT_IMPLEMENTED");
+        verify(miss).record(eq("/api/analytics"), eq(""));
     }
 
     @Test
-    void returns405OnWriteWhenNotAllowed() {
+    void returnsEmulatorNotImplementedOnWriteWhenNotAllowed() {
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
         final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
-                mock(HttpClient.class), props(), true, false, "");
+                mock(HttpClient.class), props(), true, false, "", missProvider(miss));
         final MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/analytics");
         final ResponseEntity<byte[]> res = p.proxy(req, null);
-        assertThat(res.getStatusCode().value()).isEqualTo(405);
-        assertThat(new String(res.getBody())).contains("writes blocked");
+        assertThat(res.getStatusCode().value()).isEqualTo(404);
+        assertThat(new String(res.getBody())).contains("EMULATOR_NOT_IMPLEMENTED");
+        assertThat(new String(res.getBody())).contains("Writes to this endpoint are blocked");
+        verify(miss).record(eq("/api/analytics"), eq(""));
     }
 
     @Test
-    void returns403WhenPathNotOnAllowList() {
+    void returnsEmulatorNotImplementedWhenPathNotOnAllowList() {
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
         final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
-                mock(HttpClient.class), props(), true, false, "");
+                mock(HttpClient.class), props(), true, false, "", missProvider(miss));
         final MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/users");
         final ResponseEntity<byte[]> res = p.proxy(req, null);
-        assertThat(res.getStatusCode().value()).isEqualTo(403);
-        assertThat(new String(res.getBody())).contains("not in proxy allow-list");
+        assertThat(res.getStatusCode().value()).isEqualTo(404);
+        assertThat(new String(res.getBody())).contains("EMULATOR_NOT_IMPLEMENTED");
+        assertThat(new String(res.getBody())).contains("not on the proxy allow-list");
+        verify(miss).record(eq("/api/users"), eq(""));
+    }
+
+    @Test
+    void recordsAppOriginFromReferer() {
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
+        final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
+                mock(HttpClient.class), props(), true, false, "", missProvider(miss));
+        final MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/users");
+        req.addHeader("Referer", "https://der.local/apps/dashboard/index.html");
+        p.proxy(req, null);
+        verify(miss).record(eq("/api/users"), eq("dashboard"));
     }
 
     @Test
@@ -71,12 +102,14 @@ class Dhis2ApiProxyControllerTest {
         final HttpClient http = mock(HttpClient.class);
         final HttpResponse<byte[]> stub = response(200, "{\"ok\":true}");
         when(http.<byte[]>send(any(), any())).thenReturn(stub);
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
         final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
-                http, props(), true, false, "/api/custom");
+                http, props(), true, false, "/api/custom", missProvider(miss));
         final MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/custom/stuff");
         final ResponseEntity<byte[]> res = p.proxy(req, null);
         assertThat(res.getStatusCode().value()).isEqualTo(200);
         assertThat(new String(res.getBody())).isEqualTo("{\"ok\":true}");
+        verify(miss, never()).record(any(), any());
     }
 
     @Test
@@ -84,27 +117,32 @@ class Dhis2ApiProxyControllerTest {
         final HttpClient http = mock(HttpClient.class);
         final HttpResponse<byte[]> stub = response(200, "{\"analytics\":[]}");
         when(http.<byte[]>send(any(), any())).thenReturn(stub);
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
         final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
-                http, props(), true, false, "");
+                http, props(), true, false, "", missProvider(miss));
         final MockHttpServletRequest req = new MockHttpServletRequest("GET",
                 "/api/analytics");
         req.setQueryString("dimension=dx:x&period=LAST_12_MONTHS");
         final ResponseEntity<byte[]> res = p.proxy(req, null);
         assertThat(res.getStatusCode().value()).isEqualTo(200);
         assertThat(new String(res.getBody())).contains("analytics");
+        verify(miss, never()).record(any(), any());
     }
 
     @Test
-    void returns503WhenCentralNotConfigured() {
+    void returnsEmulatorNotImplementedWhenCentralNotConfigured() {
         final Dhis2Properties noCentral = new Dhis2Properties(
                 new Dhis2Properties.Central("", "", "", 1000),
                 new Dhis2Properties.Compatibility(
                         "2.40", "2.44", "warn", true, 24, false, "2.44-SNAPSHOT", false));
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
         final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
-                mock(HttpClient.class), noCentral, true, false, "");
+                mock(HttpClient.class), noCentral, true, false, "", missProvider(miss));
         final MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/analytics");
         final ResponseEntity<byte[]> res = p.proxy(req, null);
-        assertThat(res.getStatusCode().value()).isEqualTo(503);
+        assertThat(res.getStatusCode().value()).isEqualTo(404);
+        assertThat(new String(res.getBody())).contains("EMULATOR_NOT_IMPLEMENTED");
+        verify(miss).record(eq("/api/analytics"), eq(""));
     }
 
     @Test
@@ -112,12 +150,14 @@ class Dhis2ApiProxyControllerTest {
         final HttpClient http = mock(HttpClient.class);
         final HttpResponse<byte[]> stub = response(201, "{\"created\":true}");
         when(http.<byte[]>send(any(), any())).thenReturn(stub);
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
         final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
-                http, props(), true, true, "");
+                http, props(), true, true, "", missProvider(miss));
         final MockHttpServletRequest req = new MockHttpServletRequest("POST",
                 "/api/dataStore/ns/key");
         req.setContent("{\"a\":1}".getBytes());
         final ResponseEntity<byte[]> res = p.proxy(req, "{\"a\":1}".getBytes());
         assertThat(res.getStatusCode().value()).isEqualTo(201);
+        verify(miss, never()).record(any(), any());
     }
 }

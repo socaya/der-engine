@@ -18,6 +18,7 @@ import java.util.Set;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -34,10 +35,13 @@ import ug.ac.mak.der.dhis2.Dhis2Properties;
  * configured central DHIS2 instance. Only fires for paths NOT already
  * handled by the emulator (Spring MVC prefers more-specific patterns).
  *
- * <p>Enabled by {@code der.dhis2.proxy.enabled=true}. When disabled,
- * the controller returns {@code 501 Not Implemented} so custom apps
- * see a predictable "feature not available offline" response instead
- * of a confusing 404.</p>
+ * <p>Enabled by {@code der.dhis2.proxy.enabled=true}. When disabled —
+ * or when the path doesn't match the allow-list, or central is not
+ * configured — the controller returns the DER-APPS-DHIS2-001 FR-EMU-007
+ * envelope: {@code 404 { code: EMULATOR_NOT_IMPLEMENTED, endpoint, … }}
+ * and records a hit in {@code der.emulator_miss} so the admin
+ * {@code /system/apps} diagnostic (FR-DIAG-002) can show operators
+ * which endpoints their apps are actually asking for.</p>
  *
  * <p>Read-side only by default: {@code GET} + {@code HEAD}. Write
  * methods ({@code POST}, {@code PUT}, {@code DELETE}, {@code PATCH})
@@ -72,16 +76,19 @@ public class Dhis2ApiProxyController {
     private final boolean enabled;
     private final boolean allowWrites;
     private final Set<String> allowPrefixes;
+    private final ObjectProvider<EmulatorMissRepository> missRepo;
 
     public Dhis2ApiProxyController(final HttpClient http, final Dhis2Properties props,
                                      @Value("${der.dhis2.proxy.enabled:true}") final boolean enabled,
                                      @Value("${der.dhis2.proxy.allow-writes:false}") final boolean allowWrites,
-                                     @Value("${der.dhis2.proxy.allow-paths:}") final String allowPaths) {
+                                     @Value("${der.dhis2.proxy.allow-paths:}") final String allowPaths,
+                                     final ObjectProvider<EmulatorMissRepository> missRepo) {
         this.http = Objects.requireNonNull(http, "http");
         this.props = Objects.requireNonNull(props, "props");
         this.enabled = enabled;
         this.allowWrites = allowWrites;
         this.allowPrefixes = parseAllow(allowPaths);
+        this.missRepo = missRepo;
     }
 
     private static Set<String> parseAllow(final String csv) {
@@ -102,29 +109,37 @@ public class Dhis2ApiProxyController {
             RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.PATCH})
     public ResponseEntity<byte[]> proxy(final HttpServletRequest request,
                                           @RequestBody(required = false) final byte[] body) {
+        final String path = request.getRequestURI();
+        final String origin = originHint(request);
         if (!enabled) {
-            return ResponseEntity.status(501).body(
-                    ("{\"httpStatus\":\"NotImplemented\",\"httpStatusCode\":501,"
-                            + "\"status\":\"ERROR\",\"message\":\"DHIS2 passthrough proxy is "
-                            + "disabled on this edge; this request is not supported offline.\"}")
-                            .getBytes(StandardCharsets.UTF_8));
+            logMiss(path, origin);
+            return ResponseEntity.status(404).body(
+                    notImplementedBody(path,
+                            "DHIS2 passthrough proxy is disabled on this edge; "
+                                    + "this request is not supported offline."));
         }
         final String method = request.getMethod();
         if (!isReadMethod(method) && !allowWrites) {
-            return ResponseEntity.status(405).body(
-                    "{\"status\":\"ERROR\",\"message\":\"writes blocked at proxy\"}"
-                            .getBytes(StandardCharsets.UTF_8));
+            logMiss(path, origin);
+            return ResponseEntity.status(404).body(
+                    notImplementedBody(path,
+                            "Writes to this endpoint are blocked at the "
+                                    + "DER proxy. Use DER's authoring surface or "
+                                    + "the journal/sync path for durable writes."));
         }
         if (props.central().baseUrl() == null || props.central().baseUrl().isBlank()) {
-            return ResponseEntity.status(503).body(
-                    "{\"status\":\"ERROR\",\"message\":\"central not configured\"}"
-                            .getBytes(StandardCharsets.UTF_8));
+            logMiss(path, origin);
+            return ResponseEntity.status(404).body(
+                    notImplementedBody(path,
+                            "No central DHIS2 is configured; this endpoint is "
+                                    + "not mirrored by the DER emulator."));
         }
-        final String path = request.getRequestURI();
         if (!matchesAllowList(path)) {
-            return ResponseEntity.status(403).body(
-                    ("{\"status\":\"ERROR\",\"message\":\"path not in proxy allow-list: "
-                            + path + "\"}").getBytes(StandardCharsets.UTF_8));
+            logMiss(path, origin);
+            return ResponseEntity.status(404).body(
+                    notImplementedBody(path,
+                            "Endpoint is not mirrored by the DER emulator and "
+                                    + "is not on the proxy allow-list."));
         }
         final String query = request.getQueryString();
         try {
@@ -166,6 +181,72 @@ public class Dhis2ApiProxyController {
 
     private static boolean isReadMethod(final String method) {
         return "GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method);
+    }
+
+    /**
+     * EMULATOR_NOT_IMPLEMENTED envelope (DER-APPS-DHIS2-001 FR-EMU-007).
+     * DHIS2 apps historically treat 404 on {@code /api/*} as "endpoint
+     * doesn't exist on this server," which is exactly the semantic we
+     * want. The extra {@code code} field lets DER tooling distinguish
+     * emulator misses from genuine object-not-found.
+     */
+    private static byte[] notImplementedBody(final String path,
+                                                final String message) {
+        final String escapedPath = path == null ? "" : path.replace("\"", "\\\"");
+        final String escapedMessage = message == null ? ""
+                : message.replace("\"", "\\\"");
+        return ("{\"httpStatus\":\"NotFound\",\"httpStatusCode\":404,"
+                + "\"status\":\"ERROR\",\"code\":\"EMULATOR_NOT_IMPLEMENTED\","
+                + "\"endpoint\":\"" + escapedPath + "\","
+                + "\"message\":\"" + escapedMessage + "\"}")
+                .getBytes(StandardCharsets.UTF_8);
+    }
+
+    private void logMiss(final String path, final String origin) {
+        if (missRepo == null) {
+            return;
+        }
+        final EmulatorMissRepository repo = missRepo.getIfAvailable();
+        if (repo == null) {
+            return;
+        }
+        try {
+            repo.record(path, origin);
+        } catch (RuntimeException ex) {
+            LOG.debug("emulator_miss record failed: {}", ex.getMessage());
+        }
+    }
+
+    /**
+     * Best-effort attribution of the calling app. The static-handler
+     * serves app index pages from {@code /apps/{appKey}}, and
+     * iframe-hosted apps send {@code Referer: /apps/{appKey}}. If we
+     * can't parse it, we store "" — the admin table just shows the
+     * endpoint instead.
+     */
+    private static String originHint(final HttpServletRequest request) {
+        final String referer = request.getHeader("Referer");
+        if (referer == null || referer.isBlank()) {
+            return "";
+        }
+        final int anchor = referer.indexOf("/apps/");
+        if (anchor < 0) {
+            return "";
+        }
+        final String after = referer.substring(anchor + "/apps/".length());
+        final int end = indexOfAny(after, '/', '?', '#');
+        return end < 0 ? after : after.substring(0, end);
+    }
+
+    private static int indexOfAny(final String s, final char... chars) {
+        int best = -1;
+        for (final char c : chars) {
+            final int i = s.indexOf(c);
+            if (i >= 0 && (best < 0 || i < best)) {
+                best = i;
+            }
+        }
+        return best;
     }
 
     private boolean matchesAllowList(final String path) {
