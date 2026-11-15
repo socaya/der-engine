@@ -3064,9 +3064,14 @@ export function centralSyncStatus(): Promise<{
 
 /** DER-APPS-DHIS2-001 FR-SYNC-004 — allow/deny-list policy. */
 export type CentralSyncPolicyMode = 'ALLOW_ALL' | 'ALLOW_LIST' | 'DENY_LIST';
+/** Phase-5 App-Hub bridge — picks which upstream the sync service
+ *  enumerates: the paired DHIS2 instance's /api/apps (CENTRAL) or
+ *  the global apps.dhis2.org hub (APP_HUB). */
+export type CentralSyncSource = 'CENTRAL' | 'APP_HUB';
 export interface CentralSyncPolicy {
   readonly mode: CentralSyncPolicyMode;
   readonly keys: string[];
+  readonly source?: CentralSyncSource;
 }
 export function getCentralSyncPolicy(): Promise<CentralSyncPolicy> {
   return request('GET', '/edge-api/v1/admin/apps/central-sync/policy');

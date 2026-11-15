@@ -59,6 +59,7 @@ public class CentralAppSyncService {
             "apps.allow-unsigned-central";
 
     private final CentralAppClient client;
+    private final org.springframework.beans.factory.ObjectProvider<AppHubClient> hubProvider;
     private final AppCatalogueController catalogue;
     private final InstalledAppRepository installedApps;
     private final CentralAppSyncRunRepository runs;
@@ -69,7 +70,9 @@ public class CentralAppSyncService {
     private final boolean enabled;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
+    @org.springframework.beans.factory.annotation.Autowired
     public CentralAppSyncService(final CentralAppClient client,
+                                   final org.springframework.beans.factory.ObjectProvider<AppHubClient> hubProvider,
                                    final AppCatalogueController catalogue,
                                    final InstalledAppRepository installedApps,
                                    final CentralAppSyncRunRepository runs,
@@ -80,6 +83,7 @@ public class CentralAppSyncService {
                                    @Value("${der.apps.central-sync.enabled:false}")
                                        final boolean enabled) {
         this.client = Objects.requireNonNull(client, "client");
+        this.hubProvider = hubProvider;
         this.catalogue = Objects.requireNonNull(catalogue, "catalogue");
         this.installedApps = Objects.requireNonNull(installedApps, "installedApps");
         this.runs = Objects.requireNonNull(runs, "runs");
@@ -88,6 +92,20 @@ public class CentralAppSyncService {
         this.verifier = Objects.requireNonNull(verifier, "verifier");
         this.systemSettings = Objects.requireNonNull(systemSettings, "systemSettings");
         this.enabled = enabled;
+    }
+
+    /** Pre-App-Hub ctor — Phase 4 tests still use the 9-arg form. */
+    public CentralAppSyncService(final CentralAppClient client,
+                                   final AppCatalogueController catalogue,
+                                   final InstalledAppRepository installedApps,
+                                   final CentralAppSyncRunRepository runs,
+                                   final SecurityAuditRepository audit,
+                                   final CentralSyncPolicyService policies,
+                                   final CentralSigningVerifier verifier,
+                                   final SystemSettingsRepository systemSettings,
+                                   final boolean enabled) {
+        this(client, null, catalogue, installedApps, runs, audit, policies,
+                verifier, systemSettings, enabled);
     }
 
     /** Scheduled entry point. Default cadence is 6 h; configurable via
@@ -134,7 +152,12 @@ public class CentralAppSyncService {
     private SyncReport doSync(final UUID runId,
                                 final boolean dryRun,
                                 final UUID triggeredBy) {
-        if (!client.centralConfigured()) {
+        final CentralSyncPolicy policy = policies.read();
+        final AppHubClient hub = hubProvider == null ? null
+                : hubProvider.getIfAvailable();
+        final boolean useHub =
+                policy.source() == CentralSyncPolicy.Source.APP_HUB && hub != null;
+        if (!useHub && !client.centralConfigured()) {
             final var counters = CentralAppSyncRunRepository.SyncCounters.zero();
             runs.markComplete(runId, "SKIPPED",
                     "central base-url is not configured", counters, List.of());
@@ -143,16 +166,16 @@ public class CentralAppSyncService {
         }
         final List<CentralApp> discovered;
         try {
-            discovered = client.listApps();
+            discovered = useHub ? hub.listApps() : client.listApps();
         } catch (IOException ex) {
             final var counters = CentralAppSyncRunRepository.SyncCounters.zero();
+            final String whatFailed = useHub ? "app-hub" : "central /api/apps";
             runs.markComplete(runId, "FAILED",
-                    "central /api/apps I/O: " + ex.getMessage(),
+                    whatFailed + " I/O: " + ex.getMessage(),
                     counters, List.of());
             return new SyncReport(runId, "FAILED",
                     ex.getMessage(), counters, List.of());
         }
-        final CentralSyncPolicy policy = policies.read();
         int installed = 0;
         int updated = 0;
         int skipped = 0;
@@ -204,7 +227,9 @@ public class CentralAppSyncService {
                 continue;
             }
             try {
-                final byte[] bytes = client.fetchBundle(app.downloadUrl());
+                final byte[] bytes = useHub
+                        ? hub.fetchBundle(app.downloadUrl())
+                        : client.fetchBundle(app.downloadUrl());
                 final String sha = sha256Hex(bytes);
                 // FR-SYNC-008 gate: when a pinned key is configured,
                 // every bundle must either verify under it or be

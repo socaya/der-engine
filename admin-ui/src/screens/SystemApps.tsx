@@ -25,9 +25,11 @@ export function SystemApps(): JSX.Element {
   const [syncErr, setSyncErr] = useState<string | null>(null);
   const [policy, setPolicy] = useState<edgeApi.CentralSyncPolicy | null>(null);
   const [policyDraft, setPolicyDraft]
-    = useState<{ mode: edgeApi.CentralSyncPolicyMode; keysText: string }>({
-      mode: 'ALLOW_ALL', keysText: '',
-    });
+    = useState<{
+      mode: edgeApi.CentralSyncPolicyMode;
+      keysText: string;
+      source: edgeApi.CentralSyncSource;
+    }>({ mode: 'ALLOW_ALL', keysText: '', source: 'CENTRAL' });
   const [policyErr, setPolicyErr] = useState<string | null>(null);
   const [policyBusy, setPolicyBusy] = useState(false);
 
@@ -41,7 +43,11 @@ export function SystemApps(): JSX.Element {
     edgeApi.getCentralSyncPolicy()
       .then((p) => {
         setPolicy(p);
-        setPolicyDraft({ mode: p.mode, keysText: p.keys.join(', ') });
+        setPolicyDraft({
+          mode: p.mode,
+          keysText: p.keys.join(', '),
+          source: p.source ?? 'CENTRAL',
+        });
       })
       .catch((e: unknown) =>
         setPolicyErr(e instanceof Error ? e.message : String(e)));
@@ -66,17 +72,22 @@ export function SystemApps(): JSX.Element {
       const keys = policyDraft.keysText.split(',')
         .map((s) => s.trim()).filter((s) => s.length > 0);
       const saved = await edgeApi.putCentralSyncPolicy({
-        mode: policyDraft.mode, keys,
+        mode: policyDraft.mode, keys, source: policyDraft.source,
       });
       setPolicy(saved);
-      setPolicyDraft({ mode: saved.mode, keysText: saved.keys.join(', ') });
+      setPolicyDraft({
+        mode: saved.mode,
+        keysText: saved.keys.join(', '),
+        source: saved.source ?? 'CENTRAL',
+      });
     } catch (e) {
       setPolicyErr(e instanceof Error ? e.message : String(e));
     } finally { setPolicyBusy(false); }
   };
   const policyDirty = policy !== null
     && (policy.mode !== policyDraft.mode
-      || policy.keys.join(', ') !== policyDraft.keysText.trim());
+      || policy.keys.join(', ') !== policyDraft.keysText.trim()
+      || (policy.source ?? 'CENTRAL') !== policyDraft.source);
 
   const onRollback = async (row: edgeApi.AdminAppRow): Promise<void> => {
     let versions: edgeApi.AppVersionRow[];
@@ -263,6 +274,19 @@ export function SystemApps(): JSX.Element {
                </span>
              }>
         <div className="ea-mb-md" data-test="system-apps-policy">
+          <label className="ea-label" htmlFor="sync-policy-source">Source</label>
+          <select id="sync-policy-source"
+                  className="ea-input ea-mr-md"
+                  value={policyDraft.source}
+                  disabled={policyBusy}
+                  onChange={(e) => setPolicyDraft({
+                    ...policyDraft,
+                    source: e.target.value as edgeApi.CentralSyncSource,
+                  })}
+                  data-test="system-apps-policy-source">
+            <option value="CENTRAL">Paired DHIS2 instance (/api/apps)</option>
+            <option value="APP_HUB">DHIS2 App Hub (apps.dhis2.org)</option>
+          </select>
           <label className="ea-label" htmlFor="sync-policy-mode">Policy</label>
           <select id="sync-policy-mode"
                   className="ea-input ea-mr-md"

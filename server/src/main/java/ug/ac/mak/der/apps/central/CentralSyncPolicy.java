@@ -28,7 +28,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * </ul>
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record CentralSyncPolicy(Mode mode, List<String> keys) {
+public record CentralSyncPolicy(Mode mode, List<String> keys, Source source) {
 
     public static final String SETTING_KEY = "apps.central-sync.policy";
 
@@ -38,13 +38,29 @@ public record CentralSyncPolicy(Mode mode, List<String> keys) {
         DENY_LIST
     }
 
+    /** Upstream source for auto-sync. Grew with the Phase 5 App Hub
+     *  bridge: {@code CENTRAL} hits the paired DHIS2 instance's
+     *  {@code /api/apps} (default; existing behaviour preserved);
+     *  {@code APP_HUB} hits apps.dhis2.org and picks DHIS2-version
+     *  compatible bundles. */
+    public enum Source {
+        CENTRAL,
+        APP_HUB
+    }
+
     public CentralSyncPolicy {
         mode = mode == null ? Mode.ALLOW_ALL : mode;
         keys = keys == null ? List.of() : List.copyOf(keys);
+        source = source == null ? Source.CENTRAL : source;
+    }
+
+    /** Back-compat ctor for callers that don't carry a source. */
+    public CentralSyncPolicy(final Mode mode, final List<String> keys) {
+        this(mode, keys, Source.CENTRAL);
     }
 
     public static CentralSyncPolicy allowAll() {
-        return new CentralSyncPolicy(Mode.ALLOW_ALL, List.of());
+        return new CentralSyncPolicy(Mode.ALLOW_ALL, List.of(), Source.CENTRAL);
     }
 
     /** @return true iff the candidate key passes the policy filter. */

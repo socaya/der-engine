@@ -143,6 +143,7 @@ public class CentralAppSyncAdminController {
         final Map<String, Object> m = new LinkedHashMap<>();
         m.put("mode", p.mode().name());
         m.put("keys", p.keys());
+        m.put("source", p.source().name());
         return m;
     }
 

@@ -284,6 +284,53 @@ class CentralAppSyncServiceTest {
     }
 
     @Test
+    void appHubSourceDispatchesToHubClient() throws Exception {
+        final AppHubClient hub = mock(AppHubClient.class);
+        when(policies.read()).thenReturn(new CentralSyncPolicy(
+                CentralSyncPolicy.Mode.ALLOW_ALL, List.of(),
+                CentralSyncPolicy.Source.APP_HUB));
+        when(hub.listApps()).thenReturn(List.of(
+                new CentralApp("capture", "Capture", "100.18.0",
+                        "https://apps.dhis2.org/download/capture-100.18.0.zip",
+                        null, null)));
+        when(installedApps.findByKey("capture")).thenReturn(Optional.empty());
+        when(hub.fetchBundle(any())).thenReturn(new byte[]{1, 2, 3});
+        when(catalogue.installZipBytesForSync(any(), eq("capture"), any()))
+                .thenReturn(Map.of("version", "100.18.0"));
+        @SuppressWarnings("unchecked")
+        final org.springframework.beans.factory.ObjectProvider<AppHubClient> p =
+                mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(p.getIfAvailable()).thenReturn(hub);
+        final CentralAppSyncService svc = new CentralAppSyncService(client, p,
+                catalogue, installedApps, runs, audit, policies, verifier,
+                systemSettings, true);
+        final var r = svc.sync(false, UUID.randomUUID());
+        assertThat(r.outcome()).isEqualTo("OK");
+        assertThat(r.counters().installed()).isEqualTo(1);
+        verify(hub).listApps();
+        verify(hub).fetchBundle(any());
+        // The CENTRAL client is NOT exercised for a HUB-sourced run.
+        verify(client, never()).listApps();
+        verify(client, never()).fetchBundle(any());
+    }
+
+    @Test
+    void appHubSourceFailsGracefullyWhenNoHubBean() {
+        // Null ObjectProvider — no hub bean registered. Falls back to
+        // CENTRAL semantics so the service doesn't hard-crash when
+        // the plan mis-configures APP_HUB without wiring the client.
+        when(policies.read()).thenReturn(new CentralSyncPolicy(
+                CentralSyncPolicy.Mode.ALLOW_ALL, List.of(),
+                CentralSyncPolicy.Source.APP_HUB));
+        when(client.centralConfigured()).thenReturn(false);
+        final CentralAppSyncService svc = new CentralAppSyncService(client, null,
+                catalogue, installedApps, runs, audit, policies, verifier,
+                systemSettings, true);
+        final var r = svc.sync(false, UUID.randomUUID());
+        assertThat(r.outcome()).isEqualTo("SKIPPED");
+    }
+
+    @Test
     void scheduledRunExecutesWhenEnabled() {
         when(client.centralConfigured()).thenReturn(true);
         try {
