@@ -11,6 +11,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.http.ResponseEntity;
@@ -21,8 +23,18 @@ import org.springframework.http.ResponseEntity;
  */
 class AppStaticHandlerAlpha3Test {
 
+    @BeforeEach
+    void authStub() {
+        AppStaticHandlerTestAuth.authenticate();
+    }
+
+    @AfterEach
+    void authClear() {
+        AppStaticHandlerTestAuth.clear();
+    }
+
     private static InstalledApp app(final Path installPath, final boolean enabled) {
-        return new InstalledApp(UUID.randomUUID(), "foo", "1.0", "Foo",
+        return InstalledApp.legacy(UUID.randomUUID(), "foo", "1.0", "Foo",
                 "{\"name\":\"Foo\",\"version\":\"1.0\",\"description\":\"test\"}",
                 installPath.toString(), UUID.randomUUID(),
                 Instant.parse("2026-10-23T00:00:00Z"), enabled);
@@ -48,9 +60,22 @@ class AppStaticHandlerAlpha3Test {
     @Test
     void noSlashRedirectsWithSlash() {
         final AppStaticHandler h = new AppStaticHandler(mock(InstalledAppRepository.class));
-        final ResponseEntity<byte[]> res = h.rootNoSlash("foo");
+        final org.springframework.mock.web.MockHttpServletRequest req =
+                new org.springframework.mock.web.MockHttpServletRequest();
+        final ResponseEntity<byte[]> res = h.rootNoSlash("foo", req);
         assertThat(res.getStatusCode().value()).isEqualTo(301);
         assertThat(res.getHeaders().getLocation().toString()).isEqualTo("/dhis-web-foo/");
+    }
+
+    @Test
+    void noSlashRedirectsToAppsOnTopLevelDocumentNav() {
+        final AppStaticHandler h = new AppStaticHandler(mock(InstalledAppRepository.class));
+        final org.springframework.mock.web.MockHttpServletRequest req =
+                new org.springframework.mock.web.MockHttpServletRequest();
+        req.addHeader("Sec-Fetch-Dest", "document");
+        final ResponseEntity<byte[]> res = h.rootNoSlash("foo", req);
+        assertThat(res.getStatusCode().value()).isEqualTo(302);
+        assertThat(res.getHeaders().getLocation().toString()).isEqualTo("/apps/foo");
     }
 
     @Test

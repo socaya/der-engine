@@ -11,14 +11,26 @@ import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.http.ResponseEntity;
 
 class AppStaticHandlerCspTest {
 
+    @BeforeEach
+    void authStub() {
+        AppStaticHandlerTestAuth.authenticate();
+    }
+
+    @AfterEach
+    void authClear() {
+        AppStaticHandlerTestAuth.clear();
+    }
+
     private static InstalledApp app(final Path installPath) {
-        return new InstalledApp(UUID.randomUUID(), "foo", "1.0", "Foo",
+        return InstalledApp.legacy(UUID.randomUUID(), "foo", "1.0", "Foo",
                 "{\"name\":\"Foo\",\"version\":\"1.0\"}", installPath.toString(),
                 UUID.randomUUID(), Instant.parse("2026-10-23T00:00:00Z"), true);
     }

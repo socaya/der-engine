@@ -155,7 +155,7 @@ class AppInstallerTest {
     @Test
     void uninstallRejectsPathEscape(@org.junit.jupiter.api.io.TempDir final Path tmp) {
         final AppInstaller installer = newInstaller(tmp, 100L, mock(InstalledAppRepository.class));
-        final InstalledApp bogus = new InstalledApp(UUID.randomUUID(), "x", "1", "x",
+        final InstalledApp bogus = InstalledApp.legacy(UUID.randomUUID(), "x", "1", "x",
                 "{}", "/etc/passwd", UUID.randomUUID(), java.time.Instant.now(), true);
         assertThatThrownBy(() -> installer.uninstall(bogus))
                 .isInstanceOf(AppInstaller.AppInstallException.class);

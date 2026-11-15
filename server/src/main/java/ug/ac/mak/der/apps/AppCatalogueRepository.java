@@ -81,7 +81,8 @@ public class AppCatalogueRepository {
                 "SELECT ia.app_id, ia.app_key, ia.display_name, "
                         + "       COALESCE(iav.manifest_json::text, ia.manifest_json::text) AS manifest_json, "
                         + "       iav.version, iav.bundle_sha256, iav.signature_b64, "
-                        + "       iav.requires_der_api, iav.icon_etag "
+                        + "       iav.requires_der_api, iav.icon_etag, "
+                        + "       ia.host_kind, ia.source, ia.trust_level "
                         + "FROM der.installed_app ia "
                         + "JOIN der.installed_app_version iav ON iav.app_id = ia.app_id "
                         + "WHERE ia.enabled = TRUE AND iav.superseded_at IS NULL "
@@ -235,7 +236,29 @@ public class AppCatalogueRepository {
                 rs.getString("bundle_sha256"),
                 rs.getString("signature_b64"),
                 rs.getString("requires_der_api"),
-                rs.getString("icon_etag"));
+                rs.getString("icon_etag"),
+                enumOrDefault(rs.getString("host_kind"),
+                        InstalledApp.HostKind.DER_ESM,
+                        InstalledApp.HostKind.class),
+                enumOrDefault(rs.getString("source"),
+                        InstalledApp.Source.MANUAL_UPLOAD,
+                        InstalledApp.Source.class),
+                enumOrDefault(rs.getString("trust_level"),
+                        InstalledApp.TrustLevel.SIGNED,
+                        InstalledApp.TrustLevel.class));
+    }
+
+    private static <E extends Enum<E>> E enumOrDefault(final String raw,
+                                                         final E fallback,
+                                                         final Class<E> type) {
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        try {
+            return Enum.valueOf(type, raw);
+        } catch (IllegalArgumentException ex) {
+            return fallback;
+        }
     }
 
     // ---- projections ---------------------------------------------------
@@ -260,7 +283,30 @@ public class AppCatalogueRepository {
                                   String bundleSha256,
                                   String signatureB64,
                                   String requiresDerApi,
-                                  String iconEtag) { }
+                                  String iconEtag,
+                                  InstalledApp.HostKind hostKind,
+                                  InstalledApp.Source source,
+                                  InstalledApp.TrustLevel trustLevel) {
+
+        /** Back-compat factory for test fixtures that predate the Phase 2a
+         *  hybrid-dispatcher columns. Defaults to DER_ESM / MANUAL_UPLOAD /
+         *  SIGNED, matching the legacy posture. */
+        public static CatalogueEntry legacy(final UUID appId,
+                                               final String appKey,
+                                               final String displayName,
+                                               final String manifestJson,
+                                               final String version,
+                                               final String bundleSha256,
+                                               final String signatureB64,
+                                               final String requiresDerApi,
+                                               final String iconEtag) {
+            return new CatalogueEntry(appId, appKey, displayName, manifestJson,
+                    version, bundleSha256, signatureB64, requiresDerApi, iconEtag,
+                    InstalledApp.HostKind.DER_ESM,
+                    InstalledApp.Source.MANUAL_UPLOAD,
+                    InstalledApp.TrustLevel.SIGNED);
+        }
+    }
 
     /** Bytes + crypto metadata for a specific version. */
     public record BundleRow(byte[] bytes,

@@ -19,9 +19,13 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+
+import ug.ac.mak.der.security.EdgeUserPrincipal;
 
 /**
  * Serves static files from an installed DHIS2 custom app at
@@ -55,7 +59,17 @@ public class AppStaticHandler {
     }
 
     @GetMapping("/dhis-web-{appKey}")
-    public ResponseEntity<byte[]> rootNoSlash(@PathVariable("appKey") final String appKey) {
+    public ResponseEntity<byte[]> rootNoSlash(@PathVariable("appKey") final String appKey,
+                                                final HttpServletRequest request) {
+        // DER-APPS-DHIS2-001 D8 — top-level navigation to the DHIS2 path
+        // redirects to the unified /apps/{appKey} namespace so operators
+        // get the shell chrome. Asset loads from inside the iframe arrive
+        // with Sec-Fetch-Dest=iframe and skip the redirect.
+        if (isTopLevelDocumentNavigation(request)) {
+            return ResponseEntity.status(302)
+                    .location(URI.create("/apps/" + appKey))
+                    .build();
+        }
         return ResponseEntity.status(301)
                 .location(URI.create("/dhis-web-" + appKey + "/"))
                 .build();
@@ -64,6 +78,12 @@ public class AppStaticHandler {
     @GetMapping("/dhis-web-{appKey}/**")
     public ResponseEntity<byte[]> serve(@PathVariable("appKey") final String appKey,
                                           final HttpServletRequest request) throws IOException {
+        // FR-APP-003 — all /dhis-web-* traffic requires an authenticated
+        // DER session cookie, including index.html itself. Anonymous
+        // bookmark visits get 401.
+        if (!isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
         final Optional<InstalledApp> maybe = repository.findByKey(appKey);
         if (maybe.isEmpty() || !maybe.get().enabled()) {
             return ResponseEntity.notFound().build();
@@ -76,6 +96,14 @@ public class AppStaticHandler {
         }
         String relative = uri.substring(prefix.length());
         if (relative.isEmpty()) {
+            // D8 — top-level visits to /dhis-web-<key>/ get shell-wrapped;
+            // iframe loads (Sec-Fetch-Dest=iframe) go through and serve
+            // index.html.
+            if (isTopLevelDocumentNavigation(request)) {
+                return ResponseEntity.status(302)
+                        .location(URI.create("/apps/" + appKey))
+                        .build();
+            }
             relative = "index.html";
         }
         if ("manifest.webapp".equals(relative)) {
@@ -108,7 +136,28 @@ public class AppStaticHandler {
                             + "frame-ancestors 'self'");
             headers.setCacheControl(CacheControl.noCache());
         }
+        // FR-APP-003 — X-Frame-Options prevents a third-party page from
+        // iframe-embedding a DHIS2 app pulled from this origin. The
+        // DER client shell itself is same-origin so the SAMEORIGIN token
+        // still lets the hybrid dispatcher mount it.
+        headers.add("X-Frame-Options", "SAMEORIGIN");
         return ResponseEntity.ok().headers(headers).body(body);
+    }
+
+    /** Sec-Fetch-Dest=document indicates a top-level navigation
+     *  (operator typed the URL or clicked a bookmark). iframe loads
+     *  arrive with Sec-Fetch-Dest=iframe. When the header is absent
+     *  (older clients, non-browser tools) we don't redirect — the
+     *  app still works, just no shell-chrome wrapping. */
+    static boolean isTopLevelDocumentNavigation(final HttpServletRequest request) {
+        final String dest = request.getHeader("Sec-Fetch-Dest");
+        return "document".equals(dest);
+    }
+
+    private static boolean isAuthenticated() {
+        final Authentication auth =
+                SecurityContextHolder.getContext().getAuthentication();
+        return auth instanceof EdgeUserPrincipal;
     }
 
     private String nextNonce() {

@@ -70,7 +70,7 @@ class AppCatalogueControllerTest {
     }
 
     private AppCatalogueRepository.CatalogueEntry sample(final UUID appId) {
-        return new AppCatalogueRepository.CatalogueEntry(
+        return AppCatalogueRepository.CatalogueEntry.legacy(
                 appId, "data-entry", "Data Entry", "{\"module\":\"Data\"}",
                 "1.4.0", "a1b2c3d4e5f60718", "sig==", "1.0.0", null);
     }
@@ -98,7 +98,7 @@ class AppCatalogueControllerTest {
     void listHandlesManifestWithoutModule() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(repo.catalogue()).thenReturn(List.of(
-                new AppCatalogueRepository.CatalogueEntry(
+                AppCatalogueRepository.CatalogueEntry.legacy(
                         appId, "k", "K", "{}", "1.0.0", "s", "si", "1.0.0", null)));
         mockMvc.perform(get("/edge-api/v1/apps"))
                 .andExpect(status().isOk())
@@ -109,7 +109,7 @@ class AppCatalogueControllerTest {
     void listHandlesBlankManifest() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(repo.catalogue()).thenReturn(List.of(
-                new AppCatalogueRepository.CatalogueEntry(
+                AppCatalogueRepository.CatalogueEntry.legacy(
                         appId, "k", "K", "", "1.0.0", "s", "si", "1.0.0", null)));
         mockMvc.perform(get("/edge-api/v1/apps"))
                 .andExpect(status().isOk())
@@ -120,7 +120,7 @@ class AppCatalogueControllerTest {
     void listHandlesNullManifest() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(repo.catalogue()).thenReturn(List.of(
-                new AppCatalogueRepository.CatalogueEntry(
+                AppCatalogueRepository.CatalogueEntry.legacy(
                         appId, "k", "K", null, "1.0.0", "s", "si", "1.0.0", null)));
         mockMvc.perform(get("/edge-api/v1/apps"))
                 .andExpect(status().isOk())
@@ -131,7 +131,7 @@ class AppCatalogueControllerTest {
     void listHandlesManifestWithNullModule() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(repo.catalogue()).thenReturn(List.of(
-                new AppCatalogueRepository.CatalogueEntry(
+                AppCatalogueRepository.CatalogueEntry.legacy(
                         appId, "k", "K", "{\"module\":null}",
                         "1.0.0", "s", "si", "1.0.0", null)));
         mockMvc.perform(get("/edge-api/v1/apps"))
@@ -143,7 +143,7 @@ class AppCatalogueControllerTest {
     void listReturnsNullModuleOnMalformedManifest() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(repo.catalogue()).thenReturn(List.of(
-                new AppCatalogueRepository.CatalogueEntry(
+                AppCatalogueRepository.CatalogueEntry.legacy(
                         appId, "k", "K", "{not json", "1.0.0", "s", "si", "1.0.0", null)));
         mockMvc.perform(get("/edge-api/v1/apps"))
                 .andExpect(status().isOk())
@@ -329,7 +329,7 @@ class AppCatalogueControllerTest {
     void installReusesExistingAppRow() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(installedApps.findByKey("data-entry")).thenReturn(Optional.of(
-                new InstalledApp(appId, "data-entry", "1.0.0", "Data Entry",
+                InstalledApp.legacy(appId, "data-entry", "1.0.0", "Data Entry",
                         "{}", "db://data-entry", UUID.randomUUID(), NOW, true)));
         doReturn(new byte[]{1, 2, 3}).when(signer).signBundle(any());
         mockMvc.perform(multipart("/edge-api/v1/admin/apps/install")
@@ -405,7 +405,7 @@ class AppCatalogueControllerTest {
     void upgradeRejectsEmptyFile() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(installedApps.findById(appId)).thenReturn(Optional.of(
-                new InstalledApp(appId, "k", "1.0", "K", "{}", "db://k",
+                InstalledApp.legacy(appId, "k", "1.0", "K", "{}", "db://k",
                         UUID.randomUUID(), NOW, true)));
         mockMvc.perform(multipart("/edge-api/v1/admin/apps/" + appId + "/upgrade")
                         .file(new MockMultipartFile("file", "a.js",
@@ -420,7 +420,7 @@ class AppCatalogueControllerTest {
     void upgradeTransitionsPriorVersion() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(installedApps.findById(appId)).thenReturn(Optional.of(
-                new InstalledApp(appId, "k", "1.0", "K", "{}", "db://k",
+                InstalledApp.legacy(appId, "k", "1.0", "K", "{}", "db://k",
                         UUID.randomUUID(), NOW, true)));
         doReturn(new byte[]{9, 9}).when(signer).signBundle(any());
         mockMvc.perform(multipart("/edge-api/v1/admin/apps/" + appId + "/upgrade")
@@ -810,7 +810,7 @@ class AppCatalogueControllerTest {
     void installZipReusesExistingAppRow() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(installedApps.findByKey("data-entry")).thenReturn(Optional.of(
-                new InstalledApp(appId, "data-entry", "0.0.1", "Data",
+                InstalledApp.legacy(appId, "data-entry", "0.0.1", "Data",
                         "{}", "db://data-entry", UUID.randomUUID(), NOW, true)));
         doReturn(new byte[]{1, 2, 3}).when(signer).signBundle(any());
         mockMvc.perform(multipart("/edge-api/v1/admin/apps/install")
@@ -1008,7 +1008,7 @@ class AppCatalogueControllerTest {
     void upgradeRawJsRejectsOnlyRequiresDerApiMissing() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(installedApps.findById(appId)).thenReturn(Optional.of(
-                new InstalledApp(appId, "k", "1.0", "K", "{}", "db://k",
+                InstalledApp.legacy(appId, "k", "1.0", "K", "{}", "db://k",
                         UUID.randomUUID(), NOW, true)));
         mockMvc.perform(multipart("/edge-api/v1/admin/apps/" + appId + "/upgrade")
                         .file(new MockMultipartFile("file", "a.js",
@@ -1108,7 +1108,7 @@ class AppCatalogueControllerTest {
     void upgradeFromZipSupersedesPriorVersion() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(installedApps.findById(appId)).thenReturn(Optional.of(
-                new InstalledApp(appId, "data-entry", "0.0.1", "Data",
+                InstalledApp.legacy(appId, "data-entry", "0.0.1", "Data",
                         "{}", "db://data-entry", UUID.randomUUID(), NOW, true)));
         doReturn(new byte[]{9}).when(signer).signBundle(any());
         mockMvc.perform(multipart("/edge-api/v1/admin/apps/" + appId + "/upgrade")
@@ -1129,7 +1129,7 @@ class AppCatalogueControllerTest {
     void upgradeRawJsRejectsMissingVersion() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(installedApps.findById(appId)).thenReturn(Optional.of(
-                new InstalledApp(appId, "k", "1.0", "K", "{}", "db://k",
+                InstalledApp.legacy(appId, "k", "1.0", "K", "{}", "db://k",
                         UUID.randomUUID(), NOW, true)));
         mockMvc.perform(multipart("/edge-api/v1/admin/apps/" + appId + "/upgrade")
                         .file(new MockMultipartFile("file", "a.js",
@@ -1143,7 +1143,7 @@ class AppCatalogueControllerTest {
     void listAttachesIconUrlWhenEtagPresent() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(repo.catalogue()).thenReturn(List.of(
-                new AppCatalogueRepository.CatalogueEntry(
+                AppCatalogueRepository.CatalogueEntry.legacy(
                         appId, "data-entry", "Data", "{\"module\":\"Data\"}",
                         "0.1.0", "sha", "sig", "1.0.0", "etag16")));
         mockMvc.perform(get("/edge-api/v1/apps"))
@@ -1158,7 +1158,7 @@ class AppCatalogueControllerTest {
     void listOmitsIconUrlWhenEtagMissing() throws Exception {
         final UUID appId = UUID.randomUUID();
         when(repo.catalogue()).thenReturn(List.of(
-                new AppCatalogueRepository.CatalogueEntry(
+                AppCatalogueRepository.CatalogueEntry.legacy(
                         appId, "data-entry", "Data", "{}",
                         "0.1.0", "sha", "sig", "1.0.0", null)));
         mockMvc.perform(get("/edge-api/v1/apps"))

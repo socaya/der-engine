@@ -36,6 +36,11 @@ public class DeviceApprovalWebConfig implements WebMvcConfigurer {
                         // are metadata and stay open so an unapproved
                         // device can discover its enrolment affordances.
                         "/edge-api/v1/apps/*/*/bundle.js",
+                        // DER-APPS-DHIS2-001 FR-APP-005 — DHIS2 iframe apps
+                        // live under /dhis-web-<appKey>/. Same posture: the
+                        // code (html + js assets) is gated on device
+                        // approval, not the catalogue metadata.
+                        "/dhis-web-*/**",
                         "/api/dataValueSets",
                         "/api/events",
                         "/api/tracker/**");

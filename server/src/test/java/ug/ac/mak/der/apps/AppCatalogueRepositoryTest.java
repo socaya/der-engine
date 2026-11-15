@@ -270,7 +270,7 @@ class AppCatalogueRepositoryTest {
     @Test
     void catalogueEntryRecordExposesFields() {
         final UUID id = UUID.randomUUID();
-        final var e = new AppCatalogueRepository.CatalogueEntry(
+        final var e = AppCatalogueRepository.CatalogueEntry.legacy(
                 id, "k", "Name", "{}", "1.0", "sha", "sig", "1.0.0", "etag16");
         assertThat(e.appId()).isEqualTo(id);
         assertThat(e.appKey()).isEqualTo("k");

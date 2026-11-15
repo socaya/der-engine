@@ -11,11 +11,23 @@ import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.http.ResponseEntity;
 
 class AppStaticHandlerTest {
+
+    @BeforeEach
+    void authStub() {
+        AppStaticHandlerTestAuth.authenticate();
+    }
+
+    @AfterEach
+    void authClear() {
+        AppStaticHandlerTestAuth.clear();
+    }
 
     @Test
     void guessContentTypeFallbacks() {
@@ -41,7 +53,7 @@ class AppStaticHandlerTest {
     void serveSuccess(@TempDir final Path tmp) throws Exception {
         Files.writeString(tmp.resolve("index.html"), "<html></html>");
         final InstalledAppRepository repo = mock(InstalledAppRepository.class);
-        final InstalledApp app = new InstalledApp(UUID.randomUUID(), "x", "1", "x",
+        final InstalledApp app = InstalledApp.legacy(UUID.randomUUID(), "x", "1", "x",
                 "{}", tmp.toString(), UUID.randomUUID(), Instant.now(), true);
         when(repo.findByKey("x")).thenReturn(Optional.of(app));
         final HttpServletRequest req = mock(HttpServletRequest.class);
@@ -54,7 +66,7 @@ class AppStaticHandlerTest {
     void serveEmptyRelativeDefaultsToIndex(@TempDir final Path tmp) throws Exception {
         Files.writeString(tmp.resolve("index.html"), "<html></html>");
         final InstalledAppRepository repo = mock(InstalledAppRepository.class);
-        final InstalledApp app = new InstalledApp(UUID.randomUUID(), "x", "1", "x",
+        final InstalledApp app = InstalledApp.legacy(UUID.randomUUID(), "x", "1", "x",
                 "{}", tmp.toString(), UUID.randomUUID(), Instant.now(), true);
         when(repo.findByKey("x")).thenReturn(Optional.of(app));
         final HttpServletRequest req = mock(HttpServletRequest.class);
@@ -66,7 +78,7 @@ class AppStaticHandlerTest {
     @Test
     void serveMissingFile(@TempDir final Path tmp) throws Exception {
         final InstalledAppRepository repo = mock(InstalledAppRepository.class);
-        final InstalledApp app = new InstalledApp(UUID.randomUUID(), "x", "1", "x",
+        final InstalledApp app = InstalledApp.legacy(UUID.randomUUID(), "x", "1", "x",
                 "{}", tmp.toString(), UUID.randomUUID(), Instant.now(), true);
         when(repo.findByKey("x")).thenReturn(Optional.of(app));
         final HttpServletRequest req = mock(HttpServletRequest.class);
@@ -79,7 +91,7 @@ class AppStaticHandlerTest {
     void servePathTraversal(@TempDir final Path tmp) throws Exception {
         Files.writeString(tmp.resolve("inside.txt"), "x");
         final InstalledAppRepository repo = mock(InstalledAppRepository.class);
-        final InstalledApp app = new InstalledApp(UUID.randomUUID(), "x", "1", "x",
+        final InstalledApp app = InstalledApp.legacy(UUID.randomUUID(), "x", "1", "x",
                 "{}", tmp.toString(), UUID.randomUUID(), Instant.now(), true);
         when(repo.findByKey("x")).thenReturn(Optional.of(app));
         final HttpServletRequest req = mock(HttpServletRequest.class);
@@ -91,7 +103,7 @@ class AppStaticHandlerTest {
     @Test
     void serveNonPrefixedUri(@TempDir final Path tmp) throws Exception {
         final InstalledAppRepository repo = mock(InstalledAppRepository.class);
-        final InstalledApp app = new InstalledApp(UUID.randomUUID(), "x", "1", "x",
+        final InstalledApp app = InstalledApp.legacy(UUID.randomUUID(), "x", "1", "x",
                 "{}", tmp.toString(), UUID.randomUUID(), Instant.now(), true);
         when(repo.findByKey("x")).thenReturn(Optional.of(app));
         final HttpServletRequest req = mock(HttpServletRequest.class);

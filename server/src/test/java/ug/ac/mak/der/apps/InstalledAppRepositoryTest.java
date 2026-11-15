@@ -24,7 +24,7 @@ import org.springframework.jdbc.core.RowMapper;
 class InstalledAppRepositoryTest {
 
     private InstalledApp sample() {
-        return new InstalledApp(UUID.randomUUID(), "key", "1.0", "name",
+        return InstalledApp.legacy(UUID.randomUUID(), "key", "1.0", "name",
                 "{}", "/tmp/apps/key/1.0", UUID.randomUUID(), Instant.now(), true);
     }
 
@@ -106,7 +106,7 @@ class InstalledAppRepositoryTest {
 
     @Test
     void installedAppRecordRejectsNulls() {
-        assertThatThrownBy(() -> new InstalledApp(null, "k", "v", "n", "{}", "/p",
+        assertThatThrownBy(() -> InstalledApp.legacy(null, "k", "v", "n", "{}", "/p",
                 UUID.randomUUID(), Instant.now(), true))
                 .isInstanceOf(NullPointerException.class);
     }

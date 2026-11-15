@@ -87,10 +87,17 @@ public class AppInstaller {
                     "app " + appKey + " version " + version + " already installed");
         }
         Files.move(staging, target);
+        // Filesystem install path is used for DHIS2 .zip bundles today — the
+        // manifest.webapp shape plus the extracted asset tree means this is
+        // a DHIS2_IFRAME install by construction.
         final InstalledApp app = new InstalledApp(UUID.randomUUID(), appKey, version,
                 manifest.has("displayName") ? manifest.get("displayName").asText() : name,
                 mapper.writeValueAsString(manifest),
-                target.toString(), installedBy, Instant.now(), true);
+                target.toString(), installedBy, Instant.now(), true,
+                InstalledApp.HostKind.DHIS2_IFRAME,
+                InstalledApp.Source.MANUAL_UPLOAD,
+                InstalledApp.TrustLevel.UNSIGNED,
+                null, null);
         return repository.insert(app);
     }
 

@@ -214,11 +214,17 @@ public class AppCatalogueController {
             appId = existing.get().appId();
         } else {
             appId = UUID.randomUUID();
+            // Raw .js uploads are the DER-native ESM path — host is DER_ESM
+            // and the Ed25519 signature is mandatory, so trust_level=SIGNED.
             installedApps.insert(new InstalledApp(
                     appId, appKey, version, displayName,
                     manifestJson(module, iconSvg),
                     "db://" + appKey,
-                    userId, java.time.Instant.now(), true));
+                    userId, java.time.Instant.now(), true,
+                    InstalledApp.HostKind.DER_ESM,
+                    InstalledApp.Source.MANUAL_UPLOAD,
+                    InstalledApp.TrustLevel.SIGNED,
+                    null, null));
         }
         return ResponseEntity.ok(storeJsVersion(appId, appKey, version, module,
                 requiresDerApi, bytes, userId));
@@ -353,12 +359,19 @@ public class AppCatalogueController {
             }
         } else {
             appId = UUID.randomUUID();
+            // Zip upload currently requires bundle.js — a DHIS2-manifest
+            // wrapper around a DER-native ESM bundle. Full DHIS2_IFRAME
+            // installs (no bundle.js, static tree) land in Phase 2b.
             installedApps.insert(new InstalledApp(
                     appId, parsed.manifest.name, parsed.manifest.version,
                     parsed.manifest.displayName,
                     manifestJson(parsed.manifest.module, null),
                     "db://" + parsed.manifest.name,
-                    userId, java.time.Instant.now(), true));
+                    userId, java.time.Instant.now(), true,
+                    InstalledApp.HostKind.DER_ESM,
+                    InstalledApp.Source.MANUAL_UPLOAD,
+                    InstalledApp.TrustLevel.SIGNED,
+                    null, null));
         }
         return storeZipVersion(appId, parsed.manifest.name, parsed, userId);
     }
@@ -582,6 +595,16 @@ public class AppCatalogueController {
         m.put("iconUrl", row.iconEtag() == null ? null
                 : iconUrl(row.appId(), row.version()));
         m.put("manifestJson", row.manifestJson());
+        // DER-APPS-DHIS2-001 Phase 2a — hybrid-dispatcher metadata the
+        // client needs to pick the right host. iframe apps expose a
+        // launchUrl under /dhis-web-{appKey}/ instead of bundleUrl; the
+        // client switches on hostKind.
+        m.put("hostKind", row.hostKind().name());
+        m.put("source", row.source().name());
+        m.put("trustLevel", row.trustLevel().name());
+        if (row.hostKind() == InstalledApp.HostKind.DHIS2_IFRAME) {
+            m.put("launchUrl", "/dhis-web-" + row.appKey() + "/");
+        }
         return m;
     }
 
