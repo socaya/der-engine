@@ -75,10 +75,14 @@ class MeControllerTest {
 
     @Test
     void populatesBoundOrgUnitAcrossAllThreeLists() throws Exception {
-        Mockito.when(binding.current()).thenReturn(EdgeOrgUnitBinding.bound(
+        final EdgeOrgUnitBinding bound = EdgeOrgUnitBinding.bound(
                 "OU-CLINIC-A", "A&A Medcare",
                 "/HL2zXaIULBe/IK0Mg4vXyTl/OU-CLINIC-A",
-                UUID.randomUUID()));
+                UUID.randomUUID());
+        Mockito.when(binding.effectiveScopeFor(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new OrgUnitBindingService.EffectiveScope(
+                        OrgUnitBindingService.EffectiveScope.State.NO_ASSIGNMENT,
+                        bound, null, null));
         mockMvc.perform(get("/api/me").with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.organisationUnits[0].id").value("OU-CLINIC-A"))
@@ -92,12 +96,52 @@ class MeControllerTest {
 
     @Test
     void unboundApplianceSurfacesNoOuBoundWarning() throws Exception {
-        Mockito.when(binding.current()).thenReturn(EdgeOrgUnitBinding.empty());
+        Mockito.when(binding.effectiveScopeFor(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new OrgUnitBindingService.EffectiveScope(
+                        OrgUnitBindingService.EffectiveScope.State.UNBOUND,
+                        EdgeOrgUnitBinding.empty(), null, null));
         mockMvc.perform(get("/api/me").with(as(EdgeRole.OPERATOR)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.organisationUnits").isEmpty())
                 .andExpect(jsonPath("$.dataViewOrganisationUnits").isEmpty())
                 .andExpect(jsonPath("$.teiSearchOrganisationUnits").isEmpty())
                 .andExpect(jsonPath("$.warnings[0]").value("NO_OU_BOUND"));
+    }
+
+    @Test
+    void narrowedScopeOverridesDeviceWideBinding() throws Exception {
+        final EdgeOrgUnitBinding bound = EdgeOrgUnitBinding.bound(
+                "OU-CLINIC-A", "A&A Medcare",
+                "/HL2zXaIULBe/IK0Mg4vXyTl/OU-CLINIC-A",
+                UUID.randomUUID());
+        Mockito.when(binding.effectiveScopeFor(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new OrgUnitBindingService.EffectiveScope(
+                        OrgUnitBindingService.EffectiveScope.State.SCOPE_ASSIGNED,
+                        bound, "OU-ROOM-7",
+                        new OrgUnitBindingService.NarrowedOu(
+                                "OU-ROOM-7", "Room 7",
+                                "/HL2zXaIULBe/IK0Mg4vXyTl/OU-CLINIC-A/OU-ROOM-7")));
+        mockMvc.perform(get("/api/me").with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.organisationUnits[0].id").value("OU-ROOM-7"))
+                .andExpect(jsonPath("$.organisationUnits[0].displayName").value("Room 7"))
+                .andExpect(jsonPath("$.warnings").doesNotExist());
+    }
+
+    @Test
+    void outOfBoundScopeFallsBackAndWarns() throws Exception {
+        final EdgeOrgUnitBinding bound = EdgeOrgUnitBinding.bound(
+                "OU-CLINIC-A", "A&A Medcare",
+                "/HL2zXaIULBe/IK0Mg4vXyTl/OU-CLINIC-A",
+                UUID.randomUUID());
+        Mockito.when(binding.effectiveScopeFor(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new OrgUnitBindingService.EffectiveScope(
+                        OrgUnitBindingService.EffectiveScope.State.SCOPE_FALLS_OUTSIDE,
+                        bound, "OU-ROOM-7-stale", null));
+        mockMvc.perform(get("/api/me").with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                // Falls back to the device-wide bound OU.
+                .andExpect(jsonPath("$.organisationUnits[0].id").value("OU-CLINIC-A"))
+                .andExpect(jsonPath("$.warnings[0]").value("SCOPE_ASSIGNMENT_OUT_OF_BOUND"));
     }
 }

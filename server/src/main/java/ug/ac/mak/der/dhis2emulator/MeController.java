@@ -56,8 +56,9 @@ public class MeController {
         body.put("authorities", toAuthorities(user));
 
         final OrgUnitBindingService svc = bindingProvider.getIfAvailable();
-        final EdgeOrgUnitBinding binding = svc == null ? null : svc.current();
-        final List<Map<String, Object>> ous = ouList(binding);
+        final OrgUnitBindingService.EffectiveScope scope = svc == null
+                ? null : svc.effectiveScopeFor(user.userId());
+        final List<Map<String, Object>> ous = ouList(scope);
         body.put("organisationUnits", ous);
         body.put("dataViewOrganisationUnits", ous);
         body.put("teiSearchOrganisationUnits", ous);
@@ -65,24 +66,58 @@ public class MeController {
         body.put("userRoles", toUserRoles(user));
         body.put("settings", Map.<String, Object>of());
         body.put("derOrigin", user.origin().name());
-        // FR-OU-002 — surface unbound state explicitly so DHIS2 apps that
-        // honour the warning can show a message rather than silently
-        // rendering an empty picker.
-        if (svc != null && (binding == null || !binding.isBound())) {
-            body.put("warnings", List.of("NO_OU_BOUND"));
-        }
+        collectWarnings(svc, scope, body);
         return ResponseEntity.ok(body);
     }
 
-    private static List<Map<String, Object>> ouList(final EdgeOrgUnitBinding binding) {
-        if (binding == null || !binding.isBound()) {
+    /**
+     * FR-OU-005 — the OU array projection honours per-user scope
+     * assignments. Order of precedence:
+     * <ol>
+     *   <li>Narrowed OU from a valid per-user assignment.</li>
+     *   <li>Device-wide bound OU.</li>
+     *   <li>Empty (edge unbound).</li>
+     * </ol>
+     */
+    private static List<Map<String, Object>> ouList(
+            final OrgUnitBindingService.EffectiveScope scope) {
+        if (scope == null || scope.state()
+                == OrgUnitBindingService.EffectiveScope.State.UNBOUND) {
             return List.of();
         }
         final Map<String, Object> ou = new LinkedHashMap<>();
-        ou.put("id", binding.orgUnitId());
-        ou.put("displayName", binding.orgUnitDisplayName());
-        ou.put("path", binding.orgUnitPath());
+        if (scope.state() == OrgUnitBindingService.EffectiveScope.State.SCOPE_ASSIGNED
+                && scope.narrowedOu() != null) {
+            ou.put("id", scope.narrowedOu().orgUnitId());
+            ou.put("displayName", scope.narrowedOu().displayName());
+            ou.put("path", scope.narrowedOu().path());
+        } else {
+            final EdgeOrgUnitBinding b = scope.binding();
+            ou.put("id", b.orgUnitId());
+            ou.put("displayName", b.orgUnitDisplayName());
+            ou.put("path", b.orgUnitPath());
+        }
         return List.of(ou);
+    }
+
+    /** Aggregate /api/me warnings: NO_OU_BOUND when unbound, plus
+     *  SCOPE_ASSIGNMENT_OUT_OF_BOUND when the user has a stale
+     *  per-user scope outside the current bound subtree. */
+    private static void collectWarnings(final OrgUnitBindingService svc,
+                                          final OrgUnitBindingService.EffectiveScope scope,
+                                          final Map<String, Object> body) {
+        if (svc == null) {
+            return;
+        }
+        if (scope == null
+                || scope.state() == OrgUnitBindingService.EffectiveScope.State.UNBOUND) {
+            body.put("warnings", List.of("NO_OU_BOUND"));
+            return;
+        }
+        if (scope.state()
+                == OrgUnitBindingService.EffectiveScope.State.SCOPE_FALLS_OUTSIDE) {
+            body.put("warnings", List.of("SCOPE_ASSIGNMENT_OUT_OF_BOUND"));
+        }
     }
 
     private static List<String> toAuthorities(final EdgeUser user) {

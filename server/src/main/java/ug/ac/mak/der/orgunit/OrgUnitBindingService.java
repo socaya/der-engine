@@ -1,8 +1,11 @@
 package ug.ac.mak.der.orgunit;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 
@@ -14,14 +17,94 @@ import org.springframework.stereotype.Service;
 public class OrgUnitBindingService {
 
     private final EdgeOrgUnitBindingRepository repo;
+    private final ObjectProvider<ScopeAssignmentRepository> scopesProvider;
 
-    public OrgUnitBindingService(final EdgeOrgUnitBindingRepository repo) {
+    @Autowired
+    public OrgUnitBindingService(final EdgeOrgUnitBindingRepository repo,
+                                   final ObjectProvider<ScopeAssignmentRepository> scopesProvider) {
         this.repo = Objects.requireNonNull(repo, "repo");
+        this.scopesProvider = scopesProvider;
+    }
+
+    /** Pre-FR-OU-005 convenience constructor — Phase 1+2 tests use
+     *  this. Behaves as if no per-user scope override exists. */
+    public OrgUnitBindingService(final EdgeOrgUnitBindingRepository repo) {
+        this(repo, null);
     }
 
     public EdgeOrgUnitBinding current() {
         return repo.read();
     }
+
+    /**
+     * DER-APPS-DHIS2-001 FR-OU-005 — compute the effective OU scope
+     * for a given user. Returns the per-user ORG_UNIT scope when it
+     * exists AND falls under the current bound subtree; otherwise
+     * falls back to the device-wide bound OU.
+     *
+     * <p>The three outcomes carry different semantics for
+     * {@code /api/me}:
+     * <ul>
+     *   <li>{@link EffectiveScope.State#SCOPE_ASSIGNED} — user has a
+     *     valid per-user scope narrower than the facility.</li>
+     *   <li>{@link EffectiveScope.State#SCOPE_FALLS_OUTSIDE} — user
+     *     has an assignment but it's no longer under the bound
+     *     facility (e.g. device was rebound). {@code binding} wins;
+     *     /api/me emits {@code SCOPE_ASSIGNMENT_OUT_OF_BOUND}.</li>
+     *   <li>{@link EffectiveScope.State#NO_ASSIGNMENT} — just the
+     *     device-wide bound OU.</li>
+     * </ul>
+     *
+     * <p>When the edge is unbound the returned scope has the
+     * {@link EffectiveScope#binding()} field empty and
+     * {@link EffectiveScope.State#UNBOUND} state — caller handles.</p>
+     */
+    public EffectiveScope effectiveScopeFor(final UUID userId) {
+        final EdgeOrgUnitBinding binding = repo.read();
+        if (binding == null || !binding.isBound()) {
+            return new EffectiveScope(EffectiveScope.State.UNBOUND,
+                    EdgeOrgUnitBinding.empty(), null, null);
+        }
+        if (userId == null) {
+            return new EffectiveScope(EffectiveScope.State.NO_ASSIGNMENT,
+                    binding, null, null);
+        }
+        final ScopeAssignmentRepository scopes =
+                scopesProvider == null ? null : scopesProvider.getIfAvailable();
+        if (scopes == null) {
+            return new EffectiveScope(EffectiveScope.State.NO_ASSIGNMENT,
+                    binding, null, null);
+        }
+        final Optional<ScopeAssignmentRepository.Row> row =
+                scopes.findOrgUnitScope(userId);
+        if (row.isEmpty()) {
+            return new EffectiveScope(EffectiveScope.State.NO_ASSIGNMENT,
+                    binding, null, null);
+        }
+        final String scopeOuId = row.get().scopeRef();
+        final String scopePath = repo.resolveOrgUnitPath(scopeOuId);
+        if (scopePath == null
+                || !repo.isUnderBoundSubtree(binding, scopePath)) {
+            return new EffectiveScope(
+                    EffectiveScope.State.SCOPE_FALLS_OUTSIDE,
+                    binding, scopeOuId, null);
+        }
+        final String scopeDisplay = repo.resolveOrgUnitDisplayName(scopeOuId);
+        return new EffectiveScope(EffectiveScope.State.SCOPE_ASSIGNED,
+                binding, scopeOuId,
+                new NarrowedOu(scopeOuId, scopeDisplay, scopePath));
+    }
+
+    /** Scope outcome for {@link #effectiveScopeFor}. */
+    public record EffectiveScope(State state,
+                                  EdgeOrgUnitBinding binding,
+                                  String assignedOrgUnitId,
+                                  NarrowedOu narrowedOu) {
+        public enum State { UNBOUND, NO_ASSIGNMENT, SCOPE_ASSIGNED, SCOPE_FALLS_OUTSIDE }
+    }
+
+    /** Narrower-than-bound OU details for /api/me projection. */
+    public record NarrowedOu(String orgUnitId, String displayName, String path) { }
 
     /**
      * Binds the edge to the given orgUnit, resolving displayName + path
