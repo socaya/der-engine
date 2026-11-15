@@ -245,7 +245,7 @@ export function DevicesScreen(
                         <span className="ea-text-muted">—</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <RowActions
                         device={d}
                         busy={busy === d.id}

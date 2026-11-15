@@ -122,10 +122,10 @@ export function OperatorMetrics(): JSX.Element {
                 <th>Operator</th>
                 <th>DHIS2 mapping</th>
                 <th>Credential</th>
-                <th style={{ textAlign: 'right' }}>Conflicts</th>
-                <th style={{ textAlign: 'right' }}>Rejected</th>
-                <th style={{ textAlign: 'right' }}>Retrying</th>
-                <th style={{ textAlign: 'right' }}>Attention</th>
+                <th className="ea-text-right">Conflicts</th>
+                <th className="ea-text-right">Rejected</th>
+                <th className="ea-text-right">Retrying</th>
+                <th className="ea-text-right">Attention</th>
               </tr></thead>
               <tbody>
                 {ranked.map((r) => (

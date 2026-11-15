@@ -115,7 +115,7 @@ export function DeviceFleet(): JSX.Element {
                   </td>
                   <td className="ea-mono">{fmtDate(r.enrolledAt)}</td>
                   <td className="ea-mono">{fmtAgo(r.lastSeenAt)}</td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="ea-text-right">
                     <RowMenu items={[
                       { label: 'Open details', to: `/devices/${r.deviceId}` },
                     ]} />

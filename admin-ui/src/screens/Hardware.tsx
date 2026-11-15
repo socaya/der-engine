@@ -231,7 +231,7 @@ export function Hardware(): JSX.Element {
                     <td className="ea-mono">{l.periodMs ? l.periodMs + ' ms' : '—'}</td>
                     <td className="ea-text-muted">{l.label ?? '—'}</td>
                     <td className="ea-text-muted">{fmtAgo(l.updatedAt)}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       {editLed === l.zone ? (
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"

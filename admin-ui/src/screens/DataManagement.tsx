@@ -142,7 +142,7 @@ export function DataManagement(): JSX.Element {
                   </td>
                   <td className="ea-text-muted"
                       title={fmtDate(r.updated)}>{fmtAgo(r.updated)}</td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="ea-text-right">
                     <RowMenu items={rowMenuForType(r.typeKey)} />
                   </td>
                 </tr>

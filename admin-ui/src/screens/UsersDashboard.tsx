@@ -207,7 +207,7 @@ export function UsersDashboard(): JSX.Element {
                       </span>
                     </td>
                     <td className="ea-text-muted">—</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <RowMenu items={[
                         { label: 'Open details', to: `/provisioning/users/${u.userId}` },
                         { label: mappings[u.userId] ? 'Edit DHIS2 mapping' : 'Map DHIS2 user',

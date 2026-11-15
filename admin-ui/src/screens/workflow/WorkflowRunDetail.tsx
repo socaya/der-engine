@@ -485,7 +485,7 @@ function OutboundBundlePanel({ runId }: { runId: string }): JSX.Element {
             <th>Ref</th>
             <th>Endpoint</th>
             <th>State</th>
-            <th style={{ textAlign: 'right' }}>Att.</th>
+            <th className="ea-text-right">Att.</th>
             <th>Updated</th>
             <th style={{ width: 80 }}></th>
           </tr></thead>

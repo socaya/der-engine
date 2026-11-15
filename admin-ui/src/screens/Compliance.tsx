@@ -141,7 +141,7 @@ export function Compliance(): JSX.Element {
                   <td className="ea-text-muted">{p.lastPurgeAt ? fmtAgo(p.lastPurgeAt) : '—'}</td>
                   <td className="ea-mono">{p.lastPurgeRows}</td>
                   <td className="ea-text-muted ea-text-xs">{p.description}</td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="ea-text-right">
                     {editKey === p.category ? (
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                         <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
@@ -195,7 +195,7 @@ export function Compliance(): JSX.Element {
                         title={r.receiptHash ?? ''}>
                       {r.receiptHash ? r.receiptHash.slice(0, 24) + '…' : '—'}
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       {r.status === 'PENDING' && (
                         <RowMenu items={[
                           { label: 'Complete erasure', danger: true,

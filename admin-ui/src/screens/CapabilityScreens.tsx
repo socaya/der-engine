@@ -1265,7 +1265,7 @@ export function CapDataQueues(): JSX.Element {
                    data-test="cap-queues-backlog">
               <thead><tr>
                 <th style={{ width: 140 }}>State</th>
-                <th style={{ textAlign: 'right' }}>Operations</th>
+                <th className="ea-text-right">Operations</th>
               </tr></thead>
               <tbody>
                 {entries.map(([k, v]) => (
@@ -1277,7 +1277,7 @@ export function CapDataQueues(): JSX.Element {
                           ? <Status tone="info">PENDING</Status>
                           : <Status tone="success">{k}</Status>}
                     </td>
-                    <td className="ea-mono" style={{ textAlign: 'right' }}>{v}</td>
+                    <td className="ea-mono ea-text-right">{v}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1437,7 +1437,7 @@ function RecentPullsTable(
                 <td><Status tone={ok ? 'success' : 'danger'}>{ok ? 'Succeeded' : 'Failed'}</Status></td>
                 <td>{h.durationMs != null ? fmtDur(h.durationMs) : '—'}</td>
                 <td>{humaniseTrigger(h.triggeredBy)}</td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="ea-text-right">
                   <RowMenu items={[
                     { label: 'Open details', to: `/sync/history/${h.runId}` },
                   ]} />
@@ -1866,7 +1866,7 @@ function ScheduleRow({ cronKey, value, onChange, onRunNow, lastRun, flash }: {
         <td>
           <Status tone={outcomeTone}>{outcomeLabel}</Status>
         </td>
-        <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+        <td className="ea-text-right" onClick={(e) => e.stopPropagation()}>
           <RowMenu items={menuItems} />
         </td>
       </tr>
@@ -3316,11 +3316,11 @@ export function CapRoles(): JSX.Element {
                         ? <Status tone="info">Built-in</Status>
                         : <Status tone="success">Custom</Status>}
                     </td>
-                    <td style={{ textAlign: 'right' }}
+                    <td className="ea-text-right"
                         data-test={`cap-roles-auth-${r.roleId}`}>
                       {r.authorities.length}
                     </td>
-                    <td style={{ textAlign: 'right' }}
+                    <td className="ea-text-right"
                         data-test={`cap-roles-userct-${r.roleId}`}>
                       {r.userCount}
                     </td>
@@ -3592,7 +3592,7 @@ export function CapAuthorities(): JSX.Element {
                           data-test={`cap-authorities-restricts-${a.authority}`}>
                         {a.restricts ?? '—'}
                       </td>
-                      <td style={{ textAlign: 'right' }}
+                      <td className="ea-text-right"
                           data-test={`cap-authorities-roles-${a.authority}`}>
                         {holding.length}
                       </td>
@@ -3712,8 +3712,8 @@ export function AuthorityDetailPage(): JSX.Element {
                     <td>{r.builtin
                           ? <Status tone="info">Built-in</Status>
                           : <Status tone="success">Custom</Status>}</td>
-                    <td style={{ textAlign: 'right' }}>{r.authorities.length}</td>
-                    <td style={{ textAlign: 'right' }}>{r.userCount}</td>
+                    <td className="ea-text-right">{r.authorities.length}</td>
+                    <td className="ea-text-right">{r.userCount}</td>
                   </tr>
                 ))}
               </tbody>
@@ -4280,7 +4280,7 @@ export function CapDeviceEnrolment(): JSX.Element {
                           style={{ fontSize: 11, wordBreak: 'break-all' }}>
                         {r.userAgent ?? '—'}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="ea-text-right">
                         <div style={{ display: 'flex', gap: 6,
                                         justifyContent: 'flex-end' }}>
                           <button type="button"
@@ -4462,7 +4462,7 @@ export function CapOwnership(): JSX.Element {
                           title={r.lastSeenAt ?? ''}>
                         {r.lastSeenAt ? fmtAgo(r.lastSeenAt) : '—'}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="ea-text-right">
                         <RowMenu items={[
                           { label: 'Open details',
                             to: `/devices/${r.deviceId}` },
@@ -4878,8 +4878,8 @@ export function CapOperatorMetrics(): JSX.Element {
                   return (
                     <tr key={name} data-test={`cap-metrics-row-${name}`}>
                       <td className="ea-mono">{name}</td>
-                      <td style={{ textAlign: 'right' }}>{b.succ}</td>
-                      <td style={{ textAlign: 'right' }}>{b.fail}</td>
+                      <td className="ea-text-right">{b.succ}</td>
+                      <td className="ea-text-right">{b.fail}</td>
                       <td data-test={`cap-metrics-rel-${name}`}>
                         {rel == null
                           ? <span className="ea-text-muted">—</span>

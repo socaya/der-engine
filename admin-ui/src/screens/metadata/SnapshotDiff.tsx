@@ -77,17 +77,17 @@ export function SnapshotDiff({ api = edgeApi, aOverride, bOverride }:
             <thead>
               <tr>
                 <th>Resource</th>
-                <th style={{ textAlign: 'right' }}>#{a}</th>
-                <th style={{ textAlign: 'right' }}>#{b}</th>
-                <th style={{ textAlign: 'right' }}>Δ</th>
+                <th className="ea-text-right">#{a}</th>
+                <th className="ea-text-right">#{b}</th>
+                <th className="ea-text-right">Δ</th>
               </tr>
             </thead>
             <tbody>
               {Object.entries(counters.deltas).map(([k, v]) => (
                 <tr key={k}>
                   <td className="ea-fw-medium">{k}</td>
-                  <td style={{ textAlign: 'right' }}>{v.a}</td>
-                  <td style={{ textAlign: 'right' }}>{v.b}</td>
+                  <td className="ea-text-right">{v.a}</td>
+                  <td className="ea-text-right">{v.b}</td>
                   <td style={{ textAlign: 'right',
                                 color: v.delta === 0 ? 'var(--der-ink-500)'
                                       : v.delta > 0 ? '#1f7a1f' : '#b02a37' }}>

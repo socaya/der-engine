@@ -146,7 +146,7 @@ export function SyncHistory(): JSX.Element {
                         {humaniseState(j.outcome)}
                       </Status>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <RowMenu items={rowMenuFor(j)} />
                     </td>
                   </tr>

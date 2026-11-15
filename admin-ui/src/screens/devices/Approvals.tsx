@@ -60,7 +60,7 @@ export function ApprovalQueue(): JSX.Element {
                         title={r.createdAt ? fmtDate(r.createdAt) : ''}>
                       {r.createdAt ? fmtAgo(r.createdAt) : '—'}
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <RowMenu items={[
                         { label: 'Open details', to: `/approvals/${r.operationId}` },
                         { label: 'Approve',

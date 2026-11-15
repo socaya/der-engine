@@ -126,7 +126,7 @@ export function ConflictList(): JSX.Element {
                       </td>
                       <td className="ea-text-muted ea-text-xs"
                           title={fmtDate(r.createdAt)}>{fmtAgo(r.createdAt)}</td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="ea-text-right">
                         <RowMenu items={[
                           { label: 'Open details', to: `/sync/attention/${r.operationId}` },
                           { label: 'Accept local version',

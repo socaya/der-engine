@@ -82,7 +82,7 @@ export function ReferralInbox(): JSX.Element {
                         {humaniseState(r.status)}
                       </Status>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <RowMenu items={[
                         { label: 'Open details', to: `/referral/inbox/${r.inboxId}` },
                         ...(r.status === 'PENDING' ? [

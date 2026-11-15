@@ -180,7 +180,7 @@ export function Dhis2Mappings(): JSX.Element {
                           title={m?.mappedAt}>
                         {m ? fmtAgo(m.mappedAt) : '—'}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="ea-text-right">
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                           <button type="button"
                                   className="ea-btn ea-btn--ghost ea-btn--sm"

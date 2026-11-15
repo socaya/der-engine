@@ -284,7 +284,7 @@ export function SiteConfig(): JSX.Element {
                         </span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <button type="button"
                               className="ea-btn ea-btn--primary ea-btn--sm"
                               disabled={!changed || saving}
@@ -413,7 +413,7 @@ export function ConfigEditor(): JSX.Element {
                              data-test={`config-input-${k}`}
                              onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))} />
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <button type="button"
                               className="ea-btn ea-btn--primary ea-btn--sm"
                               disabled={!changed || saving}

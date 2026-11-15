@@ -312,7 +312,7 @@ export function DataQueues(): JSX.Element {
                     </td>
                     <td className="ea-text-muted"
                         title={fmtDate(op.updatedAt)}>{fmtAgo(op.updatedAt)}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <RowMenu items={rowMenuFor(op)} />
                     </td>
                   </tr>

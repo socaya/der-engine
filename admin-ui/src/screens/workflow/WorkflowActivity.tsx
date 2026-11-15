@@ -258,7 +258,7 @@ function QueueRow({ icon, label, to, value, status }: {
       <td>
         <Status tone={status.tone}>{status.text}</Status>
       </td>
-      <td style={{ textAlign: 'right' }}>
+      <td className="ea-text-right">
         <Link to={to} className="ea-link-btn">Open →</Link>
       </td>
     </tr>

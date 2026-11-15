@@ -181,7 +181,7 @@ export function DeviceMessaging(): JSX.Element {
                         {s.lastPollAt ? fmtAgo(s.lastPollAt) : 'never'}
                       </Status>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <RowMenu items={[
                         { label: 'Unsubscribe', danger: true, onSelect: () => {
                           edgeApi.messagingUnsubscribe(s.deviceId, s.channel)

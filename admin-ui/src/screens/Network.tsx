@@ -717,7 +717,7 @@ export function NetworkConnectedDevices(): JSX.Element {
                         </Status>
                       </td>
                       <td className="ea-text-muted" title={c.lastSeenAt}>{fmtAgo(c.lastSeenAt)}</td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="ea-text-right">
                         <RowMenu items={[
                           { label: 'Edit label', onSelect: () => setEditFor(c) },
                           ...(c.trust === 'PENDING' ? [{ label: 'Approve', onSelect: () => approve(c.deviceId) }] : []),
@@ -800,7 +800,7 @@ function EnrolTokensPanel(): JSX.Element {
                     <td className="ea-text-muted">{t.issuedAt ? fmtAgo(t.issuedAt) : '—'}</td>
                     <td className="ea-text-muted">{t.expiresAt ? fmtAgo(t.expiresAt) : '—'}</td>
                     <td><Status tone={status.tone}>{status.label}</Status></td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       {!t.consumedAt && !expired && (
                         <RowMenu items={[
                           { label: 'Revoke', danger: true, onSelect: () => revoke(t.tokenHash) },
@@ -1005,7 +1005,7 @@ export function NetworkInterfaces(): JSX.Element {
                     <td className="ea-mono">{i.address ?? '—'}</td>
                     <td className="ea-mono ea-text-muted ea-text-xs">{i.mac ?? '—'}</td>
                     <td className="ea-text-muted">{i.linkSpeed ?? '—'}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <RowMenu items={[
                         { label: 'Edit (priority / purpose)',
                           onSelect: () => setEditIface(i) },
@@ -1089,7 +1089,7 @@ export function NetworkInterfaces(): JSX.Element {
                         {l.staticLease ? 'STATIC' : 'DYNAMIC'}
                       </Status>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <RowMenu items={[
                         { label: 'Delete lease', danger: true, onSelect: () => removeLease(l.mac) },
                       ]} />
@@ -1335,7 +1335,7 @@ export function NetworkPeers(): JSX.Element {
                         {p.trust}
                       </Status>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <RowMenu items={[
                         { label: 'Edit peer', onSelect: () => setEditPeer(p) },
                         ...(p.state === 'CONNECTED'
@@ -1547,7 +1547,7 @@ export function NetworkSecurity(): JSX.Element {
                   </button>
                 </td>
                 <td className="ea-text-muted ea-text-xs">{r.note ?? '—'}</td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="ea-text-right">
                   <RowMenu items={[
                     { label: 'Edit rule', onSelect: () => setEditRule(r) },
                     { label: 'Cycle action', onSelect: () => cycleAction(r) },
@@ -1847,7 +1847,7 @@ export function NetworkDiagnostics(): JSX.Element {
                       </Status>
                     </td>
                     <td className="ea-text-muted">{e.reason ?? '—'}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <RowMenu items={[
                         { label: 'Copy JSON', onSelect: () => copyEvent(e) },
                         ...(e.correlationId
@@ -2051,7 +2051,7 @@ export function NetworkSettings(): JSX.Element {
                                autoFocus />
                       ) : settings[k]}
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       {editKey === k ? (
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"

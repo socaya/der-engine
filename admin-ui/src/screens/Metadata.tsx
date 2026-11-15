@@ -276,7 +276,7 @@ export function Metadata(): JSX.Element {
                     <td className="ea-text-muted">{r.shortName ?? '—'}</td>
                     <td className="ea-mono">{r.lastUpdated ? fmtDate(r.lastUpdated) : '—'}</td>
                     <td><Dot tone="success" /> mirrored</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="ea-text-right">
                       <RowMenu items={[
                         { label: 'Open details', to: `/dhis2/metadata/${r.resource}/${r.id}` },
                       ]} />
@@ -523,7 +523,7 @@ function MetadataDetailTabs({ sel, tab, setTab }: {
                                        —
                                      </span>}</td>
                       <td>{idCell}</td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="ea-text-right">
                         {to && (
                           <Link to={to}
                                  className="ea-link-btn"

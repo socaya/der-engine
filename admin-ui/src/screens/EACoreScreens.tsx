@@ -1546,7 +1546,7 @@ export function EACaptureWorkflowList({ api = edgeApi }:
                         {w.enabled ? 'Enabled' : 'Disabled'}
                       </Status>
                     </td>
-                    <td style={{ textAlign: 'right' }}
+                    <td className="ea-text-right"
                         data-test={`cwf01-row-menu-${w.workflowId}`}>
                       <RowMenu items={[
                         { label: 'Open designer', to: `/workflows/${w.workflowId}` },

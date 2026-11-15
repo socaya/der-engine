@@ -475,7 +475,7 @@ export function EADiagnostics({ api = edgeApi }: {
             <table className="ea-table ea-table--dense" data-test="ea35-journal">
               <thead><tr>
                 <th style={{ width: 140 }}>State</th>
-                <th style={{ textAlign: 'right' }}>Operations</th>
+                <th className="ea-text-right">Operations</th>
               </tr></thead>
               <tbody>
                 {journalEntries.map(([k, v]) => (
@@ -487,7 +487,7 @@ export function EADiagnostics({ api = edgeApi }: {
                           ? <Status tone="info">{k}</Status>
                           : <Status tone="success">{k}</Status>}
                     </td>
-                    <td className="ea-mono" style={{ textAlign: 'right' }}>{v}</td>
+                    <td className="ea-mono ea-text-right">{v}</td>
                   </tr>
                 ))}
               </tbody>
