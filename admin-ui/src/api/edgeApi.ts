@@ -3002,6 +3002,25 @@ export function listAdminApps(): Promise<{ count: number; apps: AdminAppRow[] }>
     'GET', '/edge-api/v1/admin/apps');
 }
 
+/** DER-APPS-DHIS2-001 FR-DIAG-002 — unmirrored-endpoint miss log.
+ *  One row per (endpoint, appOrigin) tuple, with a hit counter and the
+ *  first/last time DHIS2 apps hit it. Used by the SystemApps screen
+ *  to tell operators which /api/* paths their apps are asking for
+ *  that DER doesn't implement. */
+export interface EmulatorMissRow {
+  readonly endpoint: string;
+  readonly appOrigin: string;
+  readonly hitCount: number;
+  readonly firstAt: string;
+  readonly lastAt: string;
+}
+export function listEmulatorMisses(
+  limit = 50,
+): Promise<{ misses: EmulatorMissRow[] }> {
+  return request<{ misses: EmulatorMissRow[] }>(
+    'GET', `/edge-api/v1/admin/apps/emulator-misses?limit=${limit}`);
+}
+
 export function approveDevice(id: string): Promise<{ outcome: string }> {
   return request('POST', `/edge-api/v1/devices/${id}/approve`);
 }

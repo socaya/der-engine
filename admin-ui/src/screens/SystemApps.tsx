@@ -14,6 +14,8 @@ import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
  */
 export function SystemApps(): JSX.Element {
   const [rows, setRows] = useState<edgeApi.AdminAppRow[] | null>(null);
+  const [misses, setMisses] = useState<edgeApi.EmulatorMissRow[] | null>(null);
+  const [missErr, setMissErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,6 +23,10 @@ export function SystemApps(): JSX.Element {
       .then((r) => setRows(r.apps))
       .catch((e: unknown) =>
         setErr(e instanceof Error ? e.message : String(e)));
+    edgeApi.listEmulatorMisses()
+      .then((r) => setMisses(r.misses))
+      .catch((e: unknown) =>
+        setMissErr(e instanceof Error ? e.message : String(e)));
   }, []);
 
   if (err) {
@@ -130,6 +136,65 @@ export function SystemApps(): JSX.Element {
                     <td className="ea-text-muted ea-text-xs"
                         title={r.lastOpenedAt ?? undefined}>
                       {r.lastOpenedAt ? fmtAgo(r.lastOpenedAt) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Unmirrored endpoints"
+             action={
+               <span className="ea-text-muted ea-text-xs"
+                     data-test="system-apps-misses-count">
+                 {misses === null
+                   ? '…'
+                   : misses.length === 0
+                     ? 'No misses recorded'
+                     : `${misses.length} endpoint${misses.length === 1 ? '' : 's'}`}
+               </span>
+             }>
+        {missErr !== null ? (
+          <p className="ea-text-muted"
+             data-test="system-apps-misses-error">
+            Could not load miss log: {missErr}
+          </p>
+        ) : misses === null ? (
+          <p className="ea-text-muted"
+             data-test="system-apps-misses-loading">Loading…</p>
+        ) : misses.length === 0 ? (
+          <p className="ea-text-muted"
+             data-test="system-apps-misses-empty">
+            Apps have not asked for any unmirrored endpoints.
+          </p>
+        ) : (
+          <div className="ea-table-wrap">
+            <table className="ea-table ea-table--dense"
+                   data-test="system-apps-misses-table">
+              <thead>
+                <tr>
+                  <th>Endpoint</th>
+                  <th className="ea-col-w-110">App</th>
+                  <th className="ea-col-w-80">Hits</th>
+                  <th className="ea-col-w-120">Last seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {misses.map((m) => (
+                  <tr key={`${m.endpoint}|${m.appOrigin}`}
+                      data-test={`system-apps-miss-row-${m.endpoint}`}>
+                    <td>
+                      <code className="ea-text-xs">{m.endpoint}</code>
+                    </td>
+                    <td className="ea-text-xs">
+                      {m.appOrigin === '' ? '—' : m.appOrigin}
+                    </td>
+                    <td className="ea-text-xs">{m.hitCount}</td>
+                    <td className="ea-text-muted ea-text-xs"
+                        title={m.lastAt}>
+                      {fmtAgo(m.lastAt)}
                     </td>
                   </tr>
                 ))}

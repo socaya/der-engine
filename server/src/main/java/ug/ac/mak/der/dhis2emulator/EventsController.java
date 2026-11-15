@@ -13,6 +13,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import ug.ac.mak.der.dhis2.compatibility.CapabilityFlags;
@@ -55,6 +57,7 @@ public class EventsController {
     private final OperationJournalRepository journal;
     private final ObjectMapper jsonMapper;
     private final Clock clock;
+    private final ObjectProvider<TrackerJobRepository> trackerJobs;
 
     public EventsController(final EventService service,
                              final Dhis2CompatibilityEngine engine,
@@ -62,7 +65,8 @@ public class EventsController {
                              final TrackerEventRepository trackerEvents,
                              final OperationJournalRepository journal,
                              final ObjectMapper jsonMapper,
-                             final Clock clock) {
+                             final Clock clock,
+                             final ObjectProvider<TrackerJobRepository> trackerJobs) {
         this.service = service;
         this.engine = engine;
         this.systemWorkflows = systemWorkflows;
@@ -70,6 +74,7 @@ public class EventsController {
         this.journal = journal;
         this.jsonMapper = jsonMapper;
         this.clock = clock;
+        this.trackerJobs = trackerJobs;
     }
 
     @PostMapping(path = "/api/events", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -140,10 +145,65 @@ public class EventsController {
 
     @PostMapping(path = "/api/tracker", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> postTracker(@RequestBody final TrackerRequest body,
+                                                            @RequestParam(value = "async",
+                                                                    required = false,
+                                                                    defaultValue = "false")
+                                                                final boolean async,
                                                             final Authentication authentication,
                                                             final HttpServletRequest http) {
         final CapabilityFlags.ImportSummaryShape shape = resolveShape();
-        return handle(body == null ? List.of() : body.events(), authentication, http, shape);
+        final List<EventRow> rows = body == null ? List.of() : body.events();
+        if (!async) {
+            return handle(rows, authentication, http, shape);
+        }
+        return handleAsync(rows, authentication, http, shape);
+    }
+
+    /**
+     * DER-APPS-DHIS2-001 FR-EMU-004 — async envelope for
+     * {@code POST /api/tracker?async=true}. DER processes the import
+     * inline (we're already on the edge DB — no benefit to a worker
+     * thread), but DHIS2 web apps and the Android Capture app
+     * hard-code the async flow, so we persist the ImportSummary under
+     * a job id and return it in the DHIS2-shaped {@code response}
+     * envelope. Clients poll {@code /api/tracker/jobs/{id}} +
+     * {@code .../report} until completion.
+     */
+    private ResponseEntity<Map<String, Object>> handleAsync(final List<EventRow> rows,
+                                                              final Authentication authentication,
+                                                              final HttpServletRequest http,
+                                                              final CapabilityFlags.ImportSummaryShape shape) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final TrackerJobRepository repo = trackerJobs == null
+                ? null : trackerJobs.getIfAvailable();
+        if (repo == null) {
+            // Fall back to synchronous import — functionally equivalent
+            // for DER, just missing the job envelope.
+            return handle(rows, authentication, http, shape);
+        }
+        final UUID jobId = repo.insertRunning(principal.userId());
+        try {
+            final ResponseEntity<Map<String, Object>> inner =
+                    handle(rows, authentication, http, shape);
+            repo.markCompleted(jobId, inner.getBody());
+        } catch (RuntimeException ex) {
+            repo.markFailed(jobId, ex.getClass().getSimpleName() + ": " + ex.getMessage());
+            throw ex;
+        }
+        final Map<String, Object> response = new LinkedHashMap<>();
+        response.put("id", jobId.toString());
+        response.put("name", "trackerImport");
+        response.put("created", Instant.now(clock).toString());
+        response.put("location", "/api/tracker/jobs/" + jobId);
+        final Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("httpStatus", "OK");
+        envelope.put("httpStatusCode", 202);
+        envelope.put("status", "OK");
+        envelope.put("message", "Tracker import accepted");
+        envelope.put("response", response);
+        return ResponseEntity.accepted().body(envelope);
     }
 
     private CapabilityFlags.ImportSummaryShape resolveShape() {
