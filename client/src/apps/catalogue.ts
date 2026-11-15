@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
 
+/** DER-APPS-DHIS2-001 FR-APP-001 — which host mounts this app. */
+export type HostKind = 'DER_ESM' | 'DHIS2_IFRAME';
+
+/** Provenance (D1). */
+export type AppSource = 'DER_BUILTIN' | 'MANUAL_UPLOAD' | 'CENTRAL_SYNC';
+
+/** Signing posture (D2). */
+export type TrustLevel = 'SIGNED' | 'UNSIGNED';
+
 export interface CatalogueApp {
   readonly appId: string;
   readonly appKey: string;
@@ -13,6 +22,17 @@ export interface CatalogueApp {
   /** From C-UI-5c zip packaging: `/edge-api/v1/apps/<id>/<v>/icon`
    *  when the app shipped an icon in its manifest, else `null`. */
   readonly iconUrl: string | null;
+  /** Phase 2 hybrid dispatcher — picks which client-side host mounts
+   *  the app. Defaults to DER_ESM when the server response lacks the
+   *  field (for forward-compat with pre-Phase-2a servers). */
+  readonly hostKind: HostKind;
+  /** Where the app bundle came from. */
+  readonly source: AppSource;
+  /** Whether the server verified an Ed25519 signature on this bundle. */
+  readonly trustLevel: TrustLevel;
+  /** DHIS2_IFRAME only — the URL the iframe loads as its src. Null for
+   *  DER_ESM apps, which use `bundleUrl` via dynamic import. */
+  readonly launchUrl: string | null;
 }
 
 export interface CatalogueResult {
@@ -45,8 +65,23 @@ function sanitize(raw: unknown): CatalogueApp[] {
       bundleSha256: o.bundleSha256, signatureB64: o.signatureB64,
       requiresDerApi: o.requiresDerApi,
       iconUrl: typeof o.iconUrl === 'string' ? o.iconUrl : null,
+      hostKind: parseHostKind(o.hostKind),
+      source: parseSource(o.source),
+      trustLevel: parseTrustLevel(o.trustLevel),
+      launchUrl: typeof o.launchUrl === 'string' ? o.launchUrl : null,
     }];
   });
+}
+
+function parseHostKind(raw: unknown): HostKind {
+  return raw === 'DHIS2_IFRAME' ? 'DHIS2_IFRAME' : 'DER_ESM';
+}
+function parseSource(raw: unknown): AppSource {
+  if (raw === 'DER_BUILTIN' || raw === 'CENTRAL_SYNC') return raw;
+  return 'MANUAL_UPLOAD';
+}
+function parseTrustLevel(raw: unknown): TrustLevel {
+  return raw === 'UNSIGNED' ? 'UNSIGNED' : 'SIGNED';
 }
 
 /**

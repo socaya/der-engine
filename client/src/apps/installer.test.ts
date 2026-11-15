@@ -36,6 +36,8 @@ let APP: CatalogueApp = {
   signatureB64: 'si',
   requiresDerApi: '1.0.0',
   iconUrl: null,
+  hostKind: 'DER_ESM', source: 'MANUAL_UPLOAD', trustLevel: 'SIGNED',
+  launchUrl: null,
 };
 
 async function sha(s: string): Promise<string> {

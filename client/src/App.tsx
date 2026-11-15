@@ -18,7 +18,7 @@ import { Dhis2Status } from './screens/Dhis2Status';
 import { SyncStatus } from './screens/SyncStatus';
 import { NetworkStatus } from './screens/NetworkStatus';
 import { OfflineQueue } from './screens/OfflineQueue';
-import { AppHost } from './apps/AppHost';
+import { AppDispatcher } from './apps/AppDispatcher';
 
 /**
  * DER device-client router. The device client is a capture + view
@@ -134,9 +134,12 @@ function InnerRoutes(): JSX.Element {
           <Route path="/queue" element={
             <RequireAuth><OfflineQueue /></RequireAuth>
           } />
-          {/* ADR-0037 C-UI-5b — DER-dispatched apps. */}
+          {/* ADR-0037 C-UI-5b + DER-APPS-DHIS2-001 Phase 2b — one URL
+              shape routed through AppDispatcher which picks between the
+              DER_ESM host (ESM dynamic import) and the DHIS2_IFRAME host
+              (sandboxed iframe) based on the catalogue entry. */}
           <Route path="/apps/:appKey" element={
-            <RequireAuth><AppHost /></RequireAuth>
+            <RequireAuth><AppDispatcher /></RequireAuth>
           } />
         </Routes>
   );

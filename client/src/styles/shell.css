@@ -980,3 +980,19 @@ body {
   font-size: 13px;
   color: var(--der-ink-700);
 }
+/* DER-APPS-DHIS2-001 Phase 2b — iframe host wraps a DHIS2 web app.
+ * The iframe fills the main content area; the shell chrome stays
+ * above it. The loading placeholder sits on top until the iframe's
+ * load event fires. */
+.der-apphost--iframe {
+  position: relative;
+  height: calc(100vh - var(--der-shell-topbar-h, 56px));
+  overflow: hidden;
+}
+.der-iframehost-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: var(--der-canvas);
+}
