@@ -96,6 +96,16 @@ body{
 .ea-col-w-140{width:140px}
 .ea-col-w-160{width:160px}
 .ea-col-w-180{width:180px}
+.ea-col-w-240{width:240px}
+/* Span the entire grid row — common for the full-width "Notes" field
+ * inside a two-column form. */
+.ea-grid-full{grid-column:1 / -1}
+/* Dialog / modal title for the Capability aggregates — flat, no
+ * ornamental box. Matches .ea-panel-title weight/size. */
+.ea-dialog-title{margin:0;font-size:var(--fs-xl);font-weight:600;color:var(--der-ink-900)}
+/* One-line intro paragraph above an inline form (DHIS2 drafts, OU
+ * binding, etc.). Rhythm comes from the form below, not from <p>. */
+.ea-form-intro{margin:0 0 10px;font-size:var(--fs-xs);color:var(--der-ink-500)}
 code{font-family:var(--der-font-mono);font-size:var(--fs-sm)}
 
 /* ============ Shell layout ============ */

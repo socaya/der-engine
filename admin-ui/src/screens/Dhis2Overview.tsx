@@ -236,7 +236,7 @@ export function Dhis2Overview(): JSX.Element {
                 <span className="ea-flag-name">Also pass POST / PUT / DELETE / PATCH through (bypasses the journal)</span>
               </label>
             </label>
-            <label className="ea-field" style={{ gridColumn: '1 / -1' }}>
+            <label className="ea-field ea-grid-full">
               <span className="ea-field-label">Allow-path prefixes (CSV, blank = defaults)</span>
               <input className="ea-input ea-mono"
                      placeholder="/api/analytics,/api/dataStore,…"

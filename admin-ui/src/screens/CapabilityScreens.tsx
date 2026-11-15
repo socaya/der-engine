@@ -469,7 +469,7 @@ export function CapCentralConnection(): JSX.Element {
                 <span className="ea-flag-name">Also pass POST / PUT / DELETE / PATCH through (bypasses the journal)</span>
               </label>
             </label>
-            <label className="ea-field" style={{ gridColumn: '1 / -1' }}>
+            <label className="ea-field ea-grid-full">
               <span className="ea-field-label">Allow-path prefixes (CSV, blank = defaults)</span>
               <input className="ea-input ea-mono"
                      placeholder="/api/analytics,/api/dataStore,…"
@@ -787,7 +787,7 @@ export function CapOrgUnitBinding(): JSX.Element {
           </div>
 
           <div className="ea-form-grid" style={{ marginTop: 12 }}>
-            <label className="ea-field" style={{ gridColumn: '1 / -1' }}>
+            <label className="ea-field ea-grid-full">
               <span className="ea-field-label">
                 Organisation unit {loadingOus ? '· loading…' : `· ${ous.length} match${ous.length === 1 ? '' : 'es'}`}
               </span>
@@ -916,8 +916,8 @@ export function CapProgramRules(): JSX.Element {
                         placeholder="Search by name or id…"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="ea-input"
-                        style={{ width: 240 }} />
+                        className="ea-input ea-col-w-240"
+                         />
                }>
           {filtered.length === 0 ? (
             <EmptyBlock title="No rules match the search"
@@ -929,7 +929,7 @@ export function CapProgramRules(): JSX.Element {
               <table className="ea-table ea-table--dense" data-test="cap-rules-table">
                 <thead><tr>
                   <th>Name</th>
-                  <th style={{ width: 240 }}>ID</th>
+                  <th className="ea-col-w-240">ID</th>
                 </tr></thead>
                 <tbody>
                   {paged.rows.map((r) => (
@@ -2641,7 +2641,7 @@ function DraftsTable(
           <th>Kind</th>
           <th>Title</th>
           <th>Scheduled</th>
-          <th style={{ width: 240 }}>Actions</th>
+          <th className="ea-col-w-240">Actions</th>
         </tr></thead>
         <tbody>
           {paged.rows.map((d) => {
@@ -2776,7 +2776,7 @@ function DraftPreviewModal({ draft, onClose }:
                     boxShadow: 'var(--el-3, 0 10px 30px rgba(15,28,46,0.18))' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between',
                          alignItems: 'center', margin: '0 0 16px' }}>
-          <h2 style={{ margin: 0, fontSize: 18 }}>
+          <h2 className="ea-dialog-title">
             {draft.title ?? 'Untitled draft'}
           </h2>
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -2855,7 +2855,7 @@ function DraftScheduleModal({ draft, onCancel, onConfirm }:
                     boxShadow: 'var(--el-3, 0 10px 30px rgba(15,28,46,0.18))' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between',
                          alignItems: 'center', margin: '0 0 16px' }}>
-          <h2 style={{ margin: 0, fontSize: 18 }}>Schedule publish</h2>
+          <h2 className="ea-dialog-title">Schedule publish</h2>
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                   onClick={onCancel}>Close</button>
         </header>
@@ -3046,7 +3046,7 @@ export function CapMaintenance(): JSX.Element {
 
       {MAINT_GROUPS.map((group) => (
         <Panel key={group.heading} title={group.heading}>
-          <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
+          <p className="ea-form-intro">
             {group.blurb}
           </p>
           <div style={{ display: 'grid',
@@ -3076,7 +3076,7 @@ export function CapMaintenance(): JSX.Element {
       ))}
 
       <Panel title="Backups">
-        <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
+        <p className="ea-form-intro">
           Request a snapshot of the audit log or the full edge state.
           Successful runs land in the backup queue, drained by the
           BACKUP_DRAIN job in the Housekeeping group above.
@@ -4016,7 +4016,7 @@ export function CapSessions(): JSX.Element {
 
       <Panel title="Recent sign-ins">
         {recentAuth.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}
+          <p className="ea-text-muted" style={{ padding: 10 }}
              data-test="cap-sessions-audit-empty">
             No SIGN_IN events recorded recently.
           </p>
@@ -4414,7 +4414,7 @@ export function CapOwnership(): JSX.Element {
                  </>
                }>
           {filtered.length === 0 ? (
-            <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}
+            <p className="ea-text-muted" style={{ padding: 10 }}
                data-test="cap-ownership-empty">
               No devices match this filter.
             </p>
@@ -4546,7 +4546,7 @@ export function CapConnections(): JSX.Element {
                         onChange={(e) => setQuery(e.target.value)} />
                }>
           {filtered.length === 0 ? (
-            <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}
+            <p className="ea-text-muted" style={{ padding: 10 }}
                data-test="cap-connections-empty">
               No devices match this filter.
             </p>
