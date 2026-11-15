@@ -96,12 +96,17 @@ class AppBundleArchiveTest {
 
     @Test
     void parseRejectsCumulativeOverArchiveLimit() throws Exception {
-        // Each entry under per-entry cap but together over the 10 MB cap.
+        // Each entry under per-entry cap but together over the
+        // cumulative archive cap. Scale the entry count from
+        // MAX_ARCHIVE_BYTES / MAX_ENTRY_BYTES so the test stays
+        // correct if either constant moves.
         final int entrySize = AppBundleArchive.MAX_ENTRY_BYTES;
+        final int entryCount =
+                (AppBundleArchive.MAX_ARCHIVE_BYTES / entrySize) + 1;
         final Map<String, byte[]> m = new LinkedHashMap<>();
-        m.put("a", new byte[entrySize]);
-        m.put("b", new byte[entrySize]);
-        m.put("c", new byte[entrySize]);
+        for (int i = 0; i < entryCount; i++) {
+            m.put("file-" + i, new byte[entrySize]);
+        }
         final byte[] zip = zipOf(m);
         assertThatThrownBy(() -> AppBundleArchive.parse(new ByteArrayInputStream(zip)))
                 .isInstanceOf(AppBundleArchive.ArchiveException.class)

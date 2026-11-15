@@ -465,27 +465,34 @@ public class AppCatalogueController {
         final UUID appId;
         if (existing.isPresent()) {
             appId = existing.get().appId();
-            // Refresh display_name on re-install — the manifest is the
-            // source of truth; without this a renamed app keeps its
-            // original label in der.installed_app forever. Idempotent
-            // when the value hasn't changed.
             if (!existing.get().displayName().equals(parsed.manifest.displayName)) {
                 installedApps.updateDisplayName(appId, parsed.manifest.displayName);
             }
         } else {
             appId = UUID.randomUUID();
-            // Zip upload currently requires bundle.js — a DHIS2-manifest
-            // wrapper around a DER-native ESM bundle. Full DHIS2_IFRAME
-            // installs (no bundle.js, static tree) land in Phase 2b.
+            // Trust tiers (per D2): DER_ESM zips carry a signable
+            // bundle.js so trust_level = SIGNED. DHIS2_IFRAME zips are
+            // the stock DHIS2 Hub format — no bundle, no DER-side
+            // signature, so UNSIGNED. installPath carries a `zip://`
+            // sentinel on DHIS2_IFRAME so AppStaticHandler knows to
+            // read bundle_bytes rather than the filesystem.
+            final InstalledApp.TrustLevel trust =
+                    parsed.hostKind == InstalledApp.HostKind.DER_ESM
+                            ? InstalledApp.TrustLevel.SIGNED
+                            : InstalledApp.TrustLevel.UNSIGNED;
+            final String installPath =
+                    parsed.hostKind == InstalledApp.HostKind.DHIS2_IFRAME
+                            ? "zip://" + parsed.manifest.name
+                            : "db://" + parsed.manifest.name;
             installedApps.insert(new InstalledApp(
                     appId, parsed.manifest.name, parsed.manifest.version,
                     parsed.manifest.displayName,
                     manifestJson(parsed.manifest.module, null),
-                    "db://" + parsed.manifest.name,
+                    installPath,
                     userId, java.time.Instant.now(), true,
-                    InstalledApp.HostKind.DER_ESM,
+                    parsed.hostKind,
                     source,
-                    InstalledApp.TrustLevel.SIGNED,
+                    trust,
                     null, centralAppId));
         }
         return storeZipVersion(appId, parsed.manifest.name, parsed, userId);
@@ -516,17 +523,30 @@ public class AppCatalogueController {
                                                   final ParsedBundle parsed,
                                                   final UUID userId) {
         final String sha = sha256Hex(parsed.bundleBytes);
-        final String signature = Base64.getEncoder()
-                .encodeToString(signer.signBundle(parsed.bundleBytes));
+        // DHIS2_IFRAME zips carry third-party code we don't attest to;
+        // skip the DER Ed25519 signing step — the device-side verifier
+        // only fires on DER_ESM hosts anyway. requires_der_api is only
+        // meaningful on DER-native bundles too, so default it to "0"
+        // for iframe installs (schema-level NOT NULL).
+        final boolean signable =
+                parsed.hostKind == InstalledApp.HostKind.DER_ESM;
+        final String signature = signable
+                ? Base64.getEncoder().encodeToString(
+                        signer.signBundle(parsed.bundleBytes))
+                : null;
+        final String requiresDerApi = signable
+                ? parsed.manifest.requiresDerApi
+                : "0";
         final String iconEtag = parsed.iconBytes == null
                 ? null
                 : sha256Hex(parsed.iconBytes).substring(0, 16);
         repo.installVersion(appId, parsed.manifest.version, parsed.bundleBytes,
-                sha, signature, parsed.manifest.requiresDerApi, userId,
+                sha, signature, requiresDerApi, userId,
                 parsed.manifestJsonRaw, parsed.iconBytes, parsed.iconMime, iconEtag);
         final Map<String, Object> body = installResponseBase(appId, appKey,
-                parsed.manifest.version, sha, signature, parsed.manifest.requiresDerApi);
+                parsed.manifest.version, sha, signature, requiresDerApi);
         body.put("module", parsed.manifest.module);
+        body.put("hostKind", parsed.hostKind.name());
         body.put("iconUrl", parsed.iconBytes == null ? null
                 : iconUrl(appId, parsed.manifest.version));
         body.put("manifestJson", parsed.manifestJsonRaw);
@@ -643,21 +663,35 @@ public class AppCatalogueController {
             throw new ValidationFailure(400,
                     "manifest.webapp missing required field: version");
         }
-        if (isBlank(manifest.requiresDerApi)) {
+        // DER_ESM shape: bundle.js present + requires_der_api declared.
+        // DHIS2_IFRAME shape: index.html present, bundle.js absent. We
+        // treat the whole zip as the versioned artifact and serve files
+        // from it on demand at /dhis-web-<key>/*.
+        final byte[] bundleJsBytes = archive.entry("bundle.js");
+        final byte[] indexHtmlBytes = archive.entry("index.html");
+        if (bundleJsBytes != null) {
+            if (bundleJsBytes.length > MAX_BUNDLE_BYTES) {
+                throw new ValidationFailure(413, "bundle.js exceeds "
+                        + MAX_BUNDLE_BYTES + " bytes");
+            }
+            if (isBlank(manifest.requiresDerApi)) {
+                throw new ValidationFailure(400,
+                        "manifest.webapp missing required field: requires_der_api");
+            }
+            final IconResolution icon = resolveIcon(archive, manifest);
+            return new ParsedBundle(manifest, manifestRaw, bundleJsBytes,
+                    icon.bytes, icon.mime,
+                    InstalledApp.HostKind.DER_ESM);
+        }
+        if (indexHtmlBytes == null) {
             throw new ValidationFailure(400,
-                    "manifest.webapp missing required field: requires_der_api");
+                    "zip must contain either bundle.js (DER-native) "
+                            + "or index.html (stock DHIS2)");
         }
-        final byte[] bundleBytes = archive.entry("bundle.js");
-        if (bundleBytes == null) {
-            throw new ValidationFailure(400, "missing bundle.js");
-        }
-        if (bundleBytes.length > MAX_BUNDLE_BYTES) {
-            throw new ValidationFailure(413, "bundle.js exceeds "
-                    + MAX_BUNDLE_BYTES + " bytes");
-        }
-        final IconResolution icon = resolveIcon(archive, manifest);
-        return new ParsedBundle(manifest, manifestRaw, bundleBytes,
-                icon.bytes, icon.mime);
+        // Stock DHIS2 — zip is the artifact. Skip icon extraction; we
+        // serve the icon via /dhis-web-<key>/ directly from the zip.
+        return new ParsedBundle(manifest, manifestRaw, bytes, null, null,
+                InstalledApp.HostKind.DHIS2_IFRAME);
     }
 
     /**
@@ -747,6 +781,11 @@ public class AppCatalogueController {
         m.put("trustLevel", row.trustLevel().name());
         if (row.hostKind() == InstalledApp.HostKind.DHIS2_IFRAME) {
             m.put("launchUrl", "/dhis-web-" + row.appKey() + "/");
+            // Phase 5d — deep-link (new tab) is the default launch
+            // mode for DHIS2 apps per the Phase 03 pattern. Admins
+            // can pin individual apps to the in-shell IframeHost
+            // via a future per-app override (not yet exposed).
+            m.put("launchMode", "DEEPLINK");
         }
         return m;
     }
@@ -867,17 +906,20 @@ public class AppCatalogueController {
         final byte[] bundleBytes;
         final byte[] iconBytes; // nullable
         final String iconMime;  // nullable
+        final InstalledApp.HostKind hostKind;
 
         ParsedBundle(final AppBundleManifest manifest,
                      final String manifestJsonRaw,
                      final byte[] bundleBytes,
                      final byte[] iconBytes,
-                     final String iconMime) {
+                     final String iconMime,
+                     final InstalledApp.HostKind hostKind) {
             this.manifest = manifest;
             this.manifestJsonRaw = manifestJsonRaw;
             this.bundleBytes = bundleBytes;
             this.iconBytes = iconBytes;
             this.iconMime = iconMime;
+            this.hostKind = hostKind;
         }
     }
 

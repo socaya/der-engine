@@ -567,7 +567,11 @@ class AppCatalogueControllerTest {
     }
 
     @Test
-    void installZipRejectsMissingBundleJs() throws Exception {
+    void installZipRejectsNoBundleAndNoIndexHtml() throws Exception {
+        // Phase 5d relaxed the hard bundle.js requirement — a zip with
+        // manifest.webapp + index.html is now a valid DHIS2_IFRAME
+        // install. This test reasserts that a zip with NEITHER entry
+        // still fails, since there's nothing to serve or execute.
         final Map<String, byte[]> m = new LinkedHashMap<>();
         m.put("manifest.webapp", ("{\"name\":\"k\",\"displayName\":\"K\","
                 + "\"version\":\"1.0.0\",\"requires_der_api\":\"1.0.0\"}").getBytes());
@@ -577,7 +581,8 @@ class AppCatalogueControllerTest {
                                 "application/zip", zip))
                         .with(admin()))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("missing bundle.js"));
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString(
+                        "either bundle.js")));
     }
 
     @Test
@@ -736,6 +741,50 @@ class AppCatalogueControllerTest {
                 any(UUID.class), anyString(), any(byte[].class),
                 eq("image/svg+xml"), anyString());
         org.assertj.core.api.Assertions.assertThat(resp).contains("iconUrl");
+    }
+
+    @Test
+    void installZipDhis2IframeShape() throws Exception {
+        when(installedApps.findByKey("stock-dhis2")).thenReturn(Optional.empty());
+        // Phase 5d — bundle.js absent, index.html present, no
+        // requires_der_api. Must succeed with hostKind=DHIS2_IFRAME.
+        final Map<String, byte[]> m = new LinkedHashMap<>();
+        m.put("manifest.webapp", ("{\"name\":\"stock-dhis2\","
+                + "\"displayName\":\"Stock DHIS2\","
+                + "\"version\":\"100.5.0\"}").getBytes());
+        m.put("index.html",
+                "<html><body>stock-app</body></html>".getBytes());
+        m.put("app.js", "console.log('ok')".getBytes());
+        final byte[] zip = zipOf(m);
+        mockMvc.perform(multipart("/edge-api/v1/admin/apps/install")
+                        .file(new MockMultipartFile("file", "stock.zip",
+                                "application/zip", zip))
+                        .with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.appKey").value("stock-dhis2"))
+                .andExpect(jsonPath("$.version").value("100.5.0"))
+                .andExpect(jsonPath("$.hostKind").value("DHIS2_IFRAME"))
+                // No DER signature for iframe installs — plan D2 says
+                // UNSIGNED trust level, so the response shows no sig.
+                .andExpect(jsonPath("$.signatureB64")
+                        .value(org.hamcrest.Matchers.nullValue()));
+        // Verify the installed_app row carried DHIS2_IFRAME + UNSIGNED
+        // + a zip:// install path sentinel.
+        verify(installedApps).insert(
+                org.mockito.ArgumentMatchers.argThat(a ->
+                        a.hostKind() == InstalledApp.HostKind.DHIS2_IFRAME
+                                && a.trustLevel() == InstalledApp.TrustLevel.UNSIGNED
+                                && "zip://stock-dhis2".equals(a.installPath())));
+        // The versioned artifact is the whole zip, not the index.html.
+        verify(repo).installVersion(any(UUID.class), eq("100.5.0"),
+                eq(zip), anyString(),
+                org.mockito.ArgumentMatchers.isNull(),
+                eq("0"), any(UUID.class), anyString(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull());
+        // Signer is never invoked for iframe installs.
+        verify(signer, never()).signBundle(any());
     }
 
     @Test

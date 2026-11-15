@@ -9,6 +9,12 @@ export type AppSource = 'DER_BUILTIN' | 'MANUAL_UPLOAD' | 'CENTRAL_SYNC';
 /** Signing posture (D2). */
 export type TrustLevel = 'SIGNED' | 'UNSIGNED';
 
+/** Phase 5d — how the client should actually mount a DHIS2_IFRAME app.
+ *  Default is `'DEEPLINK'` (open /dhis-web-<key>/ in a new tab, which
+ *  matches the Phase 03 pattern for DHIS2-adjacent apps); `'IFRAME'`
+ *  keeps the Phase 2b in-shell sandbox mount for admins who want it. */
+export type LaunchMode = 'DEEPLINK' | 'IFRAME';
+
 export interface CatalogueApp {
   readonly appId: string;
   readonly appKey: string;
@@ -33,6 +39,9 @@ export interface CatalogueApp {
   /** DHIS2_IFRAME only — the URL the iframe loads as its src. Null for
    *  DER_ESM apps, which use `bundleUrl` via dynamic import. */
   readonly launchUrl: string | null;
+  /** DHIS2_IFRAME only — `'DEEPLINK'` (new-tab default) or `'IFRAME'`
+   *  (in-shell sandbox). Null for DER_ESM apps. */
+  readonly launchMode: LaunchMode | null;
 }
 
 export interface CatalogueResult {
@@ -69,8 +78,14 @@ function sanitize(raw: unknown): CatalogueApp[] {
       source: parseSource(o.source),
       trustLevel: parseTrustLevel(o.trustLevel),
       launchUrl: typeof o.launchUrl === 'string' ? o.launchUrl : null,
+      launchMode: parseLaunchMode(o.hostKind, o.launchMode),
     }];
   });
+}
+
+function parseLaunchMode(hostKind: unknown, raw: unknown): LaunchMode | null {
+  if (hostKind !== 'DHIS2_IFRAME') return null;
+  return raw === 'IFRAME' ? 'IFRAME' : 'DEEPLINK';
 }
 
 function parseHostKind(raw: unknown): HostKind {

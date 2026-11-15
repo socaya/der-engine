@@ -13,7 +13,7 @@ const APPS: CatalogueApp[] = [{
   bundleSha256: 'abc', signatureB64: 'si', requiresDerApi: '1.0.0',
   iconUrl: null,
   hostKind: 'DER_ESM', source: 'MANUAL_UPLOAD', trustLevel: 'SIGNED',
-  launchUrl: null,
+  launchUrl: null, launchMode: null,
 }];
 
 function catalogueResponse(apps: CatalogueApp[] = APPS): Response {

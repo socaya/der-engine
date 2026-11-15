@@ -44,18 +44,39 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 public class AppStaticHandler {
 
     private final InstalledAppRepository repository;
+    private final AppCatalogueRepository catalogueRepo;
     private final boolean cspEnabled;
     private final SecureRandom rand = new SecureRandom();
 
     @Autowired
     public AppStaticHandler(final InstalledAppRepository repository,
+                              final AppCatalogueRepository catalogueRepo,
                               @Value("${der.apps.csp.enabled:false}") final boolean cspEnabled) {
         this.repository = Objects.requireNonNull(repository, "repository");
+        this.catalogueRepo = Objects.requireNonNull(catalogueRepo, "catalogueRepo");
         this.cspEnabled = cspEnabled;
     }
 
+    /** Test-only convenience — DER_ESM-shape fixtures that don't go
+     *  through the catalogue repo at all. */
     public AppStaticHandler(final InstalledAppRepository repository) {
-        this(repository, false);
+        this.repository = Objects.requireNonNull(repository, "repository");
+        this.catalogueRepo = null;
+        this.cspEnabled = false;
+    }
+
+    /** Test-only convenience — toggle CSP without wiring the
+     *  catalogue repo, since filesystem-backed fixtures don't need it. */
+    public AppStaticHandler(final InstalledAppRepository repository,
+                              final boolean cspEnabled) {
+        this.repository = Objects.requireNonNull(repository, "repository");
+        this.catalogueRepo = null;
+        this.cspEnabled = cspEnabled;
+    }
+
+    public AppStaticHandler(final InstalledAppRepository repository,
+                              final AppCatalogueRepository catalogueRepo) {
+        this(repository, catalogueRepo, false);
     }
 
     @GetMapping("/dhis-web-{appKey}")
@@ -108,10 +129,12 @@ public class AppStaticHandler {
             }
         }
         if (relative.isEmpty()) {
-            // D8 — top-level visits to /dhis-web-<key>/ get shell-wrapped;
-            // iframe loads (Sec-Fetch-Dest=iframe) go through and serve
-            // index.html.
-            if (isTopLevelDocumentNavigation(request)) {
+            // D8 pre-dates the deep-link launch model (FR-APP-003). For
+            // DHIS2_IFRAME apps the operator opens /dhis-web-<key>/ in a
+            // new tab from the catalogue tile — redirecting back to the
+            // shell would loop. For legacy DER_ESM kept the shell-wrap.
+            if (isTopLevelDocumentNavigation(request)
+                    && app.hostKind() != InstalledApp.HostKind.DHIS2_IFRAME) {
                 return ResponseEntity.status(302)
                         .location(URI.create("/apps/" + appKey))
                         .build();
@@ -124,12 +147,25 @@ public class AppStaticHandler {
                     .cacheControl(CacheControl.noCache())
                     .body(app.manifestJson().getBytes(StandardCharsets.UTF_8));
         }
-        final Path root = Paths.get(app.installPath()).toAbsolutePath().normalize();
-        final Path target = root.resolve(relative).toAbsolutePath().normalize();
-        if (!target.startsWith(root) || !Files.isRegularFile(target)) {
-            return ResponseEntity.notFound().build();
+        // DHIS2_IFRAME apps are served from the zip stored in the
+        // active installed_app_version row — AppCatalogueController
+        // persists the whole zip as the versioned artifact so rollback
+        // keeps working.
+        byte[] body;
+        if (app.hostKind() == InstalledApp.HostKind.DHIS2_IFRAME) {
+            final Optional<byte[]> served = serveFromZip(app, relative);
+            if (served.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            body = served.get();
+        } else {
+            final Path root = Paths.get(app.installPath()).toAbsolutePath().normalize();
+            final Path target = root.resolve(relative).toAbsolutePath().normalize();
+            if (!target.startsWith(root) || !Files.isRegularFile(target)) {
+                return ResponseEntity.notFound().build();
+            }
+            body = Files.readAllBytes(target);
         }
-        byte[] body = Files.readAllBytes(target);
         final String contentType = guessContentType(relative);
         final HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType(contentType));
@@ -154,6 +190,42 @@ public class AppStaticHandler {
         // still lets the hybrid dispatcher mount it.
         headers.add("X-Frame-Options", "SAMEORIGIN");
         return ResponseEntity.ok().headers(headers).body(body);
+    }
+
+    /**
+     * DER-APPS-DHIS2-001 — resolve one entry out of a DHIS2_IFRAME
+     * app's stored zip. Returns {@link Optional#empty()} when the
+     * entry name is unsafe, the active version row is missing, the
+     * bytes are not a parseable zip, or the entry simply isn't in
+     * the archive.
+     *
+     * <p>No filesystem extraction — the active zip lives in
+     * {@code installed_app_version.bundle_bytes} so rollback via
+     * {@code AppCatalogueController} works without re-extracting.
+     * The admin-only upload path already enforces archive size +
+     * entry caps, so parsing here is bounded.</p>
+     */
+    private Optional<byte[]> serveFromZip(final InstalledApp app,
+                                             final String relative) {
+        if (catalogueRepo == null) {
+            return Optional.empty();
+        }
+        if (!AppBundleArchive.isPathSafe(relative)) {
+            return Optional.empty();
+        }
+        final Optional<AppCatalogueRepository.BundleRow> row =
+                catalogueRepo.readBundle(app.appId(), app.version());
+        if (row.isEmpty() || row.get().bytes() == null) {
+            return Optional.empty();
+        }
+        final AppBundleArchive archive;
+        try (var in = new java.io.ByteArrayInputStream(row.get().bytes())) {
+            archive = AppBundleArchive.parse(in);
+        } catch (IOException ex) {
+            return Optional.empty();
+        }
+        final byte[] entry = archive.entry(relative);
+        return entry == null ? Optional.empty() : Optional.of(entry);
     }
 
     /** Sec-Fetch-Dest=document indicates a top-level navigation

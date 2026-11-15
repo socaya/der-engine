@@ -36,14 +36,20 @@ import java.util.zip.ZipInputStream;
  */
 public final class AppBundleArchive {
 
-    /** Hard cap on the compressed upload. */
-    public static final int MAX_ARCHIVE_BYTES = 10 * 1024 * 1024;
+    /** Hard cap on the decompressed archive. Bumped to accommodate
+     *  stock DHIS2 Hub bundles (Capture + Data Visualizer run
+     *  15–40 MB uncompressed). Admin-only path, so the ceiling is
+     *  generous. */
+    public static final int MAX_ARCHIVE_BYTES = 50 * 1024 * 1024;
 
-    /** Per-entry decompressed cap — same as the single-file bundle cap. */
+    /** Per-entry decompressed cap — same as the single-file bundle
+     *  cap. Unchanged from the Phase 02 value: no DHIS2 chunk in
+     *  current stock bundles exceeds this. */
     public static final int MAX_ENTRY_BYTES = 5 * 1024 * 1024;
 
-    /** Entry count cap. */
-    public static final int MAX_ENTRIES = 20;
+    /** Entry count cap. Bumped from 20 — stock DHIS2 bundles ship
+     *  hundreds of chunked JS files, CSS, images, i18n packs. */
+    public static final int MAX_ENTRIES = 500;
 
     /** Icon byte cap, measured on the decompressed entry. */
     public static final int MAX_ICON_BYTES = 256 * 1024;

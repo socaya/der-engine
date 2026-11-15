@@ -11,7 +11,7 @@ const ESM_APP: CatalogueApp = {
   bundleSha256: 'abc', signatureB64: 'si', requiresDerApi: '1.0.0',
   iconUrl: null,
   hostKind: 'DER_ESM', source: 'DER_BUILTIN', trustLevel: 'SIGNED',
-  launchUrl: null,
+  launchUrl: null, launchMode: null,
 };
 
 const IFRAME_APP: CatalogueApp = {
@@ -22,6 +22,7 @@ const IFRAME_APP: CatalogueApp = {
   iconUrl: null,
   hostKind: 'DHIS2_IFRAME', source: 'CENTRAL_SYNC', trustLevel: 'UNSIGNED',
   launchUrl: '/dhis-web-who-anc/',
+  launchMode: 'DEEPLINK',
 };
 
 function catalogueResponse(apps: CatalogueApp[]): Response {
@@ -49,9 +50,25 @@ afterEach(() => {
 });
 
 describe('AppDispatcher', () => {
-  it('routes DHIS2_IFRAME entries to IframeHost', async () => {
+  it('deep-links DHIS2_IFRAME entries to a new tab by default', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
     vi.mocked(globalThis.fetch).mockResolvedValue(
       catalogueResponse([IFRAME_APP]));
+    renderAt('who-anc');
+    // The dispatcher calls window.open and renders a holding message
+    // while the current tab navigates back to the catalogue.
+    await waitFor(() => expect(openSpy)
+      .toHaveBeenCalledWith('/dhis-web-who-anc/', '_blank',
+        'noopener,noreferrer'));
+    // The in-shell iframe host must NOT mount under the default
+    // (deep-link) launch mode.
+    expect(screen.queryByTestId('der-iframehost-frame')).toBeNull();
+  });
+
+  it('still mounts IframeHost when an admin pins launchMode=IFRAME', async () => {
+    const pinnedIframe = { ...IFRAME_APP, launchMode: 'IFRAME' as const };
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      catalogueResponse([pinnedIframe]));
     renderAt('who-anc');
     const frame = await screen.findByTestId('der-iframehost-frame');
     expect(frame.getAttribute('src')).toBe('/dhis-web-who-anc/');
@@ -64,9 +81,6 @@ describe('AppDispatcher', () => {
     vi.mocked(globalThis.fetch).mockResolvedValue(
       catalogueResponse([ESM_APP]));
     renderAt('analytics');
-    // AppHost shows its loading placeholder while it tries to
-    // ensureInstalled() — enough to prove we picked the ESM branch
-    // and not the iframe branch.
     await waitFor(() =>
       expect(screen.queryByTestId('der-apphost-loading')).toBeInTheDocument());
     expect(screen.queryByTestId('der-iframehost-frame')).toBeNull();
@@ -80,9 +94,10 @@ describe('AppDispatcher', () => {
       expect(screen.queryByTestId('der-dispatcher-unknown')).toBeInTheDocument());
   });
 
-  it('sets provenance data-attrs on the iframe wrapper', async () => {
+  it('sets provenance data-attrs on the iframe wrapper when pinned IFRAME', async () => {
+    const pinnedIframe = { ...IFRAME_APP, launchMode: 'IFRAME' as const };
     vi.mocked(globalThis.fetch).mockResolvedValue(
-      catalogueResponse([IFRAME_APP]));
+      catalogueResponse([pinnedIframe]));
     renderAt('who-anc');
     const wrapper = await screen.findByTestId('der-iframehost');
     expect(wrapper.getAttribute('data-app-key')).toBe('who-anc');
