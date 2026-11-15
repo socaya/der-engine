@@ -17,7 +17,8 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
 public record SecurityProperties(Session session, SignIn signIn, Bootstrap bootstrap,
                                     DeviceApproval deviceApproval,
                                     FirstTimeOffline firstTimeOffline,
-                                    BreakGlass breakGlass) {
+                                    BreakGlass breakGlass,
+                                    ClockDrift clockDrift) {
 
     @ConstructorBinding
     public SecurityProperties {
@@ -40,13 +41,17 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
             breakGlass = new BreakGlass(false,
                     "/var/lib/der/break-glass.token", "");
         }
+        if (clockDrift == null) {
+            clockDrift = new ClockDrift(60_000L,
+                    ClockDrift.UnsafeAction.REVOKE_SESSION);
+        }
     }
 
     /** Pre-FR-02-07 convenience ctor. */
     public SecurityProperties(final Session session, final SignIn signIn,
                                 final Bootstrap bootstrap,
                                 final DeviceApproval deviceApproval) {
-        this(session, signIn, bootstrap, deviceApproval, null, null);
+        this(session, signIn, bootstrap, deviceApproval, null, null, null);
     }
 
     /** Pre-FR-02-09 convenience ctor — FR-02-07 landed first. */
@@ -54,7 +59,18 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
                                 final Bootstrap bootstrap,
                                 final DeviceApproval deviceApproval,
                                 final FirstTimeOffline firstTimeOffline) {
-        this(session, signIn, bootstrap, deviceApproval, firstTimeOffline, null);
+        this(session, signIn, bootstrap, deviceApproval, firstTimeOffline,
+                null, null);
+    }
+
+    /** Pre-FR-02-10 convenience ctor — FR-02-09 landed next. */
+    public SecurityProperties(final Session session, final SignIn signIn,
+                                final Bootstrap bootstrap,
+                                final DeviceApproval deviceApproval,
+                                final FirstTimeOffline firstTimeOffline,
+                                final BreakGlass breakGlass) {
+        this(session, signIn, bootstrap, deviceApproval, firstTimeOffline,
+                breakGlass, null);
     }
 
     /**
@@ -169,6 +185,51 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
             if (adminUsername == null) {
                 adminUsername = "";
             }
+        }
+    }
+
+    /**
+     * FR-02-10 — clock-drift fail-safe policy. The existing probe at
+     * {@code POST /admin/metrics/clock/report} already writes a
+     * {@code CLOCK_DRIFT_WARN} audit when the caller's clock drifts
+     * past {@link #unsafeDriftMillis}. This block decides what else
+     * to do: default is to revoke the caller's session so an operator
+     * device with bad time can't continue to make expiry decisions.
+     *
+     * <p>Token-expiry policy is NOT configurable — sessions are
+     * strictly bounded by {@code expiresAt} with no grace window
+     * (verified by {@code EdgeSession.isActive}). The fail-safe
+     * decision there is "expired means expired." See
+     * {@code EdgeSessionIsActiveStrictTest} for the pinned invariant.</p>
+     *
+     * @param unsafeDriftMillis absolute drift threshold (ms) that
+     *                          triggers the configured action.
+     * @param onUnsafe          what to do when a report exceeds the
+     *                          threshold.
+     */
+    public record ClockDrift(long unsafeDriftMillis, UnsafeAction onUnsafe) {
+
+        public ClockDrift {
+            if (unsafeDriftMillis <= 0) {
+                unsafeDriftMillis = 60_000L;
+            }
+            if (onUnsafe == null) {
+                onUnsafe = UnsafeAction.REVOKE_SESSION;
+            }
+        }
+
+        public enum UnsafeAction {
+            /** Audit the warn only; do not revoke. Pre-FR-02-10
+             *  behaviour — keep as an opt-out for test and demo. */
+            WARN_ONLY,
+            /** Default — revoke the reporting session. The caller
+             *  gets a `sessionRevoked: true` flag in the response so
+             *  the UI redirects to sign-in. */
+            REVOKE_SESSION,
+            /** Revoke every session for the reporting user. Right
+             *  posture when operators share devices and bad time
+             *  on one shift shouldn't propagate. */
+            REVOKE_ALL_FOR_USER
         }
     }
 }

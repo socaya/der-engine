@@ -50,10 +50,29 @@ class OperatorMetricsControllerTest {
     @MockBean OperationJournalRepository journal;
     @MockBean ScheduledJobRepository scheduledJobs;
     @MockBean SecurityAuditRepository audit;
+    @MockBean ug.ac.mak.der.security.EdgeSessionRepository sessions;
 
     @TestConfiguration
     static class ClockConfig {
         @Bean Clock testClock() { return Clock.fixed(NOW, ZoneOffset.UTC); }
+        /** Default properties — individual tests override per-case by
+         *  defining a different bean or injecting + mutating. */
+        @Bean ug.ac.mak.der.security.SecurityProperties securityProps() {
+            return new ug.ac.mak.der.security.SecurityProperties(
+                    new ug.ac.mak.der.security.SecurityProperties.Session(
+                            java.time.Duration.ofHours(1), "DER_SESSION",
+                            false, "Strict", "s"),
+                    new ug.ac.mak.der.security.SecurityProperties.SignIn(100, 100),
+                    new ug.ac.mak.der.security.SecurityProperties.Bootstrap("", ""),
+                    new ug.ac.mak.der.security.SecurityProperties.DeviceApproval(false),
+                    new ug.ac.mak.der.security.SecurityProperties.FirstTimeOffline(
+                            ug.ac.mak.der.security.SecurityProperties.FirstTimeOffline.Policy.DISABLED),
+                    new ug.ac.mak.der.security.SecurityProperties.BreakGlass(
+                            false, "/tmp/bg.token", ""),
+                    new ug.ac.mak.der.security.SecurityProperties.ClockDrift(
+                            60_000L,
+                            ug.ac.mak.der.security.SecurityProperties.ClockDrift.UnsafeAction.REVOKE_SESSION));
+        }
     }
 
     private RequestPostProcessor as(final EdgeRole role) {
@@ -106,6 +125,52 @@ class OperatorMetricsControllerTest {
                                 && "90000".equals(e.detail().get("driftMillis"))
                                 && "America/Chicago".equals(e.detail().get("callerTimeZone"))),
                 any());
+    }
+
+    // ---- FR-02-10 fail-safe branches ------------------------------
+
+    @Test
+    void unsafeDriftWithDefaultPolicyRevokesCallersSession() throws Exception {
+        final long caller = NOW.toEpochMilli() - 90_000L;
+        mockMvc.perform(post("/edge-api/v1/admin/metrics/clock/report")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"callerEpochMillis\":" + caller + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessionRevoked").value(true));
+        verify(sessions).revoke(any(UUID.class), any());
+        verify(audit).append(argThat((AuditEvent e) ->
+                "CLOCK_DRIFT_SESSION_REVOKED".equals(e.eventType())), any());
+    }
+
+    @Test
+    void unsafeDriftWithoutAuthDoesNotTouchSessions() throws Exception {
+        final long caller = NOW.toEpochMilli() - 90_000L;
+        mockMvc.perform(post("/edge-api/v1/admin/metrics/clock/report")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"callerEpochMillis\":" + caller + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessionRevoked").value(false));
+        verify(sessions, never()).revoke(any(UUID.class), any());
+        verify(sessions, never()).revokeAllForUser(any(), any());
+    }
+
+    @Test
+    void safeDriftLeavesSessionUntouched() throws Exception {
+        final long caller = NOW.toEpochMilli() - 10_000L;
+        mockMvc.perform(post("/edge-api/v1/admin/metrics/clock/report")
+                        .with(as(EdgeRole.OPERATOR))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"callerEpochMillis\":" + caller + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessionRevoked").value(false));
+        verify(sessions, never()).revoke(any(UUID.class), any());
+    }
+
+    @Test
+    void clockProbeDisclosesConfiguredAction() throws Exception {
+        mockMvc.perform(get("/edge-api/v1/admin/metrics/clock"))
+                .andExpect(jsonPath("$.unsafeAction").value("REVOKE_SESSION"));
     }
 
     @Test

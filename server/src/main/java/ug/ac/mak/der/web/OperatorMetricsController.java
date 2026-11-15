@@ -23,8 +23,10 @@ import org.springframework.web.bind.annotation.RestController;
 import ug.ac.mak.der.scheduler.ScheduledJobRepository;
 import ug.ac.mak.der.scheduler.ScheduledJobRun;
 import ug.ac.mak.der.security.AuditEvent;
+import ug.ac.mak.der.security.EdgeSessionRepository;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.security.SecurityAuditRepository;
+import ug.ac.mak.der.security.SecurityProperties;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
 
@@ -37,24 +39,54 @@ import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
         produces = MediaType.APPLICATION_JSON_VALUE)
 public class OperatorMetricsController {
 
-    /** NFR-28: drift above this threshold is "unsafe" — emits an audit
-     *  event and surfaces to the operator in-UI. 60s matches the
-     *  tolerance Central DHIS2 allows on pushed submissions. */
+    /** NFR-28 legacy constant — kept for test + JSON back-compat. The
+     *  live threshold now reads from
+     *  {@code der.security.clock-drift.unsafe-drift-millis}. */
     static final long UNSAFE_DRIFT_MILLIS = 60_000L;
 
     private final ObjectProvider<OperationJournalRepository> journal;
     private final ObjectProvider<ScheduledJobRepository> scheduledJobs;
     private final SecurityAuditRepository audit;
+    private final ObjectProvider<EdgeSessionRepository> sessionsProvider;
+    private final ObjectProvider<SecurityProperties> propsProvider;
     private final Clock clock;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public OperatorMetricsController(final ObjectProvider<OperationJournalRepository> journal,
                                       final ObjectProvider<ScheduledJobRepository> scheduledJobs,
                                       final SecurityAuditRepository audit,
+                                      final ObjectProvider<EdgeSessionRepository> sessionsProvider,
+                                      final ObjectProvider<SecurityProperties> propsProvider,
                                       final Clock clock) {
         this.journal = Objects.requireNonNull(journal, "journal");
         this.scheduledJobs = Objects.requireNonNull(scheduledJobs, "scheduledJobs");
         this.audit = Objects.requireNonNull(audit, "audit");
+        this.sessionsProvider = sessionsProvider;
+        this.propsProvider = propsProvider;
         this.clock = Objects.requireNonNull(clock, "clock");
+    }
+
+    /** Pre-FR-02-10 ctor — Phase 2 tests still call this. */
+    public OperatorMetricsController(final ObjectProvider<OperationJournalRepository> journal,
+                                      final ObjectProvider<ScheduledJobRepository> scheduledJobs,
+                                      final SecurityAuditRepository audit,
+                                      final Clock clock) {
+        this(journal, scheduledJobs, audit, null, null, clock);
+    }
+
+    private long unsafeThreshold() {
+        final SecurityProperties props = propsProvider == null ? null
+                : propsProvider.getIfAvailable();
+        return props == null ? UNSAFE_DRIFT_MILLIS
+                : props.clockDrift().unsafeDriftMillis();
+    }
+
+    private SecurityProperties.ClockDrift.UnsafeAction unsafeAction() {
+        final SecurityProperties props = propsProvider == null ? null
+                : propsProvider.getIfAvailable();
+        return props == null
+                ? SecurityProperties.ClockDrift.UnsafeAction.WARN_ONLY
+                : props.clockDrift().onUnsafe();
     }
 
     /**
@@ -71,14 +103,17 @@ public class OperatorMetricsController {
     @GetMapping("/clock")
     public ResponseEntity<Map<String, Object>> clockProbe() {
         final Instant now = Instant.now(clock);
-        return ResponseEntity.ok(Map.of(
-                "serverTime", now.toString(),
-                "serverEpochMillis", now.toEpochMilli(),
-                "serverTimeZone", clock.getZone().getId(),
-                "systemTimeZone", ZoneId.systemDefault().getId(),
-                "unsafeDriftMillis", UNSAFE_DRIFT_MILLIS,
-                "note", "Caller computes drift = abs(serverEpochMillis - callerEpochMillis). "
-                        + "Report drift > unsafeDriftMillis via POST /clock/report."));
+        final long threshold = unsafeThreshold();
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("serverTime", now.toString());
+        body.put("serverEpochMillis", now.toEpochMilli());
+        body.put("serverTimeZone", clock.getZone().getId());
+        body.put("systemTimeZone", ZoneId.systemDefault().getId());
+        body.put("unsafeDriftMillis", threshold);
+        body.put("unsafeAction", unsafeAction().name());
+        body.put("note", "Caller computes drift = abs(serverEpochMillis - callerEpochMillis). "
+                + "Report drift > unsafeDriftMillis via POST /clock/report.");
+        return ResponseEntity.ok(body);
     }
 
     /**
@@ -99,7 +134,10 @@ public class OperatorMetricsController {
         }
         final long serverMs = Instant.now(clock).toEpochMilli();
         final long drift = Math.abs(serverMs - body.callerEpochMillis());
-        final boolean unsafe = drift > UNSAFE_DRIFT_MILLIS;
+        final long threshold = unsafeThreshold();
+        final boolean unsafe = drift > threshold;
+        boolean sessionRevoked = false;
+        int sessionsRevoked = 0;
         if (unsafe && authentication instanceof EdgeUserPrincipal principal) {
             final Map<String, Object> detail = new LinkedHashMap<>();
             detail.put("driftMillis", String.valueOf(drift));
@@ -112,12 +150,45 @@ public class OperatorMetricsController {
                     AuditEvent.Outcome.SUCCESS, principal.userId(), null, null, null,
                     detail),
                     Instant.now(clock));
+            // FR-02-10 fail-safe. The warn audit above is NFR-28's
+            // telemetry; this is the separate FR-02-10 decision —
+            // kill the session so a device with bad time can't keep
+            // making expiry-sensitive calls.
+            final SecurityProperties.ClockDrift.UnsafeAction action = unsafeAction();
+            final EdgeSessionRepository sessions =
+                    sessionsProvider == null ? null : sessionsProvider.getIfAvailable();
+            if (action != SecurityProperties.ClockDrift.UnsafeAction.WARN_ONLY
+                    && sessions != null) {
+                final Instant now = Instant.now(clock);
+                if (action == SecurityProperties.ClockDrift.UnsafeAction.REVOKE_SESSION) {
+                    sessions.revoke(principal.session().sessionId(), now);
+                    sessionRevoked = true;
+                    sessionsRevoked = 1;
+                } else if (action == SecurityProperties.ClockDrift.UnsafeAction.REVOKE_ALL_FOR_USER) {
+                    sessionsRevoked = sessions.revokeAllForUser(
+                            principal.userId(), now);
+                    sessionRevoked = sessionsRevoked > 0;
+                }
+                if (sessionRevoked) {
+                    audit.append(new AuditEvent("CLOCK_DRIFT_SESSION_REVOKED",
+                            AuditEvent.Outcome.DENIED,
+                            principal.userId(), principal.userId(),
+                            null, null,
+                            Map.of(
+                                    "driftMillis", String.valueOf(drift),
+                                    "action", action.name(),
+                                    "sessionsRevoked", String.valueOf(sessionsRevoked))),
+                            now);
+                }
+            }
         }
-        return ResponseEntity.ok(Map.of(
-                "driftMillis", drift,
-                "unsafe", unsafe,
-                "serverEpochMillis", serverMs,
-                "unsafeDriftMillis", UNSAFE_DRIFT_MILLIS));
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("driftMillis", drift);
+        out.put("unsafe", unsafe);
+        out.put("serverEpochMillis", serverMs);
+        out.put("unsafeDriftMillis", threshold);
+        out.put("sessionRevoked", sessionRevoked);
+        return ResponseEntity.ok(out);
     }
 
     public record ClockReport(

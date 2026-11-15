@@ -28,6 +28,26 @@ class EdgeSessionTest {
         assertThat(s.isActive(exp)).isFalse();
     }
 
+    /**
+     * FR-02-10 "explicit decisions on token expiry" — the fail-safe
+     * decision is NO grace window. This pins that invariant so a
+     * future refactor can't silently introduce slack (which would
+     * undermine the Phase 5g ETag concurrency + the audit-log
+     * freshness contract).
+     */
+    @Test
+    void isActiveStrictlyBoundedByExpiresAtNoGraceWindow() {
+        final Instant exp = T0.plusSeconds(60);
+        final EdgeSession s = new EdgeSession(SID, UID, "h", T0, T0, exp, null, null, null);
+        // One nanosecond before expiry — still active.
+        assertThat(s.isActive(exp.minusNanos(1))).isTrue();
+        // Exactly at expiry — INACTIVE. Half-open interval
+        // [issuedAt, expiresAt).
+        assertThat(s.isActive(exp)).isFalse();
+        // One second past — still inactive.
+        assertThat(s.isActive(exp.plusSeconds(1))).isFalse();
+    }
+
     @Test
     void isInactiveWhenRevoked() {
         final EdgeSession s = new EdgeSession(SID, UID, "h", T0, T0, T0.plusSeconds(60), T0.plusSeconds(5), null, null);
